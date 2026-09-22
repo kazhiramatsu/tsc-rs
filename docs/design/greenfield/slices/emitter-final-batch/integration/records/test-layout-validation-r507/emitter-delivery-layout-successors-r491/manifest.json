@@ -1,0 +1,18 @@
+{
+  "qualification_claim": false,
+  "reason": "Test-layout-only move removes deleted diagnostics src test fromruntime921->920. All15 outlinedunitmodules classifiedshadow. Do not alter H2.7b compiler-corpus921 or old archived evidence.",
+  "scripts": [
+    {
+      "source": "/tmp/emitter-delivery-final-input-audit-r255.py",
+      "before_sha256": "9ce500b4a50b49f51e3ed1339d3653f614a8ffefa337d843e8816d008e66fbd2",
+      "successor": "/tmp/emitter-delivery-layout-successors-r491/emitter-delivery-final-input-audit-r255.py",
+      "after_sha256": "9e99cb82fe26257a8c868a44b4df2711de29987ff057b5ef2dde57ab4455ee91"
+    },
+    {
+      "source": "/tmp/emitter-delivery-draft-r259.py",
+      "before_sha256": "81cac3714dbb876c8ead7786703a4fc083bfb44deb0773ea256ffdd8aef44848",
+      "successor": "/tmp/emitter-delivery-layout-successors-r491/emitter-delivery-draft-r259.py",
+      "after_sha256": "c405409c3a8fbd5cb2b70352879e84841df38826e8b364e6f7bbc2ea9323b1f6"
+    }
+  ]
+}

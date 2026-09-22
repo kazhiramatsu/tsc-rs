@@ -1,0 +1,28 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-variable-type-r161-native/contracts-05a4948cfadf681b",
+    "--exact",
+    "emitter_residual_audit::variable_comma_recovery_matches_complete_typescript_commands",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-19T12:37:40.125913+00:00",
+  "head": "640146c2a9e749480611f52c387a2d2a4b3b7cf9",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target",
+    "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/variable-comma-native-r161-captures"
+  },
+  "exit": 0,
+  "seconds": 51.282,
+  "log_sha256": "3290bd8afc00d670d080028bcfa28e90c14da4f4cb1714de84d40410621d65a6",
+  "log_bytes": 16825
+}

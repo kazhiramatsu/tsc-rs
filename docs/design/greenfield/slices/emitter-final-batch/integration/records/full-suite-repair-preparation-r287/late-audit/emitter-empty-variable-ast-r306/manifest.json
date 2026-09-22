@@ -1,0 +1,19 @@
+{
+  "argv": [
+    "rustc",
+    "--edition=2021",
+    "/tmp/emitter-empty-variable-ast-r306.rs",
+    "-L",
+    "dependency=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps",
+    "--extern",
+    "tsc_syntax=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_syntax-8b4e12ec4edaebe3.rlib",
+    "--extern",
+    "tsc_types=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_types-0a881027b005f88b.rlib",
+    "-o",
+    "/tmp/emitter-empty-variable-ast-r306/inspect"
+  ],
+  "exit": 0,
+  "scope": "read-only existing628 syntax, no recovery cleared; initializedRusttransformflags notmeasured",
+  "native_exit": 0,
+  "log_sha256": "b5b3f3b67129fa8fda00260494761ab80df3fec35e0cee14741d14169c0ebb6f"
+}

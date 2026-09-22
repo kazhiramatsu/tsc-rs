@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "node",
+    "scripts/observe-export-destructuring-boundaries.mjs",
+    "--write"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-ci-repair",
+  "started_at": "2026-09-18T20:05:26.660131+00:00",
+  "head": "71b1ae19bb15c373831d7d7c5ac824152d77f93a",
+  "tracked_clean": false,
+  "diff_sha256": "1af997e4f107f0e21acbdfda3097acf051b6b0a817103edbd81c4cfd896f2801",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 58.763,
+  "log_sha256": "18dddd372c2131fda528ce6f64ed4ecfc8e3ac3475edf44a0ae9a1b647d89bfe",
+  "log_bytes": 84
+}

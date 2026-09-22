@@ -1,0 +1,33 @@
+{
+  "name": "clippy-nodeps-r9",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 53,
+  "env": [
+    "CARGO_BUILD_JOBS=2"
+  ],
+  "argv": [
+    "cargo",
+    "clippy",
+    "-p",
+    "tsc-rs-emitter",
+    "-p",
+    "tsc-rs-compiler",
+    "-p",
+    "tsc-rs-checker",
+    "-p",
+    "tsc-rs-harness",
+    "-p",
+    "tsc-rs-binder",
+    "--all-targets",
+    "--no-deps",
+    "--",
+    "-D",
+    "warnings"
+  ],
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-18T04:04:39Z",
+  "seconds": 33,
+  "exit": 101,
+  "log_sha256": "6f4c02bb9be902ae30bbf5410ec1a1c19f58571d749484af27f6553f6ec97614",
+  "log_bytes": 11890
+}

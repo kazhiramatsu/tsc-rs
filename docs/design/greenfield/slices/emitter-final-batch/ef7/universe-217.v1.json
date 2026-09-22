@@ -1,0 +1,4566 @@
+{
+ "schema": 1,
+ "kind": "emitter-final-universe-ids",
+ "start_sha": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+ "source": "ledger/ledger.v1.json rows with p=universe:H2.0a and no origin (the 217 PLAN-BASE previously-unobserved IDs) joined to ratchets/h2-candidate-dispositions.v1.json",
+ "count": 217,
+ "cases": [
+  {
+   "case_id": "typescript-6.0.3/compiler/argumentsSpreadRestIterables.tsx#target%3Desnext",
+   "suite": "compiler",
+   "source": {
+    "path": "argumentsSpreadRestIterables.tsx",
+    "bytes": 622,
+    "sha256": "ac385cf6245d59d5d79f2cb5b16ce1be70bd403c1e028f37345b5b6c066aa94e",
+    "git_blob_sha1": "a68aec01fa9c42b0e4e4d37e4cc98c420b74f634"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.3b",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.3b,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/asyncIteratorExtraParameters.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "asyncIteratorExtraParameters.ts",
+    "bytes": 343,
+    "sha256": "c18238496cdc4fb6f92490af716a7b78599135465dc6d90d3917c724505f770d",
+    "git_blob_sha1": "e25a0429dc8d723d9c85d9b59d567ee90649a645"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/asyncYieldStarContextualType.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "asyncYieldStarContextualType.ts",
+    "bytes": 1124,
+    "sha256": "5502327cb6523269e56e64a1ce6b5ed2b5d58ca4f76044eda2b518b428e07355",
+    "git_blob_sha1": "df6968de10ad6c05c8cabbc7c6e67282868d2096"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/binderBinaryExpressionStressJs.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "binderBinaryExpressionStressJs.ts",
+    "bytes": 39969,
+    "sha256": "62cb7c61e7d9f00aa615ee403417f1b234594c3dc964a207face3d89730da079",
+    "git_blob_sha1": "f6af2b9fbc6a137551c19b2e3aa334b2ee5fbd25"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true",
+    "rejected-option:allowJs"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.3a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.3a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/classAttributeInferenceTemplateJS.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "classAttributeInferenceTemplateJS.ts",
+    "bytes": 794,
+    "sha256": "142cdc653087a5e09c4dee0a784aad330f4fcbe5c8d193617623c30fd378eada",
+    "git_blob_sha1": "a35fd951d54807354b74f566629fffd6e9d37052"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/classFieldSuperAccessibleJs1.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "classFieldSuperAccessibleJs1.ts",
+    "bytes": 243,
+    "sha256": "53b37bff7cc2ed58bb76c0c6d54b72cccb0818faa9dc4290f350bd51a4ea370f",
+    "git_blob_sha1": "3cab7ac7922f48f83dcd9e475ed21443052c2186"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/classFieldSuperAccessibleJs2.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "classFieldSuperAccessibleJs2.ts",
+    "bytes": 426,
+    "sha256": "7d362ca51e169631c2f0b20868b8e2e76d265c77f3bb1ba0fd50e6b786c0fd7a",
+    "git_blob_sha1": "23e9f9e6cc3a9e7f7a492a3243c1a03a6fa2da3f"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/classFieldSuperNotAccessibleJs.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "classFieldSuperNotAccessibleJs.ts",
+    "bytes": 715,
+    "sha256": "1ee1f27c882065a227b527d8a3b75a53a3fc6fc5c47f3885f100bba249b56ca1",
+    "git_blob_sha1": "82e723ab661b8d7255949cf0bb2bc13e7d3f0890"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/computedEnumMemberSyntacticallyString.ts#isolatedmodules%3Dtrue",
+   "suite": "compiler",
+   "source": {
+    "path": "computedEnumMemberSyntacticallyString.ts",
+    "bytes": 248,
+    "sha256": "9698b8347098cb4faff0674ea65d83f41dc32b813bc1851a0f56ec40ce8751c7",
+    "git_blob_sha1": "ae16dbcc0a7df76db290f232f841ffa2819c0125"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:isolatedModules"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8c"
+   ],
+   "ledger_owner": "H2.1a,H2.8c",
+   "ledger_bucket": "module",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/computedEnumMemberSyntacticallyString2.ts#isolatedmodules%3Dtrue",
+   "suite": "compiler",
+   "source": {
+    "path": "computedEnumMemberSyntacticallyString2.ts",
+    "bytes": 444,
+    "sha256": "a30eca9ca3b7d20d2c5a3ccf1ce11c243177dd56818c737a2bb128415d14ee30",
+    "git_blob_sha1": "cd364ff4261a0546619e30fe7efd55b63472f1de"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:isolatedModules"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8c"
+   ],
+   "ledger_owner": "H2.1a,H2.8c",
+   "ledger_bucket": "module",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/computedPropertyBindingElementDeclarationNoCrash1.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "computedPropertyBindingElementDeclarationNoCrash1.ts",
+    "bytes": 369,
+    "sha256": "52dbc3e79df230cba3c614482024aa43cd9d956b6283ebdc7e6d019797352637",
+    "git_blob_sha1": "5b1fb8d5c928a9bf6302180e0580650c254d801c"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/conditionalReturnExpression.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "conditionalReturnExpression.ts",
+    "bytes": 579,
+    "sha256": "dd4af8c1ae5b611d6ec2aac901d3519a2b962c0ddc48abe40e8b1bb62b480cc6",
+    "git_blob_sha1": "8c1aefe8d5e3366878df47d533befd90d03b1018"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/contextualParamTypeVsNestedReturnTypeInference1.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "contextualParamTypeVsNestedReturnTypeInference1.ts",
+    "bytes": 608,
+    "sha256": "554f6aad520417a23ce589c439f1e5f310ad777377c1459b91aec4b61a8e73cb",
+    "git_blob_sha1": "30b76dd33f986798685c2a72b368980d5d9fe67a"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/contextualParamTypeVsNestedReturnTypeInference2.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "contextualParamTypeVsNestedReturnTypeInference2.ts",
+    "bytes": 1811,
+    "sha256": "8328d9cd305226fe70c04a9f0552f8909cd6623b1973a5e220467fbece9e537e",
+    "git_blob_sha1": "fb8eeb0a503e4c813a3c7ca86813648d5580ba8c"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/contextualParamTypeVsNestedReturnTypeInference3.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "contextualParamTypeVsNestedReturnTypeInference3.ts",
+    "bytes": 1625,
+    "sha256": "5cbdcf4b1a000684d904706f986d85fdca6aa2bc1f38d2904634cf197c13c8e0",
+    "git_blob_sha1": "8a0d653d5bbe8a05f2503e8f96d7328c25787280"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/contextualParamTypeVsNestedReturnTypeInference4.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "contextualParamTypeVsNestedReturnTypeInference4.ts",
+    "bytes": 1320,
+    "sha256": "6ee0cb0d823823bf99a0ca7ea4aba28b9a863bfbaa91d63c91f2f856167c4ef4",
+    "git_blob_sha1": "19a7f07f54bab8dcb6ac94b8ed0629936e62d1d3"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/contextuallyTypeAsyncFunctionReturnTypeFromUnion.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "contextuallyTypeAsyncFunctionReturnTypeFromUnion.ts",
+    "bytes": 932,
+    "sha256": "f8ffe08cadbe0f8b988560d5ec7af07da97ef1d4d9a70398e3a2465bf56b652f",
+    "git_blob_sha1": "16236ae43ec1b97b472bf58aedb0280f448cc410"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/disallowedBlockScopedInPresenceOfParseErrors1.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "disallowedBlockScopedInPresenceOfParseErrors1.ts",
+    "bytes": 513,
+    "sha256": "109ef9c2e2304e18691ec57256ea4ad0b796f54000b9633916e1f70e856f7574",
+    "git_blob_sha1": "b5d795ab6e8afc3fd0d1f058460c0527de794d02"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/doYouNeedToChangeYourTargetLibraryES2023.ts#target%3Desnext",
+   "suite": "compiler",
+   "source": {
+    "path": "doYouNeedToChangeYourTargetLibraryES2023.ts",
+    "bytes": 767,
+    "sha256": "596335f31ef78152f7c527c260e9152b0f266d65de8e7842a47cd59b7416be06",
+    "git_blob_sha1": "676360508fde19c00a8dea533310964ff414b960"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/exportEmptyArrayBindingPattern.ts#module%3Damd%2Ctarget%3Desnext",
+   "suite": "compiler",
+   "source": {
+    "path": "exportEmptyArrayBindingPattern.ts",
+    "bytes": 146,
+    "sha256": "61cc7248dd8589389cb86fae1838af152cbedeed148cacabe9ea777940bccc80",
+    "git_blob_sha1": "b12beac7c59cc290092f762664dacb5c13708e12"
+   },
+   "profile_blockers": [
+    "required-option:module=AMD(2)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1c",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1c,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/exportEmptyArrayBindingPattern.ts#module%3Dcommonjs%2Ctarget%3Desnext",
+   "suite": "compiler",
+   "source": {
+    "path": "exportEmptyArrayBindingPattern.ts",
+    "bytes": 146,
+    "sha256": "61cc7248dd8589389cb86fae1838af152cbedeed148cacabe9ea777940bccc80",
+    "git_blob_sha1": "b12beac7c59cc290092f762664dacb5c13708e12"
+   },
+   "profile_blockers": [
+    "required-option:module=CommonJS(1)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1b",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1b,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/exportEmptyArrayBindingPattern.ts#module%3Des2015%2Ctarget%3Desnext",
+   "suite": "compiler",
+   "source": {
+    "path": "exportEmptyArrayBindingPattern.ts",
+    "bytes": 146,
+    "sha256": "61cc7248dd8589389cb86fae1838af152cbedeed148cacabe9ea777940bccc80",
+    "git_blob_sha1": "b12beac7c59cc290092f762664dacb5c13708e12"
+   },
+   "profile_blockers": [
+    "required-option:module=ES2015(5)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/exportEmptyArrayBindingPattern.ts#module%3Desnext%2Ctarget%3Desnext",
+   "suite": "compiler",
+   "source": {
+    "path": "exportEmptyArrayBindingPattern.ts",
+    "bytes": 146,
+    "sha256": "61cc7248dd8589389cb86fae1838af152cbedeed148cacabe9ea777940bccc80",
+    "git_blob_sha1": "b12beac7c59cc290092f762664dacb5c13708e12"
+   },
+   "profile_blockers": [
+    "required-option:module=ESNext(99)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/exportEmptyArrayBindingPattern.ts#module%3Dsystem%2Ctarget%3Desnext",
+   "suite": "compiler",
+   "source": {
+    "path": "exportEmptyArrayBindingPattern.ts",
+    "bytes": 146,
+    "sha256": "61cc7248dd8589389cb86fae1838af152cbedeed148cacabe9ea777940bccc80",
+    "git_blob_sha1": "b12beac7c59cc290092f762664dacb5c13708e12"
+   },
+   "profile_blockers": [
+    "required-option:module=System(4)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1d",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1d,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/exportEmptyObjectBindingPattern.ts#module%3Damd%2Ctarget%3Desnext",
+   "suite": "compiler",
+   "source": {
+    "path": "exportEmptyObjectBindingPattern.ts",
+    "bytes": 146,
+    "sha256": "01c792ef694b1db6417299ed2a0d91c9e8a25f5cc709124093d9b6244ba1980b",
+    "git_blob_sha1": "6db95fb094b156947f879dbf94166a18bbdbdc2f"
+   },
+   "profile_blockers": [
+    "required-option:module=AMD(2)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1c",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1c,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/exportEmptyObjectBindingPattern.ts#module%3Dcommonjs%2Ctarget%3Desnext",
+   "suite": "compiler",
+   "source": {
+    "path": "exportEmptyObjectBindingPattern.ts",
+    "bytes": 146,
+    "sha256": "01c792ef694b1db6417299ed2a0d91c9e8a25f5cc709124093d9b6244ba1980b",
+    "git_blob_sha1": "6db95fb094b156947f879dbf94166a18bbdbdc2f"
+   },
+   "profile_blockers": [
+    "required-option:module=CommonJS(1)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1b",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1b,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/exportEmptyObjectBindingPattern.ts#module%3Des2015%2Ctarget%3Desnext",
+   "suite": "compiler",
+   "source": {
+    "path": "exportEmptyObjectBindingPattern.ts",
+    "bytes": 146,
+    "sha256": "01c792ef694b1db6417299ed2a0d91c9e8a25f5cc709124093d9b6244ba1980b",
+    "git_blob_sha1": "6db95fb094b156947f879dbf94166a18bbdbdc2f"
+   },
+   "profile_blockers": [
+    "required-option:module=ES2015(5)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/exportEmptyObjectBindingPattern.ts#module%3Desnext%2Ctarget%3Desnext",
+   "suite": "compiler",
+   "source": {
+    "path": "exportEmptyObjectBindingPattern.ts",
+    "bytes": 146,
+    "sha256": "01c792ef694b1db6417299ed2a0d91c9e8a25f5cc709124093d9b6244ba1980b",
+    "git_blob_sha1": "6db95fb094b156947f879dbf94166a18bbdbdc2f"
+   },
+   "profile_blockers": [
+    "required-option:module=ESNext(99)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/exportEmptyObjectBindingPattern.ts#module%3Dsystem%2Ctarget%3Desnext",
+   "suite": "compiler",
+   "source": {
+    "path": "exportEmptyObjectBindingPattern.ts",
+    "bytes": 146,
+    "sha256": "01c792ef694b1db6417299ed2a0d91c9e8a25f5cc709124093d9b6244ba1980b",
+    "git_blob_sha1": "6db95fb094b156947f879dbf94166a18bbdbdc2f"
+   },
+   "profile_blockers": [
+    "required-option:module=System(4)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1d",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1d,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/exportObjectRest.ts#module%3Damd%2Ctarget%3Desnext",
+   "suite": "compiler",
+   "source": {
+    "path": "exportObjectRest.ts",
+    "bytes": 174,
+    "sha256": "675f12f8991e5fb168f0f117de72662e172f67a6795e38ca1be10348bb44afd4",
+    "git_blob_sha1": "cbc314a7e11ba77713f3ad3f8eb0532041aa8204"
+   },
+   "profile_blockers": [
+    "required-option:module=AMD(2)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1c",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1c,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/exportObjectRest.ts#module%3Dcommonjs%2Ctarget%3Desnext",
+   "suite": "compiler",
+   "source": {
+    "path": "exportObjectRest.ts",
+    "bytes": 174,
+    "sha256": "675f12f8991e5fb168f0f117de72662e172f67a6795e38ca1be10348bb44afd4",
+    "git_blob_sha1": "cbc314a7e11ba77713f3ad3f8eb0532041aa8204"
+   },
+   "profile_blockers": [
+    "required-option:module=CommonJS(1)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1b",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1b,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/exportObjectRest.ts#module%3Des2015%2Ctarget%3Desnext",
+   "suite": "compiler",
+   "source": {
+    "path": "exportObjectRest.ts",
+    "bytes": 174,
+    "sha256": "675f12f8991e5fb168f0f117de72662e172f67a6795e38ca1be10348bb44afd4",
+    "git_blob_sha1": "cbc314a7e11ba77713f3ad3f8eb0532041aa8204"
+   },
+   "profile_blockers": [
+    "required-option:module=ES2015(5)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/exportObjectRest.ts#module%3Desnext%2Ctarget%3Desnext",
+   "suite": "compiler",
+   "source": {
+    "path": "exportObjectRest.ts",
+    "bytes": 174,
+    "sha256": "675f12f8991e5fb168f0f117de72662e172f67a6795e38ca1be10348bb44afd4",
+    "git_blob_sha1": "cbc314a7e11ba77713f3ad3f8eb0532041aa8204"
+   },
+   "profile_blockers": [
+    "required-option:module=ESNext(99)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/exportObjectRest.ts#module%3Dsystem%2Ctarget%3Desnext",
+   "suite": "compiler",
+   "source": {
+    "path": "exportObjectRest.ts",
+    "bytes": 174,
+    "sha256": "675f12f8991e5fb168f0f117de72662e172f67a6795e38ca1be10348bb44afd4",
+    "git_blob_sha1": "cbc314a7e11ba77713f3ad3f8eb0532041aa8204"
+   },
+   "profile_blockers": [
+    "required-option:module=System(4)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1d",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1d,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/genericCallAtYieldExpressionInGenericCall1.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "genericCallAtYieldExpressionInGenericCall1.ts",
+    "bytes": 1314,
+    "sha256": "15887c5ac19553c09005f38b20dee654d415e5fb22d95246f5e18ac30c785cc3",
+    "git_blob_sha1": "d5e319a9544739674a43fa5e3012c4fa45dd9103"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/genericCallAtYieldExpressionInGenericCall2.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "genericCallAtYieldExpressionInGenericCall2.ts",
+    "bytes": 695,
+    "sha256": "e56a4b6877d493625f282c3a1edaef9c270428b9319b2c9a2f4fd00f31a2443b",
+    "git_blob_sha1": "e01a2d90bcd89f60d617392ee64ba1091712a46d"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/genericCallAtYieldExpressionInGenericCall3.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "genericCallAtYieldExpressionInGenericCall3.ts",
+    "bytes": 1166,
+    "sha256": "3f288e6f08587e7fa085a48ec94dfc58a463da820e16e6ee0aa89a91427669d5",
+    "git_blob_sha1": "571ecce45f79e8c84600344ac8c6f9d059b05c73"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/iterableWithNeverAsUnionMember.ts#target%3Desnext",
+   "suite": "compiler",
+   "source": {
+    "path": "iterableWithNeverAsUnionMember.ts",
+    "bytes": 817,
+    "sha256": "12abbc3efc4da33489cb39b452ebe7f8d08835c1d1f7ea4edee7952cd1765c18",
+    "git_blob_sha1": "2421a222de95d5e594ac52372246c1a4aa7a387b"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/iteratorExtraParameters.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "iteratorExtraParameters.ts",
+    "bytes": 356,
+    "sha256": "f41be78b18425c9530b66d406d2c3b4d5775159042f4464c0f684ea865838ba1",
+    "git_blob_sha1": "86d563871675f45c357696faed6f5b813f3ecdd3"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/jsxFunctionTypeChildren.tsx#default",
+   "suite": "compiler",
+   "source": {
+    "path": "jsxFunctionTypeChildren.tsx",
+    "bytes": 752,
+    "sha256": "ee4e105f3f59990bb68622f9494d1fce90ffa9e6a378a12e9114289968404baa",
+    "git_blob_sha1": "9dfceb6b89ba2aaa39bfe51bf92f45c79e684143"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true",
+    "rejected-option:jsx"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.3b",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.3b,H2.9",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/modulePreserve1.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "modulePreserve1.ts",
+    "bytes": 213,
+    "sha256": "891e3c7dfc9ffc8553c4a4bf750ac6761ccf93b69fb59b446d3ab92b8b6902a7",
+    "git_blob_sha1": "e0e854ac76760d9bef37c0de1c5385308787011a"
+   },
+   "profile_blockers": [
+    "rejected-feature:export-equals",
+    "rejected-feature:import-equals"
+   ],
+   "required_slices": [
+    "H2.2d"
+   ],
+   "ledger_owner": "H2.2d",
+   "ledger_bucket": "module",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/modulePreserve2.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "modulePreserve2.ts",
+    "bytes": 581,
+    "sha256": "e227997da486fa8bd1944780d8de27f0ec34f762856b99dc8b54a280c972c5fd",
+    "git_blob_sha1": "16f72fac886e0761c9d0f69a7e269c9f5bdbc7c5"
+   },
+   "profile_blockers": [
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.9"
+   ],
+   "ledger_owner": "H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/modulePreserve3.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "modulePreserve3.ts",
+    "bytes": 279,
+    "sha256": "c1acfe1a9cc1c98f71b6efe839be440eaca0c7884b3591d3a0fa4413f437cc33",
+    "git_blob_sha1": "fc4991020130a4206b9ee039b103f3c7ba323b41"
+   },
+   "profile_blockers": [
+    "route:noEmit=true",
+    "rejected-option:jsx"
+   ],
+   "required_slices": [
+    "H2.3b",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.3b,H2.9",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/modulePreserveTopLevelAwait1.ts#target%3Desnext",
+   "suite": "compiler",
+   "source": {
+    "path": "modulePreserveTopLevelAwait1.ts",
+    "bytes": 150,
+    "sha256": "2bf8ae54623253801af8a0d71b8807d65831fdc22f13571b57bd51e7cd45905c",
+    "git_blob_sha1": "79178a110a483540cf5830ab42edf2f061262738"
+   },
+   "profile_blockers": [
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.9"
+   ],
+   "ledger_owner": "H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/narrowingPastLastAssignment.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "narrowingPastLastAssignment.ts",
+    "bytes": 3680,
+    "sha256": "1ca6a1ee05c442b2726810a96ca53e1f9cae15e3d01149433459c95f386f7970",
+    "git_blob_sha1": "26d898f1688979da6bde8a1364482c20b031b26f"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/narrowingPastLastAssignmentInModule.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "narrowingPastLastAssignmentInModule.ts",
+    "bytes": 635,
+    "sha256": "f50615fb883b5885d44b6e41fac66b2e7d7f3699e4e7754b649ffd8bf77839ae",
+    "git_blob_sha1": "b036091fc851a0fbd1d0025cc92ca7da173bc726"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/returnConditionalExpressionJSDocCast.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "returnConditionalExpressionJSDocCast.ts",
+    "bytes": 525,
+    "sha256": "694219a90c097421d5a17818d9b894154cfd4932e25f03d4e027171f75c3b882",
+    "git_blob_sha1": "6141d73b86e54b6105b2a79a0e5ae7af34bde1d2"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/returnTypeInferenceContextualParameterTypesInGenerator1.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "returnTypeInferenceContextualParameterTypesInGenerator1.ts",
+    "bytes": 1213,
+    "sha256": "0b3905685375892f1a972773fdc5d2b7e0811d76c95442ac1c8e5c92d91d21bb",
+    "git_blob_sha1": "35db556e9d221f434c8d001ea2c9c562232084dc"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/subclassUint8Array.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "subclassUint8Array.ts",
+    "bytes": 99,
+    "sha256": "d663f6754785904bdbeafe1acc325bcb8436ec9b6f87a2d079b5bda709e0527c",
+    "git_blob_sha1": "c25db4b224addb29ea54d5b4c7441d637ed60fe5"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/subtypeReductionWithAnyFunctionType.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "subtypeReductionWithAnyFunctionType.ts",
+    "bytes": 673,
+    "sha256": "93c59e3cf92a42804a174caa6ec3f16ba0b6a8065e50bbc8e787d4b4ca230bd5",
+    "git_blob_sha1": "e45c648dc84847a0a5103dd171165568f3fe5393"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/thislessFunctionsNotContextSensitive1.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "thislessFunctionsNotContextSensitive1.ts",
+    "bytes": 4648,
+    "sha256": "9db52e8f787be1a255a4d5a2d9d373a99e308940001d58fa92ccc7c9e265111e",
+    "git_blob_sha1": "e1c340544e72cbaad050afa0141ec8110b387dbd"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/thislessFunctionsNotContextSensitive2.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "thislessFunctionsNotContextSensitive2.ts",
+    "bytes": 2205,
+    "sha256": "85b8f92ace99d34c77021646ef606ee68285dd55da15bf858a0f3e07b67e778a",
+    "git_blob_sha1": "946dfc69179a7cc24588262e0f4024bc655b4e66"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/thislessFunctionsNotContextSensitive3.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "thislessFunctionsNotContextSensitive3.ts",
+    "bytes": 2340,
+    "sha256": "27815913689542baacff68f8bfd2da1765990fb6e66c8f89f85adc132f5408c5",
+    "git_blob_sha1": "d730208cce63ece5605446a14e45fc1af4b53f47"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/typedArrayConstructorOverloads.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "typedArrayConstructorOverloads.ts",
+    "bytes": 665,
+    "sha256": "d52eefeaba808ce8c7bddd974927a90e46517dc55894d0c930e0410dc0e3534e",
+    "git_blob_sha1": "63fbfb07a9df03ba559712566c3d3b5dd672e446"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/unionReductionWithStringMappingAndIdenticalBaseTypeExistsNoCrash.tsx#default",
+   "suite": "compiler",
+   "source": {
+    "path": "unionReductionWithStringMappingAndIdenticalBaseTypeExistsNoCrash.tsx",
+    "bytes": 2547,
+    "sha256": "29c66b9a4a49b3119950b5e8b42e592aec27a6e1c5dad965f29f5e91e370ab88",
+    "git_blob_sha1": "ff5b1e17d9cbd4184b4e0635ae7a72aba059ccc4"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true",
+    "rejected-option:jsx"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.3b",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.3b,H2.9",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/uniqueSymbolJs.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "uniqueSymbolJs.ts",
+    "bytes": 246,
+    "sha256": "1ce7a9e9add4fcb1230153700018a38e52808f273e4e2c931747a2c90ec2bd61",
+    "git_blob_sha1": "93b4323f8028b01186d515f987e61349fd1469f2"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true",
+    "rejected-option:allowJs"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.3a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.3a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/unusedLocalsInForInOrOf1.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "unusedLocalsInForInOrOf1.ts",
+    "bytes": 698,
+    "sha256": "1bb85162f029207882a02259f20ea93f3a1342c320e7c1bc66f72b1ebb3ae0f5",
+    "git_blob_sha1": "edbdad5c59069b36a439b78c266a19ccb2302816"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/useBeforeDeclaration_classDecorators.1.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "useBeforeDeclaration_classDecorators.1.ts",
+    "bytes": 1437,
+    "sha256": "e8b01d8e6d3c8df6cb5d7b40d53afd25562f142d123555cd15b1972081b39571",
+    "git_blob_sha1": "25c55dd0bcf51d0b5dda16898ceba133ad4097e3"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/useBeforeDeclaration_classDecorators.2.ts#experimentaldecorators%3Dfalse",
+   "suite": "compiler",
+   "source": {
+    "path": "useBeforeDeclaration_classDecorators.2.ts",
+    "bytes": 1886,
+    "sha256": "61ea6c670bf806e21382512c9c1d47ccb6def3369e570e1edded710dd6b1a155",
+    "git_blob_sha1": "6408dddc3405a6edde260eb545267228ee0f6426"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/wellKnownSymbolExpando.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "wellKnownSymbolExpando.ts",
+    "bytes": 106,
+    "sha256": "ec1851af2a214b93038477fc0e4cfd6c0655684b7b7e5d354048408361de6ee1",
+    "git_blob_sha1": "e9ba31536e5ca515006ea88f6d32f608d027e059"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/compiler/yieldStarContextualType.ts#default",
+   "suite": "compiler",
+   "source": {
+    "path": "yieldStarContextualType.ts",
+    "bytes": 211,
+    "sha256": "ecdc6b192ccd959e99de9368e8862be45f0ef5e200ebadd1e62002fa4c4bc88f",
+    "git_blob_sha1": "a8ccd165a25abb2cda3ddde04eece38a02b3fb30"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/async/es2017/await_incorrectThisType.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "async/es2017/await_incorrectThisType.ts",
+    "bytes": 1705,
+    "sha256": "682465148ac4ed23a85ed5193f04103c9b5ef463b29980a1e83a29c9cafffc83",
+    "git_blob_sha1": "7672591dd924dd811a42c9d26832e34792b8c460"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/asyncGenerators/asyncGeneratorGenericNonWrappedReturn.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "asyncGenerators/asyncGeneratorGenericNonWrappedReturn.ts",
+    "bytes": 229,
+    "sha256": "98ab753d06c53f4c7b2fe3a0a529818cdf2e5c91a77c5f1a5711eef786550bb7",
+    "git_blob_sha1": "94222ebffe0ba1b906e172bb9b2984cc21401dff"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/asyncGenerators/asyncGeneratorPromiseNextType.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "asyncGenerators/asyncGeneratorPromiseNextType.ts",
+    "bytes": 1085,
+    "sha256": "af4c9278e03bf38b3c806e44a81638e0c98b7921e23edcfbf0210956d2ed8622",
+    "git_blob_sha1": "dba96834a10df71aa6781eb2cc679e74738f52fe"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/classes/classExpressions/classWithStaticFieldInParameterBindingPattern.3.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "classes/classExpressions/classWithStaticFieldInParameterBindingPattern.3.ts",
+    "bytes": 358,
+    "sha256": "afe4a51a95378ca3895a67c14d9ce1d4296373b0af7a3e764e4d585ce17e7f87",
+    "git_blob_sha1": "95611edacbde43abefaea49b851725015a2973bb"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/classes/classExpressions/classWithStaticFieldInParameterInitializer.3.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "classes/classExpressions/classWithStaticFieldInParameterInitializer.3.ts",
+    "bytes": 313,
+    "sha256": "517c3043eac58af6f5f228c6762a84860c28b06df7304dfb54c146abbc0cb7a1",
+    "git_blob_sha1": "ba2b2db8e257dd5087704a5e24b9892200c2c218"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/classes/classStaticBlock/classStaticBlockUseBeforeDef1.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "classes/classStaticBlock/classStaticBlockUseBeforeDef1.ts",
+    "bytes": 223,
+    "sha256": "06950a52e62fec2eaa2c717caea4db0f873d883a5384c7eb11b4fe69caf64d88",
+    "git_blob_sha1": "b9867afac336f992b48b1f15cb64f4e2bf8ecceb"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/classes/classStaticBlock/classStaticBlockUseBeforeDef2.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "classes/classStaticBlock/classStaticBlockUseBeforeDef2.ts",
+    "bytes": 137,
+    "sha256": "f8df4670a9d9646e87018b78145c72f4d896794cb95d4cb92a17f62864810d2a",
+    "git_blob_sha1": "769a126026c42f7eab61ab5c2001f6fcd4a025a8"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/classes/propertyMemberDeclarations/accessorsOverrideProperty10.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "classes/propertyMemberDeclarations/accessorsOverrideProperty10.ts",
+    "bytes": 182,
+    "sha256": "9c78a9bb9f0fe890c7d29a79c428e5e7adce970032edbb57e875009443b48782",
+    "git_blob_sha1": "8686f9437677cc708886840f69b7dc27feb6449d"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/classes/propertyMemberDeclarations/propertyOverridesAccessors6.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "classes/propertyMemberDeclarations/propertyOverridesAccessors6.ts",
+    "bytes": 182,
+    "sha256": "80d5d1bda8e47f4009511711bb0cd63ccd5c7872066352bc18edce2f313b8f2f",
+    "git_blob_sha1": "0c2dcfa589aa102a37ae607bc00cbc0aa04b3549"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/classes/propertyMemberDeclarations/thisPropertyOverridesAccessors.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "classes/propertyMemberDeclarations/thisPropertyOverridesAccessors.ts",
+    "bytes": 279,
+    "sha256": "a8bc7acaf543248f194f5ffecc07592f1b16c360d3568b6bd88658ac042868d9",
+    "git_blob_sha1": "779d326fa6f3beebe4271ed475d9f612da0dda2e"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true",
+    "rejected-option:allowJs"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.3a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.3a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/controlFlow/controlFlowAssignmentPatternOrder.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "controlFlow/controlFlowAssignmentPatternOrder.ts",
+    "bytes": 1882,
+    "sha256": "3376cc9e716a7b6705e27f308380a555e5ffe04ac589744da79607c54982760e",
+    "git_blob_sha1": "d18f2ca7106b1727fa81b865564206ec7224d9a0"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/controlFlow/controlFlowBindingPatternOrder.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "controlFlow/controlFlowBindingPatternOrder.ts",
+    "bytes": 684,
+    "sha256": "07f78f721da0524ea0b881c4477f09e21b58c7006677127acea8a59416cf7c9d",
+    "git_blob_sha1": "9bacc6b7eb4870743646f6c9b4d49ecd9f901f68"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/controlFlow/dependentDestructuredVariablesFromNestedPatterns.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "controlFlow/dependentDestructuredVariablesFromNestedPatterns.ts",
+    "bytes": 1033,
+    "sha256": "776835388d8ddf00f6f607ae8993718409d3f55bc568ff123e3dfaaa8fb33b0f",
+    "git_blob_sha1": "8d92be327b5b1b2eb189b1aeff175af81362124f"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/dynamicImport/importCallExpressionErrorInES2015.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "dynamicImport/importCallExpressionErrorInES2015.ts",
+    "bytes": 263,
+    "sha256": "7c06fa9e986b7ec1b994b1aa569df3ec0ae58ed2aec27d06d99380642782091e",
+    "git_blob_sha1": "a7fcd8533a3286fa32f636196c6d87ba2780d74d"
+   },
+   "profile_blockers": [
+    "required-option:module=ES2015(5)"
+   ],
+   "required_slices": [
+    "H2.1a"
+   ],
+   "ledger_owner": "H2.1a",
+   "ledger_bucket": "module",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/es2019/importMeta/importMeta.ts#module%3Des2020%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "es2019/importMeta/importMeta.ts",
+    "bytes": 1229,
+    "sha256": "a2a2f3a5902c734743d885be23fd1f63fc1eee7dfd1fdfead2cb2c85dafff0fe",
+    "git_blob_sha1": "30185c14c76cd41dd215e68529ca34078180b621"
+   },
+   "profile_blockers": [
+    "required-option:module=ES2020(6)"
+   ],
+   "required_slices": [
+    "H2.1a"
+   ],
+   "ledger_owner": "H2.1a",
+   "ledger_bucket": "module",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/es2022/es2024SharedMemory.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "es2022/es2024SharedMemory.ts",
+    "bytes": 822,
+    "sha256": "a67e9061eaea496be033ba0ef3427803f8bb69a6557388d44ca498e15ec5095f",
+    "git_blob_sha1": "150670be32bd5ecf67df1c5651f59a0dbab6601f"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/es2024/resizableArrayBuffer.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "es2024/resizableArrayBuffer.ts",
+    "bytes": 165,
+    "sha256": "638fea5fb5e4203acf1a2c9c9f0161dcb2031352a25f73a7bd32a98504d96ad9",
+    "git_blob_sha1": "a3c445ab8d224903558484274ab5f13d75147b08"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/es2024/sharedMemory.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "es2024/sharedMemory.ts",
+    "bytes": 628,
+    "sha256": "477fb6c06ae4e78a1c6619d844758adc57058205ca532b3c771e093a6d3a307e",
+    "git_blob_sha1": "4c3c1e2ea8f13658c115bba82b14a9a150b7edab"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/es2024/transferableArrayBuffer.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "es2024/transferableArrayBuffer.ts",
+    "bytes": 195,
+    "sha256": "0c511aa8199780635c33db75415f465a5117599d2b5ebd7958544930bf6e1327",
+    "git_blob_sha1": "1ab8a0d1fe91c9cfe3d8f2faea3b7fe33c8655e6"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/es2025/float16Array.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "es2025/float16Array.ts",
+    "bytes": 122,
+    "sha256": "ec885ee2859050db220b1d29ef449af0d1bfc72e762c6ba88b4218b4a38c27e6",
+    "git_blob_sha1": "2d59e7828db0e77b40747df09a8c2ae8020f8a92"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/es2025/intlDurationFormat.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "es2025/intlDurationFormat.ts",
+    "bytes": 179,
+    "sha256": "f01bd64e80f1c7c1e94b26a456a1d2d3377d7892950abdd46182fa3fa877c977",
+    "git_blob_sha1": "702397246c2c988a32f37b13abca1cd67fc61010"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/es2025/regExpEscape.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "es2025/regExpEscape.ts",
+    "bytes": 161,
+    "sha256": "567b721ceb7f85dffcfa96cda24eb6b805862ef9ae1840d36c59969910fe8b37",
+    "git_blob_sha1": "3d074e5a2f5e73569fe03f494860a0c715aed11b"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/es2025/syncIteratorHelpers.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "es2025/syncIteratorHelpers.ts",
+    "bytes": 180,
+    "sha256": "e033059e9320b930ef2eb294b77db467aca8cfd758496a695c98a8b53dc789c7",
+    "git_blob_sha1": "348c3054928ebdf7e814115c363096e34ee32b19"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/es6/yieldExpressions/generatorTypeCheck64.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "es6/yieldExpressions/generatorTypeCheck64.ts",
+    "bytes": 303,
+    "sha256": "f5040230c715f4b671bdfb99324da980d9ff1ddb4648c744d4cbbd3588f930e1",
+    "git_blob_sha1": "30e9e40d96f81b52bdd21fcd65ac5b9be3a3ae74"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/accessors/esDecorators-classDeclaration-accessors-nonStatic.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/accessors/esDecorators-classDeclaration-accessors-nonStatic.ts",
+    "bytes": 412,
+    "sha256": "be79e1bf1a8e3429823a700b788a62e7f29926a1c0c9b3db9b5ca56defef6cb1",
+    "git_blob_sha1": "3488a160942a65d871b18c13f85f8111bac79b91"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/accessors/esDecorators-classDeclaration-accessors-nonStaticAbstract.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/accessors/esDecorators-classDeclaration-accessors-nonStaticAbstract.ts",
+    "bytes": 454,
+    "sha256": "bac5e0b6c4887d7188ef92ec1a81b357de5ac1f48c1da79b0ec16f96e40ce809",
+    "git_blob_sha1": "54b90038314cd28b90076a40088eb016c0b61b3c"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/accessors/esDecorators-classDeclaration-accessors-nonStaticPrivate.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/accessors/esDecorators-classDeclaration-accessors-nonStaticPrivate.ts",
+    "bytes": 209,
+    "sha256": "5c1571410692c0b74edec7db4b9f365dd4e16aa7548df48e1607742542eabcf3",
+    "git_blob_sha1": "3cf554161d3a6856cf219e3d53eba24b45559044"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/accessors/esDecorators-classDeclaration-accessors-static.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/accessors/esDecorators-classDeclaration-accessors-static.ts",
+    "bytes": 454,
+    "sha256": "ae9293e3a33b15687338ecf9238051ac91ca62e10ffdb6d490ef7cbd3dfe27fe",
+    "git_blob_sha1": "e8bbbd7ed68260ce6f95f153bba89a52a423e169"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/accessors/esDecorators-classDeclaration-accessors-staticPrivate.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/accessors/esDecorators-classDeclaration-accessors-staticPrivate.ts",
+    "bytes": 394,
+    "sha256": "033e2d19c3e3f55d06971b452a60cc03bfed200727e8846b3871eae9aa36440d",
+    "git_blob_sha1": "821521bd2b3bebb921f98735181908f77e534a9c"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/classThisReference/esDecorators-classDeclaration-classThisReference.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/classThisReference/esDecorators-classDeclaration-classThisReference.ts",
+    "bytes": 285,
+    "sha256": "79e8996bf76bb17b73e025b451ad3830ca400de2a8dda3ee8aad62c3e71e6a17",
+    "git_blob_sha1": "905f0c64a2db712564b9a273a326eea4e9131209"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-commentPreservation.ts#module%3Dcommonjs%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/esDecorators-classDeclaration-commentPreservation.ts",
+    "bytes": 1368,
+    "sha256": "32275c534b04d5d45646082c14584e26541e123052a88807eafa5fdadac07262",
+    "git_blob_sha1": "07785e960e5f573242a6f155d3fe67dc629a539b"
+   },
+   "profile_blockers": [
+    "required-option:module=CommonJS(1)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1b",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1b,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-commentPreservation.ts#module%3Desnext%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/esDecorators-classDeclaration-commentPreservation.ts",
+    "bytes": 1368,
+    "sha256": "32275c534b04d5d45646082c14584e26541e123052a88807eafa5fdadac07262",
+    "git_blob_sha1": "07785e960e5f573242a6f155d3fe67dc629a539b"
+   },
+   "profile_blockers": [
+    "required-option:module=ESNext(99)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-exportModifier.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/esDecorators-classDeclaration-exportModifier.ts",
+    "bytes": 604,
+    "sha256": "eecf39a19dc89eb580401e610d3b10e65bd60458994fa88f92f60b4f49cc0f99",
+    "git_blob_sha1": "0b7fac8edb9e373e57daac600d289f5c16472032"
+   },
+   "profile_blockers": [
+    "required-option:module=ESNext(99)",
+    "route:noEmit=true",
+    "rejected-option:allowJs"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.3a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.3a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-multipleDecorators.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/esDecorators-classDeclaration-multipleDecorators.ts",
+    "bytes": 162,
+    "sha256": "423cc9461557abb7674b1479d2ffa87eac85e992937faac472e4c1bec82e5b68",
+    "git_blob_sha1": "f18c8353c3acc98d1f8cee2c80188a3809045418"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-outerThisReference.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/esDecorators-classDeclaration-outerThisReference.ts",
+    "bytes": 716,
+    "sha256": "302f5a5d1adde2ec747c163c5634d41c43adfe5dcb310c5279347ee349b846c2",
+    "git_blob_sha1": "458ab7be19aaca5e7134ae2a74b8aa14047ef6f5"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-parameterDecorators.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/esDecorators-classDeclaration-parameterDecorators.ts",
+    "bytes": 467,
+    "sha256": "acadfa1617f69c62b25a2647b61fd6798384420d13f33e3ff2e9437462a7c35d",
+    "git_blob_sha1": "431ebe35558a613a2330e207d3f0de40bc235dfa"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-parameterProperties.ts#target%3Desnext%2Cusedefineforclassfields%3Dtrue",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/esDecorators-classDeclaration-parameterProperties.ts",
+    "bytes": 246,
+    "sha256": "01ec2fe3ae1c1ca80eb7e281d36ed2d44e5476a60fd459ce29d7f400841563c1",
+    "git_blob_sha1": "ba563c267c016f209491fe32c869d3b08a50562d"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-setFunctionName.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/esDecorators-classDeclaration-setFunctionName.ts",
+    "bytes": 399,
+    "sha256": "04c41776dc95c59865356c199699b085898abe00aff8e49f0a23f065baf895fe",
+    "git_blob_sha1": "b479b27785e452648e4ddc14ac4a3dede2c30cea"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-simpleTransformation.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/esDecorators-classDeclaration-simpleTransformation.ts",
+    "bytes": 142,
+    "sha256": "659458ac57ca3316af8657a1f68d980118a4a1bca4617f9e38bbea319a45da81",
+    "git_blob_sha1": "bc617053bc4c8abdbb5524e62c653637202c40fd"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-nonStatic.ts#target%3Desnext%2Cusedefineforclassfields%3Dtrue",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-nonStatic.ts",
+    "bytes": 277,
+    "sha256": "aa384c559852b2feae28f3f21ec105d5d7286202a1d951ed95a42b42037cdb2a",
+    "git_blob_sha1": "931aaec011a657435379ae1da2245bca1109a481"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-nonStaticAbstract.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-nonStaticAbstract.ts",
+    "bytes": 293,
+    "sha256": "865e7fa5495344744753456530c8c282fe4b768962d9ea401ce2023228919ad5",
+    "git_blob_sha1": "574a70749f9ab822af59873a86731feb5192743b"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-nonStaticAbstractAccessor.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-nonStaticAbstractAccessor.ts",
+    "bytes": 315,
+    "sha256": "e4e3e52139ebbdefda012cbedefd82e53efb0c95f2bd79c76540741772bb71e0",
+    "git_blob_sha1": "4a66ca3e6cb579f43dc6a169bb8fa7df7659704a"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-nonStaticAccessor.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-nonStaticAccessor.ts",
+    "bytes": 267,
+    "sha256": "e79a8844c0c18ebf68f79cc7195a900d7e82d737d2a0baaf6717d57baf31f021",
+    "git_blob_sha1": "9dd76382ba0ed5404799f6990553be6e9fc9c9d4"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-nonStaticAmbient.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-nonStaticAmbient.ts",
+    "bytes": 281,
+    "sha256": "0792d1aa59979ef11524313cc0e612bcd051911bac39e3fee47892c17ca267d7",
+    "git_blob_sha1": "b05b106d55e719f0f42489a0ad3aa2fe567bb19b"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-nonStaticPrivate.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-nonStaticPrivate.ts",
+    "bytes": 154,
+    "sha256": "aecb3a6b5f320fcfe7a7f014f659fb15bca53e4ab073d8452780dda831712bca",
+    "git_blob_sha1": "33426ff4e3ae2d7724db0e7a1c5670e291b909cf"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-nonStaticPrivateAccessor.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-nonStaticPrivateAccessor.ts",
+    "bytes": 163,
+    "sha256": "2c74ef157fb3c4352296b354c0d1646ebcf9044829be3f4fc994b58eeef56ecc",
+    "git_blob_sha1": "7bcff4dbc09d9ee350a6ddc1dd59183da89d8114"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-static.ts#target%3Desnext%2Cusedefineforclassfields%3Dtrue",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-static.ts",
+    "bytes": 298,
+    "sha256": "3a3caa3759e28e437ae03306f36013c14aca91d46aa128c4b13fd34fb6a88458",
+    "git_blob_sha1": "15c0abf6ac80193d706b18f89a720e322c51c2f7"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-staticAccessor.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-staticAccessor.ts",
+    "bytes": 410,
+    "sha256": "2dae9900a5ebf78bb56d630c56d233ed30c4ffb6275bbecce9d75eef423b7d1c",
+    "git_blob_sha1": "118ad1a5e827b7c24a6b19fae5405e6965dd2a54"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-staticAmbient.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-staticAmbient.ts",
+    "bytes": 290,
+    "sha256": "313ccfe1959f80d96e5a3d914303b7405a848528163f73251a6fc45a0a01a36c",
+    "git_blob_sha1": "ba6dafed12b24e5c4ecb2676d180fb1578fdd213"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-staticPrivate.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-staticPrivate.ts",
+    "bytes": 279,
+    "sha256": "5a288eeb5cb57265f753421ebba4e3a87a28b0050c38fd524a129f1303ce46bf",
+    "git_blob_sha1": "c42095ebfca20fe63a8e9217b3d2f7c270b1377b"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-staticPrivateAccessor.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-staticPrivateAccessor.ts",
+    "bytes": 297,
+    "sha256": "704c9e36236f121b8ddc25791be619285489566f60b499ac4199541736953003",
+    "git_blob_sha1": "215b0cca67c292c35ec7f86160e85e632f5da8e2"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/methods/esDecorators-classDeclaration-methods-nonStatic.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/methods/esDecorators-classDeclaration-methods-nonStatic.ts",
+    "bytes": 250,
+    "sha256": "8b8475d651bcb90829b98a1422e4d4cbff51e9d8a14b8a9cf0c359cb655fc0b8",
+    "git_blob_sha1": "76a14f3a955d8124a692e15ab13aa89e9b36d5a6"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/methods/esDecorators-classDeclaration-methods-nonStaticAbstract.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/methods/esDecorators-classDeclaration-methods-nonStaticAbstract.ts",
+    "bytes": 298,
+    "sha256": "28f74c84490459d58202ceae9d51a55f4515311289b69b5db405e6efcd13278a",
+    "git_blob_sha1": "505dbddf114996bc7937b52e60d40669b1a4ecd7"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/methods/esDecorators-classDeclaration-methods-nonStaticPrivate.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/methods/esDecorators-classDeclaration-methods-nonStaticPrivate.ts",
+    "bytes": 155,
+    "sha256": "f5dfd1d2f9f56e7949c522ad3f65690411840a7553a8a78c02b6d5b2e18f2f92",
+    "git_blob_sha1": "152dbdf827de4e8767d1c8a68765be74b4663f48"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/methods/esDecorators-classDeclaration-methods-static.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/methods/esDecorators-classDeclaration-methods-static.ts",
+    "bytes": 271,
+    "sha256": "6c2f22a6d2c7d4ceee1872df4ef7f9190acbdc83f1635b4b2992e9a785f23dcb",
+    "git_blob_sha1": "63687958546610ddfbaf7e7f9800ee0738081a07"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/methods/esDecorators-classDeclaration-methods-staticPrivate.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classDeclaration/methods/esDecorators-classDeclaration-methods-staticPrivate.ts",
+    "bytes": 210,
+    "sha256": "b4edb578da6c810b92f1c6d77b1f71e10cd411aa7e7bca133976c28b338c57b5",
+    "git_blob_sha1": "89954a68bcc875b3b191d8fa84695f6b9c827b7f"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/classExpression/esDecorators-classExpression-commentPreservation.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/classExpression/esDecorators-classExpression-commentPreservation.ts",
+    "bytes": 1025,
+    "sha256": "af1c423737b4e5d0db0d299efc0e1ceae263772c546dd354983903a44f2a59f6",
+    "git_blob_sha1": "521cc507f852cd107c742e77a272af5634adf2d6"
+   },
+   "profile_blockers": [
+    "required-option:module=ESNext(99)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/esDecorators-decoratorExpression.1.ts#experimentaldecorators%3Dfalse",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/esDecorators-decoratorExpression.1.ts",
+    "bytes": 776,
+    "sha256": "535dda0927b44038106265c89be4e8a7f9bb42d3f0366455509acac37897084f",
+    "git_blob_sha1": "a10fee8e1fd4d1a5d50e10e5195c0b11a9a520ee"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/esDecorators-decoratorExpression.2.ts#experimentaldecorators%3Dfalse",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/esDecorators-decoratorExpression.2.ts",
+    "bytes": 1038,
+    "sha256": "df7b079ff601401eba7e79254155a04893ef11476348941e5b7e31b3cf0f744a",
+    "git_blob_sha1": "807cec63f57e9539b3985bad3013286988069558"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/esDecorators-decoratorExpression.3.ts#experimentaldecorators%3Dfalse",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/esDecorators-decoratorExpression.3.ts",
+    "bytes": 231,
+    "sha256": "f3d8c24c621fccdff52c92bf43043d3c19533356f447aab2af6ff11672519c53",
+    "git_blob_sha1": "69f7039abd7fc140b66904e7029b8602cb7260ad"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/esDecorators-emitDecoratorMetadata.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/esDecorators-emitDecoratorMetadata.ts",
+    "bytes": 713,
+    "sha256": "5ba4612bdf1c4f905fd7ce7691db34b11f776403293f4967efe33438175121e0",
+    "git_blob_sha1": "90178600c27fe98585621ce55a858092e96972b0"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/esDecorators/esDecorators-privateFieldAccess.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "esDecorators/esDecorators-privateFieldAccess.ts",
+    "bytes": 364,
+    "sha256": "99f54a95d8f510d040c187690644461f8ecd9ccd8e323a7d31ed9a0c1a2c5983",
+    "git_blob_sha1": "f2d3e4ad54e389d6fe4d6feae18d56b3d7a2c91c"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/expressions/nullishCoalescingOperator/nullishCoalescingOperatorInAsyncGenerator.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "expressions/nullishCoalescingOperator/nullishCoalescingOperatorInAsyncGenerator.ts",
+    "bytes": 291,
+    "sha256": "4dff786b6909a5d7eff1dd798619b66b75bfb5cac456a70768cd5dec21e09ab3",
+    "git_blob_sha1": "e72ec1910de1edf1469c4fee82907bae47634ca6"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/expressions/nullishCoalescingOperator/nullishCoalescingOperatorInParameterBindingPattern.2.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "expressions/nullishCoalescingOperator/nullishCoalescingOperatorInParameterBindingPattern.2.ts",
+    "bytes": 320,
+    "sha256": "4e66a8f7ceb46144214672c803728fb12045fa639a284ddfed854052c02b4366",
+    "git_blob_sha1": "1ccd8375b133f4d8dd2db58187bf84c0a509ee67"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/expressions/nullishCoalescingOperator/nullishCoalescingOperatorInParameterInitializer.2.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "expressions/nullishCoalescingOperator/nullishCoalescingOperatorInParameterInitializer.2.ts",
+    "bytes": 300,
+    "sha256": "702830d9f9a5d4e024276b69741629d4272a4aafd9afe9e28d861f5e5a08b9ae",
+    "git_blob_sha1": "580cd038dbfca1975f5064523d4a8b57cb007d5f"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/expressions/optionalChaining/optionalChainingInParameterBindingPattern.2.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "expressions/optionalChaining/optionalChainingInParameterBindingPattern.2.ts",
+    "bytes": 314,
+    "sha256": "a20300006b50e931772f3cea6011dbcd7df4af94d9e8b4109c76a558c71da40f",
+    "git_blob_sha1": "3255b3df4b73c667f9ce1ae7db12b535bdebd970"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/expressions/optionalChaining/optionalChainingInParameterInitializer.2.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "expressions/optionalChaining/optionalChainingInParameterInitializer.2.ts",
+    "bytes": 299,
+    "sha256": "14350c737fff73280c848118056d0fdd1fc1633ad88faec49402bd3614186649",
+    "git_blob_sha1": "11226d13084b437c3d70879b61bdbc06116970e2"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/externalModules/topLevelAwait.2.ts#module%3Des2022",
+   "suite": "conformance",
+   "source": {
+    "path": "externalModules/topLevelAwait.2.ts",
+    "bytes": 198,
+    "sha256": "3775a9d0232c42a64bae41f01dfc5d14d36989edb9e1466ab20c40d73e702b4d",
+    "git_blob_sha1": "8b652343dcdf5530936cddadc6b98a8b17e44e09"
+   },
+   "profile_blockers": [
+    "required-option:module=ES2022(7)"
+   ],
+   "required_slices": [
+    "H2.1a"
+   ],
+   "ledger_owner": "H2.1a",
+   "ledger_bucket": "module",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/externalModules/topLevelAwait.3.ts#module%3Des2022",
+   "suite": "conformance",
+   "source": {
+    "path": "externalModules/topLevelAwait.3.ts",
+    "bytes": 229,
+    "sha256": "b94c460283feab45f70c780f927c078fe2b6ef4620cee018c7ad269983444b43",
+    "git_blob_sha1": "0a9c0bdbbfe49799de6387e235d0811448311160"
+   },
+   "profile_blockers": [
+    "required-option:module=ES2022(7)"
+   ],
+   "required_slices": [
+    "H2.1a"
+   ],
+   "ledger_owner": "H2.1a",
+   "ledger_bucket": "module",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/externalModules/topLevelAwaitErrors.10.ts#module%3Des2022",
+   "suite": "conformance",
+   "source": {
+    "path": "externalModules/topLevelAwaitErrors.10.ts",
+    "bytes": 264,
+    "sha256": "6e2cb26192d0a9202fcebdfade51577e860240f435de9409f46f880ffbe3f27b",
+    "git_blob_sha1": "703d3e995cffbe0519047ad3acb45627c732c22d"
+   },
+   "profile_blockers": [
+    "required-option:module=ES2022(7)"
+   ],
+   "required_slices": [
+    "H2.1a"
+   ],
+   "ledger_owner": "H2.1a",
+   "ledger_bucket": "module",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/externalModules/topLevelAwaitErrors.12.ts#module%3Des2022",
+   "suite": "conformance",
+   "source": {
+    "path": "externalModules/topLevelAwaitErrors.12.ts",
+    "bytes": 212,
+    "sha256": "295fb4d4bb97a7ca5e483c41720b8831809d5905764af90efdf284eeba436ebd",
+    "git_blob_sha1": "122ad32c5eeb13f9884e66033e5de08016ee56fa"
+   },
+   "profile_blockers": [
+    "required-option:module=ES2022(7)"
+   ],
+   "required_slices": [
+    "H2.1a"
+   ],
+   "ledger_owner": "H2.1a",
+   "ledger_bucket": "module",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/externalModules/topLevelAwaitErrors.2.ts#module%3Des2022",
+   "suite": "conformance",
+   "source": {
+    "path": "externalModules/topLevelAwaitErrors.2.ts",
+    "bytes": 145,
+    "sha256": "accdf78792afabc4370fee31deaca1254ade99d3db076e4bddc4b05fc46f59db",
+    "git_blob_sha1": "a33140f42311ec036555590bebe893866cf190d0"
+   },
+   "profile_blockers": [
+    "required-option:module=ES2022(7)"
+   ],
+   "required_slices": [
+    "H2.1a"
+   ],
+   "ledger_owner": "H2.1a",
+   "ledger_bucket": "module",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/externalModules/topLevelAwaitErrors.3.ts#module%3Des2022",
+   "suite": "conformance",
+   "source": {
+    "path": "externalModules/topLevelAwaitErrors.3.ts",
+    "bytes": 157,
+    "sha256": "870006ed056136db18b6e4829da2ce34c50a38d31348f37a0209692297c93845",
+    "git_blob_sha1": "5c70c272b5bb406307a55078e41892a9305d179b"
+   },
+   "profile_blockers": [
+    "required-option:module=ES2022(7)"
+   ],
+   "required_slices": [
+    "H2.1a"
+   ],
+   "ledger_owner": "H2.1a",
+   "ledger_bucket": "module",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/externalModules/topLevelAwaitErrors.4.ts#module%3Des2022",
+   "suite": "conformance",
+   "source": {
+    "path": "externalModules/topLevelAwaitErrors.4.ts",
+    "bytes": 151,
+    "sha256": "a7a43519075c000b066f9974c332de1990c909c97f3d9f04e1060b10aa074af5",
+    "git_blob_sha1": "bea8f377988d289186da52c74002b404452f9db9"
+   },
+   "profile_blockers": [
+    "required-option:module=ES2022(7)"
+   ],
+   "required_slices": [
+    "H2.1a"
+   ],
+   "ledger_owner": "H2.1a",
+   "ledger_bucket": "module",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/externalModules/topLevelAwaitErrors.5.ts#module%3Des2022",
+   "suite": "conformance",
+   "source": {
+    "path": "externalModules/topLevelAwaitErrors.5.ts",
+    "bytes": 138,
+    "sha256": "657838bd7c04fb1a586ad8473e76cd1822ae57581b8f5d2bef40242285b50a1f",
+    "git_blob_sha1": "16e1ae47dd88a787a0c55b471948b1bb1193bf09"
+   },
+   "profile_blockers": [
+    "required-option:module=ES2022(7)"
+   ],
+   "required_slices": [
+    "H2.1a"
+   ],
+   "ledger_owner": "H2.1a",
+   "ledger_bucket": "module",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/externalModules/topLevelAwaitErrors.6.ts#module%3Des2022",
+   "suite": "conformance",
+   "source": {
+    "path": "externalModules/topLevelAwaitErrors.6.ts",
+    "bytes": 146,
+    "sha256": "f1bf2d324858255495cf5d64f2462b426cca190929658b5250e673f83e93e015",
+    "git_blob_sha1": "abf1d73a08fbde341f4e6bafc5555b1a0fdc1edf"
+   },
+   "profile_blockers": [
+    "required-option:module=ES2022(7)"
+   ],
+   "required_slices": [
+    "H2.1a"
+   ],
+   "ledger_owner": "H2.1a",
+   "ledger_bucket": "module",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/externalModules/topLevelAwaitErrors.7.ts#module%3Des2022",
+   "suite": "conformance",
+   "source": {
+    "path": "externalModules/topLevelAwaitErrors.7.ts",
+    "bytes": 251,
+    "sha256": "d1a8049f356d121a3021a6730d5a1bcd8f1bb23a495cccad3c3da196755f60d4",
+    "git_blob_sha1": "8f9bca530a3a8309845f5f34cf444c5847054da1"
+   },
+   "profile_blockers": [
+    "required-option:module=ES2022(7)"
+   ],
+   "required_slices": [
+    "H2.1a"
+   ],
+   "ledger_owner": "H2.1a",
+   "ledger_bucket": "module",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/externalModules/topLevelAwaitErrors.8.ts#module%3Des2022",
+   "suite": "conformance",
+   "source": {
+    "path": "externalModules/topLevelAwaitErrors.8.ts",
+    "bytes": 239,
+    "sha256": "8ff8c07b775c59794814df68245c4339c28a9f409bfa8ea7fa8745a0b9955b54",
+    "git_blob_sha1": "4210e1f51fd96fb4246fc0721ae60930881df559"
+   },
+   "profile_blockers": [
+    "required-option:module=ES2022(7)"
+   ],
+   "required_slices": [
+    "H2.1a"
+   ],
+   "ledger_owner": "H2.1a",
+   "ledger_bucket": "module",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/externalModules/topLevelAwaitErrors.9.ts#module%3Des2022",
+   "suite": "conformance",
+   "source": {
+    "path": "externalModules/topLevelAwaitErrors.9.ts",
+    "bytes": 256,
+    "sha256": "abc3070c420ada11ccb53d3cc9498008832c08f544eab64cc5db29975ecad72b",
+    "git_blob_sha1": "bf9a52327cf893a9cadc02ab2e8b7a739a353356"
+   },
+   "profile_blockers": [
+    "required-option:module=ES2022(7)"
+   ],
+   "required_slices": [
+    "H2.1a"
+   ],
+   "ledger_owner": "H2.1a",
+   "ledger_bucket": "module",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/externalModules/topLevelAwaitNonModule.ts#module%3Des2022",
+   "suite": "conformance",
+   "source": {
+    "path": "externalModules/topLevelAwaitNonModule.ts",
+    "bytes": 159,
+    "sha256": "d9604f01490900e712b56e3511554d88f64ccdfa72807f1f960f27a196069879",
+    "git_blob_sha1": "09a2b1bedcf87665fe3555d6b6bf72272100abd3"
+   },
+   "profile_blockers": [
+    "required-option:module=ES2022(7)"
+   ],
+   "required_slices": [
+    "H2.1a"
+   ],
+   "ledger_owner": "H2.1a",
+   "ledger_bucket": "module",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/externalModules/verbatimModuleSyntaxAmbientConstEnum.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "externalModules/verbatimModuleSyntaxAmbientConstEnum.ts",
+    "bytes": 478,
+    "sha256": "5c1663d3c3caf63d0a77c3771cdb2f5f5f52037e28aa228c456e0f42758b3589",
+    "git_blob_sha1": "d59dbadf5d6634e2e5fcf39c53f3939c1cd3d08f"
+   },
+   "profile_blockers": [
+    "route:noEmit=true",
+    "rejected-option:verbatimModuleSyntax"
+   ],
+   "required_slices": [
+    "H2.8c",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.8c,H2.9",
+   "ledger_bucket": "module",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/externalModules/verbatimModuleSyntaxNoElisionCJS.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "externalModules/verbatimModuleSyntaxNoElisionCJS.ts",
+    "bytes": 589,
+    "sha256": "42474860e9a5eb2bd5621338e1968ef781fe44e00b2d275a6266f7bfa1945929",
+    "git_blob_sha1": "96f2b634f23ef38ddf1fbe43b44d7844475f6f19"
+   },
+   "profile_blockers": [
+    "required-option:module=CommonJS(1)",
+    "rejected-option:verbatimModuleSyntax"
+   ],
+   "required_slices": [
+    "H2.1b",
+    "H2.8c"
+   ],
+   "ledger_owner": "H2.1b,H2.8c",
+   "ledger_bucket": "module",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/externalModules/verbatimModuleSyntaxRestrictionsCJS.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "externalModules/verbatimModuleSyntaxRestrictionsCJS.ts",
+    "bytes": 1357,
+    "sha256": "41d603eda75926408f4b42d146c009abb89e98be1b173b8af93347bea6c0afa6",
+    "git_blob_sha1": "ab7eeca9475cafbd2857c9422e4d56c4dd3756a9"
+   },
+   "profile_blockers": [
+    "required-option:module=CommonJS(1)",
+    "rejected-option:verbatimModuleSyntax"
+   ],
+   "required_slices": [
+    "H2.1b",
+    "H2.8c"
+   ],
+   "ledger_owner": "H2.1b,H2.8c",
+   "ledger_bucket": "module",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/externalModules/verbatimModuleSyntaxRestrictionsESM.ts#esmoduleinterop%3Dfalse",
+   "suite": "conformance",
+   "source": {
+    "path": "externalModules/verbatimModuleSyntaxRestrictionsESM.ts",
+    "bytes": 655,
+    "sha256": "efc53ffa26a8519f431a97c7d899aff932aca4e176746296edf09cf3b64590de",
+    "git_blob_sha1": "04f4eb6a3f0fff9fcad77bca2e85e2a04b6b6ea0"
+   },
+   "profile_blockers": [
+    "required-option:module=ESNext(99)",
+    "rejected-option:verbatimModuleSyntax"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8c"
+   ],
+   "ledger_owner": "H2.1a,H2.8c",
+   "ledger_bucket": "module",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/externalModules/verbatimModuleSyntaxRestrictionsESM.ts#esmoduleinterop%3Dtrue",
+   "suite": "conformance",
+   "source": {
+    "path": "externalModules/verbatimModuleSyntaxRestrictionsESM.ts",
+    "bytes": 655,
+    "sha256": "efc53ffa26a8519f431a97c7d899aff932aca4e176746296edf09cf3b64590de",
+    "git_blob_sha1": "04f4eb6a3f0fff9fcad77bca2e85e2a04b6b6ea0"
+   },
+   "profile_blockers": [
+    "required-option:module=ESNext(99)",
+    "rejected-option:verbatimModuleSyntax"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8c"
+   ],
+   "ledger_owner": "H2.1a,H2.8c",
+   "ledger_bucket": "module",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/functions/parameterInitializersBackwardReferencing.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "functions/parameterInitializersBackwardReferencing.ts",
+    "bytes": 304,
+    "sha256": "fa8ce2ee6684e092854c9b23b6ddfbc2dcb279cc05e7c4cb5cf1f76e73714430",
+    "git_blob_sha1": "b721ca502940ae133573e304d874465ffa3d472c"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/functions/parameterInitializersForwardReferencing.2.ts#target%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "functions/parameterInitializersForwardReferencing.2.ts",
+    "bytes": 310,
+    "sha256": "5dbb3a910eab275fc73db32589131b75c2ccb54983bed6c930b390ae67414292",
+    "git_blob_sha1": "c2fc0788c266002036da8a2fbaaa42b5c78b43e6"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/generators/generatorAssignability.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "generators/generatorAssignability.ts",
+    "bytes": 1701,
+    "sha256": "1ba80ac3da0b1d3e792d1f2be5e3b0c019f39eccdfdf968af6ee400964cd8bb2",
+    "git_blob_sha1": "8dfa7f7d8cf633e79e364ae44ef2bc20210db5a1"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/generators/generatorReturnTypeFallback.1.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "generators/generatorReturnTypeFallback.1.ts",
+    "bytes": 251,
+    "sha256": "9055e06c64988537c8a676411c65b12a50744f4ae7d1554ea4da48cd537b4eac",
+    "git_blob_sha1": "dbf249d7e275bc721bc8644408dd2d8086b859c4"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/generators/generatorReturnTypeFallback.2.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "generators/generatorReturnTypeFallback.2.ts",
+    "bytes": 292,
+    "sha256": "f7aab430ec18d8cd2fc59d2160d5e62ed14ec79ae9b841e70531f8e5f5028236",
+    "git_blob_sha1": "4579f05387a6c589e20b69465baf7d373a4d93c1"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/generators/generatorReturnTypeFallback.3.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "generators/generatorReturnTypeFallback.3.ts",
+    "bytes": 138,
+    "sha256": "57830728db3c56232d416fcd1c81ed3139b04575e4977064d6de8b21cd2f6139",
+    "git_blob_sha1": "da84940743db0b0496ae947bbb467f872db991eb"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/generators/generatorReturnTypeFallback.4.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "generators/generatorReturnTypeFallback.4.ts",
+    "bytes": 339,
+    "sha256": "236d14e0819a29ae3e25eb29eafd372d7b3eea6fd3e6b24b49c781e798b45c76",
+    "git_blob_sha1": "3fc9d4f50c6f21c079b9414a91b2282d96fff075"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/generators/generatorReturnTypeFallback.5.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "generators/generatorReturnTypeFallback.5.ts",
+    "bytes": 277,
+    "sha256": "9a1718c0ab72c228dfc59a7d41356bfef850d07bf810b16bd92295f2bebeb150",
+    "git_blob_sha1": "b495d3ff7b692c40f4b6b45448805ffb093ec6e5"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/generators/generatorYieldContextualType.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "generators/generatorYieldContextualType.ts",
+    "bytes": 2924,
+    "sha256": "448628424e06d5ed1df7d00c39b466e72f8eb15b37fe950b70106757043b2b72",
+    "git_blob_sha1": "514583c1c5ea72b7d2c63c3132c7c8fc2a1c8d29"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/importAttributes/importAttributes11.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "importAttributes/importAttributes11.ts",
+    "bytes": 355,
+    "sha256": "7f14f64002c687d85214ba5ebd079813fbaca3c98479d23c9b2b459f7a53fa0a",
+    "git_blob_sha1": "f3504d642b792519c4c517f113e391b20748f24a"
+   },
+   "profile_blockers": [
+    "required-option:module=NodeNext(199)",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1e",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1e,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/jsdoc/extendsTag6.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "jsdoc/extendsTag6.ts",
+    "bytes": 259,
+    "sha256": "f39ca97cb72f5ede81fde9acf39a21d59c88c975ef6f9e0a232c5a92ddb22a31",
+    "git_blob_sha1": "e7eee6ec8cdf9ba69eb7bb6edefc6ae02aa7d749"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true",
+    "rejected-option:allowJs"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.3a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.3a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocAccessibilityTags.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "jsdoc/jsdocAccessibilityTags.ts",
+    "bytes": 1189,
+    "sha256": "7f1ed16666c79cb1415c66b01709c1e95e1ae9aee441fb2c35c4e86392f76a11",
+    "git_blob_sha1": "b32944e8f87aaf96b9788d805347bc24e8e94d2a"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true",
+    "rejected-option:allowJs"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.3a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.3a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocLinkTag2.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "jsdoc/jsdocLinkTag2.ts",
+    "bytes": 219,
+    "sha256": "72d529e25cab51d5f6fff5e7fe06b5f69ae41cc5c08c2aabb96e423ca8327e04",
+    "git_blob_sha1": "6258e7aed699ced78ccc56f5be409a721975508c"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true",
+    "rejected-option:allowJs"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.3a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.3a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocLinkTag7.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "jsdoc/jsdocLinkTag7.ts",
+    "bytes": 326,
+    "sha256": "5a6889b9acd6b5768dd47e09125141d48f45d0a67dda1b29ead708de2a57c9c5",
+    "git_blob_sha1": "b149a6127b338ebfc378b20785b4411664753048"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true",
+    "rejected-option:allowJs"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.3a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.3a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocLinkTag8.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "jsdoc/jsdocLinkTag8.ts",
+    "bytes": 169,
+    "sha256": "c2f65069f7de192ed3873762831c58259a67f1e6d973a63b92fed1030a0202fa",
+    "git_blob_sha1": "b5eb6ff929826add43352ab6a554382ca527fadb"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true",
+    "rejected-option:allowJs"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.3a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.3a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocReadonly.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "jsdoc/jsdocReadonly.ts",
+    "bytes": 504,
+    "sha256": "a46ed2d9301d52c5c43c43c2a00a2311912345d553d480c3ec83d84f0eb94c0e",
+    "git_blob_sha1": "15ead236fbe82098c09d96b9781cdec1c322c01d"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true",
+    "rejected-option:allowJs"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.3a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.3a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/salsa/moduleExportAliasImported.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "salsa/moduleExportAliasImported.ts",
+    "bytes": 229,
+    "sha256": "c0014728d72d059134d2977f54b70addaa585a497aba9fd35ffd1c35d253cc92",
+    "git_blob_sha1": "95c029813828d22e1b5f0a093a4e8d1e32bcbe91"
+   },
+   "profile_blockers": [
+    "required-option:module=ESNext(99)",
+    "route:noEmit=true",
+    "rejected-option:allowJs"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.3a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.3a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/salsa/typeFromPropertyAssignment10_1.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "salsa/typeFromPropertyAssignment10_1.ts",
+    "bytes": 1057,
+    "sha256": "58f8cc5eb4786f90b6a503388c794706369ca68690cfb138d4be1d9597a69e9d",
+    "git_blob_sha1": "cf76bc6993e2587a11e80204f15e4fc93759b077"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true",
+    "rejected-option:allowJs"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.3a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.3a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/salsa/typeFromPropertyAssignment8_1.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "salsa/typeFromPropertyAssignment8_1.ts",
+    "bytes": 501,
+    "sha256": "28dbb3b887467d38ab57e491408b4b986d8ec27d24247facc501447194116e34",
+    "git_blob_sha1": "fc2fd66dd895459f54e55aa981540e5ee1abdbeb"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true",
+    "rejected-option:allowJs"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.3a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.3a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/salsa/typeFromPropertyAssignment9_1.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "salsa/typeFromPropertyAssignment9_1.ts",
+    "bytes": 892,
+    "sha256": "61c52c1580e5a3c75042178b72c0cab08e189bd8cf372557a89a8175749b0331",
+    "git_blob_sha1": "30dfc536cdc0b75caa5bfcb6fd94e851878eb99a"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true",
+    "rejected-option:allowJs"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.3a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.3a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarationsWithAsyncIteratorObject.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/awaitUsingDeclarationsWithAsyncIteratorObject.ts",
+    "bytes": 399,
+    "sha256": "730d5ec91d71f1ff48f3d2da790c01c8920bf78f5d118353abf61347791665fd",
+    "git_blob_sha1": "f20f51eb46abc6252cd09ce0c7fe7a66131003e2"
+   },
+   "profile_blockers": [
+    "required-option:module=ESNext(99)",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarationsWithIteratorObject.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/awaitUsingDeclarationsWithIteratorObject.ts",
+    "bytes": 730,
+    "sha256": "7138e6c7f75a2c3dd589810aed07fd91cf2db19ea5e439d564d5a6c7d86d4276",
+    "git_blob_sha1": "05a979365dcad545e96ba431404642ef3159a85d"
+   },
+   "profile_blockers": [
+    "required-option:module=ESNext(99)",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.1.ts#module%3Dcommonjs%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.1.ts",
+    "bytes": 275,
+    "sha256": "265f77bafcc7f98815b5b6c640f4d783e3b856e039d6f9bf05bb317639c1ca20",
+    "git_blob_sha1": "c94abd98e798a90a03e38f9a4f81ccfcd085ba9d"
+   },
+   "profile_blockers": [
+    "required-option:module=CommonJS(1)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1b",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1b,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.1.ts#module%3Desnext%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.1.ts",
+    "bytes": 275,
+    "sha256": "265f77bafcc7f98815b5b6c640f4d783e3b856e039d6f9bf05bb317639c1ca20",
+    "git_blob_sha1": "c94abd98e798a90a03e38f9a4f81ccfcd085ba9d"
+   },
+   "profile_blockers": [
+    "required-option:module=ESNext(99)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.1.ts#module%3Dsystem%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.1.ts",
+    "bytes": 275,
+    "sha256": "265f77bafcc7f98815b5b6c640f4d783e3b856e039d6f9bf05bb317639c1ca20",
+    "git_blob_sha1": "c94abd98e798a90a03e38f9a4f81ccfcd085ba9d"
+   },
+   "profile_blockers": [
+    "required-option:module=System(4)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1d",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1d,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.10.ts#module%3Dcommonjs%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.10.ts",
+    "bytes": 287,
+    "sha256": "ad9065ebecfb2d8e75b11b0ad311c8843a8223238f239cf995afe36427775dca",
+    "git_blob_sha1": "20a5a6ddc25e3d57a3183015f224140714925905"
+   },
+   "profile_blockers": [
+    "required-option:module=CommonJS(1)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1b",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1b,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.10.ts#module%3Desnext%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.10.ts",
+    "bytes": 287,
+    "sha256": "ad9065ebecfb2d8e75b11b0ad311c8843a8223238f239cf995afe36427775dca",
+    "git_blob_sha1": "20a5a6ddc25e3d57a3183015f224140714925905"
+   },
+   "profile_blockers": [
+    "required-option:module=ESNext(99)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.10.ts#module%3Dsystem%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.10.ts",
+    "bytes": 287,
+    "sha256": "ad9065ebecfb2d8e75b11b0ad311c8843a8223238f239cf995afe36427775dca",
+    "git_blob_sha1": "20a5a6ddc25e3d57a3183015f224140714925905"
+   },
+   "profile_blockers": [
+    "required-option:module=System(4)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1d",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1d,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.11.ts#module%3Dcommonjs%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.11.ts",
+    "bytes": 291,
+    "sha256": "02e21019c0cf133e2bd1a80df89524c5df5b7b6ef2c58395cccb3ad921a2aa30",
+    "git_blob_sha1": "0fd95a1e53c754ea1e00c598887f838852a325a3"
+   },
+   "profile_blockers": [
+    "required-option:module=CommonJS(1)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1b",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1b,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.11.ts#module%3Desnext%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.11.ts",
+    "bytes": 291,
+    "sha256": "02e21019c0cf133e2bd1a80df89524c5df5b7b6ef2c58395cccb3ad921a2aa30",
+    "git_blob_sha1": "0fd95a1e53c754ea1e00c598887f838852a325a3"
+   },
+   "profile_blockers": [
+    "required-option:module=ESNext(99)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.11.ts#module%3Dsystem%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.11.ts",
+    "bytes": 291,
+    "sha256": "02e21019c0cf133e2bd1a80df89524c5df5b7b6ef2c58395cccb3ad921a2aa30",
+    "git_blob_sha1": "0fd95a1e53c754ea1e00c598887f838852a325a3"
+   },
+   "profile_blockers": [
+    "required-option:module=System(4)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1d",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1d,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.12.ts#module%3Dcommonjs%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.12.ts",
+    "bytes": 296,
+    "sha256": "75f34d810550820f8895d8ba45f99277835a586db14c992fbcd619bbca801d02",
+    "git_blob_sha1": "640ec5f3bd688f09afa5596cf698293469a29dd1"
+   },
+   "profile_blockers": [
+    "required-option:module=CommonJS(1)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1b",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1b,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.12.ts#module%3Desnext%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.12.ts",
+    "bytes": 296,
+    "sha256": "75f34d810550820f8895d8ba45f99277835a586db14c992fbcd619bbca801d02",
+    "git_blob_sha1": "640ec5f3bd688f09afa5596cf698293469a29dd1"
+   },
+   "profile_blockers": [
+    "required-option:module=ESNext(99)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.12.ts#module%3Dsystem%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.12.ts",
+    "bytes": 296,
+    "sha256": "75f34d810550820f8895d8ba45f99277835a586db14c992fbcd619bbca801d02",
+    "git_blob_sha1": "640ec5f3bd688f09afa5596cf698293469a29dd1"
+   },
+   "profile_blockers": [
+    "required-option:module=System(4)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1d",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1d,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.2.ts#module%3Dcommonjs%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.2.ts",
+    "bytes": 282,
+    "sha256": "7f20621b02c285a695dc1e629e0adcf302639d276b48589ca88859044fd0f1f0",
+    "git_blob_sha1": "f56b769d92b9b1abb14e43c62d3d34fcba3b90b7"
+   },
+   "profile_blockers": [
+    "required-option:module=CommonJS(1)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1b",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1b,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.2.ts#module%3Desnext%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.2.ts",
+    "bytes": 282,
+    "sha256": "7f20621b02c285a695dc1e629e0adcf302639d276b48589ca88859044fd0f1f0",
+    "git_blob_sha1": "f56b769d92b9b1abb14e43c62d3d34fcba3b90b7"
+   },
+   "profile_blockers": [
+    "required-option:module=ESNext(99)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.2.ts#module%3Dsystem%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.2.ts",
+    "bytes": 282,
+    "sha256": "7f20621b02c285a695dc1e629e0adcf302639d276b48589ca88859044fd0f1f0",
+    "git_blob_sha1": "f56b769d92b9b1abb14e43c62d3d34fcba3b90b7"
+   },
+   "profile_blockers": [
+    "required-option:module=System(4)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1d",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1d,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.3.ts#module%3Dcommonjs%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.3.ts",
+    "bytes": 299,
+    "sha256": "3034f29b36855265a866b4378777e7cd98504dff365542ee4dee61cbeafaea19",
+    "git_blob_sha1": "d408a100d180a50945f811c47b15392b76050c37"
+   },
+   "profile_blockers": [
+    "required-option:module=CommonJS(1)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1b",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1b,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.3.ts#module%3Desnext%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.3.ts",
+    "bytes": 299,
+    "sha256": "3034f29b36855265a866b4378777e7cd98504dff365542ee4dee61cbeafaea19",
+    "git_blob_sha1": "d408a100d180a50945f811c47b15392b76050c37"
+   },
+   "profile_blockers": [
+    "required-option:module=ESNext(99)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.3.ts#module%3Dsystem%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.3.ts",
+    "bytes": 299,
+    "sha256": "3034f29b36855265a866b4378777e7cd98504dff365542ee4dee61cbeafaea19",
+    "git_blob_sha1": "d408a100d180a50945f811c47b15392b76050c37"
+   },
+   "profile_blockers": [
+    "required-option:module=System(4)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1d",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1d,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.4.ts#module%3Dcommonjs%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.4.ts",
+    "bytes": 288,
+    "sha256": "7d1240cb5f61dd49bb39041778e7ccee526529e439c77b914b2ba2f1cfd110da",
+    "git_blob_sha1": "b2b5274080baf7c2c0a7c8f4517c1be4ca1e1cf5"
+   },
+   "profile_blockers": [
+    "required-option:module=CommonJS(1)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1b",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1b,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.4.ts#module%3Desnext%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.4.ts",
+    "bytes": 288,
+    "sha256": "7d1240cb5f61dd49bb39041778e7ccee526529e439c77b914b2ba2f1cfd110da",
+    "git_blob_sha1": "b2b5274080baf7c2c0a7c8f4517c1be4ca1e1cf5"
+   },
+   "profile_blockers": [
+    "required-option:module=ESNext(99)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.4.ts#module%3Dsystem%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.4.ts",
+    "bytes": 288,
+    "sha256": "7d1240cb5f61dd49bb39041778e7ccee526529e439c77b914b2ba2f1cfd110da",
+    "git_blob_sha1": "b2b5274080baf7c2c0a7c8f4517c1be4ca1e1cf5"
+   },
+   "profile_blockers": [
+    "required-option:module=System(4)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1d",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1d,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.5.ts#module%3Dcommonjs%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.5.ts",
+    "bytes": 290,
+    "sha256": "157068d2bca10994e5f5fb03b02163b014f6f68da8e6b4a59859fc423c63de1f",
+    "git_blob_sha1": "9a6a93bd53b8abf491b4dc2472385ccaeb712b0d"
+   },
+   "profile_blockers": [
+    "required-option:module=CommonJS(1)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1b",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1b,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.5.ts#module%3Desnext%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.5.ts",
+    "bytes": 290,
+    "sha256": "157068d2bca10994e5f5fb03b02163b014f6f68da8e6b4a59859fc423c63de1f",
+    "git_blob_sha1": "9a6a93bd53b8abf491b4dc2472385ccaeb712b0d"
+   },
+   "profile_blockers": [
+    "required-option:module=ESNext(99)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.5.ts#module%3Dsystem%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.5.ts",
+    "bytes": 290,
+    "sha256": "157068d2bca10994e5f5fb03b02163b014f6f68da8e6b4a59859fc423c63de1f",
+    "git_blob_sha1": "9a6a93bd53b8abf491b4dc2472385ccaeb712b0d"
+   },
+   "profile_blockers": [
+    "required-option:module=System(4)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1d",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1d,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.6.ts#module%3Dcommonjs%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.6.ts",
+    "bytes": 295,
+    "sha256": "8b91a50a86d9d8096fe27c627590374a1c8a1e0b8b3d6eac34c0cfb93420ed94",
+    "git_blob_sha1": "38f9d89dad2a5a471a22eea227d9c6bddd71c117"
+   },
+   "profile_blockers": [
+    "required-option:module=CommonJS(1)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1b",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1b,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.6.ts#module%3Desnext%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.6.ts",
+    "bytes": 295,
+    "sha256": "8b91a50a86d9d8096fe27c627590374a1c8a1e0b8b3d6eac34c0cfb93420ed94",
+    "git_blob_sha1": "38f9d89dad2a5a471a22eea227d9c6bddd71c117"
+   },
+   "profile_blockers": [
+    "required-option:module=ESNext(99)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.6.ts#module%3Dsystem%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.6.ts",
+    "bytes": 295,
+    "sha256": "8b91a50a86d9d8096fe27c627590374a1c8a1e0b8b3d6eac34c0cfb93420ed94",
+    "git_blob_sha1": "38f9d89dad2a5a471a22eea227d9c6bddd71c117"
+   },
+   "profile_blockers": [
+    "required-option:module=System(4)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1d",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1d,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.7.ts#module%3Dcommonjs%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.7.ts",
+    "bytes": 276,
+    "sha256": "9d84760f91831cc1a60d556b1d60e716117e47c56cd11a85f23205f8cecb7a74",
+    "git_blob_sha1": "42311c685dd7dc771a39579ab10dbed854af5d7b"
+   },
+   "profile_blockers": [
+    "required-option:module=CommonJS(1)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1b",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1b,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.7.ts#module%3Desnext%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.7.ts",
+    "bytes": 276,
+    "sha256": "9d84760f91831cc1a60d556b1d60e716117e47c56cd11a85f23205f8cecb7a74",
+    "git_blob_sha1": "42311c685dd7dc771a39579ab10dbed854af5d7b"
+   },
+   "profile_blockers": [
+    "required-option:module=ESNext(99)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.7.ts#module%3Dsystem%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.7.ts",
+    "bytes": 276,
+    "sha256": "9d84760f91831cc1a60d556b1d60e716117e47c56cd11a85f23205f8cecb7a74",
+    "git_blob_sha1": "42311c685dd7dc771a39579ab10dbed854af5d7b"
+   },
+   "profile_blockers": [
+    "required-option:module=System(4)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1d",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1d,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.8.ts#module%3Dcommonjs%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.8.ts",
+    "bytes": 281,
+    "sha256": "036ab084016b1bad5761f9e4bf614bb35ae16cd9f99a6785e314f77f517fc41e",
+    "git_blob_sha1": "80c1f30368d3596e80f6688f15057451d193bc22"
+   },
+   "profile_blockers": [
+    "required-option:module=CommonJS(1)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1b",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1b,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.8.ts#module%3Desnext%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.8.ts",
+    "bytes": 281,
+    "sha256": "036ab084016b1bad5761f9e4bf614bb35ae16cd9f99a6785e314f77f517fc41e",
+    "git_blob_sha1": "80c1f30368d3596e80f6688f15057451d193bc22"
+   },
+   "profile_blockers": [
+    "required-option:module=ESNext(99)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.8.ts#module%3Dsystem%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.8.ts",
+    "bytes": 281,
+    "sha256": "036ab084016b1bad5761f9e4bf614bb35ae16cd9f99a6785e314f77f517fc41e",
+    "git_blob_sha1": "80c1f30368d3596e80f6688f15057451d193bc22"
+   },
+   "profile_blockers": [
+    "required-option:module=System(4)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1d",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1d,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.9.ts#module%3Dcommonjs%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.9.ts",
+    "bytes": 302,
+    "sha256": "97690d232ec75e95ddb2e3760200fcbcbb3fd532a063f8df9a89934baace43fc",
+    "git_blob_sha1": "79728432e8c57b3b211600a465a38ade86f7ba2d"
+   },
+   "profile_blockers": [
+    "required-option:module=CommonJS(1)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1b",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1b,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.9.ts#module%3Desnext%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.9.ts",
+    "bytes": 302,
+    "sha256": "97690d232ec75e95ddb2e3760200fcbcbb3fd532a063f8df9a89934baace43fc",
+    "git_blob_sha1": "79728432e8c57b3b211600a465a38ade86f7ba2d"
+   },
+   "profile_blockers": [
+    "required-option:module=ESNext(99)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1a,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.9.ts#module%3Dsystem%2Ctarget%3Desnext",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.9.ts",
+    "bytes": 302,
+    "sha256": "97690d232ec75e95ddb2e3760200fcbcbb3fd532a063f8df9a89934baace43fc",
+    "git_blob_sha1": "79728432e8c57b3b211600a465a38ade86f7ba2d"
+   },
+   "profile_blockers": [
+    "required-option:module=System(4)",
+    "rejected-option:noEmitHelpers"
+   ],
+   "required_slices": [
+    "H2.1d",
+    "H2.8b"
+   ],
+   "ledger_owner": "H2.1d,H2.8b",
+   "ledger_bucket": "transforms",
+   "expected_kinds": "js(+dts/map per options),diag,result,write"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithIteratorObject.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithIteratorObject.ts",
+    "bytes": 676,
+    "sha256": "86712d21435076832800f25aeb0abf7d7d97d4e4e5a75ccb68863ea8ce18af76",
+    "git_blob_sha1": "51829b00ae8237110298a0e8ff54dc8618bfc8ca"
+   },
+   "profile_blockers": [
+    "required-option:module=ESNext(99)",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithObjectLiterals1.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithObjectLiterals1.ts",
+    "bytes": 745,
+    "sha256": "b55ac0233e9a6cdd00a448344adc55aaa35ca9cce4f475b2111d78db6a957a68",
+    "git_blob_sha1": "4665bd0010b7504b30004314510d98e8a3cc6632"
+   },
+   "profile_blockers": [
+    "required-option:module=ESNext(99)",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithObjectLiterals2.ts#noimplicitany%3Dfalse",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithObjectLiterals2.ts",
+    "bytes": 302,
+    "sha256": "324985b98d053995f352a80ecdc53b4dc5654812f781ebc4724d932f36055adb",
+    "git_blob_sha1": "d38baca72e75ea2c505a081fc4b86e0832de788c"
+   },
+   "profile_blockers": [
+    "required-option:module=ESNext(99)",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsWithObjectLiterals2.ts#noimplicitany%3Dtrue",
+   "suite": "conformance",
+   "source": {
+    "path": "statements/VariableStatements/usingDeclarations/usingDeclarationsWithObjectLiterals2.ts",
+    "bytes": 302,
+    "sha256": "324985b98d053995f352a80ecdc53b4dc5654812f781ebc4724d932f36055adb",
+    "git_blob_sha1": "d38baca72e75ea2c505a081fc4b86e0832de788c"
+   },
+   "profile_blockers": [
+    "required-option:module=ESNext(99)",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/types/contextualTypes/asyncFunctions/contextuallyTypeAsyncFunctionAwaitOperand.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "types/contextualTypes/asyncFunctions/contextuallyTypeAsyncFunctionAwaitOperand.ts",
+    "bytes": 304,
+    "sha256": "3accc72df069300279497033ef7776fa1ae41f40a4200bb1e4493e652a97035b",
+    "git_blob_sha1": "81ef725a45ba3c7eef1baa8b920e7e60a2eeaa5a"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/types/contextualTypes/asyncFunctions/contextuallyTypeAsyncFunctionReturnType.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "types/contextualTypes/asyncFunctions/contextuallyTypeAsyncFunctionReturnType.ts",
+    "bytes": 1969,
+    "sha256": "752b5ad9b34216c40ef348d8caf71699dbb5933713ca1ffcec252044061d6303",
+    "git_blob_sha1": "26b1ef6a86c667a8562cf60e3e2be327b418d45c"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/types/contextualTypes/jsdoc/contextualTypeFromJSDoc.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "types/contextualTypes/jsdoc/contextualTypeFromJSDoc.ts",
+    "bytes": 586,
+    "sha256": "bc43fcccf60c7b5f04d64b8476325007683a9b654e7fd657ff5379fb4945bd10",
+    "git_blob_sha1": "c9d7cc54d5887df6bd7437f462b33ce3b4c1b0c8"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true",
+    "rejected-option:allowJs"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.3a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.3a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/types/literal/templateLiteralTypes5.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "types/literal/templateLiteralTypes5.ts",
+    "bytes": 502,
+    "sha256": "b00b17fa56a9e8182a87524e300596669f25f5be3aac5ee2e988c608664e8229",
+    "git_blob_sha1": "ae1c32078f9b8e3a78efea7fd154bb31e0cba65d"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/types/literal/templateLiteralTypes6.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "types/literal/templateLiteralTypes6.ts",
+    "bytes": 485,
+    "sha256": "2423079db72508fd1d5286261996fa3a6246a23a53d2100e8c7208b8e0fbbb6e",
+    "git_blob_sha1": "0123c9a22c4b72ada09096361f5610d4c0cdfc36"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/types/literal/templateLiteralTypes7.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "types/literal/templateLiteralTypes7.ts",
+    "bytes": 468,
+    "sha256": "03a23d42e06b6d83e21c6ce179c7eeaa0a6e26cfc497cc24653ae0dc81cae211",
+    "git_blob_sha1": "2f06f286d2aa7a817e29578133ec695e80da9bdc"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/types/typeAliases/builtinIteratorReturn.ts#strictbuiltiniteratorreturn%3Dfalse",
+   "suite": "conformance",
+   "source": {
+    "path": "types/typeAliases/builtinIteratorReturn.ts",
+    "bytes": 912,
+    "sha256": "399c05b9eeabc6412073ba3b6da9bcbc0401e4bcf5981993409dc7b1a1e47975",
+    "git_blob_sha1": "cc1852f5af8d32309b80b54274e310aa7683d516"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/types/typeAliases/builtinIteratorReturn.ts#strictbuiltiniteratorreturn%3Dtrue",
+   "suite": "conformance",
+   "source": {
+    "path": "types/typeAliases/builtinIteratorReturn.ts",
+    "bytes": 912,
+    "sha256": "399c05b9eeabc6412073ba3b6da9bcbc0401e4bcf5981993409dc7b1a1e47975",
+    "git_blob_sha1": "cc1852f5af8d32309b80b54274e310aa7683d516"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  },
+  {
+   "case_id": "typescript-6.0.3/conformance/types/typeParameters/typeParameterLists/typeParameterConstModifiersReturnsAndYields.ts#default",
+   "suite": "conformance",
+   "source": {
+    "path": "types/typeParameters/typeParameterLists/typeParameterConstModifiersReturnsAndYields.ts",
+    "bytes": 3553,
+    "sha256": "6cbc4bf40c8a58f4b55c5b445cc4c5f74dc1dc18c6f72aad97c79fb39786c14f",
+    "git_blob_sha1": "f96abd5f5daac514d469cc7e0a0039cf05fae5c7"
+   },
+   "profile_blockers": [
+    "required-option:module=absent",
+    "route:noEmit=true"
+   ],
+   "required_slices": [
+    "H2.1a",
+    "H2.9"
+   ],
+   "ledger_owner": "H2.1a,H2.9",
+   "ledger_bucket": "options",
+   "expected_kinds": "diag,result,write(empty)"
+  }
+ ]
+}

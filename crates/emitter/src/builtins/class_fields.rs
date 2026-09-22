@@ -1,11 +1,10 @@
+use crate::transform::try_visit_transform_children;
 use std::{
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
 
-use tsc_syntax::{
-    try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind,
-};
+use tsc_syntax::{NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind};
 use tsc_types::{CompilerOptions, JsString, NodeCheckFlags, NodeFlags, ScriptTarget};
 
 use crate::{
@@ -81,10 +80,10 @@ impl Transformer for ClassFieldsTransformer<'_> {
     }
 
     fn initialize(&mut self, context: &mut TransformationContext) -> Result<(), TransformError> {
-        if self.target < ScriptTarget::ES5 || self.target > ScriptTarget::ES_NEXT {
+        if self.target < ScriptTarget::ES5 {
             return Err(TransformError::UnsupportedCompilerOption {
                 option: "class-field transform",
-                detail: "the closed target band admits ES5 through ESNext class-field reachability",
+                detail: "class-field transforms require ES5 or later",
             });
         }
         context.enable_substitution(SyntaxKind::Identifier)?;
@@ -520,7 +519,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
                 NodeData::PrivateIdentifier(data)
                     if node.pos != u32::MAX
                         && node.end != u32::MAX
-                        && (node.flags & NodeFlags::SYNTHESIZED.bits() as i32) == 0 =>
+                        && (node.flags & NodeFlags::SYNTHESIZED.bits()) == 0 =>
                 {
                     Some(data.text.clone())
                 }
@@ -974,7 +973,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         original: TransformNode,
         mut data: NodeData,
     ) -> Result<NodeId, TransformError> {
-        try_visit_each_child(&mut data, self)?;
+        try_visit_transform_children(&mut data, self)?;
         let flags = super::flags_after_update(self.context.arena(), original, &data)?;
         Ok(self
             .context
@@ -1569,6 +1568,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             metadata.generated_binding_role_suffix().map(str::to_owned),
             metadata.generated_binding_is_file_level_optimistic(),
             metadata.generated_binding_planned_name_is_authoritative(),
+            metadata.generated_binding_is_loop_variable(),
             metadata.generated_binding_reserved_in_nested_scopes(),
             metadata.generated_binding_is_private_temp(),
         ))
@@ -2311,7 +2311,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         // module/printer ID consumers run after this pass. An arena NodeId
         // must not be mistaken for that separate source identity predicate.
         let unanchored = (record.pos == u32::MAX || record.end == u32::MAX)
-            && (record.flags & NodeFlags::SYNTHESIZED.bits() as i32) != 0
+            && (record.flags & NodeFlags::SYNTHESIZED.bits()) != 0
             && self.context.arena().metadata(expression).is_none();
         if unanchored {
             match &record.data {
@@ -3745,6 +3745,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         )
     }
 
+    #[allow(clippy::type_complexity)]
     fn visit_function_parts(
         &mut self,
         parameters: Option<NodeArrayId>,

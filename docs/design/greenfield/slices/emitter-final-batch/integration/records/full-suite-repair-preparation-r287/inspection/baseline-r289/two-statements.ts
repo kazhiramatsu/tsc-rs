@@ -1,0 +1,1 @@
+export const \u{10400} = 1; export const \u{10401} = 2;

@@ -1,0 +1,25 @@
+{
+  "at": "2026-09-20T19:27:05.500741+00:00",
+  "reason": "Hosted catalog requires a corrected final commit; terminate this owned obsolete-candidate CI before any canonical edit. This is not a CI success or natural compiler failure.",
+  "root": 41115,
+  "owned_processes": [
+    {
+      "pid": 41115,
+      "ppid": 41102,
+      "elapsed": "05:20",
+      "command": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/xtask ci --baseline 3b1f5fe87fd31e3b303bb44bd257342735452ed9"
+    },
+    {
+      "pid": 61683,
+      "ppid": 41115,
+      "elapsed": "00:22",
+      "command": "node /Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/crates/oracle/l1-performance.mjs --check"
+    },
+    {
+      "pid": 66530,
+      "ppid": 61683,
+      "elapsed": "00:00",
+      "command": "/Library/Developer/CommandLineTools/usr/bin/git show eb6fa670ce146171a74e408c65603cb264c10c30:crates/types/src/flags.rs"
+    }
+  ]
+}

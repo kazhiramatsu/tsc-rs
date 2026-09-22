@@ -1,0 +1,21 @@
+**r39 review of 287b7a62f: both changes are upstream-faithful; one hidden inconsistency remains in the printer.**
+
+**1. Printer prefix rule (`emit_same_line_trailing_comments`, printer.rs:18667).** Upstream `emitTrailingComment` (_tsc.js:121179-121190) writes the space whenever `!writer.isAtStartOfLine()`, then `emitPos(commentPos)`, the comment, `emitPos(commentEnd)`. The Rust order is the same: `write_space` first, then `write_source_comment` records the start position after the space (printer.rs:19123-19131), so the map segment lands on the comment, not the space. Writer parity holds: `is_at_start_of_line` is `!single_line && line_start` (writer.rs:506), `line_start` is set by `write_line` and cleared by text writes (writer.rs:341/435), matching upstream `lineStart` (16420-16427); the single-line writer returning false matches the string writer at 12694. Node probe on the copied `typescript.js` confirms the target behavior and the controls:
+
+```
+async function f() { await  /*😀*/; }      // two spaces
+async function f() { await /*c*/ x; }      // one
+delete /*c*/ x;   return /*c*/;   f(a /*c*/, b);   [a, /*c*/ b];   // all one space
+```
+
+**2. Hidden dependency.** There is a second port of the same upstream function, `emit_source_trailing_comments_of_position_with_filter` (printer.rs:18435, doc-tagged `emitTrailingComment` 121179), which still uses `!is_at_start_of_line() && !has_trailing_whitespace()` (18445). It serves the token trailing phase at 17168 (the `emitTokenWithComment` → `emitTrailingCommentsOfPosition(prefixSpace=true)` route) and the BoundaryUnion phase at 17331. The same source comment now gets one or two spaces depending on which Rust phase claims it. Suggest aligning 18445 in this slice (same one-line change) or recording why the token route must differ. `emit_same_line_trailing_block_comments` (18708, callers 12108/17471) also keeps the old rule; the leading-comment sites at 12160/12211/12244 legitimately follow other upstream rules and are not affected.
+
+**3. ES2017 conditional `set_text_range` (es2017.rs:1665).** Verified upstream `transformAsyncFunctionBody`: only the non-arrow branch does `setTextRange(block, node.body)` (101390-101395). The arrow result is the bare `createAwaiterHelper` call (synthetic), or `convertToFunctionBlock(result)` for arguments capture, whose two `setTextRange` donors are that synthetic call (20665-20672), so it stays synthetic. Rust now matches; `create_block`/`create_return_statement` in es2017.rs add no range, and the inner block ranging in `visit_async_body` (1894-1896) correctly mirrors `convertToFunctionBlock(visitNode(body))`, which is why both sides print the inner `/* value */ return 1`.
+
+**4. The r38 baseline mismatches are fully explained by the removed range.** Decoding the 44 map deltas: every extra tsc-rs segment anchors to the original arrow body (`{` col 29 or `1` col 41) at `__awaiter`, at `return`, and at the outer `}`. The two ES5 JS deltas come from ES2015's `transform_function_body` doing `set_text_range(return_statement, body)` (es2015.rs ~4887) where `body` was the ranged awaiter, so `/* value */` became the return's leading comment. With a synthetic awaiter, `Factory::set_text_range` copies the synthetic pos/end (factory.rs:6601-6623) and `effective_source_range` (es2015.rs:1096) yields None, so the close-brace token map is dropped, exactly upstream's `setTextRange(block, node.body)` with pos −1. Ordinary functions are untouched. I could not run the binary; the 72-row fixture is tsc-observed, but the Rust match is unverified here.
+
+**5. Essential extra controls (4):**
+- `class C { m() { return async () => this.x; } }` at ES5 with sourceMap: lexical `this` capture plus the `this` awaiter argument on a synthetic body.
+- `function outer() { return async () => /* v */ arguments[0]; }` at ES5 and ES2015: synthetic capture block must not inherit the comment.
+- `class C extends B { async m() { /* a */ return super.x; /* b */ } }` at ES2015: the ordinary ranged block with the super helper and both comments.
+- `function* g() { yield /*c*/; }` and `async function f() { await /*c*/ x; }` at ES2017: exercise the token route at 17168 against the changed helper to surface the one-vs-two-space divergence in item 2.

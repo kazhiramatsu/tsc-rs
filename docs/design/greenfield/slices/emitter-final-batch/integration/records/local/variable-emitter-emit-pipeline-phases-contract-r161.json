@@ -1,0 +1,24 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-variable-type-r161-native/emit_pipeline_phases_contract-76f67f5d71b22d2a",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-19T12:45:34.671940+00:00",
+  "head": "640146c2a9e749480611f52c387a2d2a4b3b7cf9",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 0.027,
+  "log_sha256": "597dcd206dc2faca3a7df2804444b7354b7ba4c3b8c22e5dc59c86f199096b7d",
+  "log_bytes": 164
+}

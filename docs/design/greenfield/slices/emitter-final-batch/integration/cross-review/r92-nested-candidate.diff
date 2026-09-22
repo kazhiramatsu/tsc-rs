@@ -1,0 +1,236 @@
+diff --git a/crates/syntax/src/recovery.rs b/crates/syntax/src/recovery.rs
+index d312149df..294a90b33 100644
+--- a/crates/syntax/src/recovery.rs
++++ b/crates/syntax/src/recovery.rs
+@@ -253,7 +253,7 @@ impl ParseRecovery {
+                         Some(index) if index < source.parse_diagnostics.len() => {
+                             self.actions.iter().any(|action| matches!(action,
+                                 ParseRecoveryAction::TokenSkipped { start, .. } if *start == event.start))
+-                            || Self::report_has_retained_syntax_owner(source, parents.as_ref().unwrap(), event)
++                            || self.report_has_retained_syntax_owner(source, parents.as_ref().unwrap(), event)
+                             || context_support.as_ref().is_some_and(|support| support.assertion_reports.contains(&event_index))
+                         }
+                         None => self.events.iter().any(|retained| {
+@@ -400,8 +400,13 @@ impl ParseRecovery {
+             return false;
+         };
+         let mut skip_spans = BTreeSet::new();
++        // Only validated close-paren runs may bridge a gap after the last
++        // retained statement. Every token still needs its own report and
++        // must have the same unique reachable array owner.
++        let mut close_paren_runs = BTreeMap::new();
+         for action in actions {
+             let ParseRecoveryAction::TokenSkipped {
++                token,
+                 start,
+                 length,
+                 site: ParseTokenSkipSite::ListAbort,
+@@ -443,6 +448,12 @@ impl ParseRecovery {
+                 return false;
+             }
+             let event = retained[0];
++            if token == SyntaxKind::CloseParenToken
++                && (event.length != length
++                    || source.text().get(start_byte as usize..end_byte as usize) != Some(")"))
++            {
++                return false;
++            }
+             let position = if allow_statement_gaps {
+                 if !Self::is_current_token_report(source, event)
+                     || event
+@@ -455,9 +466,20 @@ impl ParseRecovery {
+             } else {
+                 event.missing_node.unwrap().position
+             };
+-            let Some(missing_byte) = source.positions().utf16_to_byte(position) else {
++            let Some(mut missing_byte) = source.positions().utf16_to_byte(position) else {
+                 return false;
+             };
++            let prior_close_paren = if allow_statement_gaps
++                && event.missing_node.is_none()
++                && token == SyntaxKind::CloseParenToken
++            {
++                close_paren_runs.get(&event.full_start).copied()
++            } else {
++                None
++            };
++            if let Some((_, boundary)) = prior_close_paren {
++                missing_byte = boundary;
++            }
+             let mut operand_ancestors = BTreeSet::new();
+             let mut await_operand = false;
+             if event.missing_node.is_some() {
+@@ -555,9 +577,15 @@ impl ParseRecovery {
+                     owners.push(id);
+                 }
+             }
+-            if owners.len() != 1 {
++            if owners.len() != 1 || prior_close_paren.is_some_and(|(owner, _)| owner != owners[0]) {
+                 return false;
+             }
++            if allow_statement_gaps
++                && event.missing_node.is_none()
++                && token == SyntaxKind::CloseParenToken
++            {
++                close_paren_runs.insert(end, (owners[0], missing_byte));
++            }
+         }
+         !skip_spans.is_empty()
+     }
+@@ -578,6 +606,7 @@ impl ParseRecovery {
+     }
+ 
+     fn report_has_retained_syntax_owner(
++        &self,
+         source: &SourceFile,
+         parents: &BTreeMap<NodeId, Option<NodeId>>,
+         event: &ParseRecoveryEvent,
+@@ -608,9 +637,45 @@ impl ParseRecovery {
+                             .expression
+                             .is_some_and(|expression| source.arena.node(expression).end == node.end)
+                 })
+-                .count();
+-            if closers > 0 {
+-                return closers == 1;
++                .copied()
++                .collect::<BTreeSet<_>>();
++            if closers.len() == 1 {
++                return true;
++            }
++            if !closers.is_empty() {
++                let roots = closers
++                    .iter()
++                    .filter(|id| !parents[*id].is_some_and(|parent| closers.contains(&parent)))
++                    .copied()
++                    .collect::<Vec<_>>();
++                if roots.len() != 1 {
++                    return false;
++                }
++                let mut chain = BTreeSet::new();
++                let mut current = Some(roots[0]);
++                while let Some(id) = current.filter(|id| closers.contains(id)) {
++                    if !chain.insert(id) {
++                        return false;
++                    }
++                    let NodeData::ParenthesizedExpression(data) = &source.arena.node(id).data
++                    else {
++                        return false;
++                    };
++                    current = data.expression;
++                }
++                let reports = self.events.iter().filter(|candidate| {
++                    candidate.kind == ParseRecoveryKind::Diagnostic(ParseDiagnosticOrigin::Parser)
++                        && candidate.start == event.start
++                        && candidate.length == event.length
++                        && candidate.full_start == event.full_start
++                        && candidate.missing_node.is_none()
++                });
++                return chain == closers
++                    && reports.clone().count() == closers.len()
++                    && reports
++                        .filter(|candidate| candidate.diagnostic_index.is_some())
++                        .count()
++                        == 1;
+             }
+         }
+         let statements = parents
+diff --git a/crates/syntax/tests/unit/parser/recovery.rs b/crates/syntax/tests/unit/parser/recovery.rs
+index 279a2f12b..b2d1e86f6 100644
+--- a/crates/syntax/tests/unit/parser/recovery.rs
++++ b/crates/syntax/tests/unit/parser/recovery.rs
+@@ -801,6 +801,95 @@ fn statement_gap_recovery_rejects_unowned_or_forged_events() {
+     });
+ }
+ 
++#[test]
++fn nested_parenthesis_recovery_requires_a_direct_chain_and_owned_closing_tokens() {
++    for text in [
++        "export const z = ((x //c\n as number));",
++        "export const z = (((x //c\n as number)));",
++        "export const z = ((x) //c\n as number);",
++        "export const z = ((x /*c*/\n as number));",
++        "export const z = x; )))\n",
++        "{ const z = ((x //😀\n as number) /*😀*/ ); }",
++    ] {
++        let parsed = source(text);
++        assert!(!parsed.parse_diagnostics.is_empty(), "{text}");
++        assert_coverage(&parsed.parse_diagnostics, parsed.parse_recovery());
++        assert!(parsed.has_only_statement_gap_emit_recovery(), "{text}");
++        assert!(parsed.has_supported_emit_recovery(), "{text}");
++    }
++    for text in [
++        "export const z = (<any>(x //c\n as number));",
++        "export const z = ((x\n as number)\n as string);",
++        "export const z = x; )]\n",
++        "));",
++    ] {
++        let parsed = source(text);
++        assert!(!parsed.parse_diagnostics.is_empty(), "{text}");
++        assert!(!parsed.has_only_statement_gap_emit_recovery(), "{text}");
++        assert!(!parsed.has_supported_emit_recovery(), "{text}");
++    }
++}
++
++#[test]
++fn nested_parenthesis_recovery_rejects_forged_chains_and_skip_runs() {
++    let parsed = source("export const z = ((x //c\n as number));");
++    assert!(parsed.has_only_statement_gap_emit_recovery());
++    let check = |mutate: &dyn Fn(&mut ParseRecovery)| {
++        let mut changed = parsed.clone();
++        mutate(&mut changed.parse_recovery);
++        assert!(!changed.has_only_statement_gap_emit_recovery());
++        assert!(!changed.has_supported_emit_recovery());
++    };
++    check(&|r| {
++        let index = r
++            .events
++            .iter()
++            .position(|event| {
++                event.diagnostic_index.is_none() && event.full_start == r.events[0].full_start
++            })
++            .unwrap();
++        r.events.remove(index);
++    });
++    check(&|r| {
++        let event = *r
++            .events
++            .iter()
++            .find(|event| {
++                event.diagnostic_index.is_none() && event.full_start == r.events[0].full_start
++            })
++            .unwrap();
++        r.events.push(event);
++    });
++    check(&|r| {
++        let full_start = r.events[0].full_start;
++        r.events
++            .iter_mut()
++            .find(|event| event.diagnostic_index.is_none() && event.full_start == full_start)
++            .unwrap()
++            .full_start += 1;
++    });
++    check(&|r| r.actions.reverse());
++    check(&|r| r.actions.push(r.actions[0]));
++    check(&|r| {
++        if let ParseRecoveryAction::TokenSkipped { start, .. } = &mut r.actions[1] {
++            *start -= 1;
++        }
++    });
++    check(&|r| {
++        if let ParseRecoveryAction::TokenSkipped { token, .. } = &mut r.actions[1] {
++            *token = SyntaxKind::CloseBracketToken;
++        }
++    });
++    let mut mixed = source("export const z = x; )]\n");
++    for action in &mut mixed.parse_recovery.actions {
++        if let ParseRecoveryAction::TokenSkipped { token, .. } = action {
++            *token = SyntaxKind::CloseParenToken;
++        }
++    }
++    assert!(!mixed.has_only_statement_gap_emit_recovery());
++    assert!(!mixed.has_supported_emit_recovery());
++}
++
+ #[test]
+ fn decorator_await_consumption_has_a_typed_token_skip_and_missing_head() {
+     for text in [

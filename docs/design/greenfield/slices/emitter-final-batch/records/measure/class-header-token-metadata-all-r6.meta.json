@@ -1,0 +1,13 @@
+{
+  "name": "class-header-token-metadata-all-r6",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 21,
+  "env": [],
+  "argv": "python3 scripts/witness.py class-header-token-metadata --all",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T08:31:46Z",
+  "seconds": 6,
+  "exit": 0,
+  "log_sha256": "1e096c74ee406c40c03994904026a6fed503eaddcfe650260c5c2528f83901a8",
+  "log_bytes": 4163
+}

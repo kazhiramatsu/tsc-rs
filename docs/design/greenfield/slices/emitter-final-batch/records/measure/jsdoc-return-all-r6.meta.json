@@ -1,0 +1,13 @@
+{
+  "name": "jsdoc-return-all-r6",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 21,
+  "env": [],
+  "argv": "python3 scripts/witness.py jsdoc-return --all",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T08:33:29Z",
+  "seconds": 131,
+  "exit": 0,
+  "log_sha256": "4808a816d7640217f076c3f0ad9e538e9e041e2f05a7763c89be9e7331106d89",
+  "log_bytes": 3979
+}

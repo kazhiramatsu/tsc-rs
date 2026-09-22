@@ -1,0 +1,15 @@
+{
+  "name": "witness-bundle-metadata-t1-all-r8",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 33,
+  "env": [
+    "CARGO_BUILD_JOBS=1"
+  ],
+  "argv": "python3 scripts/witness.py bundle-metadata-t1 --all",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T16:13:45Z",
+  "seconds": 162,
+  "exit": 0,
+  "log_sha256": "5d7253c4dfc82c701dd7b06a9971836746aa33032e95e279e1fa6785986498eb",
+  "log_bytes": 18367
+}

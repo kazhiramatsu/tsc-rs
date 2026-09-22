@@ -1,0 +1,202 @@
+[
+  {
+    "kind": 308,
+    "pos": 0,
+    "end": 67,
+    "parent": -1,
+    "name": "SourceFile",
+    "parentName": null
+  },
+  {
+    "kind": 263,
+    "pos": 0,
+    "end": 38,
+    "parent": 308,
+    "name": "FunctionDeclaration",
+    "parentName": "SourceFile"
+  },
+  {
+    "kind": 138,
+    "pos": 0,
+    "end": 7,
+    "parent": 263,
+    "name": "DeclareKeyword",
+    "parentName": "FunctionDeclaration"
+  },
+  {
+    "kind": 80,
+    "pos": 16,
+    "end": 20,
+    "parent": 263,
+    "name": "Identifier",
+    "parentName": "FunctionDeclaration"
+  },
+  {
+    "kind": 169,
+    "pos": 21,
+    "end": 22,
+    "parent": 263,
+    "name": "TypeParameter",
+    "parentName": "FunctionDeclaration"
+  },
+  {
+    "kind": 80,
+    "pos": 21,
+    "end": 22,
+    "parent": 169,
+    "name": "Identifier",
+    "parentName": "TypeParameter"
+  },
+  {
+    "kind": 170,
+    "pos": 24,
+    "end": 33,
+    "parent": 263,
+    "name": "Parameter",
+    "parentName": "FunctionDeclaration"
+  },
+  {
+    "kind": 80,
+    "pos": 24,
+    "end": 30,
+    "parent": 170,
+    "name": "Identifier",
+    "parentName": "Parameter"
+  },
+  {
+    "kind": 184,
+    "pos": 31,
+    "end": 33,
+    "parent": 170,
+    "name": "TypeReference",
+    "parentName": "Parameter"
+  },
+  {
+    "kind": 80,
+    "pos": 31,
+    "end": 33,
+    "parent": 184,
+    "name": "Identifier",
+    "parentName": "TypeReference"
+  },
+  {
+    "kind": 184,
+    "pos": 35,
+    "end": 37,
+    "parent": 263,
+    "name": "TypeReference",
+    "parentName": "FunctionDeclaration"
+  },
+  {
+    "kind": 80,
+    "pos": 35,
+    "end": 37,
+    "parent": 184,
+    "name": "Identifier",
+    "parentName": "TypeReference"
+  },
+  {
+    "kind": 244,
+    "pos": 38,
+    "end": 50,
+    "parent": 308,
+    "name": "FirstStatement",
+    "parentName": "SourceFile"
+  },
+  {
+    "kind": 171,
+    "pos": 38,
+    "end": 44,
+    "parent": 244,
+    "name": "Decorator",
+    "parentName": "FirstStatement"
+  },
+  {
+    "kind": 80,
+    "pos": 41,
+    "end": 44,
+    "parent": 171,
+    "name": "Identifier",
+    "parentName": "Decorator"
+  },
+  {
+    "kind": 262,
+    "pos": 44,
+    "end": 50,
+    "parent": 244,
+    "name": "VariableDeclarationList",
+    "parentName": "FirstStatement"
+  },
+  {
+    "kind": 245,
+    "pos": 50,
+    "end": 52,
+    "parent": 308,
+    "name": "ExpressionStatement",
+    "parentName": "SourceFile"
+  },
+  {
+    "kind": 9,
+    "pos": 50,
+    "end": 52,
+    "parent": 245,
+    "name": "FirstLiteralToken",
+    "parentName": "ExpressionStatement"
+  },
+  {
+    "kind": 244,
+    "pos": 52,
+    "end": 66,
+    "parent": 308,
+    "name": "FirstStatement",
+    "parentName": "SourceFile"
+  },
+  {
+    "kind": 171,
+    "pos": 52,
+    "end": 58,
+    "parent": 244,
+    "name": "Decorator",
+    "parentName": "FirstStatement"
+  },
+  {
+    "kind": 80,
+    "pos": 55,
+    "end": 58,
+    "parent": 171,
+    "name": "Identifier",
+    "parentName": "Decorator"
+  },
+  {
+    "kind": 262,
+    "pos": 58,
+    "end": 66,
+    "parent": 244,
+    "name": "VariableDeclarationList",
+    "parentName": "FirstStatement"
+  },
+  {
+    "kind": 261,
+    "pos": 64,
+    "end": 66,
+    "parent": 262,
+    "name": "VariableDeclaration",
+    "parentName": "VariableDeclarationList"
+  },
+  {
+    "kind": 80,
+    "pos": 64,
+    "end": 66,
+    "parent": 261,
+    "name": "Identifier",
+    "parentName": "VariableDeclaration"
+  },
+  {
+    "kind": 1,
+    "pos": 66,
+    "end": 67,
+    "parent": 308,
+    "name": "EndOfFileToken",
+    "parentName": "SourceFile"
+  }
+]

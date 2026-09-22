@@ -1,0 +1,24 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "python3",
+    "/tmp/emitter-noemit-r153.py"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next",
+  "started_at": "2026-09-19T11:50:32.922608+00:00",
+  "head": "42f9ccefc3d8f28be9cda08930a0e4bf331f6132",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 21.957,
+  "log_sha256": "52ff0c0d711e42bcc551c6a17c4ed9f777312f7e170f9927c69719878d0912fb",
+  "log_bytes": 6012
+}

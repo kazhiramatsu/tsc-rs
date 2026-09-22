@@ -1,0 +1,24 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "python3",
+    "/tmp/emitter-corpus-controls-r172.py"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-19T13:31:06.117153+00:00",
+  "head": "e50719c506138858577342b4fce5c2b86016de24",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 101,
+  "seconds": 20.288,
+  "log_sha256": "3ffecad1fe9548f30a65e8b94ea11f502ea9f33f16092d9850a7ca457c937a6b",
+  "log_bytes": 5263
+}

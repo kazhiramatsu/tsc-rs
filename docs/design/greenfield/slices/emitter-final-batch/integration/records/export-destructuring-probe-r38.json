@@ -1,0 +1,89 @@
+{
+  "scope": "Exploratory physical CLI writes; paths relocated. Complete native contracts are separate.",
+  "cases": [
+    {
+      "case_id": "export-destructuring-comments/es5/commonjs/remove-false/let-jsdoc",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "writes": [
+        {
+          "path": "/project/out/main.js.map",
+          "actual_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBR0M7QUFEQSxXQUFXO0FBQ1gsQ0FBQyxHQUFLLE1BQU0sR0FBQyJ9",
+          "expected_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBRUMsV0FBVztBQUNYLFFBQUEsQ0FBQyxHQUFLLE1BQU0sR0FBQyJ9"
+        },
+        {
+          "path": "/project/out/main.js",
+          "actual_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnggPSB2b2lkIDA7CmV4cG9ydHMuCi8qKiBsZWFmICovCnggPSBzb3VyY2UueDsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "expected_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnggPSB2b2lkIDA7Ci8qKiBsZWFmICovCmV4cG9ydHMueCA9IHNvdXJjZS54OwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA=="
+        },
+        {
+          "path": "/project/out/main.d.ts.map",
+          "actual_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFDQSxlQUFPO0FBQ04sV0FBVztBQUNYLENBQUMsS0FBVyxDQUFDIn0=",
+          "expected_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFDQSxlQUFPO0FBQ04sV0FBVztBQUNYLENBQUMsS0FBVyxDQUFDIn0="
+        },
+        {
+          "path": "/project/out/main.d.ts",
+          "actual_base64": "ZXhwb3J0IGRlY2xhcmUgbGV0IAovKiogbGVhZiAqLwp4OiBhbnk7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+          "expected_base64": "ZXhwb3J0IGRlY2xhcmUgbGV0IAovKiogbGVhZiAqLwp4OiBhbnk7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA="
+        }
+      ]
+    },
+    {
+      "case_id": "export-destructuring-comments/es5/commonjs/remove-false/default",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "writes": [
+        {
+          "path": "/project/out/main.js.map",
+          "actual_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7OztBQUdDO0FBREEsY0FBYztBQUNkLENBQUM7QUFERCxjQUFjO0FBQ2QsS0FBVSxNQUFNLEVBQVgsa0JBQUQsQ0FBQyxPQUFZIn0=",
+          "expected_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7OztBQUVDLGNBQWM7QUFDZCxRQUFBLENBQUM7QUFERCxjQUFjO0FBQ2QsS0FBVSxNQUFNLEVBQVgsa0JBQUQsQ0FBQyxPQUFZIn0="
+        },
+        {
+          "path": "/project/out/main.js",
+          "actual_base64": "InVzZSBzdHJpY3QiOwp2YXIgX2E7Ck9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CmV4cG9ydHMueCA9IHZvaWQgMDsKZXhwb3J0cy4KLyoqIGRlZmF1bHQgKi8KeCA9ICgKLyoqIGRlZmF1bHQgKi8KX2EgPSBzb3VyY2UueCwgX2EgPT09IHZvaWQgMCA/IDEgOiBfYSk7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+          "expected_base64": "InVzZSBzdHJpY3QiOwp2YXIgX2E7Ck9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CmV4cG9ydHMueCA9IHZvaWQgMDsKLyoqIGRlZmF1bHQgKi8KZXhwb3J0cy54ID0gKAovKiogZGVmYXVsdCAqLwpfYSA9IHNvdXJjZS54LCBfYSA9PT0gdm9pZCAwID8gMSA6IF9hKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA="
+        },
+        {
+          "path": "/project/out/main.d.ts.map",
+          "actual_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFDQSxlQUFPO0FBQ04sY0FBYztBQUNkLENBQUMsS0FBZSxDQUFDIn0=",
+          "expected_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFDQSxlQUFPO0FBQ04sY0FBYztBQUNkLENBQUMsS0FBZSxDQUFDIn0="
+        },
+        {
+          "path": "/project/out/main.d.ts",
+          "actual_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgCi8qKiBkZWZhdWx0ICovCng6IGFueTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5kLnRzLm1hcA==",
+          "expected_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgCi8qKiBkZWZhdWx0ICovCng6IGFueTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5kLnRzLm1hcA=="
+        }
+      ]
+    },
+    {
+      "case_id": "export-destructuring-comments/es2015/commonjs/remove-false/assignment",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "writes": [
+        {
+          "path": "/project/out/main.js.map",
+          "actual_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQ2MsQ0FBQztJQUNkLGlCQUFpQjtJQUNqQixDQUFDO0lBREQsaUJBQWlCO0lBQ2pCLFNBQUM7Q0FBRSxHQUFHLE1BQU0sQ0FBQyxDQUFDIn0=",
+          "expected_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQ2MsQ0FBQztJQUNkLGlCQUFpQjtJQUNqQixDQUFDLEVBQUQsU0FBQztDQUFFLEdBQUcsTUFBTSxDQUFDLENBQUMifQ=="
+        },
+        {
+          "path": "/project/out/main.js",
+          "actual_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnggPSB2b2lkIDA7Cih7CiAgICAvKiogYXNzaWdubWVudCAqLwogICAgeDogCiAgICAvKiogYXNzaWdubWVudCAqLwogICAgZXhwb3J0cy54Cn0gPSBzb3VyY2UpOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "expected_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnggPSB2b2lkIDA7Cih7CiAgICAvKiogYXNzaWdubWVudCAqLwogICAgeDogZXhwb3J0cy54Cn0gPSBzb3VyY2UpOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA=="
+        },
+        {
+          "path": "/project/out/main.d.ts.map",
+          "actual_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFDQSxlQUFPLElBQUksQ0FBQyxLQUFBLENBQUMifQ==",
+          "expected_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFDQSxlQUFPLElBQUksQ0FBQyxLQUFBLENBQUMifQ=="
+        },
+        {
+          "path": "/project/out/main.d.ts",
+          "actual_base64": "ZXhwb3J0IGRlY2xhcmUgbGV0IHg6IGFueTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5kLnRzLm1hcA==",
+          "expected_base64": "ZXhwb3J0IGRlY2xhcmUgbGV0IHg6IGFueTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5kLnRzLm1hcA=="
+        }
+      ]
+    }
+  ]
+}

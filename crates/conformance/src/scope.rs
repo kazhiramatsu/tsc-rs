@@ -1,6 +1,6 @@
 //! A2 exact scope state (measurement-integrity.md §3).
 //!
-//! The manifest (`m8-scope.json`, schema 2) enumerates the reviewed
+//! The manifest (`ratchets/m8/m8-scope.json`, schema 2) enumerates the reviewed
 //! out-of-scope oracle diagnostic occurrences by exact identity, plus
 //! the anchors protecting them: draft band pins (reviewed snapshot
 //! protocol), standing A1 tombstones for resolved exclusions, and the
@@ -28,7 +28,7 @@ use crate::identity::{
 };
 use crate::ratchet::{self, git_blob_optional, git_rel_path, git_root_for, resolve_commit};
 
-pub(crate) const SCOPE_REL_PATH: &str = "m8-scope.json";
+pub(crate) const SCOPE_REL_PATH: &str = "ratchets/m8/m8-scope.json";
 const SCOPE_SCHEMA: u32 = 2;
 /// Path of the committed cross-language encoder canaries, relative to
 /// the workspace root.

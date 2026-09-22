@@ -1,0 +1,329 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h2-8a-candidate-inputs.schema.json",
+  "title": "H2.8a original command inputs",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "typescript",
+    "source_commit",
+    "shared_mounts",
+    "cases"
+  ],
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "kind": {
+      "const": "h2-8a-candidate-inputs"
+    },
+    "typescript": {
+      "const": "6.0.3"
+    },
+    "source_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "shared_mounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "projects"
+      ],
+      "properties": {
+        "projects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/file"
+          },
+          "minItems": 233,
+          "maxItems": 233
+        }
+      }
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/case"
+      },
+      "minItems": 809,
+      "maxItems": 809
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "bytes",
+        "sha256",
+        "git_blob_sha1"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "git_blob_sha1": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        }
+      }
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "text"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "text": {
+          "type": "string"
+        }
+      }
+    },
+    "whole_program": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "route",
+        "current_directory",
+        "use_case_sensitive_file_names",
+        "roots",
+        "files",
+        "config",
+        "vfs_symlinks",
+        "shared_mount",
+        "default_library_file_name"
+      ],
+      "properties": {
+        "route": {
+          "const": "whole-program"
+        },
+        "current_directory": {
+          "type": "string",
+          "minLength": 1
+        },
+        "use_case_sensitive_file_names": {
+          "type": "boolean"
+        },
+        "roots": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/file"
+          }
+        },
+        "config": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/file"
+            }
+          ]
+        },
+        "vfs_symlinks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "link_path",
+              "target_path"
+            ],
+            "properties": {
+              "link_path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "target_path": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "shared_mount": {
+          "enum": [
+            null,
+            "projects"
+          ]
+        },
+        "default_library_file_name": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "minLength": 1
+            }
+          ]
+        }
+      }
+    },
+    "transpile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "route",
+        "api",
+        "report_diagnostics",
+        "units"
+      ],
+      "properties": {
+        "route": {
+          "const": "transpile-api"
+        },
+        "api": {
+          "enum": [
+            "transpileModule",
+            "transpileDeclaration"
+          ]
+        },
+        "report_diagnostics": {
+          "type": "boolean"
+        },
+        "units": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "text"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "text": {
+                "type": "string"
+              }
+            }
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "suite",
+        "source",
+        "settings",
+        "selection",
+        "effective_options",
+        "input",
+        "project_descriptor"
+      ],
+      "properties": {
+        "case_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "suite": {
+          "enum": [
+            "compiler",
+            "conformance",
+            "project",
+            "transpile"
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "settings": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              }
+            }
+          ]
+        },
+        "selection": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "effective_options": {
+          "type": "object"
+        },
+        "input": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/whole_program"
+            },
+            {
+              "$ref": "#/$defs/transpile"
+            }
+          ]
+        },
+        "project_descriptor": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}

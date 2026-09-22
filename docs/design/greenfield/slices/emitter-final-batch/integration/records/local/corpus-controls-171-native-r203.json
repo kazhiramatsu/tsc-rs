@@ -1,0 +1,28 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-corpus-controls-r203/contracts",
+    "--exact",
+    "emitter_residual_audit::r171_corpus_controls_match_complete_typescript_commands",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-19T15:27:56.214689+00:00",
+  "head": "ed4a419830cc05b4c6d3063b22a8dc5813950bfd",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target",
+    "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-corpus-controls-r203/captures-171"
+  },
+  "exit": 0,
+  "seconds": 119.075,
+  "log_sha256": "4ed08a2bed835391389c30f97d10e355c1898baf41827d78acb64f8ebeda5648",
+  "log_bytes": 42400
+}

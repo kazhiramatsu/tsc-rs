@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import { normalizedSha256, consumerRows, PIN_INDEX_RELATIVE_PATH } from '/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/crates/oracle/pin-normalize.mjs';
+const root = '/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep';
+const relative = 'crates/oracle/h2-5g-qualification.mjs';
+const rows = consumerRows(JSON.parse(fs.readFileSync(`${root}/${PIN_INDEX_RELATIVE_PATH}`, 'utf8')), relative);
+const old = normalizedSha256(fs.readFileSync(`${root}/${relative}`, 'utf8'), rows);
+const next = normalizedSha256(fs.readFileSync('/tmp/emitter-5g-repair-r536/h2-5g-qualification.mjs', 'utf8'), rows);
+assert.deepEqual(old.refusals, []);
+assert.deepEqual(next.refusals, []);
+assert.notEqual(old.sha256, next.sha256);
+console.log(JSON.stringify({ qualified: false, meaning: 'Logic changes the actual normalized generator term; prior observation journals must not be rekeyed or reused.', old, next }, null, 2));

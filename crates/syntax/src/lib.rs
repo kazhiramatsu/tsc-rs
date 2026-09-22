@@ -44,7 +44,10 @@ pub use parser::{
     is_entity_name_js_text, is_entity_name_text, is_identifier_text, is_identifier_text_for_target,
     parse_entity_name_components, JSDocParsingMode, ParseOptions,
 };
-pub use recovery::{ParseDiagnosticOrigin, ParseRecovery, ParseRecoveryEvent, ParseRecoveryKind};
+pub use recovery::{
+    MissingNodeRecovery, ParseDiagnosticOrigin, ParseRecovery, ParseRecoveryAction,
+    ParseRecoveryEvent, ParseRecoveryKind, ParseTokenSkipSite,
+};
 pub use scanner::{
     is_js_whitespace, is_line_break, is_whitespace_like, js_trim_start, scan_big_int_string,
     scan_byte_tokens, scan_token_kinds, scan_tokens, skip_trivia, string_literal_text_utf16,
@@ -176,6 +179,39 @@ impl SourceFile {
     pub fn has_only_literal_recovery(&self) -> bool {
         self.parse_recovery
             .is_literal_only(self.parse_diagnostics.len())
+    }
+
+    /// Literal-token recovery or uniquely recorded missing Identifier operands
+    /// of AwaitExpression, with no token skips or reparse actions in the latter
+    /// case. This describes reachable syntax rather than diagnostic codes.
+    pub fn has_only_literal_or_missing_await_recovery(&self) -> bool {
+        self.parse_recovery.is_literal_or_missing_await(self)
+    }
+
+    /// Literal and uniquely matched statement missing-node recovery, before
+    /// parameter-list token gaps are considered.
+    pub fn has_only_missing_node_emit_recovery(&self) -> bool {
+        self.parse_recovery.is_missing_node_emit_recovery(self)
+    }
+
+    /// Missing-node recovery plus skipped parameter gaps, before statement
+    /// gaps and report-only list/closer boundaries are considered.
+    pub fn has_only_parameter_gap_emit_recovery(&self) -> bool {
+        self.parse_recovery.is_parameter_gap_emit_recovery(self)
+    }
+
+    /// Structural missing nodes and parameter/statement gaps, before
+    /// await-context runs, decorator heads and heritage gaps are considered.
+    pub fn has_only_statement_gap_emit_recovery(&self) -> bool {
+        self.parse_recovery.is_statement_gap_emit_recovery(self)
+    }
+
+    /// Literal and uniquely owned structural recovery supported by ordinary
+    /// emit. Every missing operand, report and skipped list gap must be tied
+    /// to reachable syntax. Reparse runs require a matching module-context
+    /// statement sequence, and unowned recovery remains refused.
+    pub fn has_supported_emit_recovery(&self) -> bool {
+        self.parse_recovery.is_supported_for_emit(self)
     }
 
     /// Harness only: drop every retained parse diagnostic together with the

@@ -128,7 +128,7 @@ fn qualification() -> Qualification {
 }
 
 #[test]
-fn frozen_h0_profile_matches_the_executable_boundaries() {
+fn frozen_h0_profile_retains_the_original_qualification_baseline() {
     let profile = qualification();
     assert_eq!(profile.schema, 1);
     assert_eq!(profile.status, "frozen");
@@ -141,6 +141,9 @@ fn frozen_h0_profile_matches_the_executable_boundaries() {
     assert!(!profile.scope.language_service);
     assert_eq!(profile.scope.unsupported_policy, "typed-fail-closed");
 
+    // This frozen artifact covers the original H0 inventory. Later ordinary
+    // no-emit sourceMap admission has separate complete-command/CLI witnesses
+    // in the emitter audit; do not retroactively re-sign this host evidence.
     assert_eq!(
         profile
             .option_profile

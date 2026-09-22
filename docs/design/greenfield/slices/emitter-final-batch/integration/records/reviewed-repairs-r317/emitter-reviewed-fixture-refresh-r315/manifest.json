@@ -1,0 +1,57 @@
+{
+  "head": "9e46ae514fb6fa7f389abb22335ffddfef79b2ea",
+  "qualified_native": false,
+  "steps": [
+    {
+      "label": "import-comment-controls-oracle-r315",
+      "exit": 0,
+      "seconds": 146.24750729091465
+    },
+    {
+      "label": "import-helper-retirement-oracle-r315",
+      "exit": 0,
+      "seconds": 335.0033680840861
+    }
+  ],
+  "old129_unchanged": true,
+  "new36_case_ids": [
+    "token-comment-phases/recovery-import-owner/original/remove-false/all",
+    "token-comment-phases/recovery-import-owner/original/remove-false/declaration-only",
+    "token-comment-phases/recovery-import-owner/original/remove-true/all",
+    "token-comment-phases/recovery-import-owner/original/remove-true/declaration-only",
+    "token-comment-phases/recovery-import-owner/no-comment/remove-false/all",
+    "token-comment-phases/recovery-import-owner/no-comment/remove-false/declaration-only",
+    "token-comment-phases/recovery-import-owner/no-comment/remove-true/all",
+    "token-comment-phases/recovery-import-owner/no-comment/remove-true/declaration-only",
+    "token-comment-phases/recovery-import-owner/adjacent/remove-false/all",
+    "token-comment-phases/recovery-import-owner/adjacent/remove-false/declaration-only",
+    "token-comment-phases/recovery-import-owner/adjacent/remove-true/all",
+    "token-comment-phases/recovery-import-owner/adjacent/remove-true/declaration-only",
+    "token-comment-phases/recovery-import-owner/both-boundaries/remove-false/all",
+    "token-comment-phases/recovery-import-owner/both-boundaries/remove-false/declaration-only",
+    "token-comment-phases/recovery-import-owner/both-boundaries/remove-true/all",
+    "token-comment-phases/recovery-import-owner/both-boundaries/remove-true/declaration-only",
+    "token-comment-phases/recovery-import-owner/separate-lines/remove-false/all",
+    "token-comment-phases/recovery-import-owner/separate-lines/remove-false/declaration-only",
+    "token-comment-phases/recovery-import-owner/separate-lines/remove-true/all",
+    "token-comment-phases/recovery-import-owner/separate-lines/remove-true/declaration-only",
+    "token-comment-phases/recovery-import-owner/named/remove-false/all",
+    "token-comment-phases/recovery-import-owner/named/remove-false/declaration-only",
+    "token-comment-phases/recovery-import-owner/named/remove-true/all",
+    "token-comment-phases/recovery-import-owner/named/remove-true/declaration-only",
+    "token-comment-phases/recovery-import-owner/namespace/remove-false/all",
+    "token-comment-phases/recovery-import-owner/namespace/remove-false/declaration-only",
+    "token-comment-phases/recovery-import-owner/namespace/remove-true/all",
+    "token-comment-phases/recovery-import-owner/namespace/remove-true/declaration-only",
+    "token-comment-phases/recovery-import-owner/side-effect/remove-false/all",
+    "token-comment-phases/recovery-import-owner/side-effect/remove-false/declaration-only",
+    "token-comment-phases/recovery-import-owner/side-effect/remove-true/all",
+    "token-comment-phases/recovery-import-owner/side-effect/remove-true/declaration-only",
+    "token-comment-phases/recovery-import-owner/unicode-lines/remove-false/all",
+    "token-comment-phases/recovery-import-owner/unicode-lines/remove-false/declaration-only",
+    "token-comment-phases/recovery-import-owner/unicode-lines/remove-true/all",
+    "token-comment-phases/recovery-import-owner/unicode-lines/remove-true/declaration-only"
+  ],
+  "new_fixture_sha256": "2785343672ceb3edc195ea30970148d3c22046e6781518b563f54617c580c327",
+  "oracle_refresh_complete": true
+}

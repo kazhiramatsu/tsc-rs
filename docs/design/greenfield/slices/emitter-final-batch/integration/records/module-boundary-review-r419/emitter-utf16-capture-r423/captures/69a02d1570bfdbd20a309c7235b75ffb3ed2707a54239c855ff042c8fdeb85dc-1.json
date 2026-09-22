@@ -1,0 +1,201 @@
+{
+  "case_id": "b1-noEmitOnError/utf16-literals/adjacent-probes/es2015/unterminated-string",
+  "attempt": 1,
+  "actual": {
+    "writes": [],
+    "reported_diagnostics": [
+      {
+        "code": 1002,
+        "category": 1,
+        "file": "/project/main.ts",
+        "start": 26,
+        "length": 0,
+        "message": {
+          "utf16": [
+            85,
+            110,
+            116,
+            101,
+            114,
+            109,
+            105,
+            110,
+            97,
+            116,
+            101,
+            100,
+            32,
+            115,
+            116,
+            114,
+            105,
+            110,
+            103,
+            32,
+            108,
+            105,
+            116,
+            101,
+            114,
+            97,
+            108,
+            46
+          ],
+          "utf8_base64": "VW50ZXJtaW5hdGVkIHN0cmluZyBsaXRlcmFsLg=="
+        },
+        "related_information": null
+      }
+    ],
+    "status_writes": [],
+    "exit_code": 1,
+    "emit_result": {
+      "emit_skipped": true,
+      "diagnostics": [
+        {
+          "code": 1002,
+          "category": 1,
+          "file": "/project/main.ts",
+          "start": 26,
+          "length": 0,
+          "message": {
+            "utf16": [
+              85,
+              110,
+              116,
+              101,
+              114,
+              109,
+              105,
+              110,
+              97,
+              116,
+              101,
+              100,
+              32,
+              115,
+              116,
+              114,
+              105,
+              110,
+              103,
+              32,
+              108,
+              105,
+              116,
+              101,
+              114,
+              97,
+              108,
+              46
+            ],
+            "utf8_base64": "VW50ZXJtaW5hdGVkIHN0cmluZyBsaXRlcmFsLg=="
+          },
+          "related_information": null
+        }
+      ],
+      "emitted_files": null,
+      "source_maps": null
+    }
+  },
+  "error": null,
+  "no_emit_observation": null,
+  "typed_recovery_refusal": false,
+  "native_contract": "exact",
+  "partial_writes": null,
+  "expected": {
+    "writes": [],
+    "reported_diagnostics": [
+      {
+        "code": 1002,
+        "category": 1,
+        "file": "/project/main.ts",
+        "start": 26,
+        "length": 0,
+        "message": {
+          "utf16": [
+            85,
+            110,
+            116,
+            101,
+            114,
+            109,
+            105,
+            110,
+            97,
+            116,
+            101,
+            100,
+            32,
+            115,
+            116,
+            114,
+            105,
+            110,
+            103,
+            32,
+            108,
+            105,
+            116,
+            101,
+            114,
+            97,
+            108,
+            46
+          ],
+          "utf8_base64": "VW50ZXJtaW5hdGVkIHN0cmluZyBsaXRlcmFsLg=="
+        },
+        "related_information": null
+      }
+    ],
+    "status_writes": [],
+    "exit_code": 1,
+    "emit_result": {
+      "emit_skipped": true,
+      "diagnostics": [
+        {
+          "code": 1002,
+          "category": 1,
+          "file": "/project/main.ts",
+          "start": 26,
+          "length": 0,
+          "message": {
+            "utf16": [
+              85,
+              110,
+              116,
+              101,
+              114,
+              109,
+              105,
+              110,
+              97,
+              116,
+              101,
+              100,
+              32,
+              115,
+              116,
+              114,
+              105,
+              110,
+              103,
+              32,
+              108,
+              105,
+              116,
+              101,
+              114,
+              97,
+              108,
+              46
+            ],
+            "utf8_base64": "VW50ZXJtaW5hdGVkIHN0cmluZyBsaXRlcmFsLg=="
+          },
+          "related_information": null
+        }
+      ],
+      "emitted_files": null,
+      "source_maps": null
+    }
+  }
+}

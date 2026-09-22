@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "node",
+    "scripts/observe-emitter-r112-post-child-metadata.mjs",
+    "--write"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-lint-prep",
+  "started_at": "2026-09-19T06:25:50.412519+00:00",
+  "head": "fcd7bbb9f2098ea23d3713dbfa76fe6531344e05",
+  "tracked_clean": false,
+  "diff_sha256": "f40c070e72812cadfa35deecbaf4ff987c3c80d820f9a791c035c13ae6766640",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 2.27,
+  "log_sha256": "b043530a5fc43888c808d61dcca7abbf46b6dd26b02e464c41ff9ba7da473c5d",
+  "log_bytes": 69
+}

@@ -55,15 +55,15 @@ impl ConfigParseHost for MemoryConfigHost {
         _includes: Option<&[tsc_diagnostics::JsString]>,
         _depth: Option<usize>,
     ) -> Result<Vec<tsc_diagnostics::JsString>, ConfigHostError> {
-        (|| -> Result<Vec<String>, ConfigHostError> {
+        let scalar_paths: Result<Vec<String>, ConfigHostError> = {
             Ok(self
                 .directory_files
                 .iter()
                 .filter(|file| extensions.iter().any(|extension| file.ends_with(extension)))
                 .cloned()
                 .collect())
-        })()
-        .map(|paths| paths.into_iter().map(Into::into).collect())
+        };
+        scalar_paths.map(|paths| paths.into_iter().map(Into::into).collect())
     }
 }
 
@@ -658,7 +658,7 @@ fn paths_and_declaring_base_project_atomically_into_the_resolver() {
     let projected = plan.module_resolution_options();
     assert_eq!(
         projected.program_options().paths_base_path(),
-        (Some("/other")).map(Into::into)
+        Some(Into::into("/other"))
     );
     assert_eq!(
         projected.program_options().paths().unwrap()[0].pattern(),
@@ -706,7 +706,7 @@ fn inherited_base_url_wins_and_masked_paths_drop_the_stale_base() {
     );
     assert_eq!(
         projected.program_options().paths_base_path(),
-        (Some("/project")).map(Into::into)
+        Some(Into::into("/project"))
     );
 
     let masked_root = r#"{"extends":"../other/tsconfig.base.json","compilerOptions":{"paths":null},"files":["index.ts"]}"#;
@@ -759,6 +759,4 @@ fn non_string_substitutions_remain_diagnostic_instead_of_panicking() {
     );
 }
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use super::utf16_scalar_path::ScalarTestPath as _;

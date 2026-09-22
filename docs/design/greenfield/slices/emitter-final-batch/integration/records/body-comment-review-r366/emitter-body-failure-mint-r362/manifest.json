@@ -1,0 +1,7 @@
+{
+  "scope": "Existing serialized failure fixture21->22; old21 unchanged; function body NoNestedComments fault then same-printer printFile twice and subsequent node. TS observations twice, native pending.",
+  "oracle_exit": 0,
+  "observer_sha256": "759e17ec670f04ffc28aefb05098b62fab0493aaa4a8e5d1548ee4b2f685dd26",
+  "fixture_sha256": "7ede37e442f591a2d3e459a137c3c83a799110b7b6f05cde0aa66d3e8e78e123",
+  "qualified_native": false
+}

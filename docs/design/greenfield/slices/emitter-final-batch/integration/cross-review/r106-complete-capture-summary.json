@@ -1,0 +1,28 @@
+{
+  "head": "e80dfc18fc7822a73d83e20e900c7fafb1396740",
+  "binary": {
+    "head": "e80dfc18fc7822a73d83e20e900c7fafb1396740",
+    "copied_at": "2026-09-19T05:45:59.550582+00:00",
+    "qualified_at_copy": false,
+    "running_pid": 70767,
+    "original_executable": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/contracts-05a4948cfadf681b",
+    "original_inode": 121035788,
+    "original_device": 16777234,
+    "immutable_executable": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-r106-immutable/contracts",
+    "sha256": "63a31b236af8e8cf04753e1f9ab58e69b307d235e58f86b89cfa9bfc7971ac7e",
+    "source_tree": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next"
+  },
+  "qualification_receipt_log_sha256": "a7b19273495037c3517585e27a5e65b4c1fa0b6bd46644f9fafe480339df766a",
+  "records": 3860,
+  "cases": 1930,
+  "counts_by_repetitions": {
+    "2": 1930
+  },
+  "capture_archive_sha256": "fe313477dd434c9f78b508da7eac2bffffe94749656c1926c8b12f09781fce25",
+  "capture_archive_bytes": 1707043,
+  "exact": 1930,
+  "failed": 0,
+  "failed_cases": [],
+  "previous_39_exact": 39,
+  "receipt_exit": 0
+}

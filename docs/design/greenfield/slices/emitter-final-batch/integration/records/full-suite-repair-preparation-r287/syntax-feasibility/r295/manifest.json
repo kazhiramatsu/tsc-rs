@@ -1,0 +1,98 @@
+{
+  "base_head": "628562c31a5102348a7e8769f3a2aa88deef70f1",
+  "scope": "isolated small syntax feasibility tests only; canonical628 and its r244 battery untouched; no full command or corpus qualification",
+  "changes": [
+    "crates/syntax/src/recovery/context.rs",
+    "crates/syntax/src/recovery.rs",
+    "crates/syntax/tests/unit/parser/recovery.rs"
+  ],
+  "steps": [
+    {
+      "label": "rustfmt",
+      "argv": [
+        "rustfmt",
+        "--edition",
+        "2021",
+        "--config",
+        "skip_children=true",
+        "crates/syntax/src/recovery/context.rs",
+        "crates/syntax/src/recovery.rs",
+        "crates/syntax/tests/unit/parser/recovery.rs"
+      ],
+      "exit": 0,
+      "seconds": 0.068,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "new-composite-unit-tests",
+      "argv": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-syntax",
+        "--lib",
+        "--config",
+        "profile.dev.package.tsc-rs-syntax.opt-level=0",
+        "--config",
+        "profile.dev.package.tsc-rs-types.opt-level=0",
+        "--config",
+        "profile.dev.package.tsc-rs-diagnostics.opt-level=0",
+        "leading_invalid_binding_recovery",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit": 0,
+      "seconds": 15.332,
+      "log_sha256": "b8dfed4a0b87b921b4b1966a9f10b56a9d49a4e48ceebeb733dff5cb041a2b3b"
+    },
+    {
+      "label": "all-recovery-unit-tests",
+      "argv": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-syntax",
+        "--lib",
+        "--config",
+        "profile.dev.package.tsc-rs-syntax.opt-level=0",
+        "--config",
+        "profile.dev.package.tsc-rs-types.opt-level=0",
+        "--config",
+        "profile.dev.package.tsc-rs-diagnostics.opt-level=0",
+        "recovery_tests",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit": 0,
+      "seconds": 0.244,
+      "log_sha256": "8f2538ae590c53122775b63c29a1175010d465070b3e18d134ff9da9027bd580"
+    }
+  ],
+  "previous_failed_preparation": "r293 wrong edition; r294 unit tests called private parser function with borrowed strings; fixed test inputs only, production283 unchanged",
+  "source_sha256": {
+    "crates/syntax/src/recovery/context.rs": "72f6163200262c33e83f4080e36b68dd5d3cd0fdda8f36cf67e8095ce82a3af4",
+    "crates/syntax/src/recovery.rs": "27eb7dbc0d144d72c5ceffe58ad7fd701b72c4e8e8f83038c06d757eaaa36085",
+    "crates/syntax/tests/unit/parser/recovery.rs": "5dca18134ff48f7cd54b83367a9030a9c94e998a590f423e4e43de8f7da16c8c"
+  },
+  "test_env": {
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_TARGET_DIR": "/tmp/emitter-leading-binding-r293-target",
+    "CARGO_NET_OFFLINE": "true"
+  },
+  "syntax_tests_passed": true,
+  "full_command_qualified": false
+}

@@ -300,6 +300,4 @@ fn foreign_computed_property_name_reuse_defers_the_tracker_reports_like_upstream
     );
 }
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use crate::utf16_scalar_path::ScalarTestPath as _;

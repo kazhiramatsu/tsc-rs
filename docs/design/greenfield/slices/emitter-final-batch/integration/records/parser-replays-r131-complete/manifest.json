@@ -1,0 +1,248 @@
+{
+  "original_snapshot_sha256": "1846fce26da956f515874486d43b9ac856fda31456e76a2925455a8488f76d75",
+  "parser_inputs_per_replay": 16994,
+  "replays": 4,
+  "probe_head": "33fddc898e1086dad95830e3a9ef99fe816dadef",
+  "successor_head": "d0edc1a74a6249318b19aa449ab2735983a8df46",
+  "successor_core_and_recovery_events_unchanged": true,
+  "selection": {
+    "loaded_rows": 14219,
+    "selected_rows": 43,
+    "unchanged_rows": 14176,
+    "load_failures": 110,
+    "selected_no_emit_fallbacks": 2,
+    "changed_inputs": {
+      "projection": 8,
+      "merge-base": 9
+    },
+    "successor_changed_inputs": 1
+  },
+  "native_command_qualification": "pending",
+  "artifacts": [
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r131/current.json",
+      "archive": "records/parser-replays-r131-complete/current.json.gz",
+      "original_sha256": "006583104b9e0b3edfc41df05e5b80dd3d5cf7108eb1c075f1490c8f3fc934ce",
+      "original_bytes": 32932799,
+      "archive_sha256": "7aa7d213eb8a1f1d969e81a75f86ff19719a7e88bc2ab7097fcf1ad5c1da9761",
+      "archive_bytes": 5463273,
+      "lossless_gzip": true
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r131/current.build.log",
+      "archive": "records/parser-replays-r131-complete/current.build.log.gz",
+      "original_sha256": "d01f46f1a01abd60e62030675b9962494915e7480327ad53824d3e0b14051e8a",
+      "original_bytes": 2029,
+      "archive_sha256": "ce4168e768340210adc6fb69aa16762a63dc86e8bad35a4d3ff836e5ea206960",
+      "archive_bytes": 730,
+      "lossless_gzip": true
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r131/build-current/Cargo.toml",
+      "archive": "records/parser-replays-r131-complete/build-current/Cargo.toml",
+      "original_sha256": "bb2c1b7e0fdd8d124a966d244ea5baa558b7748e403b365d601f3f8831e4fa1f",
+      "original_bytes": 799,
+      "archive_sha256": "bb2c1b7e0fdd8d124a966d244ea5baa558b7748e403b365d601f3f8831e4fa1f",
+      "archive_bytes": 799,
+      "lossless_gzip": false
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r131/build-current/Cargo.lock",
+      "archive": "records/parser-replays-r131-complete/build-current/Cargo.lock",
+      "original_sha256": "cb22f3b3cdbb2f6bfcbc885dfec9b65fafa0487342c7fab678f642684b58b5de",
+      "original_bytes": 6042,
+      "archive_sha256": "cb22f3b3cdbb2f6bfcbc885dfec9b65fafa0487342c7fab678f642684b58b5de",
+      "archive_bytes": 6042,
+      "lossless_gzip": false
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r131/projection.json",
+      "archive": "records/parser-replays-r131-complete/projection.json.gz",
+      "original_sha256": "21a59766a113c6cd76c8e4df1f2a2a83f75636205bf4e356cc348fba0d0d46bf",
+      "original_bytes": 32932793,
+      "archive_sha256": "94c32595835e2f4d0d6ad399c69bfdbcc0e0f50e1905efd83c2925eba8288e83",
+      "archive_bytes": 5463537,
+      "lossless_gzip": true
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r131/projection.build.log",
+      "archive": "records/parser-replays-r131-complete/projection.build.log.gz",
+      "original_sha256": "58d17f263c617a7d602436452f824902bec347ee987596d2ae4df25c972aedf6",
+      "original_bytes": 2065,
+      "archive_sha256": "eefa73b7f56f66f2de3db5567dcc1dd67a650aa233f9946fc933cba36a2109b8",
+      "archive_bytes": 737,
+      "lossless_gzip": true
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r131/build-projection/Cargo.toml",
+      "archive": "records/parser-replays-r131-complete/build-projection/Cargo.toml",
+      "original_sha256": "8bf4f09a8000122cd2e040b6f670beff65d5a19b911244d96cafeefdec8272ad",
+      "original_bytes": 826,
+      "archive_sha256": "8bf4f09a8000122cd2e040b6f670beff65d5a19b911244d96cafeefdec8272ad",
+      "archive_bytes": 826,
+      "lossless_gzip": false
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r131/build-projection/Cargo.lock",
+      "archive": "records/parser-replays-r131-complete/build-projection/Cargo.lock",
+      "original_sha256": "cb22f3b3cdbb2f6bfcbc885dfec9b65fafa0487342c7fab678f642684b58b5de",
+      "original_bytes": 6042,
+      "archive_sha256": "cb22f3b3cdbb2f6bfcbc885dfec9b65fafa0487342c7fab678f642684b58b5de",
+      "archive_bytes": 6042,
+      "lossless_gzip": false
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r131/merge-base.json",
+      "archive": "records/parser-replays-r131-complete/merge-base.json.gz",
+      "original_sha256": "f17df9e2c3f3fdb43e0902628df1efbdb274d910ceeef06d0310e775ac7e4300",
+      "original_bytes": 29699456,
+      "archive_sha256": "0aaf615941824d9405c448fad89e145877e12b117dcd0e41071f06b0d806f11d",
+      "archive_bytes": 5375990,
+      "lossless_gzip": true
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r131/merge-base.build.log",
+      "archive": "records/parser-replays-r131-complete/merge-base.build.log.gz",
+      "original_sha256": "28524d7bf9d1abcb7d6b999104c0362824a8ba4fae21e95ada63e3a438d99da5",
+      "original_bytes": 2053,
+      "archive_sha256": "324f63bd708b17db714385f075428909a5f5770517a66e80aa5bed0c73eb505f",
+      "archive_bytes": 734,
+      "lossless_gzip": true
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r131/build-merge-base/Cargo.toml",
+      "archive": "records/parser-replays-r131-complete/build-merge-base/Cargo.toml",
+      "original_sha256": "b966cbcb24a115793488945efd9bd263ed39b32ce8b809203c94711451df4fe2",
+      "original_bytes": 814,
+      "archive_sha256": "b966cbcb24a115793488945efd9bd263ed39b32ce8b809203c94711451df4fe2",
+      "archive_bytes": 814,
+      "lossless_gzip": false
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r131/build-merge-base/Cargo.lock",
+      "archive": "records/parser-replays-r131-complete/build-merge-base/Cargo.lock",
+      "original_sha256": "cb22f3b3cdbb2f6bfcbc885dfec9b65fafa0487342c7fab678f642684b58b5de",
+      "original_bytes": 6042,
+      "archive_sha256": "cb22f3b3cdbb2f6bfcbc885dfec9b65fafa0487342c7fab678f642684b58b5de",
+      "archive_bytes": 6042,
+      "lossless_gzip": false
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r131/successor.json",
+      "archive": "records/parser-replays-r131-complete/successor.json.gz",
+      "original_sha256": "4a4a0e8c497dcbec6c5aa4932f258e6f369020dfca6df5a6324d913d669641b1",
+      "original_bytes": 32941167,
+      "archive_sha256": "1fd766da24431629805d4b4f9fca12c7c35911d3c4a5c9045299412bbb421316",
+      "archive_bytes": 5463625,
+      "lossless_gzip": true
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r131/successor.build.log",
+      "archive": "records/parser-replays-r131-complete/successor.build.log.gz",
+      "original_sha256": "a4fcd0fc78e6f2dd8e9d835818cb9be75bda03fb0c985bab3bdc897049ad4745",
+      "original_bytes": 2056,
+      "archive_sha256": "44bae7a3efb94160fc716e7098f4dc4368bc241dc1ffcd48488df2359a5dd362",
+      "archive_bytes": 734,
+      "lossless_gzip": true
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r131/build-successor/Cargo.toml",
+      "archive": "records/parser-replays-r131-complete/build-successor/Cargo.toml",
+      "original_sha256": "8b1dfc4d007439ba34c6ac0de22506364b6a4aaa11683a13cf66c8cf0b131c93",
+      "original_bytes": 820,
+      "archive_sha256": "8b1dfc4d007439ba34c6ac0de22506364b6a4aaa11683a13cf66c8cf0b131c93",
+      "archive_bytes": 820,
+      "lossless_gzip": false
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r131/build-successor/Cargo.lock",
+      "archive": "records/parser-replays-r131-complete/build-successor/Cargo.lock",
+      "original_sha256": "cb22f3b3cdbb2f6bfcbc885dfec9b65fafa0487342c7fab678f642684b58b5de",
+      "original_bytes": 6042,
+      "archive_sha256": "cb22f3b3cdbb2f6bfcbc885dfec9b65fafa0487342c7fab678f642684b58b5de",
+      "archive_bytes": 6042,
+      "lossless_gzip": false
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r131/selection.json",
+      "archive": "records/parser-replays-r131-complete/selection.json.gz",
+      "original_sha256": "3b1a9c7cc5f648cbbbfb5ea9431a92fe3ace10d2e4bd03e9e7d4dcd2716668d5",
+      "original_bytes": 1063383,
+      "archive_sha256": "9f47ded8769d26aa6be3c485bbcf8ea4bcd0b9ca763fedd2e4392d8646ad1e38",
+      "archive_bytes": 163581,
+      "lossless_gzip": true
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r131/resolved-dependencies.json",
+      "archive": "records/parser-replays-r131-complete/resolved-dependencies.json.gz",
+      "original_sha256": "6744fb897a5c3c4e4efe6450f095b5f51e64372451d7ad9d8d623cc0fc038640",
+      "original_bytes": 3659,
+      "archive_sha256": "5157baf02d5d883d9d2f8ccf40b7b08a513a235cb638700ed3398a07f8a3ce01",
+      "archive_bytes": 426,
+      "lossless_gzip": true
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r131/oracle-r135.json",
+      "archive": "records/parser-replays-r131-complete/oracle-r135.json.gz",
+      "original_sha256": "3ceb042ca06b5705c33c2baa2f15f5ffe912056e2c9e59d865c835e03924c303",
+      "original_bytes": 1842139,
+      "archive_sha256": "fa3d52053fcc0d1f9c71c7f153a87e54deb343bfb912565b796d1fa758497f08",
+      "archive_bytes": 235191,
+      "lossless_gzip": true
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next/docs/design/greenfield/slices/emitter-final-batch/integration/records/local/corpus-replay-pipeline-r131.json",
+      "archive": "records/parser-replays-r131-complete/corpus-replay-pipeline-r131.json",
+      "original_sha256": "00880ad466b150db98060ce5ccbc2e67c7f7a30724b41c10953ca263333d38a0",
+      "original_bytes": 689,
+      "archive_sha256": "00880ad466b150db98060ce5ccbc2e67c7f7a30724b41c10953ca263333d38a0",
+      "archive_bytes": 689,
+      "lossless_gzip": false
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next/docs/design/greenfield/slices/emitter-final-batch/integration/records/local/corpus-replay-pipeline-r131.log.gz",
+      "archive": "records/parser-replays-r131-complete/corpus-replay-pipeline-r131.log.gz",
+      "original_sha256": "f153645fff4946def698c1b691cac1cbed8bba8c5d138a0634076f39d21a5301",
+      "original_bytes": 917,
+      "archive_sha256": "f153645fff4946def698c1b691cac1cbed8bba8c5d138a0634076f39d21a5301",
+      "archive_bytes": 917,
+      "lossless_gzip": false
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next/docs/design/greenfield/slices/emitter-final-batch/integration/records/local/corpus-oracle-r135.json",
+      "archive": "records/parser-replays-r131-complete/corpus-oracle-r135.json",
+      "original_sha256": "cb6aa61b182f20e2a06b1071b4ffa3c126e5dcde3db19c58c63601aee9228de4",
+      "original_bytes": 960,
+      "archive_sha256": "cb6aa61b182f20e2a06b1071b4ffa3c126e5dcde3db19c58c63601aee9228de4",
+      "archive_bytes": 960,
+      "lossless_gzip": false
+    },
+    {
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next/docs/design/greenfield/slices/emitter-final-batch/integration/records/local/corpus-oracle-r135.log.gz",
+      "archive": "records/parser-replays-r131-complete/corpus-oracle-r135.log.gz",
+      "original_sha256": "0776359dd5190ceb7bc969ec01597133ef7994b5b377c36c347e4f9e28c73225",
+      "original_bytes": 986,
+      "archive_sha256": "0776359dd5190ceb7bc969ec01597133ef7994b5b377c36c347e4f9e28c73225",
+      "archive_bytes": 986,
+      "lossless_gzip": false
+    },
+    {
+      "source": "/tmp/emitter-corpus-replay-pipeline-r131.py",
+      "archive": "records/parser-replays-r131-complete/emitter-corpus-replay-pipeline-r131.py",
+      "original_sha256": "a2f1b0bc5e59dfd75c55c5783142fdb31422639a1ebbb8eca0b3245d5b3f57f8",
+      "original_bytes": 5458,
+      "archive_sha256": "a2f1b0bc5e59dfd75c55c5783142fdb31422639a1ebbb8eca0b3245d5b3f57f8",
+      "archive_bytes": 5458,
+      "lossless_gzip": false
+    },
+    {
+      "source": "/tmp/emitter-parser-replays-r131.py",
+      "archive": "records/parser-replays-r131-complete/emitter-parser-replays-r131.py",
+      "original_sha256": "37b9320250c28c1b208cf0ef52725bb9911e8554c29ff99fc72cb4b92b61674a",
+      "original_bytes": 1977,
+      "archive_sha256": "37b9320250c28c1b208cf0ef52725bb9911e8554c29ff99fc72cb4b92b61674a",
+      "archive_bytes": 1977,
+      "lossless_gzip": false
+    }
+  ]
+}

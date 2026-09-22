@@ -1,0 +1,28 @@
+{
+  "argv": [
+    "rustc",
+    "--edition=2021",
+    "/tmp/emitter-node-option-diagnostics-r300.rs",
+    "-L",
+    "dependency=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps",
+    "-o",
+    "/tmp/emitter-node-option-diagnostics-r300/inspect",
+    "--extern",
+    "tsc_compiler=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_compiler-b6c594b373b590f1.rlib",
+    "--extern",
+    "tsc_program=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_program-f2267fac85119f14.rlib"
+  ],
+  "exit": 1,
+  "seconds": 0.44960279087536037,
+  "libraries": {
+    "tsc_compiler": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_compiler-b6c594b373b590f1.rlib",
+      "sha256": "4bbbc3c9ad79c77091d58963944a4a9cce7aa4632781b29123daa6f8d6a91d71"
+    },
+    "tsc_program": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/libtsc_program-f2267fac85119f14.rlib",
+      "sha256": "cbdfe6558a79b699a75c3b61486832718687edd21c942a247c3eecd1cd6625ae"
+    }
+  },
+  "source_sha256": "2160eeed01a3ae5dbd89c151286e84bb6fa5428245854ad2546a46a092857a4d"
+}

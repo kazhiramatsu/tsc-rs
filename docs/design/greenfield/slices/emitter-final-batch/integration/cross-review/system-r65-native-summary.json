@@ -1,0 +1,975 @@
+{
+  "head": "18c0e70a4",
+  "summary": {
+    "exact": 648,
+    "failed": 74,
+    "selected": 722
+  },
+  "failure_ids": [
+    "system-binding-publication/es2015/remove-false/await-computed-method",
+    "system-binding-publication/es2015/remove-false/import-default-reexport/commonjs-control",
+    "system-binding-publication/es2015/remove-false/import-default-update/commonjs-control",
+    "system-binding-publication/es2015/remove-false/import-destructure/commonjs-control",
+    "system-binding-publication/es2015/remove-false/import-equals-alias-update/commonjs-control",
+    "system-binding-publication/es2015/remove-false/import-named-reexport/commonjs-control",
+    "system-binding-publication/es2015/remove-false/import-named-update/commonjs-control",
+    "system-binding-publication/es2015/remove-false/import-namespace-reexport/commonjs-control",
+    "system-binding-publication/es2015/remove-false/import-namespace-update/commonjs-control",
+    "system-binding-publication/es2015/remove-false/scope-discarded",
+    "system-binding-publication/es2015/remove-false/scope-earlier-temp",
+    "system-binding-publication/es2015/remove-false/scope-generator",
+    "system-binding-publication/es2015/remove-false/using-nested-rest-pattern",
+    "system-binding-publication/es2015/remove-false/using-object-pattern",
+    "system-binding-publication/es2015/remove-true/await-computed-method",
+    "system-binding-publication/es2015/remove-true/import-default-reexport/commonjs-control",
+    "system-binding-publication/es2015/remove-true/import-default-update/commonjs-control",
+    "system-binding-publication/es2015/remove-true/import-destructure/commonjs-control",
+    "system-binding-publication/es2015/remove-true/import-equals-alias-update/commonjs-control",
+    "system-binding-publication/es2015/remove-true/import-named-reexport/commonjs-control",
+    "system-binding-publication/es2015/remove-true/import-named-update/commonjs-control",
+    "system-binding-publication/es2015/remove-true/import-namespace-reexport/commonjs-control",
+    "system-binding-publication/es2015/remove-true/import-namespace-update/commonjs-control",
+    "system-binding-publication/es2015/remove-true/scope-discarded",
+    "system-binding-publication/es2015/remove-true/scope-earlier-temp",
+    "system-binding-publication/es2015/remove-true/scope-generator",
+    "system-binding-publication/es2015/remove-true/using-nested-rest-pattern",
+    "system-binding-publication/es2015/remove-true/using-object-pattern",
+    "system-binding-publication/es2019/remove-false/scope-earlier-temp",
+    "system-binding-publication/es2019/remove-true/scope-earlier-temp",
+    "system-binding-publication/es5/remove-false/await-computed-method",
+    "system-binding-publication/es5/remove-false/capture-this",
+    "system-binding-publication/es5/remove-false/capture-this-and-pattern",
+    "system-binding-publication/es5/remove-false/capture-this/import-helpers-control",
+    "system-binding-publication/es5/remove-false/for-of-postfix",
+    "system-binding-publication/es5/remove-false/import-default-reexport/commonjs-control",
+    "system-binding-publication/es5/remove-false/import-default-update/commonjs-control",
+    "system-binding-publication/es5/remove-false/import-destructure/commonjs-control",
+    "system-binding-publication/es5/remove-false/import-equals-alias-update/commonjs-control",
+    "system-binding-publication/es5/remove-false/import-named-reexport/commonjs-control",
+    "system-binding-publication/es5/remove-false/import-named-update/commonjs-control",
+    "system-binding-publication/es5/remove-false/import-namespace-reexport/commonjs-control",
+    "system-binding-publication/es5/remove-false/import-namespace-update/commonjs-control",
+    "system-binding-publication/es5/remove-false/scope-discarded",
+    "system-binding-publication/es5/remove-false/scope-earlier-temp",
+    "system-binding-publication/es5/remove-false/using-local-pattern",
+    "system-binding-publication/es5/remove-false/using-nested-rest-pattern",
+    "system-binding-publication/es5/remove-false/using-object-pattern",
+    "system-binding-publication/es5/remove-false/using-object-pattern/commonjs-control",
+    "system-binding-publication/es5/remove-true/await-computed-method",
+    "system-binding-publication/es5/remove-true/capture-this",
+    "system-binding-publication/es5/remove-true/capture-this-and-pattern",
+    "system-binding-publication/es5/remove-true/capture-this/import-helpers-control",
+    "system-binding-publication/es5/remove-true/for-of-postfix",
+    "system-binding-publication/es5/remove-true/import-default-reexport/commonjs-control",
+    "system-binding-publication/es5/remove-true/import-default-update/commonjs-control",
+    "system-binding-publication/es5/remove-true/import-destructure/commonjs-control",
+    "system-binding-publication/es5/remove-true/import-equals-alias-update/commonjs-control",
+    "system-binding-publication/es5/remove-true/import-named-reexport/commonjs-control",
+    "system-binding-publication/es5/remove-true/import-named-update/commonjs-control",
+    "system-binding-publication/es5/remove-true/import-namespace-reexport/commonjs-control",
+    "system-binding-publication/es5/remove-true/import-namespace-update/commonjs-control",
+    "system-binding-publication/es5/remove-true/scope-discarded",
+    "system-binding-publication/es5/remove-true/scope-earlier-temp",
+    "system-binding-publication/es5/remove-true/using-local-pattern",
+    "system-binding-publication/es5/remove-true/using-nested-rest-pattern",
+    "system-binding-publication/es5/remove-true/using-object-pattern",
+    "system-binding-publication/es5/remove-true/using-object-pattern/commonjs-control",
+    "system-binding-publication/esnext/remove-false/optional-property-before-newline",
+    "system-binding-publication/esnext/remove-false/scope-discarded",
+    "system-binding-publication/esnext/remove-false/scope-generator",
+    "system-binding-publication/esnext/remove-true/optional-property-before-newline",
+    "system-binding-publication/esnext/remove-true/scope-discarded",
+    "system-binding-publication/esnext/remove-true/scope-generator"
+  ],
+  "by_shape": {
+    "await-computed-method": 4,
+    "import-default-reexport": 4,
+    "import-default-update": 4,
+    "import-destructure": 4,
+    "import-equals-alias-update": 4,
+    "import-named-reexport": 4,
+    "import-named-update": 4,
+    "import-namespace-reexport": 4,
+    "import-namespace-update": 4,
+    "scope-discarded": 6,
+    "scope-earlier-temp": 6,
+    "scope-generator": 4,
+    "using-nested-rest-pattern": 4,
+    "using-object-pattern": 6,
+    "capture-this": 4,
+    "capture-this-and-pattern": 2,
+    "for-of-postfix": 2,
+    "using-local-pattern": 2,
+    "optional-property-before-newline": 2
+  },
+  "failure_inputs": [
+    {
+      "case_id": "system-binding-publication/es2015/remove-false/await-computed-method",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport {}; class C { [await source]() {} }\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"system\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es2015/remove-false/import-default-reexport/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nimport value from \"./dep\"; export { value }; value = source;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es2015/remove-false/import-default-update/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nimport value from \"./dep\"; export { value }; value = 1; const v = value++; source(v);\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es2015/remove-false/import-destructure/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nimport {value} from \"./dep\"; export {value}; [value] = source;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es2015/remove-false/import-equals-alias-update/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport import a = require(\"./dep\"); export { a as b }; a = source; const v = a++; source(v);\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es2015/remove-false/import-named-reexport/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nimport { value } from \"./dep\"; export { value as exposed }; value = source;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es2015/remove-false/import-named-update/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nimport { value } from \"./dep\"; export { value as exposed }; value = 1; const v = value++; source(v);\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es2015/remove-false/import-namespace-reexport/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nimport * as ns from \"./dep\"; export { ns }; ns = source;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es2015/remove-false/import-namespace-update/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nimport * as ns from \"./dep\"; export { ns }; ns = source; const v = ns++; source(v);\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es2015/remove-false/scope-discarded",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport let x = 0; const f = () => { x++; (x++); for (x++; source; x++) { x++; } }; const g = () => void x++; source(f,g);\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"system\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es2015/remove-false/scope-earlier-temp",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport let x = 0; const g = (o: any) => o.value ?? x++; source(g);\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"system\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es2015/remove-false/scope-generator",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport let x = 0; const g = function* () { yield x++; }; source(g);\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"system\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es2015/remove-false/using-nested-rest-pattern",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nusing r = source; export let {a: {b}, ...rest} = source;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"system\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es2015/remove-false/using-object-pattern",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nusing r = source; export let {x,y} = source;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"system\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es2015/remove-true/await-computed-method",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport {}; class C { [await source]() {} }\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"system\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es2015/remove-true/import-default-reexport/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nimport value from \"./dep\"; export { value }; value = source;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es2015/remove-true/import-default-update/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nimport value from \"./dep\"; export { value }; value = 1; const v = value++; source(v);\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es2015/remove-true/import-destructure/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nimport {value} from \"./dep\"; export {value}; [value] = source;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es2015/remove-true/import-equals-alias-update/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport import a = require(\"./dep\"); export { a as b }; a = source; const v = a++; source(v);\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es2015/remove-true/import-named-reexport/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nimport { value } from \"./dep\"; export { value as exposed }; value = source;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es2015/remove-true/import-named-update/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nimport { value } from \"./dep\"; export { value as exposed }; value = 1; const v = value++; source(v);\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es2015/remove-true/import-namespace-reexport/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nimport * as ns from \"./dep\"; export { ns }; ns = source;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es2015/remove-true/import-namespace-update/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nimport * as ns from \"./dep\"; export { ns }; ns = source; const v = ns++; source(v);\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es2015/remove-true/scope-discarded",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport let x = 0; const f = () => { x++; (x++); for (x++; source; x++) { x++; } }; const g = () => void x++; source(f,g);\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"system\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es2015/remove-true/scope-earlier-temp",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport let x = 0; const g = (o: any) => o.value ?? x++; source(g);\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"system\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es2015/remove-true/scope-generator",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport let x = 0; const g = function* () { yield x++; }; source(g);\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"system\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es2015/remove-true/using-nested-rest-pattern",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nusing r = source; export let {a: {b}, ...rest} = source;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"system\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es2015/remove-true/using-object-pattern",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nusing r = source; export let {x,y} = source;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"system\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es2019/remove-false/scope-earlier-temp",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport let x = 0; const g = (o: any) => o.value ?? x++; source(g);\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2019\",\"module\":\"system\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es2019/remove-true/scope-earlier-temp",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport let x = 0; const g = (o: any) => o.value ?? x++; source(g);\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es2019\",\"module\":\"system\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-false/await-computed-method",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport {}; class C { [await source]() {} }\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"system\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-false/capture-this",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport const f = () => this;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"system\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-false/capture-this-and-pattern",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport const f = () => this; export let [a] = source;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"system\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-false/capture-this/import-helpers-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport const f = () => this;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"system\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\",\"importHelpers\":true},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-false/for-of-postfix",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport let x = 0; for (const a of x++ as any) source(a);\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"system\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-false/import-default-reexport/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nimport value from \"./dep\"; export { value }; value = source;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-false/import-default-update/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nimport value from \"./dep\"; export { value }; value = 1; const v = value++; source(v);\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-false/import-destructure/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nimport {value} from \"./dep\"; export {value}; [value] = source;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-false/import-equals-alias-update/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport import a = require(\"./dep\"); export { a as b }; a = source; const v = a++; source(v);\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-false/import-named-reexport/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nimport { value } from \"./dep\"; export { value as exposed }; value = source;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-false/import-named-update/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nimport { value } from \"./dep\"; export { value as exposed }; value = 1; const v = value++; source(v);\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-false/import-namespace-reexport/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nimport * as ns from \"./dep\"; export { ns }; ns = source;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-false/import-namespace-update/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nimport * as ns from \"./dep\"; export { ns }; ns = source; const v = ns++; source(v);\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-false/scope-discarded",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport let x = 0; const f = () => { x++; (x++); for (x++; source; x++) { x++; } }; const g = () => void x++; source(f,g);\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"system\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-false/scope-earlier-temp",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport let x = 0; const g = (o: any) => o.value ?? x++; source(g);\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"system\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-false/using-local-pattern",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nusing r = source; let {m} = source; source(m); export {};\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"system\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-false/using-nested-rest-pattern",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nusing r = source; export let {a: {b}, ...rest} = source;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"system\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-false/using-object-pattern",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nusing r = source; export let {x,y} = source;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"system\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-false/using-object-pattern/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nusing r = source; export let {x,y} = source;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-true/await-computed-method",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport {}; class C { [await source]() {} }\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"system\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-true/capture-this",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport const f = () => this;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"system\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-true/capture-this-and-pattern",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport const f = () => this; export let [a] = source;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"system\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-true/capture-this/import-helpers-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport const f = () => this;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"system\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\",\"importHelpers\":true},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-true/for-of-postfix",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport let x = 0; for (const a of x++ as any) source(a);\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"system\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-true/import-default-reexport/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nimport value from \"./dep\"; export { value }; value = source;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-true/import-default-update/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nimport value from \"./dep\"; export { value }; value = 1; const v = value++; source(v);\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-true/import-destructure/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nimport {value} from \"./dep\"; export {value}; [value] = source;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-true/import-equals-alias-update/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport import a = require(\"./dep\"); export { a as b }; a = source; const v = a++; source(v);\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-true/import-named-reexport/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nimport { value } from \"./dep\"; export { value as exposed }; value = source;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-true/import-named-update/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nimport { value } from \"./dep\"; export { value as exposed }; value = 1; const v = value++; source(v);\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-true/import-namespace-reexport/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nimport * as ns from \"./dep\"; export { ns }; ns = source;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-true/import-namespace-update/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nimport * as ns from \"./dep\"; export { ns }; ns = source; const v = ns++; source(v);\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export let value: any; export default value;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-true/scope-discarded",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport let x = 0; const f = () => { x++; (x++); for (x++; source; x++) { x++; } }; const g = () => void x++; source(f,g);\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"system\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-true/scope-earlier-temp",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport let x = 0; const g = (o: any) => o.value ?? x++; source(g);\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"system\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-true/using-local-pattern",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nusing r = source; let {m} = source; source(m); export {};\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"system\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-true/using-nested-rest-pattern",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nusing r = source; export let {a: {b}, ...rest} = source;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"system\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-true/using-object-pattern",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nusing r = source; export let {x,y} = source;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"system\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/es5/remove-true/using-object-pattern/commonjs-control",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nusing r = source; export let {x,y} = source;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"commonjs\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/esnext/remove-false/optional-property-before-newline",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport const v = source\n /*a*/ ?.x;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"system\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/esnext/remove-false/scope-discarded",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport let x = 0; const f = () => { x++; (x++); for (x++; source; x++) { x++; } }; const g = () => void x++; source(f,g);\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"system\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/esnext/remove-false/scope-generator",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport let x = 0; const g = function* () { yield x++; }; source(g);\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"system\",\"removeComments\":false,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/esnext/remove-true/optional-property-before-newline",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport const v = source\n /*a*/ ?.x;\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"system\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/esnext/remove-true/scope-discarded",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport let x = 0; const f = () => { x++; (x++); for (x++; source; x++) { x++; } }; const g = () => void x++; source(f,g);\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"system\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    },
+    {
+      "case_id": "system-binding-publication/esnext/remove-true/scope-generator",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const source: any;\nexport let x = 0; const g = function* () { yield x++; }; source(g);\n"
+        }
+      ],
+      "config": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"system\",\"removeComments\":true,\"lib\":[\"esnext\"],\"strict\":false,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"ignoreDeprecations\":\"6.0\",\"outDir\":\"/project/out\"},\"files\":[\"main.ts\"]}"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "test",
+    "--offline",
+    "-p",
+    "tsc-rs-emitter",
+    "--test",
+    "token_comment_phase_metadata_contract",
+    "--",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next",
+  "started_at": "2026-09-19T06:32:11.664595+00:00",
+  "head": "6bd1c5817b79424a29a54c2129a3689f8d965974",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target",
+    "TSC_RS_H2_8A_TOKEN_COMMENT_PRINTER_FAILURE_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-r112-metadata-after-failures"
+  },
+  "exit": 0,
+  "seconds": 168.777,
+  "log_sha256": "c08e867cbfa9eeb5d6b6798ea49c3193b4b177967677249927847d658307ab72",
+  "log_bytes": 14165
+}

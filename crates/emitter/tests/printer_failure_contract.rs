@@ -303,8 +303,17 @@ fn build_targets(
             }
             for entry in case["emit_flags"].as_array().into_iter().flatten() {
                 assert_eq!(entry["target"], "s0");
-                assert_eq!(entry["path"], "expression");
-                let node = expression_of(arena, s0);
+                let node = match entry["path"].as_str().unwrap() {
+                    "expression" => expression_of(arena, s0),
+                    "body" => {
+                        let NodeData::FunctionDeclaration(data) = &arena.node(s0).unwrap().data
+                        else {
+                            panic!("function declaration");
+                        };
+                        arena.node_ref(s0.source(), data.body.unwrap()).unwrap()
+                    }
+                    path => panic!("unknown emit-flag path {path}"),
+                };
                 let flags = u32::try_from(entry["flags"].as_u64().unwrap()).unwrap();
                 arena
                     .metadata_mut(node)
@@ -356,10 +365,22 @@ fn build_targets(
 
 fn measure(printed: &PrintedText, op: usize) -> serde_json::Value {
     let text = printed.text();
+    // The TypeScript observer measures the returned string with
+    // computeLineStarts. A writer's next column includes pending indentation
+    // at a line start, especially after a retained failure; it is not the
+    // physical end column of the returned string. Keep that writer state out
+    // of this string-only observation and preserve the raw UTF16 value.
+    let index = tsc_diagnostics::compute_line_map(text);
+    let utf16_len = index.utf16_len();
+    let end = index
+        .line_and_character_utf16(utf16_len)
+        .expect("end of printed text");
+    assert_eq!(utf16_len as usize, printed.text_utf16().len());
+    assert_eq!(printed.end().position().value(), utf16_len);
     serde_json::json!({
         "op": op, "status": "returned", "text": text,
         "utf8_base64": base64_encode(text.as_bytes()), "utf8_bytes": text.len(),
-        "end_utf16": {"position": printed.end().position().value(), "line": printed.end().line(), "column": printed.end().column()}
+        "end_utf16": {"position": utf16_len, "line": end.line, "column": end.character}
     })
 }
 
@@ -496,6 +517,15 @@ fn replay(case: &serde_json::Value) -> serde_json::Value {
         };
         results.push(match printer.print(&mut transformation, request, None) {
             Ok(printed) => {
+                if case["case_id"]
+                    == "printer-failure/printNode/review/function-body-sticky-comments"
+                    && index == 4
+                {
+                    // The callback fault retains one indentation level. This
+                    // writer coordinate is independent of the string's final
+                    // empty line, whose measured column is zero.
+                    assert_eq!(printed.end().column(), 4);
+                }
                 let mut value = measure(&printed, index);
                 if case["case_id"].as_str().unwrap().contains("/review/") {
                     value["text_utf16"] = serde_json::json!(printed.text_utf16().as_ref());
@@ -909,7 +939,7 @@ fn review_entry_carry_controls() {
     assert_eq!(artifact["typescript"], "6.0.3");
     assert_eq!(artifact["repetitions"], 2);
     let cases = artifact["cases"].as_array().unwrap();
-    assert_eq!(cases.len(), 21);
+    assert_eq!(cases.len(), 22);
     let mut failures = Vec::new();
     let mut captures = Vec::new();
     for case in cases {

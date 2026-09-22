@@ -904,7 +904,7 @@ fn lib_phase_precedes_module_resolution_and_descends_sequentially() {
     let ProgramLoadError::Host { source, .. } = error else {
         unreachable!("kind identifies the host variant");
     };
-    assert_eq!(source, nested_lib_read);
+    assert_eq!(*source, nested_lib_read);
 }
 
 #[test]
@@ -1159,6 +1159,4 @@ fn library_sources_and_references_count_toward_every_resource_limit() {
     );
 }
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use super::utf16_scalar_path::ScalarTestPath as _;

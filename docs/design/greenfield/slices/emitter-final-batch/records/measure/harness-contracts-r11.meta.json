@@ -1,0 +1,22 @@
+{
+  "name": "harness-contracts-r11",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 53,
+  "env": [
+    "CARGO_BUILD_JOBS=2"
+  ],
+  "argv": [
+    "cargo",
+    "test",
+    "-p",
+    "tsc-rs-harness",
+    "--test",
+    "contracts"
+  ],
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-18T05:27:25Z",
+  "seconds": 579,
+  "exit": 0,
+  "log_sha256": "89cff97994ba36a9699413b465021a54e1f99a4a6c19745753ab7ad83d850319",
+  "log_bytes": 9915
+}

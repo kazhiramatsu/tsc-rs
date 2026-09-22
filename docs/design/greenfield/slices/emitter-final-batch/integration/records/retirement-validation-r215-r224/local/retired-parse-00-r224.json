@@ -1,0 +1,31 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-retirement-r224/emitter_final_universe",
+    "--exact",
+    "plan_base_rows_match_complete_production_commands",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-19T17:08:33.259640+00:00",
+  "head": "4dfc0fb4d3b3ca2364957c85d9ad84bd0a677dc2",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target",
+    "TSC_RS_EMITTER_FINAL_CASE_FILTER": "typescript-6.0.3/conformance/async/es2017/asyncArrowFunction/asyncArrowFunction6_es2017.ts#default",
+    "TSC_RS_EMITTER_FINAL_CASE_SET": "all",
+    "TSC_RS_EMITTER_FINAL_CAPTURE_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-retirement-r224/captures",
+    "TSC_RS_EMITTER_FINAL_FAILURE_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-retirement-r224/failures"
+  },
+  "exit": 0,
+  "seconds": 8.479,
+  "log_sha256": "d7d335f8d70e0fd29a86e40d5823f894f4143d3e64467a20f242caed0758edb2",
+  "log_bytes": 414
+}

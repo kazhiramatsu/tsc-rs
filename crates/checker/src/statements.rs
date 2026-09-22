@@ -111,7 +111,7 @@ impl<'a> CheckerState<'a> {
     /// Property (§6, 5.8c) route here when their bands land — the
     /// kind-guarded arms below are already transcribed for them.
     /// Elisions, each with its owner note: checkDecorators (5.8c),
-    /// the two checkExternalEmitHelpers probes (module note), and the
+    /// and the
     /// remaining JS object-literal initializer exemption outside the
     /// bounded getJSContainerObjectType face.
     pub(crate) fn check_variable_like_declaration(&mut self, node: NodeId) -> CheckResult<()> {
@@ -154,13 +154,18 @@ impl<'a> CheckerState<'a> {
                     .push(node);
                 return Ok(());
             }
-            // (Object-rest emit-helper probe elided — module note.)
+            let pattern = self.parent_of(node).expect("binding element has a pattern");
+            if self.kind_of(pattern) == SyntaxKind::ObjectBindingPattern
+                && dot_dot_dot.is_some()
+                && self.options.emit_script_target() < tsc_types::ScriptTarget::ES2018
+            {
+                self.check_external_emit_helpers(node, crate::modules::EMIT_HELPER_REST)?;
+            }
             if let Some(property_name) = property_name {
                 if self.kind_of(property_name) == SyntaxKind::ComputedPropertyName {
                     self.check_computed_property_name(property_name)?;
                 }
             }
-            let pattern = self.parent_of(node).expect("binding element has a pattern");
             let parent = self
                 .parent_of(pattern)
                 .expect("binding pattern has a declaration");
@@ -204,11 +209,15 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        // Step 6: recurse into pattern elements. (The array-pattern
-        // downlevelIteration emit-helper probe is elided — module
-        // note.)
+        // Step 6: request a downlevel iterator helper, then check pattern elements.
         let name_is_pattern = node_util::is_binding_pattern(self.binder.source_of_node(name), name);
         if name_is_pattern {
+            if self.kind_of(name) == SyntaxKind::ArrayBindingPattern
+                && self.options.emit_script_target() < tsc_types::ScriptTarget::ES2015
+                && self.options.downlevel_iteration == Some(true)
+            {
+                self.check_external_emit_helpers(node, crate::modules::EMIT_HELPER_READ)?;
+            }
             for element in self.binding_pattern_elements(name) {
                 self.check_source_element(Some(element));
             }
@@ -2027,8 +2036,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 08b449c328a80dc775d3d2a2a8ed70659946c2d654441989dbfd0a2a42f496ff
     /// tsc-span: _tsc.js:83819-83857
     ///
-    /// Iteration semantics live since 5.8b (§4); emit-helper probes
-    /// elided (module note).
+    /// Helper requirements precede initializer checking, so a missing tslib
+    /// export is reported at its first requesting syntax node.
     pub(crate) fn check_for_of_statement(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_for_in_or_for_of_statement(node)?;
         let NodeData::ForOfStatement(data) = self.data_of(node) else {
@@ -2046,10 +2055,27 @@ impl<'a> CheckerState<'a> {
                     &diagnostics::for_await_loops_cannot_be_used_inside_a_class_static_block,
                     &[],
                 );
+            } else {
+                let flags = container.map_or(crate::functions::FUNCTION_FLAGS_INVALID, |id| {
+                    self.get_function_flags(id)
+                });
+                if flags
+                    & (crate::functions::FUNCTION_FLAGS_INVALID
+                        | crate::functions::FUNCTION_FLAGS_ASYNC)
+                    == crate::functions::FUNCTION_FLAGS_ASYNC
+                    && self.options.emit_script_target() < tsc_types::ScriptTarget::ES2018
+                {
+                    self.check_external_emit_helpers(
+                        node,
+                        crate::modules::EMIT_HELPER_FOR_AWAIT_OF_INCLUDES,
+                    )?;
+                }
             }
-            // (else: the ForAwaitOf emit-helper probe — elided.)
+        } else if self.options.downlevel_iteration == Some(true)
+            && self.options.emit_script_target() < tsc_types::ScriptTarget::ES2015
+        {
+            self.check_external_emit_helpers(node, crate::modules::EMIT_HELPER_VALUES)?;
         }
-        // (downlevelIteration ForOf emit-helper probe — elided.)
         if let Some(initializer) = initializer {
             if self.kind_of(initializer) == SyntaxKind::VariableDeclarationList {
                 self.check_variable_declaration_list(initializer)?;

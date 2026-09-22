@@ -20,6 +20,7 @@ use tsc_checker::{
 use tsc_diagnostics::{compute_line_map, Diagnostic, MessageChain};
 use tsc_oracle::{OracleDiag, OracleMessageChain, OraclePool};
 
+pub mod artifact_paths;
 mod bounded_pipeline;
 pub mod families;
 pub mod goldens_diff;
@@ -288,7 +289,7 @@ pub struct ConformanceOptions {
     pub out_json: PathBuf,
     pub band: DiagnosticBand,
     /// Bounded checker workers for the grading pipeline schedule. The
-    /// gating caller passes the reviewed `m8-evidence.json` ceiling
+    /// gating caller passes the reviewed `ratchets/m8/m8-evidence.json` ceiling
     /// (clamped down by `TSRS_CONFORMANCE_WORKERS` and available
     /// parallelism); probes and the sequential schedule pass 1. Grading
     /// itself — including scope-exclusion accounting and every event the
@@ -2151,7 +2152,7 @@ fn measure_conformance_with_schedule(
     })?;
     let vendor_lib_dir = options.workspace.join("vendor/typescript-6.0.3/lib");
     let goldens_root = options.workspace.join("goldens");
-    let ratchet_path = options.workspace.join("ratchet.toml");
+    let ratchet_path = options.workspace.join("ratchets/ratchet.toml");
     let full_run = options.limit.is_none() && options.files.is_empty();
     if families_observe {
         families::ensure_observation_eligible(options.band, full_run)?;
@@ -2187,7 +2188,7 @@ fn measure_conformance_with_schedule(
         report_identity_mode,
     );
     let mut observation = families_observe.then(families::Observation::default);
-    let mut scope = ScopeManifest::load(&options.workspace.join("m8-scope.json"))?;
+    let mut scope = ScopeManifest::load(&options.workspace.join("ratchets/m8/m8-scope.json"))?;
     let mut executed_fixtures = BTreeSet::new();
 
     match schedule {
@@ -3336,7 +3337,7 @@ fn ratchet_section<'a>(
         .and_then(Item::as_table)
         .ok_or_else(|| {
             format!(
-                "missing ratchet.toml section [{section}] in {}",
+                "missing ratchets/ratchet.toml section [{section}] in {}",
                 path.display()
             )
             .into()

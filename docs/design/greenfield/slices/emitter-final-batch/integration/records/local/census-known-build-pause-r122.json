@@ -1,0 +1,13 @@
+{
+  "head": "b451489e4a18abbff42651d8eb814537f4c5f800",
+  "protocol": "Only census pauses during serial Cargo build. Other immutable native commands are functional comparisons, not performance qualification. No source/HEAD changes or xtask build. KNOWN retirement remains pending full corpus proof.",
+  "paused_at": "2026-09-19T08:09:13.518533+00:00",
+  "resumed_at": "2026-09-19T08:09:34.929640+00:00",
+  "binary": {
+    "original": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/emitter_final_universe-4eb576a1e57ecfc2",
+    "immutable": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-r122-known-immutable/emitter_final_universe",
+    "sha256": "43ecbf5dbefa5a852d69e2356356863b86fa3e6eec8dea5860ebb2d1c23f46c6"
+  },
+  "test_exit": 101,
+  "finished_at": "2026-09-19T08:10:46.950625+00:00"
+}

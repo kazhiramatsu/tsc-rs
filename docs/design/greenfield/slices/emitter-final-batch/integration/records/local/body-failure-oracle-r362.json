@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "node",
+    "scripts/observe-printer-failure-review.mjs",
+    "--write"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-20T02:49:27.830170+00:00",
+  "head": "9e46ae514fb6fa7f389abb22335ffddfef79b2ea",
+  "tracked_clean": false,
+  "diff_sha256": "e70e927234c1893f2107347d0d3eb63017b61dc4b3bde29431d8f8cf4b7278c9",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 2.633,
+  "log_sha256": "47a3197f942d5cfa9a675bd8b46726ac7f8326c5a387ec32c3e099e63830131e",
+  "log_bytes": 158
+}

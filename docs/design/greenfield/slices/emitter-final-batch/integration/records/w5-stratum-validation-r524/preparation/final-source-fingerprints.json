@@ -1,0 +1,17 @@
+[
+  {
+    "path": "crates/oracle/h2-7a-witnesses.mjs",
+    "sha256": "1964b5f8570017a69ed57e8398d96ec0d37b0c9e3144fc67db2baf7921ec38ef",
+    "bytes": 108136
+  },
+  {
+    "path": "scripts/h2-7a-stratum.test.mjs",
+    "sha256": "652a004ac75a986cf7cfbc67d0a86077d15954161c5ec9be390982bcc6de6b60",
+    "bytes": 10595
+  },
+  {
+    "path": ".github/ci/qualification.test.mjs",
+    "sha256": "bf02196ecadd94296a435a717e214701c9deb232ae3b6bfb7ba0cc8fcf52336d",
+    "bytes": 46412
+  }
+]

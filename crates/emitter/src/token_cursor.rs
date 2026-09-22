@@ -94,18 +94,6 @@ pub(crate) enum TokenWriteKind {
     Punctuation,
 }
 
-/// Selects the source boundary that may donate trailing comments to a token.
-///
-/// Most tokens stop at their containing node's end: trivia at that exact
-/// boundary belongs to the parent container. A case-clause colon is also the
-/// separator before the next clause, so it must retain its trailing comments
-/// even when the current (fall-through) clause ends at the colon.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum TokenCommentBoundary {
-    OwnerEnd,
-    AdjacentListItem,
-}
-
 /// Layout required immediately before the fixed spelling, after any comments
 /// donated by its source anchor have been written.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

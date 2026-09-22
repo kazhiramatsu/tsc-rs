@@ -6798,3 +6798,105 @@ fn merged_lib_interface_type_parameters_unify() {
     );
     assert_eq!(result.diagnostics, []);
 }
+
+#[test]
+fn library_related_information_follows_program_membership_across_entry_families() {
+    struct NeverProvider;
+    impl AuthoritativeModuleProvider for NeverProvider {
+        fn resolve_module(
+            &self,
+            _request: AuthoritativeModuleRequest<'_>,
+        ) -> Result<AuthoritativeModuleResolution, AuthoritativeModuleLookupFailure> {
+            unreachable!("this program has no module requests")
+        }
+    }
+    let libs = [focused_default_library(
+        "interface Array<T> { [n: number]: T; }\n",
+    )];
+    let files = [InputFile::new(
+        "/main.ts",
+        "const values: number[] = [\"wrong\"];\n",
+    )];
+    let options = CompilerOptions::default();
+    let mut observations = Vec::new();
+    for cached in [false, true] {
+        observations.push((
+            false,
+            check_program_with_libs_at_observed_cache_mode(
+                &libs,
+                &files,
+                &options,
+                "/",
+                cached,
+                &mut |_| {},
+            ),
+        ));
+    }
+    if let Some(prepared) = prepare_harness_lib_bundle(&libs, &options) {
+        observations.push((
+            false,
+            check_program_with_prepared_harness_libs_at(&libs, &files, &options, "/", prepared),
+        ));
+    }
+    observations.push((
+        true,
+        check_program_with_owned_libs_at(&libs, &files, &options, "/"),
+    ));
+    let metadata = |index: u32, input: &InputFile, may_be_emitted| AuthoritativeSourceMetadata {
+        token: AuthoritativeSourceToken(index),
+        file_name: input.name.clone(),
+        may_be_emitted,
+        implied_node_format: None,
+        implied_node_format_for_emit: None,
+    };
+    let lib_metadata = [metadata(0, &libs[0], false)];
+    let file_metadata = [metadata(1, &files[0], true)];
+    observations.push((
+        true,
+        check_program_with_authoritative_modules_at(
+            &libs,
+            &files,
+            &lib_metadata,
+            &file_metadata,
+            &options,
+            "/",
+            &NeverProvider,
+        )
+        .unwrap(),
+    ));
+    // The same immutable cached library documents may belong to an ordinary
+    // root Program and a catalog-library Program. Cache reuse is not a role.
+    for completion in [
+        LibraryPrefixCompletion::Complete,
+        LibraryPrefixCompletion::FixtureObservedOnly,
+    ] {
+        observations.push((
+            true,
+            check_program_with_authoritative_modules_at_harness_cached(
+                &libs,
+                &files,
+                &lib_metadata,
+                &file_metadata,
+                &options,
+                "/",
+                &NeverProvider,
+                completion,
+            )
+            .unwrap(),
+        ));
+    }
+    for (default_library, result) in observations {
+        let diagnostics = result
+            .diagnostics
+            .iter()
+            .filter(|d| d.code() == 2322)
+            .collect::<Vec<_>>();
+        assert_eq!(diagnostics.len(), 1);
+        let related = diagnostics[0]
+            .related
+            .iter()
+            .map(|d| d.message.code)
+            .collect::<Vec<_>>();
+        assert_eq!(related, if default_library { vec![] } else { vec![6501] });
+    }
+}

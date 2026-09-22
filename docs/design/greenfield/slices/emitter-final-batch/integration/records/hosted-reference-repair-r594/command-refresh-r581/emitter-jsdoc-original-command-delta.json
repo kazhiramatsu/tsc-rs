@@ -1,0 +1,11 @@
+{
+  "cases": 1,
+  "case_payloads_identical": true,
+  "changes": [
+    {
+      "path": "/selection/0/artifact_sha256",
+      "before": "afbbf588c95e43d9adb78bf5720010c58ab8a2d15eb9ac985984f938daca60ed",
+      "after": "5701f868c527d2769aaee31ca2d715d6a52877aa63702117acd05085d8740fc3"
+    }
+  ]
+}

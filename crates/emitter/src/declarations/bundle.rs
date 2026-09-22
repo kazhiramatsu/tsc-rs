@@ -14,7 +14,11 @@ use super::root::{
 use super::state::{RawFileReferences, TransformState, VisitResult};
 use super::DeclarationTransformer;
 
-/// tsc-port: transformRoot bundle arm @6.0.3 (_tsc.js:114446-114513).
+/// tsc-port: transformDeclarations.transformRoot @6.0.3
+/// tsc-hash: 7b7303f6ac22d1ede26229dce3758b39a5e6ce5b6917be6f460fcc68360125f1
+/// tsc-span: _tsc.js:114446-114513
+/// Reference scope: the documented projection within `transformDeclarations.transformRoot`.
+/// Reference detail: transformRoot bundle arm @6.0.3 (_tsc.js:114446-114513).
 pub(super) fn transform_bundle(
     transformer: &mut DeclarationTransformer<'_>,
     context: &mut TransformationContext,
@@ -228,7 +232,12 @@ pub(super) fn external_module_name_from_declaration(
     ))
 }
 
-/// tsc-port: isExternalModuleAugmentation/isModuleAugmentationExternal
+/// tsc-port: isExternalModuleAugmentation @6.0.3
+/// tsc-hash: b15f91bccd94d548f2b407ea34fdba17881ea41961748847b29b64f8edb264b6
+/// tsc-span: _tsc.js:13737-13739
+/// tsc-port: isModuleAugmentationExternal @6.0.3
+/// tsc-hash: aaba1aaac0a2bbde6e1923580f5a67a0d947ee79784eba560143f321455d79ec
+/// tsc-span: _tsc.js:13740-13748
 /// @6.0.3 (_tsc.js:13737-13749).
 pub(super) fn is_external_module_augmentation(
     transformer: &DeclarationTransformer<'_>,

@@ -769,7 +769,9 @@ fn expected_owner_activity(
 
     for slice in H2RuntimeSlice::ALL {
         let expected = match slice {
-            H2RuntimeSlice::H2_1a if module != 4 && module != 200 => output_units,
+            // Only the implied-format composite constructs this owner. AMD/UMD
+            // use the direct module delegate and retain H2.1b/H2.1c below.
+            H2RuntimeSlice::H2_1a if matches!(module, 1 | 5..=7 | 99..=102 | 199) => output_units,
             H2RuntimeSlice::H2_1b if matches!(module, 1..=3) => output_units,
             H2RuntimeSlice::H2_1c if matches!(module, 2 | 3) => output_units,
             H2RuntimeSlice::H2_1d if module == 4 => output_units,

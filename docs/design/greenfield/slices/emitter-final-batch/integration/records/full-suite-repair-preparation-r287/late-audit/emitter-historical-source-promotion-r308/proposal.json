@@ -1,0 +1,30 @@
+{
+  "status": "unapplied; three complete frozen commands exact twice with original comparator at628",
+  "cases": [
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/members/privateNames/privateNameInInExpressionTransform.ts#target%3Desnext",
+      "exact": true,
+      "writes": 1,
+      "diagnostics": 2,
+      "repetitions": 2
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/scanner/ecmascript5/scannerUnicodeEscapeInKeyword2.ts#default",
+      "exact": true,
+      "writes": 2,
+      "diagnostics": 7,
+      "repetitions": 2
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarations.4.ts#default",
+      "exact": true,
+      "writes": 1,
+      "diagnostics": 1,
+      "repetitions": 2
+    }
+  ],
+  "measurement_manifest_sha256": "5a168ab26a598e439f5a4b6857374788a6cc07580624e91fd45aea3a843637e7",
+  "qualification_unchanged": true,
+  "focused_test_pending": true,
+  "preparation_note": "initial rustfmt failed on not-yet-written module file; both files now present, rustfmt exit0"
+}

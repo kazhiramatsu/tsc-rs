@@ -1,0 +1,31 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "test",
+    "-p",
+    "tsc-rs-compiler",
+    "--test",
+    "transpile_routes_contract",
+    "--",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-audit",
+  "started_at": "2026-09-18T13:16:48.752206+00:00",
+  "head": "ed71c45343b2063414d5563c9b5455631d7c5c68",
+  "tracked_clean": false,
+  "diff_sha256": "7d5d6925a3754ccdd929a63e6ff463f7cccec857258a08cec77dd27daaab7c77",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 101,
+  "seconds": 168.83,
+  "log_sha256": "f0262790ee441194439f241c928bd3407b36ee4e6497f1677b87268025644339",
+  "log_bytes": 40017
+}

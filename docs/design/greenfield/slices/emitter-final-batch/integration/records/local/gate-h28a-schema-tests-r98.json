@@ -1,0 +1,27 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "node",
+    "--test",
+    "--test-name-pattern",
+    "H2.8a|artifact-to-schema|registered h2",
+    ".github/ci/qualification.test.mjs"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-gate-prep",
+  "started_at": "2026-09-19T04:40:21.350668+00:00",
+  "head": "f0dd1893cf4f5177da2033733b70239ae2396176",
+  "tracked_clean": false,
+  "diff_sha256": "71ece4c8de9fa5cd7af2742552e4d3d300d4284dd8e5bf2507a5cc9d34dc7e20",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 5.304,
+  "log_sha256": "f1a39736e5140738c2fd256eb3794993e37ab30bc65d0166567cc4ca5ad6c1cd",
+  "log_bytes": 625
+}

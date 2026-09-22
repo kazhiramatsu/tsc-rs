@@ -1,0 +1,33 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "clippy",
+    "--offline",
+    "-p",
+    "tsc-rs-checker",
+    "-p",
+    "tsc-rs-program",
+    "--all-targets",
+    "--",
+    "-D",
+    "warnings"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-lint-prep",
+  "started_at": "2026-09-19T05:31:21.658339+00:00",
+  "head": "5b8a6ad4fca51fab1052ecfbed0e366925900ac8",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 101,
+  "seconds": 13.167,
+  "log_sha256": "df97d0944cc181f1e652bfe73650d891810affce3df3002df3accf150a74a860",
+  "log_bytes": 7327
+}

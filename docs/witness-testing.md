@@ -527,3 +527,19 @@ All 61 compiler observer/Cargo executions had paired successful timing records.
 The longest replay job was 28m25s; total replay runner time was 141m48s,
 excluding plans, gates and main push. The receipt records host/cache limitations
 and the identical source, hosted-checkout and merge trees.
+
+### Emitter final integration entries (2026-09-18)
+
+`emitter-final` runs the frozen EF2/EF3 21 memberships, EF2–EF6 batch, EF8 output matrix,
+and EF7 217 commands plus known-drift controls. `emitter-plan-base-0` through `-3` partition
+the sorted 1,798 IDs modulo four (450/450/449/449), with two independent observations per row.
+`emitter-universe-oracle` checks both EF7 TypeScript fixtures. `emitter-global` replays the
+existing 769 output-only IDs; `emitter-class-0`/`-1` preserve the eight historical class bands
+(700/528). These are overlapping regression memberships, not an additive compatibility total.
+
+Each entry has its own hosted job under the existing 60-minute / two-worker limits.
+The runner clears editing selectors and verifies nonzero, nonignored test results and complete
+shard summaries. Dedicated inputs select their owners; shared Rust changes retain every existing
+acceptance and witness group. The 68 EF7 known rows freeze the actual native outcome as well as
+owner/cause, reject new drift, and fail if a row becomes exact until explicitly retired.
+See [integration evidence](design/greenfield/slices/emitter-final-batch/integration/README.md).

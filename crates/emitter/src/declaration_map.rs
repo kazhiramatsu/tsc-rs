@@ -130,7 +130,7 @@ fn finish_declaration_map_for_output(
     ))?;
     let map_json = generator.to_json_string();
     let observation = SourceMapObservation::new(
-        generator.raw_sources().iter().cloned().collect(),
+        generator.raw_sources().to_vec(),
         map_json.clone().into_boxed_str(),
     );
     let url = crate::execute::source_mapping_url_for_output(

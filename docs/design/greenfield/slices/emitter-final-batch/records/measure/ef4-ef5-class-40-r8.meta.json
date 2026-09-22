@@ -1,0 +1,16 @@
+{
+  "name": "ef4-ef5-class-40-r8",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 33,
+  "env": [
+    "CARGO_BUILD_JOBS=1",
+    "TSC_RS_EMITTER_FINAL_CAPTURE_DIR=/private/tmp/claude-501/-Users-hiramatsu-dev-tsc-rs/01907deb-0413-43b0-9dc0-4f5a56bb8a5f/scratchpad/capture/ef4-ef5-r8"
+  ],
+  "argv": "cargo test -p tsc-rs-compiler --test emitter_final_batch ef4_ef5_historical_class_rows_match_complete_typescript_observations -- --exact --nocapture --test-threads=1",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T15:30:08Z",
+  "seconds": 72,
+  "exit": 0,
+  "log_sha256": "e93a827e3e334c8f2f0187eae9adc64242023a77f2ef5b0c609d91560e16c148",
+  "log_bytes": 3587
+}

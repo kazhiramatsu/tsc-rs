@@ -1,0 +1,24 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "python3",
+    "scripts/test-pin-audit.py"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-gate-prep",
+  "started_at": "2026-09-19T04:31:35.511339+00:00",
+  "head": "c1e699ab57cf945641f86055249cb0835aa9ea1d",
+  "tracked_clean": false,
+  "diff_sha256": "345794330cd15f7e668f4337d76c3eb56766af86790ea0f72f60e14d70a1d64e",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 0.851,
+  "log_sha256": "a3a856da63ff4acc7f2b32d6ee9e829cec26622c9ce0e4fb596a8b75aedabfea",
+  "log_bytes": 275
+}

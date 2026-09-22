@@ -1,5 +1,11 @@
 # Setup and verification
 
+For building and using the compiler, start with the [user guide](../README.md).
+The [current verification policy](../CLAUDE.md#current-verification-policy)
+supersedes the historical full-local-gate instructions retained below. The
+generated accepted-state snapshot lives in [verification-status.md](verification-status.md);
+the legacy `readme-status` command updates that document.
+
 Active development uses a self-contained, Oxc-style virtual Cargo workspace
 at the repository root. The root `Cargo.toml` has no package of its own;
 member sources live under `crates/*/src`, and there is intentionally no
@@ -71,7 +77,7 @@ and launched tools, and CI-affecting environment. A successful phase is
 skipped only when its declared input scope and every bound output are exact.
 Rust formatting has its own narrow source scope; expensive executable phases
 exclude Markdown in accordance with the documentation-only rule below, while
-the workspace audit and README gate still see it.
+the workspace audit and verification-status check still see it.
 
 `semantic-evidence` remains one atomic phase: B2-B4 production, the move-only
 conformance receipt, recovery, full-corpus invariants, and readiness still run
@@ -120,12 +126,13 @@ CARGO_BUILD_JOBS=2 RUST_TEST_THREADS=1 cargo test -p tsc-rs-compiler \
 `TSRS_PROJECT_AUDIT_START=<offset>` is available for investigation; omit it
 for the pinned full classification.
 
-If every path changed from the trusted base ends in `.md` and README's
-generated `STATUS` block is byte-identical to the base, do not run the
+If every path changed from the trusted base ends in `.md` and the generated
+`STATUS` block in `verification-status.md` (historically the README) is
+byte-identical to the base, do not run the
 Cargo/Node/full-corpus commands above. Run `git diff --check` from the
 repository root and review changed links, anchors, and generated-block
-boundaries. Any non-Markdown or generated-status change uses the full merge
-gate.
+boundaries. Other changes follow the current focused/hosted verification
+policy in CLAUDE.md.
 
 GitHub Actions intentionally does not repeat the local merge gate. It has one
 stable `gates` job and runs only `cargo xtask acceptance`, whose inputs are the

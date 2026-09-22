@@ -1,0 +1,24 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "python3",
+    "/tmp/emitter-variable-tail-r152.py"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-comma-prep",
+  "started_at": "2026-09-19T11:42:27.453770+00:00",
+  "head": "d5ceab6e6192f001f5deef6b54eb6551a2b0ad69",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 1,
+  "seconds": 296.454,
+  "log_sha256": "a518a528e835864db54f158184c5dabf6ad79fdbe96ce33866b5fa48e3694dd5",
+  "log_bytes": 13592
+}

@@ -6,7 +6,7 @@ fn export_name_syntax_maps_match_complete_typescript_observations() {
     assert_eq!(artifact["typescript"], "6.0.3");
     assert_eq!(artifact["repetitions"], 2);
     let cases = artifact["cases"].as_array().unwrap();
-    assert_eq!(cases.len(), 40);
+    assert_eq!(cases.len(), 80);
     let mut failures = Vec::new();
     for case in cases {
         let case_id = case["case_id"].as_str().unwrap();

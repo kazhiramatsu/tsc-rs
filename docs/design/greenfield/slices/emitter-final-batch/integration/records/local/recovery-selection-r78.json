@@ -1,0 +1,24 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "python3",
+    "scripts/test-select-recovery-parse-corpus.py"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census",
+  "started_at": "2026-09-19T01:22:35.189941+00:00",
+  "head": "fcbbd8a5b90fa7199ffbc435c9ee9e7f35f18907",
+  "tracked_clean": false,
+  "diff_sha256": "32fd298bb501a129e371c083d68084489d5bc7777ab268dee122289a106cd95b",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 0.191,
+  "log_sha256": "c6352adff70a6982c739a1cd77bbb43d2425eefd2dc2112b92b0ceebf2a6ca31",
+  "log_bytes": 106
+}

@@ -1,0 +1,34 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "test",
+    "--manifest-path",
+    "crates/syntax/Cargo.toml",
+    "--lib",
+    "--test",
+    "emitter_recovery",
+    "--test",
+    "recovery_provenance",
+    "--",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-proof",
+  "started_at": "2026-09-18T23:34:57.546421+00:00",
+  "head": "c8863a155812be54d888008728bc78ff344a3f38",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/recovery-syntax-r46",
+    "CARGO_BUILD_JOBS": "2"
+  },
+  "exit": 0,
+  "seconds": 78.341,
+  "log_sha256": "f7c8860ebb3602c94e9b346e7e2ec45876bee95bdc3075114bb62622c6a9bdf8",
+  "log_bytes": 17146
+}

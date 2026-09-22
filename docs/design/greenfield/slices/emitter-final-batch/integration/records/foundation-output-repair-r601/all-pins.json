@@ -1,0 +1,9 @@
+{
+  "argv": [
+    "/opt/homebrew/opt/python@3.14/bin/python3.14",
+    "scripts/walk-preflight.py"
+  ],
+  "exit": 0,
+  "seconds": 4.537945916876197,
+  "log_sha256": "e6ada28c38961b2c61d8ec145b567950413d7992d45813d6f451ec06c84f50ad"
+}

@@ -1,0 +1,26 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "python3",
+    ".github/ci/test_replay.py",
+    "SelectionTests.test_config_library_exact_selection_preserves_shared_contract_coverage",
+    "SelectionTests.test_config_library_runner_rejects_incomplete_contract_selection"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-declaration-prep",
+  "started_at": "2026-09-19T07:25:58.171194+00:00",
+  "head": "24764159629c4622f59246ea178a94f9bd9e709b",
+  "tracked_clean": false,
+  "diff_sha256": "fd1dd8235da3341f3a5a205947c8c595ba6f906b5a6a4d10ad000470190ff257",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 6.841,
+  "log_sha256": "45d39ce279e33c63d9aade8ad21cdfabfa1103fef4bd472d5a126ac92371a0f5",
+  "log_bytes": 53465
+}

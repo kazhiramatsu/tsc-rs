@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "artifacts": [
+    {
+      "path": "crates/compiler/tests/fixtures/import-helpers.json",
+      "before_sha256": "89808a8f00614fa040dc0632f0f79588e203d24a58aca2eac5a84a7297942711",
+      "after_sha256": "26d20976c3e60546b7143ee6b9fff4d7928720e3a89e8092f3ad41864a0d5a42",
+      "unchanged_cases": 111,
+      "added_cases": 440,
+      "repetitions": 2
+    },
+    {
+      "path": "ratchets/h2-8a-output-directory-corpus.v1.json",
+      "before_sha256": "4df4915db7431ea4fdab021ba392a9bae03fc46a715fd8dafdb20701b8247823",
+      "after_sha256": "c5594c1c9faa014ce974a6227f1d9441d78f1f254dea42583777a03bcf4849bf",
+      "unchanged_cases": 23,
+      "added_cases": 0,
+      "repetitions": 2
+    }
+  ]
+}

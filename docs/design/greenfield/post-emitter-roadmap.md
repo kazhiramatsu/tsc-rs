@@ -5,6 +5,12 @@
 状態：**後続の設計計画**。emitter完成を宣言する文書でも、全行をruntime-readyにするpacketでもない。
 最初の実行候補は[移行基盤batchの依頼案](slices/post-emitter-foundation-batch/README.md)。
 
+2026-09-22統合時の補足：emitterは[PR #561の統合記録](slices/emitter-final-batch/integration/delivery.md)
+で完了scopeと残条件を記録済み。18行の歴史的profile資格付けやtranspile/load-failureの
+未完了範囲は同記録に従い、下記の9月17日時点の棚卸しと区別する。
+直近の性能比較準備・測定・チューニングという作業順は保持する。本計画の統合は、
+それを移行基盤batchへ差し替えたり、TS7/API/LSP実装を開始したりするものではない。
+
 **7.1の固定sourceを設計・比較の起点にし、既存機能の不足から実装する。まず追従の仕組みを
 一件の実装まで通し、その基盤でcompiler、公開API、native LSP、build/watchを進める。**
 必要な7.1 API・基盤は先行するが、追加言語機能・libを一括して最初の到達条件にはしない。
@@ -278,8 +284,8 @@ Functional CI frameworkの再開はこの計画の必須前提にしない。
 
 [witness方針](../../witness-testing.md)に従い、focused local→互換な複数sliceの合成→selected hostedとする。
 ローカルは2 workers・macOS background、一度に重い処理を一つ。full localを通常ループへ戻さない。
-[最新CI記録](slices/witness-coverage/emitter-final-ci-budget/README.md)ではcontrols25m21s、
-module-output20m42s、replay最長28m25s。これは現在のjobの測定であり、将来LS/build分の余裕の保証ではない。
+[9月17日時点のCI記録](slices/witness-coverage/emitter-final-ci-budget/README.md)ではcontrols25m21s、
+module-output20m42s、replay最長28m25s。これは当時のjobの測定であり、現在のjobや将来LS/build分の余裕の保証ではない。
 新familyは観測の分母を保持した専用入口へ追加し、45分で分割を検討、60分をhard limitとする。
 wall timeだけでなく全jobのbuild/実行総量も確認する。zero-selected・skip-only・baseline欠測をgreenにしない。
 

@@ -531,11 +531,7 @@ impl<'a> CheckerState<'a> {
             },
         };
         let is_optional = declaration.is_some_and(|declaration| {
-            self.initializer_of(declaration).is_none()
-                && matches!(
-                    self.data_of(declaration),
-                    NodeData::Parameter(data) if data.question_token.is_some()
-                )
+            self.initializer_of(declaration).is_none() && self.is_optional_declaration(declaration)
         });
         let mut ty = self.tables.add_optionality(base, false, is_optional);
         self.links.set_symbol_type_contextual(
@@ -1440,10 +1436,16 @@ impl<'a> CheckerState<'a> {
         expr_type: TypeId,
         in_conditional_expression: bool,
     ) -> CheckResult<()> {
+        // 84551: a JSDoc `@type` cast around the conditional is not peeked
+        // into (`skipParentheses(expr, excludeJSDocTypeAssertions)`).
+        let exclude_jsdoc_type_assertions = self.is_in_js_file(node);
         let function_flags = self.get_function_flags(container);
         if let Some(expr) = expr {
-            let unwrapped_expr =
-                node_util::skip_parentheses_pub(self.binder.source_of_node(expr), expr);
+            let unwrapped_expr = node_util::skip_parentheses_excluding_jsdoc_type_assertions(
+                self.binder.source_of_node(expr),
+                expr,
+                exclude_jsdoc_type_assertions,
+            );
             if self.kind_of(unwrapped_expr) == SyntaxKind::ConditionalExpression {
                 let (when_true, when_false) = match self.data_of(unwrapped_expr) {
                     NodeData::ConditionalExpression(data) => (data.when_true, data.when_false),
@@ -1704,8 +1706,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:80447-80512
     ///
     /// Grammar closure runs eager (the 5.4 addLazyDiagnostic
-    /// decision), as does the noImplicitAny 7057 closure. Emit-helper
-    /// probes are importHelpers-gated (no-op).
+    /// decision), as does the noImplicitAny 7057 closure. Delegating yield
+    /// checks its target-dependent helper requirements before its operand.
     pub(crate) fn check_yield_expression(&mut self, node: NodeId) -> CheckResult<TypeId> {
         self.check_yield_expression_grammar(node);
         let func = self.get_containing_function(node);
@@ -1721,6 +1723,21 @@ impl<'a> CheckerState<'a> {
             NodeData::YieldExpression(data) => (data.expression, data.asterisk_token),
             _ => (None, None),
         };
+        if asterisk_token.is_some() {
+            let target = self.options.emit_script_target();
+            if is_async && target < tsc_types::ScriptTarget::ES2018 {
+                self.check_external_emit_helpers(
+                    node,
+                    crate::modules::EMIT_HELPER_ASYNC_DELEGATOR_INCLUDES,
+                )?;
+            }
+            if !is_async
+                && target < tsc_types::ScriptTarget::ES2015
+                && self.options.downlevel_iteration == Some(true)
+            {
+                self.check_external_emit_helpers(node, crate::modules::EMIT_HELPER_VALUES)?;
+            }
+        }
         let mut return_type = self.get_return_type_from_annotation(func)?;
         if let Some(current) = return_type {
             if self.tables.flags_of(current).intersects(TypeFlags::UNION) {
@@ -2026,7 +2043,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: c740ef163bdd457d25dd1f9a18e6dde5f7cb24f26cdba99764015af155055c19
     /// tsc-span: _tsc.js:81289-81355
     ///
-    /// Emit-helper probes are importHelpers-gated (no-op). The lazy
+    /// Emit-helper probes use the effective target and importHelpers. The lazy
     /// tail runs eager (the 5.4 addLazyDiagnostic decision).
     pub(crate) fn check_signature_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         let kind = self.kind_of(node);
@@ -2042,6 +2059,31 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::ConstructSignature
         ) {
             self.check_grammar_function_like_declaration(node)?;
+        }
+        // 81290-81304: importHelpers requests for the async / generator
+        // lowerings (EF7-ASYNC-HELPER-CHECKS).
+        let function_flags = self.get_function_flags(node);
+        if function_flags & FUNCTION_FLAGS_INVALID == 0 {
+            let async_generator = FUNCTION_FLAGS_ASYNC | FUNCTION_FLAGS_GENERATOR;
+            let language_version = self.options.emit_script_target();
+            if function_flags & async_generator == async_generator
+                && language_version < tsc_types::ScriptTarget::ES2018
+            {
+                self.check_external_emit_helpers(
+                    node,
+                    crate::modules::EMIT_HELPER_ASYNC_GENERATOR_INCLUDES,
+                )?;
+            }
+            if function_flags & async_generator == FUNCTION_FLAGS_ASYNC
+                && language_version < tsc_types::ScriptTarget::ES2017
+            {
+                self.check_external_emit_helpers(node, crate::modules::EMIT_HELPER_AWAITER)?;
+            }
+            if function_flags & async_generator != 0
+                && language_version < tsc_types::ScriptTarget::ES2015
+            {
+                self.check_external_emit_helpers(node, crate::modules::EMIT_HELPER_GENERATOR)?;
+            }
         }
         let (parameters, type_node) = match self.data_of(node) {
             NodeData::FunctionDeclaration(data) => (data.parameters, data.r#type),
@@ -2225,7 +2267,10 @@ impl<'a> CheckerState<'a> {
     ///
     /// `return_type_error_location` differs for a JSDoc `@type`
     /// reference whose resolved call signature supplies the actual
-    /// return annotation. `markLinkedReferences` is emit-only.
+    /// return annotation. The ES5 branch marks the promise-constructor
+    /// alias referenced here (`markLinkedReferences(node, AsyncFunction)`,
+    /// _tsc.js:82513) so import elision keeps the constructor's import; the
+    /// emit-time walk only covers unchecked files.
     ///
     /// tsc-port: errorInfo @6.0.3
     /// tsc-hash: e1a24fabcf6804fad35da3af2931050959472a63a0d8f5715af1d0db02aaa664
@@ -2258,6 +2303,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
         } else {
+            self.mark_linked_references_async_function(node)?;
             if self.tables.is_error_type(return_type) {
                 return Ok(());
             }
@@ -2418,6 +2464,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// getEntityNameFromTypeNode (14623-14635).
+    /// tsc-port: getEntityNameFromTypeNode @6.0.3
+    /// tsc-hash: 18fbb4d47813f69cb1fc135ef8805253c782b926f276b3cd78f327f8c1c1efa1
+    /// tsc-span: _tsc.js:14623-14635
     pub(crate) fn get_entity_name_from_type_node(&self, node: NodeId) -> Option<NodeId> {
         match self.data_of(node) {
             NodeData::TypeReference(data) => data.type_name,
@@ -2937,8 +2986,9 @@ impl<'a> CheckerState<'a> {
     /// nodeImmediatelyReferencesSuperOrThis 81616-81624 +
     /// findFirstSuperCall 72321-72323)
     ///
-    /// captureLexicalThis is emit-only (no-op); the lazy tail runs
-    /// eager. emitStandardClassFields makes the root-level band dead
+    /// Constructor captureLexicalThis has no observable consumer in TS 6.0.3:
+    /// potentialThisCollisions is never populated. The lazy tail runs eager.
+    /// emitStandardClassFields makes the root-level band dead
     /// at the default target and LIVE for low-@target fixtures.
     pub(crate) fn check_constructor_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_signature_declaration(node)?;
@@ -3099,7 +3149,10 @@ impl<'a> CheckerState<'a> {
     }
 
     /// isPrivateIdentifierClassElementDeclaration (11944-11946).
-    fn is_private_identifier_class_element(&self, node: NodeId) -> bool {
+    /// tsc-port: isPrivateIdentifierClassElementDeclaration @6.0.3
+    /// tsc-hash: 4d2410e4b12837c830e30a5cdf2c7dd2d7a5fd7223a3a19fe0a698e91a925795
+    /// tsc-span: _tsc.js:11944-11946
+    pub(crate) fn is_private_identifier_class_element(&self, node: NodeId) -> bool {
         matches!(
             self.kind_of(node),
             SyntaxKind::PropertyDeclaration
@@ -5430,12 +5483,23 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:76190-76193
     ///
     /// skipOuterExpressions(Parentheses | Satisfies) — the two kinds
-    /// interleave in any order.
+    /// interleave in any order. In a JavaScript file the flags add
+    /// `ExcludeJSDocTypeAssertion`: a parenthesized expression carrying a
+    /// JSDoc `@type` cast is the check node itself (EF7-JSDOC-CHECK-NODE).
     pub(crate) fn get_effective_check_node(&self, argument: NodeId) -> NodeId {
+        let exclude_jsdoc_type_assertions = self.is_in_js_file(argument);
         let mut node = argument;
         loop {
             match self.data_of(node) {
                 NodeData::ParenthesizedExpression(data) => {
+                    if exclude_jsdoc_type_assertions
+                        && node_util::is_jsdoc_type_assertion(
+                            self.binder.source_of_node(node),
+                            node,
+                        )
+                    {
+                        return node;
+                    }
                     let Some(expression) = data.expression else {
                         return node;
                     };

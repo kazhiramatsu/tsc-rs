@@ -4,22 +4,22 @@
   "source_references": [
     {
       "path": "ratchets/fuzz-domain.v1.toml",
-      "sha256": "a52938471d2189be7b448a33d47b34de7018930bb5ade905b6c2457c67082ec5"
+      "sha256": "c9826c61a2b7554b4b125f2a84917366975e15cecfd01c859ed92c3d792759b5"
     },
     {
       "path": "ratchets/fuzz-oracle-deviations.v1.json",
-      "sha256": "8451034727ce0e054ad6c452829fcd91dd32988c40b13823a062dae58ffe3d0c"
+      "sha256": "aad7661afcd209f10a04461ad090286bba8ceb0abc2106c975b89aa6f5d3006c"
     },
     {
-      "path": "m8-evidence.json",
+      "path": "ratchets/m8/m8-evidence.json",
       "sha256": "ad59d232144e8bd9543be9ebc1494d300addb7f4fb8990a492b88b096aaf232b"
     },
     {
-      "path": "m8-emitter-inventory.json",
+      "path": "ratchets/m8/m8-emitter-inventory.json",
       "sha256": "77a1ab1dea3367cb6d913f158ee97932d8c256f5c907f7a3846a1a2fc99f6f38"
     },
     {
-      "path": "m8-emitter-dispositions.json",
+      "path": "ratchets/m8/m8-emitter-dispositions.json",
       "sha256": "b0647092e86d77f7e75ef3cf04181e9fb8805a377bdca2eac93c6399436489e1"
     },
     {
@@ -36,31 +36,31 @@
     },
     {
       "path": "crates/xtask/src/m8_evidence.rs",
-      "sha256": "a72c4c128f51d6e7e2344206bfd82455ee773018fbb31d3458e9c0b30bf90c4a"
+      "sha256": "f38a48f45d859a6c636fb00c8aeecac35ae6580e4f52cf6204b16e9656b7f771"
     },
     {
       "path": "crates/checker/src/lib.rs",
-      "sha256": "51721d435ce9f8486a8705e7eece54aa392ef0bf59e323aeb3b6b54190902c3c"
+      "sha256": "73bee3ccccf7202b7b0a4265f69e761efd66b339809f10e219604b6e5fd2c516"
     },
     {
       "path": "crates/diagnostics/src/lib.rs",
-      "sha256": "6c5d88773007f8a54d98b7ebc51c96c5110caa452b95d4d670e2002079302068"
+      "sha256": "e296abb021f0ea138f1d9274f71d2c87a3db56909df0feb37c89ff4c4ca3846f"
     },
     {
       "path": "crates/diagnostics/src/render.rs",
-      "sha256": "45f68c41d3012f4482796651795b22358c0cee0d7725657c067e068648c529c8"
+      "sha256": "1ee6d3271c7a7c17f24f95fc0799f280e6f848051e7d5a9b6510112b5b2efa42"
     },
     {
       "path": "crates/harness/src/lib.rs",
-      "sha256": "8fdef35abefebbd5554f92aae33ba9b1de676feb8b5eaa3806c6538461a6efeb"
+      "sha256": "48de8b606404c177d3a61882cb55baa61ec1a7e7a4b90e5fa8de6a2a1ffb54e8"
     },
     {
       "path": "crates/conformance/src/lib.rs",
-      "sha256": "6636a17f634774c17d1cf3719d825b9f1b2d1dcf7749afb33e3ca4b4c0f92a4f"
+      "sha256": "b7fe30a3b99cc9d766f634adda4b7cff46af678b58931901ec10355e78d538cd"
     },
     {
       "path": "crates/conformance/src/rendered.rs",
-      "sha256": "1528d99d70580e45b1e32ad5bc97bfdc494c9a8e6c8ded1cef20265ee2de66a9"
+      "sha256": "4da0db69e999a6f8d5d776b0d7ceabd9ea29ec4748488ba470d0345c55fc43ef"
     },
     {
       "path": "crates/oracle/render-driver.mjs",
@@ -136,7 +136,7 @@
     },
     {
       "path": "crates/fuzz/src/adapters/tsrs.rs",
-      "sha256": "01bf2ff1bb623384b2ec906a804ea15ad73ca0ae9e619c270cfd95a954886f46"
+      "sha256": "ceed333fffea422e4d6d9626f6dba3379c34f6180db4aba1ed5dbb91b73af767"
     },
     {
       "path": "crates/fuzz/src/bin/tsc-rs-fuzz-producer.rs",

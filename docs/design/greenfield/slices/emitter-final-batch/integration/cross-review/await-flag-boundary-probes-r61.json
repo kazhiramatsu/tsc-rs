@@ -1,0 +1,399 @@
+{
+  "typescript": "6.0.3",
+  "repetitions": 2,
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "cases": [
+    {
+      "text": "export {}; interface I extends await<string> {}",
+      "diagnostics": [],
+      "statements": [
+        {
+          "kind": "ExportDeclaration",
+          "pos": 0,
+          "end": 10,
+          "await_context": false,
+          "possible_await": false
+        },
+        {
+          "kind": "InterfaceDeclaration",
+          "pos": 10,
+          "end": 47,
+          "await_context": false,
+          "possible_await": false
+        }
+      ]
+    },
+    {
+      "text": "export {}; interface await {}",
+      "diagnostics": [],
+      "statements": [
+        {
+          "kind": "ExportDeclaration",
+          "pos": 0,
+          "end": 10,
+          "await_context": false,
+          "possible_await": false
+        },
+        {
+          "kind": "InterfaceDeclaration",
+          "pos": 10,
+          "end": 29,
+          "await_context": false,
+          "possible_await": false
+        }
+      ]
+    },
+    {
+      "text": "export {}; interface I { [await]: any; }",
+      "diagnostics": [],
+      "statements": [
+        {
+          "kind": "ExportDeclaration",
+          "pos": 0,
+          "end": 10,
+          "await_context": false,
+          "possible_await": false
+        },
+        {
+          "kind": "InterfaceDeclaration",
+          "pos": 10,
+          "end": 40,
+          "await_context": false,
+          "possible_await": false
+        }
+      ]
+    },
+    {
+      "text": "export {}; type T = await<string>;",
+      "diagnostics": [],
+      "statements": [
+        {
+          "kind": "ExportDeclaration",
+          "pos": 0,
+          "end": 10,
+          "await_context": false,
+          "possible_await": false
+        },
+        {
+          "kind": "TypeAliasDeclaration",
+          "pos": 10,
+          "end": 34,
+          "await_context": false,
+          "possible_await": false
+        }
+      ]
+    },
+    {
+      "text": "export {}; type await = number;",
+      "diagnostics": [],
+      "statements": [
+        {
+          "kind": "ExportDeclaration",
+          "pos": 0,
+          "end": 10,
+          "await_context": false,
+          "possible_await": false
+        },
+        {
+          "kind": "TypeAliasDeclaration",
+          "pos": 10,
+          "end": 31,
+          "await_context": false,
+          "possible_await": false
+        }
+      ]
+    },
+    {
+      "text": "export {}; let a: await<string>;",
+      "diagnostics": [],
+      "statements": [
+        {
+          "kind": "ExportDeclaration",
+          "pos": 0,
+          "end": 10,
+          "await_context": false,
+          "possible_await": false
+        },
+        {
+          "kind": "FirstStatement",
+          "pos": 10,
+          "end": 32,
+          "await_context": false,
+          "possible_await": false
+        }
+      ]
+    },
+    {
+      "text": "export {}; function f<T extends await>() {}",
+      "diagnostics": [],
+      "statements": [
+        {
+          "kind": "ExportDeclaration",
+          "pos": 0,
+          "end": 10,
+          "await_context": false,
+          "possible_await": false
+        },
+        {
+          "kind": "FunctionDeclaration",
+          "pos": 10,
+          "end": 43,
+          "await_context": false,
+          "possible_await": false
+        }
+      ]
+    },
+    {
+      "text": "export {}; const f = <T extends await>() => 1;",
+      "diagnostics": [],
+      "statements": [
+        {
+          "kind": "ExportDeclaration",
+          "pos": 0,
+          "end": 10,
+          "await_context": false,
+          "possible_await": false
+        },
+        {
+          "kind": "FirstStatement",
+          "pos": 10,
+          "end": 46,
+          "await_context": false,
+          "possible_await": false
+        }
+      ]
+    },
+    {
+      "text": "export {}; class C<T extends await> {}",
+      "diagnostics": [],
+      "statements": [
+        {
+          "kind": "ExportDeclaration",
+          "pos": 0,
+          "end": 10,
+          "await_context": false,
+          "possible_await": false
+        },
+        {
+          "kind": "ClassDeclaration",
+          "pos": 10,
+          "end": 38,
+          "await_context": false,
+          "possible_await": false
+        }
+      ]
+    },
+    {
+      "text": "export {}; class C { p: await<string>; }",
+      "diagnostics": [],
+      "statements": [
+        {
+          "kind": "ExportDeclaration",
+          "pos": 0,
+          "end": 10,
+          "await_context": false,
+          "possible_await": false
+        },
+        {
+          "kind": "ClassDeclaration",
+          "pos": 10,
+          "end": 40,
+          "await_context": false,
+          "possible_await": false
+        }
+      ]
+    },
+    {
+      "text": "export {}; class C { await() {} }",
+      "diagnostics": [],
+      "statements": [
+        {
+          "kind": "ExportDeclaration",
+          "pos": 0,
+          "end": 10,
+          "await_context": false,
+          "possible_await": false
+        },
+        {
+          "kind": "ClassDeclaration",
+          "pos": 10,
+          "end": 33,
+          "await_context": false,
+          "possible_await": false
+        }
+      ]
+    },
+    {
+      "text": "export {}; const x = { await: 1 };",
+      "diagnostics": [],
+      "statements": [
+        {
+          "kind": "ExportDeclaration",
+          "pos": 0,
+          "end": 10,
+          "await_context": false,
+          "possible_await": false
+        },
+        {
+          "kind": "FirstStatement",
+          "pos": 10,
+          "end": 34,
+          "await_context": false,
+          "possible_await": false
+        }
+      ]
+    },
+    {
+      "text": "export {}; const x = { [await]: 1 };",
+      "diagnostics": [
+        {
+          "code": 1109,
+          "start": 29,
+          "length": 1,
+          "message": "Expression expected."
+        }
+      ],
+      "statements": [
+        {
+          "kind": "ExportDeclaration",
+          "pos": 0,
+          "end": 10,
+          "await_context": false,
+          "possible_await": false
+        },
+        {
+          "kind": "FirstStatement",
+          "pos": 10,
+          "end": 36,
+          "await_context": true,
+          "possible_await": false
+        }
+      ]
+    },
+    {
+      "text": "export {}; const x = source.await;",
+      "diagnostics": [],
+      "statements": [
+        {
+          "kind": "ExportDeclaration",
+          "pos": 0,
+          "end": 10,
+          "await_context": false,
+          "possible_await": false
+        },
+        {
+          "kind": "FirstStatement",
+          "pos": 10,
+          "end": 34,
+          "await_context": false,
+          "possible_await": false
+        }
+      ]
+    },
+    {
+      "text": "export {}; const x = source[await];",
+      "diagnostics": [
+        {
+          "code": 1109,
+          "start": 33,
+          "length": 1,
+          "message": "Expression expected."
+        }
+      ],
+      "statements": [
+        {
+          "kind": "ExportDeclaration",
+          "pos": 0,
+          "end": 10,
+          "await_context": false,
+          "possible_await": false
+        },
+        {
+          "kind": "FirstStatement",
+          "pos": 10,
+          "end": 35,
+          "await_context": true,
+          "possible_await": false
+        }
+      ]
+    },
+    {
+      "text": "export {}; class C extends await<string> {}",
+      "diagnostics": [
+        {
+          "code": 1109,
+          "start": 27,
+          "length": 5,
+          "message": "Expression expected."
+        },
+        {
+          "code": 1109,
+          "start": 32,
+          "length": 1,
+          "message": "Expression expected."
+        },
+        {
+          "code": 1005,
+          "start": 39,
+          "length": 1,
+          "message": "',' expected."
+        }
+      ],
+      "statements": [
+        {
+          "kind": "ExportDeclaration",
+          "pos": 0,
+          "end": 10,
+          "await_context": false,
+          "possible_await": false
+        },
+        {
+          "kind": "ClassDeclaration",
+          "pos": 10,
+          "end": 43,
+          "await_context": true,
+          "possible_await": false
+        }
+      ]
+    },
+    {
+      "text": "export {}; class C implements await<string> {}",
+      "diagnostics": [
+        {
+          "code": 1109,
+          "start": 30,
+          "length": 5,
+          "message": "Expression expected."
+        },
+        {
+          "code": 1109,
+          "start": 35,
+          "length": 1,
+          "message": "Expression expected."
+        },
+        {
+          "code": 1005,
+          "start": 42,
+          "length": 1,
+          "message": "',' expected."
+        }
+      ],
+      "statements": [
+        {
+          "kind": "ExportDeclaration",
+          "pos": 0,
+          "end": 10,
+          "await_context": false,
+          "possible_await": false
+        },
+        {
+          "kind": "ClassDeclaration",
+          "pos": 10,
+          "end": 46,
+          "await_context": true,
+          "possible_await": false
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "status": "UNAPPLIED SCRATCH PROTOTYPE; rustfmt parsed; not compiled/tested/qualified",
+  "head": "628562c31a5102348a7e8769f3a2aa88deef70f1",
+  "files": [
+    {
+      "path": "crates/syntax/src/recovery.rs",
+      "before_sha256": "2057b4a631a0a9aa48faa168cc7fa5ef391cd6a5091933d1bcfb4f9be7686e17",
+      "after_sha256": "27eb7dbc0d144d72c5ceffe58ad7fd701b72c4e8e8f83038c06d757eaaa36085"
+    },
+    {
+      "path": "crates/syntax/src/recovery/context.rs",
+      "before_sha256": "c1e18d476453ff4ce90172b009310d0c160771190509583d3436d1e6f8e9aaa4",
+      "after_sha256": "9360358d63372b2b7419def8f41e40ef072117e4cefa7ce17e41bdefb39fc5ae"
+    }
+  ],
+  "scope": "final context admission only, one composite unit with exactly two ordinary variable declarations and one numeric binding element, no declare/using/for; unique action/event/slot accounting",
+  "pending": "independent Opus code review; isolated syntax compile and positive/negative tests; full real8command outputs; allnewcorpusadmission proof before integration"
+}

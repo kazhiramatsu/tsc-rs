@@ -1,0 +1,12 @@
+{
+  "parent": "32b6dca3a47b3e61f9d70eb912724eb09fcf1f1f",
+  "initialized_flags_probe": "r324 PASS",
+  "review": "actual Opus178 pending; isolated prototype only",
+  "paths": {
+    "crates/syntax/src/recovery/context.rs": "733c3c9b68af56cdf470c8e1039c7a7793d4ef0cfd12adc7fcb22dd5a52aaed7",
+    "crates/syntax/tests/unit/parser/recovery.rs": "cdb491f3a4590d8c5c20620d1c86ffe399e061d47e7252b3cf22e9a6231524dd"
+  },
+  "syntax_test_status": "216 PASS",
+  "complete_command_status": "pending",
+  "syntax_log_sha256": "0c87c532322bf57461e5db8e1fc0399454ce6775d124446e76f60319c6e6cc55"
+}

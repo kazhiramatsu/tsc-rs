@@ -1,0 +1,24 @@
+{
+ "schema": 1,
+ "model_digest": "07350f5dac4919af2fdc9d7e2220f38656e11bc8e1d85db549291fc870b055e5",
+ "mint_events": 2,
+ "modeled_events": 0,
+ "unknown_events": 2,
+ "outcomes": [
+  {
+   "round": 1,
+   "rung": "h2-8a-candidates",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-8a-observations",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  }
+ ],
+ "precision": null,
+ "recall": null,
+ "note": "report-only; pre-hermetic model-maturation evidence (packet \u00a77/\u00a79) \u2014 never promotion-countable"
+}

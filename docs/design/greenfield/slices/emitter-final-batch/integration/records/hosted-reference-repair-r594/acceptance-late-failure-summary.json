@@ -1,0 +1,18 @@
+{
+  "raw_path": "/tmp/emitter-final-hosted-progress-r577/106137452296.log",
+  "raw_sha256": "2468743834f4ab0c7ba1801beee20d87088237ff8755be7244b50f59cdda404f",
+  "raw_bytes": 96571706,
+  "lines": [
+    "2026-09-20T19:42:59.5936631Z acceptance slice: h2-5h",
+    "2026-09-20T19:50:26.7840465Z acceptance slice: h2-6a",
+    "2026-09-20T19:50:55.4623563Z acceptance slice: h2-6b",
+    "2026-09-20T19:50:57.7183600Z acceptance slice: h2-6c",
+    "2026-09-20T19:51:58.4919404Z acceptance slice: h2-7b",
+    "2026-09-20T19:58:03.2477178Z acceptance slice: h2-7c",
+    "2026-09-20T19:58:27.5182389Z acceptance slice: h2-7de",
+    "2026-09-20T19:58:36.5434428Z thread 'main' (3860) panicked at crates/xtask/src/../../compiler/tests/integration/h2_7d_original_corpus_shared.rs:824:55:",
+    "2026-09-20T19:58:53.4143104Z called `Result::unwrap_err()` on an `Ok` value: PreparedProgram { mode: NoEmit, path_context: PathContext { current_directory: ProgramPath { display: \"/.src\", canonical: CanonicalPath(\"/.src\") }, use_case_sensitive_file_names: true }, compiler_options: CompilerOptions { allow_js: true, force_consistent_casing_in_file_names: None, max_node_module_js_depth: None, experimental_decorators: false, target: Some(2), module: None, module_detection: None, always_strict: None, strict: Some(true), strict_null_checks: None, strict_function_types: None, no_implicit_any: None, no_error_truncation: Some(true), no_implicit_this: None, no_implicit_override: None, strict_bind_call_apply: None, exact_optional_property_types: None, [line truncated in summary; full raw preserved]",
+    "2026-09-20T19:59:23.8965736Z H2.7d/e D283 acceptance failed: called `Result::unwrap_err()` on an `Ok` value: PreparedProgram { mode: NoEmit, path_context: PathContext { current_directory: ProgramPath { display: \"/.src\", canonical: CanonicalPath(\"/.src\") }, use_case_sensitive_file_names: true }, compiler_options: CompilerOptions { allow_js: true, force_consistent_casing_in_file_names: None, max_node_module_js_depth: None, experimental_decorators: false, target: Some(2), module: None, module_detection: None, always_strict: None, strict: Some(true), strict_null_checks: None, strict_function_types: None, no_implicit_any: None, no_error_truncation: Some(true), no_implicit_this: None, no_implicit_override: None, strict_bind_call_apply: None, exac [line truncated in summary; full raw preserved]",
+    "2026-09-20T19:59:37.5260922Z ##[error]Process completed with exit code 1."
+  ]
+}

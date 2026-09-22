@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/xtask",
+    "ledger",
+    "check"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-ledger-prep",
+  "started_at": "2026-09-19T06:15:41.062793+00:00",
+  "head": "e80dfc18fc7822a73d83e20e900c7fafb1396740",
+  "tracked_clean": false,
+  "diff_sha256": "80d85530a746e92679c860029bb8892a390d063f839c06921b6a8182d5f63d21",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 105.709,
+  "log_sha256": "13bb0df9f2ee83cfab49441bcd8ca5952132489da36dbe773a577f869f685525",
+  "log_bytes": 3752
+}

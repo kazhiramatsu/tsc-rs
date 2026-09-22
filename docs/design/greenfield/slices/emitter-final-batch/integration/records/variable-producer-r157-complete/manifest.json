@@ -1,0 +1,114 @@
+{
+  "source_head": "add70fc29e3c553f36c9b78e23733877379e6a28",
+  "qualification": false,
+  "summary": {
+    "commands": 404,
+    "exact_twice": 392,
+    "failed": 12,
+    "captures": 796,
+    "compiler_build_exit": 0,
+    "native_exit": 101,
+    "r158": "stopped before build because r157 failed",
+    "r159": "read-only ledger preflight passed; does not replace final gate"
+  },
+  "files": [
+    {
+      "path": "captures.json.gz",
+      "sha256": "ff7754082e9e16df77b36e3641ec7d730e1450a2283c7b3a5ab459fd3a4e2dc9",
+      "bytes": 290445,
+      "raw_sha256": "070194bfb36e5ccf8502ec172f1e92ca2e0cb244017e11afdc1a5d1a0fa2b6e1",
+      "raw_bytes": 8997452
+    },
+    {
+      "path": "binary-manifest.json",
+      "sha256": "82fa5a2e552b8efa693f860c6110e1b5f56b5483d25bb5d2b873b72a0e7cfd3f",
+      "bytes": 49352,
+      "raw_sha256": "82fa5a2e552b8efa693f860c6110e1b5f56b5483d25bb5d2b873b72a0e7cfd3f",
+      "raw_bytes": 49352
+    },
+    {
+      "path": "variable-producer-pipeline-r157.json",
+      "sha256": "a89ca86e862e22e757bae4344dfecb8c2d0c4b491c6bb0e1c6aea39955586856",
+      "bytes": 696,
+      "raw_sha256": "a89ca86e862e22e757bae4344dfecb8c2d0c4b491c6bb0e1c6aea39955586856",
+      "raw_bytes": 696
+    },
+    {
+      "path": "variable-producer-pipeline-r157.log.gz",
+      "sha256": "adeed0d67a07c7fa20c2677e917605e48487ede464f06178771cf71809796ea9",
+      "bytes": 1792,
+      "raw_sha256": "adeed0d67a07c7fa20c2677e917605e48487ede464f06178771cf71809796ea9",
+      "raw_bytes": 1792
+    },
+    {
+      "path": "variable-type-compiler-build-r157.json",
+      "sha256": "55d59c395088b11dc7925a1a72c582301bcbd97e4d928793bfaa5024ae9e30d4",
+      "bytes": 831,
+      "raw_sha256": "55d59c395088b11dc7925a1a72c582301bcbd97e4d928793bfaa5024ae9e30d4",
+      "raw_bytes": 831
+    },
+    {
+      "path": "variable-type-compiler-build-r157.log.gz",
+      "sha256": "82d4b62e207eb19bc1302eef9ee6f5c02765dfde3567511cf8d26cfadf6059ec",
+      "bytes": 4074,
+      "raw_sha256": "82d4b62e207eb19bc1302eef9ee6f5c02765dfde3567511cf8d26cfadf6059ec",
+      "raw_bytes": 4074
+    },
+    {
+      "path": "variable-type-native-r157.json",
+      "sha256": "97aeb03032e13de066be9c1ef96d47279eedbe4d6da431a290bd4fc8b5579f70",
+      "bytes": 1027,
+      "raw_sha256": "97aeb03032e13de066be9c1ef96d47279eedbe4d6da431a290bd4fc8b5579f70",
+      "raw_bytes": 1027
+    },
+    {
+      "path": "variable-type-native-r157.log.gz",
+      "sha256": "b0874274715a47193b725879b7541d3956fccd86f64619eaaefe3800b25be7c0",
+      "bytes": 3507,
+      "raw_sha256": "b0874274715a47193b725879b7541d3956fccd86f64619eaaefe3800b25be7c0",
+      "raw_bytes": 3507
+    },
+    {
+      "path": "corpus-candidate-pipeline-r158.json",
+      "sha256": "a565cbbff364365f9288d2d23e3a5f6a1b6cfd7cdaba4ca01d6661ae05fe2609",
+      "bytes": 691,
+      "raw_sha256": "a565cbbff364365f9288d2d23e3a5f6a1b6cfd7cdaba4ca01d6661ae05fe2609",
+      "raw_bytes": 691
+    },
+    {
+      "path": "corpus-candidate-pipeline-r158.log.gz",
+      "sha256": "de096ff8358ca36dfc563ec51262bb819fab99fc3b988d9df49df4d5bcc97a2c",
+      "bytes": 250,
+      "raw_sha256": "de096ff8358ca36dfc563ec51262bb819fab99fc3b988d9df49df4d5bcc97a2c",
+      "raw_bytes": 250
+    },
+    {
+      "path": "ledger-preflight-r159.json",
+      "sha256": "5ff121cd8779677de386e719db150492ded707aad70c0db6cbc5d9027198e55c",
+      "bytes": 752,
+      "raw_sha256": "5ff121cd8779677de386e719db150492ded707aad70c0db6cbc5d9027198e55c",
+      "raw_bytes": 752
+    },
+    {
+      "path": "ledger-preflight-r159.log.gz",
+      "sha256": "55b6f2bac3174b64cd41eb2715737f347267788af320243172c751466c9de5ae",
+      "bytes": 861,
+      "raw_sha256": "55b6f2bac3174b64cd41eb2715737f347267788af320243172c751466c9de5ae",
+      "raw_bytes": 861
+    },
+    {
+      "path": "emitter-variable-producer-r157.py",
+      "sha256": "7d07aeec153fb7be7f949f452bcf361170c46965369d91f371d8a5ef5f92b569",
+      "bytes": 5295,
+      "raw_sha256": "7d07aeec153fb7be7f949f452bcf361170c46965369d91f371d8a5ef5f92b569",
+      "raw_bytes": 5295
+    },
+    {
+      "path": "emitter-corpus-candidate-r158.py",
+      "sha256": "de73295e5844a17016c575f9621424c0b401a77f8645a663fda34ea75a4cfcd1",
+      "bytes": 4442,
+      "raw_sha256": "de73295e5844a17016c575f9621424c0b401a77f8645a663fda34ea75a4cfcd1",
+      "raw_bytes": 4442
+    }
+  ]
+}

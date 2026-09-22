@@ -1,0 +1,21 @@
+{
+  "qualified": false,
+  "at": "2026-09-20T14:16:51.337832+00:00",
+  "root_pid": 96586,
+  "reason": "Integrator stopped after confirmed H2.5g failure: full fresh 9027-case observations differ in 17 lib diagnostic file paths; official writer reused every stale case, so unchanged current run cannot converge. Preserve failure, fix reuse guard, and run sanctioned walk again. No certificate may be issued from this run.",
+  "processes": {
+    "96586": {
+      "ppid": 96574,
+      "command": "bash scripts/chain-walk.sh"
+    },
+    "12024": {
+      "ppid": 11885,
+      "command": "/opt/homebrew/Cellar/node/25.2.1/bin/node /Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/crates/oracle/h2-6b-witnesses.mjs --internal-observe-witness option-conflicts--adjacent-negative-full-valid-combo"
+    },
+    "11885": {
+      "ppid": 96586,
+      "command": "node crates/oracle/h2-6b-witnesses.mjs --check"
+    }
+  },
+  "signal": "SIGTERM; parent briefly SIGSTOP to prevent new descendants"
+}

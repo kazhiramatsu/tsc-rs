@@ -259,6 +259,45 @@ pub fn plan_source_requests(
     plan_module_requests_worker(source, options, true)
 }
 
+/// Exact syntax projection used by the module-request planner. Exposed so
+/// corpus replay can capture every load-steering parse without duplicating
+/// module detection, language-variant, or JSDoc-mode rules.
+pub fn source_request_parse_options(
+    source: &PreparedSourceFile,
+    options: &CompilerOptions,
+) -> ParseOptions {
+    let file_name = source.path().display();
+    let javascript_file = is_javascript_file_name(file_name);
+    let language_variant = if file_name.ends_with(".tsx") || javascript_file {
+        LanguageVariant::Jsx
+    } else {
+        LanguageVariant::Standard
+    };
+    let is_declaration_file = is_declaration_file_name(file_name);
+    let module_detection = options.emit_module_detection_kind();
+    let force_external_module = !is_declaration_file
+        && match module_detection {
+            3 => true,
+            2 => {
+                [".cjs", ".cts", ".mjs", ".mts"]
+                    .iter()
+                    .any(|extension| file_name.ends_with(extension))
+                    || source.implied_node_format() == Some(ResolutionMode::EsNext)
+            }
+            _ => false,
+        };
+    let detect_external_module_from_jsx =
+        !is_declaration_file && module_detection == 2 && matches!(options.jsx, Some(4 | 5));
+    ParseOptions {
+        script_target: options.emit_script_target(),
+        language_variant,
+        javascript_file,
+        force_external_module,
+        detect_external_module_from_jsx,
+        ..ParseOptions::default()
+    }
+}
+
 fn plan_module_requests_worker(
     source: &PreparedSourceFile,
     options: &CompilerOptions,
@@ -291,7 +330,7 @@ fn plan_module_requests_worker(
     let file_name = source.path().display();
     let import_syntax_affects_resolution = import_syntax_affects_module_resolution(options);
     let (static_mode, dynamic_mode) = if import_syntax_affects_resolution {
-        let file_emit_kind = file_emit_module_kind(source, file_name, module_kind)?;
+        let file_emit_kind = file_emit_module_kind(source, module_kind)?;
         (
             static_request_mode(source, file_emit_kind)?,
             dynamic_import_mode(source, module_kind, file_emit_kind)?,
@@ -299,38 +338,12 @@ fn plan_module_requests_worker(
     } else {
         (ResolutionMode::Unspecified, ResolutionMode::Unspecified)
     };
-    let javascript_file = is_javascript_file_name(file_name);
-    let language_variant = if file_name.ends_with(".tsx") || javascript_file {
-        LanguageVariant::Jsx
-    } else {
-        LanguageVariant::Standard
-    };
-    let is_declaration_file = is_declaration_file_name(file_name);
-    let module_detection = options.emit_module_detection_kind();
-    let force_external_module = !is_declaration_file
-        && match module_detection {
-            3 => true,
-            2 => {
-                [".cjs", ".cts", ".mjs", ".mts"]
-                    .iter()
-                    .any(|extension| file_name.ends_with(extension))
-                    || source.implied_node_format() == Some(ResolutionMode::EsNext)
-            }
-            _ => false,
-        };
-    let detect_external_module_from_jsx =
-        !is_declaration_file && module_detection == 2 && matches!(options.jsx, Some(4 | 5));
+    let parse_options = source_request_parse_options(source, options);
+    let javascript_file = parse_options.javascript_file;
     let parsed = parse_source_file_from_snapshot(
         file_name.to_owned(),
         Arc::clone(source.snapshot()),
-        ParseOptions {
-            script_target: options.emit_script_target(),
-            language_variant,
-            javascript_file,
-            force_external_module,
-            detect_external_module_from_jsx,
-            ..ParseOptions::default()
-        },
+        parse_options,
         None,
     );
     let path_references: Vec<PlannedPathReference> = parsed
@@ -1292,7 +1305,6 @@ fn is_javascript_file_name(file_name: JsStr<'_>) -> bool {
 /// the computed `module` kind is used.
 fn file_emit_module_kind(
     source: &PreparedSourceFile,
-    file_name: JsStr<'_>,
     module_kind: i32,
 ) -> Result<i32, ResolutionError> {
     if let Some(mode) = source.implied_node_format_for_emit() {
@@ -1308,16 +1320,9 @@ fn file_emit_module_kind(
         });
     }
 
-    if (100..=199).contains(&module_kind) {
-        return Err(unsupported(
-            source,
-            format!(
-                "{} has no authoritative implied Node format for module kind {module_kind}",
-                file_name.to_string_lossy()
-            ),
-        ));
-    }
-
+    // An absent impliedNodeFormat is meaningful, including incompatible
+    // Node module + Bundler resolution options. tsc falls back to module;
+    // option diagnostics do not prevent construction of the request graph.
     Ok(module_kind)
 }
 
@@ -1334,7 +1339,7 @@ fn static_request_mode(
         // returns undefined for these legacy emit formats; retain the
         // resolver's ordinary (unspecified) mode instead of inventing a
         // CommonJS/ESNext condition.
-        0 | 2..=4 => Ok(ResolutionMode::Unspecified),
+        0 | 2..=4 | 100..=199 => Ok(ResolutionMode::Unspecified),
         5..=99 | 200 => Ok(ResolutionMode::EsNext),
         other => Err(unsupported(
             source,

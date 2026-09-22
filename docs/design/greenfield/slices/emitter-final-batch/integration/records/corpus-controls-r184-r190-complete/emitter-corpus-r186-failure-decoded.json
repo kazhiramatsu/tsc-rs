@@ -1,0 +1,133 @@
+{
+  "case_id": "typescript-6.0.3/compiler/switchStatementsWithMultipleDefaults.ts#default",
+  "loader": "load_compiler_emit",
+  "reasons": [
+    {
+      "successor": "3e28cb21344eae8980cfe66992913f2d8758ede2",
+      "input_id": "a2871706caa14d58721034fd680a1dcfbede08c205b12814947ebd8a883840f7",
+      "path": "/.src/switchStatementsWithMultipleDefaults.ts",
+      "role": "module-request-parse",
+      "before": {
+        "literal": false,
+        "missing_await": false,
+        "missing_declaration": false,
+        "parameter_gaps": false,
+        "statement_gaps": false,
+        "context_recovery": false
+      },
+      "after": {
+        "literal": false,
+        "missing_await": false,
+        "missing_declaration": false,
+        "parameter_gaps": false,
+        "statement_gaps": false,
+        "context_recovery": true
+      }
+    },
+    {
+      "successor": "3e28cb21344eae8980cfe66992913f2d8758ede2",
+      "input_id": "a2871706caa14d58721034fd680a1dcfbede08c205b12814947ebd8a883840f7",
+      "path": "/.src/switchStatementsWithMultipleDefaults.ts",
+      "role": "emit-preflight",
+      "before": {
+        "literal": false,
+        "missing_await": false,
+        "missing_declaration": false,
+        "parameter_gaps": false,
+        "statement_gaps": false,
+        "context_recovery": false
+      },
+      "after": {
+        "literal": false,
+        "missing_await": false,
+        "missing_declaration": false,
+        "parameter_gaps": false,
+        "statement_gaps": false,
+        "context_recovery": true
+      }
+    }
+  ],
+  "disposition": "complete-command-mismatch; emit-not-qualified",
+  "native": {
+    "writes": [
+      {
+        "index": 0,
+        "path": "/.src/switchStatementsWithMultipleDefaults.js",
+        "callback": "\"use strict\";\r\nvar x = 10;\r\nswitch (x) {\r\n    case 1:\r\n    case 2:\r\n    default: // No issues.\r\n        break;\r\n    default: // Error; second 'default' clause.\r\n    default: // Error; third 'default' clause.\r\n    case 3:\r\n        x *= x;\r\n}\r\nswitch (x) {\r\n    default: // No issues.\r\n        break;\r\n    case 100:\r\n        switch (x * x) {\r\n            default: // No issues.\r\n            default: // Error; second 'default' clause.\r\n                break;\r\n            case 10000:\r\n                x /= x;\r\n            default: // Error, third 'default' clause\r\n            default:\r\n            // Errors on fifth-seventh\r\n            default: return;\r\n            default:\r\n            default:\r\n        }\r\n}\r\n",
+        "write_byte_order_mark": false,
+        "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIHggPSAxMDsNCnN3aXRjaCAoeCkgew0KICAgIGNhc2UgMToNCiAgICBjYXNlIDI6DQogICAgZGVmYXVsdDogLy8gTm8gaXNzdWVzLg0KICAgICAgICBicmVhazsNCiAgICBkZWZhdWx0OiAvLyBFcnJvcjsgc2Vjb25kICdkZWZhdWx0JyBjbGF1c2UuDQogICAgZGVmYXVsdDogLy8gRXJyb3I7IHRoaXJkICdkZWZhdWx0JyBjbGF1c2UuDQogICAgY2FzZSAzOg0KICAgICAgICB4ICo9IHg7DQp9DQpzd2l0Y2ggKHgpIHsNCiAgICBkZWZhdWx0OiAvLyBObyBpc3N1ZXMuDQogICAgICAgIGJyZWFrOw0KICAgIGNhc2UgMTAwOg0KICAgICAgICBzd2l0Y2ggKHggKiB4KSB7DQogICAgICAgICAgICBkZWZhdWx0OiAvLyBObyBpc3N1ZXMuDQogICAgICAgICAgICBkZWZhdWx0OiAvLyBFcnJvcjsgc2Vjb25kICdkZWZhdWx0JyBjbGF1c2UuDQogICAgICAgICAgICAgICAgYnJlYWs7DQogICAgICAgICAgICBjYXNlIDEwMDAwOg0KICAgICAgICAgICAgICAgIHggLz0geDsNCiAgICAgICAgICAgIGRlZmF1bHQ6IC8vIEVycm9yLCB0aGlyZCAnZGVmYXVsdCcgY2xhdXNlDQogICAgICAgICAgICBkZWZhdWx0Og0KICAgICAgICAgICAgLy8gRXJyb3JzIG9uIGZpZnRoLXNldmVudGgNCiAgICAgICAgICAgIGRlZmF1bHQ6IHJldHVybjsNCiAgICAgICAgICAgIGRlZmF1bHQ6DQogICAgICAgICAgICBkZWZhdWx0Og0KICAgICAgICB9DQp9DQo=",
+        "on_error_callback_present": true,
+        "source_files": [
+          "/.src/switchStatementsWithMultipleDefaults.ts"
+        ],
+        "data_present": true,
+        "data_keys": [
+          "sourceMapUrlPos",
+          "diagnostics"
+        ],
+        "data_source_map_url_pos": null,
+        "data_diagnostics": []
+      }
+    ],
+    "reported_diagnostics": [
+      {
+        "code": 1260,
+        "category": 1,
+        "file": "/.src/switchStatementsWithMultipleDefaults.ts",
+        "start": 561,
+        "length": 12,
+        "message": "Keywords cannot contain escape characters.",
+        "related_information": null
+      }
+    ],
+    "status_writes": [],
+    "exit_code": 2,
+    "emit_result": {
+      "emit_skipped": false,
+      "diagnostics": [],
+      "emitted_files": null,
+      "source_maps": null
+    }
+  },
+  "typescript": {
+    "writes": [
+      {
+        "index": 0,
+        "path": "/.src/switchStatementsWithMultipleDefaults.js",
+        "callback": "\"use strict\";\r\nvar x = 10;\r\nswitch (x) {\r\n    case 1:\r\n    case 2:\r\n    default: // No issues.\r\n        break;\r\n    default: // Error; second 'default' clause.\r\n    default: // Error; third 'default' clause.\r\n    case 3:\r\n        x *= x;\r\n}\r\nswitch (x) {\r\n    default: // No issues.\r\n        break;\r\n    case 100:\r\n        switch (x * x) {\r\n            default: // No issues.\r\n            default: // Error; second 'default' clause.\r\n                break;\r\n            case 10000:\r\n                x /= x;\r\n            default: // Error, third 'default' clause\r\n            default: // Error, fourth 'default' clause.\r\n            // Errors on fifth-seventh\r\n            default: return;\r\n            default:\r\n            default:\r\n        }\r\n}\r\n",
+        "write_byte_order_mark": false,
+        "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIHggPSAxMDsNCnN3aXRjaCAoeCkgew0KICAgIGNhc2UgMToNCiAgICBjYXNlIDI6DQogICAgZGVmYXVsdDogLy8gTm8gaXNzdWVzLg0KICAgICAgICBicmVhazsNCiAgICBkZWZhdWx0OiAvLyBFcnJvcjsgc2Vjb25kICdkZWZhdWx0JyBjbGF1c2UuDQogICAgZGVmYXVsdDogLy8gRXJyb3I7IHRoaXJkICdkZWZhdWx0JyBjbGF1c2UuDQogICAgY2FzZSAzOg0KICAgICAgICB4ICo9IHg7DQp9DQpzd2l0Y2ggKHgpIHsNCiAgICBkZWZhdWx0OiAvLyBObyBpc3N1ZXMuDQogICAgICAgIGJyZWFrOw0KICAgIGNhc2UgMTAwOg0KICAgICAgICBzd2l0Y2ggKHggKiB4KSB7DQogICAgICAgICAgICBkZWZhdWx0OiAvLyBObyBpc3N1ZXMuDQogICAgICAgICAgICBkZWZhdWx0OiAvLyBFcnJvcjsgc2Vjb25kICdkZWZhdWx0JyBjbGF1c2UuDQogICAgICAgICAgICAgICAgYnJlYWs7DQogICAgICAgICAgICBjYXNlIDEwMDAwOg0KICAgICAgICAgICAgICAgIHggLz0geDsNCiAgICAgICAgICAgIGRlZmF1bHQ6IC8vIEVycm9yLCB0aGlyZCAnZGVmYXVsdCcgY2xhdXNlDQogICAgICAgICAgICBkZWZhdWx0OiAvLyBFcnJvciwgZm91cnRoICdkZWZhdWx0JyBjbGF1c2UuDQogICAgICAgICAgICAvLyBFcnJvcnMgb24gZmlmdGgtc2V2ZW50aA0KICAgICAgICAgICAgZGVmYXVsdDogcmV0dXJuOw0KICAgICAgICAgICAgZGVmYXVsdDoNCiAgICAgICAgICAgIGRlZmF1bHQ6DQogICAgICAgIH0NCn0NCg==",
+        "on_error_callback_present": true,
+        "source_files": [
+          "/.src/switchStatementsWithMultipleDefaults.ts"
+        ],
+        "data_present": true,
+        "data_keys": [
+          "sourceMapUrlPos",
+          "diagnostics"
+        ],
+        "data_source_map_url_pos": null,
+        "data_diagnostics": []
+      }
+    ],
+    "reported_diagnostics": [
+      {
+        "code": 1260,
+        "category": 1,
+        "file": "/.src/switchStatementsWithMultipleDefaults.ts",
+        "start": 561,
+        "length": 12,
+        "message": "Keywords cannot contain escape characters.",
+        "related_information": null
+      }
+    ],
+    "status_writes": [],
+    "exit_code": 2,
+    "emit_result": {
+      "emit_skipped": false,
+      "diagnostics": [],
+      "emitted_files": null,
+      "source_maps": null
+    }
+  }
+}

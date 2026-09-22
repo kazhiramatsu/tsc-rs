@@ -1,0 +1,143 @@
+// Complete commands for await flag boundaries and adjacent decorator map owners.
+// The host and tuple match the established import-helper command observer.
+import assert from "node:assert/strict";
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import ts from "../vendor/typescript-6.0.3/lib/typescript.js";
+import { createHermeticDirectoryOverlay } from "../crates/oracle/vfs-directory-overlay.mjs";
+const root = path.resolve(import.meta.dirname, "..");
+const sha256 = bytes => crypto.createHash("sha256").update(bytes).digest("hex");
+assert.equal(ts.version, "6.0.3");
+assert.ok(["--write", "--check"].includes(process.argv[2]));
+// Parse-clean neighbours exercise the newly corrected await propagation through
+// complete commands. Malformed probes remain in the independent syntax fixture
+// and the structural-recovery corpus; no emit admission is assumed for them.
+const syntaxBytes = fs.readFileSync(path.join(root, "crates/syntax/tests/fixtures/await-flag-boundary.json"));
+const syntax = JSON.parse(syntaxBytes);
+assert.equal(syntax.cases.length, 285);
+const clean = syntax.cases.filter(row => row.expected.diagnostics.length === 0);
+assert.equal(clean.length, 151);
+const inputs = [];
+for (const target of ["es5", "esnext"])
+ for (const module of ["commonjs", "esnext"])
+  for (const probe of clean) {
+   const main = "/project/" + probe.file;
+   inputs.push({case_id:`await-flag-commands/${target}/${module}/${probe.case_id}`,
+    roots:[main], files:[{path:main,text:probe.text}], options:{},
+    config:JSON.stringify({compilerOptions:{target,module,lib:["esnext"],jsx:"preserve",
+      strict:false,skipDefaultLibCheck:true,noErrorTruncation:true,sourceMap:true,
+      ignoreDeprecations:"6.0",outDir:"/project/out"},files:[probe.file]})});
+  }
+assert.equal(inputs.length, 604);
+// Member decorators promote ES5 classes through the TypeScript wrapper even
+// without static fields. Its map flags must follow the original class facts.
+for (const target of ["es5", "es2015"])
+ for (const external of [false, true])
+  for (const legacy of [false, true])
+   for (const staticField of [false, true])
+    for (const [name, member] of [
+      ["method", "@dec m() {}"], ["getter", "@dec get x() { return 1; }"],
+      ["setter", "@dec set x(value: number) {}"], ["field", "@dec x = 1;"]]) {
+      const text = `${external ? "export {}; " : ""}declare const dec: any; class C { ${member} ${staticField ? "static y = 1;" : ""} }`;
+      inputs.push({case_id:`decorator-map-controls/${target}/${external ? "module" : "script"}/legacy-${legacy}/static-${staticField}/${name}`,
+        roots:["/project/main.ts"], files:[{path:"/project/main.ts",text}], options:{},
+        config:JSON.stringify({compilerOptions:{target,module:"commonjs",lib:["esnext"],
+          experimentalDecorators:legacy,strict:false,skipDefaultLibCheck:true,noErrorTruncation:true,
+          sourceMap:true,ignoreDeprecations:"6.0",outDir:"/project/out"},files:["main.ts"]})});
+    }
+for (const legacy of [false, true])
+ for (const external of [false, true])
+  for (const staticField of [false, true])
+   for (const removeComments of [false, true]) {
+    const text = `${external ? "export {}; " : ""}declare const dec: any; /*class*/ class C { constructor(public p: any) {} @dec m() {} ${staticField ? "static y = 1;" : ""} } /*tail*/`;
+    inputs.push({case_id:`decorator-map-controls/parameter-property/${external ? "module" : "script"}/legacy-${legacy}/static-${staticField}/remove-${removeComments}`,
+      roots:["/project/main.ts"], files:[{path:"/project/main.ts",text}], options:{},
+      config:JSON.stringify({compilerOptions:{target:"es5",module:"commonjs",lib:["esnext"],removeComments,
+        experimentalDecorators:legacy,strict:false,skipDefaultLibCheck:true,noErrorTruncation:true,
+        sourceMap:true,ignoreDeprecations:"6.0",outDir:"/project/out"},files:["main.ts"]})});
+   }
+for (const removeComments of [false, true]) {
+ inputs.push({case_id:`decorator-map-controls/plain-static/remove-${removeComments}`,
+   roots:["/project/main.ts"],files:[{path:"/project/main.ts",text:"/*class*/ class C { static y = 1; } /*tail*/"}],options:{},
+   config:JSON.stringify({compilerOptions:{target:"es5",module:"commonjs",lib:["esnext"],removeComments,
+     strict:false,skipDefaultLibCheck:true,noErrorTruncation:true,sourceMap:true,
+     ignoreDeprecations:"6.0",outDir:"/project/out"},files:["main.ts"]})});
+}
+for (const module of ["commonjs", "esnext"])
+ for (const removeComments of [false, true]) {
+  inputs.push({case_id:`static-block-modifier-comments/${module}/remove-${removeComments}`,
+    roots:["/project/main.ts"], files:[{path:"/project/main.ts",text:"declare const dec: any; class C { /*c*/ @dec static { /*body*/ } }"}], options:{},
+    config:JSON.stringify({compilerOptions:{target:"esnext",module,lib:["esnext"],removeComments,
+      strict:false,skipDefaultLibCheck:true,noErrorTruncation:true,sourceMap:true,
+      ignoreDeprecations:"6.0",outDir:"/project/out"},files:["main.ts"]})});
+ }
+assert.equal(inputs.length, 690);
+function diagnostic(d) {
+  return { code: d.code, category: ts.DiagnosticCategory[d.category], file: d.file?.fileName ?? null,
+    start: d.start ?? null, length: d.length ?? null, message: ts.flattenDiagnosticMessageText(d.messageText, "\n"),
+    related_information: d.relatedInformation?.map(diagnostic) ?? null };
+}
+function write(args, index) {
+  const [name, text, bom, onError, sources, data] = args;
+  const bytes = Buffer.from(text), materialized = bom ? Buffer.concat([Buffer.from([239, 187, 191]), bytes]) : bytes;
+  return { index, path: name, kind: ts.isDeclarationFileName(name) ? "declaration" : name.endsWith(".map") && ts.isDeclarationFileName(name.slice(0, -4)) ? "declaration-map" : name.endsWith(".map") ? "source-map" : name.endsWith(".mjs") ? "mjs" : name.endsWith(".cjs") ? "cjs" : "javascript",
+    callback_utf8_base64: bytes.toString("base64"), callback_utf8_bytes: bytes.length,
+    write_byte_order_mark: bom, materialized_utf8_base64: materialized.toString("base64"), materialized_utf8_bytes: materialized.length,
+    on_error_callback_present: onError !== undefined, source_files: sources?.map(source => source.fileName) ?? null,
+    data_present: data !== undefined, data_source_map_url_pos: data?.sourceMapUrlPos ?? null,
+    data_diagnostics: data?.diagnostics?.map(diagnostic) ?? null };
+}
+function sourceMaps(maps) {
+  return maps?.map(entry => {
+    assert.deepEqual(Object.keys(entry).sort(), ["inputSourceFileNames", "sourceMap"]);
+    return { input_source_file_names: entry.inputSourceFileNames, source_map_json: JSON.stringify(entry.sourceMap) };
+  }) ?? null;
+}
+function observe(input) {
+  const sensitive = input.use_case_sensitive_file_names ?? true;
+  const canonical = ts.createGetCanonicalFileName(sensitive);
+  const files = new Map(input.files.map(file => [canonical(file.path), file.text]));
+  const libraryRoot = path.join(root, "vendor/typescript-6.0.3/lib");
+  const library = name => /^\/lib\/lib(?:\.[a-z0-9.-]+)?\.d\.ts$/i.test(name) && fs.existsSync(path.join(libraryRoot, path.basename(name)));
+  const read = name => files.get(canonical(ts.normalizePath(name))) ?? (library(name) ? fs.readFileSync(path.join(libraryRoot, path.basename(name)), "utf8") : undefined);
+  const overlay = createHermeticDirectoryOverlay(files.keys(), { currentDirectory: "/project", useCaseSensitiveFileNames: sensitive,
+    fallbackHost: { directoryExists: name => name === "/lib", getDirectories: () => [] } });
+  const host = { ...ts.createCompilerHost(input.options, true), ...overlay,
+    getCurrentDirectory: () => "/project", getDefaultLibFileName: options => "/lib/" + ts.getDefaultLibFileName(options),
+    getDefaultLibLocation: () => "/lib", useCaseSensitiveFileNames: () => sensitive, getCanonicalFileName: canonical,
+    readFile: read, fileExists: name => files.has(canonical(ts.normalizePath(name))) || library(name),
+    getSourceFile: (name, options) => { const text = read(name); return text === undefined ? undefined : ts.createSourceFile(name, text, options, true); },
+    writeFile: () => assert.fail("unexpected host write") };
+  let options = input.options, roots = input.roots ?? input.files.map(file => file.path), errors = [];
+  if (input.config) {
+    const configPath = "/project/tsconfig.json";
+    const parsed = ts.parseJsonSourceFileConfigFileContent(ts.parseJsonText(configPath, input.config),
+      { ...host, readDirectory: () => roots }, "/project", undefined, configPath);
+    options = parsed.options; roots = parsed.fileNames; errors = parsed.errors;
+  }
+  const program = ts.createProgram({ rootNames: roots, options, host, configFileParsingDiagnostics: errors });
+  const writes = [], reported = [], status = [];
+  let result;
+  const emit = program.emit.bind(program);
+  program.emit = (...args) => { assert.equal(result, undefined); return result = emit(...args); };
+  const exit = ts.emitFilesAndReportErrorsAndGetExitStatus(program, d => reported.push(diagnostic(d)), s => status.push(s), undefined,
+    (...args) => writes.push(write(args, writes.length)));
+  assert.ok(result);
+  return { writes, reported_diagnostics: reported, emit_refused: result.emitSkipped,
+    emit_result: { emit_skipped: result.emitSkipped, diagnostics: result.diagnostics.map(diagnostic), emitted_files: result.emittedFiles ?? null, source_maps: sourceMaps(result.sourceMaps) },
+    status_writes: status, exit_code: exit };
+}
+const cases = inputs.map(input => {
+  const first = observe(input);
+  assert.deepEqual(observe(input), first, input.case_id);
+  return {...input, typescript_observation: first};
+});
+const artifact = {version: 1, typescript: ts.version, repetitions: 2,
+  compiler_sha256: sha256(fs.readFileSync(path.join(root, "vendor/typescript-6.0.3/lib/typescript.js"))),
+  observer_sha256: sha256(fs.readFileSync(import.meta.filename)), syntax_fixture_sha256:sha256(syntaxBytes), cases};
+const destination = path.join(root, "crates/compiler/tests/fixtures/await-flag-commands.json");
+const rendered = JSON.stringify(artifact, null, 2) + "\n";
+if (process.argv[2] === "--write") fs.writeFileSync(destination, rendered, {flag: "wx"});
+else assert.equal(fs.readFileSync(destination, "utf8"), rendered);
+console.log(`Await flag commands: ${cases.length} cases, two identical complete observations each`);

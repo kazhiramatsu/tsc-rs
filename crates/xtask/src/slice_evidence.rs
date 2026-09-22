@@ -22,12 +22,12 @@ const MANIFEST_NAME: &str = "manifest.json";
 const INPUT_PATHS: &[&str] = &[
     ".node-version",
     "Cargo.lock",
-    "STAGE",
-    "diag-families.json",
-    "m8-scope.json",
+    "ratchets/STAGE",
+    "ratchets/diag-families.json",
+    "ratchets/m8/m8-scope.json",
     "crates/oracle/host-resolution-requests.mjs",
     "crates/oracle/program-host.mjs",
-    "ratchet.toml",
+    "ratchets/ratchet.toml",
     "ratchets/conformance-matches.v1.json.zst",
     "ratchets/host-resolution.v1.json",
     "ratchets/oracle-inputs.v1.json.zst",
@@ -528,7 +528,7 @@ fn verify(args: VerifyArgs) -> Result<(), Box<dyn Error>> {
     manifest.review = gains_outside_target(&out_dir, &manifest.diffs)?;
     persist_manifest(&out_dir, &manifest)?;
 
-    let stage = fs::read_to_string(workspace.join("STAGE"))?;
+    let stage = fs::read_to_string(workspace.join("ratchets/STAGE"))?;
     let repository_gates = [
         (
             "ratchet-check",

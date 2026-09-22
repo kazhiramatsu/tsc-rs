@@ -1,0 +1,12 @@
+# Round 152 — class missing-body arrow recovery owner
+
+Continue read-only actual Opus review. No edits, builds, commits or other Claude launches.
+Repair source: /Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep at 4d09f353427cc631e006b74d0baeba5673e3629d. Root will edit printer A/B while you inspect recovery; use git show 4d09f3534:path for immutable review if necessary.
+
+Native exact event/AST dump is /tmp/emitter-class-recovery-r179.log; source /tmp/emitter-class-recovery-r179.rs. This was compiled against r176 immutable syntax library. Class method/constructor/accessor followed by => has two Parser reports at same span (one retained, one suppressed), no missing-node event, and ListAbort TokenSkipped EqualsGreaterThanToken. Prior member has zero-width Block at prior.end == event.full_start; next retained member is PropertyDeclaration for expression. SourceFile equivalent already admitted, ClassMembers currently not generic allowed arrays. All 64 class controls refuse; function decl/expression and object methods pass.
+
+Propose minimal context-only structural admission: consume ListAbort => only at unique reachable ClassDeclaration/ClassExpression member gap, immediately after function-like member with parsed zero-width Block and before retained following member (or consider close brace only if independently bounded). Match event full_start to missing body/prior member end and token span, unique retained Parser report, gap trivia bounds, no other skipped tokens inside the owner. Do NOT admit ClassMembers generally, do not change AST/events/actions or earlier five profiles. Please challenge exact conditions and classify any residual report handling required in recovery.rs. Need safe implementation shape and negative controls. Review whether same structural rule can cover abstract getter/setter and constructor naturally. Full new corpus replay required; no weakening refusal guards.
+
+Root accepts A Token canonical spelling fix (preserve unchanged fallback for token_to_string None) and B detached-only emitComments separator port, pending controls and wider regression. Input mirror source pin drift verified solely new EscapedKeywordConsumed JSON serialization arm; updating exact SHA is planned, all loader/mirror logic byte-identical.
+
+Please also identify if C exceeds existing bounded recovery architecture; no global CST/AST refactor now. User wants future stable-ID relation tables separately for semantic original/comment/source-map provenance, recorded already.

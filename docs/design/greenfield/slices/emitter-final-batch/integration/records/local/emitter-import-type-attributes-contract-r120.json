@@ -1,0 +1,24 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-r120-immutable/emitter-import_type_attributes_contract-b12bafaf4f9f383f",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next",
+  "started_at": "2026-09-19T07:24:05.792147+00:00",
+  "head": "b451489e4a18abbff42651d8eb814537f4c5f800",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 0.058,
+  "log_sha256": "11ddc58e1b5fc60fcf8f680c713f708b47ab9e79d98cdd10e73ea8155798c1d0",
+  "log_bytes": 166
+}

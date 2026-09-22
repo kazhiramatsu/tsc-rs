@@ -1,0 +1,24 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "node",
+    "/tmp/emitter-delivery-owner-identities-r248.mjs"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-19T18:26:17.541604+00:00",
+  "head": "628562c31a5102348a7e8769f3a2aa88deef70f1",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 4.211,
+  "log_sha256": "aee43a9b992af24d27e6bc28334b83adcfaa073b64b3cd7685db4f6a8d403d8a",
+  "log_bytes": 238
+}

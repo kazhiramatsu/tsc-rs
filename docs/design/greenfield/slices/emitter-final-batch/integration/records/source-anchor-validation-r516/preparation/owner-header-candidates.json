@@ -1,0 +1,4480 @@
+[
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/mod.rs",
+    "line": 91,
+    "header": "transformDeclarations",
+    "candidates": [
+      103
+    ],
+    "already_valid": false,
+    "script_line": 186,
+    "start": 6815,
+    "end": 6893
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/tracker.rs",
+    "line": 207,
+    "header": "reportExpandoFunctionErrors",
+    "candidates": [
+      213
+    ],
+    "already_valid": false,
+    "script_line": 187,
+    "start": 6935,
+    "end": 7024
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/tracker.rs",
+    "line": 296,
+    "header": "reportInferenceFallback",
+    "candidates": [
+      413
+    ],
+    "already_valid": false,
+    "script_line": 188,
+    "start": 7062,
+    "end": 7147
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/tracker.rs",
+    "line": 149,
+    "header": "handleSymbolAccessibilityError",
+    "candidates": [
+      155
+    ],
+    "already_valid": false,
+    "script_line": 189,
+    "start": 7192,
+    "end": 7284
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/tracker.rs",
+    "line": 273,
+    "header": "trackSymbol",
+    "candidates": [
+      390
+    ],
+    "already_valid": false,
+    "script_line": 190,
+    "start": 7310,
+    "end": 7383
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/tracker.rs",
+    "line": 321,
+    "header": "reportPrivateInBaseOfClassExpression",
+    "candidates": [
+      496
+    ],
+    "already_valid": false,
+    "script_line": 191,
+    "start": 7434,
+    "end": 7532
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/tracker.rs",
+    "line": 216,
+    "header": "errorDeclarationNameWithFallback",
+    "candidates": [
+      333
+    ],
+    "already_valid": false,
+    "script_line": 192,
+    "start": 7579,
+    "end": 7673
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/tracker.rs",
+    "line": 346,
+    "header": "reportInaccessibleUniqueSymbolError",
+    "candidates": [
+      521
+    ],
+    "already_valid": false,
+    "script_line": 193,
+    "start": 7723,
+    "end": 7820
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/tracker.rs",
+    "line": 356,
+    "header": "reportCyclicStructureError",
+    "candidates": [
+      531
+    ],
+    "already_valid": false,
+    "script_line": 194,
+    "start": 7861,
+    "end": 7949
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/tracker.rs",
+    "line": 366,
+    "header": "reportInaccessibleThisError",
+    "candidates": [
+      541
+    ],
+    "already_valid": false,
+    "script_line": 195,
+    "start": 7991,
+    "end": 8080
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/tracker.rs",
+    "line": 376,
+    "header": "reportLikelyUnsafeImportRequiredError",
+    "candidates": [
+      551
+    ],
+    "already_valid": false,
+    "script_line": 196,
+    "start": 8132,
+    "end": 8231
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/tracker.rs",
+    "line": 400,
+    "header": "reportTruncationError",
+    "candidates": [
+      575
+    ],
+    "already_valid": false,
+    "script_line": 197,
+    "start": 8267,
+    "end": 8350
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/tracker.rs",
+    "line": 416,
+    "header": "reportNonlocalAugmentation",
+    "candidates": [
+      591
+    ],
+    "already_valid": false,
+    "script_line": 198,
+    "start": 8391,
+    "end": 8479
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/tracker.rs",
+    "line": 443,
+    "header": "reportNonSerializableProperty",
+    "candidates": [
+      618
+    ],
+    "already_valid": false,
+    "script_line": 199,
+    "start": 8523,
+    "end": 8614
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/root.rs",
+    "line": 202,
+    "header": "transformDeclarationsForJS",
+    "candidates": [
+      195
+    ],
+    "already_valid": false,
+    "script_line": 200,
+    "start": 8655,
+    "end": 8740
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/root.rs",
+    "line": 77,
+    "header": "transformRoot",
+    "candidates": [
+      77,
+      149
+    ],
+    "already_valid": true,
+    "script_line": 201,
+    "start": 8768,
+    "end": 8839
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/root.rs",
+    "line": 17,
+    "header": "collectFileReferences",
+    "candidates": [
+      17
+    ],
+    "already_valid": true,
+    "script_line": 202,
+    "start": 8875,
+    "end": 8954
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/root.rs",
+    "line": 37,
+    "header": "copyFileReferenceAsSynthetic",
+    "candidates": [
+      37
+    ],
+    "already_valid": true,
+    "script_line": 203,
+    "start": 8997,
+    "end": 9083
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/root.rs",
+    "line": 54,
+    "header": "getTypeReferences",
+    "candidates": [
+      54
+    ],
+    "already_valid": true,
+    "script_line": 204,
+    "start": 9115,
+    "end": 9190
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/root.rs",
+    "line": 65,
+    "header": "getLibReferences",
+    "candidates": [
+      65
+    ],
+    "already_valid": true,
+    "script_line": 205,
+    "start": 9221,
+    "end": 9295
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/root.rs",
+    "line": 233,
+    "header": "getReferencedFiles",
+    "candidates": [
+      226
+    ],
+    "already_valid": false,
+    "script_line": 206,
+    "start": 9328,
+    "end": 9405
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/ensure.rs",
+    "line": 15,
+    "header": "filterBindingPatternInitializers",
+    "candidates": [
+      15
+    ],
+    "already_valid": true,
+    "script_line": 207,
+    "start": 9452,
+    "end": 9544
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/ensure.rs",
+    "line": 52,
+    "header": "visitBindingElement",
+    "candidates": [
+      52
+    ],
+    "already_valid": true,
+    "script_line": 208,
+    "start": 9578,
+    "end": 9657
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/ensure.rs",
+    "line": 102,
+    "header": "ensureParameter",
+    "candidates": [
+      102
+    ],
+    "already_valid": true,
+    "script_line": 209,
+    "start": 9687,
+    "end": 9763
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/ensure.rs",
+    "line": 169,
+    "header": "shouldPrintWithInitializer",
+    "candidates": [
+      169
+    ],
+    "already_valid": true,
+    "script_line": 210,
+    "start": 9804,
+    "end": 9891
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/ensure.rs",
+    "line": 185,
+    "header": "ensureNoInitializer",
+    "candidates": [
+      185
+    ],
+    "already_valid": true,
+    "script_line": 211,
+    "start": 9925,
+    "end": 10005
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/ensure.rs",
+    "line": 221,
+    "header": "ensureType",
+    "candidates": [
+      220
+    ],
+    "already_valid": true,
+    "script_line": 212,
+    "start": 10030,
+    "end": 10101
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/subtree.rs",
+    "line": 682,
+    "header": "isDeclarationAndNotVisible",
+    "candidates": [
+      704
+    ],
+    "already_valid": false,
+    "script_line": 213,
+    "start": 10142,
+    "end": 10230
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/statements.rs",
+    "line": 1780,
+    "header": "shouldEmitFunctionProperties",
+    "candidates": [
+      1868
+    ],
+    "already_valid": false,
+    "script_line": 214,
+    "start": 10273,
+    "end": 10367
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/subtree.rs",
+    "line": 713,
+    "header": "getBindingNameVisible",
+    "candidates": [
+      735
+    ],
+    "already_valid": false,
+    "script_line": 215,
+    "start": 10403,
+    "end": 10486
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/ensure.rs",
+    "line": 328,
+    "header": "updateParamsList",
+    "candidates": [
+      327
+    ],
+    "already_valid": true,
+    "script_line": 216,
+    "start": 10517,
+    "end": 10594
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/ensure.rs",
+    "line": 362,
+    "header": "updateAccessorParamsList",
+    "candidates": [
+      361
+    ],
+    "already_valid": true,
+    "script_line": 217,
+    "start": 10633,
+    "end": 10718
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/ensure.rs",
+    "line": 426,
+    "header": "ensureTypeParams",
+    "candidates": [
+      425
+    ],
+    "already_valid": true,
+    "script_line": 218,
+    "start": 10749,
+    "end": 10826
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/subtree.rs",
+    "line": 753,
+    "header": "isEnclosingDeclaration",
+    "candidates": [
+      775
+    ],
+    "already_valid": false,
+    "script_line": 219,
+    "start": 10863,
+    "end": 10947
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/subtree.rs",
+    "line": 774,
+    "header": "checkEntityNameVisibility",
+    "candidates": [
+      796
+    ],
+    "already_valid": false,
+    "script_line": 220,
+    "start": 10987,
+    "end": 11074
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/subtree.rs",
+    "line": 932,
+    "header": "preserveJsDoc",
+    "candidates": [
+      954
+    ],
+    "already_valid": false,
+    "script_line": 221,
+    "start": 11102,
+    "end": 11177
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/statements.rs",
+    "line": 1751,
+    "header": "rewriteModuleSpecifier2",
+    "candidates": [
+      1821
+    ],
+    "already_valid": false,
+    "script_line": 222,
+    "start": 11215,
+    "end": 11304
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/statements.rs",
+    "line": 1439,
+    "header": "transformImportEqualsDeclaration",
+    "candidates": [
+      1501
+    ],
+    "already_valid": false,
+    "script_line": 223,
+    "start": 11351,
+    "end": 11449
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/statements.rs",
+    "line": 1512,
+    "header": "transformImportDeclaration",
+    "candidates": [
+      1574
+    ],
+    "already_valid": false,
+    "script_line": 224,
+    "start": 11490,
+    "end": 11582
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/statements.rs",
+    "line": 1708,
+    "header": "tryGetResolutionModeOverride",
+    "candidates": [
+      1778
+    ],
+    "already_valid": false,
+    "script_line": 225,
+    "start": 11625,
+    "end": 11719
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/statements.rs",
+    "line": 775,
+    "header": "transformAndReplaceLatePaintedStatements",
+    "candidates": [
+      815
+    ],
+    "already_valid": false,
+    "script_line": 226,
+    "start": 11774,
+    "end": 11879
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/statements.rs",
+    "line": 823,
+    "header": "visitLateVisibilityMarkedStatements",
+    "candidates": [
+      870
+    ],
+    "already_valid": false,
+    "script_line": 227,
+    "start": 11929,
+    "end": 12029
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/subtree.rs",
+    "line": 28,
+    "header": "visitDeclarationSubtree",
+    "candidates": [
+      27,
+      671,
+      1291
+    ],
+    "already_valid": true,
+    "script_line": 228,
+    "start": 12067,
+    "end": 12151
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/statements.rs",
+    "line": 725,
+    "header": "cleanup",
+    "candidates": [
+      765
+    ],
+    "already_valid": false,
+    "script_line": 229,
+    "start": 12173,
+    "end": 12245
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/subtree.rs",
+    "line": 834,
+    "header": "isPrivateMethodTypeParameter",
+    "candidates": [
+      856
+    ],
+    "already_valid": false,
+    "script_line": 230,
+    "start": 12288,
+    "end": 12378
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/statements.rs",
+    "line": 28,
+    "header": "visitDeclarationStatements",
+    "candidates": [
+      28
+    ],
+    "already_valid": true,
+    "script_line": 231,
+    "start": 12419,
+    "end": 12509
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/statements.rs",
+    "line": 1170,
+    "header": "stripExportModifiers",
+    "candidates": [
+      1232
+    ],
+    "already_valid": false,
+    "script_line": 232,
+    "start": 12544,
+    "end": 12630
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/statements.rs",
+    "line": 1194,
+    "header": "updateModuleDeclarationAndKeyword",
+    "candidates": [
+      1256
+    ],
+    "already_valid": false,
+    "script_line": 233,
+    "start": 12678,
+    "end": 12777
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/statements.rs",
+    "line": 164,
+    "header": "transformTopLevelDeclaration",
+    "candidates": [
+      164,
+      326
+    ],
+    "already_valid": true,
+    "script_line": 234,
+    "start": 12820,
+    "end": 12913
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/statements.rs",
+    "line": 1060,
+    "header": "walkBindingPattern",
+    "candidates": [
+      1122
+    ],
+    "already_valid": false,
+    "script_line": 235,
+    "start": 12946,
+    "end": 13030
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/subtree.rs",
+    "line": 649,
+    "header": "cleanup",
+    "candidates": [
+      671
+    ],
+    "already_valid": false,
+    "script_line": 236,
+    "start": 13052,
+    "end": 13121
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/statements.rs",
+    "line": 875,
+    "header": "transformVariableStatement",
+    "candidates": [
+      922
+    ],
+    "already_valid": false,
+    "script_line": 237,
+    "start": 13162,
+    "end": 13253
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/statements.rs",
+    "line": 1112,
+    "header": "recreateBindingPattern",
+    "candidates": [
+      1174
+    ],
+    "already_valid": false,
+    "script_line": 238,
+    "start": 13290,
+    "end": 13378
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/statements.rs",
+    "line": 1136,
+    "header": "recreateBindingElement",
+    "candidates": [
+      1198
+    ],
+    "already_valid": false,
+    "script_line": 239,
+    "start": 13415,
+    "end": 13503
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/subtree.rs",
+    "line": 792,
+    "header": "checkName",
+    "candidates": [
+      814
+    ],
+    "already_valid": false,
+    "script_line": 240,
+    "start": 13527,
+    "end": 13598
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/ensure.rs",
+    "line": 505,
+    "header": "shouldStripInternal",
+    "candidates": [
+      511
+    ],
+    "already_valid": false,
+    "script_line": 241,
+    "start": 13632,
+    "end": 13712
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/statements.rs",
+    "line": 1234,
+    "header": "isScopeMarker2",
+    "candidates": [
+      1296
+    ],
+    "already_valid": false,
+    "script_line": 242,
+    "start": 13741,
+    "end": 13821
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/statements.rs",
+    "line": 1244,
+    "header": "hasScopeMarker2",
+    "candidates": [
+      1306
+    ],
+    "already_valid": false,
+    "script_line": 243,
+    "start": 13851,
+    "end": 13932
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/ensure.rs",
+    "line": 441,
+    "header": "ensureModifiers",
+    "candidates": [
+      440
+    ],
+    "already_valid": true,
+    "script_line": 244,
+    "start": 13962,
+    "end": 14038
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/ensure.rs",
+    "line": 469,
+    "header": "ensureModifierFlags",
+    "candidates": [
+      468
+    ],
+    "already_valid": true,
+    "script_line": 245,
+    "start": 14072,
+    "end": 14152
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/statements.rs",
+    "line": 1258,
+    "header": "transformHeritageClauses",
+    "candidates": [
+      1320
+    ],
+    "already_valid": false,
+    "script_line": 246,
+    "start": 14191,
+    "end": 14281
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/ensure.rs",
+    "line": 650,
+    "header": "isAlwaysType",
+    "candidates": [
+      730
+    ],
+    "already_valid": false,
+    "script_line": 247,
+    "start": 14308,
+    "end": 14381
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/ensure.rs",
+    "line": 615,
+    "header": "maskModifiers",
+    "candidates": [
+      695
+    ],
+    "already_valid": false,
+    "script_line": 248,
+    "start": 14409,
+    "end": 14483
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/ensure.rs",
+    "line": 629,
+    "header": "maskModifierFlags",
+    "candidates": [
+      709
+    ],
+    "already_valid": false,
+    "script_line": 249,
+    "start": 14515,
+    "end": 14593
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/ensure.rs",
+    "line": 660,
+    "header": "canHaveLiteralInitializer",
+    "candidates": [
+      740
+    ],
+    "already_valid": false,
+    "script_line": 250,
+    "start": 14633,
+    "end": 14719
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/statements.rs",
+    "line": 1798,
+    "header": "isPreservedDeclarationStatement",
+    "candidates": [
+      1886
+    ],
+    "already_valid": false,
+    "script_line": 251,
+    "start": 14765,
+    "end": 14862
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/subtree.rs",
+    "line": 953,
+    "header": "isProcessedComponent",
+    "candidates": [
+      975
+    ],
+    "already_valid": false,
+    "script_line": 252,
+    "start": 14897,
+    "end": 14979
+  },
+  {
+    "helper": "m4Anchor",
+    "path": "crates/emitter/src/declarations/selection.rs",
+    "line": 9,
+    "header": "getDeclarationTransformers",
+    "candidates": [
+      9
+    ],
+    "already_valid": true,
+    "script_line": 253,
+    "start": 15020,
+    "end": 15108
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 911,
+    "header": "createPrinter",
+    "candidates": [
+      1162,
+      1391,
+      1403,
+      1497,
+      9138,
+      9211,
+      9214,
+      9634,
+      12285,
+      12288,
+      12291,
+      14499,
+      14502,
+      14505,
+      14508,
+      14617,
+      14620,
+      14623,
+      14684,
+      14687,
+      14691,
+      14749,
+      14752,
+      14755,
+      14759,
+      14961,
+      14964,
+      14968,
+      14971,
+      14974,
+      18556
+    ],
+    "already_valid": false,
+    "script_line": 318,
+    "start": 17584,
+    "end": 17655
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 931,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 319,
+    "start": 17674,
+    "end": 17728
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 12517,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 320,
+    "start": 17751,
+    "end": 17807
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9197,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 321,
+    "start": 17817,
+    "end": 17872
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 1612,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 322,
+    "start": 17896,
+    "end": 17951
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9218,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 323,
+    "start": 17971,
+    "end": 18026
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 1932,
+    "header": "beforeEmitNode",
+    "candidates": [
+      2798
+    ],
+    "already_valid": false,
+    "script_line": 326,
+    "start": 18175,
+    "end": 18248
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 1942,
+    "header": "afterEmitNode",
+    "candidates": [
+      2808
+    ],
+    "already_valid": false,
+    "script_line": 327,
+    "start": 18267,
+    "end": 18339
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9218,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 328,
+    "start": 18357,
+    "end": 18412
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 10355,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 329,
+    "start": 18436,
+    "end": 18492
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 1508,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 330,
+    "start": 18518,
+    "end": 18573
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9218,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 331,
+    "start": 18595,
+    "end": 18650
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9218,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 332,
+    "start": 18676,
+    "end": 18731
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9218,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 333,
+    "start": 18765,
+    "end": 18820
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9197,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 334,
+    "start": 18846,
+    "end": 18901
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 1947,
+    "header": "pipelineEmitWithHintWorker",
+    "candidates": [
+      2813
+    ],
+    "already_valid": false,
+    "script_line": 337,
+    "start": 19088,
+    "end": 19173
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9218,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 338,
+    "start": 19207,
+    "end": 19262
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 6152,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 339,
+    "start": 19279,
+    "end": 19334
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 1225,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 340,
+    "start": 19360,
+    "end": 19415
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 8518,
+    "header": "emitTypeParameter",
+    "candidates": [
+      10463
+    ],
+    "already_valid": false,
+    "script_line": 345,
+    "start": 19670,
+    "end": 19746
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 1950,
+    "header": "emitParameter",
+    "candidates": [
+      2816
+    ],
+    "already_valid": false,
+    "script_line": 346,
+    "start": 19765,
+    "end": 19837
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 1636,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 347,
+    "start": 19856,
+    "end": 19911
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 8575,
+    "header": "emitPropertySignature",
+    "candidates": [
+      10521
+    ],
+    "already_valid": false,
+    "script_line": 348,
+    "start": 19938,
+    "end": 20018
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 1953,
+    "header": "emitPropertyDeclaration",
+    "candidates": [
+      2819,
+      14752
+    ],
+    "already_valid": false,
+    "script_line": 349,
+    "start": 20047,
+    "end": 20129
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 8642,
+    "header": "emitMethodSignature",
+    "candidates": [
+      10593
+    ],
+    "already_valid": false,
+    "script_line": 350,
+    "start": 20154,
+    "end": 20232
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 1956,
+    "header": "emitMethodDeclaration",
+    "candidates": [
+      2822,
+      14749
+    ],
+    "already_valid": false,
+    "script_line": 351,
+    "start": 20259,
+    "end": 20339
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 1959,
+    "header": "emitConstructor",
+    "candidates": [
+      2825
+    ],
+    "already_valid": false,
+    "script_line": 352,
+    "start": 20360,
+    "end": 20434
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 1962,
+    "header": "emitAccessorDeclaration",
+    "candidates": [
+      2828,
+      14755
+    ],
+    "already_valid": false,
+    "script_line": 353,
+    "start": 20463,
+    "end": 20545
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 8692,
+    "header": "emitCallSignature",
+    "candidates": [
+      10648
+    ],
+    "already_valid": false,
+    "script_line": 354,
+    "start": 20568,
+    "end": 20644
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 8717,
+    "header": "emitConstructSignature",
+    "candidates": [
+      10673
+    ],
+    "already_valid": false,
+    "script_line": 355,
+    "start": 20672,
+    "end": 20753
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 8744,
+    "header": "emitIndexSignature",
+    "candidates": [
+      10700
+    ],
+    "already_valid": false,
+    "script_line": 356,
+    "start": 20777,
+    "end": 20854
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9662,
+    "header": "emitTemplateTypeSpan",
+    "candidates": [
+      11665
+    ],
+    "already_valid": false,
+    "script_line": 357,
+    "start": 20880,
+    "end": 20959
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 8785,
+    "header": "emitTypePredicate",
+    "candidates": [
+      10742
+    ],
+    "already_valid": false,
+    "script_line": 358,
+    "start": 20982,
+    "end": 21058
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 8831,
+    "header": "emitTypeReference",
+    "candidates": [
+      10788
+    ],
+    "already_valid": false,
+    "script_line": 359,
+    "start": 21081,
+    "end": 21157
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 8861,
+    "header": "emitFunctionType",
+    "candidates": [
+      10818
+    ],
+    "already_valid": false,
+    "script_line": 360,
+    "start": 21179,
+    "end": 21254
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 8890,
+    "header": "emitFunctionTypeHead",
+    "candidates": [
+      10847
+    ],
+    "already_valid": false,
+    "script_line": 361,
+    "start": 21280,
+    "end": 21359
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 8921,
+    "header": "emitFunctionTypeBody",
+    "candidates": [
+      10878
+    ],
+    "already_valid": false,
+    "script_line": 362,
+    "start": 21385,
+    "end": 21464
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 8944,
+    "header": "emitJSDocFunctionType",
+    "candidates": [
+      10901
+    ],
+    "already_valid": false,
+    "script_line": 363,
+    "start": 21491,
+    "end": 21571
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 3590,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 364,
+    "start": 21598,
+    "end": 21653
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 3602,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 365,
+    "start": 21683,
+    "end": 21738
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 3614,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 366,
+    "start": 21765,
+    "end": 21820
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 8977,
+    "header": "emitConstructorType",
+    "candidates": [
+      10934
+    ],
+    "already_valid": false,
+    "script_line": 367,
+    "start": 21845,
+    "end": 21923
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9017,
+    "header": "emitTypeQuery",
+    "candidates": [
+      10975
+    ],
+    "already_valid": false,
+    "script_line": 368,
+    "start": 21942,
+    "end": 22014
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9049,
+    "header": "emitTypeLiteral",
+    "candidates": [
+      11007
+    ],
+    "already_valid": false,
+    "script_line": 369,
+    "start": 22035,
+    "end": 22109
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9074,
+    "header": "emitArrayType",
+    "candidates": [
+      11032
+    ],
+    "already_valid": false,
+    "script_line": 370,
+    "start": 22128,
+    "end": 22200
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9099,
+    "header": "emitRestOrJSDocVariadicType",
+    "candidates": [
+      11057
+    ],
+    "already_valid": false,
+    "script_line": 373,
+    "start": 22386,
+    "end": 22472
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9123,
+    "header": "emitTupleType",
+    "candidates": [
+      11085
+    ],
+    "already_valid": false,
+    "script_line": 374,
+    "start": 22491,
+    "end": 22563
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9161,
+    "header": "emitNamedTupleMember",
+    "candidates": [
+      11123
+    ],
+    "already_valid": false,
+    "script_line": 375,
+    "start": 22589,
+    "end": 22668
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9209,
+    "header": "emitOptionalType",
+    "candidates": [
+      11194
+    ],
+    "already_valid": false,
+    "script_line": 376,
+    "start": 22690,
+    "end": 22765
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9234,
+    "header": "emitUnionType",
+    "candidates": [
+      11219
+    ],
+    "already_valid": false,
+    "script_line": 377,
+    "start": 22784,
+    "end": 22856
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9256,
+    "header": "emitIntersectionType",
+    "candidates": [
+      11241
+    ],
+    "already_valid": false,
+    "script_line": 378,
+    "start": 22882,
+    "end": 22961
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9278,
+    "header": "emitConditionalType",
+    "candidates": [
+      11263
+    ],
+    "already_valid": false,
+    "script_line": 379,
+    "start": 22986,
+    "end": 23064
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9338,
+    "header": "emitInferType",
+    "candidates": [
+      11323
+    ],
+    "already_valid": false,
+    "script_line": 380,
+    "start": 23083,
+    "end": 23155
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9363,
+    "header": "emitParenthesizedType",
+    "candidates": [
+      11348
+    ],
+    "already_valid": false,
+    "script_line": 381,
+    "start": 23182,
+    "end": 23262
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 8432,
+    "header": "emitThisType",
+    "candidates": [
+      10377
+    ],
+    "already_valid": false,
+    "script_line": 382,
+    "start": 23280,
+    "end": 23351
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9389,
+    "header": "emitTypeOperator",
+    "candidates": [
+      11374
+    ],
+    "already_valid": false,
+    "script_line": 383,
+    "start": 23373,
+    "end": 23448
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9420,
+    "header": "emitIndexedAccessType",
+    "candidates": [
+      11405
+    ],
+    "already_valid": false,
+    "script_line": 384,
+    "start": 23475,
+    "end": 23555
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9455,
+    "header": "emitMappedType",
+    "candidates": [
+      11440
+    ],
+    "already_valid": false,
+    "script_line": 385,
+    "start": 23575,
+    "end": 23648
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9608,
+    "header": "emitLiteralType",
+    "candidates": [
+      11611
+    ],
+    "already_valid": false,
+    "script_line": 386,
+    "start": 23669,
+    "end": 23743
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9631,
+    "header": "emitTemplateType",
+    "candidates": [
+      11634
+    ],
+    "already_valid": false,
+    "script_line": 387,
+    "start": 23765,
+    "end": 23840
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9694,
+    "header": "emitImportTypeNode",
+    "candidates": [
+      11697
+    ],
+    "already_valid": false,
+    "script_line": 388,
+    "start": 23864,
+    "end": 23941
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 3547,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 389,
+    "start": 23978,
+    "end": 24033
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 5801,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 391,
+    "start": 24059,
+    "end": 24114
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 14540,
+    "header": "emitTokenWithComment",
+    "candidates": [
+      14508,
+      17568,
+      17690
+    ],
+    "already_valid": false,
+    "script_line": 393,
+    "start": 24217,
+    "end": 24297
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 1965,
+    "header": "emitFunctionDeclaration",
+    "candidates": [
+      2831
+    ],
+    "already_valid": false,
+    "script_line": 394,
+    "start": 24326,
+    "end": 24408
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 1968,
+    "header": "emitFunctionDeclarationOrExpression",
+    "candidates": [
+      2834
+    ],
+    "already_valid": false,
+    "script_line": 395,
+    "start": 24449,
+    "end": 24543
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 1971,
+    "header": "emitSignatureAndBody",
+    "candidates": [
+      2864,
+      5726
+    ],
+    "already_valid": false,
+    "script_line": 396,
+    "start": 24569,
+    "end": 24648
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 1974,
+    "header": "emitFunctionBody",
+    "candidates": [
+      2867
+    ],
+    "already_valid": false,
+    "script_line": 397,
+    "start": 24670,
+    "end": 24745
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 1977,
+    "header": "emitEmptyFunctionBody",
+    "candidates": [
+      2870
+    ],
+    "already_valid": false,
+    "script_line": 398,
+    "start": 24772,
+    "end": 24852
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 7546,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 399,
+    "start": 24875,
+    "end": 24930
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 5801,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 403,
+    "start": 25066,
+    "end": 25121
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 5801,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 404,
+    "start": 25160,
+    "end": 25215
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 5801,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 405,
+    "start": 25248,
+    "end": 25303
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 8168,
+    "header": "emitClassDeclaration",
+    "candidates": [
+      10067
+    ],
+    "already_valid": false,
+    "script_line": 406,
+    "start": 25329,
+    "end": 25408
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 8171,
+    "header": "emitClassDeclarationOrExpression",
+    "candidates": [
+      10070
+    ],
+    "already_valid": false,
+    "script_line": 407,
+    "start": 25446,
+    "end": 25537
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9795,
+    "header": "emitInterfaceDeclaration",
+    "candidates": [
+      11805
+    ],
+    "already_valid": false,
+    "script_line": 408,
+    "start": 25567,
+    "end": 25650
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9856,
+    "header": "emitTypeAliasDeclaration",
+    "candidates": [
+      11867
+    ],
+    "already_valid": false,
+    "script_line": 409,
+    "start": 25680,
+    "end": 25763
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9909,
+    "header": "emitEnumDeclaration",
+    "candidates": [
+      11921
+    ],
+    "already_valid": false,
+    "script_line": 410,
+    "start": 25788,
+    "end": 25866
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9988,
+    "header": "emitModuleDeclaration",
+    "candidates": [
+      12001
+    ],
+    "already_valid": false,
+    "script_line": 411,
+    "start": 25893,
+    "end": 25973
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 10066,
+    "header": "emitModuleBlock",
+    "candidates": [
+      12080
+    ],
+    "already_valid": false,
+    "script_line": 412,
+    "start": 25994,
+    "end": 26069
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 3520,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 413,
+    "start": 26093,
+    "end": 26148
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 1256,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 414,
+    "start": 26176,
+    "end": 26231
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9177,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 415,
+    "start": 26255,
+    "end": 26310
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 11465,
+    "header": "emitDecoratorsAndModifiers",
+    "candidates": [
+      13693
+    ],
+    "already_valid": false,
+    "script_line": 418,
+    "start": 26480,
+    "end": 26566
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 8349,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 419,
+    "start": 26588,
+    "end": 26643
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 7546,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 420,
+    "start": 26667,
+    "end": 26722
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 2910,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 421,
+    "start": 26743,
+    "end": 26798
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 8349,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 422,
+    "start": 26821,
+    "end": 26876
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 10594,
+    "header": "emitTypeArguments",
+    "candidates": [
+      12796
+    ],
+    "already_valid": false,
+    "script_line": 425,
+    "start": 27031,
+    "end": 27108
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 10268,
+    "header": "emitTypeParameters",
+    "candidates": [
+      12260
+    ],
+    "already_valid": false,
+    "script_line": 426,
+    "start": 27132,
+    "end": 27210
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 7589,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 427,
+    "start": 27230,
+    "end": 27285
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 7789,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 428,
+    "start": 27313,
+    "end": 27368
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 7614,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 429,
+    "start": 27396,
+    "end": 27451
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 10694,
+    "header": "emitParametersForIndexSignature",
+    "candidates": [
+      12897
+    ],
+    "already_valid": false,
+    "script_line": 430,
+    "start": 27488,
+    "end": 27579
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 10311,
+    "header": "writeDelimiter",
+    "candidates": [
+      12508
+    ],
+    "already_valid": false,
+    "script_line": 434,
+    "start": 27807,
+    "end": 27881
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 10314,
+    "header": "emitList",
+    "candidates": [
+      12511
+    ],
+    "already_valid": false,
+    "script_line": 435,
+    "start": 27895,
+    "end": 27963
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 10519,
+    "header": "emitNodeList",
+    "candidates": [
+      12720,
+      19053,
+      19103
+    ],
+    "already_valid": false,
+    "script_line": 436,
+    "start": 27981,
+    "end": 28053
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 7844,
+    "header": "emitNodeListItems",
+    "candidates": [
+      1497,
+      9495,
+      9634,
+      9711,
+      12291,
+      12723,
+      16072,
+      18556,
+      18706
+    ],
+    "already_valid": false,
+    "script_line": 437,
+    "start": 28076,
+    "end": 28152
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/writer.rs",
+    "line": 307,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 439,
+    "start": 28175,
+    "end": 28228
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/writer.rs",
+    "line": 323,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 440,
+    "start": 28256,
+    "end": 28309
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/writer.rs",
+    "line": 291,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 441,
+    "start": 28327,
+    "end": 28380
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/writer.rs",
+    "line": 295,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 442,
+    "start": 28399,
+    "end": 28452
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/writer.rs",
+    "line": 299,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 443,
+    "start": 28472,
+    "end": 28525
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/writer.rs",
+    "line": 311,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 444,
+    "start": 28541,
+    "end": 28594
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/writer.rs",
+    "line": 303,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 445,
+    "start": 28613,
+    "end": 28666
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/writer.rs",
+    "line": 200,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 446,
+    "start": 28681,
+    "end": 28734
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/writer.rs",
+    "line": 219,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 447,
+    "start": 28754,
+    "end": 28807
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/writer.rs",
+    "line": 226,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 448,
+    "start": 28827,
+    "end": 28880
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 11384,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 449,
+    "start": 28896,
+    "end": 28952
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 11829,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 450,
+    "start": 28972,
+    "end": 29028
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 6710,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 451,
+    "start": 29044,
+    "end": 29099
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 10525,
+    "header": "getLeadingLineTerminatorCount",
+    "candidates": [
+      9211,
+      12726
+    ],
+    "already_valid": false,
+    "script_line": 455,
+    "start": 29329,
+    "end": 29418
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 10528,
+    "header": "getSeparatingLineTerminatorCount",
+    "candidates": [
+      9138,
+      12729
+    ],
+    "already_valid": false,
+    "script_line": 456,
+    "start": 29456,
+    "end": 29548
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 10531,
+    "header": "getClosingLineTerminatorCount",
+    "candidates": [
+      9214,
+      12732
+    ],
+    "already_valid": false,
+    "script_line": 457,
+    "start": 29583,
+    "end": 29672
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 10534,
+    "header": "getEffectiveLines",
+    "candidates": [
+      12735
+    ],
+    "already_valid": false,
+    "script_line": 458,
+    "start": 29695,
+    "end": 29772
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 6676,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 459,
+    "start": 29808,
+    "end": 29863
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 5801,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 460,
+    "start": 29881,
+    "end": 29936
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9705,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 461,
+    "start": 29956,
+    "end": 30011
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/builtins/target_bindings.rs",
+    "line": 728,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 478,
+    "start": 30713,
+    "end": 30784
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/builtins/target_bindings.rs",
+    "line": 510,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 485,
+    "start": 31013,
+    "end": 31084
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/builtins/generated_bindings.rs",
+    "line": 458,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 489,
+    "start": 31209,
+    "end": 31283
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/builtins/generated_bindings.rs",
+    "line": 518,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 490,
+    "start": 31303,
+    "end": 31377
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/builtins.rs",
+    "line": 13382,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 494,
+    "start": 31520,
+    "end": 31577
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/builtins/generated_bindings.rs",
+    "line": 130,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 495,
+    "start": 31595,
+    "end": 31669
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/builtins/generated_bindings.rs",
+    "line": 130,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 496,
+    "start": 31687,
+    "end": 31761
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/builtins/generated_bindings.rs",
+    "line": 326,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 500,
+    "start": 31890,
+    "end": 31964
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/builtins.rs",
+    "line": 13382,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 504,
+    "start": 32119,
+    "end": 32176
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/builtins.rs",
+    "line": 2641,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 508,
+    "start": 32321,
+    "end": 32377
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/builtins/target_bindings.rs",
+    "line": 510,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 518,
+    "start": 32735,
+    "end": 32806
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9218,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 520,
+    "start": 32837,
+    "end": 32892
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9684,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 521,
+    "start": 32920,
+    "end": 32975
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9598,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 522,
+    "start": 33002,
+    "end": 33057
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 9822,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 523,
+    "start": 33088,
+    "end": 33143
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 10669,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 524,
+    "start": 33175,
+    "end": 33231
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 11933,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 525,
+    "start": 33266,
+    "end": 33322
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 11963,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 526,
+    "start": 33358,
+    "end": 33414
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 13633,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 527,
+    "start": 33443,
+    "end": 33499
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 13633,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 528,
+    "start": 33529,
+    "end": 33585
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 10617,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 529,
+    "start": 33619,
+    "end": 33675
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 10583,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 530,
+    "start": 33708,
+    "end": 33764
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 6575,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 531,
+    "start": 33803,
+    "end": 33858
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 16520,
+    "header": "emitLeadingComments",
+    "candidates": [
+      19704
+    ],
+    "already_valid": false,
+    "script_line": 535,
+    "start": 34109,
+    "end": 34188
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 13274,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 536,
+    "start": 34223,
+    "end": 34279
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 16523,
+    "header": "emitNonTripleSlashLeadingComment",
+    "candidates": [
+      19707
+    ],
+    "already_valid": false,
+    "script_line": 537,
+    "start": 34317,
+    "end": 34409
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 16376,
+    "header": "shouldWriteComment",
+    "candidates": [
+      19536
+    ],
+    "already_valid": false,
+    "script_line": 538,
+    "start": 34433,
+    "end": 34511
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 15962,
+    "header": "emitLeadingComment",
+    "candidates": [
+      19172
+    ],
+    "already_valid": false,
+    "script_line": 539,
+    "start": 34535,
+    "end": 34613
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 12780,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 540,
+    "start": 34648,
+    "end": 34704
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 12807,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 541,
+    "start": 34730,
+    "end": 34786
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 16156,
+    "header": "emitTrailingComment",
+    "candidates": [
+      19214,
+      19392
+    ],
+    "already_valid": false,
+    "script_line": 542,
+    "start": 34811,
+    "end": 34890
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 12807,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 543,
+    "start": 34926,
+    "end": 34982
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 12807,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 547,
+    "start": 35126,
+    "end": 35182
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 12780,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 548,
+    "start": 35215,
+    "end": 35271
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 12807,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 549,
+    "start": 35305,
+    "end": 35361
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 10523,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 550,
+    "start": 35386,
+    "end": 35442
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 16649,
+    "header": "emitComment",
+    "candidates": [
+      19836
+    ],
+    "already_valid": false,
+    "script_line": 557,
+    "start": 35686,
+    "end": 35757
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 13216,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 558,
+    "start": 35783,
+    "end": 35839
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 1508,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 560,
+    "start": 35872,
+    "end": 35927
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 12467,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 561,
+    "start": 35957,
+    "end": 36013
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 12467,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 562,
+    "start": 36042,
+    "end": 36098
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 12517,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 563,
+    "start": 36120,
+    "end": 36176
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 12517,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 564,
+    "start": 36189,
+    "end": 36245
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 12517,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 565,
+    "start": 36264,
+    "end": 36320
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 12558,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 566,
+    "start": 36348,
+    "end": 36404
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 12517,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 567,
+    "start": 36428,
+    "end": 36484
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 12517,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 568,
+    "start": 36510,
+    "end": 36566
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/printer.rs",
+    "line": 1073,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 569,
+    "start": 36593,
+    "end": 36648
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 1361,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 574,
+    "start": 36881,
+    "end": 36936
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2105,
+    "header": "createComputedPropertyName",
+    "candidates": [
+      2508,
+      6338
+    ],
+    "already_valid": false,
+    "script_line": 575,
+    "start": 36978,
+    "end": 37063
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 3946,
+    "header": "updateClassDeclaration",
+    "candidates": [
+      4349
+    ],
+    "already_valid": false,
+    "script_line": 576,
+    "start": 37101,
+    "end": 37182
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 4614,
+    "header": "replaceModifiers",
+    "candidates": [
+      5017
+    ],
+    "already_valid": false,
+    "script_line": 577,
+    "start": 37214,
+    "end": 37289
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2146,
+    "header": "createKeywordTypeNode",
+    "candidates": [
+      2549
+    ],
+    "already_valid": false,
+    "script_line": 578,
+    "start": 37326,
+    "end": 37406
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2209,
+    "header": "createTypeReferenceNode",
+    "candidates": [
+      2612
+    ],
+    "already_valid": false,
+    "script_line": 579,
+    "start": 37445,
+    "end": 37527
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2734,
+    "header": "createIndexedAccessTypeNode",
+    "candidates": [
+      3137
+    ],
+    "already_valid": false,
+    "script_line": 580,
+    "start": 37570,
+    "end": 37656
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2806,
+    "header": "createLiteralTypeNode",
+    "candidates": [
+      3209
+    ],
+    "already_valid": false,
+    "script_line": 581,
+    "start": 37693,
+    "end": 37773
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 1891,
+    "header": "createStringLiteral",
+    "candidates": [
+      2132,
+      2156,
+      2294,
+      2330
+    ],
+    "already_valid": false,
+    "script_line": 582,
+    "start": 37808,
+    "end": 37886
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2300,
+    "header": "createTypeQueryNode",
+    "candidates": [
+      2703
+    ],
+    "already_valid": false,
+    "script_line": 583,
+    "start": 37921,
+    "end": 37999
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 1847,
+    "header": "createNumericLiteral",
+    "candidates": [
+      2088
+    ],
+    "already_valid": false,
+    "script_line": 584,
+    "start": 38035,
+    "end": 38114
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 3628,
+    "header": "createPrefixUnaryExpression",
+    "candidates": [
+      4031
+    ],
+    "already_valid": false,
+    "script_line": 585,
+    "start": 38157,
+    "end": 38243
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 1876,
+    "header": "createBigIntLiteral",
+    "candidates": [
+      2117
+    ],
+    "already_valid": false,
+    "script_line": 586,
+    "start": 38278,
+    "end": 38356
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2005,
+    "header": "createFalse",
+    "candidates": [
+      2408
+    ],
+    "already_valid": false,
+    "script_line": 587,
+    "start": 38383,
+    "end": 38453
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 1995,
+    "header": "createTrue",
+    "candidates": [
+      2398
+    ],
+    "already_valid": false,
+    "script_line": 588,
+    "start": 38479,
+    "end": 38548
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2688,
+    "header": "createTypeOperatorNode",
+    "candidates": [
+      3091
+    ],
+    "already_valid": false,
+    "script_line": 589,
+    "start": 38586,
+    "end": 38667
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 1985,
+    "header": "createNull",
+    "candidates": [
+      2388
+    ],
+    "already_valid": false,
+    "script_line": 590,
+    "start": 38693,
+    "end": 38762
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2674,
+    "header": "createThisTypeNode",
+    "candidates": [
+      3077
+    ],
+    "already_valid": false,
+    "script_line": 591,
+    "start": 38796,
+    "end": 38873
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 744,
+    "header": "createIdentifier",
+    "candidates": [
+      963,
+      1988
+    ],
+    "already_valid": false,
+    "script_line": 592,
+    "start": 38905,
+    "end": 38979
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2362,
+    "header": "createArrayTypeNode",
+    "candidates": [
+      2765
+    ],
+    "already_valid": false,
+    "script_line": 593,
+    "start": 39014,
+    "end": 39092
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2555,
+    "header": "createInferTypeNode",
+    "candidates": [
+      2958
+    ],
+    "already_valid": false,
+    "script_line": 594,
+    "start": 39127,
+    "end": 39205
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2475,
+    "header": "createIntersectionTypeNode",
+    "candidates": [
+      2878
+    ],
+    "already_valid": false,
+    "script_line": 595,
+    "start": 39247,
+    "end": 39332
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2457,
+    "header": "createUnionTypeNode",
+    "candidates": [
+      2860
+    ],
+    "already_valid": false,
+    "script_line": 596,
+    "start": 39367,
+    "end": 39445
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 1966,
+    "header": "createTemplateHead",
+    "candidates": [
+      2369
+    ],
+    "already_valid": false,
+    "script_line": 597,
+    "start": 39479,
+    "end": 39556
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 1271,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 598,
+    "start": 39587,
+    "end": 39642
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2823,
+    "header": "createTemplateLiteralTypeSpan",
+    "candidates": [
+      3226
+    ],
+    "already_valid": false,
+    "script_line": 599,
+    "start": 39687,
+    "end": 39775
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2572,
+    "header": "createTemplateLiteralType",
+    "candidates": [
+      2975
+    ],
+    "already_valid": false,
+    "script_line": 600,
+    "start": 39816,
+    "end": 39900
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2494,
+    "header": "createConditionalTypeNode",
+    "candidates": [
+      2897
+    ],
+    "already_valid": false,
+    "script_line": 601,
+    "start": 39941,
+    "end": 40025
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2866,
+    "header": "createTypeParameterDeclaration",
+    "candidates": [
+      3269
+    ],
+    "already_valid": false,
+    "script_line": 602,
+    "start": 40071,
+    "end": 40160
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 1250,
+    "header": null,
+    "candidates": [],
+    "already_valid": true,
+    "script_line": 603,
+    "start": 40187,
+    "end": 40242
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2778,
+    "header": "createMappedTypeNode",
+    "candidates": [
+      3181
+    ],
+    "already_valid": false,
+    "script_line": 604,
+    "start": 40278,
+    "end": 40357
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2345,
+    "header": "createTypeLiteralNode",
+    "candidates": [
+      2748
+    ],
+    "already_valid": false,
+    "script_line": 605,
+    "start": 40394,
+    "end": 40474
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2399,
+    "header": "createNamedTupleMember",
+    "candidates": [
+      2802
+    ],
+    "already_valid": false,
+    "script_line": 606,
+    "start": 40512,
+    "end": 40593
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2422,
+    "header": "createOptionalTypeNode",
+    "candidates": [
+      2825
+    ],
+    "already_valid": false,
+    "script_line": 607,
+    "start": 40631,
+    "end": 40712
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2440,
+    "header": "createRestTypeNode",
+    "candidates": [
+      2843
+    ],
+    "already_valid": false,
+    "script_line": 608,
+    "start": 40746,
+    "end": 40823
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2381,
+    "header": "createTupleTypeNode",
+    "candidates": [
+      2784
+    ],
+    "already_valid": false,
+    "script_line": 609,
+    "start": 40858,
+    "end": 40936
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2083,
+    "header": "updateQualifiedName",
+    "candidates": [
+      2486
+    ],
+    "already_valid": false,
+    "script_line": 610,
+    "start": 40971,
+    "end": 41049
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2063,
+    "header": "createQualifiedName",
+    "candidates": [
+      2466
+    ],
+    "already_valid": false,
+    "script_line": 611,
+    "start": 41084,
+    "end": 41162
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2619,
+    "header": "updateImportTypeNode",
+    "candidates": [
+      3022
+    ],
+    "already_valid": false,
+    "script_line": 612,
+    "start": 41198,
+    "end": 41277
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2230,
+    "header": "updateTypeReferenceNode",
+    "candidates": [
+      2633
+    ],
+    "already_valid": false,
+    "script_line": 613,
+    "start": 41316,
+    "end": 41398
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 3017,
+    "header": "createPropertySignature",
+    "candidates": [
+      3420
+    ],
+    "already_valid": false,
+    "script_line": 614,
+    "start": 41437,
+    "end": 41519
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2015,
+    "header": "createModifier",
+    "candidates": [
+      2418
+    ],
+    "already_valid": false,
+    "script_line": 615,
+    "start": 41549,
+    "end": 41622
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 5042,
+    "header": "createNotEmittedTypeElement",
+    "candidates": [
+      5445
+    ],
+    "already_valid": false,
+    "script_line": 616,
+    "start": 41665,
+    "end": 41751
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 780,
+    "header": "createParameterDeclaration",
+    "candidates": [
+      999,
+      3327
+    ],
+    "already_valid": false,
+    "script_line": 617,
+    "start": 41793,
+    "end": 41877
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 3370,
+    "header": "createIndexSignature",
+    "candidates": [
+      3773
+    ],
+    "already_valid": false,
+    "script_line": 618,
+    "start": 41913,
+    "end": 41992
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2026,
+    "header": "createModifiersFromModifierFlags",
+    "candidates": [
+      2429
+    ],
+    "already_valid": false,
+    "script_line": 619,
+    "start": 42040,
+    "end": 42131
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 3328,
+    "header": "createCallSignature",
+    "candidates": [
+      3731
+    ],
+    "already_valid": false,
+    "script_line": 620,
+    "start": 42166,
+    "end": 42244
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 3349,
+    "header": "createConstructSignature",
+    "candidates": [
+      3752
+    ],
+    "already_valid": false,
+    "script_line": 621,
+    "start": 42284,
+    "end": 42367
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 774,
+    "header": "createMethodDeclaration",
+    "candidates": [
+      993,
+      3575
+    ],
+    "already_valid": false,
+    "script_line": 622,
+    "start": 42406,
+    "end": 42487
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 3094,
+    "header": "createMethodSignature",
+    "candidates": [
+      3497
+    ],
+    "already_valid": false,
+    "script_line": 623,
+    "start": 42524,
+    "end": 42604
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 777,
+    "header": "createConstructorDeclaration",
+    "candidates": [
+      996,
+      3623
+    ],
+    "already_valid": false,
+    "script_line": 624,
+    "start": 42648,
+    "end": 42734
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 3253,
+    "header": "createGetAccessorDeclaration",
+    "candidates": [
+      3656
+    ],
+    "already_valid": false,
+    "script_line": 625,
+    "start": 42778,
+    "end": 42865
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 3294,
+    "header": "createSetAccessorDeclaration",
+    "candidates": [
+      3697
+    ],
+    "already_valid": false,
+    "script_line": 626,
+    "start": 42909,
+    "end": 42996
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2277,
+    "header": "createConstructorTypeNode",
+    "candidates": [
+      2680
+    ],
+    "already_valid": false,
+    "script_line": 627,
+    "start": 43037,
+    "end": 43121
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 3392,
+    "header": "createFunctionDeclaration",
+    "candidates": [
+      3795
+    ],
+    "already_valid": false,
+    "script_line": 628,
+    "start": 43162,
+    "end": 43246
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2255,
+    "header": "createFunctionTypeNode",
+    "candidates": [
+      2658
+    ],
+    "already_valid": false,
+    "script_line": 629,
+    "start": 43284,
+    "end": 43365
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 3564,
+    "header": "createJSDocFunctionType",
+    "candidates": [
+      3967
+    ],
+    "already_valid": false,
+    "script_line": 630,
+    "start": 43404,
+    "end": 43486
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 753,
+    "header": "createFunctionExpression",
+    "candidates": [
+      972,
+      3843
+    ],
+    "already_valid": false,
+    "script_line": 631,
+    "start": 43526,
+    "end": 43608
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 3589,
+    "header": "createBlock",
+    "candidates": [
+      3992
+    ],
+    "already_valid": false,
+    "script_line": 632,
+    "start": 43635,
+    "end": 43705
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 756,
+    "header": "createArrowFunction",
+    "candidates": [
+      975,
+      3914,
+      6135
+    ],
+    "already_valid": false,
+    "script_line": 633,
+    "start": 43740,
+    "end": 43817
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2157,
+    "header": "createTypePredicateNode",
+    "candidates": [
+      2560
+    ],
+    "already_valid": false,
+    "script_line": 634,
+    "start": 43856,
+    "end": 43938
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 3743,
+    "header": "updateBindingElement",
+    "candidates": [
+      4146
+    ],
+    "already_valid": false,
+    "script_line": 635,
+    "start": 43974,
+    "end": 44053
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 4271,
+    "header": "createImportAttributes",
+    "candidates": [
+      4674
+    ],
+    "already_valid": false,
+    "script_line": 636,
+    "start": 44091,
+    "end": 44172
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 4292,
+    "header": "createImportAttribute",
+    "candidates": [
+      4695
+    ],
+    "already_valid": false,
+    "script_line": 637,
+    "start": 44209,
+    "end": 44289
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2591,
+    "header": "createImportTypeNode",
+    "candidates": [
+      2994
+    ],
+    "already_valid": false,
+    "script_line": 638,
+    "start": 44325,
+    "end": 44404
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2657,
+    "header": "createParenthesizedType",
+    "candidates": [
+      3060
+    ],
+    "already_valid": false,
+    "script_line": 639,
+    "start": 44443,
+    "end": 44525
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 3685,
+    "header": "createPropertyAccessExpression",
+    "candidates": [
+      4088
+    ],
+    "already_valid": false,
+    "script_line": 640,
+    "start": 44571,
+    "end": 44660
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 3717,
+    "header": "createElementAccessExpression",
+    "candidates": [
+      4120
+    ],
+    "already_valid": false,
+    "script_line": 641,
+    "start": 44705,
+    "end": 44793
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 4097,
+    "header": "updateModuleDeclaration",
+    "candidates": [
+      4500
+    ],
+    "already_valid": false,
+    "script_line": 642,
+    "start": 44832,
+    "end": 44914
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 4148,
+    "header": "updateModuleBlock",
+    "candidates": [
+      4551
+    ],
+    "already_valid": false,
+    "script_line": 643,
+    "start": 44947,
+    "end": 45023
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 4414,
+    "header": "createExportDeclaration",
+    "candidates": [
+      4817
+    ],
+    "already_valid": false,
+    "script_line": 644,
+    "start": 45062,
+    "end": 45144
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 4520,
+    "header": "createExportSpecifier",
+    "candidates": [
+      4923
+    ],
+    "already_valid": false,
+    "script_line": 645,
+    "start": 45181,
+    "end": 45261
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 4480,
+    "header": "createNamedExports",
+    "candidates": [
+      4883
+    ],
+    "already_valid": false,
+    "script_line": 646,
+    "start": 45295,
+    "end": 45372
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 4443,
+    "header": "updateExportDeclaration",
+    "candidates": [
+      4846
+    ],
+    "already_valid": false,
+    "script_line": 647,
+    "start": 45411,
+    "end": 45493
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 4499,
+    "header": "updateNamedExports",
+    "candidates": [
+      4902
+    ],
+    "already_valid": false,
+    "script_line": 648,
+    "start": 45527,
+    "end": 45604
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 3843,
+    "header": "createVariableStatement",
+    "candidates": [
+      4246
+    ],
+    "already_valid": false,
+    "script_line": 649,
+    "start": 45643,
+    "end": 45725
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 750,
+    "header": "createVariableDeclarationList",
+    "candidates": [
+      969,
+      4218
+    ],
+    "already_valid": false,
+    "script_line": 650,
+    "start": 45770,
+    "end": 45857
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 3788,
+    "header": "createVariableDeclaration",
+    "candidates": [
+      4191
+    ],
+    "already_valid": false,
+    "script_line": 651,
+    "start": 45898,
+    "end": 45982
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 4391,
+    "header": "createExportAssignment",
+    "candidates": [
+      4794,
+      6463
+    ],
+    "already_valid": false,
+    "script_line": 652,
+    "start": 46020,
+    "end": 46101
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 4008,
+    "header": "createTypeAliasDeclaration",
+    "candidates": [
+      4411
+    ],
+    "already_valid": false,
+    "script_line": 653,
+    "start": 46143,
+    "end": 46228
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 4562,
+    "header": "createHeritageClause",
+    "candidates": [
+      4965
+    ],
+    "already_valid": false,
+    "script_line": 654,
+    "start": 46264,
+    "end": 46343
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 3983,
+    "header": "createInterfaceDeclaration",
+    "candidates": [
+      4386
+    ],
+    "already_valid": false,
+    "script_line": 655,
+    "start": 46385,
+    "end": 46470
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 3041,
+    "header": "createPropertyDeclaration",
+    "candidates": [
+      3444
+    ],
+    "already_valid": false,
+    "script_line": 656,
+    "start": 46511,
+    "end": 46595
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 4130,
+    "header": "createModuleBlock",
+    "candidates": [
+      4533
+    ],
+    "already_valid": false,
+    "script_line": 657,
+    "start": 46628,
+    "end": 46704
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 4057,
+    "header": "createModuleDeclaration",
+    "candidates": [
+      4460
+    ],
+    "already_valid": false,
+    "script_line": 658,
+    "start": 46743,
+    "end": 46825
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 4592,
+    "header": "createEnumMember",
+    "candidates": [
+      4995
+    ],
+    "already_valid": false,
+    "script_line": 659,
+    "start": 46857,
+    "end": 46932
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 4031,
+    "header": "createEnumDeclaration",
+    "candidates": [
+      4434
+    ],
+    "already_valid": false,
+    "script_line": 660,
+    "start": 46969,
+    "end": 47049
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 3870,
+    "header": "createEmptyStatement",
+    "candidates": [
+      4273
+    ],
+    "already_valid": false,
+    "script_line": 661,
+    "start": 47085,
+    "end": 47164
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 3884,
+    "header": "createExpressionStatement",
+    "candidates": [
+      4287
+    ],
+    "already_valid": false,
+    "script_line": 662,
+    "start": 47205,
+    "end": 47289
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2842,
+    "header": "createExpressionWithTypeArguments",
+    "candidates": [
+      3245,
+      5966
+    ],
+    "already_valid": false,
+    "script_line": 663,
+    "start": 47338,
+    "end": 47430
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 1791,
+    "header": "createPrivateIdentifier",
+    "candidates": [
+      2032
+    ],
+    "already_valid": false,
+    "script_line": 664,
+    "start": 47469,
+    "end": 47551
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 3902,
+    "header": "createClassDeclaration",
+    "candidates": [
+      4305
+    ],
+    "already_valid": false,
+    "script_line": 665,
+    "start": 47589,
+    "end": 47670
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 4218,
+    "header": "createImportDeclaration",
+    "candidates": [
+      4621
+    ],
+    "already_valid": false,
+    "script_line": 666,
+    "start": 47709,
+    "end": 47791
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 4244,
+    "header": "createImportClause",
+    "candidates": [
+      4647
+    ],
+    "already_valid": false,
+    "script_line": 667,
+    "start": 47825,
+    "end": 47902
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 4368,
+    "header": "createImportSpecifier",
+    "candidates": [
+      4771
+    ],
+    "already_valid": false,
+    "script_line": 668,
+    "start": 47939,
+    "end": 48019
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 4349,
+    "header": "createNamedImports",
+    "candidates": [
+      4752
+    ],
+    "already_valid": false,
+    "script_line": 669,
+    "start": 48053,
+    "end": 48130
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 1814,
+    "header": "createUniqueName",
+    "candidates": [
+      2055
+    ],
+    "already_valid": false,
+    "script_line": 670,
+    "start": 48162,
+    "end": 48237
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 4188,
+    "header": "createImportEqualsDeclaration",
+    "candidates": [
+      4591
+    ],
+    "already_valid": false,
+    "script_line": 671,
+    "start": 48282,
+    "end": 48370
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 4543,
+    "header": "createExternalModuleReference",
+    "candidates": [
+      4946
+    ],
+    "already_valid": false,
+    "script_line": 672,
+    "start": 48415,
+    "end": 48503
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 4169,
+    "header": "createNamespaceExportDeclaration",
+    "candidates": [
+      4572
+    ],
+    "already_valid": false,
+    "script_line": 673,
+    "start": 48551,
+    "end": 48642
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 4311,
+    "header": "createNamespaceImport",
+    "candidates": [
+      4714
+    ],
+    "already_valid": false,
+    "script_line": 674,
+    "start": 48679,
+    "end": 48759
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 4330,
+    "header": "createNamespaceExport",
+    "candidates": [
+      4733
+    ],
+    "already_valid": false,
+    "script_line": 675,
+    "start": 48796,
+    "end": 48876
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 1490,
+    "header": "parenthesizeLeadingTypeArgument",
+    "candidates": [
+      1711
+    ],
+    "already_valid": false,
+    "script_line": 679,
+    "start": 49078,
+    "end": 49168
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 1410,
+    "header": "parenthesizeNonArrayTypeOfPostfixType",
+    "candidates": [
+      1631
+    ],
+    "already_valid": false,
+    "script_line": 686,
+    "start": 49467,
+    "end": 49563
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 1462,
+    "header": "parenthesizeElementTypeOfTupleType",
+    "candidates": [
+      1683
+    ],
+    "already_valid": false,
+    "script_line": 687,
+    "start": 49619,
+    "end": 49712
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 1476,
+    "header": "parenthesizeTypeOfOptionalType",
+    "candidates": [
+      1697
+    ],
+    "already_valid": false,
+    "script_line": 688,
+    "start": 49764,
+    "end": 49853
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 1348,
+    "header": "parenthesizeConstituentTypeOfUnionType",
+    "candidates": [
+      1569
+    ],
+    "already_valid": false,
+    "script_line": 689,
+    "start": 49913,
+    "end": 50010
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 1365,
+    "header": "parenthesizeConstituentTypeOfIntersectionType",
+    "candidates": [
+      1586
+    ],
+    "already_valid": false,
+    "script_line": 690,
+    "start": 50077,
+    "end": 50181
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 1317,
+    "header": "parenthesizeCheckTypeOfConditionalType",
+    "candidates": [
+      1538
+    ],
+    "already_valid": false,
+    "script_line": 691,
+    "start": 50241,
+    "end": 50338
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 1334,
+    "header": "parenthesizeExtendsTypeOfConditionalType",
+    "candidates": [
+      1555
+    ],
+    "already_valid": false,
+    "script_line": 692,
+    "start": 50400,
+    "end": 50499
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 1396,
+    "header": "parenthesizeOperandOfReadonlyTypeOperator",
+    "candidates": [
+      1617
+    ],
+    "already_valid": false,
+    "script_line": 693,
+    "start": 50562,
+    "end": 50662
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 1382,
+    "header": "parenthesizeOperandOfTypeOperator",
+    "candidates": [
+      1603
+    ],
+    "already_valid": false,
+    "script_line": 694,
+    "start": 50717,
+    "end": 50809
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2755,
+    "header": "updateIndexedAccessTypeNode",
+    "candidates": [
+      3158
+    ],
+    "already_valid": false,
+    "script_line": 696,
+    "start": 50853,
+    "end": 50939
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2712,
+    "header": "updateTypeOperatorNode",
+    "candidates": [
+      3115
+    ],
+    "already_valid": false,
+    "script_line": 697,
+    "start": 50977,
+    "end": 51058
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2321,
+    "header": "updateTypeQueryNode",
+    "candidates": [
+      2724
+    ],
+    "already_valid": false,
+    "script_line": 698,
+    "start": 51093,
+    "end": 51171
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2890,
+    "header": "updateTypeParameterDeclaration",
+    "candidates": [
+      3293
+    ],
+    "already_valid": false,
+    "script_line": 699,
+    "start": 51217,
+    "end": 51306
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2125,
+    "header": "updateComputedPropertyName",
+    "candidates": [
+      2528
+    ],
+    "already_valid": false,
+    "script_line": 700,
+    "start": 51348,
+    "end": 51433
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2178,
+    "header": "updateTypePredicateNode",
+    "candidates": [
+      2581
+    ],
+    "already_valid": false,
+    "script_line": 701,
+    "start": 51472,
+    "end": 51554
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2521,
+    "header": "updateConditionalTypeNode",
+    "candidates": [
+      2924
+    ],
+    "already_valid": false,
+    "script_line": 702,
+    "start": 51595,
+    "end": 51679
+  },
+  {
+    "helper": "auditAlreadyExact",
+    "path": "crates/emitter/src/factory.rs",
+    "line": 2976,
+    "header": "updateParameterDeclaration",
+    "candidates": [
+      3379
+    ],
+    "already_valid": false,
+    "script_line": 703,
+    "start": 51721,
+    "end": 51806
+  }
+]

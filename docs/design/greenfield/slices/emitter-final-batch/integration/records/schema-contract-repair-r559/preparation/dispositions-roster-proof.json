@@ -1,0 +1,79 @@
+{
+  "original_45_rows_identical": true,
+  "added_rows": [
+    {
+      "row_id": "E-DECL-ACTIVITY",
+      "disposition": "future-owned-fail-closed"
+    },
+    {
+      "row_id": "E-DECL-PATH",
+      "disposition": "future-owned-fail-closed"
+    },
+    {
+      "row_id": "E-DECL-SESSION",
+      "disposition": "future-owned-fail-closed"
+    },
+    {
+      "row_id": "E-DECL-FORCE",
+      "disposition": "future-owned-fail-closed"
+    },
+    {
+      "row_id": "E-DECL-TRACKER-PARENT",
+      "disposition": "future-owned-fail-closed"
+    },
+    {
+      "row_id": "E-DECL-TRACKER-ACCESSORS",
+      "disposition": "future-owned-fail-closed"
+    },
+    {
+      "row_id": "E-DECL-TRACKER-PRIVATE-TYPE",
+      "disposition": "future-owned-fail-closed"
+    },
+    {
+      "row_id": "E-RECOVERY-FACTS",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "row_id": "E-HELPERS-IMPORT-STATE",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "row_id": "E-OBJECT-PROPERTY-A38",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "row_id": "E-RETAINED-PRODUCERS-A39",
+      "disposition": "modified-requalify"
+    },
+    {
+      "row_id": "E-COMMENT-ELLIPSIS-A37",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "row_id": "E-COMMENT-PHASES-A36",
+      "disposition": "premise-unchanged"
+    }
+  ],
+  "before_summary": {
+    "rows": 45,
+    "premise_unchanged": 13,
+    "modified_requalify": 18,
+    "activate": 10,
+    "future_owned_fail_closed": 4,
+    "proven_unreachable": 0,
+    "undispositioned": 0,
+    "rust_runs": 0,
+    "runtime_admissions_delta": 0
+  },
+  "after_summary": {
+    "rows": 58,
+    "premise_unchanged": 18,
+    "modified_requalify": 19,
+    "activate": 10,
+    "future_owned_fail_closed": 11,
+    "proven_unreachable": 0,
+    "undispositioned": 0,
+    "rust_runs": 0,
+    "runtime_admissions_delta": 0
+  }
+}

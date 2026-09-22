@@ -1,0 +1,22 @@
+[
+  {
+    "path": "native-program-no-check.json",
+    "sha256": "b1804ab7038ea1901eafce023009c3fd20d1860fa8ad9180869a87536293e84d",
+    "bytes": 192052
+  },
+  {
+    "path": "native-review.json",
+    "sha256": "a070bc366d7091cd108ce28bf284d7e3d6dca68a9db81e0639f87fbd99152557",
+    "bytes": 66380
+  },
+  {
+    "path": "native-transpile-dts.json",
+    "sha256": "be5b5ffaf3183259d0c0043ec033ec49c23cd5e215f9df1544cb397e9998d455",
+    "bytes": 192656
+  },
+  {
+    "path": "native-transpile-js.json",
+    "sha256": "a7780970a6827ce7598486200a65ae109c42f60bfe3d89d8089457a48fa49980",
+    "bytes": 743101
+  }
+]

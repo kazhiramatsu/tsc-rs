@@ -17,7 +17,8 @@ Issue/roadmap、詳細仕様、上流差分、test inventoryを結び、次のba
 
 ## 開始点と読むもの
 
-- 実装開始時のemitter完了mergeとreceiptをRust baseに固定する。本書の棚卸しbase
+- [emitter統合記録](../emitter-final-batch/integration/delivery.md)の完了scopeと残条件を引き継ぎ、
+  実装開始時のRust baseを固定する。本書の棚卸しbase
   `3b1f5fe87fd31e3b303bb44bd257342735452ed9`をemitter完了SHAと誤認しない。
 - Go起点は`1f70213d4922b434345f639b441681e470c7cfc1`、比較元候補は
   v7.0.2の`1e4744d68260a7cb91b62b12edc3f6a2187faaf1`。

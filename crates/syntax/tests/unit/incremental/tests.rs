@@ -190,6 +190,10 @@ fn compare_incremental_with_options(
     assert_eq!(canonical_tree(&fresh), canonical_tree(&incremental.source));
     assert_eq!(fresh.parse_recovery(), incremental.source.parse_recovery());
     assert_eq!(
+        fresh.has_supported_emit_recovery(),
+        incremental.source.has_supported_emit_recovery()
+    );
+    assert_eq!(
         diagnostic_pins(&fresh),
         diagnostic_pins(&incremental.source)
     );
@@ -1142,9 +1146,18 @@ fn recovery_provenance_matches_fresh_parses_after_incremental_edits() {
         r#"export {}; await f(); const stable = 1; const b = "\8";"#,
         "/// <reference path=oops />\nconst stable = 1;",
         "const stable = 1; /* unterminated",
+        "async function f(a = await => await) {} const stable = 1;",
+        "var f = async (a = await => await): Promise<void> => {}; const stable = 1;",
+        "export {}; const bad = ; await(f()); const stable = 1;",
+        "const stable = 1; export {}; await(f()); const bad = ;",
+        "const stable = 1; async function f(a = await /*😀*/ ) {}",
+        "const stable = 1; export const value = (object?.x //😀\n as number);",
+        "export const value = (object?.x //😀\n as number); const stable = 1;",
     ] {
         compare_incremental(before, before.find("stable").unwrap(), 6, "renamed");
     }
+    let before = "export const value = (object?.x //😀\n as number);";
+    compare_incremental(before, before.find("object").unwrap(), 6, "receiver");
     let before = r#"const bad = "\8"; const stable = 1;"#;
     compare_incremental(before, before.find("\\8").unwrap(), 2, "ok");
     let before = "const bad = ; const stable = 1;";
@@ -1162,4 +1175,49 @@ const b = tag`\uD800`; const stable = 1; const tail = 2;"#;
     }
     let untagged = before.replace("tag`", "`");
     compare_incremental(&untagged, untagged.find("\\unicode").unwrap(), 8, "ok");
+}
+
+#[test]
+fn decorator_await_skip_provenance_survives_edits_inside_and_around_reparse() {
+    let before = "export {}; const before = 1; @ /*😀*/await(1) class C {} const after = 2;";
+    for (old, new) in [
+        ("before", "renamed_before"),
+        ("after", "renamed_after"),
+        ("😀", "comment"),
+        ("await", "dec"),
+    ] {
+        compare_incremental(before, before.find(old).unwrap(), old.len(), new);
+    }
+    let before = "@ /*😀*/await(1) class C {}";
+    compare_incremental(before, 0, 0, "export {}; ");
+}
+
+#[test]
+fn context_recovery_admission_matches_fresh_parses_across_reparse_and_heritage_edits() {
+    for (before, needle, inserted) in [
+        (
+            "export {}; const before = 1; await (1,); @await class C {}",
+            "before",
+            "renamed",
+        ),
+        (
+            "export {}; await (1,); @await class C {}",
+            "1,",
+            "1, /*😀*/",
+        ),
+        (
+            "export {}; class C extends await<string> {}",
+            "await",
+            "/*😀*/await",
+        ),
+        (
+            "export {}; class C extends await<string> {}",
+            ">",
+            " /*😀*/>",
+        ),
+        ("export {}; @await`x` class C {}", "`x`", "!"),
+        ("export {}; let a = await /1; b; c; x/;", "await", "value"),
+    ] {
+        compare_incremental(before, before.find(needle).unwrap(), needle.len(), inserted);
+    }
 }

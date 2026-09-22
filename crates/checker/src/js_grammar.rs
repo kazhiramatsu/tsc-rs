@@ -132,6 +132,28 @@ impl<'a> JsGrammarWalker<'a> {
     /// of the token at the node position.
     fn error_span_for_node(&self, id: NodeId) -> (usize, usize) {
         let node = self.source.arena.node(id);
+        if node.kind == SyntaxKind::Constructor {
+            let start = tsc_syntax::skip_trivia(self.source.text(), node.pos as usize);
+            let tokens =
+                tsc_syntax::scan_tokens(&self.source.text()[start..], self.source.language_variant);
+            let end = tokens
+                .iter()
+                .find(|token| {
+                    matches!(
+                        token.kind,
+                        SyntaxKind::ConstructorKeyword | SyntaxKind::EndOfFileToken
+                    )
+                })
+                .map(|token| {
+                    self.source
+                        .positions()
+                        .byte_offset_from_utf16_delta(start as u32, token.end)
+                        .expect("scanner UTF-16 token offsets are scalar boundaries")
+                        as usize
+                })
+                .unwrap_or(start);
+            return (start, end);
+        }
         let error_node = match node.kind {
             SyntaxKind::VariableDeclaration
             | SyntaxKind::BindingElement

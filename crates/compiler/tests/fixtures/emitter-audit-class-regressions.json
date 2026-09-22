@@ -1,0 +1,107 @@
+{
+  "schema": 1,
+  "baseline": "ed71c45343b2063414d5563c9b5455631d7c5c68",
+  "cases": [
+    {
+      "case_id": "class-assigned-name/es5/commonjs/typed-function-new-target",
+      "fixture": "transformed-class-assigned-names.json"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/variable/annotated-member",
+      "fixture": "transformed-class-assigned-names.json"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/variable/generic",
+      "fixture": "transformed-class-assigned-names.json"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/variable/implements",
+      "fixture": "transformed-class-assigned-names.json"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/typed-function-new-target",
+      "fixture": "transformed-class-assigned-names.json"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/variable/annotated-member",
+      "fixture": "transformed-class-assigned-names.json"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/variable/generic",
+      "fixture": "transformed-class-assigned-names.json"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/variable/implements",
+      "fixture": "transformed-class-assigned-names.json"
+    },
+    {
+      "case_id": "class-field-alias-map-positions/es5/commonjs/define/instance-this-adjacent",
+      "fixture": "class-field-alias-map-positions.json"
+    },
+    {
+      "case_id": "class-field-alias-map-positions/es5/commonjs/define/method-this-adjacent",
+      "fixture": "class-field-alias-map-positions.json"
+    },
+    {
+      "case_id": "class-field-alias-map-positions/es5/commonjs/set/instance-this-adjacent",
+      "fixture": "class-field-alias-map-positions.json"
+    },
+    {
+      "case_id": "class-field-alias-map-positions/es5/commonjs/set/method-this-adjacent",
+      "fixture": "class-field-alias-map-positions.json"
+    },
+    {
+      "case_id": "class-field-alias-map-positions/es5/esnext/define/instance-this-adjacent",
+      "fixture": "class-field-alias-map-positions.json"
+    },
+    {
+      "case_id": "class-field-alias-map-positions/es5/esnext/define/method-this-adjacent",
+      "fixture": "class-field-alias-map-positions.json"
+    },
+    {
+      "case_id": "class-field-alias-map-positions/es5/esnext/set/instance-this-adjacent",
+      "fixture": "class-field-alias-map-positions.json"
+    },
+    {
+      "case_id": "class-field-alias-map-positions/es5/esnext/set/method-this-adjacent",
+      "fixture": "class-field-alias-map-positions.json"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/commonjs/define/expression-instance-asi",
+      "fixture": "class-field-initializer-comments.json"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/commonjs/define/expression-instance-semicolon",
+      "fixture": "class-field-initializer-comments.json"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/commonjs/set/expression-instance-asi",
+      "fixture": "class-field-initializer-comments.json"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/commonjs/set/expression-instance-semicolon",
+      "fixture": "class-field-initializer-comments.json"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/esnext/define/expression-instance-asi",
+      "fixture": "class-field-initializer-comments.json"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/esnext/define/expression-instance-semicolon",
+      "fixture": "class-field-initializer-comments.json"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/esnext/set/expression-instance-asi",
+      "fixture": "class-field-initializer-comments.json"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/esnext/set/expression-instance-semicolon",
+      "fixture": "class-field-initializer-comments.json"
+    }
+  ],
+  "fixtures": {
+    "class-field-alias-map-positions.json": "5d6857331fe90d1559adcb6d4afea4040218738255f09a08f8906069e2356207",
+    "class-field-initializer-comments.json": "21b016586cce29537e88e6e8efc9880ca64c5944cde75f14bc34df465641aaba",
+    "transformed-class-assigned-names.json": "f04166260e4005fa6bd5df31ef98ef6d7d8cd79b0054e137f5c52e806d906ffb"
+  }
+}

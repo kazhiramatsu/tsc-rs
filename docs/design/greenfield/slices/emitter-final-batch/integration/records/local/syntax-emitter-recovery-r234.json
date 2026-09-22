@@ -1,0 +1,34 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "env",
+    "TSC_RS_RECOVERY_FACTS_OUTPUT=/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-prewalk-r234/recovery-facts.json",
+    "cargo",
+    "test",
+    "--offline",
+    "-p",
+    "tsc-rs-syntax",
+    "--test",
+    "emitter_recovery",
+    "--",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-19T17:35:37.504654+00:00",
+  "head": "807bd4718c356631c6a175f06b29aa782b2507e1",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 146.527,
+  "log_sha256": "1a39ae9f0c57b8aa2a0bb3853b90c12161f66e43dcb63d05570ee98952b6d6f1",
+  "log_bytes": 829
+}

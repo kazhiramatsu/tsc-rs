@@ -697,6 +697,4 @@ fn loader_deduplicates_dot_segment_suffix_spellings_by_normalized_program_identi
     assert_eq!(source_ids[0], source_ids[1]);
 }
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use super::utf16_scalar_path::ScalarTestPath as _;

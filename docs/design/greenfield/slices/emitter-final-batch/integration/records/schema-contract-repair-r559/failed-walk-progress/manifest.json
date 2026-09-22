@@ -1,0 +1,39 @@
+{
+  "qualified": false,
+  "scope": "Verbatim progress snapshot during round 2; the official walk is still running. The driver keeps per-rung logs for the latest round only; append-only events and summary retain both rounds. No first-round log is reconstructed.",
+  "at": "2026-09-20T16:44:37.978505+00:00",
+  "head": "f46dc801560cd8ccaf8ccce8dcec6135615f0244",
+  "run_id": "20260920-232502-12419",
+  "files": [
+    {
+      "source": "target/h2-5g/check-receipt.v1.json",
+      "copy": "check-receipt.v1.json",
+      "sha256": "c454d7a51dfeaa31fc8ea68bca810fd84e06308bd858f206dc85a0760065dfbb",
+      "bytes": 926
+    },
+    {
+      "source": "target/h2-5g/check-outcome.v1.json",
+      "copy": "check-outcome.v1.json",
+      "sha256": "ac4ec7cdd7930fff261d9e280d3fb36fc7bb790dc7830e0aa7e0d17da9ea7869",
+      "bytes": 416
+    },
+    {
+      "source": "target/chain-walk/runs/20260920-232502-12419/events.jsonl",
+      "copy": "events.jsonl",
+      "sha256": "757248ad7e9ae435989c6ceb6ba0a83f77be21403a99f3ebc1327c640d07cadd",
+      "bytes": 22335
+    },
+    {
+      "source": "target/chain-walk/runs/20260920-232502-12419/summary.log",
+      "copy": "summary.log",
+      "sha256": "e765cfc361ec8e42e50e12cfbd3333ebaf903913d1e7b0893703e7517d79efa6",
+      "bytes": 1076
+    },
+    {
+      "source": "target/chain-walk/runs/20260920-232502-12419/h2-5g-qualification.log",
+      "copy": "h2-5g-qualification.log",
+      "sha256": "3c17e842b0be5f02cac8a972dde984663275979cd0afb7d9f15e1bd2c8a8f281",
+      "bytes": 4523
+    }
+  ]
+}

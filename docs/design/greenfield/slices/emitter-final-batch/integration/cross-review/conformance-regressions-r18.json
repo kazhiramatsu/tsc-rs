@@ -1,0 +1,1789 @@
+{
+  "schema": 1,
+  "proof": "../records/local/audit-conformance-r18.json",
+  "full_summary_sha256": "6d5728e83e4f2c755ce77176e422b5a5a25cbf1c524917a22ddd0e17bb956907",
+  "t3_diagnostics": 25,
+  "affected_t4_cases": 13,
+  "all_differences_are_library_related_information_only": true,
+  "cases": [
+    [
+      "conformance/es6/destructuring/destructuringParameterDeclaration4.ts",
+      ""
+    ],
+    [
+      "conformance/es6/destructuring/destructuringVariableDeclaration1ES5.ts",
+      ""
+    ],
+    [
+      "conformance/es6/destructuring/destructuringVariableDeclaration1ES5iterable.ts",
+      "target=es2015"
+    ],
+    [
+      "conformance/es6/destructuring/destructuringVariableDeclaration1ES5iterable.ts",
+      "target=es5"
+    ],
+    [
+      "conformance/es6/destructuring/destructuringVariableDeclaration1ES6.ts",
+      ""
+    ],
+    [
+      "conformance/es6/destructuring/destructuringVariableDeclaration2.ts",
+      ""
+    ],
+    [
+      "conformance/es6/spread/iteratorSpreadInArray5.ts",
+      ""
+    ],
+    [
+      "conformance/expressions/typeSatisfaction/typeSatisfaction_errorLocations1.ts",
+      ""
+    ],
+    [
+      "conformance/expressions/typeSatisfaction/typeSatisfaction_propertyValueConformance3.ts",
+      ""
+    ],
+    [
+      "conformance/jsdoc/checkJsdocSatisfiesTag9.ts",
+      ""
+    ],
+    [
+      "conformance/jsx/tsxStatelessFunctionComponentsWithTypeArguments2.tsx",
+      ""
+    ],
+    [
+      "conformance/types/typeRelationships/recursiveTypes/recursiveTypeReferences1.ts",
+      ""
+    ],
+    [
+      "conformance/types/typeRelationships/typeInference/noInfer.ts",
+      ""
+    ]
+  ],
+  "mismatches": [
+    {
+      "fixture": "conformance/es6/destructuring/destructuringParameterDeclaration4.ts",
+      "matrix_key": "",
+      "diagnostic": {
+        "file": "destructuringParameterDeclaration4.ts",
+        "code": 2322,
+        "line": 23,
+        "col": 10
+      },
+      "first_failed_tier": "t3",
+      "actual": [
+        {
+          "file": "destructuringParameterDeclaration4.ts",
+          "start": 1098,
+          "length": 8,
+          "line": 23,
+          "col": 10,
+          "code": 2322,
+          "pass": null,
+          "category": "error",
+          "chain": {
+            "text": "Type 'string' is not assignable to type 'number'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ],
+      "expected": [
+        {
+          "file": "destructuringParameterDeclaration4.ts",
+          "start": 1098,
+          "length": 8,
+          "line": 23,
+          "col": 10,
+          "code": 2322,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "Type 'string' is not assignable to type 'number'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [
+            {
+              "file": "lib.es5.d.ts",
+              "start": 70549,
+              "length": 15,
+              "code": 6501,
+              "category": "message",
+              "chain": {
+                "text": "The expected type comes from this index signature.",
+                "code": 6501,
+                "category": "message",
+                "next": []
+              }
+            }
+          ],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/es6/destructuring/destructuringVariableDeclaration1ES5.ts",
+      "matrix_key": "",
+      "diagnostic": {
+        "file": "destructuringVariableDeclaration1ES5.ts",
+        "code": 2322,
+        "line": 38,
+        "col": 15
+      },
+      "first_failed_tier": "t3",
+      "actual": [
+        {
+          "file": "destructuringVariableDeclaration1ES5.ts",
+          "start": 2404,
+          "length": 9,
+          "line": 38,
+          "col": 15,
+          "code": 2322,
+          "pass": null,
+          "category": "error",
+          "chain": {
+            "text": "Type 'undefined' is not assignable to type 'number'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ],
+      "expected": [
+        {
+          "file": "destructuringVariableDeclaration1ES5.ts",
+          "start": 2404,
+          "length": 9,
+          "line": 38,
+          "col": 15,
+          "code": 2322,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "Type 'undefined' is not assignable to type 'number'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [
+            {
+              "file": "lib.es5.d.ts",
+              "start": 70549,
+              "length": 15,
+              "code": 6501,
+              "category": "message",
+              "chain": {
+                "text": "The expected type comes from this index signature.",
+                "code": 6501,
+                "category": "message",
+                "next": []
+              }
+            }
+          ],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/es6/destructuring/destructuringVariableDeclaration1ES5.ts",
+      "matrix_key": "",
+      "diagnostic": {
+        "file": "destructuringVariableDeclaration1ES5.ts",
+        "code": 2322,
+        "line": 38,
+        "col": 26
+      },
+      "first_failed_tier": "t3",
+      "actual": [
+        {
+          "file": "destructuringVariableDeclaration1ES5.ts",
+          "start": 2415,
+          "length": 4,
+          "line": 38,
+          "col": 26,
+          "code": 2322,
+          "pass": null,
+          "category": "error",
+          "chain": {
+            "text": "Type 'null' is not assignable to type 'number'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ],
+      "expected": [
+        {
+          "file": "destructuringVariableDeclaration1ES5.ts",
+          "start": 2415,
+          "length": 4,
+          "line": 38,
+          "col": 26,
+          "code": 2322,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "Type 'null' is not assignable to type 'number'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [
+            {
+              "file": "lib.es5.d.ts",
+              "start": 70549,
+              "length": 15,
+              "code": 6501,
+              "category": "message",
+              "chain": {
+                "text": "The expected type comes from this index signature.",
+                "code": 6501,
+                "category": "message",
+                "next": []
+              }
+            }
+          ],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/es6/destructuring/destructuringVariableDeclaration1ES5iterable.ts",
+      "matrix_key": "target=es5",
+      "diagnostic": {
+        "file": "destructuringVariableDeclaration1ES5iterable.ts",
+        "code": 2322,
+        "line": 38,
+        "col": 15
+      },
+      "first_failed_tier": "t3",
+      "actual": [
+        {
+          "file": "destructuringVariableDeclaration1ES5iterable.ts",
+          "start": 2400,
+          "length": 9,
+          "line": 38,
+          "col": 15,
+          "code": 2322,
+          "pass": null,
+          "category": "error",
+          "chain": {
+            "text": "Type 'undefined' is not assignable to type 'number'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ],
+      "expected": [
+        {
+          "file": "destructuringVariableDeclaration1ES5iterable.ts",
+          "start": 2400,
+          "length": 9,
+          "line": 38,
+          "col": 15,
+          "code": 2322,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "Type 'undefined' is not assignable to type 'number'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [
+            {
+              "file": "lib.es5.d.ts",
+              "start": 70549,
+              "length": 15,
+              "code": 6501,
+              "category": "message",
+              "chain": {
+                "text": "The expected type comes from this index signature.",
+                "code": 6501,
+                "category": "message",
+                "next": []
+              }
+            }
+          ],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/es6/destructuring/destructuringVariableDeclaration1ES5iterable.ts",
+      "matrix_key": "target=es5",
+      "diagnostic": {
+        "file": "destructuringVariableDeclaration1ES5iterable.ts",
+        "code": 2322,
+        "line": 38,
+        "col": 26
+      },
+      "first_failed_tier": "t3",
+      "actual": [
+        {
+          "file": "destructuringVariableDeclaration1ES5iterable.ts",
+          "start": 2411,
+          "length": 4,
+          "line": 38,
+          "col": 26,
+          "code": 2322,
+          "pass": null,
+          "category": "error",
+          "chain": {
+            "text": "Type 'null' is not assignable to type 'number'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ],
+      "expected": [
+        {
+          "file": "destructuringVariableDeclaration1ES5iterable.ts",
+          "start": 2411,
+          "length": 4,
+          "line": 38,
+          "col": 26,
+          "code": 2322,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "Type 'null' is not assignable to type 'number'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [
+            {
+              "file": "lib.es5.d.ts",
+              "start": 70549,
+              "length": 15,
+              "code": 6501,
+              "category": "message",
+              "chain": {
+                "text": "The expected type comes from this index signature.",
+                "code": 6501,
+                "category": "message",
+                "next": []
+              }
+            }
+          ],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/es6/destructuring/destructuringVariableDeclaration1ES5iterable.ts",
+      "matrix_key": "target=es2015",
+      "diagnostic": {
+        "file": "destructuringVariableDeclaration1ES5iterable.ts",
+        "code": 2322,
+        "line": 38,
+        "col": 15
+      },
+      "first_failed_tier": "t3",
+      "actual": [
+        {
+          "file": "destructuringVariableDeclaration1ES5iterable.ts",
+          "start": 2400,
+          "length": 9,
+          "line": 38,
+          "col": 15,
+          "code": 2322,
+          "pass": null,
+          "category": "error",
+          "chain": {
+            "text": "Type 'undefined' is not assignable to type 'number'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ],
+      "expected": [
+        {
+          "file": "destructuringVariableDeclaration1ES5iterable.ts",
+          "start": 2400,
+          "length": 9,
+          "line": 38,
+          "col": 15,
+          "code": 2322,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "Type 'undefined' is not assignable to type 'number'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [
+            {
+              "file": "lib.es5.d.ts",
+              "start": 70549,
+              "length": 15,
+              "code": 6501,
+              "category": "message",
+              "chain": {
+                "text": "The expected type comes from this index signature.",
+                "code": 6501,
+                "category": "message",
+                "next": []
+              }
+            }
+          ],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/es6/destructuring/destructuringVariableDeclaration1ES5iterable.ts",
+      "matrix_key": "target=es2015",
+      "diagnostic": {
+        "file": "destructuringVariableDeclaration1ES5iterable.ts",
+        "code": 2322,
+        "line": 38,
+        "col": 26
+      },
+      "first_failed_tier": "t3",
+      "actual": [
+        {
+          "file": "destructuringVariableDeclaration1ES5iterable.ts",
+          "start": 2411,
+          "length": 4,
+          "line": 38,
+          "col": 26,
+          "code": 2322,
+          "pass": null,
+          "category": "error",
+          "chain": {
+            "text": "Type 'null' is not assignable to type 'number'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ],
+      "expected": [
+        {
+          "file": "destructuringVariableDeclaration1ES5iterable.ts",
+          "start": 2411,
+          "length": 4,
+          "line": 38,
+          "col": 26,
+          "code": 2322,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "Type 'null' is not assignable to type 'number'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [
+            {
+              "file": "lib.es5.d.ts",
+              "start": 70549,
+              "length": 15,
+              "code": 6501,
+              "category": "message",
+              "chain": {
+                "text": "The expected type comes from this index signature.",
+                "code": 6501,
+                "category": "message",
+                "next": []
+              }
+            }
+          ],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/es6/destructuring/destructuringVariableDeclaration1ES6.ts",
+      "matrix_key": "",
+      "diagnostic": {
+        "file": "destructuringVariableDeclaration1ES6.ts",
+        "code": 2322,
+        "line": 38,
+        "col": 15
+      },
+      "first_failed_tier": "t3",
+      "actual": [
+        {
+          "file": "destructuringVariableDeclaration1ES6.ts",
+          "start": 2404,
+          "length": 9,
+          "line": 38,
+          "col": 15,
+          "code": 2322,
+          "pass": null,
+          "category": "error",
+          "chain": {
+            "text": "Type 'undefined' is not assignable to type 'number'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ],
+      "expected": [
+        {
+          "file": "destructuringVariableDeclaration1ES6.ts",
+          "start": 2404,
+          "length": 9,
+          "line": 38,
+          "col": 15,
+          "code": 2322,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "Type 'undefined' is not assignable to type 'number'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [
+            {
+              "file": "lib.es5.d.ts",
+              "start": 70549,
+              "length": 15,
+              "code": 6501,
+              "category": "message",
+              "chain": {
+                "text": "The expected type comes from this index signature.",
+                "code": 6501,
+                "category": "message",
+                "next": []
+              }
+            }
+          ],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/es6/destructuring/destructuringVariableDeclaration1ES6.ts",
+      "matrix_key": "",
+      "diagnostic": {
+        "file": "destructuringVariableDeclaration1ES6.ts",
+        "code": 2322,
+        "line": 38,
+        "col": 26
+      },
+      "first_failed_tier": "t3",
+      "actual": [
+        {
+          "file": "destructuringVariableDeclaration1ES6.ts",
+          "start": 2415,
+          "length": 4,
+          "line": 38,
+          "col": 26,
+          "code": 2322,
+          "pass": null,
+          "category": "error",
+          "chain": {
+            "text": "Type 'null' is not assignable to type 'number'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ],
+      "expected": [
+        {
+          "file": "destructuringVariableDeclaration1ES6.ts",
+          "start": 2415,
+          "length": 4,
+          "line": 38,
+          "col": 26,
+          "code": 2322,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "Type 'null' is not assignable to type 'number'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [
+            {
+              "file": "lib.es5.d.ts",
+              "start": 70549,
+              "length": 15,
+              "code": 6501,
+              "category": "message",
+              "chain": {
+                "text": "The expected type comes from this index signature.",
+                "code": 6501,
+                "category": "message",
+                "next": []
+              }
+            }
+          ],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/es6/destructuring/destructuringVariableDeclaration2.ts",
+      "matrix_key": "",
+      "diagnostic": {
+        "file": "destructuringVariableDeclaration2.ts",
+        "code": 2322,
+        "line": 18,
+        "col": 15
+      },
+      "first_failed_tier": "t3",
+      "actual": [
+        {
+          "file": "destructuringVariableDeclaration2.ts",
+          "start": 1335,
+          "length": 8,
+          "line": 18,
+          "col": 15,
+          "code": 2322,
+          "pass": null,
+          "category": "error",
+          "chain": {
+            "text": "Type 'string' is not assignable to type 'number'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ],
+      "expected": [
+        {
+          "file": "destructuringVariableDeclaration2.ts",
+          "start": 1335,
+          "length": 8,
+          "line": 18,
+          "col": 15,
+          "code": 2322,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "Type 'string' is not assignable to type 'number'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [
+            {
+              "file": "lib.es5.d.ts",
+              "start": 70549,
+              "length": 15,
+              "code": 6501,
+              "category": "message",
+              "chain": {
+                "text": "The expected type comes from this index signature.",
+                "code": 6501,
+                "category": "message",
+                "next": []
+              }
+            }
+          ],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/es6/destructuring/destructuringVariableDeclaration2.ts",
+      "matrix_key": "",
+      "diagnostic": {
+        "file": "destructuringVariableDeclaration2.ts",
+        "code": 2322,
+        "line": 18,
+        "col": 25
+      },
+      "first_failed_tier": "t3",
+      "actual": [
+        {
+          "file": "destructuringVariableDeclaration2.ts",
+          "start": 1345,
+          "length": 4,
+          "line": 18,
+          "col": 25,
+          "code": 2322,
+          "pass": null,
+          "category": "error",
+          "chain": {
+            "text": "Type 'null' is not assignable to type 'number'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ],
+      "expected": [
+        {
+          "file": "destructuringVariableDeclaration2.ts",
+          "start": 1345,
+          "length": 4,
+          "line": 18,
+          "col": 25,
+          "code": 2322,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "Type 'null' is not assignable to type 'number'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [
+            {
+              "file": "lib.es5.d.ts",
+              "start": 70549,
+              "length": 15,
+              "code": 6501,
+              "category": "message",
+              "chain": {
+                "text": "The expected type comes from this index signature.",
+                "code": 6501,
+                "category": "message",
+                "next": []
+              }
+            }
+          ],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/es6/spread/iteratorSpreadInArray5.ts",
+      "matrix_key": "",
+      "diagnostic": {
+        "file": "iteratorSpreadInArray5.ts",
+        "code": 2322,
+        "line": 13,
+        "col": 29
+      },
+      "first_failed_tier": "t3",
+      "actual": [
+        {
+          "file": "iteratorSpreadInArray5.ts",
+          "start": 222,
+          "length": 21,
+          "line": 13,
+          "col": 29,
+          "code": 2322,
+          "pass": null,
+          "category": "error",
+          "chain": {
+            "text": "Type 'symbol' is not assignable to type 'number'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ],
+      "expected": [
+        {
+          "file": "iteratorSpreadInArray5.ts",
+          "start": 222,
+          "length": 21,
+          "line": 13,
+          "col": 29,
+          "code": 2322,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "Type 'symbol' is not assignable to type 'number'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [
+            {
+              "file": "lib.es5.d.ts",
+              "start": 70549,
+              "length": 15,
+              "code": 6501,
+              "category": "message",
+              "chain": {
+                "text": "The expected type comes from this index signature.",
+                "code": 6501,
+                "category": "message",
+                "next": []
+              }
+            }
+          ],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/expressions/typeSatisfaction/typeSatisfaction_errorLocations1.ts",
+      "matrix_key": "",
+      "diagnostic": {
+        "file": "typeSatisfaction_errorLocations1.ts",
+        "code": 2322,
+        "line": 22,
+        "col": 22
+      },
+      "first_failed_tier": "t3",
+      "actual": [
+        {
+          "file": "typeSatisfaction_errorLocations1.ts",
+          "start": 556,
+          "length": 1,
+          "line": 22,
+          "col": 22,
+          "code": 2322,
+          "pass": null,
+          "category": "error",
+          "chain": {
+            "text": "Type 'boolean' is not assignable to type 'number'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ],
+      "expected": [
+        {
+          "file": "typeSatisfaction_errorLocations1.ts",
+          "start": 556,
+          "length": 1,
+          "line": 22,
+          "col": 22,
+          "code": 2322,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "Type 'boolean' is not assignable to type 'number'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [
+            {
+              "file": "lib.es5.d.ts",
+              "start": 74260,
+              "length": 20,
+              "code": 6500,
+              "category": "message",
+              "chain": {
+                "text": "The expected type comes from property 'b' which is declared here on type 'Record<string, number>'",
+                "code": 6500,
+                "category": "message",
+                "next": []
+              }
+            }
+          ],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/expressions/typeSatisfaction/typeSatisfaction_errorLocations1.ts",
+      "matrix_key": "",
+      "diagnostic": {
+        "file": "typeSatisfaction_errorLocations1.ts",
+        "code": 2322,
+        "line": 28,
+        "col": 17
+      },
+      "first_failed_tier": "t3",
+      "actual": [
+        {
+          "file": "typeSatisfaction_errorLocations1.ts",
+          "start": 748,
+          "length": 4,
+          "line": 28,
+          "col": 17,
+          "code": 2322,
+          "pass": null,
+          "category": "error",
+          "chain": {
+            "text": "Type 'string' is not assignable to type 'number'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ],
+      "expected": [
+        {
+          "file": "typeSatisfaction_errorLocations1.ts",
+          "start": 748,
+          "length": 4,
+          "line": 28,
+          "col": 17,
+          "code": 2322,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "Type 'string' is not assignable to type 'number'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [
+            {
+              "file": "lib.es5.d.ts",
+              "start": 70549,
+              "length": 15,
+              "code": 6501,
+              "category": "message",
+              "chain": {
+                "text": "The expected type comes from this index signature.",
+                "code": 6501,
+                "category": "message",
+                "next": []
+              }
+            }
+          ],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/expressions/typeSatisfaction/typeSatisfaction_propertyValueConformance3.ts",
+      "matrix_key": "",
+      "diagnostic": {
+        "file": "typeSatisfaction_propertyValueConformance3.ts",
+        "code": 2353,
+        "line": 5,
+        "col": 25
+      },
+      "first_failed_tier": "t3",
+      "actual": [
+        {
+          "file": "typeSatisfaction_propertyValueConformance3.ts",
+          "start": 215,
+          "length": 1,
+          "line": 5,
+          "col": 25,
+          "code": 2353,
+          "pass": null,
+          "category": "error",
+          "chain": {
+            "text": "Object literal may only specify known properties, and 'd' does not exist in type 'Color'.",
+            "code": 2353,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ],
+      "expected": [
+        {
+          "file": "typeSatisfaction_propertyValueConformance3.ts",
+          "start": 215,
+          "length": 1,
+          "line": 5,
+          "col": 25,
+          "code": 2353,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "Object literal may only specify known properties, and 'd' does not exist in type 'Color'.",
+            "code": 2353,
+            "category": "error",
+            "next": []
+          },
+          "related": [
+            {
+              "file": "lib.es5.d.ts",
+              "start": 74260,
+              "length": 20,
+              "code": 6500,
+              "category": "message",
+              "chain": {
+                "text": "The expected type comes from property 'black' which is declared here on type 'Record<string, Color>'",
+                "code": 6500,
+                "category": "message",
+                "next": []
+              }
+            }
+          ],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/jsdoc/checkJsdocSatisfiesTag9.ts",
+      "matrix_key": "",
+      "diagnostic": {
+        "file": "/a.js",
+        "code": 2353,
+        "line": 10,
+        "col": 25
+      },
+      "first_failed_tier": "t3",
+      "actual": [
+        {
+          "file": "/a.js",
+          "start": 308,
+          "length": 1,
+          "line": 10,
+          "col": 25,
+          "code": 2353,
+          "pass": null,
+          "category": "error",
+          "chain": {
+            "text": "Object literal may only specify known properties, and 'd' does not exist in type 'Color'.",
+            "code": 2353,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ],
+      "expected": [
+        {
+          "file": "/a.js",
+          "start": 308,
+          "length": 1,
+          "line": 10,
+          "col": 25,
+          "code": 2353,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "Object literal may only specify known properties, and 'd' does not exist in type 'Color'.",
+            "code": 2353,
+            "category": "error",
+            "next": []
+          },
+          "related": [
+            {
+              "file": "lib.es5.d.ts",
+              "start": 74260,
+              "length": 20,
+              "code": 6500,
+              "category": "message",
+              "chain": {
+                "text": "The expected type comes from property 'black' which is declared here on type 'Record<string, Color>'",
+                "code": 6500,
+                "category": "message",
+                "next": []
+              }
+            }
+          ],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/jsx/tsxStatelessFunctionComponentsWithTypeArguments2.tsx",
+      "matrix_key": "",
+      "diagnostic": {
+        "file": "file.tsx",
+        "code": 2322,
+        "line": 36,
+        "col": 38
+      },
+      "first_failed_tier": "t3",
+      "actual": [
+        {
+          "file": "file.tsx",
+          "start": 945,
+          "length": 1,
+          "line": 36,
+          "col": 38,
+          "code": 2322,
+          "pass": null,
+          "category": "error",
+          "chain": {
+            "text": "Type 'number' is not assignable to type 'string'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ],
+      "expected": [
+        {
+          "file": "file.tsx",
+          "start": 945,
+          "length": 1,
+          "line": 36,
+          "col": 38,
+          "code": 2322,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "Type 'number' is not assignable to type 'string'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [
+            {
+              "file": "lib.es5.d.ts",
+              "start": 70549,
+              "length": 15,
+              "code": 6501,
+              "category": "message",
+              "chain": {
+                "text": "The expected type comes from this index signature.",
+                "code": 6501,
+                "category": "message",
+                "next": []
+              }
+            }
+          ],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/jsx/tsxStatelessFunctionComponentsWithTypeArguments2.tsx",
+      "matrix_key": "",
+      "diagnostic": {
+        "file": "file.tsx",
+        "code": 2322,
+        "line": 36,
+        "col": 41
+      },
+      "first_failed_tier": "t3",
+      "actual": [
+        {
+          "file": "file.tsx",
+          "start": 948,
+          "length": 1,
+          "line": 36,
+          "col": 41,
+          "code": 2322,
+          "pass": null,
+          "category": "error",
+          "chain": {
+            "text": "Type 'number' is not assignable to type 'string'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ],
+      "expected": [
+        {
+          "file": "file.tsx",
+          "start": 948,
+          "length": 1,
+          "line": 36,
+          "col": 41,
+          "code": 2322,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "Type 'number' is not assignable to type 'string'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [
+            {
+              "file": "lib.es5.d.ts",
+              "start": 70549,
+              "length": 15,
+              "code": 6501,
+              "category": "message",
+              "chain": {
+                "text": "The expected type comes from this index signature.",
+                "code": 6501,
+                "category": "message",
+                "next": []
+              }
+            }
+          ],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/jsx/tsxStatelessFunctionComponentsWithTypeArguments2.tsx",
+      "matrix_key": "",
+      "diagnostic": {
+        "file": "file.tsx",
+        "code": 2322,
+        "line": 36,
+        "col": 44
+      },
+      "first_failed_tier": "t3",
+      "actual": [
+        {
+          "file": "file.tsx",
+          "start": 951,
+          "length": 1,
+          "line": 36,
+          "col": 44,
+          "code": 2322,
+          "pass": null,
+          "category": "error",
+          "chain": {
+            "text": "Type 'number' is not assignable to type 'string'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ],
+      "expected": [
+        {
+          "file": "file.tsx",
+          "start": 951,
+          "length": 1,
+          "line": 36,
+          "col": 44,
+          "code": 2322,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "Type 'number' is not assignable to type 'string'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [
+            {
+              "file": "lib.es5.d.ts",
+              "start": 70549,
+              "length": 15,
+              "code": 6501,
+              "category": "message",
+              "chain": {
+                "text": "The expected type comes from this index signature.",
+                "code": 6501,
+                "category": "message",
+                "next": []
+              }
+            }
+          ],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/jsx/tsxStatelessFunctionComponentsWithTypeArguments2.tsx",
+      "matrix_key": "",
+      "diagnostic": {
+        "file": "file.tsx",
+        "code": 2322,
+        "line": 36,
+        "col": 47
+      },
+      "first_failed_tier": "t3",
+      "actual": [
+        {
+          "file": "file.tsx",
+          "start": 954,
+          "length": 1,
+          "line": 36,
+          "col": 47,
+          "code": 2322,
+          "pass": null,
+          "category": "error",
+          "chain": {
+            "text": "Type 'number' is not assignable to type 'string'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ],
+      "expected": [
+        {
+          "file": "file.tsx",
+          "start": 954,
+          "length": 1,
+          "line": 36,
+          "col": 47,
+          "code": 2322,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "Type 'number' is not assignable to type 'string'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [
+            {
+              "file": "lib.es5.d.ts",
+              "start": 70549,
+              "length": 15,
+              "code": 6501,
+              "category": "message",
+              "chain": {
+                "text": "The expected type comes from this index signature.",
+                "code": 6501,
+                "category": "message",
+                "next": []
+              }
+            }
+          ],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/types/typeRelationships/recursiveTypes/recursiveTypeReferences1.ts",
+      "matrix_key": "",
+      "diagnostic": {
+        "file": "recursiveTypeReferences1.ts",
+        "code": 2322,
+        "line": 59,
+        "col": 6
+      },
+      "first_failed_tier": "t3",
+      "actual": [
+        {
+          "file": "recursiveTypeReferences1.ts",
+          "start": 1645,
+          "length": 1,
+          "line": 59,
+          "col": 6,
+          "code": 2322,
+          "pass": null,
+          "category": "error",
+          "chain": {
+            "text": "Type 'number' is not assignable to type 'string | RecArray<string>'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ],
+      "expected": [
+        {
+          "file": "recursiveTypeReferences1.ts",
+          "start": 1645,
+          "length": 1,
+          "line": 59,
+          "col": 6,
+          "code": 2322,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "Type 'number' is not assignable to type 'string | RecArray<string>'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [
+            {
+              "file": "lib.es5.d.ts",
+              "start": 70549,
+              "length": 15,
+              "code": 6501,
+              "category": "message",
+              "chain": {
+                "text": "The expected type comes from this index signature.",
+                "code": 6501,
+                "category": "message",
+                "next": []
+              }
+            }
+          ],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/types/typeRelationships/recursiveTypes/recursiveTypeReferences1.ts",
+      "matrix_key": "",
+      "diagnostic": {
+        "file": "recursiveTypeReferences1.ts",
+        "code": 2322,
+        "line": 65,
+        "col": 7
+      },
+      "first_failed_tier": "t3",
+      "actual": [
+        {
+          "file": "recursiveTypeReferences1.ts",
+          "start": 1852,
+          "length": 1,
+          "line": 65,
+          "col": 7,
+          "code": 2322,
+          "pass": null,
+          "category": "error",
+          "chain": {
+            "text": "Type 'number' is not assignable to type 'string | string[]'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ],
+      "expected": [
+        {
+          "file": "recursiveTypeReferences1.ts",
+          "start": 1852,
+          "length": 1,
+          "line": 65,
+          "col": 7,
+          "code": 2322,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "Type 'number' is not assignable to type 'string | string[]'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [
+            {
+              "file": "lib.es5.d.ts",
+              "start": 70549,
+              "length": 15,
+              "code": 6501,
+              "category": "message",
+              "chain": {
+                "text": "The expected type comes from this index signature.",
+                "code": 6501,
+                "category": "message",
+                "next": []
+              }
+            }
+          ],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/types/typeRelationships/recursiveTypes/recursiveTypeReferences1.ts",
+      "matrix_key": "",
+      "diagnostic": {
+        "file": "recursiveTypeReferences1.ts",
+        "code": 2322,
+        "line": 71,
+        "col": 7
+      },
+      "first_failed_tier": "t3",
+      "actual": [
+        {
+          "file": "recursiveTypeReferences1.ts",
+          "start": 2044,
+          "length": 1,
+          "line": 71,
+          "col": 7,
+          "code": 2322,
+          "pass": null,
+          "category": "error",
+          "chain": {
+            "text": "Type 'number' is not assignable to type 'string | (string | string[])[]'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ],
+      "expected": [
+        {
+          "file": "recursiveTypeReferences1.ts",
+          "start": 2044,
+          "length": 1,
+          "line": 71,
+          "col": 7,
+          "code": 2322,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "Type 'number' is not assignable to type 'string | (string | string[])[]'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [
+            {
+              "file": "lib.es5.d.ts",
+              "start": 70549,
+              "length": 15,
+              "code": 6501,
+              "category": "message",
+              "chain": {
+                "text": "The expected type comes from this index signature.",
+                "code": 6501,
+                "category": "message",
+                "next": []
+              }
+            }
+          ],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/types/typeRelationships/typeInference/noInfer.ts",
+      "matrix_key": "",
+      "diagnostic": {
+        "file": "noInfer.ts",
+        "code": 2322,
+        "line": 35,
+        "col": 13
+      },
+      "first_failed_tier": "t3",
+      "actual": [
+        {
+          "file": "noInfer.ts",
+          "start": 1233,
+          "length": 5,
+          "line": 35,
+          "col": 13,
+          "code": 2322,
+          "pass": null,
+          "category": "error",
+          "chain": {
+            "text": "Type '\"bar\"' is not assignable to type '\"foo\"'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ],
+      "expected": [
+        {
+          "file": "noInfer.ts",
+          "start": 1233,
+          "length": 5,
+          "line": 35,
+          "col": 13,
+          "code": 2322,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "Type '\"bar\"' is not assignable to type '\"foo\"'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [
+            {
+              "file": "lib.es5.d.ts",
+              "start": 70549,
+              "length": 15,
+              "code": 6501,
+              "category": "message",
+              "chain": {
+                "text": "The expected type comes from this index signature.",
+                "code": 6501,
+                "category": "message",
+                "next": []
+              }
+            }
+          ],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/types/typeRelationships/typeInference/noInfer.ts",
+      "matrix_key": "",
+      "diagnostic": {
+        "file": "noInfer.ts",
+        "code": 2322,
+        "line": 36,
+        "col": 13
+      },
+      "first_failed_tier": "t3",
+      "actual": [
+        {
+          "file": "noInfer.ts",
+          "start": 1264,
+          "length": 5,
+          "line": 36,
+          "col": 13,
+          "code": 2322,
+          "pass": null,
+          "category": "error",
+          "chain": {
+            "text": "Type '\"bar\"' is not assignable to type '\"foo\"'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ],
+      "expected": [
+        {
+          "file": "noInfer.ts",
+          "start": 1264,
+          "length": 5,
+          "line": 36,
+          "col": 13,
+          "code": 2322,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "Type '\"bar\"' is not assignable to type '\"foo\"'.",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [
+            {
+              "file": "lib.es5.d.ts",
+              "start": 70549,
+              "length": 15,
+              "code": 6501,
+              "category": "message",
+              "chain": {
+                "text": "The expected type comes from this index signature.",
+                "code": 6501,
+                "category": "message",
+                "next": []
+              }
+            }
+          ],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    }
+  ]
+}

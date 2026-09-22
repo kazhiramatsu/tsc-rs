@@ -26,6 +26,8 @@ impl TempRepo {
             String::from_utf8_lossy(&output.stderr)
         );
         fs::write(path.join("README.md"), "# test\n").unwrap();
+        fs::create_dir_all(path.join("docs")).unwrap();
+        fs::write(path.join("docs/verification-status.md"), "# status\n").unwrap();
         Self(path)
     }
 }
@@ -79,20 +81,16 @@ fn rejects_missing_duplicate_or_reversed_markers() {
 }
 
 #[test]
-fn readme_and_status_paths_follow_the_git_root() {
+fn internal_status_path_follows_the_git_root_and_keeps_the_user_readme_separate() {
     let repo = TempRepo::new();
     let nested = repo.0.join("tsrs2");
     let canonical_root = fs::canonicalize(&repo.0).unwrap();
-    let readme = canonical_root.join("README.md");
+    let status = canonical_root.join("docs/verification-status.md");
 
-    assert_eq!(readme_path_for_workspace(&nested).unwrap(), readme);
-    assert_eq!(readme_path_for_workspace(&repo.0).unwrap(), readme);
+    assert_eq!(readme_path_for_workspace(&nested).unwrap(), status);
+    assert_eq!(readme_path_for_workspace(&repo.0).unwrap(), status);
     assert_eq!(
-        repository_relative_display_path(&nested, &nested.join("ratchet.toml")).unwrap(),
-        "tsrs2/ratchet.toml"
-    );
-    assert_eq!(
-        repository_relative_display_path(&repo.0, &repo.0.join("ratchet.toml")).unwrap(),
-        "ratchet.toml"
+        fs::read_to_string(canonical_root.join("README.md")).unwrap(),
+        "# test\n"
     );
 }

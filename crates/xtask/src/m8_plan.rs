@@ -131,8 +131,8 @@ pub(crate) fn draft(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Er
     let raw: Value = read_json(&raw_trace)?;
     validate_raw_trace(&workspace, &raw, &programs, &codes)?;
 
-    let inventory_path = workspace.join("m8-emitter-inventory.json");
-    let dispositions_path = workspace.join("m8-emitter-dispositions.json");
+    let inventory_path = workspace.join("ratchets/m8/m8-emitter-inventory.json");
+    let dispositions_path = workspace.join("ratchets/m8/m8-emitter-dispositions.json");
     let inventory: M8EmitterInventory = read_json(&inventory_path)?;
     validate_d2_inventory(&inventory)?;
     let dispositions: M8EmitterDispositions = read_json(&dispositions_path)?;
@@ -1005,7 +1005,7 @@ fn validate_raw_trace_header(
     }
     for (field, relative) in [
         ("source_sha256", "vendor/typescript-6.0.3/lib/_tsc.js"),
-        ("inventory_sha256", "m8-emitter-inventory.json"),
+        ("inventory_sha256", "ratchets/m8/m8-emitter-inventory.json"),
         ("instrumenter_sha256", "crates/oracle/trace-instrument.mjs"),
         ("driver_sha256", "crates/oracle/trace-driver.mjs"),
         ("oracle_driver_sha256", "crates/oracle/driver.mjs"),
@@ -1357,9 +1357,9 @@ fn checked_inputs(
         raw_trace.to_owned(),
         inventory.to_owned(),
         dispositions.to_owned(),
-        workspace.join("diag-families.json"),
-        workspace.join("m8-scope.json"),
-        workspace.join("ratchet.toml"),
+        workspace.join("ratchets/diag-families.json"),
+        workspace.join("ratchets/m8/m8-scope.json"),
+        workspace.join("ratchets/ratchet.toml"),
         workspace.join(".node-version"),
         workspace.join("vendor/typescript-6.0.3/lib/_tsc.js"),
     ];
@@ -1984,15 +1984,17 @@ fn safe_workspace_path(
     relative: &str,
     what: &str,
 ) -> Result<PathBuf, Box<dyn Error>> {
-    let relative = Path::new(relative);
-    if relative.is_absolute()
-        || relative
+    let path = Path::new(relative);
+    if path.is_absolute()
+        || path
             .components()
             .any(|component| matches!(component, std::path::Component::ParentDir))
     {
         return Err(format!("{what} path must stay inside the workspace").into());
     }
-    Ok(workspace.join(relative))
+    Ok(tsc_conformance::artifact_paths::workspace_path(
+        workspace, relative,
+    ))
 }
 
 fn plan_at(workspace: &Path, commit: &str, path: &Path) -> Result<Value, Box<dyn Error>> {

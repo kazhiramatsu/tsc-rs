@@ -1,0 +1,2609 @@
+{
+  "schema": 1,
+  "kind": "retired-checker-known-native",
+  "proof": "local/audit-checker-known.json",
+  "proof_log_sha256": "aa8c0ee6e795dbd0b1300a715d54d1c106da5d8bfccbf3177ff389a80f9df08b",
+  "retirement_condition": "Every row matched the unchanged complete TypeScript command observation in two independent native executions. The run correctly failed its stale-KNOWN assertion.",
+  "cases": [
+    {
+      "case_id": "typescript-6.0.3/compiler/contextuallyTypedParametersOptionalInJSDoc.ts#default",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "checker (JS): contextual typing of JSDoc optional parameters (TS2345 position/type)",
+      "native": {
+        "kind": "complete",
+        "observation": {
+          "program_source_order": [
+            "/.src/index.js"
+          ],
+          "standard_libraries": [
+            "lib.es6.d.ts",
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.dom.d.ts",
+            "lib.dom.iterable.d.ts",
+            "lib.webworker.importscripts.d.ts",
+            "lib.scripthost.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2018.asynciterable.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts"
+          ],
+          "writes": [],
+          "reported_diagnostics": [
+            {
+              "code": 2345,
+              "category": "Error",
+              "file": "/.src/index.js",
+              "start": 257,
+              "length": 9,
+              "message": "Argument of type 'undefined' is not assignable to parameter of type 'number'.",
+              "related_information": null
+            },
+            {
+              "code": 2345,
+              "category": "Error",
+              "file": "/.src/index.js",
+              "start": 380,
+              "length": 1,
+              "message": "Argument of type 'number | undefined' is not assignable to parameter of type 'number'.\n  Type 'undefined' is not assignable to type 'number'.",
+              "related_information": null
+            }
+          ],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2
+        }
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/deeplyNestedMappedTypes.ts#default",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "checker: mapped-type instantiation depth / type display (TS2322 set)",
+      "native": {
+        "kind": "complete",
+        "observation": {
+          "program_source_order": [
+            "/.src/deeplyNestedMappedTypes.ts"
+          ],
+          "standard_libraries": [
+            "lib.es6.d.ts",
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.dom.d.ts",
+            "lib.dom.iterable.d.ts",
+            "lib.webworker.importscripts.d.ts",
+            "lib.scripthost.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2018.asynciterable.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts"
+          ],
+          "writes": [],
+          "reported_diagnostics": [
+            {
+              "code": 2322,
+              "category": "Error",
+              "file": "/.src/deeplyNestedMappedTypes.ts",
+              "start": 2214,
+              "length": 6,
+              "message": "Type '({} & {} & {} & { level1: {} & {} & {} & { level2: {} & {} & {} & { foo: string; }; }; })[]' is not assignable to type 'T'.\n  '({} & {} & {} & { level1: {} & {} & {} & { level2: {} & {} & {} & { foo: string; }; }; })[]' is assignable to the constraint of type 'T', but 'T' could be instantiated with a different subtype of constraint '({} & {} & {} & { level1: {} & {} & {} & { level2: {} & {} & {} & { foo: string; bar: string; }; }; })[]'.",
+              "related_information": null
+            }
+          ],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2
+        }
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/excessPropertyCheckIntersectionWithRecursiveType.ts#default",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "checker: relatedInformation (6501) elaboration on lib index signature",
+      "native": {
+        "kind": "complete",
+        "observation": {
+          "program_source_order": [
+            "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts"
+          ],
+          "standard_libraries": [
+            "lib.es6.d.ts",
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.dom.d.ts",
+            "lib.dom.iterable.d.ts",
+            "lib.webworker.importscripts.d.ts",
+            "lib.scripthost.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2018.asynciterable.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts"
+          ],
+          "writes": [],
+          "reported_diagnostics": [
+            {
+              "code": 2353,
+              "category": "Error",
+              "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+              "start": 347,
+              "length": 7,
+              "message": "Object literal may only specify known properties, and 'invalid' does not exist in type '{ l2: Schema1<boolean>; }'.",
+              "related_information": [
+                {
+                  "code": 6500,
+                  "category": "Message",
+                  "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+                  "start": 164,
+                  "length": 5,
+                  "message": "The expected type comes from property 'props' which is declared here on type 'Schema1<{ l2: boolean; }>'",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 2353,
+              "category": "Error",
+              "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+              "start": 647,
+              "length": 7,
+              "message": "Object literal may only specify known properties, and 'invalid' does not exist in type '{ l2: ({ type: \"boolean\"; } & Example<false>) | ({ type: \"boolean\"; } & Example<true>); }'.",
+              "related_information": [
+                {
+                  "code": 6500,
+                  "category": "Message",
+                  "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+                  "start": 464,
+                  "length": 5,
+                  "message": "The expected type comes from property 'props' which is declared here on type '{ props: { l2: ({ type: \"boolean\"; } & Example<false>) | ({ type: \"boolean\"; } & Example<true>); }; } & Example<{ l2: boolean; }>'",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 2353,
+              "category": "Error",
+              "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+              "start": 934,
+              "length": 7,
+              "message": "Object literal may only specify known properties, and 'invalid' does not exist in type '{ l2: Schema3<boolean>; }'.",
+              "related_information": [
+                {
+                  "code": 6500,
+                  "category": "Message",
+                  "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+                  "start": 764,
+                  "length": 5,
+                  "message": "The expected type comes from property 'props' which is declared here on type 'Schema3<{ l2: boolean; }>'",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 2353,
+              "category": "Error",
+              "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+              "start": 1234,
+              "length": 7,
+              "message": "Object literal may only specify known properties, and 'invalid' does not exist in type 'Example<{ l2: boolean; }> & { l2: ({ type: \"boolean\"; } & Example<false>) | ({ type: \"boolean\"; } & Example<true>); }'.",
+              "related_information": [
+                {
+                  "code": 6500,
+                  "category": "Message",
+                  "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+                  "start": 1051,
+                  "length": 5,
+                  "message": "The expected type comes from property 'props' which is declared here on type '{ props: Example<{ l2: boolean; }> & { l2: ({ type: \"boolean\"; } & Example<false>) | ({ type: \"boolean\"; } & Example<true>); }; }'",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 2353,
+              "category": "Error",
+              "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+              "start": 1862,
+              "length": 8,
+              "message": "Object literal may only specify known properties, and 'children' does not exist in type 'User'.",
+              "related_information": [
+                {
+                  "code": 6501,
+                  "category": "Message",
+                  "file": "/lib/lib.es5.d.ts",
+                  "start": 70549,
+                  "length": 15,
+                  "message": "The expected type comes from this index signature.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 2339,
+              "category": "Error",
+              "file": "/.src/excessPropertyCheckIntersectionWithRecursiveType.ts",
+              "start": 2136,
+              "length": 8,
+              "message": "Property 'children' does not exist on type 'User'.",
+              "related_information": null
+            }
+          ],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2
+        }
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/genericDefaultsJs.ts#default",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "checker (JS): TS2351 reported for JS generic defaults",
+      "native": {
+        "kind": "complete",
+        "observation": {
+          "program_source_order": [
+            "/.src/decls.d.ts",
+            "/.src/main.js"
+          ],
+          "standard_libraries": [
+            "lib.es6.d.ts",
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.dom.d.ts",
+            "lib.dom.iterable.d.ts",
+            "lib.webworker.importscripts.d.ts",
+            "lib.scripthost.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2018.asynciterable.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts"
+          ],
+          "writes": [],
+          "reported_diagnostics": [
+            {
+              "code": 2351,
+              "category": "Error",
+              "file": "/.src/main.js",
+              "start": 475,
+              "length": 5,
+              "message": "This expression is not constructable.\n  Type 'typeof C0_B0' has no construct signatures.",
+              "related_information": null
+            },
+            {
+              "code": 2351,
+              "category": "Error",
+              "file": "/.src/main.js",
+              "start": 537,
+              "length": 5,
+              "message": "This expression is not constructable.\n  Type 'typeof C0_B0' has no construct signatures.",
+              "related_information": null
+            },
+            {
+              "code": 2351,
+              "category": "Error",
+              "file": "/.src/main.js",
+              "start": 892,
+              "length": 5,
+              "message": "This expression is not constructable.\n  Type 'typeof C1_B0' has no construct signatures.",
+              "related_information": null
+            },
+            {
+              "code": 2351,
+              "category": "Error",
+              "file": "/.src/main.js",
+              "start": 954,
+              "length": 5,
+              "message": "This expression is not constructable.\n  Type 'typeof C1_B0' has no construct signatures.",
+              "related_information": null
+            }
+          ],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2
+        }
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/importNonExportedMember9.ts#default",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "checker: TS2616 vs TS2597 diagnostic choice",
+      "native": {
+        "kind": "complete",
+        "observation": {
+          "program_source_order": [
+            "/.src/a.ts",
+            "/.src/b.js"
+          ],
+          "standard_libraries": [
+            "lib.es6.d.ts",
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.dom.d.ts",
+            "lib.dom.iterable.d.ts",
+            "lib.webworker.importscripts.d.ts",
+            "lib.scripthost.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2018.asynciterable.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts"
+          ],
+          "writes": [],
+          "reported_diagnostics": [
+            {
+              "code": 2616,
+              "category": "Error",
+              "file": "/.src/b.js",
+              "start": 9,
+              "length": 3,
+              "message": "'Foo' can only be imported by using 'import Foo = require(\"./a\")' or a default import.",
+              "related_information": null
+            },
+            {
+              "code": 2497,
+              "category": "Error",
+              "file": "/.src/b.js",
+              "start": 20,
+              "length": 5,
+              "message": "This module can only be referenced with ECMAScript imports/exports by turning on the 'esModuleInterop' flag and referencing its default export.",
+              "related_information": null
+            }
+          ],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2
+        }
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedModulesExportDeclarationType.ts#default",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "checker (isolatedModules): TS2865 sketchy alias local merge",
+      "native": {
+        "kind": "complete",
+        "observation": {
+          "program_source_order": [
+            "/type.ts",
+            "/test1.ts",
+            "/test2.ts",
+            "/test3.ts",
+            "/test4.ts"
+          ],
+          "standard_libraries": [
+            "lib.es6.d.ts",
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.dom.d.ts",
+            "lib.dom.iterable.d.ts",
+            "lib.webworker.importscripts.d.ts",
+            "lib.scripthost.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2018.asynciterable.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts"
+          ],
+          "writes": [
+            {
+              "index": 0,
+              "path": "/type.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCg==",
+              "callback_utf8_bytes": 79,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCg==",
+              "materialized_utf8_bytes": 79,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/type.ts"
+              ],
+              "data_present": true,
+              "data_keys": [
+                "sourceMapUrlPos",
+                "diagnostics"
+              ],
+              "data_source_map_url_pos": null,
+              "data_diagnostics": [],
+              "data_build_info": null
+            },
+            {
+              "index": 1,
+              "path": "/test1.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmNvbnN0IFQgPSAwOyAvLyBFcnJvciBhcyBvZiAjNTYzNTQNCmV4cG9ydHMuZGVmYXVsdCA9IFQ7IC8vIE9rDQo=",
+              "callback_utf8_bytes": 143,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmNvbnN0IFQgPSAwOyAvLyBFcnJvciBhcyBvZiAjNTYzNTQNCmV4cG9ydHMuZGVmYXVsdCA9IFQ7IC8vIE9rDQo=",
+              "materialized_utf8_bytes": 143,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/test1.ts"
+              ],
+              "data_present": true,
+              "data_keys": [
+                "sourceMapUrlPos",
+                "diagnostics"
+              ],
+              "data_source_map_url_pos": null,
+              "data_diagnostics": [],
+              "data_build_info": null
+            },
+            {
+              "index": 2,
+              "path": "/test2.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCg==",
+              "callback_utf8_bytes": 79,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCg==",
+              "materialized_utf8_bytes": 79,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/test2.ts"
+              ],
+              "data_present": true,
+              "data_keys": [
+                "sourceMapUrlPos",
+                "diagnostics"
+              ],
+              "data_source_map_url_pos": null,
+              "data_diagnostics": [],
+              "data_build_info": null
+            },
+            {
+              "index": 3,
+              "path": "/test3.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCg==",
+              "callback_utf8_bytes": 79,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCg==",
+              "materialized_utf8_bytes": 79,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/test3.ts"
+              ],
+              "data_present": true,
+              "data_keys": [
+                "sourceMapUrlPos",
+                "diagnostics"
+              ],
+              "data_source_map_url_pos": null,
+              "data_diagnostics": [],
+              "data_build_info": null
+            },
+            {
+              "index": 4,
+              "path": "/test4.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9faW1wb3J0RGVmYXVsdCA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnREZWZhdWx0KSB8fCBmdW5jdGlvbiAobW9kKSB7DQogICAgcmV0dXJuIChtb2QgJiYgbW9kLl9fZXNNb2R1bGUpID8gbW9kIDogeyAiZGVmYXVsdCI6IG1vZCB9Ow0KfTsNCk9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7DQovLyBAdHMtZXhwZWN0LWVycm9yDQpjb25zdCBkb2VzbnRleGlzdF8xID0gX19pbXBvcnREZWZhdWx0KHJlcXVpcmUoIi4vZG9lc250ZXhpc3QiKSk7DQpleHBvcnRzLmRlZmF1bHQgPSBkb2VzbnRleGlzdF8xLmRlZmF1bHQ7DQo=",
+              "callback_utf8_bytes": 350,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9faW1wb3J0RGVmYXVsdCA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnREZWZhdWx0KSB8fCBmdW5jdGlvbiAobW9kKSB7DQogICAgcmV0dXJuIChtb2QgJiYgbW9kLl9fZXNNb2R1bGUpID8gbW9kIDogeyAiZGVmYXVsdCI6IG1vZCB9Ow0KfTsNCk9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7DQovLyBAdHMtZXhwZWN0LWVycm9yDQpjb25zdCBkb2VzbnRleGlzdF8xID0gX19pbXBvcnREZWZhdWx0KHJlcXVpcmUoIi4vZG9lc250ZXhpc3QiKSk7DQpleHBvcnRzLmRlZmF1bHQgPSBkb2VzbnRleGlzdF8xLmRlZmF1bHQ7DQo=",
+              "materialized_utf8_bytes": 350,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/test4.ts"
+              ],
+              "data_present": true,
+              "data_keys": [
+                "sourceMapUrlPos",
+                "diagnostics"
+              ],
+              "data_source_map_url_pos": null,
+              "data_diagnostics": [],
+              "data_build_info": null
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 2440,
+              "category": "Error",
+              "file": "/test2.ts",
+              "start": 9,
+              "length": 1,
+              "message": "Import declaration conflicts with local declaration of 'T'.",
+              "related_information": null
+            },
+            {
+              "code": 1292,
+              "category": "Error",
+              "file": "/test2.ts",
+              "start": 76,
+              "length": 1,
+              "message": "'T' resolves to a type and must be marked type-only in this file before re-exporting when 'isolatedModules' is enabled. Consider using 'export type { T as default }'.",
+              "related_information": null
+            },
+            {
+              "code": 1292,
+              "category": "Error",
+              "file": "/test3.ts",
+              "start": 43,
+              "length": 1,
+              "message": "'T' resolves to a type and must be marked type-only in this file before re-exporting when 'isolatedModules' is enabled. Consider using 'export type { T as default }'.",
+              "related_information": null
+            }
+          ],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2
+        }
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedModulesExportImportUninstantiatedNamespace.ts#default",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "checker (isolatedModules): TS1269",
+      "native": {
+        "kind": "complete",
+        "observation": {
+          "program_source_order": [
+            "/.src/jsx.ts",
+            "/.src/factory.ts"
+          ],
+          "standard_libraries": [
+            "lib.es6.d.ts",
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.dom.d.ts",
+            "lib.dom.iterable.d.ts",
+            "lib.webworker.importscripts.d.ts",
+            "lib.scripthost.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2018.asynciterable.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts"
+          ],
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/jsx.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "ZXhwb3J0IHt9Ow0K",
+              "callback_utf8_bytes": 12,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "ZXhwb3J0IHt9Ow0K",
+              "materialized_utf8_bytes": 12,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/jsx.ts"
+              ],
+              "data_present": true,
+              "data_keys": [
+                "sourceMapUrlPos",
+                "diagnostics"
+              ],
+              "data_source_map_url_pos": null,
+              "data_diagnostics": [],
+              "data_build_info": null
+            },
+            {
+              "index": 1,
+              "path": "/.src/factory.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "ZXhwb3J0IGZ1bmN0aW9uIGNyZWF0ZUVsZW1lbnQodGFnTmFtZSwgYXR0cmlidXRlcywgLi4uY2hpbGRyZW4pIHsNCiAgICAvLy4uLg0KfQ0K",
+              "callback_utf8_bytes": 81,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "ZXhwb3J0IGZ1bmN0aW9uIGNyZWF0ZUVsZW1lbnQodGFnTmFtZSwgYXR0cmlidXRlcywgLi4uY2hpbGRyZW4pIHsNCiAgICAvLy4uLg0KfQ0K",
+              "materialized_utf8_bytes": 81,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/factory.ts"
+              ],
+              "data_present": true,
+              "data_keys": [
+                "sourceMapUrlPos",
+                "diagnostics"
+              ],
+              "data_source_map_url_pos": null,
+              "data_diagnostics": [],
+              "data_build_info": null
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0
+        }
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedModulesGlobalNamespacesAndEnums.ts#default",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "checker (isolatedModules): global namespace/enum diagnostics",
+      "native": {
+        "kind": "complete",
+        "observation": {
+          "program_source_order": [
+            "/.src/script-namespaces.ts",
+            "/.src/module-namespaces.ts",
+            "/.src/enum1.ts",
+            "/.src/enum2.ts"
+          ],
+          "standard_libraries": [
+            "lib.es6.d.ts",
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.dom.d.ts",
+            "lib.dom.iterable.d.ts",
+            "lib.webworker.importscripts.d.ts",
+            "lib.scripthost.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2018.asynciterable.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts"
+          ],
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/script-namespaces.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEluc3RhbnRpYXRlZDsNCihmdW5jdGlvbiAoSW5zdGFudGlhdGVkKSB7DQogICAgSW5zdGFudGlhdGVkLnggPSAxOw0KfSkoSW5zdGFudGlhdGVkIHx8IChJbnN0YW50aWF0ZWQgPSB7fSkpOw0K",
+              "callback_utf8_bytes": 129,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEluc3RhbnRpYXRlZDsNCihmdW5jdGlvbiAoSW5zdGFudGlhdGVkKSB7DQogICAgSW5zdGFudGlhdGVkLnggPSAxOw0KfSkoSW5zdGFudGlhdGVkIHx8IChJbnN0YW50aWF0ZWQgPSB7fSkpOw0K",
+              "materialized_utf8_bytes": 129,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/script-namespaces.ts"
+              ],
+              "data_present": true,
+              "data_keys": [
+                "sourceMapUrlPos",
+                "diagnostics"
+              ],
+              "data_source_map_url_pos": null,
+              "data_diagnostics": [],
+              "data_build_info": null
+            },
+            {
+              "index": 1,
+              "path": "/.src/module-namespaces.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuSW5zdGFudGlhdGVkID0gdm9pZCAwOw0KdmFyIEluc3RhbnRpYXRlZDsNCihmdW5jdGlvbiAoSW5zdGFudGlhdGVkKSB7DQogICAgSW5zdGFudGlhdGVkLnggPSAxOw0KfSkoSW5zdGFudGlhdGVkIHx8IChleHBvcnRzLkluc3RhbnRpYXRlZCA9IEluc3RhbnRpYXRlZCA9IHt9KSk7DQo=",
+              "callback_utf8_bytes": 248,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuSW5zdGFudGlhdGVkID0gdm9pZCAwOw0KdmFyIEluc3RhbnRpYXRlZDsNCihmdW5jdGlvbiAoSW5zdGFudGlhdGVkKSB7DQogICAgSW5zdGFudGlhdGVkLnggPSAxOw0KfSkoSW5zdGFudGlhdGVkIHx8IChleHBvcnRzLkluc3RhbnRpYXRlZCA9IEluc3RhbnRpYXRlZCA9IHt9KSk7DQo=",
+              "materialized_utf8_bytes": 248,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/module-namespaces.ts"
+              ],
+              "data_present": true,
+              "data_keys": [
+                "sourceMapUrlPos",
+                "diagnostics"
+              ],
+              "data_source_map_url_pos": null,
+              "data_diagnostics": [],
+              "data_build_info": null
+            },
+            {
+              "index": 2,
+              "path": "/.src/enum1.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEVudW07DQooZnVuY3Rpb24gKEVudW0pIHsNCiAgICBFbnVtW0VudW1bIkEiXSA9IDBdID0gIkEiOw0KICAgIEVudW1bRW51bVsiQiJdID0gMV0gPSAiQiI7DQogICAgRW51bVtFbnVtWyJDIl0gPSAyXSA9ICJDIjsNCn0pKEVudW0gfHwgKEVudW0gPSB7fSkpOw0KY29uc3QgZCA9ICdkJzsNCg==",
+              "callback_utf8_bytes": 184,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEVudW07DQooZnVuY3Rpb24gKEVudW0pIHsNCiAgICBFbnVtW0VudW1bIkEiXSA9IDBdID0gIkEiOw0KICAgIEVudW1bRW51bVsiQiJdID0gMV0gPSAiQiI7DQogICAgRW51bVtFbnVtWyJDIl0gPSAyXSA9ICJDIjsNCn0pKEVudW0gfHwgKEVudW0gPSB7fSkpOw0KY29uc3QgZCA9ICdkJzsNCg==",
+              "materialized_utf8_bytes": 184,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/enum1.ts"
+              ],
+              "data_present": true,
+              "data_keys": [
+                "sourceMapUrlPos",
+                "diagnostics"
+              ],
+              "data_source_map_url_pos": null,
+              "data_diagnostics": [],
+              "data_build_info": null
+            },
+            {
+              "index": 3,
+              "path": "/.src/enum2.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEVudW07DQooZnVuY3Rpb24gKEVudW0pIHsNCiAgICBFbnVtWyJEIl0gPSAiZCI7DQogICAgRW51bVtFbnVtWyJFIl0gPSAwXSA9ICJFIjsNCiAgICBFbnVtW0VudW1bIlkiXSA9IDEwMDAwMDBdID0gIlkiOw0KICAgIEVudW1bRW51bVsiWiJdID0gMF0gPSAiWiI7DQp9KShFbnVtIHx8IChFbnVtID0ge30pKTsNCg==",
+              "callback_utf8_bytes": 196,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEVudW07DQooZnVuY3Rpb24gKEVudW0pIHsNCiAgICBFbnVtWyJEIl0gPSAiZCI7DQogICAgRW51bVtFbnVtWyJFIl0gPSAwXSA9ICJFIjsNCiAgICBFbnVtW0VudW1bIlkiXSA9IDEwMDAwMDBdID0gIlkiOw0KICAgIEVudW1bRW51bVsiWiJdID0gMF0gPSAiWiI7DQp9KShFbnVtIHx8IChFbnVtID0ge30pKTsNCg==",
+              "materialized_utf8_bytes": 196,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/enum2.ts"
+              ],
+              "data_present": true,
+              "data_keys": [
+                "sourceMapUrlPos",
+                "diagnostics"
+              ],
+              "data_source_map_url_pos": null,
+              "data_diagnostics": [],
+              "data_build_info": null
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 18055,
+              "category": "Error",
+              "file": "/.src/enum2.ts",
+              "start": 20,
+              "length": 1,
+              "message": "'Enum.D' has a string type, but must have syntactically recognizable string syntax when 'isolatedModules' is enabled.",
+              "related_information": null
+            }
+          ],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2
+        }
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedModulesReExportType.ts#default",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "checker (isolatedModules): TS1269 export import of a type",
+      "native": {
+        "kind": "complete",
+        "observation": {
+          "program_source_order": [
+            "/exportT.ts",
+            "/exportEqualsT.ts",
+            "/exportValue.ts",
+            "/reExportValueAsTypeOnly.ts",
+            "/user.ts"
+          ],
+          "standard_libraries": [
+            "lib.es6.d.ts",
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.dom.d.ts",
+            "lib.dom.iterable.d.ts",
+            "lib.webworker.importscripts.d.ts",
+            "lib.scripthost.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2018.asynciterable.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts"
+          ],
+          "writes": [
+            {
+              "index": 0,
+              "path": "/exportT.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCg==",
+              "callback_utf8_bytes": 79,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCg==",
+              "materialized_utf8_bytes": 79,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/exportT.ts"
+              ],
+              "data_present": true,
+              "data_keys": [
+                "sourceMapUrlPos",
+                "diagnostics"
+              ],
+              "data_source_map_url_pos": null,
+              "data_diagnostics": [],
+              "data_build_info": null
+            },
+            {
+              "index": 1,
+              "path": "/exportEqualsT.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCg==",
+              "callback_utf8_bytes": 79,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCg==",
+              "materialized_utf8_bytes": 79,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/exportEqualsT.ts"
+              ],
+              "data_present": true,
+              "data_keys": [
+                "sourceMapUrlPos",
+                "diagnostics"
+              ],
+              "data_source_map_url_pos": null,
+              "data_diagnostics": [],
+              "data_build_info": null
+            },
+            {
+              "index": 2,
+              "path": "/exportValue.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuQyA9IHZvaWQgMDsNCmNsYXNzIEMgew0KfQ0KZXhwb3J0cy5DID0gQzsNCg==",
+              "callback_utf8_bytes": 130,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuQyA9IHZvaWQgMDsNCmNsYXNzIEMgew0KfQ0KZXhwb3J0cy5DID0gQzsNCg==",
+              "materialized_utf8_bytes": 130,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/exportValue.ts"
+              ],
+              "data_present": true,
+              "data_keys": [
+                "sourceMapUrlPos",
+                "diagnostics"
+              ],
+              "data_source_map_url_pos": null,
+              "data_diagnostics": [],
+              "data_build_info": null
+            },
+            {
+              "index": 3,
+              "path": "/reExportValueAsTypeOnly.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCg==",
+              "callback_utf8_bytes": 79,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCg==",
+              "materialized_utf8_bytes": 79,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/reExportValueAsTypeOnly.ts"
+              ],
+              "data_present": true,
+              "data_keys": [
+                "sourceMapUrlPos",
+                "diagnostics"
+              ],
+              "data_source_map_url_pos": null,
+              "data_diagnostics": [],
+              "data_build_info": null
+            },
+            {
+              "index": 4,
+              "path": "/user.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuTlMgPSBleHBvcnRzLkMgPSB2b2lkIDA7DQovLyBPSywgaGFzIGEgdmFsdWUgc2lkZQ0KdmFyIGV4cG9ydFZhbHVlXzEgPSByZXF1aXJlKCIuL2V4cG9ydFZhbHVlIik7DQpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIkMiLCB7IGVudW1lcmFibGU6IHRydWUsIGdldDogZnVuY3Rpb24gKCkgeyByZXR1cm4gZXhwb3J0VmFsdWVfMS5DOyB9IH0pOw0KLy8gT0ssIGV2ZW4gdGhvdWdoIHRoZSBuYW1lc3BhY2UgaXQgZXhwb3J0cyBpcyBvbmx5IHR5cGVzLg0KY29uc3QgTlMgPSBfX2ltcG9ydFN0YXIocmVxdWlyZSgiLi9leHBvcnRUIikpOw0KZXhwb3J0cy5OUyA9IE5TOw0K",
+              "callback_utf8_bytes": 1809,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuTlMgPSBleHBvcnRzLkMgPSB2b2lkIDA7DQovLyBPSywgaGFzIGEgdmFsdWUgc2lkZQ0KdmFyIGV4cG9ydFZhbHVlXzEgPSByZXF1aXJlKCIuL2V4cG9ydFZhbHVlIik7DQpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIkMiLCB7IGVudW1lcmFibGU6IHRydWUsIGdldDogZnVuY3Rpb24gKCkgeyByZXR1cm4gZXhwb3J0VmFsdWVfMS5DOyB9IH0pOw0KLy8gT0ssIGV2ZW4gdGhvdWdoIHRoZSBuYW1lc3BhY2UgaXQgZXhwb3J0cyBpcyBvbmx5IHR5cGVzLg0KY29uc3QgTlMgPSBfX2ltcG9ydFN0YXIocmVxdWlyZSgiLi9leHBvcnRUIikpOw0KZXhwb3J0cy5OUyA9IE5TOw0K",
+              "materialized_utf8_bytes": 1809,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/user.ts"
+              ],
+              "data_present": true,
+              "data_keys": [
+                "sourceMapUrlPos",
+                "diagnostics"
+              ],
+              "data_source_map_url_pos": null,
+              "data_diagnostics": [],
+              "data_build_info": null
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 1205,
+              "category": "Error",
+              "file": "/user.ts",
+              "start": 65,
+              "length": 1,
+              "message": "Re-exporting a type when 'isolatedModules' is enabled requires using 'export type'.",
+              "related_information": null
+            },
+            {
+              "code": 1205,
+              "category": "Error",
+              "file": "/user.ts",
+              "start": 493,
+              "length": 7,
+              "message": "Re-exporting a type when 'isolatedModules' is enabled requires using 'export type'.",
+              "related_information": null
+            },
+            {
+              "code": 1448,
+              "category": "Error",
+              "file": "/user.ts",
+              "start": 746,
+              "length": 2,
+              "message": "'CC' resolves to a type-only declaration and must be re-exported using a type-only re-export when 'isolatedModules' is enabled.",
+              "related_information": [
+                {
+                  "code": 1377,
+                  "category": "Message",
+                  "file": "/reExportValueAsTypeOnly.ts",
+                  "start": 14,
+                  "length": 1,
+                  "message": "'CC' was exported here.",
+                  "related_information": null
+                }
+              ]
+            }
+          ],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2
+        }
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedModulesShadowGlobalTypeNotValue.ts#isolatedmodules%3Dtrue%2Cverbatimmodulesyntax%3Dfalse",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "checker (isolatedModules): TS2866",
+      "native": {
+        "kind": "complete",
+        "observation": {
+          "program_source_order": [
+            "/.src/types.ts",
+            "/.src/node.d.ts",
+            "/.src/bad.ts",
+            "/.src/good.ts"
+          ],
+          "standard_libraries": [
+            "lib.es6.d.ts",
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.dom.d.ts",
+            "lib.dom.iterable.d.ts",
+            "lib.webworker.importscripts.d.ts",
+            "lib.scripthost.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2018.asynciterable.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts"
+          ],
+          "writes": [],
+          "reported_diagnostics": [],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0
+        }
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedModulesShadowGlobalTypeNotValue.ts#isolatedmodules%3Dtrue%2Cverbatimmodulesyntax%3Dtrue",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "checker (isolatedModules): TS2866",
+      "native": {
+        "kind": "complete",
+        "observation": {
+          "program_source_order": [
+            "/.src/types.ts",
+            "/.src/node.d.ts",
+            "/.src/bad.ts",
+            "/.src/good.ts"
+          ],
+          "standard_libraries": [
+            "lib.es6.d.ts",
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.dom.d.ts",
+            "lib.dom.iterable.d.ts",
+            "lib.webworker.importscripts.d.ts",
+            "lib.scripthost.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2018.asynciterable.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts"
+          ],
+          "writes": [],
+          "reported_diagnostics": [
+            {
+              "code": 1295,
+              "category": "Error",
+              "file": "/.src/bad.ts",
+              "start": 9,
+              "length": 4,
+              "message": "ECMAScript imports and exports cannot be written in a CommonJS file under 'verbatimModuleSyntax'. Adjust the 'type' field in the nearest 'package.json' to make this file an ECMAScript module, or adjust your 'verbatimModuleSyntax', 'module', and 'moduleResolution' settings in TypeScript.",
+              "related_information": null
+            },
+            {
+              "code": 1484,
+              "category": "Error",
+              "file": "/.src/bad.ts",
+              "start": 9,
+              "length": 4,
+              "message": "'Date' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.",
+              "related_information": null
+            },
+            {
+              "code": 1295,
+              "category": "Error",
+              "file": "/.src/bad.ts",
+              "start": 15,
+              "length": 5,
+              "message": "ECMAScript imports and exports cannot be written in a CommonJS file under 'verbatimModuleSyntax'. Adjust the 'type' field in the nearest 'package.json' to make this file an ECMAScript module, or adjust your 'verbatimModuleSyntax', 'module', and 'moduleResolution' settings in TypeScript.",
+              "related_information": null
+            },
+            {
+              "code": 1484,
+              "category": "Error",
+              "file": "/.src/bad.ts",
+              "start": 15,
+              "length": 5,
+              "message": "'Event' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.",
+              "related_information": null
+            },
+            {
+              "code": 1295,
+              "category": "Error",
+              "file": "/.src/good.ts",
+              "start": 53,
+              "length": 7,
+              "message": "ECMAScript imports and exports cannot be written in a CommonJS file under 'verbatimModuleSyntax'. Adjust the 'type' field in the nearest 'package.json' to make this file an ECMAScript module, or adjust your 'verbatimModuleSyntax', 'module', and 'moduleResolution' settings in TypeScript.",
+              "related_information": null
+            }
+          ],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2
+        }
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedModulesSketchyAliasLocalMerge.ts#isolatedmodules%3Dtrue%2Cverbatimmodulesyntax%3Dfalse",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "checker (isolatedModules): TS2865",
+      "native": {
+        "kind": "complete",
+        "observation": {
+          "program_source_order": [
+            "/.src/types.ts",
+            "/.src/bad.ts",
+            "/.src/good.ts"
+          ],
+          "standard_libraries": [
+            "lib.es6.d.ts",
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.dom.d.ts",
+            "lib.dom.iterable.d.ts",
+            "lib.webworker.importscripts.d.ts",
+            "lib.scripthost.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2018.asynciterable.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts"
+          ],
+          "writes": [],
+          "reported_diagnostics": [],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0
+        }
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedModulesSketchyAliasLocalMerge.ts#isolatedmodules%3Dtrue%2Cverbatimmodulesyntax%3Dtrue",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "checker (isolatedModules): TS2865",
+      "native": {
+        "kind": "complete",
+        "observation": {
+          "program_source_order": [
+            "/.src/types.ts",
+            "/.src/bad.ts",
+            "/.src/good.ts"
+          ],
+          "standard_libraries": [
+            "lib.es6.d.ts",
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.dom.d.ts",
+            "lib.dom.iterable.d.ts",
+            "lib.webworker.importscripts.d.ts",
+            "lib.scripthost.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2018.asynciterable.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts"
+          ],
+          "writes": [],
+          "reported_diagnostics": [
+            {
+              "code": 1295,
+              "category": "Error",
+              "file": "/.src/bad.ts",
+              "start": 9,
+              "length": 2,
+              "message": "ECMAScript imports and exports cannot be written in a CommonJS file under 'verbatimModuleSyntax'. Adjust the 'type' field in the nearest 'package.json' to make this file an ECMAScript module, or adjust your 'verbatimModuleSyntax', 'module', and 'moduleResolution' settings in TypeScript.",
+              "related_information": null
+            },
+            {
+              "code": 1484,
+              "category": "Error",
+              "file": "/.src/bad.ts",
+              "start": 9,
+              "length": 2,
+              "message": "'FC' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.",
+              "related_information": null
+            }
+          ],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2
+        }
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsExportMemberMergedWithModuleAugmentation2.ts#default",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "checker (JS): TS2300 duplicate identifier across module augmentation",
+      "native": {
+        "kind": "complete",
+        "observation": {
+          "program_source_order": [
+            "/test.js",
+            "/index.ts"
+          ],
+          "standard_libraries": [
+            "lib.es6.d.ts",
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.dom.d.ts",
+            "lib.dom.iterable.d.ts",
+            "lib.webworker.importscripts.d.ts",
+            "lib.scripthost.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2018.asynciterable.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts"
+          ],
+          "writes": [],
+          "reported_diagnostics": [
+            {
+              "code": 2551,
+              "category": "Error",
+              "file": "/index.ts",
+              "start": 86,
+              "length": 7,
+              "message": "Property 'toFixed' does not exist on type 'string'. Did you mean 'fixed'?",
+              "related_information": [
+                {
+                  "code": 2728,
+                  "category": "Message",
+                  "file": "/lib/lib.es2015.core.d.ts",
+                  "start": 18973,
+                  "length": 16,
+                  "message": "'fixed' is declared here.",
+                  "related_information": null
+                }
+              ]
+            }
+          ],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2
+        }
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsExtendsImplicitAny.ts#default",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "checker (JS): TS2351 reported for JS class heritage",
+      "native": {
+        "kind": "complete",
+        "observation": {
+          "program_source_order": [
+            "/a.d.ts",
+            "/b.js"
+          ],
+          "standard_libraries": [
+            "lib.es6.d.ts",
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.dom.d.ts",
+            "lib.dom.iterable.d.ts",
+            "lib.webworker.importscripts.d.ts",
+            "lib.scripthost.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2018.asynciterable.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts"
+          ],
+          "writes": [],
+          "reported_diagnostics": [
+            {
+              "code": 8026,
+              "category": "Error",
+              "file": "/b.js",
+              "start": 16,
+              "length": 1,
+              "message": "Expected A<T> type arguments; provide these with an '@extends' tag.",
+              "related_information": null
+            },
+            {
+              "code": 2351,
+              "category": "Error",
+              "file": "/b.js",
+              "start": 25,
+              "length": 1,
+              "message": "This expression is not constructable.\n  Type 'typeof B' has no construct signatures.",
+              "related_information": null
+            },
+            {
+              "code": 2314,
+              "category": "Error",
+              "file": "/b.js",
+              "start": 47,
+              "length": 1,
+              "message": "Generic type 'A<T>' requires 1 type argument(s).",
+              "related_information": null
+            },
+            {
+              "code": 2351,
+              "category": "Error",
+              "file": "/b.js",
+              "start": 78,
+              "length": 1,
+              "message": "This expression is not constructable.\n  Type 'typeof C' has no construct signatures.",
+              "related_information": null
+            },
+            {
+              "code": 2314,
+              "category": "Error",
+              "file": "/b.js",
+              "start": 100,
+              "length": 25,
+              "message": "Generic type 'A<T>' requires 1 type argument(s).",
+              "related_information": null
+            },
+            {
+              "code": 2351,
+              "category": "Error",
+              "file": "/b.js",
+              "start": 154,
+              "length": 1,
+              "message": "This expression is not constructable.\n  Type 'typeof D' has no construct signatures.",
+              "related_information": null
+            }
+          ],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2
+        }
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsFileCompilationConstructorOverloadSyntax.ts#default",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "checker (JS): diagnostic span length",
+      "native": {
+        "kind": "complete",
+        "observation": {
+          "program_source_order": [
+            "/.src/a.js"
+          ],
+          "standard_libraries": [
+            "lib.es6.d.ts",
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.dom.d.ts",
+            "lib.dom.iterable.d.ts",
+            "lib.webworker.importscripts.d.ts",
+            "lib.scripthost.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2018.asynciterable.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts"
+          ],
+          "writes": [],
+          "reported_diagnostics": [
+            {
+              "code": 8017,
+              "category": "Error",
+              "file": "/.src/a.js",
+              "start": 12,
+              "length": 14,
+              "message": "Signature declarations can only be used in TypeScript files.",
+              "related_information": null
+            }
+          ],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2
+        }
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsdocArrayObjectPromiseNoImplicitAny.ts#default",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "checker (JS): relatedInformation (6500) elaboration on lib property",
+      "native": {
+        "kind": "complete",
+        "observation": {
+          "program_source_order": [
+            "/.src/jsdocArrayObjectPromiseNoImplicitAny.js"
+          ],
+          "standard_libraries": [
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts"
+          ],
+          "writes": [],
+          "reported_diagnostics": [
+            {
+              "code": 2314,
+              "category": "Error",
+              "file": "/.src/jsdocArrayObjectPromiseNoImplicitAny.js",
+              "start": 11,
+              "length": 5,
+              "message": "Generic type 'Array<T>' requires 1 type argument(s).",
+              "related_information": null
+            },
+            {
+              "code": 2314,
+              "category": "Error",
+              "file": "/.src/jsdocArrayObjectPromiseNoImplicitAny.js",
+              "start": 113,
+              "length": 5,
+              "message": "Generic type 'Array<T>' requires 1 type argument(s).",
+              "related_information": null
+            },
+            {
+              "code": 2314,
+              "category": "Error",
+              "file": "/.src/jsdocArrayObjectPromiseNoImplicitAny.js",
+              "start": 136,
+              "length": 5,
+              "message": "Generic type 'Array<T>' requires 1 type argument(s).",
+              "related_information": null
+            },
+            {
+              "code": 2314,
+              "category": "Error",
+              "file": "/.src/jsdocArrayObjectPromiseNoImplicitAny.js",
+              "start": 209,
+              "length": 7,
+              "message": "Generic type 'Promise<T>' requires 1 type argument(s).",
+              "related_information": null
+            },
+            {
+              "code": 2314,
+              "category": "Error",
+              "file": "/.src/jsdocArrayObjectPromiseNoImplicitAny.js",
+              "start": 349,
+              "length": 7,
+              "message": "Generic type 'Promise<T>' requires 1 type argument(s).",
+              "related_information": null
+            },
+            {
+              "code": 2314,
+              "category": "Error",
+              "file": "/.src/jsdocArrayObjectPromiseNoImplicitAny.js",
+              "start": 373,
+              "length": 7,
+              "message": "Generic type 'Promise<T>' requires 1 type argument(s).",
+              "related_information": null
+            },
+            {
+              "code": 2322,
+              "category": "Error",
+              "file": "/.src/jsdocArrayObjectPromiseNoImplicitAny.js",
+              "start": 479,
+              "length": 7,
+              "message": "Type 'number' is not assignable to type '() => Object'.",
+              "related_information": [
+                {
+                  "code": 6500,
+                  "category": "Message",
+                  "file": "/lib/lib.es5.d.ts",
+                  "start": 4412,
+                  "length": 18,
+                  "message": "The expected type comes from property 'valueOf' which is declared here on type 'Object'",
+                  "related_information": null
+                }
+              ]
+            }
+          ],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2
+        }
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsdocTypedefBeforeParenthesizedExpression.ts#default",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "checker (JS): spurious TS2300 for a JSDoc typedef",
+      "native": {
+        "kind": "complete",
+        "observation": {
+          "program_source_order": [
+            "/.src/test.js"
+          ],
+          "standard_libraries": [
+            "lib.es6.d.ts",
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.dom.d.ts",
+            "lib.dom.iterable.d.ts",
+            "lib.webworker.importscripts.d.ts",
+            "lib.scripthost.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2018.asynciterable.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts"
+          ],
+          "writes": [],
+          "reported_diagnostics": [
+            {
+              "code": 2300,
+              "category": "Error",
+              "file": "/.src/test.js",
+              "start": 95,
+              "length": 17,
+              "message": "Duplicate identifier 'AlsoNotADuplicate'.",
+              "related_information": null
+            }
+          ],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2
+        }
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/mappedArrayTupleIntersections.ts#default",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "checker: spurious diagnostic on mapped tuple intersection",
+      "native": {
+        "kind": "complete",
+        "observation": {
+          "program_source_order": [
+            "/.src/mappedArrayTupleIntersections.ts"
+          ],
+          "standard_libraries": [
+            "lib.es6.d.ts",
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.dom.d.ts",
+            "lib.dom.iterable.d.ts",
+            "lib.webworker.importscripts.d.ts",
+            "lib.scripthost.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2018.asynciterable.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts"
+          ],
+          "writes": [],
+          "reported_diagnostics": [
+            {
+              "code": 2344,
+              "category": "Error",
+              "file": "/.src/mappedArrayTupleIntersections.ts",
+              "start": 435,
+              "length": 21,
+              "message": "Type '{ [I in keyof T]: 1; }' does not satisfy the constraint 'any[]'.\n  Types of property 'toString' are incompatible.\n    Type 'number' is not assignable to type '() => string'.",
+              "related_information": null
+            }
+          ],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2
+        }
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/recursiveConditionalCrash4.ts#default",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "checker: missing TS2589 (excessive instantiation depth)",
+      "native": {
+        "kind": "complete",
+        "observation": {
+          "program_source_order": [
+            "/.src/recursiveConditionalCrash4.ts"
+          ],
+          "standard_libraries": [
+            "lib.es6.d.ts",
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.dom.d.ts",
+            "lib.dom.iterable.d.ts",
+            "lib.webworker.importscripts.d.ts",
+            "lib.scripthost.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2018.asynciterable.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts"
+          ],
+          "writes": [],
+          "reported_diagnostics": [
+            {
+              "code": 2503,
+              "category": "Error",
+              "file": "/.src/recursiveConditionalCrash4.ts",
+              "start": 116,
+              "length": 7,
+              "message": "Cannot find namespace 'StrIter'.",
+              "related_information": null
+            },
+            {
+              "code": 2503,
+              "category": "Error",
+              "file": "/.src/recursiveConditionalCrash4.ts",
+              "start": 137,
+              "length": 7,
+              "message": "Cannot find namespace 'StrIter'.",
+              "related_information": null
+            },
+            {
+              "code": 2304,
+              "category": "Error",
+              "file": "/.src/recursiveConditionalCrash4.ts",
+              "start": 209,
+              "length": 3,
+              "message": "Cannot find name 'Add'.",
+              "related_information": null
+            },
+            {
+              "code": 2503,
+              "category": "Error",
+              "file": "/.src/recursiveConditionalCrash4.ts",
+              "start": 221,
+              "length": 7,
+              "message": "Cannot find namespace 'StrIter'.",
+              "related_information": null
+            },
+            {
+              "code": 2503,
+              "category": "Error",
+              "file": "/.src/recursiveConditionalCrash4.ts",
+              "start": 275,
+              "length": 7,
+              "message": "Cannot find namespace 'StrIter'.",
+              "related_information": null
+            },
+            {
+              "code": 2589,
+              "category": "Error",
+              "file": "/.src/recursiveConditionalCrash4.ts",
+              "start": 394,
+              "length": 12,
+              "message": "Type instantiation is excessively deep and possibly infinite.",
+              "related_information": null
+            }
+          ],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2
+        }
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/tslibMultipleMissingHelper.ts#default",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "checker: TS2343 missing tslib helpers",
+      "native": {
+        "kind": "complete",
+        "observation": {
+          "program_source_order": [
+            "/package1/node_modules/tslib/tslib.d.ts",
+            "/package1/index.ts",
+            "/package1/other.ts",
+            "/package2/node_modules/tslib/tslib.d.ts",
+            "/package2/index.ts"
+          ],
+          "standard_libraries": [
+            "lib.es6.d.ts",
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.dom.d.ts",
+            "lib.dom.iterable.d.ts",
+            "lib.webworker.importscripts.d.ts",
+            "lib.scripthost.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2018.asynciterable.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts"
+          ],
+          "writes": [
+            {
+              "index": 0,
+              "path": "/package1/index.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmNvbnN0IHRzbGliXzEgPSByZXF1aXJlKCJ0c2xpYiIpOw0KZnVuY3Rpb24gZm9vKCkgew0KICAgIHJldHVybiB0c2xpYl8xLl9fYXdhaXRlcih0aGlzLCB2b2lkIDAsIHZvaWQgMCwgZnVuY3Rpb24qICgpIHsgfSk7DQp9DQpmdW5jdGlvbiBiYXIoKSB7DQogICAgcmV0dXJuIHRzbGliXzEuX19hd2FpdGVyKHRoaXMsIHZvaWQgMCwgdm9pZCAwLCBmdW5jdGlvbiogKCkgeyB9KTsNCn0NCg==",
+              "callback_utf8_bytes": 298,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmNvbnN0IHRzbGliXzEgPSByZXF1aXJlKCJ0c2xpYiIpOw0KZnVuY3Rpb24gZm9vKCkgew0KICAgIHJldHVybiB0c2xpYl8xLl9fYXdhaXRlcih0aGlzLCB2b2lkIDAsIHZvaWQgMCwgZnVuY3Rpb24qICgpIHsgfSk7DQp9DQpmdW5jdGlvbiBiYXIoKSB7DQogICAgcmV0dXJuIHRzbGliXzEuX19hd2FpdGVyKHRoaXMsIHZvaWQgMCwgdm9pZCAwLCBmdW5jdGlvbiogKCkgeyB9KTsNCn0NCg==",
+              "materialized_utf8_bytes": 298,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/package1/index.ts"
+              ],
+              "data_present": true,
+              "data_keys": [
+                "sourceMapUrlPos",
+                "diagnostics"
+              ],
+              "data_source_map_url_pos": null,
+              "data_diagnostics": [],
+              "data_build_info": null
+            },
+            {
+              "index": 1,
+              "path": "/package1/other.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMubm9vcCA9IG5vb3A7DQpleHBvcnRzLnNwcmVhZCA9IHNwcmVhZDsNCmNvbnN0IHRzbGliXzEgPSByZXF1aXJlKCJ0c2xpYiIpOw0KZnVuY3Rpb24gbm9vcCgpIHsNCiAgICByZXR1cm4gdHNsaWJfMS5fX2F3YWl0ZXIodGhpcywgdm9pZCAwLCB2b2lkIDAsIGZ1bmN0aW9uKiAoKSB7IH0pOw0KfQ0KZnVuY3Rpb24gc3ByZWFkKF9hKSB7DQogICAgdmFyIHsgYSB9ID0gX2EsIHJlc3QgPSB0c2xpYl8xLl9fcmVzdChfYSwgWyJhIl0pOw0KICAgIHJldHVybiBPYmplY3QuYXNzaWduKHsgYzogImMiIH0sIHJlc3QpOw0KfQ0K",
+              "callback_utf8_bytes": 381,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMubm9vcCA9IG5vb3A7DQpleHBvcnRzLnNwcmVhZCA9IHNwcmVhZDsNCmNvbnN0IHRzbGliXzEgPSByZXF1aXJlKCJ0c2xpYiIpOw0KZnVuY3Rpb24gbm9vcCgpIHsNCiAgICByZXR1cm4gdHNsaWJfMS5fX2F3YWl0ZXIodGhpcywgdm9pZCAwLCB2b2lkIDAsIGZ1bmN0aW9uKiAoKSB7IH0pOw0KfQ0KZnVuY3Rpb24gc3ByZWFkKF9hKSB7DQogICAgdmFyIHsgYSB9ID0gX2EsIHJlc3QgPSB0c2xpYl8xLl9fcmVzdChfYSwgWyJhIl0pOw0KICAgIHJldHVybiBPYmplY3QuYXNzaWduKHsgYzogImMiIH0sIHJlc3QpOw0KfQ0K",
+              "materialized_utf8_bytes": 381,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/package1/other.ts"
+              ],
+              "data_present": true,
+              "data_keys": [
+                "sourceMapUrlPos",
+                "diagnostics"
+              ],
+              "data_source_map_url_pos": null,
+              "data_diagnostics": [],
+              "data_build_info": null
+            },
+            {
+              "index": 2,
+              "path": "/package2/index.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmNvbnN0IHRzbGliXzEgPSByZXF1aXJlKCJ0c2xpYiIpOw0KZnVuY3Rpb24gZm9vKCkgew0KICAgIHJldHVybiB0c2xpYl8xLl9fYXdhaXRlcih0aGlzLCB2b2lkIDAsIHZvaWQgMCwgZnVuY3Rpb24qICgpIHsgfSk7DQp9DQo=",
+              "callback_utf8_bytes": 206,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmNvbnN0IHRzbGliXzEgPSByZXF1aXJlKCJ0c2xpYiIpOw0KZnVuY3Rpb24gZm9vKCkgew0KICAgIHJldHVybiB0c2xpYl8xLl9fYXdhaXRlcih0aGlzLCB2b2lkIDAsIHZvaWQgMCwgZnVuY3Rpb24qICgpIHsgfSk7DQp9DQo=",
+              "materialized_utf8_bytes": 206,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/package2/index.ts"
+              ],
+              "data_present": true,
+              "data_keys": [
+                "sourceMapUrlPos",
+                "diagnostics"
+              ],
+              "data_source_map_url_pos": null,
+              "data_diagnostics": [],
+              "data_build_info": null
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 2343,
+              "category": "Error",
+              "file": "/package1/index.ts",
+              "start": 26,
+              "length": 3,
+              "message": "This syntax requires an imported helper named '__awaiter' which does not exist in 'tslib'. Consider upgrading your version of 'tslib'.",
+              "related_information": null
+            },
+            {
+              "code": 2343,
+              "category": "Error",
+              "file": "/package2/index.ts",
+              "start": 26,
+              "length": 3,
+              "message": "This syntax requires an imported helper named '__awaiter' which does not exist in 'tslib'. Consider upgrading your version of 'tslib'.",
+              "related_information": null
+            }
+          ],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2
+        }
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/tslibReExportHelpers2.ts#default",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "checker: TS2343 for a helper re-exported through an ESM tslib entry",
+      "native": {
+        "kind": "complete",
+        "observation": {
+          "program_source_order": [
+            "/node_modules/tslib/index.d.ts",
+            "/node_modules/tslib/index.d.mts",
+            "/index.mts"
+          ],
+          "standard_libraries": [
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.es2016.d.ts",
+            "lib.es2017.d.ts",
+            "lib.es2018.d.ts",
+            "lib.es2019.d.ts",
+            "lib.es2020.d.ts",
+            "lib.es2021.d.ts",
+            "lib.dom.d.ts",
+            "lib.dom.iterable.d.ts",
+            "lib.dom.asynciterable.d.ts",
+            "lib.webworker.importscripts.d.ts",
+            "lib.scripthost.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2016.array.include.d.ts",
+            "lib.es2016.intl.d.ts",
+            "lib.es2017.arraybuffer.d.ts",
+            "lib.es2017.date.d.ts",
+            "lib.es2017.object.d.ts",
+            "lib.es2017.sharedmemory.d.ts",
+            "lib.es2017.string.d.ts",
+            "lib.es2017.intl.d.ts",
+            "lib.es2017.typedarrays.d.ts",
+            "lib.es2018.asyncgenerator.d.ts",
+            "lib.es2018.asynciterable.d.ts",
+            "lib.es2018.intl.d.ts",
+            "lib.es2018.promise.d.ts",
+            "lib.es2018.regexp.d.ts",
+            "lib.es2019.array.d.ts",
+            "lib.es2019.object.d.ts",
+            "lib.es2019.string.d.ts",
+            "lib.es2019.symbol.d.ts",
+            "lib.es2019.intl.d.ts",
+            "lib.es2020.bigint.d.ts",
+            "lib.es2020.date.d.ts",
+            "lib.es2020.promise.d.ts",
+            "lib.es2020.sharedmemory.d.ts",
+            "lib.es2020.string.d.ts",
+            "lib.es2020.symbol.wellknown.d.ts",
+            "lib.es2020.intl.d.ts",
+            "lib.es2020.number.d.ts",
+            "lib.es2021.promise.d.ts",
+            "lib.es2021.string.d.ts",
+            "lib.es2021.weakref.d.ts",
+            "lib.es2021.intl.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts",
+            "lib.es2021.full.d.ts"
+          ],
+          "writes": [
+            {
+              "index": 0,
+              "path": "/index.mjs",
+              "kind": "javascript",
+              "callback_utf8_base64": "dmFyIF9hLCBfRm9vX3Rlc3Q7DQppbXBvcnQgeyBfX2NsYXNzUHJpdmF0ZUZpZWxkR2V0IH0gZnJvbSAidHNsaWIiOw0KZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgY29uc3RydWN0b3IoKSB7DQogICAgICAgIGNvbnNvbGUubG9nKF9fY2xhc3NQcml2YXRlRmllbGRHZXQoX2EsIF9hLCAibSIsIF9Gb29fdGVzdCkuY2FsbChfYSkpOw0KICAgIH0NCn0NCl9hID0gRm9vLCBfRm9vX3Rlc3QgPSBmdW5jdGlvbiBfRm9vX3Rlc3QoKSB7DQogICAgcmV0dXJuICdzdWNjZXNzJzsNCn07DQo=",
+              "callback_utf8_bytes": 272,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "dmFyIF9hLCBfRm9vX3Rlc3Q7DQppbXBvcnQgeyBfX2NsYXNzUHJpdmF0ZUZpZWxkR2V0IH0gZnJvbSAidHNsaWIiOw0KZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgY29uc3RydWN0b3IoKSB7DQogICAgICAgIGNvbnNvbGUubG9nKF9fY2xhc3NQcml2YXRlRmllbGRHZXQoX2EsIF9hLCAibSIsIF9Gb29fdGVzdCkuY2FsbChfYSkpOw0KICAgIH0NCn0NCl9hID0gRm9vLCBfRm9vX3Rlc3QgPSBmdW5jdGlvbiBfRm9vX3Rlc3QoKSB7DQogICAgcmV0dXJuICdzdWNjZXNzJzsNCn07DQo=",
+              "materialized_utf8_bytes": 272,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/index.mts"
+              ],
+              "data_present": true,
+              "data_keys": [
+                "sourceMapUrlPos",
+                "diagnostics"
+              ],
+              "data_source_map_url_pos": null,
+              "data_diagnostics": [],
+              "data_build_info": null
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 2343,
+              "category": "Error",
+              "file": "/index.mts",
+              "start": 53,
+              "length": 9,
+              "message": "This syntax requires an imported helper named '__classPrivateFieldGet' which does not exist in 'tslib'. Consider upgrading your version of 'tslib'.",
+              "related_information": null
+            }
+          ],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2
+        }
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/expressions/typeSatisfaction/typeSatisfaction_errorLocations1.ts#default",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "checker: relatedInformation (6500) elaboration on lib property",
+      "native": {
+        "kind": "complete",
+        "observation": {
+          "program_source_order": [
+            "/.src/typeSatisfaction_errorLocations1.ts"
+          ],
+          "standard_libraries": [
+            "lib.es6.d.ts",
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.dom.d.ts",
+            "lib.dom.iterable.d.ts",
+            "lib.webworker.importscripts.d.ts",
+            "lib.scripthost.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2018.asynciterable.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts"
+          ],
+          "writes": [],
+          "reported_diagnostics": [
+            {
+              "code": 2345,
+              "category": "Error",
+              "file": "/.src/typeSatisfaction_errorLocations1.ts",
+              "start": 64,
+              "length": 2,
+              "message": "Argument of type '{}' is not assignable to parameter of type '{ a: true; }'.\n  Property 'a' is missing in type '{}' but required in type '{ a: true; }'.",
+              "related_information": [
+                {
+                  "code": 2728,
+                  "category": "Message",
+                  "file": "/.src/typeSatisfaction_errorLocations1.ts",
+                  "start": 42,
+                  "length": 1,
+                  "message": "'a' is declared here.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 2322,
+              "category": "Error",
+              "file": "/.src/typeSatisfaction_errorLocations1.ts",
+              "start": 93,
+              "length": 1,
+              "message": "Type 'number' is not assignable to type 'true'.",
+              "related_information": [
+                {
+                  "code": 6500,
+                  "category": "Message",
+                  "file": "/.src/typeSatisfaction_errorLocations1.ts",
+                  "start": 42,
+                  "length": 1,
+                  "message": "The expected type comes from property 'a' which is declared here on type '{ a: true; }'",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 2345,
+              "category": "Error",
+              "file": "/.src/typeSatisfaction_errorLocations1.ts",
+              "start": 124,
+              "length": 4,
+              "message": "Argument of type '{ a: number; }' is not assignable to parameter of type '{ a: true; }'.\n  Types of property 'a' are incompatible.\n    Type 'number' is not assignable to type 'true'.",
+              "related_information": null
+            },
+            {
+              "code": 2345,
+              "category": "Error",
+              "file": "/.src/typeSatisfaction_errorLocations1.ts",
+              "start": 207,
+              "length": 2,
+              "message": "Argument of type '{}' is not assignable to parameter of type '{ a: true; }'.\n  Property 'a' is missing in type '{}' but required in type '{ a: true; }'.",
+              "related_information": [
+                {
+                  "code": 2728,
+                  "category": "Message",
+                  "file": "/.src/typeSatisfaction_errorLocations1.ts",
+                  "start": 182,
+                  "length": 1,
+                  "message": "'a' is declared here.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 2322,
+              "category": "Error",
+              "file": "/.src/typeSatisfaction_errorLocations1.ts",
+              "start": 241,
+              "length": 1,
+              "message": "Type 'number' is not assignable to type 'true'.",
+              "related_information": [
+                {
+                  "code": 6500,
+                  "category": "Message",
+                  "file": "/.src/typeSatisfaction_errorLocations1.ts",
+                  "start": 182,
+                  "length": 1,
+                  "message": "The expected type comes from property 'a' which is declared here on type '{ a: true; }'",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 2345,
+              "category": "Error",
+              "file": "/.src/typeSatisfaction_errorLocations1.ts",
+              "start": 277,
+              "length": 4,
+              "message": "Argument of type '{ a: number; }' is not assignable to parameter of type '{ a: true; }'.\n  Types of property 'a' are incompatible.\n    Type 'number' is not assignable to type 'true'.",
+              "related_information": null
+            },
+            {
+              "code": 2345,
+              "category": "Error",
+              "file": "/.src/typeSatisfaction_errorLocations1.ts",
+              "start": 372,
+              "length": 11,
+              "message": "Argument of type '[{ a: boolean; }]' is not assignable to parameter of type 'T'.\n  'T' could be instantiated with an arbitrary type which could be unrelated to '[{ a: boolean; }]'.",
+              "related_information": null
+            },
+            {
+              "code": 2345,
+              "category": "Error",
+              "file": "/.src/typeSatisfaction_errorLocations1.ts",
+              "start": 442,
+              "length": 1,
+              "message": "Argument of type '[{ a: true; }]' is not assignable to parameter of type 'T'.\n  '[{ a: true; }]' is assignable to the constraint of type 'T', but 'T' could be instantiated with a different subtype of constraint '{ a: true; }[]'.",
+              "related_information": null
+            },
+            {
+              "code": 2322,
+              "category": "Error",
+              "file": "/.src/typeSatisfaction_errorLocations1.ts",
+              "start": 509,
+              "length": 3,
+              "message": "Type 'number' is not assignable to type 'boolean'.",
+              "related_information": null
+            },
+            {
+              "code": 2322,
+              "category": "Error",
+              "file": "/.src/typeSatisfaction_errorLocations1.ts",
+              "start": 556,
+              "length": 1,
+              "message": "Type 'boolean' is not assignable to type 'number'.",
+              "related_information": [
+                {
+                  "code": 6500,
+                  "category": "Message",
+                  "file": "/lib/lib.es5.d.ts",
+                  "start": 74260,
+                  "length": 20,
+                  "message": "The expected type comes from property 'b' which is declared here on type 'Record<string, number>'",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 1360,
+              "category": "Error",
+              "file": "/.src/typeSatisfaction_errorLocations1.ts",
+              "start": 620,
+              "length": 9,
+              "message": "Type 'number' does not satisfy the expected type 'boolean'.",
+              "related_information": null
+            },
+            {
+              "code": 2322,
+              "category": "Error",
+              "file": "/.src/typeSatisfaction_errorLocations1.ts",
+              "start": 645,
+              "length": 8,
+              "message": "Type '1' is not assignable to type 'true'.",
+              "related_information": null
+            },
+            {
+              "code": 2322,
+              "category": "Error",
+              "file": "/.src/typeSatisfaction_errorLocations1.ts",
+              "start": 748,
+              "length": 4,
+              "message": "Type 'string' is not assignable to type 'number'.",
+              "related_information": [
+                {
+                  "code": 6501,
+                  "category": "Message",
+                  "file": "/lib/lib.es5.d.ts",
+                  "start": 70549,
+                  "length": 15,
+                  "message": "The expected type comes from this index signature.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 1360,
+              "category": "Error",
+              "file": "/.src/typeSatisfaction_errorLocations1.ts",
+              "start": 831,
+              "length": 9,
+              "message": "Type 'readonly [10, \"20\"]' does not satisfy the expected type 'number[]'.\n  The type 'readonly [10, \"20\"]' is 'readonly' and cannot be assigned to the mutable type 'number[]'.",
+              "related_information": null
+            },
+            {
+              "code": 2345,
+              "category": "Error",
+              "file": "/.src/typeSatisfaction_errorLocations1.ts",
+              "start": 909,
+              "length": 45,
+              "message": "Argument of type 'string' is not assignable to parameter of type 'number'.",
+              "related_information": null
+            },
+            {
+              "code": 2345,
+              "category": "Error",
+              "file": "/.src/typeSatisfaction_errorLocations1.ts",
+              "start": 1003,
+              "length": 39,
+              "message": "Argument of type 'string' is not assignable to parameter of type 'number'.",
+              "related_information": null
+            },
+            {
+              "code": 2322,
+              "category": "Error",
+              "file": "/.src/typeSatisfaction_errorLocations1.ts",
+              "start": 1073,
+              "length": 6,
+              "message": "Type 'string' is not assignable to type 'number'.",
+              "related_information": null
+            },
+            {
+              "code": 2322,
+              "category": "Error",
+              "file": "/.src/typeSatisfaction_errorLocations1.ts",
+              "start": 1135,
+              "length": 6,
+              "message": "Type 'string' is not assignable to type 'number'.",
+              "related_information": null
+            },
+            {
+              "code": 1360,
+              "category": "Error",
+              "file": "/.src/typeSatisfaction_errorLocations1.ts",
+              "start": 1148,
+              "length": 9,
+              "message": "Type 'string' does not satisfy the expected type 'number'.",
+              "related_information": null
+            },
+            {
+              "code": 2741,
+              "category": "Error",
+              "file": "/.src/typeSatisfaction_errorLocations1.ts",
+              "start": 1190,
+              "length": 2,
+              "message": "Property 'a' is missing in type '{}' but required in type '{ a: true; }'.",
+              "related_information": [
+                {
+                  "code": 2728,
+                  "category": "Message",
+                  "file": "/.src/typeSatisfaction_errorLocations1.ts",
+                  "start": 1176,
+                  "length": 1,
+                  "message": "'a' is declared here.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 2322,
+              "category": "Error",
+              "file": "/.src/typeSatisfaction_errorLocations1.ts",
+              "start": 1239,
+              "length": 1,
+              "message": "Type 'number' is not assignable to type 'true'.",
+              "related_information": [
+                {
+                  "code": 6500,
+                  "category": "Message",
+                  "file": "/.src/typeSatisfaction_errorLocations1.ts",
+                  "start": 1223,
+                  "length": 1,
+                  "message": "The expected type comes from property 'a' which is declared here on type '{ a: true; }'",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 2322,
+              "category": "Error",
+              "file": "/.src/typeSatisfaction_errorLocations1.ts",
+              "start": 1289,
+              "length": 4,
+              "message": "Type '{ a: number; }' is not assignable to type '{ a: true; }'.\n  Types of property 'a' are incompatible.\n    Type 'number' is not assignable to type 'true'.",
+              "related_information": null
+            },
+            {
+              "code": 2741,
+              "category": "Error",
+              "file": "/.src/typeSatisfaction_errorLocations1.ts",
+              "start": 1339,
+              "length": 2,
+              "message": "Property 'a' is missing in type '{}' but required in type '{ a: true; }'.",
+              "related_information": [
+                {
+                  "code": 2728,
+                  "category": "Message",
+                  "file": "/.src/typeSatisfaction_errorLocations1.ts",
+                  "start": 1324,
+                  "length": 1,
+                  "message": "'a' is declared here.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 2741,
+              "category": "Error",
+              "file": "/.src/typeSatisfaction_errorLocations1.ts",
+              "start": 1407,
+              "length": 2,
+              "message": "Property 'a' is missing in type '{}' but required in type '{ a: true; }'.",
+              "related_information": [
+                {
+                  "code": 2728,
+                  "category": "Message",
+                  "file": "/.src/typeSatisfaction_errorLocations1.ts",
+                  "start": 1391,
+                  "length": 1,
+                  "message": "'a' is declared here.",
+                  "related_information": null
+                }
+              ]
+            }
+          ],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2
+        }
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/checkJsdocSatisfiesTag9.ts#default",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "checker (JS): relatedInformation (6500) elaboration",
+      "native": {
+        "kind": "complete",
+        "observation": {
+          "program_source_order": [
+            "/a.js"
+          ],
+          "standard_libraries": [
+            "lib.es6.d.ts",
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.dom.d.ts",
+            "lib.dom.iterable.d.ts",
+            "lib.webworker.importscripts.d.ts",
+            "lib.scripthost.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2018.asynciterable.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts"
+          ],
+          "writes": [],
+          "reported_diagnostics": [
+            {
+              "code": 2353,
+              "category": "Error",
+              "file": "/a.js",
+              "start": 308,
+              "length": 1,
+              "message": "Object literal may only specify known properties, and 'd' does not exist in type 'Color'.",
+              "related_information": [
+                {
+                  "code": 6500,
+                  "category": "Message",
+                  "file": "/lib/lib.es5.d.ts",
+                  "start": 74260,
+                  "length": 20,
+                  "message": "The expected type comes from property 'black' which is declared here on type 'Record<string, Color>'",
+                  "related_information": null
+                }
+              ]
+            }
+          ],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2
+        }
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypedefAndLatebound.ts#default",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "checker (JS): extra diagnostic for late-bound typedef",
+      "native": {
+        "kind": "complete",
+        "observation": {
+          "program_source_order": [
+            "/.src/LazySet.js",
+            "/.src/index.js"
+          ],
+          "standard_libraries": [
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.es2016.d.ts",
+            "lib.es2017.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2016.array.include.d.ts",
+            "lib.es2016.intl.d.ts",
+            "lib.es2017.arraybuffer.d.ts",
+            "lib.es2017.date.d.ts",
+            "lib.es2017.object.d.ts",
+            "lib.es2017.sharedmemory.d.ts",
+            "lib.es2017.string.d.ts",
+            "lib.es2017.intl.d.ts",
+            "lib.es2017.typedarrays.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts"
+          ],
+          "writes": [],
+          "reported_diagnostics": [
+            {
+              "code": 2322,
+              "category": "Error",
+              "file": "/.src/index.js",
+              "start": 68,
+              "length": 9,
+              "message": "Type 'undefined' is not assignable to type 'LazySet'.",
+              "related_information": null
+            },
+            {
+              "code": 2345,
+              "category": "Error",
+              "file": "/.src/index.js",
+              "start": 108,
+              "length": 9,
+              "message": "Argument of type 'import(\"/.src/LazySet\")' is not assignable to parameter of type 'import(\"/.src/LazySet\")'.\n  Property '[Symbol.iterator]' is missing in type 'import(\"/.src/LazySet\")' but required in type 'import(\"/.src/LazySet\")'.",
+              "related_information": [
+                {
+                  "code": 2728,
+                  "category": "Message",
+                  "file": "/.src/LazySet.js",
+                  "start": 203,
+                  "length": 17,
+                  "message": "'[Symbol.iterator]' is declared here.",
+                  "related_information": null
+                }
+              ]
+            }
+          ],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2
+        }
+      }
+    }
+  ]
+}

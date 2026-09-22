@@ -1,0 +1,27 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "xtask",
+    "acceptance-slice",
+    "conformance"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-audit",
+  "started_at": "2026-09-18T16:05:59.293222+00:00",
+  "head": "91e3b214b2eb6deb20e576abea57b538c918a48a",
+  "tracked_clean": false,
+  "diff_sha256": "444e10abbb310c701f69e4e5e31e2ae8e70c7f9cb25cc2ab48ebaed95e80ac96",
+  "env": {
+    "TSRS_CONFORMANCE_WORKERS": "2",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 1,
+  "seconds": 796.731,
+  "log_sha256": "28b0690e7e032dc0baeddb455b1c91dd0d09d8039228203e6b119ece9f173c9c",
+  "log_bytes": 3664
+}

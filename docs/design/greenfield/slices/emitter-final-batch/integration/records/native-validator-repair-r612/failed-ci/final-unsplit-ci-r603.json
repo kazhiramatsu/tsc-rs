@@ -1,0 +1,71 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "xtask",
+    "ci",
+    "--baseline",
+    "3b1f5fe87fd31e3b303bb44bd257342735452ed9"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "head": "fa391cbff6468032ebd4969734cde9d2b9474237",
+  "tracked_clean": true,
+  "started_at": "2026-09-21T02:31:37.526307+00:00",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "normal_priority": false,
+  "previous_receipt": null,
+  "expected_phases": [
+    "clippy",
+    "h2-5g-oracle",
+    "h2-5h-oracle",
+    "h2-6a-oracle",
+    "h2-6b-oracle",
+    "h2-6c-oracle",
+    "h2-7b-oracle",
+    "h2-7c-oracle",
+    "h2-7de-oracle",
+    "h2-owner-controls",
+    "oracle",
+    "readme-status",
+    "rustfmt",
+    "semantic-evidence",
+    "semantic-preflight",
+    "structural-preflight",
+    "workspace-audit",
+    "workspace-tests"
+  ],
+  "journal_before_sha256": "655e39dcdf53fc346e9995595fc650c6ff150914db7af7a9b6580c4badff60a8",
+  "exit": 1,
+  "seconds": 21586.876,
+  "finished_at": "2026-09-21T08:31:24.448786+00:00",
+  "log_sha256": "d1f55bb01d61d856f5e8867e1d5bd9e938c3a90e2438c7b6587d734800cf4445",
+  "log_bytes": 52120,
+  "head_after": "fa391cbff6468032ebd4969734cde9d2b9474237",
+  "tracked_clean_after": true,
+  "phase_runs": [
+    "workspace-audit",
+    "rustfmt",
+    "structural-preflight",
+    "clippy",
+    "oracle",
+    "workspace-tests"
+  ],
+  "phase_recorded": [
+    "workspace-audit",
+    "rustfmt",
+    "structural-preflight",
+    "clippy",
+    "oracle"
+  ],
+  "phase_reused": [],
+  "completion": [],
+  "journal_after_sha256": "3709b7d01a4335fafd7e6982d3294a486ad50c404166bc8df244377228289b52",
+  "qualified": false
+}

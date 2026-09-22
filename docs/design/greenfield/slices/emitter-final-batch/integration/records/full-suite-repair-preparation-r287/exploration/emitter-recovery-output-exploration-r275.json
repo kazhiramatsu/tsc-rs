@@ -1,0 +1,9 @@
+{
+  "scope": "mock resolver and diagnostics deliberately discarded via existing harness hook; transform only; NOT real command qualification",
+  "argv": [
+    "/tmp/emitter-recovery-output-exploration-r275",
+    "/tmp/emitter-recovery-inspection-r272.ts"
+  ],
+  "exit": 0,
+  "log_sha256": "1dd9387b261bc78e94b503147708a1d500e9620d0b837cc8e3b3f6779df2198f"
+}

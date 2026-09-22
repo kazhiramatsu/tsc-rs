@@ -1,0 +1,30 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "test",
+    "-p",
+    "tsc-rs-compiler",
+    "--test",
+    "emitter_final_rows",
+    "--",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-integration",
+  "started_at": "2026-09-18T11:43:41.215355+00:00",
+  "head": "fb5e8b4e10f6ad853393d26162dd5223ed157632",
+  "diff_sha256": "17c00307e22582a2ff74124e6b65a2731659c7d838de33caaeb0daf40683f69b",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 101,
+  "seconds": 102.218,
+  "log_sha256": "77c053c20ad831280895682daa5229b6eec900432fb39c0bd8d4671f1eccb373",
+  "log_bytes": 4276
+}

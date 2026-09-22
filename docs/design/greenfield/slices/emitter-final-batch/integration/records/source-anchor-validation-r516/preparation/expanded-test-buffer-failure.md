@@ -1,0 +1,1 @@
+514 H2 adversarial controls failed because their generators read source as Buffer before UTF-8 decoding; the child-memory test adapter only supported string reads. The production generators and Rust sources were not changed by these controls. Preserve failed514 receipt; fix adapter to mutate valid UTF-8 Buffer reads while preserving the return type.

@@ -33,7 +33,8 @@ use crate::{read_golden, ConformanceResult, ExactIdentity};
 pub const HOST_RESOLUTION_REL_PATH: &str = "ratchets/host-resolution.v1.json";
 const HOST_RESOLUTION_SCHEMA: u32 = 1;
 const TYPESCRIPT_VERSION: &str = "6.0.3";
-const D2_INVENTORY_REL_PATH: &str = "m8-emitter-inventory.json";
+const SCOPE_RECORD_PATH: &str = "m8-scope.json";
+const D2_INVENTORY_REL_PATH: &str = "ratchets/m8/m8-emitter-inventory.json";
 const D2_SOURCE_REL_PATH: &str = "vendor/typescript-6.0.3/lib/_tsc.js";
 const REQUEST_PRODUCER_REL_PATH: &str = "crates/oracle/host-resolution-requests.mjs";
 const REQUEST_HOST_REL_PATH: &str = "crates/oracle/program-host.mjs";
@@ -631,7 +632,7 @@ pub fn draft_host_resolution_registry(workspace: &Path, out: &Path) -> Conforman
         status: RegistryStatus::Frozen,
         typescript_version: TYPESCRIPT_VERSION.to_owned(),
         source: SourcePin {
-            manifest: SCOPE_REL_PATH.to_owned(),
+            manifest: SCOPE_RECORD_PATH.to_owned(),
             reason: "host-resolution".to_owned(),
             identity_encoder: ENCODER_VERSION,
             initial_scope_commit,
@@ -894,6 +895,7 @@ fn validate_registry_with_options(
     }
     validate_expected_code_counts(registry.rows.iter().map(|row| &row.identity))?;
     validate_expected_module_resolution_counts(&registry.rows)?;
+    validate_live_anchor_successors(&registry.rows, LIVE_ANCHOR_SUCCESSORS)?;
 
     let mut prior_id: Option<&str> = None;
     let mut ids = BTreeSet::new();
@@ -1087,7 +1089,7 @@ fn validate_source_pin(
     source: &SourcePin,
     rows: &[RegistryRow],
 ) -> ConformanceResult<()> {
-    if source.manifest != SCOPE_REL_PATH
+    if source.manifest != SCOPE_RECORD_PATH
         || source.reason != "host-resolution"
         || source.identity_encoder != ENCODER_VERSION
         || source.initial_identity_count != EXPECTED_ROWS
@@ -1341,7 +1343,7 @@ fn validate_rust_anchor_set(
                 path.display()
             )
         })?;
-        if !text.contains(&anchor.symbol) {
+        if !live_rust_anchor_present(&text, anchor)? {
             return Err(format!(
                 "host-resolution row {} Rust boundary symbol {:?} is absent from {}",
                 row.id,
@@ -1368,6 +1370,171 @@ fn validate_rust_anchor_set(
         .into());
     }
     Ok(())
+}
+
+// d364a056a added explicit UTF-16 lifetimes after these H0 rows closed.
+// Keep the registry and closing-commit checks literal and frozen. Only the
+// current-source check admits these three reviewed declaration successors.
+const LIVE_ANCHOR_PATH: &str = "crates/program/src/module_resolution.rs";
+const LIVE_ANCHOR_SUCCESSORS: &[(&str, &str)] = &[
+    ("pub fn resolve(", "pub fn resolve<'j0, 'j1>("),
+    (
+        "pub fn resolve_with_facts(",
+        "pub fn resolve_with_facts<'j0, 'j1>(",
+    ),
+    (
+        "pub fn resolve_type_reference(",
+        "pub fn resolve_type_reference<'j0, 'j1>(",
+    ),
+];
+
+fn is_live_anchor_target(anchor: &RustBoundaryAnchor) -> bool {
+    anchor.role == RustBoundaryRole::Producer
+        && anchor.crate_name == "tsc-program"
+        && anchor.path == LIVE_ANCHOR_PATH
+}
+
+fn validate_live_anchor_successors(
+    rows: &[RegistryRow],
+    successors: &[(&str, &str)],
+) -> ConformanceResult<()> {
+    let mut seen = BTreeSet::new();
+    for &(frozen, live) in successors {
+        let Some(prefix) = frozen.strip_suffix('(') else {
+            return Err("host-resolution live successor has a malformed frozen symbol".into());
+        };
+        if !seen.insert(frozen) || live != format!("{prefix}<'j0, 'j1>(") {
+            return Err(
+                "host-resolution live successor is not a unique reviewed lifetime extension".into(),
+            );
+        }
+        if !rows.iter().any(|row| {
+            row.rust_boundary
+                .authoritative_anchors
+                .iter()
+                .any(|anchor| is_live_anchor_target(anchor) && anchor.symbol == frozen)
+        }) {
+            return Err(format!(
+                "host-resolution live successor {frozen:?} has no registry anchor"
+            )
+            .into());
+        }
+    }
+    Ok(())
+}
+
+fn live_rust_anchor_present(text: &str, anchor: &RustBoundaryAnchor) -> ConformanceResult<bool> {
+    let successor = is_live_anchor_target(anchor)
+        .then(|| {
+            LIVE_ANCHOR_SUCCESSORS
+                .iter()
+                .find(|(frozen, _)| *frozen == anchor.symbol)
+        })
+        .flatten();
+    let Some((frozen, live)) = successor else {
+        return Ok(text.contains(&anchor.symbol));
+    };
+    // Even a quoted old spelling requires review; never silently retain a
+    // successor after the original literal check starts passing again.
+    if text.contains(frozen) {
+        return Err(format!(
+            "host-resolution live successor {frozen:?} must retire: frozen spelling is present"
+        )
+        .into());
+    }
+    Ok(live_declaration_count(text, live) == 1)
+}
+
+// This is a bounded lexical check, not a general Rust declaration resolver.
+// Require the exact reviewed declaration line, skipping comments and literals
+// so documentation or a quoted example cannot stand in for that line. Like the
+// original literal check, it does not resolve impl types or evaluate cfg/macros.
+fn live_declaration_count(text: &str, declaration: &str) -> usize {
+    let bytes = text.as_bytes();
+    let mut index = 0;
+    let mut count = 0;
+    while index < bytes.len() {
+        if bytes[index..].starts_with(b"//") {
+            index = bytes[index..]
+                .iter()
+                .position(|byte| *byte == b'\n')
+                .map_or(bytes.len(), |offset| index + offset + 1);
+            continue;
+        }
+        if bytes[index..].starts_with(b"/*") {
+            let mut depth = 1;
+            index += 2;
+            while index < bytes.len() && depth != 0 {
+                if bytes[index..].starts_with(b"/*") {
+                    depth += 1;
+                    index += 2;
+                } else if bytes[index..].starts_with(b"*/") {
+                    depth -= 1;
+                    index += 2;
+                } else {
+                    index += 1;
+                }
+            }
+            continue;
+        }
+        // Byte/C string prefixes need no separate case: scanning reaches the
+        // following r or quote before any possible declaration line.
+        if bytes[index] == b'r' {
+            let mut quote = index + 1;
+            while bytes.get(quote) == Some(&b'#') {
+                quote += 1;
+            }
+            if bytes.get(quote) == Some(&b'"') {
+                let closing = format!("\"{}", "#".repeat(quote - index - 1));
+                index = text[quote + 1..]
+                    .find(&closing)
+                    .map_or(bytes.len(), |offset| quote + 1 + offset + closing.len());
+                continue;
+            }
+        }
+        if bytes[index] == b'"' {
+            index += 1;
+            while index < bytes.len() {
+                let byte = bytes[index];
+                index += 1;
+                if byte == b'\\' {
+                    index = (index + 1).min(bytes.len());
+                } else if byte == b'"' {
+                    break;
+                }
+            }
+            continue;
+        }
+        if bytes[index] == b'\'' {
+            let mut end = index + 1;
+            if bytes.get(end) == Some(&b'\\') {
+                end += 2;
+            } else if let Some(character) = text[end..].chars().next() {
+                end += character.len_utf8();
+            }
+            if bytes.get(end) == Some(&b'\'') {
+                index = end + 1;
+                continue;
+            }
+        }
+        if bytes[index..].starts_with(declaration.as_bytes()) {
+            let line_start = bytes[..index]
+                .iter()
+                .rposition(|byte| *byte == b'\n')
+                .map_or(0, |offset| offset + 1);
+            let line_end = bytes[index..]
+                .iter()
+                .position(|byte| *byte == b'\n')
+                .map_or(bytes.len(), |offset| index + offset);
+            if text[line_start..index].trim().is_empty()
+                && text[index..line_end].trim_end() == declaration
+            {
+                count += 1;
+            }
+        }
+        index += 1;
+    }
+    count
 }
 
 fn validate_canaries(

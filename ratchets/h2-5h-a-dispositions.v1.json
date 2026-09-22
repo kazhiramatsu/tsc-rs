@@ -7,26 +7,26 @@
   "plan_step": "prerequisite-transition-step-5-manifest",
   "generator": {
     "path": "crates/oracle/h2-5h-a-dispositions.mjs",
-    "sha256": "f3ab4369866071f7e6c72ff586f54848b424d7ee3afc57660abb7c3575dedf4b"
+    "sha256": "0a2788b57131b1c537f29d0a9e3bc7cd466a6d5b80772798611f8a20b5843a0c"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5h-a-dispositions.schema.json",
-    "sha256": "97c45c81accdf78dbde16a2b7208b689a23e7859638b4fa3012d6aa5bce0b2a8"
+    "sha256": "0363922646da0ae51d81949fab155520f92910f112fdeb24477797f81a4e9641"
   },
   "lineage": {
     "owner_graph": {
       "path": "ratchets/h2-5h-a-owner-graph.v1.json",
-      "sha256": "2240c882cee68cfe8523855281340a1029e0f511f127ed5e95a67b16ffa7dd07"
+      "sha256": "1f96264faa7eeadc1216dd8be9eb901b8cbd9d926dd282539d175c216c08c33e"
     },
-    "owner_graph_fingerprint_sha256": "a1a02edd303eaba271b4fa02bbadaab0ab024552434515562e5513bf93400310",
+    "owner_graph_fingerprint_sha256": "0257a647d894abdcf04ebe79c49928a547574121f863035d6df5f2166791e654",
     "gap_matrix": {
       "path": "ratchets/h2-5h-a-gap-matrix.v1.json",
-      "sha256": "7e626f7f2ac3d2b4f3a43fcf07abf193ff07fd290ebed93157a8b7fe6f9fca2d"
+      "sha256": "4a82e919c121ee15e61633b57a93aedfd11e9e8072e6d86882de5942237511ee"
     },
-    "gap_matrix_fingerprint_sha256": "06518c58c244d210103a969bba994e2214a42a43d60ae2a1db912eb2773fed34",
+    "gap_matrix_fingerprint_sha256": "259412527832202942c39040ba30103806d91af92d5f558f44dcc735a774c4a1",
     "architecture_map": {
       "path": "docs/design/greenfield/emitter-architecture.md",
-      "sha256": "44b2c9fff5182bc9e0dab1efa6f6348e8ff22d8e2b0fb7e86af45abf394d0f6c"
+      "sha256": "6d0a6bf4924f3064efb39e64fdf2c01522f17faa54a904945ea5897bca3e9028"
     },
     "interpretation": "prerequisite-transition step 5 (manifest half): every architecture row dispositioned exactly once against the frozen owner graph and local-gap matrix; a row added to or removed from the map makes this manifest stale; it authorizes no production edit and activates nothing"
   },
@@ -546,18 +546,143 @@
       ],
       "capabilities": [],
       "row_fingerprint_sha256": "85bc90bfb73b5995dded6313fc9e6ac650a8ff99088ab94f488f91d714df3c96"
+    },
+    {
+      "index": 45,
+      "row_id": "E-DECL-ACTIVITY",
+      "disposition": "future-owned-fail-closed",
+      "rationale": "H2.7c declaration request accounting; H2.5h JavaScript ES2015/Generators lowering never enters declaration activity counting; current qualification is owned by its own row",
+      "surfaces": [],
+      "capabilities": [],
+      "row_fingerprint_sha256": "f819e7092bfd978ebec19e8cac7adf71279ab9a65e828b86aebf5c0c38283ad3"
+    },
+    {
+      "index": 46,
+      "row_id": "E-DECL-PATH",
+      "disposition": "future-owned-fail-closed",
+      "rationale": "declaration callback path derivation is H2.7c-owned output planning; H2.5h does not reach declaration paths",
+      "surfaces": [],
+      "capabilities": [],
+      "row_fingerprint_sha256": "cdc43e413788ecb4f1b7797c7e6b4e2d87d60a8e2fcdcb6c0d61dc1d120f40d5"
+    },
+    {
+      "index": 47,
+      "row_id": "E-DECL-SESSION",
+      "disposition": "future-owned-fail-closed",
+      "rationale": "explicit declaration sessions and cached getters are H2.7c-owned; H2.5h runs only in the ordinary JavaScript emit schedule",
+      "surfaces": [],
+      "capabilities": [],
+      "row_fingerprint_sha256": "9361a96b6a82141ce1e1e1b5ec6e966f06b2f1474d1fcc782cea05d328821551"
+    },
+    {
+      "index": 48,
+      "row_id": "E-DECL-FORCE",
+      "disposition": "future-owned-fail-closed",
+      "rationale": "forced declaration units are H2.7c-owned; no H2.5h transform or printer path selects them",
+      "surfaces": [],
+      "capabilities": [],
+      "row_fingerprint_sha256": "5472015be2291b14beee83dfb0c748fab5266f36420ba58fff5a2bb51eeec8e2"
+    },
+    {
+      "index": 49,
+      "row_id": "E-DECL-TRACKER-PARENT",
+      "disposition": "future-owned-fail-closed",
+      "rationale": "isolated-declaration tracker parent access belongs to the declaration transform; H2.5h owners contain no tracker callback",
+      "surfaces": [],
+      "capabilities": [],
+      "row_fingerprint_sha256": "7248b2438896777d94910f4ed5f47339504fd88277d3f68152747382f6f7dd18"
+    },
+    {
+      "index": 50,
+      "row_id": "E-DECL-TRACKER-ACCESSORS",
+      "disposition": "future-owned-fail-closed",
+      "rationale": "isolated accessor diagnostics belong to the declaration transform; no H2.5h reachability",
+      "surfaces": [],
+      "capabilities": [],
+      "row_fingerprint_sha256": "c524a2dbeee4ca16a93764bc02039a7754a6275347070f7db2565f1073e1d516"
+    },
+    {
+      "index": 51,
+      "row_id": "E-DECL-TRACKER-PRIVATE-TYPE",
+      "disposition": "future-owned-fail-closed",
+      "rationale": "isolated private-type diagnostics belong to the declaration transform; no H2.5h reachability",
+      "surfaces": [],
+      "capabilities": [],
+      "row_fingerprint_sha256": "8ffc288f611a0ba1133db4d4a0c0b116760d381c4b254ab1bd7723ece63029fd"
+    },
+    {
+      "index": 52,
+      "row_id": "E-RECOVERY-FACTS",
+      "disposition": "premise-unchanged",
+      "rationale": "parser-owned recovery admission precedes transformer registration and is target-independent; H2.5h adds no recovery fact or predicate and lowers only admitted trees",
+      "surfaces": [],
+      "capabilities": [],
+      "row_fingerprint_sha256": "747339df894e9a2cc8a474781a5feae8dffcaaf400fc1b33ee40cee1018d9ba5"
+    },
+    {
+      "index": 53,
+      "row_id": "E-HELPERS-IMPORT-STATE",
+      "disposition": "premise-unchanged",
+      "rationale": "ES2015/Generators add helper requests only; external helper import collection is module-transform owned and helper-name agnostic",
+      "surfaces": [],
+      "capabilities": [
+        "helper-emission"
+      ],
+      "row_fingerprint_sha256": "35d7a129ff66803dd0151237b7914cb68ef84f2b0ef5982422a43a3175018e22"
+    },
+    {
+      "index": 54,
+      "row_id": "E-OBJECT-PROPERTY-A38",
+      "disposition": "premise-unchanged",
+      "rationale": "ES2015 shorthand/computed-property lowering prints through the existing PropertyAssignment/ShorthandPropertyAssignment arms; the A38 modifier-omission invariant is target-independent printer ownership",
+      "surfaces": [],
+      "capabilities": [],
+      "row_fingerprint_sha256": "e4cfe322afaf18eb76487d3b7e900c7aab670df518e66174a36219be7645e27a"
+    },
+    {
+      "index": 55,
+      "row_id": "E-RETAINED-PRODUCERS-A39",
+      "disposition": "modified-requalify",
+      "rationale": "class-fields synthetic constructors, static blocks and accessor redirectors are consumed by ES2015 class lowering (getFirstConstructorWithBody/getAllAccessorDeclarations); their separate raw/map/comment provenance must survive ES2015 wrapper placement",
+      "surfaces": [
+        "class-lowering-reach"
+      ],
+      "capabilities": [],
+      "row_fingerprint_sha256": "2fb55c025ba8d491966357c47f67d3cd061d1a5d8b1c5145a35d4734cc2cd627"
+    },
+    {
+      "index": 56,
+      "row_id": "E-COMMENT-ELLIPSIS-A37",
+      "disposition": "premise-unchanged",
+      "rationale": "rest/spread comment phases ride the threaded comment scope unchanged; ES5 lowering removes ellipsis syntax rather than producing new ellipsis owners",
+      "surfaces": [],
+      "capabilities": [
+        "comment-scope-threading"
+      ],
+      "row_fingerprint_sha256": "30695fbf498461956186395ff40732468ef3b93081650947a57db0883c68410f"
+    },
+    {
+      "index": 57,
+      "row_id": "E-COMMENT-PHASES-A36",
+      "disposition": "premise-unchanged",
+      "rationale": "modifier/statement/spread comment phases are target-independent refinements on the threaded comment scope; H2.5h producers add no modifier or statement-scope owner",
+      "surfaces": [],
+      "capabilities": [
+        "comment-scope-threading"
+      ],
+      "row_fingerprint_sha256": "ef5d1c2b332640681906cd3973d1e236c1e688bba7e16ebe38276d645f9e1a26"
     }
   ],
   "summary": {
-    "rows": 45,
-    "premise_unchanged": 13,
-    "modified_requalify": 18,
+    "rows": 58,
+    "premise_unchanged": 18,
+    "modified_requalify": 19,
     "activate": 10,
-    "future_owned_fail_closed": 4,
+    "future_owned_fail_closed": 11,
     "proven_unreachable": 0,
     "undispositioned": 0,
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "dispositions_fingerprint_sha256": "8b7590ba1b2dc229fdef3baf73046885d0ae7c319c5404ee03da1546dd476217"
+  "dispositions_fingerprint_sha256": "9fc67598bbf4243ba56665b0c36099565ff83dd2a8da025ea855e6fa9443b5d0"
 }

@@ -1,0 +1,19 @@
+{
+  "head": "8859338f1c761d867cbc7f5ef58987dc3777f944",
+  "candidate_diff_sha256": "82910820655eefba83b1c578ef84eed1fa3452fef229a59d0d3d6c0955d03c9f",
+  "scope": "Read-only static readiness while r422 runs; stale source pins are expected and do not qualify runtime.",
+  "checks": [
+    {
+      "script": "scripts/walk-preflight.py",
+      "exit": 1,
+      "seconds": 4.847533625084907,
+      "sha256": "3fa5c25f9d53b605319825fa5fb2a67f322fdc502e0a0afaef488a0c56c6983b"
+    },
+    {
+      "script": "scripts/walk-static-checks.py",
+      "exit": 0,
+      "seconds": 6.295081499963999,
+      "sha256": "4c18b9dfe7d07b6f06f1c5ca1aabb9e86a8251606df26ca5e349f9f9ba93473a"
+    }
+  ]
+}

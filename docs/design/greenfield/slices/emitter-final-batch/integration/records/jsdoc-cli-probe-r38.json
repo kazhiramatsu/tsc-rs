@@ -1,0 +1,19 @@
+{
+  "scope": "Focused physical CLI bytes; complete original command independently tested by contracts",
+  "native_binary_sha256": "82633494551a38e38a62540beb1c97fe68d2ca4e95eb3fed6e2bec8aa0aa897a",
+  "exit": 0,
+  "writes": [
+    {
+      "extension": "js",
+      "exact": true,
+      "native_sha256": "3622b5f40a171eb1ad27820433e9fafa1597487a62a744cb1d3fa4842eea81c0",
+      "typescript_sha256": "3622b5f40a171eb1ad27820433e9fafa1597487a62a744cb1d3fa4842eea81c0"
+    },
+    {
+      "extension": "d.ts",
+      "exact": true,
+      "native_sha256": "0d374d75f7c9cabadc0b81a7c007a6d48a59425235aad2f99eda7c09b7a3a52c",
+      "typescript_sha256": "0d374d75f7c9cabadc0b81a7c007a6d48a59425235aad2f99eda7c09b7a3a52c"
+    }
+  ]
+}

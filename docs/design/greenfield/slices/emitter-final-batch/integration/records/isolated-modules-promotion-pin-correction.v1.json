@@ -1,0 +1,15 @@
+{
+  "reason": "serde_json preserve_order is unified by harness/program; hash original insertion order, not a sorted-key reserialization",
+  "artifact": "ratchets/h2-6c-qualification.v1.json",
+  "artifact_sha256": "bb0f1937e5ad91a3f245cea26b90c14a3c1ea34bd923b50b827b842cdd051826",
+  "checked_rows": 135,
+  "changed": [
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedModulesSourceMap.ts#default",
+      "before": "9bbac984f849570bda1af424c443041772130c6782e52291fb386e09293a554f",
+      "after": "f81a11b2f6047767ad3f7249f9e4253ab71094aa7f1ae9e6927c355864275b26"
+    }
+  ],
+  "source_observations_changed": false,
+  "native_validation_pending": true
+}

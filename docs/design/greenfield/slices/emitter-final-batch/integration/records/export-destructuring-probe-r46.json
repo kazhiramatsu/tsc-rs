@@ -1,0 +1,26 @@
+{
+  "purpose": "Exploratory physical CLI observations; not complete command qualification",
+  "binary_sha256": "8ddd39b96a3be56b9541a811aaa3ac4967fbb6402a36f09ebeb5466352295509",
+  "cases": [
+    {
+      "case_id": "export-destructuring-comments/es5/commonjs/remove-false/let-jsdoc",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "native_js_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnggPSB2b2lkIDA7Ci8qKiBsZWFmICovCmV4cG9ydHMueCA9IHNvdXJjZS54OwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+      "expected_js_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnggPSB2b2lkIDA7Ci8qKiBsZWFmICovCmV4cG9ydHMueCA9IHNvdXJjZS54OwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+      "javascript_equal": true,
+      "path": "/tmp/emitter-destructuring-r46/export-destructuring-comments"
+    },
+    {
+      "case_id": "export-destructuring-boundaries/es2015/system/remove-false/default-re-export",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "native_js_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciB4LCBfYTsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOwogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIF9hID0gc291cmNlLngsIAogICAgICAgICAgICAvKiogbGVhZiAqLwogICAgICAgICAgICBleHBvcnRzXzEoIngiLCB4ID0gX2EgPT09IHZvaWQgMCA/IDEgOiBfYSk7CiAgICAgICAgICAgIC8qKiBsZWFmICovCiAgICAgICAgICAgIGV4cG9ydHNfMSgieSIsIHgpOwogICAgICAgIH0KICAgIH07Cn0pOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+      "expected_js_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBfYSwgeDsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOwogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIC8qKiBsZWFmICovCiAgICAgICAgICAgIF9hID0gc291cmNlLngsIAogICAgICAgICAgICAvKiogbGVhZiAqLwogICAgICAgICAgICBleHBvcnRzXzEoIngiLCB4ID0gX2EgPT09IHZvaWQgMCA/IDEgOiBfYSk7CiAgICAgICAgICAgIC8qKiBsZWFmICovCiAgICAgICAgICAgIGV4cG9ydHNfMSgieSIsIHgpOwogICAgICAgIH0KICAgIH07Cn0pOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+      "javascript_equal": false,
+      "path": "/tmp/emitter-destructuring-r46/export-destructuring-boundaries"
+    }
+  ]
+}

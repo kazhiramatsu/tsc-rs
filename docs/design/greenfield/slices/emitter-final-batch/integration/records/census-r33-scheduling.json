@@ -1,0 +1,8 @@
+{
+  "partial_command": "audit-missing-await-census-r33",
+  "action": "stop before completion; preserve partial log and exit receipt",
+  "reason": "Run original and adjacent native command measurements before the long census. Later stages expose frozen B/C predicates, so all admission profiles can be measured in one loader pass without repeating all recorded inputs for each stage.",
+  "complete_census_claim": false,
+  "completed_plan_progress": 500,
+  "planned_recorded_plans": 7908
+}

@@ -1,0 +1,7 @@
+{
+  "scope": "Read-only prerequisites only; no build, replay or command qualification",
+  "head": "8859338f1c761d867cbc7f5ef58987dc3777f944",
+  "parser_source_paths": 76,
+  "selected_commands": 48,
+  "load_failures": 110
+}

@@ -1,0 +1,35 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "test",
+    "-p",
+    "tsc-rs-compiler",
+    "--test",
+    "contracts",
+    "h2_8a_import_helpers::import_helpers_matches_complete_typescript_observations",
+    "--",
+    "--exact",
+    "cli_contract::implemented_emit_option_names_match_typescript_cli_and_config",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-audit",
+  "started_at": "2026-09-18T13:24:36.995824+00:00",
+  "head": "ed71c45343b2063414d5563c9b5455631d7c5c68",
+  "tracked_clean": false,
+  "diff_sha256": "1be6b403ce058d6ff6e3a29539f9def63bae94e6d7acc65758b8e0dac2c53810",
+  "env": {
+    "TSC_RS_IMPORT_HELPERS_CASE_FILTER": "comment-boundary",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 124.785,
+  "log_sha256": "fad36c99b45e60469d81da9fc46d50e20893ba5c1cb51a087e50e91ae94f3066",
+  "log_bytes": 10708
+}

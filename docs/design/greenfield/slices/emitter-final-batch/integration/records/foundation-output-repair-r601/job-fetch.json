@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "gh",
+    "api",
+    "repos/kazhiramatsu/tsc-rs/actions/jobs/106190560627/logs"
+  ],
+  "exit": 0,
+  "recorded_at": "2026-09-21T02:07:23.998129+00:00",
+  "stdout_sha256": "1af10d372ddce8dbd573f65dac82faa466a36d1908a0916542bfed43544afb29"
+}

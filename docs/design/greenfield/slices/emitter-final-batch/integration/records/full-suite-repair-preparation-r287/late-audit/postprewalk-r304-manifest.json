@@ -1,0 +1,27 @@
+{
+  "head": "628562c31a5102348a7e8769f3a2aa88deef70f1",
+  "status": "completed; archive287 and repairs remain pending",
+  "steps": [
+    {
+      "label": "ignored-reused-type-reference-r265",
+      "exit": 0,
+      "seconds": 17.899
+    },
+    {
+      "label": "archive244",
+      "exit": 0,
+      "seconds": 0.165
+    },
+    {
+      "label": "copy251",
+      "exit": 0
+    },
+    {
+      "label": "archive258",
+      "exit": 0,
+      "seconds": 0.096
+    }
+  ],
+  "qualified": false,
+  "ignored_control_passed": true
+}

@@ -1,0 +1,43 @@
+{
+  "qualified": true,
+  "scope": "Actual extracted preflight_tree_sha function refuses reuse after scanner, shared layout descriptor, Rust or Cargo input changes; no canonical walk executed.",
+  "chain_walk_sha256": "aa85de14c6b4037e1c13c361d63fb049c3d5e7cee9397d7fe4537abfa031a1a7",
+  "controls": [
+    {
+      "changed_input": "scripts/inline-tests-scan.py",
+      "before": "e9d9389b549d695b96e50a25759f8b3f856c56aaf944a2cc6bbaefc22f0c25de",
+      "after": "70080df4c2d3d0ec9770fa304803aadba55a26e362e01f80cae0da091b17d1ab",
+      "restored": true
+    },
+    {
+      "changed_input": "scripts/frozen-test-layout.json",
+      "before": "e9d9389b549d695b96e50a25759f8b3f856c56aaf944a2cc6bbaefc22f0c25de",
+      "after": "92d9dbfd49ecb30b631f9ab143a6ac75c0a33b1d755ce3df2ee756323c85ecdd",
+      "restored": true
+    },
+    {
+      "changed_input": "scripts/workspace-test-targets.json",
+      "before": "e9d9389b549d695b96e50a25759f8b3f856c56aaf944a2cc6bbaefc22f0c25de",
+      "after": "69690719638165ceeb7bc4966a38d27ece945634aa8effe3d679c75af7fe18fd",
+      "restored": true
+    },
+    {
+      "changed_input": "crates/fixture/src/lib.rs",
+      "before": "e9d9389b549d695b96e50a25759f8b3f856c56aaf944a2cc6bbaefc22f0c25de",
+      "after": "fc9bea7431d3f1f2c4560ebe270cf0c6f9ccba8bfcf610a905f0b1dc7f889546",
+      "restored": true
+    },
+    {
+      "changed_input": "Cargo.toml",
+      "before": "e9d9389b549d695b96e50a25759f8b3f856c56aaf944a2cc6bbaefc22f0c25de",
+      "after": "27624156b6c3261d996e2ae632ebd8dfcf374200d1d8f59a1d07993595fb249a",
+      "restored": true
+    },
+    {
+      "changed_input": "Cargo.lock",
+      "before": "e9d9389b549d695b96e50a25759f8b3f856c56aaf944a2cc6bbaefc22f0c25de",
+      "after": "0ee491458ae73cb9e518f73f62365ea616a11c40ba72b26a4f7a891d2188411e",
+      "restored": true
+    }
+  ]
+}

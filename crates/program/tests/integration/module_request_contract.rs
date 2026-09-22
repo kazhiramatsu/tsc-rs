@@ -54,6 +54,46 @@ fn static_imports_produce_stable_exact_deduplicated_keys() {
 }
 
 #[test]
+fn absent_implied_format_keeps_static_mode_unspecified_and_dynamic_mode_import() {
+    let source = PreparedSourceFile::new(
+        path("/index.ts"),
+        "import \"inner/static\"; import alias = require(\"inner/required\"); import(\"inner/dynamic\");\n",
+    );
+    for module in [100, 101, 102, 199] {
+        let options = CompilerOptions {
+            module: Some(module),
+            module_resolution: Some(100),
+            ..CompilerOptions::default()
+        };
+        let requests = plan_module_requests(&source, &options).unwrap();
+        let modes: Vec<_> = requests.iter().map(|request| request.mode()).collect();
+        assert_eq!(
+            modes,
+            [
+                ResolutionMode::Unspecified,
+                ResolutionMode::CommonJs,
+                ResolutionMode::EsNext
+            ]
+        );
+        for (file, mode) in [
+            ("/index.mts", ResolutionMode::EsNext),
+            ("/index.cts", ResolutionMode::CommonJs),
+        ] {
+            let authoritative = PreparedSourceFile::new(path(file), "import \"inner/static\"; import alias = require(\"inner/required\"); import(\"inner/dynamic\");\n")
+                .with_implied_node_format(mode);
+            let requests = plan_module_requests(&authoritative, &options).unwrap();
+            assert_eq!(
+                requests
+                    .iter()
+                    .map(|request| request.mode())
+                    .collect::<Vec<_>>(),
+                [mode, ResolutionMode::CommonJs, ResolutionMode::EsNext]
+            );
+        }
+    }
+}
+
+#[test]
 fn authoritative_source_format_is_the_request_mode() {
     let source = source("import \"inner/cjs/index\";\n", ResolutionMode::CommonJs);
     let requests =
@@ -1471,12 +1511,6 @@ fn incomplete_static_plans_fail_closed() {
         assert!(!detail.is_empty());
     }
 
-    let missing_mode = PreparedSourceFile::new(path("/index.ts"), "import \"inner/pkg\";\n");
-    assert!(matches!(
-        plan_static_module_requests(&missing_mode, &node_options()),
-        Err(ResolutionError::Unsupported { .. })
-    ));
-
     let jsdoc_import = source_at(
         "/a.js",
         "/** @import { Value } from 'inner/jsdoc' */\nconst value = 0;\n",
@@ -1508,6 +1542,4 @@ fn utf16_text_at(text: &str, span: std::ops::Range<u32>) -> String {
         .expect("directive span contains valid UTF-16")
 }
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use super::utf16_scalar_path::ScalarTestPath as _;

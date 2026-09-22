@@ -1,0 +1,19 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "node",
+    "scripts/observe-h2-5h-parameter-temporaries.mjs",
+    "--write"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-20T20:14:04.476720+00:00",
+  "seconds": 39.351,
+  "exit": 0,
+  "log_sha256": "311410a3c2a8c99d2349bf4b3c2368a683dd9b660c3c725277096bbe5787d9d7",
+  "before_sha256": "8cdf5349118b856c7488e1d35a2901acbc1193526c95102309c8cba7873f7145",
+  "after_sha256": "3e89934e189dd15ea9061c69d3f3090bf517e84ff759f99a857881d325efa534"
+}

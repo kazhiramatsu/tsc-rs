@@ -1,0 +1,14 @@
+Codex仮説（full local conformance測定待ち）:
+
+T3だけの回帰はfull chain / relatedInformationで、span/top textは一致している。
+checker/lib.rs:2068 の共通adapterはlib prefixへDEFAULT_LIBRARYを常に付ける。
+一方conformanceが呼ぶcheck_program_with_libs_at/prepared_harness_libs_atのoracle
+program-host.mjs:68はnoLib:true、libsを明示rootにする。そのProgramのlibFilesは空。
+今回elementwise_elaboration_relatedがProgramFileFactsを初めて読むようになり、
+このadapterの旧prefix仮定がobservableになった可能性が高い。
+
+実Program/commandの既定libraryはdefault=trueであり、EF7修復4行を元へ戻すべきでない。
+診断をfixture IDやfilenameで分岐せず、adapterが実際に構築するProgramの所属factを
+正確に渡す必要がある。authoritative_runとdefault library所属は同義でないため、
+単なるSome/None分岐はM9 authoritative conformanceにも正しいかを確認すること。
+LibraryPrefixCompletionは診断取得範囲を表すので所属判定の代用品にしない。

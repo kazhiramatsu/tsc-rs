@@ -911,3 +911,222 @@ fn utf16_factory_literals_print_like_equivalent_parsed_literals_for_both_quotes(
         );
     }
 }
+
+#[test]
+fn cross_source_missing_declaration_clone_preserves_reachable_decorators() {
+    let first = parsed("first.ts", "const unrelated = 0;\n");
+    let second = parsed("second.ts", "@g<number> class C {}\n");
+    let mut arena = TransformArena::new();
+    let destination = arena.add_source(&first, None);
+    let source = arena.add_source(&second, None);
+    let missing = second
+        .arena
+        .node_ids()
+        .find(|id| second.arena.node(*id).kind == SyntaxKind::MissingDeclaration)
+        .expect("parsed missing declaration");
+    let original = arena.node_ref(source, missing).unwrap();
+    let cloned = arena
+        .factory()
+        .clone_node_to_source(original, destination)
+        .unwrap();
+    let NodeData::MissingDeclaration(data) = &arena.node(cloned).unwrap().data else {
+        panic!("missing declaration clone");
+    };
+    let modifiers = arena
+        .node_array_ref(destination, data.modifiers.unwrap())
+        .unwrap();
+    let modifiers = &arena.node_array(modifiers).unwrap().nodes;
+    assert_eq!(modifiers.len(), 1);
+    let decorator = arena.node_ref(destination, modifiers[0]).unwrap();
+    let NodeData::Decorator(data) = &arena.node(decorator).unwrap().data else {
+        panic!("cross-source cloning must remap the retained decorator");
+    };
+    let expression = arena
+        .node_ref(destination, data.expression.unwrap())
+        .unwrap();
+    let NodeData::Identifier(data) = &arena.node(expression).unwrap().data else {
+        panic!("cross-source cloning must remap the decorator expression");
+    };
+    assert_eq!(data.text, "g");
+}
+
+#[test]
+fn access_parenthesization_matches_typescript_kind_and_range_boundaries() {
+    use tsc_syntax::nodes::{
+        ArrowFunctionData, ExpressionWithTypeArgumentsData, MissingDeclarationData,
+        NewExpressionData, NonNullExpressionData, OmittedExpressionData,
+        PartiallyEmittedExpressionData, PropertyAccessExpressionData,
+    };
+
+    // Fresh tsc 6.0.3 factory observations cover both directions of the
+    // precedence/kind disagreement, plus the independent new/optional rules.
+    let parsed = parsed("factory.ts", "     value     \n");
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, None);
+    let mut factory = arena.factory();
+    let value = factory.create_identifier(source, "value").unwrap();
+    let member = factory.create_identifier(source, "member").unwrap();
+    let import = factory
+        .create_token(source, SyntaxKind::ImportKeyword, TransformFlags::NONE)
+        .unwrap();
+    let empty = factory.create_node_array(source, Vec::new()).unwrap();
+    let arrow_token = factory
+        .create_token(
+            source,
+            SyntaxKind::EqualsGreaterThanToken,
+            TransformFlags::NONE,
+        )
+        .unwrap();
+    let arrow = factory
+        .create_node(
+            source,
+            NodeData::ArrowFunction(ArrowFunctionData {
+                type_parameters: None,
+                parameters: Some(empty.array()),
+                r#type: None,
+                body: Some(value.node()),
+                modifiers: None,
+                equals_greater_than_token: Some(arrow_token.node()),
+            }),
+            TransformFlags::NONE,
+        )
+        .unwrap();
+    let non_null = factory
+        .create_node(
+            source,
+            NodeData::NonNullExpression(NonNullExpressionData {
+                expression: Some(value.node()),
+            }),
+            TransformFlags::NONE,
+        )
+        .unwrap();
+    let instantiation = factory
+        .create_node(
+            source,
+            NodeData::ExpressionWithTypeArguments(ExpressionWithTypeArgumentsData {
+                expression: Some(value.node()),
+                type_arguments: None,
+            }),
+            TransformFlags::NONE,
+        )
+        .unwrap();
+    let missing = factory
+        .create_node(
+            source,
+            NodeData::MissingDeclaration(MissingDeclarationData { modifiers: None }),
+            TransformFlags::NONE,
+        )
+        .unwrap();
+    let omitted = factory
+        .create_node(
+            source,
+            NodeData::OmittedExpression(OmittedExpressionData {}),
+            TransformFlags::NONE,
+        )
+        .unwrap();
+    let new_without_args = factory
+        .create_node(
+            source,
+            NodeData::NewExpression(NewExpressionData {
+                expression: Some(value.node()),
+                type_arguments: None,
+                arguments: None,
+                question_dot_token: None,
+            }),
+            TransformFlags::NONE,
+        )
+        .unwrap();
+    let new_with_args = factory
+        .create_node(
+            source,
+            NodeData::NewExpression(NewExpressionData {
+                expression: Some(value.node()),
+                type_arguments: None,
+                arguments: Some(empty.array()),
+                question_dot_token: None,
+            }),
+            TransformFlags::NONE,
+        )
+        .unwrap();
+    let question_dot = factory
+        .create_token(source, SyntaxKind::QuestionDotToken, TransformFlags::NONE)
+        .unwrap();
+    let optional = factory
+        .create_node(
+            source,
+            NodeData::PropertyAccessExpression(PropertyAccessExpressionData {
+                expression: Some(value.node()),
+                question_dot_token: Some(question_dot.node()),
+                name: Some(member.node()),
+            }),
+            TransformFlags::NONE,
+        )
+        .unwrap();
+    factory
+        .set_node_flags(optional, NodeFlags::SYNTHESIZED | NodeFlags::OPTIONAL_CHAIN)
+        .unwrap();
+    let ordinary_property = factory
+        .create_property_access_expression(source, value, member)
+        .unwrap();
+    let partial_import = factory
+        .create_node(
+            source,
+            NodeData::PartiallyEmittedExpression(PartiallyEmittedExpressionData {
+                expression: Some(import.node()),
+            }),
+            TransformFlags::NONE,
+        )
+        .unwrap();
+    let partial_arrow = factory
+        .create_node(
+            source,
+            NodeData::PartiallyEmittedExpression(PartiallyEmittedExpressionData {
+                expression: Some(arrow.node()),
+            }),
+            TransformFlags::NONE,
+        )
+        .unwrap();
+    for (name, original, wrapped) in [
+        ("import", import, false),
+        ("non-null", non_null, false),
+        ("instantiation", instantiation, false),
+        ("missing-declaration", missing, false),
+        ("arrow", arrow, true),
+        ("omitted", omitted, true),
+        ("new-no-args", new_without_args, true),
+        ("new-empty-args", new_with_args, false),
+        ("optional", optional, true),
+        ("identifier", value, false),
+        ("ordinary-property", ordinary_property, false),
+        ("partial-import", partial_import, false),
+        ("partial-arrow", partial_arrow, true),
+    ] {
+        factory
+            .set_text_range_from_source_range(
+                original,
+                source,
+                SourceRange::from_raw(5, 15, parsed.positions()).unwrap(),
+            )
+            .unwrap();
+        let access = factory
+            .create_property_access_expression(source, original, member)
+            .unwrap();
+        let NodeData::PropertyAccessExpression(data) = &factory.arena.node(access).unwrap().data
+        else {
+            panic!("property access for {name}");
+        };
+        let result = factory
+            .arena
+            .node_ref(source, data.expression.unwrap())
+            .unwrap();
+        assert_eq!(result != original, wrapped, "{name}");
+        let record = factory.arena.node(result).unwrap();
+        assert_eq!((record.pos, record.end), (5, 15), "{name}");
+        if wrapped {
+            let NodeData::ParenthesizedExpression(data) = &record.data else {
+                panic!("expected ranged wrapper for {name}");
+            };
+            assert_eq!(data.expression, Some(original.node()), "{name}");
+        }
+    }
+}

@@ -1,0 +1,32 @@
+{
+  "head": "2df8d1cd0bae5a26efd1d4268bab4cc7cfd9cc12",
+  "status": "original40 completed; parse proof and additional controls remain",
+  "qualified": true,
+  "steps": [
+    {
+      "label": "original40",
+      "argv": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-compiler",
+        "--test",
+        "contracts",
+        "h2_8a_export_name_syntax_maps::export_name_syntax_maps_match_complete_typescript_observations",
+        "--",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit": 0,
+      "seconds": 601.2837578339968,
+      "log_sha256": "f9bf525046710f87ecae1ebe28ada938517f5686f0b5a4111816929cb6b0746e"
+    }
+  ]
+}

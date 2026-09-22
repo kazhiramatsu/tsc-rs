@@ -1,0 +1,37 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
+import { pathToFileURL } from 'node:url';
+const root = '/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep';
+const prep = '/tmp/emitter-w5-stratum-repair-r520';
+const actual = `${root}/crates/oracle/h2-7a-witnesses.mjs`;
+const url = pathToFileURL(actual).href;
+const generatorBytes = fs.readFileSync(actual);
+let source = generatorBytes.toString('utf8');
+const marker = 'try {\n  if (MODE === INTERNAL_OBSERVE_MODE)';
+assert.equal(source.split(marker).length, 2);
+source = source.slice(0, source.lastIndexOf(marker));
+source = source.replace('const GENERATOR_PATH = fileURLToPath(import.meta.url);', `const GENERATOR_PATH = fileURLToPath(${JSON.stringify(url)});`);
+source = source.replace(/from "(\.\.?\/[^"\n]+)"/g, (_, relative) => `from ${JSON.stringify(new URL(relative, url).href)}`);
+source += '\nexport { prepareStaticContext, currentStratumCensusMatches, verifyM1Projection, verifyS2Projection };\n';
+assert.equal(process.env.TSRS_H2_7A_STRATUM_CENSUS, undefined);
+const module = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+const before = fs.readFileSync(`${root}/ratchets/h2-7a-witnesses.v1.json`);
+const witness = JSON.parse(before);
+// The real ensureStratumCensus executes Cargo here. No child-process mock,
+// supplied census, observation mint, or check-receipt adoption is involved.
+const context = module.prepareStaticContext();
+module.verifyM1Projection(context.caseManifest.cases, witness.observations, context.stratum, 'fresh canonical native census');
+module.verifyS2Projection(context.caseManifest.cases, witness.observations, context.m2Supplement, 'fresh canonical native census');
+assert.deepEqual(context.stratum, witness.stratum);
+const census = fs.readFileSync(context.censusPath);
+const rows = new Map(census.toString('utf8').trim().split('\n').map(x => { const row = JSON.parse(x); return [row.case_id, row]; }));
+const qualification = new Map(JSON.parse(fs.readFileSync(`${root}/ratchets/h2-6c-qualification.v1.json`, 'utf8')).cases.map(x => [x.case_id, x]));
+for (const id of context.stratum.case_ids) assert.equal(module.currentStratumCensusMatches(rows.get(id), qualification.get(id)), true, id);
+assert.deepEqual(fs.readFileSync(`${root}/ratchets/h2-7a-witnesses.v1.json`), before);
+assert.deepEqual(fs.readFileSync(actual), generatorBytes);
+const sha = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
+fs.writeFileSync(`${prep}/fresh-native-census.jsonl`, census);
+const result = {qualified: false, native_census_passed: true, scope: 'fresh native path-joined byte/BOM, count/skip checks and historical projection preservation; not full command parity or walk qualification', cases: context.caseSpecs.length, census_rows: rows.size, complete_roster_rows: context.stratum.count, generator_sha256: sha(generatorBytes), census_sha256: sha(census), historical_census_sha256: witness.stratum.census_jsonl_sha256, m1_projection_preserved: true, s2_projection_preserved: true, tracked_artifact_unchanged: true};
+fs.writeFileSync(`${prep}/fresh-native-proof.json`, JSON.stringify(result, null, 2) + '\n');
+console.log(JSON.stringify(result));

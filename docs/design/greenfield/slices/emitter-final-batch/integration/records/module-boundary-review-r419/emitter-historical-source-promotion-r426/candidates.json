@@ -1,0 +1,10 @@
+[
+  "typescript-6.0.3/compiler/bigintArbirtraryIdentifier.ts#default",
+  "typescript-6.0.3/compiler/bigintPropertyName.ts#default",
+  "typescript-6.0.3/compiler/binderBinaryExpressionStress.ts#default",
+  "typescript-6.0.3/compiler/parseBigInt.ts#default",
+  "typescript-6.0.3/compiler/reachabilityChecksNoCrash1.ts#default",
+  "typescript-6.0.3/conformance/classes/classStaticBlock/classStaticBlock26.ts#target%3Desnext",
+  "typescript-6.0.3/conformance/decorators/invalid/decoratorOnUsing.ts#default",
+  "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsInForOf.2.ts#default"
+]

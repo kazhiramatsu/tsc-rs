@@ -1,0 +1,474 @@
+{
+  "head": "8859338f1c761d867cbc7f5ef58987dc3777f944",
+  "tracked_clean": false,
+  "candidate_diff_sha256": "49a4d91dce5a72a980479b23ce20e0a48d750e35b1004bcdd76cad3a43ed7043",
+  "qualified": true,
+  "scope": "Reviewed import/export corrections with independent export-clause comment ownership: whole emitter, previously failingM4/token/ellipsis, all affected helper/export/context commands, bothsource-map witness lanes, UTF16 boundaries and all H2.1a acceptance tests, workspaceclippy. Unsplit finalCI remainsmandatory. No temporary selectors or modified comparators.",
+  "steps": [
+    {
+      "label": "module-validation-format-r441",
+      "exit": 0,
+      "checks_passed": true,
+      "seconds": 13.503954584011808,
+      "argv": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "test_summaries": [],
+      "passed_tests": 0,
+      "expected_complete_commands": null,
+      "exact_x2_lines": 0
+    },
+    {
+      "label": "module-validation-emitter-all-r441",
+      "exit": 0,
+      "checks_passed": true,
+      "seconds": 78.52081337501295,
+      "argv": [
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-emitter",
+        "--no-fail-fast",
+        "--",
+        "--test-threads=1"
+      ],
+      "test_summaries": [
+        [
+          515,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          452,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          10,
+          0,
+          0
+        ],
+        [
+          18,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "passed_tests": 1020,
+      "expected_complete_commands": null,
+      "exact_x2_lines": 0
+    },
+    {
+      "label": "module-validation-m4-r441",
+      "exit": 0,
+      "checks_passed": true,
+      "seconds": 5.211149916984141,
+      "argv": [
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-compiler",
+        "--test",
+        "contracts",
+        "h2_7a_m4_controls::",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "test_summaries": [
+        [
+          4,
+          0,
+          0
+        ]
+      ],
+      "passed_tests": 4,
+      "expected_complete_commands": null,
+      "exact_x2_lines": 0
+    },
+    {
+      "label": "module-validation-token-r441",
+      "exit": 0,
+      "checks_passed": true,
+      "seconds": 452.18595204199664,
+      "argv": [
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-compiler",
+        "--test",
+        "contracts",
+        "h2_8a_token_comment_phases::",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "test_summaries": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "passed_tests": 1,
+      "expected_complete_commands": 429,
+      "exact_x2_lines": 429
+    },
+    {
+      "label": "module-validation-ellipsis-r441",
+      "exit": 0,
+      "checks_passed": true,
+      "seconds": 575.1948302921373,
+      "argv": [
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-compiler",
+        "--test",
+        "contracts",
+        "h2_8a_ellipsis_comment_owners::",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "test_summaries": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "passed_tests": 1,
+      "expected_complete_commands": 534,
+      "exact_x2_lines": 534
+    },
+    {
+      "label": "module-validation-helpers-r441",
+      "exit": 0,
+      "checks_passed": true,
+      "seconds": 539.8303388748318,
+      "argv": [
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-compiler",
+        "--test",
+        "contracts",
+        "h2_8a_import_helpers::import_helpers_matches_complete_typescript_observations",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "test_summaries": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "passed_tests": 1,
+      "expected_complete_commands": 551,
+      "exact_x2_lines": 551
+    },
+    {
+      "label": "module-validation-export-names-r441",
+      "exit": 0,
+      "checks_passed": true,
+      "seconds": 79.80736333318055,
+      "argv": [
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-compiler",
+        "--test",
+        "contracts",
+        "h2_8a_export_name_syntax_maps::",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "test_summaries": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "passed_tests": 1,
+      "expected_complete_commands": 80,
+      "exact_x2_lines": 80
+    },
+    {
+      "label": "module-validation-context-r441",
+      "exit": 0,
+      "checks_passed": true,
+      "seconds": 843.7594907500315,
+      "argv": [
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-compiler",
+        "--test",
+        "contracts",
+        "h2_8a_import_helpers::context_recovery_matches_complete_typescript_observations",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "test_summaries": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "passed_tests": 1,
+      "expected_complete_commands": 788,
+      "exact_x2_lines": 788
+    },
+    {
+      "label": "module-validation-recording-r441",
+      "exit": 0,
+      "checks_passed": true,
+      "seconds": 477.97416158299893,
+      "argv": [
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-compiler",
+        "--test",
+        "contracts",
+        "source_map_recording_witness_contract::",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "test_summaries": [
+        [
+          4,
+          0,
+          0
+        ]
+      ],
+      "passed_tests": 4,
+      "expected_complete_commands": null,
+      "exact_x2_lines": 0
+    },
+    {
+      "label": "module-validation-production-r441",
+      "exit": 0,
+      "checks_passed": true,
+      "seconds": 411.50695600011386,
+      "argv": [
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-compiler",
+        "--test",
+        "contracts",
+        "source_map_emit_witness_contract::",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "test_summaries": [
+        [
+          4,
+          0,
+          0
+        ]
+      ],
+      "passed_tests": 4,
+      "expected_complete_commands": null,
+      "exact_x2_lines": 0
+    },
+    {
+      "label": "module-validation-utf16-r441",
+      "exit": 0,
+      "checks_passed": true,
+      "seconds": 121.85641654208302,
+      "argv": [
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-compiler",
+        "--test",
+        "h2_8a_utf16_identity_recovery_controls",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "test_summaries": [
+        [
+          2,
+          0,
+          0
+        ]
+      ],
+      "passed_tests": 2,
+      "expected_complete_commands": null,
+      "exact_x2_lines": 0
+    },
+    {
+      "label": "module-validation-h2-1a-r441",
+      "exit": 0,
+      "checks_passed": true,
+      "seconds": 766.6830769579392,
+      "argv": [
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-xtask",
+        "h2_1a_acceptance::tests::",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "test_summaries": [
+        [
+          4,
+          0,
+          0
+        ]
+      ],
+      "passed_tests": 4,
+      "expected_complete_commands": null,
+      "exact_x2_lines": 0
+    },
+    {
+      "label": "module-validation-clippy-r441",
+      "exit": 0,
+      "checks_passed": true,
+      "seconds": 80.83120895805769,
+      "argv": [
+        "cargo",
+        "clippy",
+        "--offline",
+        "--workspace",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "test_summaries": [],
+      "passed_tests": 0,
+      "expected_complete_commands": null,
+      "exact_x2_lines": 0
+    }
+  ]
+}

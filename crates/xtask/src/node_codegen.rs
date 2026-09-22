@@ -129,7 +129,7 @@ pub(crate) fn codegen_nodes(check: bool) -> Result<(), Box<dyn Error>> {
 /// fail either way.
 /// tsc fields the schema does not carry yet — including fields on
 /// allowlisted unmaterialized kinds — are tracked exactly in
-/// nodes-missing-fields.txt; `--write` regenerates the manifest so its
+/// ratchets/nodes-missing-fields.txt; `--write` regenerates the manifest so its
 /// diff is the review surface.
 pub(crate) fn schema_audit(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let mut write = false;
@@ -339,7 +339,7 @@ pub(crate) fn schema_audit(args: impl Iterator<Item = String>) -> Result<(), Box
         manifest.push_str(line);
         manifest.push('\n');
     }
-    let manifest_path = workspace.join("nodes-missing-fields.txt");
+    let manifest_path = workspace.join("ratchets/nodes-missing-fields.txt");
     if write {
         fs::write(&manifest_path, &manifest)?;
         println!(
@@ -772,7 +772,7 @@ const FIELDLESS_KINDS: &[&str] = &[
 /// list exactly, in both directions: a d.ts kind absent from the schema
 /// must be listed here, a listed kind must stay absent from the schema
 /// and present in the d.ts, and any d.ts fields these kinds declare are
-/// tracked in nodes-missing-fields.txt so the debt stays visible.
+/// tracked in ratchets/nodes-missing-fields.txt so the debt stays visible.
 const UNMATERIALIZED_KINDS: &[&str] = &[
     // Keyword-literal expressions and fieldless markers: the parser
     // allocates kind-only token nodes (finish_kind_only_node); their

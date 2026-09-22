@@ -1,0 +1,294 @@
+{
+  "status": "passed",
+  "writer_kind": "original",
+  "scope": "Only enumerated current-parent metadata may change; native verification is separate",
+  "started_at": "2026-09-21T00:22:33.205Z",
+  "stale": [
+    "ef7-217",
+    "ef7-plan-base",
+    "jsdoc",
+    "parameters",
+    "utf16"
+  ],
+  "writers": [
+    {
+      "name": "ef7-217",
+      "argv": [
+        "/opt/homebrew/Cellar/node/25.2.1/bin/node",
+        "scripts/observe-emitter-final-universe.mjs",
+        "--write",
+        "--set",
+        "217"
+      ],
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "seconds": 100.848729291,
+      "log_sha256": "b8efeadfb92e9f0b9de5e1357acb8ea04b8f4d6c9a397a508da1406e423f7de2",
+      "log_bytes": 28672
+    },
+    {
+      "name": "ef7-plan-base",
+      "argv": [
+        "/opt/homebrew/Cellar/node/25.2.1/bin/node",
+        "scripts/observe-emitter-final-universe.mjs",
+        "--write",
+        "--set",
+        "plan-base"
+      ],
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "seconds": 847.69104775,
+      "log_sha256": "e51c991e0b43ded23b1f2dd4df861831327dc8e1c4aab77409e9da73e692a3ce",
+      "log_bytes": 219638
+    },
+    {
+      "name": "jsdoc",
+      "argv": [
+        "/opt/homebrew/Cellar/node/25.2.1/bin/node",
+        "scripts/observe-emitter-jsdoc-original-command.mjs",
+        "--write"
+      ],
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "seconds": 1.8874752080000472,
+      "log_sha256": "5f038579af0375cf49f4b122ad6cb61e414b0b7b3f5422c8f2f883fe00f2c3a1",
+      "log_bytes": 275
+    },
+    {
+      "name": "parameters",
+      "argv": [
+        "/opt/homebrew/Cellar/node/25.2.1/bin/node",
+        "scripts/observe-h2-5h-parameter-temporaries.mjs",
+        "--write"
+      ],
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "seconds": 42.27909499999997,
+      "log_sha256": "b6ca36c346f416fd30320effb762543dfe9ee99f908541bfd77934e0d747b926",
+      "log_bytes": 5631
+    },
+    {
+      "name": "utf16",
+      "argv": [
+        "/opt/homebrew/Cellar/node/25.2.1/bin/node",
+        "scripts/observe-utf16-original-rows-complete.mjs",
+        "--write"
+      ],
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "seconds": 3.3966976249999132,
+      "log_sha256": "66868778ffe97482024f3100d91c261445345532059510ffecdd523b53916ee0",
+      "log_bytes": 731
+    }
+  ],
+  "before": [
+    {
+      "path": "before/crates/compiler/tests/fixtures/emitter-final-universe.json.gz",
+      "sha256": "77f198b0e8bc846509702f01be75baf5a3afd831505f538e1350faefa8059a5f",
+      "bytes": 1729158,
+      "file": "crates/compiler/tests/fixtures/emitter-final-universe.json",
+      "mode": 420,
+      "atime_ns": "1789942020831058452",
+      "mtime_ns": "1789934290106968712"
+    },
+    {
+      "path": "before/crates/compiler/tests/fixtures/emitter-final-universe-plan-base.json.zst.gz",
+      "sha256": "e275dbd160bbac93f442831fec0372fd6823e4581c86edfa0a272e5d40c92203",
+      "bytes": 441517,
+      "file": "crates/compiler/tests/fixtures/emitter-final-universe-plan-base.json.zst",
+      "mode": 420,
+      "atime_ns": "1789942020726930369",
+      "mtime_ns": "1789935102000000000"
+    },
+    {
+      "path": "before/crates/compiler/tests/fixtures/emitter-jsdoc-original-command.json.gz",
+      "sha256": "ab3341dd4aefdae31b5d6cef4e7db6ab4c1233e14905c5d18a6d9213d36ce43b",
+      "bytes": 64288,
+      "file": "crates/compiler/tests/fixtures/emitter-jsdoc-original-command.json",
+      "mode": 420,
+      "atime_ns": "1789942020836237091",
+      "mtime_ns": "1789935244439120501"
+    },
+    {
+      "path": "before/crates/compiler/tests/fixtures/h2-5h-parameter-temporaries.json.gz",
+      "sha256": "3e89934e189dd15ea9061c69d3f3090bf517e84ff759f99a857881d325efa534",
+      "bytes": 233713,
+      "file": "crates/compiler/tests/fixtures/h2-5h-parameter-temporaries.json",
+      "mode": 420,
+      "atime_ns": "1789942020836444925",
+      "mtime_ns": "1789935283754130131"
+    },
+    {
+      "path": "before/crates/compiler/tests/fixtures/utf16-original-rows-complete.json.gz",
+      "sha256": "02fef2a6e3d38f16f7935d43042f28b522d28073ae0977124ffb4a867c34271b",
+      "bytes": 15171,
+      "file": "crates/compiler/tests/fixtures/utf16-original-rows-complete.json",
+      "mode": 420,
+      "atime_ns": "1789942020836947052",
+      "mtime_ns": "1789935287176605229"
+    },
+    {
+      "path": "before/docs/design/greenfield/slices/h2-5h-parameter-temporaries-selection.v1.json.gz",
+      "sha256": "37c05886da54e9f0aa67ea4bfe853eae605a88ef23b38443b3c8aeafc03f0e28",
+      "bytes": 28076,
+      "file": "docs/design/greenfield/slices/h2-5h-parameter-temporaries-selection.v1.json",
+      "mode": 420,
+      "atime_ns": "1789942020843568903",
+      "mtime_ns": "1789935242578255583"
+    }
+  ],
+  "guards": [
+    {
+      "file": ".node-version",
+      "path": "inputs/.node-version.gz",
+      "sha256": "df753cffe2db3a02f70d9003df80692390d49b459150b5743ea9d4c4d3dd197c",
+      "bytes": 7
+    },
+    {
+      "file": "ratchets/h2-5g-profile.v1.json",
+      "path": "inputs/ratchets/h2-5g-profile.v1.json.gz",
+      "sha256": "1eb7e7337662a90a29e2e41b6250008b5a04e302a1104284e11fa43ba60ead05",
+      "bytes": 170401
+    },
+    {
+      "file": "vendor/typescript-6.0.3/lib/typescript.js",
+      "path": "inputs/vendor/typescript-6.0.3/lib/typescript.js.gz",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+      "bytes": 9144216
+    },
+    {
+      "file": "ratchets/h2-5h-qualification.v1.json",
+      "path": "inputs/ratchets/h2-5h-qualification.v1.json.gz",
+      "sha256": "ec99df9e3187960e572df9d610ee748645ea5d8eb1f81fa620c988124f0ee1d6",
+      "bytes": 6919949
+    },
+    {
+      "file": "ratchets/h2-5g-qualification.v1.json",
+      "path": "inputs/ratchets/h2-5g-qualification.v1.json.gz",
+      "sha256": "7ab805cbeef7858607b5babc966bce2f091e41342d4d4c348e2decdab18ae700",
+      "bytes": 57583237
+    },
+    {
+      "file": "scripts/observe-emitter-final-universe.mjs",
+      "path": "inputs/scripts/observe-emitter-final-universe.mjs.gz",
+      "sha256": "447f1dbff8dab508144955f9e8813dc0b1611ce603759bfdb87fcddc942b7bc6",
+      "bytes": 21538
+    },
+    {
+      "file": "docs/design/greenfield/slices/emitter-final-batch/ef7/universe-217.v1.json",
+      "path": "inputs/docs/design/greenfield/slices/emitter-final-batch/ef7/universe-217.v1.json.gz",
+      "sha256": "dcbd8d72af83317d2f5046f0560ec03a1ad81a0bf7845f6e9c0230e18120889f",
+      "bytes": 150889
+    },
+    {
+      "file": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
+      "path": "inputs/vendor/typescript-6.0.3/test-suite-expansion.v1.json.gz",
+      "sha256": "9c6e991103b571f7a8800dc5e1ef66088017689f3769de8fcdb408b2dc125188",
+      "bytes": 13797982
+    },
+    {
+      "file": "vendor/typescript-6.0.3/conformance-suite-expansion.v1.json",
+      "path": "inputs/vendor/typescript-6.0.3/conformance-suite-expansion.v1.json.gz",
+      "sha256": "924d4007b3ac93a3ee57032ea6089b649bab2902e30ee64cff02f4c9404b7bbd",
+      "bytes": 13644462
+    },
+    {
+      "file": "vendor/typescript-6.0.3/compiler-config-plans.v1.json",
+      "path": "inputs/vendor/typescript-6.0.3/compiler-config-plans.v1.json.gz",
+      "sha256": "d19356ed235fd32579f8688be44ee2f57dd7965cf45ccf172e7f01cd95050453",
+      "bytes": 189734
+    },
+    {
+      "file": "crates/oracle/h2-8a-candidates.mjs",
+      "path": "inputs/crates/oracle/h2-8a-candidates.mjs.gz",
+      "sha256": "5ca908f41fdb91592c181e248243bc04a4f92e4b7d9f22285a7a60c5f7b6323f",
+      "bytes": 22554
+    },
+    {
+      "file": "crates/oracle/vfs-directory-overlay.mjs",
+      "path": "inputs/crates/oracle/vfs-directory-overlay.mjs.gz",
+      "sha256": "2868391e75941127f8eb3a352232190fd98c6d794235913e288432e5626aab76",
+      "bytes": 3525
+    },
+    {
+      "file": "ratchets/h2-candidate-dispositions.v1.json",
+      "path": "inputs/ratchets/h2-candidate-dispositions.v1.json.gz",
+      "sha256": "55f00c57e7226da1220b93773c106e1626526d2b2ffff8b9d4e5b0ef1d288c7a",
+      "bytes": 14246533
+    },
+    {
+      "file": "ratchets/h2-8a-candidate-inputs.v1.json",
+      "path": "inputs/ratchets/h2-8a-candidate-inputs.v1.json.gz",
+      "sha256": "6ff7ea8d1d986e8a9d833d45ec694ab0b8616604fdf065ba52e24a34ac86759b",
+      "bytes": 2266516
+    },
+    {
+      "file": "docs/design/greenfield/slices/emitter-final-batch/ef7/universe-plan-base.v1.json",
+      "path": "inputs/docs/design/greenfield/slices/emitter-final-batch/ef7/universe-plan-base.v1.json.gz",
+      "sha256": "3a3b071d69891ad7d402fce118fbc2111d221270252fb07492f7cec66a7894ad",
+      "bytes": 1313062
+    },
+    {
+      "file": "scripts/observe-emitter-jsdoc-original-command.mjs",
+      "path": "inputs/scripts/observe-emitter-jsdoc-original-command.mjs.gz",
+      "sha256": "6bc50cb7959ce726301d4be335398ce38e1e849c674c0c30a4360b8cc25b12d2",
+      "bytes": 12571
+    },
+    {
+      "file": "ratchets/h2-7b-qualification.v1.json",
+      "path": "inputs/ratchets/h2-7b-qualification.v1.json.gz",
+      "sha256": "71bad56ffc0bb5de95cd20fc1b15297e3b9d40750ffd999154955286ad616167",
+      "bytes": 24360464
+    },
+    {
+      "file": "scripts/observe-h2-5h-parameter-temporaries.mjs",
+      "path": "inputs/scripts/observe-h2-5h-parameter-temporaries.mjs.gz",
+      "sha256": "36caddcf6869158593cfe06c0cbae63db72eba04bde57ee6df9022e9a2da7581",
+      "bytes": 13218
+    },
+    {
+      "file": "scripts/observe-utf16-original-rows-complete.mjs",
+      "path": "inputs/scripts/observe-utf16-original-rows-complete.mjs.gz",
+      "sha256": "cfcac9cb0fa71fde316e699c3ea10f0bc1d60aba2c6e0276b55eebc56877e72c",
+      "bytes": 8407
+    }
+  ],
+  "after": [
+    {
+      "file": "crates/compiler/tests/fixtures/emitter-final-universe.json",
+      "path": "after/crates/compiler/tests/fixtures/emitter-final-universe.json.gz",
+      "sha256": "d85a6fad89043838369afc02d41c04808d33f8ad7564995374772e53976e4c17",
+      "bytes": 1729158
+    },
+    {
+      "file": "crates/compiler/tests/fixtures/emitter-final-universe-plan-base.json.zst",
+      "path": "after/crates/compiler/tests/fixtures/emitter-final-universe-plan-base.json.zst.gz",
+      "sha256": "41ef8c86fe98a5368dcb03225b8c4712a8d04f05cce4cbe1c4e36b711e8c655b",
+      "bytes": 441416
+    },
+    {
+      "file": "crates/compiler/tests/fixtures/emitter-jsdoc-original-command.json",
+      "path": "after/crates/compiler/tests/fixtures/emitter-jsdoc-original-command.json.gz",
+      "sha256": "8b629a5381ac6b86cb4fc391b49e3ee0d0dd289a0e3c254e5e196812fdd9dc98",
+      "bytes": 64288
+    },
+    {
+      "file": "crates/compiler/tests/fixtures/h2-5h-parameter-temporaries.json",
+      "path": "after/crates/compiler/tests/fixtures/h2-5h-parameter-temporaries.json.gz",
+      "sha256": "f7afcb57f4d6ae982d8fcd49c4941c871d22edbe8931692b430a4e19c33ecef3",
+      "bytes": 233713
+    },
+    {
+      "file": "crates/compiler/tests/fixtures/utf16-original-rows-complete.json",
+      "path": "after/crates/compiler/tests/fixtures/utf16-original-rows-complete.json.gz",
+      "sha256": "3cbbabc33ff05b842d1f8582de222b595dc76e04c2151e2a69c234d3a055b2ef",
+      "bytes": 15171
+    }
+  ],
+  "finished_at": "2026-09-21T00:39:13.656Z"
+}

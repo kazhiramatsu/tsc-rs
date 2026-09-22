@@ -1,0 +1,24 @@
+{
+  "qualified_native": false,
+  "purpose": "The suppressed escaped-keyword witness is a refusal-preservation guard in the syntax test, not a positive complete-command admission. Its TypeScript observations remain archived. Positive controls retain every original192 observation plus8 named-variable numeric followers.",
+  "artifacts": [
+    {
+      "path": "emitter-r171-corpus-controls.json.gz",
+      "sha256": "89abf8adf39dfd9997d603d8bc6caf51ef106500bc43d3ae84283c34008bdf85",
+      "original_sha256": "d946c0bb2d5f93abe6b55d5282da7ab1a7d8a403d7cd4b78fc882b9f28dfd557"
+    },
+    {
+      "path": "observe-emitter-r171-corpus-controls.mjs.gz",
+      "sha256": "77f9d6732ba2470a56a95f09b5e865640a6add6cef8c3b5c10349a0e27c207c0",
+      "original_sha256": "657bb9226d15f8a73426c14b53d651f92513650f8d7b70f4a59fbcfe5119121a"
+    },
+    {
+      "path": "corpus-controls-oracle-r173.json",
+      "sha256": "15a6e3861ceea2b184164c3b289c2a6df13415087fc56403204d6b4e1bcad8fd"
+    },
+    {
+      "path": "corpus-controls-oracle-r173.log.gz",
+      "sha256": "efa74b6094ed1e90bd7d2213f2521aa5fd57d840a453aab7c39671f86a3afde5"
+    }
+  ]
+}

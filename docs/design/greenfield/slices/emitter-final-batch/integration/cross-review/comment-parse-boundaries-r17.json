@@ -1,0 +1,1418 @@
+[
+  {
+    "case_id": "import-helpers/comment-boundary/es2015/remove-false/optional-line-comment",
+    "roots": [
+      "/project/main.ts",
+      "/project/ambient.d.ts"
+    ],
+    "files": [
+      {
+        "path": "/project/main.ts",
+        "text": "declare const object: { x: number } | undefined; export const value = (object?.x // value\n as number);\n"
+      },
+      {
+        "path": "/project/ambient.d.ts",
+        "text": "declare module \"dep\" { const value: number; export default value; export const item: number; }\ndeclare module \"tslib\" { const value: number; export default value; export const item: number; export const __awaiter: any; export const __generator: any; export const __importDefault: any; export const __importStar: any; export const __exportStar: any; export const __createBinding: any; export const __setModuleDefault: any; }\n"
+      }
+    ],
+    "options": {},
+    "config": "{\"compilerOptions\":{\"strict\":true,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"outDir\":\"/project/out\",\"esModuleInterop\":true,\"importHelpers\":false,\"module\":\"esnext\",\"target\":\"es2015\",\"removeComments\":false},\"files\":[\"main.ts\",\"ambient.d.ts\"]}",
+    "witness": {
+      "group": "comment-boundary/es2015/remove-false",
+      "shape": "optional-line-comment",
+      "compiler_options": {
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "sourceMap": true,
+        "outDir": "/project/out",
+        "esModuleInterop": true,
+        "importHelpers": false,
+        "module": "esnext",
+        "target": "es2015",
+        "removeComments": false
+      }
+    },
+    "typescript_observation": {
+      "writes": [
+        {
+          "index": 0,
+          "path": "/project/out/main.js.map",
+          "kind": "source-map",
+          "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQWlELE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLE1BQU0sYUFBTixNQUFNLHVCQUFOLE1BQU0sQ0FBRSxDQUFDLENBQUEsQ0FBQSxDQUFDLFFBQVE7QUFDeEYsRUFBRSxDQUFBO0FBQUMsTUFBTSxDQUFBO0FBQUMsQ0FBQyJ9",
+          "callback_utf8_bytes": 228,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQWlELE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLE1BQU0sYUFBTixNQUFNLHVCQUFOLE1BQU0sQ0FBRSxDQUFDLENBQUEsQ0FBQSxDQUFDLFFBQVE7QUFDeEYsRUFBRSxDQUFBO0FBQUMsTUFBTSxDQUFBO0FBQUMsQ0FBQyJ9",
+          "materialized_utf8_bytes": 228,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": false,
+          "data_source_map_url_pos": null,
+          "data_diagnostics": null
+        },
+        {
+          "index": 1,
+          "path": "/project/out/main.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gKG9iamVjdCA9PT0gbnVsbCB8fCBvYmplY3QgPT09IHZvaWQgMCA/IHZvaWQgMCA6IG9iamVjdC54KTsgLy8gdmFsdWUKYXM7Cm51bWJlcjsKOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "callback_utf8_bytes": 136,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gKG9iamVjdCA9PT0gbnVsbCB8fCBvYmplY3QgPT09IHZvaWQgMCA/IHZvaWQgMCA6IG9iamVjdC54KTsgLy8gdmFsdWUKYXM7Cm51bWJlcjsKOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "materialized_utf8_bytes": 136,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": true,
+          "data_source_map_url_pos": 104,
+          "data_diagnostics": []
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1005,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 91,
+          "length": 2,
+          "message": "')' expected.",
+          "related_information": null
+        },
+        {
+          "code": 1434,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 94,
+          "length": 6,
+          "message": "Unexpected keyword or identifier.",
+          "related_information": null
+        },
+        {
+          "code": 1128,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 100,
+          "length": 1,
+          "message": "Declaration or statement expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/project/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAiD,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,MAAM,aAAN,MAAM,uBAAN,MAAM,CAAE,CAAC,CAAA,CAAA,CAAC,QAAQ;AACxF,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+          }
+        ]
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "import-helpers/comment-boundary/es2015/remove-false/optional-own-line",
+    "roots": [
+      "/project/main.ts",
+      "/project/ambient.d.ts"
+    ],
+    "files": [
+      {
+        "path": "/project/main.ts",
+        "text": "declare const object: { x: number } | undefined; export const value = (object?.x\n /* value */ as number);\n"
+      },
+      {
+        "path": "/project/ambient.d.ts",
+        "text": "declare module \"dep\" { const value: number; export default value; export const item: number; }\ndeclare module \"tslib\" { const value: number; export default value; export const item: number; export const __awaiter: any; export const __generator: any; export const __importDefault: any; export const __importStar: any; export const __exportStar: any; export const __createBinding: any; export const __setModuleDefault: any; }\n"
+      }
+    ],
+    "options": {},
+    "config": "{\"compilerOptions\":{\"strict\":true,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"outDir\":\"/project/out\",\"esModuleInterop\":true,\"importHelpers\":false,\"module\":\"esnext\",\"target\":\"es2015\",\"removeComments\":false},\"files\":[\"main.ts\",\"ambient.d.ts\"]}",
+    "witness": {
+      "group": "comment-boundary/es2015/remove-false",
+      "shape": "optional-own-line",
+      "compiler_options": {
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "sourceMap": true,
+        "outDir": "/project/out",
+        "esModuleInterop": true,
+        "importHelpers": false,
+        "module": "esnext",
+        "target": "es2015",
+        "removeComments": false
+      }
+    },
+    "typescript_observation": {
+      "writes": [
+        {
+          "index": 0,
+          "path": "/project/out/main.js.map",
+          "kind": "source-map",
+          "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQWlELE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLE1BQU0sYUFBTixNQUFNLHVCQUFOLE1BQU0sQ0FBRSxDQUFDO0FBQy9FLFdBQVcsRUFEb0UsQ0FBQTtBQUMvRSxXQUFXLENBQUMsRUFBRSxDQUFBO0FBQUMsTUFBTSxDQUFBO0FBQUMsQ0FBQyJ9",
+          "callback_utf8_bytes": 240,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQWlELE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLE1BQU0sYUFBTixNQUFNLHVCQUFOLE1BQU0sQ0FBRSxDQUFDO0FBQy9FLFdBQVcsRUFEb0UsQ0FBQTtBQUMvRSxXQUFXLENBQUMsRUFBRSxDQUFBO0FBQUMsTUFBTSxDQUFBO0FBQUMsQ0FBQyJ9",
+          "materialized_utf8_bytes": 240,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": false,
+          "data_source_map_url_pos": null,
+          "data_diagnostics": null
+        },
+        {
+          "index": 1,
+          "path": "/project/out/main.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gKG9iamVjdCA9PT0gbnVsbCB8fCBvYmplY3QgPT09IHZvaWQgMCA/IHZvaWQgMCA6IG9iamVjdC54Ci8qIHZhbHVlICovICk7Ci8qIHZhbHVlICovIGFzOwpudW1iZXI7CjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "callback_utf8_bytes": 152,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gKG9iamVjdCA9PT0gbnVsbCB8fCBvYmplY3QgPT09IHZvaWQgMCA/IHZvaWQgMCA6IG9iamVjdC54Ci8qIHZhbHVlICovICk7Ci8qIHZhbHVlICovIGFzOwpudW1iZXI7CjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "materialized_utf8_bytes": 152,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": true,
+          "data_source_map_url_pos": 120,
+          "data_diagnostics": []
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1005,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 94,
+          "length": 2,
+          "message": "')' expected.",
+          "related_information": null
+        },
+        {
+          "code": 1434,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 97,
+          "length": 6,
+          "message": "Unexpected keyword or identifier.",
+          "related_information": null
+        },
+        {
+          "code": 1128,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 103,
+          "length": 1,
+          "message": "Declaration or statement expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/project/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAiD,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,MAAM,aAAN,MAAM,uBAAN,MAAM,CAAE,CAAC;AAC/E,WAAW,EADoE,CAAA;AAC/E,WAAW,CAAC,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+          }
+        ]
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "import-helpers/comment-boundary/es2015/remove-true/optional-line-comment",
+    "roots": [
+      "/project/main.ts",
+      "/project/ambient.d.ts"
+    ],
+    "files": [
+      {
+        "path": "/project/main.ts",
+        "text": "declare const object: { x: number } | undefined; export const value = (object?.x // value\n as number);\n"
+      },
+      {
+        "path": "/project/ambient.d.ts",
+        "text": "declare module \"dep\" { const value: number; export default value; export const item: number; }\ndeclare module \"tslib\" { const value: number; export default value; export const item: number; export const __awaiter: any; export const __generator: any; export const __importDefault: any; export const __importStar: any; export const __exportStar: any; export const __createBinding: any; export const __setModuleDefault: any; }\n"
+      }
+    ],
+    "options": {},
+    "config": "{\"compilerOptions\":{\"strict\":true,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"outDir\":\"/project/out\",\"esModuleInterop\":true,\"importHelpers\":false,\"module\":\"esnext\",\"target\":\"es2015\",\"removeComments\":true},\"files\":[\"main.ts\",\"ambient.d.ts\"]}",
+    "witness": {
+      "group": "comment-boundary/es2015/remove-true",
+      "shape": "optional-line-comment",
+      "compiler_options": {
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "sourceMap": true,
+        "outDir": "/project/out",
+        "esModuleInterop": true,
+        "importHelpers": false,
+        "module": "esnext",
+        "target": "es2015",
+        "removeComments": true
+      }
+    },
+    "typescript_observation": {
+      "writes": [
+        {
+          "index": 0,
+          "path": "/project/out/main.js.map",
+          "kind": "source-map",
+          "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQWlELE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLE1BQU0sYUFBTixNQUFNLHVCQUFOLE1BQU0sQ0FBRSxDQUFDLENBQUEsQ0FBQTtBQUMvRSxFQUFFLENBQUE7QUFBQyxNQUFNLENBQUE7QUFBQyxDQUFDIn0=",
+          "callback_utf8_bytes": 218,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQWlELE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLE1BQU0sYUFBTixNQUFNLHVCQUFOLE1BQU0sQ0FBRSxDQUFDLENBQUEsQ0FBQTtBQUMvRSxFQUFFLENBQUE7QUFBQyxNQUFNLENBQUE7QUFBQyxDQUFDIn0=",
+          "materialized_utf8_bytes": 218,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": false,
+          "data_source_map_url_pos": null,
+          "data_diagnostics": null
+        },
+        {
+          "index": 1,
+          "path": "/project/out/main.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gKG9iamVjdCA9PT0gbnVsbCB8fCBvYmplY3QgPT09IHZvaWQgMCA/IHZvaWQgMCA6IG9iamVjdC54KTsKYXM7Cm51bWJlcjsKOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "callback_utf8_bytes": 127,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gKG9iamVjdCA9PT0gbnVsbCB8fCBvYmplY3QgPT09IHZvaWQgMCA/IHZvaWQgMCA6IG9iamVjdC54KTsKYXM7Cm51bWJlcjsKOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "materialized_utf8_bytes": 127,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": true,
+          "data_source_map_url_pos": 95,
+          "data_diagnostics": []
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1005,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 91,
+          "length": 2,
+          "message": "')' expected.",
+          "related_information": null
+        },
+        {
+          "code": 1434,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 94,
+          "length": 6,
+          "message": "Unexpected keyword or identifier.",
+          "related_information": null
+        },
+        {
+          "code": 1128,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 100,
+          "length": 1,
+          "message": "Declaration or statement expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/project/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAiD,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,MAAM,aAAN,MAAM,uBAAN,MAAM,CAAE,CAAC,CAAA,CAAA;AAC/E,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+          }
+        ]
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "import-helpers/comment-boundary/es2015/remove-true/optional-own-line",
+    "roots": [
+      "/project/main.ts",
+      "/project/ambient.d.ts"
+    ],
+    "files": [
+      {
+        "path": "/project/main.ts",
+        "text": "declare const object: { x: number } | undefined; export const value = (object?.x\n /* value */ as number);\n"
+      },
+      {
+        "path": "/project/ambient.d.ts",
+        "text": "declare module \"dep\" { const value: number; export default value; export const item: number; }\ndeclare module \"tslib\" { const value: number; export default value; export const item: number; export const __awaiter: any; export const __generator: any; export const __importDefault: any; export const __importStar: any; export const __exportStar: any; export const __createBinding: any; export const __setModuleDefault: any; }\n"
+      }
+    ],
+    "options": {},
+    "config": "{\"compilerOptions\":{\"strict\":true,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"outDir\":\"/project/out\",\"esModuleInterop\":true,\"importHelpers\":false,\"module\":\"esnext\",\"target\":\"es2015\",\"removeComments\":true},\"files\":[\"main.ts\",\"ambient.d.ts\"]}",
+    "witness": {
+      "group": "comment-boundary/es2015/remove-true",
+      "shape": "optional-own-line",
+      "compiler_options": {
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "sourceMap": true,
+        "outDir": "/project/out",
+        "esModuleInterop": true,
+        "importHelpers": false,
+        "module": "esnext",
+        "target": "es2015",
+        "removeComments": true
+      }
+    },
+    "typescript_observation": {
+      "writes": [
+        {
+          "index": 0,
+          "path": "/project/out/main.js.map",
+          "kind": "source-map",
+          "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQWlELE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLE1BQU0sYUFBTixNQUFNLHVCQUFOLE1BQU0sQ0FBRSxDQUFDLENBQUEsQ0FBQTtBQUNuRSxFQUFFLENBQUE7QUFBQyxNQUFNLENBQUE7QUFBQyxDQUFDIn0=",
+          "callback_utf8_bytes": 218,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQWlELE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLE1BQU0sYUFBTixNQUFNLHVCQUFOLE1BQU0sQ0FBRSxDQUFDLENBQUEsQ0FBQTtBQUNuRSxFQUFFLENBQUE7QUFBQyxNQUFNLENBQUE7QUFBQyxDQUFDIn0=",
+          "materialized_utf8_bytes": 218,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": false,
+          "data_source_map_url_pos": null,
+          "data_diagnostics": null
+        },
+        {
+          "index": 1,
+          "path": "/project/out/main.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gKG9iamVjdCA9PT0gbnVsbCB8fCBvYmplY3QgPT09IHZvaWQgMCA/IHZvaWQgMCA6IG9iamVjdC54KTsKYXM7Cm51bWJlcjsKOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "callback_utf8_bytes": 127,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gKG9iamVjdCA9PT0gbnVsbCB8fCBvYmplY3QgPT09IHZvaWQgMCA/IHZvaWQgMCA6IG9iamVjdC54KTsKYXM7Cm51bWJlcjsKOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+          "materialized_utf8_bytes": 127,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": true,
+          "data_source_map_url_pos": 95,
+          "data_diagnostics": []
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1005,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 94,
+          "length": 2,
+          "message": "')' expected.",
+          "related_information": null
+        },
+        {
+          "code": 1434,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 97,
+          "length": 6,
+          "message": "Unexpected keyword or identifier.",
+          "related_information": null
+        },
+        {
+          "code": 1128,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 103,
+          "length": 1,
+          "message": "Declaration or statement expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/project/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAiD,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,MAAM,aAAN,MAAM,uBAAN,MAAM,CAAE,CAAC,CAAA,CAAA;AACnE,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+          }
+        ]
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "import-helpers/comment-boundary/es2022/remove-false/optional-line-comment",
+    "roots": [
+      "/project/main.ts",
+      "/project/ambient.d.ts"
+    ],
+    "files": [
+      {
+        "path": "/project/main.ts",
+        "text": "declare const object: { x: number } | undefined; export const value = (object?.x // value\n as number);\n"
+      },
+      {
+        "path": "/project/ambient.d.ts",
+        "text": "declare module \"dep\" { const value: number; export default value; export const item: number; }\ndeclare module \"tslib\" { const value: number; export default value; export const item: number; export const __awaiter: any; export const __generator: any; export const __importDefault: any; export const __importStar: any; export const __exportStar: any; export const __createBinding: any; export const __setModuleDefault: any; }\n"
+      }
+    ],
+    "options": {},
+    "config": "{\"compilerOptions\":{\"strict\":true,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"outDir\":\"/project/out\",\"esModuleInterop\":true,\"importHelpers\":false,\"module\":\"esnext\",\"target\":\"es2022\",\"removeComments\":false},\"files\":[\"main.ts\",\"ambient.d.ts\"]}",
+    "witness": {
+      "group": "comment-boundary/es2022/remove-false",
+      "shape": "optional-line-comment",
+      "compiler_options": {
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "sourceMap": true,
+        "outDir": "/project/out",
+        "esModuleInterop": true,
+        "importHelpers": false,
+        "module": "esnext",
+        "target": "es2022",
+        "removeComments": false
+      }
+    },
+    "typescript_observation": {
+      "writes": [
+        {
+          "index": 0,
+          "path": "/project/out/main.js.map",
+          "kind": "source-map",
+          "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQWlELE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLE1BQU0sRUFBRSxDQUFDLENBQUEsQ0FBQSxDQUFDLFFBQVE7QUFDeEYsRUFBRSxDQUFBO0FBQUMsTUFBTSxDQUFBO0FBQUMsQ0FBQyJ9",
+          "callback_utf8_bytes": 207,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQWlELE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLE1BQU0sRUFBRSxDQUFDLENBQUEsQ0FBQSxDQUFDLFFBQVE7QUFDeEYsRUFBRSxDQUFBO0FBQUMsTUFBTSxDQUFBO0FBQUMsQ0FBQyJ9",
+          "materialized_utf8_bytes": 207,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": false,
+          "data_source_map_url_pos": null,
+          "data_diagnostics": null
+        },
+        {
+          "index": 1,
+          "path": "/project/out/main.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gKG9iamVjdD8ueCk7IC8vIHZhbHVlCmFzOwpudW1iZXI7CjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "callback_utf8_bytes": 89,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gKG9iamVjdD8ueCk7IC8vIHZhbHVlCmFzOwpudW1iZXI7CjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "materialized_utf8_bytes": 89,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": true,
+          "data_source_map_url_pos": 57,
+          "data_diagnostics": []
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1005,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 91,
+          "length": 2,
+          "message": "')' expected.",
+          "related_information": null
+        },
+        {
+          "code": 1434,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 94,
+          "length": 6,
+          "message": "Unexpected keyword or identifier.",
+          "related_information": null
+        },
+        {
+          "code": 1128,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 100,
+          "length": 1,
+          "message": "Declaration or statement expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/project/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAiD,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,MAAM,EAAE,CAAC,CAAA,CAAA,CAAC,QAAQ;AACxF,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+          }
+        ]
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "import-helpers/comment-boundary/es2022/remove-false/optional-own-line",
+    "roots": [
+      "/project/main.ts",
+      "/project/ambient.d.ts"
+    ],
+    "files": [
+      {
+        "path": "/project/main.ts",
+        "text": "declare const object: { x: number } | undefined; export const value = (object?.x\n /* value */ as number);\n"
+      },
+      {
+        "path": "/project/ambient.d.ts",
+        "text": "declare module \"dep\" { const value: number; export default value; export const item: number; }\ndeclare module \"tslib\" { const value: number; export default value; export const item: number; export const __awaiter: any; export const __generator: any; export const __importDefault: any; export const __importStar: any; export const __exportStar: any; export const __createBinding: any; export const __setModuleDefault: any; }\n"
+      }
+    ],
+    "options": {},
+    "config": "{\"compilerOptions\":{\"strict\":true,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"outDir\":\"/project/out\",\"esModuleInterop\":true,\"importHelpers\":false,\"module\":\"esnext\",\"target\":\"es2022\",\"removeComments\":false},\"files\":[\"main.ts\",\"ambient.d.ts\"]}",
+    "witness": {
+      "group": "comment-boundary/es2022/remove-false",
+      "shape": "optional-own-line",
+      "compiler_options": {
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "sourceMap": true,
+        "outDir": "/project/out",
+        "esModuleInterop": true,
+        "importHelpers": false,
+        "module": "esnext",
+        "target": "es2022",
+        "removeComments": false
+      }
+    },
+    "typescript_observation": {
+      "writes": [
+        {
+          "index": 0,
+          "path": "/project/out/main.js.map",
+          "kind": "source-map",
+          "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQWlELE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLE1BQU0sRUFBRSxDQUFDO0FBQy9FLFdBQVcsRUFEb0UsQ0FBQTtBQUMvRSxXQUFXLENBQUMsRUFBRSxDQUFBO0FBQUMsTUFBTSxDQUFBO0FBQUMsQ0FBQyJ9",
+          "callback_utf8_bytes": 219,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQWlELE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLE1BQU0sRUFBRSxDQUFDO0FBQy9FLFdBQVcsRUFEb0UsQ0FBQTtBQUMvRSxXQUFXLENBQUMsRUFBRSxDQUFBO0FBQUMsTUFBTSxDQUFBO0FBQUMsQ0FBQyJ9",
+          "materialized_utf8_bytes": 219,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": false,
+          "data_source_map_url_pos": null,
+          "data_diagnostics": null
+        },
+        {
+          "index": 1,
+          "path": "/project/out/main.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gKG9iamVjdD8ueAovKiB2YWx1ZSAqLyApOwovKiB2YWx1ZSAqLyBhczsKbnVtYmVyOwo7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+          "callback_utf8_bytes": 105,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gKG9iamVjdD8ueAovKiB2YWx1ZSAqLyApOwovKiB2YWx1ZSAqLyBhczsKbnVtYmVyOwo7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+          "materialized_utf8_bytes": 105,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": true,
+          "data_source_map_url_pos": 73,
+          "data_diagnostics": []
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1005,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 94,
+          "length": 2,
+          "message": "')' expected.",
+          "related_information": null
+        },
+        {
+          "code": 1434,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 97,
+          "length": 6,
+          "message": "Unexpected keyword or identifier.",
+          "related_information": null
+        },
+        {
+          "code": 1128,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 103,
+          "length": 1,
+          "message": "Declaration or statement expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/project/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAiD,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,MAAM,EAAE,CAAC;AAC/E,WAAW,EADoE,CAAA;AAC/E,WAAW,CAAC,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+          }
+        ]
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "import-helpers/comment-boundary/es2022/remove-true/optional-line-comment",
+    "roots": [
+      "/project/main.ts",
+      "/project/ambient.d.ts"
+    ],
+    "files": [
+      {
+        "path": "/project/main.ts",
+        "text": "declare const object: { x: number } | undefined; export const value = (object?.x // value\n as number);\n"
+      },
+      {
+        "path": "/project/ambient.d.ts",
+        "text": "declare module \"dep\" { const value: number; export default value; export const item: number; }\ndeclare module \"tslib\" { const value: number; export default value; export const item: number; export const __awaiter: any; export const __generator: any; export const __importDefault: any; export const __importStar: any; export const __exportStar: any; export const __createBinding: any; export const __setModuleDefault: any; }\n"
+      }
+    ],
+    "options": {},
+    "config": "{\"compilerOptions\":{\"strict\":true,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"outDir\":\"/project/out\",\"esModuleInterop\":true,\"importHelpers\":false,\"module\":\"esnext\",\"target\":\"es2022\",\"removeComments\":true},\"files\":[\"main.ts\",\"ambient.d.ts\"]}",
+    "witness": {
+      "group": "comment-boundary/es2022/remove-true",
+      "shape": "optional-line-comment",
+      "compiler_options": {
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "sourceMap": true,
+        "outDir": "/project/out",
+        "esModuleInterop": true,
+        "importHelpers": false,
+        "module": "esnext",
+        "target": "es2022",
+        "removeComments": true
+      }
+    },
+    "typescript_observation": {
+      "writes": [
+        {
+          "index": 0,
+          "path": "/project/out/main.js.map",
+          "kind": "source-map",
+          "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQWlELE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLE1BQU0sRUFBRSxDQUFDLENBQUEsQ0FBQTtBQUMvRSxFQUFFLENBQUE7QUFBQyxNQUFNLENBQUE7QUFBQyxDQUFDIn0=",
+          "callback_utf8_bytes": 197,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQWlELE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLE1BQU0sRUFBRSxDQUFDLENBQUEsQ0FBQTtBQUMvRSxFQUFFLENBQUE7QUFBQyxNQUFNLENBQUE7QUFBQyxDQUFDIn0=",
+          "materialized_utf8_bytes": 197,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": false,
+          "data_source_map_url_pos": null,
+          "data_diagnostics": null
+        },
+        {
+          "index": 1,
+          "path": "/project/out/main.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gKG9iamVjdD8ueCk7CmFzOwpudW1iZXI7CjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "callback_utf8_bytes": 80,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gKG9iamVjdD8ueCk7CmFzOwpudW1iZXI7CjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "materialized_utf8_bytes": 80,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": true,
+          "data_source_map_url_pos": 48,
+          "data_diagnostics": []
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1005,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 91,
+          "length": 2,
+          "message": "')' expected.",
+          "related_information": null
+        },
+        {
+          "code": 1434,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 94,
+          "length": 6,
+          "message": "Unexpected keyword or identifier.",
+          "related_information": null
+        },
+        {
+          "code": 1128,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 100,
+          "length": 1,
+          "message": "Declaration or statement expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/project/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAiD,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,MAAM,EAAE,CAAC,CAAA,CAAA;AAC/E,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+          }
+        ]
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "import-helpers/comment-boundary/es2022/remove-true/optional-own-line",
+    "roots": [
+      "/project/main.ts",
+      "/project/ambient.d.ts"
+    ],
+    "files": [
+      {
+        "path": "/project/main.ts",
+        "text": "declare const object: { x: number } | undefined; export const value = (object?.x\n /* value */ as number);\n"
+      },
+      {
+        "path": "/project/ambient.d.ts",
+        "text": "declare module \"dep\" { const value: number; export default value; export const item: number; }\ndeclare module \"tslib\" { const value: number; export default value; export const item: number; export const __awaiter: any; export const __generator: any; export const __importDefault: any; export const __importStar: any; export const __exportStar: any; export const __createBinding: any; export const __setModuleDefault: any; }\n"
+      }
+    ],
+    "options": {},
+    "config": "{\"compilerOptions\":{\"strict\":true,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"outDir\":\"/project/out\",\"esModuleInterop\":true,\"importHelpers\":false,\"module\":\"esnext\",\"target\":\"es2022\",\"removeComments\":true},\"files\":[\"main.ts\",\"ambient.d.ts\"]}",
+    "witness": {
+      "group": "comment-boundary/es2022/remove-true",
+      "shape": "optional-own-line",
+      "compiler_options": {
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "sourceMap": true,
+        "outDir": "/project/out",
+        "esModuleInterop": true,
+        "importHelpers": false,
+        "module": "esnext",
+        "target": "es2022",
+        "removeComments": true
+      }
+    },
+    "typescript_observation": {
+      "writes": [
+        {
+          "index": 0,
+          "path": "/project/out/main.js.map",
+          "kind": "source-map",
+          "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQWlELE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLE1BQU0sRUFBRSxDQUFDLENBQUEsQ0FBQTtBQUNuRSxFQUFFLENBQUE7QUFBQyxNQUFNLENBQUE7QUFBQyxDQUFDIn0=",
+          "callback_utf8_bytes": 197,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQWlELE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLE1BQU0sRUFBRSxDQUFDLENBQUEsQ0FBQTtBQUNuRSxFQUFFLENBQUE7QUFBQyxNQUFNLENBQUE7QUFBQyxDQUFDIn0=",
+          "materialized_utf8_bytes": 197,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": false,
+          "data_source_map_url_pos": null,
+          "data_diagnostics": null
+        },
+        {
+          "index": 1,
+          "path": "/project/out/main.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gKG9iamVjdD8ueCk7CmFzOwpudW1iZXI7CjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "callback_utf8_bytes": 80,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gKG9iamVjdD8ueCk7CmFzOwpudW1iZXI7CjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "materialized_utf8_bytes": 80,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": true,
+          "data_source_map_url_pos": 48,
+          "data_diagnostics": []
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1005,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 94,
+          "length": 2,
+          "message": "')' expected.",
+          "related_information": null
+        },
+        {
+          "code": 1434,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 97,
+          "length": 6,
+          "message": "Unexpected keyword or identifier.",
+          "related_information": null
+        },
+        {
+          "code": 1128,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 103,
+          "length": 1,
+          "message": "Declaration or statement expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/project/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAiD,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,MAAM,EAAE,CAAC,CAAA,CAAA;AACnE,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+          }
+        ]
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "import-helpers/comment-boundary/esnext/remove-false/optional-line-comment",
+    "roots": [
+      "/project/main.ts",
+      "/project/ambient.d.ts"
+    ],
+    "files": [
+      {
+        "path": "/project/main.ts",
+        "text": "declare const object: { x: number } | undefined; export const value = (object?.x // value\n as number);\n"
+      },
+      {
+        "path": "/project/ambient.d.ts",
+        "text": "declare module \"dep\" { const value: number; export default value; export const item: number; }\ndeclare module \"tslib\" { const value: number; export default value; export const item: number; export const __awaiter: any; export const __generator: any; export const __importDefault: any; export const __importStar: any; export const __exportStar: any; export const __createBinding: any; export const __setModuleDefault: any; }\n"
+      }
+    ],
+    "options": {},
+    "config": "{\"compilerOptions\":{\"strict\":true,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"outDir\":\"/project/out\",\"esModuleInterop\":true,\"importHelpers\":false,\"module\":\"esnext\",\"target\":\"esnext\",\"removeComments\":false},\"files\":[\"main.ts\",\"ambient.d.ts\"]}",
+    "witness": {
+      "group": "comment-boundary/esnext/remove-false",
+      "shape": "optional-line-comment",
+      "compiler_options": {
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "sourceMap": true,
+        "outDir": "/project/out",
+        "esModuleInterop": true,
+        "importHelpers": false,
+        "module": "esnext",
+        "target": "esnext",
+        "removeComments": false
+      }
+    },
+    "typescript_observation": {
+      "writes": [
+        {
+          "index": 0,
+          "path": "/project/out/main.js.map",
+          "kind": "source-map",
+          "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQWlELE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLE1BQU0sRUFBRSxDQUFDLENBQUEsQ0FBQSxDQUFDLFFBQVE7QUFDeEYsRUFBRSxDQUFBO0FBQUMsTUFBTSxDQUFBO0FBQUMsQ0FBQyJ9",
+          "callback_utf8_bytes": 207,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQWlELE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLE1BQU0sRUFBRSxDQUFDLENBQUEsQ0FBQSxDQUFDLFFBQVE7QUFDeEYsRUFBRSxDQUFBO0FBQUMsTUFBTSxDQUFBO0FBQUMsQ0FBQyJ9",
+          "materialized_utf8_bytes": 207,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": false,
+          "data_source_map_url_pos": null,
+          "data_diagnostics": null
+        },
+        {
+          "index": 1,
+          "path": "/project/out/main.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gKG9iamVjdD8ueCk7IC8vIHZhbHVlCmFzOwpudW1iZXI7CjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "callback_utf8_bytes": 89,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gKG9iamVjdD8ueCk7IC8vIHZhbHVlCmFzOwpudW1iZXI7CjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "materialized_utf8_bytes": 89,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": true,
+          "data_source_map_url_pos": 57,
+          "data_diagnostics": []
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1005,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 91,
+          "length": 2,
+          "message": "')' expected.",
+          "related_information": null
+        },
+        {
+          "code": 1434,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 94,
+          "length": 6,
+          "message": "Unexpected keyword or identifier.",
+          "related_information": null
+        },
+        {
+          "code": 1128,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 100,
+          "length": 1,
+          "message": "Declaration or statement expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/project/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAiD,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,MAAM,EAAE,CAAC,CAAA,CAAA,CAAC,QAAQ;AACxF,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+          }
+        ]
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "import-helpers/comment-boundary/esnext/remove-false/optional-own-line",
+    "roots": [
+      "/project/main.ts",
+      "/project/ambient.d.ts"
+    ],
+    "files": [
+      {
+        "path": "/project/main.ts",
+        "text": "declare const object: { x: number } | undefined; export const value = (object?.x\n /* value */ as number);\n"
+      },
+      {
+        "path": "/project/ambient.d.ts",
+        "text": "declare module \"dep\" { const value: number; export default value; export const item: number; }\ndeclare module \"tslib\" { const value: number; export default value; export const item: number; export const __awaiter: any; export const __generator: any; export const __importDefault: any; export const __importStar: any; export const __exportStar: any; export const __createBinding: any; export const __setModuleDefault: any; }\n"
+      }
+    ],
+    "options": {},
+    "config": "{\"compilerOptions\":{\"strict\":true,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"outDir\":\"/project/out\",\"esModuleInterop\":true,\"importHelpers\":false,\"module\":\"esnext\",\"target\":\"esnext\",\"removeComments\":false},\"files\":[\"main.ts\",\"ambient.d.ts\"]}",
+    "witness": {
+      "group": "comment-boundary/esnext/remove-false",
+      "shape": "optional-own-line",
+      "compiler_options": {
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "sourceMap": true,
+        "outDir": "/project/out",
+        "esModuleInterop": true,
+        "importHelpers": false,
+        "module": "esnext",
+        "target": "esnext",
+        "removeComments": false
+      }
+    },
+    "typescript_observation": {
+      "writes": [
+        {
+          "index": 0,
+          "path": "/project/out/main.js.map",
+          "kind": "source-map",
+          "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQWlELE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLE1BQU0sRUFBRSxDQUFDO0FBQy9FLFdBQVcsRUFEb0UsQ0FBQTtBQUMvRSxXQUFXLENBQUMsRUFBRSxDQUFBO0FBQUMsTUFBTSxDQUFBO0FBQUMsQ0FBQyJ9",
+          "callback_utf8_bytes": 219,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQWlELE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLE1BQU0sRUFBRSxDQUFDO0FBQy9FLFdBQVcsRUFEb0UsQ0FBQTtBQUMvRSxXQUFXLENBQUMsRUFBRSxDQUFBO0FBQUMsTUFBTSxDQUFBO0FBQUMsQ0FBQyJ9",
+          "materialized_utf8_bytes": 219,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": false,
+          "data_source_map_url_pos": null,
+          "data_diagnostics": null
+        },
+        {
+          "index": 1,
+          "path": "/project/out/main.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gKG9iamVjdD8ueAovKiB2YWx1ZSAqLyApOwovKiB2YWx1ZSAqLyBhczsKbnVtYmVyOwo7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+          "callback_utf8_bytes": 105,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gKG9iamVjdD8ueAovKiB2YWx1ZSAqLyApOwovKiB2YWx1ZSAqLyBhczsKbnVtYmVyOwo7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+          "materialized_utf8_bytes": 105,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": true,
+          "data_source_map_url_pos": 73,
+          "data_diagnostics": []
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1005,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 94,
+          "length": 2,
+          "message": "')' expected.",
+          "related_information": null
+        },
+        {
+          "code": 1434,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 97,
+          "length": 6,
+          "message": "Unexpected keyword or identifier.",
+          "related_information": null
+        },
+        {
+          "code": 1128,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 103,
+          "length": 1,
+          "message": "Declaration or statement expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/project/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAiD,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,MAAM,EAAE,CAAC;AAC/E,WAAW,EADoE,CAAA;AAC/E,WAAW,CAAC,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+          }
+        ]
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "import-helpers/comment-boundary/esnext/remove-true/optional-line-comment",
+    "roots": [
+      "/project/main.ts",
+      "/project/ambient.d.ts"
+    ],
+    "files": [
+      {
+        "path": "/project/main.ts",
+        "text": "declare const object: { x: number } | undefined; export const value = (object?.x // value\n as number);\n"
+      },
+      {
+        "path": "/project/ambient.d.ts",
+        "text": "declare module \"dep\" { const value: number; export default value; export const item: number; }\ndeclare module \"tslib\" { const value: number; export default value; export const item: number; export const __awaiter: any; export const __generator: any; export const __importDefault: any; export const __importStar: any; export const __exportStar: any; export const __createBinding: any; export const __setModuleDefault: any; }\n"
+      }
+    ],
+    "options": {},
+    "config": "{\"compilerOptions\":{\"strict\":true,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"outDir\":\"/project/out\",\"esModuleInterop\":true,\"importHelpers\":false,\"module\":\"esnext\",\"target\":\"esnext\",\"removeComments\":true},\"files\":[\"main.ts\",\"ambient.d.ts\"]}",
+    "witness": {
+      "group": "comment-boundary/esnext/remove-true",
+      "shape": "optional-line-comment",
+      "compiler_options": {
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "sourceMap": true,
+        "outDir": "/project/out",
+        "esModuleInterop": true,
+        "importHelpers": false,
+        "module": "esnext",
+        "target": "esnext",
+        "removeComments": true
+      }
+    },
+    "typescript_observation": {
+      "writes": [
+        {
+          "index": 0,
+          "path": "/project/out/main.js.map",
+          "kind": "source-map",
+          "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQWlELE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLE1BQU0sRUFBRSxDQUFDLENBQUEsQ0FBQTtBQUMvRSxFQUFFLENBQUE7QUFBQyxNQUFNLENBQUE7QUFBQyxDQUFDIn0=",
+          "callback_utf8_bytes": 197,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQWlELE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLE1BQU0sRUFBRSxDQUFDLENBQUEsQ0FBQTtBQUMvRSxFQUFFLENBQUE7QUFBQyxNQUFNLENBQUE7QUFBQyxDQUFDIn0=",
+          "materialized_utf8_bytes": 197,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": false,
+          "data_source_map_url_pos": null,
+          "data_diagnostics": null
+        },
+        {
+          "index": 1,
+          "path": "/project/out/main.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gKG9iamVjdD8ueCk7CmFzOwpudW1iZXI7CjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "callback_utf8_bytes": 80,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gKG9iamVjdD8ueCk7CmFzOwpudW1iZXI7CjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "materialized_utf8_bytes": 80,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": true,
+          "data_source_map_url_pos": 48,
+          "data_diagnostics": []
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1005,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 91,
+          "length": 2,
+          "message": "')' expected.",
+          "related_information": null
+        },
+        {
+          "code": 1434,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 94,
+          "length": 6,
+          "message": "Unexpected keyword or identifier.",
+          "related_information": null
+        },
+        {
+          "code": 1128,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 100,
+          "length": 1,
+          "message": "Declaration or statement expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/project/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAiD,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,MAAM,EAAE,CAAC,CAAA,CAAA;AAC/E,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+          }
+        ]
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  },
+  {
+    "case_id": "import-helpers/comment-boundary/esnext/remove-true/optional-own-line",
+    "roots": [
+      "/project/main.ts",
+      "/project/ambient.d.ts"
+    ],
+    "files": [
+      {
+        "path": "/project/main.ts",
+        "text": "declare const object: { x: number } | undefined; export const value = (object?.x\n /* value */ as number);\n"
+      },
+      {
+        "path": "/project/ambient.d.ts",
+        "text": "declare module \"dep\" { const value: number; export default value; export const item: number; }\ndeclare module \"tslib\" { const value: number; export default value; export const item: number; export const __awaiter: any; export const __generator: any; export const __importDefault: any; export const __importStar: any; export const __exportStar: any; export const __createBinding: any; export const __setModuleDefault: any; }\n"
+      }
+    ],
+    "options": {},
+    "config": "{\"compilerOptions\":{\"strict\":true,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"sourceMap\":true,\"outDir\":\"/project/out\",\"esModuleInterop\":true,\"importHelpers\":false,\"module\":\"esnext\",\"target\":\"esnext\",\"removeComments\":true},\"files\":[\"main.ts\",\"ambient.d.ts\"]}",
+    "witness": {
+      "group": "comment-boundary/esnext/remove-true",
+      "shape": "optional-own-line",
+      "compiler_options": {
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "sourceMap": true,
+        "outDir": "/project/out",
+        "esModuleInterop": true,
+        "importHelpers": false,
+        "module": "esnext",
+        "target": "esnext",
+        "removeComments": true
+      }
+    },
+    "typescript_observation": {
+      "writes": [
+        {
+          "index": 0,
+          "path": "/project/out/main.js.map",
+          "kind": "source-map",
+          "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQWlELE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLE1BQU0sRUFBRSxDQUFDLENBQUEsQ0FBQTtBQUNuRSxFQUFFLENBQUE7QUFBQyxNQUFNLENBQUE7QUFBQyxDQUFDIn0=",
+          "callback_utf8_bytes": 197,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQWlELE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLE1BQU0sRUFBRSxDQUFDLENBQUEsQ0FBQTtBQUNuRSxFQUFFLENBQUE7QUFBQyxNQUFNLENBQUE7QUFBQyxDQUFDIn0=",
+          "materialized_utf8_bytes": 197,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": false,
+          "data_source_map_url_pos": null,
+          "data_diagnostics": null
+        },
+        {
+          "index": 1,
+          "path": "/project/out/main.js",
+          "kind": "javascript",
+          "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gKG9iamVjdD8ueCk7CmFzOwpudW1iZXI7CjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "callback_utf8_bytes": 80,
+          "write_byte_order_mark": false,
+          "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gKG9iamVjdD8ueCk7CmFzOwpudW1iZXI7CjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+          "materialized_utf8_bytes": 80,
+          "on_error_callback_present": true,
+          "source_files": [
+            "/project/main.ts"
+          ],
+          "data_present": true,
+          "data_source_map_url_pos": 48,
+          "data_diagnostics": []
+        }
+      ],
+      "reported_diagnostics": [
+        {
+          "code": 1005,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 94,
+          "length": 2,
+          "message": "')' expected.",
+          "related_information": null
+        },
+        {
+          "code": 1434,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 97,
+          "length": 6,
+          "message": "Unexpected keyword or identifier.",
+          "related_information": null
+        },
+        {
+          "code": 1128,
+          "category": "Error",
+          "file": "/project/main.ts",
+          "start": 103,
+          "length": 1,
+          "message": "Declaration or statement expected.",
+          "related_information": null
+        }
+      ],
+      "emit_refused": false,
+      "emit_result": {
+        "emit_skipped": false,
+        "diagnostics": [],
+        "emitted_files": null,
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/project/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAiD,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,MAAM,EAAE,CAAC,CAAA,CAAA;AACnE,EAAE,CAAA;AAAC,MAAM,CAAA;AAAC,CAAC\"}"
+          }
+        ]
+      },
+      "status_writes": [],
+      "exit_code": 2
+    }
+  }
+]

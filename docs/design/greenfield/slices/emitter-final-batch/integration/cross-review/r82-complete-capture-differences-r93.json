@@ -1,0 +1,703 @@
+{
+  "partial": false,
+  "compiled_head": "f4d9ccbe1d0d112330968058cfec117c227b76d0",
+  "complete_capture_sha256": "348c0d48faf20e141328b516d8eed11837d3e22e1d7a17827db1ebe371aadfc0",
+  "summary": {
+    "exact": 766,
+    "other-output-difference": 42,
+    "typed-refusal": 12,
+    "maps-only": 24
+  },
+  "differences": [
+    {
+      "case_id": "emitter-context-recovery/es2015/commonjs/remove-false/heritage-trivia",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/es2015/esnext/remove-false/heritage-trivia",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/esnext/commonjs/remove-false/heritage-trivia",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-context-recovery/esnext/esnext/remove-false/heritage-trivia",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2015/commonjs/remove-false/heritage-after-types",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2015/commonjs/remove-false/heritage-before-types",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2015/commonjs/remove-false/heritage-optional-trivia",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2015/commonjs/remove-false/paren-block",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2015/commonjs/remove-false/paren-line",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2015/commonjs/remove-false/paren-missing-nested",
+      "kind": "typed-refusal",
+      "captures": 1,
+      "fields": [
+        "typed-refusal"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2015/commonjs/remove-true/paren-missing-nested",
+      "kind": "typed-refusal",
+      "captures": 1,
+      "fields": [
+        "typed-refusal"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2015/esnext/remove-false/heritage-after-types",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2015/esnext/remove-false/heritage-before-types",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2015/esnext/remove-false/heritage-optional-trivia",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2015/esnext/remove-false/paren-block",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2015/esnext/remove-false/paren-line",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2015/esnext/remove-false/paren-missing-nested",
+      "kind": "typed-refusal",
+      "captures": 1,
+      "fields": [
+        "typed-refusal"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2015/esnext/remove-true/paren-missing-nested",
+      "kind": "typed-refusal",
+      "captures": 1,
+      "fields": [
+        "typed-refusal"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-false/heritage-after-types",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-false/heritage-before-types",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-false/heritage-optional",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-false/heritage-optional-trivia",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-false/paren-block",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-false/paren-line",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-false/paren-missing-nested",
+      "kind": "typed-refusal",
+      "captures": 1,
+      "fields": [
+        "typed-refusal"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-true/heritage-optional",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-true/heritage-optional-trivia",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/commonjs/remove-true/paren-missing-nested",
+      "kind": "typed-refusal",
+      "captures": 1,
+      "fields": [
+        "typed-refusal"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-false/heritage-after-types",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-false/heritage-before-types",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-false/heritage-optional",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-false/heritage-optional-trivia",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-false/paren-block",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-false/paren-line",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-false/paren-missing-nested",
+      "kind": "typed-refusal",
+      "captures": 1,
+      "fields": [
+        "typed-refusal"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-true/heritage-optional",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-true/heritage-optional-trivia",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es2022/esnext/remove-true/paren-missing-nested",
+      "kind": "typed-refusal",
+      "captures": 1,
+      "fields": [
+        "typed-refusal"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/commonjs/remove-false/heritage-optional",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/commonjs/remove-false/heritage-optional-trivia",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/commonjs/remove-false/paren-block",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/commonjs/remove-false/paren-line",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/commonjs/remove-false/paren-missing-nested",
+      "kind": "typed-refusal",
+      "captures": 1,
+      "fields": [
+        "typed-refusal"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/commonjs/remove-true/heritage-optional",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/commonjs/remove-true/heritage-optional-trivia",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/commonjs/remove-true/paren-missing-nested",
+      "kind": "typed-refusal",
+      "captures": 1,
+      "fields": [
+        "typed-refusal"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/esnext/remove-false/heritage-optional",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/esnext/remove-false/heritage-optional-trivia",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/esnext/remove-false/paren-block",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/esnext/remove-false/paren-line",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/esnext/remove-false/paren-missing-nested",
+      "kind": "typed-refusal",
+      "captures": 1,
+      "fields": [
+        "typed-refusal"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/esnext/remove-true/heritage-optional",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/esnext/remove-true/heritage-optional-trivia",
+      "kind": "other-output-difference",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/comment-owners/es5/esnext/remove-true/paren-missing-nested",
+      "kind": "typed-refusal",
+      "captures": 1,
+      "fields": [
+        "typed-refusal"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-class/es2015/commonjs/remove-false/this",
+      "kind": "maps-only",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-class/es2015/commonjs/remove-true/this",
+      "kind": "maps-only",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-class/es2015/esnext/remove-false/this",
+      "kind": "maps-only",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-class/es2015/esnext/remove-true/this",
+      "kind": "maps-only",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-class/es2022/commonjs/remove-false/this",
+      "kind": "maps-only",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-class/es2022/commonjs/remove-true/this",
+      "kind": "maps-only",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-class/es2022/esnext/remove-false/this",
+      "kind": "maps-only",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-class/es2022/esnext/remove-true/this",
+      "kind": "maps-only",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-class/es5/commonjs/remove-false/this",
+      "kind": "maps-only",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-class/es5/commonjs/remove-true/this",
+      "kind": "maps-only",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-class/es5/esnext/remove-false/this",
+      "kind": "maps-only",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-class/es5/esnext/remove-true/this",
+      "kind": "maps-only",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-member/es2015/commonjs/remove-false/this",
+      "kind": "maps-only",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-member/es2015/commonjs/remove-true/this",
+      "kind": "maps-only",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-member/es2015/esnext/remove-false/this",
+      "kind": "maps-only",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-member/es2015/esnext/remove-true/this",
+      "kind": "maps-only",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-member/es2022/commonjs/remove-false/this",
+      "kind": "maps-only",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-member/es2022/commonjs/remove-true/this",
+      "kind": "maps-only",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-member/es2022/esnext/remove-false/this",
+      "kind": "maps-only",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-member/es2022/esnext/remove-true/this",
+      "kind": "maps-only",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-member/es5/commonjs/remove-false/this",
+      "kind": "maps-only",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-member/es5/commonjs/remove-true/this",
+      "kind": "maps-only",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-member/es5/esnext/remove-false/this",
+      "kind": "maps-only",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    },
+    {
+      "case_id": "emitter-recovery-boundaries/standard-member/es5/esnext/remove-true/this",
+      "kind": "maps-only",
+      "captures": 1,
+      "fields": [
+        "writes",
+        "emit_result"
+      ]
+    }
+  ]
+}

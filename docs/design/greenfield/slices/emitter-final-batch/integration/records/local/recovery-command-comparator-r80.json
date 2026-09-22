@@ -1,0 +1,24 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "python3",
+    "scripts/test-compare-recovery-selected-corpus.py"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-corpus-replay",
+  "started_at": "2026-09-19T01:52:09.086128+00:00",
+  "head": "67df86615a45f9595025064bcc12fde93063fedf",
+  "tracked_clean": false,
+  "diff_sha256": "fbbc993f9a052da7326423079cbd2aeb821f8d4283f0f932ec0b63602a0aa109",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 0.207,
+  "log_sha256": "d094b1bd2c8318c96097f80c50da282add5b2972970a77046de8db6c8935f6ca",
+  "log_bytes": 102
+}

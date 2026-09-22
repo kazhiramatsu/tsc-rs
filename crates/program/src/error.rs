@@ -58,7 +58,7 @@ pub struct PreparationError {
     path: Option<PathBuf>,
     js_path: Option<JsString>,
     detail: String,
-    resolution: Option<ResolutionError>,
+    resolution: Option<Box<ResolutionError>>,
 }
 
 impl PreparationError {
@@ -108,7 +108,7 @@ impl PreparationError {
             path,
             error.to_string(),
         );
-        result.resolution = Some(error);
+        result.resolution = Some(Box::new(error));
         result
     }
 
@@ -135,7 +135,7 @@ impl PreparationError {
     }
 
     pub fn resolution(&self) -> Option<&ResolutionError> {
-        self.resolution.as_ref()
+        self.resolution.as_deref()
     }
 }
 
@@ -155,7 +155,7 @@ impl fmt::Display for PreparationError {
 impl Error for PreparationError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         self.resolution
-            .as_ref()
+            .as_deref()
             .map(|error| error as &(dyn Error + 'static))
     }
 }

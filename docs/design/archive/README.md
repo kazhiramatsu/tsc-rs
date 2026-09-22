@@ -5,10 +5,25 @@ not define the current shape of `docs/design`.
 
 Archived documents are still useful for provenance, old probes, and
 implementation notes, but current work should start from the top-level
-design index. Everything below was written against the paused v1
-codebase (`src/`), which was removed from the working tree on
+design index. The historical greenfield records below belong to the current
+repository's earlier milestones. The v1 documents were written against the
+paused v1 codebase (`src/`), which was removed from the working tree on
 2026-07-15 and is preserved in full at tag `v1-final`; check out that
 tag to run any command or path these documents mention.
+
+## Historical greenfield records
+
+- [README before the user guide](readme-before-user-guide-20260921.md): the
+  original developer-facing README, preserved on 2026-09-21 when the root
+  README became a build and command-line guide. Its commands and status are
+  historical; current verification follows the repository CLAUDE.md.
+- [M5/M6 test selections](milestone-canaries/README.md): the original root
+  canary lists, preserved byte-for-byte; they do not select current CI jobs.
+- [Artifact relocation records](artifact-layout-20260921/README.md): original
+  draft manifests and policy retained when root verification files moved.
+- [Retired new-ci prototype](new-ci/README.md): preserved design documents,
+  status and prospective-plan evidence; the standalone executable code was
+  removed on 2026-09-21.
 
 ## Archived Roadmaps
 

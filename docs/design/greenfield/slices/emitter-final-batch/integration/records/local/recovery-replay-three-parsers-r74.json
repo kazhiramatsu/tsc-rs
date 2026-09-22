@@ -1,0 +1,24 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "python3",
+    "/tmp/emitter-replay-r74/run.py"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census",
+  "started_at": "2026-09-19T01:01:36.753713+00:00",
+  "head": "5113c2c9d8b7a29be214369c263d63e6617b6a7e",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 1,
+  "seconds": 10.309,
+  "log_sha256": "90c64f8479c4b9400935a591ce89e835fcd26b5a4df73e27e9cd8856d3d6a972",
+  "log_bytes": 2113
+}

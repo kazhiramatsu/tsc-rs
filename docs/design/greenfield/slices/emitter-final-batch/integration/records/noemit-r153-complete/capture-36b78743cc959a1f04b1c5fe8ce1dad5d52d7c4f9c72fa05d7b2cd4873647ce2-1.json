@@ -1,0 +1,154 @@
+{
+  "case_id": "typescript-6.0.3/conformance/moduleResolution/bundler/bundlerImportTsExtensions.ts#allowimportingtsextensions%3Dtrue%2Cnoemit%3Dtrue",
+  "repetition": 1,
+  "actual": {
+    "program_source_order": [
+      "/project/a.ts",
+      "/project/b.ts",
+      "/project/b.js",
+      "/project/b.d.ts",
+      "/project/c.ts",
+      "/project/c.tsx",
+      "/project/d/index.ts",
+      "/project/e.ts",
+      "/project/e.txt.ts",
+      "/project/main.ts",
+      "/project/types.d.ts"
+    ],
+    "standard_libraries": [
+      "lib.es6.d.ts",
+      "lib.es5.d.ts",
+      "lib.es2015.d.ts",
+      "lib.dom.d.ts",
+      "lib.dom.iterable.d.ts",
+      "lib.webworker.importscripts.d.ts",
+      "lib.scripthost.d.ts",
+      "lib.es2015.core.d.ts",
+      "lib.es2015.collection.d.ts",
+      "lib.es2015.generator.d.ts",
+      "lib.es2015.iterable.d.ts",
+      "lib.es2015.promise.d.ts",
+      "lib.es2015.proxy.d.ts",
+      "lib.es2015.reflect.d.ts",
+      "lib.es2015.symbol.d.ts",
+      "lib.es2015.symbol.wellknown.d.ts",
+      "lib.es2018.asynciterable.d.ts",
+      "lib.decorators.d.ts",
+      "lib.decorators.legacy.d.ts"
+    ],
+    "writes": [],
+    "reported_diagnostics": [
+      {
+        "code": 2846,
+        "category": "Error",
+        "file": "/project/main.ts",
+        "start": 160,
+        "length": 10,
+        "message": "A declaration file cannot be imported without 'import type'. Did you mean to import an implementation file './b.ts' instead?",
+        "related_information": null
+      },
+      {
+        "code": 6142,
+        "category": "Error",
+        "file": "/project/main.ts",
+        "start": 245,
+        "length": 9,
+        "message": "Module './c.tsx' was resolved to '/project/c.tsx', but '--jsx' is not set.",
+        "related_information": null
+      },
+      {
+        "code": 2846,
+        "category": "Error",
+        "file": "/project/types.d.ts",
+        "start": 40,
+        "length": 10,
+        "message": "A declaration file cannot be imported without 'import type'. Did you mean to import an implementation file './a.ts' instead?",
+        "related_information": null
+      }
+    ],
+    "emit_refused": false,
+    "emit_result": {
+      "emit_skipped": false,
+      "diagnostics": [],
+      "emitted_files": null,
+      "source_maps": null
+    },
+    "status_writes": [],
+    "exit_code": 2
+  },
+  "expected": {
+    "program_source_order": [
+      "/project/a.ts",
+      "/project/b.ts",
+      "/project/b.js",
+      "/project/b.d.ts",
+      "/project/c.ts",
+      "/project/c.tsx",
+      "/project/d/index.ts",
+      "/project/e.ts",
+      "/project/e.txt.ts",
+      "/project/main.ts",
+      "/project/types.d.ts"
+    ],
+    "standard_libraries": [
+      "lib.es6.d.ts",
+      "lib.es5.d.ts",
+      "lib.es2015.d.ts",
+      "lib.dom.d.ts",
+      "lib.dom.iterable.d.ts",
+      "lib.webworker.importscripts.d.ts",
+      "lib.scripthost.d.ts",
+      "lib.es2015.core.d.ts",
+      "lib.es2015.collection.d.ts",
+      "lib.es2015.generator.d.ts",
+      "lib.es2015.iterable.d.ts",
+      "lib.es2015.promise.d.ts",
+      "lib.es2015.proxy.d.ts",
+      "lib.es2015.reflect.d.ts",
+      "lib.es2015.symbol.d.ts",
+      "lib.es2015.symbol.wellknown.d.ts",
+      "lib.es2018.asynciterable.d.ts",
+      "lib.decorators.d.ts",
+      "lib.decorators.legacy.d.ts"
+    ],
+    "writes": [],
+    "reported_diagnostics": [
+      {
+        "code": 2846,
+        "category": "Error",
+        "file": "/project/main.ts",
+        "start": 160,
+        "length": 10,
+        "message": "A declaration file cannot be imported without 'import type'. Did you mean to import an implementation file './b.ts' instead?",
+        "related_information": null
+      },
+      {
+        "code": 6142,
+        "category": "Error",
+        "file": "/project/main.ts",
+        "start": 245,
+        "length": 9,
+        "message": "Module './c.tsx' was resolved to '/project/c.tsx', but '--jsx' is not set.",
+        "related_information": null
+      },
+      {
+        "code": 2846,
+        "category": "Error",
+        "file": "/project/types.d.ts",
+        "start": 40,
+        "length": 10,
+        "message": "A declaration file cannot be imported without 'import type'. Did you mean to import an implementation file './a.ts' instead?",
+        "related_information": null
+      }
+    ],
+    "emit_refused": false,
+    "emit_result": {
+      "emit_skipped": false,
+      "diagnostics": [],
+      "emitted_files": null,
+      "source_maps": null
+    },
+    "status_writes": [],
+    "exit_code": 2
+  }
+}

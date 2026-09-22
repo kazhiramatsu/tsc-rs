@@ -1,0 +1,43 @@
+{
+  "captured_cases": 672,
+  "exact_twice": 656,
+  "failed_cases": 16,
+  "failure_shapes": {
+    "trailing-function-u2029": 8,
+    "trailing-function-u2028": 8
+  }
+}
+CASE emitter-r168-corpus-controls/esnext/commonjs/nocheck-true/remove-false/trailing-function-u2029 ERROR None
+different top-level keys ['writes', 'emit_result']
+WRITE /project/out/main.js.map keys ['callback_utf8_base64', 'materialized_utf8_base64']
+NATIVE {"version":3,"file":"main.js","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":";AAAA,SAAS,CAAC,KAAK,CAAC,CAAC,CAAC,OAAO;AACzB,OAAO;CACP,CAAC"}
+TS {"version":3,"file":"main.js","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":";AAAA,SAAS,CAAC;IAAK,CAAC,CAAC,CAAC,OAAO;IACzB,OAAO;AACP,CAAC"}
+WRITE /project/out/main.js keys ['callback_utf8_base64', 'callback_utf8_bytes', 'materialized_utf8_base64', 'materialized_utf8_bytes', 'data_source_map_url_pos']
+NATIVE "use strict";
+function f() { x; /* a */
+/* b */
+ }
+//# sourceMappingURL=main.js.map
+TS "use strict";
+function f() {
+    x; /* a */
+    /* b */
+}
+//# sourceMappingURL=main.js.map
+CASE emitter-r168-corpus-controls/es2015/esnext/nocheck-true/remove-false/trailing-function-u2028 ERROR None
+different top-level keys ['writes', 'emit_result']
+WRITE /project/out/main.js.map keys ['callback_utf8_base64', 'materialized_utf8_base64']
+NATIVE {"version":3,"file":"main.js","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":";AAAA,SAAS,CAAC,KAAK,CAAC,CAAC,CAAC,OAAO;AACzB,OAAO;CACP,CAAC"}
+TS {"version":3,"file":"main.js","sourceRoot":"","sources":["../main.ts"],"names":[],"mappings":";AAAA,SAAS,CAAC;IAAK,CAAC,CAAC,CAAC,OAAO;IACzB,OAAO;AACP,CAAC"}
+WRITE /project/out/main.js keys ['callback_utf8_base64', 'callback_utf8_bytes', 'materialized_utf8_base64', 'materialized_utf8_bytes', 'data_source_map_url_pos']
+NATIVE "use strict";
+function f() { x; /* a */
+/* b */
+ }
+//# sourceMappingURL=main.js.map
+TS "use strict";
+function f() {
+    x; /* a */
+    /* b */
+}
+//# sourceMappingURL=main.js.map

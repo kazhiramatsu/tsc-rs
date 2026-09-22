@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "python3",
+    "/tmp/emitter-leading-binding-proof-r299/replay.py",
+    "--check-preflight"
+  ],
+  "exit": 0,
+  "seconds": 3.497,
+  "script_sha256": "f59088d758cf3061866df620e4eed9e1f932e0aebca87f5c61b5d483dbc968f4",
+  "log_sha256": "f82fd98a8395bfc79549da92e0026e0635b86cf307ebce6a8cc54acfd844c448",
+  "scope": "read-only preparation; freshsuccessor replay notrun"
+}

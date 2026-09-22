@@ -1,0 +1,15 @@
+{
+  "name": "check-r8d",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 31,
+  "env": [
+    "CARGO_BUILD_JOBS=1"
+  ],
+  "argv": "cargo check -p tsc-rs-emitter",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T13:21:15Z",
+  "seconds": 5,
+  "exit": 0,
+  "log_sha256": "d3ab9608cc9eee324fa0bbfb69b92bd84ec841a3a8728c228d40bbc1ad79399c",
+  "log_bytes": 166
+}

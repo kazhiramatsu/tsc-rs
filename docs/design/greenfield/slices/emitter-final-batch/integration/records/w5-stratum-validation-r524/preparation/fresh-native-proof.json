@@ -1,0 +1,14 @@
+{
+  "qualified": false,
+  "native_census_passed": true,
+  "scope": "fresh native path-joined byte/BOM, count/skip checks and historical projection preservation; not full command parity or walk qualification",
+  "cases": 120,
+  "census_rows": 172,
+  "complete_roster_rows": 67,
+  "generator_sha256": "1964b5f8570017a69ed57e8398d96ec0d37b0c9e3144fc67db2baf7921ec38ef",
+  "census_sha256": "9f7cc38e708ef618d0aa30b779c6c7016e07a4bc936f9d45338af651b908ac25",
+  "historical_census_sha256": "f386699988577ebb29ce7bc00c6fca831981b1ee716dde21317521c844b6f19e",
+  "m1_projection_preserved": true,
+  "s2_projection_preserved": true,
+  "tracked_artifact_unchanged": true
+}

@@ -1,0 +1,41 @@
+{
+  "canonical_base": "628562c31a5102348a7e8769f3a2aa88deef70f1",
+  "prototype_head": "32b6dca3a47b3e61f9d70eb912724eb09fcf1f1f",
+  "proof_head": "c79925c63c6b6d2a0960791f7cfa921a6924d058",
+  "snapshot_sha256": "1846fce26da956f515874486d43b9ac856fda31456e76a2925455a8488f76d75",
+  "file_pairs": {
+    "crates/syntax/src/recovery.rs": [
+      "2057b4a631a0a9aa48faa168cc7fa5ef391cd6a5091933d1bcfb4f9be7686e17",
+      "27eb7dbc0d144d72c5ceffe58ad7fd701b72c4e8e8f83038c06d757eaaa36085"
+    ],
+    "crates/syntax/src/recovery/context.rs": [
+      "c1e18d476453ff4ce90172b009310d0c160771190509583d3436d1e6f8e9aaa4",
+      "9986b93f8201e7c193563da7d09ca8965c1ff217de06e83c9a8fab42a11afa76"
+    ],
+    "crates/syntax/tests/unit/parser/recovery.rs": [
+      "b33aec7a9270d1563c3b4667cf053ad9469333869fe92335694fd64ef8b4f92e",
+      "29919a1c99f77e94ceb2b519b6263606a3d6744b2164fe367c5ae4a58293f7e8"
+    ]
+  },
+  "evidence_sha256": {
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-keyword-successor-r185/successor.json": "98568174aec3f62cf737614e9d21fb1b72f7d2f0c1b5451883c5982daee44958",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-keyword-successor-r185/selection.json": "592598404a21aeae8a756e6a7ca2573931095344acf3b24b82cb54e6b9e00345",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-variable-successor-r151/successor.json": "58db71187af115b5d7d64d82be553b3f2ccb3b015cd4bf9ad81544c5e1a36187",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-keyword-successor-r185/resolved-dependencies.json": "8c5b9ea4163ee1a73607568e7220ba3373b9f98e151af1db5753d58ba2190096",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r131/current.json": "006583104b9e0b3edfc41df05e5b80dd3d5cf7108eb1c075f1490c8f3fc934ce",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r131/projection.json": "21a59766a113c6cd76c8e4df1f2a2a83f75636205bf4e356cc348fba0d0d46bf",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-parser-replays-r131/merge-base.json": "f17df9e2c3f3fdb43e0902628df1efbdb274d910ceeef06d0310e775ac7e4300",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-census-r78/profiles/missing-await.json": "bcf52f264bbe763faff7e7f054227d6c0b877b75bccfa563a0764de7b00d1c12",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-census-r78/profiles/missing-declaration.json": "b59bb716fe6ba2388089cae4f94848ff6eeb96ec5a743d346c083c7db4c4b3d4",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-census-r78/profiles/parameter-gaps.json": "030d5d5e4fe980fcc323d1452de98f9428c793346489613aad8fe18ac11cf07e",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-census-r78/profiles/statement-gaps.json": "5f27478b4d2da3f99724a91e8f472be7819ad50a8527c6d9a9774ffe0ec226d5",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-census-r78/profiles/context-recovery.json": "98eb4b86659c65bea43a1561b425b9903a127986ac828d23e9b6b34e3d390721",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final-escaped-keyword-proof/scripts/replay-recovery-parse.rs": "86489f61def2f1952e8afb8fa20897270a8bf4d8b218b485abab905c447e85ab",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final-escaped-keyword-proof/scripts/replay-recovery-parse.py": "681d8ee48f6e8954b53f1a36be7bab3f58383475ee49c1f6c5c2048c3c8cd67b",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final-escaped-keyword-proof/scripts/select-recovery-parse-corpus.py": "b7217cbb9f33ef38ea07ddec2fc3280de701c8eb57537b824bef3b13f23f1751",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final-escaped-keyword-proof/crates/xtask/src/recovery_parse_snapshot.rs": "3ed02323517f463624014157ad811ff7ed2103b3bc18e4b23547ec270fbc1254"
+  },
+  "scope_inspection_sha256": "3a94f126022b3df2d23e47ad35de10dcae4064de3db7fddf8cc88c3936335406",
+  "canonical_Cargo_lock_sha256": "f96139ea4d982d8644293145207d52820aaec303f8430b635b111ed80c4ee305",
+  "prototype_parent": "2df8d1cd0bae5a26efd1d4268bab4cc7cfd9cc12"
+}

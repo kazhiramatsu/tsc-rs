@@ -1,0 +1,6 @@
+{
+  "base": "3b1f5fe87fd31e3b303bb44bd257342735452ed9",
+  "source_sha256": "3104d5e29c04552344ac42c2b744e763fbc7d535a22da9f2857ef87af5d5ccc0",
+  "line": 145,
+  "snippet": "        if integration_targets.len() > 2 {\n            return Err(format!(\n                \"workspace crate `{}` has {} direct integration targets; consolidate broad contracts behind one tests/*.rs module tree and keep at most one focused hosted-canary target\",\n                package.package_name(),\n                integration_targets.len()\n            )\n            .into());\n        }\n\n        let mut source_paths = Vec::new();\n        let mut pending = VecDeque::from([crate_root.join(\"src\")]);"
+}

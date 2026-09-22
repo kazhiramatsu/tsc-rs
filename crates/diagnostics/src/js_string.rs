@@ -606,4 +606,5 @@ fn append_code_point(bytes: &mut Vec<u8>, point: u32) {
 }
 
 #[cfg(test)]
+#[path = "../tests/unit/js_string/tests.rs"]
 mod tests;

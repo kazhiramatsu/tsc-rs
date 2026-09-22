@@ -1,0 +1,8 @@
+{
+  "checked_at": "2026-09-18T20:09:39.431704+00:00",
+  "producer": "/Users/hiramatsu/dev/tsc-rs-emitter-final",
+  "received_manifest_sha256": "a2202bed06ddcc854c9ed6ac384860b837e4e4228bf14d72e6abd087df85fbb8",
+  "checked_paths": 594,
+  "changed": [],
+  "integration_head": "71b1ae19bb15c373831d7d7c5ac824152d77f93a"
+}

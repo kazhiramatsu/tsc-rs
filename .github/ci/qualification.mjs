@@ -131,6 +131,21 @@ export const ARTIFACT_SCHEMA_CONTRACTS = Object.freeze([
     artifact: "ratchets/h2-5g-owner-controls.v1.json",
   }),
   Object.freeze({
+    label: "H2.7b qualification",
+    schema: ".github/ci/contracts/h2-7b-qualification.schema.json",
+    artifact: "ratchets/h2-7b-qualification.v1.json",
+  }),
+  Object.freeze({
+    label: "H2.7c qualification",
+    schema: ".github/ci/contracts/h2-7c-qualification.schema.json",
+    artifact: "ratchets/h2-7c-qualification.v1.json",
+  }),
+  Object.freeze({
+    label: "H2.7d/e qualification",
+    schema: ".github/ci/contracts/h2-7de-qualification.schema.json",
+    artifact: "ratchets/h2-7de-qualification.v1.json",
+  }),
+  Object.freeze({
     label: "H2.5g profile",
     schema: ".github/ci/contracts/h2-5g-profile.schema.json",
     artifact: "ratchets/h2-5g-profile.v1.json",
@@ -226,19 +241,19 @@ export const ARTIFACT_SCHEMA_CONTRACTS = Object.freeze([
     artifact: "ratchets/h2-7a-close.v1.json",
   }),
   Object.freeze({
-    label: "H2.7b qualification",
-    schema: ".github/ci/contracts/h2-7b-qualification.schema.json",
-    artifact: "ratchets/h2-7b-qualification.v1.json",
+    label: "H2.8a candidates",
+    schema: ".github/ci/contracts/h2-8a-candidates.schema.json",
+    artifact: "ratchets/h2-8a-candidates.v1.json",
   }),
   Object.freeze({
-    label: "H2.7c qualification",
-    schema: ".github/ci/contracts/h2-7c-qualification.schema.json",
-    artifact: "ratchets/h2-7c-qualification.v1.json",
+    label: "H2.8a candidate inputs",
+    schema: ".github/ci/contracts/h2-8a-candidate-inputs.schema.json",
+    artifact: "ratchets/h2-8a-candidate-inputs.v1.json",
   }),
   Object.freeze({
-    label: "H2.7d/e qualification",
-    schema: ".github/ci/contracts/h2-7de-qualification.schema.json",
-    artifact: "ratchets/h2-7de-qualification.v1.json",
+    label: "H2.8a observations",
+    schema: ".github/ci/contracts/h2-8a-observations.schema.json",
+    artifact: "ratchets/h2-8a-observations.v1.json",
   }),
 ]);
 
@@ -1872,7 +1887,7 @@ export function validatePolicy(policy) {
   // Rust acceptance body and its owner-control boundary remain pinned below.
   const executionSources = [
     ".github/workflows/ci.yml", ".github/workflows/witness.yml",
-    ".github/ci/replay.py", ".github/ci/test_replay.py", "scripts/witness.py", "scripts/foundation_witnesses.py",
+    ".github/ci/replay.py", ".github/ci/test_replay.py", "scripts/witness.py", "scripts/foundation_witnesses.py", "scripts/emitter_final_witnesses.py",
     "crates/xtask/src/acceptance_plan.rs", "crates/xtask/src/acceptance_slices.rs",
   ];
   if (!exactKeys(hosted.execution_source_sha256, executionSources)) {
@@ -2205,11 +2220,19 @@ function git(...args) {
 }
 
 function statusBlock(commit) {
-  const readme = execFileSync("git", ["show", `${commit}:README.md`], { cwd: workspace, encoding: "utf8" });
-  const begins = [...readme.matchAll(/<!-- STATUS:BEGIN /gu)];
-  const ends = [...readme.matchAll(/<!-- STATUS:END -->/gu)];
-  if (begins.length !== 1 || ends.length !== 1 || begins[0].index >= ends[0].index) throw new Error("invalid README status block");
-  return readme.slice(begins[0].index, ends[0].index + ends[0][0].length);
+  const paths = ["docs/verification-status.md", "README.md"];
+  const existing = new Set(git("ls-tree", "--name-only", commit, "--", ...paths).split("\n"));
+  const blocks = [];
+  for (const path of paths.filter(path => existing.has(path))) {
+    const text = execFileSync("git", ["show", `${commit}:${path}`], { cwd: workspace, encoding: "utf8" });
+    const begins = [...text.matchAll(/<!-- STATUS:BEGIN /gu)];
+    const ends = [...text.matchAll(/<!-- STATUS:END -->/gu)];
+    if (path === "README.md" && begins.length === 0 && ends.length === 0) continue;
+    if (begins.length !== 1 || ends.length !== 1 || begins[0].index >= ends[0].index) throw new Error(`invalid status block in ${path}`);
+    blocks.push(text.slice(begins[0].index, ends[0].index + ends[0][0].length));
+  }
+  if (blocks.length !== 1) throw new Error("expected exactly one verification status block");
+  return blocks[0];
 }
 
 function changedPaths(baseSha, headSha) {

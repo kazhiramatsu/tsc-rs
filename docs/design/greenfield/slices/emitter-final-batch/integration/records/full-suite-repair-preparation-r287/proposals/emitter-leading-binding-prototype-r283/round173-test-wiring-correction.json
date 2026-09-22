@@ -1,0 +1,84 @@
+{
+  "scope": "read-only source and Cargo metadata proof; no runtime build claim",
+  "head": "628562c31a5102348a7e8769f3a2aa88deef70f1",
+  "finding": "Opus173 incorrectly called tests/unit/parser/recovery.rs an integration target. Keep both prepared tests in that existing in-crate unit module; no new cfgmod/mutator/API needed.",
+  "wiring": {
+    "file": "crates/syntax/src/parser.rs",
+    "line": 10916,
+    "text": "#[cfg(test)] #[path = \"../tests/unit/parser/recovery.rs\"] mod recovery_tests;"
+  },
+  "existing_private_mutation": "crates/syntax/tests/unit/parser/recovery.rs missing_variable_type_events_keep_full_start_distinct_from_diagnostic_start directly mutates parse_recovery.events already",
+  "targets": [
+    {
+      "name": "tsc_syntax",
+      "kind": [
+        "lib"
+      ],
+      "src_path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/crates/syntax/src/lib.rs"
+    },
+    {
+      "name": "l1_incremental_qualification",
+      "kind": [
+        "example"
+      ],
+      "src_path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/crates/syntax/examples/l1_incremental_qualification.rs"
+    },
+    {
+      "name": "emitter_recovery",
+      "kind": [
+        "test"
+      ],
+      "src_path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/crates/syntax/tests/emitter_recovery.rs"
+    },
+    {
+      "name": "entity_names",
+      "kind": [
+        "test"
+      ],
+      "src_path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/crates/syntax/tests/entity_names.rs"
+    },
+    {
+      "name": "new_meta_property_name",
+      "kind": [
+        "test"
+      ],
+      "src_path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/crates/syntax/tests/new_meta_property_name.rs"
+    },
+    {
+      "name": "owned_literal_values",
+      "kind": [
+        "test"
+      ],
+      "src_path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/crates/syntax/tests/owned_literal_values.rs"
+    },
+    {
+      "name": "recovery_provenance",
+      "kind": [
+        "test"
+      ],
+      "src_path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/crates/syntax/tests/recovery_provenance.rs"
+    },
+    {
+      "name": "scanner_escape_diagnostics",
+      "kind": [
+        "test"
+      ],
+      "src_path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/crates/syntax/tests/scanner_escape_diagnostics.rs"
+    },
+    {
+      "name": "template_escape_flags",
+      "kind": [
+        "test"
+      ],
+      "src_path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/crates/syntax/tests/template_escape_flags.rs"
+    },
+    {
+      "name": "template_flags",
+      "kind": [
+        "test"
+      ],
+      "src_path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/crates/syntax/tests/template_flags.rs"
+    }
+  ],
+  "pending": "actual isolated syntax --lib compile/test afterr244 remainsrequired; rustfmt alreadyformatted scratch, do nothandwrap101column pattern"
+}

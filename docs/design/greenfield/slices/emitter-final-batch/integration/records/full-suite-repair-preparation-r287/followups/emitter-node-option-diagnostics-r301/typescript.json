@@ -1,0 +1,81 @@
+{
+  "typescript": "6.0.3",
+  "repetitions": 2,
+  "scope": "getOptionsDiagnostics programmatic control, not emit qualification",
+  "rows": [
+    {
+      "module": 100,
+      "diagnostics": [
+        {
+          "code": 5109,
+          "category": "Error",
+          "file": null,
+          "start": null,
+          "length": null,
+          "text": "Option 'moduleResolution' must be set to 'Node16' (or left unspecified) when option 'module' is set to 'Node16'.",
+          "related_information": null
+        }
+      ]
+    },
+    {
+      "module": 101,
+      "diagnostics": [
+        {
+          "code": 5109,
+          "category": "Error",
+          "file": null,
+          "start": null,
+          "length": null,
+          "text": "Option 'moduleResolution' must be set to 'Node16' (or left unspecified) when option 'module' is set to 'Node18'.",
+          "related_information": null
+        }
+      ]
+    },
+    {
+      "module": 102,
+      "diagnostics": [
+        {
+          "code": 5070,
+          "category": "Error",
+          "file": null,
+          "start": null,
+          "length": null,
+          "text": "Option '--resolveJsonModule' cannot be specified when 'moduleResolution' is set to 'classic'.",
+          "related_information": null
+        },
+        {
+          "code": 5109,
+          "category": "Error",
+          "file": null,
+          "start": null,
+          "length": null,
+          "text": "Option 'moduleResolution' must be set to 'Node16' (or left unspecified) when option 'module' is set to 'Node20'.",
+          "related_information": null
+        }
+      ]
+    },
+    {
+      "module": 199,
+      "diagnostics": [
+        {
+          "code": 5070,
+          "category": "Error",
+          "file": null,
+          "start": null,
+          "length": null,
+          "text": "Option '--resolveJsonModule' cannot be specified when 'moduleResolution' is set to 'classic'.",
+          "related_information": null
+        },
+        {
+          "code": 5109,
+          "category": "Error",
+          "file": null,
+          "start": null,
+          "length": null,
+          "text": "Option 'moduleResolution' must be set to 'NodeNext' (or left unspecified) when option 'module' is set to 'NodeNext'.",
+          "related_information": null
+        }
+      ]
+    }
+  ]
+}

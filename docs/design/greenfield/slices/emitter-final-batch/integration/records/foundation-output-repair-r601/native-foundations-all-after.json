@@ -1,0 +1,29 @@
+{
+  "argv": [
+    "/opt/homebrew/opt/python@3.14/bin/python3.14",
+    "-c",
+    "import sys,os;sys.path.insert(0,'scripts');import foundation_witnesses as m;m.run(list(m.SUITES),os.environ)"
+  ],
+  "exit": 0,
+  "seconds": 92.81125883292407,
+  "log_sha256": "d0011126d6cbbf58ca0f77c81c319d2a4459ae084d99515fc522da51590207f7",
+  "targets": [
+    "syntax-entity-names",
+    "syntax-meta-property",
+    "syntax-literal-values",
+    "syntax-recovery",
+    "syntax-emitter-recovery",
+    "syntax-scanner-escapes",
+    "syntax-template-escapes",
+    "syntax-template-flags",
+    "binder-symbol-names",
+    "types-option-numbers",
+    "host-memory",
+    "host-filesystem",
+    "program-bundle-facts",
+    "program-host-platform",
+    "program-config-paths",
+    "program-module-paths",
+    "program-raw-source"
+  ]
+}

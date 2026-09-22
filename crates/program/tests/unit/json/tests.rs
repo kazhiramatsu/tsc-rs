@@ -103,7 +103,7 @@ fn jsonc_prototypes_are_inherited_without_colliding_with_strict_user_keys() {
     assert_eq!(
         jsonc
             .keys()
-            .filter_map(|key| decode_user_object_key(key))
+            .filter_map(decode_user_object_key)
             .collect::<Vec<_>>(),
         vec!["own"]
     );

@@ -70,15 +70,13 @@ impl ConfigParseHost for OracleConfigHost {
         _includes: Option<&[tsc_diagnostics::JsString]>,
         _depth: Option<usize>,
     ) -> Result<Vec<tsc_diagnostics::JsString>, ConfigHostError> {
-        (|| -> Result<Vec<String>, ConfigHostError> {
-            Ok(self
-                .files
-                .keys()
-                .filter(|path| extensions.iter().any(|extension| path.ends_with(extension)))
-                .cloned()
-                .collect())
-        })()
-        .map(|paths| paths.into_iter().map(Into::into).collect())
+        Ok(self
+            .files
+            .keys()
+            .filter(|path| extensions.iter().any(|extension| path.ends_with(extension)))
+            .cloned()
+            .map(Into::into)
+            .collect())
     }
 }
 
@@ -385,10 +383,6 @@ fn official_module_suffix_fixtures_match_the_frozen_typescript_oracle() {
     assert_eq!(seen_cases.len(), 16);
 }
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use crate::utf16_scalar_path::ScalarTestPath as _;
 
-#[path = "../../../program/tests/support/scalar_json.rs"]
-mod utf16_scalar_json;
-use utf16_scalar_json::observe as scalar_json;
+use crate::utf16_scalar_json::observe as scalar_json;

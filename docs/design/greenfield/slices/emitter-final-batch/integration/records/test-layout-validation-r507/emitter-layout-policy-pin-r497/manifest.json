@@ -1,0 +1,10 @@
+{
+  "scope": "One existing current-source hash after token-identical test extraction; all policy paths, schema, membership, statuses and invocation shapes unchanged.",
+  "path": ".github/ci/qualification-policy.v2.json",
+  "source": "crates/xtask/src/h2_7de_acceptance.rs",
+  "before_sha256": "2d9eec2efda0850514e5ca07352d52341fe9076f67458cb28485683ed54a8afe",
+  "after_sha256": "e9f840193fd55bfcc82a610131771674d61fd13275866bbff2498536dfa3698c",
+  "policy_before_sha256": "e01fc7af89b7fd151b6e19b74d80b2ddb628e5a224b07e442864590788063dd2",
+  "policy_after_sha256": "1522ecbf5335f6138105aa9ab108f9df1fdce8a966aa2cb4ec9cead29c56bb01",
+  "prior": "495-layout-qualification rejects this known stale source pin,49/50green"
+}

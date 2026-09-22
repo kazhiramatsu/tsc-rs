@@ -1,0 +1,386 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h2-8a-candidates.schema.json",
+  "title": "H2.8a candidate inputs and retained owners",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "typescript",
+    "source_commit",
+    "status",
+    "generator",
+    "inputs",
+    "selection_contract",
+    "project_contract",
+    "cases",
+    "summary"
+  ],
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "kind": {
+      "const": "h2-8a-candidates"
+    },
+    "typescript": {
+      "const": "6.0.3"
+    },
+    "source_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "status": {
+      "const": "candidate-inputs-only"
+    },
+    "generator": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/identity"
+        },
+        {
+          "properties": {
+            "path": {
+              "const": "crates/oracle/h2-8a-candidates.mjs"
+            }
+          },
+          "required": [
+            "path"
+          ]
+        }
+      ]
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/identity"
+      },
+      "minItems": 12,
+      "maxItems": 12
+    },
+    "selection_contract": {
+      "type": "string",
+      "minLength": 1
+    },
+    "project_contract": {
+      "type": "string",
+      "minLength": 1
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/case"
+      },
+      "minItems": 809,
+      "maxItems": 809
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unique_candidates",
+        "output_only_candidates",
+        "later_intersections",
+        "newly_found_later_intersections",
+        "whole_program_inputs",
+        "transpile_controls",
+        "runtime_admitted",
+        "project_mount_files",
+        "project_resolve_map_or_source_root",
+        "parent_case_id_overlaps",
+        "by_remaining_slices"
+      ],
+      "properties": {
+        "unique_candidates": {
+          "const": 809
+        },
+        "output_only_candidates": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "later_intersections": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "newly_found_later_intersections": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "whole_program_inputs": {
+          "const": 809
+        },
+        "transpile_controls": {
+          "const": 0
+        },
+        "runtime_admitted": {
+          "const": 0
+        },
+        "project_mount_files": {
+          "const": 233
+        },
+        "project_resolve_map_or_source_root": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "parent_case_id_overlaps": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "by_remaining_slices": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "bytes",
+        "sha256",
+        "git_blob_sha1"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "git_blob_sha1": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        }
+      }
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "text"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "text": {
+          "type": "string"
+        }
+      }
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "suite",
+        "source",
+        "original_required_slices",
+        "required_slices",
+        "effective_owner_reasons",
+        "added_slices",
+        "source_facts",
+        "parent_membership",
+        "input_sha256",
+        "disposition",
+        "runtime_admitted"
+      ],
+      "properties": {
+        "case_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "suite": {
+          "enum": [
+            "compiler",
+            "conformance",
+            "project",
+            "transpile"
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "original_required_slices": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^H2\\."
+          },
+          "uniqueItems": true
+        },
+        "required_slices": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^H2\\."
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "effective_owner_reasons": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "owner",
+              "reason"
+            ],
+            "properties": {
+              "owner": {
+                "type": "string",
+                "minLength": 1
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "added_slices": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^H2\\."
+          },
+          "uniqueItems": true
+        },
+        "source_facts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "parse_diagnostic_units",
+            "excessive_depth_units"
+          ],
+          "properties": {
+            "parse_diagnostic_units": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "path",
+                  "codes"
+                ],
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "codes": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "minItems": 1
+                  }
+                }
+              }
+            },
+            "excessive_depth_units": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "path",
+                  "depth"
+                ],
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "depth": {
+                    "type": "integer",
+                    "minimum": 257
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parent_membership": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "parent",
+              "disposition",
+              "remaining_slices"
+            ],
+            "properties": {
+              "parent": {
+                "type": "string",
+                "minLength": 1
+              },
+              "disposition": {
+                "type": "string",
+                "minLength": 1
+              },
+              "remaining_slices": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^H2\\."
+                },
+                "uniqueItems": true
+              }
+            }
+          }
+        },
+        "input_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "disposition": {
+          "const": "candidate-only"
+        },
+        "runtime_admitted": {
+          "const": false
+        }
+      }
+    }
+  }
+}

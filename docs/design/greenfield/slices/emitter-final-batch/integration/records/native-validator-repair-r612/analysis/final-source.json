@@ -1,0 +1,12 @@
+{
+  "base_head": "fa391cbff6468032ebd4969734cde9d2b9474237",
+  "rust_sha256": "2250a4976d0c6b7ecbfec7bf6d9caa022bca2673863d0595fd7f8e8ec9bb4b84",
+  "changes": [
+    "crates/compiler/tests/unit/cli/tests.rs",
+    "crates/conformance/src/host_resolution.rs",
+    "crates/conformance/tests/unit/host_resolution/tests.rs",
+    "docs/design/greenfield/slices/witness-coverage/README.md",
+    "docs/design/greenfield/slices/witness-coverage/inventory.py"
+  ],
+  "qualification_scope": "Focused tests and validator checks only; official new walk/full CI/hosted remain"
+}

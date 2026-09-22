@@ -1,0 +1,2 @@
+class \u0046oo { method() { return 1; } }
+export { Foo as Bar };

@@ -15,7 +15,7 @@ assert.equal(ts.version, "6.0.3");
 assert.equal(process.versions.node, fs.readFileSync(path.join(root, ".node-version"), "utf8").trim());
 const read = name => JSON.parse(fs.readFileSync(path.join(root, name)));
 const observationPath = "ratchets/h2-7de-observations.v1.json";
-const manifestPath = "docs/design/greenfield/slices/witness-coverage/compiler-module-facets/original-javascript-inputs.v1.json";
+const manifestPath = "docs/design/greenfield/slices/witness-coverage/compiler-module-facets/original-javascript-inputs.v2.json";
 const inputs = read(inputPath), observations = read(observationPath);
 // The predecessor artifact binds its generator, inputs, compiler and host.
 for (const dependency of [observations.generator, ...observations.inputs]) {

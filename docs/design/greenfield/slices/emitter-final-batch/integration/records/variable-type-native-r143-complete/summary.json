@@ -1,0 +1,13 @@
+{
+  "source_head": "d27af3085",
+  "cases": 164,
+  "exact_twice": 163,
+  "failures": 1,
+  "original92_exact_twice": true,
+  "failure": "es2022/esnext/nocheck-false/remove-false/valid-type-newline-comment",
+  "difference": "JS missing space before newline; sourceMapUrlPos shifts by1; source maps and declaration outputs equal",
+  "raw_exit": 101,
+  "neighbours_emitter_transpile": "not run because first test failed",
+  "captures_sha256": "3ac50bfe92d744c75dc6bb66bff4488b011a721ab2646bc102cabd5ee60148a4",
+  "captures_raw_sha256": "278ab6f87c80772555e9dfa737019254aa46183e69b6b5c344df0d290ad7674d"
+}

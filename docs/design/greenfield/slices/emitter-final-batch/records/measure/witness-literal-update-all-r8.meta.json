@@ -1,0 +1,15 @@
+{
+  "name": "witness-literal-update-all-r8",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 33,
+  "env": [
+    "CARGO_BUILD_JOBS=1"
+  ],
+  "argv": "python3 scripts/witness.py literal-update --all",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T15:41:14Z",
+  "seconds": 53,
+  "exit": 0,
+  "log_sha256": "31ceeffea53b9f31c79ccedd74b578cffbfa570234e28cb865a6297f7a79d751",
+  "log_bytes": 1768
+}

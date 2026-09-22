@@ -1,0 +1,239 @@
+--- a/crates/xtask/src/h2_1a_acceptance.rs
++++ b/crates/xtask/src/h2_1a_acceptance.rs
+@@ -72,62 +72,87 @@
+ 
+ // Source repairs measured against the unchanged historical input and
+ // both complete TypeScript observations. Keep the old qualification immutable.
+-static CURRENT_EXACT_SOURCE_PROMOTIONS: &[(&str, &str, &str)] = &[
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++struct CurrentExactSourcePromotion {
++    case_id: &'static str,
++    case_fingerprint_sha256: &'static str,
++    required_slice: &'static str,
++    expected_extra_activity: &'static [(H2RuntimeSlice, u64)],
++}
++
++static CURRENT_EXACT_SOURCE_PROMOTIONS: &[CurrentExactSourcePromotion] = &[
+     // Current recovery preserves these original H2.9 inputs and complete
+     // observations, including every diagnostic, on both executions.
+-    (
+-        "typescript-6.0.3/conformance/classes/members/privateNames/privateNameInInExpressionTransform.ts#target%3Desnext",
+-        "27799d7a310107bd3d668ea19c3e931e76a2455e1c1f1f5762b7a59c0ce45d56",
+-        "H2.9",
+-    ),
+-    (
+-        "typescript-6.0.3/conformance/scanner/ecmascript5/scannerUnicodeEscapeInKeyword2.ts#default",
+-        "20387b00aaf32583c354f03d6ff35e5d9007fe037d6db963fd21a525f9cdafc4",
+-        "H2.9",
+-    ),
+-    (
+-        "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarations.4.ts#default",
+-        "02a027145440c0a66ef62760ad419c818eda42a4e32a55a4e25c35b2696b1aea",
+-        "H2.9",
+-    ),
++    CurrentExactSourcePromotion {
++        case_id: "typescript-6.0.3/conformance/classes/members/privateNames/privateNameInInExpressionTransform.ts#target%3Desnext",
++        case_fingerprint_sha256: "27799d7a310107bd3d668ea19c3e931e76a2455e1c1f1f5762b7a59c0ce45d56",
++        required_slice: "H2.9",
++        expected_extra_activity: &[],
++    },
++    CurrentExactSourcePromotion {
++        case_id: "typescript-6.0.3/conformance/scanner/ecmascript5/scannerUnicodeEscapeInKeyword2.ts#default",
++        case_fingerprint_sha256: "20387b00aaf32583c354f03d6ff35e5d9007fe037d6db963fd21a525f9cdafc4",
++        required_slice: "H2.9",
++        expected_extra_activity: &[],
++    },
++    CurrentExactSourcePromotion {
++        case_id: "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarations.4.ts#default",
++        case_fingerprint_sha256: "02a027145440c0a66ef62760ad419c818eda42a4e32a55a4e25c35b2696b1aea",
++        required_slice: "H2.9",
++        expected_extra_activity: &[],
++    },
+     // The text-based comment preflight was removed. These rows must now
+     // match their frozen complete observations, including all diagnostics.
+-    (
+-        "typescript-6.0.3/conformance/classes/members/privateNames/privateNameInInExpression.ts#target%3Desnext",
+-        "ed4b13ea9f6d38a3c9e4bd51cb798eeb002b222e29f52e7eff2b79421930d0fe",
+-        "H2.8a",
+-    ),
+-    (
+-        "typescript-6.0.3/conformance/expressions/optionalChaining/optionalChainingInTypeAssertions.ts#target%3Desnext",
+-        "f3f15ca6f7ba664e4cfdd9e21fc4097069883d87690916cace093d7fd9ec950e",
+-        "H2.8a",
+-    ),
+-    (
+-        "typescript-6.0.3/compiler/commentsAfterSpread.ts#default",
+-        "3f5e9e8bd16bab126774402dea7896f6391aaa67bb4f1952b48811ac3ca1f879",
+-        "H2.8a",
+-    ),
++    CurrentExactSourcePromotion {
++        case_id: "typescript-6.0.3/conformance/classes/members/privateNames/privateNameInInExpression.ts#target%3Desnext",
++        case_fingerprint_sha256: "ed4b13ea9f6d38a3c9e4bd51cb798eeb002b222e29f52e7eff2b79421930d0fe",
++        required_slice: "H2.8a",
++        expected_extra_activity: &[],
++    },
++    CurrentExactSourcePromotion {
++        case_id: "typescript-6.0.3/conformance/expressions/optionalChaining/optionalChainingInTypeAssertions.ts#target%3Desnext",
++        case_fingerprint_sha256: "f3f15ca6f7ba664e4cfdd9e21fc4097069883d87690916cace093d7fd9ec950e",
++        required_slice: "H2.8a",
++        expected_extra_activity: &[],
++    },
++    CurrentExactSourcePromotion {
++        case_id: "typescript-6.0.3/compiler/commentsAfterSpread.ts#default",
++        case_fingerprint_sha256: "3f5e9e8bd16bab126774402dea7896f6391aaa67bb4f1952b48811ac3ca1f879",
++        required_slice: "H2.8a",
++        expected_extra_activity: &[],
++    },
+     // Literal-only recovery now emits this historical H2.9 refusal. Compare
+     // its original output and all three TS1125 diagnostics twice.
+-    (
+-        "typescript-6.0.3/conformance/es2018/invalidTaggedTemplateEscapeSequences.ts#target%3Desnext",
+-        "fb4e084b24b8ab291c29e50a94b555fe1db39d802b301ee58c80a6d740794eb0",
+-        "H2.9",
+-    ),
++    CurrentExactSourcePromotion {
++        case_id: "typescript-6.0.3/conformance/es2018/invalidTaggedTemplateEscapeSequences.ts#target%3Desnext",
++        case_fingerprint_sha256: "fb4e084b24b8ab291c29e50a94b555fe1db39d802b301ee58c80a6d740794eb0",
++        required_slice: "H2.9",
++        expected_extra_activity: &[],
++    },
++    // Both parsers attach each decorator to its using VariableStatement.
++    // Class-fields routing therefore records H2.4b once for this source.
++    CurrentExactSourcePromotion {
++        case_id: "typescript-6.0.3/conformance/decorators/invalid/decoratorOnUsing.ts#default",
++        case_fingerprint_sha256: "4437e98b97ba1e53501aaba0efb82063f099d2549da4be233e3edf623031beff",
++        required_slice: "H2.9",
++        expected_extra_activity: &[(H2RuntimeSlice::H2_4b, 1)],
++    },
+ ];
+ 
+-fn current_exact_source_promotion(case: &Value) -> Result<bool, Box<dyn Error>> {
++fn current_exact_source_promotion(
++    case: &Value,
++) -> Result<Option<&'static CurrentExactSourcePromotion>, Box<dyn Error>> {
+     let case_id = string(case, "case_id")?;
+-    let Some((_, fingerprint, required_slice)) = CURRENT_EXACT_SOURCE_PROMOTIONS
++    let Some(promotion) = CURRENT_EXACT_SOURCE_PROMOTIONS
+         .iter()
+-        .find(|(id, _, _)| *id == case_id)
++        .find(|promotion| promotion.case_id == case_id)
+     else {
+-        return Ok(false);
++        return Ok(None);
+     };
+     let observations = array(case, "typescript_runs")?;
+-    if case["case_fingerprint_sha256"] != *fingerprint
++    if case["case_fingerprint_sha256"] != promotion.case_fingerprint_sha256
+         || case["disposition"] != "deferred-to-slices"
+-        || case["required_slices"] != json!([required_slice])
++        || case["required_slices"] != json!([promotion.required_slice])
+         || case["diagnostic_disposition"]["state"] != "not-observed-source-deferred"
+         || case["rust_expectation"] != "typed-failure-before-first-sink-write"
+         || observations.len() != 2
+@@ -137,7 +162,7 @@
+             "{case_id}: current exact source promotion identity changed"
+         )));
+     }
+-    Ok(true)
++    Ok(Some(promotion))
+ }
+ 
+ fn failure(message: impl Into<String>) -> Box<dyn Error> {
+@@ -450,6 +475,7 @@
+     }
+     let expected = &array(case, "typescript_runs")?[0];
+     let expected_reported = array(expected, "reported_diagnostics")?;
++    let mut source_promotion = None;
+     match diagnostic_expectation {
+         DiagnosticExpectation::Exact => {
+             if case["diagnostic_disposition"]["state"] != "exact-required" {
+@@ -476,11 +502,9 @@
+             assert_reported_diagnostics(case_id, expected_reported, &first_reported)?;
+         }
+         DiagnosticExpectation::CurrentExactSourcePromotion => {
+-            if !current_exact_source_promotion(case)? {
+-                return Err(failure(format!(
+-                    "{case_id}: exact source promotion is not recorded"
+-                )));
+-            }
++            source_promotion = Some(current_exact_source_promotion(case)?.ok_or_else(|| {
++                failure(format!("{case_id}: exact source promotion is not recorded"))
++            })?);
+             assert_reported_diagnostics(case_id, expected_reported, &first_reported)?;
+         }
+     }
+@@ -526,9 +550,21 @@
+         )));
+     }
+     for slice in H2RuntimeSlice::ALL {
+-        if slice != H2RuntimeSlice::H2_1a && activity.runtime_slice(slice) != 0 {
++        if slice == H2RuntimeSlice::H2_1a {
++            continue;
++        }
++        let expected = source_promotion
++            .and_then(|promotion| {
++                promotion
++                    .expected_extra_activity
++                    .iter()
++                    .find_map(|&(owner, count)| (owner == slice).then_some(count))
++            })
++            .unwrap_or(0);
++        let observed = activity.runtime_slice(slice);
++        if observed != expected {
+             return Err(failure(format!(
+-                "{case_id}: unadmitted {} activity",
++                "{case_id}: {} activity {observed} differs from expected {expected}",
+                 slice.name()
+             )));
+         }
+@@ -834,7 +870,7 @@
+                     && !crate::h2_2d_acceptance::promotes_historical_case(case, h2_2d_cases)?
+                     && !promoted_to_h2_4b(case, h2_4b_cases)?
+                 {
+-                    if current_exact_source_promotion(case)? {
++                    if current_exact_source_promotion(case)?.is_some() {
+                         let (case_writes, case_diagnostics) = execute_observed(
+                             workspace,
+                             case,
+--- a/crates/xtask/tests/unit/h2_1a_acceptance/tests.rs
++++ b/crates/xtask/tests/unit/h2_1a_acceptance/tests.rs
+@@ -130,14 +130,20 @@
+     )
+     .expect("parse H2.1a qualification");
+     let cases = artifact["cases"].as_array().expect("qualification cases");
+-    assert_eq!(super::CURRENT_EXACT_SOURCE_PROMOTIONS.len(), 7);
++    assert_eq!(super::CURRENT_EXACT_SOURCE_PROMOTIONS.len(), 8);
+     let mut writes = 0;
+     let mut diagnostics = 0;
+-    for (case_id, _, required_slice) in super::CURRENT_EXACT_SOURCE_PROMOTIONS {
++    for promotion in super::CURRENT_EXACT_SOURCE_PROMOTIONS {
++        let case_id = promotion.case_id;
++        let required_slice = promotion.required_slice;
+         let case = cases
+             .iter()
+-            .find(|case| case["case_id"] == *case_id)
++            .find(|case| case["case_id"] == case_id)
+             .expect("recorded source promotion");
++        assert_eq!(
++            super::current_exact_source_promotion(case).expect("validate exact source promotion"),
++            Some(promotion),
++        );
+         let (case_writes, case_diagnostics) = super::execute_observed(
+             &workspace,
+             case,
+@@ -148,7 +154,7 @@
+         diagnostics += case_diagnostics;
+ 
+         let mut wrong_owner = case.clone();
+-        wrong_owner["required_slices"] = serde_json::json!([if *required_slice == "H2.9" {
++        wrong_owner["required_slices"] = serde_json::json!([if required_slice == "H2.9" {
+             "H2.8a"
+         } else {
+             "H2.9"
+@@ -158,5 +164,5 @@
+         wrong_identity["case_fingerprint_sha256"] = serde_json::json!("changed");
+         assert!(super::current_exact_source_promotion(&wrong_identity).is_err());
+     }
+-    assert_eq!((writes, diagnostics), (8, 20));
++    assert_eq!((writes, diagnostics), (9, 21));
+ }

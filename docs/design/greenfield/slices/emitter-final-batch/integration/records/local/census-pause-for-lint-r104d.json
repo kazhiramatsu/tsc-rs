@@ -1,0 +1,25 @@
+{
+  "head": "b9e0ffc43eda48fea0db3a5661a3958da7b96363",
+  "census_manifest": {
+    "census_pid": 56011,
+    "head": "67df86615a45f9595025064bcc12fde93063fedf",
+    "original_executable": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/xtask",
+    "original_inode": 120896494,
+    "original_device": 16777234,
+    "sha256": "8bdfd58da50dd32576998c8604c14acca42ec64ae812ed4590aa3eba442ab47d",
+    "retained_copy": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-census-r78-immutable/xtask",
+    "recorded_at": "2026-09-19T03:52:26.570523+00:00",
+    "process_text_mappings": "p56011\nftxt\ni120896494\nn/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/xtask\nftxt\ni1152921500312573277\nn/usr/lib/dyld\n"
+  },
+  "reason": "serialize inherited checker/program lint qualification; does not build xtask; census elapsed includes pause",
+  "steps": [
+    {
+      "label": "inherited-clippy-fix-r104d",
+      "exit": 0
+    }
+  ],
+  "paused_at": "2026-09-19T05:33:36.765445+00:00",
+  "text_mapping_preserved": true,
+  "path_sha256": "8bdfd58da50dd32576998c8604c14acca42ec64ae812ed4590aa3eba442ab47d",
+  "resumed_at": "2026-09-19T05:35:17.255050+00:00"
+}

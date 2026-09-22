@@ -1,0 +1,35 @@
+--- vendor/typescript-6.0.3/lib/typescript.js
++++ ts-rel.js
+@@ -63713,7 +63713,7 @@
+       const modifiersType = getModifiersTypeFromMappedType(type);
+       const baseConstraint = isGenericMappedType(modifiersType) ? getApparentTypeOfMappedType(modifiersType) : getBaseConstraintOfType(modifiersType);
+       if (baseConstraint && everyType(baseConstraint, (t) => isArrayOrTupleType(t) || isArrayOrTupleOrIntersection(t))) {
+-        return instantiateType(target, prependTypeMapping(typeVariable, baseConstraint, type.mapper));
++        console.error('RAT mapped=%s base=%s', typeToString(type), typeToString(baseConstraint)); const __r = instantiateType(target, prependTypeMapping(typeVariable, baseConstraint, type.mapper)); console.error('RAT result=%s', typeToString(__r)); return __r; //return instantiateType(target, prependTypeMapping(typeVariable, baseConstraint, type.mapper));
+       }
+     }
+     return type;
+@@ -67289,6 +67289,7 @@
+       }
+       const checkType = instantiateType(getActualTypeVariable(root.checkType), mapper);
+       const extendsType = instantiateType(root.extendsType, mapper);
++      if (instantiationDepth > 96) console.error('GCT depth=%s node=%s check=%s extends=%s', instantiationDepth, root.node.pos, typeToString(checkType), typeToString(extendsType));
+       if (checkType === errorType || extendsType === errorType) {
+         return errorType;
+       }
+@@ -68323,6 +68324,7 @@
+       return type;
+     }
+     if (instantiationDepth === 100 || instantiationCount >= 5e6) {
++      console.error('INST-LIMIT depth=%s count=%s node=%s', instantiationDepth, instantiationCount, currentNode && currentNode.pos); if (!globalThis.__once) { globalThis.__once = 1; const fr = new Error().stack.split('\n').slice(1,400).map(l => l.trim().split(' ')[1]); const out=[]; let prev=null, n=0; for (const f of fr) { if (f===prev) n++; else { if (prev) out.push(prev+(n>1?'x'+n:'')); prev=f; n=1; } } out.push(prev+(n>1?'x'+n:'')); console.error('STACK ' + out.join(' > ')); }
+       (_a = tracing) == null ? void 0 : _a.instant(tracing.Phase.CheckTypes, "instantiateType_DepthLimit", { typeId: type.id, instantiationDepth, instantiationCount });
+       error2(currentNode, Diagnostics.Type_instantiation_is_excessively_deep_and_possibly_infinite);
+       return errorType;
+@@ -69504,6 +69506,7 @@
+     if (incompatibleStack) {
+       reportIncompatibleStack();
+     }
++    { const __ss = typeToString(source); if (__ss.startsWith('T1 &')) console.error('CTRT src=%s tgt=%s result=%s overflow=%s remaining=%s errorNode=%s', __ss, typeToString(target), result, overflow, relationCount, !!errorNode); }
+     if (overflow) {
+       const id = getRelationKey(
+         source,

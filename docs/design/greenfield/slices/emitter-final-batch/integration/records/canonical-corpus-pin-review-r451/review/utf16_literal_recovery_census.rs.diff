@@ -1,0 +1,16 @@
+diff --git a/crates/xtask/src/utf16_literal_recovery_census.rs b/crates/xtask/src/utf16_literal_recovery_census.rs
+index 61f134166..95c4fa7cd 100644
+--- a/crates/xtask/src/utf16_literal_recovery_census.rs
++++ b/crates/xtask/src/utf16_literal_recovery_census.rs
+@@ -1207,10 +1207,7 @@ fn write_report(
+     if let Some(parent) = out.parent() {
+         fs::create_dir_all(parent)?;
+     }
+-    fs::write(
+-        &out,
+-        format!("{}\n", serde_json::to_string_pretty(&report)?),
+-    )?;
++    fs::write(out, format!("{}\n", serde_json::to_string_pretty(&report)?))?;
+     println!(
+         "{}",
+         json!({

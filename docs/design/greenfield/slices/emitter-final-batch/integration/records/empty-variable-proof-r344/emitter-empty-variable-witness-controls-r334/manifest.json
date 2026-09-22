@@ -1,0 +1,21 @@
+{
+  "status": "test-only candidate, not applied; qualify existing frozen witness outputs before canonical integration",
+  "files": [
+    {
+      "path": "crates/compiler/tests/integration/source_map_recording_witness_contract.rs",
+      "before_sha256": "4b84f4b124713606068c6c2d91c1333a3d531640527cb2fab2fe3042b0263d91",
+      "after_sha256": "d6bfdb81ac5b03d59c544891161fd378a05722387c4c85e64f0dc13702ffdd36"
+    },
+    {
+      "path": "crates/compiler/tests/integration/source_map_emit_witness_contract.rs",
+      "before_sha256": "43385031feaac4f9299d7ac8f2d49f56c95d6141da5885e423edae6c799e9c4a",
+      "after_sha256": "d85f28c550133c812ceee39eac2ce56afb7a37cc1d7c93a000ca68d2495d6618"
+    }
+  ],
+  "recording_census": 26,
+  "production_emit_census": {
+    "parity": 31,
+    "historical_boundary": 5,
+    "deferred": 0
+  }
+}

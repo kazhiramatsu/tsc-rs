@@ -1,0 +1,392 @@
+total _tsc.js entries 4087 not contained in same-named fn 391
+crates/binder/src/assignment.rs | 399 | getEffectiveInitializer/getDeclaredExpandoInitializer | 14967-14976 | NO SUCH NAME
+crates/binder/src/bind.rs | 67 | bind | 44226-44255 | createBinder.bind 44226-44251
+crates/binder/src/bind.rs | 1087 | bindTypeParameter | 45078-45115 | createBinder.bindTypeParameter 45078-45114
+crates/binder/src/bind.rs | 1595 | bindDynamicallyNamedThisPropertyAssignment/addLateBoundAssignmentDeclarationToSymbol | 44733-44749 | NO SUCH NAME
+crates/binder/src/bind.rs | 2242 | lookupSymbolForName | 45202-45216 | lookupSymbolForName 45202-45214
+crates/binder/src/containers.rs | 514 | declareModuleMember | 42675-42733 | createBinder.declareModuleMember 42675-42721
+crates/binder/src/node_util.rs | 524 | modifierToFlag | 17035-17073 | modifierToFlag 17035-17071
+crates/binder/src/node_util.rs | 1007 | isDynamicName | 15854-15861 | isDynamicName 15854-15860
+crates/binder/src/node_util.rs | 2566 | isPotentiallyExecutableNode | 20196-20209 | isPotentiallyExecutableNode 20196-20207
+crates/checker/src/access.rs | 166 | addOptionalTypeMarker | 67871-67879 | createTypeChecker.addOptionalTypeMarker 67871-67873
+crates/checker/src/access.rs | 250 | reportObjectPossiblyNullOrUndefinedError | 74999-75022 | createTypeChecker.reportObjectPossiblyNullOrUndefinedError 74999-75021
+crates/checker/src/access.rs | 312 | checkNonNullTypeWithReporter | 75028-75050 | createTypeChecker.checkNonNullTypeWithReporter 75028-75047
+crates/checker/src/access.rs | 446 | checkPropertyAccessibility | 74871-74989 | createTypeChecker.checkPropertyAccessibility 74871-74874
+crates/checker/src/access.rs | 795 | isClassDerivedFromDeclaringClasses | 67462-67465 | createTypeChecker.isClassDerivedFromDeclaringClasses 67462-67464
+crates/checker/src/access.rs | 820 | forEachEnclosingClass | 87230-87251 | createTypeChecker.forEachEnclosingClass 87230-87238
+crates/checker/src/access.rs | 922 | isThisProperty | 14612-14622 | isThisProperty 14612-14615
+crates/checker/src/access.rs | 967 | isValidPropertyAccessForCompletions | 75644-75677 | createTypeChecker.isValidPropertyAccessForCompletions 75644-75653
+crates/checker/src/access.rs | 1040 | checkNonNullChain | 77955-77962 | createTypeChecker.checkNonNullChain 77955-77959
+crates/checker/src/access.rs | 1082 | checkPropertyAccessExpression | 75069-75086 | createTypeChecker.checkPropertyAccessExpression 75069-75071
+crates/checker/src/access.rs | 1178 | lookupSymbolForPrivateIdentifierDeclaration | 75087-75098 | createTypeChecker.lookupSymbolForPrivateIdentifierDeclaration 75087-75096
+crates/checker/src/access.rs | 1257 | checkPrivateIdentifierExpression | 75099-75138 | createTypeChecker.checkPrivateIdentifierExpression 75112-75125
+crates/checker/src/access.rs | 2901 | markPropertyAsReferenced | 75598-75621 | createTypeChecker.markPropertyAsReferenced 75598-75618
+crates/checker/src/access.rs | 2996 | checkPropertyNotUsedBeforeDeclaration | 75372-75415 | createTypeChecker.checkPropertyNotUsedBeforeDeclaration 75372-75387
+crates/checker/src/access.rs | 3214 | checkAndReportErrorForExtendingInterface | 48255-48281 | createTypeChecker.checkAndReportErrorForExtendingInterface 48255-48267
+crates/checker/src/access.rs | 3338 | reportNonexistentProperty | 75416-75470 | createTypeChecker.reportNonexistentProperty 75416-75468
+crates/checker/src/access.rs | 3567 | typeHasStaticProperty | 75471-75500 | createTypeChecker.typeHasStaticProperty 75472-75475
+crates/checker/src/access.rs | 3818 | checkIndexedAccess | 75711-75744 | createTypeChecker.checkIndexedAccess 75711-75713
+crates/checker/src/access.rs | 3949 | isForInVariableForNumericPropertyNames | 75678-75710 | createTypeChecker.isForInVariableForNumericPropertyNames 75693-75710
+crates/checker/src/access.rs | 4043 | checkIndexedAccessIndexType | 81893-81919 | createTypeChecker.checkIndexedAccessIndexType 81893-81918
+crates/checker/src/annotate.rs | 2559 | getTypeFromClassOrInterfaceReference | 60226-60262 | createTypeChecker.getTypeFromClassOrInterfaceReference 60226-60260
+crates/checker/src/annotate.rs | 2888 | getTypeFromIndexedAccessTypeNode | 62612-62621 | createTypeChecker.getTypeFromIndexedAccessTypeNode 62609-62618
+crates/checker/src/annotate.rs | 3398 | isDeferredTypeReferenceNode | 61068-61072 | createTypeChecker.isDeferredTypeReferenceNode 61068-61070
+crates/checker/src/annotate.rs | 4281 | resolveTypeReferenceMembers | 57845-57852 | createTypeChecker.resolveTypeReferenceMembers 57845-57851
+crates/checker/src/annotate.rs | 5246 | hasLateBindableIndexSignature | 57619-57642 | createTypeChecker.hasLateBindableIndexSignature 57639-57642
+crates/checker/src/annotate.rs | 5674 | getBaseConstructorTypeOfClass | 57146-57190 | createTypeChecker.getBaseConstructorTypeOfClass 57146-57189
+crates/checker/src/annotate.rs | 6102 | areAllOuterTypeParametersApplied | 57292-57299 | createTypeChecker.areAllOuterTypeParametersApplied 57301-57309
+crates/checker/src/annotate.rs | 6443 | getTypeOfAccessors | 56746-56786 | createTypeChecker.getTypeOfAccessors 56746-56785
+crates/checker/src/annotate.rs | 8741 | isNullOrUndefined | 56013-56020 | isNullOrUndefined 38997-38999
+crates/checker/src/annotate.rs | 8756 | isEmptyArrayLiteral | 56021-56028 | isEmptyArrayLiteral 17192-17194
+crates/checker/src/annotate.rs | 11172 | getTypeFromBindingPattern | 56546-56552 | createTypeChecker.getTypeFromBindingPattern 56546-56551
+crates/checker/src/calls.rs | 1865 | getOptionalCallSignature | 57895-57910 | createTypeChecker.getOptionalCallSignature 57895-57904
+crates/checker/src/calls.rs | 1969 | isSpreadArgument | 75801-75806 | createTypeChecker.isSpreadArgument 75801-75803
+crates/checker/src/calls.rs | 5619 | invocationError | 77167-77247 | createTypeChecker.invocationError 77234-77247
+crates/checker/src/check.rs | 502 | skipTypeCheckingWorker | 18877-18903 | skipTypeCheckingWorker 18895-18897
+crates/checker/src/check.rs | 2025 | checkSourceElementWorker/canHaveJSDoc | 86557-86570 | NO SUCH NAME
+crates/checker/src/check.rs | 2950 | checkTypeParametersNotReferenced | 84855-84871 | createTypeChecker.checkTypeParametersNotReferenced 84855-84870
+crates/checker/src/check.rs | 3275 | isTypeDeclaration | 19262-19284 | isTypeDeclaration 19262-19282
+crates/checker/src/check.rs | 3352 | getTypeParametersForTypeReferenceOrImport | 81703-81718 | createTypeChecker.getTypeParametersForTypeReferenceOrImport 81709-81718
+crates/checker/src/check.rs | 4061 | checkNodeDeferred | 86899-86968 | createTypeChecker.checkNodeDeferred 86899-86908
+crates/checker/src/check.rs | 4325 | checkTypeParameterDeferred | 81148-81170 | createTypeChecker.checkTypeParameterDeferred 81148-81169
+crates/checker/src/check.rs | 5495 | checkTypeComparableTo | 63937-63939 | createTypeChecker.checkTypeComparableTo 64460-64462
+crates/checker/src/check.rs | 7252 | typeToTypeNodeHelper | 51569-51574 | createTypeChecker.createNodeBuilder.typeToTypeNodeHelper 51311-51318
+crates/checker/src/check.rs | 7283 | createAnonymousTypeNode | 51750-51812 | createTypeChecker.createNodeBuilder.typeToTypeNodeWorker.createAnonymousTypeNode 51750-51810
+crates/checker/src/check.rs | 8852 | getSpecifierForModuleSymbol | 53060-53111 | createTypeChecker.createNodeBuilder.getSpecifierForModuleSymbol 53060-53109
+crates/checker/src/check.rs | 9317 | addPropertyToElementList | 52241-52400 | createTypeChecker.createNodeBuilder.addPropertyToElementList 52241-52397
+crates/checker/src/check.rs | 9608 | signatureToSignatureDeclarationHelper | 52504-52631 | createTypeChecker.createNodeBuilder.signatureToSignatureDeclarationHelper 52504-52611
+crates/checker/src/check.rs | 10013 | getEffectiveParameterDeclaration | 52846-52880 | createTypeChecker.createNodeBuilder.getEffectiveParameterDeclaration 52845-52853
+crates/checker/src/check.rs | 10067 | symbolToParameterDeclaration | 52854-52911 | createTypeChecker.createNodeBuilder.symbolToParameterDeclaration 52854-52875
+crates/checker/src/check.rs | 10230 | requiresAddingImplicitUndefined | 88075-88090 | createTypeChecker.requiresAddingImplicitUndefined 88075-88077
+crates/checker/src/check.rs | 10298 | serializeReturnTypeForSignature | 53524-53556 | createTypeChecker.createNodeBuilder.serializeReturnTypeForSignature 53524-53546
+crates/checker/src/check.rs | 10622 | typePredicateToTypePredicateNodeHelper | 52840-52846 | createTypeChecker.createNodeBuilder.typePredicateToTypePredicateNodeHelper 52839-52844
+crates/checker/src/check.rs | 10656 | typeParameterToDeclarationWithConstraint | 52822-52840 | createTypeChecker.createNodeBuilder.typeParameterToDeclarationWithConstraint 52822-52831
+crates/checker/src/check.rs | 10754 | canReuseTypeNodeAnnotation | 50932-50955 | NO SUCH NAME
+crates/checker/src/check.rs | 10817 | existingTypeNodeIsNotReferenceOrIsReferenceWithCompatibleTypeArgumentCount | 53665-53674 | createTypeChecker.createNodeBuilder.existingTypeNodeIsNotReferenceOrIsReferenceWithCompatibleTypeArgumentCount 53465-53473
+crates/checker/src/check.rs | 10853 | getTypeNamesForErrorDisplay | 50748-50767 | createTypeChecker.getTypeNamesForErrorDisplay 50748-50756
+crates/checker/src/check.rs | 10908 | tryReuseExistingTypeNode | 133283-133292 | createSyntacticTypeNodeBuilder.tryReuseExistingTypeNode 133293-133688
+crates/checker/src/check.rs | 13470 | parameterToParameterDeclarationName | 52880-52911 | createTypeChecker.createNodeBuilder.parameterToParameterDeclarationName 52876-52909
+crates/checker/src/check.rs | 13584 | getPropertyNameNodeForSymbol | 53411-53442 | createTypeChecker.createNodeBuilder.getPropertyNameNodeForSymbol 53411-53425
+crates/checker/src/check.rs | 14210 | escapeTemplateSubstitution | 16263-16266 | escapeTemplateSubstitution 16264-16266
+crates/checker/src/check.rs | 14229 | createPropertyNameNodeForIdentifierOrLiteral | 19208-19212 | createPropertyNameNodeForIdentifierOrLiteral 19208-19211
+crates/checker/src/class.rs | 594 | checkClassExpressionExternalHelpers | 84950-84972 | createTypeChecker.checkClassExpressionExternalHelpers 84950-84971
+crates/checker/src/conditional.rs | 682 | getTrueTypeFromConditionalType | 62746-62748 | createTypeChecker.getTrueTypeFromConditionalType 62747-62749
+crates/checker/src/conditional.rs | 709 | getFalseTypeFromConditionalType | 62749-62751 | createTypeChecker.getFalseTypeFromConditionalType 62750-62752
+crates/checker/src/conditional.rs | 736 | getInferredTrueTypeFromConditionalType | 62752-62754 | createTypeChecker.getInferredTrueTypeFromConditionalType 62753-62755
+crates/checker/src/conditional.rs | 767 | getSubstitutionIntersection | 60446-60448 | createTypeChecker.getSubstitutionIntersection 60445-60447
+crates/checker/src/contextual.rs | 892 | getContextualTypeForDecorator | 72925-72929 | createTypeChecker.getContextualTypeForDecorator 72925-72928
+crates/checker/src/contextual.rs | 3374 | hasContextSensitiveParameters | 19182-19196 | hasContextSensitiveParameters 19182-19195
+crates/checker/src/declaration_emit.rs | 72 | getEmitDeclarations | 18151-18155 | NO SUCH NAME
+crates/checker/src/declaration_emit.rs | 273 | isOptionalUninitializedParameterProperty | 88086-88089 | createTypeChecker.isOptionalUninitializedParameterProperty 88087-88089
+crates/checker/src/declaration_emit.rs | 336 | declaredParameterTypeContainsUndefined | 88068-88074 | createTypeChecker.declaredParameterTypeContainsUndefined 88069-88074
+crates/checker/src/declaration_emit.rs | 350 | isExpandoPropertyDeclaration | 19363-19367 | isExpandoPropertyDeclaration 19363-19365
+crates/checker/src/declaration_emit.rs | 489 | isLateBound | 88600-88604 | NO SUCH NAME
+crates/checker/src/declaration_emit.rs | 1304 | getExternalModuleContainer | 50534-50543 | createTypeChecker.getExternalModuleContainer 50534-50537
+crates/checker/src/declaration_emit.rs | 4699 | createTypeOfDeclarationInExpandoScope | 115400-115425 | NO SUCH NAME
+crates/checker/src/declaration_emit.rs | 4936 | createLateBoundIndexSignatures | 88624-88691 | NO SUCH NAME
+crates/checker/src/declaration_emit.rs | 4962 | getDeclarationStatementsForSourceFile | 88612-88621 | NO SUCH NAME
+crates/checker/src/display_clone.rs | 41 | emitExpression-family | 117158-119469 | NO SUCH NAME
+crates/checker/src/display_clone.rs | 1456 | binaryOperandNeedsParentheses | 20329-20419 | createParenthesizerRules.binaryOperandNeedsParentheses 20338-20376
+crates/checker/src/display_clone.rs | 1531 | getExpressionPrecedence/getOperatorPrecedence | 16044-16142 | NO SUCH NAME
+crates/checker/src/elaboration.rs | 292 | elaborateDidYouMeanToCallOrConstruct | 64063-64091 | createTypeChecker.elaborateDidYouMeanToCallOrConstruct 63995-64023
+crates/checker/src/elaboration.rs | 1059 | elaborateError | 63957-64091 | createTypeChecker.elaborateError 63957-63994
+crates/checker/src/emit.rs | 925 | createTypeOfDeclarationInExpandoScope | 115400-115425 | NO SUCH NAME
+crates/checker/src/engine.rs | 1606 | reportError | 65037-65046 | createTypeChecker.checkTypeRelatedTo.reportError 65042-65051
+crates/checker/src/engine.rs | 1629 | isRelatedTo.commonPropertyDiagnostic | 65208-65235 | NO SUCH NAME
+crates/checker/src/engine.rs | 1777 | captureErrorCalculationState/resetErrorInfo | 64925-64941 | NO SUCH NAME
+crates/checker/src/engine.rs | 1850 | reportIncompatibleError | 64942-64947 | createTypeChecker.checkTypeRelatedTo.reportIncompatibleError 64947-64951
+crates/checker/src/engine.rs | 1871 | associateRelatedInfo | 65047-65055 | createTypeChecker.checkTypeRelatedTo.associateRelatedInfo 65056-65063
+crates/checker/src/engine.rs | 1891 | reportIncompatibleStack | 64948-65036 | createTypeChecker.checkTypeRelatedTo.reportIncompatibleStack 64952-65041
+crates/checker/src/engine.rs | 2020 | reportRelationError | 65064-65135 | createTypeChecker.checkTypeRelatedTo.reportRelationError 65064-65115
+crates/checker/src/engine.rs | 2167 | reportErrorResults | 65248-65346 | createTypeChecker.checkTypeRelatedTo.reportErrorResults 65248-65307
+crates/checker/src/engine.rs | 4723 | checkAssertionDeferred | 77939-77955 | createTypeChecker.checkAssertionDeferred 77939-77954
+crates/checker/src/evaluate.rs | 80 | getConstantValue | 88231-88263 | getConstantValue 25396-25399
+crates/checker/src/evaluate.rs | 1160 | isBlockScopedNameDeclaredBeforeUse.isImmediatelyUsedInInitializerOfBlockScopedVariable | 47930-48089 | createTypeChecker.isBlockScopedNameDeclaredBeforeUse.isImmediatelyUsedInInitializerOfBlockScopedVariable 47996-48008
+crates/checker/src/evaluate.rs | 1195 | isBlockScopedNameDeclaredBeforeUse.isUsedInFunctionOrInstanceProperty | 47930-48089 | createTypeChecker.isBlockScopedNameDeclaredBeforeUse.isUsedInFunctionOrInstanceProperty 48009-48011
+crates/checker/src/evaluate.rs | 1505 | skipParentheses/excludeJSDocTypeAssertions | 15661-15664 | NO SUCH NAME
+crates/checker/src/expr.rs | 511 | isInRightSideOfImportOrExportAssignment | 87252-87266 | createTypeChecker.isInRightSideOfImportOrExportAssignment 87264-87266
+crates/checker/src/expr.rs | 795 | checkGrammarRegularExpressionLiteral | 73891-73930 | createTypeChecker.checkGrammarRegularExpressionLiteral 73892-73930
+crates/checker/src/expr.rs | 1836 | hasContextualTypeWithNoGenericTypes | 71632-71641 | createTypeChecker.hasContextualTypeWithNoGenericTypes 71632-71639
+crates/checker/src/expr.rs | 2222 | isInCompoundLikeAssignment | 15600-15611 | isInCompoundLikeAssignment 15604-15611
+crates/checker/src/expr.rs | 3298 | checkDeleteExpression | 79303-79329 | createTypeChecker.checkDeleteExpression 79303-79323
+crates/checker/src/expr.rs | 3356 | checkDeleteExpressionMustBeOptional | 79324-79330 | createTypeChecker.checkDeleteExpressionMustBeOptional 79324-79329
+crates/checker/src/facts.rs | 465 | getGlobalNonNullableTypeInstantiation | 67855-67867 | createTypeChecker.getGlobalNonNullableTypeInstantiation 67857-67867
+crates/checker/src/flow.rs | 2395 | isVarConstLike | 90557-90560 | isVarConstLike 14140-14143
+crates/checker/src/flow.rs | 2951 | isPropertyInitializedInConstructor | 85517-85525 | createTypeChecker.isPropertyInitializedInConstructor 85517-85524
+crates/checker/src/functions.rs | 2275 | errorInfo | 82549-82553 | NO SUCH NAME
+crates/checker/src/functions.rs | 5178 | checkGrammarArrowFunction | 89474-89488 | createTypeChecker.checkGrammarArrowFunction 89474-89487
+crates/checker/src/indexed.rs | 382 | getLiteralTypeFromPropertyName | 61964-61984 | createTypeChecker.getLiteralTypeFromPropertyName 61964-61982
+crates/checker/src/indexed.rs | 918 | getIndexedAccessTypeOrUndefined | 62567-62611 | createTypeChecker.getIndexedAccessTypeOrUndefined 62567-62608
+crates/checker/src/indexed.rs | 1101 | getPropertyTypeForIndexType | 62211-62410 | createTypeChecker.getPropertyTypeForIndexType 62211-62407
+crates/checker/src/indexed.rs | 2017 | getElementTypeOfSliceOfTupleType | 67820-67833 | createTypeChecker.getElementTypeOfSliceOfTupleType 67820-67832
+crates/checker/src/indexed.rs | 2066 | getTupleElementTypeOutOfStartCount | 67803-67816 | createTypeChecker.getTupleElementTypeOutOfStartCount 67803-67815
+crates/checker/src/instantiate.rs | 645 | getObjectTypeInstantiation | 63463-63517 | createTypeChecker.getObjectTypeInstantiation 63463-63516
+crates/checker/src/instantiate.rs | 919 | maybeTypeParameterReference | 63518-63520 | createTypeChecker.maybeTypeParameterReference 63517-63519
+crates/checker/src/instantiate.rs | 1945 | couldContainTypeVariables | 68331-68343 | createTypeChecker.couldContainTypeVariables 68331-68341
+crates/checker/src/instantiate.rs | 2013 | isNonGenericTopLevelType | 68344-68350 | createTypeChecker.isNonGenericTopLevelType 68342-68348
+crates/checker/src/instantiate.rs | 2449 | getSignatureInstantiationWithoutFillingInTypeArguments | 59902-59911 | createTypeChecker.getSignatureInstantiationWithoutFillingInTypeArguments 59902-59910
+crates/checker/src/instantiate.rs | 2470 | createSignatureInstantiation | 59912-59919 | createTypeChecker.createSignatureInstantiation 59911-59918
+crates/checker/src/instantiate.rs | 2552 | getTypeParametersForMapper | 59920-59922 | createTypeChecker.getTypeParametersForMapper 59919-59921
+crates/checker/src/instantiate.rs | 2572 | createSignatureTypeMapper | 59923-59925 | createTypeChecker.createSignatureTypeMapper 59922-59924
+crates/checker/src/instantiate.rs | 2584 | getErasedSignature | 59926-59928 | createTypeChecker.getErasedSignature 59925-59927
+crates/checker/src/instantiate.rs | 2697 | createErasedSignature | 59929-59936 | createTypeChecker.createErasedSignature 59928-59935
+crates/checker/src/instantiate.rs | 2818 | getResolvedTypeParameterDefault | 59043-59062 | createTypeChecker.getResolvedTypeParameterDefault 59043-59060
+crates/checker/src/instantiate.rs | 2952 | getStringMappingType | 62119-62128 | createTypeChecker.getStringMappingType 62119-62127
+crates/checker/src/instantiate.rs | 3309 | applyStringMapping | 62129-62141 | createTypeChecker.applyStringMapping 62128-62140
+crates/checker/src/jsdoc.rs | 625 | isRestParameter/JSDocDeclarationTest | 12593-12596 | NO SUCH NAME
+crates/checker/src/jsdoc.rs | 661 | getJSDocTypeParameterDeclarations/isNonTypeAliasTemplate | 16771-16776 | NO SUCH NAME
+crates/checker/src/jsx.rs | 681 | getSemanticJsxChildren | 16187-16200 | getSemanticJsxChildren 16187-16198
+crates/checker/src/jsx.rs | 1075 | reportErrorResults.jsxIntrinsicIntersectionGuard | 65274-65279 | NO SUCH NAME
+crates/checker/src/lib.rs | 1110 | createProgram/getSourceFileFromReferenceWorker | 124173-124211 | NO SUCH NAME
+crates/checker/src/merge.rs | 1234 | isTypeDeclaration | 19262-19284 | isTypeDeclaration 19262-19282
+crates/checker/src/modules.rs | 465 | getReferencedImportDeclaration | 87900-87918 | createTypeChecker.getReferencedImportDeclaration 87900-87917
+crates/checker/src/modules.rs | 611 | getReferencedValueDeclaration | 88450-88460 | createTypeChecker.getReferencedValueDeclaration 88438-88449
+crates/checker/src/modules.rs | 628 | getReferencedValueDeclarations | 88461-88488 | createTypeChecker.getReferencedValueDeclarations 88450-88484
+crates/checker/src/modules.rs | 2144 | isOnlyImportableAsDefault | 48577-48594 | createTypeChecker.isOnlyImportableAsDefault 48579-48594
+crates/checker/src/modules.rs | 3611 | getImmediateAliasedSymbol | 50092-50101 | createTypeChecker.getImmediateAliasedSymbol 74121-74134
+crates/checker/src/modules.rs | 4791 | nodeCoreModules | 19947-20016 | NO SUCH NAME
+crates/checker/src/modules.rs | 7820 | isShorthandAmbientModuleSymbol | 13725-13730 | isShorthandAmbientModuleSymbol 13725-13727
+crates/checker/src/modules.rs | 8026 | isTypeOnlyImportDeclaration | 11899-11925 | isTypeOnlyImportDeclaration 11899-11911
+crates/checker/src/modules.rs | 8080 | moduleExportNameTextEscaped | 13026-13034 | moduleExportNameTextEscaped 13029-13031
+crates/checker/src/modules.rs | 9438 | getTypeFromImportAttributes | 56560-56579 | createTypeChecker.getTypeFromImportAttributes 56560-56577
+crates/checker/src/narrow.rs | 1904 | getSwitchClauseTypes | 69937-69947 | createTypeChecker.getSwitchClauseTypes 69938-69947
+crates/checker/src/narrow.rs | 3594 | typeofNEFacts | 46376-46385 | NO SUCH NAME
+crates/checker/src/node_builder/chains.rs | 2862 | syntacticBuilderResolver.getModuleSpecifierOverride | 50890-50928 | NO SUCH NAME
+crates/checker/src/node_builder/mod.rs | 898 | createLateBoundIndexSignatures | 88624-88691 | NO SUCH NAME
+crates/checker/src/node_builder/serialize.rs | 960 | typeToTypeNode | 50959-50959 | NO SUCH NAME
+crates/checker/src/node_builder/serialize.rs | 995 | typePredicateToTypePredicateNode | 50960-50970 | NO SUCH NAME
+crates/checker/src/node_builder/serialize.rs | 1026 | serializeTypeForDeclaration | 50971-50981 | createTypeChecker.createNodeBuilder.serializeTypeForDeclaration 53487-53508
+crates/checker/src/node_builder/serialize.rs | 1096 | serializeReturnTypeForSignature | 50982-50992 | createTypeChecker.createNodeBuilder.serializeReturnTypeForSignature 53524-53546
+crates/checker/src/node_builder/serialize.rs | 1152 | serializeTypeForExpression | 50993-51003 | NO SUCH NAME
+crates/checker/src/node_builder/serialize.rs | 1201 | indexInfoToIndexSignatureDeclaration | 51004-51019 | NO SUCH NAME
+crates/checker/src/node_builder/serialize.rs | 3016 | syntacticBuilderResolver.canReuseTypeNodeAnnotation | 50932-50955 | NO SUCH NAME
+crates/checker/src/node_builder/specifier.rs | 645 | getAllowedEndingsInPreferredOrder | 45396-45422 | NO SUCH NAME
+crates/checker/src/node_builder/specifier.rs | 2969 | stringToRegex | 45369-45390 | NO SUCH NAME
+crates/checker/src/node_builder/statements.rs | 4604 | getExportAssignmentExpression/getPropertyAssignmentAliasLikeExpression | 15736-15741 | NO SUCH NAME
+crates/checker/src/node_builder/tracker.rs | 151 | SymbolTrackerImpl.constructor | 90970-90982 | NO SUCH NAME
+crates/checker/src/node_builder/tracker.rs | 216 | SymbolTrackerImpl.trackSymbol | 90983-90993 | transformDeclarations.trackSymbol 114360-114370
+crates/checker/src/node_builder/tracker.rs | 300 | SymbolTrackerImpl.reportInaccessibleThisError | 90994-91000 | transformDeclarations.reportInaccessibleThisError 114394-114398
+crates/checker/src/node_builder/tracker.rs | 313 | SymbolTrackerImpl.reportPrivateInBaseOfClassExpression | 91001-91007 | transformDeclarations.reportPrivateInBaseOfClassExpression 114371-114380
+crates/checker/src/node_builder/tracker.rs | 334 | SymbolTrackerImpl.reportInaccessibleUniqueSymbolError | 91008-91014 | transformDeclarations.reportInaccessibleUniqueSymbolError 114384-114388
+crates/checker/src/node_builder/tracker.rs | 353 | SymbolTrackerImpl.reportCyclicStructureError | 91015-91021 | transformDeclarations.reportCyclicStructureError 114389-114393
+crates/checker/src/node_builder/tracker.rs | 366 | SymbolTrackerImpl.reportLikelyUnsafeImportRequiredError | 91022-91028 | transformDeclarations.reportLikelyUnsafeImportRequiredError 114399-114407
+crates/checker/src/node_builder/tracker.rs | 391 | SymbolTrackerImpl.reportTruncationError | 91029-91035 | transformDeclarations.reportTruncationError 114408-114412
+crates/checker/src/node_builder/tracker.rs | 401 | SymbolTrackerImpl.reportNonlocalAugmentation | 91036-91042 | transformDeclarations.reportNonlocalAugmentation 114413-114425
+crates/checker/src/node_builder/tracker.rs | 416 | SymbolTrackerImpl.reportNonSerializableProperty | 91043-91049 | transformDeclarations.reportNonSerializableProperty 114426-114430
+crates/checker/src/node_builder/tracker.rs | 437 | SymbolTrackerImpl.onDiagnosticReported | 91050-91052 | NO SUCH NAME
+crates/checker/src/node_builder/tracker.rs | 444 | SymbolTrackerImpl.reportInferenceFallback | 91053-91059 | transformDeclarations.reportInferenceFallback 114327-114335
+crates/checker/src/node_builder/tracker.rs | 464 | SymbolTrackerImpl.pushErrorFallbackNode | 91060-91063 | NO SUCH NAME
+crates/checker/src/node_builder/tracker.rs | 473 | SymbolTrackerImpl.popErrorFallbackNode | 91064-91067 | NO SUCH NAME
+crates/checker/src/operators.rs | 133 | createBinaryExpressionTrampoline | 28048-28071 | createBinaryExpressionTrampoline 28056-28071
+crates/checker/src/operators.rs | 993 | isAssignmentDeclaration | 80350-80365 | isAssignmentDeclaration 14964-14966
+crates/checker/src/operators.rs | 1199 | hasEmptyObjectIntersection | 79588-79590 | createTypeChecker.hasEmptyObjectIntersection 79579-79581
+crates/checker/src/operators.rs | 1652 | isExactOptionalPropertyMismatch | 67771-67773 | createTypeChecker.isExactOptionalPropertyMismatch 67250-67252
+crates/checker/src/operators.rs | 1826 | checkNaNEquality | 80413-80428 | createTypeChecker.checkBinaryLikeExpressionWorker.checkNaNEquality 80416-80427
+crates/checker/src/operators.rs | 2048 | checkDestructuringAssignment | 79716-79742 | createTypeChecker.checkDestructuringAssignment 79713-79741
+crates/checker/src/operators.rs | 2351 | checkArrayLiteralDestructuringElementAssignment | 79683-79715 | createTypeChecker.checkArrayLiteralDestructuringElementAssignment 79683-79712
+crates/checker/src/operators.rs | 3175 | checkMetaProperty | 78061-78075 | createTypeChecker.checkMetaProperty 78061-78074
+crates/checker/src/operators.rs | 3656 | getUnaryResultType | 79501-79508 | createTypeChecker.getUnaryResultType 79501-79506
+crates/checker/src/operators.rs | 3673 | checkGrammarForDisallowedTrailingComma | 89401-89408 | createTypeChecker.checkGrammarForDisallowedTrailingComma 89401-89406
+crates/checker/src/operators.rs | 4054 | checkTruthinessExpression | 83792-83794 | createTypeChecker.checkTruthinessExpression 83796-83798
+crates/checker/src/operators.rs | 4156 | checkTestingKnownTruthyCallableOrAwaitableOrEnumMemberType | 83636-83689 | createTypeChecker.checkTestingKnownTruthyCallableOrAwaitableOrEnumMemberType 83636-83688
+crates/checker/src/operators.rs | 4363 | isSymbolUsedInConditionBody | 83690-83721 | createTypeChecker.isSymbolUsedInConditionBody 83689-83719
+crates/checker/src/operators.rs | 4468 | isSymbolUsedInBinaryExpressionChain | 83722-83739 | createTypeChecker.isSymbolUsedInBinaryExpressionChain 83720-83737
+crates/checker/src/operators.rs | 4792 | isThenableType | 82381-82388 | createTypeChecker.isThenableType 82381-82387
+crates/checker/src/operators.rs | 4855 | isAwaitedTypeNeeded | 82402-82414 | createTypeChecker.isAwaitedTypeNeeded 82402-82413
+crates/checker/src/operators.rs | 4902 | createAwaitedTypeIfNeeded | 82423-82430 | createTypeChecker.createAwaitedTypeIfNeeded 82424-82430
+crates/checker/src/operators.rs | 4983 | maybeTypeOfKindConsideringBaseConstraint | 79509-79515 | createTypeChecker.maybeTypeOfKindConsideringBaseConstraint 79507-79513
+crates/checker/src/operators.rs | 4998 | errorAndMaybeSuggestAwait | 75323-75330 | createTypeChecker.errorAndMaybeSuggestAwait 47615-47622
+crates/checker/src/plain_js_errors.rs | 8 | plainJSErrors | 122514-122610 | NO SUCH NAME
+crates/checker/src/resolve.rs | 187 | resolveNameForSymbolSuggestion | 75536-75550 | NO SUCH NAME
+crates/checker/src/resolve.rs | 1000 | isTypeParameterSymbolDeclaredInContainer | 19877-19890 | createNameResolver.isTypeParameterSymbolDeclaredInContainer 19877-19889
+crates/checker/src/resolve.rs | 1910 | isValidTypeOnlyAliasUseSite | 18991-19024 | isValidTypeOnlyAliasUseSite 18991-18993
+crates/checker/src/resolve.rs | 1989 | onSuccessfullyResolvedSymbolCallback | 48157-48204 | NO SUCH NAME
+crates/checker/src/spell.rs | 117 | getSpellingSuggestion | 951-975 | getSpellingSuggestion 951-974
+crates/checker/src/spell.rs | 177 | getSuggestedTypeForNonexistentStringLiteralType | 75599-75602 | createTypeChecker.getSuggestedTypeForNonexistentStringLiteralType 75575-75578
+crates/checker/src/spell.rs | 286 | getSuggestedSymbolForNonexistentProperty | 75501-75517 | createTypeChecker.getSuggestedSymbolForNonexistentProperty 75501-75511
+crates/checker/src/spell.rs | 339 | getSuggestionForNonexistentIndexSignature | 75554-75578 | createTypeChecker.getSuggestionForNonexistentIndexSignature 75554-75574
+crates/checker/src/structural.rs | 47 | relateVariances | 66488-66507 | createTypeChecker.checkTypeRelatedTo.structuredTypeRelatedToWorker.relateVariances 66488-66506
+crates/checker/src/structural.rs | 4536 | getApparentTypeOfIntersectionType | 59026-59043 | createTypeChecker.getApparentTypeOfIntersectionType 59026-59042
+crates/checker/src/structural.rs | 4637 | symbolIsValue | 59433-59437 | createTypeChecker.symbolIsValue 50092-50094
+crates/checker/src/structural.rs | 6218 | isValidOverrideOf | 67459-67464 | createTypeChecker.isValidOverrideOf 67459-67461
+crates/checker/src/structural.rs | 7290 | appendIndexInfo | 58304-58317 | createTypeChecker.appendIndexInfo 58304-58315
+crates/checker/src/structural.rs | 7758 | getEffectiveRestType | 78329-78341 | createTypeChecker.getEffectiveRestType 78329-78340
+crates/checker/src/structural.rs | 7849 | getNameableDeclarationAtPosition | 78218-78233 | createTypeChecker.getNameableDeclarationAtPosition 78218-78232
+crates/checker/src/structural.rs | 7948 | sliceTupleType | 61288-61299 | createTypeChecker.sliceTupleType 61288-61298
+crates/compiler/src/declaration_diagnostics.rs | 138 | emitWorker | 123595-123625 | createProgram.emitWorker 123595-123624
+crates/compiler/src/lib.rs | 150 | getEmitDeclarations | 18151-18156 | NO SUCH NAME
+crates/compiler/src/lib.rs | 2412 | createDiagnosticForOption | 125368-125386 | createProgram.createDiagnosticForOption 125368-125374
+crates/conformance/src/h0_memory.rs | 523 | getPackagesMap/packageBundlesTypes/typesPackageExists | 123041-123054 | NO SUCH NAME
+crates/emitter/src/builtins/class_fields/downlevel.rs | 2591 | shouldTransformClassElementToWeakMap | 96185-96225 | transformClassFields.shouldTransformClassElementToWeakMap 96190-96194
+crates/emitter/src/builtins/class_fields/downlevel.rs | 3421 | transformAutoAccessor.computedNameBranch | 96256-96277 | NO SUCH NAME
+crates/emitter/src/builtins/class_fields/downlevel.rs | 4582 | visitBinaryExpression.destructuringAssignmentBranch | 96694-96706 | NO SUCH NAME
+crates/emitter/src/builtins/class_fields/downlevel.rs | 4586 | wrapPrivateIdentifierForDestructuringTarget/visitAssignmentPattern | 97796-97926 | NO SUCH NAME
+crates/emitter/src/builtins/class_fields/downlevel.rs | 5135 | visitCallExpression.privateAccessBranch | 96579-96613 | NO SUCH NAME
+crates/emitter/src/builtins/class_fields/downlevel.rs | 5139 | visitTaggedTemplateExpression.privateAccessBranch | 96614-96633 | NO SUCH NAME
+crates/emitter/src/builtins/class_fields/downlevel.rs | 8816 | transformConstructor/getEffectiveBaseTypeNode | 97253-97260 | NO SUCH NAME
+crates/emitter/src/builtins/es2015.rs | 3655 | insertStatementsAfterStandardPrologue | 12941-12943 | insertStatementsAfterStandardPrologue 12944-12946
+crates/emitter/src/builtins/es2015.rs | 4166 | addDefaultValueAssignmentsIfNeeded | 105726-105744 | addDefaultValueAssignmentsIfNeeded 91182-91196
+crates/emitter/src/builtins/es2015.rs | 7478 | isPackedArrayLiteral | 19085-19090 | isPackedArrayLiteral 19088-19090
+crates/emitter/src/builtins/es2015.rs | 10964 | visitEachChildOfForStatement | 106548-106556 | NO SUCH NAME
+crates/emitter/src/builtins/es2017.rs | 1690 | transformAsyncFunctionParameterList/transformAsyncFunctionBody | 101284-101347 | NO SUCH NAME
+crates/emitter/src/builtins/es2017.rs | 1768 | isSimpleParameter/isSimpleParameterList | 93236-93242 | NO SUCH NAME
+crates/emitter/src/builtins/es2018.rs | 239 | transformES2018 | 101680-102905 | transformES2018 101680-102904
+crates/emitter/src/builtins/es_next.rs | 312 | pushNameGenerationScope/generateNames | 120490-120665 | NO SUCH NAME
+crates/emitter/src/builtins/generators.rs | 3513 | build | 109685-109726 | build 131640-131646
+crates/emitter/src/builtins/helpers.rs | 203 | assignHelper | 26122-26139 | NO SUCH NAME
+crates/emitter/src/builtins/helpers.rs | 218 | extendsHelper | 26224-26246 | NO SUCH NAME
+crates/emitter/src/builtins/helpers.rs | 234 | templateObjectHelper | 26247-26257 | NO SUCH NAME
+crates/emitter/src/builtins/helpers.rs | 249 | spreadArrayHelper | 26280-26294 | NO SUCH NAME
+crates/emitter/src/builtins/helpers.rs | 265 | valuesHelper | 26314-26330 | NO SUCH NAME
+crates/emitter/src/builtins/helpers.rs | 281 | generatorHelper | 26331-26364 | NO SUCH NAME
+crates/emitter/src/builtins/jsx.rs | 126 | getJSXImplicitImportBase/getJSXRuntimeImport | 18305-18316 | NO SUCH NAME
+crates/emitter/src/builtins/jsx.rs | 1260 | getImplicitImportForName/transformSourceFile | 103879-103984 | NO SUCH NAME
+crates/emitter/src/builtins/jsx.rs | 1853 | fixupWhitespaceAndDecodeEntities/addLineOfJsxText | 104322-104345 | NO SUCH NAME
+crates/emitter/src/builtins/legacy_decorators.rs | 2267 | serializeTypeNode | 98161-98330 | createRuntimeTypeSerializer.serializeTypeNode 98161-98243
+crates/emitter/src/builtins/legacy_decorators.rs | 2587 | serializeTypeReferenceNode | 98331-98412 | createRuntimeTypeSerializer.serializeTypeReferenceNode 98331-98374
+crates/emitter/src/builtins/legacy_decorators.rs | 3023 | getAllDecoratorsOfClassElement/getAllDecoratorsOfMethod | 93146-93208 | NO SUCH NAME
+crates/emitter/src/builtins/legacy_decorators.rs | 4390 | moveRangePastModifiers | 17311-17318 | moveRangePastModifiers 17311-17317
+crates/emitter/src/builtins/standard_decorators.rs | 106 | transformSourceFile | 98960-98970 | transformESDecorators.transformSourceFile 98962-98972
+crates/emitter/src/builtins/system.rs | 2939 | visitImportCallExpression | 113092-113106 | transformSystemModule.visitImportCallExpression 113092-113105
+crates/emitter/src/builtins/tagged_template.rs | 248 | getRawLiteral | 94022-94033 | getRawLiteral 94022-94032
+crates/emitter/src/builtins/target_bindings.rs | 1232 | isUniqueName/isFileLevelUniqueNameInCurrentFile | 120638-120666 | NO SUCH NAME
+crates/emitter/src/builtins.rs | 1046 | visitLexicalEnvironment | 91162-91168 | visitLexicalEnvironment 91162-91167
+crates/emitter/src/builtins.rs | 1647 | visitImportEqualsDeclaration/appendExportsOfImportEqualsDeclaration | 113569-113621 | NO SUCH NAME
+crates/emitter/src/builtins.rs | 4890 | copyPrologue/copyStandardPrologue/copyCustomPrologue | 24827-24869 | NO SUCH NAME
+crates/emitter/src/builtins.rs | 5419 | addExportEqualsIfNeeded | 110535-110562 | transformModule.addExportEqualsIfNeeded 110535-110560
+crates/emitter/src/builtins.rs | 7878 | visitParameterList/visitFunctionBody | 91168-91287 | NO SUCH NAME
+crates/emitter/src/builtins.rs | 7881 | transformModule/visitFunctionDeclaration | 111469-111502 | NO SUCH NAME
+crates/emitter/src/builtins.rs | 8289 | transformModule/substituteBinaryExpression | 111990-112028 | NO SUCH NAME
+crates/emitter/src/builtins.rs | 8311 | transformModule/visitPreOrPostfixUnaryExpression | 110905-110937 | NO SUCH NAME
+crates/emitter/src/builtins.rs | 8358 | transformModule/visitPreOrPostfixUnaryExpression | 110905-110937 | NO SUCH NAME
+crates/emitter/src/builtins.rs | 8563 | transformModule/destructuringNeedsFlattening/visitDestructuringAssignment | 110674-110721 | NO SUCH NAME
+crates/emitter/src/builtins.rs | 10661 | getExternalModuleNameLiteral | 27713-27737 | getExternalModuleNameLiteral 27713-27719
+crates/emitter/src/builtins.rs | 11423 | transformTypeScript/onBeforeVisitNode | 94097-94116 | NO SUCH NAME
+crates/emitter/src/builtins.rs | 11426 | transformTypeScript/recordEmittedDeclarationInScope | 95332-95340 | NO SUCH NAME
+crates/emitter/src/builtins.rs | 12063 | visitConstructor/transformConstructorBody/transformParameterWithPropertyAssignment | 94793-94910 | NO SUCH NAME
+crates/emitter/src/builtins.rs | 12375 | visitModuleDeclaration/transformModuleBody | 95325-95517 | NO SUCH NAME
+crates/emitter/src/builtins.rs | 13587 | visitEnumDeclaration | 95177-95311 | transformTypeScript.visitEnumDeclaration 95180-95261
+crates/emitter/src/builtins.rs | 14630 | transformTypeScript/visitPropertyDeclaration | 94763-94792 | NO SUCH NAME
+crates/emitter/src/builtins.rs | 14725 | updateConstructorDeclaration/finishUpdateConstructorDeclaration | 21982-22010 | NO SUCH NAME
+crates/emitter/src/builtins.rs | 14754 | updateGetAccessorDeclaration/finishUpdateGetAccessorDeclaration | 22012-22043 | NO SUCH NAME
+crates/emitter/src/builtins.rs | 15882 | nodeCanBeDecorated/nodeIsDecorated/childIsDecorated | 14651-14695 | NO SUCH NAME
+crates/emitter/src/builtins.rs | 15987 | transformTypeScript/getClassElementVisitor/classElementVisitorWorker | 94215-94239 | NO SUCH NAME
+crates/emitter/src/builtins.rs | 16353 | transformTypeScript/visitTypeScript | 94274-94389 | NO SUCH NAME
+crates/emitter/src/builtins.rs | 16558 | parameterIsThisKeyword/isThisIdentifier | 16695-16700 | NO SUCH NAME
+crates/emitter/src/builtins.rs | 16601 | createConstructorDeclaration/createGetAccessorDeclaration/createSetAccessorDeclaration | 21982-22073 | NO SUCH NAME
+crates/emitter/src/declarations/orchestration.rs | 75 | getDeclarationDiagnostics | 114249-114263 | getDeclarationDiagnostics 114249-114262
+crates/emitter/src/declarations/statements.rs | 1901 | visitDeclarationSubtree | 115400-115494 | transformDeclarations.visitDeclarationSubtree 114952-115256
+crates/emitter/src/declarations/statements.rs | 2133 | isStringANonContextualKeyword | 15787-15805 | isStringANonContextualKeyword 15802-15805
+crates/emitter/src/declarations/subtree.rs | 871 | visitEachChildOfTypeReferenceNode | 91479-91484 | NO SUCH NAME
+crates/emitter/src/declarations/tracker.rs | 634 | pushErrorFallbackNode | 114292-114300 | NO SUCH NAME
+crates/emitter/src/declarations/tracker.rs | 643 | popErrorFallbackNode | 114301-114303 | NO SUCH NAME
+crates/emitter/src/execute.rs | 389 | getSourceMappingURL/encodeURI | 116826-116857 | NO SUCH NAME
+crates/emitter/src/execute.rs | 606 | sys.base64encode/convertToBase64 | 5007-5007 | NO SUCH NAME
+crates/emitter/src/factory.rs | 403 | getParseTreeNode | 11423-11435 | getParseTreeNode 11426-11437
+crates/emitter/src/factory.rs | 802 | getParseTreeNode | 11423-11435 | getParseTreeNode 11426-11437
+crates/emitter/src/factory.rs | 1564 | parenthesizeConstituentTypeOfIntersectionType | 20552-20560 | createParenthesizerRules.parenthesizeConstituentTypeOfIntersectionType 20552-20559
+crates/emitter/src/factory.rs | 1581 | parenthesizeOperandOfTypeOperator | 20564-20570 | createParenthesizerRules.parenthesizeOperandOfTypeOperator 20563-20569
+crates/emitter/src/factory.rs | 1595 | parenthesizeOperandOfReadonlyTypeOperator | 20571-20577 | createParenthesizerRules.parenthesizeOperandOfReadonlyTypeOperator 20570-20576
+crates/emitter/src/factory.rs | 1609 | parenthesizeNonArrayTypeOfPostfixType | 20578-20587 | createParenthesizerRules.parenthesizeNonArrayTypeOfPostfixType 20577-20585
+crates/emitter/src/factory.rs | 1661 | parenthesizeElementTypeOfTupleType | 20591-20594 | createParenthesizerRules.parenthesizeElementTypeOfTupleType 20589-20592
+crates/emitter/src/factory.rs | 1675 | parenthesizeTypeOfOptionalType | 20602-20606 | createParenthesizerRules.parenthesizeTypeOfOptionalType 20603-20606
+crates/emitter/src/factory.rs | 1746 | parenthesizeConstituentTypesOfIntersectionType | 20561-20563 | createParenthesizerRules.parenthesizeConstituentTypesOfIntersectionType 20560-20562
+crates/emitter/src/factory.rs | 1760 | parenthesizeElementTypesOfTupleType | 20588-20590 | createParenthesizerRules.parenthesizeElementTypesOfTupleType 20586-20588
+crates/emitter/src/factory.rs | 1774 | parenthesizeTypeArguments/parenthesizeOrdinalTypeArgument | 20610-20617 | NO SUCH NAME
+crates/emitter/src/factory.rs | 2636 | createFunctionTypeNode | 22154-22167 | createNodeFactory.createFunctionTypeNode 22154-22166
+crates/emitter/src/factory.rs | 2658 | createConstructorTypeNode | 22176-22196 | createNodeFactory.createConstructorTypeNode 22176-22178
+crates/emitter/src/factory.rs | 2780 | createNamedTupleMember | 22247-22259 | createNodeFactory.createNamedTupleMember 22247-22256
+crates/emitter/src/factory.rs | 2838 | createUnionTypeNode | 22287-22292 | createNodeFactory.createUnionTypeNode 22287-22289
+crates/emitter/src/factory.rs | 2856 | createIntersectionTypeNode | 22293-22298 | createNodeFactory.createIntersectionTypeNode 22293-22295
+crates/emitter/src/factory.rs | 3159 | createMappedTypeNode | 22382-22397 | createNodeFactory.createMappedTypeNode 22382-22394
+crates/emitter/src/factory.rs | 3204 | createTemplateLiteralTypeSpan | 22120-22129 | createNodeFactory.createTemplateLiteralTypeSpan 22120-22126
+crates/emitter/src/factory.rs | 3398 | createPropertySignature | 21870-21882 | createNodeFactory.createPropertySignature 21870-21880
+crates/emitter/src/factory.rs | 3475 | createMethodSignature | 21906-21923 | createNodeFactory.createMethodSignature 21906-21920
+crates/emitter/src/factory.rs | 3634 | createGetAccessorDeclaration | 22012-22042 | createNodeFactory.createGetAccessorDeclaration 22012-22033
+crates/emitter/src/factory.rs | 3709 | createCallSignature | 22075-22089 | createNodeFactory.createCallSignature 22075-22086
+crates/emitter/src/factory.rs | 3730 | createConstructSignature | 22090-22104 | createNodeFactory.createConstructSignature 22090-22101
+crates/emitter/src/factory.rs | 3751 | createIndexSignature | 22105-22119 | createNodeFactory.createIndexSignature 22105-22116
+crates/emitter/src/factory.rs | 3773 | createFunctionDeclaration | 23303-23328 | createNodeFactory.createFunctionDeclaration 23303-23327
+crates/emitter/src/factory.rs | 3821 | createFunctionExpression | 22676-22700 | createNodeFactory.createFunctionExpression 22676-22697
+crates/emitter/src/factory.rs | 3945 | createJSDocFunctionType | 23707-23719 | createNodeFactory.createJSDocFunctionType 23707-23717
+crates/emitter/src/factory.rs | 3970 | createBlock | 23045-23057 | createNodeFactory.createBlock 23045-23054
+crates/emitter/src/factory.rs | 4009 | createPrefixUnaryExpression | 22759-22769 | createNodeFactory.createPrefixUnaryExpression 22759-22768
+crates/emitter/src/factory.rs | 4169 | createVariableDeclaration | 23274-23286 | createNodeFactory.createVariableDeclaration 23274-23283
+crates/emitter/src/factory.rs | 4224 | createVariableStatement | 23058-23072 | createNodeFactory.createVariableStatement 23058-23069
+crates/emitter/src/factory.rs | 4364 | createInterfaceDeclaration | 23360-23373 | createNodeFactory.createInterfaceDeclaration 23360-23370
+crates/emitter/src/factory.rs | 4389 | createTypeAliasDeclaration | 23374-23388 | createNodeFactory.createTypeAliasDeclaration 23374-23385
+crates/emitter/src/factory.rs | 4412 | createEnumDeclaration | 23389-23401 | createNodeFactory.createEnumDeclaration 23389-23398
+crates/emitter/src/factory.rs | 4550 | createNamespaceExportDeclaration | 23443-23451 | createNodeFactory.createNamespaceExportDeclaration 23443-23450
+crates/emitter/src/factory.rs | 4569 | createImportEqualsDeclaration | 23460-23476 | createNodeFactory.createImportEqualsDeclaration 23460-23473
+crates/emitter/src/factory.rs | 4599 | createImportDeclaration | 23477-23490 | createNodeFactory.createImportDeclaration 23477-23487
+crates/emitter/src/factory.rs | 4625 | createImportClause | 23491-23510 | createNodeFactory.createImportClause 23491-23506
+crates/emitter/src/factory.rs | 4652 | createImportAttributes | 23543-23553 | createNodeFactory.createImportAttributes 23543-23550
+crates/emitter/src/factory.rs | 4692 | createNamespaceImport | 23564-23573 | createNodeFactory.createNamespaceImport 23564-23570
+crates/emitter/src/factory.rs | 4711 | createNamespaceExport | 23574-23583 | createNodeFactory.createNamespaceExport 23574-23580
+crates/emitter/src/factory.rs | 4730 | createNamedImports | 23584-23593 | createNodeFactory.createNamedImports 23584-23590
+crates/emitter/src/factory.rs | 4749 | createImportSpecifier | 23594-23605 | createNodeFactory.createImportSpecifier 23594-23602
+crates/emitter/src/factory.rs | 4772 | createExportAssignment | 23606-23623 | createNodeFactory.createExportAssignment 23606-23620
+crates/emitter/src/factory.rs | 4824 | updateExportDeclaration | 23636-23646 | createNodeFactory.updateExportDeclaration 23636-23638
+crates/emitter/src/factory.rs | 4901 | createExportSpecifier | 23657-23668 | createNodeFactory.createExportSpecifier 23657-23666
+crates/emitter/src/factory.rs | 4924 | createExternalModuleReference | 23675-23683 | createNodeFactory.createExternalModuleReference 23675-23681
+crates/emitter/src/factory.rs | 4973 | createEnumMember | 24194-24202 | createNodeFactory.createEnumMember 24194-24201
+crates/emitter/src/factory.rs | 4995 | replaceModifiers | 24933-24944 | createNodeFactory.replaceModifiers 24933-24941
+crates/emitter/src/factory.rs | 5706 | updateConstructorDeclaration/finishUpdateConstructorDeclaration | 21982-22010 | NO SUCH NAME
+crates/emitter/src/factory.rs | 5750 | updateGetAccessorDeclaration/finishUpdateGetAccessorDeclaration | 22012-22043 | NO SUCH NAME
+crates/emitter/src/factory.rs | 5806 | updateSetAccessorDeclaration/finishUpdateSetAccessorDeclaration | 22065-22073 | NO SUCH NAME
+crates/emitter/src/factory.rs | 6230 | parenthesizeConditionOfConditionalExpression/parenthesizeBranchOfConditionalExpression | 20423-20435 | NO SUCH NAME
+crates/emitter/src/factory.rs | 6409 | asInitializer | 29102-29104 | createNodeFactory.asInitializer 24972-24974
+crates/emitter/src/factory.rs | 6441 | createExportAssignment | 23606-23622 | createNodeFactory.createExportAssignment 23606-23620
+crates/emitter/src/plan.rs | 725 | getDeclarationEmitOutputFilePath | 16580-16591 | getDeclarationEmitOutputFilePath 16577-16579
+crates/emitter/src/plan.rs | 759 | verifyEmitFilePath | 125018-125045 | createProgram.verifyCompilerOptions.verifyEmitFilePath 125028-125050
+crates/emitter/src/printer.rs | 9373 | emitNodeListItems | 120068-120360 | createPrinter.emitNodeListItems 120068-120155
+crates/emitter/src/printer.rs | 12560 | canEmitSimpleArrowHead/emitParametersForArrow | 119970-119982 | NO SUCH NAME
+crates/emitter/src/printer.rs | 12819 | parenthesizeLeftSideOfAccess/parenthesizeExpressionOfNew | 20451-20471 | NO SUCH NAME
+crates/emitter/src/printer.rs | 13009 | getParenthesizeRightSideOfBinaryForOperator(EqualsToken) | 20313-20324 | NO SUCH NAME
+crates/emitter/src/printer.rs | 13012 | parenthesizeRightSideOfBinary | 20411-20434 | createParenthesizerRules.parenthesizeRightSideOfBinary 20411-20419
+crates/emitter/src/printer.rs | 13514 | willEmitLeadingNewLine | 118768-118789 | createPrinter.willEmitLeadingNewLine 118768-118786
+crates/emitter/src/printer.rs | 15331 | printer/getTextOfNode | 120442-120465 | NO SUCH NAME
+crates/emitter/src/printer.rs | 15734 | emitLeadingCommentsOfNode | 120997-121022 | createPrinter.emitLeadingCommentsOfNode 121007-121032
+crates/emitter/src/printer.rs | 15737 | forEachLeadingCommentToEmit | 121205-121218 | createPrinter.forEachLeadingCommentToEmit 121219-121233
+crates/emitter/src/printer.rs | 16366 | forEachTrailingCommentToEmit | 121219-121238 | createPrinter.forEachTrailingCommentToEmit 121234-121238
+crates/emitter/src/printer.rs | 16421 | emitArrowFunctionHead | 118336-118350 | createPrinter.emitArrowFunctionHead 118340-118346
+crates/emitter/src/printer.rs | 16424 | pipelineEmitWithComments | 120969-121000 | createPrinter.pipelineEmitWithComments 120978-120986
+crates/emitter/src/printer.rs | 19387 | writeCommentRange | 16867-16919 | writeCommentRange 16867-16898
+crates/emitter/src/resolver.rs | 392 | pushErrorFallbackNode | 114292-114300 | NO SUCH NAME
+crates/emitter/src/resolver.rs | 1194 | isLateBound | 88600-88604 | NO SUCH NAME
+crates/emitter/src/resolver.rs | 1249 | createTypeOfDeclarationInExpandoScope | 115400-115425 | NO SUCH NAME
+crates/emitter/src/resolver.rs | 1381 | getDeclarationStatementsForSourceFile | 88612-88621 | NO SUCH NAME
+crates/emitter/src/resolver.rs | 1401 | createLateBoundIndexSignatures | 88624-88691 | NO SUCH NAME
+crates/emitter/src/resolver.rs | 1432 | symbolToDeclarations | 88692-88694 | createTypeChecker.createNodeBuilder.symbolToDeclarations 51136-51164
+crates/emitter/src/source_map.rs | 362 | getSources | 92392-92392 | NO SUCH NAME
+crates/emitter/src/source_map.rs | 915 | toFileNameLowerCase | 873-876 | toFileNameLowerCase 874-876
+crates/emitter/src/source_map.rs | 1050 | getSourceFilePathInNewDirWorker | 16635-16643 | getSourceFilePathInNewDirWorker 16638-16643
+crates/program/src/config.rs | 1673 | parseJsonSourceFileConfigFileContent | 38973-39171 | parseJsonSourceFileConfigFileContent 38973-38991
+crates/program/src/config.rs | 3157 | verifyDeprecatedCompilerOptions | 129942-130078 | createProgram.verifyDeprecatedCompilerOptions 125087-125250
+crates/program/src/config.rs | 5051 | maxNodeModuleJsDepthInitialization | 122659-122659 | NO SUCH NAME
+crates/program/src/config.rs | 5115 | moduleSuffixesOptionDeclaration | 37455-37466 | NO SUCH NAME
+crates/program/src/config.rs | 5118 | convertJsonOption/convertJsonOptionOfListType | 39555-39605 | NO SUCH NAME
+crates/program/src/config.rs | 5240 | getOptionsSyntaxByArrayElementValue | 20105-20111 | getOptionsSyntaxByArrayElementValue 20105-20107
+crates/program/src/config.rs | 5243 | getOptionsSyntaxByValue | 20111-20116 | getOptionsSyntaxByValue 20111-20113
+crates/program/src/config.rs | 5648 | convertJsonOption/convertJsonOptionOfListType | 39555-39605 | NO SUCH NAME
+crates/program/src/config_options.rs | 1277 | getSpellingSuggestion | 951-975 | getSpellingSuggestion 951-974
+crates/program/src/json.rs | 32 | readJsonOrUndefined/readJson | 17261-17275 | NO SUCH NAME
+crates/program/src/library.rs | 118 | targetToLibMap/getDefaultLibFileName | 11240-11274 | NO SUCH NAME
+crates/program/src/library.rs | 219 | getSpellingSuggestion | 951-975 | getSpellingSuggestion 951-974
+crates/program/src/loader.rs | 3807 | getSupportedExtensions/getSupportedExtensionsWithJsonIfResolveJsonModule | 18632-18651 | NO SUCH NAME
+crates/program/src/loader.rs | 4180 | createDiagnosticForOption | 125368-125386 | createProgram.createDiagnosticForOption 125368-125374
+crates/program/src/module_resolution.rs | 996 | tryLoadModuleUsingOptionalResolutionSettings | 40717-40749 | tryLoadModuleUsingOptionalResolutionSettings 40717-40725
+crates/program/src/module_resolution.rs | 1681 | nodeModuleNameResolverWorker | 40935-41020 | nodeModuleNameResolverWorker 40943-41075
+crates/program/src/module_resolution.rs | 5654 | createResolvedModuleWithFailedLookupLocationsHandlingSymlink | 39869-39885 | createResolvedModuleWithFailedLookupLocationsHandlingSymlink 39869-39884
+crates/program/src/module_resolution.rs | 6445 | extensionsToRemove | 18748-18762 | NO SUCH NAME
+crates/syntax/src/parser.rs | 589 | extractPragmas(multiLinePragmaRegEx) | 36358-36364 | NO SUCH NAME
+crates/syntax/src/parser.rs | 664 | processCommentPragmas/processPragmasIntoFields(reference) | 36215-36354 | NO SUCH NAME
+crates/types/src/options.rs | 417 | processImportedModulesDepthElision | 124604-124635 | NO SUCH NAME
+crates/types/src/options.rs | 429 | findSourceFileShallowerReprocessing | 124316-124330 | NO SUCH NAME
+crates/types/src/options.rs | 467 | _computedOptions.moduleDetection.computeValue | 18062-18071 | NO SUCH NAME
+crates/types/src/tables.rs | 327 | getSubstitutionType | 60431-60433 | createTypeChecker.getSubstitutionType 60430-60432
+crates/types/src/tables.rs | 343 | getOrCreateSubstitutionType | 60434-60445 | createTypeChecker.getOrCreateSubstitutionType 60433-60444
+crates/types/src/tables.rs | 372 | isNoInferType | 60428-60430 | createTypeChecker.isNoInferType 60427-60429
+crates/types/src/tables.rs | 2529 | getGenericObjectFlags | 62440-62455 | createTypeChecker.getGenericObjectFlags 62440-62454
+crates/types/src/tables.rs | 2653 | createStringMappingType | 62162-62167 | createTypeChecker.createStringMappingType 62162-62166
+crates/types/src/version.rs | 355 | VersionRange.tryParse/test | 2321-2486 | NO SUCH NAME

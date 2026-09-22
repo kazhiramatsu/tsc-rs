@@ -1,0 +1,112 @@
+{
+ "old": {
+  "host_use_case_sensitive_file_names": true,
+  "writes": [
+   {
+    "path": "/.src/Uppercased_Dir/src/types.js",
+    "sha256": "ef1f170ad28f2d870a474d2f96ae353d770fff5f20e642cd8f9b6f1d7742df13",
+    "bom": false,
+    "text": "\"use strict\";\r\nObject.defineProperty(exports, \"__esModule\", { value: true });\r\n"
+   },
+   {
+    "path": "/.src/Uppercased_Dir/src/types.d.ts",
+    "sha256": "1d6962ef4b5244ff7b2f524051940c3259df7965c3f1bd1cc5a0437206d1c5aa",
+    "bom": false,
+    "text": "export type Merge<T, U> = T & U;\r\n"
+   },
+   {
+    "path": "/.src/Uppercased_Dir/src/type-a.js",
+    "sha256": "ef1f170ad28f2d870a474d2f96ae353d770fff5f20e642cd8f9b6f1d7742df13",
+    "bom": false,
+    "text": "\"use strict\";\r\nObject.defineProperty(exports, \"__esModule\", { value: true });\r\n"
+   },
+   {
+    "path": "/.src/Uppercased_Dir/src/type-a.d.ts",
+    "sha256": "be88cdf36ad61d2267fe1356cfa72af8535ea65800386e29948bb121a9286561",
+    "bom": false,
+    "text": "export type TypeA = {\r\n    a: string;\r\n};\r\n"
+   },
+   {
+    "path": "/.src/Uppercased_Dir/src/type-b.js",
+    "sha256": "ef1f170ad28f2d870a474d2f96ae353d770fff5f20e642cd8f9b6f1d7742df13",
+    "bom": false,
+    "text": "\"use strict\";\r\nObject.defineProperty(exports, \"__esModule\", { value: true });\r\n"
+   },
+   {
+    "path": "/.src/Uppercased_Dir/src/type-b.d.ts",
+    "sha256": "751bcf42ebdb3a81a1744ff1789a0bb27db643c6bbe4aff531ccacfc04e4aeea",
+    "bom": false,
+    "text": "import { Merge } from './types';\r\nimport { TypeA } from './type-a';\r\nexport type TypeB = Merge<TypeA, {\r\n    b: string;\r\n}>;\r\n"
+   },
+   {
+    "path": "/.src/Uppercased_Dir/src/index.js",
+    "sha256": "fdf6c4479a2674f4c9a7b7b4e5bddb4ad165c4650fb7938f4042d5904108a961",
+    "bom": false,
+    "text": "\"use strict\";\r\nObject.defineProperty(exports, \"__esModule\", { value: true });\r\nexports.Broken = void 0;\r\nclass Broken {\r\n    method() {\r\n        return {};\r\n    }\r\n}\r\nexports.Broken = Broken;\r\n"
+   },
+   {
+    "path": "/.src/Uppercased_Dir/src/index.d.ts",
+    "sha256": "1831652dd524ac1da945eae280ddb4050d7e226cf8094149dd69beca29185fb3",
+    "bom": false,
+    "text": "import { TypeB } from './type-b';\r\nexport declare class Broken {\r\n    method(): TypeB;\r\n}\r\n"
+   }
+  ],
+  "diagnostics": [],
+  "exit": 0
+ },
+ "new": {
+  "host_use_case_sensitive_file_names": false,
+  "writes": [
+   {
+    "path": "/.src/Uppercased_Dir/src/types.js",
+    "sha256": "ef1f170ad28f2d870a474d2f96ae353d770fff5f20e642cd8f9b6f1d7742df13",
+    "bom": false,
+    "text": "\"use strict\";\r\nObject.defineProperty(exports, \"__esModule\", { value: true });\r\n"
+   },
+   {
+    "path": "/.src/Uppercased_Dir/src/types.d.ts",
+    "sha256": "1d6962ef4b5244ff7b2f524051940c3259df7965c3f1bd1cc5a0437206d1c5aa",
+    "bom": false,
+    "text": "export type Merge<T, U> = T & U;\r\n"
+   },
+   {
+    "path": "/.src/Uppercased_Dir/src/type-a.js",
+    "sha256": "ef1f170ad28f2d870a474d2f96ae353d770fff5f20e642cd8f9b6f1d7742df13",
+    "bom": false,
+    "text": "\"use strict\";\r\nObject.defineProperty(exports, \"__esModule\", { value: true });\r\n"
+   },
+   {
+    "path": "/.src/Uppercased_Dir/src/type-a.d.ts",
+    "sha256": "be88cdf36ad61d2267fe1356cfa72af8535ea65800386e29948bb121a9286561",
+    "bom": false,
+    "text": "export type TypeA = {\r\n    a: string;\r\n};\r\n"
+   },
+   {
+    "path": "/.src/Uppercased_Dir/src/type-b.js",
+    "sha256": "ef1f170ad28f2d870a474d2f96ae353d770fff5f20e642cd8f9b6f1d7742df13",
+    "bom": false,
+    "text": "\"use strict\";\r\nObject.defineProperty(exports, \"__esModule\", { value: true });\r\n"
+   },
+   {
+    "path": "/.src/Uppercased_Dir/src/type-b.d.ts",
+    "sha256": "751bcf42ebdb3a81a1744ff1789a0bb27db643c6bbe4aff531ccacfc04e4aeea",
+    "bom": false,
+    "text": "import { Merge } from './types';\r\nimport { TypeA } from './type-a';\r\nexport type TypeB = Merge<TypeA, {\r\n    b: string;\r\n}>;\r\n"
+   },
+   {
+    "path": "/.src/Uppercased_Dir/src/index.js",
+    "sha256": "fdf6c4479a2674f4c9a7b7b4e5bddb4ad165c4650fb7938f4042d5904108a961",
+    "bom": false,
+    "text": "\"use strict\";\r\nObject.defineProperty(exports, \"__esModule\", { value: true });\r\nexports.Broken = void 0;\r\nclass Broken {\r\n    method() {\r\n        return {};\r\n    }\r\n}\r\nexports.Broken = Broken;\r\n"
+   },
+   {
+    "path": "/.src/Uppercased_Dir/src/index.d.ts",
+    "sha256": "1831652dd524ac1da945eae280ddb4050d7e226cf8094149dd69beca29185fb3",
+    "bom": false,
+    "text": "import { TypeB } from './type-b';\r\nexport declare class Broken {\r\n    method(): TypeB;\r\n}\r\n"
+   }
+  ],
+  "diagnostics": [],
+  "exit": 0
+ }
+}

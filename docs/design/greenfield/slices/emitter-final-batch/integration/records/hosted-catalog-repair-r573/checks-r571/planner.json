@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "python3",
+    ".github/ci/test_replay.py"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-20T19:34:43.200963+00:00",
+  "seconds": 8.812,
+  "exit": 1,
+  "log_sha256": "a009e195f7cda1bf66a81839545db70da7a846bcefe3faea6d0504346d40d509",
+  "log_bytes": 407031
+}

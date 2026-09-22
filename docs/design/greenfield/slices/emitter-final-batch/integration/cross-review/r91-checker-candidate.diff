@@ -1,0 +1,302 @@
+diff --git a/crates/checker/src/calls.rs b/crates/checker/src/calls.rs
+index 627b6220e..2f1622c2b 100644
+--- a/crates/checker/src/calls.rs
++++ b/crates/checker/src/calls.rs
+@@ -148,9 +148,8 @@ impl<'a> CheckerState<'a> {
+     /// tsc-hash: c9d5b1fd8dd418487134d131d2a23dc1575b2a5e9105dc7bf2d1278dd45ece84
+     /// tsc-span: _tsc.js:82744-82783
+     ///
+-    /// markLinkedReferences is declaration-emit bookkeeping. The
+-    /// importHelpers probe is semantic and verifies the resolved
+-    /// helper module before decorator checking.
++    /// Helper requirements and metadata alias references precede decorator
++    /// checking, preserving the first requesting syntax node's diagnostic.
+     pub(crate) fn check_decorators(&mut self, node: NodeId) -> CheckResult<()> {
+         if !crate::js_grammar::can_have_decorators(self.kind_of(node)) {
+             return Ok(());
+@@ -185,6 +184,9 @@ impl<'a> CheckerState<'a> {
+                 crate::modules::EMIT_HELPER_DECORATE,
+             )?;
+         }
++        if self.options.experimental_decorators && self.kind_of(node) == SyntaxKind::Parameter {
++            self.check_external_emit_helpers(first_decorator, crate::modules::EMIT_HELPER_PARAM)?;
++        }
+         if !self.options.experimental_decorators
+             && self.options.emit_script_target() < tsc_types::ScriptTarget::ES_NEXT
+         {
+@@ -262,6 +264,27 @@ impl<'a> CheckerState<'a> {
+     /// checker therefore records when a type-syntax use is also a runtime
+     /// alias use, and import elision consumes that durable fact later.
+     pub(crate) fn mark_decorator_metadata_aliases(&mut self, node: NodeId) -> CheckResult<()> {
++        // markLinkedReferences(node, Decorator) front-door gates also apply
++        // to the helper diagnostic, not just to the eventual alias marks.
++        if self.options.verbatim_module_syntax == Some(true)
++            || self.options.emit_decorator_metadata != Some(true)
++            || self.binder.flags_of(node).intersects(NodeFlags::AMBIENT)
++                && !matches!(
++                    self.kind_of(node),
++                    SyntaxKind::PropertySignature | SyntaxKind::PropertyDeclaration
++                )
++        {
++            return Ok(());
++        }
++        let modifiers = node_util::modifiers_of(self.binder.source_of_node(node), node);
++        let Some(first_decorator) = self
++            .nodes_of(modifiers)
++            .into_iter()
++            .find(|id| self.kind_of(*id) == SyntaxKind::Decorator)
++        else {
++            return Ok(());
++        };
++        self.check_external_emit_helpers(first_decorator, crate::modules::EMIT_HELPER_METADATA)?;
+         match self.data_of(node).clone() {
+             NodeData::ClassDeclaration(data) => {
+                 let constructor = self.nodes_of(data.members).into_iter().find(|&member| {
+@@ -6408,8 +6431,8 @@ impl<'a> CheckerState<'a> {
+     /// tsc-hash: bf84590375623f25ebdfe8448c801b669b4a508fc18eb3541399e48c96cb7230
+     /// tsc-span: _tsc.js:77854-77862
+     ///
+-    /// The MakeTemplateObject emit-helper check is dead at ES2025
+-    /// (languageVersion >= TaggedTemplates).
++    /// ES5 tagged templates require the external MakeTemplateObject helper
++    /// before call-signature resolution is checked.
+     pub(crate) fn check_tagged_template_expression(
+         &mut self,
+         node: NodeId,
+@@ -6422,6 +6445,12 @@ impl<'a> CheckerState<'a> {
+         if !self.check_grammar_tagged_template_chain(node) {
+             self.check_grammar_type_arguments(node, type_arguments);
+         }
++        if self.options.emit_script_target() < tsc_types::ScriptTarget::ES2015 {
++            self.check_external_emit_helpers(
++                node,
++                crate::modules::EMIT_HELPER_MAKE_TEMPLATE_OBJECT,
++            )?;
++        }
+         let signature = self.get_resolved_signature(node, check_mode)?;
+         self.check_deprecated_signature(signature, node)?;
+         self.get_return_type_of_signature(signature)
+diff --git a/crates/checker/src/class.rs b/crates/checker/src/class.rs
+index 4e3ad43d7..3bc81ba9e 100644
+--- a/crates/checker/src/class.rs
++++ b/crates/checker/src/class.rs
+@@ -628,8 +628,7 @@ impl<'a> CheckerState<'a> {
+     /// Order is the spec (m4-58 §6). addLazyDiagnostic = eager
+     /// identity for the base-type block, the implements diagnostics,
+     /// and the final index-constraint/property-initialization block.
+-    /// Elision: the ES5 Extends emit-helper probe (no-op at the
+-    /// project target).
++    /// The ES5 Extends helper is checked at the base-type node's parent.
+     fn check_class_like_declaration(&mut self, node: NodeId) -> CheckResult<()> {
+         self.check_grammar_class_like_declaration(node);
+         self.check_decorators(node)?;
+diff --git a/crates/checker/src/functions.rs b/crates/checker/src/functions.rs
+index e5b313519..515cc33b9 100644
+--- a/crates/checker/src/functions.rs
++++ b/crates/checker/src/functions.rs
+@@ -1706,8 +1706,8 @@ impl<'a> CheckerState<'a> {
+     /// tsc-span: _tsc.js:80447-80512
+     ///
+     /// Grammar closure runs eager (the 5.4 addLazyDiagnostic
+-    /// decision), as does the noImplicitAny 7057 closure. Emit-helper
+-    /// probes are importHelpers-gated (no-op).
++    /// decision), as does the noImplicitAny 7057 closure. Delegating yield
++    /// checks its target-dependent helper requirements before its operand.
+     pub(crate) fn check_yield_expression(&mut self, node: NodeId) -> CheckResult<TypeId> {
+         self.check_yield_expression_grammar(node);
+         let func = self.get_containing_function(node);
+@@ -1723,6 +1723,21 @@ impl<'a> CheckerState<'a> {
+             NodeData::YieldExpression(data) => (data.expression, data.asterisk_token),
+             _ => (None, None),
+         };
++        if asterisk_token.is_some() {
++            let target = self.options.emit_script_target();
++            if is_async && target < tsc_types::ScriptTarget::ES2018 {
++                self.check_external_emit_helpers(
++                    node,
++                    crate::modules::EMIT_HELPER_ASYNC_DELEGATOR_INCLUDES,
++                )?;
++            }
++            if !is_async
++                && target < tsc_types::ScriptTarget::ES2015
++                && self.options.downlevel_iteration == Some(true)
++            {
++                self.check_external_emit_helpers(node, crate::modules::EMIT_HELPER_VALUES)?;
++            }
++        }
+         let mut return_type = self.get_return_type_from_annotation(func)?;
+         if let Some(current) = return_type {
+             if self.tables.flags_of(current).intersects(TypeFlags::UNION) {
+@@ -2028,7 +2043,7 @@ impl<'a> CheckerState<'a> {
+     /// tsc-hash: c740ef163bdd457d25dd1f9a18e6dde5f7cb24f26cdba99764015af155055c19
+     /// tsc-span: _tsc.js:81289-81355
+     ///
+-    /// Emit-helper probes are importHelpers-gated (no-op). The lazy
++    /// Emit-helper probes use the effective target and importHelpers. The lazy
+     /// tail runs eager (the 5.4 addLazyDiagnostic decision).
+     pub(crate) fn check_signature_declaration(&mut self, node: NodeId) -> CheckResult<()> {
+         let kind = self.kind_of(node);
+diff --git a/crates/checker/src/modules.rs b/crates/checker/src/modules.rs
+index e9164c5c1..fcb263cda 100644
+--- a/crates/checker/src/modules.rs
++++ b/crates/checker/src/modules.rs
+@@ -129,17 +129,25 @@ pub(crate) const EMIT_HELPER_EXTENDS: u32 = 1 << 0;
+ pub(crate) const EMIT_HELPER_ASSIGN: u32 = 1 << 1;
+ pub(crate) const EMIT_HELPER_REST: u32 = 1 << 2;
+ pub(crate) const EMIT_HELPER_DECORATE: u32 = 1 << 3;
++pub(crate) const EMIT_HELPER_METADATA: u32 = 1 << 4;
++pub(crate) const EMIT_HELPER_PARAM: u32 = 1 << 5;
+ pub(crate) const EMIT_HELPER_AWAITER: u32 = 1 << 6;
+ pub(crate) const EMIT_HELPER_GENERATOR: u32 = 1 << 7;
++pub(crate) const EMIT_HELPER_VALUES: u32 = 1 << 8;
+ /// `AsyncGeneratorIncludes = Await | AsyncGenerator`.
+ pub(crate) const EMIT_HELPER_ASYNC_GENERATOR_INCLUDES: u32 = (1 << 11) | (1 << 12);
++/// `AsyncDelegatorIncludes = Await | AsyncDelegator | AsyncValues`.
++pub(crate) const EMIT_HELPER_ASYNC_DELEGATOR_INCLUDES: u32 = (1 << 11) | (1 << 13) | (1 << 14);
++pub(crate) const EMIT_HELPER_FOR_AWAIT_OF_INCLUDES: u32 = 1 << 14;
+ pub(crate) const EMIT_HELPER_READ: u32 = 1 << 9;
+ pub(crate) const EMIT_HELPER_SPREAD_ARRAY: u32 = 1 << 10;
+ pub(crate) const EMIT_HELPER_EXPORT_STAR: u32 = 1 << 15;
+ pub(crate) const EMIT_HELPER_IMPORT_STAR: u32 = 1 << 16;
+ pub(crate) const EMIT_HELPER_IMPORT_DEFAULT: u32 = 1 << 17;
++pub(crate) const EMIT_HELPER_MAKE_TEMPLATE_OBJECT: u32 = 1 << 18;
+ pub(crate) const EMIT_HELPER_CLASS_PRIVATE_FIELD_GET: u32 = 1 << 19;
+ pub(crate) const EMIT_HELPER_CLASS_PRIVATE_FIELD_SET: u32 = 1 << 20;
++pub(crate) const EMIT_HELPER_CLASS_PRIVATE_FIELD_IN: u32 = 1 << 21;
+ pub(crate) const EMIT_HELPER_SET_FUNCTION_NAME: u32 = 1 << 22;
+ pub(crate) const EMIT_HELPER_PROP_KEY: u32 = 1 << 23;
+ pub(crate) const EMIT_HELPER_ADD_DISPOSABLE_RESOURCE_AND_DISPOSE_RESOURCES: u32 = 1 << 24;
+@@ -6335,24 +6343,24 @@ impl<'a> CheckerState<'a> {
+             EMIT_HELPER_REST => &["__rest"],
+             EMIT_HELPER_DECORATE if legacy_decorators => &["__decorate"],
+             EMIT_HELPER_DECORATE => &["__esDecorate", "__runInitializers"],
+-            16 => &["__metadata"],
+-            32 => &["__param"],
++            EMIT_HELPER_METADATA => &["__metadata"],
++            EMIT_HELPER_PARAM => &["__param"],
+             64 => &["__awaiter"],
+             128 => &["__generator"],
+-            256 => &["__values"],
++            EMIT_HELPER_VALUES => &["__values"],
+             EMIT_HELPER_READ => &["__read"],
+             EMIT_HELPER_SPREAD_ARRAY => &["__spreadArray"],
+             2_048 => &["__await"],
+             4_096 => &["__asyncGenerator"],
+             8_192 => &["__asyncDelegator"],
+-            16_384 => &["__asyncValues"],
++            EMIT_HELPER_FOR_AWAIT_OF_INCLUDES => &["__asyncValues"],
+             EMIT_HELPER_EXPORT_STAR => &["__exportStar"],
+             EMIT_HELPER_IMPORT_STAR => &["__importStar"],
+             EMIT_HELPER_IMPORT_DEFAULT => &["__importDefault"],
+-            262_144 => &["__makeTemplateObject"],
++            EMIT_HELPER_MAKE_TEMPLATE_OBJECT => &["__makeTemplateObject"],
+             EMIT_HELPER_CLASS_PRIVATE_FIELD_GET => &["__classPrivateFieldGet"],
+             EMIT_HELPER_CLASS_PRIVATE_FIELD_SET => &["__classPrivateFieldSet"],
+-            2_097_152 => &["__classPrivateFieldIn"],
++            EMIT_HELPER_CLASS_PRIVATE_FIELD_IN => &["__classPrivateFieldIn"],
+             EMIT_HELPER_SET_FUNCTION_NAME => &["__setFunctionName"],
+             EMIT_HELPER_PROP_KEY => &["__propKey"],
+             EMIT_HELPER_ADD_DISPOSABLE_RESOURCE_AND_DISPOSE_RESOURCES => {
+diff --git a/crates/checker/src/operators.rs b/crates/checker/src/operators.rs
+index 606f4be0d..62add0d30 100644
+--- a/crates/checker/src/operators.rs
++++ b/crates/checker/src/operators.rs
+@@ -1140,8 +1140,8 @@ impl<'a> CheckerState<'a> {
+     /// tsc-span: _tsc.js:79591-79608
+     ///
+     /// Both operand rows are plain 2322 (2360/2361 do not exist in
+-    /// 6.0.3); the ClassPrivateFieldIn emit-helper rows are
+-    /// importHelpers-gated (no-op).
++    /// 6.0.3). Private-name helper requirements use the same target and
++    /// class-field mode gates as private property accesses.
+     fn check_in_expression(
+         &mut self,
+         left: NodeId,
+@@ -1154,6 +1154,14 @@ impl<'a> CheckerState<'a> {
+             return Ok(silent_never);
+         }
+         if self.kind_of(left) == SyntaxKind::PrivateIdentifier {
++            if self.options.emit_script_target() < tsc_types::ScriptTarget::ES_NEXT
++                || !self.options.use_define_for_class_fields_effective()
++            {
++                self.check_external_emit_helpers(
++                    left,
++                    crate::modules::EMIT_HELPER_CLASS_PRIVATE_FIELD_IN,
++                )?;
++            }
+             let unresolved = self.links.node(left).resolved_symbol.resolved().is_none();
+             if unresolved && self.get_containing_class_of(left).is_some() {
+                 // isUncheckedJSSuggestion is false in TS files.
+@@ -2463,8 +2471,8 @@ impl<'a> CheckerState<'a> {
+     /// tsc-hash: a8df092688dc76db0fc8fc2c03d0d9d01f0ae09de7aeb8808a9ef9a33e7ad1c6
+     /// tsc-span: _tsc.js:79743-79753
+     ///
+-    /// The ClassPrivateFieldSet emit-helper row is importHelpers-gated
+-    /// (no-op).
++    /// The private-set tail is intentionally independent of the target gate
++    /// in checkPropertyAccessExpression; it remains observable at ESNext.
+     fn check_reference_assignment(
+         &mut self,
+         target: NodeId,
+@@ -2494,6 +2502,16 @@ impl<'a> CheckerState<'a> {
+                 &tsc_diagnostics::gen::Type_0_is_not_assignable_to_type_1,
+             )?;
+         }
++        if matches!(self.data_of(target), NodeData::PropertyAccessExpression(data)
++            if data.name.is_some_and(|name| self.kind_of(name) == SyntaxKind::PrivateIdentifier))
++        {
++            if let Some(parent) = self.parent_of(target) {
++                self.check_external_emit_helpers(
++                    parent,
++                    crate::modules::EMIT_HELPER_CLASS_PRIVATE_FIELD_SET,
++                )?;
++            }
++        }
+         Ok(source_type)
+     }
+ 
+diff --git a/crates/checker/src/statements.rs b/crates/checker/src/statements.rs
+index e73b080e2..e293530d0 100644
+--- a/crates/checker/src/statements.rs
++++ b/crates/checker/src/statements.rs
+@@ -2036,8 +2036,8 @@ impl<'a> CheckerState<'a> {
+     /// tsc-hash: 08b449c328a80dc775d3d2a2a8ed70659946c2d654441989dbfd0a2a42f496ff
+     /// tsc-span: _tsc.js:83819-83857
+     ///
+-    /// Iteration semantics live since 5.8b (§4); emit-helper probes
+-    /// elided (module note).
++    /// Helper requirements precede initializer checking, so a missing tslib
++    /// export is reported at its first requesting syntax node.
+     pub(crate) fn check_for_of_statement(&mut self, node: NodeId) -> CheckResult<()> {
+         self.check_grammar_for_in_or_for_of_statement(node)?;
+         let NodeData::ForOfStatement(data) = self.data_of(node) else {
+@@ -2055,10 +2055,27 @@ impl<'a> CheckerState<'a> {
+                     &diagnostics::for_await_loops_cannot_be_used_inside_a_class_static_block,
+                     &[],
+                 );
++            } else {
++                let flags = container.map_or(crate::functions::FUNCTION_FLAGS_INVALID, |id| {
++                    self.get_function_flags(id)
++                });
++                if flags
++                    & (crate::functions::FUNCTION_FLAGS_INVALID
++                        | crate::functions::FUNCTION_FLAGS_ASYNC)
++                    == crate::functions::FUNCTION_FLAGS_ASYNC
++                    && self.options.emit_script_target() < tsc_types::ScriptTarget::ES2018
++                {
++                    self.check_external_emit_helpers(
++                        node,
++                        crate::modules::EMIT_HELPER_FOR_AWAIT_OF_INCLUDES,
++                    )?;
++                }
+             }
+-            // (else: the ForAwaitOf emit-helper probe — elided.)
++        } else if self.options.downlevel_iteration == Some(true)
++            && self.options.emit_script_target() < tsc_types::ScriptTarget::ES2015
++        {
++            self.check_external_emit_helpers(node, crate::modules::EMIT_HELPER_VALUES)?;
+         }
+-        // (downlevelIteration ForOf emit-helper probe — elided.)
+         if let Some(initializer) = initializer {
+             if self.kind_of(initializer) == SyntaxKind::VariableDeclarationList {
+                 self.check_variable_declaration_list(initializer)?;

@@ -1,0 +1,15 @@
+{
+  "name": "before-decorator-comments",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 1,
+  "env": [
+    "TSC_RS_POST_T1_RESIDUALS_CASE_SET=decorator-comments/"
+  ],
+  "argv": "cargo test -p tsc-rs-compiler --test post_t1_residuals_contract -- --nocapture --test-threads=1",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T06:51:14Z",
+  "seconds": 110,
+  "exit": 0,
+  "log_sha256": "5e5c257afda1f565203e58e4a10143731e650333a40a65c2ef2a08093f02f35a",
+  "log_bytes": 22412
+}

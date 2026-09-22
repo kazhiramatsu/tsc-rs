@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "python3",
+    "-c",
+    "import subprocess; [subprocess.run([\"node\", f\"scripts/observe-emitter-r{n}-corpus-controls.mjs\", \"--write\"], check=True) for n in [168,171]]"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-19T14:38:17.253398+00:00",
+  "head": "3e28cb21344eae8980cfe66992913f2d8758ede2",
+  "tracked_clean": false,
+  "diff_sha256": "28f00dc5a0d00cc4d60dd109263487efa77a9ade4823e0505810f0c2582146f0",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 111.89,
+  "log_sha256": "c0030bc1f6d77c9de9037d7bc253a20044d907c0e73fa99fc70e5f0d3cebea2d",
+  "log_bytes": 148
+}

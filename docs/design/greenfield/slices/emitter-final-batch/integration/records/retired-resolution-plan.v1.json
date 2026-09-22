@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "evidence": "local/audit-resolution.log.gz",
+  "cases": [
+    {
+      "case_id": "typescript-6.0.3/conformance/moduleResolution/bundler/bundlerDirectoryModule.ts#module%3Dnode18%2Cmoduleresolution%3Dbundler",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "module resolution request plan (typed refusal static-module-request-plan; L2-3/H2 resolution owner)",
+      "native": {
+        "kind": "failure",
+        "message": "load_emitting_program: Resolution { operation: PlanSourceRequests, path: Some(\"/app/test.ts\"), js_path: Some(\"/app/test.ts\"), specifier: None, source: Unsupported { feature: \"static-module-request-plan\", detail: \"/app/test.ts: /app/test.ts has no authoritative implied Node format for module kind 101\" } }"
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/moduleResolution/bundler/bundlerDirectoryModule.ts#module%3Dnode20%2Cmoduleresolution%3Dbundler",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "module resolution request plan (typed refusal static-module-request-plan; L2-3/H2 resolution owner)",
+      "native": {
+        "kind": "failure",
+        "message": "load_emitting_program: Resolution { operation: PlanSourceRequests, path: Some(\"/app/test.ts\"), js_path: Some(\"/app/test.ts\"), specifier: None, source: Unsupported { feature: \"static-module-request-plan\", detail: \"/app/test.ts: /app/test.ts has no authoritative implied Node format for module kind 102\" } }"
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/moduleResolution/bundler/bundlerDirectoryModule.ts#module%3Dnodenext%2Cmoduleresolution%3Dbundler",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "module resolution request plan (typed refusal static-module-request-plan; L2-3/H2 resolution owner)",
+      "native": {
+        "kind": "failure",
+        "message": "load_emitting_program: Resolution { operation: PlanSourceRequests, path: Some(\"/app/test.ts\"), js_path: Some(\"/app/test.ts\"), specifier: None, source: Unsupported { feature: \"static-module-request-plan\", detail: \"/app/test.ts: /app/test.ts has no authoritative implied Node format for module kind 199\" } }"
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/moduleResolution/bundler/bundlerOptionsCompat.ts#default",
+      "fixture": "emitter-final-universe-plan-base.json",
+      "cause": "module resolution request plan (typed refusal static-module-request-plan; L2-3/H2 resolution owner)",
+      "native": {
+        "kind": "failure",
+        "message": "load_emitting_program: Resolution { operation: PlanSourceRequests, path: Some(\"/index.ts\"), js_path: Some(\"/index.ts\"), specifier: None, source: Unsupported { feature: \"static-module-request-plan\", detail: \"/index.ts: /index.ts has no authoritative implied Node format for module kind 199\" } }"
+      }
+    }
+  ]
+}

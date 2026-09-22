@@ -1,0 +1,11 @@
+{
+  "command": [
+    "python3",
+    "scripts/test-walk-static-checks.py"
+  ],
+  "exit": 1,
+  "tests": 2,
+  "subtest_failures": 2,
+  "observation": "The missing and duplicate anchor controls both returned classifier 0 instead of 2; Python interpreted JavaScript newline escapes before Node parsing. The stale control therefore did not yet establish the intended error path.",
+  "source_sha256": "755a3bebe324bf7736083b8e5a17ddc6d6d723a46fea06304dae461c16531ea8"
+}

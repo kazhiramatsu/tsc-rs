@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "node",
+    "scripts/check-frozen-de-reference.mjs",
+    "--check",
+    "bundle-plan",
+    "output-directory-corpus"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-20T19:49:52.024973+00:00",
+  "seconds": 44.436,
+  "exit": 0,
+  "log_sha256": "ccfa7579d0103bd0b2d5dde502866a80ac7b183e0d84b5af3c8d2a40434976d1",
+  "log_bytes": 3159
+}

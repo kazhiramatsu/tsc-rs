@@ -1,5 +1,10 @@
 # new-CI evidence-DAG — design packet (successor of the lost 2026-08-18 draft)
 
+Implementation status (2026-09-21): the standalone `new-ci/` prototype has
+been removed. This design remains as reference; implementation claims below
+describe the historical prototype, not current CI. Its documents, report and
+source recovery commit are listed in the [archive](../archive/new-ci/README.md).
+
 Status: NORMATIVE DESIGN + verified prototype. This document is the
 in-repo successor of the 2026-08-18 'tsc-rs 証拠DAG設計' artifact,
 whose published page and scratchpad source were both lost — design

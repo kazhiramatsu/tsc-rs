@@ -1,0 +1,9 @@
+{
+  "reason": "Opus129 reviewed undefined descriptor roots override config in both emit/noEmit projection; cargo fmt completed",
+  "changes": {
+    "crates/harness/src/upstream_suites/execution/project.rs": {
+      "old": "8fa72a9d37d9867b4e451f944dbdf564cbfb29358cbf2d21d1502b8a189bfdf8",
+      "new": "dc82805e089ce1888569d697d78115768d942c35996681d88fdaa55b0de75e71"
+    }
+  }
+}

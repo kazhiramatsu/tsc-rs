@@ -227,13 +227,6 @@ fn h2_6c_original_33_option_transitions_keep_the_frozen_history() {
 #[test]
 fn h2_6c_current_manifest_keeps_only_unclosed_historical_refusals() {
     let workspace = workspace();
-    let manifest = read_json(&workspace.join(super::H2_6C_KNOWN_DIVERGENCES_RELATIVE_PATH));
-    let mut actual = BTreeMap::<String, u64>::new();
-    for case in manifest["cases"].as_array().expect("manifest cases") {
-        if let Some(option) = case["refused_option"].as_str() {
-            *actual.entry(option.to_owned()).or_default() += 1;
-        }
-    }
     let historical = BTreeMap::from([
         ("declarationMap".to_owned(), 6),
         ("isolatedModules".to_owned(), 1),
@@ -241,13 +234,39 @@ fn h2_6c_current_manifest_keeps_only_unclosed_historical_refusals() {
         ("outFile".to_owned(), 171),
         ("rootDir".to_owned(), 4),
     ]);
-    let expected = super::h2_6c_de_promotions::adjusted_refusals(historical)
-        .expect("each exact identity removes its pinned old refusal once");
-    // Migrated refusals remain historical outFile rows in this file. Their
-    // actual new options are verified separately by the partition tests.
+    // Same pinned promotion/migration chain as the live acceptance projection.
+    let expected = super::h2_6c_de_promotions::adjusted_refusals(historical.clone())
+        .expect("declaration promotions consume each original refusal once");
+    let expected = super::h2_6c_output_promotions::adjusted_refusals(expected)
+        .expect("output promotions consume each original refusal once");
+    let expected = super::h2_6c_refusal_migrations::adjust_refusal_totals(expected)
+        .expect("remaining migrations retain their owned refusals");
     assert_eq!(
-        actual, expected,
-        "shrink stale exact rows before the normal acceptance run"
+        historical.values().sum::<u64>(),
+        (super::h2_6c_de_promotions::promoted_count()
+            + super::h2_6c_output_promotions::promoted_count()
+            + super::h2_6c_refusal_migrations::count()) as u64,
+        "every historical refusal has a pinned closing row"
+    );
+    assert!(
+        expected.is_empty(),
+        "all original option refusals are closed"
+    );
+    let listed = super::load_h2_6c_divergence_manifest_state(&workspace, true)
+        .expect("load the canonical manifest through the acceptance loader");
+    let mut actual = BTreeMap::<String, u64>::new();
+    for divergence in listed.entries.values() {
+        if let Some(option) = divergence.refused_option.as_deref() {
+            *actual.entry(option.to_owned()).or_default() += 1;
+        }
+    }
+    assert_eq!(actual, expected, "no stale historical refusals remain");
+    assert!(listed.entries.is_empty(), "no unowned divergence remains");
+    assert!(
+        !workspace
+            .join(super::H2_6C_KNOWN_DIVERGENCES_RELATIVE_PATH)
+            .exists(),
+        "the empty divergence manifest must stay retired"
     );
 }
 

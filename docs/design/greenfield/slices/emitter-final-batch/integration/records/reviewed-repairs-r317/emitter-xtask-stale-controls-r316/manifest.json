@@ -1,0 +1,44 @@
+{
+  "status": "applied test-side fixes after actual177 and independent310all14controlprobe; focused tests pending",
+  "head": "9e46ae514fb6fa7f389abb22335ffddfef79b2ea",
+  "selected_original_cases_unchanged_vs_trusted_base": [
+    [
+      "es2015",
+      "84b636e1585684eb9e395571fd1397318c38151cbb210a83b5cdf28f8e77e1e1",
+      "467eddfa4123b97e1e8c02fef9d493e7c221af956154a341ff25218ba849fa4a"
+    ],
+    [
+      "es2022",
+      "8bca37dde3922e62b2b6993a658fcb0677fc5b9d901993724d222dde89a74b3f",
+      "6872ae17d78b1f4859803f96602399b510eeb33fc5766043464a61538763c50b"
+    ],
+    [
+      "esnext",
+      "19c7413449ab46c8f0824bdc9d0d42b053dfba92899c6d08e781c1438232414f",
+      "06f7e59fd4c7714a1fa6ad2c3464f05b50cbdf16462f7dee9fe61b6ed31264b7"
+    ]
+  ],
+  "paths": [
+    {
+      "path": "crates/xtask/tests/unit/h2_2c_acceptance/de_legacy_collector.rs",
+      "before_sha256": "9eb524cee40fb36ced6dd624f0f143cce33e5d574730b040ed498183c25b7fe5",
+      "after_sha256": "93379165e28641b590ad1aff8296170f02b0cf8edc310d8a30357f2ec900ec60"
+    },
+    {
+      "path": "crates/xtask/tests/unit/h2_7b_acceptance/tests.rs",
+      "before_sha256": "f67fb54e3b06ecb9b0e35a2b99fa191236733ac5a72fce2a7950d97077e29c6f",
+      "after_sha256": "ac4c176a0ae3f46096fb7509438a16edddf4235ab4820e693097699427b6cb8c"
+    },
+    {
+      "path": "crates/xtask/src/h2_3d_acceptance.rs",
+      "before_sha256": "325ebd13b45303c9882e0a4e06585ce4f1d2efc863323c452002179571cf8f14",
+      "after_sha256": "e3e98b39c8628eed309a2e12d592deb080e00494a29c012ac516851a36e82de3"
+    }
+  ],
+  "limits": [
+    "actual177 prose about CI abolition is not adopted; repository complete gate remains mandatory",
+    "two ignored historical collector pins stay untouched; this is active-regression repair only"
+  ],
+  "style_followup": "group contiguous99/100..102 as99..102 toavoidmanual_range_patterns; identical module set",
+  "format_followup": "initialcheck caught shortenedmatcharmformatting; cargo fmt --all completed; finalcheck pending"
+}

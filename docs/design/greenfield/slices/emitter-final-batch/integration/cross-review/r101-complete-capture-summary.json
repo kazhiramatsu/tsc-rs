@@ -1,0 +1,23 @@
+{
+  "head": "663da193844047b951bb9035787e914d7372831f",
+  "binary": {
+    "head": "663da193844047b951bb9035787e914d7372831f",
+    "source_executable": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/debug/deps/contracts-05a4948cfadf681b",
+    "binary": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-r101-immutable/contracts",
+    "sha256": "5c07bbbae32d93b5bb4837fbe7cecfdedacb6ef0de34bb2bd8121bf2d1314024",
+    "qualification_receipt_log_sha256": "2d4e678eb49bece01c529b5335b5c2a2656106da87388fba9be75831be208870"
+  },
+  "records": 3801,
+  "cases": 1920,
+  "counts_by_repetitions": {
+    "2": 1881,
+    "1": 39
+  },
+  "capture_archive_sha256": "9c772b2bdeaaad008e0880a12198cec9668188e9676f4e6619e8376a7b27eb3b",
+  "capture_archive_bytes": 1692462,
+  "exact": 1881,
+  "failed": 39,
+  "original_r95_cases_exact": 1526,
+  "new_cases_exact": 355,
+  "new_cases_failed": 39
+}

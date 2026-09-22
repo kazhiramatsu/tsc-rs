@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "node",
+    "--test",
+    "/tmp/emitter-hosted-reference-repair-r578/pending-helper-r595/command-fixture-parents.test.mjs"
+  ],
+  "exit": 0,
+  "seconds": 0.701,
+  "log_sha256": "6a92d3523bc236798c38a4e03467664220684aa2d73efe42c6471fc384535433",
+  "log_bytes": 1493
+}

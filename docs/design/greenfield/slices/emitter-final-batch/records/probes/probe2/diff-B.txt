@@ -1,0 +1,24 @@
+96,97c96,97
+< var _b = a.p /* t4 */, p = _b === void 0 ? a.b : _b /* t4 */;
+< for (var _i = 0, _c = a.e /* t5 */; _i < _c.length /* t5 */; _i++ /* t5 */) {
+---
+> var _b = a.p /* t4 */, p = _b === void 0 ? a.b /* t4 */ : _b /* t4 */;
+> for (var _i = 0, _c = a.e; _i < _c.length; _i++) {
+113c113
+<     var _classDecorators = [(_a = ns).dec /* t11 */.bind(_a)];
+---
+>     var _classDecorators = [(_a = ns).dec.bind(_a)];
+120c120
+<         function D_1() {
+---
+>         function class_1() {
+123,124c123,124
+<         D_1.prototype.m = function () { };
+<         return D_1;
+---
+>         class_1.prototype.m = function () { };
+>         return class_1;
+129c129
+<         _m_decorators = [(_b = ns).dec /* t12 */.bind(_b)];
+---
+>         _m_decorators = [(_b = ns).dec.bind(_b)];

@@ -6,12 +6,10 @@
 //! synthetic-reference, access-stabilization, and lexical-scope plans rather
 //! than mirroring TypeScript's nested closures or synthetic internal nodes.
 
+use crate::transform::try_visit_transform_children;
 use std::collections::BTreeMap;
 
-use tsc_syntax::{
-    for_each_child, try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId,
-    SyntaxKind,
-};
+use tsc_syntax::{for_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind};
 use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget};
 
 use crate::{
@@ -1737,6 +1735,9 @@ impl<'context> TargetVisitor<'context> {
                 }),
                 return_flags,
             )?;
+            self.context
+                .factory()?
+                .set_text_range(return_statement, body)?;
             let statements = self
                 .context
                 .factory()?
@@ -1749,6 +1750,7 @@ impl<'context> TargetVisitor<'context> {
                 }),
                 block_flags,
             )?;
+            self.context.factory()?.set_text_range(block, body)?;
             self.context.factory()?.set_multi_line(block, false)?;
             let NodeData::Block(mut data) = self.context.arena().node(block)?.data.clone() else {
                 unreachable!("created block has block data")
@@ -2430,7 +2432,7 @@ impl<'context> TargetVisitor<'context> {
         original: TransformNode,
         mut data: NodeData,
     ) -> Result<NodeId, TransformError> {
-        try_visit_each_child(&mut data, self)?;
+        try_visit_transform_children(&mut data, self)?;
         self.update_without_visit(original, data)
     }
 

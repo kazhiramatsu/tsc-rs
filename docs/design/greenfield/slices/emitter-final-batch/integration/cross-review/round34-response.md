@@ -1,0 +1,20 @@
+## r34 review: Stage C draft after the r33 corrections
+
+**Reservation scan: your disagreement is correct, and the scan has a pre-existing over-reservation.** tsc's `generateNameForModuleOrEnum` uses `isUniqueLocalName`, which walks the binder's container chain under the namespace and checks each container's `locals` for a Value/ExportValue/Alias symbol. Probing tsc 6.0.3 gives `(function (N_1)` for an arrow parameter, a `let` in a nested block, a class member method parameter, a static block `let`, and a catch variable, in ordinary code and inside a retained decorator alike; it gives `(function (N)` for a named class expression and a named function expression, again in both positions. The binder does visit `MissingDeclaration` modifiers, so the retained decorator's locals count. Therefore: do not skip `MissingDeclaration` in `module_body_reserves_value_name` (builtins.rs:15345-15385); its full descent is right. Bounded fix: remove `ClassExpression.name` and `FunctionExpression.name` from the binding-name list there (anonymous declarations are not entries in any container's `locals`), keeping descent into their bodies/parameters. That is a general namespace-naming divergence, not a C-specific one; control it with `namespace N { const c = class N {}; export const x = 1; }` and the function-expression twin, plus the two in-decorator forms.
+
+**Manual scans: classification and verdicts.**
+- Transform-effect scans (flag-derived in tsc): `source_contains_dynamic_import`, `_import_reference_substitution`, `_import_attributes`, `_runtime_enum`, `_runtime_namespace`, `_parameter_property`, `_import_or_export_equals`, `_decorator` (builtins.rs 4334-4560) and `source_contains_import_meta` (system.rs:180-205) now skip `MissingDeclaration`; `preflight_source` skips it too. Correct: these mirror `transformFlags`/effective-module decisions where the subtree contributes zero.
+- `source_contains_top_level_await` (system.rs:226-270) still descends. Not a problem for admission: a top-level `await` inside a retained decorator produces a `Reparsed` action and is refused; leave it.
+- Binding/identity scans that must keep full descent: `collect_untagged_identifier_texts` (target_bindings.rs:552-580, mirrors `sourceFile.identifiers`, which the scanner fills for every identifier including those in the retained decorator), `module_body_reserves_value_name`, and `CrossSourceReuseClone` (structural remap). The draft touches none of these, which is right.
+- Nothing else in the lowering passes walks statement lists manually besides `generators.rs::contains_yield`, which only runs inside a visited function body and cannot reach the opaque node.
+
+**Program import discovery.** tsc collects `import("./dep")` inside a retained decorator: the parser sets `PossiblyContainsDynamicImport`, `collectDynamicImportOrRequireOrJsDocImportCalls` walks the whole file, `dep.ts` joins the program and `dep.js` is emitted (probe: sources `[/dep.ts, /main.ts]`, writes both; same with `{ with: { type: "json" } }`). Rust's `module_requests.rs` walk (596-608) uses `for_each_child` without exclusion, so it will discover `./dep` as well; the fixture must expect the extra `dep.js` write and any resolution diagnostics, exactly as recorded, while the main file still emits only the class-expression statement. Do not add a skip there.
+
+**Positive at EOF.** Moving `@g<number>` to positive matches tsc (`1146@10+0`, node `[0,10]`, output `"use strict";` only).
+
+**Remaining required items.**
+1. The class/function-expression name fix above, with its four controls.
+2. Confirm `allow_legacy_decorators` semantics are no longer load-bearing for these rows (the preflight now skips the subtree, so this is closed if the skip precedes the `Decorator` arm, which the diff shows at 16316-16319).
+3. For the 150 script controls, the commonjs/umd/amd/system rows with `import("./dep")` are the ones that exercise the scan skips; make sure at least one has no other module syntax so `requires_module_rewrite` is decided solely by the scan.
+
+No native result is inferred for B or C.

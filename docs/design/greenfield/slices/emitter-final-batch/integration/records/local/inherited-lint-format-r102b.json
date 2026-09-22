@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "fmt",
+    "--all"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-lint-prep",
+  "started_at": "2026-09-19T05:14:43.422629+00:00",
+  "head": "663da193844047b951bb9035787e914d7372831f",
+  "tracked_clean": false,
+  "diff_sha256": "0410db28e46b5a471b7f9475a928acbddd23c72d412101d65ec49311d3ccf1f7",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 13.581,
+  "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "log_bytes": 0
+}

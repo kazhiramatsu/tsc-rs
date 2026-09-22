@@ -1,0 +1,38 @@
+[
+  {
+    "path": "crates/emitter/src/factory.rs",
+    "old_line": 744,
+    "introduced_at": "71aa16538dc8c69229cd4138f9d7fabf93e07331",
+    "excerpt": "742:     /// `create_node`. Owner-called creators whose tsc bodies add only bits\n743:     /// outside this port's facet lattice inherit the aggregation fallback.\n744:     /// tsc-port: createIdentifier @6.0.3\n745:     /// tsc-hash: dd1baeac5d32597682b2f4f1acf9729f109bc958a82c19a446911a4bc94e709d\n746:     /// tsc-span: _tsc.js:21609-21625\n747:     /// tsc-port: createBinaryExpression @6.0.3\n748:     /// tsc-hash: cb3f974e1006db9345bc4a2144f1ee6daae9ac0241cb0f6bffd6e476b3db09cb\n749:     /// tsc-span: _tsc.js:22785-22811\n750:     /// tsc-port: createVariableDeclarationList @6.0.3\n751:     /// tsc-hash: 324d5fd5f464f3047fb5d2b3c5761cd3a469334262e88077a32c862a5c1051d8\n752:     /// tsc-span: _tsc.js:23287-23299"
+  },
+  {
+    "path": "crates/emitter/src/printer.rs",
+    "old_line": 1971,
+    "introduced_at": "b5ccfd73ce13a7b1c23ec2020e7db67c6c8c6a96",
+    "excerpt": "1969:     /// tsc-hash: 6d2c34fd59ec1e7c8c3ffa2e58652d6717fc7200756562032ca22a17ab18dd72\n1970:     /// tsc-span: _tsc.js:118956-118968\n1971:     /// tsc-port: emitSignatureAndBody @6.0.3\n1972:     /// tsc-hash: 89b92f0b4759c58fe92caf1d0f3d783f883659010450f9f40cf948d5453a0847\n1973:     /// tsc-span: _tsc.js:118969-118982\n1974:     /// tsc-port: emitFunctionBody @6.0.3\n1975:     /// tsc-hash: 5bc2a3b365b98256dc41fff5e345647e6934a4d88cf2d6db43283bc837a9cf94\n1976:     /// tsc-span: _tsc.js:118983-118990\n1977:     /// tsc-port: emitEmptyFunctionBody @6.0.3\n1978:     /// tsc-hash: 9a3b4a37b6a91928c82b35ed375078a7d4b893092d3ab9dc27caa22f8f5f4b04\n1979:     /// tsc-span: _tsc.js:118991-118993"
+  },
+  {
+    "path": "crates/emitter/src/printer.rs",
+    "old_line": 7844,
+    "introduced_at": "b5ccfd73ce13a7b1c23ec2020e7db67c6c8c6a96",
+    "excerpt": "7842:     }\n7843: \n7844:     /// tsc-port: emitNodeListItems @6.0.3\n7845:     /// tsc-hash: 8b9d9ba40ccad81aa5e0a79b002bc7be89f4a18456ebba923d01aefdfb315901\n7846:     /// tsc-span: _tsc.js:120068-120360\n7847:     ///\n7848:     /// This is the JSON subset of the `PreserveLines | Indented` list\n7849:     /// formats used by array and object literals. Object trailing commas are\n7850:     /// suppressed for a JSON SourceFile; array trailing commas remain the\n7851:     /// upstream parser/printer behavior.\n7852:     #[allow(clippy::too_many_arguments)]"
+  },
+  {
+    "path": "crates/emitter/src/printer.rs",
+    "old_line": 10519,
+    "introduced_at": "b5ccfd73ce13a7b1c23ec2020e7db67c6c8c6a96",
+    "excerpt": "10517:     }\n10518: \n10519:     /// tsc-port: emitNodeList @6.0.3\n10520:     /// tsc-hash: 9286227d388af8c22b8ceb9909204c1b0e7338f14fd54f346c09bd1deabe987d\n10521:     /// tsc-span: _tsc.js:120029-120067\n10522:     /// tsc-port: emitNodeListItems @6.0.3\n10523:     /// tsc-hash: ebeb65a71c929bbfdf5d1ebd4b2e7216f15bd37117166ef8fbee5b3a9b0a6b40\n10524:     /// tsc-span: _tsc.js:120068-120155\n10525:     /// tsc-port: getLeadingLineTerminatorCount @6.0.3\n10526:     /// tsc-hash: 893244ddd50971f9938c07f3bb0b10b520dfbf70880816b69aa4b00cc1384819\n10527:     /// tsc-span: _tsc.js:120268-120300"
+  },
+  {
+    "path": "crates/emitter/src/printer.rs",
+    "old_line": 14540,
+    "introduced_at": "b5ccfd73ce13a7b1c23ec2020e7db67c6c8c6a96",
+    "excerpt": "14538:     /// length; ES2019 optional-catch lowering relies on that behavior when a\n14539:     /// synthetic `(` advances over the original block's `{` position.\n14540:     /// tsc-port: emitTokenWithComment @6.0.3\n14541:     /// tsc-hash: d7df39bba502705facedce379a636ae55b168b77701df5e72abf10ec444c2e50\n14542:     /// tsc-span: _tsc.js:118731-118764\n14543:     fn emit_token_with_comments(\n14544:         &self,\n14545:         transformation: &TransformationResult<'_>,\n14546:         owner: TransformNode,\n14547:         token: FixedToken,\n14548:         anchor: impl Into<TokenAnchor>,"
+  },
+  {
+    "path": "crates/emitter/src/printer.rs",
+    "old_line": 16156,
+    "introduced_at": "b5ccfd73ce13a7b1c23ec2020e7db67c6c8c6a96",
+    "excerpt": "16154: }\n16155: \n16156: /// tsc-port: emitTrailingComment @6.0.3\n16157: /// tsc-hash: 14654b8999872d42159a4d2c11a27fb01fbe47c50e8131b82de8453536d60394\n16158: /// tsc-span: _tsc.js:121179-121190\n16159: fn emit_same_line_trailing_comments(\n16160:     rest: SourceTrivia<'_>,\n16161:     only_print_js_doc_style: bool,\n16162:     writer: &mut TextWriter,\n16163: ) -> Option<usize> {\n16164:     let mut cursor = rest.start;"
+  }
+]

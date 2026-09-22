@@ -1,0 +1,15 @@
+{
+  "name": "witness-parameter-temporaries-all-r7",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 24,
+  "env": [
+    "CARGO_BUILD_JOBS=1"
+  ],
+  "argv": "python3 scripts/witness.py parameter-temporaries --all",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T11:09:26Z",
+  "seconds": 193,
+  "exit": 0,
+  "log_sha256": "08aabea39a912fcb530ce54996536153469f4412ef3f6bd076ba894b65e6170a",
+  "log_bytes": 6498
+}

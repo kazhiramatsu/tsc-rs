@@ -175,6 +175,4 @@ fn config_root_options_matches_fresh_typescript_observations() {
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
-#[path = "../support/scalar_json.rs"]
-mod utf16_scalar_json;
-use utf16_scalar_json::observe as scalar_json;
+use super::utf16_scalar_json::observe as scalar_json;

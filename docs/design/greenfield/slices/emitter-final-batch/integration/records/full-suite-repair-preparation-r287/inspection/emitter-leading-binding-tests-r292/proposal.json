@@ -1,0 +1,23 @@
+{
+  "status": "UNAPPLIED, syntax and command tests unrun",
+  "production_proposal": "r283 unchanged",
+  "change": "Correct positive let case to exported variable statement; standalone let remains negative with 5 diagnostics and block-trailing-equals, outside the composite family. Baseline evidence291 indices1/21.",
+  "command_cases": {
+    "old": 40,
+    "additional": 40,
+    "total": 80,
+    "shapes": [
+      "let-export",
+      "var-script",
+      "unicode-leading",
+      "two-statements",
+      "property-trivia"
+    ]
+  },
+  "unit_cases": {
+    "positives": 5,
+    "negatives": 15,
+    "declaration_file_negative": 1
+  },
+  "supersedes": "r283 tests append and r290 observer draft only; preserve original proposals"
+}

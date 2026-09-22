@@ -1,0 +1,26 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "env",
+    "PRE_SUITE=cargo test --offline -p tsc-rs-compiler --test contracts h2_8a_token_comment_phases:: -- --nocapture --test-threads=1",
+    "bash",
+    "scripts/chain-walk.sh"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-20T12:35:59.529545+00:00",
+  "head": "bb01b86df0a2d266910d25124c4bfbade334c826",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": -15,
+  "seconds": 6051.931,
+  "log_sha256": "396ff1583eb93117f71742a37f825a9e7c19833ebda46f929628a48696394213",
+  "log_bytes": 1840
+}

@@ -1,0 +1,33 @@
+{
+  "owner_changes_only_numeric_lines": true,
+  "close_changes_only_numeric_lines": true,
+  "rust_unchanged": true,
+  "generated_artifacts_unchanged": true,
+  "inputs": [
+    {
+      "path": "crates/oracle/l0-option-inventory.mjs",
+      "sha256": "913e5252c2a585a50261b5c6bdf194d6ac809d61aa8c0f4451cdb6f3f904bebd",
+      "bytes": 11671
+    },
+    {
+      "path": "crates/oracle/h2-7a-owner-inventory.mjs",
+      "sha256": "27f618cd92bf07173bd7e6f5ca60207f6799e893b9eb871f6728e1647e86a1e8",
+      "bytes": 100299
+    },
+    {
+      "path": "crates/oracle/h2-7a-close.mjs",
+      "sha256": "9fd65ada95c7316b97eb43cbb6886aea5271ed32c1f0141044227e59fafea2e1",
+      "bytes": 41444
+    },
+    {
+      "path": "scripts/walk-static-checks.py",
+      "sha256": "bc36cc170458cec4c4ac029c1d2cf494d7339388b192ecb2080eb6c1d48ef261",
+      "bytes": 3860
+    },
+    {
+      "path": "scripts/test-walk-static-checks.py",
+      "sha256": "ee779f131ad075097067b6acec9623c248bba5bee8801244a06c7e57428dfecd",
+      "bytes": 5326
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "test",
+    "-p",
+    "tsc-rs-compiler",
+    "--test",
+    "decorator_super_contract",
+    "h2_8a_decorator_super::decorator_super_forms_match_complete_typescript_observations",
+    "--",
+    "--exact",
+    "h2_8a_decorator_super::decorator_super_followup_forms_match_complete_typescript_observations",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-audit",
+  "started_at": "2026-09-18T12:33:34.975953+00:00",
+  "head": "ed71c45343b2063414d5563c9b5455631d7c5c68",
+  "tracked_clean": false,
+  "diff_sha256": "09eb47497b92ced09aec71ebe6abdd6ae8a8b2c90050fc52edc0d4ea42c3d2be",
+  "env": {
+    "TSC_RS_DECORATOR_SUPER_CASE_SET": "discard/arrow-expression-body,receiver/instance-field-super",
+    "TSC_RS_DECORATOR_SUPER_FOLLOWUP_CASE_SET": "nested-arrow-in-default",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 101,
+  "seconds": 25.488,
+  "log_sha256": "d0c1235f28b75cec4bbdc51b4c3dfa8aa85bfa8590ef9dd82ddbf222784d4f38",
+  "log_bytes": 110242
+}

@@ -1,0 +1,446 @@
+diff --git a/crates/xtask/src/recovery_corpus_native.rs b/crates/xtask/src/recovery_corpus_native.rs
+index db1a11028..0ee5a841c 100644
+--- a/crates/xtask/src/recovery_corpus_native.rs
++++ b/crates/xtask/src/recovery_corpus_native.rs
+@@ -464,20 +464,36 @@ fn validate_data_workspace(workspace: &Path, selection: &Value) -> Result<()> {
+     Ok(())
+ }
+ 
++fn selected_syntax_tree(selection: &Value) -> Result<&str> {
++    let authority = selection.get("successor").unwrap_or(selection);
++    let pin = string(authority, "syntax_tree_hash")?;
++    require(
++        pin.len() == 40 && pin.bytes().all(|byte| byte.is_ascii_hexdigit()),
++        "invalid selected syntax tree pin",
++    )?;
++    Ok(pin)
++}
++
+ fn validate_selection(workspace: &Path, input_workspace: &Path, selection: &Value) -> Result<()> {
+     require(
+         selection["schema"] == 1 && selection["kind"] == "emitter-recovery-corpus-selection",
+         "not a parser corpus selection",
+     )?;
+-    for (field, spec) in [
+-        ("syntax_tree_hash", "HEAD:crates/syntax"),
+-        ("vendor_tree_hash", "HEAD:vendor/typescript-6.0.3"),
+-    ] {
+-        require(
+-            selection[field] == git(workspace, &["rev-parse", spec])?,
+-            format!("{field} differs from census"),
+-        )?;
+-    }
++    require(
++        selected_syntax_tree(selection)? == git(workspace, &["rev-parse", "HEAD:crates/syntax"] )?,
++        "syntax tree differs from selected parser proof",
++    )?;
++    require(
++        selection["vendor_tree_hash"] == git(workspace, &["rev-parse", "HEAD:vendor/typescript-6.0.3"] )?,
++        "vendor tree differs from census",
++    )?;
++    // The captured parser stays an input authority even when a separately
++    // proven successor is the code being qualified.
++    let census_syntax = format!("{}:crates/syntax", string(selection, "head")?);
++    require(
++        selection["syntax_tree_hash"] == git(input_workspace, &["rev-parse", &census_syntax])?,
++        "captured syntax tree differs from census authority",
++    )?;
+     require(
+         selection["digest_code_sha256"] == sha256(include_bytes!("recovery_parse_snapshot.rs")),
+         "parse graph digest code differs from census",
+@@ -628,6 +644,7 @@ pub fn run(mut args: impl Iterator<Item = String>) -> Result<()> {
+     )?;
+     validate_data_workspace(&input_workspace, &selection)?;
+     let result = json!({"schema":1,"kind":"emitter-recovery-native-observations","head":head,
++        "syntax_tree_hash":git(&workspace, &["rev-parse", "HEAD:crates/syntax"] )?,
+         "input_workspace":input_workspace,"library_root":fs::canonicalize(input_workspace.join("vendor/typescript-6.0.3/lib"))?,
+         "census_head":selection["head"],"selection_sha256":sha256(&bytes),
+         "observer_sha256":sha256(include_bytes!("recovery_corpus_native.rs")),
+@@ -652,6 +669,21 @@ pub fn run(mut args: impl Iterator<Item = String>) -> Result<()> {
+ mod tests {
+     use super::*;
+ 
++    #[test]
++    fn successor_syntax_pin_is_required_without_changing_census_authority() {
++        let original = "a".repeat(40);
++        let successor = "b".repeat(40);
++        let mut selection = json!({"syntax_tree_hash":original});
++        assert_eq!(selected_syntax_tree(&selection).unwrap(), original);
++        selection["successor"] = json!({"syntax_tree_hash":successor});
++        assert_eq!(selected_syntax_tree(&selection).unwrap(), successor);
++        assert_eq!(selection["syntax_tree_hash"], original);
++        for invalid in [Value::Null, json!({}), json!({"syntax_tree_hash":"wrong"})] {
++            selection["successor"] = invalid;
++            assert!(selected_syntax_tree(&selection).is_err());
++        }
++    }
++
+     #[test]
+     fn canonical_input_hash_ignores_nested_object_insertion_order() {
+         let first: Value = serde_json::from_str(r#"{"z":[{"y":2,"a":1}],"a":0}"#).unwrap();
+diff --git a/scripts/compare-recovery-selected-corpus.py b/scripts/compare-recovery-selected-corpus.py
+index 09ff4c7fc..23be14fda 100644
+--- a/scripts/compare-recovery-selected-corpus.py
++++ b/scripts/compare-recovery-selected-corpus.py
+@@ -20,6 +20,8 @@ def compare(selection, selection_sha, native, oracle):
+     assert native["library_root"] == oracle["library_root"]
+     assert native["load_failures"] == oracle["load_failures"] == selection["load_failures"]
+     assert native["repetitions"] == oracle["repetitions"] == 2
++    if "successor" in selection:
++        assert native["syntax_tree_hash"] == selection["successor"]["syntax_tree_hash"], "native observations used a different successor parser"
+     indices = []
+     for artifact in [selection, native, oracle]:
+         index = {row["case_id"]: row for row in artifact["cases"]}
+diff --git a/scripts/replay-recovery-parse.py b/scripts/replay-recovery-parse.py
+index c8e6ed611..fceba3bc6 100644
+--- a/scripts/replay-recovery-parse.py
++++ b/scripts/replay-recovery-parse.py
+@@ -2,6 +2,7 @@
+ """Build a pinned standalone parser and replay the census's exact parse inputs."""
+ import argparse
+ import hashlib
++import importlib.util
+ import json
+ import os
+ from pathlib import Path
+@@ -39,7 +40,7 @@ def main():
+     parser.add_argument("--build-dir", type=Path, required=True)
+     parser.add_argument("--label", required=True)
+     parser.add_argument("--with-recovery-profiles", action="store_true")
+-    parser.add_argument("--baseline-kind", choices=["candidate", "projection", "merge-base"], required=True)
++    parser.add_argument("--baseline-kind", choices=["candidate", "projection", "merge-base", "successor"], required=True)
+     args = parser.parse_args()
+     assert not args.out.exists(), f"refusing to overwrite replay evidence: {args.out}"
+     source_tree = Path(__file__).resolve().parents[1]
+@@ -47,6 +48,7 @@ def main():
+     build = args.build_dir.resolve()
+     build.mkdir(parents=True, exist_ok=True)
+     source_hashes = source_identity(tree)
++    successor_proof = {}
+     for relative in ["crates/syntax/src/nodes.rs", "crates/syntax/src/observable_fields.rs", "crates/syntax/src/for_each_child.rs"]:
+         assert (tree / relative).read_bytes() == (source_tree / relative).read_bytes(), f"historical digest schema changed: {relative}"
+     if args.baseline_kind == "projection":
+@@ -63,10 +65,26 @@ def main():
+         assert not args.with_recovery_profiles
+         assert git(tree, "rev-parse", "HEAD").decode().strip() == "3b1f5fe87fd31e3b303bb44bd257342735452ed9"
+         assert not git(tree, "diff", "HEAD", "--", "crates/syntax", "crates/types", "crates/diagnostics")
++    elif args.baseline_kind == "successor":
++        assert args.with_recovery_profiles
++        tracked = ["crates/syntax", "crates/types", "crates/diagnostics", "Cargo.toml", "Cargo.lock", "rust-toolchain.toml"]
++        assert not git(tree, "diff", "HEAD", "--", *tracked), "successor parser sources must be committed"
++        assert not git(tree, "ls-files", "--others", "--exclude-standard", "--", *tracked), "successor parser sources must be tracked"
++        module_spec = importlib.util.spec_from_file_location("recovery_selector", source_tree / "scripts/select-recovery-parse-corpus.py")
++        selector = importlib.util.module_from_spec(module_spec)
++        module_spec.loader.exec_module(selector)
++        reference = source_identity(source_tree)
++        changed = selector.successor_source_changes(reference, source_hashes)
++        assert (tree / "Cargo.lock").read_bytes() == (source_tree / "Cargo.lock").read_bytes()
++        reference_head = git(source_tree, "rev-parse", "HEAD").decode().strip()
++        predicate_diff = git(tree, "diff", reference_head, "HEAD", "--", "crates/syntax/src/recovery.rs")
++        successor_proof = {"reference_source_files_sha256": reference, "changed_source_paths": changed,
++                           "predicate_diff_sha256": sha(predicate_diff)}
+     else:
+         assert args.with_recovery_profiles
+         assert source_hashes == source_identity(source_tree)
+-    probe_paths = [source_tree / "scripts/replay-recovery-parse.rs", source_tree / "crates/xtask/src/recovery_parse_snapshot.rs"]
++    probe_paths = [source_tree / "scripts/replay-recovery-parse.rs", source_tree / "crates/xtask/src/recovery_parse_snapshot.rs",
++                   Path(__file__).resolve(), source_tree / "scripts/select-recovery-parse-corpus.py"]
+     probe_hashes = {str(path): sha(path.read_bytes()) for path in probe_paths}
+     manifest = ['[package]', 'name = "recovery-parse-replay"', 'version = "0.0.0"', 'edition = "2021"', '', '[workspace]', '', '[[bin]]', 'name = "recovery-parse-replay"', f'path = {json.dumps(str(probe_paths[0]))}', '', '[dependencies]', 'base64 = "0.22"', 'serde_json = "1.0"', 'sha2 = "0.10"']
+     for name in ["syntax", "types", "diagnostics"]:
+@@ -98,6 +116,8 @@ def main():
+         "parser_head": git(tree, "rev-parse", "HEAD").decode().strip(),
+         "parser_diff_sha256": sha(git(tree, "diff", "HEAD", "--", "crates/syntax", "crates/types", "crates/diagnostics")),
+         "source_files_sha256": source_hashes,
++        "syntax_tree_hash": git(tree, "rev-parse", "HEAD:crates/syntax").decode().strip(),
++        **successor_proof,
+         "probe_files_sha256": probe_hashes,
+         "binary_sha256": sha(binary.read_bytes()),
+         "manifest_sha256": sha((build / "Cargo.toml").read_bytes()),
+diff --git a/scripts/replay-recovery-parse.rs b/scripts/replay-recovery-parse.rs
+index dab3c800f..9b01d0adc 100644
+--- a/scripts/replay-recovery-parse.rs
++++ b/scripts/replay-recovery-parse.rs
+@@ -18,20 +18,33 @@ fn main() {
+     ));
+     assert_eq!(artifact["digest_code_sha256"], digest_hash);
+     let mut digests = BTreeMap::new();
++    let mut recovery_digests = BTreeMap::new();
+     for (id, input) in artifact["inputs"].as_object().unwrap() {
+         assert_eq!(id, input["input_id"].as_str().unwrap());
+         let source = snapshot::replay(input);
++        recovery_digests.insert(id.clone(), recovery_digest(&source));
+         assert!(digests
+             .insert(id.clone(), json!({"core":snapshot::digest(&source),"profiles":profiles(&source)}))
+             .is_none());
+     }
+     let result = json!({"schema":1,"kind":"emitter-recovery-parse-replay",
+         "input_artifact_sha256":snapshot::sha256(bytes),"digest_code_sha256":digest_hash,
+-        "digests":digests});
++        "digests":digests, "recovery_facts_format":"rust-debug-ParseRecovery-v1",
++        "recovery_facts_sha256":recovery_digests});
+     serde_json::to_writer(std::io::stdout().lock(), &result).unwrap();
+     std::io::stdout().write_all(b"\n").unwrap();
+ }
+ 
++// This independent digest includes committed events, suppressed reports and
++// skip/reparse actions. It leaves the census's parse-graph digest unchanged.
++#[cfg(feature = "current-recovery-profiles")]
++fn recovery_digest(source: &tsc_syntax::SourceFile) -> Value {
++    json!(snapshot::sha256(format!("{:?}", source.parse_recovery())))
++}
++
++#[cfg(not(feature = "current-recovery-profiles"))]
++fn recovery_digest(_source: &tsc_syntax::SourceFile) -> Value { Value::Null }
++
+ #[cfg(feature = "current-recovery-profiles")]
+ fn profiles(source: &tsc_syntax::SourceFile) -> Value {
+     json!({"literal":source.has_only_literal_recovery(),
+diff --git a/scripts/select-recovery-parse-corpus.py b/scripts/select-recovery-parse-corpus.py
+index a733b49bb..d0d164c93 100644
+--- a/scripts/select-recovery-parse-corpus.py
++++ b/scripts/select-recovery-parse-corpus.py
+@@ -6,6 +6,48 @@ import json
+ from pathlib import Path
+ 
+ PROFILES = ["missing-await", "missing-declaration", "parameter-gaps", "statement-gaps", "context-recovery"]
++PROFILE_KEYS = {"literal", "missing_await", "missing_declaration", "parameter_gaps", "statement_gaps", "context_recovery"}
++# The reviewed nested-parenthesis patch changes predicates and their tests.
++# Changes to event production or another parser owner need a separate proof.
++SUCCESSOR_SOURCE_PATHS = {"crates/syntax/src/recovery.rs", "crates/syntax/tests/unit/parser/recovery.rs"}
++
++
++def successor_source_changes(before, after):
++    changed = {path for path in before.keys() | after.keys() if before.get(path) != after.get(path)}
++    assert changed <= SUCCESSOR_SOURCE_PATHS, f"successor source changed outside reviewed predicates: {sorted(changed - SUCCESSOR_SOURCE_PATHS)}"
++    return sorted(changed)
++
++
++def successor_changes(snapshot, snapshot_sha, current, successor):
++    ids = set(snapshot["inputs"])
++    assert successor["schema"] == 1 and successor["kind"] == "emitter-recovery-parse-replay"
++    assert successor["input_artifact_sha256"] == snapshot_sha, "successor snapshot identity differs"
++    assert successor["digest_code_sha256"] == snapshot["digest_code_sha256"]
++    assert set(successor["digests"]) == ids, "successor omitted/added parse inputs"
++    assert successor["build"]["baseline_kind"] == "successor"
++    assert successor["build"]["reference_source_files_sha256"] == current["build"]["source_files_sha256"]
++    changed_sources = successor_source_changes(current["build"]["source_files_sha256"], successor["build"]["source_files_sha256"])
++    assert changed_sources == successor["build"]["changed_source_paths"]
++    assert current["build"]["probe_files_sha256"] == successor["build"]["probe_files_sha256"], "successor recovery digest producer differs"
++    assert current["recovery_facts_format"] == successor["recovery_facts_format"] == "rust-debug-ParseRecovery-v1"
++    for replay in [current, successor]:
++        assert set(replay["recovery_facts_sha256"]) == ids, "recovery facts omitted/added parse inputs"
++        assert all(isinstance(value, str) and len(value) == 64 and all(c in "0123456789abcdef" for c in value)
++                   for value in replay["recovery_facts_sha256"].values()), "invalid recovery facts digest"
++    assert current["recovery_facts_sha256"] == successor["recovery_facts_sha256"], "successor changed committed recovery facts"
++    changed = {}
++    for id in sorted(ids):
++        before, after = current["digests"][id], successor["digests"][id]
++        assert after["core"] == snapshot["digests"][id]["core"], f"successor changed parse core: {id}"
++        for flags in [before["profiles"], after["profiles"]]:
++            assert isinstance(flags, dict) and set(flags) == PROFILE_KEYS and all(type(value) is bool for value in flags.values()), "successor requires all six boolean profiles"
++        for key in PROFILE_KEYS:
++            if key not in {"statement_gaps", "context_recovery"}:
++                assert before["profiles"][key] == after["profiles"][key], f"successor spread to {key}: {id}"
++            assert not before["profiles"][key] or after["profiles"][key], f"successor removed admission: {id}/{key}"
++        if before["profiles"] != after["profiles"]:
++            changed[id] = {"before": before["profiles"], "after": after["profiles"]}
++    return changed
+ 
+ 
+ def load(path):
+@@ -22,7 +64,7 @@ def validate_input_numbers(value):
+         assert isinstance(value, int) and abs(value) <= 9007199254740991, "command input numbers must be safe integers"
+ 
+ 
+-def select(snapshot, snapshot_sha, current, baselines, reports):
++def select(snapshot, snapshot_sha, current, baselines, reports, successor=None):
+     assert snapshot["schema"] == 1 and snapshot["kind"] == "emitter-recovery-parse-snapshot"
+     ids = set(snapshot["inputs"])
+     assert ids == set(snapshot["digests"])
+@@ -71,6 +113,14 @@ def select(snapshot, snapshot_sha, current, baselines, reports):
+                 assert id in rows and row["universe"] == rows[id]["universe"]
+                 assert row["loader"] == rows[id]["loader"]
+                 reasons[id].append({"profile": name, "verdict": verdict})
++    if successor is not None:
++        changes = successor_changes(snapshot, snapshot_sha, current, successor)
++        for id, row in rows.items():
++            for unit in row["units"]:
++                input_id = unit["input_id"]
++                if input_id in changes:
++                    reasons[id].append({"successor": successor["build"]["parser_head"],
++                        "input_id": input_id, "path": unit["path"], "role": unit["role"], **changes[input_id]})
+     cases = []
+     documents = {}
+ 
+@@ -96,7 +146,7 @@ def select(snapshot, snapshot_sha, current, baselines, reports):
+         validate_input_numbers(row["command_input"])
+         collect_documents(row["command_input"])
+         cases.append({**row, "reasons": reasons[id]})
+-    return {"schema": 1, "kind": "emitter-recovery-corpus-selection", "head": snapshot["head"],
++    result = {"schema": 1, "kind": "emitter-recovery-corpus-selection", "head": snapshot["head"],
+             "snapshot_sha256": snapshot_sha, "digest_code_sha256": snapshot["digest_code_sha256"],
+             "syntax_tree_hash": snapshot["syntax_tree_hash"], "vendor_tree_hash": snapshot["vendor_tree_hash"],
+             "plan_manifest_sha256": snapshot["plan_manifest_sha256"],
+@@ -108,12 +158,18 @@ def select(snapshot, snapshot_sha, current, baselines, reports):
+             # qualification until each failed load has a separate disposition.
+             "load_failures": snapshot["load_failures"], "changed_inputs": changed_inputs,
+             "documents": documents, "cases": cases}
++    if successor is not None:
++        result["summary"]["successor_changed_inputs"] = len(changes)
++        result["successor"] = {key: successor["build"][key] for key in
++            ["parser_head", "syntax_tree_hash", "source_files_sha256", "binary_sha256", "predicate_diff_sha256"]}
++    return result
+ 
+ 
+ def main():
+     p = argparse.ArgumentParser(description=__doc__)
+     for name in ["snapshot", "current", "projection", "merge-base", "profiles-dir", "out"]:
+         p.add_argument("--" + name, type=Path, required=True)
++    p.add_argument("--successor", type=Path)
+     args = p.parse_args()
+     snapshot, snapshot_sha = load(args.snapshot)
+     current, current_sha = load(args.current)
+@@ -122,10 +178,13 @@ def main():
+     reports, hashes = {}, {}
+     for name in PROFILES:
+         reports[name], hashes[name] = load(args.profiles_dir / (name + ".json"))
+-    result = select(snapshot, snapshot_sha, current, {"projection": projection, "merge-base": merge}, reports)
++    successor, successor_sha = load(args.successor) if args.successor else (None, None)
++    result = select(snapshot, snapshot_sha, current, {"projection": projection, "merge-base": merge}, reports, successor)
+     result["evidence"] = {"current_sha256": current_sha, "projection_sha256": projection_sha,
+                           "merge_base_sha256": merge_sha, "profiles_sha256": hashes,
+                           "selector_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
++    if successor is not None:
++        result["evidence"]["successor_sha256"] = successor_sha
+     args.out.parent.mkdir(parents=True, exist_ok=True)
+     with args.out.open("x") as file:
+         json.dump(result, file, ensure_ascii=False, separators=(",", ":"))
+diff --git a/scripts/test-compare-recovery-selected-corpus.py b/scripts/test-compare-recovery-selected-corpus.py
+index 9be804fa9..6f636cdf1 100644
+--- a/scripts/test-compare-recovery-selected-corpus.py
++++ b/scripts/test-compare-recovery-selected-corpus.py
+@@ -69,6 +69,15 @@ class ComparisonTests(unittest.TestCase):
+         values[1]["cases"][0]["input_sha256"] = "other"
+         with self.assertRaises(AssertionError): self.compare(values)
+ 
++    def test_successor_comparison_requires_observations_from_its_parser_tree(self):
++        selection, native, oracle = self.inputs()
++        selection["successor"] = {"syntax_tree_hash": "final-syntax"}
++        native["syntax_tree_hash"] = "census-syntax"
++        with self.assertRaisesRegex(AssertionError, "different successor parser"):
++            self.compare((selection, native, oracle))
++        native["syntax_tree_hash"] = "final-syntax"
++        self.assertEqual(self.compare((selection, native, oracle)), "complete-command-exact")
++
+ 
+ if __name__ == "__main__":
+     unittest.main()
+diff --git a/scripts/test-select-recovery-parse-corpus.py b/scripts/test-select-recovery-parse-corpus.py
+index 417a2be03..8632871ee 100644
+--- a/scripts/test-select-recovery-parse-corpus.py
++++ b/scripts/test-select-recovery-parse-corpus.py
+@@ -2,6 +2,8 @@
+ """Guard against silently dropping changed commands from recovery qualification."""
+ import copy
+ import importlib.util
++import json
++import hashlib
+ from pathlib import Path
+ import unittest
+ 
+@@ -104,6 +106,94 @@ class SelectionTests(unittest.TestCase):
+         with self.assertRaisesRegex(AssertionError, "no exact loader input"):
+             self.select()
+ 
++    def test_without_successor_preserves_the_original_selection_bytes(self):
++        rendered = json.dumps(self.select(), ensure_ascii=False, separators=(",", ":")).encode()
++        self.assertEqual(hashlib.sha256(rendered).hexdigest(),
++                         "82a4c1e3d3d30bf198cd2dccdb1ff56d6af8cdd80fd12bd31dd402ca0d018089")
++
++    def successor(self):
++        for replay in [self.snapshot, self.current, *self.baselines.values()]:
++            for digest in replay["digests"].values():
++                digest["profiles"] = {key: key == "literal" for key in selector.PROFILE_KEYS}
++        self.current["build"].update(source_files_sha256={"Cargo.lock": "a" * 64,
++            "crates/syntax/src/parser.rs": "a" * 64, "crates/syntax/src/recovery.rs": "a" * 64},
++            probe_files_sha256={"probe.rs": "a" * 64})
++        self.current["recovery_facts_format"] = "rust-debug-ParseRecovery-v1"
++        self.current["recovery_facts_sha256"] = {id: "a" * 64 for id in self.snapshot["inputs"]}
++        successor = copy.deepcopy(self.current)
++        successor["build"].update(baseline_kind="successor", parser_head="b" * 40,
++            syntax_tree_hash="c" * 40, binary_sha256="d" * 64, predicate_diff_sha256="e" * 64,
++            reference_source_files_sha256=copy.deepcopy(self.current["build"]["source_files_sha256"]),
++            changed_source_paths=["crates/syntax/src/recovery.rs"])
++        successor["build"]["source_files_sha256"]["crates/syntax/src/recovery.rs"] = "f" * 64
++        return successor
++
++    def select_successor(self, successor):
++        return selector.select(self.snapshot, "snapshot", self.current, self.baselines, self.reports, successor)
++
++    def test_successor_module_profile_change_adds_rows_without_reclassifying_them(self):
++        successor = self.successor()
++        successor["digests"]["module"]["profiles"]["statement_gaps"] = True
++        successor["digests"]["module"]["profiles"]["context_recovery"] = True
++        result = self.select_successor(successor)
++        self.assertEqual(result["head"], self.snapshot["head"])
++        self.assertEqual(result["syntax_tree_hash"], self.snapshot["syntax_tree_hash"])
++        self.assertEqual(result["successor"]["syntax_tree_hash"], "c" * 40)
++        self.assertEqual(result["summary"]["successor_changed_inputs"], 1)
++        self.assertEqual(result["cases"][0]["reasons"][0]["role"], "module-request-parse")
++        self.assertFalse(result["cases"][0]["reasons"][0]["before"]["context_recovery"])
++        self.assertTrue(result["cases"][0]["reasons"][0]["after"]["context_recovery"])
++        self.assertNotIn("verdict", result["cases"][0]["reasons"][0])
++        self.assertEqual(result["load_failures"], self.snapshot["load_failures"])
++        self.baselines["merge-base"]["digests"]["emit"]["core"] = "old"
++        self.assertEqual(len(self.select_successor(successor)["cases"][0]["reasons"]), 2)
++
++    def test_successor_cannot_omit_inputs_drift_core_or_change_recovery_facts(self):
++        original = self.successor()
++        mutations = [
++            lambda s: s["digests"]["emit"].update(core="changed"),
++            lambda s: s["digests"].pop("emit"),
++            lambda s: s["digests"].update(extra=s["digests"]["emit"]),
++            lambda s: s.update(input_artifact_sha256="other"),
++            lambda s: s["recovery_facts_sha256"].update(emit="b" * 64),
++            lambda s: s["recovery_facts_sha256"].pop("emit"),
++        ]
++        for mutate in mutations:
++            successor = copy.deepcopy(original)
++            mutate(successor)
++            with self.assertRaises(AssertionError): self.select_successor(successor)
++        self.current["digests"]["emit"]["core"] = "changed"
++        with self.assertRaisesRegex(AssertionError, "differs from actual census"):
++            self.select_successor(original)
++
++    def test_successor_requires_all_boolean_profiles_and_only_monotonic_statement_changes(self):
++        original = self.successor()
++        for key, value in [("literal", False), ("parameter_gaps", True), ("missing_await", True),
++                           ("statement_gaps", None), ("context_recovery", 1), ("extra", True)]:
++            successor = copy.deepcopy(original)
++            successor["digests"]["emit"]["profiles"][key] = value
++            with self.assertRaises(AssertionError): self.select_successor(successor)
++        successor = copy.deepcopy(original)
++        del successor["digests"]["emit"]["profiles"]["context_recovery"]
++        with self.assertRaises(AssertionError): self.select_successor(successor)
++        self.snapshot["digests"]["emit"]["profiles"]["context_recovery"] = True
++        self.current["digests"]["emit"]["profiles"]["context_recovery"] = True
++        with self.assertRaisesRegex(AssertionError, "removed admission"):
++            self.select_successor(original)
++
++    def test_successor_source_changes_are_limited_to_the_reviewed_predicate_and_test(self):
++        original = self.successor()
++        for path in ["Cargo.lock", "rust-toolchain.toml", "crates/syntax/src/parser.rs",
++                     "crates/syntax/src/recovery/context.rs", "crates/types/src/lib.rs"]:
++            successor = copy.deepcopy(original)
++            successor["build"]["source_files_sha256"][path] = "9" * 64
++            with self.assertRaisesRegex(AssertionError, "outside reviewed predicates"):
++                self.select_successor(successor)
++        successor = copy.deepcopy(original)
++        successor["build"]["probe_files_sha256"]["probe.rs"] = "other"
++        with self.assertRaisesRegex(AssertionError, "digest producer differs"):
++            self.select_successor(successor)
++
+ 
+ if __name__ == "__main__":
+     unittest.main()

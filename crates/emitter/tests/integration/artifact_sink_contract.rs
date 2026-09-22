@@ -31,12 +31,12 @@ impl EmitFileSystem for ObservedFileSystem {
         bytes: &[u8],
     ) -> Result<(), tsc_diagnostics::JsString> {
         let path = std::path::Path::new(path.as_str().expect("scalar fault-injection path"));
-        (|| -> Result<(), String> {
-            self.calls
-                .push(FileSystemCall::Write(path.to_path_buf(), bytes.to_vec()));
-            self.write_results.pop_front().unwrap_or(Ok(()))
-        })()
-        .map_err(Into::into)
+        self.calls
+            .push(FileSystemCall::Write(path.to_path_buf(), bytes.to_vec()));
+        self.write_results
+            .pop_front()
+            .unwrap_or(Ok(()))
+            .map_err(Into::into)
     }
 
     fn create_directory(
@@ -328,6 +328,4 @@ fn filesystem_sink_reports_only_the_final_retry_failure() {
     assert_eq!(error.message(), "stable retry failure");
 }
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use crate::utf16_scalar_path::ScalarTestPath as _;

@@ -1,0 +1,70 @@
+{
+  "head": "4dfc0fb4d3b3ca2364957c85d9ad84bd0a677dc2",
+  "remote_previous_head": "71b1ae19bb15c373831d7d7c5ac824152d77f93a",
+  "new_object_count": 4883,
+  "new_blob_count": 2634,
+  "blob_bytes_total": 292916686,
+  "above100MiB": [],
+  "largest": [
+    {
+      "object": "655009416d074c80cb52ae589886ebebd55fde37",
+      "bytes": 43582074,
+      "path": "docs/design/greenfield/slices/emitter-final-batch/integration/records/census-r78-complete/parse-snapshot.json.gz"
+    },
+    {
+      "object": "54ccc41e6a499fdac87f7bbfa1d8bb6759d7b0a5",
+      "bytes": 7940149,
+      "path": "docs/design/greenfield/slices/emitter-final-batch/integration/records/corpus-controls-r184-r190-complete/emitter-keyword-successor-r185/successor.json.gz"
+    },
+    {
+      "object": "5e2bc5cc162c3fc7e35fa9c0e14c2c04d080b185",
+      "bytes": 7301431,
+      "path": "docs/design/greenfield/slices/emitter-final-batch/integration/records/corpus-controls-r176-r178-complete/emitter-keyword-successor-r177/successor.json.gz"
+    },
+    {
+      "object": "ce59c453c551ddfc2accad13ad542e09b822d66c",
+      "bytes": 5890402,
+      "path": "crates/compiler/tests/fixtures/system-binding-publication.json"
+    },
+    {
+      "object": "6a142df3ebe33544f461d54eea094aa18cabd419",
+      "bytes": 5885813,
+      "path": "crates/compiler/tests/fixtures/emitter-r168-corpus-controls.json"
+    },
+    {
+      "object": "b1fc40f1dac30a2d7eb5fab5dbb284000efb359f",
+      "bytes": 5463625,
+      "path": "docs/design/greenfield/slices/emitter-final-batch/integration/records/parser-replays-r131-complete/successor.json.gz"
+    },
+    {
+      "object": "571d2caa3bb77e9e1e520077e6dfee5c9cf4fe10",
+      "bytes": 5463537,
+      "path": "docs/design/greenfield/slices/emitter-final-batch/integration/records/parser-replays-r131-complete/projection.json.gz"
+    },
+    {
+      "object": "5e1c00f890a0c10d4a7c0ab4a43660b79886d56f",
+      "bytes": 5463273,
+      "path": "docs/design/greenfield/slices/emitter-final-batch/integration/records/parser-replays-r131-complete/current.json.gz"
+    },
+    {
+      "object": "5bf11381e982828a00242f6d44197dc2cad6b41e",
+      "bytes": 5375990,
+      "path": "docs/design/greenfield/slices/emitter-final-batch/integration/records/parser-replays-r131-complete/merge-base.json.gz"
+    },
+    {
+      "object": "bba9e8aea7c292365dd77c3867458e37d1b2d1dc",
+      "bytes": 5327758,
+      "path": "docs/design/greenfield/slices/emitter-final-batch/integration/records/variable-native-r150-r152-complete/r151-successor.json.gz"
+    },
+    {
+      "object": "714046bd8f9e342238b8c5f42c4ae6aaaf6aa85e",
+      "bytes": 5211926,
+      "path": "crates/compiler/tests/fixtures/emitter-recovery-boundaries.json"
+    },
+    {
+      "object": "65252d07cc6b2758e5ba7888555291465004f8a4",
+      "bytes": 4505508,
+      "path": "crates/compiler/tests/fixtures/system-binding-publication.json"
+    }
+  ]
+}

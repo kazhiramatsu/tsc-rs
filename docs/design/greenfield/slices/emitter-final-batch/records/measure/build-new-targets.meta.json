@@ -1,0 +1,13 @@
+{
+  "name": "build-new-targets",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 7,
+  "env": [],
+  "argv": "cargo test -p tsc-rs-compiler --test emitter_final_batch --test emitter_final_rows --no-run",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T07:09:05Z",
+  "seconds": 5,
+  "exit": 0,
+  "log_sha256": "94c53d68ab4579bdc12e9b14264aa55ce5b8c6458fce049cb2f3ac23d7506711",
+  "log_bytes": 353
+}

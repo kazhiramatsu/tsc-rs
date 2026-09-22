@@ -503,6 +503,4 @@ fn json_module_import_prefers_program_source_over_package_host_input() {
     }
 }
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use crate::utf16_scalar_path::ScalarTestPath as _;

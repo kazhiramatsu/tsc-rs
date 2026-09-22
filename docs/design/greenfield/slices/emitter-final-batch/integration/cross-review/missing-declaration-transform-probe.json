@@ -1,0 +1,68 @@
+{
+  "typescript": "6.0.3",
+  "repetitions": 2,
+  "purpose": "after-transform structural observation; not native emit compatibility",
+  "source": "declare let g: <T>(...args: any[]) => any;\n{ @g<number> class C {} }\n{ @g()<number> class C {} }\n",
+  "results": [
+    {
+      "experimentalDecorators": false,
+      "nodes": [
+        {
+          "kind": "MissingDeclaration",
+          "pos": 44,
+          "end": 47,
+          "transformFlags": 0,
+          "modifiers": [
+            {
+              "kind": "Decorator",
+              "expression": "Identifier"
+            }
+          ]
+        },
+        {
+          "kind": "MissingDeclaration",
+          "pos": 70,
+          "end": 75,
+          "transformFlags": 0,
+          "modifiers": [
+            {
+              "kind": "Decorator",
+              "expression": "CallExpression"
+            }
+          ]
+        }
+      ],
+      "output": "\"use strict\";\n{\n    class C {\n    };\n}\n{\n    class C {\n    };\n}\n"
+    },
+    {
+      "experimentalDecorators": true,
+      "nodes": [
+        {
+          "kind": "MissingDeclaration",
+          "pos": 44,
+          "end": 47,
+          "transformFlags": 0,
+          "modifiers": [
+            {
+              "kind": "Decorator",
+              "expression": "Identifier"
+            }
+          ]
+        },
+        {
+          "kind": "MissingDeclaration",
+          "pos": 70,
+          "end": 75,
+          "transformFlags": 0,
+          "modifiers": [
+            {
+              "kind": "Decorator",
+              "expression": "CallExpression"
+            }
+          ]
+        }
+      ],
+      "output": "\"use strict\";\n{\n    class C {\n    };\n}\n{\n    class C {\n    };\n}\n"
+    }
+  ]
+}

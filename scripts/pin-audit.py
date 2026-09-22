@@ -12,6 +12,8 @@ Rules per audited file:
     for that path under origin/historical (era-frozen predecessor records).
   - --fix rewrites stale pins (embedded value when the owning artifact
     records one for that path, else the disk hash).
+  - FROZEN files hold immutable source observations. Their explicit pair
+    count and disk hashes are checked, and --fix never rewrites them.
 
 A discovery guard refuses (exit 2) when a new Rust file starts holding
 ratchet-path + 64-hex literals without being classified below.
@@ -41,6 +43,22 @@ AUDITED = [
     "crates/harness/tests/integration/h1_fourslash_whole_program_equivalence.rs",
     "crates/harness/tests/integration/transpile_suite_inventory.rs",
 ]
+# D/E pins require owner review after a re-mint, never automatic --fix.
+# The count also rejects a changed spelling that the adjacent-pair reader
+# would otherwise silently miss. Other hashes in these files are enforced by
+# their runtime library/case-identity assertions, not treated as artifact pins.
+FROZEN = {
+    "crates/xtask/src/h2_6c_refusal_migrations.rs": 3,
+    "crates/xtask/src/h2_6c_de_promotions.rs": 3,
+    "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs": 3,
+    "crates/compiler/tests/integration/h2_7e_original_corpus_shared.rs": 3,
+    "crates/compiler/tests/h2_7e_declaration_maps.rs": 2,
+    "crates/compiler/tests/h2_7e_original_corpus.rs": 2,
+    "crates/xtask/src/h2_7de_acceptance.rs": 3,
+    "crates/xtask/tests/unit/h2_2c_acceptance/de_legacy_collector.rs": 3,
+}
+# The collector also verifies env-selected historical files and a qualification
+# path constant defined in another module. These remain runtime-enforced.
 # Reference ratchet paths + hex but hold no current-tracking artifact pins:
 # host_resolution's hex is prose; h2_1a_acceptance's hexes are corpus case
 # fingerprints (content-stable, not artifact hashes).
@@ -55,12 +73,15 @@ EXEMPT = [
 ]
 
 PAIR = re.compile(r'"((?:ratchets|vendor|goldens|crates/oracle|\.github)/[^"\n]+)",\s*\n?\s*"([0-9a-f]{64})"')
+JOIN_PAIR = re.compile(r'\.join\("((?:ratchets|vendor|goldens|crates/oracle|\.github)/[^"\n]+)"\)\s*,\s*"([0-9a-f]{64})"')
+PATH_CONSTANT = re.compile(r'const\s+([A-Z][A-Z0-9_]*):\s*&str\s*=\s*"((?:ratchets|vendor|goldens|crates/oracle|\.github)/[^"\n]+)"\s*;')
 INCLUDE = re.compile(r'"/\.\./\.\./(ratchets/[^"\n]+)"')
 RECORDED = re.compile(r'sha256\(RECORDED\),\s*\n?\s*"([0-9a-f]{64})"')
 
 def sha256_file(path):
     try:
-        return hashlib.sha256(open(path, "rb").read()).hexdigest()
+        with open(path, "rb") as source:
+            return hashlib.sha256(source.read()).hexdigest()
     except OSError:
         return None
 
@@ -88,7 +109,7 @@ def discovery():
     out = subprocess.run(["grep", "-rl", '"ratchets/', "crates/"], capture_output=True, text=True)
     unclassified = []
     for f in out.stdout.split():
-        if not f.endswith(".rs") or f in AUDITED or f in EXEMPT:
+        if not f.endswith(".rs") or f in AUDITED or f in FROZEN or f in EXEMPT:
             continue
         if re.search(r'"[0-9a-f]{64}"', open(f, encoding="utf-8", errors="replace").read()):
             unclassified.append(f)
@@ -121,12 +142,43 @@ def audit_file(path):
         open(path, "w").write(body)
     return stale
 
+def audit_frozen_file(path, expected_pairs):
+    with open(path) as source:
+        body = source.read()
+    pairs = PAIR.findall(body) + JOIN_PAIR.findall(body)
+    for name, target in PATH_CONSTANT.findall(body):
+        pattern = r'\(\s*' + re.escape(name) + r'\s*,\s*"([0-9a-f]{64})"\s*,?\s*\)'
+        pairs.extend((target, digest) for digest in re.findall(pattern, body))
+    if len(pairs) != expected_pairs:
+        raise ValueError(f"{path}: expected {expected_pairs} frozen path/hash pairs, found {len(pairs)}")
+    failures = []
+    for target, pinned in pairs:
+        disk = sha256_file(target)
+        if disk != pinned:
+            failures.append(f"{path}: {target} pinned {pinned[:12]}.. current {(disk or 'MISSING')[:12]}..")
+    return failures
+
 def main():
     unclassified = discovery()
     if unclassified:
         for f in unclassified:
             print(f"UNCLASSIFIED PIN FILE: {f} — read it and add to AUDITED or EXEMPT in scripts/pin-audit.py")
         return 2
+    frozen_failures, structural_failures = [], []
+    for path, count in FROZEN.items():
+        try:
+            frozen_failures.extend(audit_frozen_file(path, count))
+        except (OSError, ValueError) as error:
+            structural_failures.append(str(error))
+    if structural_failures:
+        for problem in structural_failures:
+            print(f"FROZEN PIN COVERAGE: {problem}")
+    if frozen_failures:
+        for problem in frozen_failures:
+            print(f"FROZEN PIN CHANGED: {problem}")
+    if frozen_failures or structural_failures:
+        print("pin audit: review the owning rung; --fix never rewrites frozen pins")
+        return 2 if structural_failures else 1
     any_stale = False
     for f in AUDITED:
         for target, old, new in audit_file(f):
@@ -137,7 +189,8 @@ def main():
         print("pin audit: fixed; rerun to verify, then run the harness integration tests" if FIX
               else "pin audit: STALE (scripts/pin-audit.py --fix, then the harness integration tests)")
         return 1
-    print(f"pin audit: clean ({len(AUDITED)} audited files)")
+    print(f"pin audit: clean ({len(AUDITED)} current-tracking files, {len(FROZEN)} frozen files)")
     return 0
 
-sys.exit(main())
+if __name__ == "__main__":
+    sys.exit(main())

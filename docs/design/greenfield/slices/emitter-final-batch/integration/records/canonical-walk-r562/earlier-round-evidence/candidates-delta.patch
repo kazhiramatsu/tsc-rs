@@ -1,0 +1,13 @@
+diff --git a/ratchets/h2-8a-candidates.v1.json b/ratchets/h2-8a-candidates.v1.json
+index f5be94713..d0356fdc4 100644
+--- a/ratchets/h2-8a-candidates.v1.json
++++ b/ratchets/h2-8a-candidates.v1.json
+@@ -23,7 +23,7 @@
+     },
+     {
+       "path": "ratchets/h2-7c-qualification.v1.json",
+-      "sha256": "5483709bad753f74b04bda1e00d5dad2791458b5822a8fccd6eadef4d726893b"
++      "sha256": "906b5d7af52f91118a0ac029c52277986d687305609ddf1dafe16b2920815d38"
+     },
+     {
+       "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",

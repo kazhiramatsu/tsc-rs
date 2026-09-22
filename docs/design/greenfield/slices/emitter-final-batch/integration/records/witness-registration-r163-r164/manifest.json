@@ -1,0 +1,26 @@
+{
+  "r163": "84 tests,2 failures at frozen variable candidate640146c2a; original noEmit helper registration narrowed shared selection; counts stale",
+  "r164": "84 tests pass on Root with shared helper full-selection repair and noEmit count1125; after variable integration system count must change3704->4357 and rerun",
+  "files": [
+    {
+      "path": "witness-registration-r163.json",
+      "sha256": "37c833a6b06ce90945b3b7c226eb1127cf54f7a306973b26ef0282cff3479bfe",
+      "bytes": 681
+    },
+    {
+      "path": "witness-registration-r163.log.gz",
+      "sha256": "d0cd9a3a260def6f714ddbaaab0d9dc4bbe71fe33a387406e2ac40555caddea3",
+      "bytes": 19272
+    },
+    {
+      "path": "witness-registration-r164.json",
+      "sha256": "d1f24dca1ceaec50f81a66b4ab08047b2db02655df036f601a56607bcbd7210b",
+      "bytes": 672
+    },
+    {
+      "path": "witness-registration-r164.log.gz",
+      "sha256": "3de3ba9ec0164fa0afd12e2753a01936001e5644f096a84440f080e3a4424c35",
+      "bytes": 18567
+    }
+  ]
+}

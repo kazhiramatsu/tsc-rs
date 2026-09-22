@@ -5,6 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use sha2::{Digest, Sha256};
 use toml_edit::{DocumentMut, Item, TableLike};
 use yaml_rust2::{Yaml, YamlLoader};
 
@@ -16,6 +17,177 @@ const PACKAGE_SHORT_FLAG: &str = concat!("-", "p");
 const PACKAGE_LONG_FLAG: &str = concat!("--", "package");
 const BINARY_LONG_FLAG: &str = concat!("--", "bin");
 const EXCLUDE_LONG_FLAG: &str = concat!("--", "exclude");
+const FROZEN_TEST_SOURCE: &str = "crates/xtask/src/recovery_parse_snapshot.rs";
+const FROZEN_TEST_LAYOUT: &str = include_str!("../../../scripts/frozen-test-layout.json");
+const WORKSPACE_TEST_TARGETS: &str = include_str!("../../../scripts/workspace-test-targets.json");
+
+fn audit_integration_test_targets(
+    catalog: &WorkspaceCatalog,
+    descriptor: &str,
+) -> Result<(), Box<dyn Error>> {
+    let descriptor: serde_json::Value = serde_json::from_str(descriptor)?;
+    if descriptor["schema"] != 1 {
+        return Err("unsupported workspace test-target roster schema".into());
+    }
+    let mut registered = BTreeMap::new();
+    let mut total = 0;
+    for entry in descriptor["crates"]
+        .as_array()
+        .ok_or("missing test-target crate roster")?
+    {
+        let directory = entry["directory"]
+            .as_str()
+            .ok_or("missing test-target crate directory")?;
+        let parts = directory.split('/').collect::<Vec<_>>();
+        if parts.len() != 2
+            || parts[0] != "crates"
+            || parts[1].is_empty()
+            || !parts[1]
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-'))
+        {
+            return Err(format!("invalid test-target crate directory: {directory}").into());
+        }
+        let mut names = BTreeSet::new();
+        for name in entry["targets"]
+            .as_array()
+            .ok_or("missing test-target names")?
+        {
+            let name = name.as_str().ok_or("non-string test-target name")?;
+            let stem = name
+                .strip_suffix(".rs")
+                .ok_or("test target must name a Rust file")?;
+            if stem.is_empty()
+                || !stem
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-'))
+            {
+                return Err(format!("invalid direct test-target name: {name}").into());
+            }
+            if !names.insert(name.to_owned()) {
+                return Err(format!("duplicate test-target name: {directory}/{name}").into());
+            }
+        }
+        if entry["count"].as_u64() != Some(names.len() as u64) {
+            return Err(format!("test-target roster count changed: {directory}").into());
+        }
+        if names.len() <= 2 {
+            return Err(format!("retire test-target roster entry for {directory}: at most two targets need no entry").into());
+        }
+        total += names.len();
+        if registered.insert(directory.to_owned(), names).is_some() {
+            return Err(format!("duplicate test-target crate directory: {directory}").into());
+        }
+    }
+    if descriptor["declared_target_count"].as_u64() != Some(total as u64) {
+        return Err("workspace test-target roster total changed".into());
+    }
+    for package in catalog.packages() {
+        let root = package
+            .manifest_path()
+            .parent()
+            .ok_or("crate manifest has no parent")?;
+        let directory = root
+            .strip_prefix(catalog.workspace_root())?
+            .to_string_lossy()
+            .replace('\\', "/");
+        let tests = root.join("tests");
+        if !tests.is_dir() {
+            return Err(format!(
+                "workspace crate `{}` must own a tests/ directory",
+                package.package_name()
+            )
+            .into());
+        }
+        let mut actual = BTreeSet::new();
+        for entry in fs::read_dir(&tests)? {
+            let path = entry?.path();
+            if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("rs") {
+                actual.insert(
+                    path.file_name()
+                        .and_then(|s| s.to_str())
+                        .ok_or("non-UTF8 test-target filename")?
+                        .to_owned(),
+                );
+            }
+        }
+        if let Some(expected) = registered.remove(&directory) {
+            if actual.len() <= 2 {
+                return Err(format!("retire test-target roster entry for {directory}: at most two direct targets remain").into());
+            }
+            if actual != expected {
+                return Err(format!(
+                    "test-target roster differs for {directory}: missing {:?}, unregistered {:?}",
+                    expected.difference(&actual).collect::<Vec<_>>(),
+                    actual.difference(&expected).collect::<Vec<_>>()
+                )
+                .into());
+            }
+        } else if actual.len() > 2 {
+            return Err(format!("workspace crate `{}` has {} unregistered direct integration targets; retain at most two or declare and review its exact per-band roster in scripts/workspace-test-targets.json", package.package_name(), actual.len()).into());
+        }
+    }
+    if !registered.is_empty() {
+        return Err(format!(
+            "test-target roster names crates outside the workspace: {:?}",
+            registered.keys().collect::<Vec<_>>()
+        )
+        .into());
+    }
+    Ok(())
+}
+
+fn frozen_inline_module_allowed(
+    relative: &str,
+    bytes: &[u8],
+    violations: &[TestModuleLayoutViolation],
+    coupling: &str,
+) -> Result<bool, Box<dyn Error>> {
+    if relative != FROZEN_TEST_SOURCE {
+        return Ok(false);
+    }
+    // The original census freezes the whole producer, including this test.
+    // The shared descriptor bounds the exception; retire both guards with a
+    // reviewed observer/census migration, without rewriting the old census.
+    let contract: serde_json::Value = serde_json::from_str(FROZEN_TEST_LAYOUT)?;
+    if contract["schema"] != 1
+        || contract["source"] != FROZEN_TEST_SOURCE
+        || contract["module"] != "tests"
+        || contract["inline_modules"] != 1
+    {
+        return Err("frozen test layout descriptor scope changed".into());
+    }
+    if violations.is_empty() {
+        return Err("frozen layout exception no longer needed; retire it".into());
+    }
+    if contract["sha256"] != format!("{:x}", Sha256::digest(bytes))
+        || contract["bytes"].as_u64() != Some(bytes.len() as u64)
+    {
+        return Err("frozen census producer changed; migrate its identity and retire the layout exception together".into());
+    }
+    let line = contract["cfg_line"]
+        .as_u64()
+        .ok_or("frozen cfg line missing")? as usize;
+    if violations
+        != [TestModuleLayoutViolation {
+            line,
+            kind: TestModuleLayoutViolationKind::InlineBody,
+        }]
+    {
+        return Err("frozen layout exception covers exactly one existing inline module".into());
+    }
+    // cfg_line is one-based; zero-based nth(line) selects its following module declaration.
+    if std::str::from_utf8(bytes)?.lines().nth(line).map(str::trim) != Some("mod tests {") {
+        return Err("frozen layout module identity changed".into());
+    }
+    let expression = contract["coupling_expression"]
+        .as_str()
+        .ok_or("frozen coupling missing")?;
+    if !coupling.contains(expression) {
+        return Err("frozen census coupling removed; retire its layout exception".into());
+    }
+    Ok(true)
+}
 
 #[derive(Debug, PartialEq, Eq)]
 enum AutomationYamlError {
@@ -106,6 +278,7 @@ pub(crate) fn audit(workspace: &Path) -> Result<(), Box<dyn Error>> {
     audit_xtask_bootstrap_alias(workspace, &catalog)?;
     audit_automation_package_selectors(workspace)?;
     audit_xtask_cargo_selectors(workspace)?;
+    audit_integration_test_targets(&catalog, WORKSPACE_TEST_TARGETS)?;
     audit_unit_test_layout(&catalog)?;
 
     println!(
@@ -118,6 +291,22 @@ pub(crate) fn audit(workspace: &Path) -> Result<(), Box<dyn Error>> {
 
 fn audit_unit_test_layout(catalog: &WorkspaceCatalog) -> Result<(), Box<dyn Error>> {
     let mut violations = Vec::new();
+    let workspace = catalog.workspace_root();
+    if !workspace.join(FROZEN_TEST_SOURCE).is_file() {
+        return Err(
+            "frozen layout exception names a missing source; retire it with the census migration"
+                .into(),
+        );
+    }
+    let contract: serde_json::Value = serde_json::from_str(FROZEN_TEST_LAYOUT)?;
+    let coupling = fs::read_to_string(
+        workspace.join(
+            contract["coupling_source"]
+                .as_str()
+                .ok_or("frozen coupling source missing")?,
+        ),
+    )?;
+    let mut frozen_seen = false;
     for package in catalog.packages() {
         let crate_root = package.manifest_path().parent().ok_or_else(|| {
             format!(
@@ -133,24 +322,6 @@ fn audit_unit_test_layout(catalog: &WorkspaceCatalog) -> Result<(), Box<dyn Erro
             )
             .into());
         }
-        let integration_targets = fs::read_dir(&tests)?
-            .map(|entry| entry.map(|entry| entry.path()))
-            .collect::<Result<Vec<_>, _>>()?
-            .into_iter()
-            .filter(|path| {
-                path.is_file()
-                    && path.extension().and_then(|extension| extension.to_str()) == Some("rs")
-            })
-            .collect::<Vec<_>>();
-        if integration_targets.len() > 2 {
-            return Err(format!(
-                "workspace crate `{}` has {} direct integration targets; consolidate broad contracts behind one tests/*.rs module tree and keep at most one focused hosted-canary target",
-                package.package_name(),
-                integration_targets.len()
-            )
-            .into());
-        }
-
         let mut source_paths = Vec::new();
         let mut pending = VecDeque::from([crate_root.join("src")]);
         while let Some(directory) = pending.pop_front() {
@@ -169,8 +340,24 @@ fn audit_unit_test_layout(catalog: &WorkspaceCatalog) -> Result<(), Box<dyn Erro
         source_paths.sort();
 
         for path in source_paths {
-            let text = fs::read_to_string(&path)?;
-            let mut file_violations = test_module_layout_violations(&text)
+            let bytes = fs::read(&path)?;
+            let text = std::str::from_utf8(&bytes)?;
+            let mut layout = test_module_layout_violations(text);
+            let relative = path
+                .strip_prefix(workspace)?
+                .to_string_lossy()
+                .replace('\\', "/");
+            if frozen_inline_module_allowed(&relative, &bytes, &layout, &coupling)? {
+                frozen_seen = true;
+                let line = contract["cfg_line"]
+                    .as_u64()
+                    .ok_or("frozen cfg line missing")? as usize;
+                layout.retain(|violation| {
+                    violation.line != line
+                        || violation.kind != TestModuleLayoutViolationKind::InlineBody
+                });
+            }
+            let mut file_violations = layout
                 .into_iter()
                 .map(|violation| {
                     let message = match violation.kind {
@@ -189,7 +376,7 @@ fn audit_unit_test_layout(catalog: &WorkspaceCatalog) -> Result<(), Box<dyn Erro
                 })
                 .collect::<Vec<_>>();
             if package.package_name() == "tsc-rs-emitter" {
-                if let Some((line, identifier)) = first_retired_comment_scope_identifier(&text) {
+                if let Some((line, identifier)) = first_retired_comment_scope_identifier(text) {
                     file_violations.push((
                         line,
                         format!(
@@ -203,7 +390,14 @@ fn audit_unit_test_layout(catalog: &WorkspaceCatalog) -> Result<(), Box<dyn Erro
             violations.extend(file_violations.into_iter().map(|(_, message)| message));
         }
     }
+    if !frozen_seen {
+        return Err(
+            "frozen layout source was not scanned; retire the exception with its census migration"
+                .into(),
+        );
+    }
     if violations.is_empty() {
+        println!("unit-test layout: one byte-frozen census reference module retained: {FROZEN_TEST_SOURCE}");
         Ok(())
     } else {
         Err(violations.join("\n").into())

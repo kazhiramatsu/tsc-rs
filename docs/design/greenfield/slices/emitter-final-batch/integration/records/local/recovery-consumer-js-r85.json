@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "node",
+    "--test",
+    "scripts/recovery-command-input.test.mjs"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-corpus-replay",
+  "started_at": "2026-09-19T02:39:51.097641+00:00",
+  "head": "8f63a3651c899ab975c439e2d616c66d8a4ccb11",
+  "tracked_clean": false,
+  "diff_sha256": "33ce58cfac8bc4b6b7dc8e258c32eb5b0947434115d2f65b7dd6a029d4d2f7c0",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 9.081,
+  "log_sha256": "08f3a0508fda48212748e3343dcd4ca538faf967ae2f8bae34a70c421f2b6b56",
+  "log_bytes": 2130
+}

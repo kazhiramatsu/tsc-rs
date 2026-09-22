@@ -13,9 +13,8 @@
 # gate-tax 5 (docs/design/greenfield/gate-tax-5.md): one walk per converge,
 # inside a locked transaction — PRE_SUITE red-suite hook, ALL pin surfaces
 # preflighted at once (walk-preflight.py), mechanical ORDER-topology audit,
-# prospective stale-cone plan (new-ci, report-only), repin BEFORE the write
-# attempt, per-round 5g receipt-outcome enforcement, run-ID'd log
-# directories, and a per-workspace lock.
+# repin BEFORE the write attempt, per-round 5g receipt-outcome enforcement,
+# run-ID'd log directories, and a per-workspace lock.
 #
 # Usage: bash scripts/chain-walk.sh [readiness-slice-id]
 #   [readiness-slice-id]  optional .github/ci/slice-readiness.mjs --check arg
@@ -25,7 +24,6 @@
 #                         (use to verify an ORDER edit without walking)
 #   PRE_SUITE="<cmd>"     red-suite-first: run this suite before any re-mint;
 #                         nonzero exit refuses the walk (gate-tax 5-E)
-#   WALK_PLAN=0           skip the prospective-plan report (default: run it)
 #   WALK_PREFLIGHT_RECEIPT=0  force fmt/clippy/PRE_SUITE even when the receipt
 #                         says these crate bytes were validated (gate-tax 9-C)
 #   WALK_EXPECT_OBS=0|1   5g enforcement override: 0 = strict (any
@@ -135,10 +133,10 @@ fi
 ORDER=(
   l0-option-inventory
   h1-owner-inventory
-  h1-rust-omission-inventory
   h1-printer-foundation
-  h1-active-transform
   h1-emit-oracle
+  h1-active-transform
+  h1-rust-omission-inventory
   h1-emit-qualification
   h2-transition
   h2-1a-qualification h2-1a-profile
@@ -162,7 +160,9 @@ ORDER=(
   h2-5d-qualification h2-5d-profile
   h2-5e-qualification h2-5e-profile
   h2-5f-qualification h2-5f-profile
-  h2-5g-qualification h2-5g-profile
+  h2-5g-qualification
+  h2-7b-qualification h2-7c-qualification h2-7de-qualification
+  h2-5g-profile
   h2-5h-qualification
   h2-5h-a-foundation
   h2-5h-a-comment-scope-witnesses
@@ -180,45 +180,25 @@ ORDER=(
   h2-7a-witnesses
   h2-7a-probe-traces
   h2-7a-printer-reprint
-  h2-7a-close h2-7b-qualification h2-7c-qualification h2-7de-qualification
+  h2-7a-close
   h2-8a-candidates h2-8a-observations
 )
-# Coverage self-check: ORDER must stay in sync with the chain scripts on
-# disk, so the slice that adds or retires an oracle script CANNOT forget to
-# update this driver — the walk refuses to start on drift. Chain scripts are
-# crates/oracle/h2-[0-9]*.mjs minus *-owner-controls (verified read-only in
-# the tail below; no ORDER entry needed) and minus *-check-resume (a
-# side-effect-free library imported by its qualification script and
-# exercised by gate-tax-5.test.mjs; it mints nothing). h2-baseline.mjs does
-# not match the glob and stays out by design (approved-runner mint only).
-# The closed l0-*/h1-* families are pinned by the explicit ORDER entries
-# themselves.
-drift=0
-for f in crates/oracle/h2-[0-9]*.mjs; do
-  base=$(basename "$f" .mjs)
-  case "$base" in *-owner-controls|*-check-resume) continue;; esac
-  if ! printf '%s\n' "${ORDER[@]}" | grep -qx "$base"; then
-    echo "ORDER DRIFT: $f is not in scripts/chain-walk.sh ORDER — extend ORDER in this slice"
-    drift=1
-  fi
-done
-for name in "${ORDER[@]}"; do
-  if [ ! -f "crates/oracle/${name}.mjs" ]; then
-    echo "ORDER DRIFT: crates/oracle/${name}.mjs no longer exists — retire its ORDER entry in this slice"
-    drift=1
-  fi
-done
-[ $drift -eq 0 ] || exit 2
-echo "coverage: ORDER in sync (${#ORDER[@]} chain scripts)"
-
-# Planner coverage self-check (gate-tax 8, S4): the prospective plan's
-# LADDER_ORDER must equal ORDER exactly — a lagging planner reports an
-# incomplete stale cone (measured 63/65 on the 2026-08-30 W4 runs).
-python3 scripts/walk-planner-coverage.py "${ORDER[@]}" || exit 2
+# Every numbered H2 script must be registered exactly once. Three immutable
+# references have explicit check-only execution modes in this verifier:
+# map-option-projection runs canonically; the D/E pair replay frozen parents
+# and also compare the complete current input/census projection. Neither is
+# an artifact mint. Unknown, missing, duplicate and overlapping entries refuse.
+# Existing owner-controls remain checked in the tail; check-resume are pure
+# libraries, and the approved-runner h2-baseline does not match the glob.
+node scripts/check-frozen-de-reference.mjs --registry "${ORDER[@]}" || exit 2
 
 # ORDER-topology audit (gate-tax 5-D): a producer appearing after its
 # consumer costs a third full round every converge; refuse like drift.
 python3 scripts/walk-topology-audit.py "${ORDER[@]}" || exit 2
+
+# Fail before minting if immutable reference inputs or current D/E semantics
+# changed. The full 323 x 2 historical observation replay runs at the tail.
+node scripts/check-frozen-de-reference.mjs --walk-preflight || exit 2
 
 # All-surfaces pin preflight (gate-tax 5-F): report EVERY stale pin surface
 # at once — harness pins, pin-index, policy source pins, schema consts,
@@ -251,7 +231,7 @@ crate_tree_sha() {
   find crates -name '*.rs' -type f -print0 | sort -z | xargs -0 shasum -a 256 | shasum -a 256 | cut -d' ' -f1
 }
 preflight_tree_sha() {
-  { crate_tree_sha; find crates -name Cargo.toml -type f -print0 | sort -z | xargs -0 shasum -a 256; shasum -a 256 Cargo.toml Cargo.lock; rustc --version; printf 'PRE_SUITE=%s\n' "${PRE_SUITE:-}"; } | shasum -a 256 | cut -d' ' -f1
+  { crate_tree_sha; find crates -name Cargo.toml -type f -print0 | sort -z | xargs -0 shasum -a 256; shasum -a 256 Cargo.toml Cargo.lock scripts/inline-tests-scan.py scripts/frozen-test-layout.json scripts/workspace-test-targets.json; rustc --version; printf 'PRE_SUITE=%s\n' "${PRE_SUITE:-}"; } | shasum -a 256 | cut -d' ' -f1
 }
 PREFLIGHT_RECEIPT="target/chain-walk/preflight-receipt"
 preflight_receipt_hit() {
@@ -296,6 +276,16 @@ if [ "${SKIP_PREFLIGHT:-0}" != "1" ] && [ $preflight_receipt_used -eq 0 ]; then
   echo "preflight: clean"
 fi
 
+# The full audit also reads automation scripts and workflow manifests, outside
+# the Rust preflight receipt. Run it even when fmt/layout/Clippy can be reused.
+if [ "${SKIP_PREFLIGHT:-0}" != "1" ]; then
+  echo "preflight: cargo xtask workspace-audit"
+  if ! taskpolicy -b nice -n 15 cargo xtask workspace-audit >/tmp/chain-walk-workspace-audit.log 2>&1; then
+    echo "REFUSING TO WALK: workspace audit is red (see /tmp/chain-walk-workspace-audit.log)."
+    exit 2
+  fi
+fi
+
 # Red-suite-first (gate-tax 5-E): never converge unvalidated bytes. When a
 # Rust fix answers a red suite, PRE_SUITE runs that suite on the fixed
 # binary before any re-mint.
@@ -337,28 +327,8 @@ if [ "${WALK_DRY:-0}" = "1" ]; then
   exit 0
 fi
 
-# Prospective stale-cone plan (gate-tax 5-F, report-only): predict the
-# post-walk re-mint cone and every pin surface that will go stale AFTER
-# the re-mint (e.g. schema consts pinning a re-minted artifact), so the
-# operator expects the post-walk repairs instead of discovering them at
-# the gate. Best-effort: new-ci is a zero-dependency out-of-workspace
-# crate; if it cannot build or the tree state defeats it, say so and walk.
-if [ "${WALK_PLAN:-1}" = "1" ]; then
-  if taskpolicy -b nice -n 15 cargo build --manifest-path new-ci/Cargo.toml --release --bin plan >"$RUN_DIR/plan-build.log" 2>&1; then
-    plan_base=$(git merge-base HEAD origin/main 2>/dev/null || git rev-parse HEAD)
-    plan_head=$(git stash create 2>/dev/null || true)
-    if [ -z "$plan_head" ]; then plan_head=HEAD; else
-      summary "plan: dirty tree snapshot via git stash create (untracked files are invisible to the plan)"
-    fi
-    if taskpolicy -b nice -n 15 new-ci/target/release/plan "$plan_base" "$plan_head" >"$RUN_DIR/plan.log" 2>&1; then
-      summary "prospective plan: $(tail -1 "$RUN_DIR/plan.log") (report: new-ci/plan-report.md)"
-    else
-      summary "prospective plan: unavailable (report-only; see $RUN_DIR/plan.log)"
-    fi
-  else
-    summary "prospective plan: new-ci build failed (report-only; see $RUN_DIR/plan-build.log)"
-  fi
-fi
+# The optional prospective planner was retired with the standalone prototype.
+# Its design and historical reports live under docs/design/archive/new-ci/.
 
 if [ -n "${WALK_EXPECT_OBS:-}" ]; then
   summary "RECORDED OVERRIDE: WALK_EXPECT_OBS=${WALK_EXPECT_OBS} (5g enforcement $( [ "$WALK_EXPECT_OBS" = "1" ] && echo disabled — deliberate re-anchor || echo strict ))"
@@ -436,6 +406,27 @@ while true; do
       fi
     fi
   done
+  # Command-reference parents include h2-8a-candidates near the end of ORDER.
+  # Reconcile only after EVERY producer has run. A changed fixture is a 5g
+  # profile input, so force the next ordinary pass before issuing a certificate.
+  # command-fixture-parents hook begin
+  fixture_rc=0
+  fixture_log="$RUN_DIR/command-fixture-parents-$round.log"
+  taskpolicy -b nice -n 15 node scripts/command-fixture-parents.mjs --check \
+    >"$fixture_log" 2>&1 || fixture_rc=$?
+  if [ "$fixture_rc" -eq 1 ]; then
+    if ! taskpolicy -b nice -n 15 node scripts/command-fixture-parents.mjs --fix \
+      --record-dir "$RUN_DIR/command-fixture-parents-$round" >>"$fixture_log" 2>&1; then
+      echo "COMMAND-FIXTURE PARENT REFRESH REFUSED — see $fixture_log"
+      exit 1
+    fi
+    stale+=("command-fixture-parents")
+    summary "round $round command-fixture-parents: stale metadata reconciled; checking dependent profiles next round"
+  elif [ "$fixture_rc" -ne 0 ]; then
+    echo "COMMAND-FIXTURE PARENT METADATA INVALID — see $fixture_log"
+    exit 1
+  fi
+  # command-fixture-parents hook end
   if [ ${#stale[@]} -eq 0 ]; then
     summary "walk round $round: CLEAN"
     break
@@ -474,6 +465,11 @@ for oc in crates/oracle/h2-*-owner-controls.mjs; do
   fi
 done
 echo "owner-control checks: clean"
+
+if ! taskpolicy -b nice -n 15 node scripts/check-frozen-de-reference.mjs --walk-checks >"$RUN_DIR/check-only.log" 2>&1; then
+  echo "CHECK-ONLY REFERENCE FAILED: see $RUN_DIR/check-only.log"; exit 1
+fi
+summary "check-only references: canonical map options and frozen D/E replay + current projection clean"
 
 # Post-convergence: every pin surface must match the just-minted artifacts
 # (the same all-surfaces pass as the preflight — a schema const pinning a

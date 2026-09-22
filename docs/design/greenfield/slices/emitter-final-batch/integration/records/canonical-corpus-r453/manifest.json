@@ -1,0 +1,135 @@
+{
+  "head": "db9bcf859f5a61cbefbd0fb0078618b354c61c7d",
+  "qualified_parser_scope": true,
+  "qualified_selected_commands_scope": true,
+  "qualified_project_supplement_scope": true,
+  "qualified_final": false,
+  "limits": [
+    "110 original load failures remain unqualified.",
+    "Two selected noEmit controls are not emit proof.",
+    "Project supplement does not replace original failed loads.",
+    "Final unsplit CI and hosted merge remain required."
+  ],
+  "files": [
+    {
+      "path": "run/comparison.json.gz",
+      "bytes": 3908,
+      "sha256": "4662fd3805228b246ac147521c8985db8368d15d3d7cd98b412da555f2843e05"
+    },
+    {
+      "path": "run/manifest.json",
+      "bytes": 15357,
+      "sha256": "5de7233ae3360de28808c203e9d1509406e700c267a409898828240098882ffd"
+    },
+    {
+      "path": "run/native.json.gz",
+      "bytes": 196045,
+      "sha256": "641473a79fe0ae7f8ecc34122fd2f559a7b61497bf75243645626376ac165f2f"
+    },
+    {
+      "path": "run/oracle.json.gz",
+      "bytes": 232286,
+      "sha256": "2d68769d1b22a97d9984247e90f815bcdd1efedd1bf36d693d245e3152bc1f65"
+    },
+    {
+      "path": "run/parser-build.log.gz",
+      "bytes": 447,
+      "sha256": "bb0e95d587289d67d5653292e6d3c55e970180dfcc3b2fcd40827e5ff37c404e"
+    },
+    {
+      "path": "run/parser-test.log.gz",
+      "bytes": 473,
+      "sha256": "c457f4c6520bad0e72af594fcc143e6cc689b903766d2c16078c261a69f26469"
+    },
+    {
+      "path": "run/projects-compare.log.gz",
+      "bytes": 80,
+      "sha256": "6f8c3a6d9b69056183276dd0d7dc26e1d308ed5c3d9c9d58d7b65a643743f19c"
+    },
+    {
+      "path": "run/projects-comparison.json.gz",
+      "bytes": 922,
+      "sha256": "58c450da3d6b69eda09b4ce26e24c75a0774ff344780994e22caf08351e70452"
+    },
+    {
+      "path": "run/projects-native.json.gz",
+      "bytes": 1968830,
+      "sha256": "964e7491ab5c4876078278a992dfa509e1b4d084e3f2ff36d75568563c6f37b4"
+    },
+    {
+      "path": "run/projects-native.log.gz",
+      "bytes": 802,
+      "sha256": "c08138fd8239ff297b193b3629e2cf5c7820fef38fd028df9bde44ff51d335ad"
+    },
+    {
+      "path": "run/projects-oracle.json.gz",
+      "bytes": 271305,
+      "sha256": "2ffff2af733caa8a6c31732eb2acac3ca580e8a23c25a170431401e39c4a6c8e"
+    },
+    {
+      "path": "run/projects-ts.log.gz",
+      "bytes": 803,
+      "sha256": "8c22b35dfe0d45ed94bb31469b7cf8b15fe62cec0aef13451b54058184533221"
+    },
+    {
+      "path": "run/raw-replay.json.gz",
+      "bytes": 7935146,
+      "sha256": "5f74794b0abe39675f600f2b01c86cddda9e4ccf6fc29e937fb1808bcee2ce1e"
+    },
+    {
+      "path": "run/resolved-dependencies.json",
+      "bytes": 6247,
+      "sha256": "8c5b9ea4163ee1a73607568e7220ba3373b9f98e151af1db5753d58ba2190096"
+    },
+    {
+      "path": "run/selected-compare.log.gz",
+      "bytes": 118,
+      "sha256": "2c1c15fc5d13e8536a98253fe0b261e048bac224ec1d3ec6fe1dcf383a3a5ad2"
+    },
+    {
+      "path": "run/selected-native.log.gz",
+      "bytes": 1178,
+      "sha256": "101b8f25f47807ebe7fb38a6d2c829c2a64e998fb45e2bed3230ffb0cbe50133"
+    },
+    {
+      "path": "run/selected-ts.log.gz",
+      "bytes": 1069,
+      "sha256": "89cae8c66dc1e8e74aa4b3715d44c4449836f08f4c587344d4ed47daee848980"
+    },
+    {
+      "path": "run/selection.json.gz",
+      "bytes": 166732,
+      "sha256": "f7c2569df98f68b3d40e92104a38baefb2328ae033116ff4c8de21b0a3eb4ea3"
+    },
+    {
+      "path": "run/successor.json.gz",
+      "bytes": 7939914,
+      "sha256": "4471a2edf5cd4b2ba0a799b79884fbe67d52dfada5b66d697306c1fd327f4fe9"
+    },
+    {
+      "path": "run/xtask-build.log.gz",
+      "bytes": 4363,
+      "sha256": "71c1e4c29b131e17c48c44f492ad2dd45cf2b6082482cabc3651bd474139f0f4"
+    },
+    {
+      "path": "build/Cargo.toml",
+      "bytes": 869,
+      "sha256": "88920ccb65664c13045b5bfc6cc3892fde3aaf2596687f0a78f4b8fdf96571c6"
+    },
+    {
+      "path": "build/Cargo.lock",
+      "bytes": 6049,
+      "sha256": "9819cb3aa79896c95374012fc9cbe601e4982c067d51820dc842b9a5b1860b27"
+    },
+    {
+      "path": "runner.py",
+      "bytes": 10580,
+      "sha256": "5037691505c23673607b4068a24df080d069012d73a68b2aeee6f827eb4c6f6a"
+    },
+    {
+      "path": "archive.py",
+      "bytes": 2876,
+      "sha256": "f1cc1c5e7cce0171a5bf22adc78fb403d401def07836626002bd2e6b3971d408"
+    }
+  ]
+}

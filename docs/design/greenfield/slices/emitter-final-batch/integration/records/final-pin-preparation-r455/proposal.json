@@ -1,0 +1,200 @@
+{
+  "source_head": "b0c25c1d9da09bde614fd29fdd56260ce5e51097",
+  "qualification_claim": false,
+  "changes": [
+    {
+      "owner": "ratchets/fuzz-oracle-deviations.v1.json",
+      "path": "crates/checker/src/iterate.rs",
+      "before": "168b8f41e4687a5482c02845a8d418656e066b4795ea328ca5db9f68ec088c01",
+      "after": "901182b75e2e46db4760396c195b5fdcb75d1aab0c51a1d638f4a89f24079295"
+    },
+    {
+      "owner": "ratchets/fuzz-oracle-deviations.v1.json",
+      "path": "crates/checker/src/evaluate.rs",
+      "before": "b00a5a14ef70132a0564976406183af824940da03d47effe47c782fcdf0c6574",
+      "after": "5ec5146d4c167f038bd70516f35d5e4a5a21abd6bf6bbf265cb24b139742d5f5"
+    },
+    {
+      "owner": "ratchets/fuzz-oracle-deviations.v1.json",
+      "path": "crates/checker/src/inference.rs",
+      "before": "3aec30ea01421abd51e8bc5d2e7076b9f1751630026b513ce7910fbce1bbf4e4",
+      "after": "b39791cb620229a2e1b4567b737b45846320258e5275b3afd12e8ecfd53b081a"
+    },
+    {
+      "owner": "ratchets/fuzz-oracle-deviations.v1.json",
+      "path": "crates/checker/src/check.rs",
+      "before": "f82d1b985c99994c00094f9072a506f6d655af68a7ed970f73099f231de551a6",
+      "after": "025036748406cfa9cf8b40b34c6d50d3bf7e279221c82f401c21dfc117177d6c"
+    },
+    {
+      "owner": "ratchets/fuzz-oracle-deviations.v1.json",
+      "path": "crates/checker/src/state.rs",
+      "before": "c241882d616cbdb41706f40ff730ec2f8caaf377e2995eab589b0dda8bc3eee6",
+      "after": "90839e1fe60ea0cc3ed1627c44de87de6064e5ef1ccc52cf0800d9ca683fb8ec"
+    },
+    {
+      "owner": "ratchets/fuzz-domain.v1.toml",
+      "path": "crates/xtask/src/m8_evidence.rs",
+      "before": "a72c4c128f51d6e7e2344206bfd82455ee773018fbb31d3458e9c0b30bf90c4a",
+      "after": "56ff4cfdc08a4a2212ac095e344a20937046a66f70d6a02486967829d5482c1d"
+    },
+    {
+      "owner": "ratchets/fuzz-domain.v1.toml",
+      "path": "crates/harness/src/lib.rs",
+      "before": "8fdef35abefebbd5554f92aae33ba9b1de676feb8b5eaa3806c6538461a6efeb",
+      "after": "48de8b606404c177d3a61882cb55baa61ec1a7e7a4b90e5fa8de6a2a1ffb54e8"
+    },
+    {
+      "owner": "ratchets/fuzz-preflight.v1.json",
+      "path": "ratchets/fuzz-domain.v1.toml",
+      "before": "a52938471d2189be7b448a33d47b34de7018930bb5ade905b6c2457c67082ec5",
+      "after": "5495baadd2d847e79a89800c0937ecc17509df626f00f5a411d5eea7479658c2"
+    },
+    {
+      "owner": "ratchets/fuzz-preflight.v1.json",
+      "path": "ratchets/fuzz-oracle-deviations.v1.json",
+      "before": "8451034727ce0e054ad6c452829fcd91dd32988c40b13823a062dae58ffe3d0c",
+      "after": "aad7661afcd209f10a04461ad090286bba8ceb0abc2106c975b89aa6f5d3006c"
+    },
+    {
+      "owner": "ratchets/fuzz-preflight.v1.json",
+      "path": "crates/xtask/src/m8_evidence.rs",
+      "before": "a72c4c128f51d6e7e2344206bfd82455ee773018fbb31d3458e9c0b30bf90c4a",
+      "after": "56ff4cfdc08a4a2212ac095e344a20937046a66f70d6a02486967829d5482c1d"
+    },
+    {
+      "owner": "ratchets/fuzz-preflight.v1.json",
+      "path": "crates/checker/src/lib.rs",
+      "before": "51721d435ce9f8486a8705e7eece54aa392ef0bf59e323aeb3b6b54190902c3c",
+      "after": "73bee3ccccf7202b7b0a4265f69e761efd66b339809f10e219604b6e5fd2c516"
+    },
+    {
+      "owner": "ratchets/fuzz-preflight.v1.json",
+      "path": "crates/diagnostics/src/lib.rs",
+      "before": "6c5d88773007f8a54d98b7ebc51c96c5110caa452b95d4d670e2002079302068",
+      "after": "e296abb021f0ea138f1d9274f71d2c87a3db56909df0feb37c89ff4c4ca3846f"
+    },
+    {
+      "owner": "ratchets/fuzz-preflight.v1.json",
+      "path": "crates/diagnostics/src/render.rs",
+      "before": "45f68c41d3012f4482796651795b22358c0cee0d7725657c067e068648c529c8",
+      "after": "1ee6d3271c7a7c17f24f95fc0799f280e6f848051e7d5a9b6510112b5b2efa42"
+    },
+    {
+      "owner": "ratchets/fuzz-preflight.v1.json",
+      "path": "crates/harness/src/lib.rs",
+      "before": "8fdef35abefebbd5554f92aae33ba9b1de676feb8b5eaa3806c6538461a6efeb",
+      "after": "48de8b606404c177d3a61882cb55baa61ec1a7e7a4b90e5fa8de6a2a1ffb54e8"
+    },
+    {
+      "owner": "ratchets/fuzz-preflight.v1.json",
+      "path": "crates/conformance/src/lib.rs",
+      "before": "6636a17f634774c17d1cf3719d825b9f1b2d1dcf7749afb33e3ca4b4c0f92a4f",
+      "after": "fae9585de339db87412447241aa6a3453043f2537cc56b4157360b8b1393f9f0"
+    },
+    {
+      "owner": "ratchets/fuzz-preflight.v1.json",
+      "path": "crates/conformance/src/rendered.rs",
+      "before": "1528d99d70580e45b1e32ad5bc97bfdc494c9a8e6c8ded1cef20265ee2de66a9",
+      "after": "ba69a380022c6f11f0df5183185dbe8430184bd164e07c5ec5b2ba340f7ece9d"
+    },
+    {
+      "owner": "ratchets/fuzz-preflight.v1.json",
+      "path": "crates/fuzz/src/adapters/tsrs.rs",
+      "before": "01bf2ff1bb623384b2ec906a804ea15ad73ca0ae9e619c270cfd95a954886f46",
+      "after": "ceed333fffea422e4d6d9626f6dba3379c34f6180db4aba1ed5dbb91b73af767"
+    },
+    {
+      "owner": ".github/ci/qualification-policy.v2.json",
+      "field": "rust_source_sha256",
+      "path": "crates/xtask/src/main.rs",
+      "before": "0202e562d57b08c8ba0cbb0f4c84d98cf708bfd6cfd2e118e9ce538bce033b67",
+      "after": "b76e6842dc0b16daa5063fd257e2cd382519e0ba9871c8860d1656cc9ca5c744"
+    },
+    {
+      "owner": ".github/ci/qualification-policy.v2.json",
+      "field": "rust_source_sha256",
+      "path": "crates/xtask/src/h2_1a_acceptance.rs",
+      "before": "42fbf7c10fdb207b2edd147aa0e5173b491cce7baefef19ff8079739811c4664",
+      "after": "4883437d633c1d2f2b2a0e58b75002dc4e07322f1de288868f570fc927da9e3e"
+    },
+    {
+      "owner": ".github/ci/qualification-policy.v2.json",
+      "field": "rust_source_sha256",
+      "path": "crates/xtask/src/h2_2c_acceptance.rs",
+      "before": "ba598be225ffe912f0ee06b729f3b523db974df1dfbb6c0371baf031276b0221",
+      "after": "2bbaf5da8a3fe8c81e9e88262749a39864d4e56e9ca0261f537cccf750a689c2"
+    },
+    {
+      "owner": ".github/ci/qualification-policy.v2.json",
+      "field": "rust_source_sha256",
+      "path": "crates/xtask/src/h2_3d_acceptance.rs",
+      "before": "325ebd13b45303c9882e0a4e06585ce4f1d2efc863323c452002179571cf8f14",
+      "after": "e3e98b39c8628eed309a2e12d592deb080e00494a29c012ac516851a36e82de3"
+    },
+    {
+      "owner": ".github/ci/qualification-policy.v2.json",
+      "field": "rust_source_sha256",
+      "path": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+      "before": "6559ce86ae25c6b3d2d9a82e74f0739bf7b42f26257de3e1c8c8db5f1d22b068",
+      "after": "a026d73c61eb795dcbe5763f1c1df517b568d13e09f7640d37b1dd9a7c86d297"
+    },
+    {
+      "owner": ".github/ci/qualification-policy.v2.json",
+      "field": "execution_source_sha256",
+      "path": ".github/ci/replay.py",
+      "before": "69f9e1b7532f0b9ae94e54a6536a61f4ce94cdeb82beb372b294048d0cf6e637",
+      "after": "79d1d9a5386321a2c341a43a91eb1bbc5851707389e3baa9555c4965897d0a6e"
+    },
+    {
+      "owner": ".github/ci/qualification-policy.v2.json",
+      "field": "execution_source_sha256",
+      "path": "scripts/witness.py",
+      "before": "c53349c219e9ade7e5d4d90d8024b154a7648ec87b3a42b918420ddc989f3fe0",
+      "after": "970870eedb181f340ccb560e50b312db5e0710bf8a9dafe4369d63624a63329f"
+    },
+    {
+      "owner": ".github/ci/qualification-policy.v2.json",
+      "field": "execution_source_sha256",
+      "path": ".github/ci/test_replay.py",
+      "before": "31d048d976406eec07c47ae2931912abf3b6de9dbd26b2662181b5ea46d8dffc",
+      "after": "67b0625591570a8362e20f16e8189104bdf6cb5957fb9bf5e989f1a95c0c4c4b"
+    },
+    {
+      "owner": ".github/ci/qualification-policy.v2.json",
+      "field": "execution_source_sha256",
+      "path": "scripts/foundation_witnesses.py",
+      "before": "83659725e2cfee821c3d81374fdc50964fc6f498cb6ee83464604019bc3c35a1",
+      "after": "f305d53913cb0ce743060237b2d663abae61e85b095bec396de84fd61b6a4f87"
+    },
+    {
+      "owner": ".github/ci/qualification-policy.v2.json",
+      "field": "execution_source_sha256",
+      "path": "scripts/emitter_final_witnesses.py",
+      "before": "71b86372447775e591095fb34e185d45394e5bf6371b9b5cc1243b01f8a86d81",
+      "after": "d65f11018dbe41a8cc87194335ddd6a69f6ee6dd6ca33f9110893ae8323c6dc4"
+    }
+  ],
+  "files": [
+    {
+      "path": "ratchets/fuzz-oracle-deviations.v1.json",
+      "before": "8451034727ce0e054ad6c452829fcd91dd32988c40b13823a062dae58ffe3d0c",
+      "after": "aad7661afcd209f10a04461ad090286bba8ceb0abc2106c975b89aa6f5d3006c"
+    },
+    {
+      "path": "ratchets/fuzz-domain.v1.toml",
+      "before": "a52938471d2189be7b448a33d47b34de7018930bb5ade905b6c2457c67082ec5",
+      "after": "5495baadd2d847e79a89800c0937ecc17509df626f00f5a411d5eea7479658c2"
+    },
+    {
+      "path": "ratchets/fuzz-preflight.v1.json",
+      "before": "8b0dae74250b1554a46c75d1af27c4697bea585de2f28a1a4ab26e0217b2ec7f",
+      "after": "f11d1d3409f2b1f4673283b616381187fd4fb297e12202bf19d8a8f092140d73"
+    },
+    {
+      "path": ".github/ci/qualification-policy.v2.json",
+      "before": "d6a1e10fc7174c4b3257d77d9241b1511b61cc1398b3d442e268901048da9780",
+      "after": "e01fc7af89b7fd151b6e19b74d80b2ddb628e5a224b07e442864590788063dd2"
+    }
+  ]
+}

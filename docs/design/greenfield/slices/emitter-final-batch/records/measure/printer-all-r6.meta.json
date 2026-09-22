@@ -1,0 +1,13 @@
+{
+  "name": "printer-all-r6",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 21,
+  "env": [],
+  "argv": "python3 scripts/witness.py printer --all",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T08:31:37Z",
+  "seconds": 6,
+  "exit": 0,
+  "log_sha256": "3893ed62fca761094799964ce254eef498c9c16fd6d00e92a2b37099d0c8da5f",
+  "log_bytes": 18422
+}

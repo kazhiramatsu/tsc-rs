@@ -1,0 +1,28 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-r122-known-immutable/emitter_final_universe",
+    "--exact",
+    "universe_rows_match_complete_production_commands",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next",
+  "started_at": "2026-09-19T08:27:21.206087+00:00",
+  "head": "b451489e4a18abbff42651d8eb814537f4c5f800",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "TSC_RS_EMITTER_FINAL_FAILURE_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/universe-217-r124-differences",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 101,
+  "seconds": 425.67,
+  "log_sha256": "032d4cc48307aab155bdc672011386da20a797d4ebba80793b2dbf0721378771",
+  "log_bytes": 30610
+}

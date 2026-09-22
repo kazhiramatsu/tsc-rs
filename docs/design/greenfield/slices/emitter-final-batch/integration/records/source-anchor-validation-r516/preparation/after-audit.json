@@ -1,0 +1,595 @@
+{
+  "render_exit": 0,
+  "artifact_not_written": true,
+  "all_27_anchors_unique": true,
+  "anchors": [
+    {
+      "path": "crates/program/src/prepared.rs",
+      "needle": "pub struct PreparedSourceFile {",
+      "line": 91,
+      "source_sha256": "bea831327fa90a16d09342efa943bbb3c0f3151e2a518ca5392cba8e8baf18da"
+    },
+    {
+      "path": "crates/checker/src/lib.rs",
+      "needle": "pub struct InputFile {",
+      "line": 161,
+      "source_sha256": "73bee3ccccf7202b7b0a4265f69e761efd66b339809f10e219604b6e5fd2c516"
+    },
+    {
+      "path": "crates/syntax/src/lib.rs",
+      "needle": "pub struct SourceFile {",
+      "line": 117,
+      "source_sha256": "52c63cc77eda0e9b30872bc9a608a03f63e008def4bef175afb0af9abdaf0f0d"
+    },
+    {
+      "path": "crates/program/src/config.rs",
+      "needle": "pub struct ConfigSourceText {",
+      "line": 274,
+      "source_sha256": "557ab9923da3f87fba7723b8f3ba5cfbf78094b5b39258bea7e7a764c11e533c"
+    },
+    {
+      "path": "crates/program/src/prepared.rs",
+      "needle": "pub struct ProgramConfigFile {",
+      "line": 849,
+      "source_sha256": "bea831327fa90a16d09342efa943bbb3c0f3151e2a518ca5392cba8e8baf18da"
+    },
+    {
+      "path": "crates/program/src/prepared.rs",
+      "needle": "pub struct PreparedAuxiliaryFile {",
+      "line": 329,
+      "source_sha256": "bea831327fa90a16d09342efa943bbb3c0f3151e2a518ca5392cba8e8baf18da"
+    },
+    {
+      "path": "crates/program/src/prepared.rs",
+      "needle": "pub struct PackageMetadata {",
+      "line": 452,
+      "source_sha256": "bea831327fa90a16d09342efa943bbb3c0f3151e2a518ca5392cba8e8baf18da"
+    },
+    {
+      "path": "crates/compiler/src/lib.rs",
+      "needle": "    let mut input = InputFile::from_snapshot(name, Arc::clone(source.snapshot()));",
+      "line": 2041,
+      "source_sha256": "cfa9c07e7b0e084b8267b5bc9b381bc6f8c1aec1abbfd3d418c53f7e03f365ae"
+    },
+    {
+      "path": "crates/checker/src/lib.rs",
+      "needle": "            let source_file = tsc_syntax::parse_json_text_from_snapshot_in_identity_domain(",
+      "line": 1915,
+      "source_sha256": "73bee3ccccf7202b7b0a4265f69e761efd66b339809f10e219604b6e5fd2c516"
+    },
+    {
+      "path": "crates/checker/src/lib.rs",
+      "needle": "        let mut source_file = tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(",
+      "line": 2001,
+      "source_sha256": "73bee3ccccf7202b7b0a4265f69e761efd66b339809f10e219604b6e5fd2c516"
+    },
+    {
+      "path": "crates/program/src/module_requests.rs",
+      "needle": "    let parsed = parse_source_file_from_snapshot(",
+      "line": 343,
+      "source_sha256": "d72fd81d18e0e7ea486453d9a2e96be3fbb392654b86afd70ad462d30a896f2f"
+    },
+    {
+      "path": "crates/program/src/config.rs",
+      "needle": "    let mut config_file = ProgramConfigFile::from_snapshot(path, Arc::clone(source.snapshot()))",
+      "line": 5247,
+      "source_sha256": "557ab9923da3f87fba7723b8f3ba5cfbf78094b5b39258bea7e7a764c11e533c"
+    },
+    {
+      "path": "crates/program/src/json.rs",
+      "needle": "    let source = parse_json_text_from_snapshot(",
+      "line": 62,
+      "source_sha256": "dffb50fafe9a73d5745a19849a5ab2aa718b7b406343dae1ff78cfbb9776c9cf"
+    },
+    {
+      "path": "crates/compiler/src/cli.rs",
+      "needle": "    let host = FormatDiagnosticsHost::from_js_snapshots(current_directory.into(), source_texts);",
+      "line": 1219,
+      "source_sha256": "e63efeba593dd865a8bc2b46748059b370c5b8520a63728005adaac492c9912e"
+    },
+    {
+      "path": "crates/compiler/tests/integration/program_session_contract.rs",
+      "needle": "fn l0_work_counters_and_sorted_batch_syntax_diagnostics() {",
+      "line": 229,
+      "source_sha256": "ec8836216fea44c1c13f6b85f57ca4e18d485066a405888bd6e856bdaa1ef8ed"
+    },
+    {
+      "path": "crates/diagnostics/src/text.rs",
+      "needle": "struct DensePositionIndex {",
+      "line": 55,
+      "source_sha256": "de756d89e34612086881572f5a5d3fa9c7e58eadfdc1002e060e7816a2c45881"
+    },
+    {
+      "path": "crates/diagnostics/src/text.rs",
+      "needle": "struct PersistentLineTree {",
+      "line": 237,
+      "source_sha256": "de756d89e34612086881572f5a5d3fa9c7e58eadfdc1002e060e7816a2c45881"
+    },
+    {
+      "path": "crates/diagnostics/src/text.rs",
+      "needle": "    pub fn byte_to_utf16(&self, position: u32) -> Option<u32> {",
+      "line": 517,
+      "source_sha256": "de756d89e34612086881572f5a5d3fa9c7e58eadfdc1002e060e7816a2c45881"
+    },
+    {
+      "path": "crates/diagnostics/src/text.rs",
+      "needle": "pub struct VersionedTextStore {",
+      "line": 812,
+      "source_sha256": "de756d89e34612086881572f5a5d3fa9c7e58eadfdc1002e060e7816a2c45881"
+    },
+    {
+      "path": "crates/types/src/identity.rs",
+      "needle": "pub struct IdentityDomain {",
+      "line": 400,
+      "source_sha256": "bd03e47ba29789155534e9b7e1d630133942b45dc2c34be322b5bfbe081a29d8"
+    },
+    {
+      "path": "crates/types/src/identity.rs",
+      "needle": "pub struct IdentityLease {",
+      "line": 629,
+      "source_sha256": "bd03e47ba29789155534e9b7e1d630133942b45dc2c34be322b5bfbe081a29d8"
+    },
+    {
+      "path": "crates/syntax/src/arena.rs",
+      "needle": "    node_lease: Option<IdentityLease>,",
+      "line": 18,
+      "source_sha256": "4dd12150f54033937092efefe731cb30e6daff8099c5c71a2c6d8c8e73704252"
+    },
+    {
+      "path": "crates/xtask/src/node_codegen.rs",
+      "needle": "fn render_relocate_rs(schemas: &[NodeSchema])",
+      "line": 1846,
+      "source_sha256": "6d776a616d04c549690a218f6bde63bab8c8f58a7855334d8a0113e7ac31d264"
+    },
+    {
+      "path": "crates/binder/src/declare.rs",
+      "needle": "    private_name_serial_lease: Option<IdentityLease>,",
+      "line": 70,
+      "source_sha256": "b45c641183e85b91288bd228bacbd4252d487081eef9b15afa861bbcbb9e5420"
+    },
+    {
+      "path": "crates/checker/src/program.rs",
+      "needle": "pub struct ProgramSnapshot {",
+      "line": 715,
+      "source_sha256": "e079db6a0d8d85d9cb56d5effa29e1f06d8c67c67f867304e34797e27e4f0dc3"
+    },
+    {
+      "path": "crates/checker/src/program.rs",
+      "needle": "    symbol_owners: Vec<ArenaOwner>,",
+      "line": 941,
+      "source_sha256": "e079db6a0d8d85d9cb56d5effa29e1f06d8c67c67f867304e34797e27e4f0dc3"
+    },
+    {
+      "path": "crates/types/src/identity.rs",
+      "needle": "pub const TRANSIENT_SYMBOL_BIT: u32 = 1 << 31;",
+      "line": 15,
+      "source_sha256": "bd03e47ba29789155534e9b7e1d630133942b45dc2c34be322b5bfbe081a29d8"
+    }
+  ],
+  "metadata_changes": [
+    {
+      "path": "/rust_source_ownership/compiler_options_owner/source_sha256",
+      "before": "fc512d66157a55b52986bc30e9384b71430e49a55d948ce9e12ea345d012b5ee",
+      "after": "2a193695c75112d9fb108e870c1ca06752e1cd0f2bfddaad39f72e38ada0bfde"
+    },
+    {
+      "path": "/rust_source_ownership/identity_ownership/bind_owner/line",
+      "before": 69,
+      "after": 70
+    },
+    {
+      "path": "/rust_source_ownership/identity_ownership/bind_owner/source_sha256",
+      "before": "eb5a88b86c2a2553dbb0231f84d3ef4d9702435f5d7fff56c515f9d31f5198d5",
+      "after": "b45c641183e85b91288bd228bacbd4252d487081eef9b15afa861bbcbb9e5420"
+    },
+    {
+      "path": "/rust_source_ownership/identity_ownership/generated_syntax_relocation/line",
+      "before": 12688,
+      "after": 1846
+    },
+    {
+      "path": "/rust_source_ownership/identity_ownership/generated_syntax_relocation/path",
+      "before": "crates/xtask/src/main.rs",
+      "after": "crates/xtask/src/node_codegen.rs"
+    },
+    {
+      "path": "/rust_source_ownership/identity_ownership/generated_syntax_relocation/source_sha256",
+      "before": "393b2443b6bc1b28fa7d47a1782939a59b20066296df76c3e6b374bc0a9d322c",
+      "after": "6d776a616d04c549690a218f6bde63bab8c8f58a7855334d8a0113e7ac31d264"
+    },
+    {
+      "path": "/rust_source_ownership/identity_ownership/program_owner_intervals/line",
+      "before": 940,
+      "after": 941
+    },
+    {
+      "path": "/rust_source_ownership/identity_ownership/program_owner_intervals/source_sha256",
+      "before": "b04b89bebc3ec3929272eae20b30d9aa158301e3cc11c0b7dd904c188bf3d653",
+      "after": "e079db6a0d8d85d9cb56d5effa29e1f06d8c67c67f867304e34797e27e4f0dc3"
+    },
+    {
+      "path": "/rust_source_ownership/identity_ownership/program_snapshot_owner/line",
+      "before": 714,
+      "after": 715
+    },
+    {
+      "path": "/rust_source_ownership/identity_ownership/program_snapshot_owner/source_sha256",
+      "before": "b04b89bebc3ec3929272eae20b30d9aa158301e3cc11c0b7dd904c188bf3d653",
+      "after": "e079db6a0d8d85d9cb56d5effa29e1f06d8c67c67f867304e34797e27e4f0dc3"
+    },
+    {
+      "path": "/rust_source_ownership/identity_ownership/syntax_owner/source_sha256",
+      "before": "f0768edda52c5cc2037786b004de52a71a89e5d233475096d374028c2fbeffbf",
+      "after": "4dd12150f54033937092efefe731cb30e6daff8099c5c71a2c6d8c8e73704252"
+    },
+    {
+      "path": "/rust_source_ownership/representations/0/line",
+      "before": 92,
+      "after": 91
+    },
+    {
+      "path": "/rust_source_ownership/representations/0/source_sha256",
+      "before": "a2d3adcdf086328021c72849777fd1daeed75ad92447124cfd591cfba4dcf1da",
+      "after": "bea831327fa90a16d09342efa943bbb3c0f3151e2a518ca5392cba8e8baf18da"
+    },
+    {
+      "path": "/rust_source_ownership/representations/1/line",
+      "before": 76,
+      "after": 161
+    },
+    {
+      "path": "/rust_source_ownership/representations/1/source_sha256",
+      "before": "51721d435ce9f8486a8705e7eece54aa392ef0bf59e323aeb3b6b54190902c3c",
+      "after": "73bee3ccccf7202b7b0a4265f69e761efd66b339809f10e219604b6e5fd2c516"
+    },
+    {
+      "path": "/rust_source_ownership/representations/2/line",
+      "before": 111,
+      "after": 117
+    },
+    {
+      "path": "/rust_source_ownership/representations/2/source_sha256",
+      "before": "66caef32f161ab1c108be327f0d1e6b91bfbc4984d9c44ea40672d514926f1d7",
+      "after": "52c63cc77eda0e9b30872bc9a608a03f63e008def4bef175afb0af9abdaf0f0d"
+    },
+    {
+      "path": "/rust_source_ownership/representations/3/line",
+      "before": 268,
+      "after": 274
+    },
+    {
+      "path": "/rust_source_ownership/representations/3/source_sha256",
+      "before": "af6facf270d10e2131c447e1314a3acd211bb6448b5008def40946c1e8fce97c",
+      "after": "557ab9923da3f87fba7723b8f3ba5cfbf78094b5b39258bea7e7a764c11e533c"
+    },
+    {
+      "path": "/rust_source_ownership/representations/4/line",
+      "before": 798,
+      "after": 849
+    },
+    {
+      "path": "/rust_source_ownership/representations/4/source_sha256",
+      "before": "a2d3adcdf086328021c72849777fd1daeed75ad92447124cfd591cfba4dcf1da",
+      "after": "bea831327fa90a16d09342efa943bbb3c0f3151e2a518ca5392cba8e8baf18da"
+    },
+    {
+      "path": "/rust_source_ownership/representations/5/line",
+      "before": 296,
+      "after": 329
+    },
+    {
+      "path": "/rust_source_ownership/representations/5/source_sha256",
+      "before": "a2d3adcdf086328021c72849777fd1daeed75ad92447124cfd591cfba4dcf1da",
+      "after": "bea831327fa90a16d09342efa943bbb3c0f3151e2a518ca5392cba8e8baf18da"
+    },
+    {
+      "path": "/rust_source_ownership/representations/6/line",
+      "before": 418,
+      "after": 452
+    },
+    {
+      "path": "/rust_source_ownership/representations/6/source_sha256",
+      "before": "a2d3adcdf086328021c72849777fd1daeed75ad92447124cfd591cfba4dcf1da",
+      "after": "bea831327fa90a16d09342efa943bbb3c0f3151e2a518ca5392cba8e8baf18da"
+    },
+    {
+      "path": "/rust_source_ownership/shared_snapshot_edges/0/evidence",
+      "before": "        InputFile::from_snapshot(name, Arc::clone(source.snapshot())),",
+      "after": "    let mut input = InputFile::from_snapshot(name, Arc::clone(source.snapshot()));"
+    },
+    {
+      "path": "/rust_source_ownership/shared_snapshot_edges/0/line",
+      "before": 1508,
+      "after": 2041
+    },
+    {
+      "path": "/rust_source_ownership/shared_snapshot_edges/0/source_sha256",
+      "before": "4ad9dc557d89d3cdb3953ea7e6a573c6055b80c154f85b6d5567f9c1fd956125",
+      "after": "cfa9c07e7b0e084b8267b5bc9b381bc6f8c1aec1abbfd3d418c53f7e03f365ae"
+    },
+    {
+      "path": "/rust_source_ownership/shared_snapshot_edges/1/line",
+      "before": 1688,
+      "after": 1915
+    },
+    {
+      "path": "/rust_source_ownership/shared_snapshot_edges/1/source_sha256",
+      "before": "51721d435ce9f8486a8705e7eece54aa392ef0bf59e323aeb3b6b54190902c3c",
+      "after": "73bee3ccccf7202b7b0a4265f69e761efd66b339809f10e219604b6e5fd2c516"
+    },
+    {
+      "path": "/rust_source_ownership/shared_snapshot_edges/2/evidence",
+      "before": "        let source_file = tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(",
+      "after": "        let mut source_file = tsc_syntax::parse_source_file_from_snapshot_in_identity_domain("
+    },
+    {
+      "path": "/rust_source_ownership/shared_snapshot_edges/2/line",
+      "before": 1772,
+      "after": 2001
+    },
+    {
+      "path": "/rust_source_ownership/shared_snapshot_edges/2/source_sha256",
+      "before": "51721d435ce9f8486a8705e7eece54aa392ef0bf59e323aeb3b6b54190902c3c",
+      "after": "73bee3ccccf7202b7b0a4265f69e761efd66b339809f10e219604b6e5fd2c516"
+    },
+    {
+      "path": "/rust_source_ownership/shared_snapshot_edges/3/line",
+      "before": 315,
+      "after": 343
+    },
+    {
+      "path": "/rust_source_ownership/shared_snapshot_edges/3/source_sha256",
+      "before": "d307824c1f5b2bb08b23300108a6b04162bdd8c639604c73fc21407116aa1bff",
+      "after": "d72fd81d18e0e7ea486453d9a2e96be3fbb392654b86afd70ad462d30a896f2f"
+    },
+    {
+      "path": "/rust_source_ownership/shared_snapshot_edges/4/line",
+      "before": 4955,
+      "after": 5247
+    },
+    {
+      "path": "/rust_source_ownership/shared_snapshot_edges/4/source_sha256",
+      "before": "af6facf270d10e2131c447e1314a3acd211bb6448b5008def40946c1e8fce97c",
+      "after": "557ab9923da3f87fba7723b8f3ba5cfbf78094b5b39258bea7e7a764c11e533c"
+    },
+    {
+      "path": "/rust_source_ownership/shared_snapshot_edges/5/line",
+      "before": 57,
+      "after": 62
+    },
+    {
+      "path": "/rust_source_ownership/shared_snapshot_edges/5/source_sha256",
+      "before": "276fdb51d175d61fbabb1e84e9aa655158ed73d0fe06b8de314873213422a47f",
+      "after": "dffb50fafe9a73d5745a19849a5ab2aa718b7b406343dae1ff78cfbb9776c9cf"
+    },
+    {
+      "path": "/rust_source_ownership/shared_snapshot_edges/6/evidence",
+      "before": "    let host = FormatDiagnosticsHost::from_snapshots(current_directory, source_texts);",
+      "after": "    let host = FormatDiagnosticsHost::from_js_snapshots(current_directory.into(), source_texts);"
+    },
+    {
+      "path": "/rust_source_ownership/shared_snapshot_edges/6/line",
+      "before": 1114,
+      "after": 1219
+    },
+    {
+      "path": "/rust_source_ownership/shared_snapshot_edges/6/source_sha256",
+      "before": "b05a748416462f5852224cb473c3cb6db71b74223efc5b59655ea404b2ac042a",
+      "after": "e63efeba593dd865a8bc2b46748059b370c5b8520a63728005adaac492c9912e"
+    },
+    {
+      "path": "/rust_source_ownership/zero_copy_counter_contract/source_sha256",
+      "before": "b1be18716e19e1d1a9175fb9ac1d058670510e8170e3e077ba654881f2478192",
+      "after": "ec8836216fea44c1c13f6b85f57ca4e18d485066a405888bd6e856bdaa1ef8ed"
+    }
+  ],
+  "other_changes": [
+    {
+      "path": "/rust_source_ownership/compiler_options_owner/fields",
+      "before": [
+        "allow_arbitrary_extensions",
+        "allow_importing_ts_extensions",
+        "allow_js",
+        "allow_synthetic_default_imports",
+        "allow_umd_global_access",
+        "allow_unreachable_code",
+        "allow_unused_labels",
+        "always_strict",
+        "assume_changes_only_affect_direct_dependencies",
+        "base_url",
+        "charset",
+        "check_js",
+        "composite",
+        "custom_conditions",
+        "declaration",
+        "declaration_dir",
+        "declaration_map",
+        "downlevel_iteration",
+        "emit_bom",
+        "emit_declaration_only",
+        "emit_decorator_metadata",
+        "erasable_syntax_only",
+        "es_module_interop",
+        "exact_optional_property_types",
+        "experimental_decorators",
+        "force_consistent_casing_in_file_names",
+        "ignore_deprecations",
+        "import_helpers",
+        "imports_not_used_as_values",
+        "incremental",
+        "inline_source_map",
+        "inline_sources",
+        "isolated_declarations",
+        "isolated_modules",
+        "jsx",
+        "jsx_factory",
+        "jsx_fragment_factory",
+        "jsx_import_source",
+        "keyof_strings_only",
+        "lib",
+        "lib_replacement",
+        "list_emitted_files",
+        "map_root",
+        "max_node_module_js_depth",
+        "module",
+        "module_detection",
+        "module_resolution",
+        "module_suffixes",
+        "new_line",
+        "no_check",
+        "no_dts_resolution",
+        "no_emit",
+        "no_emit_helpers",
+        "no_emit_on_error",
+        "no_error_truncation",
+        "no_fallthrough_cases_in_switch",
+        "no_implicit_any",
+        "no_implicit_override",
+        "no_implicit_returns",
+        "no_implicit_this",
+        "no_implicit_use_strict",
+        "no_property_access_from_index_signature",
+        "no_resolve",
+        "no_strict_generic_checks",
+        "no_unchecked_indexed_access",
+        "no_unchecked_side_effect_imports",
+        "no_unused_locals",
+        "no_unused_parameters",
+        "out",
+        "out_dir",
+        "out_file",
+        "preserve_const_enums",
+        "preserve_value_imports",
+        "react_namespace",
+        "remove_comments",
+        "resolve_json_module",
+        "resolve_package_json_exports",
+        "resolve_package_json_imports",
+        "rewrite_relative_import_extensions",
+        "root_dir",
+        "skip_default_lib_check",
+        "skip_lib_check",
+        "source_map",
+        "source_root",
+        "stable_type_ordering",
+        "strict",
+        "strict_bind_call_apply",
+        "strict_builtin_iterator_return",
+        "strict_function_types",
+        "strict_null_checks",
+        "strict_property_initialization",
+        "strip_internal",
+        "suppress_excess_property_errors",
+        "suppress_implicit_any_index_errors",
+        "target",
+        "ts_build_info_file",
+        "use_define_for_class_fields",
+        "use_unknown_in_catch_variables",
+        "verbatim_module_syntax"
+      ],
+      "after": [
+        "allow_arbitrary_extensions",
+        "allow_importing_ts_extensions",
+        "allow_js",
+        "allow_non_ts_extensions",
+        "allow_synthetic_default_imports",
+        "allow_umd_global_access",
+        "allow_unreachable_code",
+        "allow_unused_labels",
+        "always_strict",
+        "assume_changes_only_affect_direct_dependencies",
+        "base_url",
+        "charset",
+        "check_js",
+        "composite",
+        "custom_conditions",
+        "declaration",
+        "declaration_dir",
+        "declaration_map",
+        "downlevel_iteration",
+        "emit_bom",
+        "emit_declaration_only",
+        "emit_decorator_metadata",
+        "erasable_syntax_only",
+        "es_module_interop",
+        "exact_optional_property_types",
+        "experimental_decorators",
+        "force_consistent_casing_in_file_names",
+        "ignore_deprecations",
+        "import_helpers",
+        "imports_not_used_as_values",
+        "incremental",
+        "inline_source_map",
+        "inline_sources",
+        "isolated_declarations",
+        "isolated_modules",
+        "jsx",
+        "jsx_factory",
+        "jsx_fragment_factory",
+        "jsx_import_source",
+        "keyof_strings_only",
+        "lib",
+        "lib_replacement",
+        "list_emitted_files",
+        "map_root",
+        "max_node_module_js_depth",
+        "module",
+        "module_detection",
+        "module_resolution",
+        "module_suffixes",
+        "new_line",
+        "no_check",
+        "no_dts_resolution",
+        "no_emit",
+        "no_emit_for_js_files",
+        "no_emit_helpers",
+        "no_emit_on_error",
+        "no_error_truncation",
+        "no_fallthrough_cases_in_switch",
+        "no_implicit_any",
+        "no_implicit_override",
+        "no_implicit_returns",
+        "no_implicit_this",
+        "no_implicit_use_strict",
+        "no_property_access_from_index_signature",
+        "no_resolve",
+        "no_strict_generic_checks",
+        "no_unchecked_indexed_access",
+        "no_unchecked_side_effect_imports",
+        "no_unused_locals",
+        "no_unused_parameters",
+        "out",
+        "out_dir",
+        "out_file",
+        "preserve_const_enums",
+        "preserve_value_imports",
+        "react_namespace",
+        "remove_comments",
+        "resolve_json_module",
+        "resolve_package_json_exports",
+        "resolve_package_json_imports",
+        "rewrite_relative_import_extensions",
+        "root_dir",
+        "skip_default_lib_check",
+        "skip_lib_check",
+        "source_map",
+        "source_root",
+        "stable_type_ordering",
+        "strict",
+        "strict_bind_call_apply",
+        "strict_builtin_iterator_return",
+        "strict_function_types",
+        "strict_null_checks",
+        "strict_property_initialization",
+        "strip_internal",
+        "suppress_excess_property_errors",
+        "suppress_implicit_any_index_errors",
+        "target",
+        "ts_build_info_file",
+        "use_define_for_class_fields",
+        "use_unknown_in_catch_variables",
+        "verbatim_module_syntax"
+      ]
+    }
+  ]
+}

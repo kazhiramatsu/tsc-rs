@@ -1,0 +1,319 @@
+{
+  "typescript": "6.0.3",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "repetitions": 2,
+  "transforms": [
+    {
+      "id": "import-types",
+      "target": "ES2015",
+      "input": "import<T>\nconst a = import<string, number>\n",
+      "output": "import;\nconst a = (import);\n",
+      "diagnostics": [
+        {
+          "code": 5107
+        }
+      ]
+    },
+    {
+      "id": "import-comments",
+      "target": "ES2015",
+      "input": "import /*before*/<T> /*after*/;\nconst a = import /*before*/<string, number> /*after*/;\n",
+      "output": "import /*before*/ /*after*/;\nconst a = (import /*before*/) /*after*/;\n",
+      "diagnostics": [
+        {
+          "code": 5107
+        }
+      ]
+    },
+    {
+      "id": "import-parens",
+      "target": "ES2015",
+      "input": "(import<T>);\nconst a = (import<string, number>);\n",
+      "output": "(import);\nconst a = (import);\n",
+      "diagnostics": [
+        {
+          "code": 5107
+        }
+      ]
+    },
+    {
+      "id": "new-arguments",
+      "target": "ES2015",
+      "input": "const a = (new C)<T>;\nconst b = new C<T>();\n",
+      "output": "const a = ((new C));\nconst b = new C();\n",
+      "diagnostics": [
+        {
+          "code": 5107
+        }
+      ]
+    },
+    {
+      "id": "optional-instantiation",
+      "target": "ES2015",
+      "input": "const a = value?.method<T>;\nconst b = value<T>?.();\n",
+      "output": "var _a;\nconst a = ((value === null || value === void 0 ? void 0 : value.method));\nconst b = (_a = (value)) === null || _a === void 0 ? void 0 : _a();\n",
+      "diagnostics": [
+        {
+          "code": 5107
+        }
+      ]
+    },
+    {
+      "id": "nested-instantiation",
+      "target": "ES2015",
+      "input": "const a = value<T><U>;\nconst b = value!<T>;\n",
+      "output": "const a = value < T > ;\nconst b = (value);\n",
+      "diagnostics": [
+        {
+          "code": 1109,
+          "start": 21,
+          "length": 1
+        },
+        {
+          "code": 5107
+        }
+      ]
+    },
+    {
+      "id": "import-types",
+      "target": "Latest",
+      "input": "import<T>\nconst a = import<string, number>\n",
+      "output": "import;\nconst a = (import);\n",
+      "diagnostics": [
+        {
+          "code": 5107
+        }
+      ]
+    },
+    {
+      "id": "import-comments",
+      "target": "Latest",
+      "input": "import /*before*/<T> /*after*/;\nconst a = import /*before*/<string, number> /*after*/;\n",
+      "output": "import /*before*/ /*after*/;\nconst a = (import /*before*/) /*after*/;\n",
+      "diagnostics": [
+        {
+          "code": 5107
+        }
+      ]
+    },
+    {
+      "id": "import-parens",
+      "target": "Latest",
+      "input": "(import<T>);\nconst a = (import<string, number>);\n",
+      "output": "(import);\nconst a = (import);\n",
+      "diagnostics": [
+        {
+          "code": 5107
+        }
+      ]
+    },
+    {
+      "id": "new-arguments",
+      "target": "Latest",
+      "input": "const a = (new C)<T>;\nconst b = new C<T>();\n",
+      "output": "const a = ((new C));\nconst b = new C();\n",
+      "diagnostics": [
+        {
+          "code": 5107
+        }
+      ]
+    },
+    {
+      "id": "optional-instantiation",
+      "target": "Latest",
+      "input": "const a = value?.method<T>;\nconst b = value<T>?.();\n",
+      "output": "const a = ((value?.method));\nconst b = value?.();\n",
+      "diagnostics": [
+        {
+          "code": 5107
+        }
+      ]
+    },
+    {
+      "id": "nested-instantiation",
+      "target": "Latest",
+      "input": "const a = value<T><U>;\nconst b = value!<T>;\n",
+      "output": "const a = value < T > ;\nconst b = (value);\n",
+      "diagnostics": [
+        {
+          "code": 1109,
+          "start": 21,
+          "length": 1
+        },
+        {
+          "code": 5107
+        }
+      ]
+    }
+  ],
+  "factory": [
+    {
+      "expr": "import",
+      "inputKind": "Identifier",
+      "outputKind": "Identifier",
+      "identity": true,
+      "inputRange": [
+        9,
+        9
+      ],
+      "outputRange": [
+        9,
+        9
+      ]
+    },
+    {
+      "expr": "value!",
+      "inputKind": "NonNullExpression",
+      "outputKind": "NonNullExpression",
+      "identity": true,
+      "inputRange": [
+        9,
+        16
+      ],
+      "outputRange": [
+        9,
+        16
+      ]
+    },
+    {
+      "expr": "value<T>",
+      "inputKind": "ExpressionWithTypeArguments",
+      "outputKind": "ExpressionWithTypeArguments",
+      "identity": true,
+      "inputRange": [
+        9,
+        18
+      ],
+      "outputRange": [
+        9,
+        18
+      ]
+    },
+    {
+      "expr": "new C",
+      "inputKind": "NewExpression",
+      "outputKind": "ParenthesizedExpression",
+      "identity": false,
+      "inputRange": [
+        9,
+        15
+      ],
+      "outputRange": [
+        9,
+        15
+      ]
+    },
+    {
+      "expr": "new C()",
+      "inputKind": "NewExpression",
+      "outputKind": "NewExpression",
+      "identity": true,
+      "inputRange": [
+        9,
+        17
+      ],
+      "outputRange": [
+        9,
+        17
+      ]
+    },
+    {
+      "expr": "value?.x",
+      "inputKind": "PropertyAccessExpression",
+      "outputKind": "ParenthesizedExpression",
+      "identity": false,
+      "inputRange": [
+        9,
+        18
+      ],
+      "outputRange": [
+        9,
+        18
+      ]
+    },
+    {
+      "expr": "x => x",
+      "inputKind": "ArrowFunction",
+      "outputKind": "ParenthesizedExpression",
+      "identity": false,
+      "inputRange": [
+        9,
+        16
+      ],
+      "outputRange": [
+        9,
+        16
+      ]
+    },
+    {
+      "expr": "/x/",
+      "inputKind": "RegularExpressionLiteral",
+      "outputKind": "RegularExpressionLiteral",
+      "identity": true,
+      "inputRange": [
+        9,
+        13
+      ],
+      "outputRange": [
+        9,
+        13
+      ]
+    },
+    {
+      "expr": "value",
+      "inputKind": "Identifier",
+      "outputKind": "Identifier",
+      "identity": true,
+      "inputRange": [
+        9,
+        15
+      ],
+      "outputRange": [
+        9,
+        15
+      ]
+    },
+    {
+      "expr": "x + y",
+      "inputKind": "BinaryExpression",
+      "outputKind": "ParenthesizedExpression",
+      "identity": false,
+      "inputRange": [
+        9,
+        15
+      ],
+      "outputRange": [
+        9,
+        15
+      ]
+    },
+    {
+      "expr": "(x, y)",
+      "inputKind": "ParenthesizedExpression",
+      "outputKind": "ParenthesizedExpression",
+      "identity": true,
+      "inputRange": [
+        9,
+        16
+      ],
+      "outputRange": [
+        9,
+        16
+      ]
+    },
+    {
+      "expr": "obj.fn<T>",
+      "inputKind": "ExpressionWithTypeArguments",
+      "outputKind": "ExpressionWithTypeArguments",
+      "identity": true,
+      "inputRange": [
+        9,
+        19
+      ],
+      "outputRange": [
+        9,
+        19
+      ]
+    }
+  ]
+}

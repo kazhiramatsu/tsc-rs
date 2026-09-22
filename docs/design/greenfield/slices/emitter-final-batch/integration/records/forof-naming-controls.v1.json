@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "before_sha256": "2220c6428a9317105477ec99c38f35a7d8027b483a42c0bfff2e929ead1a9058",
+  "after_sha256": "69a5d01a5b4e50fd5e6cc61f2006b4c00bb036cc067650933cbeee9ba159d24d",
+  "unchanged_cases": 480,
+  "added_cases": 16,
+  "repetitions": 2,
+  "new_ids": [
+    "import-helpers/emitter-audit/forof-naming/es5/iteration-false/original-shape",
+    "import-helpers/emitter-audit/forof-naming/es5/iteration-false/three-level",
+    "import-helpers/emitter-audit/forof-naming/es5/iteration-false/pattern-head",
+    "import-helpers/emitter-audit/forof-naming/es5/iteration-false/captured-loop",
+    "import-helpers/emitter-audit/forof-naming/es5/iteration-true/original-shape",
+    "import-helpers/emitter-audit/forof-naming/es5/iteration-true/three-level",
+    "import-helpers/emitter-audit/forof-naming/es5/iteration-true/pattern-head",
+    "import-helpers/emitter-audit/forof-naming/es5/iteration-true/captured-loop",
+    "import-helpers/emitter-audit/forof-naming/es2015/iteration-false/original-shape",
+    "import-helpers/emitter-audit/forof-naming/es2015/iteration-false/three-level",
+    "import-helpers/emitter-audit/forof-naming/es2015/iteration-false/pattern-head",
+    "import-helpers/emitter-audit/forof-naming/es2015/iteration-false/captured-loop",
+    "import-helpers/emitter-audit/forof-naming/es2015/iteration-true/original-shape",
+    "import-helpers/emitter-audit/forof-naming/es2015/iteration-true/three-level",
+    "import-helpers/emitter-audit/forof-naming/es2015/iteration-true/pattern-head",
+    "import-helpers/emitter-audit/forof-naming/es2015/iteration-true/captured-loop"
+  ]
+}

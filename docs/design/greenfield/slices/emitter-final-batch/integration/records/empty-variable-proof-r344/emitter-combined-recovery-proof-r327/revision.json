@@ -1,0 +1,11 @@
+{
+  "predecessor_wrapper_sha256": "1f8ccaed9a48d6bc393c4b63f71d38b829dfffc84d44e8794264caf5e32cae44",
+  "changes": [
+    "Explicit exact four-head ancestry",
+    "Combined source hashes in the same three source/test files; still only two production files differ from r185",
+    "Update context-extension reason and build label",
+    "No comparison/selector/guard/evidence-pin relaxations"
+  ],
+  "unit_tests": "216 PASS r325",
+  "command_qualification": "pending"
+}

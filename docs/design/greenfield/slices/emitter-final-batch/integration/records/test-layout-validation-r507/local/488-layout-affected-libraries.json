@@ -1,0 +1,40 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "test",
+    "--offline",
+    "-p",
+    "tsc-rs-checker",
+    "-p",
+    "tsc-rs-diagnostics",
+    "-p",
+    "tsc-rs-emitter",
+    "-p",
+    "tsc-rs-harness",
+    "-p",
+    "tsc-rs-program",
+    "-p",
+    "tsc-rs-types",
+    "--lib",
+    "--",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-20T08:49:32.670668+00:00",
+  "head": "4ccf822b8b14555d6c07339e39dfced95327df33",
+  "tracked_clean": false,
+  "diff_sha256": "5d16906017ed410fc54c62264685dc9391de63e097ebc35485ef5c0476c1be7c",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 964.586,
+  "log_sha256": "b48dfca34cc169932e6010a0f7d659a16a45eddc0826eb25dae56ca947a70e2c",
+  "log_bytes": 205432
+}

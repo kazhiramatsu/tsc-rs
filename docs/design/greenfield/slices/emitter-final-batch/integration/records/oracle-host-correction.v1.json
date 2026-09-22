@@ -1,0 +1,991 @@
+{
+  "schema": 1,
+  "qualification": "ratchets/h2-6c-qualification.v1.json",
+  "generator": "crates/oracle/h2-6c-qualification.mjs",
+  "cases": [
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapWithNonCaseSensitiveFileNames.ts#default",
+      "before": {
+        "suite": "compiler",
+        "case_id": "typescript-6.0.3/compiler/sourceMapWithNonCaseSensitiveFileNames.ts#default",
+        "fixture_id": "typescript-6.0.3/compiler/sourceMapWithNonCaseSensitiveFileNames.ts",
+        "matrix_key": "default",
+        "selection_origin": "census-positive-band",
+        "execution_route": "recorded-compiler-plan",
+        "expansion_case": 6276,
+        "configuration_index": 0,
+        "source": {
+          "path": "sourceMapWithNonCaseSensitiveFileNames.ts",
+          "bytes": 401,
+          "sha256": "e0fcdfa523d27f0a6bb3fa90cdeb1e172efa880b614fb8bcc4546d71df891213",
+          "git_blob_sha1": "83f25d547e870eb95458a840122dba9f3ca3b0d7"
+        },
+        "option_facets": {
+          "sourceMap": {
+            "state": "true",
+            "value": true,
+            "raw": "true",
+            "origin": "fixture"
+          },
+          "inlineSourceMap": {
+            "state": "absent",
+            "value": null,
+            "raw": null,
+            "origin": "absent"
+          },
+          "inlineSources": {
+            "state": "absent",
+            "value": null,
+            "raw": null,
+            "origin": "absent"
+          },
+          "sourceRoot": {
+            "state": "absent",
+            "value": null,
+            "raw": null,
+            "origin": "absent"
+          },
+          "mapRoot": {
+            "state": "absent",
+            "value": null,
+            "raw": null,
+            "origin": "absent"
+          }
+        },
+        "positive_options": [
+          "sourceMap"
+        ],
+        "explicit_false_options": [],
+        "target_state": "ES2015(2)",
+        "module_state": "absent",
+        "observation_input_sha256": "2ab06b77deb11818a34fbb809f2491a3a9be5f925c8f5955df8a41bbe0653e61",
+        "files": [
+          {
+            "path": "/.src/testFiles/app.ts",
+            "script_kind": "TS",
+            "declaration_file": false,
+            "emit_eligible": true,
+            "implied_module_format": "None",
+            "emit_module_format": 5,
+            "feature_roots": [],
+            "parse_diagnostic_codes": [],
+            "max_ast_depth": 3,
+            "import_attributes": false,
+            "advanced_comment_placement": false,
+            "text_sha256": "dd7a01bd35eba4c5dd5e6d7469953ccf09fad094981c4a26eb911a58192aaad1",
+            "unit": 0
+          },
+          {
+            "path": "/.src/testFiles/app2.ts",
+            "script_kind": "TS",
+            "declaration_file": false,
+            "emit_eligible": true,
+            "implied_module_format": "None",
+            "emit_module_format": 5,
+            "feature_roots": [],
+            "parse_diagnostic_codes": [],
+            "max_ast_depth": 3,
+            "import_attributes": false,
+            "advanced_comment_placement": false,
+            "text_sha256": "d8ca69391f74ef8cd5bfd94f14fc3806d8f078668e7d7ecd041032cb37109a39",
+            "unit": 1
+          }
+        ],
+        "owner_reachability": [
+          "source-map-generator",
+          "source-map-output-path"
+        ],
+        "disposition": "admitted-for-execution",
+        "required_slices": [],
+        "diagnostic_disposition": {
+          "state": "exact-required"
+        },
+        "typescript_observation": {
+          "writes": [
+            {
+              "index": 0,
+              "path": "testfiles/fooResult.js.map",
+              "kind": "source-map",
+              "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZm9vUmVzdWx0LmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vdGVzdEZpbGVzL2FwcC50cyIsIi4uL3Rlc3RGaWxlcy9hcHAyLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSxnRkFBZ0Y7QUFDaEYsMEdBQTBHO0FBQzFHLE1BQU0sQ0FBQztDQUNOO0FDSEQsTUFBTSxDQUFDO0NBQ04ifQ==",
+              "callback_utf8_sha256": "3a57600186c2e09dc64cf9e8cc8418aff1b2e2c865320274e4274dfc8a54840c",
+              "callback_utf8_bytes": 199,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZm9vUmVzdWx0LmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vdGVzdEZpbGVzL2FwcC50cyIsIi4uL3Rlc3RGaWxlcy9hcHAyLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSxnRkFBZ0Y7QUFDaEYsMEdBQTBHO0FBQzFHLE1BQU0sQ0FBQztDQUNOO0FDSEQsTUFBTSxDQUFDO0NBQ04ifQ==",
+              "materialized_utf8_sha256": "3a57600186c2e09dc64cf9e8cc8418aff1b2e2c865320274e4274dfc8a54840c",
+              "materialized_utf8_bytes": 199,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/testFiles/app.ts",
+                "/.src/testFiles/app2.ts"
+              ],
+              "data_present": false,
+              "data_source_map_url_pos": null,
+              "data_diagnostics_count": null,
+              "inline_source_map_payload": null
+            },
+            {
+              "index": 1,
+              "path": "testfiles/fooResult.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gTm90ZSBpbiB0aGUgb3V0IHJlc3VsdCB3ZSBhcmUgdXNpbmcgc2FtZSBmb2xkZXIgbmFtZSBvbmx5IGRpZmZlcmVudCBpbiBjYXNpbmcNCi8vIFNpbmNlIHRoaXMgaXMgbm9uIGNhc2Ugc2Vuc2l0aXZlLCB0aGUgcmVsYXRpdmUgcGF0aHMgc2hvdWxkIGJlIGp1c3QgYXBwLnRzIGFuZCBhcHAyLnRzIGluIHRoZSBzb3VyY2VtYXANCmNsYXNzIGMgew0KfQ0KY2xhc3MgZCB7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1mb29SZXN1bHQuanMubWFw",
+              "callback_utf8_sha256": "c509c0df0dc2322e3d00635a7ce2d1448f0dc9290c0181e25a40cc9bee29e690",
+              "callback_utf8_bytes": 270,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gTm90ZSBpbiB0aGUgb3V0IHJlc3VsdCB3ZSBhcmUgdXNpbmcgc2FtZSBmb2xkZXIgbmFtZSBvbmx5IGRpZmZlcmVudCBpbiBjYXNpbmcNCi8vIFNpbmNlIHRoaXMgaXMgbm9uIGNhc2Ugc2Vuc2l0aXZlLCB0aGUgcmVsYXRpdmUgcGF0aHMgc2hvdWxkIGJlIGp1c3QgYXBwLnRzIGFuZCBhcHAyLnRzIGluIHRoZSBzb3VyY2VtYXANCmNsYXNzIGMgew0KfQ0KY2xhc3MgZCB7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1mb29SZXN1bHQuanMubWFw",
+              "materialized_utf8_sha256": "c509c0df0dc2322e3d00635a7ce2d1448f0dc9290c0181e25a40cc9bee29e690",
+              "materialized_utf8_bytes": 270,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/testFiles/app.ts",
+                "/.src/testFiles/app2.ts"
+              ],
+              "data_present": true,
+              "data_source_map_url_pos": 233,
+              "data_diagnostics_count": 0,
+              "inline_source_map_payload": null
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5101,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "emit_refused": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/.src/testFiles/app.ts",
+                  "/.src/testFiles/app2.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"fooResult.js\",\"sourceRoot\":\"\",\"sources\":[\"../testFiles/app.ts\",\"../testFiles/app2.ts\"],\"names\":[],\"mappings\":\";AAAA,gFAAgF;AAChF,0GAA0G;AAC1G,MAAM,CAAC;CACN;ACHD,MAAM,CAAC;CACN\"}",
+                "source_map_json_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZm9vUmVzdWx0LmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vdGVzdEZpbGVzL2FwcC50cyIsIi4uL3Rlc3RGaWxlcy9hcHAyLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSxnRkFBZ0Y7QUFDaEYsMEdBQTBHO0FBQzFHLE1BQU0sQ0FBQztDQUNOO0FDSEQsTUFBTSxDQUFDO0NBQ04ifQ==",
+                "source_map_json_utf8_sha256": "3a57600186c2e09dc64cf9e8cc8418aff1b2e2c865320274e4274dfc8a54840c"
+              }
+            ]
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "75878861f980b8b5738a589725393a08c14df2a30bd7a8aeef3e3852b0a65957"
+        },
+        "typescript_run_fingerprints": [
+          "75878861f980b8b5738a589725393a08c14df2a30bd7a8aeef3e3852b0a65957",
+          "75878861f980b8b5738a589725393a08c14df2a30bd7a8aeef3e3852b0a65957"
+        ],
+        "input": {
+          "current_directory": "/.src",
+          "roots": [
+            "/.src/testFiles/app.ts",
+            "/.src/testFiles/app2.ts"
+          ],
+          "vfs_symlinks": [],
+          "settings": [
+            {
+              "name": "target",
+              "value": "es2015"
+            },
+            {
+              "name": "outFile",
+              "value": "testfiles/fooResult.js"
+            },
+            {
+              "name": "sourcemap",
+              "value": "true"
+            },
+            {
+              "name": "useCaseSensitiveFileNames",
+              "value": "false"
+            },
+            {
+              "name": "Filename",
+              "value": "testFiles/app2.ts"
+            }
+          ],
+          "virtual_config": null,
+          "files": [
+            {
+              "unit": 0,
+              "path": "/.src/testFiles/app.ts",
+              "utf8_base64": "Ly8gTm90ZSBpbiB0aGUgb3V0IHJlc3VsdCB3ZSBhcmUgdXNpbmcgc2FtZSBmb2xkZXIgbmFtZSBvbmx5IGRpZmZlcmVudCBpbiBjYXNpbmcKLy8gU2luY2UgdGhpcyBpcyBub24gY2FzZSBzZW5zaXRpdmUsIHRoZSByZWxhdGl2ZSBwYXRocyBzaG91bGQgYmUganVzdCBhcHAudHMgYW5kIGFwcDIudHMgaW4gdGhlIHNvdXJjZW1hcApjbGFzcyBjIHsKfQo=",
+              "utf8_sha256": "dd7a01bd35eba4c5dd5e6d7469953ccf09fad094981c4a26eb911a58192aaad1",
+              "utf8_bytes": 200
+            },
+            {
+              "unit": 1,
+              "path": "/.src/testFiles/app2.ts",
+              "utf8_base64": "Y2xhc3MgZCB7Cn0K",
+              "utf8_sha256": "d8ca69391f74ef8cd5bfd94f14fc3806d8f078668e7d7ecd041032cb37109a39",
+              "utf8_bytes": 12
+            }
+          ]
+        },
+        "rust_expectation": "two-deterministic-exact-runs",
+        "case_fingerprint_sha256": "f860d9b17947d19fcf944a086191f4d733782b2e281508fdcb434f9a15a06909"
+      },
+      "after": {
+        "suite": "compiler",
+        "case_id": "typescript-6.0.3/compiler/sourceMapWithNonCaseSensitiveFileNames.ts#default",
+        "fixture_id": "typescript-6.0.3/compiler/sourceMapWithNonCaseSensitiveFileNames.ts",
+        "matrix_key": "default",
+        "selection_origin": "census-positive-band",
+        "execution_route": "recorded-compiler-plan",
+        "expansion_case": 6276,
+        "configuration_index": 0,
+        "source": {
+          "path": "sourceMapWithNonCaseSensitiveFileNames.ts",
+          "bytes": 401,
+          "sha256": "e0fcdfa523d27f0a6bb3fa90cdeb1e172efa880b614fb8bcc4546d71df891213",
+          "git_blob_sha1": "83f25d547e870eb95458a840122dba9f3ca3b0d7"
+        },
+        "option_facets": {
+          "sourceMap": {
+            "state": "true",
+            "value": true,
+            "raw": "true",
+            "origin": "fixture"
+          },
+          "inlineSourceMap": {
+            "state": "absent",
+            "value": null,
+            "raw": null,
+            "origin": "absent"
+          },
+          "inlineSources": {
+            "state": "absent",
+            "value": null,
+            "raw": null,
+            "origin": "absent"
+          },
+          "sourceRoot": {
+            "state": "absent",
+            "value": null,
+            "raw": null,
+            "origin": "absent"
+          },
+          "mapRoot": {
+            "state": "absent",
+            "value": null,
+            "raw": null,
+            "origin": "absent"
+          }
+        },
+        "positive_options": [
+          "sourceMap"
+        ],
+        "explicit_false_options": [],
+        "target_state": "ES2015(2)",
+        "module_state": "absent",
+        "observation_input_sha256": "48e558483f4925746cab0c3e0f7bdc62cb04d0663222b58e68ba1240e7ed54d0",
+        "files": [
+          {
+            "path": "/.src/testFiles/app.ts",
+            "script_kind": "TS",
+            "declaration_file": false,
+            "emit_eligible": true,
+            "implied_module_format": "None",
+            "emit_module_format": 5,
+            "feature_roots": [],
+            "parse_diagnostic_codes": [],
+            "max_ast_depth": 3,
+            "import_attributes": false,
+            "advanced_comment_placement": false,
+            "text_sha256": "dd7a01bd35eba4c5dd5e6d7469953ccf09fad094981c4a26eb911a58192aaad1",
+            "unit": 0
+          },
+          {
+            "path": "/.src/testFiles/app2.ts",
+            "script_kind": "TS",
+            "declaration_file": false,
+            "emit_eligible": true,
+            "implied_module_format": "None",
+            "emit_module_format": 5,
+            "feature_roots": [],
+            "parse_diagnostic_codes": [],
+            "max_ast_depth": 3,
+            "import_attributes": false,
+            "advanced_comment_placement": false,
+            "text_sha256": "d8ca69391f74ef8cd5bfd94f14fc3806d8f078668e7d7ecd041032cb37109a39",
+            "unit": 1
+          }
+        ],
+        "owner_reachability": [
+          "source-map-generator",
+          "source-map-output-path"
+        ],
+        "disposition": "admitted-for-execution",
+        "required_slices": [],
+        "diagnostic_disposition": {
+          "state": "exact-required"
+        },
+        "typescript_observation": {
+          "writes": [
+            {
+              "index": 0,
+              "path": "testfiles/fooResult.js.map",
+              "kind": "source-map",
+              "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZm9vUmVzdWx0LmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYXBwLnRzIiwiYXBwMi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsZ0ZBQWdGO0FBQ2hGLDBHQUEwRztBQUMxRyxNQUFNLENBQUM7Q0FDTjtBQ0hELE1BQU0sQ0FBQztDQUNOIn0=",
+              "callback_utf8_sha256": "083fcce15b193af20ade3eb7eaa3552823bb78656f38d376680ad1438504cb67",
+              "callback_utf8_bytes": 173,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZm9vUmVzdWx0LmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYXBwLnRzIiwiYXBwMi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsZ0ZBQWdGO0FBQ2hGLDBHQUEwRztBQUMxRyxNQUFNLENBQUM7Q0FDTjtBQ0hELE1BQU0sQ0FBQztDQUNOIn0=",
+              "materialized_utf8_sha256": "083fcce15b193af20ade3eb7eaa3552823bb78656f38d376680ad1438504cb67",
+              "materialized_utf8_bytes": 173,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/testFiles/app.ts",
+                "/.src/testFiles/app2.ts"
+              ],
+              "data_present": false,
+              "data_source_map_url_pos": null,
+              "data_diagnostics_count": null,
+              "inline_source_map_payload": null
+            },
+            {
+              "index": 1,
+              "path": "testfiles/fooResult.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gTm90ZSBpbiB0aGUgb3V0IHJlc3VsdCB3ZSBhcmUgdXNpbmcgc2FtZSBmb2xkZXIgbmFtZSBvbmx5IGRpZmZlcmVudCBpbiBjYXNpbmcNCi8vIFNpbmNlIHRoaXMgaXMgbm9uIGNhc2Ugc2Vuc2l0aXZlLCB0aGUgcmVsYXRpdmUgcGF0aHMgc2hvdWxkIGJlIGp1c3QgYXBwLnRzIGFuZCBhcHAyLnRzIGluIHRoZSBzb3VyY2VtYXANCmNsYXNzIGMgew0KfQ0KY2xhc3MgZCB7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1mb29SZXN1bHQuanMubWFw",
+              "callback_utf8_sha256": "c509c0df0dc2322e3d00635a7ce2d1448f0dc9290c0181e25a40cc9bee29e690",
+              "callback_utf8_bytes": 270,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gTm90ZSBpbiB0aGUgb3V0IHJlc3VsdCB3ZSBhcmUgdXNpbmcgc2FtZSBmb2xkZXIgbmFtZSBvbmx5IGRpZmZlcmVudCBpbiBjYXNpbmcNCi8vIFNpbmNlIHRoaXMgaXMgbm9uIGNhc2Ugc2Vuc2l0aXZlLCB0aGUgcmVsYXRpdmUgcGF0aHMgc2hvdWxkIGJlIGp1c3QgYXBwLnRzIGFuZCBhcHAyLnRzIGluIHRoZSBzb3VyY2VtYXANCmNsYXNzIGMgew0KfQ0KY2xhc3MgZCB7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1mb29SZXN1bHQuanMubWFw",
+              "materialized_utf8_sha256": "c509c0df0dc2322e3d00635a7ce2d1448f0dc9290c0181e25a40cc9bee29e690",
+              "materialized_utf8_bytes": 270,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/testFiles/app.ts",
+                "/.src/testFiles/app2.ts"
+              ],
+              "data_present": true,
+              "data_source_map_url_pos": 233,
+              "data_diagnostics_count": 0,
+              "inline_source_map_payload": null
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5101,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+            }
+          ],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "emit_refused": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/.src/testFiles/app.ts",
+                  "/.src/testFiles/app2.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"fooResult.js\",\"sourceRoot\":\"\",\"sources\":[\"app.ts\",\"app2.ts\"],\"names\":[],\"mappings\":\";AAAA,gFAAgF;AAChF,0GAA0G;AAC1G,MAAM,CAAC;CACN;ACHD,MAAM,CAAC;CACN\"}",
+                "source_map_json_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZm9vUmVzdWx0LmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYXBwLnRzIiwiYXBwMi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsZ0ZBQWdGO0FBQ2hGLDBHQUEwRztBQUMxRyxNQUFNLENBQUM7Q0FDTjtBQ0hELE1BQU0sQ0FBQztDQUNOIn0=",
+                "source_map_json_utf8_sha256": "083fcce15b193af20ade3eb7eaa3552823bb78656f38d376680ad1438504cb67"
+              }
+            ]
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "0c91d39bce34d3cdb8a9f5f53777c936790e78a17fdbbc46353df3fa5bd3cd99"
+        },
+        "typescript_run_fingerprints": [
+          "0c91d39bce34d3cdb8a9f5f53777c936790e78a17fdbbc46353df3fa5bd3cd99",
+          "0c91d39bce34d3cdb8a9f5f53777c936790e78a17fdbbc46353df3fa5bd3cd99"
+        ],
+        "input": {
+          "current_directory": "/.src",
+          "roots": [
+            "/.src/testFiles/app.ts",
+            "/.src/testFiles/app2.ts"
+          ],
+          "vfs_symlinks": [],
+          "settings": [
+            {
+              "name": "target",
+              "value": "es2015"
+            },
+            {
+              "name": "outFile",
+              "value": "testfiles/fooResult.js"
+            },
+            {
+              "name": "sourcemap",
+              "value": "true"
+            },
+            {
+              "name": "useCaseSensitiveFileNames",
+              "value": "false"
+            },
+            {
+              "name": "Filename",
+              "value": "testFiles/app2.ts"
+            }
+          ],
+          "virtual_config": null,
+          "files": [
+            {
+              "unit": 0,
+              "path": "/.src/testFiles/app.ts",
+              "utf8_base64": "Ly8gTm90ZSBpbiB0aGUgb3V0IHJlc3VsdCB3ZSBhcmUgdXNpbmcgc2FtZSBmb2xkZXIgbmFtZSBvbmx5IGRpZmZlcmVudCBpbiBjYXNpbmcKLy8gU2luY2UgdGhpcyBpcyBub24gY2FzZSBzZW5zaXRpdmUsIHRoZSByZWxhdGl2ZSBwYXRocyBzaG91bGQgYmUganVzdCBhcHAudHMgYW5kIGFwcDIudHMgaW4gdGhlIHNvdXJjZW1hcApjbGFzcyBjIHsKfQo=",
+              "utf8_sha256": "dd7a01bd35eba4c5dd5e6d7469953ccf09fad094981c4a26eb911a58192aaad1",
+              "utf8_bytes": 200
+            },
+            {
+              "unit": 1,
+              "path": "/.src/testFiles/app2.ts",
+              "utf8_base64": "Y2xhc3MgZCB7Cn0K",
+              "utf8_sha256": "d8ca69391f74ef8cd5bfd94f14fc3806d8f078668e7d7ecd041032cb37109a39",
+              "utf8_bytes": 12
+            }
+          ]
+        },
+        "rust_expectation": "two-deterministic-exact-runs",
+        "case_fingerprint_sha256": "e60e5e9c1728bb601e52ee2cfe47d80b86c0b06bf5f8feafc6f61d8bb6f4ce2f"
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapWithNonCaseSensitiveFileNamesAndOutDir.ts#default",
+      "before": {
+        "suite": "compiler",
+        "case_id": "typescript-6.0.3/compiler/sourceMapWithNonCaseSensitiveFileNamesAndOutDir.ts#default",
+        "fixture_id": "typescript-6.0.3/compiler/sourceMapWithNonCaseSensitiveFileNamesAndOutDir.ts",
+        "matrix_key": "default",
+        "selection_origin": "census-positive-band",
+        "execution_route": "recorded-compiler-plan",
+        "expansion_case": 6277,
+        "configuration_index": 0,
+        "source": {
+          "path": "sourceMapWithNonCaseSensitiveFileNamesAndOutDir.ts",
+          "bytes": 385,
+          "sha256": "ca4481c247bd9af75a46cdd649fa17f2dc8bb5fd2ee20b82a401d9faf31ce815",
+          "git_blob_sha1": "21d5dc7b74de28fd2dae4c8d3cbeb0cb7ff0abf9"
+        },
+        "option_facets": {
+          "sourceMap": {
+            "state": "true",
+            "value": true,
+            "raw": "true",
+            "origin": "fixture"
+          },
+          "inlineSourceMap": {
+            "state": "absent",
+            "value": null,
+            "raw": null,
+            "origin": "absent"
+          },
+          "inlineSources": {
+            "state": "absent",
+            "value": null,
+            "raw": null,
+            "origin": "absent"
+          },
+          "sourceRoot": {
+            "state": "absent",
+            "value": null,
+            "raw": null,
+            "origin": "absent"
+          },
+          "mapRoot": {
+            "state": "absent",
+            "value": null,
+            "raw": null,
+            "origin": "absent"
+          }
+        },
+        "positive_options": [
+          "sourceMap"
+        ],
+        "explicit_false_options": [],
+        "target_state": "ES2015(2)",
+        "module_state": "absent",
+        "observation_input_sha256": "bbb8a8affc0d2b34e4aeaa768a0bfa0c9a7a21caad2c89222cdbab2b84b1ceda",
+        "files": [
+          {
+            "path": "/.src/testFiles/app.ts",
+            "script_kind": "TS",
+            "declaration_file": false,
+            "emit_eligible": true,
+            "implied_module_format": "None",
+            "emit_module_format": 5,
+            "feature_roots": [],
+            "parse_diagnostic_codes": [],
+            "max_ast_depth": 3,
+            "import_attributes": false,
+            "advanced_comment_placement": false,
+            "text_sha256": "dd7a01bd35eba4c5dd5e6d7469953ccf09fad094981c4a26eb911a58192aaad1",
+            "unit": 0
+          },
+          {
+            "path": "/.src/testFiles/app2.ts",
+            "script_kind": "TS",
+            "declaration_file": false,
+            "emit_eligible": true,
+            "implied_module_format": "None",
+            "emit_module_format": 5,
+            "feature_roots": [],
+            "parse_diagnostic_codes": [],
+            "max_ast_depth": 3,
+            "import_attributes": false,
+            "advanced_comment_placement": false,
+            "text_sha256": "ef213baf82b85b67af2d74bcdc50bface0529416a3a45083ce737f4605eae816",
+            "unit": 1
+          }
+        ],
+        "owner_reachability": [
+          "source-map-generator",
+          "source-map-output-path"
+        ],
+        "disposition": "admitted-for-execution",
+        "required_slices": [],
+        "diagnostic_disposition": {
+          "state": "exact-required"
+        },
+        "typescript_observation": {
+          "writes": [
+            {
+              "index": 0,
+              "path": "testfiles/app.js.map",
+              "kind": "source-map",
+              "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYXBwLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vdGVzdEZpbGVzL2FwcC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsZ0ZBQWdGO0FBQ2hGLDBHQUEwRztBQUMxRyxNQUFNLENBQUM7Q0FDTiJ9",
+              "callback_utf8_sha256": "1f654066f84dd422900ff1d54e562327e289fa5e1db671d8dbf18fd2c076f03d",
+              "callback_utf8_bytes": 150,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYXBwLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vdGVzdEZpbGVzL2FwcC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsZ0ZBQWdGO0FBQ2hGLDBHQUEwRztBQUMxRyxNQUFNLENBQUM7Q0FDTiJ9",
+              "materialized_utf8_sha256": "1f654066f84dd422900ff1d54e562327e289fa5e1db671d8dbf18fd2c076f03d",
+              "materialized_utf8_bytes": 150,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/testFiles/app.ts"
+              ],
+              "data_present": false,
+              "data_source_map_url_pos": null,
+              "data_diagnostics_count": null,
+              "inline_source_map_payload": null
+            },
+            {
+              "index": 1,
+              "path": "testfiles/app.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gTm90ZSBpbiB0aGUgb3V0IHJlc3VsdCB3ZSBhcmUgdXNpbmcgc2FtZSBmb2xkZXIgbmFtZSBvbmx5IGRpZmZlcmVudCBpbiBjYXNpbmcNCi8vIFNpbmNlIHRoaXMgaXMgbm9uIGNhc2Ugc2Vuc2l0aXZlLCB0aGUgcmVsYXRpdmUgcGF0aHMgc2hvdWxkIGJlIGp1c3QgYXBwLnRzIGFuZCBhcHAyLnRzIGluIHRoZSBzb3VyY2VtYXANCmNsYXNzIGMgew0KfQ0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YXBwLmpzLm1hcA==",
+              "callback_utf8_sha256": "d679070b96886fef6fcf5411618b14c70d05c7934e27bed39a157ebd3df149bd",
+              "callback_utf8_bytes": 250,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gTm90ZSBpbiB0aGUgb3V0IHJlc3VsdCB3ZSBhcmUgdXNpbmcgc2FtZSBmb2xkZXIgbmFtZSBvbmx5IGRpZmZlcmVudCBpbiBjYXNpbmcNCi8vIFNpbmNlIHRoaXMgaXMgbm9uIGNhc2Ugc2Vuc2l0aXZlLCB0aGUgcmVsYXRpdmUgcGF0aHMgc2hvdWxkIGJlIGp1c3QgYXBwLnRzIGFuZCBhcHAyLnRzIGluIHRoZSBzb3VyY2VtYXANCmNsYXNzIGMgew0KfQ0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YXBwLmpzLm1hcA==",
+              "materialized_utf8_sha256": "d679070b96886fef6fcf5411618b14c70d05c7934e27bed39a157ebd3df149bd",
+              "materialized_utf8_bytes": 250,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/testFiles/app.ts"
+              ],
+              "data_present": true,
+              "data_source_map_url_pos": 219,
+              "data_diagnostics_count": 0,
+              "inline_source_map_payload": null
+            },
+            {
+              "index": 2,
+              "path": "testfiles/app2.js.map",
+              "kind": "source-map",
+              "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYXBwMi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL3Rlc3RGaWxlcy9hcHAyLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSxNQUFNLENBQUM7Q0FDTiJ9",
+              "callback_utf8_sha256": "3cc5edef8d3e68017eede5494177eb39e1fb6795cdd101919c80b71eaed95b7b",
+              "callback_utf8_bytes": 126,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYXBwMi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL3Rlc3RGaWxlcy9hcHAyLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSxNQUFNLENBQUM7Q0FDTiJ9",
+              "materialized_utf8_sha256": "3cc5edef8d3e68017eede5494177eb39e1fb6795cdd101919c80b71eaed95b7b",
+              "materialized_utf8_bytes": 126,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/testFiles/app2.ts"
+              ],
+              "data_present": false,
+              "data_source_map_url_pos": null,
+              "data_diagnostics_count": null,
+              "inline_source_map_payload": null
+            },
+            {
+              "index": 3,
+              "path": "testfiles/app2.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgZCB7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1hcHAyLmpzLm1hcA==",
+              "callback_utf8_sha256": "cb5ea6d5102313b5b1b517565ebf3adee2989825c8631fb512d30c678f4e8b05",
+              "callback_utf8_bytes": 61,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgZCB7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1hcHAyLmpzLm1hcA==",
+              "materialized_utf8_sha256": "cb5ea6d5102313b5b1b517565ebf3adee2989825c8631fb512d30c678f4e8b05",
+              "materialized_utf8_bytes": 61,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/testFiles/app2.ts"
+              ],
+              "data_present": true,
+              "data_source_map_url_pos": 29,
+              "data_diagnostics_count": 0,
+              "inline_source_map_payload": null
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "emit_refused": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/.src/testFiles/app.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"app.js\",\"sourceRoot\":\"\",\"sources\":[\"../testFiles/app.ts\"],\"names\":[],\"mappings\":\";AAAA,gFAAgF;AAChF,0GAA0G;AAC1G,MAAM,CAAC;CACN\"}",
+                "source_map_json_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYXBwLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vdGVzdEZpbGVzL2FwcC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsZ0ZBQWdGO0FBQ2hGLDBHQUEwRztBQUMxRyxNQUFNLENBQUM7Q0FDTiJ9",
+                "source_map_json_utf8_sha256": "1f654066f84dd422900ff1d54e562327e289fa5e1db671d8dbf18fd2c076f03d"
+              },
+              {
+                "input_source_file_names": [
+                  "/.src/testFiles/app2.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"app2.js\",\"sourceRoot\":\"\",\"sources\":[\"../testFiles/app2.ts\"],\"names\":[],\"mappings\":\";AAAA,MAAM,CAAC;CACN\"}",
+                "source_map_json_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYXBwMi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL3Rlc3RGaWxlcy9hcHAyLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSxNQUFNLENBQUM7Q0FDTiJ9",
+                "source_map_json_utf8_sha256": "3cc5edef8d3e68017eede5494177eb39e1fb6795cdd101919c80b71eaed95b7b"
+              }
+            ]
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "e7095dbea59a4413c4708070d5ff4ac571326e4735e3a06d8bd54309b7314ad1"
+        },
+        "typescript_run_fingerprints": [
+          "e7095dbea59a4413c4708070d5ff4ac571326e4735e3a06d8bd54309b7314ad1",
+          "e7095dbea59a4413c4708070d5ff4ac571326e4735e3a06d8bd54309b7314ad1"
+        ],
+        "input": {
+          "current_directory": "/.src",
+          "roots": [
+            "/.src/testFiles/app.ts",
+            "/.src/testFiles/app2.ts"
+          ],
+          "vfs_symlinks": [],
+          "settings": [
+            {
+              "name": "target",
+              "value": "es2015"
+            },
+            {
+              "name": "outDir",
+              "value": "testfiles"
+            },
+            {
+              "name": "sourcemap",
+              "value": "true"
+            },
+            {
+              "name": "useCaseSensitiveFileNames",
+              "value": "false"
+            },
+            {
+              "name": "Filename",
+              "value": "testFiles/app2.ts"
+            }
+          ],
+          "virtual_config": null,
+          "files": [
+            {
+              "unit": 0,
+              "path": "/.src/testFiles/app.ts",
+              "utf8_base64": "Ly8gTm90ZSBpbiB0aGUgb3V0IHJlc3VsdCB3ZSBhcmUgdXNpbmcgc2FtZSBmb2xkZXIgbmFtZSBvbmx5IGRpZmZlcmVudCBpbiBjYXNpbmcKLy8gU2luY2UgdGhpcyBpcyBub24gY2FzZSBzZW5zaXRpdmUsIHRoZSByZWxhdGl2ZSBwYXRocyBzaG91bGQgYmUganVzdCBhcHAudHMgYW5kIGFwcDIudHMgaW4gdGhlIHNvdXJjZW1hcApjbGFzcyBjIHsKfQo=",
+              "utf8_sha256": "dd7a01bd35eba4c5dd5e6d7469953ccf09fad094981c4a26eb911a58192aaad1",
+              "utf8_bytes": 200
+            },
+            {
+              "unit": 1,
+              "path": "/.src/testFiles/app2.ts",
+              "utf8_base64": "Y2xhc3MgZCB7Cn0=",
+              "utf8_sha256": "ef213baf82b85b67af2d74bcdc50bface0529416a3a45083ce737f4605eae816",
+              "utf8_bytes": 11
+            }
+          ]
+        },
+        "rust_expectation": "two-deterministic-exact-runs",
+        "case_fingerprint_sha256": "6a8e8f25f2fe53b08c3b7ec561416a275c9538c3c031d9b3226f830b170099ea"
+      },
+      "after": {
+        "suite": "compiler",
+        "case_id": "typescript-6.0.3/compiler/sourceMapWithNonCaseSensitiveFileNamesAndOutDir.ts#default",
+        "fixture_id": "typescript-6.0.3/compiler/sourceMapWithNonCaseSensitiveFileNamesAndOutDir.ts",
+        "matrix_key": "default",
+        "selection_origin": "census-positive-band",
+        "execution_route": "recorded-compiler-plan",
+        "expansion_case": 6277,
+        "configuration_index": 0,
+        "source": {
+          "path": "sourceMapWithNonCaseSensitiveFileNamesAndOutDir.ts",
+          "bytes": 385,
+          "sha256": "ca4481c247bd9af75a46cdd649fa17f2dc8bb5fd2ee20b82a401d9faf31ce815",
+          "git_blob_sha1": "21d5dc7b74de28fd2dae4c8d3cbeb0cb7ff0abf9"
+        },
+        "option_facets": {
+          "sourceMap": {
+            "state": "true",
+            "value": true,
+            "raw": "true",
+            "origin": "fixture"
+          },
+          "inlineSourceMap": {
+            "state": "absent",
+            "value": null,
+            "raw": null,
+            "origin": "absent"
+          },
+          "inlineSources": {
+            "state": "absent",
+            "value": null,
+            "raw": null,
+            "origin": "absent"
+          },
+          "sourceRoot": {
+            "state": "absent",
+            "value": null,
+            "raw": null,
+            "origin": "absent"
+          },
+          "mapRoot": {
+            "state": "absent",
+            "value": null,
+            "raw": null,
+            "origin": "absent"
+          }
+        },
+        "positive_options": [
+          "sourceMap"
+        ],
+        "explicit_false_options": [],
+        "target_state": "ES2015(2)",
+        "module_state": "absent",
+        "observation_input_sha256": "d95495889af47847edf84e8976410464b66353bf7759b5cd9579cb1f32292f1b",
+        "files": [
+          {
+            "path": "/.src/testFiles/app.ts",
+            "script_kind": "TS",
+            "declaration_file": false,
+            "emit_eligible": true,
+            "implied_module_format": "None",
+            "emit_module_format": 5,
+            "feature_roots": [],
+            "parse_diagnostic_codes": [],
+            "max_ast_depth": 3,
+            "import_attributes": false,
+            "advanced_comment_placement": false,
+            "text_sha256": "dd7a01bd35eba4c5dd5e6d7469953ccf09fad094981c4a26eb911a58192aaad1",
+            "unit": 0
+          },
+          {
+            "path": "/.src/testFiles/app2.ts",
+            "script_kind": "TS",
+            "declaration_file": false,
+            "emit_eligible": true,
+            "implied_module_format": "None",
+            "emit_module_format": 5,
+            "feature_roots": [],
+            "parse_diagnostic_codes": [],
+            "max_ast_depth": 3,
+            "import_attributes": false,
+            "advanced_comment_placement": false,
+            "text_sha256": "ef213baf82b85b67af2d74bcdc50bface0529416a3a45083ce737f4605eae816",
+            "unit": 1
+          }
+        ],
+        "owner_reachability": [
+          "source-map-generator",
+          "source-map-output-path"
+        ],
+        "disposition": "admitted-for-execution",
+        "required_slices": [],
+        "diagnostic_disposition": {
+          "state": "exact-required"
+        },
+        "typescript_observation": {
+          "writes": [
+            {
+              "index": 0,
+              "path": "testfiles/app.js.map",
+              "kind": "source-map",
+              "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYXBwLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYXBwLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSxnRkFBZ0Y7QUFDaEYsMEdBQTBHO0FBQzFHLE1BQU0sQ0FBQztDQUNOIn0=",
+              "callback_utf8_sha256": "662f9daa8fe3789042f49f21dc47bf90d7d4536556e22f6622d49a63b6dc5baa",
+              "callback_utf8_bytes": 137,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYXBwLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYXBwLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSxnRkFBZ0Y7QUFDaEYsMEdBQTBHO0FBQzFHLE1BQU0sQ0FBQztDQUNOIn0=",
+              "materialized_utf8_sha256": "662f9daa8fe3789042f49f21dc47bf90d7d4536556e22f6622d49a63b6dc5baa",
+              "materialized_utf8_bytes": 137,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/testFiles/app.ts"
+              ],
+              "data_present": false,
+              "data_source_map_url_pos": null,
+              "data_diagnostics_count": null,
+              "inline_source_map_payload": null
+            },
+            {
+              "index": 1,
+              "path": "testfiles/app.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gTm90ZSBpbiB0aGUgb3V0IHJlc3VsdCB3ZSBhcmUgdXNpbmcgc2FtZSBmb2xkZXIgbmFtZSBvbmx5IGRpZmZlcmVudCBpbiBjYXNpbmcNCi8vIFNpbmNlIHRoaXMgaXMgbm9uIGNhc2Ugc2Vuc2l0aXZlLCB0aGUgcmVsYXRpdmUgcGF0aHMgc2hvdWxkIGJlIGp1c3QgYXBwLnRzIGFuZCBhcHAyLnRzIGluIHRoZSBzb3VyY2VtYXANCmNsYXNzIGMgew0KfQ0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YXBwLmpzLm1hcA==",
+              "callback_utf8_sha256": "d679070b96886fef6fcf5411618b14c70d05c7934e27bed39a157ebd3df149bd",
+              "callback_utf8_bytes": 250,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gTm90ZSBpbiB0aGUgb3V0IHJlc3VsdCB3ZSBhcmUgdXNpbmcgc2FtZSBmb2xkZXIgbmFtZSBvbmx5IGRpZmZlcmVudCBpbiBjYXNpbmcNCi8vIFNpbmNlIHRoaXMgaXMgbm9uIGNhc2Ugc2Vuc2l0aXZlLCB0aGUgcmVsYXRpdmUgcGF0aHMgc2hvdWxkIGJlIGp1c3QgYXBwLnRzIGFuZCBhcHAyLnRzIGluIHRoZSBzb3VyY2VtYXANCmNsYXNzIGMgew0KfQ0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YXBwLmpzLm1hcA==",
+              "materialized_utf8_sha256": "d679070b96886fef6fcf5411618b14c70d05c7934e27bed39a157ebd3df149bd",
+              "materialized_utf8_bytes": 250,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/testFiles/app.ts"
+              ],
+              "data_present": true,
+              "data_source_map_url_pos": 219,
+              "data_diagnostics_count": 0,
+              "inline_source_map_payload": null
+            },
+            {
+              "index": 2,
+              "path": "testfiles/app2.js.map",
+              "kind": "source-map",
+              "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYXBwMi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbImFwcDIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQztDQUNOIn0=",
+              "callback_utf8_sha256": "0ed148ada5c51e501b836096f6e0058cf3a84e19e13d20e6be2b0e8f837754c1",
+              "callback_utf8_bytes": 113,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYXBwMi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbImFwcDIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQztDQUNOIn0=",
+              "materialized_utf8_sha256": "0ed148ada5c51e501b836096f6e0058cf3a84e19e13d20e6be2b0e8f837754c1",
+              "materialized_utf8_bytes": 113,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/testFiles/app2.ts"
+              ],
+              "data_present": false,
+              "data_source_map_url_pos": null,
+              "data_diagnostics_count": null,
+              "inline_source_map_payload": null
+            },
+            {
+              "index": 3,
+              "path": "testfiles/app2.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgZCB7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1hcHAyLmpzLm1hcA==",
+              "callback_utf8_sha256": "cb5ea6d5102313b5b1b517565ebf3adee2989825c8631fb512d30c678f4e8b05",
+              "callback_utf8_bytes": 61,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgZCB7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1hcHAyLmpzLm1hcA==",
+              "materialized_utf8_sha256": "cb5ea6d5102313b5b1b517565ebf3adee2989825c8631fb512d30c678f4e8b05",
+              "materialized_utf8_bytes": 61,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/testFiles/app2.ts"
+              ],
+              "data_present": true,
+              "data_source_map_url_pos": 29,
+              "data_diagnostics_count": 0,
+              "inline_source_map_payload": null
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_refused": false,
+          "emit_result": {
+            "emit_skipped": false,
+            "emit_refused": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/.src/testFiles/app.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"app.js\",\"sourceRoot\":\"\",\"sources\":[\"app.ts\"],\"names\":[],\"mappings\":\";AAAA,gFAAgF;AAChF,0GAA0G;AAC1G,MAAM,CAAC;CACN\"}",
+                "source_map_json_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYXBwLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYXBwLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSxnRkFBZ0Y7QUFDaEYsMEdBQTBHO0FBQzFHLE1BQU0sQ0FBQztDQUNOIn0=",
+                "source_map_json_utf8_sha256": "662f9daa8fe3789042f49f21dc47bf90d7d4536556e22f6622d49a63b6dc5baa"
+              },
+              {
+                "input_source_file_names": [
+                  "/.src/testFiles/app2.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"app2.js\",\"sourceRoot\":\"\",\"sources\":[\"app2.ts\"],\"names\":[],\"mappings\":\";AAAA,MAAM,CAAC;CACN\"}",
+                "source_map_json_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYXBwMi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbImFwcDIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQztDQUNOIn0=",
+                "source_map_json_utf8_sha256": "0ed148ada5c51e501b836096f6e0058cf3a84e19e13d20e6be2b0e8f837754c1"
+              }
+            ]
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "4e69bbb70286ace6cc0a514b9a340f57d41437f86ee30daeab67db42f83647b9"
+        },
+        "typescript_run_fingerprints": [
+          "4e69bbb70286ace6cc0a514b9a340f57d41437f86ee30daeab67db42f83647b9",
+          "4e69bbb70286ace6cc0a514b9a340f57d41437f86ee30daeab67db42f83647b9"
+        ],
+        "input": {
+          "current_directory": "/.src",
+          "roots": [
+            "/.src/testFiles/app.ts",
+            "/.src/testFiles/app2.ts"
+          ],
+          "vfs_symlinks": [],
+          "settings": [
+            {
+              "name": "target",
+              "value": "es2015"
+            },
+            {
+              "name": "outDir",
+              "value": "testfiles"
+            },
+            {
+              "name": "sourcemap",
+              "value": "true"
+            },
+            {
+              "name": "useCaseSensitiveFileNames",
+              "value": "false"
+            },
+            {
+              "name": "Filename",
+              "value": "testFiles/app2.ts"
+            }
+          ],
+          "virtual_config": null,
+          "files": [
+            {
+              "unit": 0,
+              "path": "/.src/testFiles/app.ts",
+              "utf8_base64": "Ly8gTm90ZSBpbiB0aGUgb3V0IHJlc3VsdCB3ZSBhcmUgdXNpbmcgc2FtZSBmb2xkZXIgbmFtZSBvbmx5IGRpZmZlcmVudCBpbiBjYXNpbmcKLy8gU2luY2UgdGhpcyBpcyBub24gY2FzZSBzZW5zaXRpdmUsIHRoZSByZWxhdGl2ZSBwYXRocyBzaG91bGQgYmUganVzdCBhcHAudHMgYW5kIGFwcDIudHMgaW4gdGhlIHNvdXJjZW1hcApjbGFzcyBjIHsKfQo=",
+              "utf8_sha256": "dd7a01bd35eba4c5dd5e6d7469953ccf09fad094981c4a26eb911a58192aaad1",
+              "utf8_bytes": 200
+            },
+            {
+              "unit": 1,
+              "path": "/.src/testFiles/app2.ts",
+              "utf8_base64": "Y2xhc3MgZCB7Cn0=",
+              "utf8_sha256": "ef213baf82b85b67af2d74bcdc50bface0529416a3a45083ce737f4605eae816",
+              "utf8_bytes": 11
+            }
+          ]
+        },
+        "rust_expectation": "two-deterministic-exact-runs",
+        "case_fingerprint_sha256": "6c380a6c004acf5c78f377bef66a52dd5526bd37e038a4c70bfd47f7095744dc"
+      }
+    }
+  ],
+  "unchanged_case_records": 641,
+  "unchanged_census": true
+}

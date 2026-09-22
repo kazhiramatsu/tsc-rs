@@ -1,11 +1,10 @@
 //! H2.4b standard-decorator lowering.
 
+use crate::transform::try_visit_transform_children;
 use std::collections::{BTreeMap, BTreeSet};
 
 use tsc_diagnostics::{JsStr, JsString};
-use tsc_syntax::{
-    try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind,
-};
+use tsc_syntax::{NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind};
 use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget};
 
 use crate::{
@@ -94,8 +93,7 @@ impl Transformer for StandardDecoratorTransformer {
 
     fn initialize(&mut self, _context: &mut TransformationContext) -> Result<(), TransformError> {
         if self.target < ScriptTarget::ES5
-            || self.target > ScriptTarget::ES_NEXT
-            || (self.target == ScriptTarget::ES_NEXT && self.use_define_for_class_fields)
+            || (self.target >= ScriptTarget::ES_NEXT && self.use_define_for_class_fields)
         {
             return Err(TransformError::UnsupportedCompilerOption {
                 option: "standard-decorator transform",
@@ -931,7 +929,16 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 } else {
                     "default"
                 };
-                self.record_named_evaluation_text(data.expression, assigned)?;
+                // `visitExportAssignment`: `transformNamedEvaluation(…,
+                // canIgnoreEmptyStringLiteralInAssignedName(node.expression))`
+                // — the `""` assigned name of `export =` is dropped for an
+                // anonymous class expression without class/constructor-
+                // parameter decorators (_tsc.js:100229-100236).
+                let ignore_empty = assigned.is_empty()
+                    && self.export_assignment_ignores_empty_assigned_name(data.expression)?;
+                if !ignore_empty {
+                    self.record_named_evaluation_text(data.expression, assigned)?;
+                }
                 Some(self.update_generic(original, NodeData::ExportAssignment(data))?)
             }
             NodeData::ClassExpression(data)
@@ -1062,10 +1069,53 @@ impl<'context> StandardDecoratorVisitor<'context> {
         Ok(transformed)
     }
 
-    /// tsc-port: isAnonymousFunctionDefinition(node, isAnonymousClassNeedingAssignedName)
+    /// tsc-port: isAnonymousFunctionDefinition @6.0.3
+    /// tsc-hash: 649656d716fd35912a9f8a094bf6ef1d64a14ad7f6b991136bcb085ed467c5a1
+    /// tsc-span: _tsc.js:15917-15936
+    /// tsc-port: transformESDecorators.canIgnoreEmptyStringLiteralInAssignedName @6.0.3
+    /// tsc-hash: 95881572c31a31c26d25bf81024de789ba00d2067f863c76854129ad2adea0f6
+    /// tsc-span: _tsc.js:100229-100236
+    /// Reference detail: isAnonymousFunctionDefinition(node, isAnonymousClassNeedingAssignedName)
     /// @6.0.3 — the initializer, past its outer expressions, is an anonymous
     /// class expression that this transform will decorate and that carries
     /// no explicitly assigned name yet.
+    /// `canIgnoreEmptyStringLiteralInAssignedName` (_tsc.js:100229-100236):
+    /// an anonymous class expression whose class and constructor parameters
+    /// carry no decorators.
+    fn export_assignment_ignores_empty_assigned_name(
+        &self,
+        expression: Option<NodeId>,
+    ) -> Result<bool, TransformError> {
+        let Some(expression) = expression else {
+            return Ok(false);
+        };
+        let inner = self.skip_outer_expressions(self.node(expression))?;
+        let NodeData::ClassExpression(data) = &self.context.arena().node(inner)?.data else {
+            return Ok(false);
+        };
+        if data.name.is_some() || !self.decorator_expressions(data.modifiers)?.is_empty() {
+            return Ok(false);
+        }
+        for member in self.array_nodes(data.members)? {
+            let NodeData::Constructor(constructor) = &self.context.arena().node(member)?.data
+            else {
+                continue;
+            };
+            if constructor.body.is_none() {
+                continue;
+            }
+            for parameter in self.array_nodes(constructor.parameters)? {
+                if let NodeData::Parameter(parameter) = &self.context.arena().node(parameter)?.data
+                {
+                    if !self.decorator_expressions(parameter.modifiers)?.is_empty() {
+                        return Ok(false);
+                    }
+                }
+            }
+        }
+        Ok(true)
+    }
+
     fn anonymous_class_needing_assigned_name(
         &self,
         initializer: Option<NodeId>,
@@ -1243,6 +1293,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
     }
 
     /// tsc-port: transformNamedEvaluationOfPropertyDeclaration @6.0.3
+    /// tsc-hash: 3c6b7295800d56e17f82df077debbb858c59b32c7c8fe09524aeaa2fe8c3cb34
+    /// tsc-span: _tsc.js:93916-93928
     ///
     /// A class property whose initializer is an anonymous decorated class:
     /// a literal name names it directly; a non-literal computed name hoists
@@ -2430,7 +2482,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
         Ok(None)
     }
 
-    /// tsc-port: classElementVisitor @6.0.3 — one member, under the
+    /// tsc-port: transformESDecorators.classElementVisitor @6.0.3
+    /// tsc-hash: 14f673baba360a14f279a4df8767be822c1fd7d835ba72e9077ba669e91f31aa
+    /// tsc-span: _tsc.js:99165-99182
+    /// Reference detail: classElementVisitor @6.0.3 — one member, under the
     /// class-element frame its caller entered (partialTransformClassElement
     /// first, then the element-specific transform).
     fn transform_class_member(
@@ -2591,7 +2646,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
         Ok(())
     }
 
-    /// tsc-port: partialTransformClassElement @6.0.3 (decorated property)
+    /// tsc-port: transformESDecorators.partialTransformClassElement @6.0.3
+    /// tsc-hash: 46d06f1175b4bfd01fe5b4df1893f5f1164b80e7a9c94f3340604e4a6b06b912
+    /// tsc-span: _tsc.js:99831-99944
+    /// Reference detail: partialTransformClassElement @6.0.3 (decorated property)
     ///
     /// The member decorators are transformed inside the element frame and
     /// their array assignment joins `pendingExpressions`; a non-literal
@@ -2617,7 +2675,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
         Ok(())
     }
 
-    /// tsc-port: partialTransformClassElement @6.0.3 (decorated method or
+    /// tsc-port: transformESDecorators.partialTransformClassElement @6.0.3
+    /// tsc-hash: 46d06f1175b4bfd01fe5b4df1893f5f1164b80e7a9c94f3340604e4a6b06b912
+    /// tsc-span: _tsc.js:99831-99944
+    /// Reference detail: partialTransformClassElement @6.0.3 (decorated method or
     /// accessor)
     fn partial_transform_method_plan(
         &mut self,
@@ -2652,7 +2713,9 @@ impl<'context> StandardDecoratorVisitor<'context> {
         Ok(())
     }
 
-    /// tsc-port: visitReferencedPropertyName @6.0.3
+    /// tsc-port: transformESDecorators.visitReferencedPropertyName @6.0.3
+    /// tsc-hash: 3fb9e54ea116ab06008f66099f1583768d9433c845c839b1d388b69913f2181b
+    /// tsc-span: _tsc.js:100345-100362
     ///
     /// The cache temp is a generated binding with an authoritative spelling:
     /// its hoisted declaration and every use share one binding, and
@@ -2742,7 +2805,13 @@ impl<'context> StandardDecoratorVisitor<'context> {
         Ok(())
     }
 
-    /// tsc-port: injectPendingExpressions / injectPendingExpressionsCommon @6.0.3
+    /// tsc-port: transformESDecorators.injectPendingExpressions @6.0.3
+    /// tsc-hash: cb0404d09c1d0ba611663d60d726809db8548fe0a2f656b7036a3ff0779faaab
+    /// tsc-span: _tsc.js:100527-100534
+    /// tsc-port: transformESDecorators.injectPendingExpressionsCommon @6.0.3
+    /// tsc-hash: 0409cc30806f5998022df21eceb6369af27f21778e795597936eddc5350f379b
+    /// tsc-span: _tsc.js:100511-100526
+    /// Reference detail: injectPendingExpressions / injectPendingExpressionsCommon @6.0.3
     ///
     /// Both callers own a computed property name, whose comma sequence the
     /// printer expects parenthesized: an existing parenthesized expression
@@ -2786,6 +2855,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
     }
 
     /// tsc-port: isSimpleInlineableExpression @6.0.3
+    /// tsc-hash: 75411b5859a6888595a6e090ab2d42fe4f904d7becfe81a855f1b6111fa27cee
+    /// tsc-span: _tsc.js:93030-93032
     fn is_simple_inlineable_expression(
         &self,
         expression: TransformNode,
@@ -2802,6 +2873,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
     }
 
     /// tsc-port: skipOuterExpressions @6.0.3
+    /// tsc-hash: 8b1eff7c004dde6bbe6b5940ba064195f1aea6668ca5d8b1f4a69bf9cec4dec1
+    /// tsc-span: _tsc.js:27582-27587
     fn skip_outer_expressions(&self, node: TransformNode) -> Result<TransformNode, TransformError> {
         let mut current = node;
         loop {
@@ -2822,7 +2895,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
         }
     }
 
-    /// tsc-port: transformDecorator @6.0.3
+    /// tsc-port: transformESDecorators.transformDecorator @6.0.3
+    /// tsc-hash: d59f7ca48434d47359734b185ca41b870154ec401bea6c5336d7e0074b8ec622
     /// tsc-span: _tsc.js:100554-100569
     ///
     /// The visited expression (the parse node itself for an identifier or
@@ -2894,6 +2968,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 let cached = bound_receiver != receiver;
                 data.expression = Some(bound_receiver.node());
                 let target = if cached {
+                    data.question_dot_token = None;
                     // createCallBinding (_tsc.js:24710-24722): the target of
                     // a cached receiver is a fresh access expression ranged
                     // to the callee, with neither the callee's original nor
@@ -2930,6 +3005,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 let cached = bound_receiver != receiver;
                 data.expression = Some(bound_receiver.node());
                 let target = if cached {
+                    data.question_dot_token = None;
                     // createCallBinding (_tsc.js:24723-24735): same fresh
                     // node for an element access.
                     let target = self.context.factory()?.create_node(
@@ -2954,7 +3030,15 @@ impl<'context> StandardDecoratorVisitor<'context> {
             }
             _ => return Ok(expression),
         };
-        let bind = self.create_property_access(target, "bind")?;
+        // createCallBinding's uncached target may retain an optional chain.
+        // The factory's ranged parentheses must exist before later lowering
+        // and source-map emission, not only as printer grammar punctuation.
+        let bind_name = self.create_identifier("bind")?;
+        let bind = self.context.factory()?.create_property_access_expression(
+            self.source,
+            target,
+            bind_name,
+        )?;
         self.create_call(bind, vec![receiver])
     }
 
@@ -3806,7 +3890,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
         }
     }
 
-    /// tsc-port: createStringLiteralFromNode @6.0.3 for a computed name's
+    /// tsc-port: createNodeFactory.createStringLiteralFromNode @6.0.3
+    /// tsc-hash: a2fa6c4e9dd96af89655a0a7d44368bcdd05ad599a3ef7e898a2a64e3e5fe9ee
+    /// tsc-span: _tsc.js:21535-21543
+    /// Reference detail: createStringLiteralFromNode @6.0.3 for a computed name's
     /// literal expression: the text is `getTextOfIdentifierOrLiteral` (the
     /// cooked text of a string, numeric or no-substitution template
     /// literal) and the source literal becomes the `textSourceNode` whatever
@@ -4130,7 +4217,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         // tsc-port: decorated @6.0.3 (auto-accessor expansion)
         // tsc-hash: a36d5d1d9f385cf80a5379c53a98ff9936ace13b998d268a79af1aaa7b791850
         // tsc-span: _tsc.js:100115-100150
-        if plan.is_static && self.target < ScriptTarget::ES2022 {
+        if plan.is_static && self.target < ScriptTarget::ES2022 && plan.descriptor_name.is_none() {
             self.context
                 .arena_mut()?
                 .metadata_mut(field)
@@ -5351,6 +5438,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             metadata.generated_binding_role_suffix().map(str::to_owned),
             metadata.generated_binding_is_file_level_optimistic(),
             metadata.generated_binding_planned_name_is_authoritative(),
+            metadata.generated_binding_is_loop_variable(),
             metadata.generated_binding_reserved_in_nested_scopes(),
             metadata.generated_binding_is_private_temp(),
         ))
@@ -5405,6 +5493,18 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let owner = self.generated_class_reference_owner(class_like)?;
         match self.context.arena().node(owner)?.kind {
             SyntaxKind::ClassDeclaration => {
+                // EF7-USING-HOISTED-CLASS-NAME: transformESNext's
+                // `hoistClassDeclaration` converts a NAMED class declaration
+                // into `C = class C {}` (convertToClassExpression keeps the
+                // name), so transformESDecorators installs the declared name;
+                // only an anonymous (generated `default_N`) declaration is
+                // the named-evaluation `"default"` case.
+                if let Some(explicit_name_node) = explicit_name_node {
+                    if !self.is_generated_binding_name(explicit_name_node)? {
+                        return Ok(explicit_name
+                            .map(|name| DecoratedClassRuntimeName::Declared(name.to_owned())));
+                    }
+                }
                 Ok(Some(DecoratedClassRuntimeName::AnonymousDefaultDeclaration))
             }
             SyntaxKind::ClassExpression => {
@@ -5557,6 +5657,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
             } => {
                 binding.write_generated_metadata(self.context.arena_mut()?, identifier);
                 self.set_original_only(identifier, *declaration_owner)?;
+                self.context
+                    .record_generated_class_reference_name(*declaration_owner, identifier);
             }
         }
         Ok(identifier)
@@ -5596,14 +5698,17 @@ impl<'context> StandardDecoratorVisitor<'context> {
         self.context.factory()?.set_multi_line(block, multi_line)
     }
 
-    /// tsc-port: visitFunctionBody @6.0.3 — a function-like body (arrow,
+    /// tsc-port: visitFunctionBody @6.0.3
+    /// tsc-hash: a0de20486c024854e4b8496a1878d177977d54127aee509f3de22d3b8ce5573e
+    /// tsc-span: _tsc.js:91277-91290
+    /// Reference detail: visitFunctionBody @6.0.3 — a function-like body (arrow,
     /// function, method, accessor, class static block) is visited inside its
     /// own lexical environment; temporaries hoisted meanwhile are declared at
     /// the start of its block (a concise arrow body becomes a block).
     fn visit_function_like_body(
         &mut self,
         original: TransformNode,
-        data: NodeData,
+        mut data: NodeData,
     ) -> Result<NodeId, TransformError> {
         self.start_lexical_environment();
         // tsc-port: visitParameterList @6.0.3 — the parameters are visited
@@ -5619,17 +5724,18 @@ impl<'context> StandardDecoratorVisitor<'context> {
             NodeData::SetAccessor(data) => data.parameters,
             _ => None,
         };
-        let updated = self
+        // visitFunctionBody completes its lexical environment before the
+        // enclosing factory update applies arrow-concise parenthesization.
+        // Otherwise a comma body is wrapped before it becomes a return body.
+        let visited = self
             .visit_parameter_list(parameters)
-            .and_then(|()| self.update_generic(original, data));
+            .and_then(|()| try_visit_transform_children(&mut data, self));
         let (temporaries, initialization_statements) =
             self.end_lexical_environment_with_initialization_statements();
-        let updated = updated?;
+        visited?;
         if temporaries.is_empty() && initialization_statements.is_empty() {
-            return Ok(updated);
+            return self.update_data(original, data);
         }
-        let updated_node = self.node(updated);
-        let mut data = self.context.arena().node(updated_node)?.data.clone();
         let body = match &data {
             NodeData::ArrowFunction(data) => data.body,
             NodeData::FunctionExpression(data) => data.body,
@@ -5642,7 +5748,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         };
         let Some(body) = body else {
             return Err(TransformError::RequiredChildRemoved {
-                parent: self.context.arena().node(updated_node)?.kind,
+                parent: self.context.arena().node(original)?.kind,
                 field: "body for hoisted temporaries",
             });
         };
@@ -5670,15 +5776,18 @@ impl<'context> StandardDecoratorVisitor<'context> {
             NodeData::ClassStaticBlockDeclaration(data) => data.body = Some(merged.node()),
             _ => {}
         }
-        let flags = flags_after_update(self.context.arena(), updated_node, &data)?;
+        let flags = flags_after_update(self.context.arena(), original, &data)?;
         Ok(self
             .context
             .factory()?
-            .update_node(updated_node, data, flags)?
+            .update_node(original, data, flags)?
             .node())
     }
 
-    /// tsc-port: visitParameterDeclaration @6.0.3 (_tsc.js:100202-100225) —
+    /// tsc-port: transformESDecorators.visitParameterDeclaration @6.0.3
+    /// tsc-hash: 5168592b4e380cb4111d0b1f87714e296f661fefa7567a642d6608c3101a4fec
+    /// tsc-span: _tsc.js:100202-100225
+    /// Reference detail: visitParameterDeclaration @6.0.3 (_tsc.js:100202-100225) —
     /// modifiers (an erased parameter decorator still reaches this visitor),
     /// question token and type are dropped; when the parameter changed, it
     /// takes the original's comment range, the text and source-map ranges
@@ -5751,6 +5860,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
     }
 
     /// tsc-port: visitParameterList @6.0.3
+    /// tsc-hash: 75f4e96e0f53dac4523f71d86dc9a4216465c88b670afeb6202b7853fb27d8fa
     /// tsc-span: _tsc.js:91168-91181
     ///
     /// The parameters are visited with `InParameters` set on the innermost
@@ -5789,6 +5899,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
     }
 
     /// tsc-port: addDefaultValueAssignmentsIfNeeded @6.0.3
+    /// tsc-hash: f62c102acaf7c9cd013ad79a0f1fccb35a9a9838dc6f77c262868c9b7a02030f
     /// tsc-span: _tsc.js:91182-91196
     fn add_default_value_assignments_if_needed(
         &mut self,
@@ -5815,7 +5926,9 @@ impl<'context> StandardDecoratorVisitor<'context> {
     }
 
     /// tsc-port: addDefaultValueAssignmentIfNeeded @6.0.3
-    /// tsc-span: _tsc.js:91197-91199 — a rest parameter is untouched; a
+    /// tsc-hash: 689fb778284e04c6c093a5d6599b9c3ce585ef981dd855145b54d50009d04a6d
+    /// tsc-span: _tsc.js:91197-91199
+    /// a rest parameter is untouched; a
     /// binding-pattern name is aliased by a generated name; an initializer
     /// becomes an `if (name === void 0)` prologue.
     fn add_default_value_assignment_if_needed(
@@ -5846,6 +5959,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
     }
 
     /// tsc-port: addDefaultValueAssignmentForInitializer @6.0.3
+    /// tsc-hash: 40b44ee01a36e04f01c1117674832a11a865d16bb40a5fc6c1da6395ad60d4a2
     /// tsc-span: _tsc.js:91239-91276
     ///
     /// `if (name === void 0) { name = initializer; }`: the condition's name is
@@ -5900,6 +6014,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
     }
 
     /// tsc-port: addDefaultValueAssignmentForBindingPattern @6.0.3
+    /// tsc-hash: ef49f9b91aeb03ed890ae5b0d424c8e13035ca5e8248f1cef537ead145140cf6
     /// tsc-span: _tsc.js:91200-91238
     ///
     /// `var <pattern> = alias === void 0 ? initializer : alias;` (or
@@ -5980,7 +6095,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         original: TransformNode,
         mut data: NodeData,
     ) -> Result<NodeId, TransformError> {
-        try_visit_each_child(&mut data, self)?;
+        try_visit_transform_children(&mut data, self)?;
         let flags = flags_after_update(self.context.arena(), original, &data)?;
         Ok(self
             .context
@@ -6305,7 +6420,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
             .unwrap_or_default()
     }
 
-    /// tsc-port: addInitializationStatement @6.0.3 — the statement is marked
+    /// tsc-port: transformNodes.addInitializationStatement @6.0.3
+    /// tsc-hash: 846ab52e27dfed582aed585bdb9419fc085b1eabe83f492f4c42ea7ac8448236
+    /// tsc-span: _tsc.js:116127-116136
+    /// Reference detail: addInitializationStatement @6.0.3 — the statement is marked
     /// `CustomPrologue` and declared by the innermost lexical environment.
     fn add_initialization_statement(
         &mut self,
@@ -6335,8 +6453,11 @@ impl<'context> StandardDecoratorVisitor<'context> {
         Ok(())
     }
 
-    /// tsc-port: partialTransformClassElement @6.0.3 (member name flag)
+    /// tsc-port: transformESDecorators.partialTransformClassElement @6.0.3
+    /// tsc-hash: 7b0fb976a6112cc834adcd3cda8d8e7ae1e84de6e9e4e63f542b3c6af9b63bbf
     /// tsc-span: _tsc.js:99937-99942
+    /// Reference scope: the documented projection within `transformESDecorators.partialTransformClassElement`.
+    /// Reference detail: partialTransformClassElement @6.0.3 (member name flag)
     ///
     /// A method or property declaration of a transformed class whose
     /// modifiers are empty once its decorators are removed gets
@@ -6361,7 +6482,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
         Ok(())
     }
 
-    /// tsc-port: createTempVariable(hoistVariableDeclaration) @6.0.3
+    /// tsc-port: createNodeFactory.createTempVariable @6.0.3
+    /// tsc-hash: 49f8d8ca2f7c0415fc225d29a5854e02f95d9da0f9d7594747d46fffe7d0796c
+    /// tsc-span: _tsc.js:21626-21634
+    /// Reference detail: createTempVariable(hoistVariableDeclaration) @6.0.3
     ///
     /// A generated binding declared by the innermost lexical environment.
     /// The provisional spelling follows makeTempVariableName's sequence
@@ -6446,7 +6570,13 @@ impl<'context> StandardDecoratorVisitor<'context> {
     /// `var` declaration for the temporaries an environment hoisted, in
     /// declaration order.
     ///
-    /// tsc-port: hoistVariableDeclaration / endLexicalEnvironment @6.0.3 —
+    /// tsc-port: transformNodes.hoistVariableDeclaration @6.0.3
+    /// tsc-hash: d55d5f7090dd3841600983f49f3998b701eabcbbc1c9328ee3d338ba3dece77e
+    /// tsc-span: _tsc.js:116104-116116
+    /// tsc-port: transformNodes.endLexicalEnvironment @6.0.3
+    /// tsc-hash: 6a45e5a751c60d2c806705ca32270057f0da5ba47cfd28f4ceedfe55c2ceff08
+    /// tsc-span: _tsc.js:116163-116205
+    /// Reference detail: hoistVariableDeclaration / endLexicalEnvironment @6.0.3 —
     /// each declaration carries `NoNestedSourceMaps` and the statement
     /// `CustomPrologue`, whichever environment (source file, function body,
     /// class IIFE, property-initializer IIFE) declares it. Later passes read
@@ -6480,7 +6610,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
         Ok(Some(statement))
     }
 
-    /// tsc-port: mergeLexicalEnvironment @6.0.3 for the source file: the
+    /// tsc-port: createNodeFactory.mergeLexicalEnvironment @6.0.3
+    /// tsc-hash: ac1f665ea3f8a127f7cb6dbd55b79a8e307e38359a9aef18a2f5dada71bcd2c2
+    /// tsc-span: _tsc.js:24889-24932
+    /// Reference detail: mergeLexicalEnvironment @6.0.3 for the source file: the
     /// hoisted `var` statement splices at `leftHoistedFunctionsEnd`, after the
     /// standard prologue directives and any custom-prologue hoisted function
     /// declarations of earlier transforms.
@@ -6525,7 +6658,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
             .node())
     }
 
-    /// tsc-port: mergeLexicalEnvironment @6.0.3 — `leftHoistedFunctionsEnd`:
+    /// tsc-port: createNodeFactory.mergeLexicalEnvironment @6.0.3
+    /// tsc-hash: ac1f665ea3f8a127f7cb6dbd55b79a8e307e38359a9aef18a2f5dada71bcd2c2
+    /// tsc-span: _tsc.js:24889-24932
+    /// Reference detail: mergeLexicalEnvironment @6.0.3 — `leftHoistedFunctionsEnd`:
     /// the hoisted `var` statement (the only declaration this transform
     /// produces) splices after the standard prologue directives
     /// (`isPrologueDirective` span) and after the custom-prologue hoisted
@@ -6549,6 +6685,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
     }
 
     /// tsc-port: isPrologueDirective @6.0.3
+    /// tsc-hash: 6e1d5144bedd49611f36d09fb7bd28bd28fbf0d7ce6e83571753936eff6efbb4
+    /// tsc-span: _tsc.js:14161-14163
     fn is_prologue_directive(&self, node: TransformNode) -> Result<bool, TransformError> {
         let arena = self.context.arena();
         if let NodeData::ExpressionStatement(data) = &arena.node(node)?.data {
@@ -6562,7 +6700,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
         Ok(false)
     }
 
-    /// tsc-port: isHoistedFunction @6.0.3 (`isCustomPrologue(node) &&
+    /// tsc-port: isHoistedFunction @6.0.3
+    /// tsc-hash: a43dffc56712a0f0a13148f4eca8cd05064849784894e44d65835c84e84b880a
+    /// tsc-span: _tsc.js:14167-14169
+    /// Reference detail: isHoistedFunction @6.0.3 (`isCustomPrologue(node) &&
     /// isFunctionDeclaration(node)`)
     fn is_hoisted_function(&self, node: TransformNode) -> Result<bool, TransformError> {
         Ok(self.is_custom_prologue(node)
@@ -6580,7 +6721,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
             .is_some_and(|metadata| metadata.flags().contains(EmitFlags::CUSTOM_PROLOGUE))
     }
 
-    /// tsc-port: isHoistedVariableStatement @6.0.3 — a custom-prologue `var`
+    /// tsc-port: isHoistedVariableStatement @6.0.3
+    /// tsc-hash: be4121319d7decd5d3087cc7fd9d2eb5510b17ae67b08bc236fb082f77b141d8
+    /// tsc-span: _tsc.js:14173-14175
+    /// Reference detail: isHoistedVariableStatement @6.0.3 — a custom-prologue `var`
     /// statement whose declarations are bare identifiers.
     fn is_hoisted_variable_statement(&self, node: TransformNode) -> Result<bool, TransformError> {
         if !self.is_custom_prologue(node) {
@@ -6618,7 +6762,13 @@ impl<'context> StandardDecoratorVisitor<'context> {
         Ok(true)
     }
 
-    /// tsc-port: visitFunctionBody / mergeLexicalEnvironment @6.0.3
+    /// tsc-port: visitFunctionBody @6.0.3
+    /// tsc-hash: a0de20486c024854e4b8496a1878d177977d54127aee509f3de22d3b8ce5573e
+    /// tsc-span: _tsc.js:91277-91290
+    /// tsc-port: createNodeFactory.mergeLexicalEnvironment @6.0.3
+    /// tsc-hash: ac1f665ea3f8a127f7cb6dbd55b79a8e307e38359a9aef18a2f5dada71bcd2c2
+    /// tsc-span: _tsc.js:24889-24932
+    /// Reference detail: visitFunctionBody / mergeLexicalEnvironment @6.0.3
     ///
     /// Declares the temporaries hoisted while visiting a block body inside
     /// that block, after its standard prologue directives (a function or
@@ -6673,7 +6823,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
             .update_node(body, NodeData::Block(data), flags)
     }
 
-    /// tsc-port: visitPropertyDeclaration @6.0.3 (the initializer's lexical
+    /// tsc-port: transformESDecorators.visitPropertyDeclaration @6.0.3
+    /// tsc-hash: 32896629db3e477cdb54934eeefadb12c80ac10d8909d811eb7a90e2de4b164d
+    /// tsc-span: _tsc.js:100041-100150
+    /// Reference detail: visitPropertyDeclaration @6.0.3 (the initializer's lexical
     /// environment): temporaries hoisted by a property initializer wrap it
     /// in `(() => { var …; return initializer; })()`. The result is memoized
     /// under the parsed initializer so a later generic child visit reuses it.
@@ -7066,7 +7219,7 @@ impl<'visitor, 'context> DecoratorLexicalThisRewriter<'visitor, 'context> {
             original.node()
         } else {
             let mut data = record.data;
-            try_visit_each_child(&mut data, self)?;
+            try_visit_transform_children(&mut data, self)?;
             let flags = flags_after_update(self.visitor.context.arena(), original, &data)?;
             self.visitor
                 .context
@@ -7190,7 +7343,7 @@ impl<'visitor, 'context> DecoratorClassThisRewriter<'visitor, 'context> {
             original.node()
         } else {
             let mut data = record.data;
-            try_visit_each_child(&mut data, self)?;
+            try_visit_transform_children(&mut data, self)?;
             let flags = flags_after_update(self.visitor.context.arena(), original, &data)?;
             self.visitor
                 .context
@@ -7332,6 +7485,8 @@ impl StandardDecoratorVisitor<'_> {
     }
 
     /// tsc-port: transformESDecorators.updateState @6.0.3
+    /// tsc-hash: 43884579281d628ed37ed5860425dc7194a9a2e6bd63fceb6d4d6599dffe4f12
+    /// tsc-span: _tsc.js:98973-98995
     fn update_receiver_state(&mut self) {
         let frames = &self.receiver_frames;
         let (class_this, class_super) = match frames.last() {
@@ -7357,7 +7512,10 @@ impl StandardDecoratorVisitor<'_> {
         self.receiver_class_super = class_super;
     }
 
-    /// tsc-port: enterClass @6.0.3 (`classInfo.classThis` of the class)
+    /// tsc-port: transformESDecorators.enterClass @6.0.3
+    /// tsc-hash: b4c3404bf758e51e69d069a580f1d9de3c34c753cfbf153ba9e7d7633dbea6cd
+    /// tsc-span: _tsc.js:98996-99000
+    /// Reference detail: enterClass @6.0.3 (`classInfo.classThis` of the class)
     ///
     /// The enclosing pending expressions are saved with the frame and the
     /// class starts with none.
@@ -7391,7 +7549,9 @@ impl StandardDecoratorVisitor<'_> {
             .unwrap_or(false)
     }
 
-    /// tsc-port: exitClass @6.0.3
+    /// tsc-port: transformESDecorators.exitClass @6.0.3
+    /// tsc-hash: fe3a7b094d480e73fef4329ed7eabe60eee97fed1f846e819d7b0ef3349d1309
+    /// tsc-span: _tsc.js:99001-99006
     ///
     /// The class flushed its own pending expressions before exiting; the
     /// enclosing ones come back with the frame. Every `Err` path of a class
@@ -7414,7 +7574,10 @@ impl StandardDecoratorVisitor<'_> {
         self.update_receiver_state();
     }
 
-    /// tsc-port: enterClassElement @6.0.3 — only a static block or a static
+    /// tsc-port: transformESDecorators.enterClassElement @6.0.3
+    /// tsc-hash: 79d5397bee4df100c7d80d6174cba45c1292c2bc1232187d5812eb0af4d44d78
+    /// tsc-span: _tsc.js:99007-99016
+    /// Reference detail: enterClassElement @6.0.3 — only a static block or a static
     /// property declaration carries the enclosing class receiver.
     fn enter_receiver_class_element(
         &mut self,
@@ -7448,7 +7611,9 @@ impl StandardDecoratorVisitor<'_> {
         Ok(())
     }
 
-    /// tsc-port: exitClassElement @6.0.3
+    /// tsc-port: transformESDecorators.exitClassElement @6.0.3
+    /// tsc-hash: 2a48803ab07ea1afdb2967bb4f97916a136b07628e679fca50faef148aaf3aa7
+    /// tsc-span: _tsc.js:99017-99026
     fn exit_receiver_class_element(&mut self) {
         debug_assert!(matches!(
             self.receiver_frames.last(),
@@ -7458,7 +7623,9 @@ impl StandardDecoratorVisitor<'_> {
         self.update_receiver_state();
     }
 
-    /// tsc-port: enterName @6.0.3
+    /// tsc-port: transformESDecorators.enterName @6.0.3
+    /// tsc-hash: e5304e441ab060194f053c160202192b13e8a95bbb05105062e3a67ef738c7ec
+    /// tsc-span: _tsc.js:99027-99031
     fn enter_receiver_name(&mut self) {
         debug_assert!(matches!(
             self.receiver_frames.last(),
@@ -7468,7 +7635,9 @@ impl StandardDecoratorVisitor<'_> {
         self.update_receiver_state();
     }
 
-    /// tsc-port: exitName @6.0.3
+    /// tsc-port: transformESDecorators.exitName @6.0.3
+    /// tsc-hash: d93030cd3a6c46f96d4a69627c776743683772c9fe6224be62b8a143231c1b72
+    /// tsc-span: _tsc.js:99032-99036
     fn exit_receiver_name(&mut self) {
         debug_assert!(matches!(
             self.receiver_frames.last(),
@@ -7478,7 +7647,9 @@ impl StandardDecoratorVisitor<'_> {
         self.update_receiver_state();
     }
 
-    /// tsc-port: enterOther @6.0.3
+    /// tsc-port: transformESDecorators.enterOther @6.0.3
+    /// tsc-hash: f25ffa851798f80bd8020303b1920171083e429e706944c56ba8c450e0654b96
+    /// tsc-span: _tsc.js:99037-99046
     fn enter_receiver_other(&mut self) {
         if let Some(DecoratorReceiverFrame::Other { depth, .. }) = self.receiver_frames.last_mut() {
             debug_assert!(self.pending_expressions.is_empty());
@@ -7493,7 +7664,9 @@ impl StandardDecoratorVisitor<'_> {
         }
     }
 
-    /// tsc-port: exitOther @6.0.3
+    /// tsc-port: transformESDecorators.exitOther @6.0.3
+    /// tsc-hash: 078eef0c834a174c3ef001a9c287230077770b221d2c4ebfe560305d27253c08
+    /// tsc-span: _tsc.js:99047-99057
     fn exit_receiver_other(&mut self) {
         match self.receiver_frames.last_mut() {
             Some(DecoratorReceiverFrame::Other { depth, .. }) if *depth > 0 => {
@@ -7533,7 +7706,10 @@ impl StandardDecoratorVisitor<'_> {
         Ok(replacement)
     }
 
-    /// tsc-port: makeUniqueName (Optimistic | FileLevel) @6.0.3
+    /// tsc-port: createPrinter.makeUniqueName @6.0.3
+    /// tsc-hash: 24cb46aa2ba811ebf24cee740aa8ca553970a6bd6f18b7b57ae10ea77cb55f03
+    /// tsc-span: _tsc.js:120741-120779
+    /// Reference detail: makeUniqueName (Optimistic | FileLevel) @6.0.3
     ///
     /// FileLevel names collide only with source identifiers
     /// (`isFileLevelUniqueName`), never with earlier generated names, so a
@@ -7556,7 +7732,10 @@ impl StandardDecoratorVisitor<'_> {
         }
     }
 
-    /// tsc-port: visitClassExpression (undecorated) @6.0.3 — heritage clauses
+    /// tsc-port: transformESDecorators.visitClassExpression @6.0.3
+    /// tsc-hash: 217d802b19d445f5615c2111d9e64fe8e805c3a27bc99e596d971999e44ede06
+    /// tsc-span: _tsc.js:99722-99746
+    /// Reference detail: visitClassExpression (undecorated) @6.0.3 — heritage clauses
     /// are visited in the enclosing frame; members under `enterClass(undefined)`.
     fn visit_undecorated_class_expression(
         &mut self,
@@ -7583,7 +7762,10 @@ impl StandardDecoratorVisitor<'_> {
             .node())
     }
 
-    /// tsc-port: visitClassDeclaration (undecorated) @6.0.3
+    /// tsc-port: transformESDecorators.visitClassDeclaration @6.0.3
+    /// tsc-hash: b3eecec89dd565c30666f1bc40f33fb21bdf8f69054a07aa058d5977a22867f8
+    /// tsc-span: _tsc.js:99628-99721
+    /// Reference detail: visitClassDeclaration (undecorated) @6.0.3
     fn visit_undecorated_class_declaration(
         &mut self,
         original: TransformNode,
@@ -7655,7 +7837,10 @@ impl StandardDecoratorVisitor<'_> {
         ))
     }
 
-    /// tsc-port: partialTransformClassElement name handling @6.0.3 — the
+    /// tsc-port: transformESDecorators.partialTransformClassElement @6.0.3
+    /// tsc-hash: 46d06f1175b4bfd01fe5b4df1893f5f1164b80e7a9c94f3340604e4a6b06b912
+    /// tsc-span: _tsc.js:99831-99944
+    /// Reference detail: partialTransformClassElement name handling @6.0.3 — the
     /// element name is visited under the name frame; the memoized result is
     /// reused when the element's children are visited afterwards.
     fn previsit_class_element_name(&mut self, member: TransformNode) -> Result<(), TransformError> {
@@ -7672,7 +7857,10 @@ impl StandardDecoratorVisitor<'_> {
         self.previsit_property_name(name, name)
     }
 
-    /// tsc-port: visitPropertyName @6.0.3 under the name frame. `name` is
+    /// tsc-port: transformESDecorators.visitPropertyName @6.0.3
+    /// tsc-hash: 37527fd0743d39120f6fefe54dc24b11c79b8dc433639de5538620b421ed89bf
+    /// tsc-span: _tsc.js:100363-100368
+    /// Reference detail: visitPropertyName @6.0.3 under the name frame. `name` is
     /// the node to visit (possibly a rewritten computed name) and `memo_key`
     /// the parsed name whose later visits reuse the result.
     fn previsit_property_name(
@@ -7854,6 +8042,8 @@ impl StandardDecoratorVisitor<'_> {
     }
 
     /// tsc-port: isSuperProperty @6.0.3
+    /// tsc-hash: d71f4915c785ca5e6a0642e8c3e85529c28ea19447923c8a337ab6ffa5c4f262
+    /// tsc-span: _tsc.js:14608-14611
     fn is_super_property(&self, node: TransformNode) -> Result<bool, TransformError> {
         let expression = match &self.context.arena().node(node)?.data {
             NodeData::PropertyAccessExpression(data) => data.expression,
@@ -7955,7 +8145,9 @@ impl StandardDecoratorVisitor<'_> {
         self.create_call(bind, all)
     }
 
-    /// tsc-port: visitCallExpression @6.0.3
+    /// tsc-port: transformESDecorators.visitCallExpression @6.0.3
+    /// tsc-hash: 88da41c4f5574d75958e4b8384116c2be7300fbc1c221beee4620a94479d186c
+    /// tsc-span: _tsc.js:100154-100164
     fn visit_call_expression(
         &mut self,
         original: TransformNode,
@@ -7980,7 +8172,9 @@ impl StandardDecoratorVisitor<'_> {
         Ok(invocation.node())
     }
 
-    /// tsc-port: visitTaggedTemplateExpression @6.0.3
+    /// tsc-port: transformESDecorators.visitTaggedTemplateExpression @6.0.3
+    /// tsc-hash: cc4aa7371464a6324ce3558aac715eb4474e5aa816c9930f4af54e1ac19941a5
+    /// tsc-span: _tsc.js:100165-100181
     fn visit_tagged_template_expression(
         &mut self,
         original: TransformNode,
@@ -8005,7 +8199,9 @@ impl StandardDecoratorVisitor<'_> {
         self.update_data(original, NodeData::TaggedTemplateExpression(data))
     }
 
-    /// tsc-port: visitPropertyAccessExpression @6.0.3
+    /// tsc-port: transformESDecorators.visitPropertyAccessExpression @6.0.3
+    /// tsc-hash: 3eb04277af387a35b03be3e375a7bc48b59af8426327e5dfc79d22d3aca65caa
+    /// tsc-span: _tsc.js:100182-100191
     fn visit_property_access_expression(
         &mut self,
         original: TransformNode,
@@ -8032,7 +8228,9 @@ impl StandardDecoratorVisitor<'_> {
         self.update_generic(original, NodeData::PropertyAccessExpression(data))
     }
 
-    /// tsc-port: visitElementAccessExpression @6.0.3
+    /// tsc-port: transformESDecorators.visitElementAccessExpression @6.0.3
+    /// tsc-hash: 145bcefc116cf6b12ea3674565e341c23e02b5db8e025e49243d6fd7d449284d
+    /// tsc-span: _tsc.js:100192-100201
     fn visit_element_access_expression(
         &mut self,
         original: TransformNode,
@@ -8066,13 +8264,18 @@ impl StandardDecoratorVisitor<'_> {
             && kind.value() <= SyntaxKind::LastAssignment.value()
     }
 
-    /// tsc-port: isCompoundAssignment @6.0.3 (PlusEqualsToken ..= CaretEqualsToken)
+    /// tsc-port: isCompoundAssignment @6.0.3
+    /// tsc-hash: cf363727b517ac8079c5b9f484d3874e50114346987a6065d811ac34416fc940
+    /// tsc-span: _tsc.js:93033-93035
+    /// Reference detail: isCompoundAssignment @6.0.3 (PlusEqualsToken ..= CaretEqualsToken)
     const fn is_compound_assignment(kind: SyntaxKind) -> bool {
         kind.value() >= SyntaxKind::PlusEqualsToken.value()
             && kind.value() <= SyntaxKind::CaretEqualsToken.value()
     }
 
     /// tsc-port: getNonAssignmentOperatorForCompoundAssignment @6.0.3
+    /// tsc-hash: 92244f9073469f47d35d385e7aac910055f3863bb6192feacb69a8c31d6272d7
+    /// tsc-span: _tsc.js:93036-93069
     const fn non_assignment_operator(operator: SyntaxKind) -> SyntaxKind {
         match operator {
             SyntaxKind::PlusEqualsToken => SyntaxKind::PlusToken,
@@ -8099,6 +8302,8 @@ impl StandardDecoratorVisitor<'_> {
     }
 
     /// tsc-port: isLeftHandSideExpressionKind @6.0.3
+    /// tsc-hash: 56f309759af004536fb9191b69da44fd15f25ee73de8c73c357c3d9b3b7f0f68
+    /// tsc-span: _tsc.js:12210-12249
     const fn is_left_hand_side_expression_kind(kind: SyntaxKind) -> bool {
         matches!(
             kind,
@@ -8143,6 +8348,8 @@ impl StandardDecoratorVisitor<'_> {
     }
 
     /// tsc-port: skipParentheses @6.0.3
+    /// tsc-hash: 57477e009374b3ffadffee5b4db7695a3c33fc1710ed92ce3c06ab51d147e7f3
+    /// tsc-span: _tsc.js:15661-15664
     fn skip_parentheses(&self, node: TransformNode) -> Result<TransformNode, TransformError> {
         let mut current = node;
         loop {
@@ -8156,7 +8363,10 @@ impl StandardDecoratorVisitor<'_> {
         }
     }
 
-    /// tsc-port: visitBinaryExpression @6.0.3 (the caller records named
+    /// tsc-port: transformESDecorators.visitBinaryExpression @6.0.3
+    /// tsc-hash: d8f256a944567d9610c2541627c0d6041bd0675df6c0e037672129b63d9653e1
+    /// tsc-span: _tsc.js:100249-100311
+    /// Reference detail: visitBinaryExpression @6.0.3 (the caller records named
     /// evaluation first)
     fn visit_binary_expression(
         &mut self,
@@ -8225,7 +8435,10 @@ impl StandardDecoratorVisitor<'_> {
         self.update_generic(original, NodeData::BinaryExpression(data))
     }
 
-    /// tsc-port: visitBinaryExpression @6.0.3 (super property assignment)
+    /// tsc-port: transformESDecorators.visitBinaryExpression @6.0.3
+    /// tsc-hash: d8f256a944567d9610c2541627c0d6041bd0675df6c0e037672129b63d9653e1
+    /// tsc-span: _tsc.js:100249-100311
+    /// Reference detail: visitBinaryExpression @6.0.3 (super property assignment)
     #[allow(clippy::too_many_arguments)]
     fn lower_super_assignment(
         &mut self,
@@ -8284,7 +8497,9 @@ impl StandardDecoratorVisitor<'_> {
         Ok(expression.node())
     }
 
-    /// tsc-port: visitPreOrPostfixUnaryExpression @6.0.3
+    /// tsc-port: transformESDecorators.visitPreOrPostfixUnaryExpression @6.0.3
+    /// tsc-hash: b8a5337e897890d87d0db464351dd628ef88d9d40a0f75805daedb99f4debe14
+    /// tsc-span: _tsc.js:100312-100340
     fn visit_update_expression(
         &mut self,
         original: TransformNode,
@@ -8350,6 +8565,8 @@ impl StandardDecoratorVisitor<'_> {
     }
 
     /// tsc-port: expandPreOrPostfixIncrementOrDecrementExpression @6.0.3
+    /// tsc-hash: 3af38040dd39a12f42712ab327bb13a99be9f32d6dadf7b8e518fa3070af0846
+    /// tsc-span: _tsc.js:27499-27518
     fn expand_pre_or_postfix_increment_or_decrement(
         &mut self,
         original: TransformNode,
@@ -8409,7 +8626,9 @@ impl StandardDecoratorVisitor<'_> {
         Ok(expression)
     }
 
-    /// tsc-port: visitForStatement @6.0.3
+    /// tsc-port: transformESDecorators.visitForStatement @6.0.3
+    /// tsc-hash: db62644242d6f7372ae2d9e6f178fb6b69892f6c87716a6545be7c20a34b87e9
+    /// tsc-span: _tsc.js:100237-100245
     fn visit_for_statement(
         &mut self,
         original: TransformNode,
@@ -8431,7 +8650,9 @@ impl StandardDecoratorVisitor<'_> {
         self.update_data(original, NodeData::ForStatement(data))
     }
 
-    /// tsc-port: visitExpressionStatement @6.0.3
+    /// tsc-port: transformESDecorators.visitExpressionStatement @6.0.3
+    /// tsc-hash: 8ee2297fddd16086b0946d73aca9bea9be662ca465faa2945269ddfbac061ca9
+    /// tsc-span: _tsc.js:100246-100248
     fn visit_expression_statement(
         &mut self,
         original: TransformNode,
@@ -8447,7 +8668,9 @@ impl StandardDecoratorVisitor<'_> {
         self.update_data(original, NodeData::ExpressionStatement(data))
     }
 
-    /// tsc-port: visitCommaListExpression @6.0.3
+    /// tsc-port: transformESDecorators.visitCommaListExpression @6.0.3
+    /// tsc-hash: 64f8697b1ab10f96b8e716b194805d0dd26d1ddd42e5a3b6ace820108bbeca70
+    /// tsc-span: _tsc.js:100341-100344
     fn visit_comma_list_expression(
         &mut self,
         original: TransformNode,
@@ -8487,7 +8710,9 @@ impl StandardDecoratorVisitor<'_> {
         self.update_data(original, NodeData::CommaListExpression(data))
     }
 
-    /// tsc-port: visitParenthesizedExpression @6.0.3
+    /// tsc-port: transformESDecorators.visitParenthesizedExpression @6.0.3
+    /// tsc-hash: 9f78b368460554d8fc9f6cc153ad854cad5d889151ba6c22e128a22ca7f106d4
+    /// tsc-span: _tsc.js:100501-100505
     fn visit_parenthesized_expression(
         &mut self,
         original: TransformNode,
@@ -8516,7 +8741,9 @@ impl StandardDecoratorVisitor<'_> {
         self.update_generic(original, NodeData::PartiallyEmittedExpression(data))
     }
 
-    /// tsc-port: visitAssignmentPattern @6.0.3
+    /// tsc-port: transformESDecorators.visitAssignmentPattern @6.0.3
+    /// tsc-hash: 70664f75587a2810fee4db2378d50f8d7b8a45893643a77450fd4b7f1b781649
+    /// tsc-span: _tsc.js:100486-100494
     fn visit_assignment_pattern(
         &mut self,
         node: TransformNode,
@@ -8572,7 +8799,9 @@ impl StandardDecoratorVisitor<'_> {
         }
     }
 
-    /// tsc-port: visitArrayAssignmentElement @6.0.3
+    /// tsc-port: transformESDecorators.visitArrayAssignmentElement @6.0.3
+    /// tsc-hash: 20e38fa69dc79fa9f18aadbdd293a836e2b2b508153a7f6cba42893156d15018
+    /// tsc-span: _tsc.js:100444-100449
     fn visit_array_assignment_element(
         &mut self,
         node: TransformNode,
@@ -8588,7 +8817,9 @@ impl StandardDecoratorVisitor<'_> {
         }
     }
 
-    /// tsc-port: visitAssignmentElement @6.0.3
+    /// tsc-port: transformESDecorators.visitAssignmentElement @6.0.3
+    /// tsc-hash: 87d6028b699826917532b52778fa70d7d7eaa2e8416a3582164c8f9540f7fd66
+    /// tsc-span: _tsc.js:100421-100436
     fn visit_assignment_element(
         &mut self,
         node: TransformNode,
@@ -8614,7 +8845,9 @@ impl StandardDecoratorVisitor<'_> {
         self.visit_destructuring_assignment_target(node)
     }
 
-    /// tsc-port: visitDestructuringAssignmentTarget @6.0.3
+    /// tsc-port: transformESDecorators.visitDestructuringAssignmentTarget @6.0.3
+    /// tsc-hash: 704eb7d0090c965acfbb2ec200d07aa434dc41f289c4e7b586be9f4d34586e13
+    /// tsc-span: _tsc.js:100394-100420
     fn visit_destructuring_assignment_target(
         &mut self,
         node: TransformNode,
@@ -8645,7 +8878,10 @@ impl StandardDecoratorVisitor<'_> {
         self.visit_required(Some(node.node()), SyntaxKind::BinaryExpression, "left")
     }
 
-    /// tsc-port: createAssignmentTargetWrapper @6.0.3 —
+    /// tsc-port: createNodeFactory.createAssignmentTargetWrapper @6.0.3
+    /// tsc-hash: 3f68e9a4bf29fb6e3ddf77bb2cd029838b0db17d3277434b33893921fd7154f0
+    /// tsc-span: _tsc.js:24754-24784
+    /// Reference detail: createAssignmentTargetWrapper @6.0.3 —
     /// `({ set value(param) { expression; } }).value`
     fn create_assignment_target_wrapper(
         &mut self,
@@ -8689,7 +8925,9 @@ impl StandardDecoratorVisitor<'_> {
         self.create_property_access(object, "value")
     }
 
-    /// tsc-port: visitAssignmentRestElement @6.0.3
+    /// tsc-port: transformESDecorators.visitAssignmentRestElement @6.0.3
+    /// tsc-hash: 9b3d4f021f3c97e9424504af60a50fbda24735bfc624bea5b10c227455817c82
+    /// tsc-span: _tsc.js:100437-100443
     fn visit_assignment_rest_element(
         &mut self,
         node: TransformNode,
@@ -8710,7 +8948,9 @@ impl StandardDecoratorVisitor<'_> {
         )
     }
 
-    /// tsc-port: visitObjectAssignmentElement @6.0.3
+    /// tsc-port: transformESDecorators.visitObjectAssignmentElement @6.0.3
+    /// tsc-hash: 5c9e173d89e18d080adfd10a68d5a82ee591cddb9416f366f269f2b9c70eb85d
+    /// tsc-span: _tsc.js:100479-100485
     fn visit_object_assignment_element(
         &mut self,
         node: TransformNode,

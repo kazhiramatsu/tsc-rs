@@ -1,0 +1,9 @@
+# Round 156 — selected original corpus escaped default loses trailing comment
+
+Read-only actual Opus analysis. No edits/builds/commits. Immutable source git3e28cb21344eae8980cfe66992913f2d8758ede2 in Repair /Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep. All r184185186190 ended; Root may now implement Unicode discovery and ES2015 constructor fixes in same tree, so use git show3e28 for stable reading if necessary.
+
+r185 parser16994 PASS, selection48, TS48x2 PASS. r186 actual48 executed without refusals; comparator45complete-exact +2noEmit-exact +1complete-mismatch. No108projecttail ran. r190 stopped before builds. Only remaining corpus mismatch: typescript-6.0.3/compiler/switchStatementsWithMultipleDefaults.ts#default. Full decoded native/TS record: /tmp/emitter-corpus-r186-failure-decoded.json. Raw comparison target/emitter-corpus-candidate-r186/comparison.json. Main difference: escaped `default` clause emits canonical `default:` but drops `// Error, fourth 'default' clause.` immediately after its colon. Other comments and diagnostics, including retained TS1260, match. See original ts-tests/tests/cases/compiler/switchStatementsWithMultipleDefaults.ts and printer DefaultClause arm.
+
+Root hypothesis is arithmetic keyword/colon source cursor width versus actual escaped keyword token length, so token-boundary helper should own repair. Please independently trace TS and native exact phase, minimum fix preserving raw/comment/map token boundaries, and bounded escaped/ordinary default/case/keyword comment controls with maps. Do not globally change AST or source ranges; parser raw facts are now proved unchanged. Root handles already-reviewed two causes while you analyze this separate source function.
+
+No new known-list retirements. Original36+transpile8 remain unchanged. Need fix this newly admitted original command before qualification; no expected-failure relabel.

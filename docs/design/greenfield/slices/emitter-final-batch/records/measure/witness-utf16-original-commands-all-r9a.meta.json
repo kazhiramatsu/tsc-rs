@@ -1,0 +1,20 @@
+{
+  "name": "witness-utf16-original-commands-all-r9a",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 53,
+  "env": [
+    "CARGO_BUILD_JOBS=2"
+  ],
+  "argv": [
+    "python3",
+    "scripts/witness.py",
+    "utf16-original-commands",
+    "--all"
+  ],
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-18T01:21:06Z",
+  "seconds": 90,
+  "exit": 0,
+  "log_sha256": "3ac48eef4d4f868a86981e5b111d6b43f287e9fc1eed318d4df8b98f559f5fd3",
+  "log_bytes": 1596
+}

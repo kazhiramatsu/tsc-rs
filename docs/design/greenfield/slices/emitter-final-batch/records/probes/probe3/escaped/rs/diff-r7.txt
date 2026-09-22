@@ -1,0 +1,8 @@
+8c8
+<     return \u0046oo;
+---
+>     return Foo;
+10c10
+< exports.Bar = \u0046oo;
+---
+> exports.Bar = Foo;

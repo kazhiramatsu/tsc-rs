@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "node",
+    "--test",
+    "crates/oracle/h1-rust-omission-inventory.test.mjs"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next",
+  "started_at": "2026-09-19T03:50:40.774231+00:00",
+  "head": "f4d9ccbe1d0d112330968058cfec117c227b76d0",
+  "tracked_clean": false,
+  "diff_sha256": "471cf76845b3938a8abdab4f7b01d3aa16b3acc82a98e19dd215b9b45586557e",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 28.19,
+  "log_sha256": "d1be5f087e5d0ed203dbd70f6422c3d45677e7edea0764fec32790871c6c0cb2",
+  "log_bytes": 460
+}

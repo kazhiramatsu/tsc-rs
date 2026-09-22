@@ -1,0 +1,27 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-corpus-candidate-r195/xtask",
+    "project-command-supplement",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/docs/design/greenfield/slices/emitter-final-batch/integration/records/project-projection-roster-r139.json",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-corpus-candidate-r195/project-native.json",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final-census"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-19T15:10:18.460376+00:00",
+  "head": "d2b29439dd3eed32fcfd50f65317f7cadcd86628",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 52.564,
+  "log_sha256": "6915f333899c14c0e154d7b745374df88b63a8065cdb64489b94037b3db21427",
+  "log_bytes": 14578
+}

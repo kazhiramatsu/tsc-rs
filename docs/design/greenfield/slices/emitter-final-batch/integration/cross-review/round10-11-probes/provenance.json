@@ -1,0 +1,35 @@
+{
+  "base_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "files": [
+    {
+      "scratch_source": "/tmp/tsrs-probe/run.js",
+      "source_sha256": "d6f380c3d85b47e2c3c9037f37e5ec2ebe73c5c28e2caf06873c85f65cacfe0d",
+      "artifact": "run.js",
+      "artifact_sha256": "d6f380c3d85b47e2c3c9037f37e5ec2ebe73c5c28e2caf06873c85f65cacfe0d"
+    },
+    {
+      "scratch_source": "/tmp/tsrs-probe/run-ih.js",
+      "source_sha256": "15ebdaa0517aacad3526fda4e4a767b90267718cc52ff33582c7b6fbe56c5b34",
+      "artifact": "run-ih.js",
+      "artifact_sha256": "15ebdaa0517aacad3526fda4e4a767b90267718cc52ff33582c7b6fbe56c5b34"
+    },
+    {
+      "scratch_source": "/tmp/tsrs-probe/destructuring.txt",
+      "source_sha256": "9e558732b3a76c7f3c0f815e8f8300ce19f41fe6efd35c59cb426d0713d9083c",
+      "artifact": "destructuring.txt",
+      "artifact_sha256": "9e558732b3a76c7f3c0f815e8f8300ce19f41fe6efd35c59cb426d0713d9083c"
+    },
+    {
+      "scratch_source": "/tmp/tsrs-probe/ts-rel.js",
+      "source_sha256": "e154ea00134fbf332e29d4f86f5838f0a667a989ef8d14cb976dc860caae2baa",
+      "artifact": "ts-rel.js.patch",
+      "artifact_sha256": "6abcddf5af1cfc0e04c6f28d7e295846cae8bede09a9f623a73909d86b7b2b73"
+    },
+    {
+      "scratch_source": "/tmp/tsrs-probe/ts-mod.js",
+      "source_sha256": "5e532fbe7b9f561e1e50dcc531e83af0765320d40f6e7daa2c9ac785a663e92f",
+      "artifact": "ts-mod.js.patch",
+      "artifact_sha256": "99e4fdc5edfa4b4c8a6bf2b70a61ee536c32c12d39563b5c2742d072566a572a"
+    }
+  ]
+}

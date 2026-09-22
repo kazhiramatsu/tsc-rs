@@ -1,0 +1,21 @@
+{
+  "name": "checker-lib-r11",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 53,
+  "env": [
+    "CARGO_BUILD_JOBS=2"
+  ],
+  "argv": [
+    "cargo",
+    "test",
+    "-p",
+    "tsc-rs-checker",
+    "--lib"
+  ],
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-18T05:23:47Z",
+  "seconds": 218,
+  "exit": 0,
+  "log_sha256": "104ac49ffdbc7d320177ac562c42d43eb82210b303d7e7f6ad4ea011dead627a",
+  "log_bytes": 145512
+}

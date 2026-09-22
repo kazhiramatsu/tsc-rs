@@ -1,0 +1,33 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "test",
+    "--manifest-path",
+    "crates/compiler/Cargo.toml",
+    "--test",
+    "contracts",
+    "emitter_residual_audit::",
+    "--",
+    "async_arrow_body_ranges::",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-ci-repair",
+  "started_at": "2026-09-18T20:40:44.591375+00:00",
+  "head": "dbbca3009bbe2ef2741f4d20ef78ea3967424b1e",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 101,
+  "seconds": 1237.405,
+  "log_sha256": "8b22949d2d7b14e2f5b163ee99a9d7c7e68dbaa1d9b091e9c59bb2ddc9e81abf",
+  "log_bytes": 215861
+}

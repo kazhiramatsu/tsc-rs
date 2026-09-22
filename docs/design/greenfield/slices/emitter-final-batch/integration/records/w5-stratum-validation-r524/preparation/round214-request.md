@@ -1,0 +1,12 @@
+Round 214 final bounded code review, read-only. Please inspect only the concrete repair and tests below; no broad investigation, builds, minting, writes, or network. Canonical /Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep HEAD 9da1f8bf, r519 partial mints unchanged.
+
+Applied repair in crates/oracle/h2-7a-witnesses.mjs, tests scripts/h2-7a-stratum.test.mjs, registration .github/ci/qualification.test.mjs. Compare generator against /tmp/emitter-w5-stratum-repair-r520/before/crates/oracle/h2-7a-witnesses.mjs; other MJS changes are earlier sanctioned r519 hash-only changes, already reviewed.
+
+213 B1: env override rejected unconditionally inside ensureStratumCensus (tests do not need production seam; s2dry/internal never call this).
+B2: delete census before Cargo; list already overwritten atomically before Cargo, no need delete list separately.
+B3: fresh census SHA and limited semantics explicitly logged, frozen M1 section retained intact.
+B4: did not change original loadTrackedArtifact error classification. Original runWrite/runCheck already call verifyTrackedM1Projection before loadStratumCases and fail first on unreadable artifact. This is not introduced by repair; adding a catch inside loadStratumCases would not improve real mode's prior failure. Fatal refusal remains. No unrelated cleanup.
+
+Tests use your recommended per-module child_process data-URL stub; no syncBuiltinESMExports/global builtin mutation. Actual private function bodies unchanged; loader only adapts location/imports and removes CLI dispatcher. Five tests: complete67 positive, 11 output/count/skip/BOM regression variants incl historic missing-declaration rejection, 172 identity/malformed checks, fresh-producer double invocation/no-output/failure/injection, M1/S2 preservation and altered historical provenance/observations, and full120 staticcontext using synthetic172 in private target. Synthetic is explicitly not native parity evidence. Registered qualification55/55 passed before cosmetic stub template cleanup; final rerun planned. Fresh native canonical probe (real Cargo, no stub/injection, no mint) currently executing through run-local, result will be fresh-native-proof.json.
+
+Please identify only actual correctness/acceptance blockers or confirm resolved. M1/S2 pins stay exactly 44b0cca4.../d9cb88a8...; no Rust source/schema/policy changes. Scope complete closure still requires official walk, full unsplit exact-head CI and hosted. No qualification claimed from this review.

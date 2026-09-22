@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "node",
+    "crates/oracle/h2-7de-candidates.mjs",
+    "--check"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-20T07:43:21.408827+00:00",
+  "head": "2ee2bd6a96f0e8bd0605ffa4f6e59ffc9dbcad69",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 2.564,
+  "log_sha256": "6457564aff83fbf894f36d24293de4e31d8d1733f269863433fb9a3f0e82270a",
+  "log_bytes": 420
+}

@@ -1,0 +1,450 @@
+{
+ "schema": 1,
+ "model_digest": "07350f5dac4919af2fdc9d7e2220f38656e11bc8e1d85db549291fc870b055e5",
+ "mint_events": 73,
+ "modeled_events": 0,
+ "unknown_events": 73,
+ "outcomes": [
+  {
+   "round": 1,
+   "rung": "h1-rust-omission-inventory",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h1-emit-qualification",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-transition",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-1a-qualification",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-1a-profile",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-1b-qualification",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-1b-profile",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-1c-qualification",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-1c-profile",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-1d-qualification",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-1d-profile",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-1e-qualification",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-1e-profile",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-2a-qualification",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-2a-profile",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-2b-qualification",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-2b-profile",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-2c-qualification",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-2c-profile",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-2d-qualification",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-2d-profile",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-3a-qualification",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-3a-profile",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-3b-qualification",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-3b-profile",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-3c-qualification",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-3c-profile",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-3d-qualification",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-3d-profile",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-4a-qualification",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-4a-profile",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-4b-qualification",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-4b-profile",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-5a-qualification",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-5a-profile",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-5b-qualification",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-5b-profile",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-5c-qualification",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-5c-profile",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-5d-qualification",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-5d-profile",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-5e-qualification",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-5e-profile",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-5f-qualification",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-5f-profile",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-5g-qualification",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-7b-qualification",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-7c-qualification",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-5g-profile",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-5h-qualification",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-5h-a-foundation",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-5h-a-comment-scope-witnesses",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-5h-a-owner-graph",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-5h-a-gap-matrix",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-5h-a-dispositions",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-5h-a-es2015-generators-witnesses",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-6a-qualification",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-6b-qualification",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-6c-qualification",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-7a-owner-inventory",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-7a-witnesses",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-7a-probe-traces",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-7a-printer-reprint",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-7a-close",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-8a-candidates",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 1,
+   "rung": "h2-8a-observations",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 2,
+   "rung": "h2-5g-profile",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 2,
+   "rung": "h2-5h-a-foundation",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 2,
+   "rung": "h2-5h-a-comment-scope-witnesses",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 2,
+   "rung": "h2-5h-a-owner-graph",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 2,
+   "rung": "h2-5h-a-gap-matrix",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 2,
+   "rung": "h2-5h-a-dispositions",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  },
+  {
+   "round": 2,
+   "rung": "h2-5h-a-es2015-generators-witnesses",
+   "outcome": "UNKNOWN",
+   "reason": "unmodeled"
+  }
+ ],
+ "precision": null,
+ "recall": null,
+ "note": "report-only; pre-hermetic model-maturation evidence (packet \u00a77/\u00a79) \u2014 never promotion-countable"
+}

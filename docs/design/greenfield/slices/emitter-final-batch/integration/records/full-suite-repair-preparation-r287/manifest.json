@@ -1,0 +1,1857 @@
+{
+  "head": "628562c31a5102348a7e8769f3a2aa88deef70f1",
+  "qualified": false,
+  "status": "preparation, failed/exploratory evidence and isolated syntax feasibility only; no proposal applied to canonical628 at archival time",
+  "r244_qualified": false,
+  "artifacts": [
+    {
+      "path": "reviews/round169-opus.json",
+      "source": "/tmp/emitter-claude-review-round169-opus.json",
+      "scope": "actual read-only Claude review; includes model/turn metadata, not runtime qualification",
+      "bytes": 7931,
+      "sha256": "beee13ea0dccc7b3c0516d8f642a785b4a3d09c1e2562b395f1f7cae4a0b3834"
+    },
+    {
+      "path": "reviews/round169-request.md",
+      "source": "/tmp/emitter-round169-request.md",
+      "scope": "actual read-only review request",
+      "bytes": 3806,
+      "sha256": "5d46490487c5cfd2d8b15dbd9f932d35a08d856df0c00fc8f463e7efbaddcad1"
+    },
+    {
+      "path": "reviews/round170-opus.json",
+      "source": "/tmp/emitter-claude-review-round170-opus.json",
+      "scope": "actual read-only Claude review; includes model/turn metadata, not runtime qualification",
+      "bytes": 9477,
+      "sha256": "d678f95eb00d9140d51cdca059a7ec48b2f0845592afc1c09d4e587e51955fe2"
+    },
+    {
+      "path": "reviews/round170-request.md",
+      "source": "/tmp/emitter-round170-request.md",
+      "scope": "actual read-only review request",
+      "bytes": 3220,
+      "sha256": "e49ea1dcfb33293e8bfa57211b6f560f0cb1c8d56d7cf04048520327a85f66e1"
+    },
+    {
+      "path": "reviews/round171-opus.json",
+      "source": "/tmp/emitter-claude-review-round171-opus.json",
+      "scope": "actual read-only Claude review; includes model/turn metadata, not runtime qualification",
+      "bytes": 14772,
+      "sha256": "df95445677c1a0f290a2d543ccccaeffa787b2251aad9eb408558b2478eec747"
+    },
+    {
+      "path": "reviews/round171-request.md",
+      "source": "/tmp/emitter-round171-request.md",
+      "scope": "actual read-only review request",
+      "bytes": 4346,
+      "sha256": "ac52a36ae1e62cf07a73c7c4fb556689f4ce96bd325e4d1605a4d15ba13dcfa8"
+    },
+    {
+      "path": "reviews/round172-opus.json",
+      "source": "/tmp/emitter-claude-review-round172-opus.json",
+      "scope": "actual read-only Claude review; includes model/turn metadata, not runtime qualification",
+      "bytes": 10118,
+      "sha256": "823f37de1d5060fde60002aecb35e91ad608a5b81ce0b32a86eaa7ca96cf0c9a"
+    },
+    {
+      "path": "reviews/round172-request.md",
+      "source": "/tmp/emitter-round172-request.md",
+      "scope": "actual read-only review request",
+      "bytes": 3155,
+      "sha256": "2a12a84cde7dc90032ee6d0daec5f778bc45a57006e3415892506f0f79b51ee8"
+    },
+    {
+      "path": "reviews/round173-opus.json",
+      "source": "/tmp/emitter-claude-review-round173-opus.json",
+      "scope": "actual read-only Claude review; includes model/turn metadata, not runtime qualification",
+      "bytes": 6587,
+      "sha256": "7999cb7901d2cbe4e13ffee861633a93d10710f20132eb2ce0b0ae6a18140581"
+    },
+    {
+      "path": "reviews/round173-request.md",
+      "source": "/tmp/emitter-round173-request.md",
+      "scope": "actual read-only review request",
+      "bytes": 2455,
+      "sha256": "f79692adde424ca3b7e8bbdf03c03c6f8ffb6be2160d2e33b7a0b43caf79dc3a"
+    },
+    {
+      "path": "reviews/round174-opus.json",
+      "source": "/tmp/emitter-claude-review-round174-opus.json",
+      "scope": "actual read-only Claude review; includes model/turn metadata, not runtime qualification",
+      "bytes": 7722,
+      "sha256": "404805032a0badeeb635ac2e03e77620e1128e503629d737c7f5b37bee85f7ab"
+    },
+    {
+      "path": "reviews/round174-request.md",
+      "source": "/tmp/emitter-round174-request.md",
+      "scope": "actual read-only review request",
+      "bytes": 4123,
+      "sha256": "1dec17b86ea374257747018e561638d6bfa68895f8226cd9191079f1293904f5"
+    },
+    {
+      "path": "reviews/round175-opus.json",
+      "source": "/tmp/emitter-claude-review-round175-opus.json",
+      "scope": "actual read-only Claude review; includes model/turn metadata, not runtime qualification",
+      "bytes": 15291,
+      "sha256": "dc04b9e7e77f425bd9e6e4417ace51d2b6e15feb7242d3c83f7ef2aea3ed2409"
+    },
+    {
+      "path": "reviews/round175-request.md",
+      "source": "/tmp/emitter-round175-request.md",
+      "scope": "actual read-only review request",
+      "bytes": 3795,
+      "sha256": "4539300b37621cb2d7955aeb5bf4bdb556b926cd39e6f1236479b452258dd5a3"
+    },
+    {
+      "path": "reviews/round176-opus.json",
+      "source": "/tmp/emitter-claude-review-round176-opus.json",
+      "scope": "actual read-only Claude review; includes model/turn metadata, not runtime qualification",
+      "bytes": 11122,
+      "sha256": "e25fc6ea814a1108a0c3908bd6483ecca29138b2cb85bf7a031b2c7fe87bd6b4"
+    },
+    {
+      "path": "reviews/round176-request.md",
+      "source": "/tmp/emitter-round176-request.md",
+      "scope": "actual read-only review request",
+      "bytes": 2992,
+      "sha256": "3580746a657a6868ae6fd114020aa24e585fd87fd93619c5aa88427503cae001"
+    },
+    {
+      "path": "proposals/emitter-stale-declaration-controls-r264/proposal.patch.gz",
+      "source": "/tmp/emitter-stale-declaration-controls-r264/proposal.patch.gz",
+      "scope": "unapplied3stale declaration control corrections; actual169review, product untouched",
+      "bytes": 1185,
+      "sha256": "85bc3e08e48eb063a05eed8a6acc869a2c130f0d62af6e68e10c64d637d5698e"
+    },
+    {
+      "path": "proposals/emitter-stale-declaration-controls-r264/proposal.json",
+      "source": "/tmp/emitter-stale-declaration-controls-r264/proposal.json",
+      "scope": "unapplied3stale declaration control corrections; actual169review, product untouched",
+      "bytes": 1510,
+      "sha256": "cc85d4f1dde76b04c1770388cf71fceac384d81b2517ce23ad04653329e18cce"
+    },
+    {
+      "path": "proposals/emitter-import-owner-proposal-r273/proposal.patch.gz",
+      "source": "/tmp/emitter-import-owner-proposal-r273/proposal.patch.gz",
+      "scope": "REJECTED first caller projection proposal; lost clipping/error semantics",
+      "bytes": 503,
+      "sha256": "ab7eaa6822cd690706189ecb27ff2b8242d5b1e44791c10bbad55567e36e6ec5"
+    },
+    {
+      "path": "proposals/emitter-import-owner-proposal-r273/proposal.json",
+      "source": "/tmp/emitter-import-owner-proposal-r273/proposal.json",
+      "scope": "REJECTED first caller projection proposal; lost clipping/error semantics",
+      "bytes": 602,
+      "sha256": "1c9bbc650ab96c3ba85dae475a232f21c302420aa94621ba248f20e0aed3bf0f"
+    },
+    {
+      "path": "proposals/emitter-import-owner-proposal-r273/controls.patch.gz",
+      "source": "/tmp/emitter-import-owner-proposal-r273/controls.patch.gz",
+      "scope": "REJECTED first caller projection proposal; lost clipping/error semantics",
+      "bytes": 815,
+      "sha256": "991dc3f98822df85b99acb5760b572abbd9c5ea48563d2819c4e97daa91f8ccc"
+    },
+    {
+      "path": "proposals/emitter-import-owner-proposal-r273/controls.json",
+      "source": "/tmp/emitter-import-owner-proposal-r273/controls.json",
+      "scope": "REJECTED first caller projection proposal; lost clipping/error semantics",
+      "bytes": 688,
+      "sha256": "3a36eb095670f4e7981498f481831d3dad4bbe6d5ead5f78d2da100605df4899"
+    },
+    {
+      "path": "proposals/emitter-import-owner-proposal-r279/proposal.patch.gz",
+      "source": "/tmp/emitter-import-owner-proposal-r279/proposal.patch.gz",
+      "scope": "unapplied final import clause modifier-erasure fix and36controls; runtime pending",
+      "bytes": 534,
+      "sha256": "ae6ec7fa7a853a5a81169b29db88136cfe77befc798394c82a6a124277310a98"
+    },
+    {
+      "path": "proposals/emitter-import-owner-proposal-r279/proposal.json",
+      "source": "/tmp/emitter-import-owner-proposal-r279/proposal.json",
+      "scope": "unapplied final import clause modifier-erasure fix and36controls; runtime pending",
+      "bytes": 853,
+      "sha256": "66f67d6154dec103c4f7084fbf90cd1728f1788e9aa5ff06f852b3483af5304f"
+    },
+    {
+      "path": "proposals/emitter-import-owner-proposal-r279/controls.patch.gz",
+      "source": "/tmp/emitter-import-owner-proposal-r279/controls.patch.gz",
+      "scope": "unapplied final import clause modifier-erasure fix and36controls; runtime pending",
+      "bytes": 829,
+      "sha256": "9ded0fcd7a79e164039b163a04a1d6ab5076cf1914e851b86d5fe59ad0c2a4b9"
+    },
+    {
+      "path": "proposals/emitter-import-owner-proposal-r279/controls.json",
+      "source": "/tmp/emitter-import-owner-proposal-r279/controls.json",
+      "scope": "unapplied final import clause modifier-erasure fix and36controls; runtime pending",
+      "bytes": 676,
+      "sha256": "ed5b00a91b33ce3e5b515e35efc5e29aca50f03fe9fee802e89024c0062702ff"
+    },
+    {
+      "path": "proposals/emitter-import-owner-proposal-r279/observe-token-comment-phases.mjs",
+      "source": "/tmp/emitter-import-owner-proposal-r279/observe-token-comment-phases.mjs",
+      "scope": "unapplied final import clause modifier-erasure fix and36controls; runtime pending",
+      "bytes": 12785,
+      "sha256": "3f64fb6c70182abe9cfb3d0319754f35a606cee26acb32fa9f8ff74f6f092136"
+    },
+    {
+      "path": "proposals/emitter-leading-binding-prototype-r281/proposal.patch.gz",
+      "source": "/tmp/emitter-leading-binding-prototype-r281/proposal.patch.gz",
+      "scope": "superseded first composite admission proposal after172review; never applied",
+      "bytes": 3307,
+      "sha256": "b3b7bf7dc52467813dd3fa25b4b2bad0e3adf095392b36df4631ffd32ffbb5df"
+    },
+    {
+      "path": "proposals/emitter-leading-binding-prototype-r281/proposal.json",
+      "source": "/tmp/emitter-leading-binding-prototype-r281/proposal.json",
+      "scope": "superseded first composite admission proposal after172review; never applied",
+      "bytes": 1027,
+      "sha256": "f6c3de2bab63db7659aaad3213418f5c487e052153ac31983079b8c9317e40c0"
+    },
+    {
+      "path": "proposals/emitter-leading-binding-prototype-r281/tests-append.rs",
+      "source": "/tmp/emitter-leading-binding-prototype-r281/tests-append.rs",
+      "scope": "superseded first composite admission proposal after172review; never applied",
+      "bytes": 3613,
+      "sha256": "eb186e1aa5534aa60cc40bac80b6d02ab6547a68d07922b024c0ecbf73e3c01a"
+    },
+    {
+      "path": "proposals/emitter-leading-binding-prototype-r283/proposal.patch.gz",
+      "source": "/tmp/emitter-leading-binding-prototype-r283/proposal.patch.gz",
+      "scope": "unapplied revised bounded syntax prototype; no build/real-command/corpus qualification",
+      "bytes": 3500,
+      "sha256": "ebdbee60c12fc9f48ba7b63bfb15f0623dcbd06675c7862541a1f590ce33bdad"
+    },
+    {
+      "path": "proposals/emitter-leading-binding-prototype-r283/proposal.json",
+      "source": "/tmp/emitter-leading-binding-prototype-r283/proposal.json",
+      "scope": "unapplied revised bounded syntax prototype; no build/real-command/corpus qualification",
+      "bytes": 1343,
+      "sha256": "1a77a982913bd634dbbc1bfa4c0713d6ef863e356dae02ad7213907b596af987"
+    },
+    {
+      "path": "proposals/emitter-leading-binding-prototype-r283/tests-append.rs",
+      "source": "/tmp/emitter-leading-binding-prototype-r283/tests-append.rs",
+      "scope": "unapplied revised bounded syntax prototype; no build/real-command/corpus qualification",
+      "bytes": 4135,
+      "sha256": "10edb906408c3d906cee234c8e4e1b9796932ae644093c3fc3ad5b4f8a05c2d3"
+    },
+    {
+      "path": "proposals/emitter-leading-binding-prototype-r283/STATUS.md",
+      "source": "/tmp/emitter-leading-binding-prototype-r283/STATUS.md",
+      "scope": "unapplied revised bounded syntax prototype; no build/real-command/corpus qualification",
+      "bytes": 1029,
+      "sha256": "937c86dd744dd0c7a896fa417a155b86a7fce91cdbf2c7c8395f4dde328fe59c"
+    },
+    {
+      "path": "proposals/emitter-leading-binding-prototype-r283/round173-test-wiring-correction.json",
+      "source": "/tmp/emitter-leading-binding-prototype-r283/round173-test-wiring-correction.json",
+      "scope": "unapplied revised bounded syntax prototype; no build/real-command/corpus qualification",
+      "bytes": 3049,
+      "sha256": "7a29836a4fa7900fce0e63fd2054e27ac6066039d81c54032f05d9276ba60882"
+    },
+    {
+      "path": "proposals/emitter-import-refusal-retirement-r282/proposal.patch.gz",
+      "source": "/tmp/emitter-import-refusal-retirement-r282/proposal.patch.gz",
+      "scope": "unapplied12stale-refusal retirement; source command completes but fullcomparison pending",
+      "bytes": 1289,
+      "sha256": "821c8c3c99a2d01fddd90ae123ae738863b0ea138f9ccd97035a79462942d0c8"
+    },
+    {
+      "path": "proposals/emitter-import-refusal-retirement-r282/proposal.json",
+      "source": "/tmp/emitter-import-refusal-retirement-r282/proposal.json",
+      "scope": "unapplied12stale-refusal retirement; source command completes but fullcomparison pending",
+      "bytes": 5396,
+      "sha256": "fde8eccec8b99fb57ea221bfe017945c2acb7f16d544bccfeb5a03febbb9f04d"
+    },
+    {
+      "path": "proposals/emitter-import-refusal-retirement-r282/observe-import-helpers.mjs",
+      "source": "/tmp/emitter-import-refusal-retirement-r282/observe-import-helpers.mjs",
+      "scope": "unapplied12stale-refusal retirement; source command completes but fullcomparison pending",
+      "bytes": 40342,
+      "sha256": "d980ed4070d6b4ae8d94ab9355650b9c83cc25f9a1c27725cdb001c377acc7de"
+    },
+    {
+      "path": "inspection/emitter-current-failures-r271.json",
+      "source": "/tmp/emitter-current-failures-r271.json",
+      "scope": "read-only interim inspection/preparation; r244 full archived logs own final failure list",
+      "bytes": 4164,
+      "sha256": "90e535f1e02c42a6c39261d48ed51e79cd2422fa6b8e95613e7b5aacff85c34f"
+    },
+    {
+      "path": "inspection/emitter-recovery-inspection-r272.rs",
+      "source": "/tmp/emitter-recovery-inspection-r272.rs",
+      "scope": "read-only interim inspection/preparation; r244 full archived logs own final failure list",
+      "bytes": 959,
+      "sha256": "83e087ceb5c964b8828fe5916c847fd28d5a6e6ec8a5213f55d8e6834f89bb01"
+    },
+    {
+      "path": "inspection/emitter-recovery-inspection-r272.ts",
+      "source": "/tmp/emitter-recovery-inspection-r272.ts",
+      "scope": "read-only interim inspection/preparation; r244 full archived logs own final failure list",
+      "bytes": 28,
+      "sha256": "8274d45fefbfc47049d8ca05760838f7bb4c3c93a6447967ffbb06bbd3189bf9"
+    },
+    {
+      "path": "inspection/emitter-recovery-inspection-r272.log",
+      "source": "/tmp/emitter-recovery-inspection-r272.log",
+      "scope": "read-only interim inspection/preparation; r244 full archived logs own final failure list",
+      "bytes": 3539,
+      "sha256": "934445f69e2604e08e060285fe8c3b7fef2f54e4960cc04fc3b1e53f74756391"
+    },
+    {
+      "path": "inspection/emitter-recovery-inspection-r272.json",
+      "source": "/tmp/emitter-recovery-inspection-r272.json",
+      "scope": "read-only interim inspection/preparation; r244 full archived logs own final failure list",
+      "bytes": 455,
+      "sha256": "c39f54d5425c7cf8679c95f3dbfc29ef394cc937652647f7fad3d6fd9064b269"
+    },
+    {
+      "path": "inspection/emitter-recovery-family-design-r278.md",
+      "source": "/tmp/emitter-recovery-family-design-r278.md",
+      "scope": "read-only interim inspection/preparation; r244 full archived logs own final failure list",
+      "bytes": 4041,
+      "sha256": "b8aaff146e17367eed3a930ae028e0f34712c897ac892005dbaff83d39fbdeeb"
+    },
+    {
+      "path": "inspection/emitter-native-boundary-inventory-r284.json",
+      "source": "/tmp/emitter-native-boundary-inventory-r284.json",
+      "scope": "read-only interim inspection/preparation; r244 full archived logs own final failure list",
+      "bytes": 7188,
+      "sha256": "49b26ffc4cadb0cbb77e708817c17ca43ccee14a51664082bfdc1c140262b034"
+    },
+    {
+      "path": "inspection/emitter-remote-state-r285.json",
+      "source": "/tmp/emitter-remote-state-r285.json",
+      "scope": "read-only interim inspection/preparation; r244 full archived logs own final failure list",
+      "bytes": 9581,
+      "sha256": "12e065e1af1fb6f9a9f9cc7b12f95dce1a3ef0c168f7654b39d17e8cb2e49669"
+    },
+    {
+      "path": "inspection/emitter-repair-membership-audit-r286.json",
+      "source": "/tmp/emitter-repair-membership-audit-r286.json",
+      "scope": "read-only interim inspection/preparation; r244 full archived logs own final failure list",
+      "bytes": 2239,
+      "sha256": "929555e24db0a5b55055189044252e4cd7d47c2f51a7ae2ce32350057d9bf53c"
+    },
+    {
+      "path": "exploration/emitter-recovery-output-exploration-r274.rs",
+      "source": "/tmp/emitter-recovery-output-exploration-r274.rs",
+      "scope": "MOCK resolver; deliberately cleared recovery via existing harness hook; not qualification. r274build failed, r275/r276incomplete mock, r277fourJSbodies only",
+      "bytes": 4751,
+      "sha256": "1657c0a02ccbf6c6207fdf59281145630e63ac9b3f81ec254a8d8f99f029105f"
+    },
+    {
+      "path": "exploration/emitter-recovery-output-exploration-r274-build.json",
+      "source": "/tmp/emitter-recovery-output-exploration-r274-build.json",
+      "scope": "MOCK resolver; deliberately cleared recovery via existing harness hook; not qualification. r274build failed, r275/r276incomplete mock, r277fourJSbodies only",
+      "bytes": 1667,
+      "sha256": "cca0c56e5accabe6f882249759d99e69533d8937f2958ef0c2698021020b5b8c"
+    },
+    {
+      "path": "exploration/emitter-recovery-output-exploration-r274-build.log",
+      "source": "/tmp/emitter-recovery-output-exploration-r274-build.log",
+      "scope": "MOCK resolver; deliberately cleared recovery via existing harness hook; not qualification. r274build failed, r275/r276incomplete mock, r277fourJSbodies only",
+      "bytes": 3791,
+      "sha256": "e426e9924ca4d39f97e2425fe5e80378238d35ef4c7eae0a0eeb99bdb31e827d"
+    },
+    {
+      "path": "exploration/emitter-recovery-output-exploration-r275.rs",
+      "source": "/tmp/emitter-recovery-output-exploration-r275.rs",
+      "scope": "MOCK resolver; deliberately cleared recovery via existing harness hook; not qualification. r274build failed, r275/r276incomplete mock, r277fourJSbodies only",
+      "bytes": 4752,
+      "sha256": "2dd4e837aa609e8b41b25c0364a2ca129d6496b0bca712d8b9ca59e792333365"
+    },
+    {
+      "path": "exploration/emitter-recovery-output-exploration-r275-build.json",
+      "source": "/tmp/emitter-recovery-output-exploration-r275-build.json",
+      "scope": "MOCK resolver; deliberately cleared recovery via existing harness hook; not qualification. r274build failed, r275/r276incomplete mock, r277fourJSbodies only",
+      "bytes": 1667,
+      "sha256": "9cb23b7565420a5bc7078d9e3ff3ea102be098a129c1a40507b06b5888ceb95e"
+    },
+    {
+      "path": "exploration/emitter-recovery-output-exploration-r275-build.log",
+      "source": "/tmp/emitter-recovery-output-exploration-r275-build.log",
+      "scope": "MOCK resolver; deliberately cleared recovery via existing harness hook; not qualification. r274build failed, r275/r276incomplete mock, r277fourJSbodies only",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "exploration/emitter-recovery-output-exploration-r275.json",
+      "source": "/tmp/emitter-recovery-output-exploration-r275.json",
+      "scope": "same MOCK exploration limits; no realchecker/declarations/maps/status/exit qualification",
+      "bytes": 358,
+      "sha256": "da351ba85e7719477a571b904e80e103b149586fba3a833f78c38b4001411f42"
+    },
+    {
+      "path": "exploration/emitter-recovery-output-exploration-r275.log",
+      "source": "/tmp/emitter-recovery-output-exploration-r275.log",
+      "scope": "same MOCK exploration limits; no realchecker/declarations/maps/status/exit qualification",
+      "bytes": 4804,
+      "sha256": "1dd9387b261bc78e94b503147708a1d500e9620d0b837cc8e3b3f6779df2198f"
+    },
+    {
+      "path": "exploration/emitter-recovery-output-exploration-r276.rs",
+      "source": "/tmp/emitter-recovery-output-exploration-r276.rs",
+      "scope": "MOCK resolver; deliberately cleared recovery via existing harness hook; not qualification. r274build failed, r275/r276incomplete mock, r277fourJSbodies only",
+      "bytes": 4876,
+      "sha256": "6447f7bf032d9b063f08d838af14e643872e9418e76527af5d1799606febcf24"
+    },
+    {
+      "path": "exploration/emitter-recovery-output-exploration-r276-build.json",
+      "source": "/tmp/emitter-recovery-output-exploration-r276-build.json",
+      "scope": "MOCK resolver; deliberately cleared recovery via existing harness hook; not qualification. r274build failed, r275/r276incomplete mock, r277fourJSbodies only",
+      "bytes": 1667,
+      "sha256": "8142032f4fc6d9650bdb7c4547d4214c26b899722833cea8abee985aadd2c11e"
+    },
+    {
+      "path": "exploration/emitter-recovery-output-exploration-r276-build.log",
+      "source": "/tmp/emitter-recovery-output-exploration-r276-build.log",
+      "scope": "MOCK resolver; deliberately cleared recovery via existing harness hook; not qualification. r274build failed, r275/r276incomplete mock, r277fourJSbodies only",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "exploration/emitter-recovery-output-exploration-r276.json",
+      "source": "/tmp/emitter-recovery-output-exploration-r276.json",
+      "scope": "same MOCK exploration limits; no realchecker/declarations/maps/status/exit qualification",
+      "bytes": 386,
+      "sha256": "c7a610a8aac4f4627457ed52d85e27f67465235e615c84a6653c3cc378f36de4"
+    },
+    {
+      "path": "exploration/emitter-recovery-output-exploration-r276.log",
+      "source": "/tmp/emitter-recovery-output-exploration-r276.log",
+      "scope": "same MOCK exploration limits; no realchecker/declarations/maps/status/exit qualification",
+      "bytes": 5356,
+      "sha256": "97a09153d8819ceab89d719afd89c90b9852ea16898297fc4efd35d084c66e8f"
+    },
+    {
+      "path": "exploration/emitter-recovery-output-exploration-r277.rs",
+      "source": "/tmp/emitter-recovery-output-exploration-r277.rs",
+      "scope": "MOCK resolver; deliberately cleared recovery via existing harness hook; not qualification. r274build failed, r275/r276incomplete mock, r277fourJSbodies only",
+      "bytes": 5031,
+      "sha256": "5c780e2f62acdd4246186a0c4f819ff58a068fc0640b5b80c10822038b8c18a4"
+    },
+    {
+      "path": "exploration/emitter-recovery-output-exploration-r277-build.json",
+      "source": "/tmp/emitter-recovery-output-exploration-r277-build.json",
+      "scope": "MOCK resolver; deliberately cleared recovery via existing harness hook; not qualification. r274build failed, r275/r276incomplete mock, r277fourJSbodies only",
+      "bytes": 1667,
+      "sha256": "7fbcb25e65db63a3a34a4b9947f27c03618ed738c6ee35f58c4b90e12c153dea"
+    },
+    {
+      "path": "exploration/emitter-recovery-output-exploration-r277-build.log",
+      "source": "/tmp/emitter-recovery-output-exploration-r277-build.log",
+      "scope": "MOCK resolver; deliberately cleared recovery via existing harness hook; not qualification. r274build failed, r275/r276incomplete mock, r277fourJSbodies only",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "exploration/emitter-recovery-output-exploration-r277.json",
+      "source": "/tmp/emitter-recovery-output-exploration-r277.json",
+      "scope": "same MOCK exploration limits; no realchecker/declarations/maps/status/exit qualification",
+      "bytes": 1238,
+      "sha256": "eb27442430c9778fe6ee41eccff4bf2fcfcb9018da1bb37b2afbaeca0838b41c"
+    },
+    {
+      "path": "exploration/emitter-recovery-output-exploration-r277.log",
+      "source": "/tmp/emitter-recovery-output-exploration-r277.log",
+      "scope": "same MOCK exploration limits; no realchecker/declarations/maps/status/exit qualification",
+      "bytes": 5535,
+      "sha256": "b28f7d7b40976c09c70d7d4c52b733dc509198f73cab8f98e69baaa88ec8e667"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-baseline-r289.rs",
+      "source": "/tmp/emitter-leading-binding-baseline-r289.rs",
+      "scope": "read-only baseline syntax/ambient/source-position inspection, not prototype execution",
+      "bytes": 1523,
+      "sha256": "ab231564c25302f5ca04da7669b9db9114941a59c7c3d98c859220e769e7d340"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-baseline-r289-build.json",
+      "source": "/tmp/emitter-leading-binding-baseline-r289-build.json",
+      "scope": "read-only baseline syntax/ambient/source-position inspection, not prototype execution",
+      "bytes": 639,
+      "sha256": "85cf3a99553ebdfd8e0041d7e9369cec681c43913e513ef7d996542de360aa0a"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-baseline-r289-build.log",
+      "source": "/tmp/emitter-leading-binding-baseline-r289-build.log",
+      "scope": "read-only baseline syntax/ambient/source-position inspection, not prototype execution",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "inspection/baseline-r289/ambient.log",
+      "source": "/tmp/emitter-leading-binding-baseline-r289-records/ambient.log",
+      "scope": "same read-only baseline inspection; every ES5 input still refused at628, ES2015 clean",
+      "bytes": 1502,
+      "sha256": "1becec9cc16ba6f332717a7e1c87050465bec8dc450fbf6adcfdf26a08a6a3ec"
+    },
+    {
+      "path": "inspection/baseline-r289/ambient.ts",
+      "source": "/tmp/emitter-leading-binding-baseline-r289-records/ambient.ts",
+      "scope": "same read-only baseline inspection; every ES5 input still refused at628, ES2015 clean",
+      "bytes": 45,
+      "sha256": "853951a49e9a8b48524663fae978bf7f2c366e397f3706142d3a1f671cbbadbd"
+    },
+    {
+      "path": "inspection/baseline-r289/declaration.log",
+      "source": "/tmp/emitter-leading-binding-baseline-r289-records/declaration.log",
+      "scope": "same read-only baseline inspection; every ES5 input still refused at628, ES2015 clean",
+      "bytes": 1494,
+      "sha256": "99f1abc205d43ab06dc79e49272049e4e5919aeee94cfb0464b2aa28f1d697c9"
+    },
+    {
+      "path": "inspection/baseline-r289/declaration.ts",
+      "source": "/tmp/emitter-leading-binding-baseline-r289-records/declaration.ts",
+      "scope": "same read-only baseline inspection; every ES5 input still refused at628, ES2015 clean",
+      "bytes": 28,
+      "sha256": "8274d45fefbfc47049d8ca05760838f7bb4c3c93a6447967ffbb06bbd3189bf9"
+    },
+    {
+      "path": "inspection/baseline-r289/manifest.json",
+      "source": "/tmp/emitter-leading-binding-baseline-r289-records/manifest.json",
+      "scope": "same read-only baseline inspection; every ES5 input still refused at628, ES2015 clean",
+      "bytes": 2133,
+      "sha256": "fafa676f1e6c1deb8ecf3e43630e4dcba5e4f2900f28d9070e6ce0b8856cb660"
+    },
+    {
+      "path": "inspection/baseline-r289/two-statements.log",
+      "source": "/tmp/emitter-leading-binding-baseline-r289-records/two-statements.log",
+      "scope": "same read-only baseline inspection; every ES5 input still refused at628, ES2015 clean",
+      "bytes": 2667,
+      "sha256": "47a19ac2b8bf514dd3d6e1944b0e811e2d912515011bfa36ca824940acbf1be9"
+    },
+    {
+      "path": "inspection/baseline-r289/two-statements.ts",
+      "source": "/tmp/emitter-leading-binding-baseline-r289-records/two-statements.ts",
+      "scope": "same read-only baseline inspection; every ES5 input still refused at628, ES2015 clean",
+      "bytes": 56,
+      "sha256": "c35bfefd3d420be9f7164cc6f3fd5086d03e2fafda500ded799b1435e11eba2a"
+    },
+    {
+      "path": "inspection/baseline-r289/unicode-leading.log",
+      "source": "/tmp/emitter-leading-binding-baseline-r289-records/unicode-leading.log",
+      "scope": "same read-only baseline inspection; every ES5 input still refused at628, ES2015 clean",
+      "bytes": 1500,
+      "sha256": "42c984b8aaea2b1564223b1158a0b826570ec2c602112a9ec94571d116eb1151"
+    },
+    {
+      "path": "inspection/baseline-r289/unicode-leading.ts",
+      "source": "/tmp/emitter-leading-binding-baseline-r289-records/unicode-leading.ts",
+      "scope": "same read-only baseline inspection; every ES5 input still refused at628, ES2015 clean",
+      "bytes": 39,
+      "sha256": "b23cd578d28bb3358a2f28d93742589382baac7ed40ed400aebe1dccc70a97ea"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-controls-r290/baseline-inspection.json",
+      "source": "/tmp/emitter-leading-binding-controls-r290/baseline-inspection.json",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 1728,
+      "sha256": "5298a519fe0f892e58356707a89b5c6429e5658d3216896de381118e5719bcdd"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-controls-r290/let-script.baseline.log",
+      "source": "/tmp/emitter-leading-binding-controls-r290/let-script.baseline.log",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 1454,
+      "sha256": "0b11997b973cbe72e85e43d0f9203abd2f5004e367f7bce8b2d20e427c4e5bb0"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-controls-r290/let-script.ts",
+      "source": "/tmp/emitter-leading-binding-controls-r290/let-script.ts",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 19,
+      "sha256": "47a7b4a5f8081d45c8510cc736a0ab17d6959e548f8ba8d91fbda83aea8bc6bf"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-controls-r290/observe-export-name-syntax-maps.mjs",
+      "source": "/tmp/emitter-leading-binding-controls-r290/observe-export-name-syntax-maps.mjs",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 8033,
+      "sha256": "4d31ce15fb7fd9885fa6cc6a8fbe80b5deb19d41c7ae1f8f4dcbe3c491b31b06"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-controls-r290/observer.patch.gz",
+      "source": "/tmp/emitter-leading-binding-controls-r290/observer.patch.gz",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 721,
+      "sha256": "74a8722eb4c0c2ba3e6381d18f0f3a4a19fa4b3aefbaf18ccb74300fee9ab7dc"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-controls-r290/property-trivia.baseline.log",
+      "source": "/tmp/emitter-leading-binding-controls-r290/property-trivia.baseline.log",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 2466,
+      "sha256": "be758075b44b7cb4a1c6e2ae8d298584f05be3cda5a226495e678262beee124a"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-controls-r290/property-trivia.ts",
+      "source": "/tmp/emitter-leading-binding-controls-r290/property-trivia.ts",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 30,
+      "sha256": "95d9cef47fde26bc9d2c5a9827e8be5de714adba3067ac94eea147585225dd38"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-controls-r290/proposal.json",
+      "source": "/tmp/emitter-leading-binding-controls-r290/proposal.json",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 922,
+      "sha256": "e3b4c24158a8a98268da1e4cd608abeae4cef8987cea322d910afbff36d08664"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-controls-r290/two-statements.baseline.log",
+      "source": "/tmp/emitter-leading-binding-controls-r290/two-statements.baseline.log",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 2667,
+      "sha256": "47a19ac2b8bf514dd3d6e1944b0e811e2d912515011bfa36ca824940acbf1be9"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-controls-r290/two-statements.ts",
+      "source": "/tmp/emitter-leading-binding-controls-r290/two-statements.ts",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 56,
+      "sha256": "c35bfefd3d420be9f7164cc6f3fd5086d03e2fafda500ded799b1435e11eba2a"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-controls-r290/unicode-leading.baseline.log",
+      "source": "/tmp/emitter-leading-binding-controls-r290/unicode-leading.baseline.log",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 1500,
+      "sha256": "42c984b8aaea2b1564223b1158a0b826570ec2c602112a9ec94571d116eb1151"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-controls-r290/unicode-leading.ts",
+      "source": "/tmp/emitter-leading-binding-controls-r290/unicode-leading.ts",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 39,
+      "sha256": "b23cd578d28bb3358a2f28d93742589382baac7ed40ed400aebe1dccc70a97ea"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-controls-r290/var-script.baseline.log",
+      "source": "/tmp/emitter-leading-binding-controls-r290/var-script.baseline.log",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 1488,
+      "sha256": "4d6c782dd48346737bde32312652343c40363163ad373053f83c847ee0d57ea9"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-controls-r290/var-script.ts",
+      "source": "/tmp/emitter-leading-binding-controls-r290/var-script.ts",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 19,
+      "sha256": "82fdd234a66e38d2f2eb9b809379b44ebfcf1cc18313861fdfaa6435fc576059"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/00.log",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/00.log",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 1498,
+      "sha256": "fee597941550629902cf7b45cacb11b91fcfc12407069b4ae75ac9707f99872e"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/00.ts",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/00.ts",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 27,
+      "sha256": "3280d0bff3d2f9771783f6c27ae1cd4b51e4fbd86e5cbc1947a402dd7825c273"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/01.log",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/01.log",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 1454,
+      "sha256": "0b11997b973cbe72e85e43d0f9203abd2f5004e367f7bce8b2d20e427c4e5bb0"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/01.ts",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/01.ts",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 18,
+      "sha256": "6ee34c243840b1f233e26cd7287c1fdd68f6a470d24582634cd4a2e7a652f257"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/02.log",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/02.log",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 1488,
+      "sha256": "4d6c782dd48346737bde32312652343c40363163ad373053f83c847ee0d57ea9"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/02.ts",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/02.ts",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 18,
+      "sha256": "ec23272a5eafa69aa286cfcf7b3308e0f040ea14157b32954fe6f3f0fca83fe4"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/03.log",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/03.log",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 2667,
+      "sha256": "47a19ac2b8bf514dd3d6e1944b0e811e2d912515011bfa36ca824940acbf1be9"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/03.ts",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/03.ts",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 55,
+      "sha256": "370534a5cf26dbd9236a434dfd05f09e658fe0bd9c4b96ab48bf5445f634ba22"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/04.log",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/04.log",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 1500,
+      "sha256": "42c984b8aaea2b1564223b1158a0b826570ec2c602112a9ec94571d116eb1151"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/04.ts",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/04.ts",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 38,
+      "sha256": "6255af0016a360f600edb64551046b43e1f0d951b99bd7299876c2c3414a98d1"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/05.log",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/05.log",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 342,
+      "sha256": "46b30b76bcee5d38fecaccffdaa5c4a856958a5595e21c1ebe953ea70f3c532a"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/05.ts",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/05.ts",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 9,
+      "sha256": "3fe9463539759181c4462cbca681af671882603d4f557d05e6a696b03a4108f9"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/06.log",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/06.log",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 1380,
+      "sha256": "4a25bfeca58fd472f6a5fb20a00d09700d4b5d61913ac3c503e0292a9a0f4a28"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/06.ts",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/06.ts",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 14,
+      "sha256": "10c610e481650317c7b3f2a4ef836fc2049c06d1fa1a31551df006195d06b691"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/07.log",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/07.log",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 870,
+      "sha256": "304d33b7be883617971b8d5c3b5be49d11d023962f4a5fd1b5d1b93596bc661a"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/07.ts",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/07.ts",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 16,
+      "sha256": "75aad30ff4239b3dc70387a8371bfbb4329b259716cac86a2d33bbc38e5975ac"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/08.log",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/08.log",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 1284,
+      "sha256": "ae21619d6d4a40c48eeb35c161c8fda1796602fd3e840b581a2b3199f4f39cb3"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/08.ts",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/08.ts",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 21,
+      "sha256": "4569068212caaa8d6f2d26656e1c2491b5f7580e7f5e2d880d9a9f1f8a5e8c35"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/09.log",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/09.log",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 1512,
+      "sha256": "81af36269d12e6ad489c4afb32d81fa48aec25f75f2a6b14d51dc7e57b0ced09"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/09.ts",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/09.ts",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 23,
+      "sha256": "4545ab3a76742fe43da120618f5f385b0c2ae8534ee353c3607087a101b8a507"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/10.log",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/10.log",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 1392,
+      "sha256": "c7bdaa2fd3af4c4593d259553bb7ce0292b9f5741841c842f0957f3b6755f167"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/10.ts",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/10.ts",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 28,
+      "sha256": "e1f14b2ab57e348764ef1551e21ff4efe7a07bed264762404c59cc322d5a78de"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/11.log",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/11.log",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 1496,
+      "sha256": "55411ac1be1e38a9e1371cbda91e8ede6467acf370e5973edc412383640ac287"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/11.ts",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/11.ts",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 28,
+      "sha256": "51b42e1760929f9ba3b71aa9004eb0970ab8c6f78a0e69be41693a1f46671d97"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/12.log",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/12.log",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 1502,
+      "sha256": "1becec9cc16ba6f332717a7e1c87050465bec8dc450fbf6adcfdf26a08a6a3ec"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/12.ts",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/12.ts",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 44,
+      "sha256": "52e8e9c4997af3baf3cee1c3dea010e6bb97d7f1cb9f18e85f661e0a9b8209ae"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/13.log",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/13.log",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 1498,
+      "sha256": "cceec515094a0cc32d865acea6809e170053440fdd441084054edacabef9dca1"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/13.ts",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/13.ts",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 29,
+      "sha256": "9f90d4713aeac5735915277f55bc01a7f01117e7db3512ff20b44f7634ca0257"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/14.log",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/14.log",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 1498,
+      "sha256": "68ab1ea46ba46215a925e55555bc7aff1791108982bd0cfd0c3be0ab0c6a8c17"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/14.ts",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/14.ts",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 32,
+      "sha256": "b902445de05e926a57bd0a4edfda669e2f41f876f68aa84fdba7b94da5b7a433"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/15.log",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/15.log",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 2448,
+      "sha256": "6b15eab7c413a03e4e1372abecf00b4a87546b92785846c8e2a2dc2a6bc323a0"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/15.ts",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/15.ts",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 18,
+      "sha256": "57e8a7bac6fe0052f09f4003ab1bfa8b071d7072ddb701583b5f86d7aca44e65"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/16.log",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/16.log",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 1511,
+      "sha256": "1b629a27ec1ce025c6e7ab2b3aeeb20a18ede1d8b75393d5365a9ace7013782c"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/16.ts",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/16.ts",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 27,
+      "sha256": "0301dff44dcf904acc01c890912e72de2794106e932f450c9bc4167bd1efd2ac"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/17.log",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/17.log",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 3180,
+      "sha256": "ed7b762862d26c4340c3555fa4a5166bc4da1755d9cc6728b9d51a1ba08129fa"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/17.ts",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/17.ts",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 26,
+      "sha256": "e9992a32e2646e3f8c7619c59abcaabcfd60bfa4249027951695ac372bd91831"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/18.log",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/18.log",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 1285,
+      "sha256": "bd3eab404dbacc6d1962f9828a64a501c647a47dc43a3eb2a5215d6717479c87"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/18.ts",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/18.ts",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 20,
+      "sha256": "5a577d5449b2e77d185ea3c0cfcca0b0ff689be923e8a4c9be9cfcdf9ddf1d94"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/19.log",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/19.log",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 2788,
+      "sha256": "4a8c3aa21399462c67e0af29a8b1c71a49948127a6dfa7b0fd0e42da30fd96d7"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/19.ts",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/19.ts",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 28,
+      "sha256": "14a4602075ac5b0f790cfaf4ce7c82a1c45df188abed5ea5e99c95fbf82effd6"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/20.log",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/20.log",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 342,
+      "sha256": "46b30b76bcee5d38fecaccffdaa5c4a856958a5595e21c1ebe953ea70f3c532a"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/20.ts",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/20.ts",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 7,
+      "sha256": "564c860307257bfac9176f554a35aa858c350a59d75c0dcd0a5d63a480805bd0"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/21.log",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/21.log",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 1498,
+      "sha256": "b4d29d3a4f6c52cb2079eb3f08be2cd3700da644b96f5f6494eac5cd26f045c3"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/21.ts",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/21.ts",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 25,
+      "sha256": "61d1484f9007c37f1fd83d6a073db9d25b446700fea1530441c027ea298ced62"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/22.log",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/22.log",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 1488,
+      "sha256": "4423daffd7ba93a61a5e10f799a4eab28da325ac32c157b0fbe1cd209cda8b00"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/22.ts",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/22.ts",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 20,
+      "sha256": "8bfc80b08bd3145cf3c304e3c923bdc2f654a581103570f66226cc09f490f5ae"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/23.log",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/23.log",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 1498,
+      "sha256": "b4d29d3a4f6c52cb2079eb3f08be2cd3700da644b96f5f6494eac5cd26f045c3"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/23.ts",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/23.ts",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 25,
+      "sha256": "df66bd700fd9d68dd3ac1f23ad1330ee6d8b4c026d8a36a26a50e53a913edebd"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-baseline-r291/manifest.json",
+      "source": "/tmp/emitter-leading-binding-tests-baseline-r291/manifest.json",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 10519,
+      "sha256": "27ee60e647e5ebc741f12a3100b2fdbdc153a8acfb10a90a7b388a66d6fca2e4"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-r292/observe-export-name-syntax-maps.mjs",
+      "source": "/tmp/emitter-leading-binding-tests-r292/observe-export-name-syntax-maps.mjs",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 8040,
+      "sha256": "580cf8a2f720289287d8485516a29cc57d1f9444ad00bfceb6a872503f917a0b"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-r292/observer.patch.gz",
+      "source": "/tmp/emitter-leading-binding-tests-r292/observer.patch.gz",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 725,
+      "sha256": "9f7853c66ae78d82f9d60a319d3c644512120b914e9541d864b4ab7e2b1552e0"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-r292/proposal.json",
+      "source": "/tmp/emitter-leading-binding-tests-r292/proposal.json",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 727,
+      "sha256": "f3b04cbb9f7776f1e59a8030ad0188149b58b5dab68aa1784b2d69f54ec9db33"
+    },
+    {
+      "path": "inspection/emitter-leading-binding-tests-r292/tests-append.rs",
+      "source": "/tmp/emitter-leading-binding-tests-r292/tests-append.rs",
+      "scope": "unapplied controls and read-only baseline; r290 standalone-let positive superseded by r292 exported-let positive and standalone-let negative; production283 unchanged",
+      "bytes": 4173,
+      "sha256": "0e565b24f8f7432d1c9dc6d475f86eb03bcf4f5183c0cc7bc8724d677bf7d4ff"
+    },
+    {
+      "path": "syntax-feasibility/r293/runner.py",
+      "source": "/tmp/emitter-leading-binding-runtime-r293.py",
+      "scope": "isolated syntax feasibility only, canonical unchanged; r293fmt failed,r294test compilation failed,r295passed",
+      "bytes": 3217,
+      "sha256": "3ea7b65d245427cda9c6ef7709033d58a7a5d899141ee6d02c12b4c67c166b5a"
+    },
+    {
+      "path": "syntax-feasibility/r293/manifest.json",
+      "source": "/tmp/emitter-leading-binding-runtime-r293/manifest.json",
+      "scope": "same isolated syntax-only scope, not complete compiler compatibility",
+      "bytes": 818,
+      "sha256": "885b7233be2128850618edef506872d81232611f2f2768db842969ea190a10bf"
+    },
+    {
+      "path": "syntax-feasibility/r293/rustfmt.log",
+      "source": "/tmp/emitter-leading-binding-runtime-r293/rustfmt.log",
+      "scope": "same isolated syntax-only scope, not complete compiler compatibility",
+      "bytes": 641,
+      "sha256": "8875ce29378b639271501fc77fe28f8865e0015f6e1a08c41f4b487cc45290d8"
+    },
+    {
+      "path": "syntax-feasibility/r293/rustfmt.log.gz",
+      "source": "/tmp/emitter-leading-binding-runtime-r293/rustfmt.log.gz",
+      "scope": "same isolated syntax-only scope, not complete compiler compatibility",
+      "bytes": 269,
+      "sha256": "a58c87741ab35b0c99c9a1be222e4fdfceef22286d0405fb0d91447200ebf87e"
+    },
+    {
+      "path": "syntax-feasibility/r294/runner.py",
+      "source": "/tmp/emitter-leading-binding-runtime-r294.py",
+      "scope": "isolated syntax feasibility only, canonical unchanged; r293fmt failed,r294test compilation failed,r295passed",
+      "bytes": 2916,
+      "sha256": "47b0fd36f6baec0636c58a923df1266cdba13b2edce944d846262e28092aedaf"
+    },
+    {
+      "path": "syntax-feasibility/r294/manifest.json",
+      "source": "/tmp/emitter-leading-binding-runtime-r294/manifest.json",
+      "scope": "same isolated syntax-only scope, not complete compiler compatibility",
+      "bytes": 2203,
+      "sha256": "4bacb0f8d27f685c0b4b982a315aa7e946040b211769659c0938bbc3113e9205"
+    },
+    {
+      "path": "syntax-feasibility/r294/new-composite-unit-tests.log",
+      "source": "/tmp/emitter-leading-binding-runtime-r294/new-composite-unit-tests.log",
+      "scope": "same isolated syntax-only scope, not complete compiler compatibility",
+      "bytes": 3705,
+      "sha256": "accc4c191257e1234f7a26ce6ce9c025c30fe6ab234143a06d4a15b0945dba4f"
+    },
+    {
+      "path": "syntax-feasibility/r294/new-composite-unit-tests.log.gz",
+      "source": "/tmp/emitter-leading-binding-runtime-r294/new-composite-unit-tests.log.gz",
+      "scope": "same isolated syntax-only scope, not complete compiler compatibility",
+      "bytes": 797,
+      "sha256": "5247a1b6ecddb1ce815b9eba7266ed9a6c523b37a3b314e410c4cf487390b668"
+    },
+    {
+      "path": "syntax-feasibility/r294/proposal.patch.gz",
+      "source": "/tmp/emitter-leading-binding-runtime-r294/proposal.patch.gz",
+      "scope": "same isolated syntax-only scope, not complete compiler compatibility",
+      "bytes": 4592,
+      "sha256": "9a7aedd7d45de2245082f3f90bb1665d791dee8d5da5cfd05a156d882f7adbbc"
+    },
+    {
+      "path": "syntax-feasibility/r294/rustfmt.log",
+      "source": "/tmp/emitter-leading-binding-runtime-r294/rustfmt.log",
+      "scope": "same isolated syntax-only scope, not complete compiler compatibility",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "syntax-feasibility/r294/rustfmt.log.gz",
+      "source": "/tmp/emitter-leading-binding-runtime-r294/rustfmt.log.gz",
+      "scope": "same isolated syntax-only scope, not complete compiler compatibility",
+      "bytes": 20,
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+    },
+    {
+      "path": "syntax-feasibility/r295/runner.py",
+      "source": "/tmp/emitter-leading-binding-runtime-r295.py",
+      "scope": "isolated syntax feasibility only, canonical unchanged; r293fmt failed,r294test compilation failed,r295passed",
+      "bytes": 2962,
+      "sha256": "212a947aef821d5a7bb9552ae6fe99d57ba050a88a24f61a672c4e5cc365f5c7"
+    },
+    {
+      "path": "syntax-feasibility/r295/all-recovery-unit-tests.log",
+      "source": "/tmp/emitter-leading-binding-runtime-r295/all-recovery-unit-tests.log",
+      "scope": "same isolated syntax-only scope, not complete compiler compatibility",
+      "bytes": 4569,
+      "sha256": "8f2538ae590c53122775b63c29a1175010d465070b3e18d134ff9da9027bd580"
+    },
+    {
+      "path": "syntax-feasibility/r295/all-recovery-unit-tests.log.gz",
+      "source": "/tmp/emitter-leading-binding-runtime-r295/all-recovery-unit-tests.log.gz",
+      "scope": "same isolated syntax-only scope, not complete compiler compatibility",
+      "bytes": 1320,
+      "sha256": "91f8605be2ef40870f12a4a33912d13dfea1186ef80ae35058413522387e50c4"
+    },
+    {
+      "path": "syntax-feasibility/r295/manifest.json",
+      "source": "/tmp/emitter-leading-binding-runtime-r295/manifest.json",
+      "scope": "same isolated syntax-only scope, not complete compiler compatibility",
+      "bytes": 3036,
+      "sha256": "25af8041f44831fa847ca7f88dfb623925f0ebf63f002c6e2edf47c81872e970"
+    },
+    {
+      "path": "syntax-feasibility/r295/new-composite-unit-tests.log",
+      "source": "/tmp/emitter-leading-binding-runtime-r295/new-composite-unit-tests.log",
+      "scope": "same isolated syntax-only scope, not complete compiler compatibility",
+      "bytes": 616,
+      "sha256": "b8dfed4a0b87b921b4b1966a9f10b56a9d49a4e48ceebeb733dff5cb041a2b3b"
+    },
+    {
+      "path": "syntax-feasibility/r295/new-composite-unit-tests.log.gz",
+      "source": "/tmp/emitter-leading-binding-runtime-r295/new-composite-unit-tests.log.gz",
+      "scope": "same isolated syntax-only scope, not complete compiler compatibility",
+      "bytes": 372,
+      "sha256": "37e240c154cb42ccd80df99e9fa64e8ecf6f55709f0775edf0fdd2faa87ecdb8"
+    },
+    {
+      "path": "syntax-feasibility/r295/proposal.patch.gz",
+      "source": "/tmp/emitter-leading-binding-runtime-r295/proposal.patch.gz",
+      "scope": "same isolated syntax-only scope, not complete compiler compatibility",
+      "bytes": 4599,
+      "sha256": "3048b93a0720bf35c222411863075c336cd8f113a55e46ca04a4e363fc9a1b6c"
+    },
+    {
+      "path": "syntax-feasibility/r295/rustfmt.log",
+      "source": "/tmp/emitter-leading-binding-runtime-r295/rustfmt.log",
+      "scope": "same isolated syntax-only scope, not complete compiler compatibility",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "syntax-feasibility/r295/rustfmt.log.gz",
+      "source": "/tmp/emitter-leading-binding-runtime-r295/rustfmt.log.gz",
+      "scope": "same isolated syntax-only scope, not complete compiler compatibility",
+      "bytes": 20,
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+    },
+    {
+      "path": "syntax-feasibility/r296/committed-source.json",
+      "source": "/tmp/emitter-leading-binding-syntax-r296/committed-source.json",
+      "scope": "isolated2df8d1cd0 syntax213passed including42recovery; canonical628unchanged, fullcommands/corpus pending",
+      "bytes": 785,
+      "sha256": "5264c7e9cad7f19becb78820ff34471b10a1f2021ede2bc95e642da71860fb41"
+    },
+    {
+      "path": "syntax-feasibility/r296/manifest.json",
+      "source": "/tmp/emitter-leading-binding-syntax-r296/manifest.json",
+      "scope": "isolated2df8d1cd0 syntax213passed including42recovery; canonical628unchanged, fullcommands/corpus pending",
+      "bytes": 808,
+      "sha256": "55d69604aca768c4ae608d0c5b0fc4b98c1969de9701bdd25b1ffca1e729d63a"
+    },
+    {
+      "path": "syntax-feasibility/r296/source-diff.patch.gz",
+      "source": "/tmp/emitter-leading-binding-syntax-r296/source-diff.patch.gz",
+      "scope": "isolated2df8d1cd0 syntax213passed including42recovery; canonical628unchanged, fullcommands/corpus pending",
+      "bytes": 4599,
+      "sha256": "3048b93a0720bf35c222411863075c336cd8f113a55e46ca04a4e363fc9a1b6c"
+    },
+    {
+      "path": "syntax-feasibility/r296/syntax.log",
+      "source": "/tmp/emitter-leading-binding-syntax-r296/syntax.log",
+      "scope": "isolated2df8d1cd0 syntax213passed including42recovery; canonical628unchanged, fullcommands/corpus pending",
+      "bytes": 17618,
+      "sha256": "9700623fa1a265f7686b009fb02c638b3758dd4defcfcc39912a4bf1cbee511e"
+    },
+    {
+      "path": "syntax-feasibility/r296/syntax.log.gz",
+      "source": "/tmp/emitter-leading-binding-syntax-r296/syntax.log.gz",
+      "scope": "isolated2df8d1cd0 syntax213passed including42recovery; canonical628unchanged, fullcommands/corpus pending",
+      "bytes": 4473,
+      "sha256": "b03d50f9581bd731cd062df0d0576fa5883982b55e563c540ea5b338c91cacb9"
+    },
+    {
+      "path": "syntax-feasibility/r296/tests-append.rs",
+      "source": "/tmp/emitter-leading-binding-syntax-r296/tests-append.rs",
+      "scope": "isolated2df8d1cd0 syntax213passed including42recovery; canonical628unchanged, fullcommands/corpus pending",
+      "bytes": 4215,
+      "sha256": "62ecda18dc3760b3da1d565fde2324e83a8a5ab9ac14176f9a49e23162b50f07"
+    },
+    {
+      "path": "followups/emitter-import-owner-consumers-r297/h2_8a_ellipsis_comment_owners.rs",
+      "source": "/tmp/emitter-import-owner-consumers-r297/h2_8a_ellipsis_comment_owners.rs",
+      "scope": "read-only/preparatory followups; r299preflight/10guards only, freshreplay notrun; r300libfingerprint mismatch thenr301native+TS inspection;302unapplied test correction",
+      "bytes": 8908,
+      "sha256": "4754558935ba323e47696ba4d5ee545fe4a94bcb532a1561bca7c77256436278"
+    },
+    {
+      "path": "followups/emitter-import-owner-consumers-r297/h2_8a_token_comment_phases.rs",
+      "source": "/tmp/emitter-import-owner-consumers-r297/h2_8a_token_comment_phases.rs",
+      "scope": "read-only/preparatory followups; r299preflight/10guards only, freshreplay notrun; r300libfingerprint mismatch thenr301native+TS inspection;302unapplied test correction",
+      "bytes": 8645,
+      "sha256": "1bdf932c2bd49bbf8c7e4fa58332a132cd7a7ee8423d8bfea4a5597e9afb5c44"
+    },
+    {
+      "path": "followups/emitter-import-owner-consumers-r297/proposal.json",
+      "source": "/tmp/emitter-import-owner-consumers-r297/proposal.json",
+      "scope": "read-only/preparatory followups; r299preflight/10guards only, freshreplay notrun; r300libfingerprint mismatch thenr301native+TS inspection;302unapplied test correction",
+      "bytes": 762,
+      "sha256": "0a0e299e58acbbfcaa814de93a34d1ea51475fcdc2b15ffd9ffe026c0514803c"
+    },
+    {
+      "path": "followups/emitter-import-owner-consumers-r297/proposal.patch.gz",
+      "source": "/tmp/emitter-import-owner-consumers-r297/proposal.patch.gz",
+      "scope": "read-only/preparatory followups; r299preflight/10guards only, freshreplay notrun; r300libfingerprint mismatch thenr301native+TS inspection;302unapplied test correction",
+      "bytes": 521,
+      "sha256": "ecc57c5d58e5070ad29608d81d92f9e54a7fe249d30af1118bdeb54bfa82c012"
+    },
+    {
+      "path": "followups/emitter-leading-binding-proof-inspection-r298/scope.json",
+      "source": "/tmp/emitter-leading-binding-proof-inspection-r298/scope.json",
+      "scope": "read-only/preparatory followups; r299preflight/10guards only, freshreplay notrun; r300libfingerprint mismatch thenr301native+TS inspection;302unapplied test correction",
+      "bytes": 3156,
+      "sha256": "831764836daa7b789c813ffd54b771d1338cfa7f7c43e27c96a6f3c5a8faf1a3"
+    },
+    {
+      "path": "followups/emitter-leading-binding-proof-r299/guard-results.json",
+      "source": "/tmp/emitter-leading-binding-proof-r299/guard-results.json",
+      "scope": "read-only/preparatory followups; r299preflight/10guards only, freshreplay notrun; r300libfingerprint mismatch thenr301native+TS inspection;302unapplied test correction",
+      "bytes": 1812,
+      "sha256": "ebc79c73d9e35d060d5ef8be3d79662048bbfcd3c26e96ab734c38dbdf7f09a3"
+    },
+    {
+      "path": "followups/emitter-leading-binding-proof-r299/pins.json",
+      "source": "/tmp/emitter-leading-binding-proof-r299/pins.json",
+      "scope": "read-only/preparatory followups; r299preflight/10guards only, freshreplay notrun; r300libfingerprint mismatch thenr301native+TS inspection;302unapplied test correction",
+      "bytes": 3966,
+      "sha256": "328cfb5c86fea4945e23ed3074d7f765f26b2854df4b179afe29700e1c505c47"
+    },
+    {
+      "path": "followups/emitter-leading-binding-proof-r299/preflight-2.json",
+      "source": "/tmp/emitter-leading-binding-proof-r299/preflight-2.json",
+      "scope": "read-only/preparatory followups; r299preflight/10guards only, freshreplay notrun; r300libfingerprint mismatch thenr301native+TS inspection;302unapplied test correction",
+      "bytes": 386,
+      "sha256": "0e46a5aefc0298919d7407fdacc9a2ca6cec76051768e1a091b2987820391a22"
+    },
+    {
+      "path": "followups/emitter-leading-binding-proof-r299/preflight-2.log",
+      "source": "/tmp/emitter-leading-binding-proof-r299/preflight-2.log",
+      "scope": "read-only/preparatory followups; r299preflight/10guards only, freshreplay notrun; r300libfingerprint mismatch thenr301native+TS inspection;302unapplied test correction",
+      "bytes": 181,
+      "sha256": "f82fd98a8395bfc79549da92e0026e0635b86cf307ebce6a8cc54acfd844c448"
+    },
+    {
+      "path": "followups/emitter-leading-binding-proof-r299/replay-before-summary-metadata.py",
+      "source": "/tmp/emitter-leading-binding-proof-r299/replay-before-summary-metadata.py",
+      "scope": "read-only/preparatory followups; r299preflight/10guards only, freshreplay notrun; r300libfingerprint mismatch thenr301native+TS inspection;302unapplied test correction",
+      "bytes": 14356,
+      "sha256": "fe94fdafe34e28161266381527611c766f5f31be8bbd8a6c71b9a47b6bc499be"
+    },
+    {
+      "path": "followups/emitter-leading-binding-proof-r299/replay.py",
+      "source": "/tmp/emitter-leading-binding-proof-r299/replay.py",
+      "scope": "read-only/preparatory followups; r299preflight/10guards only, freshreplay notrun; r300libfingerprint mismatch thenr301native+TS inspection;302unapplied test correction",
+      "bytes": 14547,
+      "sha256": "f59088d758cf3061866df620e4eed9e1f932e0aebca87f5c61b5d483dbc968f4"
+    },
+    {
+      "path": "followups/emitter-leading-binding-proof-r299/test_guards.py",
+      "source": "/tmp/emitter-leading-binding-proof-r299/test_guards.py",
+      "scope": "read-only/preparatory followups; r299preflight/10guards only, freshreplay notrun; r300libfingerprint mismatch thenr301native+TS inspection;302unapplied test correction",
+      "bytes": 3105,
+      "sha256": "0707da2b9c2b60e818be034add3bfae5b7ba78ec4ac46aa1cd78f05d07d7c5c2"
+    },
+    {
+      "path": "followups/emitter-node-option-diagnostics-r300/build.json",
+      "source": "/tmp/emitter-node-option-diagnostics-r300/build.json",
+      "scope": "read-only/preparatory followups; r299preflight/10guards only, freshreplay notrun; r300libfingerprint mismatch thenr301native+TS inspection;302unapplied test correction",
+      "bytes": 1134,
+      "sha256": "6cf52afc5d9008126da39927c04bbafa5a828b4237648cc306d727f6caca2a22"
+    },
+    {
+      "path": "followups/emitter-node-option-diagnostics-r300/build.log",
+      "source": "/tmp/emitter-node-option-diagnostics-r300/build.log",
+      "scope": "read-only/preparatory followups; r299preflight/10guards only, freshreplay notrun; r300libfingerprint mismatch thenr301native+TS inspection;302unapplied test correction",
+      "bytes": 1346,
+      "sha256": "50494e2269bec08b8c551109da477526f7dbceab20655a8e4f951884aa2b9bc9"
+    },
+    {
+      "path": "followups/emitter-node-option-diagnostics-r301/build.log",
+      "source": "/tmp/emitter-node-option-diagnostics-r301/build.log",
+      "scope": "read-only/preparatory followups; r299preflight/10guards only, freshreplay notrun; r300libfingerprint mismatch thenr301native+TS inspection;302unapplied test correction",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "followups/emitter-node-option-diagnostics-r301/inputs.json",
+      "source": "/tmp/emitter-node-option-diagnostics-r301/inputs.json",
+      "scope": "read-only/preparatory followups; r299preflight/10guards only, freshreplay notrun; r300libfingerprint mismatch thenr301native+TS inspection;302unapplied test correction",
+      "bytes": 443,
+      "sha256": "213022a3f31e8340cec5468d74c19e6c1ebcddd3852353136be7421a867f7266"
+    },
+    {
+      "path": "followups/emitter-node-option-diagnostics-r301/native.log",
+      "source": "/tmp/emitter-node-option-diagnostics-r301/native.log",
+      "scope": "read-only/preparatory followups; r299preflight/10guards only, freshreplay notrun; r300libfingerprint mismatch thenr301native+TS inspection;302unapplied test correction",
+      "bytes": 1056,
+      "sha256": "3da325a7c2c8b2bf85ebd782148b4ec507372d98b913d4ca465187413c2320c1"
+    },
+    {
+      "path": "followups/emitter-node-option-diagnostics-r301/observe.mjs",
+      "source": "/tmp/emitter-node-option-diagnostics-r301/observe.mjs",
+      "scope": "read-only/preparatory followups; r299preflight/10guards only, freshreplay notrun; r300libfingerprint mismatch thenr301native+TS inspection;302unapplied test correction",
+      "bytes": 1560,
+      "sha256": "9e0f4fd722ecb00f7cb494200baf5d814effe26f33d6c3fc3fe9dddfceb9bc4b"
+    },
+    {
+      "path": "followups/emitter-node-option-diagnostics-r301/receipt.json",
+      "source": "/tmp/emitter-node-option-diagnostics-r301/receipt.json",
+      "scope": "read-only/preparatory followups; r299preflight/10guards only, freshreplay notrun; r300libfingerprint mismatch thenr301native+TS inspection;302unapplied test correction",
+      "bytes": 1446,
+      "sha256": "8d8e946c9a97858f639b2851d46c2fd8718938d5f3ceab80f49f6f1715976701"
+    },
+    {
+      "path": "followups/emitter-node-option-diagnostics-r301/typescript.json",
+      "source": "/tmp/emitter-node-option-diagnostics-r301/typescript.json",
+      "scope": "read-only/preparatory followups; r299preflight/10guards only, freshreplay notrun; r300libfingerprint mismatch thenr301native+TS inspection;302unapplied test correction",
+      "bytes": 2305,
+      "sha256": "d429b79a794a92473e0de19700e5e56b27ae9760a03b9a3a23f3bc1c268a3133"
+    },
+    {
+      "path": "followups/emitter-node-option-control-r302/program_session_contract.rs",
+      "source": "/tmp/emitter-node-option-control-r302/program_session_contract.rs",
+      "scope": "read-only/preparatory followups; r299preflight/10guards only, freshreplay notrun; r300libfingerprint mismatch thenr301native+TS inspection;302unapplied test correction",
+      "bytes": 114114,
+      "sha256": "ec8836216fea44c1c13f6b85f57ca4e18d485066a405888bd6e856bdaa1ef8ed"
+    },
+    {
+      "path": "followups/emitter-node-option-control-r302/proposal.json",
+      "source": "/tmp/emitter-node-option-control-r302/proposal.json",
+      "scope": "read-only/preparatory followups; r299preflight/10guards only, freshreplay notrun; r300libfingerprint mismatch thenr301native+TS inspection;302unapplied test correction",
+      "bytes": 761,
+      "sha256": "9cb93e47910bdbd0d4b6b28a2dea343f8f0ca06b4db252d0d1d53cd13ee914c5"
+    },
+    {
+      "path": "followups/emitter-node-option-control-r302/proposal.patch.gz",
+      "source": "/tmp/emitter-node-option-control-r302/proposal.patch.gz",
+      "scope": "read-only/preparatory followups; r299preflight/10guards only, freshreplay notrun; r300libfingerprint mismatch thenr301native+TS inspection;302unapplied test correction",
+      "bytes": 551,
+      "sha256": "91edd04750890d25400f6b5448a8dc720190248867b22f160925cae417f5220b"
+    },
+    {
+      "path": "followups/emitter-node-option-diagnostics-r300.rs",
+      "source": "/tmp/emitter-node-option-diagnostics-r300.rs",
+      "scope": "read-only exactcurrentcontracts dependency fingerprint selected in301; initial300 buildfailed",
+      "bytes": 1539,
+      "sha256": "2160eeed01a3ae5dbd89c151286e84bb6fa5428245854ad2546a46a092857a4d"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-boundary-r303/baseline.log",
+      "source": "/tmp/emitter-empty-variable-boundary-r303/baseline.log",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 1656,
+      "sha256": "9046a06b7e6866d842672f4dce897645bf5e545fb4f1184356e9478a02fdf42e"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-boundary-r303/input.ts",
+      "source": "/tmp/emitter-empty-variable-boundary-r303/input.ts",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 65,
+      "sha256": "19b3566387a0b4ce57ebf64d5d1e13c3501031ceb7e98d2cd0d72232f0a89fe9"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-boundary-r303/inspection.json",
+      "source": "/tmp/emitter-empty-variable-boundary-r303/inspection.json",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 383,
+      "sha256": "75017d0e36c34c6483ee8420c7552eb53c55faad26a7418cc38d66968e0711bb"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-boundary-r303/witness.json",
+      "source": "/tmp/emitter-empty-variable-boundary-r303/witness.json",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 3734,
+      "sha256": "3f94b7b3b706d86e184fd7cf86d133f7e7d30a507e09c003f8b90edfd286d7d8"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/ambient.log",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/ambient.log",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 1640,
+      "sha256": "7db23f7073c10010e5ea6f6bc55cdcd504897063b0ce050bc38a05ab959c42a4"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/ambient.ts",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/ambient.ts",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 18,
+      "sha256": "fefa50581c2a07032b81a2b539c9fc1d649262129e6108697d7036c8bbc02759"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/binary.log",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/binary.log",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 1620,
+      "sha256": "46086c684af85ae6107aab155ea5b9483a50c267567b3721fa7771edf1331aa4"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/binary.ts",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/binary.ts",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 14,
+      "sha256": "9b714357172512a62fc227189b6eda6e15ff607d452dc602cb6bb7e9fc37cc56"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/call.log",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/call.log",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 2364,
+      "sha256": "cf962ec9160db6d96cf35fc188b2dbd54c9d0fdab144afa593e6b97b4361293c"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/call.ts",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/call.ts",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 12,
+      "sha256": "45e9c56700091fc17f2c58ec170d9a917d1124a46ed5dab888ce215ce6e333d2"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/const.log",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/const.log",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 1620,
+      "sha256": "46086c684af85ae6107aab155ea5b9483a50c267567b3721fa7771edf1331aa4"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/const.ts",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/const.ts",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 10,
+      "sha256": "59f61f48a2e3ad855176f4181ef140383b45e6062eb2323f9fb95cdc09a65a94"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/export-const.log",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/export-const.log",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 1642,
+      "sha256": "7b6481ff104db7c51a66d159c5372e7deee530cf904e42d60372dc416d822a2c"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/export-const.ts",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/export-const.ts",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 17,
+      "sha256": "1ec25d8f087ff5b11ae015d38a12baf2bffe4eeed9a7855d255d339ddc9db395"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/export-let.log",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/export-let.log",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 1642,
+      "sha256": "d28e1f1a46bee31d0a385ba0cbac0412e71d0f884fd8a0aa70cd9951e6e282a7"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/export-let.ts",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/export-let.ts",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 15,
+      "sha256": "ee4a6ca8bfb10d339c5f315d1eef4d2da001dfab44a35a26f75eb1a4707e5324"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/for.log",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/for.log",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 2790,
+      "sha256": "c214ac1e252e134e168e170ae768f416a3a0071f0c1bbe1a42477a5d06febcac"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/for.ts",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/for.ts",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 18,
+      "sha256": "486e99e6e3dcd1f200bf0e8aef4744c96c1987ad06019917ed3330dfd177831f"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/manifest.json",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/manifest.json",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 7068,
+      "sha256": "467db5f618adfd4a7773dfb41e34d412025c6d2c2652dd7883dd4fd36cc58509"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/nested.log",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/nested.log",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 1648,
+      "sha256": "2b5c156decc94104c41437583eed29569f56b1cec17f90f931395e8fda2cd187"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/nested.ts",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/nested.ts",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 27,
+      "sha256": "92784aeb702e3c45c219e6e41aeb9196034066e28d508479021b28d5cbf2d665"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/no-following.log",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/no-following.log",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 1010,
+      "sha256": "211ae1b4a664565a5655f4ef3c9ca0da6477df0bb00a1a3beef4da8dbf3f971c"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/no-following.ts",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/no-following.ts",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 9,
+      "sha256": "90cdcfe37b79625ac6d36d1cbea4e5e6ee678a5489315769eee0a4d08432ecd4"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/standalone-let.log",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/standalone-let.log",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 342,
+      "sha256": "46b30b76bcee5d38fecaccffdaa5c4a856958a5595e21c1ebe953ea70f3c532a"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/standalone-let.ts",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/standalone-let.ts",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 8,
+      "sha256": "3ccd35fed7eb6295acbd112ac6b76ef3796dea208a228c3cddeaa7551af27be8"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/string.log",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/string.log",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 1620,
+      "sha256": "76cdf80bcab6a8d51a4503ecf86d4ba78c593996d9978fccbaff81e0387bc7f6"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/string.ts",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/string.ts",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 12,
+      "sha256": "9847a6b5c1d7c4e1771bfc9be813053801bec1969ab78e5a48bbbbaeb7960ef4"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/trivia.log",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/trivia.log",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 1638,
+      "sha256": "0e8a7c9d23c09132c5fc94a19017473292a834f3455cdce4c1603fa310435755"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/trivia.ts",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/trivia.ts",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 22,
+      "sha256": "44029bb885e67001b06160a6d0091cde0cb4463a6e54ce67b0244593fb12d23f"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/two.log",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/two.log",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 2934,
+      "sha256": "6b1d1f8d53a2256f971b4b997122b390f8d402c15265a0896337f73161b6cc4d"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/two.ts",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/two.ts",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 21,
+      "sha256": "cf3592946c68b51567629c6009818110cc5e49dce6fb9161fbb4b22083b2ff86"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/unicode-prefix.log",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/unicode-prefix.log",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 1642,
+      "sha256": "6cd859ae6e42146781a5b6a11d2c9b70581b1cb33358178f6ca23cc6b8d6d6d8"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/unicode-prefix.ts",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/unicode-prefix.ts",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 21,
+      "sha256": "1c3dae9902f8e4f7cfd0fffe94f28770f67a11cd6306a3ba90aa895570c2b2be"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/using.log",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/using.log",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 342,
+      "sha256": "46b30b76bcee5d38fecaccffdaa5c4a856958a5595e21c1ebe953ea70f3c532a"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/using.ts",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/using.ts",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 10,
+      "sha256": "41457cab068cb4a9c40c325ea1380ac99bd02ef7978028d7a9137ecd1183afb2"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/var.log",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/var.log",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 1620,
+      "sha256": "64949a82c962c07cadd78677bf294490ccdd063b4e757367ec751548f2322e7a"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-neighbours-r305/var.ts",
+      "source": "/tmp/emitter-empty-variable-neighbours-r305/var.ts",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 8,
+      "sha256": "d9e29f43b0f17ca70f35cd90055169065362aa13f8483fac0bbba7da66bafaad"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-ast-r306/ast.log",
+      "source": "/tmp/emitter-empty-variable-ast-r306/ast.log",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 2164,
+      "sha256": "b5b3f3b67129fa8fda00260494761ab80df3fec35e0cee14741d14169c0ebb6f"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-ast-r306/build.log",
+      "source": "/tmp/emitter-empty-variable-ast-r306/build.log",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-ast-r306/manifest.json",
+      "source": "/tmp/emitter-empty-variable-ast-r306/manifest.json",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 733,
+      "sha256": "5acd6b05dd6fe869e9c785f042330ea6f1ea2294d6e3146757779f88dec101ef"
+    },
+    {
+      "path": "late-audit/emitter-historical-source-promotion-r307/build.log",
+      "source": "/tmp/emitter-historical-source-promotion-r307/build.log",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "late-audit/emitter-historical-source-promotion-r307/candidates.json",
+      "source": "/tmp/emitter-historical-source-promotion-r307/candidates.json",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 956,
+      "sha256": "3d90021dfc58f65bbc250aac3d1e1c2b4a28a199c50dbbf5cd1453de3495d98e"
+    },
+    {
+      "path": "late-audit/emitter-historical-source-promotion-r307/h2_1a_acceptance.rs",
+      "source": "/tmp/emitter-historical-source-promotion-r307/h2_1a_acceptance.rs",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 36596,
+      "sha256": "5e298a1ff7670281a9f6f7ae7a038b0a4ce95cc83f5635f45844608ec33b1821"
+    },
+    {
+      "path": "late-audit/emitter-historical-source-promotion-r307/h2_2d_acceptance.rs",
+      "source": "/tmp/emitter-historical-source-promotion-r307/h2_2d_acceptance.rs",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 23142,
+      "sha256": "e3e0b8bb474946eeccac554f75df270ec43dfd1291cbc8397be949286dc07237"
+    },
+    {
+      "path": "late-audit/emitter-historical-source-promotion-r307/main.rs",
+      "source": "/tmp/emitter-historical-source-promotion-r307/main.rs",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 191,
+      "sha256": "d345c2f3ef475651bbc48b5bb76705ff5afc8e6123af1f27d030bf0936816d95"
+    },
+    {
+      "path": "late-audit/emitter-historical-source-promotion-r307/manifest.json",
+      "source": "/tmp/emitter-historical-source-promotion-r307/manifest.json",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 7374,
+      "sha256": "5a168ab26a598e439f5a4b6857374788a6cc07580624e91fd45aea3a843637e7"
+    },
+    {
+      "path": "late-audit/emitter-historical-source-promotion-r307/native.log",
+      "source": "/tmp/emitter-historical-source-promotion-r307/native.log",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 3788,
+      "sha256": "fba31dac9a2e2e32ae4338232442d76eb373c3db7e501e7fc620fe495b9e52fc"
+    },
+    {
+      "path": "late-audit/emitter-historical-source-promotion-r308/crates/xtask/src/h2_1a_acceptance.rs",
+      "source": "/tmp/emitter-historical-source-promotion-r308/crates/xtask/src/h2_1a_acceptance.rs",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 34844,
+      "sha256": "f4b0e0cbe6bc48c1acddf2e4b64287b138fe23ef5bcab1b74acedb06ca0c16e7"
+    },
+    {
+      "path": "late-audit/emitter-historical-source-promotion-r308/crates/xtask/tests/unit/h2_1a_acceptance/tests.rs",
+      "source": "/tmp/emitter-historical-source-promotion-r308/crates/xtask/tests/unit/h2_1a_acceptance/tests.rs",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 6281,
+      "sha256": "73f825a8509625c5e5a3beccf3507c226a3d8c1140f347b6252ac29acc920b0d"
+    },
+    {
+      "path": "late-audit/emitter-historical-source-promotion-r308/proposal.json",
+      "source": "/tmp/emitter-historical-source-promotion-r308/proposal.json",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 1082,
+      "sha256": "304675975555216c3f00b241fb195c031f210e533b93ce70620dbcd9521c4d3f"
+    },
+    {
+      "path": "late-audit/emitter-historical-source-promotion-r308/proposal.patch.gz",
+      "source": "/tmp/emitter-historical-source-promotion-r308/proposal.patch.gz",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 1223,
+      "sha256": "62bc728775d89ba05f1656c1afa8d6c4bf3bd2c752f737c7806cf0258aea4934"
+    },
+    {
+      "path": "late-audit/emitter-json-owner-activity-r310/build.log",
+      "source": "/tmp/emitter-json-owner-activity-r310/build.log",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "late-audit/emitter-json-owner-activity-r310/h2_3d_acceptance.rs",
+      "source": "/tmp/emitter-json-owner-activity-r310/h2_3d_acceptance.rs",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 56731,
+      "sha256": "f6db15837d05ce75a83929d12ce65c661e641758c8f4128698c3b0c0826c30e2"
+    },
+    {
+      "path": "late-audit/emitter-json-owner-activity-r310/main.rs",
+      "source": "/tmp/emitter-json-owner-activity-r310/main.rs",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 169,
+      "sha256": "b4b14db876ba91e593433ed21f79ccd840ce02d22836b28ad0367ae3368258f1"
+    },
+    {
+      "path": "late-audit/emitter-json-owner-activity-r310/manifest.json",
+      "source": "/tmp/emitter-json-owner-activity-r310/manifest.json",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 7113,
+      "sha256": "14c369150a6ec76615d654f189d270afa78b5b3ae86e51a68da760dbd3778011"
+    },
+    {
+      "path": "late-audit/emitter-json-owner-activity-r310/native.log",
+      "source": "/tmp/emitter-json-owner-activity-r310/native.log",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 2255,
+      "sha256": "76a8f7f080fd0b5425489ac495343fae42b27216f7287834ce3db82e88abb9a1"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-controls-r312/observe-emitter-context-recovery.mjs",
+      "source": "/tmp/emitter-empty-variable-controls-r312/observe-emitter-context-recovery.mjs",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 11574,
+      "sha256": "f047df27ada878aad0a9aea0f0232d8d8bc39599ad2772fcd5897c2a157e1056"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-controls-r312/proposal.json",
+      "source": "/tmp/emitter-empty-variable-controls-r312/proposal.json",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 954,
+      "sha256": "b7f144e275041ab9a9a4e93d1305080c7b5177026d0083b611f0f86a76eb603a"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-controls-r312/proposal.patch.gz",
+      "source": "/tmp/emitter-empty-variable-controls-r312/proposal.patch.gz",
+      "scope": "read-only audit or unapplied proposal;307 three original full commands exact twice;310 identifies activity expectations separately from output comparison; no canonical repair yet",
+      "bytes": 1125,
+      "sha256": "6530c638ece059ef280dc59d2b65e65128fdaa7c2c9484acaed3d06b4e8d9a5f"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-ast-r306.rs",
+      "source": "/tmp/emitter-empty-variable-ast-r306.rs",
+      "scope": "auditable local runner or read-only native probe source, no full qualification claim",
+      "bytes": 1573,
+      "sha256": "e1b9a2f6d04d69570f1b4e9bf82216c699a31ecc24ade719d04ad5e5aa6f56e8"
+    },
+    {
+      "path": "late-audit/emitter-historical-source-promotion-r307.py",
+      "source": "/tmp/emitter-historical-source-promotion-r307.py",
+      "scope": "auditable local runner or read-only native probe source, no full qualification claim",
+      "bytes": 4271,
+      "sha256": "bff889becec945504431fcef3eb17a992cdb3dd865e4ff68b5ad63125b41d3de"
+    },
+    {
+      "path": "late-audit/emitter-json-owner-activity-r310.py",
+      "source": "/tmp/emitter-json-owner-activity-r310.py",
+      "scope": "auditable local runner or read-only native probe source, no full qualification claim",
+      "bytes": 2721,
+      "sha256": "e151cff63d33236434b56f54e01e2f21fd3928af7e95b8a1ade954110c1845ad"
+    },
+    {
+      "path": "late-audit/emitter-postprewalk-r304.py",
+      "source": "/tmp/emitter-postprewalk-r304.py",
+      "scope": "auditable local runner or read-only native probe source, no full qualification claim",
+      "bytes": 2527,
+      "sha256": "cddf8a8ae3a9e786429e88986ebd029e16372ab60144184737de578384d14908"
+    },
+    {
+      "path": "late-audit/emitter-leading-binding-full-command-r309.py",
+      "source": "/tmp/emitter-leading-binding-full-command-r309.py",
+      "scope": "auditable local runner or read-only native probe source, no full qualification claim",
+      "bytes": 2027,
+      "sha256": "a8c781a4b4d16544b5561e0295e519e1feb58c4d5a89a92d46dd14d96d028c7e"
+    },
+    {
+      "path": "late-audit/emitter-empty-variable-flags-r311-test.rs",
+      "source": "/tmp/emitter-empty-variable-flags-r311-test.rs",
+      "scope": "auditable local runner or read-only native probe source, no full qualification claim",
+      "bytes": 2306,
+      "sha256": "72fa6006906ff78c2fc168b7b152cf5e9cfc92e5d0de7f2727d9ed8ea0ee0baf"
+    },
+    {
+      "path": "late-audit/emitter-leading-binding-next-proofs-r314.py",
+      "source": "/tmp/emitter-leading-binding-next-proofs-r314.py",
+      "scope": "auditable local runner or read-only native probe source, no full qualification claim",
+      "bytes": 3164,
+      "sha256": "ee96195af09ae03aab245eaf9bb2ead7cc4a15d4c63216ce2c7edeb7b245166a"
+    },
+    {
+      "path": "late-audit/emitter-full-suite-failure-classification-r313.json",
+      "source": "/tmp/emitter-full-suite-failure-classification-r313.json",
+      "scope": "auditable local runner or read-only native probe source, no full qualification claim",
+      "bytes": 6360,
+      "sha256": "fe858686bf264abb69224a6794fdfc6f2309fd835c817e99752dad01497b2ea6"
+    },
+    {
+      "path": "late-audit/postprewalk-r304-manifest.json",
+      "source": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-postprewalk-r304/manifest.json",
+      "scope": "completed frozen-source archiving and ignored control status",
+      "bytes": 520,
+      "sha256": "de76876f456b73e56d7d46949a918aedfaca937be3b68f5210d301dca5c9300a"
+    },
+    {
+      "path": "archive.py",
+      "source": "/tmp/archive-emitter-full-suite-repairs-r287.py",
+      "scope": "archival script, not a gate",
+      "bytes": 9023,
+      "sha256": "25815c3a05aea751844febdd395797137da2967b5355289ed8c7818069b22416"
+    }
+  ],
+  "limits": [
+    "Actual r244 failure archive remains authoritative; interim271 has only failures known at that instant.",
+    "Old273projection rejected;281syntax superseded283. No proposal claims a fixed exact command.",
+    "Importhelpers12 commandOk does not yet prove full comparison.",
+    "r277 mocked JS body equality excludes maps/declarations/diagnostics and ordinary command semantics.",
+    "Opus173testwiring objection corrected by actual cfg(test) module path and Cargo metadata, not by product visibility change.",
+    "Prior original68retirement does not remove newly found active failures; actual final gates still required."
+  ]
+}

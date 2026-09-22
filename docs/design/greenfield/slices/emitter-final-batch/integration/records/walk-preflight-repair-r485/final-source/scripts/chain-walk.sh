@@ -1,0 +1,495 @@
+#!/bin/bash
+# Oracle chain-walk driver. THE only sanctioned way to converge the pinned
+# oracle ladder after crate/artifact changes — never hand-author a walk loop
+# in a session scratchpad.
+#
+# HARD PREFLIGHT (do not remove): the Rust tree must be at FINAL bytes before
+# any re-mint. A post-walk `cargo fmt`/clippy fix re-stales the profile ladder
+# (h2_2c_acceptance.rs bytes are pinned by 15 profile ratchets + the hosted
+# qualification policy) and costs a full re-converge. Paid twice: slice A
+# (57-min re-observation) and the H2.6a ca-2 train (2026-08-25, 3-line fmt
+# reflow -> full profile-ladder re-cascade).
+#
+# gate-tax 5 (docs/design/greenfield/gate-tax-5.md): one walk per converge,
+# inside a locked transaction — PRE_SUITE red-suite hook, ALL pin surfaces
+# preflighted at once (walk-preflight.py), mechanical ORDER-topology audit,
+# prospective stale-cone plan (new-ci, report-only), repin BEFORE the write
+# attempt, per-round 5g receipt-outcome enforcement, run-ID'd log
+# directories, and a per-workspace lock.
+#
+# Usage: bash scripts/chain-walk.sh [readiness-slice-id]
+#   [readiness-slice-id]  optional .github/ci/slice-readiness.mjs --check arg
+#   SKIP_PREFLIGHT=1      escape hatch for the fmt/clippy gate (dangerous;
+#                         only when the Rust tree is provably already final)
+#   WALK_DRY=1            stop after the preflight + ORDER coverage checks
+#                         (use to verify an ORDER edit without walking)
+#   PRE_SUITE="<cmd>"     red-suite-first: run this suite before any re-mint;
+#                         nonzero exit refuses the walk (gate-tax 5-E)
+#   WALK_PLAN=0           skip the prospective-plan report (default: run it)
+#   WALK_PREFLIGHT_RECEIPT=0  force fmt/clippy/PRE_SUITE even when the receipt
+#                         says these crate bytes were validated (gate-tax 9-C)
+#   WALK_EXPECT_OBS=0|1   5g enforcement override: 0 = strict (any
+#                         observation red), 1 = disabled (deliberate
+#                         re-anchor; RECORDED in the run summary)
+#   TSRS_H2_5G_FRESH=1    recorded fresh escape (exempt from enforcement)
+# Runs demoted (taskpolicy -b nice -n 15) per the standing background-priority
+# directive. Logs land in target/chain-walk/runs/<run-id>/ (symlink:
+# target/chain-walk/runs/latest).
+set -u
+cd "$(dirname "$0")/.."
+REPIN="scripts/chain-walk-repin.py"
+
+RUN_ID="$(date +%Y%m%d-%H%M%S)-$$"
+RUN_DIR="target/chain-walk/runs/$RUN_ID"
+LOCK_DIR="target/chain-walk/lock"
+
+summary() {
+  echo "$*"
+  [ -d "$RUN_DIR" ] && echo "$*" >> "$RUN_DIR/summary.log"
+}
+
+release_lock() {
+  rm -f "$LOCK_DIR/owner"
+  rmdir "$LOCK_DIR" 2>/dev/null || true
+}
+
+acquire_lock() {
+  mkdir -p target/chain-walk
+  if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+    local owner_pid
+    owner_pid=$(cut -d' ' -f1 "$LOCK_DIR/owner" 2>/dev/null || echo "")
+    if [ -n "$owner_pid" ] && kill -0 "$owner_pid" 2>/dev/null; then
+      echo "REFUSING TO WALK: another walk (pid $owner_pid) holds $LOCK_DIR"
+      echo "(one walk per converge — gate-tax 5-F; wait for it or kill it first)"
+      exit 2
+    fi
+    echo "stale walk lock (pid ${owner_pid:-unknown} not running) — breaking it"
+    release_lock
+    if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+      echo "REFUSING TO WALK: lost the lock race on $LOCK_DIR"; exit 2
+    fi
+  fi
+  echo "$$ $RUN_ID" > "$LOCK_DIR/owner"
+  trap release_lock EXIT
+}
+
+if [ "${WALK_DRY:-0}" != "1" ]; then
+  acquire_lock
+  mkdir -p "$RUN_DIR"
+  ln -sfn "$RUN_ID" target/chain-walk/runs/latest
+  summary "chain walk run $RUN_ID (logs: $RUN_DIR)"
+fi
+
+# gate-tax 8 §3: enumerated recovery phase. Repair ONLY the surfaces
+# whose values are pure functions of on-disk artifacts (the S2
+# schema-const family today; the S3 harness-manifest values join the
+# same phase) — BEFORE fmt/clippy or any PRE_SUITE command observes
+# them, and before the strict preflight would refuse on them (a kill
+# inside a prior walk's write window otherwise strands a stale surface
+# nothing repairs). Write-ahead journal: INTENT precedes the repair,
+# COMPLETION follows; a dangling INTENT reconciles by the idempotent
+# re-run. Everything else keeps strict-refusal semantics. WALK_DRY
+# reports and never writes.
+if [ "${WALK_DRY:-0}" = "1" ]; then
+  if ! python3 scripts/schema-const-repin.py --check; then
+    echo "recovery (dry): schema-const stale — a real walk repairs it in this phase"
+  fi
+  if ! python3 scripts/harness-pins.py --check; then
+    echo "recovery (dry): harness-manifest not clean — a real walk repairs stale values in this phase (descriptor anomalies refuse)"
+  fi
+else
+  if ! sc_status=$(python3 scripts/schema-const-repin.py --check); then
+    echo "recovery INTENT: schema-const ($sc_status)" >> "$RUN_DIR/recovery.log"
+    if sc_line=$(python3 scripts/schema-const-repin.py --fix); then
+      echo "recovery COMPLETION: $sc_line" >> "$RUN_DIR/recovery.log"
+      summary "recovery: $sc_line"
+    else
+      echo "$sc_line"
+      echo "REFUSING TO WALK: recovery could not repair the schema-const surface."
+      exit 2
+    fi
+  fi
+  hp_status=$(python3 scripts/harness-pins.py --check); hp_rc=$?
+  if [ $hp_rc -eq 1 ]; then
+    # Stale values only — a pure function of on-disk artifacts.
+    echo "recovery INTENT: harness-manifest values" >> "$RUN_DIR/recovery.log"
+    if hp_line=$(python3 scripts/harness-pins.py --write); then
+      echo "recovery COMPLETION: $hp_line" >> "$RUN_DIR/recovery.log"
+      summary "recovery: $hp_line"
+    else
+      echo "$hp_line"
+      echo "REFUSING TO WALK: recovery could not refresh the harness manifest."
+      exit 2
+    fi
+  elif [ $hp_rc -ne 0 ]; then
+    # Structural/anchor anomaly: NEVER recoverable.
+    echo "$hp_status"
+    echo "REFUSING TO WALK: harness-manifest descriptor anomaly (never auto-repaired)."
+    exit 2
+  fi
+fi
+
+# Lineage order (qualification BEFORE profile; h2-5h-a witnesses BEFORE the
+# owner graph that pins them — gate-tax 5-D, audited mechanically below).
+# Extend this list in the slice that adds a new oracle script.
+ORDER=(
+  l0-option-inventory
+  h1-owner-inventory
+  h1-printer-foundation
+  h1-emit-oracle
+  h1-active-transform
+  h1-rust-omission-inventory
+  h1-emit-qualification
+  h2-transition
+  h2-1a-qualification h2-1a-profile
+  h2-1b-qualification h2-1b-profile
+  h2-1c-qualification h2-1c-profile
+  h2-1d-qualification h2-1d-profile
+  h2-1e-qualification h2-1e-profile
+  h2-2a-qualification h2-2a-profile
+  h2-2b-qualification h2-2b-profile
+  h2-2c-qualification h2-2c-profile
+  h2-2d-qualification h2-2d-profile
+  h2-3a-qualification h2-3a-profile
+  h2-3b-qualification h2-3b-profile
+  h2-3c-qualification h2-3c-profile
+  h2-3d-qualification h2-3d-profile
+  h2-4a-qualification h2-4a-profile
+  h2-4b-qualification h2-4b-profile
+  h2-5a-qualification h2-5a-profile
+  h2-5b-qualification h2-5b-profile
+  h2-5c-qualification h2-5c-profile
+  h2-5d-qualification h2-5d-profile
+  h2-5e-qualification h2-5e-profile
+  h2-5f-qualification h2-5f-profile
+  h2-5g-qualification
+  h2-7b-qualification h2-7c-qualification h2-7de-qualification
+  h2-5g-profile
+  h2-5h-qualification
+  h2-5h-a-foundation
+  h2-5h-a-comment-scope-witnesses
+  h2-5h-a-owner-graph
+  h2-5h-a-gap-matrix
+  h2-5h-a-dispositions
+  h2-5h-a-es2015-generators-witnesses
+  h2-6a-witnesses
+  h2-6a-qualification
+  h2-6b-witnesses
+  h2-6b-qualification
+  h2-6c-census
+  h2-6c-qualification
+  h2-7a-owner-inventory
+  h2-7a-witnesses
+  h2-7a-probe-traces
+  h2-7a-printer-reprint
+  h2-7a-close
+  h2-8a-candidates h2-8a-observations
+)
+# Every numbered H2 script must be registered exactly once. Three immutable
+# references have explicit check-only execution modes in this verifier:
+# map-option-projection runs canonically; the D/E pair replay frozen parents
+# and also compare the complete current input/census projection. Neither is
+# an artifact mint. Unknown, missing, duplicate and overlapping entries refuse.
+# Existing owner-controls remain checked in the tail; check-resume are pure
+# libraries, and the approved-runner h2-baseline does not match the glob.
+node scripts/check-frozen-de-reference.mjs --registry "${ORDER[@]}" || exit 2
+
+# Planner coverage self-check (gate-tax 8, S4): the prospective plan's
+# LADDER_ORDER must equal ORDER exactly — a lagging planner reports an
+# incomplete stale cone (measured 63/65 on the 2026-08-30 W4 runs).
+python3 scripts/walk-planner-coverage.py "${ORDER[@]}" || exit 2
+
+# ORDER-topology audit (gate-tax 5-D): a producer appearing after its
+# consumer costs a third full round every converge; refuse like drift.
+python3 scripts/walk-topology-audit.py "${ORDER[@]}" || exit 2
+
+# Fail before minting if immutable reference inputs or current D/E semantics
+# changed. The full 323 x 2 historical observation replay runs at the tail.
+node scripts/check-frozen-de-reference.mjs --walk-preflight || exit 2
+
+# All-surfaces pin preflight (gate-tax 5-F): report EVERY stale pin surface
+# at once — harness pins, pin-index, policy source pins, schema consts,
+# fuzz manifests — so the operator fixes everything in one pass and the
+# walk runs ONCE (measured: 3 walks / ~65 min avoidable on the gt4 landing).
+python3 scripts/walk-preflight.py || {
+  echo "REFUSING TO WALK: stale pin surfaces above — fix ALL, then walk once."
+  exit 2
+}
+
+# gate-tax 9-A (2026-09-04): static generator preconditions BEFORE the
+# minute-scale preflight. Two pure-function failures cost 35-40 min of
+# minting each on the h2-7b m-2 train before their rung was reached: the
+# H2.5g profile runtime-input closure (a new crates/** file not registered
+# in h2-5g-profile.mjs) and moved h2-7a curated anchors after an emitter
+# edit. The generators' own --check mode answers both in seconds.
+python3 scripts/walk-static-checks.py || {
+  echo "REFUSING TO WALK: static generator preconditions above — fix them, then walk once."
+  exit 2
+}
+
+
+# gate-tax 9-C: preflight receipt. fmt / the layout scan / clippy are pure
+# functions of the Rust tree, and PRE_SUITE validates exactly these crate
+# bytes (gate-tax 5-E: never converge UNVALIDATED bytes — the same bytes
+# validated once stay validated). A relaunch after a refusal or a minting
+# failure with an unchanged Rust tree therefore skips the ~15-min preflight;
+# the skip is RECORDED in the run summary. WALK_PREFLIGHT_RECEIPT=0 disables.
+crate_tree_sha() {
+  find crates -name '*.rs' -type f -print0 | sort -z | xargs -0 shasum -a 256 | shasum -a 256 | cut -d' ' -f1
+}
+preflight_tree_sha() {
+  { crate_tree_sha; find crates -name Cargo.toml -type f -print0 | sort -z | xargs -0 shasum -a 256; shasum -a 256 Cargo.toml Cargo.lock; rustc --version; printf 'PRE_SUITE=%s\n' "${PRE_SUITE:-}"; } | shasum -a 256 | cut -d' ' -f1
+}
+PREFLIGHT_RECEIPT="target/chain-walk/preflight-receipt"
+preflight_receipt_hit() {
+  [ "${WALK_PREFLIGHT_RECEIPT:-1}" = "1" ] || return 1
+  [ -f "$PREFLIGHT_RECEIPT" ] || return 1
+  [ "$(cut -d' ' -f1 "$PREFLIGHT_RECEIPT")" = "$(preflight_tree_sha)" ]
+}
+preflight_receipt_used=0
+if preflight_receipt_hit; then
+  preflight_receipt_used=1
+  summary "preflight: RECEIPT HIT $(cut -c1-12 "$PREFLIGHT_RECEIPT")… — fmt / layout scan / clippy / PRE_SUITE were green for these crate bytes ($(cut -d' ' -f2- "$PREFLIGHT_RECEIPT")); skipping (WALK_PREFLIGHT_RECEIPT=0 forces them)"
+fi
+
+if [ "${SKIP_PREFLIGHT:-0}" != "1" ] && [ $preflight_receipt_used -eq 0 ]; then
+  echo "preflight: cargo fmt --all -- --check"
+  if ! taskpolicy -b nice -n 15 cargo fmt --all -- --check >/tmp/chain-walk-fmt.log 2>&1; then
+    echo "REFUSING TO WALK: rustfmt is red (see /tmp/chain-walk-fmt.log)."
+    echo "Run 'cargo fmt --all', land the bytes, THEN walk. A post-walk fmt"
+    echo "change re-stales the profile ladder and repeats the whole converge."
+    exit 2
+  fi
+  # Test-module layout (gt6 lesson, 2026-08-28): the workspace-audit that
+  # rejects inline test-module bodies in src runs only in the FULL GATE —
+  # i.e. after a walk — so a violating file converges a walk and then the
+  # layout fix re-stales the whole ladder. The scanner mirrors the audit
+  # (ALL hits, not fail-fast) and covers its compound-cfg and src-resident
+  # declaration gaps; scripts/inline-tests-scan.py --self-test documents it.
+  echo "preflight: test-module layout scan (crates/*/src)"
+  if ! python3 scripts/inline-tests-scan.py >/tmp/chain-walk-inline-tests.log 2>&1; then
+    echo "REFUSING TO WALK: test-module layout violations (see /tmp/chain-walk-inline-tests.log)."
+    echo "Move bodies to crates/<crate>/tests/unit/<module>/tests.rs and keep"
+    echo "only '#[cfg(test)] #[path = ...] mod tests;' in src (workspace-audit rule)."
+    exit 2
+  fi
+  echo "preflight: cargo clippy --workspace --all-targets -- -D warnings"
+  if ! taskpolicy -b nice -n 15 cargo clippy --workspace --all-targets -- -D warnings >/tmp/chain-walk-clippy.log 2>&1; then
+    echo "REFUSING TO WALK: clippy is red (see /tmp/chain-walk-clippy.log)."
+    echo "Fix clippy to final bytes first; clippy-driven edits after the walk"
+    echo "re-stale the ladder exactly like fmt."
+    exit 2
+  fi
+  echo "preflight: clean"
+fi
+
+# Red-suite-first (gate-tax 5-E): never converge unvalidated bytes. When a
+# Rust fix answers a red suite, PRE_SUITE runs that suite on the fixed
+# binary before any re-mint.
+if [ "${WALK_DRY:-0}" != "1" ] && [ -n "${PRE_SUITE:-}" ] && [ $preflight_receipt_used -eq 0 ]; then
+  summary "pre-suite (gate-tax 5-E): $PRE_SUITE"
+  if ! taskpolicy -b nice -n 15 bash -c "$PRE_SUITE" >"$RUN_DIR/pre-suite.log" 2>&1; then
+    echo "REFUSING TO WALK: PRE_SUITE failed (see $RUN_DIR/pre-suite.log)."
+    echo "Fix the suite red first — converging unvalidated bytes repeats the"
+    echo "whole converge when the fix changes crates/*.rs."
+    exit 2
+  fi
+  summary "pre-suite: green"
+fi
+if [ "${WALK_DRY:-0}" != "1" ] && [ "${SKIP_PREFLIGHT:-0}" != "1" ] && [ $preflight_receipt_used -eq 0 ]; then
+  mkdir -p target/chain-walk
+  printf '%s validated %s run %s\n' "$(preflight_tree_sha)" "$(date +%Y-%m-%dT%H:%M:%S)" "$RUN_ID" > "$PREFLIGHT_RECEIPT"
+  summary "preflight: receipt written ($(cut -c1-12 "$PREFLIGHT_RECEIPT")…)"
+fi
+
+
+# The ladder is only proven for the crate bytes it was converged at. The
+# green tail below records that tree hash; here (and in the gate's
+# structural-preflight via WALK_DRY) a drifted tree refuses in seconds
+# instead of failing the gate's oracle phase minutes in. Paid 2026-08-26:
+# a 5-line post-walk xtask fix red-ended the gate on stale h1-rust-omissions.
+CONVERGED_RECORD="target/chain-walk/converged-crates.sha256"
+if [ "${WALK_DRY:-0}" = "1" ]; then
+  if [ -f "$CONVERGED_RECORD" ]; then
+    if [ "$(crate_tree_sha)" != "$(cat "$CONVERGED_RECORD")" ]; then
+      echo "LADDER NOT CONVERGED FOR THESE CRATE BYTES: crates/*.rs changed"
+      echo "since the last green chain walk — run scripts/chain-walk.sh first."
+      exit 1
+    fi
+    echo "converged-walk record: crate tree matches"
+  else
+    echo "converged-walk record: absent (a green walk will mint it)"
+  fi
+  echo "WALK_DRY=1: stopping after preflight + coverage + topology + pin-surface checks"
+  exit 0
+fi
+
+# Prospective stale-cone plan (gate-tax 5-F, report-only): predict the
+# post-walk re-mint cone and every pin surface that will go stale AFTER
+# the re-mint (e.g. schema consts pinning a re-minted artifact), so the
+# operator expects the post-walk repairs instead of discovering them at
+# the gate. Best-effort: new-ci is a zero-dependency out-of-workspace
+# crate; if it cannot build or the tree state defeats it, say so and walk.
+if [ "${WALK_PLAN:-1}" = "1" ]; then
+  if taskpolicy -b nice -n 15 cargo build --manifest-path new-ci/Cargo.toml --release --bin plan >"$RUN_DIR/plan-build.log" 2>&1; then
+    plan_base=$(git merge-base HEAD origin/main 2>/dev/null || git rev-parse HEAD)
+    plan_head=$(git stash create 2>/dev/null || true)
+    if [ -z "$plan_head" ]; then plan_head=HEAD; else
+      summary "plan: dirty tree snapshot via git stash create (untracked files are invisible to the plan)"
+    fi
+    if taskpolicy -b nice -n 15 new-ci/target/release/plan "$plan_base" "$plan_head" >"$RUN_DIR/plan.log" 2>&1; then
+      summary "prospective plan: $(tail -1 "$RUN_DIR/plan.log") (report: new-ci/plan-report.md)"
+    else
+      summary "prospective plan: unavailable (report-only; see $RUN_DIR/plan.log)"
+    fi
+  else
+    summary "prospective plan: new-ci build failed (report-only; see $RUN_DIR/plan-build.log)"
+  fi
+fi
+
+if [ -n "${WALK_EXPECT_OBS:-}" ]; then
+  summary "RECORDED OVERRIDE: WALK_EXPECT_OBS=${WALK_EXPECT_OBS} (5g enforcement $( [ "$WALK_EXPECT_OBS" = "1" ] && echo disabled — deliberate re-anchor || echo strict ))"
+fi
+if [ "${TSRS_H2_5G_FRESH:-0}" = "1" ]; then
+  summary "RECORDED OVERRIDE: TSRS_H2_5G_FRESH=1 (fresh full observation approved)"
+fi
+
+minted_5g=0
+obs_count=0
+round=1
+while true; do
+  stale=()
+  for name in "${ORDER[@]}"; do
+    script="crates/oracle/${name}.mjs"
+    [ -f "$script" ] || continue
+    rung_log="$RUN_DIR/${name}.log"
+    check_rc=0
+    # a stale outcome record from a prior run must never feed enforcement:
+    # absent = "no outcome" notice, never a false verdict
+    [ "$name" = "h2-5g-qualification" ] && rm -f target/h2-5g/check-outcome.v1.json
+    # gate-tax 8 S5 (report-only): per-phase event rows for the shadow
+    # report. Wall-clock, advisory weight only — the promotion-grade
+    # tick protocol is spec-frozen for the Stage-2 window opening.
+    echo "{\"round\":$round,\"rung\":\"$name\",\"phase\":\"check\",\"start\":$(date +%s)}" >> "$RUN_DIR/events.jsonl"
+    taskpolicy -b nice -n 15 node "$script" --check >"$rung_log" 2>&1 || check_rc=1
+    echo "{\"round\":$round,\"rung\":\"$name\",\"phase\":\"check-end\",\"end\":$(date +%s),\"rc\":$check_rc}" >> "$RUN_DIR/events.jsonl"
+    if [ "$name" = "h2-5g-qualification" ]; then
+      # gate-tax 5-C: read the machine outcome record, never prose.
+      enforce_line=$(python3 scripts/walk-5g-enforce.py \
+        --outcome target/h2-5g/check-outcome.v1.json \
+        --minted-this-walk "$minted_5g" \
+        --observations-so-far "$obs_count") || {
+          summary "round $round 5g enforcement: $enforce_line"
+          echo "5G ENFORCEMENT RED — see gate-tax-5.md C (walk refuses to converge)"
+          exit 1
+        }
+      summary "round $round 5g: $enforce_line"
+      case "$enforce_line" in *"observed=1"*) obs_count=$((obs_count+1));; esac
+    fi
+    if [ $check_rc -ne 0 ]; then
+      stale+=("$name")
+      echo "round $round STALE: $name"
+      [ "$name" = "h2-5g-qualification" ] && minted_5g=1
+      # gate-tax 5-D repin-early: refresh stale pins BEFORE the single
+      # write attempt (repin is idempotent and only rewrites stale pin
+      # values), instead of check->write(fail)->repin->write.
+      python3 "$REPIN" "$script" | tee -a "$rung_log"
+      # gate-tax 8 S5 (report-only): pre-write capture of the producer's
+      # DECLARED outputs (selector manifest); unmodeled producers have
+      # no declared outputs and abstain by construction. Never red.
+      python3 scripts/shadow/capture.py pre "$round" "$name" "$RUN_DIR" \
+        >> "$RUN_DIR/events.jsonl" 2>/dev/null || true
+      echo "{\"round\":$round,\"rung\":\"$name\",\"phase\":\"write\",\"start\":$(date +%s)}" >> "$RUN_DIR/events.jsonl"
+      taskpolicy -b nice -n 15 node "$script" --write >>"$rung_log" 2>&1 \
+        || { echo "WRITE FAILED after repin: $name (see $rung_log)"; exit 1; }
+      echo "{\"round\":$round,\"rung\":\"$name\",\"phase\":\"write-end\",\"end\":$(date +%s)}" >> "$RUN_DIR/events.jsonl"
+      python3 scripts/shadow/capture.py post "$round" "$name" "$RUN_DIR" \
+        >> "$RUN_DIR/events.jsonl" 2>/dev/null || true
+      if [ "$name" = "h2-1a-qualification" ]; then
+        # gate-tax 8 S2: the enumerated schema-const pin (the five
+        # h2-5g-profile contract leaves) re-derives from the artifact
+        # this rung just wrote. Repin it NOW — before any rung that
+        # pins the contract hash — or the staleness surfaces at the
+        # tail and costs a second full walk (measured ~69 min,
+        # 2026-08-30 W4). Idempotent; REFUSED (exit 2) stops the walk.
+        if sc_line=$(python3 scripts/schema-const-repin.py --fix); then
+          echo "$sc_line" >> "$rung_log"
+          summary "round $round $sc_line"
+        else
+          echo "$sc_line"
+          echo "SCHEMA-CONST REPIN REFUSED — fix the contract shape, then walk once."
+          exit 1
+        fi
+      fi
+    fi
+  done
+  if [ ${#stale[@]} -eq 0 ]; then
+    summary "walk round $round: CLEAN"
+    break
+  fi
+  summary "walk round $round re-minted: ${stale[*]}"
+  round=$((round+1))
+  [ $round -gt 6 ] && { echo "walk did not converge in 6 rounds"; exit 1; }
+done
+
+# gate-tax 8 S3: refresh the harness pin manifest AFTER the final
+# minting round (later rounds may re-mint), so the tail's pin surfaces
+# are clean and the convergence certificate lands in THIS invocation
+# (the 2026-08-30 W4 baseline paid a second ~69-min walk here).
+# Values-only + atomic; a descriptor anomaly refuses, never repairs.
+if hp_line=$(python3 scripts/harness-pins.py --write); then
+  summary "harness-manifest: $hp_line"
+else
+  echo "$hp_line"
+  echo "HARNESS-MANIFEST REFRESH REFUSED — descriptor anomaly needs review."
+  exit 1
+fi
+
+# gate-tax 8 S5: the restamp shadow report (REPORT-ONLY — an internal
+# failure warns and never reds the walk; G3).
+if shadow_line=$(python3 scripts/shadow/shadow-report.py "$RUN_DIR" 2>&1); then
+  summary "$shadow_line"
+else
+  summary "shadow: FAILED (report-only; see $RUN_DIR)"
+fi
+
+# Owner-control artifacts should be crate-byte-insensitive; verify, never
+# auto-write (a stale one needs explicit review).
+for oc in crates/oracle/h2-*-owner-controls.mjs; do
+  if ! taskpolicy -b nice -n 15 node "$oc" --check >"$RUN_DIR/owner-controls.log" 2>&1; then
+    echo "OWNER-CONTROL STALE (review!): $oc"; exit 1
+  fi
+done
+echo "owner-control checks: clean"
+
+if ! taskpolicy -b nice -n 15 node scripts/check-frozen-de-reference.mjs --walk-checks >"$RUN_DIR/check-only.log" 2>&1; then
+  echo "CHECK-ONLY REFERENCE FAILED: see $RUN_DIR/check-only.log"; exit 1
+fi
+summary "check-only references: canonical map options and frozen D/E replay + current projection clean"
+
+# Post-convergence: every pin surface must match the just-minted artifacts
+# (the same all-surfaces pass as the preflight — a schema const pinning a
+# re-minted artifact is caught HERE in seconds, not 40 minutes into the
+# gate). Report-only — a stale surface can be a legitimate re-mint needing
+# its recorded repair (pin-audit.py --fix, schema-const patch) OR a real
+# regression; never auto-fix inside the walk.
+python3 scripts/walk-preflight.py || {
+  echo "PIN SURFACES STALE AFTER THE WALK (fix with the recorded repairs +"
+  echo "targeted tests, then re-run the walk tail — see gate-tax-5.md F)"
+  exit 1
+}
+
+rc=0
+taskpolicy -b nice -n 15 node --test .github/ci/qualification.test.mjs >"$RUN_DIR/qual-test.log" 2>&1 || rc=1
+echo "qual test exit: $rc"
+qc=0
+taskpolicy -b nice -n 15 node .github/ci/qualification.mjs check >"$RUN_DIR/qual-check.log" 2>&1 || qc=1
+echo "qual check exit: $qc"; tail -1 "$RUN_DIR/qual-check.log"
+if [ $# -ge 1 ]; then
+  node .github/ci/slice-readiness.mjs --check "$1" || { echo "readiness FAILED: $1"; exit 1; }
+fi
+[ $rc -eq 0 ] && [ $qc -eq 0 ] || exit 1
+mkdir -p "$(dirname "$CONVERGED_RECORD")"
+crate_tree_sha > "$CONVERGED_RECORD"
+echo "$RUN_ID" > target/chain-walk/converged-run-id
+summary "chain walk: converged and green (crate-tree record minted; certificate run $RUN_ID)"

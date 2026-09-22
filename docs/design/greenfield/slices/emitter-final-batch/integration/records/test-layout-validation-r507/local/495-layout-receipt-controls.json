@@ -1,0 +1,24 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "python3",
+    "/tmp/emitter-test-preflight-fingerprint-r494.py"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-20T09:06:00.700619+00:00",
+  "head": "4ccf822b8b14555d6c07339e39dfced95327df33",
+  "tracked_clean": false,
+  "diff_sha256": "a6e7e89738128394ca630484528d92997becfb49f12aa8c0e4bea52284450c1e",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 10.712,
+  "log_sha256": "d84b1093ab603ed9c8a10c513647cfcf5d1b90a93de8157a1b42adc8b8a1379c",
+  "log_bytes": 35
+}

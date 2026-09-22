@@ -1,0 +1,32 @@
+{
+  "status": "UNAPPLIED count updates only after officialTS fixture mint adds36cases; no comparisons weakened",
+  "files": [
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_token_comment_phases.rs",
+      "counts": [
+        {
+          "before": 129,
+          "after": 165
+        },
+        {
+          "before": 293,
+          "after": 329
+        }
+      ]
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_ellipsis_comment_owners.rs",
+      "counts": [
+        {
+          "before": 129,
+          "after": 165
+        },
+        {
+          "before": 398,
+          "after": 434
+        }
+      ]
+    }
+  ],
+  "coverage": "token suite329 is included in ellipsis434; count overlappingcases onlyonce; both tests must pass"
+}

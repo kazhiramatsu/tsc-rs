@@ -1,0 +1,5 @@
+# Independent root finding (round8 in progress)
+
+All four related-info residuals have an extra 6500/6501 pointing into default libraries. `elaboration.rs::elementwise_elaboration_related` explicitly assumed an oracle with no default library roots. That assumption no longer holds for the ordinary Program route. Upstream 64181 and 64188 check `!host.isSourceFileDefaultLibrary` in both the index and property tail. Existing `binder.file_facts(ProgramFileId).is_default_library()` already carries the real Program fact (used by node_builder/context.rs), so no new library detection scheme is necessary.
+
+Provisional root change: use the fact in those two exact gates, retain index-to-property fallback, and do not infer library status from filenames. Negative controls must keep related info for ordinary user declaration roots, including library-looking filenames/noLib roots. Existing harness model without library facts remains unsuppressed. No claim of exactness until original four and controls pass.

@@ -159,7 +159,7 @@ fn captured_write(index: usize, artifact: &EmitArtifact) -> Value {
 fn identity_and_recovery_controls_match_complete_commands_twice() {
     assert_eq!(
         format!("{:x}", Sha256::digest(FIXTURE)),
-        "0605b71cafcffa559630bf891158a18441a5d00b84e359f9897407248c25e343"
+        "dfade08cef826a55c6d5f2ac2b4f240b5a8981768d0faab294ec11cedb6c3ede"
     );
     let fixture: Value = serde_json::from_slice(FIXTURE).unwrap();
     assert_eq!(fixture["repetitions"], 2);

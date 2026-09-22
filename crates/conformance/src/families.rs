@@ -1,7 +1,7 @@
 //! A5 family ownership and supported rollup
 //! (measurement-integrity.md §5).
 //!
-//! The map (`diag-families.json`, schema 1) enumerates every
+//! The map (`ratchets/diag-families.json`, schema 1) enumerates every
 //! corpus-exercised non-2XXX `(code, pass)` row exactly once under an
 //! owner family; codes 2000-2999 belong wholesale to the band
 //! partition and may never appear as enumerated rows. The map starts
@@ -50,7 +50,7 @@ use crate::ratchet::{
 };
 use crate::scope::{is_ancestor, resolve_anchor, validate_anchor_commit, SCOPE_REL_PATH};
 
-pub(crate) const FAMILIES_REL_PATH: &str = "diag-families.json";
+pub(crate) const FAMILIES_REL_PATH: &str = "ratchets/diag-families.json";
 const FAMILIES_SCHEMA: u32 = 1;
 
 /// Oracle pass provenance as a closed type: the map, the observation,
@@ -1527,12 +1527,12 @@ pub fn verify_report_freshness(workspace: &Path, report_path: &Path) -> Conforma
     let current = InputFingerprints::current(workspace)?;
     let pairs = [
         (
-            "diag-families.json",
+            "ratchets/diag-families.json",
             &report.inputs.diag_families_sha256,
             &current.diag_families_sha256,
         ),
         (
-            "m8-scope.json",
+            "ratchets/m8/m8-scope.json",
             &report.inputs.m8_scope_sha256,
             &current.m8_scope_sha256,
         ),

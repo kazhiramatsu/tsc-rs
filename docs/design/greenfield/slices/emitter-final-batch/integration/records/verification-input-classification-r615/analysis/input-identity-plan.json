@@ -1,0 +1,14 @@
+{
+  "predecessor_commit": "09d98a925f9d012b0cd280e7a880691fbcd5e4ed",
+  "predecessor_profile": "ratchets/h2-5g-profile.v1.json",
+  "predecessor_profile_sha256": "2e3ae8baf3c449c66ad58aaee6e681dde06b797b9aa89eef356304faf3c1d496",
+  "parent_count": 86,
+  "old_appended_count": 834,
+  "old_count": 920,
+  "proposed_count": 922,
+  "proposed_append": [
+    "crates/conformance/src/host_resolution.rs",
+    "crates/conformance/tests/unit/host_resolution/tests.rs"
+  ],
+  "old_order_matches_generator": true
+}

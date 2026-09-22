@@ -1,0 +1,57 @@
+{
+  "source_head": "b0c25c1d9da09bde614fd29fdd56260ce5e51097",
+  "qualification_claim": false,
+  "scope": "25 existing source hashes and two dependent draft-artifact hashes. All draft statuses, scopes, schemas, selected suites, dispositions and hosted policy values outside existing hash maps remain identical. Formal walk and final gate remain required.",
+  "files": [
+    {
+      "path": "proposal.json",
+      "bytes": 9064,
+      "sha256": "de97a0051ffa976e6c55c131fb1faed92a7b19f548a2592126cffbe3ed386949"
+    },
+    {
+      "path": "prepare-emitter-final-pins.py",
+      "bytes": 5484,
+      "sha256": "e52e460c7c2d620431bbbad1fbc95ff348d75d362738732dc57f6c258bc75915"
+    },
+    {
+      "path": "before/ratchets/fuzz-oracle-deviations.v1.json",
+      "bytes": 7296,
+      "sha256": "8451034727ce0e054ad6c452829fcd91dd32988c40b13823a062dae58ffe3d0c"
+    },
+    {
+      "path": "after/ratchets/fuzz-oracle-deviations.v1.json",
+      "bytes": 7296,
+      "sha256": "aad7661afcd209f10a04461ad090286bba8ceb0abc2106c975b89aa6f5d3006c"
+    },
+    {
+      "path": "before/ratchets/fuzz-domain.v1.toml",
+      "bytes": 13722,
+      "sha256": "a52938471d2189be7b448a33d47b34de7018930bb5ade905b6c2457c67082ec5"
+    },
+    {
+      "path": "after/ratchets/fuzz-domain.v1.toml",
+      "bytes": 13722,
+      "sha256": "5495baadd2d847e79a89800c0937ecc17509df626f00f5a411d5eea7479658c2"
+    },
+    {
+      "path": "before/ratchets/fuzz-preflight.v1.json",
+      "bytes": 22248,
+      "sha256": "8b0dae74250b1554a46c75d1af27c4697bea585de2f28a1a4ab26e0217b2ec7f"
+    },
+    {
+      "path": "after/ratchets/fuzz-preflight.v1.json",
+      "bytes": 22248,
+      "sha256": "f11d1d3409f2b1f4673283b616381187fd4fb297e12202bf19d8a8f092140d73"
+    },
+    {
+      "path": "before/.github/ci/qualification-policy.v2.json",
+      "bytes": 7525,
+      "sha256": "d6a1e10fc7174c4b3257d77d9241b1511b61cc1398b3d442e268901048da9780"
+    },
+    {
+      "path": "after/.github/ci/qualification-policy.v2.json",
+      "bytes": 7525,
+      "sha256": "e01fc7af89b7fd151b6e19b74d80b2ddb628e5a224b07e442864590788063dd2"
+    }
+  ]
+}

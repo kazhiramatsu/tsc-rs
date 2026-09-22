@@ -479,6 +479,7 @@ dependencies = [
  "tsc-rs-syntax",
  "tsc-rs-types",
  "yaml-rust2",
+ "zstd",
 ]
 
 [[package]]

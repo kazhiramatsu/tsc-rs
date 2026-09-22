@@ -1,0 +1,13 @@
+{
+  "name": "build-cli-r7d",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 24,
+  "env": [],
+  "argv": "cargo build -p tsc-rs-compiler --bin tsc-rs",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T09:07:41Z",
+  "seconds": 128,
+  "exit": 0,
+  "log_sha256": "ac9331842ad48c19d05c81adebb47b8cfe44803ee0dc689fe05344a4c77f9194",
+  "log_bytes": 357
+}

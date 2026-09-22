@@ -1,0 +1,24 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "python3",
+    ".github/ci/test_replay.py"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-19T15:40:42.040218+00:00",
+  "head": "ed4a419830cc05b4c6d3063b22a8dc5813950bfd",
+  "tracked_clean": false,
+  "diff_sha256": "4c1ab3f35d401aa80b4fc6b02bd0ddb1d313c5c491b3eb1c19e0f2e0d9c731af",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 9.176,
+  "log_sha256": "a303a091dc6404d8dbaae736df3eeb08425ce89b344a3462e7ab4b252eade71c",
+  "log_bytes": 405833
+}

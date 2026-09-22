@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "node",
+    "--test",
+    ".github/ci/qualification.test.mjs",
+    ".github/ci/slice-readiness.test.mjs",
+    ".github/ci/bounded-artifact-schemas.test.mjs",
+    ".github/ci/h2-8a-artifact-schemas.test.mjs",
+    ".github/ci/fci-h2-5g-membership.test.mjs",
+    ".github/ci/gate-tax-5.test.mjs"
+  ],
+  "exit": 1,
+  "seconds": 20.501008042134345,
+  "log_sha256": "3c12b93cf520f262591afb5b0fe45688ea01db9df7bacbd2df365edb6aa603b4"
+}

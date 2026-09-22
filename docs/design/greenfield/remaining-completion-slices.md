@@ -1,5 +1,16 @@
 # 残タスクと完了までのスライス設計
 
+## 現在の到達点（2026-09-21）
+
+通常compiler emitterの候補と追加監査で見つかった修復は、[PR #561](https://github.com/kazhiramatsu/tsc-rs/pull/561)
+で main `8e63b77a6` へ統合した。最終候補の全26 checksが成功し、
+[最終結果と範囲](slices/emitter-final-batch/integration/delivery.md)に記録した。
+18行の歴史的profile資格付けは未更新であり、統合成功と分けて扱う。
+次はユーザー依頼のtsgo性能比較の準備・測定・チューニング。CST/AST分離、
+build/watch、一般API、LSP、TS7互換性の拡張は別の後続範囲である。
+以下の委託・提出待ちという記述は、日付付きの計画と履歴として保持する。
+
+
 更新日：2026-09-17。対象：one-shot compiler、TypeScript 7 移行、再利用、build/watch、
 公開 API、Language Service、native LSP、最終検証・配布。
 実装の確認点は SUPER 統合済み main `d671d8417` と CI 改修 `dac0d55ce`。

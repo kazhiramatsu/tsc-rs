@@ -1,0 +1,34 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "run",
+    "--offline",
+    "-p",
+    "tsc-rs-xtask",
+    "--",
+    "utf16-literal-recovery-census",
+    "--all-profiles",
+    "--out",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-census-r78/profiles",
+    "--parse-snapshot-out",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-recovery-census-r78/parse-snapshot.json"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-census",
+  "started_at": "2026-09-19T02:53:01.336384+00:00",
+  "head": "67df86615a45f9595025064bcc12fde93063fedf",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 25723.604,
+  "log_sha256": "f868ea357caedeb054116fb0e2946fa39c7438c5e621d65786304271b95fd889",
+  "log_bytes": 5765
+}

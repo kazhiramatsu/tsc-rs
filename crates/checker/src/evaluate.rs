@@ -181,14 +181,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 4461717e7939639f1770e6a37065ac5cdc7d0efe08159150566d0d3be3cbaa66
     /// tsc-span: _tsc.js:85594-85631
     ///
-    /// The isolatedModules arm (85623-85630, diagnostic 18058) is
-    /// elided: the option is unmodeled (default off), so the arm never
-    /// fires in an oracle-default run.
+    /// The isolatedModules arm (85621-85630, diagnostic 18056) is live
+    /// since the ordinary emit route admits `isolatedModules` /
+    /// `verbatimModuleSyntax` (EF7-ENUM-18056).
     fn compute_enum_member_value(
         &mut self,
         member: NodeId,
         auto_value: Option<f64>,
-        _previous: Option<NodeId>,
+        previous: Option<NodeId>,
     ) -> CheckResult<EvaluatorResult> {
         let (name, initializer) = match self.data_of(member) {
             NodeData::EnumMember(data) => (data.name, data.initializer),
@@ -234,6 +234,37 @@ impl<'a> CheckerState<'a> {
             );
             return Ok(undefined_result());
         };
+        // 85621-85630: `getIsolatedModules(compilerOptions) &&
+        // previous?.initializer` → TS18056 unless the previous member's
+        // value is a number resolved without other files.
+        let previous_with_initializer = previous.filter(|&previous| {
+            matches!(
+                self.data_of(previous),
+                NodeData::EnumMember(data) if data.initializer.is_some()
+            )
+        });
+        if let Some(previous) = previous_with_initializer {
+            if self.options.isolated_modules == Some(true)
+                || self.options.verbatim_module_syntax == Some(true)
+            {
+                let numeric_local = self
+                    .links
+                    .node(previous)
+                    .enum_member_value
+                    .as_ref()
+                    .is_some_and(|value| {
+                        matches!(value.value, Some(EvalValue::Num(_)))
+                            && !value.resolved_other_files
+                    });
+                if !numeric_local {
+                    self.error_at(
+                        Some(name),
+                        &diagnostics::Enum_member_following_a_non_literal_numeric_member_must_have_an_initializer_when_isolatedModules_is_enabled,
+                        &[],
+                    );
+                }
+            }
+        }
         Ok(evaluator_result(
             Some(EvalValue::Num(auto_value)),
             false,
@@ -247,9 +278,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:85632-85657
     ///
     /// The isolatedModules string arm (85646-85651, diagnostic 18055)
-    /// is elided with the option. The non-constant fallback
-    /// (85654: checkTypeAssignableTo over checkExpression) is live
-    /// since 5.5e.
+    /// is live since the ordinary emit route admits `isolatedModules`
+    /// (H2.8a-A-RES-EMITTER-FINAL EF3 / EF7-ENUM-18055; `getIsolatedModules`
+    /// = isolatedModules || verbatimModuleSyntax). The non-constant
+    /// fallback (85654: checkTypeAssignableTo over checkExpression) is
+    /// live since 5.5e.
     fn compute_constant_enum_member_value(
         &mut self,
         member: NodeId,
@@ -266,23 +299,46 @@ impl<'a> CheckerState<'a> {
         };
         let result = self.evaluate(initializer, Some(member))?;
         match &result.value {
-            Some(value) => {
-                if is_const_enum {
-                    if let EvalValue::Num(number) = value {
-                        if !number.is_finite() {
-                            self.error_at(
-                                Some(initializer),
-                                if number.is_nan() {
-                                    &diagnostics::const_enum_member_initializer_was_evaluated_to_disallowed_value_NaN
-                                } else {
-                                    &diagnostics::const_enum_member_initializer_was_evaluated_to_a_non_finite_value
-                                },
-                                &[],
-                            );
-                        }
-                    }
-                }
+            Some(EvalValue::Num(number)) if is_const_enum && !number.is_finite() => {
+                self.error_at(
+                    Some(initializer),
+                    if number.is_nan() {
+                        &diagnostics::const_enum_member_initializer_was_evaluated_to_disallowed_value_NaN
+                    } else {
+                        &diagnostics::const_enum_member_initializer_was_evaluated_to_a_non_finite_value
+                    },
+                    &[],
+                );
             }
+            Some(EvalValue::Str(_))
+                if (self.options.isolated_modules == Some(true)
+                    || self.options.verbatim_module_syntax == Some(true))
+                    && !result.is_syntactically_string =>
+            {
+                let enum_name = match self.data_of(parent) {
+                    NodeData::EnumDeclaration(data) => data
+                        .name
+                        .and_then(|name| self.identifier_text(name))
+                        .unwrap_or_default()
+                        .to_owned(),
+                    _ => unreachable!("enum members hang off their enum declaration"),
+                };
+                let member_name = match self.data_of(member) {
+                    NodeData::EnumMember(data) => data
+                        .name
+                        .map(|name| self.get_text_of_property_name(name))
+                        .transpose()?
+                        .and_then(|name| name.as_str().map(str::to_owned))
+                        .unwrap_or_default(),
+                    _ => unreachable!("enum member lists hold enum members"),
+                };
+                self.error_at(
+                    Some(initializer),
+                    &diagnostics::_0_has_a_string_type_but_must_have_syntactically_recognizable_string_syntax_when_isolatedModules_is_enabled,
+                    &[format!("{enum_name}.{member_name}").as_str()],
+                );
+            }
+            Some(_) => {}
             None => {
                 if is_const_enum {
                     self.error_at(

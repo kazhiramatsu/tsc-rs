@@ -1,0 +1,9 @@
+{
+  "scope": "Actual186 requests same-printer success twin; add2successfulsharedprintFile operations beforefault tosingle newbodycase, old21cases unchanged. Existingparent-and-body172flagcontrol alreadyaddressesreviewers otherclaimedgap. JS+events+failure exactTSobservationsx2, nativepending.",
+  "changed": [
+    "printer-failure/printNode/review/function-body-sticky-comments"
+  ],
+  "observer_sha256": "58b3c4f0fe9c82ee1cdc8a47337e858c68f1d56b94306216d33d7fea6ad977ba",
+  "fixture_sha256": "bfafaf5d2da6509587daa59b85bf965034600edd4a1ae708eef82ab721bdde6c",
+  "qualified_native": false
+}

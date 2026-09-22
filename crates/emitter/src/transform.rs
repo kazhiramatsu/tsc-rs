@@ -10,6 +10,27 @@ use crate::{
     TransformArena, TransformNode, TransformNodeArray, TransformSourceId, UnsupportedEmitFeature,
 };
 
+/// TypeScript's semantic child visitor has no operator for a missing
+/// declaration. Its decorators remain reachable syntax, but no transform may
+/// lower their expressions or request their helpers. Structural cross-source
+/// cloning still uses the syntax mapper so child arena identities are remapped.
+///
+/// tsc-port: visitEachChild @6.0.3
+/// tsc-hash: 77052fb8845fc55cd604db6cb8fe5c3e22bfc7f435b2efc90dc0a57fc2adcc7c
+/// tsc-span: _tsc.js:91318-91324
+pub(crate) fn try_visit_transform_children<V>(
+    data: &mut tsc_syntax::NodeData,
+    visitor: &mut V,
+) -> Result<(), V::Error>
+where
+    V: tsc_syntax::NodeDataChildVisitor,
+{
+    if matches!(data, tsc_syntax::NodeData::MissingDeclaration(_)) {
+        return Ok(());
+    }
+    tsc_syntax::try_visit_each_child(data, visitor)
+}
+
 /// Fallible declaration-printer projection of the checker's global-name
 /// table. A declaration name may never be accepted after a failed lookup.
 pub trait GlobalNameOracle {
@@ -573,6 +594,7 @@ pub struct TransformationContext {
     diagnostics: DiagnosticList,
     generated_binding_names: BTreeMap<GeneratedBindingId, Box<str>>,
     generated_binding_numbered_bases: BTreeMap<GeneratedBindingId, Box<str>>,
+    generated_class_reference_names: BTreeMap<TransformNode, TransformNode>,
     print_finalized_generated_bindings: BTreeSet<GeneratedBindingId>,
 }
 
@@ -593,6 +615,7 @@ impl TransformationContext {
             diagnostics: Vec::new(),
             generated_binding_names: BTreeMap::new(),
             generated_binding_numbered_bases: BTreeMap::new(),
+            generated_class_reference_names: BTreeMap::new(),
             print_finalized_generated_bindings: BTreeSet::new(),
         }
     }
@@ -652,6 +675,38 @@ impl TransformationContext {
         self.generated_binding_numbered_bases
             .get(&binding)
             .map(AsRef::as_ref)
+    }
+
+    /// A decorator class reference and a later ES5 constructor share the
+    /// generated-name identity of the same original class. Retain a generated
+    /// identifier so downstream passes can reuse all of its binding metadata
+    /// without adding a name to the emitted anonymous class expression.
+    pub(crate) fn record_generated_class_reference_name(
+        &mut self,
+        original_class: TransformNode,
+        name: TransformNode,
+    ) {
+        let existing = *self
+            .generated_class_reference_names
+            .entry(original_class)
+            .or_insert(name);
+        debug_assert_eq!(
+            self.arena
+                .metadata(existing)
+                .and_then(|metadata| metadata.generated_binding_id()),
+            self.arena
+                .metadata(name)
+                .and_then(|metadata| metadata.generated_binding_id()),
+        );
+    }
+
+    pub(crate) fn generated_class_reference_name(
+        &self,
+        original_class: TransformNode,
+    ) -> Option<TransformNode> {
+        self.generated_class_reference_names
+            .get(&original_class)
+            .copied()
     }
 
     pub(crate) fn generated_binding_was_finalized_for_print(
@@ -933,6 +988,7 @@ impl TransformationContext {
         self.source_emit_helpers.clear();
         self.generated_binding_names.clear();
         self.generated_binding_numbered_bases.clear();
+        self.generated_class_reference_names.clear();
         self.print_finalized_generated_bindings.clear();
         self.arena.clear_session_metadata();
         self.state = TransformationState::Disposed;

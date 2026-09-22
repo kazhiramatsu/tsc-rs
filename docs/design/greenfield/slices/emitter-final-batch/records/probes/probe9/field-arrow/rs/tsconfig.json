@@ -1,0 +1,1 @@
+{ "compilerOptions": { "target": "es5", "module": "commonjs", "strict": true, "declaration": true, "declarationMap": true, "sourceMap": true, "useDefineForClassFields": false, "experimentalDecorators": true, "outDir": "out", "skipDefaultLibCheck": true, "newLine": "lf", "ignoreDeprecations": "6.0" }, "files": ["main.ts"] }

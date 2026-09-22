@@ -590,6 +590,4 @@ fn preserve_symlinks_matches_the_upstream_session_contract_for_memory_and_filesy
     );
 }
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use crate::utf16_scalar_path::ScalarTestPath as _;

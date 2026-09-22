@@ -1,0 +1,62 @@
+{
+  "head": "807bd4718c356631c6a175f06b29aa782b2507e1",
+  "qualified": false,
+  "scope": "Format and standalone syntax witness36original+432accepted/72refused+285awaitcontrols PASS. Workspacealltargets Clippy keep-going -Dwarnings exit101:4iter_cloned_collect in project harness,1needless borrow in syntax template test,1cloned_ref_to_slice_refs in host test. Static step not executed; not the full local CI or canonical walk.",
+  "files": [
+    {
+      "path": "final-format-r234.json",
+      "sha256": "f704384fecdd77ac6776c6f47b7ad0c5d03b5b0536f54bfbf7442b110fcff4b0",
+      "bytes": 690
+    },
+    {
+      "path": "final-format-r234.log.gz",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20
+    },
+    {
+      "path": "final-prewalk-validation-pipeline-r234.json",
+      "sha256": "870d29368472aa308c06adf7836d8f8403d15cbc743006a2111bea302235f318",
+      "bytes": 702
+    },
+    {
+      "path": "final-prewalk-validation-pipeline-r234.log.gz",
+      "sha256": "f687b3c1bea1efa4f7839a17da3da96c1778728ef435b77a529a4e260a911f84",
+      "bytes": 1668
+    },
+    {
+      "path": "final-workspace-clippy-r234.json",
+      "sha256": "a384cb85a9689857a1759ff0a4dc4a87a3c7e85205526debe8fd693c69b8c6ba",
+      "bytes": 757
+    },
+    {
+      "path": "final-workspace-clippy-r234.log.gz",
+      "sha256": "8ad10643d3aaf8380e6ca5f8f65217f4147a07503b09e7ebd59d1b0b6968e584",
+      "bytes": 1161
+    },
+    {
+      "path": "syntax-emitter-recovery-r234.json",
+      "sha256": "a66b41574efac865a99fa9a7b3d8ee5d29e60c328bd527c64a4cfa1b4ee2fae2",
+      "bytes": 932
+    },
+    {
+      "path": "syntax-emitter-recovery-r234.log.gz",
+      "sha256": "c51dd4f5f4467870fecbf6e9088e4343bc4a4fc24ce38a24c6b6c8513e3532b6",
+      "bytes": 463
+    },
+    {
+      "path": "pipeline-manifest.json",
+      "sha256": "3180cbb871970e69e1d54d344755d29296022cb17080c59dcc163212134ee89f",
+      "bytes": 314
+    },
+    {
+      "path": "recovery-facts.json.gz",
+      "sha256": "4b76de597b1402961dc72f5e8fbe16d573b2c3c523e086873a6935e72a9605ec",
+      "bytes": 1855
+    },
+    {
+      "path": "emitter-final-prewalk-validation-r234.py",
+      "sha256": "fe239867bc4feabe05983606e39bf31e08507b0c8ae20468859534a7d943f9ca",
+      "bytes": 1863
+    }
+  ]
+}

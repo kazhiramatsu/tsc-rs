@@ -1,0 +1,26 @@
+{
+  "head": "34dea8e69de2219e9f1f9b1649c610e0b18938bc",
+  "qualified": false,
+  "steps": [
+    {
+      "label": "final-format-r238",
+      "exit": 0
+    },
+    {
+      "label": "template-flags-r238",
+      "exit": 0
+    },
+    {
+      "label": "host-path-contracts-r238",
+      "exit": 0
+    },
+    {
+      "label": "project-loader-contracts-r238",
+      "exit": 0
+    },
+    {
+      "label": "final-workspace-clippy-r238",
+      "exit": 101
+    }
+  ]
+}

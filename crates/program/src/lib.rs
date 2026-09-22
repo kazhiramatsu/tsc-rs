@@ -146,8 +146,8 @@ pub use loader::{
 };
 pub use module_requests::{
     plan_module_requests, plan_source_requests, plan_static_module_requests,
-    PlannedLibReferenceDirective, PlannedPathReference, PlannedTypeReferenceDirective,
-    SourceRequestPlan,
+    source_request_parse_options, PlannedLibReferenceDirective, PlannedPathReference,
+    PlannedTypeReferenceDirective, SourceRequestPlan,
 };
 pub use module_resolution::js_own_property_entries as package_json_own_entries;
 pub use module_resolution::mangle_scoped_package_name;

@@ -488,7 +488,7 @@ fn band_pin_anchor_round_trip_and_rewrite_attacks() {
 #[test]
 fn legacy_workspace_scope_anchors_and_baseline_survive_root_promotion() {
     let root = init_repo("legacy-scope-promotion");
-    let legacy_rel = format!("tsrs2/{SCOPE_REL_PATH}");
+    let legacy_rel = "tsrs2/m8-scope.json".to_owned();
     let oracle = in_band_oracle();
     let adjudicated = scope_file(
         ScopeStatus::Draft,
@@ -507,6 +507,7 @@ fn legacy_workspace_scope_anchors_and_baseline_survive_root_promotion() {
     });
     let legacy_baseline = commit_scope_at(&root, &legacy_rel, &frozen, "legacy frozen scope");
 
+    fs::create_dir_all(root.join("ratchets/m8")).unwrap();
     git_test(&root, &["mv", &legacy_rel, SCOPE_REL_PATH]);
     git_test(&root, &["commit", "-q", "-m", "promote scope to root"]);
     let head = resolve_commit(&root, "HEAD").unwrap();
@@ -894,6 +895,7 @@ fn baseline_pre_a2_base_allows_draft_but_not_freeze() {
 #[test]
 fn baseline_schema_1_base_allows_draft_but_not_freeze() {
     let root = init_repo("baseline-schema1");
+    fs::create_dir_all(root.join("ratchets/m8")).unwrap();
     fs::write(
         root.join(SCOPE_REL_PATH),
         br#"{"schema":1,"status":"draft","exclusions":[]}"#,
@@ -1256,6 +1258,7 @@ fn baseline_tombstone_provenance_mutation_is_rejected() {
 // -- encoder migration windows -------------------------------------------
 
 fn commit_raw_scope(root: &Path, bytes: &[u8], message: &str) -> String {
+    fs::create_dir_all(root.join("ratchets/m8")).unwrap();
     fs::write(root.join(SCOPE_REL_PATH), bytes).unwrap();
     git_test(root, &["add", SCOPE_REL_PATH]);
     git_test(root, &["commit", "-q", "-m", message]);

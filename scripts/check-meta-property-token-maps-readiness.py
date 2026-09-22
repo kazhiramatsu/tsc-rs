@@ -48,10 +48,10 @@ assert collections.Counter(w['status'] for w in m['witnesses'])=={'adjacent-exac
 assert m['after_required_complete_commands']==228 and m['after_target_exact_twice']==224 and m['after_outside_case_ids']==b['outside_class_alias_maps']
 for name in m['after_outside_case_ids']:
  c=cases[name];assert name.endswith('/class-fields-alias') and all('new.target' not in f['text'] and 'import.meta' not in f['text'] for f in c['files'])
-f=read('crates/emitter/tests/fixtures/meta-property-token-map-invariants.json');assert len(f['rows'])==8 and f['repetitions']==2
+f=read('crates/emitter/tests/fixtures/meta-property-token-map-invariants.json');assert len(f['rows'])==12 and f['repetitions']==2
 assert f['observer_sha256']==h((ROOT/'scripts/observe-meta-property-token-map-invariants.mjs').read_bytes())
 assert m['emitter_tests_required']=={'lib':490,'contracts':451}
 assert len(m['rust_map'])==9 and all(r['step'] in m['steps'] and r['producer'] and r['consumer'] and r['lifetime'] and r['invalidation'] for r in m['rust_map'])
 t=(ROOT/'crates/emitter/tests/unit/builtins/tests.rs').read_text();assert all('fn '+name.split('::')[-1]+'()' in t for name in b['emitter_library']['failed_test_ids'])
 assert 'mod h2_8a_meta_property_token_maps;' in (ROOT/'crates/compiler/tests/contracts.rs').read_text()
-print('H2.8a-A6-27 ready:39 whole TS owners,3 production files,4 steps,13 architecture rows;228 commands142 exact/82 owned/4 outside;8 internal rows,6 query rows,490 current units;unresolved=0,undispositioned=0')
+print('H2.8a-A6-27 ready:39 whole TS owners,3 production files,4 steps,13 architecture rows;228 commands142 exact/82 owned/4 outside;12 internal rows (8 original +4 synthetic),6 query rows,490 current units;unresolved=0,undispositioned=0')

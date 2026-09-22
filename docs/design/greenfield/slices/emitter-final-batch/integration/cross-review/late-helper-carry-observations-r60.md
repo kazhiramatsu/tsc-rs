@@ -1,0 +1,3 @@
+# Late System helper observations
+
+All512 complete TypeScript commands were stable across two executions, and all392 previous rows are unchanged. The final32 controls pair single-file and two-file programs for late __read/__rest requested by binding or assignment flattening, at ES2015 and ESNext with importHelpers false/true. In all16 two-file controls the second source has no __read, __rest or tslib reference/definition. The possible helper-carry defect suggested in Opus59 is not present in these observations; no speculative cross-file context change is justified. Whole native comparison still needs to verify the paired programs, not just this helper substring summary.

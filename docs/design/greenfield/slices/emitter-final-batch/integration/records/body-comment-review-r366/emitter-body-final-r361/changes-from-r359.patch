@@ -1,0 +1,447 @@
+--- r359/printer.rs
++++ r361/printer.rs
+@@ -2715,8 +2715,14 @@
+             .map_or(EmitFlags::NONE, |metadata| metadata.flags());
+         // emitCommentsBeforeNode sets tsc's commentsDisabled only when this
+         // node's comments phase runs at all (_tsc.js:120987-120994).
+-        let enters_nested_comment_suppression = node_flags
+-            .intersects(EmitFlags::NO_NESTED_COMMENTS)
++        // Function bodies apply their own NoNestedComments inside
++        // emitBodyWithDetachedComments, after their detached head and before
++        // their tail. Keep inherited suppression and the map/notification
++        // pipeline intact.
++        let function_body_comments = transformation.arena().node(node)?.kind == SyntaxKind::Block
++            && self.is_function_body_block(transformation, node)?;
++        let enters_nested_comment_suppression = !function_body_comments
++            && node_flags.intersects(EmitFlags::NO_NESTED_COMMENTS)
+             && !expression_context.nested_comments_suppressed()
+             && !self.comments_disabled();
+         if enters_nested_comment_suppression {
+@@ -2726,7 +2732,9 @@
+             // both normal output and a retained failure prefix.
+             self.comments_disabled_after_failure = true;
+         }
+-        let expression_context = if node_flags.intersects(EmitFlags::NO_NESTED_COMMENTS) {
++        let expression_context = if !function_body_comments
++            && node_flags.intersects(EmitFlags::NO_NESTED_COMMENTS)
++        {
+             expression_context.with_nested_comments_suppressed()
+         } else {
+             expression_context
+@@ -8308,211 +8316,235 @@
+                     )?;
+                     writer.decrease_indent();
+                 }
+-                if statements.is_empty() {
+-                    let emitted_comments = if function_body_range.is_some() {
+-                        // Function-body lists have no bracket comment lane.
+-                        // Their range owns a separate detached head and tail.
+-                        false
++                // tsc's emitBodyWithDetachedComments suppresses only the
++                // list callback. A failed callback deliberately leaves the
++                // shared printer suppressed for the next print operation.
++                let enters_body_comment_suppression = function_body
++                    && transformation.arena().metadata(node).is_some_and(|metadata| {
++                        metadata.flags().intersects(EmitFlags::NO_NESTED_COMMENTS)
++                    })
++                    && !expression_context.nested_comments_suppressed()
++                    && !self.comments_disabled();
++                if enters_body_comment_suppression {
++                    self.comments_disabled_after_failure = true;
++                }
++                let body_result = (|| -> Result<(), PrinterError> {
++                    let expression_context = if enters_body_comment_suppression {
++                        expression_context.with_nested_comments_suppressed()
+                     } else {
+-                        self.emit_empty_block_comments(
+-                            transformation,
+-                            node,
+-                            array,
+-                            multi_line,
+-                            function_body,
+-                            writer,
+-                        )?
++                        expression_context
+                     };
+-                    if !emitted_comments && multi_line {
+-                        writer.write_line(false);
+-                    } else if !emitted_comments {
+-                        writer.write_space(" ");
+-                    }
+-                } else if !multi_line {
+-                    if !function_body {
+-                        self.emit_comment_after_open_brace(transformation, node, writer)?;
+-                    }
+-                    writer.write_space(" ");
+-                    let mut forced_line_indent = false;
+-                    let mut in_function_prologue = function_body;
+-                    for (index, statement) in statements.into_iter().enumerate() {
+-                        let statement_node = transformation
+-                            .arena()
+-                            .node_ref(node.source(), statement)
+-                            .ok_or(PrinterError::UnknownStatement(statement.0))?;
+-                        let starts_on_new_line = transformation
+-                            .arena()
+-                            .metadata(statement_node)
+-                            .and_then(crate::EmitMetadata::starts_on_new_line)
+-                            == Some(true);
+-                        // tsc applies `startsOnNewLine` as a separator between
+-                        // synthesized siblings. It does not turn the first
+-                        // statement of an otherwise single-line block into a
+-                        // multi-line block.
+-                        if index != 0 && starts_on_new_line {
++                    if statements.is_empty() {
++                        let emitted_comments = if function_body_range.is_some() {
++                            // Function-body lists have no bracket comment lane.
++                            // Their range owns a separate detached head and tail.
++                            false
++                        } else {
++                            self.emit_empty_block_comments(
++                                transformation,
++                                node,
++                                array,
++                                multi_line,
++                                function_body,
++                                writer,
++                            )?
++                        };
++                        if !emitted_comments && multi_line {
+                             writer.write_line(false);
+-                            if !forced_line_indent {
+-                                writer.increase_indent();
+-                                forced_line_indent = true;
+-                            }
+-                        } else if index != 0 {
++                        } else if !emitted_comments {
+                             writer.write_space(" ");
+                         }
+-                        // tsc's emitNodeListItems (_tsc.js:120068-120140)
+-                        // visits each child's comment range, including a
+-                        // retained statement after synthetic prefixes. A
+-                        // separating line terminator skips this list phase.
+-                        // The previous sibling's trailing phase is independent:
+-                        // tsc can intentionally print the same comment twice.
+-                        if function_body && (index == 0 || !starts_on_new_line) {
+-                            self.emit_leading_comments_for_delimited_list_start(
++                    } else if !multi_line {
++                        if !function_body {
++                            self.emit_comment_after_open_brace(transformation, node, writer)?;
++                        }
++                        writer.write_space(" ");
++                        let mut forced_line_indent = false;
++                        let mut in_function_prologue = function_body;
++                        for (index, statement) in statements.into_iter().enumerate() {
++                            let statement_node = transformation
++                                .arena()
++                                .node_ref(node.source(), statement)
++                                .ok_or(PrinterError::UnknownStatement(statement.0))?;
++                            let starts_on_new_line = transformation
++                                .arena()
++                                .metadata(statement_node)
++                                .and_then(crate::EmitMetadata::starts_on_new_line)
++                                == Some(true);
++                            // tsc applies `startsOnNewLine` as a separator between
++                            // synthesized siblings. It does not turn the first
++                            // statement of an otherwise single-line block into a
++                            // multi-line block.
++                            if index != 0 && starts_on_new_line {
++                                writer.write_line(false);
++                                if !forced_line_indent {
++                                    writer.increase_indent();
++                                    forced_line_indent = true;
++                                }
++                            } else if index != 0 {
++                                writer.write_space(" ");
++                            }
++                            // tsc's emitNodeListItems (_tsc.js:120068-120140)
++                            // visits each child's comment range, including a
++                            // retained statement after synthetic prefixes. A
++                            // separating line terminator skips this list phase.
++                            // The previous sibling's trailing phase is independent:
++                            // tsc can intentionally print the same comment twice.
++                            if function_body && (index == 0 || !starts_on_new_line) {
++                                self.emit_leading_comments_for_delimited_list_start(
++                                    transformation,
++                                    statement_node,
++                                    writer,
++                                )?;
++                            }
++                            in_function_prologue = in_function_prologue
++                                && self.is_prologue_statement(transformation, statement_node);
++                            if !in_function_prologue {
++                                self.record_list_element_position(transformation, statement_node)?;
++                            }
++                            self.emit_node_id_with_context(
++                                transformation,
++                                node.source(),
++                                statement,
++                                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
++                                writer,
++                            )?;
++                            self.emit_trailing_comments_for_node(
+                                 transformation,
+                                 statement_node,
+                                 writer,
+                             )?;
+                         }
+-                        in_function_prologue = in_function_prologue
+-                            && self.is_prologue_statement(transformation, statement_node);
+-                        if !in_function_prologue {
+-                            self.record_list_element_position(transformation, statement_node)?;
++                        if forced_line_indent {
++                            writer.decrease_indent();
+                         }
+-                        self.emit_node_id_with_context(
+-                            transformation,
+-                            node.source(),
+-                            statement,
+-                            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+-                            writer,
+-                        )?;
+-                        self.emit_trailing_comments_for_node(
+-                            transformation,
+-                            statement_node,
+-                            writer,
+-                        )?;
+-                    }
+-                    if forced_line_indent {
+-                        writer.decrease_indent();
+-                    }
+-                    writer.write_space(" ");
+-                } else {
+-                    if !function_body {
+-                        self.emit_comment_after_open_brace(transformation, node, writer)?;
+-                    }
+-                    writer.write_line(false);
+-                    writer.increase_indent();
+-                    let mut has_previous_original_statement = false;
+-                    let mut in_function_prologue = function_body;
+-                    let mut pending_helpers = (!block_helpers.is_empty()).then_some(block_helpers);
+-                    for statement in statements {
+-                        let statement = transformation
+-                            .arena()
+-                            .node_ref(node.source(), statement)
+-                            .ok_or(PrinterError::UnknownStatement(statement.0))?;
+-                        in_function_prologue = in_function_prologue
+-                            && self.is_prologue_statement(transformation, statement);
+-                        if !in_function_prologue {
+-                            if let Some(helpers) = pending_helpers.take() {
+-                                self.emit_helpers(&helpers, writer)?;
++                        writer.write_space(" ");
++                    } else {
++                        if !function_body {
++                            self.emit_comment_after_open_brace(transformation, node, writer)?;
++                        }
++                        writer.write_line(false);
++                        writer.increase_indent();
++                        let mut has_previous_original_statement = false;
++                        let mut in_function_prologue = function_body;
++                        let mut pending_helpers = (!block_helpers.is_empty()).then_some(block_helpers);
++                        for statement in statements {
++                            let statement = transformation
++                                .arena()
++                                .node_ref(node.source(), statement)
++                                .ok_or(PrinterError::UnknownStatement(statement.0))?;
++                            in_function_prologue = in_function_prologue
++                                && self.is_prologue_statement(transformation, statement);
++                            if !in_function_prologue {
++                                if let Some(helpers) = pending_helpers.take() {
++                                    self.emit_helpers(&helpers, writer)?;
++                                }
++                                self.record_list_element_position(transformation, statement)?;
+                             }
+-                            self.record_list_element_position(transformation, statement)?;
+-                        }
+-                        let original = transformation.arena().get_original_node(statement);
+-                        let original_source =
+-                            transformation.arena().source(original.source())?.syntax();
+-                        let original_record = transformation.arena().node(original)?;
+-                        let has_original_range = matches!(
+-                            SourceRange::from_raw(
+-                                original_record.pos,
+-                                original_record.end,
+-                                original_source.positions(),
+-                            )?,
+-                            SourceRange::Original(_)
+-                        );
+-                        let detached_resume = self.take_detached_comment_resume_for_node(
+-                            transformation,
+-                            &mut pending_detached_comments,
+-                            statement,
+-                        )?;
+-                        let container_resume = if !has_previous_original_statement
+-                            && relocated_statement_list_comments.is_none()
+-                        {
+-                            // A relocated list inherits only its explicitly
+-                            // retained detached-prefix resume. Its first runtime
+-                            // statement owns ordinary leading comments at the
+-                            // new location, after the wrapper's hoisted nodes.
+-                            let owner = self.expression_comment_phase_owner_for_node(
++                            let original = transformation.arena().get_original_node(statement);
++                            let original_source =
++                                transformation.arena().source(original.source())?.syntax();
++                            let original_record = transformation.arena().node(original)?;
++                            let has_original_range = matches!(
++                                SourceRange::from_raw(
++                                    original_record.pos,
++                                    original_record.end,
++                                    original_source.positions(),
++                                )?,
++                                SourceRange::Original(_)
++                            );
++                            let detached_resume = self.take_detached_comment_resume_for_node(
+                                 transformation,
++                                &mut pending_detached_comments,
+                                 statement,
+                             )?;
+-                            self.parent_comment_container_owned_prefix_for_owner(
++                            let container_resume = if !has_previous_original_statement
++                                && relocated_statement_list_comments.is_none()
++                            {
++                                // A relocated list inherits only its explicitly
++                                // retained detached-prefix resume. Its first runtime
++                                // statement owns ordinary leading comments at the
++                                // new location, after the wrapper's hoisted nodes.
++                                let owner = self.expression_comment_phase_owner_for_node(
++                                    transformation,
++                                    statement,
++                                )?;
++                                self.parent_comment_container_owned_prefix_for_owner(
++                                    transformation,
++                                    expression_context.comments().container_pos(),
++                                    owner,
++                                )?
++                            } else {
++                                None
++                            };
++                            let detached_resume =
++                                Self::furthest_comment_resume(detached_resume, container_resume)?;
++                            if expression_context.nested_comments_suppressed() {
++                                // shouldEmitComments is false for the whole
++                                // subtree of a NoNestedComments owner.
++                            } else if let Some(detached_resume) = detached_resume {
++                                self.emit_leading_comments_for_node_worker(
++                                    transformation,
++                                    statement,
++                                    if has_previous_original_statement && has_original_range {
++                                        LeadingCommentContext::AfterSibling
++                                    } else {
++                                        LeadingCommentContext::Normal
++                                    },
++                                    Some(detached_resume),
++                                    writer,
++                                )?;
++                            } else if has_previous_original_statement && has_original_range {
++                                self.emit_leading_comments_for_node_after_sibling(
++                                    transformation,
++                                    statement,
++                                    writer,
++                                )?;
++                            } else {
++                                // Synthetic wrappers retain the enclosing
++                                // container's prefix ownership. The first child's
++                                // scoped resume above prevents reclaiming it.
++                                self.emit_leading_comments_for_node(transformation, statement, writer)?;
++                            }
++                            if has_original_range {
++                                has_previous_original_statement = true;
++                            }
++                            self.emit_node_id_with_context(
+                                 transformation,
+-                                expression_context.comments().container_pos(),
+-                                owner,
+-                            )?
+-                        } else {
+-                            None
+-                        };
+-                        let detached_resume =
+-                            Self::furthest_comment_resume(detached_resume, container_resume)?;
+-                        if expression_context.nested_comments_suppressed() {
+-                            // shouldEmitComments is false for the whole
+-                            // subtree of a NoNestedComments owner.
+-                        } else if let Some(detached_resume) = detached_resume {
+-                            self.emit_leading_comments_for_node_worker(
+-                                transformation,
+-                                statement,
+-                                if has_previous_original_statement && has_original_range {
+-                                    LeadingCommentContext::AfterSibling
+-                                } else {
+-                                    LeadingCommentContext::Normal
+-                                },
+-                                Some(detached_resume),
++                                node.source(),
++                                statement.node(),
++                                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                                 writer,
+                             )?;
+-                        } else if has_previous_original_statement && has_original_range {
+-                            self.emit_leading_comments_for_node_after_sibling(
++                            if !expression_context.nested_comments_suppressed() {
++                                self.emit_trailing_comments_for_node_in_container(
++                                    transformation,
++                                    statement,
++                                    expression_context.comments(),
++                                    writer,
++                                )?;
++                            }
++                            writer.write_line(false);
++                        }
++                        if let Some(helpers) = pending_helpers {
++                            self.emit_helpers(&helpers, writer)?;
++                        }
++                        if !function_body {
++                            self.emit_comments_before_close_brace(
+                                 transformation,
+-                                statement,
+-                                writer,
+-                            )?;
+-                        } else {
+-                            // Synthetic wrappers retain the enclosing
+-                            // container's prefix ownership. The first child's
+-                            // scoped resume above prevents reclaiming it.
+-                            self.emit_leading_comments_for_node(transformation, statement, writer)?;
+-                        }
+-                        if has_original_range {
+-                            has_previous_original_statement = true;
+-                        }
+-                        self.emit_node_id_with_context(
+-                            transformation,
+-                            node.source(),
+-                            statement.node(),
+-                            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+-                            writer,
+-                        )?;
+-                        if !expression_context.nested_comments_suppressed() {
+-                            self.emit_trailing_comments_for_node_in_container(
+-                                transformation,
+-                                statement,
+-                                expression_context.comments(),
++                                node,
++                                statement_list_end,
+                                 writer,
+                             )?;
+                         }
+-                        writer.write_line(false);
++                        writer.decrease_indent();
+                     }
+-                    if let Some(helpers) = pending_helpers {
+-                        self.emit_helpers(&helpers, writer)?;
+-                    }
+-                    if !function_body {
+-                        self.emit_comments_before_close_brace(
+-                            transformation,
+-                            node,
+-                            statement_list_end,
+-                            writer,
+-                        )?;
+-                    }
+-                    writer.decrease_indent();
++                    Ok(())
++                })();
++                if body_result.is_ok() && enters_body_comment_suppression {
++                    self.comments_disabled_after_failure = false;
+                 }
++                body_result?;
+                 if let Some(range) = function_body_range {
+                     writer.increase_indent();
+                     self.emit_function_body_trailing_comments(

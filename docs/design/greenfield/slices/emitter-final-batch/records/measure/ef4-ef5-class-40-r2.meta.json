@@ -1,0 +1,15 @@
+{
+  "name": "ef4-ef5-class-40-r2",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 12,
+  "env": [
+    "TSC_RS_EMITTER_FINAL_CASE_FILTER=legacy-bound-this"
+  ],
+  "argv": "cargo test -p tsc-rs-compiler --test emitter_final_batch ef4_ef5_historical_class_rows_match_complete_typescript_observations -- --exact --nocapture --test-threads=1",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T07:31:22Z",
+  "seconds": 9,
+  "exit": 101,
+  "log_sha256": "777795345c6987bee6a027b37b978f136e3c9e1478979d233904a01180000489",
+  "log_bytes": 209551
+}

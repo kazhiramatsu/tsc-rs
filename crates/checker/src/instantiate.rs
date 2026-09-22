@@ -1296,7 +1296,9 @@ impl<'a> CheckerState<'a> {
                     mapper,
                 );
             }
-            if flags.intersects(TypeFlags::INTERSECTION) {
+            if flags.intersects(TypeFlags::INTERSECTION)
+                && self.is_array_or_tuple_or_intersection(constituent)?
+            {
                 let TypeData::Intersection { types } = &self.tables.type_of(constituent).data
                 else {
                     unreachable!("intersection flag implies intersection data");

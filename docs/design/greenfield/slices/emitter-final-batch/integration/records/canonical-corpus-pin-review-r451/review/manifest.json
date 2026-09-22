@@ -1,0 +1,26 @@
+{
+  "head": "be8dfd697dec3b70405887b26fdbd5c5e4c3c7a4",
+  "qualified_final": false,
+  "scope": "Observer mirror pin review only. Native product, observation schemas, roster, TypeScript mirror and comparators unchanged. Full final-head command replay still required.",
+  "pin_path": "scripts/recovery-command-pins.json",
+  "pin_before_sha256": "ecce8f6c91f17c39a352ccd5a49f266719d863ff6207470042e3dd37a816e226",
+  "pin_after_sha256": "216369428fc590b67f0389eb8d18111ec91365304256bf16fe83ecec5f734823",
+  "changes": [
+    {
+      "path": "crates/harness/src/upstream_suites/execution/project.rs",
+      "base": "479c5603efaafee82f71efdb4ff552db1dc78d4d",
+      "before": "dc82805e089ce1888569d697d78115768d942c35996681d88fdaa55b0de75e71",
+      "after": "c03c49fb14243ea4a49984df4f4ae68134276558dac32f9c17ffbfd0bca398cf",
+      "review": "Four ordered slice copies .iter().cloned().collect::<Vec<_>>() to .to_vec(); root values and ordering preserved.",
+      "exact_replacements": 4
+    },
+    {
+      "path": "crates/xtask/src/utf16_literal_recovery_census.rs",
+      "base": "b002fbdaca8724d9188797d92e1b01c580295291",
+      "before": "950b5e9d6d3363f57bbfcfe0a62bbba596aa587e08686e931e7cbf475d6e17b5",
+      "after": "319ce912ef2c28076017ae529f408ee43e57c5e34afc3593b02bfe2bb5651587",
+      "review": "Remove needless reference from already borrowed output path and rustfmt; identical path and serialized report.",
+      "exact_replacements": 1
+    }
+  ]
+}

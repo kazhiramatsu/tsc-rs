@@ -251,14 +251,14 @@ impl ConfigParseHost for ConfigHostAdapter<'_> {
         _depth: Option<usize>,
     ) -> Result<Vec<tsc_diagnostics::JsString>, ConfigHostError> {
         let directory = directory.as_str().expect("scalar config fixture directory");
-        (|| -> Result<Vec<String>, ConfigHostError> {
+        let scalar_paths: Result<Vec<String>, ConfigHostError> = {
             Err(Self::host_error(
                 ConfigHostOperation::ReadDirectory,
                 directory,
                 "the files-only contract does not enumerate directories",
             ))
-        })()
-        .map(|paths| paths.into_iter().map(Into::into).collect())
+        };
+        scalar_paths.map(|paths| paths.into_iter().map(Into::into).collect())
     }
 }
 
@@ -1497,10 +1497,6 @@ fn allow_importing_ts_extensions_requires_no_emit_unless_overridden() {
     assert_eq!(prepared.compiler_options().no_emit, Some(true));
 }
 
-#[path = "../support/scalar_json.rs"]
-mod utf16_scalar_json;
-use utf16_scalar_json::observe as scalar_json;
+use super::utf16_scalar_json::observe as scalar_json;
 
-#[path = "../../../host/tests/support/scalar_path.rs"]
-mod utf16_scalar_path;
-use utf16_scalar_path::ScalarTestPath as _;
+use super::utf16_scalar_path::ScalarTestPath as _;

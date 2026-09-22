@@ -319,8 +319,12 @@ fn template_fragment_texts(
 /// followed by `text.substring(1, text.length - (isLast ? 1 : 2))` with
 /// JavaScript's argument clamping and swapping. Upstream asserts only that a
 /// source file exists, which the transform host always has.
-/// tsc-port: getRawLiteral/getTextOfNodeFromSourceText @6.0.3
-/// tsc-span: _tsc.js:94022-94032, 13017-13044
+/// tsc-port: getRawLiteral @6.0.3
+/// tsc-hash: d4e11c6faf9f995a3cafd841ab9f3aaabfcd7e1c3d56e530c21538f79f1bf2bf
+/// tsc-span: _tsc.js:94022-94032
+/// tsc-port: getTextOfNodeFromSourceText @6.0.3
+/// tsc-hash: 5b825e2135e14edb1067e8102962eebd2ffafe983ce3354ed46db1e39bf62c89
+/// tsc-span: _tsc.js:13035-13044
 fn raw_from_source_range(
     host: &impl TaggedTemplateHost,
     node: TransformNode,

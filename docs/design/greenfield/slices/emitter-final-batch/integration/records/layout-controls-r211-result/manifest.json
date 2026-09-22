@@ -1,0 +1,41 @@
+{
+  "source_head": "0336c56663ff243503a18987a2cf8021109e8295",
+  "files": [
+    {
+      "path": "corpus-controls-pipeline-r211.json",
+      "sha256": "21f12c6df03f3361e92a00d037ca785fe062b2f59f2f469ca5e51854337c1286"
+    },
+    {
+      "path": "corpus-controls-compiler-build-r211.json",
+      "sha256": "8a5a5fe9e7277b85fe417af872eaf3a78e563d269711cb91b5342f26356244a6"
+    },
+    {
+      "path": "corpus-controls-167-native-r211.json",
+      "sha256": "eaca21bb93f493ed324f33f5ede4319553da6cf53ff5ca71d7f4fdb5fcf02f50"
+    },
+    {
+      "path": "corpus-controls-168-native-r211.json",
+      "sha256": "0cc8a924babda954c6b7ebcac8dbbe328ae8b738b614e6d6ba5669ad362dac5e"
+    },
+    {
+      "path": "corpus-controls-171-native-r211.json",
+      "sha256": "a77cc887a19086472980fb1daf980068b3c74f394cc79b3933c8c91bc2a06353"
+    }
+  ],
+  "controls": {
+    "167": {
+      "exact_twice": 176,
+      "failed": 0
+    },
+    "168": {
+      "exact_twice": 1080,
+      "failed": 0
+    },
+    "171": {
+      "exact_twice": 344,
+      "failed": 0
+    }
+  },
+  "total_exact_twice": 1600,
+  "scope": "Bounded complete-command controls only. Corpus/projects, regressions and final full gate remain pending. Lossless captures will be archived after the frozen r212/r213 pipeline ends."
+}

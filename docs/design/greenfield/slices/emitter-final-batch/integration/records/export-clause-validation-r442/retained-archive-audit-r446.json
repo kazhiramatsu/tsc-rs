@@ -1,0 +1,21 @@
+{
+  "read_only": true,
+  "qualified_final": false,
+  "archives": [
+    {
+      "archive": "canonical-focused-r398",
+      "files": 46,
+      "mismatches": []
+    },
+    {
+      "archive": "module-boundary-review-r419",
+      "files": 190,
+      "mismatches": []
+    },
+    {
+      "archive": "module-boundary-validation-r433",
+      "files": 54,
+      "mismatches": []
+    }
+  ]
+}

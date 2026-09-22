@@ -1,0 +1,1237 @@
+{
+  "scope": "Diagnostic AST inspection via transpileModule; not full-command qualification",
+  "typescript": "6.0.3",
+  "rows": [
+    {
+      "label": "optional",
+      "target": "ES5",
+      "text": "export class C extends x?.y {}",
+      "nodes": [
+        {
+          "depth": 4,
+          "kind": "ParenthesizedExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "CallExpression",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 6,
+          "kind": "PartiallyEmittedExpression",
+          "pos": -1,
+          "end": 0,
+          "flags": 16,
+          "expression": {
+            "kind": "PartiallyEmittedExpression",
+            "pos": -1,
+            "end": 30
+          }
+        },
+        {
+          "depth": 7,
+          "kind": "PartiallyEmittedExpression",
+          "pos": -1,
+          "end": 30,
+          "flags": 16,
+          "expression": {
+            "kind": "FunctionExpression",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 16,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "Identifier",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 11,
+          "kind": "PartiallyEmittedExpression",
+          "pos": -1,
+          "end": 30,
+          "flags": 16,
+          "expression": {
+            "kind": "Identifier",
+            "pos": 12,
+            "end": 14
+          }
+        },
+        {
+          "depth": 6,
+          "kind": "ParenthesizedExpression",
+          "pos": 22,
+          "end": 27,
+          "flags": 16,
+          "expression": {
+            "kind": "ConditionalExpression",
+            "pos": 22,
+            "end": 27
+          }
+        },
+        {
+          "depth": 7,
+          "kind": "ConditionalExpression",
+          "pos": 22,
+          "end": 27,
+          "flags": 16
+        },
+        {
+          "depth": 8,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "Identifier",
+            "pos": 22,
+            "end": 24
+          },
+          "original": {
+            "kind": "PropertyAccessExpression",
+            "pos": 22,
+            "end": 27
+          }
+        }
+      ],
+      "output": "var __extends = (this && this.__extends) || (function () {\n    var extendStatics = function (d, b) {\n        extendStatics = Object.setPrototypeOf ||\n            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||\n            function (d, b) { for (var p in b) if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p]; };\n        return extendStatics(d, b);\n    };\n    return function (d, b) {\n        if (typeof b !== \"function\" && b !== null)\n            throw new TypeError(\"Class extends value \" + String(b) + \" is not a constructor or null\");\n        extendStatics(d, b);\n        function __() { this.constructor = d; }\n        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());\n    };\n})();\nvar C = /** @class */ (function (_super) {\n    __extends(C, _super);\n    function C() {\n        return _super !== null && _super.apply(this, arguments) || this;\n    }\n    return C;\n}((x === null || x === void 0 ? void 0 : x.y)));\nexport { C };\n//# sourceMappingURL=module.js.map",
+      "map": "{\"version\":3,\"file\":\"module.js\",\"sourceRoot\":\"\",\"sources\":[\"module.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;AAAA;IAAuB,qBAAI;IAA3B;;IAA6B,CAAC;IAAD,QAAC;AAAD,CAAC,AAA9B,CAAuB,CAAA,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,CAAA,GAAG\"}"
+    },
+    {
+      "label": "optional",
+      "target": "ES2015",
+      "text": "export class C extends x?.y {}",
+      "nodes": [
+        {
+          "depth": 2,
+          "kind": "HeritageClause",
+          "pos": 14,
+          "end": 27,
+          "flags": 16,
+          "original": {
+            "kind": "HeritageClause",
+            "pos": 14,
+            "end": 27
+          }
+        },
+        {
+          "depth": 3,
+          "kind": "ExpressionWithTypeArguments",
+          "pos": 22,
+          "end": 27,
+          "flags": 16,
+          "expression": {
+            "kind": "ParenthesizedExpression",
+            "pos": 22,
+            "end": 27
+          },
+          "original": {
+            "kind": "ExpressionWithTypeArguments",
+            "pos": 22,
+            "end": 27
+          }
+        },
+        {
+          "depth": 4,
+          "kind": "ParenthesizedExpression",
+          "pos": 22,
+          "end": 27,
+          "flags": 16,
+          "expression": {
+            "kind": "ConditionalExpression",
+            "pos": 22,
+            "end": 27
+          }
+        },
+        {
+          "depth": 5,
+          "kind": "ConditionalExpression",
+          "pos": 22,
+          "end": 27,
+          "flags": 16
+        },
+        {
+          "depth": 6,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "Identifier",
+            "pos": 22,
+            "end": 24
+          },
+          "original": {
+            "kind": "PropertyAccessExpression",
+            "pos": 22,
+            "end": 27
+          }
+        }
+      ],
+      "output": "export class C extends (x === null || x === void 0 ? void 0 : x.y) {\n}\n//# sourceMappingURL=module.js.map",
+      "map": "{\"version\":3,\"file\":\"module.js\",\"sourceRoot\":\"\",\"sources\":[\"module.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,OAAO,CAAE,SAAQ,CAAA,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,CAAA;CAAG\"}"
+    },
+    {
+      "label": "optional",
+      "target": "ES2022",
+      "text": "export class C extends x?.y {}",
+      "nodes": [
+        {
+          "depth": 2,
+          "kind": "HeritageClause",
+          "pos": 14,
+          "end": 27,
+          "flags": 65536
+        },
+        {
+          "depth": 3,
+          "kind": "ExpressionWithTypeArguments",
+          "pos": 22,
+          "end": 27,
+          "flags": 65536,
+          "expression": {
+            "kind": "PropertyAccessExpression",
+            "pos": 22,
+            "end": 27
+          }
+        },
+        {
+          "depth": 4,
+          "kind": "PropertyAccessExpression",
+          "pos": 22,
+          "end": 27,
+          "flags": 65600,
+          "expression": {
+            "kind": "Identifier",
+            "pos": 22,
+            "end": 24
+          }
+        }
+      ],
+      "output": "export class C extends x?.y {\n}\n//# sourceMappingURL=module.js.map",
+      "map": "{\"version\":3,\"file\":\"module.js\",\"sourceRoot\":\"\",\"sources\":[\"module.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,OAAO,CAAE,SAAQ,CAAC,EAAE,CAAC;CAAG\"}"
+    },
+    {
+      "label": "optionalTyped",
+      "target": "ES5",
+      "text": "export class C extends x?.y<any> {}",
+      "nodes": [
+        {
+          "depth": 4,
+          "kind": "ParenthesizedExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "CallExpression",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 6,
+          "kind": "PartiallyEmittedExpression",
+          "pos": -1,
+          "end": 0,
+          "flags": 16,
+          "expression": {
+            "kind": "PartiallyEmittedExpression",
+            "pos": -1,
+            "end": 35
+          }
+        },
+        {
+          "depth": 7,
+          "kind": "PartiallyEmittedExpression",
+          "pos": -1,
+          "end": 35,
+          "flags": 16,
+          "expression": {
+            "kind": "FunctionExpression",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 16,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "Identifier",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 11,
+          "kind": "PartiallyEmittedExpression",
+          "pos": -1,
+          "end": 35,
+          "flags": 16,
+          "expression": {
+            "kind": "Identifier",
+            "pos": 12,
+            "end": 14
+          }
+        },
+        {
+          "depth": 6,
+          "kind": "ParenthesizedExpression",
+          "pos": 22,
+          "end": 27,
+          "flags": 16,
+          "expression": {
+            "kind": "ConditionalExpression",
+            "pos": 22,
+            "end": 27
+          },
+          "original": {
+            "kind": "ParenthesizedExpression",
+            "pos": 22,
+            "end": 27
+          }
+        },
+        {
+          "depth": 7,
+          "kind": "ConditionalExpression",
+          "pos": 22,
+          "end": 27,
+          "flags": 16
+        },
+        {
+          "depth": 8,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "Identifier",
+            "pos": 22,
+            "end": 24
+          },
+          "original": {
+            "kind": "PropertyAccessExpression",
+            "pos": 22,
+            "end": 27
+          }
+        }
+      ],
+      "output": "var __extends = (this && this.__extends) || (function () {\n    var extendStatics = function (d, b) {\n        extendStatics = Object.setPrototypeOf ||\n            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||\n            function (d, b) { for (var p in b) if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p]; };\n        return extendStatics(d, b);\n    };\n    return function (d, b) {\n        if (typeof b !== \"function\" && b !== null)\n            throw new TypeError(\"Class extends value \" + String(b) + \" is not a constructor or null\");\n        extendStatics(d, b);\n        function __() { this.constructor = d; }\n        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());\n    };\n})();\nvar C = /** @class */ (function (_super) {\n    __extends(C, _super);\n    function C() {\n        return _super !== null && _super.apply(this, arguments) || this;\n    }\n    return C;\n}((x === null || x === void 0 ? void 0 : x.y)));\nexport { C };\n//# sourceMappingURL=module.js.map",
+      "map": "{\"version\":3,\"file\":\"module.js\",\"sourceRoot\":\"\",\"sources\":[\"module.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;AAAA;IAAuB,qBAAS;IAAhC;;IAAkC,CAAC;IAAD,QAAC;AAAD,CAAC,AAAnC,CAAuB,CAAA,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,CAAA,GAAQ\"}"
+    },
+    {
+      "label": "optionalTyped",
+      "target": "ES2015",
+      "text": "export class C extends x?.y<any> {}",
+      "nodes": [
+        {
+          "depth": 2,
+          "kind": "HeritageClause",
+          "pos": 14,
+          "end": 32,
+          "flags": 16,
+          "original": {
+            "kind": "HeritageClause",
+            "pos": 14,
+            "end": 32
+          }
+        },
+        {
+          "depth": 3,
+          "kind": "ExpressionWithTypeArguments",
+          "pos": 22,
+          "end": 32,
+          "flags": 16,
+          "expression": {
+            "kind": "ParenthesizedExpression",
+            "pos": 22,
+            "end": 27
+          },
+          "original": {
+            "kind": "ExpressionWithTypeArguments",
+            "pos": 22,
+            "end": 32
+          }
+        },
+        {
+          "depth": 4,
+          "kind": "ParenthesizedExpression",
+          "pos": 22,
+          "end": 27,
+          "flags": 16,
+          "expression": {
+            "kind": "ConditionalExpression",
+            "pos": 22,
+            "end": 27
+          },
+          "original": {
+            "kind": "ParenthesizedExpression",
+            "pos": 22,
+            "end": 27
+          }
+        },
+        {
+          "depth": 5,
+          "kind": "ConditionalExpression",
+          "pos": 22,
+          "end": 27,
+          "flags": 16
+        },
+        {
+          "depth": 6,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "Identifier",
+            "pos": 22,
+            "end": 24
+          },
+          "original": {
+            "kind": "PropertyAccessExpression",
+            "pos": 22,
+            "end": 27
+          }
+        }
+      ],
+      "output": "export class C extends (x === null || x === void 0 ? void 0 : x.y) {\n}\n//# sourceMappingURL=module.js.map",
+      "map": "{\"version\":3,\"file\":\"module.js\",\"sourceRoot\":\"\",\"sources\":[\"module.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,OAAO,CAAE,SAAQ,CAAA,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,CAAK;CAAG\"}"
+    },
+    {
+      "label": "optionalTyped",
+      "target": "ES2022",
+      "text": "export class C extends x?.y<any> {}",
+      "nodes": [
+        {
+          "depth": 2,
+          "kind": "HeritageClause",
+          "pos": 14,
+          "end": 32,
+          "flags": 16,
+          "original": {
+            "kind": "HeritageClause",
+            "pos": 14,
+            "end": 32
+          }
+        },
+        {
+          "depth": 3,
+          "kind": "ExpressionWithTypeArguments",
+          "pos": 22,
+          "end": 32,
+          "flags": 16,
+          "expression": {
+            "kind": "ParenthesizedExpression",
+            "pos": 22,
+            "end": 27
+          },
+          "original": {
+            "kind": "ExpressionWithTypeArguments",
+            "pos": 22,
+            "end": 32
+          }
+        },
+        {
+          "depth": 4,
+          "kind": "ParenthesizedExpression",
+          "pos": 22,
+          "end": 27,
+          "flags": 16,
+          "expression": {
+            "kind": "PropertyAccessExpression",
+            "pos": 22,
+            "end": 27
+          }
+        },
+        {
+          "depth": 5,
+          "kind": "PropertyAccessExpression",
+          "pos": 22,
+          "end": 27,
+          "flags": 65600,
+          "expression": {
+            "kind": "Identifier",
+            "pos": 22,
+            "end": 24
+          }
+        }
+      ],
+      "output": "export class C extends (x?.y) {\n}\n//# sourceMappingURL=module.js.map",
+      "map": "{\"version\":3,\"file\":\"module.js\",\"sourceRoot\":\"\",\"sources\":[\"module.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,OAAO,CAAE,SAAQ,CAAA,CAAC,EAAE,CAAC,CAAK;CAAG\"}"
+    },
+    {
+      "label": "heritageTrivia",
+      "target": "ES5",
+      "text": "export {}; class C extends /*😀*/await<string /*😀*/> {}",
+      "nodes": [
+        {
+          "depth": 4,
+          "kind": "ParenthesizedExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "CallExpression",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 6,
+          "kind": "PartiallyEmittedExpression",
+          "pos": -1,
+          "end": 11,
+          "flags": 16,
+          "expression": {
+            "kind": "PartiallyEmittedExpression",
+            "pos": -1,
+            "end": 56
+          }
+        },
+        {
+          "depth": 7,
+          "kind": "PartiallyEmittedExpression",
+          "pos": -1,
+          "end": 56,
+          "flags": 16,
+          "expression": {
+            "kind": "FunctionExpression",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 16,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "Identifier",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 11,
+          "kind": "PartiallyEmittedExpression",
+          "pos": -1,
+          "end": 56,
+          "flags": 16,
+          "expression": {
+            "kind": "Identifier",
+            "pos": 16,
+            "end": 18
+          }
+        }
+      ],
+      "output": "var __extends = (this && this.__extends) || (function () {\n    var extendStatics = function (d, b) {\n        extendStatics = Object.setPrototypeOf ||\n            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||\n            function (d, b) { for (var p in b) if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p]; };\n        return extendStatics(d, b);\n    };\n    return function (d, b) {\n        if (typeof b !== \"function\" && b !== null)\n            throw new TypeError(\"Class extends value \" + String(b) + \" is not a constructor or null\");\n        extendStatics(d, b);\n        function __() { this.constructor = d; }\n        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());\n    };\n})();\nvar C = /** @class */ (function (_super) {\n    __extends(C, _super); /*😀*/\n    function C() {\n        return _super !== null && _super.apply(this, arguments) || this;\n    }\n    return C;\n}(string /*😀*/));\nexport {};\n//# sourceMappingURL=module.js.map",
+      "map": "{\"version\":3,\"file\":\"module.js\",\"sourceRoot\":\"\",\"sources\":[\"module.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;AAAW;IAA4B,qBAAM,CAAC,MAAM;IAAzC;;IAA4C,CAAC;IAAD,QAAC;AAAD,CAAC,AAA7C,CAA4B,MAAM,CAAC,MAAM,GAAI\"}"
+    },
+    {
+      "label": "heritageTrivia",
+      "target": "ES2015",
+      "text": "export {}; class C extends /*😀*/await<string /*😀*/> {}",
+      "nodes": [
+        {
+          "depth": 2,
+          "kind": "HeritageClause",
+          "pos": 18,
+          "end": 53,
+          "flags": 327680
+        },
+        {
+          "depth": 3,
+          "kind": "ExpressionWithTypeArguments",
+          "pos": 39,
+          "end": 45,
+          "flags": 65536,
+          "expression": {
+            "kind": "Identifier",
+            "pos": 39,
+            "end": 45
+          }
+        }
+      ],
+      "output": "class C extends string /*😀*/ {\n}\nexport {};\n//# sourceMappingURL=module.js.map",
+      "map": "{\"version\":3,\"file\":\"module.js\",\"sourceRoot\":\"\",\"sources\":[\"module.ts\"],\"names\":[],\"mappings\":\"AAAW,MAAM,CAAE,SAAoB,MAAM,CAAC,MAAO;CAAG\"}"
+    },
+    {
+      "label": "heritageTrivia",
+      "target": "ES2022",
+      "text": "export {}; class C extends /*😀*/await<string /*😀*/> {}",
+      "nodes": [
+        {
+          "depth": 2,
+          "kind": "HeritageClause",
+          "pos": 18,
+          "end": 53,
+          "flags": 327680
+        },
+        {
+          "depth": 3,
+          "kind": "ExpressionWithTypeArguments",
+          "pos": 39,
+          "end": 45,
+          "flags": 65536,
+          "expression": {
+            "kind": "Identifier",
+            "pos": 39,
+            "end": 45
+          }
+        }
+      ],
+      "output": "class C extends string /*😀*/ {\n}\nexport {};\n//# sourceMappingURL=module.js.map",
+      "map": "{\"version\":3,\"file\":\"module.js\",\"sourceRoot\":\"\",\"sources\":[\"module.ts\"],\"names\":[],\"mappings\":\"AAAW,MAAM,CAAE,SAAoB,MAAM,CAAC,MAAO;CAAG\"}"
+    },
+    {
+      "label": "paren",
+      "target": "ES5",
+      "text": "export const z = (x /*c*/);",
+      "nodes": [
+        {
+          "depth": 4,
+          "kind": "ParenthesizedExpression",
+          "pos": 16,
+          "end": 26,
+          "flags": 0,
+          "expression": {
+            "kind": "Identifier",
+            "pos": 18,
+            "end": 19
+          }
+        }
+      ],
+      "output": "export var z = (x /*c*/);\n//# sourceMappingURL=module.js.map",
+      "map": "{\"version\":3,\"file\":\"module.js\",\"sourceRoot\":\"\",\"sources\":[\"module.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,IAAM,CAAC,GAAG,CAAC,CAAC,CAAC,KAAK,CAAC,CAAC\"}"
+    },
+    {
+      "label": "paren",
+      "target": "ES2015",
+      "text": "export const z = (x /*c*/);",
+      "nodes": [
+        {
+          "depth": 4,
+          "kind": "ParenthesizedExpression",
+          "pos": 16,
+          "end": 26,
+          "flags": 0,
+          "expression": {
+            "kind": "Identifier",
+            "pos": 18,
+            "end": 19
+          }
+        }
+      ],
+      "output": "export const z = (x /*c*/);\n//# sourceMappingURL=module.js.map",
+      "map": "{\"version\":3,\"file\":\"module.js\",\"sourceRoot\":\"\",\"sources\":[\"module.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,CAAC,GAAG,CAAC,CAAC,CAAC,KAAK,CAAC,CAAC\"}"
+    },
+    {
+      "label": "paren",
+      "target": "ES2022",
+      "text": "export const z = (x /*c*/);",
+      "nodes": [
+        {
+          "depth": 4,
+          "kind": "ParenthesizedExpression",
+          "pos": 16,
+          "end": 26,
+          "flags": 0,
+          "expression": {
+            "kind": "Identifier",
+            "pos": 18,
+            "end": 19
+          }
+        }
+      ],
+      "output": "export const z = (x /*c*/);\n//# sourceMappingURL=module.js.map",
+      "map": "{\"version\":3,\"file\":\"module.js\",\"sourceRoot\":\"\",\"sources\":[\"module.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,CAAC,GAAG,CAAC,CAAC,CAAC,KAAK,CAAC,CAAC\"}"
+    },
+    {
+      "label": "decorator",
+      "target": "ES5",
+      "text": "@(this?.x) class C {} export {C};",
+      "nodes": [
+        {
+          "depth": 11,
+          "kind": "ParenthesizedExpression",
+          "pos": 1,
+          "end": 10,
+          "flags": 16,
+          "expression": {
+            "kind": "CallExpression",
+            "pos": -1,
+            "end": -1
+          },
+          "original": {
+            "kind": "ParenthesizedExpression",
+            "pos": 1,
+            "end": 10
+          }
+        },
+        {
+          "depth": 13,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "ParenthesizedExpression",
+            "pos": 2,
+            "end": 9
+          },
+          "original": {
+            "kind": "PropertyAccessExpression",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 14,
+          "kind": "ParenthesizedExpression",
+          "pos": 2,
+          "end": 9,
+          "flags": 16,
+          "expression": {
+            "kind": "ConditionalExpression",
+            "pos": 2,
+            "end": 9
+          },
+          "original": {
+            "kind": "ParenthesizedExpression",
+            "pos": 2,
+            "end": 9
+          }
+        },
+        {
+          "depth": 15,
+          "kind": "ConditionalExpression",
+          "pos": 2,
+          "end": 9,
+          "flags": 16
+        },
+        {
+          "depth": 16,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "ThisKeyword",
+            "pos": 2,
+            "end": 6
+          },
+          "original": {
+            "kind": "PropertyAccessExpression",
+            "pos": 2,
+            "end": 9
+          }
+        },
+        {
+          "depth": 11,
+          "kind": "ParenthesizedExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "CallExpression",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 13,
+          "kind": "PartiallyEmittedExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "PartiallyEmittedExpression",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 14,
+          "kind": "PartiallyEmittedExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "FunctionExpression",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 18,
+          "kind": "PartiallyEmittedExpression",
+          "pos": -1,
+          "end": 21,
+          "flags": 16,
+          "expression": {
+            "kind": "Identifier",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 9,
+          "kind": "ParenthesizedExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "FunctionExpression",
+            "pos": -1,
+            "end": -1
+          },
+          "original": {
+            "kind": "ParenthesizedExpression",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 15,
+          "kind": "ConditionalExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16
+        },
+        {
+          "depth": 17,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "Identifier",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 17,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "Identifier",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 16,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "Identifier",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 15,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "Identifier",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 15,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "Identifier",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 15,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "Identifier",
+            "pos": -1,
+            "end": -1
+          }
+        }
+      ],
+      "output": "var __esDecorate = (this && this.__esDecorate) || function (ctor, descriptorIn, decorators, contextIn, initializers, extraInitializers) {\n    function accept(f) { if (f !== void 0 && typeof f !== \"function\") throw new TypeError(\"Function expected\"); return f; }\n    var kind = contextIn.kind, key = kind === \"getter\" ? \"get\" : kind === \"setter\" ? \"set\" : \"value\";\n    var target = !descriptorIn && ctor ? contextIn[\"static\"] ? ctor : ctor.prototype : null;\n    var descriptor = descriptorIn || (target ? Object.getOwnPropertyDescriptor(target, contextIn.name) : {});\n    var _, done = false;\n    for (var i = decorators.length - 1; i >= 0; i--) {\n        var context = {};\n        for (var p in contextIn) context[p] = p === \"access\" ? {} : contextIn[p];\n        for (var p in contextIn.access) context.access[p] = contextIn.access[p];\n        context.addInitializer = function (f) { if (done) throw new TypeError(\"Cannot add initializers after decoration has completed\"); extraInitializers.push(accept(f || null)); };\n        var result = (0, decorators[i])(kind === \"accessor\" ? { get: descriptor.get, set: descriptor.set } : descriptor[key], context);\n        if (kind === \"accessor\") {\n            if (result === void 0) continue;\n            if (result === null || typeof result !== \"object\") throw new TypeError(\"Object expected\");\n            if (_ = accept(result.get)) descriptor.get = _;\n            if (_ = accept(result.set)) descriptor.set = _;\n            if (_ = accept(result.init)) initializers.unshift(_);\n        }\n        else if (_ = accept(result)) {\n            if (kind === \"field\") initializers.unshift(_);\n            else descriptor[key] = _;\n        }\n    }\n    if (target) Object.defineProperty(target, contextIn.name, descriptor);\n    done = true;\n};\nvar __runInitializers = (this && this.__runInitializers) || function (thisArg, initializers, value) {\n    var useValue = arguments.length > 2;\n    for (var i = 0; i < initializers.length; i++) {\n        value = useValue ? initializers[i].call(thisArg, value) : initializers[i].call(thisArg);\n    }\n    return useValue ? value : void 0;\n};\nvar __setFunctionName = (this && this.__setFunctionName) || function (f, name, prefix) {\n    if (typeof name === \"symbol\") name = name.description ? \"[\".concat(name.description, \"]\") : \"\";\n    return Object.defineProperty(f, \"name\", { configurable: true, value: prefix ? \"\".concat(prefix, \" \", name) : name });\n};\nvar _this = this;\nvar C = function () {\n    var _classDecorators = [((_this === null || _this === void 0 ? void 0 : _this.x).bind(_this))];\n    var _classDescriptor;\n    var _classExtraInitializers = [];\n    var _classThis;\n    var C = _classThis = /** @class */ (function () {\n        function C_1() {\n        }\n        return C_1;\n    }());\n    __setFunctionName(_classThis, \"C\");\n    (function () {\n        var _metadata = typeof Symbol === \"function\" && Symbol.metadata ? Object.create(null) : void 0;\n        __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: \"class\", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);\n        C = _classThis = _classDescriptor.value;\n        if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });\n        __runInitializers(_classThis, _classExtraInitializers);\n    })();\n    return C = _classThis;\n}();\nexport { C };\n//# sourceMappingURL=module.js.map",
+      "map": "{\"version\":3,\"file\":\"module.js\",\"sourceRoot\":\"\",\"sources\":[\"module.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAAA,iBAAiC;AAAtB;4BAAV,CAAC,CAAA,KAAI,aAAJ,KAAI,uBAAJ,KAAI,CAAE,CAAC,CAAA,MAAP,KAAI,EAAI;;;;;;QAAU,CAAC;QAAD,UAAC;IAAD,CAAC;;;;QAAV,6KAAU;;;QAAJ,uDAAC;;;IAAG;AAAC,OAAO,EAAC,CAAC,EAAC,CAAC\"}"
+    },
+    {
+      "label": "decorator",
+      "target": "ES2015",
+      "text": "@(this?.x) class C {} export {C};",
+      "nodes": [
+        {
+          "depth": 5,
+          "kind": "ParenthesizedExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "ArrowFunction",
+            "pos": -1,
+            "end": -1
+          },
+          "original": {
+            "kind": "ParenthesizedExpression",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 12,
+          "kind": "ParenthesizedExpression",
+          "pos": 1,
+          "end": 10,
+          "flags": 16,
+          "expression": {
+            "kind": "CallExpression",
+            "pos": -1,
+            "end": -1
+          },
+          "original": {
+            "kind": "ParenthesizedExpression",
+            "pos": 1,
+            "end": 10
+          }
+        },
+        {
+          "depth": 14,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "ParenthesizedExpression",
+            "pos": 2,
+            "end": 9
+          },
+          "original": {
+            "kind": "PropertyAccessExpression",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 15,
+          "kind": "ParenthesizedExpression",
+          "pos": 2,
+          "end": 9,
+          "flags": 16,
+          "expression": {
+            "kind": "ConditionalExpression",
+            "pos": 2,
+            "end": 9
+          },
+          "original": {
+            "kind": "ParenthesizedExpression",
+            "pos": 2,
+            "end": 9
+          }
+        },
+        {
+          "depth": 16,
+          "kind": "ConditionalExpression",
+          "pos": 2,
+          "end": 9,
+          "flags": 16
+        },
+        {
+          "depth": 17,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "ThisKeyword",
+            "pos": 2,
+            "end": 6
+          },
+          "original": {
+            "kind": "PropertyAccessExpression",
+            "pos": 2,
+            "end": 9
+          }
+        },
+        {
+          "depth": 10,
+          "kind": "ParenthesizedExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "ArrowFunction",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 16,
+          "kind": "ConditionalExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16
+        },
+        {
+          "depth": 18,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "Identifier",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 18,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "Identifier",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 17,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "Identifier",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 16,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "Identifier",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 16,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "Identifier",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 16,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "Identifier",
+            "pos": -1,
+            "end": -1
+          }
+        }
+      ],
+      "output": "var __esDecorate = (this && this.__esDecorate) || function (ctor, descriptorIn, decorators, contextIn, initializers, extraInitializers) {\n    function accept(f) { if (f !== void 0 && typeof f !== \"function\") throw new TypeError(\"Function expected\"); return f; }\n    var kind = contextIn.kind, key = kind === \"getter\" ? \"get\" : kind === \"setter\" ? \"set\" : \"value\";\n    var target = !descriptorIn && ctor ? contextIn[\"static\"] ? ctor : ctor.prototype : null;\n    var descriptor = descriptorIn || (target ? Object.getOwnPropertyDescriptor(target, contextIn.name) : {});\n    var _, done = false;\n    for (var i = decorators.length - 1; i >= 0; i--) {\n        var context = {};\n        for (var p in contextIn) context[p] = p === \"access\" ? {} : contextIn[p];\n        for (var p in contextIn.access) context.access[p] = contextIn.access[p];\n        context.addInitializer = function (f) { if (done) throw new TypeError(\"Cannot add initializers after decoration has completed\"); extraInitializers.push(accept(f || null)); };\n        var result = (0, decorators[i])(kind === \"accessor\" ? { get: descriptor.get, set: descriptor.set } : descriptor[key], context);\n        if (kind === \"accessor\") {\n            if (result === void 0) continue;\n            if (result === null || typeof result !== \"object\") throw new TypeError(\"Object expected\");\n            if (_ = accept(result.get)) descriptor.get = _;\n            if (_ = accept(result.set)) descriptor.set = _;\n            if (_ = accept(result.init)) initializers.unshift(_);\n        }\n        else if (_ = accept(result)) {\n            if (kind === \"field\") initializers.unshift(_);\n            else descriptor[key] = _;\n        }\n    }\n    if (target) Object.defineProperty(target, contextIn.name, descriptor);\n    done = true;\n};\nvar __runInitializers = (this && this.__runInitializers) || function (thisArg, initializers, value) {\n    var useValue = arguments.length > 2;\n    for (var i = 0; i < initializers.length; i++) {\n        value = useValue ? initializers[i].call(thisArg, value) : initializers[i].call(thisArg);\n    }\n    return useValue ? value : void 0;\n};\nvar __setFunctionName = (this && this.__setFunctionName) || function (f, name, prefix) {\n    if (typeof name === \"symbol\") name = name.description ? \"[\".concat(name.description, \"]\") : \"\";\n    return Object.defineProperty(f, \"name\", { configurable: true, value: prefix ? \"\".concat(prefix, \" \", name) : name });\n};\nlet C = (() => {\n    let _classDecorators = [((this === null || this === void 0 ? void 0 : this.x).bind(this))];\n    let _classDescriptor;\n    let _classExtraInitializers = [];\n    let _classThis;\n    var C = _classThis = class {\n    };\n    __setFunctionName(_classThis, \"C\");\n    (() => {\n        const _metadata = typeof Symbol === \"function\" && Symbol.metadata ? Object.create(null) : void 0;\n        __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: \"class\", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);\n        C = _classThis = _classDescriptor.value;\n        if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });\n        __runInitializers(_classThis, _classExtraInitializers);\n    })();\n    return C = _classThis;\n})();\nexport { C };\n//# sourceMappingURL=module.js.map",
+      "map": "{\"version\":3,\"file\":\"module.js\",\"sourceRoot\":\"\",\"sources\":[\"module.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IAAiB,CAAC;4BAAjB,CAAC,CAAA,IAAI,aAAJ,IAAI,uBAAJ,IAAI,CAAE,CAAC,CAAA,MAAP,IAAI,EAAI;;;;;;;;;QAAC,6KAAU;;;QAAJ,uDAAC;;;;AAAI,OAAO,EAAC,CAAC,EAAC,CAAC\"}"
+    },
+    {
+      "label": "decorator",
+      "target": "ES2022",
+      "text": "@(this?.x) class C {} export {C};",
+      "nodes": [
+        {
+          "depth": 5,
+          "kind": "ParenthesizedExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "ArrowFunction",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 12,
+          "kind": "ParenthesizedExpression",
+          "pos": 1,
+          "end": 10,
+          "flags": 16,
+          "expression": {
+            "kind": "CallExpression",
+            "pos": -1,
+            "end": -1
+          },
+          "original": {
+            "kind": "ParenthesizedExpression",
+            "pos": 1,
+            "end": 10
+          }
+        },
+        {
+          "depth": 14,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "ParenthesizedExpression",
+            "pos": 2,
+            "end": 9
+          }
+        },
+        {
+          "depth": 15,
+          "kind": "ParenthesizedExpression",
+          "pos": 2,
+          "end": 9,
+          "flags": 16,
+          "expression": {
+            "kind": "PropertyAccessExpression",
+            "pos": 2,
+            "end": 9
+          }
+        },
+        {
+          "depth": 16,
+          "kind": "PropertyAccessExpression",
+          "pos": 2,
+          "end": 9,
+          "flags": 64,
+          "expression": {
+            "kind": "ThisKeyword",
+            "pos": 2,
+            "end": 6
+          }
+        },
+        {
+          "depth": 17,
+          "kind": "ConditionalExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16
+        },
+        {
+          "depth": 19,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "Identifier",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 19,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "Identifier",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 18,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "Identifier",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 17,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "Identifier",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 17,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "Identifier",
+            "pos": -1,
+            "end": -1
+          }
+        },
+        {
+          "depth": 17,
+          "kind": "PropertyAccessExpression",
+          "pos": -1,
+          "end": -1,
+          "flags": 16,
+          "expression": {
+            "kind": "Identifier",
+            "pos": -1,
+            "end": -1
+          }
+        }
+      ],
+      "output": "var __esDecorate = (this && this.__esDecorate) || function (ctor, descriptorIn, decorators, contextIn, initializers, extraInitializers) {\n    function accept(f) { if (f !== void 0 && typeof f !== \"function\") throw new TypeError(\"Function expected\"); return f; }\n    var kind = contextIn.kind, key = kind === \"getter\" ? \"get\" : kind === \"setter\" ? \"set\" : \"value\";\n    var target = !descriptorIn && ctor ? contextIn[\"static\"] ? ctor : ctor.prototype : null;\n    var descriptor = descriptorIn || (target ? Object.getOwnPropertyDescriptor(target, contextIn.name) : {});\n    var _, done = false;\n    for (var i = decorators.length - 1; i >= 0; i--) {\n        var context = {};\n        for (var p in contextIn) context[p] = p === \"access\" ? {} : contextIn[p];\n        for (var p in contextIn.access) context.access[p] = contextIn.access[p];\n        context.addInitializer = function (f) { if (done) throw new TypeError(\"Cannot add initializers after decoration has completed\"); extraInitializers.push(accept(f || null)); };\n        var result = (0, decorators[i])(kind === \"accessor\" ? { get: descriptor.get, set: descriptor.set } : descriptor[key], context);\n        if (kind === \"accessor\") {\n            if (result === void 0) continue;\n            if (result === null || typeof result !== \"object\") throw new TypeError(\"Object expected\");\n            if (_ = accept(result.get)) descriptor.get = _;\n            if (_ = accept(result.set)) descriptor.set = _;\n            if (_ = accept(result.init)) initializers.unshift(_);\n        }\n        else if (_ = accept(result)) {\n            if (kind === \"field\") initializers.unshift(_);\n            else descriptor[key] = _;\n        }\n    }\n    if (target) Object.defineProperty(target, contextIn.name, descriptor);\n    done = true;\n};\nvar __runInitializers = (this && this.__runInitializers) || function (thisArg, initializers, value) {\n    var useValue = arguments.length > 2;\n    for (var i = 0; i < initializers.length; i++) {\n        value = useValue ? initializers[i].call(thisArg, value) : initializers[i].call(thisArg);\n    }\n    return useValue ? value : void 0;\n};\nlet C = (() => {\n    let _classDecorators = [((this?.x).bind(this))];\n    let _classDescriptor;\n    let _classExtraInitializers = [];\n    let _classThis;\n    var C = class {\n        static { _classThis = this; }\n        static {\n            const _metadata = typeof Symbol === \"function\" && Symbol.metadata ? Object.create(null) : void 0;\n            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: \"class\", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);\n            C = _classThis = _classDescriptor.value;\n            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });\n            __runInitializers(_classThis, _classExtraInitializers);\n        }\n    };\n    return C = _classThis;\n})();\nexport { C };\n//# sourceMappingURL=module.js.map",
+      "map": "{\"version\":3,\"file\":\"module.js\",\"sourceRoot\":\"\",\"sources\":[\"module.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IAAiB,CAAC;4BAAjB,CAAC,CAAA,IAAI,EAAE,CAAC,CAAA,MAAP,IAAI,EAAI;;;;;;;;YAAC,6KAAU;;;YAAJ,uDAAC;;;;;AAAI,OAAO,EAAC,CAAC,EAAC,CAAC\"}"
+    }
+  ]
+}

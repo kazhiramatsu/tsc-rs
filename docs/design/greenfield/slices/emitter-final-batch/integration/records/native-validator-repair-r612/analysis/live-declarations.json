@@ -1,0 +1,32 @@
+[
+  {
+    "old": "pub fn resolve(",
+    "current": "pub fn resolve<'j0, 'j1>(",
+    "exact_declaration_lines": [
+      [
+        805,
+        "pub fn resolve<'j0, 'j1>("
+      ]
+    ]
+  },
+  {
+    "old": "pub fn resolve_with_facts(",
+    "current": "pub fn resolve_with_facts<'j0, 'j1>(",
+    "exact_declaration_lines": [
+      [
+        924,
+        "pub fn resolve_with_facts<'j0, 'j1>("
+      ]
+    ]
+  },
+  {
+    "old": "pub fn resolve_type_reference(",
+    "current": "pub fn resolve_type_reference<'j0, 'j1>(",
+    "exact_declaration_lines": [
+      [
+        2111,
+        "pub fn resolve_type_reference<'j0, 'j1>("
+      ]
+    ]
+  }
+]

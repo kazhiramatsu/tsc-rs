@@ -1,0 +1,6874 @@
+use std::collections::{BTreeMap, BTreeSet};
+
+#[test]
+fn jsx_transforms_preserve_js_option_and_literal_values() {
+    let fixture: serde_json::Value =
+        serde_json::from_str(include_str!("../../fixtures/utf16-jsx-name-values.json")).unwrap();
+    let js = |value: &serde_json::Value| {
+        tsc_diagnostics::JsString::from_code_units(
+            &value
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|unit| u16::try_from(unit.as_u64().unwrap()).unwrap())
+                .collect::<Vec<_>>(),
+        )
+    };
+    for case in fixture["cases"].as_array().unwrap() {
+        let parsed = parse_source_file(
+            js(&case["file_name"]),
+            case["source"].as_str().unwrap(),
+            ParseOptions {
+                language_variant: LanguageVariant::Jsx,
+                ..Default::default()
+            },
+            None,
+        );
+        assert!(parsed.parse_diagnostics.is_empty(), "{}", case["case_id"]);
+        let settings = &case["settings"];
+        let option = |name: &str| settings.get(name).map(js);
+        let options = CompilerOptions {
+            target: Some(ScriptTarget::ES2015.bits()),
+            module: Some(ModuleKind::ES_NEXT.bits()),
+            jsx: Some(settings["jsx"].as_i64().unwrap() as i32),
+            react_namespace: option("reactNamespace"),
+            jsx_factory: option("jsxFactory"),
+            jsx_fragment_factory: option("jsxFragmentFactory"),
+            jsx_import_source: option("jsxImportSource"),
+            always_strict: Some(false),
+            ..Default::default()
+        };
+        let resolver = LegacyScriptJsxResolver;
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+        let mut result = transform_nodes(
+            arena,
+            vec![TransformRoot::SourceFile(source)],
+            vec![
+                transform_type_script(&options, &resolver),
+                transform_jsx(&options, &resolver),
+            ],
+            false,
+        )
+        .unwrap_or_else(|error| panic!("{}: {error:?}", case["case_id"]));
+        let printed = create_printer(
+            PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
+        .unwrap();
+        assert_eq!(
+            &*printed.text_utf16(),
+            js(&case["output"]["text"]).to_utf16(),
+            "{}",
+            case["case_id"]
+        );
+    }
+}
+
+#[test]
+fn standard_decorator_runtime_names_and_helper_stems_match_typescript() {
+    let fixture: serde_json::Value = serde_json::from_str(include_str!(
+        "../../fixtures/utf16-decorator-name-values.json"
+    ))
+    .unwrap();
+    for case in fixture["cases"].as_array().unwrap() {
+        let target = ScriptTarget::from_bits(case["target"].as_i64().unwrap() as i32);
+        let parsed = parse_source_file(
+            "/project/input.ts",
+            case["source"].as_str().unwrap(),
+            ParseOptions {
+                script_target: target,
+                ..Default::default()
+            },
+            None,
+        );
+        assert!(parsed.parse_diagnostics.is_empty(), "{}", case["case_id"]);
+        let resolver = EnumBindingResolver::new(&parsed);
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+        let options = CompilerOptions {
+            target: Some(target.bits()),
+            use_define_for_class_fields: Some(true),
+            always_strict: Some(false),
+            ..Default::default()
+        };
+        let mut result = transform_nodes(
+            arena,
+            vec![TransformRoot::SourceFile(source)],
+            vec![
+                transform_type_script(&options, &resolver),
+                transform_standard_decorators(&options),
+                transform_class_fields(&options, &resolver),
+            ],
+            false,
+        )
+        .unwrap_or_else(|error| panic!("{}: {error:?}", case["case_id"]));
+        let printed =
+            create_printer(PrinterOptions::new(NewLineKind::LineFeed).with_target(target))
+                .print(&mut result, PrintRequest::SourceFile(source), None)
+                .unwrap();
+        assert_eq!(
+            printed.text(),
+            case["expected"].as_str().unwrap(),
+            "{}",
+            case["case_id"]
+        );
+    }
+}
+
+#[test]
+fn module_transforms_preserve_js_name_values() {
+    let fixture: serde_json::Value =
+        serde_json::from_str(include_str!("../../fixtures/utf16-module-name-values.json")).unwrap();
+    for case in fixture["cases"].as_array().unwrap() {
+        let parsed = parse_source_file(
+            "/project/input.ts",
+            case["source"].as_str().unwrap(),
+            Default::default(),
+            None,
+        );
+        assert!(parsed.parse_diagnostics.is_empty(), "{}", case["case_id"]);
+        let resolver = EnumBindingResolver::new(&parsed);
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+        let module = i32::try_from(case["module"].as_i64().unwrap()).unwrap();
+        let options = CompilerOptions {
+            target: Some(ScriptTarget::ES2015.bits()),
+            module: Some(module),
+            rewrite_relative_import_extensions: Some(true),
+            always_strict: Some(false),
+            ..CompilerOptions::default()
+        };
+        let module_transform = if module == ModuleKind::SYSTEM.bits() {
+            transform_system_module(&options, &resolver, None)
+        } else {
+            transform_module(&options, &resolver)
+        };
+        let mut result = transform_nodes(
+            arena,
+            vec![TransformRoot::SourceFile(source)],
+            vec![transform_type_script(&options, &resolver), module_transform],
+            false,
+        )
+        .unwrap_or_else(|error| panic!("{}: {error:?}", case["case_id"]));
+        let printed = create_printer(
+            PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
+        .unwrap();
+        assert_eq!(
+            printed.text(),
+            case["expected"].as_str().unwrap(),
+            "{}",
+            case["case_id"]
+        );
+    }
+}
+
+#[test]
+fn preflight_admits_only_parser_owned_literal_recovery() {
+    let fixture: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../syntax/tests/fixtures/utf16-recovery-boundary.json"
+    ))
+    .unwrap();
+    for case in fixture["cases"].as_array().unwrap() {
+        let file_name = case["file_name"].as_str().unwrap();
+        let parsed = parse_source_file(
+            file_name,
+            case["source"].as_str().unwrap(),
+            ParseOptions {
+                javascript_file: file_name.ends_with(".js"),
+                language_variant: if file_name.ends_with(".tsx") {
+                    LanguageVariant::Jsx
+                } else {
+                    LanguageVariant::Standard
+                },
+                ..ParseOptions::default()
+            },
+            None,
+        );
+        let diagnostics = parsed.parse_diagnostics.clone();
+        let recovery = parsed.parse_recovery().clone();
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, None);
+        let result = super::preflight_source(&arena, source, true, true, true);
+        if case["literal_only_contract"].as_bool().unwrap() {
+            assert!(result.is_ok(), "{}: {result:?}", case["case_id"]);
+        } else {
+            assert!(
+                matches!(
+                    result,
+                    Err(crate::TransformError::ParseDiagnosticsDeferred { .. })
+                ),
+                "{}: {result:?}",
+                case["case_id"]
+            );
+        }
+        assert_eq!(
+            arena.source(source).unwrap().syntax().parse_diagnostics,
+            diagnostics
+        );
+        assert_eq!(
+            arena.source(source).unwrap().syntax().parse_recovery(),
+            &recovery
+        );
+    }
+}
+
+#[test]
+fn clearing_retained_messages_does_not_erase_structural_recovery() {
+    let mut parsed = parse_source_file("main.ts", "const = 1;", Default::default(), None);
+    assert!(!parsed.parse_diagnostics.is_empty());
+    parsed.parse_diagnostics.clear();
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, None);
+    assert!(matches!(
+        super::preflight_source(&arena, source, true, true, true),
+        Err(crate::TransformError::ParseDiagnosticsDeferred {
+            count: 0,
+            recovery_events,
+            ..
+        }) if recovery_events > 0
+    ));
+}
+
+#[test]
+fn module_identifier_bases_match_typescript_utf16_replacement() {
+    let fixture: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../program/tests/fixtures/utf16-generated-module-names.json"
+    ))
+    .unwrap();
+    for case in fixture["cases"].as_array().unwrap() {
+        let value: tsc_types::JsString = case["value_utf16"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|unit| u16::try_from(unit.as_u64().unwrap()).unwrap())
+            .collect();
+        assert_eq!(
+            super::generated_module_name(&value),
+            case["expected"]["generated_name"].as_str().unwrap(),
+            "{}",
+            case["case_id"]
+        );
+    }
+}
+
+use tsc_program::SourceFileId;
+use tsc_syntax::{
+    for_each_child, parse_source_file, LanguageVariant, NodeData, NodeId, ParseOptions,
+};
+use tsc_types::{CompilerOptions, ModuleKind, NodeCheckFlags, ScriptTarget};
+
+use super::{
+    constructor_prologue,
+    es2017::transform_es2017,
+    es2021::{transform_es2016, transform_es2020},
+    es_next::transform_es_next,
+    get_script_transformers, initialize_transform_flags,
+    jsx::transform_jsx,
+    legacy_decorators::transform_legacy_decorators,
+    standard_decorators::transform_standard_decorators,
+    system::transform_system_module,
+    transform_class_fields, transform_module, transform_type_script,
+    CommonJsFileLevelGeneratedBindingExports,
+};
+use crate::{
+    create_printer, transform_nodes, EmitConstantValue, EmitEnumMemberValue,
+    EmitExportContainerMode, EmitFlags, EmitResolver, EmitResolverError, EmitResolverNode,
+    JavaScriptNumber, NewLineKind, PrintRequest, PrinterOptions, TransformArena, TransformFlags,
+    TransformRoot,
+};
+
+struct EnumBindingResolver {
+    declarations_by_name: BTreeMap<NodeId, NodeId>,
+    enum_member_values: BTreeMap<NodeId, EmitEnumMemberValue>,
+    loop_scoped_private_names: BTreeSet<NodeId>,
+}
+
+struct ExportedVariableResolver {
+    declaration_by_reference: BTreeMap<NodeId, NodeId>,
+    direct_export_references: BTreeMap<NodeId, NodeId>,
+}
+
+/// Minimal binder projection for recovery tests whose syntactic export is
+/// embedded below the SourceFile statement list. Production module-info
+/// collection must stay shallow; the resolver, like tsc's checker, can still
+/// identify a reference whose export container is the source file.
+struct SourceExportContainerResolver {
+    containers_by_reference: BTreeMap<NodeId, NodeId>,
+}
+
+/// Resolver projection for a named default declaration merged with a
+/// namespace. The checker reports the SourceFile as the export container for
+/// the namespace IIFE's parsed `Foo` references even though the declaration's
+/// syntactic export name is `default`.
+struct SourceNamedExportContainerResolver {
+    containers_by_reference: BTreeMap<NodeId, NodeId>,
+}
+
+struct ImportEqualsCallResolver {
+    declaration_by_reference: BTreeMap<NodeId, NodeId>,
+}
+
+struct DefaultImportCallResolver {
+    declaration_by_reference: BTreeMap<NodeId, NodeId>,
+}
+
+struct ConstructorReferenceResolver {
+    class: NodeId,
+    private_method: NodeId,
+    constructor_references: BTreeSet<NodeId>,
+}
+
+struct AmbientFunctionExportResolver {
+    declaration_by_reference: BTreeMap<NodeId, NodeId>,
+}
+
+#[test]
+fn parsed_private_expression_flags_exclude_declaration_names() {
+    let parsed = parse_source_file(
+        "private-expression-flags.ts",
+        concat!(
+            "declare const dec: any, receiver: any;\n",
+            "class C {\n",
+            "    static #field = 1;\n",
+            "    @dec(receiver.#field) first() {}\n",
+            "    @dec(#field in receiver) second() {}\n",
+            "    @dec(class { #nested; }) third() {}\n",
+            "    @dec(receiver[#field]) fourth() {}\n",
+            "}\n",
+        ),
+        Default::default(),
+        None,
+    );
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    initialize_transform_flags(&mut arena, source).expect("initialize private expression flags");
+
+    let mut declaration = None;
+    let mut property_access = None;
+    let mut private_in = None;
+    let mut decorators = Vec::new();
+    let mut stack = vec![parsed.root];
+    while let Some(id) = stack.pop() {
+        let record = parsed.arena.node(id);
+        match &record.data {
+            NodeData::PropertyDeclaration(data)
+                if data.name.is_some_and(|name| {
+                    parsed.arena.node(name).kind == tsc_syntax::SyntaxKind::PrivateIdentifier
+                }) =>
+            {
+                declaration = arena.node_ref(source, id);
+            }
+            NodeData::PropertyAccessExpression(data)
+                if data.name.is_some_and(|name| {
+                    parsed.arena.node(name).kind == tsc_syntax::SyntaxKind::PrivateIdentifier
+                }) =>
+            {
+                property_access = arena.node_ref(source, id);
+            }
+            NodeData::BinaryExpression(data)
+                if data.left.is_some_and(|left| {
+                    parsed.arena.node(left).kind == tsc_syntax::SyntaxKind::PrivateIdentifier
+                }) && data.operator_token.is_some_and(|operator| {
+                    parsed.arena.node(operator).kind == tsc_syntax::SyntaxKind::InKeyword
+                }) =>
+            {
+                private_in = arena.node_ref(source, id);
+            }
+            NodeData::Decorator(_) => decorators.push(
+                arena
+                    .node_ref(source, id)
+                    .expect("mounted parsed decorator"),
+            ),
+            _ => {}
+        }
+        for_each_child(&parsed.arena, record, |child| {
+            stack.push(child);
+            false
+        });
+    }
+
+    let private_expression = TransformFlags::CONTAINS_PRIVATE_IDENTIFIER_IN_EXPRESSION;
+    assert!(
+        !arena
+            .transform_flags(declaration.expect("private declaration"))
+            .contains(private_expression),
+        "a private declaration name must not acquire the expression-only flag"
+    );
+    assert!(arena
+        .transform_flags(property_access.expect("private property access"))
+        .contains(private_expression));
+    assert!(arena
+        .transform_flags(private_in.expect("private in expression"))
+        .contains(private_expression));
+    assert_eq!(decorators.len(), 4);
+    assert_eq!(
+        decorators
+            .into_iter()
+            .filter(|decorator| arena
+                .transform_flags(*decorator)
+                .contains(private_expression))
+            .count(),
+        2,
+        "only tsc's property-access and private-in producers should flag decorators"
+    );
+}
+
+#[test]
+fn constructor_prologue_stops_before_strings_and_noncontiguous_custom_statements() {
+    // tsc-port: copyPrologue/copyStandardPrologue/copyCustomPrologue @6.0.3
+    // tsc-hash: 555445a3fd02a4b53bbc05f05e48729ca0f7208892d66dbc7985f51f3e897a8e
+    // tsc-span: _tsc.js:24827-24869
+    let parsed = parse_source_file(
+        "constructor-prologue.ts",
+        concat!(
+            "function owner() {\n",
+            "    \"standard\";\n",
+            "    custom();\n",
+            "    \"late\";\n",
+            "    late_custom();\n",
+            "    body();\n",
+            "}\n",
+        ),
+        Default::default(),
+        None,
+    );
+    let NodeData::SourceFile(source_file) = &parsed.arena.node(parsed.root).data else {
+        panic!("source file root");
+    };
+    let source_statements = parsed
+        .arena
+        .node_array(source_file.statements.expect("source statements"));
+    let NodeData::FunctionDeclaration(function) =
+        &parsed.arena.node(source_statements.nodes[0]).data
+    else {
+        panic!("function declaration");
+    };
+    let NodeData::Block(body) = &parsed
+        .arena
+        .node(function.body.expect("function body"))
+        .data
+    else {
+        panic!("function body block");
+    };
+    let statement_ids = parsed
+        .arena
+        .node_array(body.statements.expect("body statements"))
+        .nodes
+        .clone();
+
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let statements = statement_ids
+        .into_iter()
+        .map(|statement| arena.node_ref(source, statement).expect("body statement"))
+        .collect::<Vec<_>>();
+    arena
+        .metadata_mut(statements[1])
+        .add_flags(EmitFlags::CUSTOM_PROLOGUE);
+    arena
+        .metadata_mut(statements[3])
+        .add_flags(EmitFlags::CUSTOM_PROLOGUE);
+
+    let prologue = constructor_prologue(&arena, &statements).expect("constructor prologue");
+    assert_eq!(prologue.standard_end(), 1);
+    assert_eq!(prologue.custom_end(), 2);
+    assert_eq!(prologue.body_start(), 2);
+}
+
+impl AmbientFunctionExportResolver {
+    fn new(source: &tsc_syntax::SourceFile) -> Self {
+        let mut declarations_by_name = BTreeMap::<String, NodeId>::new();
+        let mut stack = vec![source.root];
+        while let Some(node) = stack.pop() {
+            if let NodeData::FunctionDeclaration(data) = &source.arena.node(node).data {
+                if let Some(NodeData::Identifier(identifier)) =
+                    data.name.map(|name| &source.arena.node(name).data)
+                {
+                    declarations_by_name.insert(identifier.text.clone(), node);
+                }
+            }
+            for_each_child(&source.arena, source.arena.node(node), |child| {
+                stack.push(child);
+                false
+            });
+        }
+        let mut declaration_by_reference = BTreeMap::new();
+        let mut stack = vec![source.root];
+        while let Some(node) = stack.pop() {
+            if let NodeData::Identifier(identifier) = &source.arena.node(node).data {
+                if let Some(declaration) = declarations_by_name.get(&identifier.text) {
+                    declaration_by_reference.insert(node, *declaration);
+                }
+            }
+            for_each_child(&source.arena, source.arena.node(node), |child| {
+                stack.push(child);
+                false
+            });
+        }
+        Self {
+            declaration_by_reference,
+        }
+    }
+}
+
+impl EmitResolver for AmbientFunctionExportResolver {
+    fn get_constant_value(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_referenced_value_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(self
+            .declaration_by_reference
+            .get(&node.node())
+            .copied()
+            .map(|declaration| EmitResolverNode::new(node.source(), declaration)))
+    }
+
+    fn get_referenced_export_container(
+        &self,
+        _node: EmitResolverNode,
+        _mode: EmitExportContainerMode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_referenced_import_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn is_referenced_alias_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(true)
+    }
+
+    fn is_value_alias_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(true)
+    }
+}
+
+impl ConstructorReferenceResolver {
+    fn new(source: &tsc_syntax::SourceFile) -> Self {
+        let mut class = None;
+        let mut private_method = None;
+        let mut constructor_references = BTreeSet::new();
+        let mut stack = vec![source.root];
+        while let Some(id) = stack.pop() {
+            let node = source.arena.node(id);
+            match &node.data {
+                NodeData::ClassDeclaration(data)
+                    if data.name.is_some_and(|name| {
+                        matches!(
+                            &source.arena.node(name).data,
+                            NodeData::Identifier(identifier) if identifier.text == "C"
+                        )
+                    }) =>
+                {
+                    class = Some(id);
+                }
+                NodeData::MethodDeclaration(data)
+                    if data.name.is_some_and(|name| {
+                        matches!(source.arena.node(name).data, NodeData::PrivateIdentifier(_))
+                    }) =>
+                {
+                    private_method = Some(id);
+                }
+                NodeData::Identifier(identifier) if identifier.text == "C" => {
+                    constructor_references.insert(id);
+                }
+                _ => {}
+            }
+            for_each_child(&source.arena, node, |child| {
+                stack.push(child);
+                false
+            });
+        }
+        Self {
+            class: class.expect("class C"),
+            private_method: private_method.expect("private method"),
+            constructor_references,
+        }
+    }
+}
+
+impl EmitResolver for ConstructorReferenceResolver {
+    fn has_node_check_flag(
+        &self,
+        node: EmitResolverNode,
+        flag: u32,
+    ) -> Result<bool, EmitResolverError> {
+        Ok((node.node() == self.private_method
+            && flag == NodeCheckFlags::CONTAINS_CONSTRUCTOR_REFERENCE.bits() as u32)
+            || (self.constructor_references.contains(&node.node())
+                && flag == NodeCheckFlags::CONSTRUCTOR_REFERENCE.bits() as u32))
+    }
+
+    fn get_referenced_value_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(self
+            .constructor_references
+            .contains(&node.node())
+            .then(|| EmitResolverNode::new(node.source(), self.class)))
+    }
+}
+
+fn collect_binding_declarations(
+    source: &tsc_syntax::SourceFile,
+    name: NodeId,
+    declaration: NodeId,
+    declarations: &mut Vec<(String, NodeId)>,
+) {
+    match &source.arena.node(name).data {
+        NodeData::Identifier(identifier) => {
+            declarations.push((identifier.text.clone(), declaration));
+        }
+        NodeData::ObjectBindingPattern(pattern) => {
+            for element in pattern
+                .elements
+                .map(|elements| source.arena.node_array(elements).nodes.as_slice())
+                .unwrap_or_default()
+            {
+                if let NodeData::BindingElement(binding) = &source.arena.node(*element).data {
+                    if let Some(name) = binding.name {
+                        collect_binding_declarations(source, name, *element, declarations);
+                    }
+                }
+            }
+        }
+        NodeData::ArrayBindingPattern(pattern) => {
+            for element in pattern
+                .elements
+                .map(|elements| source.arena.node_array(elements).nodes.as_slice())
+                .unwrap_or_default()
+            {
+                if let NodeData::BindingElement(binding) = &source.arena.node(*element).data {
+                    if let Some(name) = binding.name {
+                        collect_binding_declarations(source, name, *element, declarations);
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+impl ExportedVariableResolver {
+    fn new(source: &tsc_syntax::SourceFile) -> Self {
+        let mut declarations_by_name = BTreeMap::new();
+        let mut direct_exports = BTreeMap::new();
+        let NodeData::SourceFile(root) = &source.arena.node(source.root).data else {
+            panic!("source root");
+        };
+        for statement in root
+            .statements
+            .map(|statements| source.arena.node_array(statements).nodes.as_slice())
+            .unwrap_or_default()
+        {
+            let NodeData::VariableStatement(variable) = &source.arena.node(*statement).data else {
+                continue;
+            };
+            let direct = variable.modifiers.is_some_and(|modifiers| {
+                source
+                    .arena
+                    .node_array(modifiers)
+                    .nodes
+                    .iter()
+                    .any(|modifier| {
+                        source.arena.node(*modifier).kind == tsc_syntax::SyntaxKind::ExportKeyword
+                    })
+            });
+            let Some(list) = variable.declaration_list else {
+                continue;
+            };
+            let NodeData::VariableDeclarationList(list) = &source.arena.node(list).data else {
+                continue;
+            };
+            for declaration in list
+                .declarations
+                .map(|declarations| source.arena.node_array(declarations).nodes.as_slice())
+                .unwrap_or_default()
+            {
+                let NodeData::VariableDeclaration(variable) = &source.arena.node(*declaration).data
+                else {
+                    continue;
+                };
+                let Some(name) = variable.name else {
+                    continue;
+                };
+                let mut declarations = Vec::new();
+                collect_binding_declarations(source, name, *declaration, &mut declarations);
+                for (name, declaration) in declarations {
+                    declarations_by_name.insert(name.clone(), declaration);
+                    if direct {
+                        direct_exports.insert(name, declaration);
+                    }
+                }
+            }
+        }
+        let mut declaration_by_reference = BTreeMap::new();
+        let mut direct_export_references = BTreeMap::new();
+        let mut stack = vec![source.root];
+        while let Some(node) = stack.pop() {
+            if let NodeData::Identifier(identifier) = &source.arena.node(node).data {
+                if let Some(declaration) = declarations_by_name.get(&identifier.text) {
+                    declaration_by_reference.insert(node, *declaration);
+                    if direct_exports.contains_key(&identifier.text) {
+                        direct_export_references.insert(node, source.root);
+                    }
+                }
+            }
+            for_each_child(&source.arena, source.arena.node(node), |child| {
+                stack.push(child);
+                false
+            });
+        }
+        Self {
+            declaration_by_reference,
+            direct_export_references,
+        }
+    }
+}
+
+impl EmitResolver for ExportedVariableResolver {
+    fn get_constant_value(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_enum_member_value(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitEnumMemberValue>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_referenced_export_container(
+        &self,
+        node: EmitResolverNode,
+        _mode: EmitExportContainerMode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(self
+            .direct_export_references
+            .get(&node.node())
+            .copied()
+            .map(|container| EmitResolverNode::new(node.source(), container)))
+    }
+
+    fn get_referenced_import_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_referenced_value_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(self
+            .declaration_by_reference
+            .get(&node.node())
+            .copied()
+            .map(|declaration| EmitResolverNode::new(node.source(), declaration)))
+    }
+
+    fn is_instantiated_module(&self, _node: EmitResolverNode) -> Result<bool, EmitResolverError> {
+        Ok(true)
+    }
+
+    fn is_referenced_alias_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(true)
+    }
+
+    fn is_value_alias_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(true)
+    }
+}
+
+impl SourceExportContainerResolver {
+    fn new(source: &tsc_syntax::SourceFile) -> Self {
+        let mut exported_names = BTreeSet::new();
+        let mut stack = vec![source.root];
+        while let Some(node) = stack.pop() {
+            if let NodeData::VariableStatement(variable) = &source.arena.node(node).data {
+                let direct_export = variable.modifiers.is_some_and(|modifiers| {
+                    source
+                        .arena
+                        .node_array(modifiers)
+                        .nodes
+                        .iter()
+                        .any(|modifier| {
+                            source.arena.node(*modifier).kind
+                                == tsc_syntax::SyntaxKind::ExportKeyword
+                        })
+                });
+                if direct_export {
+                    if let Some(NodeData::VariableDeclarationList(list)) = variable
+                        .declaration_list
+                        .map(|list| &source.arena.node(list).data)
+                    {
+                        for declaration in list
+                            .declarations
+                            .map(|declarations| {
+                                source.arena.node_array(declarations).nodes.as_slice()
+                            })
+                            .unwrap_or_default()
+                        {
+                            let NodeData::VariableDeclaration(variable) =
+                                &source.arena.node(*declaration).data
+                            else {
+                                continue;
+                            };
+                            let Some(name) = variable.name else {
+                                continue;
+                            };
+                            let mut declarations = Vec::new();
+                            collect_binding_declarations(
+                                source,
+                                name,
+                                *declaration,
+                                &mut declarations,
+                            );
+                            exported_names.extend(declarations.into_iter().map(|(name, _)| name));
+                        }
+                    }
+                }
+            }
+            for_each_child(&source.arena, source.arena.node(node), |child| {
+                stack.push(child);
+                false
+            });
+        }
+
+        let mut containers_by_reference = BTreeMap::new();
+        let mut stack = vec![source.root];
+        while let Some(node) = stack.pop() {
+            if matches!(
+                &source.arena.node(node).data,
+                NodeData::Identifier(identifier) if exported_names.contains(&identifier.text)
+            ) {
+                containers_by_reference.insert(node, source.root);
+            }
+            for_each_child(&source.arena, source.arena.node(node), |child| {
+                stack.push(child);
+                false
+            });
+        }
+        Self {
+            containers_by_reference,
+        }
+    }
+}
+
+impl EmitResolver for SourceExportContainerResolver {
+    fn get_constant_value(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_referenced_export_container(
+        &self,
+        node: EmitResolverNode,
+        _mode: EmitExportContainerMode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(self
+            .containers_by_reference
+            .get(&node.node())
+            .copied()
+            .map(|container| EmitResolverNode::new(node.source(), container)))
+    }
+
+    fn get_referenced_import_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_referenced_value_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn is_referenced_alias_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(true)
+    }
+
+    fn is_value_alias_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(true)
+    }
+}
+
+impl SourceNamedExportContainerResolver {
+    fn new(source: &tsc_syntax::SourceFile, exported_name: &str) -> Self {
+        let mut containers_by_reference = BTreeMap::new();
+        let mut stack = vec![source.root];
+        while let Some(node) = stack.pop() {
+            if matches!(
+                &source.arena.node(node).data,
+                NodeData::Identifier(identifier) if identifier.text == exported_name
+            ) {
+                containers_by_reference.insert(node, source.root);
+            }
+            for_each_child(&source.arena, source.arena.node(node), |child| {
+                stack.push(child);
+                false
+            });
+        }
+        Self {
+            containers_by_reference,
+        }
+    }
+}
+
+impl EmitResolver for SourceNamedExportContainerResolver {
+    fn get_constant_value(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_referenced_export_container(
+        &self,
+        node: EmitResolverNode,
+        _mode: EmitExportContainerMode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(self
+            .containers_by_reference
+            .get(&node.node())
+            .copied()
+            .map(|container| EmitResolverNode::new(node.source(), container)))
+    }
+
+    fn get_referenced_import_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_referenced_value_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn is_instantiated_module(&self, _node: EmitResolverNode) -> Result<bool, EmitResolverError> {
+        Ok(true)
+    }
+
+    fn is_referenced_alias_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(true)
+    }
+
+    fn is_value_alias_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(true)
+    }
+}
+
+impl ImportEqualsCallResolver {
+    fn new(source: &tsc_syntax::SourceFile) -> Self {
+        let mut declaration = None;
+        let mut local_name = None;
+        let mut stack = vec![source.root];
+        while let Some(node) = stack.pop() {
+            if let NodeData::ImportEqualsDeclaration(data) = &source.arena.node(node).data {
+                if let Some(name) = data.name {
+                    if let NodeData::Identifier(identifier) = &source.arena.node(name).data {
+                        declaration = Some(node);
+                        local_name = Some(identifier.text.clone());
+                    }
+                }
+            }
+            for_each_child(&source.arena, source.arena.node(node), |child| {
+                stack.push(child);
+                false
+            });
+        }
+        let declaration = declaration.expect("import-equals declaration");
+        let local_name = local_name.expect("import-equals local name");
+        let mut declaration_by_reference = BTreeMap::new();
+        let mut stack = vec![source.root];
+        while let Some(node) = stack.pop() {
+            if matches!(
+                &source.arena.node(node).data,
+                NodeData::Identifier(identifier) if identifier.text == local_name
+            ) {
+                declaration_by_reference.insert(node, declaration);
+            }
+            for_each_child(&source.arena, source.arena.node(node), |child| {
+                stack.push(child);
+                false
+            });
+        }
+        Self {
+            declaration_by_reference,
+        }
+    }
+}
+
+impl EmitResolver for ImportEqualsCallResolver {
+    fn get_constant_value(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_referenced_export_container(
+        &self,
+        _node: EmitResolverNode,
+        _mode: EmitExportContainerMode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_referenced_import_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(self
+            .declaration_by_reference
+            .get(&node.node())
+            .copied()
+            .map(|declaration| EmitResolverNode::new(node.source(), declaration)))
+    }
+
+    fn get_referenced_value_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn is_referenced_alias_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(true)
+    }
+
+    fn is_value_alias_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(true)
+    }
+}
+
+impl DefaultImportCallResolver {
+    fn new(source: &tsc_syntax::SourceFile) -> Self {
+        let mut declaration = None;
+        let mut local_name = None;
+        let mut stack = vec![source.root];
+        while let Some(node) = stack.pop() {
+            if let NodeData::ImportClause(data) = &source.arena.node(node).data {
+                if let Some(name) = data.name {
+                    if let NodeData::Identifier(identifier) = &source.arena.node(name).data {
+                        declaration = Some(node);
+                        local_name = Some(identifier.text.clone());
+                    }
+                }
+            }
+            for_each_child(&source.arena, source.arena.node(node), |child| {
+                stack.push(child);
+                false
+            });
+        }
+        let declaration = declaration.expect("default-import clause");
+        let local_name = local_name.expect("default-import local name");
+        let mut declaration_by_reference = BTreeMap::new();
+        let mut stack = vec![source.root];
+        while let Some(node) = stack.pop() {
+            if matches!(
+                &source.arena.node(node).data,
+                NodeData::Identifier(identifier) if identifier.text == local_name
+            ) {
+                declaration_by_reference.insert(node, declaration);
+            }
+            for_each_child(&source.arena, source.arena.node(node), |child| {
+                stack.push(child);
+                false
+            });
+        }
+        Self {
+            declaration_by_reference,
+        }
+    }
+}
+
+impl EmitResolver for DefaultImportCallResolver {
+    fn get_constant_value(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_referenced_import_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(self
+            .declaration_by_reference
+            .get(&node.node())
+            .copied()
+            .map(|declaration| EmitResolverNode::new(node.source(), declaration)))
+    }
+
+    fn is_referenced_alias_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(true)
+    }
+
+    fn is_value_alias_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(true)
+    }
+}
+
+impl EnumBindingResolver {
+    fn new(source: &tsc_syntax::SourceFile) -> Self {
+        let mut declarations_by_name = BTreeMap::new();
+        let mut stack = vec![source.root];
+        while let Some(id) = stack.pop() {
+            let node = source.arena.node(id);
+            let name = match &node.data {
+                NodeData::EnumDeclaration(data) => data.name,
+                NodeData::ClassDeclaration(data) => data.name,
+                _ => None,
+            };
+            if let Some(name) = name {
+                declarations_by_name.insert(name, id);
+            }
+            for_each_child(&source.arena, node, |child| {
+                stack.push(child);
+                false
+            });
+        }
+        Self {
+            declarations_by_name,
+            enum_member_values: BTreeMap::new(),
+            loop_scoped_private_names: BTreeSet::new(),
+        }
+    }
+
+    fn with_enum_member_number_value(mut self, member: NodeId, value: f64) -> Self {
+        self.enum_member_values.insert(
+            member,
+            EmitEnumMemberValue::new(
+                Some(EmitConstantValue::Number(JavaScriptNumber::from_f64(value))),
+                false,
+                false,
+            ),
+        );
+        self
+    }
+
+    fn with_loop_scoped_private_names(mut self, source: &tsc_syntax::SourceFile) -> Self {
+        let mut stack = vec![source.root];
+        while let Some(id) = stack.pop() {
+            let node = source.arena.node(id);
+            if matches!(&node.data, NodeData::PrivateIdentifier(_)) {
+                self.loop_scoped_private_names.insert(id);
+            }
+            for_each_child(&source.arena, node, |child| {
+                stack.push(child);
+                false
+            });
+        }
+        self
+    }
+}
+
+impl EmitResolver for EnumBindingResolver {
+    fn get_constant_value(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_enum_member_value(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitEnumMemberValue>, EmitResolverError> {
+        Ok(self.enum_member_values.get(&node.node()).cloned())
+    }
+
+    fn get_referenced_export_container(
+        &self,
+        _node: EmitResolverNode,
+        _mode: EmitExportContainerMode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_referenced_import_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_referenced_value_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(self
+            .declarations_by_name
+            .get(&node.node())
+            .copied()
+            .map(|declaration| EmitResolverNode::new(node.source(), declaration)))
+    }
+
+    fn has_node_check_flag(
+        &self,
+        node: EmitResolverNode,
+        flag: u32,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(
+            flag == NodeCheckFlags::BLOCK_SCOPED_BINDING_IN_LOOP.bits() as u32
+                && self.loop_scoped_private_names.contains(&node.node()),
+        )
+    }
+
+    fn is_instantiated_module(&self, _node: EmitResolverNode) -> Result<bool, EmitResolverError> {
+        Ok(true)
+    }
+
+    fn is_referenced_alias_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(true)
+    }
+
+    fn is_value_alias_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(true)
+    }
+}
+
+struct NamespaceAliasResolver {
+    containers_by_reference: BTreeMap<NodeId, NodeId>,
+    parsed_accesses: BTreeSet<NodeId>,
+}
+
+struct LegacyScriptJsxResolver;
+
+impl EmitResolver for LegacyScriptJsxResolver {
+    fn get_constant_value(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn has_node_check_flag(
+        &self,
+        _node: EmitResolverNode,
+        _flag: u32,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(false)
+    }
+
+    fn is_external_or_common_js_module(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(false)
+    }
+
+    fn get_referenced_import_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_jsx_factory_import_declaration(
+        &self,
+        _node: EmitResolverNode,
+        _name: &str,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_jsx_factory_export_container(
+        &self,
+        _node: EmitResolverNode,
+        _name: &str,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_referenced_export_container(
+        &self,
+        _node: EmitResolverNode,
+        _mode: EmitExportContainerMode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_referenced_value_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+}
+
+impl NamespaceAliasResolver {
+    fn new(source: &tsc_syntax::SourceFile) -> Self {
+        let mut namespace = None;
+        let mut references = Vec::new();
+        let mut parsed_accesses = BTreeSet::new();
+        let mut stack = vec![source.root];
+        while let Some(id) = stack.pop() {
+            let node = source.arena.node(id);
+            if matches!(
+                node.kind,
+                tsc_syntax::SyntaxKind::PropertyAccessExpression
+                    | tsc_syntax::SyntaxKind::ElementAccessExpression
+            ) {
+                parsed_accesses.insert(id);
+            }
+            match &node.data {
+                NodeData::ModuleDeclaration(data)
+                    if data.name.is_some_and(|name| {
+                        matches!(&source.arena.node(name).data,
+                            NodeData::Identifier(identifier) if identifier.text == "published")
+                    }) =>
+                {
+                    namespace = Some(id);
+                }
+                NodeData::Identifier(identifier)
+                    if identifier.text == "exports"
+                        && node.parent.is_some_and(|parent| {
+                            matches!(&source.arena.node(parent).data,
+                                NodeData::NewExpression(data) if data.expression == Some(id))
+                        }) =>
+                {
+                    references.push(id);
+                }
+                _ => {}
+            }
+            for_each_child(&source.arena, node, |child| {
+                stack.push(child);
+                false
+            });
+        }
+        let namespace = namespace.expect("published namespace declaration");
+        Self {
+            containers_by_reference: references
+                .into_iter()
+                .map(|reference| (reference, namespace))
+                .collect(),
+            parsed_accesses,
+        }
+    }
+}
+
+impl EmitResolver for NamespaceAliasResolver {
+    fn get_constant_value(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+        assert!(
+            self.parsed_accesses.contains(&node.node()),
+            "emit substitution must not query a synthetic access: {node:?}"
+        );
+        Ok(None)
+    }
+
+    fn get_referenced_export_container(
+        &self,
+        node: EmitResolverNode,
+        _mode: EmitExportContainerMode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(self
+            .containers_by_reference
+            .get(&node.node())
+            .copied()
+            .map(|container| EmitResolverNode::new(node.source(), container)))
+    }
+
+    fn get_referenced_import_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_referenced_value_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn is_instantiated_module(&self, _node: EmitResolverNode) -> Result<bool, EmitResolverError> {
+        Ok(true)
+    }
+
+    fn is_referenced_alias_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(true)
+    }
+}
+
+fn transform_and_print_module(source_text: &str, module: ModuleKind) -> String {
+    transform_and_print_module_with_remove_comments(source_text, module, false)
+}
+
+fn transform_and_print_module_at_target(
+    source_text: &str,
+    module: ModuleKind,
+    target: ScriptTarget,
+) -> String {
+    let parsed = parse_source_file("module.ts", source_text, Default::default(), None);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(target.bits()),
+        module: Some(module.bits()),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let resolver = LegacyScriptJsxResolver;
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![transform_module(&options, &resolver)],
+        false,
+    )
+    .expect("module transform");
+    create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed)
+            .with_target(target)
+            .with_remove_comments(false),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print module transform")
+    .text()
+    .to_owned()
+}
+
+// CA-2b family E: the synthesized require bindings choose their declaration
+// keyword by language version (tsc `languageVersion >= ES2015 ? Const :
+// None`, _tsc.js:111241/111277/111338/113555/113591). Expected bytes are
+// fresh-process vendored tsc emits (module CommonJS, alwaysStrict false,
+// LF; probe = ca2b-probe.mjs).
+#[test]
+fn commonjs_import_bindings_use_var_below_es2015() {
+    let printed = transform_and_print_module_at_target(
+        "import * as ns from \"./dep\";\nns.use(1);\n",
+        ModuleKind::COMMON_JS,
+        ScriptTarget::ES5,
+    );
+    assert_eq!(
+        printed,
+        r#""use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+var ns = __importStar(require("./dep"));
+ns.use(1);
+"#
+    );
+}
+
+#[test]
+fn commonjs_import_bindings_keep_const_at_es2015_and_above() {
+    let printed = transform_and_print_module_at_target(
+        "import * as ns from \"./dep\";\nns.use(1);\n",
+        ModuleKind::COMMON_JS,
+        ScriptTarget::ES2017,
+    );
+    assert_eq!(
+        printed,
+        r#""use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+const ns = __importStar(require("./dep"));
+ns.use(1);
+"#
+    );
+}
+
+#[test]
+fn commonjs_import_equals_binding_uses_var_below_es2015() {
+    let printed = transform_and_print_module_at_target(
+        "import x = require(\"./dep\");\nx.use();\n",
+        ModuleKind::COMMON_JS,
+        ScriptTarget::ES5,
+    );
+    assert_eq!(
+        printed,
+        r#""use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+var x = require("./dep");
+x.use();
+"#
+    );
+}
+
+// These module-only fixtures query the local name of an import declaration
+// when publishing it. Supply those projections without changing the legacy
+// resolver's deliberately absent answers for ordinary expression references.
+struct ModulePublicationResolver<'a> {
+    source: &'a tsc_syntax::SourceFile,
+}
+
+impl EmitResolver for ModulePublicationResolver<'_> {
+    fn get_constant_value(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+        LegacyScriptJsxResolver.get_constant_value(node)
+    }
+
+    fn has_node_check_flag(
+        &self,
+        node: EmitResolverNode,
+        flag: u32,
+    ) -> Result<bool, EmitResolverError> {
+        LegacyScriptJsxResolver.has_node_check_flag(node, flag)
+    }
+
+    fn is_external_or_common_js_module(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        LegacyScriptJsxResolver.is_external_or_common_js_module(node)
+    }
+
+    fn get_referenced_import_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        let Some(parent) = self.source.arena.node(node.node()).parent else {
+            return Ok(None);
+        };
+        let name = match &self.source.arena.node(parent).data {
+            NodeData::ImportClause(data) => data.name,
+            NodeData::ImportSpecifier(data) => data.name,
+            NodeData::NamespaceImport(data) => data.name,
+            NodeData::ImportEqualsDeclaration(data) => data.name,
+            _ => None,
+        };
+        Ok((name == Some(node.node())).then_some(EmitResolverNode::new(node.source(), parent)))
+    }
+
+    fn get_referenced_export_container(
+        &self,
+        node: EmitResolverNode,
+        mode: EmitExportContainerMode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        if mode != EmitExportContainerMode::Reference {
+            return Ok(None);
+        }
+        let Some(parent) = self.source.arena.node(node.node()).parent else {
+            return Ok(None);
+        };
+        let NodeData::ImportEqualsDeclaration(data) = &self.source.arena.node(parent).data else {
+            return Ok(None);
+        };
+        let exported = data.name == Some(node.node())
+            && data.modifiers.is_some_and(|modifiers| {
+                self.source
+                    .arena
+                    .node_array(modifiers)
+                    .nodes
+                    .iter()
+                    .any(|&modifier| {
+                        self.source.arena.node(modifier).kind
+                            == tsc_syntax::SyntaxKind::ExportKeyword
+                    })
+            });
+        Ok(exported.then_some(EmitResolverNode::new(node.source(), self.source.root)))
+    }
+
+    fn get_referenced_value_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        LegacyScriptJsxResolver.get_referenced_value_declaration(node)
+    }
+}
+
+fn transform_and_print_module_with_remove_comments(
+    source_text: &str,
+    module: ModuleKind,
+    remove_comments: bool,
+) -> String {
+    let parsed = parse_source_file("module.ts", source_text, Default::default(), None);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(module.bits()),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let resolver = ModulePublicationResolver { source: &parsed };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![transform_module(&options, &resolver)],
+        false,
+    )
+    .expect("module transform");
+    create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed)
+            .with_target(ScriptTarget::ES2015)
+            .with_remove_comments(remove_comments),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print module transform")
+    .text()
+    .to_owned()
+}
+
+fn transform_and_print_typescript_module(
+    parsed: &tsc_syntax::SourceFile,
+    module: ModuleKind,
+    resolver: &dyn EmitResolver,
+) -> String {
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(module.bits()),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, resolver),
+            transform_module(&options, resolver),
+        ],
+        false,
+    )
+    .expect("TypeScript module transform");
+    create_printer(PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015))
+        .print(&mut result, PrintRequest::SourceFile(source), None)
+        .expect("print TypeScript module transform")
+        .text()
+        .to_owned()
+}
+
+fn transform_and_print_preserved_tsx(source_text: &str) -> String {
+    let parsed = parse_source_file(
+        "preserved.tsx",
+        source_text,
+        ParseOptions {
+            language_variant: LanguageVariant::Jsx,
+            ..ParseOptions::default()
+        },
+        None,
+    );
+    let resolver = LegacyScriptJsxResolver;
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        jsx: Some(1),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("preserved TSX transform");
+    create_printer(PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015))
+        .print(&mut result, PrintRequest::SourceFile(source), None)
+        .expect("print preserved TSX transform")
+        .text()
+        .to_owned()
+}
+
+fn transform_and_print_es2015_class_fields(source_text: &str) -> String {
+    let parsed = parse_source_file(
+        "class-fields.ts",
+        source_text,
+        ParseOptions::default(),
+        None,
+    );
+    let resolver = EnumBindingResolver::new(&parsed);
+    transform_and_print_parsed_es2015_class_fields(&parsed, &resolver)
+}
+
+fn transform_and_print_parsed_es2015_class_fields(
+    parsed: &tsc_syntax::SourceFile,
+    resolver: &dyn EmitResolver,
+) -> String {
+    transform_and_print_parsed_es2015_class_fields_with_mode(parsed, resolver, false)
+}
+
+fn transform_and_print_parsed_es2015_class_fields_with_mode(
+    parsed: &tsc_syntax::SourceFile,
+    resolver: &dyn EmitResolver,
+    use_define_for_class_fields: bool,
+) -> String {
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        use_define_for_class_fields: Some(use_define_for_class_fields),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, resolver),
+            transform_class_fields(&options, resolver),
+            transform_es2020(&options),
+        ],
+        false,
+    )
+    .expect("ES2015 class-fields transform");
+    create_printer(PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015))
+        .print(&mut result, PrintRequest::SourceFile(source), None)
+        .expect("print ES2015 class-fields transform")
+        .text()
+        .to_owned()
+}
+
+fn transform_and_print_umd_module(source_text: &str) -> String {
+    transform_and_print_module(source_text, ModuleKind::UMD)
+}
+
+#[test]
+fn class_fields_do_not_synthesize_super_for_transparently_wrapped_null_heritage() {
+    let output = transform_and_print_es2015_class_fields(concat!(
+        "class Direct extends null { direct = 1; }\n",
+        "class Wrapped extends (((null))) { wrapped = 2; }\n",
+    ));
+
+    assert!(!output.contains("super(...arguments);"), "{output}");
+    assert!(
+        output.contains(concat!(
+            "class Direct extends null {\n",
+            "    constructor() {\n",
+            "        this.direct = 1;\n",
+            "    }\n",
+            "}\n",
+        )),
+        "{output}",
+    );
+    assert!(
+        output.contains(concat!(
+            "class Wrapped extends (((null))) {\n",
+            "    constructor() {\n",
+            "        this.wrapped = 2;\n",
+            "    }\n",
+            "}\n",
+        )),
+        "{output}",
+    );
+}
+
+#[test]
+fn class_fields_insert_initializers_after_a_parenthesized_super_statement() {
+    let output = transform_and_print_es2015_class_fields(concat!(
+        "class Base {}\n",
+        "class Derived extends Base {\n",
+        "    value = 1;\n",
+        "    constructor() {\n",
+        "        before();\n",
+        "        (super());\n",
+        "        after();\n",
+        "    }\n",
+        "}\n",
+    ));
+
+    assert!(
+        output.contains(concat!(
+            "        before();\n",
+            "        (super());\n",
+            "        this.value = 1;\n",
+            "        after();\n",
+        )),
+        "{output}",
+    );
+}
+
+#[test]
+fn lowered_optional_chain_heritage_keeps_its_left_hand_side_boundary() {
+    let output = transform_and_print_es2015_class_fields(concat!(
+        "namespace A { export class B {} }\n",
+        "class Derived extends A?.B {}\n",
+    ));
+
+    assert!(
+        output.contains("class Derived extends (A === null || A === void 0 ? void 0 : A.B) {",),
+        "{output}",
+    );
+}
+
+fn emitted_line_with<'a>(output: &'a str, marker: &str) -> &'a str {
+    output
+        .lines()
+        .find(|line| line.contains(marker))
+        .unwrap_or_else(|| panic!("missing `{marker}` in output: {output}"))
+}
+
+fn receiver_before_static_f(line: &str) -> &str {
+    let (prefix, _) = line
+        .split_once(".f +")
+        .unwrap_or_else(|| panic!("missing static f access: {line}"));
+    prefix
+        .rsplit(|character: char| {
+            !(character.is_ascii_alphanumeric() || matches!(character, '_' | '$'))
+        })
+        .find(|part| !part.is_empty())
+        .unwrap_or_else(|| panic!("missing static receiver: {line}"))
+}
+
+fn reflect_get_arguments(line: &str) -> &str {
+    let (_, suffix) = line
+        .split_once("Reflect.get(")
+        .unwrap_or_else(|| panic!("missing Reflect.get: {line}"));
+    suffix
+        .split_once(") +")
+        .map(|(arguments, _)| arguments)
+        .unwrap_or_else(|| panic!("missing Reflect.get result boundary: {line}"))
+}
+
+#[test]
+fn static_this_frame_is_inherited_by_arrows_but_not_functions_or_nested_classes() {
+    let output = transform_and_print_es2015_class_fields(concat!(
+        "class Outer {\n",
+        "    static f = 0;\n",
+        "    static arrow = () => this.f + 1;\n",
+        "    static ordinary = function () { return this.f + 2; };\n",
+        "    static nested = class Inner {\n",
+        "        instance = this.f + 3;\n",
+        "        static own = this.f + 4;\n",
+        "    };\n",
+        "}\n",
+    ));
+
+    let arrow = emitted_line_with(&output, ".f + 1");
+    let ordinary = emitted_line_with(&output, ".f + 2");
+    let instance = emitted_line_with(&output, ".f + 3");
+    let nested_static = emitted_line_with(&output, ".f + 4");
+    assert!(
+        arrow.contains("=>") && !arrow.contains("this.f"),
+        "{output}"
+    );
+    assert!(ordinary.contains("this.f + 2"), "{output}");
+    assert!(instance.contains("this.instance = this.f + 3"), "{output}");
+    assert!(!nested_static.contains("this.f"), "{output}");
+    assert_ne!(
+        receiver_before_static_f(arrow),
+        receiver_before_static_f(nested_static),
+        "nested static initializer reused the outer receiver: {output}",
+    );
+}
+
+#[test]
+fn static_super_frame_is_inherited_by_arrows_but_nested_class_owns_its_static_base() {
+    let output = transform_and_print_es2015_class_fields(concat!(
+        "class Base { static f = 0; }\n",
+        "class Outer extends Base {\n",
+        "    static arrow = () => super.f + 1;\n",
+        "    static ordinary = function () { return super.f + 2; };\n",
+        "    static nested = (() => {\n",
+        "        class Inner extends Base {\n",
+        "            instance = super.f + 3;\n",
+        "            static own = super.f + 4;\n",
+        "        }\n",
+        "        return Inner;\n",
+        "    })();\n",
+        "}\n",
+    ));
+
+    let arrow = emitted_line_with(&output, "+ 1");
+    let ordinary = emitted_line_with(&output, "+ 2");
+    let instance = emitted_line_with(&output, "+ 3");
+    let nested_static = emitted_line_with(&output, "+ 4");
+    assert!(arrow.contains("=> Reflect.get("), "{output}");
+    assert!(ordinary.contains("super.f + 2"), "{output}");
+    assert!(instance.contains("this.instance = super.f + 3"), "{output}");
+    assert!(nested_static.contains("Reflect.get("), "{output}");
+    assert_ne!(
+        reflect_get_arguments(arrow),
+        reflect_get_arguments(nested_static),
+        "nested static initializer reused the outer super frame: {output}",
+    );
+}
+
+#[test]
+fn static_super_targets_share_reflect_lowering_for_every_value_use() {
+    let parsed = parse_source_file(
+        "static-super-targets.ts",
+        concat!(
+            "class B { static a = 0; static f() {} }\n",
+            "class C extends B {\n",
+            "    static assign = super.a = 0;\n",
+            "    static compound = super.a += 1;\n",
+            "    static discarded = (() => { super.a = 2; })();\n",
+            "    static destructuring = [super.a] = [3];\n",
+            "    static prefix = ++super.a;\n",
+            "    static elementPrefix = ++super[(\"a\")];\n",
+            "    static postfix = super.a++;\n",
+            "    static call = super.f();\n",
+            "    static tag = super.f``;\n",
+            "}\n",
+        ),
+        ParseOptions::default(),
+        None,
+    );
+    let resolver = EnumBindingResolver::new(&parsed);
+
+    for use_define in [false, true] {
+        let output = transform_and_print_parsed_es2015_class_fields_with_mode(
+            &parsed, &resolver, use_define,
+        );
+        assert_eq!(output.matches("Reflect.set(").count(), 7, "{output}");
+        assert_eq!(output.matches("Reflect.get(").count(), 6, "{output}");
+        assert_eq!(output.matches("set value(").count(), 1, "{output}");
+        assert!(output.contains("=> { Reflect.set("), "{output}");
+        assert!(output.contains(").value] = [3]"), "{output}");
+        assert!(output.contains(".call("), "{output}");
+        assert!(output.contains(".bind("), "{output}");
+        assert!(!output.contains("super.a"), "{output}");
+        assert!(!output.contains("super.f"), "{output}");
+    }
+}
+
+#[test]
+fn nested_class_computed_field_names_use_the_enclosing_static_evaluation_frame() {
+    let parsed = parse_source_file(
+        "nested-computed-static-this.ts",
+        concat!(
+            "class C {\n",
+            "    static c = \"foo\";\n",
+            "    static bar = class Inner {\n",
+            "        static [this.c] = 123;\n",
+            "        [this.c] = 123;\n",
+            "    };\n",
+            "}\n",
+        ),
+        ParseOptions::default(),
+        None,
+    );
+    let resolver = EnumBindingResolver::new(&parsed);
+
+    for use_define in [false, true] {
+        let output = transform_and_print_parsed_es2015_class_fields_with_mode(
+            &parsed, &resolver, use_define,
+        );
+        assert!(output.contains("_a = C;"), "{output}");
+        assert!(output.contains("_b = class Inner"), "{output}");
+        assert!(output.contains("_c = _a.c"), "{output}");
+        assert!(output.contains("_d = _a.c"), "{output}");
+        assert!(!output.contains("this.c"), "{output}");
+        assert!(
+            output.find("_b = class Inner").unwrap() < output.find("_c = _a.c").unwrap(),
+            "the class identity must be reserved before computed-name caches: {output}",
+        );
+        if use_define {
+            assert!(
+                output.contains("Object.defineProperty(this, _d"),
+                "{output}"
+            );
+            assert!(output.contains("Object.defineProperty(_b, _c"), "{output}");
+        } else {
+            assert!(output.contains("this[_d] = 123"), "{output}");
+            assert!(output.contains("_b[_c] = 123"), "{output}");
+        }
+    }
+}
+
+#[test]
+fn private_storage_names_follow_current_class_provenance() {
+    for (source, expected, forbidden) in [
+        (
+            "const Local = class { #x = 1; };",
+            "_Local_x = new WeakMap()",
+            "\n    _x = new WeakMap()",
+        ),
+        (
+            "const Local = class { #x: number = 1; };",
+            "_x = new WeakMap()",
+            "_Local_x",
+        ),
+        (
+            "const Local = class Named { #x: number = 1; };",
+            "_Named_x = new WeakMap()",
+            "_Local_x",
+        ),
+        (
+            "const Local = class { static #x: number = 1; };",
+            "_Local_x = { value: 1 }",
+            "\n    _x = { value: 1 }",
+        ),
+        (
+            "const Wrapped = (class { #x = 1; });",
+            "_x = new WeakMap()",
+            "_Wrapped_x",
+        ),
+        (
+            "obj[\"bad-name\"] = class { static #x = 1; };",
+            "_x = { value: 1 }",
+            "_bad-name_x",
+        ),
+    ] {
+        let output = transform_and_print_es2015_class_fields(source);
+        assert!(output.contains(expected), "{source}: {output}");
+        assert!(!output.contains(forbidden), "{source}: {output}");
+    }
+}
+
+#[test]
+fn private_storage_captured_by_a_loop_class_expression_is_declared_in_the_loop_body() {
+    let source_text = concat!(
+        "const array = [];\n",
+        "for (let i = 0; i < 2; ++i) {\n",
+        "    array.push(class C {\n",
+        "        #field = i;\n",
+        "        #method() {}\n",
+        "        get #accessor() { return i; }\n",
+        "        set #accessor(value) {}\n",
+        "    });\n",
+        "}\n",
+    );
+    let parsed = parse_source_file("loop-private.ts", source_text, Default::default(), None);
+    let resolver = EnumBindingResolver::new(&parsed).with_loop_scoped_private_names(&parsed);
+    let output = transform_and_print_parsed_es2015_class_fields(&parsed, &resolver);
+
+    let loop_start = output.find("for (").expect("loop output");
+    let class_start = output[loop_start..]
+        .find("array.push")
+        .map(|offset| loop_start + offset)
+        .expect("class expression in loop");
+    assert!(!output[..loop_start].contains("_C_"), "{output}");
+    assert!(
+        output[loop_start..class_start].contains("let _C_"),
+        "{output}"
+    );
+}
+
+#[test]
+fn private_storage_setup_precedes_a_computed_member_key() {
+    let output = transform_and_print_es2015_class_fields(concat!(
+        "let getX;\n",
+        "class A {\n",
+        "    #x = 100;\n",
+        "    [(getX = (a) => a.#x, \"_\")]() {}\n",
+        "}\n",
+    ));
+
+    assert!(
+        output.contains("[(_A_x = new WeakMap(), getX = (a) =>"),
+        "{output}"
+    );
+    assert!(!output.contains("\n_A_x = new WeakMap();"), "{output}");
+}
+
+#[test]
+fn nested_private_storage_setup_precedes_its_private_computed_key_read() {
+    let output = transform_and_print_es2015_class_fields(concat!(
+        "class Foo {\n",
+        "    #name;\n",
+        "    read() {\n",
+        "        const obj = this;\n",
+        "        class Bar {\n",
+        "            #y = 100;\n",
+        "            [obj.#name]() { return this.#y; }\n",
+        "        }\n",
+        "        return Bar;\n",
+        "    }\n",
+        "}\n",
+    ));
+
+    assert!(
+        output.contains("[(_Bar_y = new WeakMap(), __classPrivateFieldGet(obj"),
+        "{output}"
+    );
+    assert!(
+        !output.contains("\n        _Bar_y = new WeakMap();"),
+        "{output}"
+    );
+}
+
+#[test]
+fn duplicate_private_getter_ordinal_precedes_the_generated_role_suffix() {
+    let output = transform_and_print_es2015_class_fields(concat!(
+        "class C {\n",
+        "    get #value() { return 1; }\n",
+        "    get #value() { return 2; }\n",
+        "}\n",
+    ));
+
+    assert!(output.contains("_C_value_1_get"), "{output}");
+    assert!(!output.contains("_C_value_get_1"), "{output}");
+}
+
+#[test]
+fn invalid_private_enum_member_recovers_as_an_empty_expression_name() {
+    let parsed = parse_source_file(
+        "invalid-private-enum-member.ts",
+        "enum E { #x }\n",
+        Default::default(),
+        None,
+    );
+    let mut stack = vec![parsed.root];
+    let mut member = None;
+    while let Some(node) = stack.pop() {
+        if matches!(&parsed.arena.node(node).data, NodeData::EnumMember(_)) {
+            member = Some(node);
+        }
+        for_each_child(&parsed.arena, parsed.arena.node(node), |child| {
+            stack.push(child);
+            false
+        });
+    }
+    let resolver = EnumBindingResolver::new(&parsed)
+        .with_enum_member_number_value(member.expect("private enum member"), 0.0);
+    let output = transform_and_print_parsed_es2015_class_fields(&parsed, &resolver);
+
+    assert!(output.contains("E[E[] = 0] = ;"), "{output}");
+    assert!(!output.contains("E[E[\"\"]"), "{output}");
+}
+
+#[test]
+fn private_assignment_target_skips_parentheses_and_erased_type_wrappers() {
+    let output = transform_and_print_es2015_class_fields(concat!(
+        "class Foo {\n",
+        "    #value;\n",
+        "    set1(value) { (this.#value as number) = value; }\n",
+        "    set2(value) { (((this.#value as number))) = value; }\n",
+        "    set3(value) { (this.#value) = value; }\n",
+        "    set4(value) { (((this.#value))) = value; }\n",
+        "}\n",
+    ));
+
+    assert!(!output.contains("var __classPrivateFieldGet"), "{output}");
+    assert_eq!(
+        output
+            .matches("__classPrivateFieldSet(this, _Foo_value, value, \"f\")")
+            .count(),
+        4,
+        "{output}",
+    );
+}
+
+#[test]
+fn common_js_family_preserves_recovery_empty_non_export_variable_statements() {
+    let source = "var;\nlet;\nconst;\nexport {};\n";
+    for (module, label) in [
+        (ModuleKind::COMMON_JS, "CommonJS"),
+        (ModuleKind::AMD, "AMD"),
+        (ModuleKind::UMD, "UMD"),
+    ] {
+        let output = transform_and_print_module(source, module);
+        let var = output
+            .find("var ;")
+            .unwrap_or_else(|| panic!("{label}: {output}"));
+        let let_statement = output[var..]
+            .find("let;")
+            .map(|offset| var + offset)
+            .unwrap_or_else(|| panic!("{label}: {output}"));
+        let const_statement = output[let_statement..]
+            .find("const ;")
+            .map(|offset| let_statement + offset)
+            .unwrap_or_else(|| panic!("{label}: {output}"));
+        assert!(
+            var < let_statement && let_statement < const_statement,
+            "{label}: {output}"
+        );
+    }
+}
+
+#[test]
+fn common_js_elides_an_embedded_uninitialized_direct_export_and_substitutes_its_read() {
+    let source_text = concat!(
+        "// https://github.com/microsoft/TypeScript/issues/59373\n\n",
+        "if (true)\n",
+        "export const cssExports: CssExports;\n",
+        "export default cssExports;\n",
+    );
+    let parsed = parse_source_file("embedded-export.ts", source_text, Default::default(), None);
+    let resolver = SourceExportContainerResolver::new(&parsed);
+    let output = transform_and_print_typescript_module(&parsed, ModuleKind::COMMON_JS, &resolver);
+
+    assert_eq!(output.matches("issues/59373").count(), 1, "{output}");
+    let issue = output.find("issues/59373").expect("issue comment");
+    let transformed_if = output
+        .find("if (true) { }")
+        .expect("single-line empty block");
+    assert!(issue < transformed_if, "{output}");
+    assert!(output.contains("if (true) { }"), "{output}");
+    assert!(
+        output.contains("exports.default = exports.cssExports;"),
+        "{output}"
+    );
+    assert!(!output.contains("const cssExports"), "{output}");
+    assert!(!output.contains("exports.cssExports = void 0"), "{output}");
+}
+
+#[test]
+fn common_js_embedded_initialized_direct_export_owns_its_primary_publication() {
+    let source_text = concat!(
+        "if (true)\n",
+        "export const value = 1;\n",
+        "consume(value);\n",
+        "export {};\n",
+    );
+    let parsed = parse_source_file(
+        "embedded-initialized-export.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = SourceExportContainerResolver::new(&parsed);
+    let output = transform_and_print_typescript_module(&parsed, ModuleKind::COMMON_JS, &resolver);
+
+    assert!(output.contains("exports.value = 1;"), "{output}");
+    assert!(output.contains("consume(exports.value);"), "{output}");
+    assert!(!output.contains("const value"), "{output}");
+    assert!(!output.contains("exports.value = void 0"), "{output}");
+}
+
+#[test]
+fn common_js_erased_ambient_export_still_qualifies_same_file_reads() {
+    let source_text = concat!("export declare let a: { __foo: 10 };\n", "a.___foo;\n",);
+    let parsed = parse_source_file(
+        "ambient-export-read.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = SourceExportContainerResolver::new(&parsed);
+    let output = transform_and_print_typescript_module(&parsed, ModuleKind::COMMON_JS, &resolver);
+
+    assert_eq!(
+        output,
+        concat!(
+            "\"use strict\";\n",
+            "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+            "exports.a.___foo;\n",
+        ),
+    );
+}
+
+#[test]
+fn common_js_direct_variable_publishes_primary_before_collector_aliases() {
+    let output = transform_and_print_module(
+        concat!("export { value as alias };\n", "export const value = 1;\n",),
+        ModuleKind::COMMON_JS,
+    );
+
+    assert!(
+        output.contains("exports.value = exports.alias = void 0;"),
+        "{output}"
+    );
+    let primary = output
+        .find("exports.value = 1;")
+        .unwrap_or_else(|| panic!("{output}"));
+    let alias = output
+        .find("exports.alias = exports.value;")
+        .unwrap_or_else(|| panic!("{output}"));
+    assert!(primary < alias, "{output}");
+}
+
+#[test]
+fn dynamic_import_recovery_preserves_a_missing_argument_across_module_formats() {
+    let source = concat!(
+        "const missing = import();\n",
+        "const present = import('./present');\n",
+        "const extra = import('./first', './ignored');\n",
+    );
+
+    let common_js = transform_and_print_module(source, ModuleKind::COMMON_JS);
+    assert!(
+        common_js.contains("Promise.resolve().then(() => __importStar(require()))"),
+        "{common_js}"
+    );
+    assert!(common_js.contains("require('./present')"), "{common_js}");
+    assert!(common_js.contains("require('./first')"), "{common_js}");
+    assert!(!common_js.contains("./ignored"), "{common_js}");
+
+    let amd = transform_and_print_module(source, ModuleKind::AMD);
+    assert!(amd.contains("require([,],"), "{amd}");
+    assert!(amd.contains("require(['./present'],"), "{amd}");
+    assert!(amd.contains("require(['./first'],"), "{amd}");
+    assert!(!amd.contains("./ignored"), "{amd}");
+
+    let umd = transform_and_print_module("const missing = import();\n", ModuleKind::UMD);
+    assert!(umd.contains("= void 0"), "{umd}");
+    assert!(umd.contains("require(_a)"), "{umd}");
+    assert!(umd.contains("require([_a],"), "{umd}");
+}
+
+#[test]
+fn umd_dynamic_import_preserves_literal_quote_provenance_in_its_amd_copy() {
+    let output = transform_and_print_umd_module(concat!(
+        "const single = import('./single');\n",
+        "const double = import(\"./double\");\n",
+    ));
+
+    assert!(output.contains("require(['./single'],"), "{output}");
+    assert!(output.contains("require([\"./double\"],"), "{output}");
+}
+
+#[test]
+fn amd_nested_dynamic_import_reserves_executor_bindings_in_emit_order() {
+    let output = transform_and_print_module(
+        "async function load() { return import((await import(\"./foo\")).default); }\n",
+        ModuleKind::AMD,
+    );
+
+    let outer = output
+        .find("new Promise((resolve_1, reject_1)")
+        .unwrap_or_else(|| panic!("{output}"));
+    let nested = output
+        .find("new Promise((resolve_2, reject_2)")
+        .unwrap_or_else(|| panic!("{output}"));
+    assert!(outer < nested, "{output}");
+}
+
+#[test]
+fn umd_nested_dynamic_import_reserves_executor_bindings_in_emit_order() {
+    let output = transform_and_print_umd_module(
+        "async function load() { return import((await import(\"./foo\")).default); }\n",
+    );
+
+    let nested = output
+        .find("new Promise((resolve_1, reject_1)")
+        .unwrap_or_else(|| panic!("{output}"));
+    let outer = output
+        .find("new Promise((resolve_2, reject_2)")
+        .unwrap_or_else(|| panic!("{output}"));
+    assert!(nested < outer, "{output}");
+}
+
+#[test]
+fn yield_parenthesizes_a_synthetic_umd_dynamic_import_comma_sequence() {
+    let output = transform_and_print_umd_module(concat!(
+        "export function* load(packageName) {\n",
+        "    return yield import(packageName + '/package.json');\n",
+        "}\n",
+    ));
+
+    assert!(
+        output.contains("yield (_a = packageName + '/package.json', __syncRequire ?"),
+        "{output}",
+    );
+}
+
+#[test]
+fn umd_dynamic_import_temp_is_owned_by_the_nearest_method_body() {
+    let text = transform_and_print_umd_module(concat!(
+        "class C {\n",
+        "    path() { return './other'; }\n",
+        "    dynamic() { return import(this.path()); }\n",
+        "}\n",
+    ));
+
+    let class = text.find("class C").expect("emitted class");
+    assert!(!text[..class].contains("var _a;"), "{text}");
+    assert!(
+        text.contains("dynamic() { var _a; return _a = this.path(),"),
+        "{text}",
+    );
+}
+
+#[test]
+fn umd_dynamic_import_temp_is_owned_by_a_static_block() {
+    let text =
+        transform_and_print_umd_module("class C { static { consume(import(getPath())); } }\n");
+
+    let class = text.find("class C").expect("emitted class");
+    assert!(!text[..class].contains("var _a;"), "{text}");
+    assert!(text.contains("static { var _a;"), "{text}");
+    assert!(text.contains("require(_a)"), "{text}");
+    assert!(text.contains("require([_a],"), "{text}");
+}
+
+#[test]
+fn umd_dynamic_import_temp_converts_a_concise_arrow_to_an_owned_body() {
+    let text = transform_and_print_umd_module("const load = () => import(getPath());\n");
+
+    let arrow = text.find("const load").expect("emitted arrow");
+    assert!(!text[..arrow].contains("var _a;"), "{text}");
+    assert!(
+        text.contains("const load = () => { var _a; return _a = getPath(),"),
+        "{text}",
+    );
+}
+
+#[test]
+fn umd_dynamic_import_temp_moves_an_es2015_parameter_default_into_the_body() {
+    let text = transform_and_print_umd_module(
+        "function load(path = import(getPath())) { return path; }\n",
+    );
+
+    let function = text.find("function load").expect("emitted function");
+    assert!(!text[..function].contains("var _a;"), "{text}");
+    assert!(
+        text.contains(
+            "function load(path) { var _a; if (path === void 0) { path = (_a = getPath(),"
+        ),
+        "{text}",
+    );
+}
+
+#[test]
+fn umd_exported_function_inherits_the_module_parameter_temp_scope() {
+    let text = transform_and_print_umd_module(
+        "export function load(path = import(getPath())) { return path; }\n",
+    );
+
+    let function = text.find("function load").expect("emitted function");
+    assert!(text[..function].contains("var _a;"), "{text}");
+    assert!(
+        text.contains("function load(path = (_a = getPath(),"),
+        "{text}",
+    );
+    assert!(!text.contains("function load(path) { var _a;"), "{text}");
+}
+
+#[test]
+fn namespace_exported_internal_alias_uses_container_storage() {
+    let source_text = concat!(
+        "export {};\n",
+        "namespace local { import exports = m.c; }\n",
+        "namespace published { export import exports = m.c; new exports(); }\n",
+    );
+    let parsed = parse_source_file("namespace-alias.ts", source_text, Default::default(), None);
+    let resolver = NamespaceAliasResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::AMD.bits()),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("namespace alias transform");
+    let text = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print namespace alias transform")
+    .text()
+    .to_owned();
+
+    assert!(text.contains("var exports = m.c;"), "{text}");
+    assert!(text.contains("published.exports = m.c;"), "{text}");
+    assert!(text.contains("new published.exports();"), "{text}");
+    assert_eq!(
+        text.matches("var exports = m.c;").count(),
+        1,
+        "the exported alias must not allocate local storage:\n{text}",
+    );
+}
+
+#[test]
+fn namespace_erases_external_import_equals_even_when_the_alias_is_referenced() {
+    let source_text = concat!(
+        "export namespace published {\n",
+        "    import foo = require(\"./dependency\");\n",
+        "    var a = foo.x;\n",
+        "}\n",
+    );
+    let parsed = parse_source_file(
+        "namespace-external-import.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    // This resolver deliberately reports every alias as referenced. The
+    // namespace-element visitor must still apply tsc's structural TS1147
+    // recovery and erase the external import-equals declaration.
+    let resolver = NamespaceAliasResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![transform_type_script(&options, &resolver)],
+        false,
+    )
+    .expect("namespace TypeScript transform");
+    let text = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print namespace TypeScript transform")
+    .text()
+    .to_owned();
+
+    assert!(!text.contains("require(\"./dependency\")"), "{text}");
+    assert!(text.contains("var a = foo.x;"), "{text}");
+}
+
+#[test]
+fn module_export_substitution_uses_enum_binding_identity_across_namespaces() {
+    let source_text = concat!(
+        "export enum require { first, second }\n",
+        "namespace local {\n",
+        "    enum require { first, second }\n",
+        "}\n",
+        "namespace published {\n",
+        "    export enum require { first, second }\n",
+        "}\n",
+    );
+    let parsed = parse_source_file("enum-bindings.ts", source_text, Default::default(), None);
+    let resolver = EnumBindingResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::AMD.bits()),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("AMD enum binding transform");
+    let text = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print AMD enum binding transform")
+    .text()
+    .to_owned();
+
+    assert_eq!(
+        text.matches("exports.require = require = {}").count(),
+        1,
+        "only the source-file enum binding is a module export:\n{text}",
+    );
+    assert!(
+        text.contains("})(require || (require = {}));"),
+        "the nested unexported enum remains local:\n{text}",
+    );
+    assert!(
+        text.contains("})(require = published.require || (published.require = {}));"),
+        "the namespace export is owned by its namespace container:\n{text}",
+    );
+}
+
+#[test]
+fn common_js_marker_does_not_reown_exported_enum_jsdoc() {
+    let source_text = "/**\n * comment\n */\nexport enum Color {\n    r, g, b\n}\n";
+    let parsed = parse_source_file("enum-comment.ts", source_text, Default::default(), None);
+    let resolver = EnumBindingResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("CommonJS enum transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print CommonJS enum transform")
+    .text()
+    .to_owned();
+
+    let marker = output
+        .find("Object.defineProperty(exports, \"__esModule\"")
+        .expect("CommonJS marker");
+    let export_initializer = output
+        .find("exports.Color = void 0;")
+        .expect("export initializer");
+    let jsdoc = output.find("/**\n * comment\n */").expect("enum JSDoc");
+    let declaration = output.find("var Color;").expect("enum declaration");
+    assert!(marker < export_initializer && export_initializer < jsdoc && jsdoc < declaration);
+    assert_eq!(
+        output.matches("/**\n * comment\n */").count(),
+        1,
+        "{output}"
+    );
+}
+
+#[test]
+fn common_js_flattens_destructuring_assignments_to_all_exported_names() {
+    let source_text = concat!(
+        "export let exportedFoo: any;\n",
+        "let nonexportedFoo: any;\n",
+        "// sanity checks\n",
+        "exportedFoo = null;\n",
+        "nonexportedFoo = null;\n",
+        "if (null as any) {\n",
+        "    ({ exportedFoo, nonexportedFoo } = null as any);\n",
+        "}\n",
+        "else if (null as any) {\n",
+        "    ({ foo: exportedFoo, bar: nonexportedFoo } = null as any);\n",
+        "}\n",
+        "else if (null as any) {\n",
+        "    ({ foo: { bar: exportedFoo, baz: nonexportedFoo } } = null as any);\n",
+        "}\n",
+        "else if (null as any) {\n",
+        "    ([exportedFoo, nonexportedFoo] = null as any);\n",
+        "}\n",
+        "else {\n",
+        "    ([[exportedFoo, nonexportedFoo]] = null as any);\n",
+        "}\n",
+        "export { nonexportedFoo };\n",
+        "export { exportedFoo as foo, nonexportedFoo as nfoo };\n",
+    );
+    let parsed = parse_source_file(
+        "destructuring-exports.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = ExportedVariableResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("CommonJS exported destructuring transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print CommonJS exported destructuring")
+    .text()
+    .to_owned();
+
+    assert_eq!(
+        output,
+        concat!(
+            "\"use strict\";\n",
+            "var _a, _b, _c, _d, _e;\n",
+            "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+            "exports.nfoo = exports.foo = exports.nonexportedFoo = exports.exportedFoo = void 0;\n",
+            "let nonexportedFoo;\n",
+            "// sanity checks\n",
+            "exports.foo = exports.exportedFoo = null;\n",
+            "exports.nfoo = exports.nonexportedFoo = nonexportedFoo = null;\n",
+            "if (null) {\n",
+            "    (_a = null, exports.foo = exports.exportedFoo = _a.exportedFoo, exports.nfoo = exports.nonexportedFoo = nonexportedFoo = _a.nonexportedFoo);\n",
+            "}\n",
+            "else if (null) {\n",
+            "    (_b = null, exports.foo = exports.exportedFoo = _b.foo, exports.nfoo = exports.nonexportedFoo = nonexportedFoo = _b.bar);\n",
+            "}\n",
+            "else if (null) {\n",
+            "    (_c = null.foo, exports.foo = exports.exportedFoo = _c.bar, exports.nfoo = exports.nonexportedFoo = nonexportedFoo = _c.baz);\n",
+            "}\n",
+            "else if (null) {\n",
+            "    (_d = null, exports.foo = exports.exportedFoo = _d[0], exports.nfoo = exports.nonexportedFoo = nonexportedFoo = _d[1]);\n",
+            "}\n",
+            "else {\n",
+            "    (_e = null[0], exports.foo = exports.exportedFoo = _e[0], exports.nfoo = exports.nonexportedFoo = nonexportedFoo = _e[1]);\n",
+            "}\n",
+        )
+    );
+}
+
+#[test]
+fn common_js_flattens_exported_destructuring_variable_declarations() {
+    let source_text = concat!(
+        "export let { toString } = 1;\n",
+        "{\n",
+        "    let { toFixed } = 1;\n",
+        "}\n",
+    );
+    let parsed = parse_source_file(
+        "destructuring-variable-exports.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = ExportedVariableResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("CommonJS exported destructuring declaration transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print CommonJS exported destructuring declaration")
+    .text()
+    .to_owned();
+
+    assert_eq!(
+        output,
+        concat!(
+            "\"use strict\";\n",
+            "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+            "exports.toString = void 0;\n",
+            "exports.toString = 1..toString;\n",
+            "{\n",
+            "    let { toFixed } = 1;\n",
+            "}\n",
+        )
+    );
+}
+
+#[test]
+fn common_js_appends_explicit_exports_for_each_array_binding_leaf() {
+    let source_text = concat!(
+        "// issue: https://github.com/Microsoft/TypeScript/issues/10778\n",
+        "const [a, , b] = [1, 2, 3];\n",
+        "export { a, b };\n",
+    );
+    let parsed = parse_source_file(
+        "export-array-binding-pattern.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = ExportedVariableResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("CommonJS explicit array-binding export transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print CommonJS explicit array-binding exports")
+    .text()
+    .to_owned();
+
+    assert_eq!(
+        output,
+        concat!(
+            "\"use strict\";\n",
+            "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+            "exports.b = exports.a = void 0;\n",
+            "// issue: https://github.com/Microsoft/TypeScript/issues/10778\n",
+            "const [a, , b] = [1, 2, 3];\n",
+            "exports.a = a;\n",
+            "exports.b = b;\n",
+        )
+    );
+}
+
+#[test]
+fn amd_unnamed_dependency_comment_is_emitted_only_outside_the_wrapper() {
+    let output = transform_and_print_module(
+        "///<amd-dependency path='bar'/>\n\nimport \"m2\";\n",
+        ModuleKind::AMD,
+    );
+
+    assert_eq!(
+        output.matches("amd-dependency path='bar'").count(),
+        1,
+        "{output}"
+    );
+    let define = output.find("define(").expect("AMD define wrapper");
+    let dependency = output.find("\"bar\"").expect("AMD dependency path");
+    assert!(define < dependency, "{output}");
+    assert!(
+        !output[define..].contains("amd-dependency path='bar'"),
+        "{output}",
+    );
+}
+
+#[test]
+fn named_amd_module_keeps_named_dependency_semantics_without_reemitting_pragmas() {
+    let output = transform_and_print_module(
+        concat!(
+            "///<amd-module name='named'/>\n",
+            "///<amd-dependency path='bar' name='b'/>\n\n",
+            "export const value = 1;\n",
+        ),
+        ModuleKind::AMD,
+    );
+
+    assert_eq!(
+        output.matches("amd-module name='named'").count(),
+        1,
+        "{output}"
+    );
+    assert_eq!(
+        output.matches("amd-dependency path='bar' name='b'").count(),
+        1,
+        "{output}",
+    );
+    assert!(output.contains("define(\"named\""), "{output}");
+    assert!(
+        output.contains("function (require, exports, b)"),
+        "{output}"
+    );
+}
+
+#[test]
+fn umd_mixed_dependencies_keep_paired_aliases_and_one_outer_comment_prefix() {
+    let output = transform_and_print_module(
+        concat!(
+            "///<amd-dependency path='bar' name='b'/>\n",
+            "///<amd-dependency path='foo'/>\n",
+            "///<amd-dependency path='goo' name='c'/>\n\n",
+            "import \"m2\";\n",
+        ),
+        ModuleKind::UMD,
+    );
+
+    for pragma in [
+        "amd-dependency path='bar' name='b'",
+        "amd-dependency path='foo'",
+        "amd-dependency path='goo' name='c'",
+    ] {
+        assert_eq!(output.matches(pragma).count(), 1, "{output}");
+    }
+    assert!(
+        output.contains("function (require, exports, b, c)"),
+        "{output}"
+    );
+    let bar = output.find("\"bar\"").expect("named dependency bar");
+    let goo = output.find("\"goo\"").expect("named dependency goo");
+    let foo = output.find("\"foo\"").expect("unnamed dependency foo");
+    let m2 = output.find("\"m2\"").expect("external dependency m2");
+    assert!(bar < goo && goo < foo && foo < m2, "{output}");
+}
+
+#[test]
+fn umd_single_amd_dependency_pragmas_remain_owned_by_the_outer_source_prefix() {
+    for (source, pragma, parameters) in [
+        (
+            "///<amd-dependency path='bar'/>\n\nimport m1 = require(\"m2\");\nm1.f();\n",
+            "amd-dependency path='bar'",
+            "function (require, exports)",
+        ),
+        (
+            "///<amd-dependency path='bar' name='b'/>\n\nimport m1 = require(\"m2\");\nm1.f();\n",
+            "amd-dependency path='bar' name='b'",
+            "function (require, exports, b)",
+        ),
+    ] {
+        let output = transform_and_print_module(source, ModuleKind::UMD);
+
+        assert_eq!(output.matches(pragma).count(), 1, "{output}");
+        let wrapper = output
+            .find("(function (factory)")
+            .expect("UMD outer wrapper");
+        assert!(!output[wrapper..].contains(pragma), "{output}");
+        assert!(output.contains(parameters), "{output}");
+        let bar = output.find("\"bar\"").expect("pragma dependency");
+        let m2 = output.find("\"m2\"").expect("external dependency");
+        assert!(bar < m2, "{output}");
+    }
+}
+
+#[test]
+fn remove_comments_suppresses_relocated_prefix_without_losing_amd_dependency_semantics() {
+    let output = transform_and_print_module_with_remove_comments(
+        concat!(
+            "///<amd-dependency path='bar' name='b'/>\n",
+            "// ordinary detached comment\n\n",
+            "export const value = 1;\n",
+        ),
+        ModuleKind::AMD,
+        true,
+    );
+
+    assert!(!output.contains("amd-dependency"), "{output}");
+    assert!(!output.contains("ordinary detached comment"), "{output}");
+    assert!(output.contains("\"bar\""), "{output}");
+    assert!(
+        output.contains("function (require, exports, b)"),
+        "{output}"
+    );
+}
+
+#[test]
+fn ordinary_detached_comment_uses_the_same_relocated_statement_list_contract() {
+    let output = transform_and_print_module(
+        "// detached control\n\nexport const value = 1;\n",
+        ModuleKind::AMD,
+    );
+
+    assert_eq!(output.matches("// detached control").count(), 1, "{output}");
+    let define = output.find("define(").expect("AMD define wrapper");
+    assert!(
+        !output[define..].contains("// detached control"),
+        "{output}",
+    );
+}
+
+#[test]
+fn hoisted_exports_leave_detached_comments_for_the_function_declaration() {
+    for module in [ModuleKind::COMMON_JS, ModuleKind::AMD, ModuleKind::UMD] {
+        for (declaration, publication, function) in [
+            (
+                "export default function () {}\n",
+                "exports.default = default_1;",
+                "function default_1()",
+            ),
+            (
+                "export function named() {}\n",
+                "exports.named = named;",
+                "function named()",
+            ),
+        ] {
+            for detached in [false, true] {
+                let header = if detached {
+                    "// detached header\n\n"
+                } else {
+                    ""
+                };
+                let source = format!("{header}// attached function\n{declaration}");
+                let output = transform_and_print_module(&source, module);
+                let publication = output
+                    .find(publication)
+                    .expect("hoisted export publication");
+                let function = output
+                    .find(function)
+                    .expect("retained function declaration");
+                let attached = output
+                    .find("// attached function")
+                    .expect("attached comment");
+                assert_eq!(
+                    output.matches("// attached function").count(),
+                    1,
+                    "{output}"
+                );
+                assert!(publication < attached && attached < function, "{output}");
+                if detached {
+                    assert_eq!(output.matches("// detached header").count(), 1, "{output}");
+                    assert!(
+                        output.find("// detached header").unwrap() < publication,
+                        "{output}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn amd_import_re_exports_are_published_at_their_import_source_positions() {
+    let output = transform_and_print_module(
+        concat!(
+            "import a = require(\"./dep\");\n",
+            "a.value;\n",
+            "import b, * as ns from \"./dep\";\n",
+            "b; ns.value;\n",
+            "import { value as named } from \"./dep\";\n",
+            "named;\n",
+            "export { a, b, ns, named };\n",
+        ),
+        ModuleKind::AMD,
+    );
+
+    let import_equals_export = output
+        .find("exports.a = a;")
+        .unwrap_or_else(|| panic!("{output}"));
+    let import_equals_read = output
+        .find("a.value;")
+        .unwrap_or_else(|| panic!("{output}"));
+    let namespace_alias = output
+        .find("const ns = dep_1;")
+        .unwrap_or_else(|| panic!("{output}"));
+    let default_export = output
+        .find("exports.b = dep_1.default;")
+        .unwrap_or_else(|| panic!("{output}"));
+    let namespace_export = output
+        .find("exports.ns = ns;")
+        .unwrap_or_else(|| panic!("{output}"));
+    let named_export = output
+        .find(concat!(
+            "Object.defineProperty(exports, \"named\", ",
+            "{ enumerable: true, get: function () { return dep_2.value; } });",
+        ))
+        .unwrap_or_else(|| panic!("{output}"));
+
+    assert!(import_equals_export < import_equals_read, "{output}");
+    assert!(import_equals_read < namespace_alias, "{output}");
+    assert!(namespace_alias < default_export, "{output}");
+    assert!(default_export < namespace_export, "{output}");
+    assert!(namespace_export < named_export, "{output}");
+}
+
+#[test]
+fn common_js_import_equals_appends_explicit_export_specifiers() {
+    let output = transform_and_print_module(
+        concat!(
+            "import a = require(\"./dep\");\n",
+            "a.value;\n",
+            "export { a };\n",
+        ),
+        ModuleKind::COMMON_JS,
+    );
+
+    let declaration = output
+        .find("const a = require(\"./dep\");")
+        .unwrap_or_else(|| panic!("{output}"));
+    let publication = output
+        .find("exports.a = a;")
+        .unwrap_or_else(|| panic!("{output}"));
+    let read = output
+        .find("a.value;")
+        .unwrap_or_else(|| panic!("{output}"));
+    assert!(declaration < publication && publication < read, "{output}");
+}
+
+#[test]
+fn exported_import_equals_re_exports_from_the_export_object_owner() {
+    let source = concat!(
+        "export import a = require(\"./dep\");\n",
+        "export { a as alias };\n",
+    );
+
+    let common_js = transform_and_print_module(source, ModuleKind::COMMON_JS);
+    assert!(
+        common_js.contains("exports.a = require(\"./dep\");"),
+        "{common_js}",
+    );
+    assert!(
+        common_js.contains("exports.alias = exports.a;"),
+        "{common_js}",
+    );
+    assert!(!common_js.contains("exports.alias = a;"), "{common_js}");
+
+    let amd = transform_and_print_module(source, ModuleKind::AMD);
+    assert!(amd.contains("exports.a = a;"), "{amd}");
+    assert!(amd.contains("exports.alias = exports.a;"), "{amd}");
+    assert!(!amd.contains("exports.alias = a;"), "{amd}");
+}
+
+#[test]
+fn named_default_function_namespace_merge_uses_the_source_export_owner() {
+    let parsed = parse_source_file(
+        "default-function-namespace.ts",
+        concat!(
+            "export default function Foo() {}\n",
+            "namespace Foo { export var x; }\n",
+        ),
+        Default::default(),
+        None,
+    );
+    let resolver = SourceNamedExportContainerResolver::new(&parsed, "Foo");
+    let output = transform_and_print_typescript_module(&parsed, ModuleKind::COMMON_JS, &resolver);
+
+    assert!(output.contains("exports.default = Foo;"), "{output}");
+    assert!(
+        output.contains(")(exports.Foo || (exports.Foo = {}));"),
+        "{output}",
+    );
+    assert!(!output.contains(")(Foo || (Foo = {}));"), "{output}");
+}
+
+#[test]
+fn amd_import_equals_call_keeps_its_local_parameter_receiver_free() {
+    let source_text = concat!(
+        "import fooFunc = require(\"dependency\");\n",
+        "var n: number = fooFunc();\n",
+    );
+    let parsed = parse_source_file(
+        "amd-import-equals-call.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = ImportEqualsCallResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::AMD.bits()),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("AMD import-equals call transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print AMD import-equals call")
+    .text()
+    .to_owned();
+
+    assert!(output.contains("var n = fooFunc();"), "{output}");
+    assert!(!output.contains("(0, fooFunc)()"), "{output}");
+}
+
+#[test]
+fn common_js_file_level_generated_export_map_rejects_ordinary_generated_ids() {
+    let parsed = parse_source_file(
+        "using-file-level-defaults.ts",
+        concat!(
+            "declare function acquire(): Disposable;\n",
+            "using resource = acquire();\n",
+            "export default class {}\n",
+            "export = resource;\n",
+        ),
+        Default::default(),
+        None,
+    );
+    let resolver = EnumBindingResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2022.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_es_next(&options),
+        ],
+        false,
+    )
+    .expect("ESNext using-hoist transform");
+
+    let arena = result.arena();
+    let root = arena.root(source).expect("transformed source root");
+    let syntax = arena.source(source).expect("transform source").syntax();
+    let mut pending = vec![root];
+    let mut identities = BTreeSet::new();
+    let mut printable_texts = BTreeSet::new();
+    let mut file_level_identifier = None;
+    let mut non_file_generated_identifier = None;
+    while let Some(node) = pending.pop() {
+        let record = arena.node(node).expect("transformed node");
+        if let Some(metadata) = arena.metadata(node) {
+            if metadata.generated_binding_is_file_level_optimistic() {
+                file_level_identifier.get_or_insert(node);
+                identities.insert(
+                    metadata
+                        .generated_binding_id()
+                        .expect("file-level name owns generated identity"),
+                );
+                let NodeData::Identifier(identifier) = &record.data else {
+                    panic!("file-level generated binding must be an identifier");
+                };
+                printable_texts.insert(identifier.text.clone());
+            } else if metadata.generated_binding_id().is_some() {
+                non_file_generated_identifier.get_or_insert(node);
+            }
+        }
+        for_each_child(&syntax.arena, record, |child| {
+            if let Some(child) = arena.node_ref(source, child) {
+                pending.push(child);
+            }
+            false
+        });
+    }
+
+    assert_eq!(identities.len(), 2, "default export and export= identities");
+    assert_eq!(
+        printable_texts,
+        BTreeSet::from(["_default".to_owned()]),
+        "independent FileLevel names deliberately share printable text",
+    );
+
+    let mut exports = CommonJsFileLevelGeneratedBindingExports::default();
+    let non_file_generated_identifier =
+        non_file_generated_identifier.expect("using environment owns an ordinary generated ID");
+    assert!(
+        !exports.add_for_identifier(arena, non_file_generated_identifier, "bad"),
+        "a GeneratedBindingId without FileLevelOptimistic metadata is rejected",
+    );
+    assert!(
+        exports
+            .get_for_identifier(arena, non_file_generated_identifier)
+            .is_none(),
+        "a non-file generated ID cannot enter the CommonJS export map",
+    );
+
+    let file_level_identifier = file_level_identifier.expect("default owns a FileLevel ID");
+    assert!(exports.add_for_identifier(arena, file_level_identifier, "default"));
+    assert_eq!(
+        exports
+            .get_for_identifier(arena, file_level_identifier)
+            .map(|names| names
+                .iter()
+                .map(|name| name.text.as_str().expect("scalar fixture export name"))
+                .collect::<Vec<_>>()),
+        Some(vec!["default"]),
+    );
+}
+
+#[test]
+fn common_js_export_equals_suppresses_appended_class_export() {
+    let source_text = concat!(
+        "export = exports;\n",
+        "declare class exports {}\n",
+        "export class Sub {}\n",
+    );
+    let parsed = parse_source_file(
+        "export-equals-class.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = EnumBindingResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("CommonJS export-equals class transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print CommonJS export-equals class transform")
+    .text()
+    .to_owned();
+
+    assert!(output.contains("exports.Sub = void 0;"), "{output}");
+    assert!(output.contains("class Sub"), "{output}");
+    assert!(!output.contains("exports.Sub = Sub;"), "{output}");
+    assert!(output.contains("module.exports = exports;"), "{output}");
+}
+
+#[test]
+fn common_js_duplicate_export_equals_keeps_the_first_assignment() {
+    let output = transform_and_print_module(
+        concat!(
+            "var x = 10;\n",
+            "var y = 20;\n",
+            "var z = 30;\n",
+            "export = x;\n",
+            "export = y;\n",
+            "export = z;\n",
+        ),
+        ModuleKind::COMMON_JS,
+    );
+
+    assert_eq!(output.matches("module.exports =").count(), 1, "{output}");
+    assert!(output.contains("module.exports = x;"), "{output}");
+    assert!(!output.contains("module.exports = y;"), "{output}");
+    assert!(!output.contains("module.exports = z;"), "{output}");
+}
+
+#[test]
+fn common_js_wraps_exported_legacy_decorator_assignment() {
+    let source_text = "declare const dec: any;\n@dec\nexport class ClassA {}\n";
+    let parsed = parse_source_file("decorated-export.ts", source_text, Default::default(), None);
+    let resolver = EnumBindingResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        experimental_decorators: true,
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_legacy_decorators(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("CommonJS legacy-decorator export transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print CommonJS legacy-decorator export transform")
+    .text()
+    .to_owned();
+
+    assert!(
+        output.contains("exports.ClassA = ClassA = __decorate(["),
+        "{output}",
+    );
+}
+
+#[test]
+fn common_js_materializes_anonymous_default_function_binding() {
+    let source_text = "export default function () { return true; }\n";
+    let parsed = parse_source_file(
+        "anonymous-default.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = EnumBindingResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("CommonJS anonymous default function transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print CommonJS anonymous default function")
+    .text()
+    .to_owned();
+
+    let publication = output
+        .find("exports.default = default_1;")
+        .unwrap_or_else(|| panic!("{output}"));
+    let declaration = output
+        .find("function default_1()")
+        .unwrap_or_else(|| panic!("{output}"));
+    assert!(publication < declaration, "{output}");
+}
+
+#[test]
+fn export_default_reparenthesizes_a_class_exposed_by_type_erasure() {
+    let source_text = "export default (class Foo {} as any);\n";
+    let parsed = parse_source_file(
+        "export-default-parenthesize.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = EnumBindingResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::ES_NEXT.bits()),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![transform_type_script(&options, &resolver)],
+        false,
+    )
+    .expect("export-default class assertion transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print export-default class assertion")
+    .text()
+    .to_owned();
+
+    assert_eq!(output, "export default (class Foo {\n});\n");
+}
+
+#[test]
+fn typescript_transform_erases_preserved_jsx_type_arguments() {
+    let output = transform_and_print_preserved_tsx(concat!(
+        "const selfClosing = <Foo<unknown, string> />;\n",
+        "const opening = <Foo<TypeProps>></Foo>;\n",
+    ));
+
+    assert_eq!(
+        output,
+        concat!(
+            "const selfClosing = <Foo />;\n",
+            "const opening = <Foo></Foo>;\n",
+        )
+    );
+}
+
+#[test]
+fn typescript_transform_structurally_erases_jsx_recovery_type_arguments() {
+    let output = transform_and_print_preserved_tsx(concat!(
+        "const unknown = <Foo<?> />;\n",
+        "const nullable = <Foo<string?>></Foo>;\n",
+    ));
+
+    assert_eq!(
+        output,
+        concat!(
+            "const unknown = <Foo />;\n",
+            "const nullable = <Foo></Foo>;\n",
+        )
+    );
+}
+
+#[test]
+fn typescript_transform_preserves_jsdoc_recovery_type_arguments() {
+    let source_text = concat!(
+        "function foo<T>(x: T): T { return x; }\n",
+        "const ValidFoo = foo<string>;\n",
+        "const WhatFoo = foo<?>;\n",
+        "const HuhFoo = foo<string?>;\n",
+        "const NopeFoo = foo<?string>;\n",
+        "const ComeOnFoo = foo<?string?>;\n",
+        "type Erased = typeof foo<?>;\n",
+    );
+    let parsed = parse_source_file(
+        "expression-with-jsdoc-type-arguments.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = EnumBindingResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::ES_NEXT.bits()),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![transform_type_script(&options, &resolver)],
+        false,
+    )
+    .expect("JSDoc recovery type-argument transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print JSDoc recovery type arguments")
+    .text()
+    .to_owned();
+
+    // tsc 6.0.3 erases the valid instantiation expression's type arguments
+    // and prints the erased expression parenthesized (`const ValidFoo = (foo);`,
+    // the same shape as the frozen `instantiationExpressions.ts` JS write);
+    // only the JSDoc recovery wrappers below are retained verbatim.
+    assert!(output.contains("const ValidFoo = (foo);"), "{output}");
+    for retained in [
+        "const WhatFoo = foo<?>;",
+        "const HuhFoo = foo<?string>;",
+        "const NopeFoo = foo<?string>;",
+        "const ComeOnFoo = foo<??string>;",
+    ] {
+        assert!(output.contains(retained), "missing {retained:?}:\n{output}");
+    }
+    assert!(!output.contains("type Erased"), "{output}");
+}
+
+#[test]
+fn typescript_transform_materializes_missing_accessor_bodies() {
+    let source_text = "var value = { get item() };\n";
+    let parsed = parse_source_file(
+        "accessors-without-bodies.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = EnumBindingResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::ES_NEXT.bits()),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![transform_type_script(&options, &resolver)],
+        false,
+    )
+    .expect("missing accessor-body transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print accessors with materialized bodies")
+    .text()
+    .to_owned();
+
+    assert_eq!(output, "var value = { get item() { } };\n");
+}
+
+#[test]
+fn common_js_publishes_each_duplicate_anonymous_default_function() {
+    let source_text = concat!(
+        "export default interface A { a: string; }\n",
+        "export default function () { return 1; }\n",
+        "export default function () { return 2; }\n",
+    );
+    let parsed = parse_source_file(
+        "duplicate-anonymous-default-functions.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = EnumBindingResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("duplicate anonymous default function transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print duplicate anonymous default functions")
+    .text()
+    .to_owned();
+
+    let first_publication = output
+        .find("exports.default = default_1;")
+        .unwrap_or_else(|| panic!("{output}"));
+    let second_publication = output
+        .find("exports.default = default_2;")
+        .unwrap_or_else(|| panic!("{output}"));
+    let first_declaration = output
+        .find("function default_1()")
+        .unwrap_or_else(|| panic!("{output}"));
+    let second_declaration = output
+        .find("function default_2()")
+        .unwrap_or_else(|| panic!("{output}"));
+    assert!(
+        first_publication < second_publication
+            && second_publication < first_declaration
+            && first_declaration < second_declaration,
+        "{output}"
+    );
+}
+
+#[test]
+fn common_js_publishes_export_specifiers_for_erased_ambient_functions() {
+    let source_text = concat!(
+        "declare function foo(): any;\n",
+        "declare function bar(): any;\n",
+        "export { foo, bar as baz };\n",
+    );
+    let parsed = parse_source_file(
+        "ambient-function-exports.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = AmbientFunctionExportResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("ambient function export transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print ambient function exports")
+    .text()
+    .to_owned();
+
+    assert_eq!(
+        output,
+        concat!(
+            "\"use strict\";\n",
+            "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+            "exports.foo = foo;\n",
+            "exports.baz = bar;\n",
+        )
+    );
+}
+
+#[test]
+fn duplicate_default_re_export_preinitializes_a_hoisted_function_export() {
+    let source_text = concat!(
+        "export default function () {}\n",
+        "export { default } from './hi';\n",
+        "export { aa as default } from './hi';\n",
+    );
+    let parsed = parse_source_file(
+        "export-default-duplicate.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = EnumBindingResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        es_module_interop: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("duplicate default export transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print duplicate default exports")
+    .text()
+    .to_owned();
+
+    let preinitializer = output
+        .find("exports.default = void 0;")
+        .unwrap_or_else(|| panic!("{output}"));
+    let publication = output
+        .find("exports.default = default_1;")
+        .unwrap_or_else(|| panic!("{output}"));
+    let declaration = output
+        .find("function default_1()")
+        .unwrap_or_else(|| panic!("{output}"));
+    assert!(
+        preinitializer < publication && publication < declaration,
+        "{output}"
+    );
+    assert_eq!(output.matches("exports.default = void 0;").count(), 1);
+}
+
+#[test]
+fn common_js_default_class_skips_only_its_undefined_preinitializer() {
+    let source_text = concat!(
+        "export default class A { method() {} }\n",
+        "export class B {}\n",
+    );
+    let parsed = parse_source_file("default-class.ts", source_text, Default::default(), None);
+    let resolver = EnumBindingResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("CommonJS default-class transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print CommonJS default class")
+    .text()
+    .to_owned();
+
+    assert!(!output.contains("exports.default = void 0;"), "{output}");
+    assert!(output.contains("exports.B = void 0;"), "{output}");
+    let declaration = output.find("class A").expect("default class declaration");
+    let publication = output
+        .find("exports.default = A;")
+        .expect("default class publication");
+    assert!(declaration < publication, "{output}");
+}
+
+#[test]
+fn common_js_default_class_publishes_after_its_static_field_operations() {
+    let source_text = concat!(
+        "enum SomeEnum { one }\n",
+        "export default class SomeClass {\n",
+        "    public static E = SomeEnum;\n",
+        "}\n",
+    );
+    let parsed = parse_source_file(
+        "tsx-default-imports.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = EnumBindingResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        use_define_for_class_fields: Some(false),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_class_fields(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("CommonJS default-class static-field transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print CommonJS default-class static field")
+    .text()
+    .to_owned();
+
+    let declaration = output.find("class SomeClass").expect("class declaration");
+    let static_operation = output
+        .find("SomeClass.E = SomeEnum;")
+        .expect("class-owned static field operation");
+    let publication = output
+        .find("exports.default = SomeClass;")
+        .expect("default export publication");
+    assert!(
+        declaration < static_operation && static_operation < publication,
+        "{output}",
+    );
+}
+
+#[test]
+fn common_js_materializes_invalid_anonymous_exported_class_identity() {
+    let source_text = "export class {\n}\n";
+    let parsed = parse_source_file(
+        "export-class-without-name.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = EnumBindingResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("CommonJS invalid anonymous exported class transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print CommonJS invalid anonymous exported class")
+    .text()
+    .to_owned();
+
+    assert_eq!(
+        output,
+        concat!(
+            "\"use strict\";\n",
+            "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+            "class default_1 {\n",
+            "}\n",
+            "exports.default_1 = default_1;\n",
+        )
+    );
+    assert!(!output.contains("exports.default_1 = void 0;"), "{output}");
+}
+
+#[test]
+fn namespace_default_classes_share_generated_declaration_identity() {
+    let source_text = concat!(
+        "namespace ns_class { export default class {} }\n",
+        "namespace ns_abstract_class { export default abstract class {} }\n",
+    );
+    let parsed = parse_source_file(
+        "export-default-class-in-namespace.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = EnumBindingResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("namespace default-class transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print namespace default classes")
+    .text()
+    .to_owned();
+
+    assert!(output.contains("class default_1 {"), "{output}");
+    assert!(
+        output.contains("ns_class.default_1 = default_1;"),
+        "{output}"
+    );
+    assert!(output.contains("class default_2 {"), "{output}");
+    assert!(
+        output.contains("ns_abstract_class.default_2 = default_2;"),
+        "{output}"
+    );
+}
+
+#[test]
+fn namespace_default_functions_keep_recovery_syntax_and_generated_export_identity() {
+    let source_text = concat!(
+        "namespace ns_function { export default function () {} }\n",
+        "namespace ns_async_function { export default async function () {} }\n",
+    );
+    let parsed = parse_source_file(
+        "export-default-function-in-namespace.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = EnumBindingResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_class_fields(&options, &resolver),
+            transform_es2017(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("namespace default-function transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print namespace default functions")
+    .text()
+    .to_owned();
+
+    assert!(output.contains("default function () { }"), "{output}");
+    assert!(
+        output.contains("ns_function.default_1 = default_1;"),
+        "{output}"
+    );
+    assert!(
+        output.contains("ns_async_function.default_2 = default_2;"),
+        "{output}"
+    );
+}
+
+#[test]
+fn common_js_exported_updates_publish_new_values_and_preserve_postfix_results() {
+    let source_text = concat!(
+        "let bizz = 8;\n",
+        "bizz++;\n",
+        "bizz--;\n",
+        "++bizz;\n",
+        "let previous = bizz++;\n",
+        "export { bizz };\n",
+    );
+    let parsed = parse_source_file("exported-updates.ts", source_text, Default::default(), None);
+    let resolver = ExportedVariableResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("CommonJS exported-update transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print CommonJS exported updates")
+    .text()
+    .to_owned();
+
+    assert_eq!(
+        output,
+        concat!(
+            "\"use strict\";\n",
+            "var _a;\n",
+            "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+            "exports.bizz = void 0;\n",
+            "let bizz = 8;\n",
+            "exports.bizz = bizz;\n",
+            "exports.bizz = (bizz++, bizz);\n",
+            "exports.bizz = (bizz--, bizz);\n",
+            "exports.bizz = ++bizz;\n",
+            "let previous = (exports.bizz = (_a = bizz++, bizz), _a);\n",
+        )
+    );
+}
+
+#[test]
+fn common_js_exported_updates_use_direct_storage_and_publish_only_aliases() {
+    let source_text = concat!(
+        "export let direct = 0;\n",
+        "direct++;\n",
+        "direct--;\n",
+        "++direct;\n",
+        "--direct;\n",
+        "let direct_postfix = direct++;\n",
+        "let direct_postfix_dec = direct--;\n",
+        "let direct_prefix = ++direct;\n",
+        "let direct_prefix_dec = --direct;\n",
+        "let local = 0;\n",
+        "export { local as alias };\n",
+        "local++;\n",
+        "let alias_postfix = local++;\n",
+        "++local;\n",
+        "let alias_prefix = ++local;\n",
+        "export let multiple = 0;\n",
+        "export { multiple as secondary };\n",
+        "multiple++;\n",
+        "let multiple_postfix = multiple++;\n",
+        "++multiple;\n",
+        "let multiple_prefix = ++multiple;\n",
+        "export namespace Ns {\n",
+        "    export const value = 0;\n",
+        "}\n",
+        "export enum En { A }\n",
+        "En.A++;\n",
+        "const enum_previous = En.A++;\n",
+    );
+    let parsed = parse_source_file(
+        "direct-exported-updates.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = ExportedVariableResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("CommonJS direct exported-update transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print CommonJS direct exported updates")
+    .text()
+    .to_owned();
+
+    for expected in [
+        "exports.direct++;",
+        "exports.direct--;",
+        "++exports.direct;",
+        "--exports.direct;",
+        "let direct_postfix = exports.direct++;",
+        "let direct_postfix_dec = exports.direct--;",
+        "let direct_prefix = ++exports.direct;",
+        "let direct_prefix_dec = --exports.direct;",
+        "exports.alias = (local++, local);",
+        "let alias_postfix = (exports.alias = (_a = local++, local), _a);",
+        "exports.alias = ++local;",
+        "let alias_prefix = exports.alias = ++local;",
+        "exports.secondary = (exports.multiple++, exports.multiple);",
+        concat!(
+            "let multiple_postfix = (exports.secondary = ",
+            "(_b = exports.multiple++, exports.multiple), _b);"
+        ),
+        "exports.secondary = ++exports.multiple;",
+        "let multiple_prefix = exports.secondary = ++exports.multiple;",
+        "(function (Ns) {",
+        "})(Ns || (Ns = {}));",
+        "(function (En) {",
+        "})(En || (En = {}));",
+        "En.A++;",
+        "const enum_previous = En.A++;",
+    ] {
+        assert!(output.contains(expected), "missing {expected:?}:\n{output}");
+    }
+    assert!(
+        !output.contains("exports.direct = (exports.direct++"),
+        "{output}"
+    );
+    assert!(
+        !output.contains("exports.direct = ++exports.direct"),
+        "{output}"
+    );
+}
+
+#[test]
+fn common_js_nested_export_update_temps_belong_to_the_module_scope() {
+    let source_text = concat!(
+        "let x = 1;\n",
+        "export function foo(y: number) {\n",
+        "    if (y <= x++) return y <= x++;\n",
+        "    if (y <= x--) return y <= x--;\n",
+        "    if (y <= ++x) return y <= ++x;\n",
+        "    if (y <= --x) return y <= --x;\n",
+        "    x++;\n",
+        "    x--;\n",
+        "    ++x;\n",
+        "    --x;\n",
+        "}\n",
+        "export { x };\n",
+    );
+    let parsed = parse_source_file(
+        "module-exports-unary-expression.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = ExportedVariableResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("CommonJS nested exported-update transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print CommonJS nested exported updates")
+    .text()
+    .to_owned();
+
+    assert!(
+        output.starts_with(concat!(
+            "\"use strict\";\n",
+            "var _a, _b, _c, _d;\n",
+            "Object.defineProperty(exports, \"__esModule\"",
+        )),
+        "postfix result temporaries belong immediately after the module prologue:\n{output}",
+    );
+    let function = output
+        .find("function foo(y) {")
+        .map(|start| &output[start..])
+        .expect("emitted exported function");
+    assert!(
+        !function.contains("var _"),
+        "transformModule must not create a nested function hoist sink:\n{output}",
+    );
+    let temp_declarations = output
+        .lines()
+        .filter(|line| line.starts_with("var _"))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        temp_declarations,
+        ["var _a, _b, _c, _d;"],
+        "prefix updates and discarded postfix updates must not allocate result temporaries:\n{output}",
+    );
+}
+
+#[test]
+fn common_js_publishes_the_standard_decorator_synthetic_named_export() {
+    let source_text = concat!(
+        "declare var dec: any;\n",
+        "export class C {\n",
+        "    @dec x: any;\n",
+        "    constructor(@dec x: any) {}\n",
+        "}\n",
+    );
+    let parsed = parse_source_file(
+        "parameter-decorators-emit.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = EnumBindingResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_standard_decorators(&options),
+            transform_class_fields(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("standard decorator CommonJS transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print standard decorator CommonJS transform")
+    .text()
+    .to_owned();
+
+    assert!(
+        output.contains("if (_metadata) Object.defineProperty"),
+        "{output}"
+    );
+    assert_eq!(output.matches("exports.C = C;").count(), 1, "{output}");
+    assert!(output.ends_with("exports.C = C;\n"), "{output}");
+}
+
+#[test]
+fn standard_decorator_class_references_preserve_parsed_and_generated_identity() {
+    let parsed = parse_source_file(
+        "standard-decorator-class-references.ts",
+        concat!("@cls export class E {}\n", "consume(@cls class {});\n",),
+        Default::default(),
+        None,
+    );
+    let NodeData::SourceFile(parsed_source) = &parsed.arena.node(parsed.root).data else {
+        panic!("parsed source-file root");
+    };
+    let mut parsed_name = None;
+    let mut parsed_expression = None;
+    let mut pending = parsed
+        .arena
+        .node_array(parsed_source.statements.expect("parsed statements"))
+        .nodes
+        .clone();
+    while let Some(node) = pending.pop() {
+        let record = parsed.arena.node(node);
+        match &record.data {
+            NodeData::ClassDeclaration(data) => parsed_name = data.name,
+            NodeData::ClassExpression(_) => parsed_expression = Some(node),
+            _ => {}
+        }
+        for_each_child(&parsed.arena, record, |child| {
+            pending.push(child);
+            false
+        });
+    }
+    let parsed_name = parsed_name.expect("parsed class-declaration name");
+    let parsed_name_record = parsed.arena.node(parsed_name);
+    let parsed_name_range = (parsed_name_record.pos, parsed_name_record.end);
+    let parsed_expression = parsed_expression.expect("parsed anonymous class expression");
+
+    let resolver = LegacyScriptJsxResolver;
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2022.bits()),
+        module: Some(ModuleKind::ES_NEXT.bits()),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_es_next(&options),
+            transform_standard_decorators(&options),
+            transform_class_fields(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("standard-decorator class-reference transform");
+
+    let arena = result.arena();
+    let root = arena.root(source).expect("transformed source root");
+    let syntax = arena.source(source).expect("transform source").syntax();
+    let required_parsed_flags =
+        EmitFlags::LOCAL_NAME | EmitFlags::NO_COMMENTS | EmitFlags::NO_SOURCE_MAP;
+    let mut parsed_references = 0usize;
+    let mut generated_references = 0usize;
+    let mut generated_identities = BTreeSet::new();
+    let mut pending = vec![root];
+    while let Some(node) = pending.pop() {
+        let record = arena.node(node).expect("transformed node");
+        if let NodeData::Identifier(identifier) = &record.data {
+            let metadata = arena.metadata(node);
+            if identifier.text == "E"
+                && metadata.is_some_and(|metadata| metadata.flags().contains(required_parsed_flags))
+            {
+                parsed_references += 1;
+                assert_eq!(arena.get_original_node(node).node(), parsed_name);
+                assert_eq!((record.pos, record.end), parsed_name_range);
+            }
+            if metadata.is_some_and(|metadata| metadata.generated_binding_base() == Some("class")) {
+                generated_references += 1;
+                let metadata = metadata.expect("generated class-reference metadata");
+                generated_identities.insert(
+                    metadata
+                        .generated_binding_id()
+                        .expect("generated class reference owns a binding identity"),
+                );
+                assert_eq!(arena.get_original_node(node).node(), parsed_expression);
+                assert_eq!((record.pos, record.end), (u32::MAX, u32::MAX));
+            }
+        }
+        for_each_child(&syntax.arena, record, |child| {
+            if let Some(child) = arena.node_ref(source, child) {
+                pending.push(child);
+            }
+            false
+        });
+    }
+
+    assert_eq!(
+        parsed_references, 3,
+        "IIFE declaration, decoration assignment, and return assignment",
+    );
+    assert_eq!(
+        generated_references, 3,
+        "anonymous IIFE references must be separately materialized",
+    );
+    assert_eq!(
+        generated_identities.len(),
+        1,
+        "all anonymous IIFE references must share one TargetBinding",
+    );
+}
+
+#[test]
+fn using_anonymous_default_decorator_handoff_keeps_owner_and_binding_domains() {
+    for (case, class_body, expected_default_projections) in [
+        ("class decorator", "{}", 3usize),
+        ("class and member decorators", "{ @dec m() {} }", 5usize),
+    ] {
+        let source_text = format!(
+            concat!(
+                "declare function acquire(): Disposable;\n",
+                "declare const cls: any;\n",
+                "declare const dec: any;\n",
+                "using resource = acquire();\n",
+                "@cls export default class {class_body}\n",
+            ),
+            class_body = class_body,
+        );
+        let parsed = parse_source_file(
+            "using-standard-default-handoff.ts",
+            &source_text,
+            Default::default(),
+            None,
+        );
+        let NodeData::SourceFile(parsed_source) = &parsed.arena.node(parsed.root).data else {
+            panic!("parsed source-file root");
+        };
+        let parsed_class = parsed
+            .arena
+            .node_array(parsed_source.statements.expect("parsed statements"))
+            .nodes
+            .iter()
+            .copied()
+            .find(|statement| {
+                parsed.arena.node(*statement).kind == tsc_syntax::SyntaxKind::ClassDeclaration
+            })
+            .expect("parsed anonymous default class");
+
+        let resolver = LegacyScriptJsxResolver;
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+        let options = CompilerOptions {
+            target: Some(ScriptTarget::ES2022.bits()),
+            module: Some(ModuleKind::ES_NEXT.bits()),
+            use_define_for_class_fields: Some(true),
+            always_strict: Some(false),
+            ..CompilerOptions::default()
+        };
+        let result = transform_nodes(
+            arena,
+            vec![TransformRoot::SourceFile(source)],
+            vec![
+                transform_type_script(&options, &resolver),
+                transform_es_next(&options),
+                transform_standard_decorators(&options),
+                transform_class_fields(&options, &resolver),
+            ],
+            false,
+        )
+        .unwrap_or_else(|error| panic!("{case} transform failed: {error}"));
+
+        let arena = result.arena();
+        let root = arena.root(source).expect("transformed source root");
+        let syntax = arena.source(source).expect("transform source").syntax();
+        let mut pending = vec![root];
+        let mut default_ids = BTreeSet::new();
+        let mut file_level_ids = BTreeSet::new();
+        let mut default_projections = 0usize;
+        let mut default_identifier = None;
+        let mut file_level_identifier = None;
+        while let Some(node) = pending.pop() {
+            let record = arena.node(node).expect("transformed node");
+            if let NodeData::Identifier(identifier) = &record.data {
+                if let Some(metadata) = arena.metadata(node) {
+                    if metadata.generated_binding_base() == Some("default") {
+                        default_identifier.get_or_insert(node);
+                        default_projections += 1;
+                        default_ids.insert(
+                            metadata
+                                .generated_binding_id()
+                                .expect("ordinary default projection owns an ID"),
+                        );
+                        assert_eq!(identifier.text, "default_1", "{case}");
+                        assert_eq!((record.pos, record.end), (u32::MAX, u32::MAX), "{case}");
+                        assert_eq!(arena.get_original_node(node).node(), parsed_class, "{case}");
+                        assert!(
+                            !metadata.flags().intersects(
+                                EmitFlags::LOCAL_NAME
+                                    | EmitFlags::NO_COMMENTS
+                                    | EmitFlags::NO_SOURCE_MAP
+                            ),
+                            "generated projections must bypass parsed-name flags ({case})",
+                        );
+                        assert!(
+                            !metadata.generated_binding_is_file_level_optimistic(),
+                            "ordinary default_N must not enter the FileLevel domain ({case})",
+                        );
+                    }
+                    // Decorator helpers also own FileLevel bindings. Inspect the
+                    // anonymous default export's binding without conflating them.
+                    if metadata.generated_binding_is_file_level_optimistic()
+                        && metadata.generated_binding_preferred_base() == Some("_default")
+                    {
+                        file_level_identifier.get_or_insert(node);
+                        assert_eq!(identifier.text, "_default", "{case}");
+                        assert_eq!(
+                            metadata.generated_binding_preferred_base(),
+                            Some("_default"),
+                            "{case}",
+                        );
+                        assert!(
+                            metadata.generated_binding_reserved_in_nested_scopes(),
+                            "FileLevel _default remains reserved below the source scope ({case})",
+                        );
+                        file_level_ids.insert(
+                            metadata
+                                .generated_binding_id()
+                                .expect("FileLevel projection owns an ID"),
+                        );
+                    }
+                }
+            }
+            for_each_child(&syntax.arena, record, |child| {
+                if let Some(child) = arena.node_ref(source, child) {
+                    pending.push(child);
+                }
+                false
+            });
+        }
+
+        assert_eq!(default_projections, expected_default_projections, "{case}");
+        assert_eq!(
+            default_ids.len(),
+            1,
+            "one ordinary default_N identity ({case})"
+        );
+        assert_eq!(
+            file_level_ids.len(),
+            1,
+            "one FileLevel _default identity ({case})"
+        );
+        assert!(
+            default_ids.is_disjoint(&file_level_ids),
+            "ordinary default_N and FileLevel _default must remain separate domains ({case})",
+        );
+        let mut exports = CommonJsFileLevelGeneratedBindingExports::default();
+        let file_level_identifier =
+            file_level_identifier.expect("FileLevel representative identifier");
+        let default_identifier = default_identifier.expect("ordinary default representative");
+        assert!(
+            exports.add_for_identifier(arena, file_level_identifier, "default"),
+            "FileLevel _default enters the CommonJS identity map ({case})",
+        );
+        assert!(
+            !exports.add_for_identifier(arena, default_identifier, "bad"),
+            "ordinary default_N must be rejected by the CommonJS identity map ({case})",
+        );
+        assert!(
+            exports
+                .get_for_identifier(arena, default_identifier)
+                .is_none(),
+            "ordinary default_N cannot resolve through the FileLevel map ({case})",
+        );
+    }
+}
+
+#[test]
+fn legacy_decorator_and_class_field_temps_share_final_binding_order() {
+    let source_text = concat!(
+        "declare const dec: any;\n",
+        "declare function key(): string;\n",
+        "class C { @dec [key()]: any; [key()]: any = 1; }\n",
+    );
+    let parsed = parse_source_file(
+        "decorated-computed.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = EnumBindingResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        experimental_decorators: true,
+        use_define_for_class_fields: Some(false),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_legacy_decorators(&options, &resolver),
+            transform_class_fields(&options, &resolver),
+            transform_es2016(&options),
+        ],
+        false,
+    )
+    .expect("composed legacy-decorator and class-field transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print composed generated bindings")
+    .text()
+    .to_owned();
+
+    let class_field_binding = output
+        .find("var _a;")
+        .unwrap_or_else(|| panic!("class-field binding:\n{output}"));
+    let decorator_binding = output
+        .find("var _b;")
+        .unwrap_or_else(|| panic!("decorator binding:\n{output}"));
+    assert!(class_field_binding < decorator_binding, "{output}");
+    assert!(output.contains("this[_a] = 1;"), "{output}");
+    assert!(output.contains("_b = key(), _a = key();"), "{output}");
+    assert!(output.contains("C.prototype, _b, void 0"), "{output}");
+}
+
+#[test]
+fn decorated_computed_names_are_shared_for_identifiers_and_class_expressions() {
+    let source_text = concat!(
+        "declare const dec: any;\n",
+        "declare const propertyName: string;\n",
+        "declare function key(): string;\n",
+        "class C { @dec [propertyName]: any = 1; }\n",
+        "void class D { @dec [key()]: any = 1; };\n",
+    );
+    let parsed = parse_source_file(
+        "decorated-computed-ownership.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = EnumBindingResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        experimental_decorators: true,
+        use_define_for_class_fields: Some(false),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_legacy_decorators(&options, &resolver),
+            transform_class_fields(&options, &resolver),
+            transform_es2016(&options),
+        ],
+        false,
+    )
+    .expect("decorated computed-name ownership transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print decorated computed-name ownership")
+    .text()
+    .to_owned();
+
+    assert!(output.contains("var _a;\nvar _b, _c;"), "{output}");
+    assert!(output.contains("this[_b] = 1;"), "{output}");
+    assert!(output.contains("_b = propertyName;"), "{output}");
+    assert!(output.contains("C.prototype, _b, void 0"), "{output}");
+    assert!(output.contains("this[_c] = 1;"), "{output}");
+    assert!(output.contains("_c = key(),"), "{output}");
+}
+
+#[test]
+fn legacy_decorator_recovers_default_class_without_export() {
+    let source_text = concat!(
+        "declare function decorator(constructor: any): any;\n",
+        "@decorator default class {}\n",
+    );
+    let parsed = parse_source_file(
+        "default-without-export.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = EnumBindingResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        experimental_decorators: true,
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_legacy_decorators(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("legacy-decorator default recovery transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print legacy-decorator default recovery")
+    .text()
+    .to_owned();
+
+    assert!(output.contains("let default_1 = class {"), "{output}");
+    assert!(
+        output.contains("default_1 = __decorate([\n    decorator\n], default_1);"),
+        "{output}",
+    );
+    assert!(!output.contains("export default"), "{output}");
+}
+
+fn transform_and_print_classic_jsx_at_target(source_text: &str, target: ScriptTarget) -> String {
+    let parsed = parse_source_file(
+        "classic-jsx-spread.tsx",
+        source_text,
+        ParseOptions {
+            language_variant: LanguageVariant::Jsx,
+            ..ParseOptions::default()
+        },
+        None,
+    );
+    let resolver = LegacyScriptJsxResolver;
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(target.bits()),
+        jsx: Some(2),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_jsx(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("classic JSX spread transform");
+    create_printer(PrinterOptions::new(NewLineKind::LineFeed).with_target(target))
+        .print(&mut result, PrintRequest::SourceFile(source), None)
+        .expect("print classic JSX spread transform")
+        .text()
+        .to_owned()
+}
+
+// CA-2b family F2: the JSX spread-attribute builder is upstream's second
+// createAssignHelper caller (transformJsxAttributesToExpression,
+// _tsc.js:104267) and forks identically — flat multi-operand form.
+// Expected bytes are fresh-process vendored tsc emits (jsx react,
+// alwaysStrict false, LF; probe = ca2b-probe3.mjs).
+#[test]
+fn jsx_spread_attributes_use_the_assign_helper_below_es2015() {
+    let printed = transform_and_print_classic_jsx_at_target(
+        "var attrs = { a: 1 };\nvar e = <div {...attrs} b=\"1\"/>;\n",
+        ScriptTarget::ES5,
+    );
+    assert_eq!(
+        printed,
+        r#"var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
+var attrs = { a: 1 };
+var e = React.createElement("div", __assign({}, attrs, { b: "1" }));
+"#
+    );
+}
+
+#[test]
+fn jsx_spread_attributes_keep_object_assign_at_es2015_and_above() {
+    let printed = transform_and_print_classic_jsx_at_target(
+        "var attrs = { a: 1 };\nvar e = <div {...attrs} b=\"1\"/>;\n",
+        ScriptTarget::ES2017,
+    );
+    assert_eq!(
+        printed,
+        r#"var attrs = { a: 1 };
+var e = React.createElement("div", Object.assign({}, attrs, { b: "1" }));
+"#
+    );
+}
+
+#[test]
+fn classic_jsx_preserves_single_line_whitespace_text_children() {
+    let source_text = concat!(
+        "var p = 0;\n",
+        "var whitespace1 = <div>      </div>;\n",
+        "var whitespace2 = <div>  {p}    </div>;\n",
+        "var whitespace3 = <div>\n",
+        "    {p}\n",
+        "</div>;\n",
+        "var nested = <Foo> <Bar> q </Bar> <Bar />   s <Bar /><Bar /></Foo>;\n",
+    );
+    let parsed = parse_source_file(
+        "classic-jsx-whitespace.tsx",
+        source_text,
+        ParseOptions {
+            language_variant: LanguageVariant::Jsx,
+            ..ParseOptions::default()
+        },
+        None,
+    );
+    let resolver = LegacyScriptJsxResolver;
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        jsx: Some(2),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_jsx(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("classic JSX whitespace transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print classic JSX whitespace transform")
+    .text()
+    .to_owned();
+
+    assert_eq!(
+        output,
+        concat!(
+            "var p = 0;\n",
+            "var whitespace1 = React.createElement(\"div\", null, \"      \");\n",
+            "var whitespace2 = React.createElement(\"div\", null,\n",
+            "    \"  \",\n",
+            "    p,\n",
+            "    \"    \");\n",
+            "var whitespace3 = React.createElement(\"div\", null, p);\n",
+            "var nested = React.createElement(Foo, null,\n",
+            "    \" \",\n",
+            "    React.createElement(Bar, null, \" q \"),\n",
+            "    \" \",\n",
+            "    React.createElement(Bar, null),\n",
+            "    \"   s \",\n",
+            "    React.createElement(Bar, null),\n",
+            "    React.createElement(Bar, null));\n",
+        )
+    );
+}
+
+#[test]
+fn common_js_substitutes_orphan_automatic_jsx_import_references() {
+    let source_text = "const value = <div>{null/* preserved */}</div>;\n";
+    let parsed = parse_source_file(
+        "legacy-script.tsx",
+        source_text,
+        ParseOptions {
+            language_variant: LanguageVariant::Jsx,
+            ..ParseOptions::default()
+        },
+        None,
+    );
+    let resolver = LegacyScriptJsxResolver;
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        jsx: Some(4),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_jsx(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("legacy-script automatic JSX transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print legacy-script automatic JSX transform")
+    .text()
+    .to_owned();
+
+    assert!(
+        output.contains("(0, _a.jsx)(\"div\", { children: null /* preserved */ })"),
+        "{output}",
+    );
+    assert!(!output.contains("react/jsx-runtime"), "{output}");
+}
+
+#[test]
+fn system_module_preserves_generated_automatic_jsx_local_reference() {
+    let source_text = "export {}; const value = <div>{null/* preserved */}</div>;\n";
+    let parsed = parse_source_file(
+        "system-jsx.tsx",
+        source_text,
+        ParseOptions {
+            language_variant: LanguageVariant::Jsx,
+            ..ParseOptions::default()
+        },
+        None,
+    );
+    let resolver = LegacyScriptJsxResolver;
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::SYSTEM.bits()),
+        jsx: Some(4),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_jsx(&options, &resolver),
+            transform_system_module(&options, &resolver, None),
+        ],
+        false,
+    )
+    .expect("System automatic JSX transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print System automatic JSX transform")
+    .text()
+    .to_owned();
+
+    assert!(output.contains("_jsx(\"div\""), "{output}");
+    assert!(!output.contains("(0, jsx_runtime_1.jsx)"), "{output}");
+}
+
+#[test]
+fn system_default_import_call_keeps_the_substituted_direct_callee() {
+    let source_text = concat!(
+        "import repeat from \"repeat\";\n",
+        "const value: string = repeat(\"text\", 2);\n",
+    );
+    let parsed = parse_source_file(
+        "system-default-import-call.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = DefaultImportCallResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::SYSTEM.bits()),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_system_module(&options, &resolver, None),
+        ],
+        false,
+    )
+    .expect("System default-import call transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print System default-import call")
+    .text()
+    .to_owned();
+
+    assert!(output.contains("repeat_1.default(\"text\", 2)"), "{output}");
+    assert!(!output.contains("(0, repeat_1.default)"), "{output}");
+}
+
+#[test]
+fn system_module_reuses_single_destructuring_initializer_without_a_temp() {
+    let source_text = concat!(
+        "export let { toString } = 1;\n",
+        "{\n",
+        "    let { toFixed } = 1;\n",
+        "}\n",
+    );
+    let parsed = parse_source_file(
+        "system-destructuring-variable.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = ExportedVariableResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::SYSTEM.bits()),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_system_module(&options, &resolver, None),
+        ],
+        false,
+    )
+    .expect("System exported destructuring declaration transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print System exported destructuring declaration")
+    .text()
+    .to_owned();
+
+    assert_eq!(
+        output,
+        concat!(
+            "System.register([], function (exports_1, context_1) {\n",
+            "    \"use strict\";\n",
+            "    var toString;\n",
+            "    var __moduleName = context_1 && context_1.id;\n",
+            "    return {\n",
+            "        setters: [],\n",
+            "        execute: function () {\n",
+            "            exports_1(\"toString\", toString = 1..toString);\n",
+            "            {\n",
+            "                let { toFixed } = 1;\n",
+            "            }\n",
+            "        }\n",
+            "    };\n",
+            "});\n",
+        )
+    );
+}
+
+#[test]
+fn system_module_hoists_uninitialized_export_from_source_owned_if_statement() {
+    let source_text = concat!(
+        "// https://github.com/microsoft/TypeScript/issues/59373\n\n",
+        "if (true)\n",
+        "export const cssExports: CssExports;\n",
+        "export default cssExports;\n",
+    );
+    let parsed = parse_source_file(
+        "system-export-in-if.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = ExportedVariableResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::SYSTEM.bits()),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let transformers = get_script_transformers(&options, &resolver)
+        .expect("construct the complete System transform pipeline");
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        transformers,
+        false,
+    )
+    .expect("System embedded uninitialized export transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print System embedded uninitialized export")
+    .text()
+    .to_owned();
+
+    assert_eq!(
+        output,
+        concat!(
+            "// https://github.com/microsoft/TypeScript/issues/59373\n",
+            "System.register([], function (exports_1, context_1) {\n",
+            "    \"use strict\";\n",
+            "    var cssExports;\n",
+            "    var __moduleName = context_1 && context_1.id;\n",
+            "    return {\n",
+            "        setters: [],\n",
+            "        execute: function () {\n",
+            "            if (true) { }\n",
+            "            exports_1(\"default\", cssExports);\n",
+            "        }\n",
+            "    };\n",
+            "});\n",
+        )
+    );
+}
+
+#[test]
+fn common_js_named_re_exports_use_live_bindings_and_source_comments() {
+    let source_text = concat!(
+        "/* retained */\n",
+        "// retained line\n",
+        "export { subject } from \"./0\";\n",
+    );
+    let parsed = parse_source_file("named-re-export.ts", source_text, Default::default(), None);
+    let resolver = EnumBindingResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("CommonJS named re-export transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print CommonJS named re-export")
+    .text()
+    .to_owned();
+
+    assert!(output.contains("exports.subject = void 0;"), "{output}");
+    assert!(output.contains("var _0_1 = require(\"./0\");"), "{output}",);
+    assert!(
+        output.contains(concat!(
+            "Object.defineProperty(exports, \"subject\", ",
+            "{ enumerable: true, get: function () { return _0_1.subject; } });",
+        )),
+        "{output}",
+    );
+    assert_eq!(output.matches("/* retained */").count(), 1, "{output}");
+    assert_eq!(output.matches("// retained line").count(), 1, "{output}");
+}
+
+#[test]
+fn common_js_unused_export_star_identity_does_not_consume_a_module_name() {
+    let source_text = concat!(
+        "import * as fs from \"./fs\";\n",
+        "fs;\n",
+        "export * from \"./fs\";\n",
+        "export { x } from \"./fs\";\n",
+        "export { x as y } from \"./fs\";\n",
+    );
+    let parsed = parse_source_file("module-name.ts", source_text, Default::default(), None);
+    let resolver = EnumBindingResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        es_module_interop: Some(true),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("CommonJS export-star module-name transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print CommonJS export-star module names")
+    .text()
+    .to_owned();
+
+    assert!(
+        output.contains("__exportStar(require(\"./fs\"), exports);"),
+        "{output}"
+    );
+    assert!(output.contains("var fs_1 = require(\"./fs\");"), "{output}");
+    assert!(output.contains("var fs_2 = require(\"./fs\");"), "{output}");
+    assert!(!output.contains("fs_3"), "{output}");
+}
+
+#[test]
+fn common_js_trailing_module_specifier_uses_tsc_generated_name() {
+    let source_text = "import { register } from \"./\";\n";
+    let parsed = parse_source_file("module-name.ts", source_text, Default::default(), None);
+    let resolver = EnumBindingResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("CommonJS trailing module-specifier transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print CommonJS trailing module-specifier name")
+    .text()
+    .to_owned();
+
+    assert!(output.contains("const _1 = require(\"./\");"), "{output}");
+    assert!(!output.contains("module_1"), "{output}");
+}
+
+#[test]
+fn common_js_generated_require_leaves_import_tail_comments_with_the_statement() {
+    let source_text = concat!(
+        "import { first } from \"./first\"; // first tail\n",
+        "import { second } from \"second\"; // second tail\n",
+        "first; second;\n",
+    );
+    let parsed = parse_source_file(
+        "import-tail-comments.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = EnumBindingResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("CommonJS import-tail comment transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print CommonJS import-tail comments")
+    .text()
+    .to_owned();
+
+    assert!(
+        output.contains("require(\"./first\"); // first tail"),
+        "{output}",
+    );
+    assert!(
+        output.contains("require(\"second\"); // second tail"),
+        "{output}",
+    );
+    assert_eq!(output.matches("// first tail").count(), 1, "{output}");
+    assert_eq!(output.matches("// second tail").count(), 1, "{output}");
+}
+
+#[test]
+fn common_js_direct_export_does_not_reexport_a_conflicting_import_binding() {
+    let source_text = concat!(
+        "import * as pick from \"./pick\";\n",
+        "export const pick = () => pick();\n",
+    );
+    let parsed = parse_source_file(
+        "conflicting-import.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = EnumBindingResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("CommonJS conflicting import transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print CommonJS conflicting import")
+    .text()
+    .to_owned();
+
+    assert_eq!(
+        output.matches("exports.pick = pick;").count(),
+        1,
+        "{output}"
+    );
+    let import = output.find("require(\"./pick\")").expect("runtime import");
+    let declaration = output
+        .rfind("const pick = () =>")
+        .expect("local declaration");
+    let publication = output
+        .rfind("exports.pick = pick;")
+        .expect("local publication");
+    assert!(
+        import < declaration && declaration < publication,
+        "{output}"
+    );
+}
+
+#[test]
+fn private_method_constructor_references_use_the_class_alias() {
+    let source_text = concat!(
+        "class C {\n",
+        "    #field = 1;\n",
+        "    #method() { return new C().#field; }\n",
+        "}\n",
+    );
+    let parsed = parse_source_file(
+        "private-constructor-reference.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = ConstructorReferenceResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        use_define_for_class_fields: Some(false),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_class_fields(&options, &resolver),
+            transform_es2016(&options),
+        ],
+        false,
+    )
+    .expect("private constructor-reference transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print private constructor-reference transform")
+    .text()
+    .to_owned();
+
+    assert!(
+        output.contains("var _C_instances, _a, _C_field, _C_method;"),
+        "{output}",
+    );
+    assert!(
+        output.contains(concat!(
+            "_a = C, _C_field = new WeakMap(), _C_instances = new WeakSet(), ",
+            "_C_method = function _C_method() { return __classPrivateFieldGet(new _a(), ",
+            "_C_field, \"f\"); };",
+        )),
+        "moved private methods must reference the stable class alias:\n{output}",
+    );
+}
+
+struct MergedNamespaceResolver {
+    source_file: NodeId,
+    primary_declaration: NodeId,
+    declarations: Vec<NodeId>,
+    references: BTreeSet<NodeId>,
+}
+
+impl MergedNamespaceResolver {
+    fn new(source: &tsc_syntax::SourceFile) -> Self {
+        let mut class_declaration = None;
+        let mut namespace_declaration = None;
+        let mut references = BTreeSet::new();
+        let mut stack = vec![source.root];
+        while let Some(node) = stack.pop() {
+            let record = source.arena.node(node);
+            match &record.data {
+                NodeData::ClassDeclaration(data)
+                    if data.name.is_some_and(|name| {
+                        matches!(
+                            &source.arena.node(name).data,
+                            NodeData::Identifier(identifier) if identifier.text == "Observable"
+                        )
+                    }) =>
+                {
+                    class_declaration = Some(node);
+                }
+                NodeData::ModuleDeclaration(data)
+                    if data.name.is_some_and(|name| {
+                        matches!(
+                            &source.arena.node(name).data,
+                            NodeData::Identifier(identifier) if identifier.text == "Observable"
+                        )
+                    }) =>
+                {
+                    namespace_declaration = Some(node);
+                }
+                NodeData::Identifier(identifier) if identifier.text == "Observable" => {
+                    references.insert(node);
+                }
+                _ => {}
+            }
+            for_each_child(&source.arena, record, |child| {
+                stack.push(child);
+                false
+            });
+        }
+        let class_declaration = class_declaration.expect("merged class declaration");
+        let namespace_declaration = namespace_declaration.expect("merged namespace declaration");
+        Self {
+            source_file: source.root,
+            primary_declaration: class_declaration,
+            declarations: vec![class_declaration, namespace_declaration],
+            references,
+        }
+    }
+}
+
+impl EmitResolver for MergedNamespaceResolver {
+    fn get_constant_value(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_referenced_export_container(
+        &self,
+        node: EmitResolverNode,
+        mode: EmitExportContainerMode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(
+            (mode.prefixes_locals() && self.references.contains(&node.node()))
+                .then(|| EmitResolverNode::new(node.source(), self.source_file)),
+        )
+    }
+
+    fn get_referenced_import_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_referenced_value_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(self
+            .references
+            .contains(&node.node())
+            .then(|| EmitResolverNode::new(node.source(), self.primary_declaration)))
+    }
+
+    fn get_referenced_value_declarations(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Vec<EmitResolverNode>, EmitResolverError> {
+        Ok(if self.references.contains(&node.node()) {
+            self.declarations
+                .iter()
+                .copied()
+                .map(|declaration| EmitResolverNode::new(node.source(), declaration))
+                .collect()
+        } else {
+            Vec::new()
+        })
+    }
+
+    fn is_instantiated_module(&self, _node: EmitResolverNode) -> Result<bool, EmitResolverError> {
+        Ok(true)
+    }
+}
+
+#[test]
+fn common_js_merged_exported_namespace_publishes_its_initializer() {
+    let source_text = concat!(
+        "export declare class Observable<T> {}\n",
+        "export namespace Observable {\n",
+        "    let someValue: number;\n",
+        "}\n",
+    );
+    let parsed = parse_source_file("merged-namespace.ts", source_text, Default::default(), None);
+    let resolver = MergedNamespaceResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("CommonJS merged namespace transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print CommonJS merged namespace")
+    .text()
+    .to_owned();
+
+    assert!(output.contains("exports.Observable = void 0;"), "{output}");
+    assert!(
+        output.contains("})(Observable || (exports.Observable = Observable = {}));",),
+        "{output}",
+    );
+}
+
+/// The B-5 registered joint pass: the ES5 pipeline pushes
+/// `transformES2015` then `transformGenerators` between the es2016 entry
+/// and the module transformer — the upstream registration order
+/// (`_tsc.js:115942-115945`, owner-graph `upstream_registration`).
+#[test]
+fn es5_pipeline_registers_the_joint_es2015_generators_pass_in_upstream_order() {
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES5.bits()),
+        module: Some(ModuleKind::SYSTEM.bits()),
+        ..CompilerOptions::default()
+    };
+    struct PipelineShapeResolver;
+    impl crate::EmitResolver for PipelineShapeResolver {
+        fn get_constant_value(
+            &self,
+            _node: crate::EmitResolverNode,
+        ) -> Result<Option<crate::EmitConstantValue>, crate::EmitResolverError> {
+            Ok(None)
+        }
+
+        fn get_enum_member_value(
+            &self,
+            _node: crate::EmitResolverNode,
+        ) -> Result<Option<crate::EmitEnumMemberValue>, crate::EmitResolverError> {
+            Ok(None)
+        }
+    }
+    let resolver = PipelineShapeResolver;
+    let transformers = get_script_transformers(&options, &resolver)
+        .expect("construct the complete ES5 transform pipeline");
+    let names = transformers
+        .iter()
+        .map(|transformer| transformer.name())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        names,
+        [
+            "transformTypeScript",
+            "transformESNext",
+            "transformESDecorators",
+            "transformClassFields",
+            "transformES2021",
+            "transformES2020",
+            "transformES2019",
+            "transformES2018",
+            "transformES2017",
+            "transformES2016",
+            "transformES2015",
+            "transformGenerators",
+            "transformSystemModule",
+        ],
+    );
+}
+
+fn class_transform_flag_fixture() -> serde_json::Value {
+    serde_json::from_slice(include_bytes!(
+        "../../../../compiler/tests/fixtures/class-transform-flags.json"
+    ))
+    .unwrap()
+}
+
+fn record_class_flag_difference(
+    failures: &mut Vec<serde_json::Value>,
+    case_id: &str,
+    flags: TransformFlags,
+    expected: &serde_json::Value,
+    exact_word: bool,
+) {
+    let mask = if exact_word { -1 } else { 1 | 8192 };
+    let wanted = expected["transform_flags"].as_i64().unwrap() as i32 & mask;
+    let actual = flags.bits() & mask;
+    if actual != wanted {
+        failures.push(serde_json::json!({"case_id":case_id,"actual":actual,"expected":wanted}));
+    }
+}
+
+#[test]
+fn parsed_class_transform_flags_match_typescript_owned_bits() {
+    let fixture = class_transform_flag_fixture();
+    let cases = fixture["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 50);
+    let mut failures = Vec::new();
+    for case in cases {
+        let file = &case["files"][0];
+        let name = file["path"].as_str().unwrap();
+        let parsed = parse_source_file(
+            name,
+            file["text"].as_str().unwrap(),
+            ParseOptions {
+                script_target: if case["options"]["target"] == 1 {
+                    ScriptTarget::ES5
+                } else {
+                    ScriptTarget::ES2015
+                },
+                javascript_file: name.ends_with(".js"),
+                ..Default::default()
+            },
+            None,
+        );
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+        initialize_transform_flags(&mut arena, source).unwrap();
+        let mut stack = vec![parsed.root];
+        let mut nodes = Vec::new();
+        while let Some(id) = stack.pop() {
+            let node = parsed.arena.node(id);
+            if matches!(
+                node.kind,
+                tsc_syntax::SyntaxKind::ClassDeclaration
+                    | tsc_syntax::SyntaxKind::ClassExpression
+                    | tsc_syntax::SyntaxKind::PropertyDeclaration
+            ) {
+                nodes.push(id);
+            }
+            let mut children = Vec::new();
+            for_each_child(&parsed.arena, node, |child| {
+                children.push(child);
+                false
+            });
+            stack.extend(children.into_iter().rev());
+        }
+        let expected = case["typescript_parse_flags"].as_array().unwrap();
+        assert_eq!(nodes.len(), expected.len());
+        for (id, expected) in nodes.into_iter().zip(expected) {
+            let node = parsed.arena.node(id);
+            assert_eq!(
+                format!("{:?}", node.kind),
+                expected["kind"].as_str().unwrap()
+            );
+            assert_eq!(node.pos, expected["pos"].as_u64().unwrap() as u32);
+            assert_eq!(node.end, expected["end"].as_u64().unwrap() as u32);
+            let flags = arena.transform_flags(arena.node_ref(source, id).unwrap());
+            let case_id = case["case_id"].as_str().unwrap();
+            record_class_flag_difference(
+                &mut failures,
+                case_id,
+                flags,
+                expected,
+                case_id.ends_with("ambient-static")
+                    && node.kind == tsc_syntax::SyntaxKind::ClassDeclaration,
+            );
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "parsed class flag differences: {failures:?}"
+    );
+}
+
+#[test]
+fn updated_class_transform_flags_match_typescript_owned_bits() {
+    let fixture = class_transform_flag_fixture();
+    let controls = &fixture["update_controls"];
+    let parsed = parse_source_file(
+        controls["file_name"].as_str().unwrap(),
+        controls["text"].as_str().unwrap(),
+        Default::default(),
+        None,
+    );
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    initialize_transform_flags(&mut arena, source).unwrap();
+    let mut classes = BTreeMap::new();
+    for_each_child(&parsed.arena, parsed.arena.node(parsed.root), |id| {
+        if let NodeData::ClassDeclaration(data) = &parsed.arena.node(id).data {
+            let Some(name) = data.name else { return false };
+            let NodeData::Identifier(name) = &parsed.arena.node(name).data else {
+                return false;
+            };
+            classes.insert(name.escaped_text.clone(), (id, data.clone()));
+        }
+        false
+    });
+    let static_class = &classes["Static"].1;
+    let static_property = parsed.arena.node_array(static_class.members.unwrap()).nodes[0];
+    let NodeData::PropertyDeclaration(static_data) = &parsed.arena.node(static_property).data
+    else {
+        panic!()
+    };
+    let computed_property = parsed
+        .arena
+        .node_array(classes["Computed"].1.members.unwrap())
+        .nodes[0];
+    let NodeData::PropertyDeclaration(computed_data) = &parsed.arena.node(computed_property).data
+    else {
+        panic!()
+    };
+    let mut failures = Vec::new();
+    let updates = controls["updates"].as_array().unwrap();
+    assert_eq!(updates.len(), 9);
+    for update in updates {
+        let (original, data) = if update["kind"] == "class" {
+            let (id, original) = &classes[update["original_name"].as_str().unwrap()];
+            let mut data = original.clone();
+            data.members = classes[update["members_from"].as_str().unwrap()].1.members;
+            data.modifiers = classes[update["modifiers_from"].as_str().unwrap()]
+                .1
+                .modifiers;
+            (*id, NodeData::ClassDeclaration(data))
+        } else {
+            let mut data = static_data.clone();
+            if update["computed_name"] == true {
+                data.name = computed_data.name;
+            }
+            if update["static_modifier"] == false {
+                data.modifiers = None;
+            }
+            if update["initializer_present"] == false {
+                data.initializer = None;
+            }
+            (static_property, NodeData::PropertyDeclaration(data))
+        };
+        let flags =
+            super::flags_after_update(&arena, arena.node_ref(source, original).unwrap(), &data)
+                .unwrap();
+        record_class_flag_difference(
+            &mut failures,
+            update["case_id"].as_str().unwrap(),
+            flags,
+            &update["expected"],
+            update["case_id"] == "class-become-ambient",
+        );
+    }
+    assert!(
+        failures.is_empty(),
+        "updated class flag differences: {failures:?}"
+    );
+}
+
+#[test]
+fn updated_class_expression_transform_flags_match_typescript_owned_bits() {
+    let fixture: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../../fixtures/class-expression-updates.json"
+    ))
+    .unwrap();
+    let cases = fixture["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 6);
+    let mut failures = Vec::new();
+    for case in cases {
+        let file_name = case["file_name"].as_str().unwrap();
+        let parsed = parse_source_file(
+            file_name,
+            case["text"].as_str().unwrap(),
+            ParseOptions {
+                script_target: ScriptTarget::ES2015,
+                javascript_file: file_name.ends_with(".js"),
+                ..Default::default()
+            },
+            None,
+        );
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+        initialize_transform_flags(&mut arena, source).unwrap();
+        let mut classes = BTreeMap::new();
+        let mut stack = vec![parsed.root];
+        while let Some(id) = stack.pop() {
+            let node = parsed.arena.node(id);
+            if let NodeData::ClassExpression(data) = &node.data {
+                let NodeData::Identifier(name) = &parsed.arena.node(data.name.unwrap()).data else {
+                    panic!()
+                };
+                classes.insert(name.escaped_text.clone(), (id, data.clone()));
+            }
+            for_each_child(&parsed.arena, node, |child| {
+                stack.push(child);
+                false
+            });
+        }
+        let (original, mut data) = classes[case["original_name"].as_str().unwrap()].clone();
+        data.members = classes[case["members_from"].as_str().unwrap()].1.members;
+        let flags = super::flags_after_update(
+            &arena,
+            arena.node_ref(source, original).unwrap(),
+            &NodeData::ClassExpression(data),
+        )
+        .unwrap();
+        record_class_flag_difference(
+            &mut failures,
+            case["case_id"].as_str().unwrap(),
+            flags,
+            &case["expected"],
+            false,
+        );
+    }
+    assert!(
+        failures.is_empty(),
+        "updated class expression flag differences: {failures:?}"
+    );
+}
+
+// The complete compiler fixture owns output bytes; these controls own the
+// borrowing resolver boundary, parser sentinel identity and error cleanup.
+struct CommonJsMarkerResolver {
+    answer: Result<bool, EmitResolverError>,
+    calls: std::cell::RefCell<Vec<EmitResolverNode>>,
+}
+
+impl EmitResolver for CommonJsMarkerResolver {
+    fn is_common_js_module(&self, node: EmitResolverNode) -> Result<bool, EmitResolverError> {
+        self.calls.borrow_mut().push(node);
+        self.answer.clone()
+    }
+
+    fn get_constant_value(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+        Ok(None)
+    }
+    fn has_node_check_flag(
+        &self,
+        _node: EmitResolverNode,
+        _flag: u32,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(false)
+    }
+    fn get_referenced_import_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+    fn get_referenced_export_container(
+        &self,
+        _node: EmitResolverNode,
+        _mode: EmitExportContainerMode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+    fn get_referenced_value_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+}
+
+struct CommonJsMarkerCleanupProbe<'a> {
+    inner: Box<dyn crate::Transformer + 'a>,
+    observed: &'a std::cell::Cell<bool>,
+}
+
+impl crate::Transformer for CommonJsMarkerCleanupProbe<'_> {
+    fn name(&self) -> &'static str {
+        "CommonJS marker lexical environment probe"
+    }
+    fn initialize(
+        &mut self,
+        context: &mut crate::TransformationContext,
+    ) -> Result<(), crate::TransformError> {
+        self.inner.initialize(context)
+    }
+    fn transform_root(
+        &mut self,
+        context: &mut crate::TransformationContext,
+        root: TransformRoot,
+    ) -> Result<TransformRoot, crate::TransformError> {
+        context.start_lexical_environment()?;
+        context
+            .set_lexical_environment_flags(crate::LexicalEnvironmentFlags::IN_PARAMETERS, true)?;
+        let result = self.inner.transform_root(context, root);
+        assert_eq!(
+            context.lexical_environment_flags(),
+            crate::LexicalEnvironmentFlags::IN_PARAMETERS
+        );
+        context.end_lexical_environment()?;
+        assert_eq!(
+            context.lexical_environment_flags(),
+            crate::LexicalEnvironmentFlags::NONE
+        );
+        self.observed.set(true);
+        result
+    }
+}
+
+#[test]
+fn common_js_esmodule_marker_queries_only_the_forced_javascript_source() {
+    use crate::EmitResolverMethod;
+    // The marker query remains independent of the enclosing effective-module
+    // query, which also checks unforced JavaScript in CommonJS format.
+    for module in [ModuleKind::COMMON_JS, ModuleKind::AMD, ModuleKind::UMD] {
+        for (file, text, forced, marker_queried, marker) in [
+            ("module.js", "exports.value = 1;", true, true, false),
+            ("module.jsx", "exports.value = 1;", true, true, false),
+            ("module.mjs", "exports.value = 1;", true, true, false),
+            ("module.cjs", "exports.value = 1;", true, true, false),
+            (
+                "module.js",
+                "exports.value = 1; export {};",
+                true,
+                false,
+                true,
+            ),
+            ("module.ts", ";", true, false, true),
+            ("module.JS", ";", true, false, true),
+            (".js", ";", true, false, true),
+            ("module.js", "exports.value = 1;", false, false, false),
+            ("module.cts", "export = 1;", true, false, false),
+        ] {
+            let parsed = parse_source_file(
+                file,
+                text,
+                ParseOptions {
+                    javascript_file: !file.ends_with(".ts") && !file.ends_with(".cts"),
+                    force_external_module: forced,
+                    ..ParseOptions::default()
+                },
+                None,
+            );
+            let program_source = SourceFileId::from_raw(17);
+            let query = EmitResolverNode::new(program_source, parsed.root);
+            let effective_queried = !forced && module == ModuleKind::COMMON_JS;
+            let queried = marker_queried || effective_queried;
+            let options = CompilerOptions {
+                module: Some(module.bits()),
+                target: Some(ScriptTarget::ES2015.bits()),
+                ..CompilerOptions::default()
+            };
+            for answer in [
+                Ok(true),
+                Ok(false),
+                Err(EmitResolverError::Unavailable {
+                    method: EmitResolverMethod::IsCommonJsModule,
+                    node: query,
+                }),
+                Err(EmitResolverError::CheckerAborted {
+                    method: EmitResolverMethod::IsCommonJsModule,
+                    node: query,
+                    reason: "marker query fault",
+                }),
+            ] {
+                let resolver = CommonJsMarkerResolver {
+                    answer: answer.clone(),
+                    calls: Default::default(),
+                };
+                let mut arena = TransformArena::new();
+                let source = arena.add_source(&parsed, Some(program_source));
+                let cleanup = std::cell::Cell::new(false);
+                let transformed = transform_nodes(
+                    arena,
+                    vec![TransformRoot::SourceFile(source)],
+                    vec![Box::new(CommonJsMarkerCleanupProbe {
+                        inner: transform_module(&options, &resolver),
+                        observed: &cleanup,
+                    })],
+                    false,
+                );
+                assert!(cleanup.get(), "{file} {module:?} {answer:?}");
+                assert_eq!(
+                    *resolver.calls.borrow(),
+                    if queried { vec![query] } else { vec![] },
+                    "{file} {module:?}"
+                );
+                if let Err(error) = &answer {
+                    if queried {
+                        assert!(
+                            matches!(&transformed, Err(crate::TransformError::Resolver(actual)) if actual == error)
+                        );
+                        continue;
+                    }
+                }
+                let mut transformed = transformed.expect("marker transform");
+                if marker_queried {
+                    // Adding the strict prologue has replaced syntax.root, but
+                    // the query must still carry the original program root.
+                    assert_ne!(
+                        transformed.arena().root(source).unwrap().node(),
+                        parsed.root
+                    );
+                }
+                let output = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
+                    .print(&mut transformed, PrintRequest::SourceFile(source), None)
+                    .unwrap();
+                let want_marker = if marker_queried {
+                    !answer.unwrap()
+                } else {
+                    marker
+                };
+                assert_eq!(
+                    output
+                        .text()
+                        .contains("Object.defineProperty(exports, \"__esModule\""),
+                    want_marker,
+                    "{file} {module:?}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn common_js_esmodule_marker_resolver_default_is_typed_unavailable() {
+    let parsed = parse_source_file("module.js", ";", ParseOptions::default(), None);
+    let node = EmitResolverNode::new(SourceFileId::from_raw(5), parsed.root);
+    assert_eq!(
+        LegacyScriptJsxResolver.is_common_js_module(node),
+        Err(EmitResolverError::Unavailable {
+            method: crate::EmitResolverMethod::IsCommonJsModule,
+            node
+        })
+    );
+    assert_eq!(
+        crate::EmitResolverMethod::IsCommonJsModule.name(),
+        "isCommonJsModule"
+    );
+}
+
+// Complete compiler commands own emitted bytes. These controls independently
+// qualify factory topology and the native host/activity failure boundaries.
+struct ModuleFactoryHost {
+    options: CompilerOptions,
+    format: Option<i32>,
+    format_calls: std::cell::RefCell<Vec<SourceFileId>>,
+}
+
+impl ModuleFactoryHost {
+    fn new(options: CompilerOptions, format: Option<i32>) -> Self {
+        Self {
+            options,
+            format,
+            format_calls: Default::default(),
+        }
+    }
+}
+
+impl EmitResolver for ModuleFactoryHost {}
+
+impl crate::EmitHost for ModuleFactoryHost {
+    fn compiler_options(&self) -> &CompilerOptions {
+        &self.options
+    }
+    fn current_directory(&self) -> tsc_diagnostics::JsStr<'_> {
+        tsc_diagnostics::JsStr::from("/project")
+    }
+    fn common_source_directory(&self) -> tsc_diagnostics::JsStr<'_> {
+        self.current_directory()
+    }
+    fn config_file_path(&self) -> Option<tsc_diagnostics::JsStr<'_>> {
+        None
+    }
+    fn use_case_sensitive_file_names(&self) -> bool {
+        true
+    }
+    fn source_file_ids(&self) -> &[SourceFileId] {
+        &[]
+    }
+    fn source_file(&self, _id: SourceFileId) -> Option<crate::EmitSource<'_>> {
+        None
+    }
+    fn get_emit_module_format_of_file(&self, id: SourceFileId) -> Option<i32> {
+        self.format_calls.borrow_mut().push(id);
+        self.format
+    }
+}
+
+#[test]
+fn module_transformer_selection_factory_names_match_typescript_twice() {
+    let fixture: serde_json::Value = serde_json::from_slice(include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../compiler/tests/fixtures/module-transformer-selection.json"
+    )))
+    .unwrap();
+    let cases = fixture["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 184);
+    let mut mismatches = Vec::new();
+    for case in cases {
+        for repetition in 0..2 {
+            // These fixtures have no JSX/custom/legacy decorator options;
+            // target and module are the only varying factory-list inputs.
+            let options = CompilerOptions {
+                target: Some(case["options"]["target"].as_i64().unwrap() as i32),
+                module: Some(case["options"]["module"].as_i64().unwrap() as i32),
+                ..CompilerOptions::default()
+            };
+            let host = ModuleFactoryHost::new(options, Some(99));
+            let transformers = super::get_script_transformers_for_source(
+                &host.options,
+                &host,
+                &host,
+                SourceFileId::from_raw(17),
+            )
+            .unwrap();
+            let actual =
+                serde_json::json!(transformers.iter().map(|t| t.name()).collect::<Vec<_>>());
+            if actual != case["typescript_factory_names"] {
+                mismatches.push(format!(
+                    "{} repetition {repetition}: {actual}",
+                    case["case_id"]
+                ));
+            }
+        }
+    }
+    assert!(
+        mismatches.is_empty(),
+        "factory-list differences: {mismatches:?}"
+    );
+}
+
+#[test]
+fn module_transformer_selection_host_calls_and_bundle_activity_follow_selected_factory() {
+    use crate::{H2ActivityCanary, H2RuntimeSlice};
+    for module in [0, 1, 2, 3, 4, 5, 6, 7, 99, 100, 101, 102, 199, 200] {
+        for format in [None, Some(0), Some(1), Some(2), Some(3), Some(99)] {
+            let host = ModuleFactoryHost::new(
+                CompilerOptions {
+                    target: Some(99),
+                    module: Some(module),
+                    ..CompilerOptions::default()
+                },
+                format,
+            );
+            let mut activity = H2ActivityCanary::h2_7e_profile();
+            let members = [17, 18, 19].map(SourceFileId::from_raw);
+            let transformers = super::get_script_transformers_with_activity(
+                &host.options,
+                &host,
+                &host,
+                members[0],
+                &mut activity,
+            )
+            .unwrap();
+            for source in &members[1..] {
+                super::observe_additional_bundle_source_activity(
+                    &host.options,
+                    &host,
+                    *source,
+                    &mut activity,
+                );
+            }
+            let activity = activity.counters();
+            let implied = !matches!(module, 0 | 2 | 3 | 4 | 200);
+            assert_eq!(
+                host.format_calls.borrow().as_slice(),
+                if implied { &members[..] } else { &[] },
+                "module {module}, format {format:?}"
+            );
+            assert_eq!(activity.script_transformer_list_constructions(), 1);
+            assert_eq!(activity.transform_typescript_constructions(), 1);
+            assert_eq!(activity.transform_class_fields_constructions(), 1);
+            assert_eq!(
+                activity.transform_ecmascript_module_constructions(),
+                u64::from(implied || module == 200)
+            );
+            assert_eq!(
+                activity.runtime_slice(H2RuntimeSlice::H2_1a),
+                u64::from(implied)
+            );
+            let delegate = if implied {
+                format
+            } else if matches!(module, 0 | 2 | 3) {
+                Some(module)
+            } else {
+                None
+            };
+            assert_eq!(
+                activity.runtime_slice(H2RuntimeSlice::H2_1b),
+                if delegate.is_some_and(|m| m < 5) {
+                    3
+                } else {
+                    0
+                }
+            );
+            assert_eq!(
+                activity.runtime_slice(H2RuntimeSlice::H2_1c),
+                if delegate.is_some_and(|m| matches!(m, 2 | 3)) {
+                    3
+                } else {
+                    0
+                }
+            );
+            assert_eq!(
+                activity.runtime_slice(H2RuntimeSlice::H2_1d),
+                u64::from(module == 4)
+            );
+            drop(transformers);
+        }
+    }
+}
+
+#[test]
+fn module_transformer_selection_absent_host_and_missing_format_keep_distinct_boundaries() {
+    use crate::TransformError;
+    for module in [0, 1, 2, 3, 4, 5, 6, 7, 99, 100, 101, 102, 199, 200] {
+        let options = CompilerOptions {
+            target: Some(99),
+            module: Some(module),
+            ..CompilerOptions::default()
+        };
+        let host = ModuleFactoryHost::new(options.clone(), None);
+        let implied = !matches!(module, 0 | 2 | 3 | 4 | 200);
+        let without_host = get_script_transformers(&options, &host);
+        if implied {
+            assert!(
+                matches!(
+                    without_host,
+                    Err(TransformError::EmitHostRequiredForImpliedModuleFormat)
+                ),
+                "module {module}"
+            );
+        } else {
+            assert!(without_host.is_ok(), "module {module}");
+        }
+        let mut transformers = super::get_script_transformers_for_source(
+            &options,
+            &host,
+            &host,
+            SourceFileId::from_raw(17),
+        )
+        .expect("missing format is not a construction error");
+        let parsed = parse_source_file("/project/empty.ts", "", Default::default(), None);
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(17)));
+        let result = transform_nodes(
+            arena,
+            vec![TransformRoot::SourceFile(source)],
+            vec![transformers.pop().unwrap()],
+            false,
+        );
+        if implied {
+            assert!(
+                matches!(result, Err(TransformError::MissingProgramSourceForModuleFormat(id)) if id == source),
+                "module {module}"
+            );
+        } else {
+            assert!(result.is_ok(), "module {module}");
+            assert!(host.format_calls.borrow().is_empty(), "module {module}");
+        }
+        let bundle_options = CompilerOptions {
+            out_file: Some("/project/bundle.js".into()),
+            ..options
+        };
+        assert!(matches!(
+            get_script_transformers(&bundle_options, &host),
+            Err(TransformError::UnsupportedCompilerOption {
+                option: "outFile",
+                ..
+            })
+        ));
+    }
+    for module in [-1, 8, 201] {
+        let options = CompilerOptions {
+            target: Some(99),
+            module: Some(module),
+            ..CompilerOptions::default()
+        };
+        let host = ModuleFactoryHost::new(options.clone(), Some(99));
+        assert!(matches!(
+            super::get_script_transformers_for_source(
+                &options,
+                &host,
+                &host,
+                SourceFileId::from_raw(17)
+            ),
+            Err(TransformError::UnsupportedCompilerOption {
+                option: "module",
+                ..
+            })
+        ));
+        assert!(host.format_calls.borrow().is_empty());
+    }
+}
+
+/// Internal printer invariants use the same built-in transform selection as
+/// the TypeScript Program.emit oracle, then apply the recorded after mutation.
+#[test]
+fn meta_property_token_maps_internal_invariants_match_typescript() {
+    use crate::{SourceMapRange, SourceRange, TransformError, TransformNode, TransformSourceId};
+    use tsc_syntax::{NodeArrayId, NodeDataChildVisitor, SyntaxKind};
+
+    struct Mutator<'a> {
+        arena: &'a mut TransformArena,
+        source: TransformSourceId,
+        mode: &'a str,
+        touched: usize,
+    }
+    impl NodeDataChildVisitor for Mutator<'_> {
+        type Error = TransformError;
+        fn node_kind(&self, id: NodeId) -> SyntaxKind {
+            self.arena
+                .node(self.arena.node_ref(self.source, id).unwrap())
+                .unwrap()
+                .kind
+        }
+        fn visit_node(&mut self, id: NodeId) -> Result<Option<NodeId>, Self::Error> {
+            let node = self.arena.node_ref(self.source, id).unwrap();
+            let mut data = self.arena.node(node)?.data.clone();
+            let flags = self.arena.transform_flags(node);
+            if let NodeData::MetaProperty(meta) = &mut data {
+                self.touched += 1;
+                match self.mode {
+                    "baseline" => {}
+                    "no-token-maps" => self
+                        .arena
+                        .metadata_mut(node)
+                        .add_flags(EmitFlags::NO_TOKEN_SOURCE_MAPS),
+                    "token-override" => {
+                        let range = SourceRange::from_raw(
+                            0,
+                            1,
+                            self.arena.source(self.source)?.syntax().positions(),
+                        )
+                        .unwrap();
+                        self.arena.metadata_mut(node).set_token_source_map_range(
+                            meta.keyword_token,
+                            SourceMapRange::new(self.source, range),
+                        );
+                    }
+                    "absent-name" => meta.name = None,
+                    "synthetic" => {
+                        let name = self.arena.node_ref(self.source, meta.name.unwrap()).unwrap();
+                        let NodeData::Identifier(name) = &self.arena.node(name)?.data else {
+                            panic!("MetaProperty name must be an identifier");
+                        };
+                        let text = name.text.clone();
+                        let name = self.arena.factory().create_identifier(self.source, &text)?;
+                        return self.arena.factory().create_node(
+                            self.source,
+                            NodeData::MetaProperty(tsc_syntax::nodes::MetaPropertyData {
+                                keyword_token: meta.keyword_token,
+                                name: Some(name.node()),
+                            }),
+                            crate::TransformFlags::NONE,
+                        ).map(|node| Some(node.node()));
+                    }
+                    other => panic!("unknown invariant mode {other}"),
+                }
+            } else {
+                tsc_syntax::try_visit_each_child(&mut data, self)?;
+            }
+            self.arena
+                .factory()
+                .update_node(node, data, flags)
+                .map(|node| Some(node.node()))
+        }
+        fn visit_nodes(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, Self::Error> {
+            let array = self.arena.node_array_ref(self.source, id).unwrap();
+            let ids = self.arena.node_array(array)?.nodes.clone();
+            let nodes = ids
+                .into_iter()
+                .map(|id| {
+                    let visited = self.visit_node(id)?.unwrap();
+                    Ok(self.arena.node_ref(self.source, visited).unwrap())
+                })
+                .collect::<Result<Vec<TransformNode>, TransformError>>()?;
+            self.arena
+                .factory()
+                .update_node_array(array, nodes)
+                .map(|array| Some(array.array()))
+        }
+        fn required_child_removed(
+            &mut self,
+            parent: SyntaxKind,
+            field: &'static str,
+        ) -> Self::Error {
+            TransformError::RequiredChildRemoved { parent, field }
+        }
+    }
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../../fixtures/meta-property-token-map-invariants.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let rows = artifact["rows"].as_array().unwrap();
+    assert_eq!(rows.len(), 10);
+    let mut failures = Vec::new();
+    for row in rows {
+        let id = row["case_id"].as_str().unwrap();
+        for repetition in 0..2 {
+            let result = std::panic::catch_unwind(|| {
+                let parsed = parse_source_file(
+                    "/main.ts",
+                    row["source_text"].as_str().unwrap(),
+                    Default::default(),
+                    None,
+                );
+                let mut arena = TransformArena::new();
+                let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+                let options = CompilerOptions {
+                    target: Some(ScriptTarget::ES2015.bits()),
+                    module: Some(ModuleKind::ES_NEXT.bits()),
+                    source_map: Some(true),
+                    ..Default::default()
+                };
+                let resolver = LegacyScriptJsxResolver;
+                let host =
+                    ModuleFactoryHost::new(options.clone(), Some(ModuleKind::ES_NEXT.bits()));
+                let transformers = crate::get_script_transformers_for_source(
+                    &options,
+                    &resolver,
+                    &host,
+                    SourceFileId::from_raw(0),
+                )
+                .unwrap();
+                let mut transformed = transform_nodes(
+                    arena,
+                    vec![TransformRoot::SourceFile(source)],
+                    transformers,
+                    false,
+                )
+                .unwrap();
+                let arena = transformed.arena_mut().unwrap();
+                let root = arena.root(source).unwrap();
+                let mut visitor = Mutator {
+                    arena,
+                    source,
+                    mode: row["mode"].as_str().unwrap(),
+                    touched: 0,
+                };
+                let updated = visitor.visit_node(root.node()).unwrap().unwrap();
+                assert_eq!(
+                    visitor.touched,
+                    row["observation"]["touched"].as_u64().unwrap() as usize
+                );
+                let updated = visitor.arena.node_ref(source, updated).unwrap();
+                visitor.arena.replace_root(source, updated).unwrap();
+                let printed = create_printer(
+                    PrinterOptions::new(NewLineKind::CarriageReturnLineFeed)
+                        .with_target(ScriptTarget::ES2015),
+                )
+                .print(
+                    &mut transformed,
+                    PrintRequest::SourceFile(source),
+                    Some(crate::SourceMapRecordingInputs {
+                        file: "main.js".into(),
+                        source_root: "".into(),
+                        sources_directory_path: "/".into(),
+                        current_directory: "/".into(),
+                        use_case_sensitive_source_keys: true,
+                        inline_sources: false,
+                    }),
+                )
+                .unwrap();
+                let expected = &row["observation"];
+                let write = expected["writes"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|w| w["path"] == "/main.js")
+                    .unwrap();
+                // Compiler-owned sourceMappingURL is outside the printer. Split
+                // only at the oracle's explicit UTF-16 callback metadata position.
+                let utf16 = write["callback_text"]
+                    .as_str()
+                    .unwrap()
+                    .encode_utf16()
+                    .collect::<Vec<_>>();
+                let url_pos = write["data_source_map_url_pos"].as_u64().unwrap() as usize;
+                let expected_text = String::from_utf16(&utf16[..url_pos]).unwrap();
+                assert_eq!(printed.text(), expected_text, "{id}: internal printer text");
+                let actual_map = printed.source_map().unwrap().clone().to_json_string();
+                assert_eq!(
+                    actual_map,
+                    expected["source_maps"][0]["source_map_json"]
+                        .as_str()
+                        .unwrap(),
+                    "{id}: complete internal map JSON"
+                );
+            });
+            if result.is_err() {
+                failures.push((id, repetition));
+            } else {
+                eprintln!("MetaProperty invariant EXACT {id} repetition {repetition}");
+            }
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "MetaProperty internal invariant failures: {failures:?}"
+    );
+}
+
+/// Eager module visitors must preserve the Unspecified name slot used by
+/// emitMetaProperty. Reference queries remain observable on the real value use.
+#[test]
+fn meta_property_token_maps_module_name_context_is_not_a_value_reference() {
+    struct QueryResolver {
+        references: BTreeMap<NodeId, NodeId>,
+        queried: std::cell::RefCell<Vec<NodeId>>,
+    }
+    impl EmitResolver for QueryResolver {
+        fn get_constant_value(
+            &self,
+            _: EmitResolverNode,
+        ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+            Ok(None)
+        }
+        fn has_node_check_flag(
+            &self,
+            _: EmitResolverNode,
+            _: u32,
+        ) -> Result<bool, EmitResolverError> {
+            Ok(false)
+        }
+        fn get_referenced_import_declaration(
+            &self,
+            node: EmitResolverNode,
+        ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+            self.queried.borrow_mut().push(node.node());
+            Ok(self
+                .references
+                .get(&node.node())
+                .map(|&decl| EmitResolverNode::new(node.source(), decl)))
+        }
+        fn is_referenced_alias_declaration(
+            &self,
+            _: EmitResolverNode,
+        ) -> Result<bool, EmitResolverError> {
+            Ok(true)
+        }
+        fn is_value_alias_declaration(
+            &self,
+            _: EmitResolverNode,
+        ) -> Result<bool, EmitResolverError> {
+            Ok(true)
+        }
+        fn get_referenced_export_container(
+            &self,
+            _: EmitResolverNode,
+            _: EmitExportContainerMode,
+        ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+            Ok(None)
+        }
+        fn get_referenced_value_declaration(
+            &self,
+            _: EmitResolverNode,
+        ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+            Ok(None)
+        }
+        fn is_external_or_common_js_module(
+            &self,
+            _: EmitResolverNode,
+        ) -> Result<bool, EmitResolverError> {
+            Ok(true)
+        }
+    }
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../compiler/tests/fixtures/meta-property-token-maps.json"
+    )))
+    .unwrap();
+    let mut observed = Vec::new();
+    for row in artifact["cases"].as_array().unwrap() {
+        let id = row["case_id"].as_str().unwrap();
+        if !id.contains("/es2015/") || !id.ends_with("imported-binding") {
+            continue;
+        }
+        let text = row["files"][0]["text"].as_str().unwrap();
+        let parsed = parse_source_file("/project/main.ts", text, Default::default(), None);
+        let mut meta_name = None;
+        let mut import = None;
+        let mut identifiers = Vec::new();
+        let mut stack = vec![parsed.root];
+        while let Some(node) = stack.pop() {
+            let record = parsed.arena.node(node);
+            match &record.data {
+                NodeData::MetaProperty(data) => meta_name = data.name,
+                NodeData::ImportSpecifier(_) => import = Some(node),
+                NodeData::Identifier(data) if data.text == "meta" || data.text == "target" => {
+                    identifiers.push(node)
+                }
+                _ => {}
+            }
+            for_each_child(&parsed.arena, record, |child| {
+                stack.push(child);
+                false
+            });
+        }
+        let meta_name = meta_name.unwrap();
+        let import = import.unwrap();
+        let value = identifiers
+            .iter()
+            .copied()
+            .find(|&node| node != meta_name && parsed.arena.node(node).parent != Some(import))
+            .unwrap();
+        let resolver = QueryResolver {
+            references: identifiers.into_iter().map(|node| (node, import)).collect(),
+            queried: Default::default(),
+        };
+        let options = CompilerOptions {
+            target: Some(ScriptTarget::ES2015.bits()),
+            module: Some(row["options"]["module"].as_i64().unwrap() as i32),
+            ..Default::default()
+        };
+        let host = ModuleFactoryHost::new(options.clone(), options.module);
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+        let transformers = crate::get_script_transformers_for_source(
+            &options,
+            &resolver,
+            &host,
+            SourceFileId::from_raw(0),
+        )
+        .unwrap();
+        let _transformed = transform_nodes(
+            arena,
+            vec![TransformRoot::SourceFile(source)],
+            transformers,
+            false,
+        )
+        .unwrap();
+        let queried = resolver.queried.borrow();
+        let name_was_not_queried = !queried.contains(&meta_name);
+        let value_query_matches_phase =
+            queried.contains(&value) == (options.module != Some(ModuleKind::ES_NEXT.bits()));
+        observed.push((id, name_was_not_queried, value_query_matches_phase));
+    }
+    assert_eq!(observed.len(), 6);
+    assert!(
+        observed.iter().all(|(_, name, value)| *name && *value),
+        "MetaProperty name/reference query observations: {observed:?}"
+    );
+}
+
+#[test]
+fn missing_declaration_transform_flags_do_not_propagate_decorator_effects() {
+    for text in [
+        "{ @g<number> class C {} }",
+        "{ @g(...[1])<number> class C {} }",
+        "{ @(async () => { await 1; })<number> class C {} }",
+        "{ @(g?.a?.())<number> class C {} }",
+    ] {
+        let parsed = parse_source_file("main.ts", text, ParseOptions::default(), None);
+        assert!(parsed.has_supported_emit_recovery(), "{text}");
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+        initialize_transform_flags(&mut arena, source).unwrap();
+        let missing = parsed
+            .arena
+            .node_ids()
+            .find(|id| parsed.arena.node(*id).kind == tsc_syntax::SyntaxKind::MissingDeclaration)
+            .unwrap();
+        let node = arena.node_ref(source, missing).unwrap();
+        assert_eq!(arena.transform_flags(node), TransformFlags::NONE, "{text}");
+        let NodeData::MissingDeclaration(data) = &arena.node(node).unwrap().data else {
+            unreachable!()
+        };
+        assert!(
+            data.modifiers.is_some(),
+            "parser-attached decorators remain reachable"
+        );
+    }
+}

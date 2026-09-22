@@ -1,0 +1,16 @@
+{
+  "name": "ef6-global-14-r8",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 33,
+  "env": [
+    "CARGO_BUILD_JOBS=1",
+    "TSC_RS_H2_8A_FAILURE_DIR=/private/tmp/claude-501/-Users-hiramatsu-dev-tsc-rs/01907deb-0413-43b0-9dc0-4f5a56bb8a5f/scratchpad/capture/ef6-r8"
+  ],
+  "argv": "cargo test -p tsc-rs-compiler --test emitter_final_batch ef6_historical_global_rows_match_complete_production_commands -- --exact --nocapture --test-threads=1",
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-17T14:21:09Z",
+  "seconds": 52,
+  "exit": 0,
+  "log_sha256": "3c21ecd8f6442d0c71a925ba7d33104b728e1b6e46f0ac1a1a302fb14f851d08",
+  "log_bytes": 2165
+}

@@ -1,0 +1,18 @@
+{
+  "old_cases": 132,
+  "old_case_payloads_identical": true,
+  "added_cases": 8,
+  "new_cases": 140,
+  "added_ids": [
+    "emitter-heritage-boundaries/access-recovery/es2015/esnext/remove-false/import-type-arguments",
+    "emitter-heritage-boundaries/access-recovery/es2015/esnext/remove-false/import-type-comments",
+    "emitter-heritage-boundaries/access-recovery/es2015/esnext/remove-true/import-type-arguments",
+    "emitter-heritage-boundaries/access-recovery/es2015/esnext/remove-true/import-type-comments",
+    "emitter-heritage-boundaries/access-recovery/esnext/esnext/remove-false/import-type-arguments",
+    "emitter-heritage-boundaries/access-recovery/esnext/esnext/remove-false/import-type-comments",
+    "emitter-heritage-boundaries/access-recovery/esnext/esnext/remove-true/import-type-arguments",
+    "emitter-heritage-boundaries/access-recovery/esnext/esnext/remove-true/import-type-comments"
+  ],
+  "metadata_change": "observer_sha256 only",
+  "all_other_fields_identical": true
+}

@@ -1,0 +1,16 @@
+{
+  "source_head": "628562c31a5102348a7e8769f3a2aa88deef70f1",
+  "qualification_claim": false,
+  "workspace": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "node_cache_dir": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/target/h2-5g",
+  "receipt_exists": false,
+  "cargo_target_dir": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target",
+  "finding": "The node oracle uses WORKSPACE/target, independently of CARGO_TARGET_DIR. No check receipt exists in either workspace target or shared Cargo target. Do not claim zero first-pass5g observations or copy/forge a receipt. Default walk-5g-enforce.py explicitly permits one cold-cache absent/workspace observation; no override needed. A second fresh observation is refused. Actual outcome will be checked from the canonical walk record.",
+  "policy_path": "scripts/walk-5g-enforce.py",
+  "policy_sha256": "8087a6a8c49dc976605a04cd5ca6e49e283de967304262da027e3457d6803629",
+  "report_only_planner_cache": {
+    "path": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep/new-ci/target",
+    "target": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target",
+    "reason": "The sanctioned driver inherits CARGO_TARGET_DIR when building new-ci, but invokes new-ci/target/release/plan. This previously absent ignored cache path now points at that actual Cargo target. No source, oracle cache, or receipt was changed; the driver will build its own binary."
+  }
+}

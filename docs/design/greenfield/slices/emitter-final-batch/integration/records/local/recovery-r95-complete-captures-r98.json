@@ -1,0 +1,29 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-r95-immutable/contracts",
+    "--exact",
+    "emitter_residual_audit::class_helper_gates_match_complete_typescript_commands",
+    "emitter_residual_audit::helper_diagnostic_boundaries_match_complete_typescript_commands",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-recovery-next",
+  "started_at": "2026-09-19T04:39:02.261535+00:00",
+  "head": "c1e699ab57cf945641f86055249cb0835aa9ea1d",
+  "tracked_clean": true,
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "env": {
+    "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target/emitter-r95-immutable/complete-captures",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 101,
+  "seconds": 167.666,
+  "log_sha256": "3882cbcdd292b5eeee431b94a794984ecddfc87e9c36c9bc3c5d6293cc84f391",
+  "log_bytes": 206601
+}

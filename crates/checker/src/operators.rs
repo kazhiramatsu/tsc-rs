@@ -1140,8 +1140,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:79591-79608
     ///
     /// Both operand rows are plain 2322 (2360/2361 do not exist in
-    /// 6.0.3); the ClassPrivateFieldIn emit-helper rows are
-    /// importHelpers-gated (no-op).
+    /// 6.0.3). Private-name helper requirements use the same target and
+    /// class-field mode gates as private property accesses.
     fn check_in_expression(
         &mut self,
         left: NodeId,
@@ -1154,6 +1154,14 @@ impl<'a> CheckerState<'a> {
             return Ok(silent_never);
         }
         if self.kind_of(left) == SyntaxKind::PrivateIdentifier {
+            if self.options.emit_script_target() < tsc_types::ScriptTarget::ES_NEXT
+                || !self.options.use_define_for_class_fields_effective()
+            {
+                self.check_external_emit_helpers(
+                    left,
+                    crate::modules::EMIT_HELPER_CLASS_PRIVATE_FIELD_IN,
+                )?;
+            }
             let unresolved = self.links.node(left).resolved_symbol.resolved().is_none();
             if unresolved && self.get_containing_class_of(left).is_some() {
                 // isUncheckedJSSuggestion is false in TS files.
@@ -2151,8 +2159,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 23abed05f2a1cd6909230e50cff0ff0fe51d816decbc52346c01aee660f610d5
     /// tsc-span: _tsc.js:79619-79666
     ///
-    /// The ObjectSpreadRest emit-helper row is importHelpers-gated
-    /// (a no-op without the option — unmodeled).
+    /// ObjectSpreadRest requests its imported helper only below ES2018.
     fn check_object_literal_destructuring_property_assignment(
         &mut self,
         object_literal_type: TypeId,
@@ -2227,6 +2234,9 @@ impl<'a> CheckerState<'a> {
                     );
                     return Ok(());
                 }
+                if self.options.emit_script_target() < tsc_types::ScriptTarget::ES2018 {
+                    self.check_external_emit_helpers(property, crate::modules::EMIT_HELPER_REST)?;
+                }
                 let expression = match self.data_of(property) {
                     NodeData::SpreadAssignment(data) => data.expression,
                     _ => None,
@@ -2279,8 +2289,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: dd986f2465f4953c7dcc207c5ee398ca69a859a73dc40a9e9d9bbbc4d16d20df
     /// tsc-span: _tsc.js:79667-79682
     ///
-    /// The DestructuringAssignment emit-helper row is
-    /// importHelpers-gated (no-op).
+    /// Downlevel iteration requests the Read helper below ES2015.
     fn check_array_literal_assignment(
         &mut self,
         node: NodeId,
@@ -2291,6 +2300,11 @@ impl<'a> CheckerState<'a> {
             NodeData::ArrayLiteralExpression(data) => self.nodes_of(data.elements),
             _ => unreachable!("kind/data agree"),
         };
+        if self.options.emit_script_target() < tsc_types::ScriptTarget::ES2015
+            && self.options.downlevel_iteration == Some(true)
+        {
+            self.check_external_emit_helpers(node, crate::modules::EMIT_HELPER_READ)?;
+        }
         let undefined_type = self.tables.intrinsics.undefined;
         let possibly_out_of_bounds_type = self.check_iterated_type_or_element_type(
             IterationUse::from_bits(
@@ -2457,8 +2471,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: a8df092688dc76db0fc8fc2c03d0d9d01f0ae09de7aeb8808a9ef9a33e7ad1c6
     /// tsc-span: _tsc.js:79743-79753
     ///
-    /// The ClassPrivateFieldSet emit-helper row is importHelpers-gated
-    /// (no-op).
+    /// The private-set tail is intentionally independent of the target gate
+    /// in checkPropertyAccessExpression; it remains observable at ESNext.
     fn check_reference_assignment(
         &mut self,
         target: NodeId,
@@ -2487,6 +2501,16 @@ impl<'a> CheckerState<'a> {
                 Some(target),
                 &tsc_diagnostics::gen::Type_0_is_not_assignable_to_type_1,
             )?;
+        }
+        if matches!(self.data_of(target), NodeData::PropertyAccessExpression(data)
+            if data.name.is_some_and(|name| self.kind_of(name) == SyntaxKind::PrivateIdentifier))
+        {
+            if let Some(parent) = self.parent_of(target) {
+                self.check_external_emit_helpers(
+                    parent,
+                    crate::modules::EMIT_HELPER_CLASS_PRIVATE_FIELD_SET,
+                )?;
+            }
         }
         Ok(source_type)
     }
@@ -4748,7 +4772,7 @@ impl<'a> CheckerState<'a> {
                         let this_text = self.type_to_string_slice(this_type)?;
                         vec![tsc_diagnostics::MessageChain::new_js(
                             &tsc_diagnostics::gen::The_this_context_of_type_0_is_not_assignable_to_method_s_this_of_type_1,
-                            &[(type_text).into(), (this_text).into()],
+                            &[(type_text), (this_text)],
                         )]
                     }
                     None => Vec::new(),

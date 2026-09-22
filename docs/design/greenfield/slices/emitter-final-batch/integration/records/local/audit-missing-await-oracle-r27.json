@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "node",
+    "scripts/observe-emitter-missing-await.mjs",
+    "--write"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-audit",
+  "started_at": "2026-09-18T18:18:35.439039+00:00",
+  "head": "f97321e945be92dad6dd0f894a26a2ee747e8411",
+  "tracked_clean": false,
+  "diff_sha256": "70d58f2793add72ee4e8c81206f8444f6ed81cfd881a252ac18fe4b12e504c2c",
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-emitter-final/target"
+  },
+  "exit": 0,
+  "seconds": 43.647,
+  "log_sha256": "acf753f4bfd544e5a200c6a537aa6ed0645e789141b925be8c35832fbb1a4629",
+  "log_bytes": 75
+}

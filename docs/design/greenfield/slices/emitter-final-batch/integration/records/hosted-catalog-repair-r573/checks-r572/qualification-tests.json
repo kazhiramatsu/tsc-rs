@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "node",
+    "--test",
+    ".github/ci/qualification.test.mjs"
+  ],
+  "cwd": "/Users/hiramatsu/dev/tsc-rs-emitter-final-variable-producer-prep",
+  "started_at": "2026-09-20T19:37:20.224350+00:00",
+  "seconds": 16.657,
+  "exit": 0,
+  "log_sha256": "670470730a7862b12cf80c8904b452dabb109f9df62c38a073b22946ffb18d46",
+  "log_bytes": 6473
+}

@@ -1,0 +1,6 @@
+{
+  "schema": 1,
+  "worktree": "/Users/hiramatsu/dev/tsc-rs-emitter-final-integration",
+  "stash": "add7689955d9926f2e96abbdbd2c03140ee7c451",
+  "reason": "Set aside integrator-owned untracked baseline receipts before fast-forwarding the final audited commits. All log/receipt files were byte-identical in the audit worktree. The earlier collect-hosted.py is preserved in this stash; its current version is developed in the audit worktree. No tracked source changes were present."
+}

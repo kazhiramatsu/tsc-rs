@@ -1,0 +1,30 @@
+{
+  "qualified": false,
+  "files": [
+    {
+      "path": "delivery_receipt_checks.py",
+      "sha256": "c5da71446ee7e8a5f1d9eaf6b78e017e1e9365f4d1eadc958aa1bc5949eca255",
+      "bytes": 4341
+    },
+    {
+      "path": "emitter-delivery-draft-r530.py",
+      "sha256": "ef1e29167a09f2a7d50a192ee5196697ec741552fc079e010c01111279543c87",
+      "bytes": 12073
+    },
+    {
+      "path": "emitter-delivery-final-input-audit-r530.py",
+      "sha256": "ea675b1678e3a07c82167484b55142037b8273b9265d8685e340141eb2133b17",
+      "bytes": 4666
+    },
+    {
+      "path": "emitter-final-ci-run-r530.py",
+      "sha256": "68656686b126925474d7a10b4ef3acfee02e99f1095a4cea8805f42d9131830b",
+      "bytes": 4699
+    },
+    {
+      "path": "test_delivery_receipt_checks.py",
+      "sha256": "fc56efc8c22197e500701f04c7ff74a042b9efb8b7325d78dac62d8041f42ddf",
+      "bytes": 7587
+    }
+  ]
+}

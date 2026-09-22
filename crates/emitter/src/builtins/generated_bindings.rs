@@ -513,15 +513,19 @@ impl GeneratedBindingScopes {
         let mut suffix = 1usize;
         loop {
             let candidate = format!("{source_name}_{suffix}");
-            if self.reserve_in_source(candidate.clone()) {
-                if reserve_in_nested_scopes {
-                    self.scopes[0]
-                        .names_reserved_in_descendants
-                        .push(candidate.clone());
-                } else {
-                    // makeUniqueName(scoped = false): generatedNames.add.
-                    self.generated_names.insert(candidate.clone());
+            if reserve_in_nested_scopes {
+                // EF7-SCOPED-NUMBERED-NAMES: makeUniqueName(scoped = true)
+                // reserves the spelling in the CURRENT name-generation scope
+                // (`reserveNameInNestedScopes`, released when that scope
+                // pops), so sibling function bodies each start again at `_1`
+                // (`args_1`, `x_1` of the transformES2017/ES2018 parameter
+                // rewrites).
+                if self.reserve_in_current(candidate.clone(), true, true) {
+                    return candidate;
                 }
+            } else if self.reserve_in_source(candidate.clone()) {
+                // makeUniqueName(scoped = false): generatedNames.add.
+                self.generated_names.insert(candidate.clone());
                 return candidate;
             }
             suffix += 1;
@@ -555,7 +559,10 @@ impl GeneratedBindingScopes {
         }
     }
 
-    /// tsc-port: makeUniqueName(baseName, isUniqueName, optimistic, scoped = false) @6.0.3
+    /// tsc-port: createPrinter.makeUniqueName @6.0.3
+    /// tsc-hash: 24cb46aa2ba811ebf24cee740aa8ca553970a6bd6f18b7b57ae10ea77cb55f03
+    /// tsc-span: _tsc.js:120741-120779
+    /// Reference detail: makeUniqueName(baseName, isUniqueName, optimistic, scoped = false) @6.0.3
     ///
     /// An optimistic name that is neither `FileLevel` nor
     /// `ReservedInNestedScopes` (`_outerThis`): tsc records it in the

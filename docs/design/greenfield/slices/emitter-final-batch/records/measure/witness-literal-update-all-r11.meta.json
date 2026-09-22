@@ -1,0 +1,20 @@
+{
+  "name": "witness-literal-update-all-r11",
+  "head": "c35e00ccb006e3b4e3e2643491e8fe3207595097",
+  "dirty_paths": 53,
+  "env": [
+    "CARGO_BUILD_JOBS=2"
+  ],
+  "argv": [
+    "python3",
+    "scripts/witness.py",
+    "literal-update",
+    "--all"
+  ],
+  "prefix": "taskpolicy -b nice -n 15 env CARGO_BUILD_JOBS=2",
+  "started_at": "2026-09-18T06:16:36Z",
+  "seconds": 152,
+  "exit": 0,
+  "log_sha256": "db5474210c5eee2f8cf65652eeed8258b7bc0e8ba2ce8ffaa2a09a5c0ee327c3",
+  "log_bytes": 1768
+}

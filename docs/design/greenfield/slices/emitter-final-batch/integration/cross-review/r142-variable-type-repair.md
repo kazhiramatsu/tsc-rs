@@ -1,0 +1,7 @@
+# Missing variable type comment phase repair
+
+The r132 candidate passed all 201 syntax tests, but only 89 of 92 complete commands matched twice. The three differences were emitted JavaScript comments after a zero-width erased type; JavaScript source maps changed as a consequence. Declaration bytes and maps were unchanged in those cases. The independent 291-case transpile suite had 287 exact and four still-known commands; its raw exit 101 preserves the four stale-KNOWN guards. No entry is retired by this evidence.
+
+The ordinary VariableDeclaration initializer now uses its existing source-leading equals-token lane when the erased type has no extent. It retains the type end cursor and writes the separating space before leading comments, matching TypeScript emitInitializer. Nonempty type ranges retain their existing lane. Opus round 130 reviewed the ownership and space-before-newline detail. No parser positions or shared comment collector changed.
+
+The observer now records 164 commands twice, adding newline/mixed/initializer comments, Unicode names, consecutive declarations, valid type annotations and a for-await container control. All original 92 case records are structurally identical; their original full artifact is preserved losslessly. The first expanded mint r141 completed observations but refused to overwrite its existing output; r142 used the archived original and succeeded. Native validation of the expanded set is pending.

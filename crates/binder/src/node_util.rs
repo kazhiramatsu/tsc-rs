@@ -2288,6 +2288,27 @@ pub fn skip_parentheses_pub(source: &SourceFile, mut id: NodeId) -> NodeId {
     id
 }
 
+/// tsc `skipParentheses(node, excludeJSDocTypeAssertions)` (15661-15664):
+/// with the exclusion, a parenthesized expression that carries a JSDoc
+/// `@type` cast in a JavaScript file is an outer expression that is NOT
+/// skipped (`OuterExpressionKinds.ExcludeJSDocTypeAssertion`).
+pub fn skip_parentheses_excluding_jsdoc_type_assertions(
+    source: &SourceFile,
+    mut id: NodeId,
+    exclude_jsdoc_type_assertions: bool,
+) -> NodeId {
+    while let NodeData::ParenthesizedExpression(data) = &source.arena.node(id).data {
+        if exclude_jsdoc_type_assertions && is_jsdoc_type_assertion(source, id) {
+            break;
+        }
+        match data.expression {
+            Some(expression) => id = expression,
+            None => break,
+        }
+    }
+    id
+}
+
 // ---- optional-chain predicates (_tsc.js 11832-11847) ----
 
 /// tsc isOptionalChain (11832).

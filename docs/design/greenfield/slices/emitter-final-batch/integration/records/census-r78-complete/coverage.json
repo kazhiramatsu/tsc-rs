@@ -1,0 +1,11 @@
+{
+  "head": "67df86615a45f9595025064bcc12fde93063fedf",
+  "snapshot_sha256": "1846fce26da956f515874486d43b9ac856fda31456e76a2925455a8488f76d75",
+  "claimed_ids": 14329,
+  "loaded_rows": 14219,
+  "load_failures": 110,
+  "parse_inputs": 16994,
+  "inventory_sha256": "3f1978dc8fc5e6d4cadc2f07bd871c85122a80f8c5d9f0331e352ac52f935578",
+  "execution_receipt_sha256": "42877644db80a963aa400787703c2c0d5a5841444ea95c47b4f8753c3e748557",
+  "complete_command_qualification": false
+}
