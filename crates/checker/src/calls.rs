@@ -700,7 +700,8 @@ impl<'a> CheckerState<'a> {
                 &diagnostics::Invalid_syntax_in_decorator,
                 &[],
             );
-            self.diagnostics[index].related.push(related);
+            self.diagnostics
+                .update(index, |diagnostic| diagnostic.related.push(related));
             return true;
         }
         false

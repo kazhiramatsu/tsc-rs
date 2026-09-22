@@ -192,7 +192,9 @@ impl<'a> CheckerState<'a> {
             args,
         );
         if !self.unused_is_error(containing_node, kind) {
-            self.diagnostics[index].message.category = DiagnosticCategory::Suggestion;
+            self.diagnostics.update(index, |diagnostic| {
+                diagnostic.message.category = DiagnosticCategory::Suggestion;
+            });
         }
     }
 

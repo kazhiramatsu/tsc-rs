@@ -389,7 +389,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<(T, Vec<Diagnostic>)> {
         let saved = std::mem::take(&mut self.diagnostics);
         let result = f(self);
-        let collected = std::mem::replace(&mut self.diagnostics, saved);
+        let collected = std::mem::replace(&mut self.diagnostics, saved).into_vec();
         match result {
             Ok(value) => Ok((value, collected)),
             Err(err) => {
@@ -911,7 +911,8 @@ impl<'a> CheckerState<'a> {
                             .iter()
                             .map(related_info_from_diagnostic)
                             .collect();
-                        self.diagnostics[root_index].related.extend(related);
+                        self.diagnostics
+                            .update(root_index, |diagnostic| diagnostic.related.extend(related));
                     }
                 }
                 return Ok(None);
@@ -962,7 +963,8 @@ impl<'a> CheckerState<'a> {
                             .iter()
                             .map(related_info_from_diagnostic)
                             .collect();
-                        self.diagnostics[root_index].related.extend(related);
+                        self.diagnostics
+                            .update(root_index, |diagnostic| diagnostic.related.extend(related));
                     }
                 }
                 self.set_cached_iteration_types(ty, cache_key, IterationTypesResult::No);

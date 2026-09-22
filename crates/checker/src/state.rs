@@ -21,6 +21,8 @@ use crate::links::{LinkSlot, LinksTables};
 use crate::program::{ProgramBinder, ProgramSnapshot};
 use crate::relate::RelationCaches;
 
+pub use crate::diagnostic_sink::DiagnosticSink;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum PackageJsonModuleType {
     Module,
@@ -737,7 +739,10 @@ pub struct CheckerState<'a> {
     // ---- M4 5.0: the diags sink ----
     /// tsc `diagnostics` (createDiagnosticCollection) — the semantic
     /// sink; the driver (5.4) drains it per program.
-    pub diagnostics: DiagnosticList,
+    /// Experimental API: Vec access preserves order; arbitrary mutation
+    /// invalidates the lookup index. Assign a Vec with `.into()`, or extract
+    /// it with `.into_vec()`. Higher-level check results still expose Vecs.
+    pub diagnostics: DiagnosticSink,
     /// File-less diagnostics that tsc adds after its
     /// previousGlobalDiagnostics snapshot and therefore exposes from
     /// getSemanticDiagnostics. Lazy initialization diagnostics not
@@ -1279,7 +1284,7 @@ impl<'a> CheckerState<'a> {
             exhaustive_switch_computing: std::collections::HashSet::new(),
             effects_signature_cache: std::collections::HashMap::new(),
             resolved_type_predicates: std::collections::HashMap::new(),
-            diagnostics: Vec::new(),
+            diagnostics: DiagnosticSink::default(),
             visible_global_diagnostics: Vec::new(),
             tsc_eager_diagnostics: Vec::new(),
             tsc_eager_visible_global_diagnostics: Vec::new(),
@@ -2171,15 +2176,7 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: Rust Diagnostic storage/deduplication adapter;
     /// tsc mutates its diagnostics array directly.
     pub fn push_error_diagnostic(&mut self, diagnostic: Diagnostic) -> usize {
-        if let Some(existing) = self
-            .diagnostics
-            .iter()
-            .position(|existing| *existing == diagnostic)
-        {
-            return existing;
-        }
-        self.diagnostics.push(diagnostic);
-        self.diagnostics.len() - 1
+        self.diagnostics.insert_unique(diagnostic)
     }
 
     /// tsrs-native: Rust diagnostic-construction adapter that attaches
@@ -2193,15 +2190,7 @@ impl<'a> CheckerState<'a> {
     ) -> usize {
         let mut diagnostic = self.create_error(location, message, args);
         diagnostic.related = related;
-        if let Some(existing) = self
-            .diagnostics
-            .iter()
-            .position(|existing| *existing == diagnostic)
-        {
-            return existing;
-        }
-        self.diagnostics.push(diagnostic);
-        self.diagnostics.len() - 1
+        self.push_error_diagnostic(diagnostic)
     }
 
     /// tsrs-native: JS twin of error_at_with_related (sibling tsrs-native): attaches

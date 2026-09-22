@@ -838,11 +838,16 @@ impl<'a> CheckerState<'a> {
                 })
             {
                 let (_, _, primary_index) = last_primary.expect("last primary was checked");
-                self.diagnostics[primary_index].related.push(RelatedInfo {
-                    file_name: None,
-                    start: Some(start),
-                    length: Some(length),
-                    message: MessageChain::new(regex_diagnostic.message, &regex_diagnostic.args),
+                self.diagnostics.update(primary_index, |diagnostic| {
+                    diagnostic.related.push(RelatedInfo {
+                        file_name: None,
+                        start: Some(start),
+                        length: Some(length),
+                        message: MessageChain::new(
+                            regex_diagnostic.message,
+                            &regex_diagnostic.args,
+                        ),
+                    });
                 });
             } else if last_primary.is_none_or(|(last_start, _, _)| last_start != start) {
                 let diagnostic = Diagnostic::new_js(
@@ -2484,11 +2489,13 @@ impl<'a> CheckerState<'a> {
                             &diagnostics::An_outer_value_of_this_is_shadowed_by_this_container,
                             &[],
                         );
-                        self.diagnostics[index].related.push(RelatedInfo {
-                            file_name: related.file_name,
-                            start: related.start,
-                            length: related.length,
-                            message: related.message,
+                        self.diagnostics.update(index, |diagnostic| {
+                            diagnostic.related.push(RelatedInfo {
+                                file_name: related.file_name,
+                                start: related.start,
+                                length: related.length,
+                                message: related.message,
+                            });
                         });
                     }
                 }

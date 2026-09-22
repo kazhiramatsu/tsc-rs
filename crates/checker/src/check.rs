@@ -1827,7 +1827,9 @@ impl<'a> CheckerState<'a> {
             &diagnostics::Unreachable_code_detected,
         );
         if self.options.allow_unreachable_code != Some(false) {
-            self.diagnostics[index].message.category = DiagnosticCategory::Suggestion;
+            self.diagnostics.update(index, |diagnostic| {
+                diagnostic.message.category = DiagnosticCategory::Suggestion;
+            });
         }
         Ok(true)
     }

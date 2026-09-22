@@ -708,7 +708,8 @@ impl<'a> CheckerState<'a> {
             } else {
                 follow_on
             };
-            self.diagnostics[index].related.push(addition);
+            self.diagnostics
+                .update(index, |diagnostic| diagnostic.related.push(addition));
         }
     }
 
