@@ -250,6 +250,40 @@ fn missing_name_with_message_emits_plain_2304() {
 }
 
 #[test]
+fn misspelled_exports_and_class_type_parameters_keep_suggestions() {
+    // Fresh TypeScript 6.0.3 CLI observations report TS2552 with these
+    // candidates even though ordinary lookup cannot find the misspelled name.
+    for (source, misspelled, suggested) in [
+        (
+            "export interface Vegetable { id: number; }\nexport const value: Vegetabl = { id: 1 };\n",
+            "Vegetabl",
+            "Vegetable",
+        ),
+        (
+            "export class Box<LongTypeParameter> { value?: LongTypeParamter; }\n",
+            "LongTypeParamter",
+            "LongTypeParameter",
+        ),
+    ] {
+        let result = check_program(
+            &[InputFile::new("a.ts".to_owned(), source.to_owned())],
+            &CompilerOptions::default(),
+        );
+        let errors: Vec<_> = result
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.category() == DiagnosticCategory::Error)
+            .collect();
+        assert_eq!(errors.len(), 1, "{source}: {:?}", result.diagnostics);
+        assert_eq!(errors[0].code(), 2552);
+        assert_eq!(
+            errors[0].message_text().to_string_lossy(),
+            format!("Cannot find name '{misspelled}'. Did you mean '{suggested}'?")
+        );
+    }
+}
+
+#[test]
 fn unchecked_js_spelling_rows_publish_as_suggestions() {
     let lib_path = concat!(
         env!("CARGO_MANIFEST_DIR"),
