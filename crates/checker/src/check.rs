@@ -173,8 +173,7 @@ impl<'a> CheckerState<'a> {
     fn check_source_file_worker(&mut self, root: NodeId) {
         if self
             .links
-            .node(root)
-            .check_flags
+            .read_node(root, |links| links.check_flags)
             .intersects(NodeCheckFlags::TYPE_CHECKED)
         {
             return;
@@ -331,7 +330,11 @@ impl<'a> CheckerState<'a> {
                 return Ok(());
             }
         }
-        if self.links.node(node).calculated_flags.intersects(flag) {
+        if self
+            .links
+            .read_node(node, |links| links.calculated_flags)
+            .intersects(flag)
+        {
             return Ok(());
         }
         const SUPER_GROUP: NodeCheckFlags = NodeCheckFlags::from_bits(
@@ -402,7 +405,11 @@ impl<'a> CheckerState<'a> {
         let mut visited = Vec::new();
         let mut stack = vec![root];
         while let Some(current) = stack.pop() {
-            if self.links.node(current).calculated_flags.intersects(flag) {
+            if self
+                .links
+                .read_node(current, |links| links.calculated_flags)
+                .intersects(flag)
+            {
                 continue;
             }
             self.links.or_calculated_flags(current, group);
@@ -1673,11 +1680,9 @@ impl<'a> CheckerState<'a> {
             tsc_binder::node_util::is_function_like_kind(kind)
                 || matches!(kind, SyntaxKind::GetAccessor | SyntaxKind::SetAccessor)
         });
-        if !self
-            .links
-            .node(node)
-            .has_reported_statement_in_ambient_context
-            && parent_is_function_like_or_accessor
+        if !self.links.read_node(node, |links| {
+            links.has_reported_statement_in_ambient_context
+        }) && parent_is_function_like_or_accessor
         {
             if self.grammar_error_on_first_token(
                 node,
@@ -1697,16 +1702,13 @@ impl<'a> CheckerState<'a> {
             Some(SyntaxKind::Block) | Some(SyntaxKind::ModuleBlock) | Some(SyntaxKind::SourceFile)
         ) {
             let parent = parent.expect("kind implies presence");
-            if !self
-                .links
-                .node(parent)
-                .has_reported_statement_in_ambient_context
-                && self.grammar_error_on_first_token(
-                    node,
-                    &diagnostics::Statements_are_not_allowed_in_ambient_contexts,
-                    &[],
-                )
-            {
+            if !self.links.read_node(parent, |links| {
+                links.has_reported_statement_in_ambient_context
+            }) && self.grammar_error_on_first_token(
+                node,
+                &diagnostics::Statements_are_not_allowed_in_ambient_contexts,
+                &[],
+            ) {
                 self.links
                     .set_node_has_reported_statement_in_ambient_context(
                         self.speculation_depth,
@@ -2692,13 +2694,15 @@ impl<'a> CheckerState<'a> {
         &mut self,
         declaration: NodeId,
     ) -> CheckResult<bool> {
-        if let Some(cached) = self.links.node(declaration).contains_arguments_reference {
+        if let Some(cached) = self
+            .links
+            .read_node(declaration, |links| links.contains_arguments_reference)
+        {
             return Ok(cached);
         }
         if self
             .links
-            .node(declaration)
-            .check_flags
+            .read_node(declaration, |links| links.check_flags)
             .intersects(NodeCheckFlags::CAPTURE_ARGUMENTS)
         {
             self.links.set_node_contains_arguments_reference(
@@ -3258,7 +3262,10 @@ impl<'a> CheckerState<'a> {
     }
 
     fn check_deprecated_type_reference_or_import(&mut self, node: NodeId) {
-        let Some(symbol) = self.links.node(node).resolved_symbol.resolved() else {
+        let Some(symbol) = self
+            .links
+            .read_node(node, |links| links.resolved_symbol.resolved())
+        else {
             return;
         };
         let declarations = self.binder.symbol(symbol).declarations.clone();
@@ -3363,7 +3370,10 @@ impl<'a> CheckerState<'a> {
         if self.tables.is_error_type(ty) {
             return Ok(None);
         }
-        let Some(symbol) = self.links.node(node).resolved_symbol.resolved() else {
+        let Some(symbol) = self
+            .links
+            .read_node(node, |links| links.resolved_symbol.resolved())
+        else {
             return Ok(None);
         };
         if self
@@ -3372,7 +3382,10 @@ impl<'a> CheckerState<'a> {
             .flags
             .intersects(tsc_types::SymbolFlags::TYPE_ALIAS)
         {
-            if let Some(type_parameters) = self.links.symbol(symbol).type_parameters.clone() {
+            if let Some(type_parameters) = self
+                .links
+                .read_symbol(symbol, |links| links.type_parameters.clone())
+            {
                 return Ok(Some(type_parameters));
             }
         }
@@ -3773,7 +3786,9 @@ impl<'a> CheckerState<'a> {
         if let Some(type_parameter) = type_parameter {
             let symbol = self.get_symbol_of_declaration(type_parameter)?;
             if self.binder.symbol(symbol).declarations.len() > 1
-                && !self.links.symbol(symbol).type_parameters_checked
+                && !self
+                    .links
+                    .read_symbol(symbol, |links| links.type_parameters_checked)
             {
                 self.links
                     .set_symbol_type_parameters_checked(self.speculation_depth, symbol);
@@ -4067,8 +4082,7 @@ impl<'a> CheckerState<'a> {
         let file_root = self.binder.source_of_node(node).root;
         if !self
             .links
-            .node(file_root)
-            .check_flags
+            .read_node(file_root, |links| links.check_flags)
             .intersects(NodeCheckFlags::TYPE_CHECKED)
         {
             self.deferred_nodes
@@ -4161,7 +4175,8 @@ impl<'a> CheckerState<'a> {
             };
             if let Some(slot_node) = slot_node {
                 if matches!(
-                    self.links.node(slot_node).resolved_signature,
+                    self.links
+                        .read_node(slot_node, |links| links.resolved_signature.clone()),
                     crate::links::LinkSlot::Vacant
                 ) && self.contained_call_resolutions.contains(&slot_node)
                 {
@@ -4275,8 +4290,10 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::TypeReference
             | SyntaxKind::ImportType
             | SyntaxKind::ExpressionWithTypeArguments => {
-                let needs_deprecation_tail =
-                    self.links.node(node).resolved_type.resolved().is_none();
+                let needs_deprecation_tail = self
+                    .links
+                    .read_node(node, |links| links.resolved_type.resolved())
+                    .is_none();
                 if let Some(type_parameters) =
                     self.get_type_parameters_for_type_reference_or_import(node)?
                 {
@@ -5283,8 +5300,7 @@ impl<'a> CheckerState<'a> {
             }
             if self
                 .links
-                .symbol(prop)
-                .check_flags
+                .read_symbol(prop, |links| links.check_flags)
                 .intersects(tsc_types::CheckFlags::LATE)
             {
                 let source = self.binder.source_of_node(name);
@@ -5293,7 +5309,7 @@ impl<'a> CheckerState<'a> {
                 );
             }
         } else if write_computed_props {
-            if let Some(name_type) = self.links.symbol(prop).name_type {
+            if let Some(name_type) = self.links.read_symbol(prop, |links| links.name_type) {
                 if self
                     .tables
                     .flags_of(name_type)
@@ -5660,7 +5676,10 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(symbol);
         }
-        if self.links.symbol(symbol).late_symbol.is_none()
+        if self
+            .links
+            .read_symbol(symbol, |links| links.late_symbol)
+            .is_none()
             && data
                 .declarations
                 .clone()
@@ -5685,7 +5704,10 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        Ok(self.links.symbol(symbol).late_symbol.unwrap_or(symbol))
+        Ok(self
+            .links
+            .read_symbol(symbol, |links| links.late_symbol)
+            .unwrap_or(symbol))
     }
 
     // ---- typeToString display port ----
@@ -6022,7 +6044,7 @@ impl<'a> CheckerState<'a> {
         use_alias_defined_outside_current_scope: bool,
         enclosing: Option<NodeId>,
     ) -> Option<JsString> {
-        let name_type = self.links.symbol(symbol).name_type?;
+        let name_type = self.links.read_symbol(symbol, |links| links.name_type)?;
         let flags = self.tables.flags_of(name_type);
         if flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL) {
             let name = match &self.tables.type_of(name_type).data {
@@ -6177,7 +6199,7 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
 
-        let Some(node) = self.links.ty(ty).deferred_node else {
+        let Some(node) = self.links.read_ty(ty, |links| links.deferred_node) else {
             return Ok(true);
         };
         let NodeData::TypeReference(data) = self.data_of(node) else {
@@ -7315,7 +7337,7 @@ impl<'a> CheckerState<'a> {
             .object_flags_of(ty)
             .intersects(ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
         {
-            if let Some(existing) = self.links.ty(ty).deferred_node {
+            if let Some(existing) = self.links.read_ty(ty, |links| links.deferred_node) {
                 if self.kind_of(existing) == SyntaxKind::TypeQuery
                     && self.get_type_from_type_node(existing)? == ty
                 {
@@ -9037,7 +9059,8 @@ impl<'a> CheckerState<'a> {
             .tables
             .object_flags_of(ty)
             .intersects(ObjectFlags::MAPPED)
-            && (self.is_generic_mapped_type_state(ty)? || self.links.ty(ty).mapped_contains_error)
+            && (self.is_generic_mapped_type_state(ty)?
+                || self.links.read_ty(ty, |links| links.mapped_contains_error))
         {
             return self.mapped_type_to_string_slice_node(ty, fully_qualified);
         }
@@ -9286,8 +9309,7 @@ impl<'a> CheckerState<'a> {
         if let Some(&last) = self.slice_reverse_mapped_stack.last() {
             let property_type = self
                 .links
-                .symbol(last)
-                .property_type
+                .read_symbol(last, |links| links.property_type)
                 .expect("reverse-mapped properties carry propertyType");
             if !self
                 .tables
@@ -9312,8 +9334,7 @@ impl<'a> CheckerState<'a> {
             .all(|&stacked| {
                 let mapped = self
                     .links
-                    .symbol(stacked)
-                    .mapped_type
+                    .read_symbol(stacked, |links| links.mapped_type)
                     .expect("reverse-mapped properties carry mappedType");
                 self.tables.type_of(mapped).symbol == mapped_symbol
             })
@@ -9338,8 +9359,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<()> {
         let property_is_reverse_mapped = self
             .links
-            .symbol(property)
-            .check_flags
+            .read_symbol(property, |links| links.check_flags)
             .intersects(tsc_types::CheckFlags::REVERSE_MAPPED);
         let use_reverse_mapped_placeholder =
             self.should_use_reverse_mapped_placeholder_slice(property);
@@ -9384,7 +9404,7 @@ impl<'a> CheckerState<'a> {
                     // 52274-52297: the diverging pair prints one
                     // signature face per present accessor declaration,
                     // instantiated under the symbol links mapper.
-                    let symbol_mapper = self.links.symbol(property).mapper;
+                    let symbol_mapper = self.links.read_symbol(property, |links| links.mapper);
                     let declarations = self.binder.symbol(property).declarations.clone();
                     let getter = declarations
                         .iter()
@@ -10051,7 +10071,7 @@ impl<'a> CheckerState<'a> {
             .flatten()
         });
         let ty = self.get_type_of_symbol(parameter)?;
-        let check_flags = self.links.symbol(parameter).check_flags;
+        let check_flags = self.links.read_symbol(parameter, |links| links.check_flags);
         let rest = declaration
             .is_some_and(|declaration| self.is_rest_parameter_declaration(declaration))
             || check_flags.intersects(tsc_types::CheckFlags::REST_PARAMETER);
@@ -10838,7 +10858,10 @@ impl<'a> CheckerState<'a> {
             return Ok(true);
         };
         let argument_count = self.nodes_of(data.type_arguments).len();
-        let Some(symbol) = self.links.node(annotation).resolved_symbol.resolved() else {
+        let Some(symbol) = self
+            .links
+            .read_node(annotation, |links| links.resolved_symbol.resolved())
+        else {
             return Ok(true);
         };
         let declared = self.get_declared_type_of_symbol_slice(symbol)?;
@@ -12599,7 +12622,10 @@ impl<'a> CheckerState<'a> {
         // getTypeFromImportTypeNode initializes resolvedSymbol before
         // canReuseTypeNode reads the link.
         let _ = self.get_type_from_type_node(node)?;
-        let Some(symbol) = self.links.node(node).resolved_symbol.resolved() else {
+        let Some(symbol) = self
+            .links
+            .read_node(node, |links| links.resolved_symbol.resolved())
+        else {
             return Ok(true);
         };
         if !data.is_type_of
@@ -12646,7 +12672,10 @@ impl<'a> CheckerState<'a> {
                     Some(ty) => ty,
                     None => self.get_type_from_type_node(node)?,
                 };
-                let Some(symbol) = self.links.node(node).resolved_symbol.resolved() else {
+                let Some(symbol) = self
+                    .links
+                    .read_node(node, |links| links.resolved_symbol.resolved())
+                else {
                     return Ok(false);
                 };
                 if self
@@ -13619,7 +13648,7 @@ impl<'a> CheckerState<'a> {
             }
         }
         let declarations = self.binder.symbol(property).declarations.clone();
-        let name_type = self.links.symbol(property).name_type;
+        let name_type = self.links.read_symbol(property, |links| links.name_type);
         let name_type_flags = name_type.map(|name_type| self.tables.flags_of(name_type));
         let string_named = !declarations.is_empty()
             && declarations

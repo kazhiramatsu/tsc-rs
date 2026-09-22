@@ -771,8 +771,7 @@ impl<'a> CheckerState<'a> {
         {
             let containing = self
                 .links
-                .symbol(prop)
-                .containing_type
+                .read_symbol(prop, |links| links.containing_type)
                 .expect("Synthetic check flag implies containing type");
             let name = self.binder.symbol(prop).escaped_name.clone();
             let constituents: Vec<TypeId> = match &self.tables.type_of(containing).data {
@@ -1335,7 +1334,10 @@ impl<'a> CheckerState<'a> {
         if !node_util::is_expression_node(self.binder.source_of_node(priv_id), priv_id) {
             return Ok(None);
         }
-        if let crate::links::LinkSlot::Resolved(symbol) = self.links.node(priv_id).resolved_symbol {
+        if let crate::links::LinkSlot::Resolved(symbol) = self
+            .links
+            .read_node(priv_id, |links| links.resolved_symbol.clone())
+        {
             return Ok(Some(symbol));
         }
         let name = self
@@ -1992,7 +1994,10 @@ impl<'a> CheckerState<'a> {
         _check_mode: CheckMode,
         write_only: bool,
     ) -> CheckResult<TypeId> {
-        let parent_symbol = match self.links.node(left).resolved_symbol {
+        let parent_symbol = match self
+            .links
+            .read_node(left, |links| links.resolved_symbol.clone())
+        {
             crate::links::LinkSlot::Resolved(symbol) => Some(symbol),
             _ => None,
         };
@@ -2381,8 +2386,9 @@ impl<'a> CheckerState<'a> {
                 }
                 return self.get_type_of_symbol_with_deferred_type(symbol);
             }
-            if let crate::links::LinkSlot::Resolved(write_type) =
-                self.links.symbol(symbol).write_type
+            if let crate::links::LinkSlot::Resolved(write_type) = self
+                .links
+                .read_symbol(symbol, |links| links.write_type.clone())
             {
                 return Ok(write_type);
             }
@@ -2398,21 +2404,22 @@ impl<'a> CheckerState<'a> {
                 // getWriteTypeOfInstantiatedSymbol (56889-56892):
                 // links.writeType ||= the target's write type through
                 // the mapper — first write wins on a recursive fill.
-                if let crate::links::LinkSlot::Resolved(write_type) =
-                    self.links.symbol(symbol).write_type
+                if let crate::links::LinkSlot::Resolved(write_type) = self
+                    .links
+                    .read_symbol(symbol, |links| links.write_type.clone())
                 {
                     return Ok(write_type);
                 }
                 let target = self
                     .links
-                    .symbol(symbol)
-                    .target
+                    .read_symbol(symbol, |links| links.target)
                     .expect("Instantiated check flag implies links.target");
-                let mapper = self.links.symbol(symbol).mapper;
+                let mapper = self.links.read_symbol(symbol, |links| links.mapper);
                 let target_write = self.get_write_type_of_symbol(target)?;
                 let instantiated = self.instantiate_type(target_write, mapper)?;
-                if let crate::links::LinkSlot::Resolved(already) =
-                    self.links.symbol(symbol).write_type
+                if let crate::links::LinkSlot::Resolved(already) = self
+                    .links
+                    .read_symbol(symbol, |links| links.write_type.clone())
                 {
                     return Ok(already);
                 }
@@ -2957,8 +2964,7 @@ impl<'a> CheckerState<'a> {
             .intersects(tsc_types::CheckFlags::INSTANTIATED)
         {
             self.links
-                .symbol(prop)
-                .target
+                .read_symbol(prop, |links| links.target)
                 .expect("Instantiated check flag implies links.target")
         } else {
             prop
@@ -3179,8 +3185,9 @@ impl<'a> CheckerState<'a> {
                     node = inner;
                 }
                 if self.kind_of(node) == SyntaxKind::Identifier {
-                    if let crate::links::LinkSlot::Resolved(receiver_symbol) =
-                        self.links.node(node).resolved_symbol
+                    if let crate::links::LinkSlot::Resolved(receiver_symbol) = self
+                        .links
+                        .read_node(node, |links| links.resolved_symbol.clone())
                     {
                         if self
                             .binder
@@ -3676,7 +3683,10 @@ impl<'a> CheckerState<'a> {
         if self.tables.flags_of(ty).intersects(TypeFlags::ANY) {
             return Ok((None, None));
         }
-        if let Some(cached) = self.links.ty(ty).promised_type_of_promise {
+        if let Some(cached) = self
+            .links
+            .read_ty(ty, |links| links.promised_type_of_promise)
+        {
             return Ok((Some(cached), None));
         }
         let global_promise = self.get_global_type_or_undefined("Promise", 1)?;
@@ -3938,7 +3948,10 @@ impl<'a> CheckerState<'a> {
                 None,
             )?
             .unwrap_or(self.tables.intrinsics.error);
-        let resolved_symbol = match self.links.node(node).resolved_symbol {
+        let resolved_symbol = match self
+            .links
+            .read_node(node, |links| links.resolved_symbol.clone())
+        {
             crate::links::LinkSlot::Resolved(symbol) => Some(symbol),
             _ => None,
         };

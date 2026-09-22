@@ -11,6 +11,7 @@
 //! Checker transient symbols use the tagged high half of `SymbolId`.
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use tsc_binder::{BindData, Binder, BinderWorker, Symbol, SymbolArena, SymbolId, SymbolTable};
@@ -930,11 +931,17 @@ pub struct ProgramBinder<'a> {
     /// BoundDocument. In both cases checker code sees the same immutable
     /// BindData projection.
     file_entries: Vec<ProgramEntry<'a>>,
+    /// Borrowed projections avoid repeatedly following the owned-document
+    /// Arc chain. Both entry forms already retain sources for `'a`.
+    sources: Vec<&'a SourceFile>,
     /// Program-owned facts copied from the immutable snapshot. They remain
     /// session-local and never mutate shared parsed/bound documents.
     file_facts: Vec<ProgramFileFacts>,
     /// Node-id intervals in parse allocation order (ascending by start).
     node_owners: Vec<ArenaOwner>,
+    /// A hint into immutable intervals, checked on every lookup. Relaxed
+    /// atomics preserve shared-read safety without ordering any other state.
+    node_owner_hint: AtomicUsize,
     /// Node-array-id intervals in parse allocation order.
     array_owners: Vec<ArenaOwner>,
     /// Persistent symbol intervals in identity allocation order.
@@ -1137,10 +1144,13 @@ impl<'a> ProgramBinder<'a> {
             }
         }
 
+        let sources = file_entries.iter().map(ProgramEntry::source).collect();
         Ok(Self {
             file_entries,
+            sources,
             file_facts,
             node_owners,
+            node_owner_hint: AtomicUsize::new(0),
             array_owners,
             symbol_owners,
             transient: SymbolArena::with_base(TRANSIENT_SYMBOL_BIT),
@@ -1180,28 +1190,31 @@ impl<'a> ProgramBinder<'a> {
 
     /// tsrs-native: Rust ProgramBinder SourceFile projection.
     pub fn source(&self, index: usize) -> &'a SourceFile {
-        self.file_entries[index].source()
+        self.sources[index]
     }
 
     /// Owning file of a node id (nodes allocate contiguously per file).
-    /// tsrs-native: binary-search routing for Rust's process-wide
-    /// numeric NodeId arena; tsc carries object identity directly.
+    /// tsrs-native: validated last-owner hint, then binary-search routing for
+    /// Rust's numeric NodeId arena; tsc carries object identity directly.
+    #[inline]
     pub fn file_index_of_node(&self, node: NodeId) -> usize {
-        Self::owner_file(&self.node_owners, node.0, "NodeId")
+        self.try_file_index_of_node(node)
+            .unwrap_or_else(|| panic!("NodeId {} is outside every program arena", node.0))
     }
 
     /// Fallible counterpart used at external identity boundaries such as the
     /// checker-owned emit resolver. Ordinary checker code already owns valid
     /// node identities and continues to use [`Self::file_index_of_node`].
     /// tsrs-native: validation for Rust's source-token/node-id pair.
+    #[inline]
     pub(crate) fn try_file_index_of_node(&self, node: NodeId) -> Option<usize> {
-        Self::try_owner_file(&self.node_owners, node.0)
+        Self::try_owner_file_with_hint(&self.node_owners, node.0, &self.node_owner_hint)
     }
 
     /// tsrs-native: multi-file arena routing for a numeric NodeId; tsc
     /// carries the SourceFile/object relationship directly.
     pub fn source_of_node(&self, node: NodeId) -> &'a SourceFile {
-        self.file_entries[self.file_index_of_node(node)].source()
+        self.sources[self.file_index_of_node(node)]
     }
 
     fn binder_of_node(&self, node: NodeId) -> &BindData {
@@ -1214,7 +1227,29 @@ impl<'a> ProgramBinder<'a> {
     /// NodeArrayId.
     pub fn node_array(&self, id: NodeArrayId) -> &'a NodeArray {
         let index = Self::owner_file(&self.array_owners, id.0, "NodeArrayId");
-        self.file_entries[index].source().arena.node_array(id)
+        self.sources[index].arena.node_array(id)
+    }
+
+    #[inline]
+    fn try_owner_file_with_hint(
+        owners: &[ArenaOwner],
+        id: u32,
+        hint: &AtomicUsize,
+    ) -> Option<usize> {
+        if let Some(owner) = owners.get(hint.load(Ordering::Relaxed)) {
+            if owner.start <= id && id < owner.end {
+                return Some(owner.file);
+            }
+        }
+        let index = owners
+            .partition_point(|owner| owner.start <= id)
+            .checked_sub(1)?;
+        let owner = owners[index];
+        if id >= owner.end {
+            return None;
+        }
+        hint.store(index, Ordering::Relaxed);
+        Some(owner.file)
     }
 
     fn owner_file(owners: &[ArenaOwner], id: u32, kind: &str) -> usize {

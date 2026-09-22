@@ -55,7 +55,10 @@ impl<'a> CheckerState<'a> {
                     let contextual_return =
                         self.get_return_type_of_signature(contextual_signature)?;
                     if self.could_contain_type_variables(contextual_return) {
-                        if let Some(cached) = self.links.node(node).context_free_type.resolved() {
+                        if let Some(cached) = self
+                            .links
+                            .read_node(node, |links| links.context_free_type.resolved())
+                        {
                             return Ok(cached);
                         }
                         let return_type = self.get_return_type_from_body(node, check_mode)?;
@@ -142,8 +145,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<()> {
         if self
             .links
-            .node(node)
-            .check_flags
+            .read_node(node, |links| links.check_flags)
             .intersects(NodeCheckFlags::CONTEXT_CHECKED)
         {
             return Ok(());
@@ -151,8 +153,7 @@ impl<'a> CheckerState<'a> {
         let contextual_signature = self.get_contextual_signature(node)?;
         if self
             .links
-            .node(node)
-            .check_flags
+            .read_node(node, |links| links.check_flags)
             .intersects(NodeCheckFlags::CONTEXT_CHECKED)
         {
             return Ok(());
@@ -505,9 +506,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<()> {
         if self
             .links
-            .symbol(parameter)
-            .type_of_symbol
-            .resolved()
+            .read_symbol(parameter, |links| links.type_of_symbol.resolved())
             .is_some()
         {
             // `assignParameterType` in tsc is guarded by the presence of
@@ -1247,9 +1246,7 @@ impl<'a> CheckerState<'a> {
                 }
                 let resolved = self
                     .links
-                    .node(node)
-                    .resolved_symbol
-                    .resolved()
+                    .read_node(node, |links| links.resolved_symbol.resolved())
                     .unwrap_or(self.unknown_symbol);
                 self.is_readonly_symbol(resolved)
             }
@@ -3299,8 +3296,7 @@ impl<'a> CheckerState<'a> {
             if let (Some(getter), Some(setter)) = (getter, setter) {
                 let getter_checked = self
                     .links
-                    .node(getter)
-                    .check_flags
+                    .read_node(getter, |links| links.check_flags)
                     .intersects(tsc_types::NodeCheckFlags::TYPE_CHECKED);
                 if !getter_checked {
                     self.links.or_node_check_flags(
@@ -5599,9 +5595,7 @@ impl<'a> CheckerState<'a> {
         let id = self.create_resolved_empty_anonymous_type(symbol);
         let members = self
             .links
-            .ty(id)
-            .resolved_members
-            .resolved()
+            .read_ty(id, |links| links.resolved_members.resolved())
             .expect("created resolved above");
         self.members_mut(members).call_signatures.push(signature);
         id
@@ -5897,7 +5891,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: a634e86b085e2c5bdf1ddba28241453f81b9b4c70d742c9a589fbe2b54d6dafc
     /// tsc-span: _tsc.js:69889-69892
     pub(crate) fn get_type_of_initializer(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        if let Some(resolved) = self.links.node(node).resolved_type.resolved() {
+        if let Some(resolved) = self
+            .links
+            .read_node(node, |links| links.resolved_type.resolved())
+        {
             return Ok(resolved);
         }
         self.get_type_of_expression(node)

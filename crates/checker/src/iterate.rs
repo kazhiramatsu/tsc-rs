@@ -1693,7 +1693,9 @@ impl<'a> CheckerState<'a> {
                         } else {
                             global_iterator
                         };
-                        let mapper = self.links.ty(method_type).instantiated_mapper;
+                        let mapper = self
+                            .links
+                            .read_ty(method_type, |links| links.instantiated_mapper);
                         // tsc reads methodType.mapper unconditionally;
                         // a mapper-less method type here means the
                         // member was NOT an instantiation — fall

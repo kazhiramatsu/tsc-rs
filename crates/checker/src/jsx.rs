@@ -1168,7 +1168,10 @@ impl<'a> CheckerState<'a> {
     /// (a filtered `__index` copy vs the container symbol) is
     /// services-only — T0 reads jsxFlags and the error rows.
     pub(crate) fn get_intrinsic_tag_symbol(&mut self, node: NodeId) -> CheckResult<SymbolId> {
-        if let Some(cached) = self.links.node(node).resolved_symbol.resolved() {
+        if let Some(cached) = self
+            .links
+            .read_node(node, |links| links.resolved_symbol.resolved())
+        {
             return Ok(cached);
         }
         let tag_name = match self.data_of(node) {
@@ -1278,11 +1281,14 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
     ) -> CheckResult<TypeId> {
-        if let Some(cached) = self.links.node(node).resolved_jsx_element_attributes_type {
+        if let Some(cached) = self
+            .links
+            .read_node(node, |links| links.resolved_jsx_element_attributes_type)
+        {
             return Ok(cached);
         }
         let symbol = self.get_intrinsic_tag_symbol(node)?;
-        let jsx_flags = self.links.node(node).jsx_flags;
+        let jsx_flags = self.links.read_node(node, |links| links.jsx_flags);
         let result = if jsx_flags.intersects(JsxFlags::INTRINSIC_NAMED_ELEMENT) {
             self.get_type_of_symbol(symbol)?
         } else if jsx_flags.intersects(JsxFlags::INTRINSIC_INDEXED_ELEMENT) {
@@ -1518,7 +1524,7 @@ impl<'a> CheckerState<'a> {
     ///
     pub(crate) fn get_jsx_fragment_type(&mut self, node: NodeId) -> CheckResult<TypeId> {
         let root = self.binder.source_of_node(node).root;
-        if let Some(cached) = self.links.node(root).jsx_fragment_type {
+        if let Some(cached) = self.links.read_node(root, |links| links.jsx_fragment_type) {
             return Ok(cached);
         }
         let fragment_factory_name = self.get_jsx_namespace_name(node);
@@ -1881,7 +1887,9 @@ impl<'a> CheckerState<'a> {
             .symbol_flags(managed_sym)
             .intersects(SymbolFlags::TYPE_ALIAS)
         {
-            let params = self.links.symbol(managed_sym).type_parameters.clone();
+            let params = self
+                .links
+                .read_symbol(managed_sym, |links| links.type_parameters.clone());
             if params.as_ref().map_or(0, Vec::len) >= type_arguments.len() {
                 let args = self
                     .fill_missing_type_arguments(

@@ -436,7 +436,8 @@ impl<'a> CheckerState<'a> {
         {
             return Some(inline);
         }
-        self.links.ty(tp).type_parameter_constraint.resolved()
+        self.links
+            .read_ty(tp, |links| links.type_parameter_constraint.resolved())
     }
 
     /// tsc-port: getRestrictiveTypeParameter @6.0.3
@@ -450,7 +451,10 @@ impl<'a> CheckerState<'a> {
         if unconstrained {
             return tp;
         }
-        if let Some(cached) = self.links.ty(tp).restrictive_instantiation.resolved() {
+        if let Some(cached) = self
+            .links
+            .read_ty(tp, |links| links.restrictive_instantiation.resolved())
+        {
             return cached;
         }
         let symbol = self.tables.type_of(tp).symbol;
@@ -591,7 +595,10 @@ impl<'a> CheckerState<'a> {
                 }
                 // 63442-63444: set accessors also need a var-free
                 // writeType before the fast path applies.
-                if let Some(write_type) = self.links.symbol(symbol).write_type.resolved() {
+                if let Some(write_type) = self
+                    .links
+                    .read_symbol(symbol, |links| links.write_type.resolved())
+                {
                     if !self.could_contain_type_variables(write_type) {
                         return symbol;
                     }
@@ -615,14 +622,16 @@ impl<'a> CheckerState<'a> {
         let value_declaration = source.value_declaration;
         let check_flags = CheckFlags::INSTANTIATED
             | CheckFlags::from_bits(
-                self.links.symbol(symbol).check_flags.bits()
+                self.links
+                    .read_symbol(symbol, |links| links.check_flags)
+                    .bits()
                     & (CheckFlags::READONLY
                         | CheckFlags::LATE
                         | CheckFlags::OPTIONAL_PARAMETER
                         | CheckFlags::REST_PARAMETER)
                         .bits(),
             );
-        let name_type = self.links.symbol(symbol).name_type;
+        let name_type = self.links.read_symbol(symbol, |links| links.name_type);
         let result = self.binder.create_symbol(source_flags, escaped_name);
         self.links
             .set_symbol_check_flags(self.speculation_depth, result, check_flags);
@@ -660,8 +669,7 @@ impl<'a> CheckerState<'a> {
         let declaration = if is_reference {
             // 63464: deferred references carry their node.
             self.links
-                .ty(ty)
-                .deferred_node
+                .read_ty(ty, |links| links.deferred_node)
                 .expect("References here are deferred (worker !node gate)")
         } else if object_flags.intersects(ObjectFlags::INSTANTIATION_EXPRESSION_TYPE) {
             // 63464 second arm: instantiation-expression types carry
@@ -669,8 +677,7 @@ impl<'a> CheckerState<'a> {
             // (stamped at creation, 77999, and propagated to
             // Instantiated copies, 63649-63651).
             self.links
-                .ty(ty)
-                .deferred_node
+                .read_ty(ty, |links| links.deferred_node)
                 .expect("InstantiationExpressionType types stamp their node at creation")
         } else {
             let symbol = self
@@ -689,9 +696,7 @@ impl<'a> CheckerState<'a> {
             // 63466: the canonical deferred reference cached on the
             // node hosts the instantiations map.
             self.links
-                .node(declaration)
-                .resolved_type
-                .resolved()
+                .read_node(declaration, |links| links.resolved_type.resolved())
                 .expect("deferred references are node-cached before instantiation")
         } else if object_flags.intersects(ObjectFlags::INSTANTIATED) {
             match &self.tables.type_of(ty).data {
@@ -700,8 +705,7 @@ impl<'a> CheckerState<'a> {
                     .expect("instantiated mapped types carry their target"),
                 _ => self
                     .links
-                    .ty(ty)
-                    .instantiated_target
+                    .read_ty(ty, |links| links.instantiated_target)
                     .expect("Instantiated object flag implies links target"),
             }
         } else {
@@ -709,9 +713,7 @@ impl<'a> CheckerState<'a> {
         };
         let type_parameters = match self
             .links
-            .node(declaration)
-            .outer_type_parameters
-            .resolved()
+            .read_node(declaration, |links| links.outer_type_parameters.resolved())
         {
             Some(cached) => cached.to_vec(),
             None => {
@@ -791,11 +793,11 @@ impl<'a> CheckerState<'a> {
         // `type.mapper` (63485): the deferred-reference mapper for
         // references, the instantiation mapper for anonymous shells.
         let type_mapper = if is_reference {
-            self.links.ty(ty).deferred_mapper
+            self.links.read_ty(ty, |links| links.deferred_mapper)
         } else if let TypeData::Mapped(mapped) = &self.tables.type_of(ty).data {
             mapped.mapper
         } else {
-            self.links.ty(ty).instantiated_mapper
+            self.links.read_ty(ty, |links| links.instantiated_mapper)
         };
         let combined_mapper = self.combine_type_mappers(type_mapper, mapper);
         let mut type_arguments: Vec<TypeId> = Vec::with_capacity(type_parameters.len());
@@ -1173,8 +1175,7 @@ impl<'a> CheckerState<'a> {
             // key for getObjectTypeInstantiation (63464).
             let node = self
                 .links
-                .ty(ty)
-                .deferred_node
+                .read_ty(ty, |links| links.deferred_node)
                 .expect("InstantiationExpressionType types stamp their node at creation");
             self.links
                 .set_fresh_type_deferred_reference_links(result, node, None);
@@ -1583,7 +1584,10 @@ impl<'a> CheckerState<'a> {
                 .intersects(ObjectFlags::REFERENCE | ObjectFlags::ANONYMOUS | ObjectFlags::MAPPED)
             {
                 if object_flags.intersects(ObjectFlags::REFERENCE)
-                    && self.links.ty(ty).deferred_node.is_none()
+                    && self
+                        .links
+                        .read_ty(ty, |links| links.deferred_node)
+                        .is_none()
                 {
                     // The !type.node fast path (63725-63729); deferred
                     // (node-carrying) references fall through to
@@ -1864,7 +1868,10 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(ty);
         }
-        if let Some(cached) = self.links.ty(ty).permissive_instantiation.resolved() {
+        if let Some(cached) = self
+            .links
+            .read_ty(ty, |links| links.permissive_instantiation.resolved())
+        {
             return Ok(cached);
         }
         let mapper = self.permissive_mapper;
@@ -1885,7 +1892,10 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(ty);
         }
-        if let Some(cached) = self.links.ty(ty).restrictive_instantiation.resolved() {
+        if let Some(cached) = self
+            .links
+            .read_ty(ty, |links| links.restrictive_instantiation.resolved())
+        {
             return Ok(cached);
         }
         let mapper = self.restrictive_mapper;
@@ -1962,12 +1972,15 @@ impl<'a> CheckerState<'a> {
                     // `type.node || some(getTypeArguments(type), ...)`
                     // (68336): node-carrying references short-circuit
                     // true without forcing their arguments.
-                    self.links.ty(ty).deferred_node.is_some() || {
-                        let arguments: Vec<TypeId> = self.tables.type_arguments(ty).to_vec();
-                        arguments
-                            .into_iter()
-                            .any(|argument| self.could_contain_type_variables(argument))
-                    }
+                    self.links
+                        .read_ty(ty, |links| links.deferred_node)
+                        .is_some()
+                        || {
+                            let arguments: Vec<TypeId> = self.tables.type_arguments(ty).to_vec();
+                            arguments
+                                .into_iter()
+                                .any(|argument| self.could_contain_type_variables(argument))
+                        }
                 }) || (object_flags.intersects(ObjectFlags::ANONYMOUS)
                     && self.tables.type_of(ty).symbol.is_some_and(|symbol| {
                         self.binder.symbol(symbol).flags.intersects(
@@ -2563,7 +2576,7 @@ impl<'a> CheckerState<'a> {
             .unwrap_or_default();
         let mut result = Vec::with_capacity(type_parameters.len());
         for tp in type_parameters {
-            let mapper = self.links.ty(tp).type_parameter_mapper;
+            let mapper = self.links.read_ty(tp, |links| links.type_parameter_mapper);
             result.push(self.instantiate_type(tp, mapper)?);
         }
         Ok(result)
@@ -2633,7 +2646,7 @@ impl<'a> CheckerState<'a> {
             .expect("getCanonicalSignature gates on typeParameters (59937)");
         let mut type_arguments = Vec::with_capacity(type_parameters.len());
         for tp in type_parameters {
-            let target = self.links.ty(tp).type_parameter_target;
+            let target = self.links.read_ty(tp, |links| links.type_parameter_target);
             let argument = match target {
                 Some(target) if self.get_constraint_of_type_parameter(target)?.is_none() => target,
                 _ => tp,
@@ -2828,7 +2841,10 @@ impl<'a> CheckerState<'a> {
         &mut self,
         tp: TypeId,
     ) -> CheckResult<TypeId> {
-        if let Some(resolved) = self.links.ty(tp).type_parameter_default.resolved() {
+        if let Some(resolved) = self
+            .links
+            .read_ty(tp, |links| links.type_parameter_default.resolved())
+        {
             return Ok(resolved);
         }
         if self.type_parameter_defaults_in_progress.contains(&tp) {
@@ -2837,11 +2853,11 @@ impl<'a> CheckerState<'a> {
                 .set_type_parameter_default(self.speculation_depth, tp, circular);
             return Ok(circular);
         }
-        if let Some(target) = self.links.ty(tp).type_parameter_target {
+        if let Some(target) = self.links.read_ty(tp, |links| links.type_parameter_target) {
             let target_default = self.get_resolved_type_parameter_default(target)?;
             // tsc instantiates the sentinel types too — they carry no
             // type variables, so this is the identity for them.
-            let mapper = self.links.ty(tp).type_parameter_mapper;
+            let mapper = self.links.read_ty(tp, |links| links.type_parameter_mapper);
             let default = self.instantiate_type(target_default, mapper)?;
             self.links
                 .set_type_parameter_default(self.speculation_depth, tp, default);
@@ -2871,7 +2887,10 @@ impl<'a> CheckerState<'a> {
         let default_type = computed?;
         // A re-entry may have stamped the circular sentinel while the
         // default resolved — tsc keeps the stamp (59057-59059).
-        if let Some(stamped) = self.links.ty(tp).type_parameter_default.resolved() {
+        if let Some(stamped) = self
+            .links
+            .read_ty(tp, |links| links.type_parameter_default.resolved())
+        {
             return Ok(stamped);
         }
         self.links

@@ -528,7 +528,10 @@ impl EmitResolver for CheckerSession<'_> {
         self.with_resolver_node(EmitResolverMethod::HasNodeCheckFlag, node, |state, node| {
             let flag = tsc_types::NodeCheckFlags::from_bits(flag as i32);
             state.calculate_node_check_flag_worker(node, flag)?;
-            Ok(state.links.node(node).check_flags.intersects(flag))
+            Ok(state
+                .links
+                .read_node(node, |links| links.check_flags)
+                .intersects(flag))
         })
     }
 

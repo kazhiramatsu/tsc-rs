@@ -10,6 +10,7 @@
 
 use std::collections::HashMap;
 
+use rustc_hash::FxHashMap;
 use tsc_binder::SymbolId;
 use tsc_syntax::NodeId;
 use tsc_types::{ConditionalRootId, EscapedName, JsString, TypeId};
@@ -586,9 +587,12 @@ pub(crate) struct SpeculativeLinksMarks {
 
 #[derive(Debug, Default)]
 pub struct LinksTables {
-    node: HashMap<NodeId, NodeLinks>,
-    symbol: HashMap<SymbolId, SymbolLinks>,
-    ty: HashMap<TypeId, TypeLinks>,
+    // These lookup-only tables use compiler-assigned IDs. Their iteration
+    // order is not observable, and hashing does not need string-key HashDoS
+    // resistance. Keep the other cache and public field types unchanged.
+    node: FxHashMap<NodeId, NodeLinks>,
+    symbol: FxHashMap<SymbolId, SymbolLinks>,
+    ty: FxHashMap<TypeId, TypeLinks>,
     /// Trial-local resolvedSignature protocol writes. Nested call
     /// resolution needs its Resolving sentinel and failure stash while
     /// a candidate is checked. Both rejection and selection restore the
@@ -732,6 +736,35 @@ impl LinksTables {
 }
 
 impl LinksTables {
+    /// tsrs-native: select an owned field result without cloning a whole
+    /// links record. The borrow ends before the caller can mutate the checker
+    /// again; public snapshot getters retain their owned-copy semantics.
+    #[inline]
+    pub(crate) fn read_node<R>(&self, id: NodeId, read: impl FnOnce(&NodeLinks) -> R) -> R {
+        match self.node.get(&id) {
+            Some(links) => read(links),
+            None => read(&NodeLinks::default()),
+        }
+    }
+
+    /// tsrs-native: owned projection of an immutable symbol-links field.
+    #[inline]
+    pub(crate) fn read_symbol<R>(&self, id: SymbolId, read: impl FnOnce(&SymbolLinks) -> R) -> R {
+        match self.symbol.get(&id) {
+            Some(links) => read(links),
+            None => read(&SymbolLinks::default()),
+        }
+    }
+
+    /// tsrs-native: owned projection of an immutable type-links field.
+    #[inline]
+    pub(crate) fn read_ty<R>(&self, id: TypeId, read: impl FnOnce(&TypeLinks) -> R) -> R {
+        match self.ty.get(&id) {
+            Some(links) => read(links),
+            None => read(&TypeLinks::default()),
+        }
+    }
+
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn node(&self, id: NodeId) -> NodeLinks {

@@ -207,12 +207,9 @@ impl<'a> CheckerState<'a> {
     }
 
     fn is_reducible_intersection(&mut self, ty: TypeId) -> CheckResult<bool> {
-        let unique_filled = match self
-            .links
-            .ty(ty)
-            .unique_literal_filled_instantiation
-            .resolved()
-        {
+        let unique_filled = match self.links.read_ty(ty, |links| {
+            links.unique_literal_filled_instantiation.resolved()
+        }) {
             Some(cached) => cached,
             None => {
                 let mapper = self.unique_literal_mapper;
@@ -238,9 +235,11 @@ impl<'a> CheckerState<'a> {
     ) -> TypeId {
         let strings_only = index_flags.intersects(IndexFlags::STRINGS_ONLY);
         let cached = if strings_only {
-            self.links.ty(ty).resolved_string_index_type.resolved()
+            self.links
+                .read_ty(ty, |links| links.resolved_string_index_type.resolved())
         } else {
-            self.links.ty(ty).resolved_index_type.resolved()
+            self.links
+                .read_ty(ty, |links| links.resolved_index_type.resolved())
         };
         if let Some(cached) = cached {
             return cached;
@@ -351,7 +350,7 @@ impl<'a> CheckerState<'a> {
         if non_public {
             return Ok(self.tables.intrinsics.never);
         }
-        let name_type = self.links.symbol(property).name_type;
+        let name_type = self.links.read_symbol(property, |links| links.name_type);
         let ty = match name_type {
             Some(name_type) => Some(name_type),
             None => {

@@ -1458,8 +1458,7 @@ impl<'a> CheckerState<'a> {
         };
         if self
             .links
-            .node(enclosing)
-            .check_flags
+            .read_node(enclosing, |links| links.check_flags)
             .intersects(tsc_types::NodeCheckFlags::CONTAINS_CLASS_WITH_PRIVATE_IDENTIFIERS)
         {
             let Some(name) = self.name_of_node(node) else {
@@ -1503,9 +1502,12 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn check_reflect_collision(&mut self, node: NodeId) {
         let mut has_collision = false;
         let contains_super = |state: &Self, candidate: NodeId| {
-            state.links.node(candidate).check_flags.intersects(
-                tsc_types::NodeCheckFlags::CONTAINS_SUPER_PROPERTY_IN_STATIC_INITIALIZER,
-            )
+            state
+                .links
+                .read_node(candidate, |links| links.check_flags)
+                .intersects(
+                    tsc_types::NodeCheckFlags::CONTAINS_SUPER_PROPERTY_IN_STATIC_INITIALIZER,
+                )
         };
         match self.kind_of(node) {
             SyntaxKind::ClassExpression => {
@@ -1628,8 +1630,7 @@ impl<'a> CheckerState<'a> {
         while let Some(candidate) = current {
             if self
                 .links
-                .node(candidate)
-                .check_flags
+                .read_node(candidate, |links| links.check_flags)
                 .intersects(tsc_types::NodeCheckFlags::CAPTURE_THIS)
             {
                 let is_declaration = self.kind_of(node) != SyntaxKind::Identifier;
@@ -1664,8 +1665,7 @@ impl<'a> CheckerState<'a> {
         while let Some(candidate) = current {
             if self
                 .links
-                .node(candidate)
-                .check_flags
+                .read_node(candidate, |links| links.check_flags)
                 .intersects(tsc_types::NodeCheckFlags::CAPTURE_NEW_TARGET)
             {
                 let is_declaration = self.kind_of(node) != SyntaxKind::Identifier;
@@ -1703,7 +1703,11 @@ impl<'a> CheckerState<'a> {
             let Ok(symbol) = self.get_symbol_of_declaration(node) else {
                 continue;
             };
-            if !self.links.symbol(symbol).is_referenced.is_empty() {
+            if !self
+                .links
+                .read_symbol(symbol, |links| links.is_referenced)
+                .is_empty()
+            {
                 continue;
             }
             let source = self.binder.source_of_node(node);

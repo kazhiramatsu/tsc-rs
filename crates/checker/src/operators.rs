@@ -1162,7 +1162,10 @@ impl<'a> CheckerState<'a> {
                     crate::modules::EMIT_HELPER_CLASS_PRIVATE_FIELD_IN,
                 )?;
             }
-            let unresolved = self.links.node(left).resolved_symbol.resolved().is_none();
+            let unresolved = self
+                .links
+                .read_node(left, |links| links.resolved_symbol.resolved())
+                .is_none();
             if unresolved && self.get_containing_class_of(left).is_some() {
                 // isUncheckedJSSuggestion is false in TS files.
                 self.report_nonexistent_property(left, right_type, false)?;
@@ -2645,8 +2648,7 @@ impl<'a> CheckerState<'a> {
         };
         let stashed = self
             .links
-            .node(node)
-            .assertion_expression_type
+            .read_node(node, |links| links.assertion_expression_type)
             .expect("every deferred assertion keeps its stashed operand type across trials");
         let base = self.get_base_type_of_literal_type(stashed)?;
         let expr_type = self.get_regular_type_of_object_literal(base)?;
@@ -2831,7 +2833,10 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(expr_type);
         }
-        if let Some(map) = &self.links.node(node).instantiation_expression_types {
+        if let Some(map) = &self
+            .links
+            .read_node(node, |links| links.instantiation_expression_types.clone())
+        {
             if let Some(&cached) = map.get(&expr_type) {
                 return Ok(cached);
             }
@@ -4244,7 +4249,9 @@ impl<'a> CheckerState<'a> {
             let receiver = data
                 .expression
                 .expect("parser invariant: PropertyAccess expression always parsed");
-            let receiver_symbol = self.links.node(receiver).resolved_symbol.resolved();
+            let receiver_symbol = self
+                .links
+                .read_node(receiver, |links| links.resolved_symbol.resolved());
             let receiver_is_enum = receiver_symbol.is_some_and(|symbol| {
                 symbol != self.unknown_symbol
                     && self
@@ -4565,7 +4572,10 @@ impl<'a> CheckerState<'a> {
                 )
             }
             SyntaxKind::PropertyAccessExpression | SyntaxKind::QualifiedName => {
-                if let Some(cached) = self.links.node(name).resolved_symbol.resolved() {
+                if let Some(cached) = self
+                    .links
+                    .read_node(name, |links| links.resolved_symbol.resolved())
+                {
                     return Ok((cached != self.unknown_symbol).then_some(cached));
                 }
                 if self.kind_of(name) == SyntaxKind::PropertyAccessExpression {
@@ -4573,7 +4583,9 @@ impl<'a> CheckerState<'a> {
                 } else {
                     self.check_expression(name, CheckMode::NORMAL)?;
                 }
-                let resolved = self.links.node(name).resolved_symbol.resolved();
+                let resolved = self
+                    .links
+                    .read_node(name, |links| links.resolved_symbol.resolved());
                 Ok(resolved.filter(|&s| s != self.unknown_symbol))
             }
             SyntaxKind::ThisKeyword => {
@@ -4704,7 +4716,7 @@ impl<'a> CheckerState<'a> {
         if self.is_awaited_type_instantiation(ty)? {
             return Ok(Some(ty));
         }
-        if let Some(cached) = self.links.ty(ty).awaited_type_of_type {
+        if let Some(cached) = self.links.read_ty(ty, |links| links.awaited_type_of_type) {
             return Ok(Some(cached));
         }
         if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {

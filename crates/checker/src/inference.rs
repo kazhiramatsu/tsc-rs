@@ -663,9 +663,7 @@ impl<'a> CheckerState<'a> {
         let id = self.create_resolved_empty_anonymous_type(None);
         let members_id = self
             .links
-            .ty(id)
-            .resolved_members
-            .resolved()
+            .read_ty(id, |links| links.resolved_members.resolved())
             .expect("created resolved above");
         // forEachType (61513): Union distributes, everything else runs
         // the callback once.
@@ -1857,7 +1855,10 @@ impl InferTypesWalker<'_, '_> {
                     // argument lists under the alias' measured
                     // variances.
                     let target_args = self.st.tables.type_of(target).alias_type_arguments.clone();
-                    let params = self.st.links.symbol(alias).type_parameters.clone();
+                    let params = self
+                        .st
+                        .links
+                        .read_symbol(alias, |links| links.type_parameters.clone());
                     let min_params = self.st.get_min_type_argument_count(params.as_deref());
                     let in_js = self
                         .st
@@ -2152,8 +2153,16 @@ impl InferTypesWalker<'_, '_> {
             && target_object_flags.intersects(ObjectFlags::REFERENCE)
             && (self.st.tables.reference_target(source) == self.st.tables.reference_target(target)
                 || self.st.is_array_type(source)? && self.st.is_array_type(target)?)
-            && !(self.st.links.ty(source).deferred_node.is_some()
-                && self.st.links.ty(target).deferred_node.is_some());
+            && !(self
+                .st
+                .links
+                .read_ty(source, |links| links.deferred_node)
+                .is_some()
+                && self
+                    .st
+                    .links
+                    .read_ty(target, |links| links.deferred_node)
+                    .is_some());
         if matching_references {
             // 68770-68771: matching references infer pairwise under the
             // target's measured variances.
@@ -3077,7 +3086,12 @@ impl InferTypesWalker<'_, '_> {
             return Ok(true);
         }
         if constraint_flags.intersects(TypeFlags::TYPE_PARAMETER) {
-            let index_flags = if self.st.links.ty(source).pattern.is_some() {
+            let index_flags = if self
+                .st
+                .links
+                .read_ty(source, |links| links.pattern)
+                .is_some()
+            {
                 tsc_types::IndexFlags::NO_INDEX_SIGNATURES
             } else {
                 tsc_types::IndexFlags::NONE

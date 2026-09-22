@@ -208,6 +208,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
 
 [[package]]
+name = "rustc-hash"
+version = "2.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6b1e7f9a428571be2dc5bc0505c13fb6bf936822b894ec87abf8a08a4e51742d"
+
+[[package]]
 name = "serde"
 version = "1.0.228"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -314,6 +320,7 @@ name = "tsc-rs-binder"
 version = "0.1.0"
 dependencies = [
  "indexmap",
+ "rustc-hash",
  "tsc-rs-diagnostics",
  "tsc-rs-syntax",
  "tsc-rs-types",
@@ -324,6 +331,7 @@ name = "tsc-rs-checker"
 version = "0.1.0"
 dependencies = [
  "indexmap",
+ "rustc-hash",
  "serde_json",
  "tsc-rs-binder",
  "tsc-rs-diagnostics",

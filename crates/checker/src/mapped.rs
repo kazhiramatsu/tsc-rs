@@ -155,7 +155,10 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
     ) -> CheckResult<TypeId> {
-        if let Some(cached) = self.links.ty(ty).mapped_modifiers_type.resolved() {
+        if let Some(cached) = self
+            .links
+            .read_ty(ty, |links| links.mapped_modifiers_type.resolved())
+        {
             return Ok(cached);
         }
         let mapped = self.mapped_type_data(ty);
@@ -192,7 +195,10 @@ impl<'a> CheckerState<'a> {
                 _ => self.tables.intrinsics.unknown,
             }
         };
-        if let Some(cached) = self.links.ty(ty).mapped_modifiers_type.resolved() {
+        if let Some(cached) = self
+            .links
+            .read_ty(ty, |links| links.mapped_modifiers_type.resolved())
+        {
             return Ok(cached);
         }
         self.links
@@ -444,7 +450,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 24d56cfe94497835f00ce92b68c33b908ce35213aed2242621b2c7479dd3c159
     /// tsc-span: _tsc.js:58510-58576
     pub(crate) fn resolve_mapped_type_members(&mut self, ty: TypeId) -> CheckResult<MembersId> {
-        if let Some(cached) = self.links.ty(ty).resolved_members.resolved() {
+        if let Some(cached) = self
+            .links
+            .read_ty(ty, |links| links.resolved_members.resolved())
+        {
             return Ok(cached);
         }
 
@@ -549,13 +558,11 @@ impl<'a> CheckerState<'a> {
             if let Some(existing) = members.get(&prop_name).copied() {
                 let existing_name = self
                     .links
-                    .symbol(existing)
-                    .name_type
+                    .read_symbol(existing, |links| links.name_type)
                     .expect("mapped property has nameType");
                 let existing_key = self
                     .links
-                    .symbol(existing)
-                    .key_type
+                    .read_symbol(existing, |links| links.key_type)
                     .expect("mapped property has keyType");
                 let union_name = self
                     .get_union_type_ex(&[existing_name, prop_name_type], UnionReduction::Literal)?;
@@ -684,13 +691,15 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 85d45ee7090072ed14a4923ad21f7d37bf580d8ea2078dc0a06c428c85364c5c
     /// tsc-span: _tsc.js:58577-58600
     pub(crate) fn get_type_of_mapped_symbol(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
-        if let Some(cached) = self.links.symbol(symbol).type_of_symbol.resolved() {
+        if let Some(cached) = self
+            .links
+            .read_symbol(symbol, |links| links.type_of_symbol.resolved())
+        {
             return Ok(cached);
         }
         let mapped_type = self
             .links
-            .symbol(symbol)
-            .mapped_type
+            .read_symbol(symbol, |links| links.mapped_type)
             .expect("Mapped check flag implies links.mappedType");
         if !self.push_type_resolution(
             ResolutionTarget::Symbol(symbol),
@@ -706,8 +715,7 @@ impl<'a> CheckerState<'a> {
             let template_type = state.get_template_type_from_mapped_type(target)?;
             let key_type = state
                 .links
-                .symbol(symbol)
-                .key_type
+                .read_symbol(symbol, |links| links.key_type)
                 .expect("mapped property has keyType");
             let type_parameter = state.get_type_parameter_from_mapped_type(mapped_type)?;
             let mapper = state.append_type_mapping(mapped.mapper, type_parameter, key_type);
@@ -745,7 +753,10 @@ impl<'a> CheckerState<'a> {
             );
             computed = self.tables.intrinsics.error;
         }
-        if let Some(cached) = self.links.symbol(symbol).type_of_symbol.resolved() {
+        if let Some(cached) = self
+            .links
+            .read_symbol(symbol, |links| links.type_of_symbol.resolved())
+        {
             return Ok(cached);
         }
         self.links
@@ -757,11 +768,17 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 63dc25b3158fd6cad94c5b30d6a17744e81d9dd7ec6dc18d1978535d1de9bee6
     /// tsc-span: _tsc.js:59071-59073
     pub(crate) fn get_apparent_type_of_mapped_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
-        if let Some(cached) = self.links.ty(ty).mapped_apparent_type.resolved() {
+        if let Some(cached) = self
+            .links
+            .read_ty(ty, |links| links.mapped_apparent_type.resolved())
+        {
             return Ok(cached);
         }
         let resolved = self.get_resolved_apparent_type_of_mapped_type(ty)?;
-        if let Some(cached) = self.links.ty(ty).mapped_apparent_type.resolved() {
+        if let Some(cached) = self
+            .links
+            .read_ty(ty, |links| links.mapped_apparent_type.resolved())
+        {
             return Ok(cached);
         }
         self.links

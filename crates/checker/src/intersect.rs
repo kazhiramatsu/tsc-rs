@@ -36,7 +36,10 @@ impl<'a> CheckerState<'a> {
         }
         // `type.members && isEmptyResolvedType(type)`: checks ALREADY
         // resolved members without forcing resolution.
-        if let Some(members) = self.links.ty(ty).resolved_members.resolved() {
+        if let Some(members) = self
+            .links
+            .read_ty(ty, |links| links.resolved_members.resolved())
+        {
             let resolved = self.members_of(members);
             return Ok(ty != self.any_function_type
                 && resolved.properties.is_empty()

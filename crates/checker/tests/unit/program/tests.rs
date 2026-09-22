@@ -153,6 +153,61 @@ fn owner_lookup_rejects_ids_outside_every_interval() {
 }
 
 #[test]
+fn owner_hint_preserves_sparse_boundaries_under_shared_queries() {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<ProgramBinder<'static>>();
+
+    let owners = [
+        ArenaOwner {
+            start: 10,
+            end: 12,
+            file: 1,
+        },
+        ArenaOwner {
+            start: 15,
+            end: 18,
+            file: 0,
+        },
+    ];
+    // An invalid initial hint must fall back to validated interval lookup.
+    let hint = AtomicUsize::new(usize::MAX);
+    assert_eq!(
+        ProgramBinder::try_owner_file_with_hint(&[], 10, &hint),
+        None
+    );
+    let queries = [
+        (10, Some(1)),
+        (17, Some(0)),
+        (9, None),
+        (11, Some(1)),
+        (12, None),
+        (15, Some(0)),
+        (14, None),
+        (18, None),
+        (u32::MAX, None),
+    ];
+    std::thread::scope(|scope| {
+        for offset in 0..2 {
+            let owners = &owners;
+            let hint = &hint;
+            let queries = &queries;
+            scope.spawn(move || {
+                for round in 0..128 {
+                    for step in 0..queries.len() {
+                        let (id, expected) = queries[(round + step + offset) % queries.len()];
+                        assert_eq!(
+                            ProgramBinder::try_owner_file_with_hint(owners, id, hint),
+                            expected,
+                            "id {id} must retain its owner or be rejected"
+                        );
+                    }
+                }
+            });
+        }
+    });
+}
+
+#[test]
 fn try_new_rejects_overlap_and_cross_domain_programs() {
     let first = parse_source_file("/first.ts", "let a = 1;", Default::default(), None);
     let second = parse_source_file("/second.ts", "let b = 2;", Default::default(), None);
