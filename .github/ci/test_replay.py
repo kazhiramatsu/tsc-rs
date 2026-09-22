@@ -236,7 +236,7 @@ class FoundationTests(unittest.TestCase):
 
     def test_foundation_platform_names_are_explicit(self):
         foundation = witness.foundation_witnesses
-        for platform, memory, filesystem in (("linux", 14, 9), ("darwin", 14, 8), ("win32", 13, 7)):
+        for platform, memory, filesystem in (("linux", 15, 10), ("darwin", 15, 9), ("win32", 14, 8)):
             self.assertEqual(len(foundation.test_names("host-memory", platform)), memory)
             self.assertEqual(len(foundation.test_names("host-filesystem", platform)), filesystem)
         with self.assertRaises(ValueError):
@@ -1065,8 +1065,8 @@ class WitnessTests(unittest.TestCase):
             "syntax-entity-names": 2, "syntax-meta-property": 1, "syntax-literal-values": 1,
             "syntax-recovery": 1, "syntax-emitter-recovery": 2, "syntax-scanner-escapes": 1, "syntax-template-escapes": 5,
             "syntax-template-flags": 1, "binder-symbol-names": 2, "types-option-numbers": 3,
-            "host-memory": 13 if sys.platform == "win32" else 14,
-            "host-filesystem": {"linux": 9, "darwin": 8, "win32": 7}[sys.platform],
+            "host-memory": 14 if sys.platform == "win32" else 15,
+            "host-filesystem": {"linux": 10, "darwin": 9, "win32": 8}[sys.platform],
             "program-bundle-facts": 1, "program-host-platform": 1, "program-config-paths": 2,
             "program-module-paths": 3, "program-raw-source": 1,
             "primary": 672, "extra": 42, "followup": 156, "followup2": 162,
