@@ -65,6 +65,73 @@ Make sure Cargo's binary directory, normally `~/.cargo/bin`, is on your
 `PATH`. The examples below use the installed `tsc-rs` command. You can also
 substitute the absolute path to the executable built above.
 
+### Use it in place of `tsc`
+
+First [install the command](#install-the-command) using the steps above.
+The installed executable is named `tsc-rs`; installing it does not change
+an existing `tsc` command. Check the [supported options](#common-command-line-options),
+[type-check configuration restrictions](#configuration-for-type-checks), and
+[current limitations](#current-limitations) before switching an existing
+project. Watch mode and project-reference builds are not supported.
+
+For a project using npm, replace `tsc` with `tsc-rs` in the relevant
+`package.json` scripts. Move output settings such as `--outDir dist` from
+command-line flags into `compilerOptions` in `tsconfig.json`. For example,
+update the build and type-check entries:
+
+```json
+{
+  "scripts": {
+    "build": "tsc-rs -p .",
+    "typecheck": "tsc-rs --noEmit -p ."
+  }
+}
+```
+
+If your project uses `rootDir` or `declaration`, the type-check command
+needs a separate configuration that satisfies the
+[type-check restrictions](#configuration-for-type-checks). Point its `-p`
+argument at that file.
+
+Run them from your TypeScript project's directory:
+
+```sh
+npm run build
+npm run typecheck
+```
+
+Install `tsc-rs` and make it available on `PATH` on each developer machine
+and CI runner that uses these scripts. Keep the `typescript` dependency if
+your editor or other tools use it: `tsc-rs` provides a compiler executable,
+but does not provide TypeScript's JavaScript API or language server.
+
+If you also want to use the name `tsc` directly in a macOS or Linux shell,
+create or update a symlink in a dedicated directory, then put that directory
+first on `PATH`. Run these commands after confirming that `tsc-rs --version`
+works:
+
+```sh
+mkdir -p "$HOME/.local/tsc-rs/bin"
+ln -sf "$(command -v tsc-rs)" "$HOME/.local/tsc-rs/bin/tsc"
+export PATH="$HOME/.local/tsc-rs/bin:$PATH"
+hash -r
+command -v tsc
+tsc --noEmit -p .
+```
+
+`command -v tsc` should show the symlink under your home directory. The
+original TypeScript executable is left in place. Add the `export PATH=...`
+line to your shell startup file, such as `~/.zshrc` or `~/.bashrc`, to keep
+the setting in new terminals. To switch back, remove that line and open a
+new terminal.
+
+[npm scripts](https://docs.npmjs.com/cli/v11/commands/npm-run/)
+put `node_modules/.bin` before your shell's `PATH`, so a script that still
+invokes `tsc` can run the project's original TypeScript compiler. Use the
+explicit `tsc-rs` script entries above for npm projects. Likewise, call
+`tsc-rs` directly instead of `npx tsc`, which
+[resolves npm package executables](https://docs.npmjs.com/cli/v11/commands/npm-exec/).
+
 ## Compile a project
 
 From the cloned repository, create a separate example directory alongside it:
