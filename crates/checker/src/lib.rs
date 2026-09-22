@@ -1974,33 +1974,46 @@ fn validate_authoritative_metadata(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
-fn check_program_with_prebound_libs_at_observed<'cwd>(
+/// Host facts projected once from the input list: owned data with no
+/// checker identity. The serial driver moves them into its one checker state;
+/// a sharded driver (W2) clones them once per additional shard, so that a
+/// shard constructs its state from the shared immutable snapshot plus this
+/// value alone. The source ASTs themselves are never copied: every state
+/// shares the snapshot's `Arc<BoundDocument>` handles.
+/// tsrs-native: the resolver's host view; tsc reads its host lazily.
+#[derive(Clone)]
+struct HostFacts {
+    current_directory: JsString,
+    file_paths: std::collections::HashSet<JsString>,
+    input_snapshots: std::collections::HashMap<JsString, Arc<TextSnapshot>>,
+    package_json_module_types: std::collections::HashMap<JsString, state::PackageJsonModuleType>,
+    package_json_values: std::collections::HashMap<JsString, tsc_program::JsonValue>,
+    package_json_names: std::collections::HashMap<JsString, JsString>,
+}
+
+/// Stage-1 output of the check driver: parsed (or adopted) fixture sources
+/// plus the owned facts every checker state needs. No checker identity or
+/// bind result is created here.
+struct ParsedProgramInputs {
+    program_sources: Vec<Arc<tsc_syntax::SourceFile>>,
+    authoritative_program_metadata: Vec<AuthoritativeSourceMetadata>,
+    program_diagnostics: Vec<Diagnostic>,
+    host: HostFacts,
+}
+
+/// Stage 1: fixture shadowing, root admission, JSON/TS parsing or adoption of
+/// the loader's parse, missing-path-reference diagnostics and the host facts.
+/// tsrs-native: extracted from the one-shot driver so that W2 can run one
+/// parse/bind and many checker states over the same snapshot.
+fn parse_program_inputs(
     libs: &[InputFile],
     files: &[InputFile],
     options: &CompilerOptions,
-    current_directory: impl Into<JsStr<'cwd>>,
-    lib_documents: &[Arc<BoundDocument>],
+    current_directory: JsStr<'_>,
     identity_domain: &IdentityDomain,
-    mut work_counters: CheckWorkCounters,
-    collect_global_diagnostics: bool,
-    observe_phase: &mut impl FnMut(CheckPhase),
     authoritative_run: Option<&AuthoritativeRun<'_>>,
-    emit_operation: Option<&mut CheckedEmitOperation<'_>>,
-    lib_facts: ProgramFileFacts,
-    workers: WorkerBudget,
-) -> CheckExecution {
-    let current_directory = current_directory.into();
-    let mut file_diagnostics = Vec::new();
-    // An authoritative Program session exposes the whole-Program semantic
-    // getter even when root filtering produces no SourceFiles (for example a
-    // lone `.js` root with `allowJs` disabled). The observable getter result
-    // is an empty list, not an absent capability; emit relies on that typed
-    // distinction to execute the empty output plan without a checker state.
-    let mut program_semantic_diagnostics = authoritative_run.is_some().then(Vec::new);
-    let mut partial_checks = Vec::new();
-    let mut global_diagnostics = Vec::new();
-    let mut authoritative_failure = None;
+    work_counters: &mut CheckWorkCounters,
+) -> ParsedProgramInputs {
     // getImpliedNodeFormatForFileWorker's package-scope input. Build it
     // before parsing because getSetExternalModuleIndicator's Auto mode
     // consults the implied format while SourceFiles are created.
@@ -2215,6 +2228,183 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         &host_current_directory,
     );
 
+    let file_paths = files
+        .iter()
+        .map(|file| state::CheckerState::normalize_program_path(&file.name, ""))
+        .collect();
+    let input_snapshots = files
+        .iter()
+        .map(|file| {
+            (
+                state::CheckerState::normalize_program_path(&file.name, ""),
+                Arc::clone(file.snapshot()),
+            )
+        })
+        .collect();
+    let package_json_values: std::collections::HashMap<JsString, tsc_program::JsonValue> = files
+        .iter()
+        .filter_map(|file| {
+            let file_name = file
+                .name
+                .as_js()
+                .split_ascii(b'/')
+                .next_back()?
+                .split_ascii(b'\\')
+                .next_back()?;
+            if file_name != "package.json" {
+                return None;
+            }
+            let value = parse_host_package_json(file);
+            Some((
+                state::CheckerState::normalize_program_path(&file.name, ""),
+                value,
+            ))
+        })
+        .collect();
+    let package_json_names = package_json_values
+        .iter()
+        .filter_map(|(path, value)| {
+            // Package self-name resolution consumes the original string;
+            // getPathComponents does not trim it (_tsc.js:41454–41458).
+            let name = tsc_program::package_json_property(value, "name")?.as_js()?;
+            if name.is_empty() {
+                return None;
+            }
+            Some((path.clone(), name.to_owned()))
+        })
+        .collect();
+    ParsedProgramInputs {
+        program_sources,
+        authoritative_program_metadata,
+        program_diagnostics,
+        host: HostFacts {
+            current_directory: host_current_directory,
+            file_paths,
+            input_snapshots,
+            package_json_module_types: host_package_json_module_types,
+            package_json_values,
+            package_json_names,
+        },
+    }
+}
+
+/// Stage 3: construct one checker state over the shared immutable snapshot.
+/// This is the per-checker constructor: it reads only the shared snapshot and
+/// options (never writing into the shared source ASTs) and owns everything
+/// else it creates, so W2 can call it inside each shard's thread (the provider
+/// is constructed by the caller and outlives the state; the host facts are
+/// moved in).
+/// tsrs-native: initializeTypeChecker's ordered init as one constructor.
+fn init_checker_state<'a>(
+    snapshot: &'a ProgramSnapshot,
+    options: &'a CompilerOptions,
+    authoritative: Option<(
+        &'a dyn AuthoritativeModuleProvider,
+        &[AuthoritativeSourceMetadata],
+    )>,
+    host: HostFacts,
+) -> state::CheckerState<'a> {
+    let mut state = state::CheckerState::from_snapshot(snapshot, options);
+    if let Some((provider, metadata)) = authoritative {
+        if let Err(failure) = state.install_authoritative_module_provider(provider, metadata) {
+            state.record_authoritative_module_failure(failure);
+        }
+    }
+    // path.posix.resolve absoluteness test (charAt(0) === '/') on
+    // the RAW value — a "\\"-led cwd is RELATIVE there, so the
+    // process-cwd join and POSIX dot-segment resolution both happen
+    // on the raw string BEFORE normalizeFileName flips "\\" into
+    // separators. The join base is Node's posixCwd: process.cwd()
+    // untouched on POSIX; on Windows backslashes flipped and
+    // everything before the first "/" (the drive) dropped. ""
+    // (the old "/"-rooted world) is the no-cwd degenerate fallback.
+    state.host_current_directory = host.current_directory;
+    // The resolver's host view (M4 5.8d): every INPUT path, incl.
+    // files the program dropped (.json bodies, .js without
+    // allowJs) — the suppression probes need them to keep 2307
+    // FP-free.
+    state.host_file_paths = host.file_paths;
+    state.host_input_snapshots = host.input_snapshots;
+    state.host_package_json_module_types = host.package_json_module_types;
+    state.host_package_json_values = host.package_json_values;
+    state.host_package_json_names = host.package_json_names;
+    // initializeTypeChecker's augmentation passes (88769/88874)
+    // run here — AFTER the resolver's host view exists (pass 2
+    // resolves module names), BEFORE any file checks.
+    state.merge_module_augmentations();
+    // Type construction is unconditional in tsc. In particular, the
+    // eager array singleton roots establish the type-id order consumed by
+    // getUnionType when stableTypeOrdering is off. Requesting the public
+    // global-diagnostics bucket controls only observation of the rows.
+    state.materialize_init_global_diagnostics();
+    state
+}
+
+/// Stage 4: check `files` in the given order on one state. getDiagnosticsWorker
+/// snapshots the file-less bucket around each requested source, so only the
+/// rows published while checking a file are attributed to that file.
+/// tsrs-native: shared by the fixture pass and the library-completion pass.
+fn check_files_in_order(
+    state: &mut state::CheckerState<'_>,
+    files: &[ProgramFileId],
+    globals_by_file: &mut [Vec<Diagnostic>],
+) {
+    for &file in files {
+        if state.skip_type_checking_file(file) {
+            continue;
+        }
+        let global_start = state.visible_global_diagnostics.len();
+        state.check_source_file(file.index());
+        globals_by_file[file.index()].extend(
+            state.visible_global_diagnostics[global_start..]
+                .iter()
+                .cloned(),
+        );
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn check_program_with_prebound_libs_at_observed<'cwd>(
+    libs: &[InputFile],
+    files: &[InputFile],
+    options: &CompilerOptions,
+    current_directory: impl Into<JsStr<'cwd>>,
+    lib_documents: &[Arc<BoundDocument>],
+    identity_domain: &IdentityDomain,
+    mut work_counters: CheckWorkCounters,
+    collect_global_diagnostics: bool,
+    observe_phase: &mut impl FnMut(CheckPhase),
+    authoritative_run: Option<&AuthoritativeRun<'_>>,
+    emit_operation: Option<&mut CheckedEmitOperation<'_>>,
+    lib_facts: ProgramFileFacts,
+    workers: WorkerBudget,
+) -> CheckExecution {
+    let current_directory = current_directory.into();
+    let mut file_diagnostics = Vec::new();
+    // An authoritative Program session exposes the whole-Program semantic
+    // getter even when root filtering produces no SourceFiles (for example a
+    // lone `.js` root with `allowJs` disabled). The observable getter result
+    // is an empty list, not an absent capability; emit relies on that typed
+    // distinction to execute the empty output plan without a checker state.
+    let mut program_semantic_diagnostics = authoritative_run.is_some().then(Vec::new);
+    let mut partial_checks = Vec::new();
+    let mut global_diagnostics = Vec::new();
+    let mut authoritative_failure = None;
+    let ParsedProgramInputs {
+        program_sources,
+        authoritative_program_metadata,
+        program_diagnostics,
+        host,
+    } = parse_program_inputs(
+        libs,
+        files,
+        options,
+        current_directory,
+        identity_domain,
+        authoritative_run,
+        &mut work_counters,
+    );
+
     // The production H0 path publishes through a direct, session-owned store.
     // Library documents may already come from the separately authorized
     // harness cache, but fixture documents are never inserted into a global
@@ -2292,85 +2482,19 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                 }
             })
             .collect();
-        let mut state = state::CheckerState::from_snapshot(&snapshot, options);
-        if let Some(run) = authoritative_run {
+        let authoritative_metadata = authoritative_run.map(|run| {
             let mut metadata = run.lib_metadata.clone();
             metadata.extend(authoritative_program_metadata.iter().cloned());
-            if let Err(failure) =
-                state.install_authoritative_module_provider(run.provider, &metadata)
-            {
-                state.record_authoritative_module_failure(failure);
-            }
-        }
-        // path.posix.resolve absoluteness test (charAt(0) === '/') on
-        // the RAW value — a "\\"-led cwd is RELATIVE there, so the
-        // process-cwd join and POSIX dot-segment resolution both happen
-        // on the raw string BEFORE normalizeFileName flips "\\" into
-        // separators. The join base is Node's posixCwd: process.cwd()
-        // untouched on POSIX; on Windows backslashes flipped and
-        // everything before the first "/" (the drive) dropped. ""
-        // (the old "/"-rooted world) is the no-cwd degenerate fallback.
-        state.host_current_directory = host_current_directory;
-        // The resolver's host view (M4 5.8d): every INPUT path, incl.
-        // files the program dropped (.json bodies, .js without
-        // allowJs) — the suppression probes need them to keep 2307
-        // FP-free.
-        state.host_file_paths = files
-            .iter()
-            .map(|file| state::CheckerState::normalize_program_path(&file.name, ""))
-            .collect();
-        state.host_input_snapshots = files
-            .iter()
-            .map(|file| {
-                (
-                    state::CheckerState::normalize_program_path(&file.name, ""),
-                    Arc::clone(file.snapshot()),
-                )
-            })
-            .collect();
-        state.host_package_json_module_types = host_package_json_module_types;
-        state.host_package_json_values = files
-            .iter()
-            .filter_map(|file| {
-                let file_name = file
-                    .name
-                    .as_js()
-                    .split_ascii(b'/')
-                    .next_back()?
-                    .split_ascii(b'\\')
-                    .next_back()?;
-                if file_name != "package.json" {
-                    return None;
-                }
-                let value = parse_host_package_json(file);
-                Some((
-                    state::CheckerState::normalize_program_path(&file.name, ""),
-                    value,
-                ))
-            })
-            .collect();
-        state.host_package_json_names = state
-            .host_package_json_values
-            .iter()
-            .filter_map(|(path, value)| {
-                // Package self-name resolution consumes the original string;
-                // getPathComponents does not trim it (_tsc.js:41454–41458).
-                let name = tsc_program::package_json_property(value, "name")?.as_js()?;
-                if name.is_empty() {
-                    return None;
-                }
-                Some((path.clone(), name.to_owned()))
-            })
-            .collect();
-        // initializeTypeChecker's augmentation passes (88769/88874)
-        // run here — AFTER the resolver's host view exists (pass 2
-        // resolves module names), BEFORE any file checks.
-        state.merge_module_augmentations();
-        // Type construction is unconditional in tsc. In particular, the
-        // eager array singleton roots establish the type-id order consumed by
-        // getUnionType when stableTypeOrdering is off. Requesting the public
-        // global-diagnostics bucket controls only observation of the rows.
-        state.materialize_init_global_diagnostics();
+            metadata
+        });
+        let mut state = init_checker_state(
+            &snapshot,
+            options,
+            authoritative_run
+                .zip(authoritative_metadata.as_deref())
+                .map(|(run, metadata)| (run.provider, metadata)),
+            host,
+        );
         if collect_global_diagnostics {
             global_diagnostics = state.visible_global_diagnostics.clone();
             tsc_diagnostics::sort_and_dedupe_diagnostics(&mut global_diagnostics);
@@ -2418,18 +2542,11 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         // ProgramFileId and use the same Program-aware skip policy.
         let program_file_ids = state.binder.file_ids().skip(lib_count).collect::<Vec<_>>();
         let mut global_checker_diagnostics_by_file = vec![Vec::new(); state.binder.file_count()];
-        for &file in &program_file_ids {
-            if state.skip_type_checking_file(file) {
-                continue;
-            }
-            let global_start = state.visible_global_diagnostics.len();
-            state.check_source_file(file.index());
-            global_checker_diagnostics_by_file[file.index()].extend(
-                state.visible_global_diagnostics[global_start..]
-                    .iter()
-                    .cloned(),
-            );
-        }
+        check_files_in_order(
+            &mut state,
+            &program_file_ids,
+            &mut global_checker_diagnostics_by_file,
+        );
 
         // Public per-file getter assembly. This deliberately does not
         // use a name-sorted map: the outer observation order is Program order.
@@ -2489,18 +2606,11 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
             if authoritative_run
                 .is_some_and(|run| run.library_prefix == LibraryPrefixCompletion::Complete)
             {
-                for &file in &all_program_file_ids {
-                    if state.skip_type_checking_file(file) {
-                        continue;
-                    }
-                    let global_start = state.visible_global_diagnostics.len();
-                    state.check_source_file(file.index());
-                    global_checker_diagnostics_by_file[file.index()].extend(
-                        state.visible_global_diagnostics[global_start..]
-                            .iter()
-                            .cloned(),
-                    );
-                }
+                check_files_in_order(
+                    &mut state,
+                    &all_program_file_ids,
+                    &mut global_checker_diagnostics_by_file,
+                );
             }
 
             let mut diagnostics = Vec::new();
