@@ -414,7 +414,7 @@ GitHub Actions logs.
 | --- | --- |
 | **Acceptance** (`ci`) | Runs the upstream TypeScript diagnostic corpus and the supported compilation cases. Compares diagnostics and compiler output with recorded TypeScript results, and rejects regressions in the accepted diagnostic cases. GitHub splits this suite into `early`, `wide`, and `late` groups. |
 | **Witness tests** (`witnesses`) | Checks focused regressions in JavaScript and declaration output, source maps, decorators, comments, Unicode handling, configuration, and file access. Includes comparisons with TypeScript reference results and tests of the Rust APIs. |
-| **Rust checks** (local commands below) | Checks formatting, runs Clippy, and executes the workspace's unit and integration tests and other Cargo test targets. These supplement the acceptance and witness workflows. |
+| **Rust checks** (local only) | Checks formatting, runs Clippy, and executes the workspace's unit and integration tests and other Cargo test targets. The hosted workflows do not run these three workspace-wide commands. |
 
 For a recorded full run on commit
 [`eb1442459`](https://github.com/kazhiramatsu/tsc-rs/commit/eb1442459311f383467f95de2413349de7aa58b6),
@@ -437,13 +437,14 @@ test data. Rustup selects the Rust version and tools from
 [rust-toolchain.toml](rust-toolchain.toml). The TypeScript reference, test
 inputs, and expected results are checked in; no npm install is needed.
 
-Use the same build and test settings as GitHub Actions:
+Use the GitHub Actions build settings and acceptance worker limits:
 
 ```sh
 export CARGO_BUILD_JOBS=2
 export CARGO_INCREMENTAL=0
 export CARGO_PROFILE_TEST_DEBUG=0
 export RUSTC_WRAPPER=
+# Worker limits for acceptance tests:
 export TSRS_H2_5G_WORKERS=2
 export TSRS_CONFORMANCE_WORKERS=2
 ```
