@@ -2772,7 +2772,7 @@ const fn checker_resolution_mode(mode: ResolutionMode) -> AuthoritativeResolutio
 struct PreparedModuleProvider<'a> {
     prepared: &'a PreparedProgram,
     options: &'a tsc_checker::CompilerOptions,
-    request_plans: RefCell<BTreeMap<SourceFileId, SourceRequestPlan>>,
+    request_plans: std::sync::Mutex<BTreeMap<SourceFileId, SourceRequestPlan>>,
 }
 
 impl<'a> PreparedModuleProvider<'a> {
@@ -2780,7 +2780,7 @@ impl<'a> PreparedModuleProvider<'a> {
         Self {
             prepared,
             options,
-            request_plans: RefCell::new(BTreeMap::new()),
+            request_plans: std::sync::Mutex::new(BTreeMap::new()),
         }
     }
 
@@ -2789,7 +2789,12 @@ impl<'a> PreparedModuleProvider<'a> {
         source_file: SourceFileId,
         source: &PreparedSourceFile,
     ) -> Result<SourceRequestPlan, AuthoritativeModuleLookupFailure> {
-        if let Some(plan) = self.request_plans.borrow().get(&source_file) {
+        if let Some(plan) = self
+            .request_plans
+            .lock()
+            .expect("request plan cache")
+            .get(&source_file)
+        {
             return Ok(plan.clone());
         }
         let plan = plan_source_requests(source, self.options).map_err(|_| {
@@ -2798,7 +2803,8 @@ impl<'a> PreparedModuleProvider<'a> {
             )
         })?;
         self.request_plans
-            .borrow_mut()
+            .lock()
+            .expect("request plan cache")
             .insert(source_file, plan.clone());
         Ok(plan)
     }
@@ -2809,7 +2815,12 @@ impl<'a> PreparedModuleProvider<'a> {
         source: &PreparedSourceFile,
         key: &ResolutionKey,
     ) -> Result<bool, AuthoritativeModuleLookupFailure> {
-        if let Some(plan) = self.request_plans.borrow().get(&source_file) {
+        if let Some(plan) = self
+            .request_plans
+            .lock()
+            .expect("request plan cache")
+            .get(&source_file)
+        {
             return plan.module_request_loads_source(key).ok_or(
                 AuthoritativeModuleLookupFailure::Unsupported(
                     UnsupportedAuthoritativeResolution::UnloadedTargetAdmission,

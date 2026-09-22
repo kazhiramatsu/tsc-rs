@@ -9,7 +9,6 @@
 //! [`ProgramSession::run`] entry or the distinct emitting
 //! [`ProgramSession::emit`] entry.
 
-use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::error::Error;
 use std::fmt;
@@ -19,6 +18,7 @@ use std::sync::Arc;
 use tsc_checker::emit::CheckerSession;
 pub use tsc_checker::CheckerBudget;
 use tsc_checker::{
+    check_program_with_authoritative_modules_at_for_emit_with_checkers,
     check_program_with_authoritative_modules_at_for_emit_with_harness_lib_bundle,
     check_program_with_authoritative_modules_at_for_emit_with_workers,
     check_program_with_authoritative_modules_at_harness_cached,
@@ -31,15 +31,17 @@ use tsc_checker::{
     AuthoritativeResolutionDiagnosticModule, AuthoritativeResolutionMode,
     AuthoritativeResolvedModule, AuthoritativeSourceMetadata, AuthoritativeSourceToken,
     AuthoritativeUntypedModule, CheckResult, InputFile, LibraryPrefixCompletion,
-    OwnedHarnessLibBundle, ProgramSnapshot, UnsupportedAuthoritativeResolution,
+    OwnedHarnessLibBundle, ProgramSnapshot, ShardEmission, ShardedEmit,
+    UnsupportedAuthoritativeResolution,
 };
 use tsc_diagnostics::{
     gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList, JsStr, JsString, MessageChain,
 };
 use tsc_emitter::{
-    emit_files_with_activity, preflight_emit, print_script_units_with_recording_for_harness,
-    validate_bootstrap_emit_request, EmitDiagnosticGate, EmitHost, EmitSource, H2ActivityCanary,
-    PrintedText, SourceMapRecordingInputs, UnavailableEmitResolver,
+    begin_emit_files, emit_files_with_activity, emit_planned_units, finish_emit_files,
+    preflight_emit, print_script_units_with_recording_for_harness, validate_bootstrap_emit_request,
+    EmitDiagnosticGate, EmitFilesSession, EmitFilesStart, EmitHost, EmitSource, H2ActivityCanary,
+    PrintedText, SourceMapRecordingInputs, UnavailableEmitResolver, UnitEmitError,
 };
 pub use tsc_emitter::{
     EmitArtifact, EmitArtifactKind, EmitBuildInfoMetadata, EmitContractViolation, EmitFailure,
@@ -86,6 +88,10 @@ pub struct ProgramSession {
     /// Worker budget for the checker's scoped per-file binding; serial by
     /// default (see [`WorkerBudget`]). The CLI passes its own budget.
     worker_budget: WorkerBudget,
+    /// Leak the prepared program (source texts, resolution tables) when the
+    /// session ends instead of dropping it: a one-shot process exits right
+    /// afterwards and only pays for the teardown. Off by default.
+    leak_program: bool,
     /// Checker budget for the no-emit whole-Program check; one checker by
     /// default (see [`CheckerBudget`]). Independent of `worker_budget`:
     /// each additional checker duplicates checker-local state over the one
@@ -157,6 +163,20 @@ impl CliEmitSessionOutcome {
         sort_and_dedupe_diagnostics(&mut diagnostics);
         (self.emit, diagnostics, self.work_counters)
     }
+}
+
+/// Whether the per-shard emit covers this option set. outFile bundles write
+/// at bundle-local points of one resolver's pass, and the noEmitOnError
+/// declaration gate runs the declaration transform for every source with
+/// one whole-Program resolver; both keep the single-checker session.
+fn sharded_emit_supported(options: &CompilerOptions) -> bool {
+    let bundled = options
+        .out_file
+        .as_ref()
+        .is_some_and(|path| !path.is_empty());
+    let declaration_gate = options.no_emit_on_error == Some(true)
+        && (options.declaration == Some(true) || options.composite == Some(true));
+    !bundled && !declaration_gate
 }
 
 /// tsc-port: getEmitDeclarations @6.0.3
@@ -282,7 +302,7 @@ impl ProgramDiagnostics {
 
 struct PreparedModuleProvider<'a> {
     prepared: &'a PreparedProgram,
-    request_plans: RefCell<BTreeMap<SourceFileId, SourceRequestPlan>>,
+    request_plans: std::sync::Mutex<BTreeMap<SourceFileId, SourceRequestPlan>>,
 }
 
 /// Constructs one [`PreparedModuleProvider`] per checker state over the
@@ -297,7 +317,7 @@ impl AuthoritativeModuleProviderFactory for PreparedProviderFactory<'_> {
     fn provider(&self) -> Box<dyn AuthoritativeModuleProvider + '_> {
         Box::new(PreparedModuleProvider {
             prepared: self.prepared,
-            request_plans: RefCell::new(BTreeMap::new()),
+            request_plans: std::sync::Mutex::new(BTreeMap::new()),
         })
     }
 }
@@ -314,6 +334,19 @@ struct PreparedEmitHost<'program> {
 }
 
 impl<'program> PreparedEmitHost<'program> {
+    /// The parsed-syntax file name the checked host matches a Program source
+    /// by (see `CheckedEmitHost::source_file`): the caller's spelling when
+    /// one was supplied, otherwise the prepared display path.
+    fn expected_source_name(&self, id: SourceFileId) -> Option<JsString> {
+        let source = self.prepared.source_file(id)?;
+        Some(
+            self.display_names
+                .get(&id)
+                .cloned()
+                .unwrap_or_else(|| source.path().display().to_owned()),
+        )
+    }
+
     fn new_for_route(
         prepared: &'program PreparedProgram,
         emit_route: EmitRouteKind,
@@ -525,7 +558,12 @@ impl PreparedModuleProvider<'_> {
         source_file: SourceFileId,
         source: &PreparedSourceFile,
     ) -> Result<SourceRequestPlan, AuthoritativeModuleLookupFailure> {
-        if let Some(plan) = self.request_plans.borrow().get(&source_file) {
+        if let Some(plan) = self
+            .request_plans
+            .lock()
+            .expect("request plan cache")
+            .get(&source_file)
+        {
             return Ok(plan.clone());
         }
         let plan =
@@ -535,7 +573,8 @@ impl PreparedModuleProvider<'_> {
                 )
             })?;
         self.request_plans
-            .borrow_mut()
+            .lock()
+            .expect("request plan cache")
             .insert(source_file, plan.clone());
         Ok(plan)
     }
@@ -546,7 +585,12 @@ impl PreparedModuleProvider<'_> {
         source: &PreparedSourceFile,
         key: &ResolutionKey,
     ) -> Result<bool, AuthoritativeModuleLookupFailure> {
-        if let Some(plan) = self.request_plans.borrow().get(&source_file) {
+        if let Some(plan) = self
+            .request_plans
+            .lock()
+            .expect("request plan cache")
+            .get(&source_file)
+        {
             return plan.module_request_loads_source(key).ok_or(
                 AuthoritativeModuleLookupFailure::Unsupported(
                     UnsupportedAuthoritativeResolution::UnloadedTargetAdmission,
@@ -864,8 +908,17 @@ impl ProgramSession {
             emit_route: EmitRouteKind::Program,
             source_api_facts: BTreeMap::new(),
             worker_budget: WorkerBudget::serial(),
+            leak_program: false,
             checker_budget: CheckerBudget::serial(),
         }
+    }
+
+    /// Whether the prepared program is leaked at the end of the session (see
+    /// the `leak_program` field); only a process that exits right afterwards
+    /// should set this.
+    pub fn with_leaked_program(mut self, leak: bool) -> Self {
+        self.leak_program = leak;
+        self
     }
 
     /// Attach API-supplied facts to one prepared source (transpile adapter).
@@ -984,6 +1037,7 @@ impl ProgramSession {
             source_api_facts,
             worker_budget,
             checker_budget: _,
+            leak_program: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         tsc_emitter::validate_declaration_diagnostics_request(&emit_host)
@@ -991,7 +1045,7 @@ impl ProgramSession {
         let inputs = project_checker_inputs(&prepared, &source_api_facts)?;
         let provider = PreparedModuleProvider {
             prepared: &prepared,
-            request_plans: RefCell::new(BTreeMap::new()),
+            request_plans: std::sync::Mutex::new(BTreeMap::new()),
         };
         let mut pending_operation = Some(operation);
         let mut diagnostic_result = None;
@@ -1211,6 +1265,7 @@ impl ProgramSession {
             source_api_facts,
             worker_budget,
             checker_budget: _,
+            leak_program: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         let inputs = project_checker_inputs(&prepared, &source_api_facts)?;
@@ -1220,7 +1275,7 @@ impl ProgramSession {
         // retains the first exact failed request for the outer driver result.
         struct ObservedProvider<'a> {
             inner: PreparedModuleProvider<'a>,
-            failure: RefCell<Option<AuthoritativeModuleFailure>>,
+            failure: std::sync::Mutex<Option<AuthoritativeModuleFailure>>,
         }
         impl AuthoritativeModuleProvider for ObservedProvider<'_> {
             fn program_options_for_module_specifiers(
@@ -1236,7 +1291,7 @@ impl ProgramSession {
             {
                 let result = self.inner.resolve_module(request);
                 if let Err(failure) = &result {
-                    let mut first = self.failure.borrow_mut();
+                    let mut first = self.failure.lock().expect("observed provider failure");
                     if first.is_none() {
                         *first = Some(AuthoritativeModuleFailure::Lookup {
                             source_token: request.source_token,
@@ -1253,9 +1308,9 @@ impl ProgramSession {
         let provider = ObservedProvider {
             inner: PreparedModuleProvider {
                 prepared: &prepared,
-                request_plans: RefCell::new(BTreeMap::new()),
+                request_plans: std::sync::Mutex::new(BTreeMap::new()),
             },
-            failure: RefCell::new(None),
+            failure: std::sync::Mutex::new(None),
         };
         let mut pending_operation = Some(operation);
         let mut operation_result = None;
@@ -1295,7 +1350,11 @@ impl ProgramSession {
             },
         )
         .map_err(|failure| map_authoritative_failure(&prepared, failure))?;
-        if let Some(failure) = provider.failure.into_inner() {
+        if let Some(failure) = provider
+            .failure
+            .into_inner()
+            .expect("observed provider failure")
+        {
             return Err(map_authoritative_failure(&prepared, failure));
         }
         Ok((operation_result.transpose()?, checked))
@@ -1320,6 +1379,7 @@ impl ProgramSession {
             source_api_facts,
             worker_budget,
             checker_budget: _,
+            leak_program: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         let selection = EmitSelection::WholeProgram;
@@ -1328,7 +1388,7 @@ impl ProgramSession {
         let inputs = project_checker_inputs(&prepared, &source_api_facts)?;
         let provider = PreparedModuleProvider {
             prepared: &prepared,
-            request_plans: RefCell::new(BTreeMap::new()),
+            request_plans: std::sync::Mutex::new(BTreeMap::new()),
         };
         let mut print_result: Option<Result<Vec<(JsString, PrintedText)>, DriverError>> = None;
         let mut operation =
@@ -1404,12 +1464,20 @@ impl ProgramSession {
         forced_declarations: bool,
     ) -> Result<CliEmitSessionOutcome, DriverError> {
         self.require_mode(PreparedProgramMode::Emit)?;
+        if self.checker_budget.is_sharded()
+            && harness_lib_bundle.is_none()
+            && !forced_declarations
+            && sharded_emit_supported(self.prepared.compiler_options())
+        {
+            return self.emit_sharded(sink);
+        }
         let ProgramSession {
             prepared,
             emit_route,
             source_api_facts,
             worker_budget,
             checker_budget: _,
+            leak_program: _,
         } = self;
         let mut h2_activity = H2ActivityCanary::h2_7e_profile();
         h2_activity.construct_emit_session();
@@ -1431,7 +1499,7 @@ impl ProgramSession {
         let inputs = project_checker_inputs(&prepared, &source_api_facts)?;
         let provider = PreparedModuleProvider {
             prepared: &prepared,
-            request_plans: RefCell::new(BTreeMap::new()),
+            request_plans: std::sync::Mutex::new(BTreeMap::new()),
         };
         let mut pending_preflight = preflight;
         let mut emit_result: Option<Result<CliEmitSessionOutcome, DriverError>> = None;
@@ -1555,6 +1623,271 @@ impl ProgramSession {
         .map_err(DriverError::Emit)
     }
 
+    /// The emitting session over the sharded checker: parse and bind once,
+    /// then every checker shard checks and emits its own files while the
+    /// coordinator gates the merged diagnostics (handleNoEmitOptions) and
+    /// writes the products in plan order.
+    /// tsrs-native: tsgo's per-checker emit; see [`ShardedEmit`].
+    fn emit_sharded(self, sink: &mut dyn OutputSink) -> Result<CliEmitSessionOutcome, DriverError> {
+        let ProgramSession {
+            prepared,
+            emit_route,
+            source_api_facts,
+            worker_budget,
+            checker_budget,
+            leak_program,
+        } = self;
+        let setup_started = std::time::Instant::now();
+        let mut h2_activity = H2ActivityCanary::h2_7e_profile();
+        h2_activity.construct_emit_session();
+        let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
+        validate_bootstrap_emit_request(&emit_host).map_err(DriverError::Emit)?;
+        let selection = EmitSelection::WholeProgram;
+        h2_activity.construct_output_plan();
+        let preflight = preflight_emit(&emit_host, selection).map_err(DriverError::Emit)?;
+        let preflight_diagnostics = preflight.diagnostics().to_vec();
+        // A shard owns the planned units whose source is one of the snapshot
+        // documents it checked; the checked host matches them by this name.
+        let unit_names = preflight
+            .plan()
+            .units()
+            .iter()
+            .map(|unit| {
+                unit.root()
+                    .source_files()
+                    .first()
+                    .and_then(|&id| emit_host.expected_source_name(id))
+            })
+            .collect::<Vec<Option<JsString>>>();
+        let inputs = project_checker_inputs(&prepared, &source_api_facts)?;
+        let factory = PreparedProviderFactory {
+            prepared: &prepared,
+        };
+        tsc_types::trace::mark("emit: host, preflight, checker inputs", setup_started);
+
+        #[allow(clippy::large_enum_variant)]
+        enum GateOutcome {
+            Failed(DriverError),
+            Blocked(EmitOutcome, ProgramDiagnostics, NoEmitWorkCounters),
+            Ready(EmitFilesSession, ProgramDiagnostics, NoEmitWorkCounters),
+        }
+        let mut gate_outcome: Option<GateOutcome> = None;
+        // A shared (stateless filesystem) sink lets each worker write its
+        // unit's artifacts as soon as they are printed.
+        let eager_sink = sink.shared();
+        let (checked, emissions) = {
+            let mut gate = |snapshot: &ProgramSnapshot, checked: &CheckResult| -> bool {
+                // Each evaluation (the sharded run, or its serial replay)
+                // starts the coordinator's recorder afresh so the observed
+                // counts describe exactly the run that is published.
+                h2_activity = H2ActivityCanary::h2_7e_profile();
+                h2_activity.construct_emit_session();
+                h2_activity.construct_output_plan();
+                if let Some(partial) = checked.partial_checks.first() {
+                    gate_outcome = Some(GateOutcome::Failed(DriverError::IncompleteCheck {
+                        file_name: partial.file_name.clone(),
+                        start: partial.start,
+                        length: partial.length,
+                        reason: partial.reason.clone(),
+                        additional_partial_checks: checked.partial_checks.len().saturating_sub(1),
+                    }));
+                    return false;
+                }
+                let gate_started = std::time::Instant::now();
+                let diagnostics = emit_session_diagnostics(&prepared, checked);
+                let diagnostic_gate = diagnostics.gate();
+                let work_counters = check_work_counters(checked);
+                let checked_host = CheckedEmitHost {
+                    prepared: &emit_host,
+                    snapshot,
+                };
+                tsc_types::trace::mark("emit: gate diagnostics", gate_started);
+                let begin_started = std::time::Instant::now();
+                let started = begin_emit_files(
+                    None,
+                    &checked_host,
+                    &preflight,
+                    selection,
+                    &diagnostic_gate,
+                    &mut h2_activity,
+                );
+                tsc_types::trace::mark("emit: begin_emit_files", begin_started);
+                match started {
+                    Ok(EmitFilesStart::Blocked(outcome)) => {
+                        gate_outcome =
+                            Some(GateOutcome::Blocked(*outcome, diagnostics, work_counters));
+                        false
+                    }
+                    Ok(EmitFilesStart::Ready(session)) => {
+                        gate_outcome =
+                            Some(GateOutcome::Ready(session, diagnostics, work_counters));
+                        true
+                    }
+                    Err(error) => {
+                        gate_outcome = Some(GateOutcome::Failed(DriverError::Emit(error)));
+                        false
+                    }
+                }
+            };
+            let emit = |snapshot: &ProgramSnapshot,
+                        sessions: &[CheckerSession<'_>],
+                        files_by_shard: &[Vec<usize>]|
+             -> Result<Vec<ShardEmission>, UnitEmitError> {
+                let checked_host = CheckedEmitHost {
+                    prepared: &emit_host,
+                    snapshot,
+                };
+                // Each planned unit belongs to the shard that checked its
+                // source; the units then run on the worker budget (tsgo's
+                // shape: emit per file on every core, each file querying its
+                // own checker's resolver).
+                let mut owner_by_name = std::collections::HashMap::new();
+                for (shard, files) in files_by_shard.iter().enumerate() {
+                    for &file in files {
+                        owner_by_name
+                            .insert(snapshot.document(file).source().file_name.as_js(), shard);
+                    }
+                }
+                let jobs = unit_names
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(unit, name)| {
+                        let shard = *owner_by_name.get(&name.as_ref()?.as_js())?;
+                        Some((unit, shard))
+                    })
+                    .collect::<Vec<_>>();
+                let weight = |&(unit, _): &(usize, usize)| {
+                    preflight.plan().units()[unit]
+                        .root()
+                        .source_files()
+                        .first()
+                        .and_then(|&id| emit_host.prepared.source_file(id))
+                        .map_or(0, |source| source.text().len())
+                };
+                let results = worker_budget.map_ordered(jobs, weight, |(unit, shard)| {
+                    let mut activity = H2ActivityCanary::h2_7e_profile();
+                    let mut eager = eager_sink.map(tsc_emitter::EagerUnitSink);
+                    let result = sessions[shard].with_emit_resolver(|resolver| {
+                        emit_planned_units(
+                            resolver,
+                            &checked_host,
+                            &preflight,
+                            &[unit],
+                            eager
+                                .as_mut()
+                                .map(|sink| sink as &mut dyn tsc_emitter::OutputSink),
+                            &mut activity,
+                        )
+                    });
+                    (result, activity.counters())
+                });
+                let mut activity = H2ActivityCanary::h2_7e_profile();
+                // One resolver borrow per checker session, as when each
+                // shard emitted its own units in one borrow.
+                for _ in sessions {
+                    activity.borrow_emit_resolver();
+                }
+                let mut units = Vec::with_capacity(results.len());
+                let mut first_error: Option<UnitEmitError> = None;
+                for (result, counters) in results {
+                    activity.absorb(counters);
+                    match result {
+                        Ok(emitted) => units.extend(emitted),
+                        Err(error) => {
+                            if first_error
+                                .as_ref()
+                                .is_none_or(|first| error.unit < first.unit)
+                            {
+                                first_error = Some(error);
+                            }
+                        }
+                    }
+                }
+                if let Some(error) = first_error {
+                    return Err(error);
+                }
+                Ok(vec![ShardEmission {
+                    units,
+                    counters: activity.counters(),
+                    checked_source_files: sessions
+                        .iter()
+                        .map(CheckerSession::checked_source_files)
+                        .fold(0u32, u32::saturating_add),
+                }])
+            };
+            let mut sharded_emit = ShardedEmit {
+                gate: &mut gate,
+                emit: &emit,
+                emissions: None,
+            };
+            let checked = check_program_with_authoritative_modules_at_for_emit_with_checkers(
+                &inputs.libs,
+                &inputs.files,
+                &inputs.lib_metadata,
+                &inputs.file_metadata,
+                prepared.compiler_options(),
+                &inputs.current_directory,
+                &factory,
+                worker_budget,
+                checker_budget,
+                &mut sharded_emit,
+            )
+            .map_err(|failure| map_authoritative_failure(&prepared, failure))?;
+            (checked, sharded_emit.emissions.take())
+        };
+
+        let outcome = match gate_outcome {
+            Some(GateOutcome::Failed(error)) => Err(error),
+            Some(GateOutcome::Blocked(outcome, diagnostics, work_counters)) => {
+                Ok(diagnostics.with_emit(&preflight_diagnostics, outcome, work_counters))
+            }
+            Some(GateOutcome::Ready(session, diagnostics, work_counters)) => {
+                let emissions = emissions
+                    .expect("an admitted sharded emit hands back every shard's products")
+                    .map_err(|error| DriverError::Emit(error.failure))?;
+                let mut units = Vec::new();
+                let mut checked_source_files = 0u32;
+                for shard in emissions {
+                    h2_activity.absorb(shard.counters);
+                    checked_source_files =
+                        checked_source_files.saturating_add(shard.checked_source_files);
+                    units.extend(shard.units);
+                }
+                let finish_started = std::time::Instant::now();
+                let emit = finish_emit_files(session, units, sink, &mut h2_activity)
+                    .map_err(DriverError::Emit)?;
+                tsc_types::trace::mark("emit: finish_emit_files (assemble, write)", finish_started);
+                let mut outcome =
+                    diagnostics.with_emit(&preflight_diagnostics, emit, work_counters);
+                outcome.checked_source_files = checked_source_files;
+                Ok(outcome)
+            }
+            None => {
+                // An empty Program has no snapshot from which to construct a
+                // checker resolver: the fail-closed unavailable projection,
+                // as on the single-checker path.
+                let diagnostics = emit_session_diagnostics(&prepared, &checked);
+                let diagnostic_gate = diagnostics.gate();
+                let work_counters = check_work_counters(&checked);
+                emit_files_with_activity(
+                    &UnavailableEmitResolver,
+                    &emit_host,
+                    preflight,
+                    selection,
+                    &diagnostic_gate,
+                    sink,
+                    &mut h2_activity,
+                )
+                .map(|emit| diagnostics.with_emit(&preflight_diagnostics, emit, work_counters))
+                .map_err(DriverError::Emit)
+            }
+        };
+        if leak_program {
+            std::mem::forget(prepared);
+        }
+        outcome
+    }
+
     /// Upstream-harness execution with exact-match vendored-lib reuse.
     ///
     /// This is deliberately not the production H0 entry: [`run`](Self::run)
@@ -1624,7 +1957,7 @@ impl ProgramSession {
         let has_roots = !self.prepared.roots().is_empty();
         let provider = PreparedModuleProvider {
             prepared: &self.prepared,
-            request_plans: RefCell::new(BTreeMap::new()),
+            request_plans: std::sync::Mutex::new(BTreeMap::new()),
         };
         let checked = if harness_lib_cache {
             check_program_with_authoritative_modules_at_harness_cached(
@@ -1792,6 +2125,9 @@ impl ProgramSession {
         // `checked.suggestion_diagnostics` is deliberately dropped here.
         // Suggestions remain a legacy per-file getter surface and are not
         // part of `tsc --noEmit` command output.
+        if self.leak_program {
+            std::mem::forget(self);
+        }
         Ok(NoEmitOutcome {
             config_diagnostics,
             syntactic_diagnostics,
@@ -2162,13 +2498,18 @@ fn project_source(
             .implied_node_format_for_emit()
             .map(checker_resolution_mode),
     };
+    // The planning parse used the process default (or the API fact); the
+    // checker adopts it only when its own expectation matches.
     let mut input = InputFile::from_snapshot(name, Arc::clone(source.snapshot()))
-        .with_preparsed_syntax(source.preparsed_syntax().clone());
+        .with_preparsed_syntax(source.preparsed_syntax().clone())
+        .with_js_doc_parsing_mode(Some(tsc_program::default_js_doc_parsing_mode()));
     if let Some(facts) = facts {
         input = input
             .with_module_name(facts.module_name.clone())
-            .with_renamed_dependencies(facts.renamed_dependencies.clone())
-            .with_js_doc_parsing_mode(facts.js_doc_parsing_mode);
+            .with_renamed_dependencies(facts.renamed_dependencies.clone());
+        if facts.js_doc_parsing_mode.is_some() {
+            input = input.with_js_doc_parsing_mode(facts.js_doc_parsing_mode);
+        }
     }
     Ok((input, metadata))
 }
