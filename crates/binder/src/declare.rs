@@ -2,7 +2,7 @@
 //! with its supporting pieces (addDeclarationToSymbol,
 //! getDeclarationName, the duplicate-declaration report family).
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 use crate::node_util::{
     declaration_name_to_string, get_containing_class, get_error_span_for_node,
@@ -42,6 +42,8 @@ pub enum TableRef {
 
 /// The binder for one source file. Grows container/flow state in
 /// stages 3.3–3.5; stage 3.2 carries the symbol side only.
+/// Numeric identity side tables use `FxHashMap`; ordered name tables retain
+/// `SymbolTable`. Construct identity maps with `Default` or `collect`.
 pub struct BinderWorker<'a> {
     pub source: &'a SourceFile,
     pub options: &'a tsc_types::CompilerOptions,
@@ -51,11 +53,11 @@ pub struct BinderWorker<'a> {
     pub common_js_module_indicator: Option<NodeId>,
     pub symbols: SymbolArena,
     /// tsc node.symbol (set by addDeclarationToSymbol).
-    pub node_symbol: HashMap<NodeId, SymbolId>,
+    pub node_symbol: FxHashMap<NodeId, SymbolId>,
     /// tsc node.localSymbol (set by declareModuleMember).
-    pub node_local_symbol: HashMap<NodeId, SymbolId>,
+    pub node_local_symbol: FxHashMap<NodeId, SymbolId>,
     /// tsc container.locals, keyed by the scope-owning node.
-    pub locals: HashMap<NodeId, SymbolTable>,
+    pub locals: FxHashMap<NodeId, SymbolTable>,
     /// tsc SourceFile.jsGlobalAugmentations: namespaces introduced by
     /// top-level JavaScript property assignments before checker merge.
     pub js_global_augmentations: SymbolTable,
@@ -64,7 +66,7 @@ pub struct BinderWorker<'a> {
     pub classifiable_names: EscapedNameSet,
     /// tsc getSymbolId's lazily-assigned global symbol ids; the counter
     /// is program-wide in tsc, so it is seedable for multi-file binds.
-    assigned_symbol_ids: HashMap<SymbolId, u32>,
+    assigned_symbol_ids: FxHashMap<SymbolId, u32>,
     private_name_serial_base: u32,
     next_symbol_id: u32,
     private_name_serial_lease: Option<IdentityLease>,
@@ -75,7 +77,7 @@ pub struct BinderWorker<'a> {
     pub block_scope_container: Option<NodeId>,
     pub last_container: Option<NodeId>,
     /// tsc container.nextContainer chain (addToContainerChain).
-    pub next_container: HashMap<NodeId, NodeId>,
+    pub next_container: FxHashMap<NodeId, NodeId>,
     /// tsc mutates node.flags during binding (HasImplicitReturn,
     /// ContainsThis, ExportContext, Unreachable, emit flags); this is
     /// the binder's mutable view, seeded from the parse-time flags.
@@ -96,17 +98,17 @@ pub struct BinderWorker<'a> {
     pub current_exception_target: Option<crate::flow::FlowId>,
     pub pre_switch_case_flow: Option<crate::flow::FlowId>,
     /// tsc node.flowNode / endFlowNode / returnFlowNode side tables.
-    pub node_flow: HashMap<NodeId, crate::flow::FlowId>,
-    pub node_end_flow: HashMap<NodeId, crate::flow::FlowId>,
-    pub node_return_flow: HashMap<NodeId, crate::flow::FlowId>,
+    pub node_flow: FxHashMap<NodeId, crate::flow::FlowId>,
+    pub node_end_flow: FxHashMap<NodeId, crate::flow::FlowId>,
+    pub node_return_flow: FxHashMap<NodeId, crate::flow::FlowId>,
     /// tsc ConditionalExpression flowNodeWhenTrue/WhenFalse (stamped in
     /// return position, consumed by the checker M5).
-    pub node_flow_when_true: HashMap<NodeId, crate::flow::FlowId>,
-    pub node_flow_when_false: HashMap<NodeId, crate::flow::FlowId>,
+    pub node_flow_when_true: FxHashMap<NodeId, crate::flow::FlowId>,
+    pub node_flow_when_false: FxHashMap<NodeId, crate::flow::FlowId>,
     /// tsc SwitchStatement.possiblyExhaustive.
-    pub possibly_exhaustive: HashMap<NodeId, bool>,
+    pub possibly_exhaustive: FxHashMap<NodeId, bool>,
     /// tsc clause.fallthroughFlowNode (noFallthroughCasesInSwitch).
-    pub node_fallthrough_flow: HashMap<NodeId, crate::flow::FlowId>,
+    pub node_fallthrough_flow: FxHashMap<NodeId, crate::flow::FlowId>,
     /// tsc activeLabelList (a stack; tsc uses a linked list).
     pub active_label_list: Vec<crate::flow::ActiveLabel>,
 
@@ -134,33 +136,34 @@ pub struct BinderWorker<'a> {
 /// compiler options while it walks containers and builds this record. Once
 /// publication succeeds, callers retain only `BindData`; no walk cursor,
 /// borrowed input, or in-flight target is carried into a Program snapshot.
+/// Its numeric identity maps use `FxHashMap`, as in `BinderWorker`.
 #[derive(Clone, Debug)]
 pub struct BindData {
     pub language_version: i32,
     pub common_js_module_indicator: Option<NodeId>,
     pub symbols: SymbolArena,
-    pub node_symbol: HashMap<NodeId, SymbolId>,
-    pub node_local_symbol: HashMap<NodeId, SymbolId>,
-    pub locals: HashMap<NodeId, SymbolTable>,
+    pub node_symbol: FxHashMap<NodeId, SymbolId>,
+    pub node_local_symbol: FxHashMap<NodeId, SymbolId>,
+    pub locals: FxHashMap<NodeId, SymbolTable>,
     pub js_global_augmentations: SymbolTable,
     pub bind_diagnostics: DiagnosticList,
     pub classifiable_names: EscapedNameSet,
-    pub assigned_symbol_ids: HashMap<SymbolId, u32>,
+    pub assigned_symbol_ids: FxHashMap<SymbolId, u32>,
     pub private_name_serial_base: u32,
     pub next_symbol_id: u32,
     pub private_name_serial_lease: Option<IdentityLease>,
-    pub next_container: HashMap<NodeId, NodeId>,
+    pub next_container: FxHashMap<NodeId, NodeId>,
     pub node_flags_mut: Vec<i32>,
     pub pattern_ambient_modules: Vec<(JsString, JsString, SymbolId)>,
     pub flow: crate::flow::FlowArena,
     pub unreachable_flow: crate::flow::FlowId,
-    pub node_flow: HashMap<NodeId, crate::flow::FlowId>,
-    pub node_end_flow: HashMap<NodeId, crate::flow::FlowId>,
-    pub node_return_flow: HashMap<NodeId, crate::flow::FlowId>,
-    pub node_flow_when_true: HashMap<NodeId, crate::flow::FlowId>,
-    pub node_flow_when_false: HashMap<NodeId, crate::flow::FlowId>,
-    pub possibly_exhaustive: HashMap<NodeId, bool>,
-    pub node_fallthrough_flow: HashMap<NodeId, crate::flow::FlowId>,
+    pub node_flow: FxHashMap<NodeId, crate::flow::FlowId>,
+    pub node_end_flow: FxHashMap<NodeId, crate::flow::FlowId>,
+    pub node_return_flow: FxHashMap<NodeId, crate::flow::FlowId>,
+    pub node_flow_when_true: FxHashMap<NodeId, crate::flow::FlowId>,
+    pub node_flow_when_false: FxHashMap<NodeId, crate::flow::FlowId>,
+    pub possibly_exhaustive: FxHashMap<NodeId, bool>,
+    pub node_fallthrough_flow: FxHashMap<NodeId, crate::flow::FlowId>,
     pub emit_flags: i32,
 }
 
@@ -269,13 +272,13 @@ impl<'a> BinderWorker<'a> {
             language_version: options.emit_script_target().bits(),
             common_js_module_indicator: None,
             symbols: SymbolArena::with_base(symbol_base),
-            node_symbol: HashMap::new(),
-            node_local_symbol: HashMap::new(),
-            locals: HashMap::new(),
+            node_symbol: FxHashMap::default(),
+            node_local_symbol: FxHashMap::default(),
+            locals: FxHashMap::default(),
             js_global_augmentations: SymbolTable::default(),
             bind_diagnostics: Vec::new(),
             classifiable_names: EscapedNameSet::new(),
-            assigned_symbol_ids: HashMap::new(),
+            assigned_symbol_ids: FxHashMap::default(),
             private_name_serial_base: next_symbol_id,
             next_symbol_id,
             private_name_serial_lease: None,
@@ -283,7 +286,7 @@ impl<'a> BinderWorker<'a> {
             this_parent_container: None,
             block_scope_container: None,
             last_container: None,
-            next_container: HashMap::new(),
+            next_container: FxHashMap::default(),
             node_flags_mut: source.arena.nodes().iter().map(|node| node.flags).collect(),
             pattern_ambient_modules: Vec::new(),
             flow,
@@ -296,13 +299,13 @@ impl<'a> BinderWorker<'a> {
             current_false_target: None,
             current_exception_target: None,
             pre_switch_case_flow: None,
-            node_flow: HashMap::new(),
-            node_end_flow: HashMap::new(),
-            node_return_flow: HashMap::new(),
-            node_flow_when_true: HashMap::new(),
-            node_flow_when_false: HashMap::new(),
-            possibly_exhaustive: HashMap::new(),
-            node_fallthrough_flow: HashMap::new(),
+            node_flow: FxHashMap::default(),
+            node_end_flow: FxHashMap::default(),
+            node_return_flow: FxHashMap::default(),
+            node_flow_when_true: FxHashMap::default(),
+            node_flow_when_false: FxHashMap::default(),
+            possibly_exhaustive: FxHashMap::default(),
+            node_fallthrough_flow: FxHashMap::default(),
             active_label_list: Vec::new(),
             in_strict_mode: false,
             seen_this_keyword: false,

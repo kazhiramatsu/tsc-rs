@@ -10,6 +10,7 @@
 
 use std::collections::HashMap;
 
+use rustc_hash::FxHashMap;
 use tsc_binder::SymbolId;
 use tsc_syntax::NodeId;
 use tsc_types::{ConditionalRootId, EscapedName, JsString, TypeId};
@@ -586,9 +587,12 @@ pub(crate) struct SpeculativeLinksMarks {
 
 #[derive(Debug, Default)]
 pub struct LinksTables {
-    node: HashMap<NodeId, NodeLinks>,
-    symbol: HashMap<SymbolId, SymbolLinks>,
-    ty: HashMap<TypeId, TypeLinks>,
+    // These lookup-only tables use compiler-assigned IDs. Their iteration
+    // order is not observable, and hashing does not need string-key HashDoS
+    // resistance. Keep the other cache and public field types unchanged.
+    node: FxHashMap<NodeId, NodeLinks>,
+    symbol: FxHashMap<SymbolId, SymbolLinks>,
+    ty: FxHashMap<TypeId, TypeLinks>,
     /// Trial-local resolvedSignature protocol writes. Nested call
     /// resolution needs its Resolving sentinel and failure stash while
     /// a candidate is checked. Both rejection and selection restore the
