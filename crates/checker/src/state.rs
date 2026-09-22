@@ -1798,13 +1798,13 @@ impl<'a> CheckerState<'a> {
                 let ResolutionTarget::Symbol(symbol) = target else {
                     unreachable!("Type resolution targets are symbols");
                 };
-                self.links.symbol(symbol).type_of_symbol.resolved().is_some()
+                self.links.read_symbol(symbol, |links| links.type_of_symbol.resolved()).is_some()
             }
             TypeSystemPropertyName::DECLARED_TYPE => {
                 let ResolutionTarget::Symbol(symbol) = target else {
                     unreachable!("DeclaredType resolution targets are symbols");
                 };
-                self.links.symbol(symbol).declared_type.resolved().is_some()
+                self.links.read_symbol(symbol, |links| links.declared_type.resolved()).is_some()
             }
             TypeSystemPropertyName::RESOLVED_RETURN_TYPE => {
                 let ResolutionTarget::Signature(signature) = target else {
@@ -1819,10 +1819,7 @@ impl<'a> CheckerState<'a> {
                 let ResolutionTarget::Type(ty) = target else {
                     unreachable!("ImmediateBaseConstraint resolution targets are types");
                 };
-                self.links
-                    .ty(ty)
-                    .immediate_base_constraint
-                    .resolved()
+                self.links.read_ty(ty, |links| links.immediate_base_constraint.resolved())
                     .is_some()
             }
             TypeSystemPropertyName::RESOLVED_TYPE_ARGUMENTS => {
@@ -1839,23 +1836,20 @@ impl<'a> CheckerState<'a> {
                     unreachable!("ResolvedBaseTypes resolution targets are types");
                 };
                 // `!!type.baseTypesResolved` (55772).
-                self.links.ty(ty).base_types_resolved
+                self.links.read_ty(ty, |links| links.base_types_resolved)
             }
             TypeSystemPropertyName::RESOLVED_BASE_CONSTRUCTOR_TYPE => {
                 let ResolutionTarget::Type(ty) = target else {
                     unreachable!("ResolvedBaseConstructorType resolution targets are types");
                 };
-                self.links
-                    .ty(ty)
-                    .resolved_base_constructor_type
-                    .resolved()
+                self.links.read_ty(ty, |links| links.resolved_base_constructor_type.resolved())
                     .is_some()
             }
             TypeSystemPropertyName::WRITE_TYPE => {
                 let ResolutionTarget::Symbol(symbol) = target else {
                     unreachable!("WriteType resolution targets are symbols");
                 };
-                self.links.symbol(symbol).write_type.resolved().is_some()
+                self.links.read_symbol(symbol, |links| links.write_type.resolved()).is_some()
             }
             TypeSystemPropertyName::PARAMETER_INITIALIZER_CONTAINS_UNDEFINED => {
                 let ResolutionTarget::Node(node) = target else {
@@ -1865,9 +1859,7 @@ impl<'a> CheckerState<'a> {
                 };
                 // `links.parameterInitializerContainsUndefined !== undefined`
                 // (55773).
-                self.links
-                    .node(node)
-                    .parameter_initializer_contains_undefined
+                self.links.read_node(node, |links| links.parameter_initializer_contains_undefined)
                     .is_some()
             }
             _ => unreachable!(

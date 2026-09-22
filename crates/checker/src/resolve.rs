@@ -2887,7 +2887,10 @@ impl<'a> CheckerState<'a> {
     /// here) after the resolveName error path has fired, exactly once
     /// per node.
     pub(crate) fn get_resolved_symbol(&mut self, node: NodeId) -> CheckResult<Option<SymbolId>> {
-        if let Some(cached) = self.links.node(node).resolved_symbol.resolved() {
+        if let Some(cached) = self
+            .links
+            .read_node(node, |links| links.resolved_symbol.resolved())
+        {
             return Ok((cached != self.unknown_symbol).then_some(cached));
         }
         let resolved = if node_util::node_is_missing(self.binder.source_of_node(node), Some(node)) {

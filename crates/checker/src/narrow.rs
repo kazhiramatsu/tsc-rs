@@ -3026,7 +3026,9 @@ impl<'a> CheckerState<'a> {
                 .get_check_flags(symbol)
                 .intersects(tsc_types::CheckFlags::MAPPED)
             {
-                let origin = self.links.symbol(symbol).synthetic_origin;
+                let origin = self
+                    .links
+                    .read_symbol(symbol, |links| links.synthetic_origin);
                 if let Some(origin) = origin {
                     if self.get_explicit_type_of_symbol(origin)?.is_some() {
                         return self.get_type_of_symbol(symbol).map(Some);

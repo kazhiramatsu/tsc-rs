@@ -24,7 +24,10 @@ impl<'a> CheckerState<'a> {
     /// `TypeParameter.constraint`); the inline field belongs to the
     /// tables-synthesized parameters (tuple targets).
     pub fn get_declared_type_of_type_parameter(&mut self, symbol: tsc_binder::SymbolId) -> TypeId {
-        if let Some(declared) = self.links.symbol(symbol).declared_type.resolved() {
+        if let Some(declared) = self
+            .links
+            .read_symbol(symbol, |links| links.declared_type.resolved())
+        {
             return declared;
         }
         let ty = self.tables.create_type(
@@ -93,12 +96,15 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(Some(inline));
         }
-        if let Some(cached) = self.links.ty(ty).type_parameter_constraint.resolved() {
+        if let Some(cached) = self
+            .links
+            .read_ty(ty, |links| links.type_parameter_constraint.resolved())
+        {
             return Ok((cached != self.no_constraint_type).then_some(cached));
         }
-        if let Some(target) = self.links.ty(ty).type_parameter_target {
+        if let Some(target) = self.links.read_ty(ty, |links| links.type_parameter_target) {
             let target_constraint = self.get_constraint_of_type_parameter(target)?;
-            let mapper = self.links.ty(ty).type_parameter_mapper;
+            let mapper = self.links.read_ty(ty, |links| links.type_parameter_mapper);
             let constraint = match target_constraint {
                 Some(target_constraint) => self.instantiate_type(target_constraint, mapper)?,
                 None => self.no_constraint_type,
@@ -512,7 +518,10 @@ impl<'a> CheckerState<'a> {
     /// IndexedAccess, Substitution, generic tuple, and the default
     /// identity. Conditional resolution is the named 9.6c boundary.
     pub fn get_resolved_base_constraint(&mut self, ty: TypeId) -> CheckResult<TypeId> {
-        if let Some(cached) = self.links.ty(ty).resolved_base_constraint.resolved() {
+        if let Some(cached) = self
+            .links
+            .read_ty(ty, |links| links.resolved_base_constraint.resolved())
+        {
             return Ok(cached);
         }
         let mut stack: Vec<crate::engine::RecursionIdentity> = Vec::new();
@@ -523,7 +532,10 @@ impl<'a> CheckerState<'a> {
         // outer frame resumes. Coalesce that semantic single write
         // instead of presenting it to the Rust one-write Links guard
         // as a rewrite.
-        if let Some(cached) = self.links.ty(ty).resolved_base_constraint.resolved() {
+        if let Some(cached) = self
+            .links
+            .read_ty(ty, |links| links.resolved_base_constraint.resolved())
+        {
             debug_assert_eq!(cached, resolved);
             return Ok(cached);
         }
@@ -537,7 +549,10 @@ impl<'a> CheckerState<'a> {
         t: TypeId,
         stack: &mut Vec<crate::engine::RecursionIdentity>,
     ) -> CheckResult<TypeId> {
-        if let Some(cached) = self.links.ty(t).immediate_base_constraint.resolved() {
+        if let Some(cached) = self
+            .links
+            .read_ty(t, |links| links.immediate_base_constraint.resolved())
+        {
             return Ok(cached);
         }
         if !self.push_type_resolution(

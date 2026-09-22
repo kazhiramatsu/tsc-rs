@@ -778,8 +778,7 @@ impl<'a> CheckerState<'a> {
     fn check_regular_expression_literal(&mut self, node: NodeId) -> CheckResult<TypeId> {
         if !self
             .links
-            .node(node)
-            .check_flags
+            .read_node(node, |links| links.check_flags)
             .intersects(NodeCheckFlags::TYPE_CHECKED)
         {
             self.links.or_node_check_flags(
@@ -3348,7 +3347,9 @@ impl<'a> CheckerState<'a> {
                 );
             }
         }
-        let resolved = self.links.node(expr).resolved_symbol.resolved();
+        let resolved = self
+            .links
+            .read_node(expr, |links| links.resolved_symbol.resolved());
         if let Some(resolved) = resolved {
             let symbol = self.get_export_symbol_of_value_symbol_if_exported(resolved);
             if self.is_readonly_symbol(symbol)? {
@@ -3498,7 +3499,10 @@ impl<'a> CheckerState<'a> {
         if !check_mode.is_empty() {
             return self.check_expression(node, check_mode);
         }
-        if let Some(cached) = self.links.node(node).resolved_type.resolved() {
+        if let Some(cached) = self
+            .links
+            .read_node(node, |links| links.resolved_type.resolved())
+        {
             return Ok(cached);
         }
         let save_flow_loop_start = self.flow_loop_start;
@@ -3508,7 +3512,11 @@ impl<'a> CheckerState<'a> {
         self.flow_type_cache = save_flow_type_cache;
         self.flow_loop_start = save_flow_loop_start;
         let ty = result?;
-        if self.links.node(node).resolved_type.resolved().is_none() {
+        if self
+            .links
+            .read_node(node, |links| links.resolved_type.resolved())
+            .is_none()
+        {
             self.links.set_node_resolved_type(
                 self.speculation_depth,
                 node,
@@ -4355,14 +4363,21 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
     ) -> CheckResult<TypeId> {
-        if let Some(cached) = self.links.node(node).context_free_type.resolved() {
+        if let Some(cached) = self
+            .links
+            .read_node(node, |links| links.context_free_type.resolved())
+        {
             return Ok(cached);
         }
         self.push_contextual_type(node, Some(self.tables.intrinsics.any), false);
         let result = self.check_expression(node, CheckMode::SKIP_CONTEXT_SENSITIVE);
         self.pop_contextual_type();
         let ty = result?;
-        if self.links.node(node).context_free_type.resolved().is_none() {
+        if self
+            .links
+            .read_node(node, |links| links.context_free_type.resolved())
+            .is_none()
+        {
             self.links.set_node_context_free_type(
                 self.speculation_depth,
                 node,

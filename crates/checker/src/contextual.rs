@@ -950,9 +950,7 @@ impl<'a> CheckerState<'a> {
         }
         let signature = if self
             .links
-            .node(call_target)
-            .resolved_signature
-            .is_resolving()
+            .read_node(call_target, |links| links.resolved_signature.is_resolving())
         {
             self.resolving_signature
         } else {
@@ -1048,7 +1046,8 @@ impl<'a> CheckerState<'a> {
                 // those get the LHS type.
                 let ty = self.get_contextual_type(binary, context_flags)?;
                 if Some(node) == right {
-                    let has_pattern = ty.is_some_and(|t| self.links.ty(t).pattern.is_some());
+                    let has_pattern =
+                        ty.is_some_and(|t| self.links.read_ty(t, |links| links.pattern).is_some());
                     let no_context_non_expando =
                         ty.is_none() && !self.is_defaulted_expando_initializer(binary);
                     if has_pattern || no_context_non_expando {
@@ -1654,9 +1653,7 @@ impl<'a> CheckerState<'a> {
         self.get_check_flags(symbol).intersects(CheckFlags::MAPPED)
             && self
                 .links
-                .symbol(symbol)
-                .type_of_symbol
-                .resolved()
+                .read_symbol(symbol, |links| links.type_of_symbol.resolved())
                 .is_none()
             && self
                 .find_resolution_cycle_start_index(
@@ -1745,7 +1742,7 @@ impl<'a> CheckerState<'a> {
         if self.has_bindable_name(element)? {
             let symbol = self.get_symbol_of_declaration(element)?;
             let name = self.binder.symbol(symbol).escaped_name.clone();
-            let name_type = self.links.symbol(symbol).name_type;
+            let name_type = self.links.read_symbol(symbol, |links| links.name_type);
             return self.get_type_of_property_of_contextual_type(ty, &name, name_type);
         }
         if let Some(name) = self.name_of_node(element) {
@@ -2582,7 +2579,10 @@ impl<'a> CheckerState<'a> {
                 let Some(element_index) = elements.iter().position(|&e| e == node) else {
                     return Ok(None);
                 };
-                let spread_indices = match self.links.node(array_literal).spread_indices {
+                let spread_indices = match self
+                    .links
+                    .read_node(array_literal, |links| links.spread_indices)
+                {
                     Some(cached) => cached,
                     None => {
                         let computed = self.get_spread_indices(&elements);

@@ -72,8 +72,7 @@ impl<'a> CheckerState<'a> {
         self.compute_enum_member_values(parent)?;
         Ok(self
             .links
-            .node(member)
-            .enum_member_value
+            .read_node(member, |links| links.enum_member_value.clone())
             .unwrap_or_else(undefined_result))
     }
 
@@ -98,14 +97,16 @@ impl<'a> CheckerState<'a> {
         ) {
             return Ok(None);
         }
-        if self.links.node(node).resolved_symbol.resolved().is_none() {
+        if self
+            .links
+            .read_node(node, |links| links.resolved_symbol.resolved())
+            .is_none()
+        {
             let _ = self.check_expression_cached(node, CheckMode::NORMAL)?;
         }
         let Some(symbol) = self
             .links
-            .node(node)
-            .resolved_symbol
-            .resolved()
+            .read_node(node, |links| links.resolved_symbol.resolved())
             .filter(|symbol| *symbol != self.unknown_symbol)
         else {
             return Ok(None);
@@ -137,7 +138,10 @@ impl<'a> CheckerState<'a> {
     /// flag REVERTS (tsc cannot fail here) so a later query recomputes;
     /// already-written member slots are reused, not rewritten.
     fn compute_enum_member_values(&mut self, node: NodeId) -> CheckResult<()> {
-        if self.links.node(node).enum_values_computed {
+        if self
+            .links
+            .read_node(node, |links| links.enum_values_computed)
+        {
             return Ok(());
         }
         self.links
@@ -149,7 +153,10 @@ impl<'a> CheckerState<'a> {
         let mut auto_value = Some(0f64);
         let mut previous: Option<NodeId> = None;
         for member in members {
-            let outcome = if let Some(existing) = self.links.node(member).enum_member_value {
+            let outcome = if let Some(existing) = self
+                .links
+                .read_node(member, |links| links.enum_member_value.clone())
+            {
                 Ok(existing)
             } else {
                 self.compute_enum_member_value(member, auto_value, previous)
@@ -161,7 +168,11 @@ impl<'a> CheckerState<'a> {
                     return Err(err);
                 }
             };
-            if self.links.node(member).enum_member_value.is_none() {
+            if self
+                .links
+                .read_node(member, |links| links.enum_member_value.clone())
+                .is_none()
+            {
                 self.links.set_node_enum_member_value(
                     self.speculation_depth,
                     member,
@@ -249,8 +260,7 @@ impl<'a> CheckerState<'a> {
             {
                 let numeric_local = self
                     .links
-                    .node(previous)
-                    .enum_member_value
+                    .read_node(previous, |links| links.enum_member_value.clone())
                     .as_ref()
                     .is_some_and(|value| {
                         matches!(value.value, Some(EvalValue::Num(_)))

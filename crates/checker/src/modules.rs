@@ -191,8 +191,7 @@ impl<'a> CheckerState<'a> {
         let symbol = self.get_symbol_of_declaration(declaration)?;
         Ok(self
             .links
-            .node(node)
-            .captured_block_scope_bindings
+            .read_node(node, |links| links.captured_block_scope_bindings.clone())
             .contains(&symbol))
     }
 
@@ -261,8 +260,7 @@ impl<'a> CheckerState<'a> {
         }
         if self
             .links
-            .symbol(symbol)
-            .is_declaration_with_colliding_name
+            .read_symbol(symbol, |links| links.is_declaration_with_colliding_name)
             .is_none()
         {
             let Some(container) = self.get_enclosing_block_scope_container(value_declaration)
@@ -287,14 +285,12 @@ impl<'a> CheckerState<'a> {
                     true
                 } else if self
                     .links
-                    .node(value_declaration)
-                    .check_flags
+                    .read_node(value_declaration, |links| links.check_flags)
                     .intersects(tsc_types::NodeCheckFlags::CAPTURED_BLOCK_SCOPED_BINDING)
                 {
                     let is_declared_in_loop = self
                         .links
-                        .node(value_declaration)
-                        .check_flags
+                        .read_node(value_declaration, |links| links.check_flags)
                         .intersects(tsc_types::NodeCheckFlags::BLOCK_SCOPED_BINDING_IN_LOOP);
                     let in_loop_initializer = self.is_iteration_statement(container, false);
                     let in_loop_body_block = self.kind_of(container) == SyntaxKind::Block
@@ -315,8 +311,7 @@ impl<'a> CheckerState<'a> {
         }
         Ok(self
             .links
-            .symbol(symbol)
-            .is_declaration_with_colliding_name
+            .read_symbol(symbol, |links| links.is_declaration_with_colliding_name)
             .unwrap_or(false))
     }
 
@@ -518,7 +513,10 @@ impl<'a> CheckerState<'a> {
         &mut self,
         reference: NodeId,
     ) -> CheckResult<Option<SymbolId>> {
-        if let Some(symbol) = self.links.node(reference).resolved_symbol.resolved() {
+        if let Some(symbol) = self
+            .links
+            .read_node(reference, |links| links.resolved_symbol.resolved())
+        {
             if symbol != self.unknown_symbol {
                 return Ok(Some(symbol));
             }
@@ -979,10 +977,16 @@ impl<'a> CheckerState<'a> {
         let Some(symbol) = self.emit_alias_declaration_symbol(node) else {
             return Ok(false);
         };
-        if self.links.symbol(symbol).alias_referenced {
+        if self
+            .links
+            .read_symbol(symbol, |links| links.alias_referenced)
+        {
             return Ok(true);
         }
-        let Some(target) = self.links.symbol(symbol).alias_target.resolved() else {
+        let Some(target) = self
+            .links
+            .read_symbol(symbol, |links| links.alias_target.resolved())
+        else {
             return Ok(false);
         };
         let source = self.binder.source_of_node(node);
@@ -1041,7 +1045,10 @@ impl<'a> CheckerState<'a> {
         // `verbatimModuleSyntax` reaches the ordinary emit route since
         // H2.8a-A-RES-EMITTER-FINAL EF7-VERBATIM-GATE; tsc answers these
         // resolver queries independently of the option.
-        if self.links.symbol(symbol).alias_referenced {
+        if self
+            .links
+            .read_symbol(symbol, |links| links.alias_referenced)
+        {
             return Ok(());
         }
         self.links
@@ -1615,7 +1622,10 @@ impl<'a> CheckerState<'a> {
                 .intersects(SymbolFlags::ALIAS),
             "Should only get Alias here."
         );
-        match self.links.symbol(symbol).alias_target {
+        match self
+            .links
+            .read_symbol(symbol, |links| links.alias_target.clone())
+        {
             LinkSlot::Resolved(target) => return Ok(target),
             LinkSlot::Resolving => {
                 // Sentinel found ON ENTRY: cycle collapse to unknown.
@@ -1651,7 +1661,10 @@ impl<'a> CheckerState<'a> {
                 return Err(abort);
             }
         };
-        if self.links.symbol(symbol).alias_target.is_resolving() {
+        if self
+            .links
+            .read_symbol(symbol, |links| links.alias_target.is_resolving())
+        {
             let resolved = target.unwrap_or(self.unknown_symbol);
             self.links.set_symbol_alias_target(
                 self.speculation_depth,
@@ -1668,7 +1681,10 @@ impl<'a> CheckerState<'a> {
                 &[(&name).into()],
             );
         }
-        match self.links.symbol(symbol).alias_target {
+        match self
+            .links
+            .read_symbol(symbol, |links| links.alias_target.clone())
+        {
             LinkSlot::Resolved(resolved) => Ok(resolved),
             _ => unreachable!("resolveAlias tail leaves the slot Resolved"),
         }
@@ -1678,7 +1694,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: bab6b09fe2dcce72699b3e3f0194e26d2f371b115c231c9a18e46b2bd6d81c8f
     /// tsc-span: _tsc.js:49134-49140
     pub(crate) fn try_resolve_alias(&mut self, symbol: SymbolId) -> CheckResult<Option<SymbolId>> {
-        if self.links.symbol(symbol).alias_target.is_resolving() {
+        if self
+            .links
+            .read_symbol(symbol, |links| links.alias_target.is_resolving())
+        {
             return Ok(None);
         }
         Ok(Some(self.resolve_alias(symbol)?))
@@ -2635,8 +2654,7 @@ impl<'a> CheckerState<'a> {
         let resolved = self.resolve_symbol_ex(export_symbol, dont_resolve_alias)?;
         let export_star_declaration = self
             .links
-            .symbol(symbol)
-            .type_only_export_star_map
+            .read_symbol(symbol, |links| links.type_only_export_star_map.clone())
             .as_ref()
             .and_then(|map| map.get(name_text.as_bytes()))
             .copied();
@@ -3280,7 +3298,9 @@ impl<'a> CheckerState<'a> {
             return Ok(alias_like);
         }
         self.check_expression_cached(expression, CheckMode::NORMAL)?;
-        Ok(self.links.node(expression).resolved_symbol.resolved())
+        Ok(self
+            .links
+            .read_node(expression, |links| links.resolved_symbol.resolved()))
     }
 
     /// tsc-port: getSymbolOfPartOfRightHandSideOfImportEquals @6.0.3
@@ -3488,7 +3508,9 @@ impl<'a> CheckerState<'a> {
         target: Option<SymbolId>,
         overwrite_empty: bool,
     ) -> CheckResult<bool> {
-        let existing = self.links.symbol(source_symbol).type_only_declaration;
+        let existing = self
+            .links
+            .read_symbol(source_symbol, |links| links.type_only_declaration);
         if let Some(target) = target {
             if existing.is_none() || (overwrite_empty && existing == Some(None)) {
                 let export_symbol = self
@@ -3511,8 +3533,7 @@ impl<'a> CheckerState<'a> {
                     Some(declaration) => Some(declaration),
                     None => self
                         .links
-                        .symbol(export_symbol)
-                        .type_only_declaration
+                        .read_symbol(export_symbol, |links| links.type_only_declaration)
                         .flatten(),
                 };
                 self.links.set_symbol_type_only_declaration(
@@ -3524,8 +3545,7 @@ impl<'a> CheckerState<'a> {
         }
         Ok(self
             .links
-            .symbol(source_symbol)
-            .type_only_declaration
+            .read_symbol(source_symbol, |links| links.type_only_declaration)
             .flatten()
             .is_some())
     }
@@ -3560,7 +3580,11 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(None);
         }
-        if self.links.symbol(symbol).type_only_declaration.is_none() {
+        if self
+            .links
+            .read_symbol(symbol, |links| links.type_only_declaration)
+            .is_none()
+        {
             self.links
                 .set_symbol_type_only_declaration(self.speculation_depth, symbol, None);
             let resolved = self.resolve_symbol_ex(Some(symbol), false)?;
@@ -3578,7 +3602,10 @@ impl<'a> CheckerState<'a> {
                 None,
             )?;
         }
-        let type_only_declaration = self.links.symbol(symbol).type_only_declaration.flatten();
+        let type_only_declaration = self
+            .links
+            .read_symbol(symbol, |links| links.type_only_declaration)
+            .flatten();
         let Some(include) = include else {
             return Ok(type_only_declaration);
         };
@@ -3595,8 +3622,7 @@ impl<'a> CheckerState<'a> {
             let exports = self.get_exports_of_module(parent)?;
             let lookup_name = self
                 .links
-                .symbol(symbol)
-                .type_only_export_star_name
+                .read_symbol(symbol, |links| links.type_only_export_star_name.clone())
                 .unwrap_or_else(|| self.binder.symbol(symbol).escaped_name.clone());
             let export_symbol = exports.get(&lookup_name).copied();
             self.resolve_symbol_ex(export_symbol, false)?
@@ -3631,7 +3657,9 @@ impl<'a> CheckerState<'a> {
                 .intersects(SymbolFlags::ALIAS),
             "Should only get Alias here."
         );
-        let links_immediate = self.links.symbol(symbol).immediate_target;
+        let links_immediate = self
+            .links
+            .read_symbol(symbol, |links| links.immediate_target);
         if let Some(immediate) = links_immediate {
             return Ok(immediate);
         }
@@ -3656,7 +3684,10 @@ impl<'a> CheckerState<'a> {
     /// itself remains auto-typed. The export=-type-annotation arm
     /// remains behind the broader JS source-type boundary.
     pub(crate) fn get_type_of_alias(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
-        if let Some(cached) = self.links.symbol(symbol).type_of_symbol.resolved() {
+        if let Some(cached) = self
+            .links
+            .read_symbol(symbol, |links| links.type_of_symbol.resolved())
+        {
             return Ok(cached);
         }
         if !self.push_type_resolution(
@@ -3731,7 +3762,10 @@ impl<'a> CheckerState<'a> {
         } else {
             self.report_circularity_error(export_symbol.unwrap_or(symbol))
         };
-        if let Some(already) = self.links.symbol(symbol).type_of_symbol.resolved() {
+        if let Some(already) = self
+            .links
+            .read_symbol(symbol, |links| links.type_of_symbol.resolved())
+        {
             return Ok(already);
         }
         self.links
@@ -7396,7 +7430,10 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(Some(exported));
         }
-        if let Some(merged) = self.links.symbol(exported).cjs_export_merged {
+        if let Some(merged) = self
+            .links
+            .read_symbol(exported, |links| links.cjs_export_merged)
+        {
             return Ok(Some(merged));
         }
         let merged = if self
@@ -7677,7 +7714,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(None);
         }
-        if let Some(memo) = self.links.ty(ty).default_only_type {
+        if let Some(memo) = self.links.read_ty(ty, |links| links.default_only_type) {
             return Ok(Some(memo));
         }
         let default_only =
@@ -7702,7 +7739,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(ty);
         }
-        if let Some(memo) = self.links.ty(ty).synthetic_type {
+        if let Some(memo) = self.links.read_ty(ty, |links| links.synthetic_type) {
             return Ok(memo);
         }
         let file_index = self.source_file_index_of_symbol(original_symbol);
@@ -7849,7 +7886,10 @@ impl<'a> CheckerState<'a> {
         &mut self,
         module_symbol: SymbolId,
     ) -> CheckResult<SymbolTable> {
-        if let LinkSlot::Resolved(exports) = self.links.symbol(module_symbol).resolved_exports {
+        if let LinkSlot::Resolved(exports) = self
+            .links
+            .read_symbol(module_symbol, |links| links.resolved_exports.clone())
+        {
             return Ok(exports);
         }
         let (exports, type_only_export_star_map) =
@@ -9450,7 +9490,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 230cca270e69688831e489ada99f4658563ce2394ee48cf2beae61b44380947b
     /// tsc-span: _tsc.js:56560-56579
     fn get_type_from_import_attributes(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        if let Some(cached) = self.links.node(node).resolved_type.resolved() {
+        if let Some(cached) = self
+            .links
+            .read_node(node, |links| links.resolved_type.resolved())
+        {
             return Ok(cached);
         }
         let object_symbol = self.binder.create_symbol(
@@ -10331,7 +10374,10 @@ impl<'a> CheckerState<'a> {
             return Ok(());
         };
         let module_symbol = self.get_merged_symbol(module_symbol);
-        if self.links.symbol(module_symbol).exports_checked {
+        if self
+            .links
+            .read_symbol(module_symbol, |links| links.exports_checked)
+        {
             return Ok(());
         }
         let export_equals_symbol = self

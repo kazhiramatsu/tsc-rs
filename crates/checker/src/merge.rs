@@ -190,8 +190,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn merge_js_symbols(&mut self, target: SymbolId, source: SymbolId) -> SymbolId {
         if let Some(inferred) = self
             .links
-            .symbol(source)
-            .inferred_class_symbols
+            .read_symbol(source, |links| links.inferred_class_symbols.clone())
             .get(&target)
             .copied()
         {
@@ -460,11 +459,10 @@ impl<'a> CheckerState<'a> {
                 NodeData::ComputedPropertyName(_)
             ) && !self
                 .links
-                .symbol(symbol)
-                .check_flags
+                .read_symbol(symbol, |links| links.check_flags)
                 .intersects(tsc_types::CheckFlags::LATE);
             if is_early_computed {
-                if let Some(name_type) = self.links.symbol(symbol).name_type {
+                if let Some(name_type) = self.links.read_symbol(symbol, |links| links.name_type) {
                     let flags = self.tables.flags_of(name_type);
                     if flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL) {
                         let name = match &self.tables.type_of(name_type).data {

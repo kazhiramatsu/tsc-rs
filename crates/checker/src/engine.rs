@@ -490,7 +490,11 @@ impl<'a> CheckerState<'a> {
                 .intersects(ObjectFlags::REFERENCE)
                 && !matches!(self.tables.type_of(ty).data, TypeData::TupleTarget(_))
             {
-                if self.links.ty(ty).deferred_node.is_some() {
+                if self
+                    .links
+                    .read_ty(ty, |links| links.deferred_node)
+                    .is_some()
+                {
                     let target = self.tables.reference_target(ty);
                     let arguments = self.get_type_arguments(ty)?;
                     self.create_normalized_type_reference_forced(target, &arguments)?
@@ -558,7 +562,8 @@ impl<'a> CheckerState<'a> {
                     .object_flags_of(ty)
                     .intersects(ObjectFlags::IDENTICAL_BASE_TYPE_EXISTS)
                 {
-                    self.links.ty(ty).cached_equivalent_base_type
+                    self.links
+                        .read_ty(ty, |links| links.cached_equivalent_base_type)
                 } else {
                     None
                 },
@@ -4082,7 +4087,10 @@ impl<'a> CheckerState<'a> {
         &mut self,
         union: TypeId,
     ) -> CheckResult<Option<EscapedName>> {
-        if let Some(cached) = self.links.ty(union).union_key_property.resolved() {
+        if let Some(cached) = self
+            .links
+            .read_ty(union, |links| links.union_key_property.resolved())
+        {
             return Ok(cached.name);
         }
         let TypeData::Union { types, .. } = self.tables.type_of(union).data.clone() else {
@@ -4462,9 +4470,7 @@ impl<'a> CheckerState<'a> {
         let unknown = self.tables.intrinsics.unknown;
         let result = self
             .links
-            .ty(union)
-            .union_key_property
-            .resolved()
+            .read_ty(union, |links| links.union_key_property.resolved())
             .and_then(|cached| {
                 cached
                     .constituent_map
@@ -4590,7 +4596,7 @@ impl<'a> CheckerState<'a> {
                 .object_flags_of(ty)
                 .intersects(ObjectFlags::REFERENCE)
             {
-                if let Some(node) = self.links.ty(ty).deferred_node {
+                if let Some(node) = self.links.read_ty(ty, |links| links.deferred_node) {
                     return RecursionIdentity::Node(node);
                 }
             }

@@ -537,7 +537,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                                 .alias_type_arguments
                                 .clone()
                                 .expect("same-alias pairs both carry alias arguments");
-                            let params = self.st.links.symbol(alias_symbol).type_parameters.clone();
+                            let params = self
+                                .st
+                                .links
+                                .read_symbol(alias_symbol, |links| links.type_parameters.clone());
                             let min_arguments =
                                 self.st.get_min_type_argument_count(params.as_deref());
                             let source_types = self
@@ -4622,8 +4625,9 @@ impl<'a> CheckerState<'a> {
                     .intersects(SymbolFlags::VALUE_MODULE)
                     && self
                         .links
-                        .symbol(module_symbol)
-                        .type_only_export_star_map
+                        .read_symbol(module_symbol, |links| {
+                            links.type_only_export_star_map.clone()
+                        })
                         .as_ref()
                         .is_some_and(|map| map.contains_key(name.as_bytes()))
             });
@@ -4664,7 +4668,10 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
     ) -> CheckResult<Vec<SymbolId>> {
-        if let Some(cached) = self.links.ty(ty).resolved_properties.resolved() {
+        if let Some(cached) = self
+            .links
+            .read_ty(ty, |links| links.resolved_properties.resolved())
+        {
             return Ok(cached.to_vec());
         }
         let is_union = self.tables.flags_of(ty).intersects(TypeFlags::UNION);
@@ -4978,7 +4985,10 @@ impl<'a> CheckerState<'a> {
                 .object_flags_of(ty)
                 .intersects(ObjectFlags::CONTAINS_INTERSECTIONS)
         {
-            if let Some(cached) = self.links.ty(ty).resolved_reduced_type.resolved() {
+            if let Some(cached) = self
+                .links
+                .read_ty(ty, |links| links.resolved_reduced_type.resolved())
+            {
                 return Ok(cached);
             }
             let reduced = self.get_reduced_union_type(ty)?;
@@ -5043,9 +5053,7 @@ impl<'a> CheckerState<'a> {
         if self.tables.flags_of(reduced).intersects(TypeFlags::UNION)
             && self
                 .links
-                .ty(reduced)
-                .resolved_reduced_type
-                .resolved()
+                .read_ty(reduced, |links| links.resolved_reduced_type.resolved())
                 .is_none()
         {
             self.links
@@ -5368,12 +5376,13 @@ impl<'a> CheckerState<'a> {
                     .symbol_flags(single_prop)
                     .intersects(SymbolFlags::TRANSIENT);
                 let links_type = if transient {
-                    self.links.symbol(single_prop).type_of_symbol.resolved()
+                    self.links
+                        .read_symbol(single_prop, |links| links.type_of_symbol.resolved())
                 } else {
                     None
                 };
                 let links_mapper = if transient {
-                    self.links.symbol(single_prop).mapper
+                    self.links.read_symbol(single_prop, |links| links.mapper)
                 } else {
                     None
                 };
@@ -5425,7 +5434,7 @@ impl<'a> CheckerState<'a> {
             if first_type.is_none() {
                 first_type = Some(ty);
                 // 59206: nameType rides the FIRST member.
-                name_type = self.links.symbol(prop).name_type;
+                name_type = self.links.read_symbol(prop, |links| links.name_type);
             }
             // 59209-59213: writeTypes materializes (seeded with the
             // read types so far) as soon as any member's write type
@@ -5643,7 +5652,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: a83648d039471a61a67a19bbf1a35c6a4bee49544839d279d7194fcf8a6ad7a4
     /// tsc-span: _tsc.js:17433-17435
     pub fn get_check_flags(&self, symbol: SymbolId) -> CheckFlags {
-        self.links.symbol(symbol).check_flags
+        self.links.read_symbol(symbol, |links| links.check_flags)
     }
 
     /// tsc-port: isReadonlySymbol @6.0.3
@@ -5770,8 +5779,7 @@ impl<'a> CheckerState<'a> {
             .intersects(CheckFlags::INSTANTIATED)
         {
             self.links
-                .symbol(symbol)
-                .target
+                .read_symbol(symbol, |links| links.target)
                 .expect("Instantiated check flag implies links.target")
         } else {
             symbol
@@ -5885,7 +5893,10 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(false);
         }
-        if let Some(cached) = self.links.symbol(prop).is_discriminant_property {
+        if let Some(cached) = self
+            .links
+            .read_symbol(prop, |links| links.is_discriminant_property)
+        {
             return Ok(cached);
         }
         let check_flags = self.get_check_flags(prop);
@@ -6127,8 +6138,7 @@ impl<'a> CheckerState<'a> {
             return 0;
         };
         self.links
-            .symbol(symbol)
-            .type_parameters
+            .read_symbol(symbol, |links| links.type_parameters.clone())
             .as_deref()
             .map_or(0, <[TypeId]>::len)
     }
@@ -6149,8 +6159,7 @@ impl<'a> CheckerState<'a> {
         if self.get_check_flags(prop).intersects(CheckFlags::SYNTHETIC) {
             let containing = self
                 .links
-                .symbol(prop)
-                .containing_type
+                .read_symbol(prop, |links| links.containing_type)
                 .expect("synthetic properties carry their containing type");
             let name = self.binder.symbol(prop).escaped_name.clone();
             let types = match &self.tables.type_of(containing).data {
@@ -6327,7 +6336,7 @@ impl<'a> CheckerState<'a> {
                 clone.value_declaration = value_declaration;
             }
         }
-        if let Some(name_type) = self.links.symbol(source).name_type {
+        if let Some(name_type) = self.links.read_symbol(source, |links| links.name_type) {
             self.links
                 .set_symbol_name_type(self.speculation_depth, symbol, Some(name_type));
         }
@@ -6674,9 +6683,7 @@ impl<'a> CheckerState<'a> {
                 let result = self.create_resolved_empty_anonymous_type(symbol);
                 let result_members = self
                     .links
-                    .ty(result)
-                    .resolved_members
-                    .resolved()
+                    .read_ty(result, |links| links.resolved_members.resolved())
                     .expect("freshly created anonymous types carry resolved members");
                 let stripped = crate::state::ResolvedMembers {
                     members: resolved.members.clone(),
@@ -7373,7 +7380,10 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(result);
         }
-        if let Some(cached) = self.links.ty(ty).array_fallback_signatures.resolved() {
+        if let Some(cached) = self
+            .links
+            .read_ty(ty, |links| links.array_fallback_signatures.resolved())
+        {
             return Ok(cached.into_vec());
         }
 
@@ -7423,7 +7433,10 @@ impl<'a> CheckerState<'a> {
             }
             member_name.get_or_insert(name);
 
-            let Some(mapper) = self.links.ty(constituent).instantiated_mapper else {
+            let Some(mapper) = self
+                .links
+                .read_ty(constituent, |links| links.instantiated_mapper)
+            else {
                 eligible = false;
                 break;
             };

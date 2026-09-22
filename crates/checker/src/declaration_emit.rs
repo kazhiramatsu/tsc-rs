@@ -554,14 +554,17 @@ impl CheckerState<'_> {
     /// NodeLinks.isVisible write. The display slice remains read-only.
     pub(crate) fn emit_is_declaration_visible(&mut self, declaration: NodeId) -> CheckResult<bool> {
         let _replay_call = DeclarationReplayCallGuard::enter("resolver.isDeclarationVisible");
-        if let Some(visible) = self.links.node(declaration).is_visible {
+        if let Some(visible) = self.links.read_node(declaration, |links| links.is_visible) {
             return Ok(visible);
         }
         let visible = self.emit_determine_declaration_is_visible(declaration)?;
         self.links
             .set_node_is_visible(self.speculation_depth, declaration, visible);
         record_declaration_replay_visibility_write(declaration, visible);
-        Ok(self.links.node(declaration).is_visible.unwrap_or(visible))
+        Ok(self
+            .links
+            .read_node(declaration, |links| links.is_visible)
+            .unwrap_or(visible))
     }
 
     fn emit_determine_declaration_is_visible(&mut self, declaration: NodeId) -> CheckResult<bool> {
@@ -2935,7 +2938,7 @@ impl CheckerState<'_> {
         for file_index in 0..self.binder.file_count() {
             let source = self.binder.source(file_index);
             for node in source.arena.node_ids() {
-                let Some(value) = self.links.node(node).is_visible else {
+                let Some(value) = self.links.read_node(node, |links| links.is_visible) else {
                     continue;
                 };
                 let coordinate = self.declaration_replay_project_node(node, file_map)?;

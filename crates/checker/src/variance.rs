@@ -61,9 +61,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_alias_variances(&mut self, symbol: SymbolId) -> CheckResult<VariancesResult> {
         let type_parameters = self
             .links
-            .symbol(symbol)
-            .type_parameters
-            .clone()
+            .read_symbol(symbol, |links| links.type_parameters.clone())
             .unwrap_or_default();
         self.get_variances_worker(symbol, &type_parameters)
     }
@@ -81,7 +79,10 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
         type_parameters: &[TypeId],
     ) -> CheckResult<VariancesResult> {
-        match &self.links.symbol(symbol).variances {
+        match &self
+            .links
+            .read_symbol(symbol, |links| links.variances.clone())
+        {
             LinkSlot::Resolved(list) => return Ok(VariancesResult::Known(list.clone())),
             LinkSlot::Resolving => return Ok(VariancesResult::InProgress),
             LinkSlot::Vacant => {}
@@ -216,9 +217,7 @@ impl<'a> CheckerState<'a> {
         {
             let type_parameters = self
                 .links
-                .symbol(symbol)
-                .type_parameters
-                .clone()
+                .read_symbol(symbol, |links| links.type_parameters.clone())
                 .unwrap_or_default();
             let arguments = self.instantiate_types(&type_parameters, mapper)?;
             self.get_type_alias_instantiation(

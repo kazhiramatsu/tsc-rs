@@ -236,7 +236,10 @@ impl<'a> CheckerState<'a> {
                     )
                     .intersects(ModifierFlags::PRIVATE)
                         || self.kind_of(name) == SyntaxKind::PrivateIdentifier;
-                    if self.links.symbol(symbol).is_referenced.is_empty()
+                    if self
+                        .links
+                        .read_symbol(symbol, |links| links.is_referenced)
+                        .is_empty()
                         && private
                         && !NodeFlags::from_bits(self.node_flags(member))
                             .intersects(NodeFlags::AMBIENT)
@@ -258,7 +261,10 @@ impl<'a> CheckerState<'a> {
                     };
                     for parameter in self.nodes_of(parameters) {
                         let symbol = self.get_symbol_of_declaration(parameter)?;
-                        if !self.links.symbol(symbol).is_referenced.is_empty()
+                        if !self
+                            .links
+                            .read_symbol(symbol, |links| links.is_referenced)
+                            .is_empty()
                             || !node_util::has_syntactic_modifier(
                                 self.binder.source_of_node(parameter),
                                 parameter,
@@ -455,8 +461,7 @@ impl<'a> CheckerState<'a> {
         let symbol = self.get_symbol_of_declaration(type_parameter)?;
         Ok(!self
             .links
-            .symbol(symbol)
-            .is_referenced
+            .read_symbol(symbol, |links| links.is_referenced)
             .intersects(SymbolFlags::TYPE_PARAMETER)
             && !self.identifier_starts_with_underscore(name))
     }
@@ -483,7 +488,7 @@ impl<'a> CheckerState<'a> {
         // tsc-span: _tsc.js:83095-83134
         for local in locals {
             let symbol = self.binder.symbol(local);
-            let referenced = self.links.symbol(local).is_referenced;
+            let referenced = self.links.read_symbol(local, |links| links.is_referenced);
             if symbol.flags.intersects(SymbolFlags::TYPE_PARAMETER) {
                 if !symbol.flags.intersects(SymbolFlags::VARIABLE)
                     || referenced.intersects(SymbolFlags::VARIABLE)

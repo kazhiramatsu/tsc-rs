@@ -386,7 +386,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(ty);
         }
-        if let Some(literal) = self.links.ty(ty).literal_type {
+        if let Some(literal) = self.links.read_ty(ty, |links| links.literal_type) {
             return Ok(literal);
         }
         let literal = self.tables.clone_type_reference(ty);
@@ -440,7 +440,10 @@ impl<'a> CheckerState<'a> {
         let Some(expression) = expression else {
             return Ok(self.tables.intrinsics.error);
         };
-        if let Some(cached) = self.links.node(expression).resolved_type.resolved() {
+        if let Some(cached) = self
+            .links
+            .read_node(expression, |links| links.resolved_type.resolved())
+        {
             return Ok(cached);
         }
         // The `[K in T]` member parse-recovery arm: a type-literal/
@@ -477,9 +480,7 @@ impl<'a> CheckerState<'a> {
         let ty = self.check_expression(expression, CheckMode::NORMAL)?;
         if self
             .links
-            .node(expression)
-            .resolved_type
-            .resolved()
+            .read_node(expression, |links| links.resolved_type.resolved())
             .is_none()
         {
             self.links.set_node_resolved_type(
@@ -537,9 +538,7 @@ impl<'a> CheckerState<'a> {
         }
         Ok(self
             .links
-            .node(expression)
-            .resolved_type
-            .resolved()
+            .read_node(expression, |links| links.resolved_type.resolved())
             .unwrap_or(ty))
     }
 
@@ -1013,12 +1012,14 @@ impl<'a> CheckerState<'a> {
         acc.contextual_type =
             self.get_apparent_type_of_contextual_type(node, ContextFlags::NONE)?;
         acc.contextual_type_has_pattern = acc.contextual_type.is_some_and(|contextual| {
-            self.links.ty(contextual).pattern.is_some_and(|pattern| {
-                matches!(
-                    self.kind_of(pattern),
-                    SyntaxKind::ObjectBindingPattern | SyntaxKind::ObjectLiteralExpression
-                )
-            })
+            self.links
+                .read_ty(contextual, |links| links.pattern)
+                .is_some_and(|pattern| {
+                    matches!(
+                        self.kind_of(pattern),
+                        SyntaxKind::ObjectBindingPattern | SyntaxKind::ObjectLiteralExpression
+                    )
+                })
         });
         acc.in_const_context = self.is_const_context(node)?;
         acc.check_flags = if acc.in_const_context {
@@ -1647,7 +1648,7 @@ impl<'a> CheckerState<'a> {
                     .set_fresh_symbol_type(result, crate::links::LinkSlot::Resolved(result_type));
                 let declarations = self.binder.symbol(prop).declarations.clone();
                 self.binder.symbol_mut(result).declarations = declarations;
-                let name_type = self.links.symbol(prop).name_type;
+                let name_type = self.links.read_symbol(prop, |links| links.name_type);
                 self.links
                     .set_symbol_name_type(self.speculation_depth, result, name_type);
                 self.links
@@ -1876,7 +1877,7 @@ impl<'a> CheckerState<'a> {
                     let mut declarations = left_declarations;
                     declarations.extend(right_declarations);
                     self.binder.symbol_mut(result).declarations = declarations;
-                    let name_type = self.links.symbol(left_prop).name_type;
+                    let name_type = self.links.read_symbol(left_prop, |links| links.name_type);
                     self.links
                         .set_symbol_name_type(self.speculation_depth, result, name_type);
                     members.insert(name, result);
@@ -1978,7 +1979,7 @@ impl<'a> CheckerState<'a> {
             .set_fresh_symbol_type(result, crate::links::LinkSlot::Resolved(result_type));
         let declarations = self.binder.symbol(prop).declarations.clone();
         self.binder.symbol_mut(result).declarations = declarations;
-        let name_type = self.links.symbol(prop).name_type;
+        let name_type = self.links.read_symbol(prop, |links| links.name_type);
         self.links
             .set_symbol_name_type(self.speculation_depth, result, name_type);
         self.links

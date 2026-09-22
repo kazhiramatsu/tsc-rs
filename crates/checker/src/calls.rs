@@ -1019,7 +1019,10 @@ impl<'a> CheckerState<'a> {
         let parent = self
             .parent_of(decorator)
             .expect("decorators hang off their decorated node");
-        if let Some(existing) = self.links.node(parent).decorator_signature {
+        if let Some(existing) = self
+            .links
+            .read_node(parent, |links| links.decorator_signature)
+        {
             return Ok((existing != self.any_signature).then_some(existing));
         }
         let sentinel = self.any_signature;
@@ -1146,7 +1149,10 @@ impl<'a> CheckerState<'a> {
         let parent = self
             .parent_of(decorator)
             .expect("decorators hang off their decorated node");
-        if let Some(existing) = self.links.node(parent).decorator_signature {
+        if let Some(existing) = self
+            .links
+            .read_node(parent, |links| links.decorator_signature)
+        {
             return Ok((existing != self.any_signature).then_some(existing));
         }
         let sentinel = self.any_signature;
@@ -1502,9 +1508,7 @@ impl<'a> CheckerState<'a> {
         let override_type = self.create_resolved_empty_anonymous_type(None);
         let members_id = self
             .links
-            .ty(override_type)
-            .resolved_members
-            .resolved()
+            .read_ty(override_type, |links| links.resolved_members.resolved())
             .expect("freshly created anonymous types carry resolved members");
         let resolved = self.members_mut(members_id);
         resolved.members = members;
@@ -3467,7 +3471,10 @@ impl<'a> CheckerState<'a> {
         let mut factory_text = factory_namespace.as_js().to_owned();
         factory_text.push_str(".createElement");
         let mut related: Vec<RelatedInfo> = Vec::new();
-        if let Some(tag_symbol) = self.links.node(tag_name).resolved_symbol.resolved() {
+        if let Some(tag_symbol) = self
+            .links
+            .read_node(tag_name, |links| links.resolved_symbol.resolved())
+        {
             if let Some(declaration) = self.binder.symbol(tag_symbol).value_declaration {
                 related.push(self.related_info_for_node(
                     declaration,
@@ -4132,7 +4139,10 @@ impl<'a> CheckerState<'a> {
         // 76621-76625: a re-entrant resolution (context-sensitive arg →
         // contextual read → getResolvedSignature of the SAME node) may
         // have concretely resolved the links mid-flight.
-        if let LinkSlot::Resolved(resolved) = self.links.node(node).resolved_signature {
+        if let LinkSlot::Resolved(resolved) = self
+            .links
+            .read_node(node, |links| links.resolved_signature.clone())
+        {
             return Ok(resolved);
         }
         if let Some(result) = result {
@@ -4167,7 +4177,10 @@ impl<'a> CheckerState<'a> {
                 /*is_single_non_generic_candidate*/ false,
                 true,
             )?;
-            if let LinkSlot::Resolved(resolved) = self.links.node(node).resolved_signature {
+            if let LinkSlot::Resolved(resolved) = self
+                .links
+                .read_node(node, |links| links.resolved_signature.clone())
+            {
                 return Ok(resolved);
             }
             if let Some(retry) = retry {
@@ -5598,8 +5611,9 @@ impl<'a> CheckerState<'a> {
             _ => None,
         });
         if parent_call_args == Some(0) {
-            if let LinkSlot::Resolved(resolved_symbol) =
-                self.links.node(error_target).resolved_symbol
+            if let LinkSlot::Resolved(resolved_symbol) = self
+                .links
+                .read_node(error_target, |links| links.resolved_symbol.clone())
             {
                 if self
                     .binder
@@ -6793,7 +6807,9 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         check_mode: CheckMode,
     ) -> CheckResult<SignatureId> {
-        let cached = self.links.node(node).resolved_signature.clone();
+        let cached = self
+            .links
+            .read_node(node, |links| links.resolved_signature.clone());
         if let LinkSlot::Resolved(cached) = cached {
             return Ok(cached);
         }
@@ -6846,7 +6862,11 @@ impl<'a> CheckerState<'a> {
                     // failure stash survives the Resolving-gated
                     // revert instead and feeds contextual reads, so it
                     // never reaches here as Vacant).
-                    if matches!(self.links.node(node).resolved_signature, LinkSlot::Vacant) {
+                    if matches!(
+                        self.links
+                            .read_node(node, |links| links.resolved_signature.clone()),
+                        LinkSlot::Vacant
+                    ) {
                         self.contained_call_resolutions.insert(node);
                     }
                 } else {
