@@ -133,12 +133,12 @@ fn mixed_operations_match_a_linear_ledger() {
                 });
                 reference[position].message.category = DiagnosticCategory::Suggestion;
             }
-            2 if !reference.is_empty() => {
+            3 if !reference.is_empty() => {
                 let position = value % reference.len();
                 sink[position] = diagnostic.clone();
                 reference[position] = diagnostic;
             }
-            3 if reference.len() > 64 => {
+            2 if reference.len() > 64 => {
                 let len = reference.len() - value % 5;
                 sink.truncate(len);
                 reference.truncate(len);

@@ -2,7 +2,9 @@
 
 Build each compiler before measuring, then run the benchmark separately from
 builds, tests and profilers. `scripts/benchmark-cli.py` uses Python's standard
-library on macOS or Linux; it adds no compiler dependency.
+library on macOS or Linux; it adds no compiler dependency. Use Python 3.13 or
+newer on macOS ([`waitid`](https://docs.python.org/3/library/os.html#os.waitid)
+is required).
 
 Provide a JSON plan with absolute paths to fixed binaries and input directories:
 
@@ -51,6 +53,8 @@ to the case and configure the compiler to emit there. **That directory is
 deleted before every invocation**; use a dedicated disposable project copy.
 It must be a direct child of `cwd`. Include every external library, config and
 dependency directory in `extra_inputs` so their hashes are recorded and checked.
+Directory symlinks are recorded but not traversed; include their resolved target
+directories in `extra_inputs` as well (for example, linked package stores).
 Each executable in `command[0]` is hashed; scripts passed as later arguments
 must also be covered by the input directories.
 
@@ -77,14 +81,18 @@ The warmup count applies to each compiler in each case and session.
 
 `samples.jsonl` contains every invocation, including preflight and warmups.
 The runner spawns each CLI directly, measures wall time through completion,
-and collects that child's CPU time and peak RSS with `wait4`. Hashing, output
+and collects that child's CPU time and peak RSS with `wait4`. A non-reaping
+`waitid` observes completion before the timeout is disarmed, avoiding a deadline
+racing with reaping. Hashing, output
 cleanup and log processing occur outside the timed interval. A timeout kills
-the child's process group. A separate `/usr/bin/true` probe records the harness
-and process-startup floor, which is never subtracted from compiler times.
+the child's process group. A separate `/usr/bin/true` probe at the start and end
+of each session records the harness and process-startup floor, which is never
+subtracted from compiler times. Each sample also records the system load average.
 
 `summary.json` reports each session separately: median, quartiles, MAD, range,
 CPU time and peak RSS. If `pair` is set, it also reports the median paired wall
-time ratio and a 95% percentile bootstrap interval over rounds. This interval
+time ratio (`pair[0] / pair[1]`, so above 1 means the second variant is faster)
+and a 95% percentile bootstrap interval over rounds. This interval
 describes that session's samples; it does not account for systematic machine,
 cache, temperature or workload selection effects. Keep noisy and short cases
 visible, and avoid claiming general application performance from synthetic
@@ -96,10 +104,3 @@ For a pinned tsgo build supporting `--checkers`, compare `--checkers 1`, `2`,
 it limits Go CPU parallelism, not the number of checkers. A
 `--singleThreaded` run with `GOMAXPROCS=1` is a useful serial control. Keep exact
 diagnostic/output comparisons enabled for every setting.
-
-The experimental low-level Rust API now stores `CheckerState::diagnostics` in
-`DiagnosticSink`, preserving insertion order and returned indices. Reading and
-mutating it through Vec methods is supported; unrestricted mutation invalidates
-the lookup index. To assign an existing `Vec<Diagnostic>`, use `.into()`; to take
-out the underlying vector, use `.into_vec()`. The higher-level check results
-continue to expose diagnostic vectors. This API is still being developed.

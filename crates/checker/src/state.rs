@@ -739,6 +739,9 @@ pub struct CheckerState<'a> {
     // ---- M4 5.0: the diags sink ----
     /// tsc `diagnostics` (createDiagnosticCollection) — the semantic
     /// sink; the driver (5.4) drains it per program.
+    /// Experimental API: Vec access preserves order; arbitrary mutation
+    /// invalidates the lookup index. Assign a Vec with `.into()`, or extract
+    /// it with `.into_vec()`. Higher-level check results still expose Vecs.
     pub diagnostics: DiagnosticSink,
     /// File-less diagnostics that tsc adds after its
     /// previousGlobalDiagnostics snapshot and therefore exposes from

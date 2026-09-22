@@ -2460,7 +2460,8 @@ impl<'a> CheckerState<'a> {
             &[],
         );
         let related = self.related_info_for_node_js(return_type_node, message, &[type_name]);
-        self.diagnostics[diagnostic].related.push(related);
+        self.diagnostics
+            .update(diagnostic, |diagnostic| diagnostic.related.push(related));
     }
 
     /// getEntityNameFromTypeNode (14623-14635).
