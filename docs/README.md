@@ -12,6 +12,8 @@ preserved at tag `v1-final`.
   lineage rather than current H2 implementation instructions.
 - [setup.md](setup.md): requirements (pinned Rust/Node toolchains) and
   the verification commands.
+- [benchmarking.md](benchmarking.md): reproducible CLI comparisons, correctness
+  checks, variation across runs, and multi-file tsgo parallelism controls.
 - [NOTES-m1.md](NOTES-m1.md): M1 final-gate triage — the one-line
   classification of every residual parser mismatch at M1 close.
 - [NOTES-m4.md](NOTES-m4.md): M4 close notes — close-state record,

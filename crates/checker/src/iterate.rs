@@ -389,7 +389,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<(T, Vec<Diagnostic>)> {
         let saved = std::mem::take(&mut self.diagnostics);
         let result = f(self);
-        let collected = std::mem::replace(&mut self.diagnostics, saved);
+        let collected = std::mem::replace(&mut self.diagnostics, saved).into_vec();
         match result {
             Ok(value) => Ok((value, collected)),
             Err(err) => {

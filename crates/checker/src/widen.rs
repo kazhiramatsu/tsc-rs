@@ -655,8 +655,10 @@ impl<'a> CheckerState<'a> {
                                         &[&new_name, &type_name],
                                     );
                                     if !no_implicit_any {
-                                        self.diagnostics[diagnostic_index].message.category =
-                                            tsc_diagnostics::DiagnosticCategory::Suggestion;
+                                        self.diagnostics.update(diagnostic_index, |diagnostic| {
+                                            diagnostic.message.category =
+                                                tsc_diagnostics::DiagnosticCategory::Suggestion;
+                                        });
                                     }
                                     return Ok(());
                                 }
