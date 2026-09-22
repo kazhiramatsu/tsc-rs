@@ -10,7 +10,9 @@
 //! arms, member resolution, signatures) live in the checker; everything
 //! here is pure over TypeIds + flags.
 
-use std::collections::HashMap;
+// Interning tables keyed by compiler-assigned ids or by canonical key
+// strings; never iterated, so the lookup-only hasher applies.
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::flags::{AccessFlags, ElementFlags, ObjectFlags, TypeFlags};
 use crate::ty::{
@@ -214,21 +216,21 @@ impl TypeTables {
                 numeric_string: TypeId(0),
                 unique_literal: TypeId(0),
             },
-            string_literal_types: HashMap::new(),
-            utf8_string_literal_types: HashMap::new(),
-            number_literal_types: HashMap::new(),
-            bigint_literal_types: HashMap::new(),
-            enum_literal_types: HashMap::new(),
-            union_types: HashMap::new(),
-            union_of_union_types: HashMap::new(),
-            intersection_types: HashMap::new(),
-            tuple_types: HashMap::new(),
-            template_literal_types: HashMap::new(),
-            string_mapping_types: HashMap::new(),
-            indexed_access_types: HashMap::new(),
-            substitution_types: HashMap::new(),
+            string_literal_types: HashMap::default(),
+            utf8_string_literal_types: HashMap::default(),
+            number_literal_types: HashMap::default(),
+            bigint_literal_types: HashMap::default(),
+            enum_literal_types: HashMap::default(),
+            union_types: HashMap::default(),
+            union_of_union_types: HashMap::default(),
+            intersection_types: HashMap::default(),
+            tuple_types: HashMap::default(),
+            template_literal_types: HashMap::default(),
+            string_mapping_types: HashMap::default(),
+            indexed_access_types: HashMap::default(),
+            substitution_types: HashMap::default(),
             conditional_roots: Vec::new(),
-            instantiations: HashMap::new(),
+            instantiations: HashMap::default(),
         };
         tables.create_initial_types();
         tables

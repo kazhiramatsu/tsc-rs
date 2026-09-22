@@ -272,12 +272,34 @@ impl SourceFile {
         &mut self,
         domain: &IdentityDomain,
     ) -> Result<(), IdentityError> {
+        let (node_lease, array_lease) = self.lease_identities(domain)?;
+        self.relocate_with_leases(node_lease, array_lease)
+    }
+
+    /// Lease this tree's node and array identity ranges from `domain`
+    /// without touching the tree. Leasing is the only order-dependent step
+    /// of a relocation: a caller leases several trees in program order and
+    /// may then rewrite them on worker threads with
+    /// [`Self::relocate_with_leases`].
+    pub fn lease_identities(
+        &self,
+        domain: &IdentityDomain,
+    ) -> Result<(IdentityLease, IdentityLease), IdentityError> {
         let (node_count, array_count) = self.identity_counts()?;
         let leases = domain.lease_batch(&[
             (IdentitySpace::Node, node_count),
             (IdentitySpace::NodeArray, array_count),
         ])?;
-        let (node_lease, array_lease) = syntax_leases(leases)?;
+        syntax_leases(leases)
+    }
+
+    /// Rewrite every identity of this tree into the leased ranges (the
+    /// second half of [`Self::relocate_into_identity_domain`]).
+    pub fn relocate_with_leases(
+        &mut self,
+        node_lease: IdentityLease,
+        array_lease: IdentityLease,
+    ) -> Result<(), IdentityError> {
         let relocation = self.arena.identity_relocation(&node_lease, &array_lease)?;
         relocation.node(&mut self.root)?;
         if let Some(indicator) = &mut self.external_module_indicator {

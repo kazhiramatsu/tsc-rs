@@ -291,14 +291,19 @@ impl<'text> Scanner<'text> {
                 continue;
             }
 
-            if self.starts_with("//") {
-                self.skip_single_line_comment();
-                continue;
-            }
-
-            if self.starts_with("/*") {
-                self.skip_multi_line_comment();
-                continue;
+            if ch == '/' {
+                // Lookahead past `end` on purpose: see `starts_with`.
+                match self.text.as_bytes().get(self.pos + 1) {
+                    Some(b'/') => {
+                        self.skip_single_line_comment();
+                        continue;
+                    }
+                    Some(b'*') => {
+                        self.skip_multi_line_comment();
+                        continue;
+                    }
+                    _ => {}
+                }
             }
 
             match ch {
@@ -760,6 +765,11 @@ impl<'text> Scanner<'text> {
         std::mem::take(&mut self.errors)
     }
 
+    #[inline]
+    pub(crate) fn has_errors(&self) -> bool {
+        !self.errors.is_empty()
+    }
+
     /// tsc scanner.getCommentDirectives(), moved (parseSourceFileWorker
     /// hands the collected list to the SourceFile once per parse).
     pub(crate) fn take_comment_directives(&mut self) -> Vec<CommentDirective> {
@@ -970,7 +980,27 @@ impl<'text> Scanner<'text> {
     }
 
     fn scan_identifier_parts_with_target(&mut self, language_version: ScriptTarget) {
-        while let Some(ch) = self.current_char() {
+        loop {
+            // ASCII identifier parts are the common case: take the whole run
+            // as one slice (same bytes as the per-character pushes).
+            let run_start = self.pos;
+            let bytes = self.text.as_bytes();
+            let mut run_end = run_start;
+            while run_end < self.end {
+                let byte = bytes[run_end];
+                if byte.is_ascii_alphanumeric() || byte == b'$' || byte == b'_' {
+                    run_end += 1;
+                } else {
+                    break;
+                }
+            }
+            if run_end > run_start {
+                self.token_value.push_str(&self.text[run_start..run_end]);
+                self.pos = run_end;
+            }
+            let Some(ch) = self.current_char() else {
+                break;
+            };
             if chars::is_identifier_part(ch, language_version) {
                 self.token_value.push(ch);
                 self.advance_char();
@@ -992,12 +1022,27 @@ impl<'text> Scanner<'text> {
     }
 
     fn finish_identifier_token(&mut self) -> SyntaxKind {
-        self.token = keywords::keyword_kind(
-            self.token_value
-                .as_str()
-                .expect("identifier parts are Unicode scalars"),
-        )
-        .unwrap_or(SyntaxKind::Identifier);
+        // Without escapes the value is exactly the bytes just consumed, so
+        // the keyword lookup reads the (already valid UTF-8) source slice
+        // instead of re-validating the value.
+        let kind = {
+            let value = self.token_value.as_js();
+            let value_bytes = value.as_bytes();
+            let source = self
+                .pos
+                .checked_sub(value_bytes.len())
+                .and_then(|start| self.text.get(start..self.pos))
+                .filter(|slice| slice.as_bytes() == value_bytes);
+            match source {
+                Some(slice) => keywords::keyword_kind(slice),
+                None => keywords::keyword_kind(
+                    value
+                        .as_str()
+                        .expect("identifier parts are Unicode scalars"),
+                ),
+            }
+        };
+        self.token = kind.unwrap_or(SyntaxKind::Identifier);
         self.token
     }
 
@@ -1824,11 +1869,11 @@ impl<'text> Scanner<'text> {
                 let (digits, is_octal) = self.scan_digits();
                 if !is_octal {
                     self.token_flags.insert(TokenFlags::CONTAINS_LEADING_ZERO);
-                    js_number_to_string(&digits)
+                    std::borrow::Cow::Owned(js_number_to_string(digits))
                 } else if digits.is_empty() {
-                    "0".to_owned()
+                    std::borrow::Cow::Borrowed("0")
                 } else {
-                    let value = trim_leading_zeroes(&digits);
+                    let value = trim_leading_zeroes(digits);
                     self.token_value = (radix_digits_to_decimal_string(value, 8)).into();
                     self.token_flags.insert(TokenFlags::OCTAL);
                     let with_minus = self.token == SyntaxKind::MinusToken;
@@ -1881,7 +1926,7 @@ impl<'text> Scanner<'text> {
         }
 
         let mut result = if self.token_flags.contains(TokenFlags::CONTAINS_SEPARATOR) {
-            let mut result = main_fragment;
+            let mut result = main_fragment.into_owned();
             if let Some(fragment) = &decimal_fragment {
                 result.push('.');
                 result.push_str(fragment);
@@ -1920,11 +1965,11 @@ impl<'text> Scanner<'text> {
         token
     }
 
-    fn scan_number_fragment(&mut self) -> String {
+    fn scan_number_fragment(&mut self) -> std::borrow::Cow<'text, str> {
         let mut start = self.pos;
         let mut allow_separator = false;
         let mut is_previous_token_separator = false;
-        let mut result = String::new();
+        let mut result: Option<String> = None;
 
         loop {
             match self.byte_at(self.pos) {
@@ -1933,7 +1978,9 @@ impl<'text> Scanner<'text> {
                     if allow_separator {
                         allow_separator = false;
                         is_previous_token_separator = true;
-                        result.push_str(&self.text[start..self.pos]);
+                        result
+                            .get_or_insert_with(String::new)
+                            .push_str(&self.text[start..self.pos]);
                     } else {
                         self.token_flags
                             .insert(TokenFlags::CONTAINS_INVALID_SEPARATOR);
@@ -1965,11 +2012,16 @@ impl<'text> Scanner<'text> {
                 &gen::Numeric_separators_are_not_allowed_here,
             );
         }
-        result.push_str(&self.text[start..self.pos]);
-        result
+        match result {
+            Some(mut result) => {
+                result.push_str(&self.text[start..self.pos]);
+                std::borrow::Cow::Owned(result)
+            }
+            None => std::borrow::Cow::Borrowed(&self.text[start..self.pos]),
+        }
     }
 
-    fn scan_digits(&mut self) -> (String, bool) {
+    fn scan_digits(&mut self) -> (&'text str, bool) {
         let start = self.pos;
         let mut is_octal = true;
         while let Some(byte) = self.byte_at(self.pos) {
@@ -1981,7 +2033,7 @@ impl<'text> Scanner<'text> {
             }
             self.pos += 1;
         }
-        (self.text[start..self.pos].to_owned(), is_octal)
+        (&self.text[start..self.pos], is_octal)
     }
 
     fn scan_hex_digits(
@@ -2123,7 +2175,7 @@ impl<'text> Scanner<'text> {
                     16,
                 )))
                 .into();
-            } else {
+            } else if !is_canonical_js_integer_text(self.numeric_token_value()) {
                 self.token_value = (js_number_to_string(self.numeric_token_value())).into();
             }
             self.token = SyntaxKind::NumericLiteral;
@@ -2221,10 +2273,24 @@ impl<'text> Scanner<'text> {
         if self.pos >= self.end {
             return None;
         }
+        let byte = *self.text.as_bytes().get(self.pos)?;
+        if byte < 0x80 {
+            return Some(byte as char);
+        }
         self.text.get(self.pos..self.end)?.chars().next()
     }
 
     fn advance_char(&mut self) {
+        if self.pos < self.end
+            && self
+                .text
+                .as_bytes()
+                .get(self.pos)
+                .is_some_and(|&byte| byte < 0x80)
+        {
+            self.pos += 1;
+            return;
+        }
         let ch = self
             .current_char()
             .expect("advance_char requires a current character");
@@ -2489,6 +2555,18 @@ fn ascii_digit_value(byte: u8) -> Option<u32> {
         b'a'..=b'f' => Some(u32::from(byte - b'a' + 10)),
         b'A'..=b'F' => Some(u32::from(byte - b'A' + 10)),
         _ => None,
+    }
+}
+
+/// A decimal literal whose ECMA Number#toString is its own text: `0`, or up
+/// to fifteen digits without a leading zero (every such value is below 2^53
+/// and prints in positional form), so `"" + +text` is the identity.
+fn is_canonical_js_integer_text(text: &str) -> bool {
+    let bytes = text.as_bytes();
+    match bytes {
+        [] => false,
+        [b'0'] => true,
+        [first, ..] => bytes.len() <= 15 && *first != b'0' && bytes.iter().all(u8::is_ascii_digit),
     }
 }
 

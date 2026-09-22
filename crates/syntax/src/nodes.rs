@@ -31,6 +31,10 @@ pub struct NodeArray {
     pub has_trailing_comma: bool,
     /// tsc createMissingList's isMissingList marker.
     pub is_missing_list: bool,
+    /// tsc NodeArray.transformFlags: written only on an emit session's
+    /// detached copy of the tree (the emitter's transform-flag classifier);
+    /// zero on every parsed array.
+    pub transform_flags: i32,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -45,6 +49,10 @@ pub enum NodePayload {
 pub struct Node {
     pub kind: SyntaxKind,
     pub flags: i32,
+    /// tsc Node.transformFlags: written only on an emit session's detached
+    /// copy of the tree (the emitter's transform-flag classifier and factory);
+    /// zero on every parsed node.
+    pub transform_flags: i32,
     /// tsc NumericLiteral.numericLiteralFlags; zero on every other node kind.
     pub numeric_literal_flags: i32,
     /// Parser-owned TemplateLiteralLikeNode.templateFlags; zero on other node kinds.
