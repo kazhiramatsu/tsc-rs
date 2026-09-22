@@ -1,6 +1,7 @@
 use crate::artifact::EmitCallbackText;
 use tsc_diagnostics::{gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList, MessageChain};
 use tsc_diagnostics::{JsStr, JsString};
+use tsc_program::SourceFileId;
 use tsc_types::{CompilerOptions, ScriptTarget};
 
 use crate::builtins::{
@@ -774,6 +775,11 @@ pub(crate) fn transformed_source_paths(
         .collect()
 }
 
+/// tsc-port: emitFiles @6.0.3 (_tsc.js:116530-116551) — the whole-Program
+/// script emit over one resolver: validation and the noEmitOnError gate,
+/// then every planned unit in plan order, then the sink writes.
+/// tsrs-native: composed from the three phases below so that a sharded
+/// caller can run the middle phase per checker shard.
 pub fn emit_files_with_activity(
     resolver: &dyn EmitResolver,
     host: &dyn EmitHost,
@@ -783,6 +789,95 @@ pub fn emit_files_with_activity(
     sink: &mut dyn OutputSink,
     activity: &mut H2ActivityCanary,
 ) -> Result<EmitOutcome, EmitFailure> {
+    let session = match begin_emit_files(
+        Some(resolver),
+        host,
+        &preflight,
+        selection,
+        diagnostic_gate,
+        activity,
+    )? {
+        EmitFilesStart::Blocked(outcome) => return Ok(*outcome),
+        EmitFilesStart::Ready(session) => session,
+    };
+    let units = (0..preflight.plan().units().len()).collect::<Vec<_>>();
+    let emissions = emit_planned_units(resolver, host, &preflight, &units, Some(sink), activity)
+        .map_err(|error| error.failure)?;
+    finish_emit_files(session, emissions, sink, activity)
+}
+
+/// The coordinator-side state of one emitFiles execution between its gate
+/// and its sink writes.
+#[derive(Debug)]
+pub struct EmitFilesSession {
+    emitted_files_enabled: bool,
+    map_options_enabled: bool,
+}
+
+/// How emitFiles proceeds after validation and handleNoEmitOptions.
+#[derive(Debug)]
+pub enum EmitFilesStart {
+    /// noEmitOnError found diagnostics: the finished outcome, no unit runs.
+    Blocked(Box<EmitOutcome>),
+    /// The planned units may be transformed and printed.
+    Ready(EmitFilesSession),
+}
+
+/// The products of one planned output unit. Produced by whichever thread
+/// owns an emit resolver for the unit's source; consumed in plan order by
+/// [`finish_emit_files`].
+#[derive(Debug)]
+pub struct UnitEmission {
+    unit: usize,
+    /// JavaScript (map first) then declaration (map first) artifacts of an
+    /// ordinary source root, retained for the finishing write in plan
+    /// order. Bundle roots that wrote through a sink leave this empty.
+    artifacts: Vec<EmitArtifact>,
+    diagnostics: DiagnosticList,
+    map_observations: Vec<SourceMapObservation>,
+    /// Paths a bundle root already wrote through the supplied sink.
+    written_paths: std::collections::BTreeSet<JsString>,
+    javascript_path: Option<JsString>,
+    javascript_map_path: Option<JsString>,
+    declaration_path: Option<JsString>,
+    declaration_map_path: Option<JsString>,
+    emit_skipped: bool,
+}
+
+impl UnitEmission {
+    /// The plan index of the unit these products belong to.
+    pub fn unit(&self) -> usize {
+        self.unit
+    }
+}
+
+/// A failure while transforming or printing one planned unit, with the
+/// unit's plan index so that concurrent producers report the earliest unit.
+#[derive(Debug)]
+pub struct UnitEmitError {
+    pub unit: usize,
+    pub failure: EmitFailure,
+}
+
+const _: () = {
+    const fn assert_send<T: Send>() {}
+    assert_send::<UnitEmission>();
+    assert_send::<UnitEmitError>();
+};
+
+/// Phase 1 of emitFiles: request validation, option observation and
+/// handleNoEmitOptions (_tsc.js:125641-125668). `resolver` is consulted only
+/// when the noEmitOnError gate must run the declaration transform for its
+/// diagnostics; a caller without one resolver for the whole Program routes
+/// that configuration through [`emit_files_with_activity`].
+pub fn begin_emit_files(
+    resolver: Option<&dyn EmitResolver>,
+    host: &dyn EmitHost,
+    preflight: &EmitPreflight,
+    selection: EmitSelection,
+    diagnostic_gate: &EmitDiagnosticGate,
+    activity: &mut H2ActivityCanary,
+) -> Result<EmitFilesStart, EmitFailure> {
     validate_bootstrap_emit_request(host)?;
     observe_source_routing(host, activity);
     let options = host.compiler_options();
@@ -819,7 +914,6 @@ pub fn emit_files_with_activity(
     }
 
     let emitted_files_enabled = options.list_emitted_files == Some(true);
-    let declaration_paths = PlanDeclarationPaths::new(host, &preflight);
     // tsc-port: handleNoEmitOptions @6.0.3
     // tsc-hash: dd8ed6d22974cbe8efc5097db50ffc3bf3aeabd1de0ca9f3a4e0878d3aa87de1
     // tsc-span: _tsc.js:125641-125668
@@ -836,11 +930,15 @@ pub fn emit_files_with_activity(
             if let Some(cached) = &diagnostic_gate.declaration {
                 diagnostics.extend_from_slice(cached);
             } else {
+                let resolver = resolver.ok_or(EmitFailure::Contract(
+                    EmitContractViolation::ProgramResolverRequired,
+                ))?;
+                let declaration_paths: &PlanDeclarationPaths = preflight.declaration_paths(host);
                 for source in crate::get_source_files_to_emit(host, EmitSelection::WholeProgram)? {
                     diagnostics.extend(get_declaration_diagnostics(
                         resolver,
                         host,
-                        &declaration_paths,
+                        declaration_paths,
                         source,
                         activity,
                     )?);
@@ -849,21 +947,68 @@ pub fn emit_files_with_activity(
             sort_and_dedupe_diagnostics(&mut diagnostics);
         }
         if !diagnostics.is_empty() {
-            return Ok(EmitOutcome::new(
+            return Ok(EmitFilesStart::Blocked(Box::new(EmitOutcome::new(
                 diagnostics,
                 true,
                 emitted_files_enabled.then(Vec::new),
                 None,
                 activity.counters(),
-            ));
+            ))));
         }
     }
 
-    let new_line = match options.new_line {
-        Some(0) => NewLineKind::CarriageReturnLineFeed,
-        None | Some(1) => NewLineKind::LineFeed,
-        Some(_) => return unsupported("newLine"),
-    };
+    // The printer options are validated before any unit runs, exactly where
+    // the single-resolver execution validated them.
+    new_line_kind(options)?;
+    // sourceMapDataList is allocated iff a map option is on (116532):
+    // `sourceMap || inlineSourceMap || getAreDeclarationMapsEnabled(options)`.
+    let map_options_enabled = javascript_map_options_enabled(options)
+        || (options.declaration_map == Some(true)
+            && (options.declaration == Some(true) || options.composite == Some(true)));
+    Ok(EmitFilesStart::Ready(EmitFilesSession {
+        emitted_files_enabled,
+        map_options_enabled,
+    }))
+}
+
+fn new_line_kind(options: &CompilerOptions) -> Result<NewLineKind, EmitFailure> {
+    match options.new_line {
+        Some(0) => Ok(NewLineKind::CarriageReturnLineFeed),
+        None | Some(1) => Ok(NewLineKind::LineFeed),
+        Some(_) => unsupported("newLine"),
+    }
+}
+
+fn javascript_map_options_enabled(options: &CompilerOptions) -> bool {
+    options.source_map == Some(true) || options.inline_source_map == Some(true)
+}
+
+/// Phase 2 of emitFiles: transform and print the planned `units` (plan
+/// indices, ascending) with one resolver. Artifacts of ordinary source roots
+/// are returned for [`finish_emit_files`] to write in plan order; a bundle
+/// root writes through `sink` at the same points as emitJsFileOrBundle /
+/// emitDeclarationFileOrBundle when a sink is supplied.
+/// tsrs-native: the per-resolver body of the whole-Program emit; a checker
+/// shard runs it for the units of its own files.
+pub fn emit_planned_units(
+    resolver: &dyn EmitResolver,
+    host: &dyn EmitHost,
+    preflight: &EmitPreflight,
+    units: &[usize],
+    mut sink: Option<&mut dyn OutputSink>,
+    activity: &mut H2ActivityCanary,
+) -> Result<Vec<UnitEmission>, UnitEmitError> {
+    let mut emissions = Vec::with_capacity(units.len());
+    // An eager worker sink writes ordinary source roots as they are printed
+    // (bundle roots always write through a supplied sink).
+    let eager_source_roots = sink
+        .as_deref()
+        .is_some_and(OutputSink::writes_source_roots_eagerly);
+    let options = host.compiler_options();
+    let attach = |unit: usize| move |failure: EmitFailure| UnitEmitError { unit, failure };
+    let first = units.first().copied().unwrap_or(0);
+    let new_line = new_line_kind(options).map_err(attach(first))?;
+    let declaration_paths: &PlanDeclarationPaths = preflight.declaration_paths(host);
     activity.construct_printer();
     let mut printer = create_printer(
         PrinterOptions::new(new_line)
@@ -874,40 +1019,36 @@ pub fn emit_files_with_activity(
             .with_target(options.emit_script_target())
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
-
-    let mut artifacts = Vec::with_capacity(2);
-    let mut written_paths = std::collections::BTreeSet::new();
-    // The list orders each text before its map, while callbacks write each
-    // map before its text. A declaration map is listed whenever its print
-    // branch ran, independently of the sink disposition.
-    struct UnitListing {
-        javascript_path: Option<JsString>,
-        javascript_map_path: Option<JsString>,
-        declaration_path: Option<JsString>,
-        declaration_map_path: Option<JsString>,
-    }
-    let mut unit_listing = Vec::new();
-    // sourceMapDataList is allocated iff a map option is on (116532):
-    // `sourceMap || inlineSourceMap || getAreDeclarationMapsEnabled(options)`.
-    let mut source_map_observations: Vec<SourceMapObservation> = Vec::new();
-    let javascript_map_options_enabled =
-        options.source_map == Some(true) || options.inline_source_map == Some(true);
-    let map_options_enabled = javascript_map_options_enabled
-        || (options.declaration_map == Some(true)
-            && (options.declaration == Some(true) || options.composite == Some(true)));
-    let mut emit_skipped = false;
-    let mut diagnostics: DiagnosticList = Vec::new();
-    for unit in preflight.plan().units() {
+    let javascript_map_options_enabled = javascript_map_options_enabled(options);
+    for &unit_index in units {
+        let unit = &preflight.plan().units()[unit_index];
+        let attach = attach(unit_index);
+        let mut emission = UnitEmission {
+            unit: unit_index,
+            artifacts: Vec::with_capacity(2),
+            diagnostics: Vec::new(),
+            map_observations: Vec::new(),
+            written_paths: std::collections::BTreeSet::new(),
+            javascript_path: None,
+            javascript_map_path: None,
+            declaration_path: None,
+            declaration_map_path: None,
+            emit_skipped: false,
+        };
         let source_id = *unit
             .root()
             .source_files()
             .first()
             .ok_or(EmitFailure::Unsupported(
                 crate::UnsupportedEmitFeature::BundleRoot,
-            ))?;
-        let source = host.source_file(source_id).ok_or(EmitFailure::Contract(
-            EmitContractViolation::PlannedSourceMissing(source_id),
-        ))?;
+            ))
+            .map_err(attach)?;
+        let source = host
+            .source_file(source_id)
+            .ok_or(EmitFailure::Contract(
+                EmitContractViolation::PlannedSourceMissing(source_id),
+            ))
+            .map_err(attach)?;
         let source_path = match unit.root() {
             EmitRoot::SourceFile(_) => Some(source.path()),
             EmitRoot::Bundle(_) => None,
@@ -920,221 +1061,43 @@ pub fn emit_files_with_activity(
 
         if let Some(javascript_path) = javascript_path.as_ref().map(JsString::as_js) {
             if preflight.is_emit_blocked(host, javascript_path) {
-                emit_skipped = true;
+                emission.emit_skipped = true;
             } else {
-                let mut arena = TransformArena::new();
-                let transform_root = mount_emit_root(&mut arena, host, unit.root())?;
-                // tsc-port: emitJsFileOrBundle @6.0.3 (_tsc.js:116594-116598)
-                // Unchecked sources (noCheck, or a file excluded by
-                // canIncludeBindAndCheckDiagnostics) have their alias
-                // references marked lazily before the script transform so
-                // import elision sees the same `referenced` facts a checked
-                // file would have. Resolvers without a checker
-                // (transform-only fixtures) answer UnavailableForSource and
-                // keep their pre-H2.8c "checked file" assumption.
-                for &file in unit.root().source_files() {
-                    let unchecked = if options.no_check == Some(true) {
-                        true
-                    } else {
-                        match resolver.can_include_bind_and_check_diagnostics(file) {
-                            Ok(can_include) => !can_include,
-                            Err(EmitResolverError::UnavailableForSource { .. }) => false,
-                            Err(error) => return Err(TransformError::from(error).into()),
-                        }
-                    };
-                    if unchecked {
-                        resolver
-                            .mark_linked_references(file)
-                            .map_err(TransformError::from)?;
-                    }
-                }
-                let transformers = get_script_transformers_with_activity(
-                    options, resolver, host, source_id, activity,
-                )?;
-                for &additional_source in unit.root().source_files().iter().skip(1) {
-                    observe_additional_bundle_source_activity(
-                        options,
-                        host,
-                        additional_source,
-                        activity,
-                    );
-                }
-                activity.construct_transform_context();
-                let mut transformation =
-                    transform_nodes(arena, vec![transform_root], transformers, false)?;
-                let transformed_root = match transformation.roots() {
-                    [root] => root.clone(),
-                    _ => {
-                        return Err(EmitFailure::Transform(Box::new(
-                            crate::TransformError::UnsupportedCompilerOption {
-                                option: "script transformer contract",
-                                detail: "script transform must produce exactly one root",
-                            },
-                        )))
-                    }
-                };
-                let source_files =
-                    transformed_source_paths(&transformation, &transformed_root, host)?;
-                let print_request = match &transformed_root {
-                    TransformRoot::SourceFile(source) => PrintRequest::SourceFile(*source),
-                    TransformRoot::Bundle(bundle) => PrintRequest::Bundle(bundle.clone()),
-                };
-                let transform_diagnostics = transformation.diagnostics().to_vec();
-                // tsc-port: shouldEmitSourceMaps @6.0.3
-                // tsc-hash: 313b475b45d97ba74f69e4e404efd89763caf5fcc7ca9f94c293edf8fdea4f52
-                // tsc-span: _tsc.js:116805-116807
-                let json_source = source_path.is_some_and(|path| path.ends_with(".json"));
-                let recording_enabled = javascript_map_options_enabled && !json_source;
-                if recording_enabled
-                    && options.inline_source_map != Some(true)
-                    && javascript_map_path.is_none()
-                {
-                    return Err(EmitFailure::Contract(
-                        EmitContractViolation::SourceMapRecordingUnavailable,
-                    ));
-                }
-                let recording_inputs = recording_enabled.then(|| {
-                    source_map_recording_inputs_for_output(
-                        &map_lane_inputs(host),
-                        options,
-                        javascript_path,
-                        source_path,
-                    )
-                });
-                if recording_inputs.is_some() {
-                    let six_b_option = options.inline_source_map == Some(true)
-                        || options.inline_sources == Some(true)
-                        || options.source_root.is_some()
-                        || options.map_root.is_some();
-                    activity.observe_runtime_slice(if options.declaration == Some(true) {
-                        H2RuntimeSlice::H2_6c
-                    } else if six_b_option {
-                        H2RuntimeSlice::H2_6b
-                    } else {
-                        H2RuntimeSlice::H2_6a
-                    });
-                } else if options.declaration == Some(true) {
-                    activity.observe_runtime_slice(H2RuntimeSlice::H2_6c);
-                }
-                let printed_result = printer.print_javascript_with_global_names(
-                    &mut transformation,
-                    print_request.clone(),
-                    recording_inputs.clone(),
-                    &ResolverGlobalNameOracle(resolver),
-                );
-                let (printed, fallback_source_map) = match printed_result {
-                    Ok(printed) => (printed, None),
-                    Err(crate::PrinterError::Unsupported(
-                        crate::UnsupportedEmitFeature::JavaScriptMap,
-                    )) if options.declaration == Some(true)
-                        && recording_inputs.is_some()
-                        && matches!(transformed_root, TransformRoot::SourceFile(_)) =>
-                    {
-                        let TransformRoot::SourceFile(transform_source) = transformed_root else {
-                            unreachable!()
-                        };
-                        let printed = printer.print_javascript_with_global_names(
-                            &mut transformation,
-                            print_request,
-                            None,
-                            &ResolverGlobalNameOracle(resolver),
-                        )?;
-                        let syntax = transformation.arena().source(transform_source)?.syntax();
-                        let mut recording = crate::source_map::SourceMapRecording::new(
-                            recording_inputs.expect("recording input matched above"),
-                        );
-                        recording.set_current_source(
-                            transform_source,
-                            syntax.file_name.as_js(),
-                            syntax.text(),
-                        );
-                        (printed, Some(recording.into_generator()))
-                    }
-                    Err(error) => return Err(error.into()),
-                };
+                emit_javascript_unit(
+                    resolver,
+                    host,
+                    preflight,
+                    unit,
+                    options,
+                    &mut printer,
+                    new_line,
+                    javascript_map_options_enabled,
+                    source_id,
+                    source_path,
+                    javascript_path,
+                    javascript_map_path.as_ref(),
+                    declaration_path.is_some(),
+                    &mut emission,
+                    &mut parsed_emit_metadata,
+                    activity,
+                )
+                .map_err(attach)?;
                 javascript_printed = true;
-                // TS transformNodes.dispose clears annotated parse nodes for a
-                // SourceFile root. A Bundle root has no parse SourceFile and
-                // retains its children's metadata for declaration emission.
-                if declaration_path.is_some()
-                    && matches!(transformed_root, TransformRoot::Bundle(_))
-                {
-                    parsed_emit_metadata =
-                        Some(transformation.arena().snapshot_parsed_emit_metadata(host)?);
-                }
-                transformation.dispose();
-                if recording_enabled {
-                    let map_path = javascript_map_path.as_ref();
-                    let mut generator = fallback_source_map
-                        .or_else(|| printed.source_map().cloned())
-                        .ok_or(EmitFailure::Contract(
-                            EmitContractViolation::SourceMapRecordingUnavailable,
-                        ))?;
-                    let map_json = generator.to_json_string();
-                    source_map_observations.push(SourceMapObservation::new(
-                        generator.raw_sources().to_vec(),
-                        map_json.clone().into_boxed_str(),
-                    ));
-                    let url = source_mapping_url_for_output(
-                        &map_lane_inputs(host),
-                        options,
-                        &map_json,
-                        javascript_path,
-                        map_path.map(JsString::as_js),
-                        source_path,
-                    )?;
-                    // The callback keeps the generated value's raw units; only
-                    // its sink projection substitutes U+FFFD.
-                    let mut javascript_text = printed.generated_text().clone();
-                    let mut url_position = printed.end().position();
-                    if printed.end().column() != 0 {
-                        javascript_text.push_str(new_line.text());
-                        url_position = url_position
-                            .checked_add(new_line.text().len() as u32)
-                            .ok_or(EmitFailure::Contract(
-                                EmitContractViolation::SourceMapRecordingUnavailable,
-                            ))?;
-                    }
-                    javascript_text.push_str("//# sourceMappingURL=");
-                    javascript_text.push_str(&url);
-                    if let Some(map_path) = map_path {
-                        artifacts.push(EmitArtifact::javascript_map(
-                            map_path.clone(),
-                            map_json,
-                            Some(source_files.clone()),
-                        ));
-                    }
-                    activity.create_javascript_artifact();
-                    artifacts.push(EmitArtifact::javascript(
-                        javascript_path,
-                        EmitCallbackText::from_generated(javascript_text),
-                        options.emit_bom == Some(true),
-                        Some(source_files.clone()),
-                        EmitTextMetadata::new(transform_diagnostics, Some(url_position)),
-                    ));
-                } else {
-                    activity.create_javascript_artifact();
-                    artifacts.push(EmitArtifact::javascript(
-                        javascript_path,
-                        EmitCallbackText::from_generated(printed.generated_text().clone()),
-                        options.emit_bom == Some(true),
-                        Some(source_files.clone()),
-                        EmitTextMetadata::new(transform_diagnostics, None),
-                    ));
-                }
             }
         }
 
         // Bundle callbacks precede the declaration transform. Ordinary source
         // outputs retain the existing whole-Program failure boundary: a later
         // unsupported source must fail before any artifact reaches the sink.
-        if matches!(unit.root(), EmitRoot::Bundle(_)) {
-            written_paths.extend(write_artifacts(
-                std::mem::take(&mut artifacts),
-                sink,
-                &mut diagnostics,
-                activity,
-            ));
+        if eager_source_roots || matches!(unit.root(), EmitRoot::Bundle(_)) {
+            if let Some(sink) = sink.as_deref_mut() {
+                emission.written_paths.extend(write_artifacts(
+                    std::mem::take(&mut emission.artifacts),
+                    sink,
+                    &mut emission.diagnostics,
+                    activity,
+                ));
+            }
         }
 
         let mut printed_declaration_map_path = None;
@@ -1142,73 +1105,306 @@ pub fn emit_files_with_activity(
             let declaration = emit_declaration_unit(
                 resolver,
                 host,
-                &preflight,
-                &declaration_paths,
+                preflight,
+                declaration_paths,
                 unit.root(),
                 declaration_path,
                 unit.paths().declaration_map_path(),
                 activity,
                 false,
                 parsed_emit_metadata.as_ref(),
-            )?;
-            emit_skipped |= declaration.decl_blocked;
-            diagnostics.extend(declaration.diagnostics);
+            )
+            .map_err(attach)?;
+            emission.emit_skipped |= declaration.decl_blocked;
+            emission.diagnostics.extend(declaration.diagnostics);
             if let Some(observation) = declaration.map_observation {
-                source_map_observations.push(observation);
+                emission.map_observations.push(observation);
             }
             if let Some(map) = declaration.map_artifact {
                 printed_declaration_map_path = Some(map.path().to_owned());
-                artifacts.push(map);
+                emission.artifacts.push(map);
             }
             if let Some(artifact) = declaration.artifact {
-                artifacts.push(artifact);
+                emission.artifacts.push(artifact);
             }
         } else if options.emit_declaration_only == Some(true) {
             // emitDeclarationFileOrBundle also marks a missing declaration
             // path as skipped. An all-.d.ts program has no units to visit.
-            emit_skipped = true;
+            emission.emit_skipped = true;
         }
-        if matches!(unit.root(), EmitRoot::Bundle(_)) {
-            written_paths.extend(write_artifacts(
-                std::mem::take(&mut artifacts),
-                sink,
-                &mut diagnostics,
-                activity,
+        if eager_source_roots || matches!(unit.root(), EmitRoot::Bundle(_)) {
+            if let Some(sink) = sink.as_deref_mut() {
+                emission.written_paths.extend(write_artifacts(
+                    std::mem::take(&mut emission.artifacts),
+                    sink,
+                    &mut emission.diagnostics,
+                    activity,
+                ));
+            }
+        }
+        emission.javascript_path = javascript_path.filter(|_| javascript_printed);
+        emission.javascript_map_path = javascript_map_path.filter(|_| javascript_printed);
+        emission.declaration_path = declaration_path;
+        emission.declaration_map_path = printed_declaration_map_path;
+        emissions.push(emission);
+    }
+    Ok(emissions)
+}
+
+/// tsc-port: emitJsFileOrBundle @6.0.3 (_tsc.js:116594-116598 and the print
+/// / source-map branches that follow): the script transform, print and
+/// artifact construction of one unit.
+#[allow(clippy::too_many_arguments)]
+fn emit_javascript_unit(
+    resolver: &dyn EmitResolver,
+    host: &dyn EmitHost,
+    preflight: &EmitPreflight,
+    unit: &crate::EmitOutputUnit,
+    options: &CompilerOptions,
+    printer: &mut crate::Printer,
+    new_line: NewLineKind,
+    javascript_map_options_enabled: bool,
+    source_id: SourceFileId,
+    source_path: Option<JsStr<'_>>,
+    javascript_path: JsStr<'_>,
+    javascript_map_path: Option<&JsString>,
+    declaration_planned: bool,
+    emission: &mut UnitEmission,
+    parsed_emit_metadata: &mut Option<crate::ParsedEmitMetadata>,
+    activity: &mut H2ActivityCanary,
+) -> Result<(), EmitFailure> {
+    let _ = preflight;
+    let mut arena = TransformArena::new();
+    let transform_root = mount_emit_root(&mut arena, host, unit.root())?;
+    // tsc-port: emitJsFileOrBundle @6.0.3 (_tsc.js:116594-116598)
+    // Unchecked sources (noCheck, or a file excluded by
+    // canIncludeBindAndCheckDiagnostics) have their alias
+    // references marked lazily before the script transform so
+    // import elision sees the same `referenced` facts a checked
+    // file would have. Resolvers without a checker
+    // (transform-only fixtures) answer UnavailableForSource and
+    // keep their pre-H2.8c "checked file" assumption.
+    for &file in unit.root().source_files() {
+        let unchecked = if options.no_check == Some(true) {
+            true
+        } else {
+            match resolver.can_include_bind_and_check_diagnostics(file) {
+                Ok(can_include) => !can_include,
+                Err(EmitResolverError::UnavailableForSource { .. }) => false,
+                Err(error) => return Err(TransformError::from(error).into()),
+            }
+        };
+        if unchecked {
+            resolver
+                .mark_linked_references(file)
+                .map_err(TransformError::from)?;
+        }
+    }
+    let transformers =
+        get_script_transformers_with_activity(options, resolver, host, source_id, activity)?;
+    for &additional_source in unit.root().source_files().iter().skip(1) {
+        observe_additional_bundle_source_activity(options, host, additional_source, activity);
+    }
+    activity.construct_transform_context();
+    let mut transformation = transform_nodes(arena, vec![transform_root], transformers, false)?;
+    let transformed_root = match transformation.roots() {
+        [root] => root.clone(),
+        _ => {
+            return Err(EmitFailure::Transform(Box::new(
+                crate::TransformError::UnsupportedCompilerOption {
+                    option: "script transformer contract",
+                    detail: "script transform must produce exactly one root",
+                },
+            )))
+        }
+    };
+    let source_files = transformed_source_paths(&transformation, &transformed_root, host)?;
+    let print_request = match &transformed_root {
+        TransformRoot::SourceFile(source) => PrintRequest::SourceFile(*source),
+        TransformRoot::Bundle(bundle) => PrintRequest::Bundle(bundle.clone()),
+    };
+    let transform_diagnostics = transformation.diagnostics().to_vec();
+    // tsc-port: shouldEmitSourceMaps @6.0.3
+    // tsc-hash: 313b475b45d97ba74f69e4e404efd89763caf5fcc7ca9f94c293edf8fdea4f52
+    // tsc-span: _tsc.js:116805-116807
+    let json_source = source_path.is_some_and(|path| path.ends_with(".json"));
+    let recording_enabled = javascript_map_options_enabled && !json_source;
+    if recording_enabled && options.inline_source_map != Some(true) && javascript_map_path.is_none()
+    {
+        return Err(EmitFailure::Contract(
+            EmitContractViolation::SourceMapRecordingUnavailable,
+        ));
+    }
+    let recording_inputs = recording_enabled.then(|| {
+        source_map_recording_inputs_for_output(
+            &map_lane_inputs(host),
+            options,
+            javascript_path,
+            source_path,
+        )
+    });
+    if recording_inputs.is_some() {
+        let six_b_option = options.inline_source_map == Some(true)
+            || options.inline_sources == Some(true)
+            || options.source_root.is_some()
+            || options.map_root.is_some();
+        activity.observe_runtime_slice(if options.declaration == Some(true) {
+            H2RuntimeSlice::H2_6c
+        } else if six_b_option {
+            H2RuntimeSlice::H2_6b
+        } else {
+            H2RuntimeSlice::H2_6a
+        });
+    } else if options.declaration == Some(true) {
+        activity.observe_runtime_slice(H2RuntimeSlice::H2_6c);
+    }
+    let printed_result = printer.print_javascript_with_global_names(
+        &mut transformation,
+        print_request.clone(),
+        recording_inputs.clone(),
+        &ResolverGlobalNameOracle(resolver),
+    );
+    let (printed, fallback_source_map) = match printed_result {
+        Ok(printed) => (printed, None),
+        Err(crate::PrinterError::Unsupported(crate::UnsupportedEmitFeature::JavaScriptMap))
+            if options.declaration == Some(true)
+                && recording_inputs.is_some()
+                && matches!(transformed_root, TransformRoot::SourceFile(_)) =>
+        {
+            let TransformRoot::SourceFile(transform_source) = transformed_root else {
+                unreachable!()
+            };
+            let printed = printer.print_javascript_with_global_names(
+                &mut transformation,
+                print_request,
+                None,
+                &ResolverGlobalNameOracle(resolver),
+            )?;
+            let syntax = transformation.arena().source(transform_source)?.syntax();
+            let mut recording = crate::source_map::SourceMapRecording::new(
+                recording_inputs.expect("recording input matched above"),
+            );
+            recording.set_current_source(transform_source, syntax.file_name.as_js(), syntax.text());
+            (printed, Some(recording.into_generator()))
+        }
+        Err(error) => return Err(error.into()),
+    };
+    // TS transformNodes.dispose clears annotated parse nodes for a
+    // SourceFile root. A Bundle root has no parse SourceFile and
+    // retains its children's metadata for declaration emission.
+    if declaration_planned && matches!(transformed_root, TransformRoot::Bundle(_)) {
+        *parsed_emit_metadata = Some(transformation.arena().snapshot_parsed_emit_metadata(host)?);
+    }
+    transformation.dispose();
+    if recording_enabled {
+        let map_path = javascript_map_path;
+        let mut generator = fallback_source_map
+            .or_else(|| printed.source_map().cloned())
+            .ok_or(EmitFailure::Contract(
+                EmitContractViolation::SourceMapRecordingUnavailable,
+            ))?;
+        let map_json = generator.to_json_string();
+        emission.map_observations.push(SourceMapObservation::new(
+            generator.raw_sources().to_vec(),
+            map_json.clone().into_boxed_str(),
+        ));
+        let url = source_mapping_url_for_output(
+            &map_lane_inputs(host),
+            options,
+            &map_json,
+            javascript_path,
+            map_path.map(JsString::as_js),
+            source_path,
+        )?;
+        // The callback keeps the generated value's raw units; only
+        // its sink projection substitutes U+FFFD.
+        let mut javascript_text = printed.generated_text().clone();
+        let mut url_position = printed.end().position();
+        if printed.end().column() != 0 {
+            javascript_text.push_str(new_line.text());
+            url_position = url_position
+                .checked_add(new_line.text().len() as u32)
+                .ok_or(EmitFailure::Contract(
+                    EmitContractViolation::SourceMapRecordingUnavailable,
+                ))?;
+        }
+        javascript_text.push_str("//# sourceMappingURL=");
+        javascript_text.push_str(&url);
+        if let Some(map_path) = map_path {
+            emission.artifacts.push(EmitArtifact::javascript_map(
+                map_path.clone(),
+                map_json,
+                Some(source_files.clone()),
             ));
         }
-        unit_listing.push(UnitListing {
-            javascript_path: javascript_path.filter(|_| javascript_printed),
-            javascript_map_path: javascript_map_path.filter(|_| javascript_printed),
-            declaration_path,
-            declaration_map_path: printed_declaration_map_path,
-        });
-    }
-
-    written_paths.extend(write_artifacts(artifacts, sink, &mut diagnostics, activity));
-    let emitted_files = emitted_files_enabled.then(|| {
-        let mut listing = Vec::new();
-        for UnitListing {
+        activity.create_javascript_artifact();
+        emission.artifacts.push(EmitArtifact::javascript(
             javascript_path,
-            javascript_map_path: map_path,
-            declaration_path,
-            declaration_map_path,
-        } in unit_listing
-        {
+            EmitCallbackText::from_generated(javascript_text),
+            options.emit_bom == Some(true),
+            Some(source_files.clone()),
+            EmitTextMetadata::new(transform_diagnostics, Some(url_position)),
+        ));
+    } else {
+        activity.create_javascript_artifact();
+        emission.artifacts.push(EmitArtifact::javascript(
+            javascript_path,
+            EmitCallbackText::from_generated(printed.generated_text().clone()),
+            options.emit_bom == Some(true),
+            Some(source_files.clone()),
+            EmitTextMetadata::new(transform_diagnostics, None),
+        ));
+    }
+    Ok(())
+}
+
+/// Phase 3 of emitFiles: write every retained artifact in plan order,
+/// assemble the emitted-files listing and the sorted diagnostic collection.
+pub fn finish_emit_files(
+    session: EmitFilesSession,
+    mut emissions: Vec<UnitEmission>,
+    sink: &mut dyn OutputSink,
+    activity: &mut H2ActivityCanary,
+) -> Result<EmitOutcome, EmitFailure> {
+    emissions.sort_by_key(|emission| emission.unit);
+    let mut artifacts = Vec::new();
+    let mut written_paths = std::collections::BTreeSet::new();
+    let mut diagnostics: DiagnosticList = Vec::new();
+    let mut source_map_observations: Vec<SourceMapObservation> = Vec::new();
+    let mut emit_skipped = false;
+    let mut listing = Vec::with_capacity(emissions.len());
+    for emission in emissions {
+        artifacts.extend(emission.artifacts);
+        written_paths.extend(emission.written_paths);
+        diagnostics.extend(emission.diagnostics);
+        source_map_observations.extend(emission.map_observations);
+        emit_skipped |= emission.emit_skipped;
+        listing.push((
+            emission.javascript_path,
+            emission.javascript_map_path,
+            emission.declaration_path,
+            emission.declaration_map_path,
+        ));
+    }
+    written_paths.extend(write_artifacts(artifacts, sink, &mut diagnostics, activity));
+    let emitted_files = session.emitted_files_enabled.then(|| {
+        let mut emitted = Vec::new();
+        for (javascript_path, map_path, declaration_path, declaration_map_path) in listing {
             // emitJsFileOrBundle ignores skippedDtsWrite: after successful
             // printing both planned JS members are listed. Only declarations
             // use the write callback's skipped disposition below.
-            listing.extend(javascript_path);
-            listing.extend(map_path);
+            emitted.extend(javascript_path);
+            emitted.extend(map_path);
             if let Some(declaration_path) = declaration_path {
                 if written_paths.contains(&declaration_path) {
-                    listing.push(declaration_path);
+                    emitted.push(declaration_path);
                 }
             }
             if let Some(declaration_map_path) = declaration_map_path {
-                listing.push(declaration_map_path);
+                emitted.push(declaration_map_path);
             }
         }
-        listing
+        emitted
     });
 
     // tsc-port: emitFiles returns `emitterDiagnostics.getDiagnostics()` — a
@@ -1223,7 +1419,9 @@ pub fn emit_files_with_activity(
         diagnostics,
         emit_skipped,
         emitted_files,
-        map_options_enabled.then_some(source_map_observations),
+        session
+            .map_options_enabled
+            .then_some(source_map_observations),
         activity.counters(),
     ))
 }
@@ -1236,10 +1434,17 @@ fn write_artifacts(
     activity: &mut H2ActivityCanary,
 ) -> std::collections::BTreeSet<JsString> {
     let mut written_paths: std::collections::BTreeSet<JsString> = std::collections::BTreeSet::new();
-    for artifact in artifacts {
-        let path = artifact.path().to_owned();
+    let paths = artifacts
+        .iter()
+        .map(|artifact| artifact.path().to_owned())
+        .collect::<Vec<_>>();
+    // The sink may write the batch concurrently; the results come back in
+    // artifact order, so the observations below are those of sequential
+    // writes.
+    let results = sink.write_all(artifacts);
+    for (path, result) in paths.into_iter().zip(results) {
         activity.attempt_output_sink_write();
-        let include_in_emitted_files = match sink.write(artifact) {
+        let include_in_emitted_files = match result {
             Ok(EmitWriteDisposition::Written) => true,
             Ok(EmitWriteDisposition::SkippedUnchanged) => false,
             Err(error) => {

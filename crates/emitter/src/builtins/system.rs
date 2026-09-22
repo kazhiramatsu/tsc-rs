@@ -1,5 +1,6 @@
 use crate::transform::try_visit_transform_children;
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use rustc_hash::FxHashMap as HashMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use tsc_syntax::{NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind};
 use tsc_types::{CompilerOptions, JsStr, JsString, NodeFlags, ScriptTarget};
@@ -284,7 +285,7 @@ impl SystemModuleInfo {
         host: Option<&dyn EmitHost>,
     ) -> Result<Self, TransformError> {
         let statements = source_file_statement_nodes(arena, source, root)?;
-        let mut group_indices = HashMap::<JsString, usize>::new();
+        let mut group_indices = HashMap::<JsString, usize>::default();
         let mut dependency_groups = Vec::<SystemDependencyGroup>::new();
         let mut non_function_exported_names = Vec::<JsString>::new();
 
@@ -4538,12 +4539,15 @@ pub(super) fn collect_identifier_texts(
         Ok(source) => source.syntax(),
         Err(_) => return BTreeSet::new(),
     };
+    let mut seen: rustc_hash::FxHashSet<&str> = rustc_hash::FxHashSet::default();
     syntax
         .arena
         .nodes()
         .iter()
         .filter_map(|node| match &node.data {
-            NodeData::Identifier(data) => Some(data.text.clone()),
+            NodeData::Identifier(data) if seen.insert(data.text.as_str()) => {
+                Some(data.text.clone())
+            }
             _ => None,
         })
         .collect()

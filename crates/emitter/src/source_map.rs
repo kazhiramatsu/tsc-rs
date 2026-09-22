@@ -16,7 +16,7 @@
 //! | `decodeMappings` (_tsc.js:92605-92726) | reachable only from `appendSourceMap`; same owner |
 //! | `addName` (_tsc.js:92432-92443) | reachable only from `appendSourceMap`; the printer never records names (`emitPos` passes `nameIndex: undefined`, _tsc.js:121318-121319) |
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 use tsc_diagnostics::{JsStr, JsString};
 
 /// tsc-port: createSourceMapGenerator @6.0.3
@@ -95,7 +95,7 @@ impl SourceMapGenerator {
             use_case_sensitive_source_keys,
             raw_sources: Vec::new(),
             sources: Vec::new(),
-            source_index_by_relative: HashMap::new(),
+            source_index_by_relative: HashMap::default(),
             sources_content: None,
             names: Vec::new(),
             mappings: String::new(),
@@ -441,7 +441,7 @@ impl SourceMapRecording {
                 inputs.current_directory,
                 inputs.use_case_sensitive_source_keys,
             ),
-            registered: HashMap::new(),
+            registered: HashMap::default(),
             current: None,
             suppressed_depth: 0,
             inline_sources: inputs.inline_sources,

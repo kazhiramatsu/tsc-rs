@@ -475,16 +475,27 @@ impl<'context> EsNextVisitor<'context> {
         })
     }
 
+    /// tsc-port: transformESNext visitor @6.0.3 (_tsc.js:103302-103305)
+    /// A parsed subtree whose transform flags carry no ContainsESNext bit is
+    /// returned as is: the parse-time classifier (compute_transform_flags)
+    /// is exact for parsed nodes. Nodes synthesized by an earlier transform
+    /// are always walked, because their flags are creation-site hints that
+    /// need not aggregate the still-live ESNext syntax inside them.
     fn visit(&mut self, id: NodeId) -> Result<Option<NodeId>, TransformError> {
         if let Some(mapped) = self.nodes.get(&id) {
             return Ok(*mapped);
         }
         let original = self.node(id);
+        if self.context.arena().is_parsed_node(original)?
+            && !self
+                .context
+                .arena()
+                .transform_flags(original)
+                .contains(TransformFlags::CONTAINS_ES_NEXT)
+        {
+            return Ok(Some(id));
+        }
         let record = self.context.arena().node(original)?.clone();
-        // Earlier transforms may synthesize wrappers around still-live ESNext
-        // syntax. Their transform flags are an optimization hint, not proof
-        // that the subtree is semantically inert, so this pass walks the owned
-        // tree and lets the typed node dispatch decide what changes.
         let transformed = match record.data {
             NodeData::SourceFile(data) => Some(self.visit_source_file(original, data)?),
             NodeData::Block(data) => Some(self.visit_block(original, data)?),

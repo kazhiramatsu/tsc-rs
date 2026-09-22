@@ -55,12 +55,14 @@ pub use error::{
     UnsupportedEmitFeature,
 };
 pub use execute::{
-    base64_encode, emit_files, emit_files_with_activity, emit_forced_declarations_with_activity,
+    base64_encode, begin_emit_files, emit_files, emit_files_with_activity,
+    emit_forced_declarations_with_activity, emit_planned_units, finish_emit_files,
     print_script_units_with_recording_for_harness, source_map_directory,
     source_map_recording_inputs_for, source_mapping_url, source_root_field,
     validate_bootstrap_emit_options, validate_bootstrap_emit_options_for_route,
     validate_bootstrap_emit_request, validate_declaration_diagnostics_request,
-    validate_forced_declaration_request, EmitDiagnosticGate, MapLaneInputs,
+    validate_forced_declaration_request, EmitDiagnosticGate, EmitFilesSession, EmitFilesStart,
+    MapLaneInputs, UnitEmission, UnitEmitError,
 };
 pub use factory::{
     GeneratedIdentifierFlags, NodeFactory, ParsedEmitMetadata, TransformArena, TransformNode,
@@ -97,7 +99,10 @@ pub use resolver::{
     EmitTypeReferenceSerializationKind, UnavailableEmitResolver,
 };
 pub use route::EmitRouteKind;
-pub use sink::{EmitFileSystem, EmitWriteDisposition, FsOutputSink, MemoryOutputSink, OutputSink};
+pub use sink::{
+    EagerUnitSink, EmitFileSystem, EmitWriteDisposition, FsOutputSink, MemoryOutputSink,
+    OutputSink, SharedEmitFileSystem, SharedFsOutputSink, SharedOutputSink,
+};
 pub use source_map::{SourceMapGenerator, SourceMapRecordingInputs, SourceMappingFields};
 pub use transform::{
     transform_nodes, DeclarationPrintHandlers, EmitHelper, EmitHint, GlobalNameOracle,

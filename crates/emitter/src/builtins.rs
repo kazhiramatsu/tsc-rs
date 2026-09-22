@@ -1,5 +1,7 @@
 use crate::transform::try_visit_transform_children;
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxHashSet as HashSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use tsc_program::SourceFileId;
 use tsc_syntax::{
@@ -3516,12 +3518,12 @@ impl CommonJsModuleInfo {
             imports: BTreeMap::new(),
             external_imports: Vec::new(),
             import_bindings: BTreeMap::new(),
-            export_specifiers_by_local: HashMap::new(),
-            exports_by_local: HashMap::new(),
+            export_specifiers_by_local: HashMap::default(),
+            exports_by_local: HashMap::default(),
             file_level_generated_binding_exports: CommonJsFileLevelGeneratedBindingExports::default(
             ),
             exported_bindings: BTreeMap::new(),
-            export_specifier_locations: HashMap::new(),
+            export_specifier_locations: HashMap::default(),
             exported_names: Vec::new(),
             hoisted_function_exports: Vec::new(),
             direct_exported_variable_names: BTreeSet::new(),
@@ -3531,7 +3533,7 @@ impl CommonJsModuleInfo {
         // preinitializers). In particular, hoisted functions publish before
         // their declaration without entering exportedNames, while a later
         // duplicate default re-export can still enter that list.
-        let mut unique_exports = HashSet::<JsString>::new();
+        let mut unique_exports = HashSet::<JsString>::default();
         let mut has_export_default = false;
         // tsc's exportedFunctions is deliberately independent from
         // exportedBindings. The latter applies export-name uniqueness to
@@ -11271,7 +11273,9 @@ struct TypeScriptVisitor<'context, 'resolver> {
     /// names). `create_identifier` writes it on every occurrence of the
     /// spelling so later module transforms and the finalizer see one binding.
     generated_declaration_bindings: BTreeMap<String, target_bindings::TargetBinding>,
-    source_identifier_names: BTreeSet<String>,
+    /// The parsed identifier census, collected on the first unique-name
+    /// request (most sources never make one).
+    source_identifier_names: std::cell::OnceCell<BTreeSet<String>>,
     generated_namespace_names: BTreeSet<String>,
     temp_ordinal: usize,
 }
@@ -11377,7 +11381,6 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         promote_class_iife: bool,
         verbatim_module_syntax: bool,
     ) -> Self {
-        let source_identifier_names = system::collect_identifier_texts(context.arena(), source);
         Self {
             context,
             source,
@@ -11399,10 +11402,17 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             enum_container_names: BTreeMap::new(),
             generated_declaration_names: BTreeMap::new(),
             generated_declaration_bindings: BTreeMap::new(),
-            source_identifier_names,
+            source_identifier_names: std::cell::OnceCell::new(),
             generated_namespace_names: BTreeSet::new(),
             temp_ordinal: 0,
         }
+    }
+
+    /// The parsed identifier texts of the source (tsc `sourceFile.identifiers`),
+    /// collected on first use.
+    fn source_identifier_names(&self) -> &BTreeSet<String> {
+        self.source_identifier_names
+            .get_or_init(|| system::collect_identifier_texts(self.context.arena(), self.source))
     }
 
     fn visit(&mut self, id: NodeId) -> Result<Option<NodeId>, TransformError> {
@@ -11501,21 +11511,23 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             .arena()
             .node_ref(self.source, id)
             .ok_or_else(|| TransformError::UnknownNode(self.node(id)))?;
-        let record = self.context.arena().node(original)?.clone();
-        let kind = record.kind;
-        match &record.data {
-            NodeData::ClassDeclaration(data) => {
-                self.record_class_or_function_declaration(original, data.name, data.modifiers)?
-            }
-            NodeData::FunctionDeclaration(data) => {
-                self.record_class_or_function_declaration(original, data.name, data.modifiers)?
-            }
-            _ => {}
+        // onBeforeVisitNode (recordEmittedDeclarationInScope) precedes the
+        // ContainsTypeScript gate; only a node the gate admits is cloned.
+        let (kind, parent, declaration) = {
+            let record = self.context.arena().node(original)?;
+            let declaration = match &record.data {
+                NodeData::ClassDeclaration(data) => Some((data.name, data.modifiers)),
+                NodeData::FunctionDeclaration(data) => Some((data.name, data.modifiers)),
+                _ => None,
+            };
+            (record.kind, record.parent, declaration)
+        };
+        if let Some((name, modifiers)) = declaration {
+            self.record_class_or_function_declaration(original, name, modifiers)?;
         }
         let retain_namespace_function_default = !self.namespace_stack.is_empty()
             && kind == SyntaxKind::DefaultKeyword
-            && record
-                .parent
+            && parent
                 .and_then(|parent| self.context.arena().node_ref(self.source, parent))
                 .and_then(|parent| self.context.arena().node(parent).ok())
                 .is_some_and(|parent| parent.kind == SyntaxKind::FunctionDeclaration);
@@ -11532,6 +11544,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             self.nodes.insert(id, Some(id));
             return Ok(Some(id));
         }
+        let record = self.context.arena().node(original)?.clone();
 
         let transformed = if kind == SyntaxKind::SourceFile {
             let NodeData::SourceFile(data) = record.data else {
@@ -12878,7 +12891,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             let mut allocated = None;
             for ordinal in 1usize.. {
                 let candidate = format!("{base}_{ordinal}");
-                if !self.source_identifier_names.contains(&candidate)
+                if !self.source_identifier_names().contains(&candidate)
                     && self.generated_namespace_names.insert(candidate.clone())
                 {
                     self.generated_declaration_names
@@ -13534,7 +13547,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             } else {
                 format!("_{}", ordinal - 26)
             };
-            if !self.source_identifier_names.contains(&candidate)
+            if !self.source_identifier_names().contains(&candidate)
                 && self.generated_namespace_names.insert(candidate.clone())
             {
                 return candidate;
@@ -15269,7 +15282,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             let mut ordinal = 1usize;
             loop {
                 let candidate = format!("{base}_{ordinal}");
-                if !self.source_identifier_names.contains(&candidate)
+                if !self.source_identifier_names().contains(&candidate)
                     && self.generated_namespace_names.insert(candidate.clone())
                 {
                     break candidate;

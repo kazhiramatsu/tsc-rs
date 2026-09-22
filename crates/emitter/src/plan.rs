@@ -269,16 +269,49 @@ impl EmitOutputPlan {
 
 /// Output plan plus Program-owned blocking diagnostics discovered before the
 /// first sink callback.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub struct EmitPreflight {
     plan: EmitOutputPlan,
     diagnostics: DiagnosticList,
     blocked_outputs: BTreeSet<JsString>,
+    /// The declaration/reference paths projected from `plan`, built on first
+    /// use and shared by every unit emit of the session (not part of the
+    /// preflight's identity).
+    declaration_paths: std::sync::OnceLock<crate::PlanDeclarationPaths>,
 }
+
+impl Clone for EmitPreflight {
+    fn clone(&self) -> Self {
+        Self {
+            plan: self.plan.clone(),
+            diagnostics: self.diagnostics.clone(),
+            blocked_outputs: self.blocked_outputs.clone(),
+            declaration_paths: std::sync::OnceLock::new(),
+        }
+    }
+}
+
+impl PartialEq for EmitPreflight {
+    fn eq(&self, other: &Self) -> bool {
+        self.plan == other.plan
+            && self.diagnostics == other.diagnostics
+            && self.blocked_outputs == other.blocked_outputs
+    }
+}
+
+impl Eq for EmitPreflight {}
 
 impl EmitPreflight {
     pub const fn plan(&self) -> &EmitOutputPlan {
         &self.plan
+    }
+
+    /// The declaration/reference paths projected from this plan for `host`
+    /// (the host the plan was computed for): getOutputPathsFor over every
+    /// planned unit, built once.
+    pub(crate) fn declaration_paths(&self, host: &dyn EmitHost) -> &crate::PlanDeclarationPaths {
+        self.declaration_paths
+            .get_or_init(|| crate::PlanDeclarationPaths::new(host, self))
     }
 
     pub fn diagnostics(&self) -> &[Diagnostic] {
@@ -630,6 +663,7 @@ pub fn preflight_emit(
         plan,
         diagnostics,
         blocked_outputs,
+        declaration_paths: std::sync::OnceLock::new(),
     })
 }
 

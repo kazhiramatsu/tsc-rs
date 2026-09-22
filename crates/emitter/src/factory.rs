@@ -189,17 +189,13 @@ pub struct TransformArena {
     /// built nodes (the NodeBuilder's `serializedTypes` reuse) keys on it.
     id: u64,
     sources: Vec<TransformSource>,
-    // Lookup-only side tables keyed by compiler-assigned identities. Nothing
-    // iterates these three in key order (equality, clone and clear are the
-    // only whole-table operations), so the hash tables keep every observable
-    // result of the former ordered maps while removing the O(log n) key
-    // comparisons from the per-node flag reads and writes of every pass.
-    node_transform_flags: FxHashMap<TransformNode, TransformFlags>,
-    array_transform_flags: FxHashMap<TransformNodeArray, TransformFlags>,
-    // `metadata` IS iterated in key order by
-    // `snapshot_parsed_emit_metadata` (parsed_metadata.rs), which assigns
-    // snapshot identities in encounter order, so it stays an ordered map.
-    metadata: BTreeMap<TransformNode, EmitMetadata>,
+    // Transform flags live inline on the detached node/array records of each
+    // emit source (tsc's Node.transformFlags); no side table.
+    // `metadata` is iterated by `snapshot_parsed_emit_metadata`
+    // (parsed_metadata.rs), which sorts the entries it visits, so the hash
+    // table keeps that snapshot's encounter order while the per-node reads
+    // of every printed node stay O(1).
+    metadata: FxHashMap<TransformNode, EmitMetadata>,
     literal_properties: FxHashMap<TransformNode, LiteralNodeProperties>,
     next_generated_binding_id: u64,
 }
@@ -211,9 +207,7 @@ impl TransformArena {
         Self {
             id: NEXT_TRANSFORM_ARENA_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             sources: Vec::new(),
-            node_transform_flags: FxHashMap::default(),
-            array_transform_flags: FxHashMap::default(),
-            metadata: BTreeMap::new(),
+            metadata: FxHashMap::default(),
             literal_properties: FxHashMap::default(),
             next_generated_binding_id: 0,
         }
@@ -241,8 +235,6 @@ impl Clone for TransformArena {
         Self {
             id: NEXT_TRANSFORM_ARENA_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             sources: self.sources.clone(),
-            node_transform_flags: self.node_transform_flags.clone(),
-            array_transform_flags: self.array_transform_flags.clone(),
             metadata: self.metadata.clone(),
             literal_properties: self.literal_properties.clone(),
             next_generated_binding_id: self.next_generated_binding_id,
@@ -255,8 +247,6 @@ impl Clone for TransformArena {
 impl PartialEq for TransformArena {
     fn eq(&self, other: &Self) -> bool {
         self.sources == other.sources
-            && self.node_transform_flags == other.node_transform_flags
-            && self.array_transform_flags == other.array_transform_flags
             && self.metadata == other.metadata
             && self.literal_properties == other.literal_properties
             && self.next_generated_binding_id == other.next_generated_binding_id
@@ -268,6 +258,12 @@ impl TransformArena {
     /// transformation-context lifecycle. Checker-built arenas use the same
     /// identity channel as transformer-built arenas.
     /// tsrs-native: arena ownership required by createUniqueName @6.0.3.
+    /// Number of generated bindings this arena has allocated. Zero means no
+    /// generated identifier exists in its trees, so nothing needs naming.
+    pub(crate) fn generated_binding_count(&self) -> u64 {
+        self.next_generated_binding_id
+    }
+
     pub(crate) fn allocate_generated_binding_id(&mut self) -> GeneratedBindingId {
         let id = GeneratedBindingId::new(self.next_generated_binding_id);
         self.next_generated_binding_id = self
@@ -541,33 +537,51 @@ impl TransformArena {
             .map(|_| TransformNodeArray { source, array })
     }
 
+    /// tsc Node.transformFlags of a node of this emit session; an unknown
+    /// handle reads as no flags, as the former side table did.
+    #[inline]
     pub fn transform_flags(&self, node: TransformNode) -> TransformFlags {
-        self.node_transform_flags
-            .get(&node)
-            .copied()
-            .unwrap_or(TransformFlags::NONE)
-    }
-
-    pub fn set_transform_flags(&mut self, node: TransformNode, flags: TransformFlags) {
-        if flags.is_empty() {
-            self.node_transform_flags.remove(&node);
-        } else {
-            self.node_transform_flags.insert(node, flags);
+        match self.sources.get(node.source.raw() as usize) {
+            Some(source) if source.source.arena.contains_node(node.node) => {
+                TransformFlags::from_bits(source.source.arena.node(node.node).transform_flags)
+            }
+            _ => TransformFlags::NONE,
         }
     }
 
-    pub fn array_transform_flags(&self, array: TransformNodeArray) -> TransformFlags {
-        self.array_transform_flags
-            .get(&array)
-            .copied()
-            .unwrap_or(TransformFlags::NONE)
+    /// Write tsc Node.transformFlags on a node of this emit session; a write
+    /// to an unknown handle is dropped, as such a node also read as no flags.
+    #[inline]
+    pub fn set_transform_flags(&mut self, node: TransformNode, flags: TransformFlags) {
+        if let Some(source) = self.sources.get_mut(node.source.raw() as usize) {
+            if source.source.arena.contains_node(node.node) {
+                source.source.arena.node_mut(node.node).transform_flags = flags.bits();
+            }
+        }
     }
 
+    #[inline]
+    pub fn array_transform_flags(&self, array: TransformNodeArray) -> TransformFlags {
+        match self.sources.get(array.source.raw() as usize) {
+            Some(source) if source.source.arena.contains_array(array.array) => {
+                TransformFlags::from_bits(
+                    source.source.arena.node_array(array.array).transform_flags,
+                )
+            }
+            _ => TransformFlags::NONE,
+        }
+    }
+
+    #[inline]
     pub fn set_array_transform_flags(&mut self, array: TransformNodeArray, flags: TransformFlags) {
-        if flags.is_empty() {
-            self.array_transform_flags.remove(&array);
-        } else {
-            self.array_transform_flags.insert(array, flags);
+        if let Some(source) = self.sources.get_mut(array.source.raw() as usize) {
+            if source.source.arena.contains_array(array.array) {
+                source
+                    .source
+                    .arena
+                    .node_array_mut(array.array)
+                    .transform_flags = flags.bits();
+            }
         }
     }
 
@@ -760,8 +774,14 @@ impl TransformArena {
 
     pub fn clear_session_metadata(&mut self) {
         self.metadata.clear();
-        self.node_transform_flags.clear();
-        self.array_transform_flags.clear();
+        for source in &mut self.sources {
+            for node in source.source.arena.nodes_mut() {
+                node.transform_flags = 0;
+            }
+            for array in source.source.arena.node_arrays_mut() {
+                array.transform_flags = 0;
+            }
+        }
     }
 
     /// tsc-port: getOriginalNode @6.0.3
@@ -5502,15 +5522,13 @@ impl<'arena> NodeFactory<'arena> {
         }
         let syntax = &mut self.arena.source_mut(source)?.source;
         let array_id = syntax.arena.alloc_synthetic_array(raw);
-        syntax.arena.node_array_mut(array_id).has_trailing_comma = has_trailing_comma;
-        let array = TransformNodeArray {
+        let record = syntax.arena.node_array_mut(array_id);
+        record.has_trailing_comma = has_trailing_comma;
+        record.transform_flags = flags.bits();
+        Ok(TransformNodeArray {
             source,
             array: array_id,
-        };
-        if !flags.is_empty() {
-            self.arena.array_transform_flags.insert(array, flags);
-        }
-        Ok(array)
+        })
     }
 
     pub fn update_node_array(

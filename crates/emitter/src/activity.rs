@@ -523,6 +523,81 @@ impl H2ActivityCanary {
         self.counters
     }
 
+    /// Fold the counters of a worker-side recorder with the same admission
+    /// profile into this one: every count becomes the sum over the threads
+    /// that shared one emit session.
+    pub fn absorb(&mut self, other: H2ActivityCounters) {
+        fn add(target: &mut u64, value: u64, activity: &str) {
+            *target = target
+                .checked_add(value)
+                .unwrap_or_else(|| panic!("H2 activity counter overflow: {activity}"));
+        }
+        let mine = &mut self.counters;
+        add(
+            &mut mine.emit_session_constructions,
+            other.emit_session_constructions,
+            "absorb",
+        );
+        add(
+            &mut mine.output_plan_constructions,
+            other.output_plan_constructions,
+            "absorb",
+        );
+        add(
+            &mut mine.emit_resolver_borrows,
+            other.emit_resolver_borrows,
+            "absorb",
+        );
+        add(
+            &mut mine.script_transformer_list_constructions,
+            other.script_transformer_list_constructions,
+            "absorb",
+        );
+        add(
+            &mut mine.transform_typescript_constructions,
+            other.transform_typescript_constructions,
+            "absorb",
+        );
+        add(
+            &mut mine.transform_class_fields_constructions,
+            other.transform_class_fields_constructions,
+            "absorb",
+        );
+        add(
+            &mut mine.transform_ecmascript_module_constructions,
+            other.transform_ecmascript_module_constructions,
+            "absorb",
+        );
+        add(
+            &mut mine.transform_context_constructions,
+            other.transform_context_constructions,
+            "absorb",
+        );
+        add(
+            &mut mine.printer_constructions,
+            other.printer_constructions,
+            "absorb",
+        );
+        add(
+            &mut mine.javascript_artifact_creations,
+            other.javascript_artifact_creations,
+            "absorb",
+        );
+        add(
+            &mut mine.output_sink_write_attempts,
+            other.output_sink_write_attempts,
+            "absorb",
+        );
+        add(
+            &mut mine.output_sink_failures,
+            other.output_sink_failures,
+            "absorb",
+        );
+        for (slot, value) in mine.runtime_slices.iter_mut().zip(other.runtime_slices) {
+            add(slot, value, "absorb");
+        }
+    }
+
     fn increment(counter: &mut u64, activity: &str) {
         *counter = counter
             .checked_add(1)
