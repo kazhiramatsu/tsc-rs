@@ -431,10 +431,11 @@ run does not imply complete TypeScript compatibility. See the
 
 Run these commands from the repository root using a POSIX shell (for example,
 Bash or Zsh). In addition to the [build prerequisites](#build), install
-Python 3.11 or newer and the Node.js version pinned in
-[.node-version](.node-version). Rustup selects the Rust version and tools
-from [rust-toolchain.toml](rust-toolchain.toml). The TypeScript reference,
-test inputs, and expected results are checked in; no npm install is needed.
+Python 3.11 or newer, the Node.js version pinned in
+[.node-version](.node-version), and the `zstd` command for reading compressed
+test data. Rustup selects the Rust version and tools from
+[rust-toolchain.toml](rust-toolchain.toml). The TypeScript reference, test
+inputs, and expected results are checked in; no npm install is needed.
 
 Use the same build and test settings as GitHub Actions:
 
