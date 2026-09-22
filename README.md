@@ -5,7 +5,8 @@ TypeScript to JavaScript, with support for source maps and declaration files.
 Its compatibility target is **TypeScript 6.0.3**.
 
 See the [current limitations](#current-limitations) before adopting it for
-an existing project.
+an existing project. See [Run CI](#run-ci) for the checks used to validate
+the compiler, how to reproduce them, and recorded results.
 
 ## Build
 
@@ -403,13 +404,106 @@ For `--noEmit`, see [configuration for type checks](#configuration-for-type-chec
 
 ## Run CI
 
+The compiler is checked against TypeScript 6.0.3 reference results and
+targeted regression tests. You can run these checks locally or inspect their
+GitHub Actions logs.
+
+### What CI verifies
+
+| Check | What it verifies |
+| --- | --- |
+| **Acceptance** (`ci`) | Runs the upstream TypeScript diagnostic corpus and the supported compilation cases. Compares diagnostics and compiler output with recorded TypeScript results, and rejects regressions in the accepted diagnostic cases. GitHub splits this suite into `early`, `wide`, and `late` groups. |
+| **Witness tests** (`witnesses`) | Checks focused regressions in JavaScript and declaration output, source maps, decorators, comments, Unicode handling, configuration, and file access. Includes comparisons with TypeScript reference results and tests of the Rust APIs. |
+| **Rust checks** (local commands below) | Checks formatting, runs Clippy, and executes the workspace's unit and integration tests and other Cargo test targets. These supplement the acceptance and witness workflows. |
+
+For a recorded full run on commit
+[`eb1442459`](https://github.com/kazhiramatsu/tsc-rs/commit/eb1442459311f383467f95de2413349de7aa58b6),
+see the successful [acceptance run](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35677992322)
+and [witness run](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35677992320)
+from September 22, 2026: all 22 test jobs and both aggregate checks passed.
+
+These results demonstrate the behavior covered by those tests. Some cases
+have explicitly recorded differences or unsupported outcomes; a passing
+run does not imply complete TypeScript compatibility. See the
+[current limitations](#current-limitations) for the user-facing restrictions.
+
+### Run locally
+
+Run these commands from the repository root using a POSIX shell (for example,
+Bash or Zsh). In addition to the [build prerequisites](#build), install
+Python 3.11 or newer, the Node.js version pinned in
+[.node-version](.node-version), and the `zstd` command for reading compressed
+test data. Rustup selects the Rust version and tools from
+[rust-toolchain.toml](rust-toolchain.toml). The TypeScript reference, test
+inputs, and expected results are checked in; no npm install is needed.
+
+Use the same build and test settings as GitHub Actions:
+
+```sh
+export CARGO_BUILD_JOBS=2
+export CARGO_INCREMENTAL=0
+export CARGO_PROFILE_TEST_DEBUG=0
+export RUSTC_WRAPPER=
+export TSRS_H2_5G_WORKERS=2
+export TSRS_CONFORMANCE_WORKERS=2
+```
+
+Run the complete acceptance suite:
+
+```sh
+cargo xtask acceptance
+```
+
+This executes the test sequence covered by all three hosted acceptance
+groups. To run just one group, use `early`, `wide`, or `late`, for example:
+
+```sh
+python3 .github/ci/replay.py acceptance late
+```
+
+Run all registered witness suites through the same runner used by GitHub
+Actions. The first command reads the suite list so new suites are included
+automatically:
+
+```sh
+export WITNESS_SUITES="$(
+  PYTHONPATH=scripts python3 -c 'import json, witness; print(json.dumps(witness.SUITES))'
+)"
+python3 .github/ci/replay.py witnesses
+```
+
+To run only a specific witness suite, provide its name instead:
+
+```sh
+WITNESS_SUITES='["declaration-maps"]' python3 .github/ci/replay.py witnesses
+```
+
+For the additional Rust checks:
+
+```sh
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
+RUST_TEST_THREADS=2 cargo test --workspace --all-targets
+```
+
+Each command reports its own result and returns a nonzero exit status on
+failure. Full acceptance and witness runs can take substantial time,
+especially on the first build; local runs execute the groups sequentially
+instead of using separate hosted runners. For case selection and failure
+investigation, see the [witness testing guide](docs/witness-testing.md).
+
+### GitHub Actions
+
 CI runs automatically when you open or update a pull request. Check the
-results in the pull request's **Checks** tab.
+results in the pull request's **Checks** tab. The workflows select tests
+based on the changed files, so a documentation-only update may skip test
+jobs. The `gates` and `witness-gates` checks require every selected job to
+succeed.
 
 To run CI manually, open the repository's **Actions** tab, choose **ci** or
 **witnesses**, select **Run workflow**, and choose the branch. Run both
-workflows for complete validation. Select a run to view its progress and
-logs.
+workflows to execute all registered acceptance and witness groups. Select
+a run to view its progress and logs.
 
 Alternatively, with GitHub CLI (`gh`) installed and authenticated to an
 account that can run workflows, run these commands from the cloned
