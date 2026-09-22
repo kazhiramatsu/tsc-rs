@@ -9,9 +9,10 @@
 //! which is exactly the pre-concurrency behaviour, and the CLI selects
 //! [`WorkerBudget::automatic`].
 
+use std::collections::VecDeque;
 use std::num::NonZeroUsize;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Mutex;
+use std::sync::{Condvar, Mutex};
 
 /// The most worker threads one budget ever uses, regardless of the machine.
 ///
@@ -21,7 +22,7 @@ use std::sync::Mutex;
 /// two-worker test/CI limits the project runs under. The scaling of the
 /// parse-ahead and bind steps against worker count is measured separately
 /// with explicit budgets; revisit the cap from that evidence.
-pub const MAX_WORKERS: usize = 8;
+pub const MAX_WORKERS: usize = 16;
 
 /// Stack reserved for every worker thread.
 ///
@@ -157,6 +158,125 @@ impl WorkerBudget {
                     .expect("worker slot")
                     .1
                     .expect("every job produced a result")
+            })
+            .collect()
+    }
+
+    /// Run `work` over jobs that `produce` yields one at a time on the
+    /// calling thread, and return the results in production order.
+    ///
+    /// `produce(ordinal)` is called for ordinals `0..capacity` in order,
+    /// on the calling thread only, and stops at the first `None`; every job
+    /// it yields is handed to a worker as soon as it exists, so production
+    /// (host reads) overlaps the work (parsing) already under way. With a
+    /// serial budget everything runs on the calling thread in order. The
+    /// thread and panic protocol is that of [`Self::map_ordered`]; a panic
+    /// in `produce` still releases the waiting workers before it propagates.
+    pub fn map_streamed<J, T>(
+        self,
+        capacity: usize,
+        mut produce: impl FnMut(usize) -> Option<J>,
+        work: impl Fn(J) -> T + Sync,
+    ) -> Vec<T>
+    where
+        J: Send,
+        T: Send,
+    {
+        let workers = self.max_workers().min(capacity);
+        if workers < 2 {
+            let mut results = Vec::with_capacity(capacity);
+            while results.len() < capacity {
+                let Some(job) = produce(results.len()) else {
+                    break;
+                };
+                results.push(work(job));
+            }
+            return results;
+        }
+        struct Stream<J> {
+            pending: VecDeque<(usize, J)>,
+            closed: bool,
+        }
+        struct Shared<J, T> {
+            stream: Mutex<Stream<J>>,
+            ready: Condvar,
+            results: Vec<Mutex<Option<T>>>,
+        }
+        let shared = Shared {
+            stream: Mutex::new(Stream {
+                pending: VecDeque::new(),
+                closed: false,
+            }),
+            ready: Condvar::new(),
+            results: (0..capacity).map(|_| Mutex::new(None)).collect(),
+        };
+        let run = || loop {
+            let job = {
+                let mut stream = shared.stream.lock().expect("read-ahead stream");
+                loop {
+                    if let Some(job) = stream.pending.pop_front() {
+                        break Some(job);
+                    }
+                    if stream.closed {
+                        break None;
+                    }
+                    stream = shared.ready.wait(stream).expect("read-ahead stream");
+                }
+            };
+            let Some((ordinal, job)) = job else {
+                break;
+            };
+            let result = work(job);
+            *shared.results[ordinal].lock().expect("read-ahead result") = Some(result);
+        };
+        // Closing the stream on every exit (including an unwinding
+        // producer) releases the workers so the scope can join them.
+        struct CloseOnDrop<'shared, J, T>(&'shared Shared<J, T>);
+        impl<J, T> Drop for CloseOnDrop<'_, J, T> {
+            fn drop(&mut self) {
+                if let Ok(mut stream) = self.0.stream.lock() {
+                    stream.closed = true;
+                }
+                self.0.ready.notify_all();
+            }
+        }
+        let produced = std::thread::scope(|scope| {
+            for _ in 1..workers {
+                // A refused thread is not an error: the calling thread and
+                // the threads already started finish the jobs.
+                let _ = std::thread::Builder::new()
+                    .name("tsc-rs-worker".to_owned())
+                    .stack_size(WORKER_STACK_BYTES)
+                    .spawn_scoped(scope, run);
+            }
+            let mut produced = 0;
+            {
+                let _close = CloseOnDrop(&shared);
+                while produced < capacity {
+                    let Some(job) = produce(produced) else {
+                        break;
+                    };
+                    shared
+                        .stream
+                        .lock()
+                        .expect("read-ahead stream")
+                        .pending
+                        .push_back((produced, job));
+                    shared.ready.notify_one();
+                    produced += 1;
+                }
+            }
+            run();
+            produced
+        });
+        shared
+            .results
+            .into_iter()
+            .take(produced)
+            .map(|slot| {
+                slot.into_inner()
+                    .expect("read-ahead result")
+                    .expect("every produced job has a result")
             })
             .collect()
     }

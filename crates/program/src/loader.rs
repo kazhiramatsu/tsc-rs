@@ -1,5 +1,6 @@
 use crate::js_string_ops::types_package_name;
-use std::collections::{BTreeMap, BTreeSet, HashSet, VecDeque};
+use rustc_hash::FxHashSet as HashSet;
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::error::Error;
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -865,8 +866,11 @@ fn load_program_worker(
         };
         prefetch_roots.push(root);
     }
+    let phase_started = std::time::Instant::now();
     graph.prefetch_roots(&prefetch_roots);
     drop(prefetch_roots);
+    tsc_types::trace::mark("load: read-ahead parse of roots", phase_started);
+    let phase_started = std::time::Instant::now();
     for index in 0..root_names.len() {
         let root_spelling = root_names.name(index)?;
         let root = normalize_root(root_spelling, &path_context)?;
@@ -882,6 +886,8 @@ fn load_program_worker(
         }
     }
     let staged = graph.finish();
+    tsc_types::trace::mark("load: root walk and graph finish", phase_started);
+    let phase_started = std::time::Instant::now();
     // Before the package table is collected: the prelude's resolutions read
     // package.json files under their symlink spellings, and module-specifier
     // generation later reads those spellings back (upstream shares one
@@ -901,6 +907,7 @@ fn load_program_worker(
     let packages = packages_by_path.into_values().collect::<Vec<_>>();
     drop(resolver);
     drop(library_resolver);
+    tsc_types::trace::mark("load: dependency symlinks and packages", phase_started);
 
     publish_program(
         mode,
@@ -1689,49 +1696,66 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             return;
         }
         // Host reads: loading thread, root order, each retained payload
-        // reserved against the joint budget before the next read.
+        // reserved against the joint budget before the next read. Each
+        // retained payload is handed to the parse workers as soon as it is
+        // read, so the reads overlap the parses already running.
+        let phase_started = std::time::Instant::now();
         let mut reads: Vec<(ProgramPath, Option<PrefetchedRead>)> =
             Vec::with_capacity(pending.len());
-        let mut jobs: Vec<(usize, Vec<u8>)> = Vec::new();
-        for path in pending {
-            if self.sources.len() + self.reserved_sources + 1 > self.limits.max_source_files {
-                break;
-            }
-            match self.host.read_file_js(path.display()) {
-                Err(error) => {
-                    // Reported at this root's visit, where the walk fails at
-                    // the latest. A later root can still be admitted before
-                    // that as a dependency of an earlier root; the walk then
-                    // reads it itself, so stopping here is merely conservative.
-                    reads.push((path, Some(PrefetchedRead::Failed(error))));
-                    break;
-                }
-                Ok(None) => reads.push((path, Some(PrefetchedRead::Missing))),
-                Ok(Some(bytes)) => {
-                    if bytes.len() > self.limits.max_source_file_bytes
-                        || self
-                            .total_source_bytes
-                            .saturating_add(self.reserved_bytes)
-                            .saturating_add(bytes.len())
-                            > self.limits.max_total_source_bytes
-                    {
-                        // Not retained: dropped here, read again at the visit.
-                        break;
-                    }
-                    self.reserved_sources += 1;
-                    self.reserved_bytes += bytes.len();
-                    jobs.push((reads.len(), bytes));
-                    reads.push((path, None));
-                }
-            }
-        }
-        // Parse-ahead on the budget's workers, heaviest inputs first.
+        let capacity = pending.len();
+        let mut pending = pending.into_iter();
+        let mut stopped = false;
         let options = self.compiler_options;
-        let parsed = workers.map_ordered(
-            jobs,
-            |(_, bytes)| bytes.len(),
-            |(index, bytes)| (index, parse_root_ahead(&reads[index].0, bytes, options)),
+        let parsed = workers.map_streamed(
+            capacity,
+            |_| {
+                if stopped {
+                    return None;
+                }
+                loop {
+                    let path = pending.next()?;
+                    if self.sources.len() + self.reserved_sources + 1 > self.limits.max_source_files
+                    {
+                        stopped = true;
+                        return None;
+                    }
+                    match self.host.read_file_js(path.display()) {
+                        Err(error) => {
+                            // Reported at this root's visit, where the walk
+                            // fails at the latest. A later root can still be
+                            // admitted before that as a dependency of an
+                            // earlier root; the walk then reads it itself, so
+                            // stopping here is merely conservative.
+                            reads.push((path, Some(PrefetchedRead::Failed(error))));
+                            stopped = true;
+                            return None;
+                        }
+                        Ok(None) => reads.push((path, Some(PrefetchedRead::Missing))),
+                        Ok(Some(bytes)) => {
+                            if bytes.len() > self.limits.max_source_file_bytes
+                                || self
+                                    .total_source_bytes
+                                    .saturating_add(self.reserved_bytes)
+                                    .saturating_add(bytes.len())
+                                    > self.limits.max_total_source_bytes
+                            {
+                                // Not retained: dropped here, read again at
+                                // the visit.
+                                stopped = true;
+                                return None;
+                            }
+                            self.reserved_sources += 1;
+                            self.reserved_bytes += bytes.len();
+                            let index = reads.len();
+                            reads.push((path.clone(), None));
+                            return Some((index, path, bytes));
+                        }
+                    }
+                }
+            },
+            |(index, path, bytes)| (index, parse_root_ahead(&path, bytes, options)),
         );
+        tsc_types::trace::mark("load: read-ahead streamed read and parse", phase_started);
         for (index, read) in parsed {
             reads[index].1 = Some(read);
         }
@@ -2082,7 +2106,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         }
 
         let wildcard_matches: Vec<JsString> = self.discover_wildcard_type_directives()?;
-        let mut seen = HashSet::new();
+        let mut seen = HashSet::default();
         let mut names = Vec::new();
         for configured_name in configured {
             if configured_name == "*" {

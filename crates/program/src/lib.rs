@@ -146,8 +146,9 @@ pub use loader::{
     ProgramLoadLimitExceeded, ProgramLoadLimits, ProgramLoadOperation,
 };
 pub use module_requests::{
-    plan_module_requests, plan_source_requests, plan_source_requests_retaining_syntax,
-    plan_static_module_requests, source_request_parse_options, PlannedLibReferenceDirective,
+    default_js_doc_parsing_mode, plan_module_requests, plan_source_requests,
+    plan_source_requests_retaining_syntax, plan_static_module_requests,
+    set_default_js_doc_parsing_mode, source_request_parse_options, PlannedLibReferenceDirective,
     PlannedPathReference, PlannedTypeReferenceDirective, SourceRequestPlan,
 };
 pub use module_resolution::js_own_property_entries as package_json_own_entries;

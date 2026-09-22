@@ -4,8 +4,9 @@ use std::sync::Arc;
 use tsc_diagnostics::{JsStr, JsString};
 
 use tsc_syntax::{
-    for_each_child, parse_source_file_from_snapshot, skip_trivia, LanguageVariant, NodeData,
-    NodeId, ParseOptions, SourceFile, SyntaxKind, TypeReferenceDirectiveResolutionMode,
+    for_each_child, parse_source_file_from_snapshot, skip_trivia, JSDocParsingMode,
+    LanguageVariant, NodeData, NodeId, ParseOptions, SourceFile, SyntaxKind,
+    TypeReferenceDirectiveResolutionMode,
 };
 use tsc_types::{CompilerOptions, NodeFlags};
 
@@ -277,6 +278,31 @@ pub fn plan_source_requests_retaining_syntax(
 /// Exact syntax projection used by the module-request planner. Exposed so
 /// corpus replay can capture every load-steering parse without duplicating
 /// module detection, language-variant, or JSDoc-mode rules.
+/// The JSDoc parsing mode of every Program parse in this process:
+/// `createSourceFile`'s ParseAll unless the command line selects tsc's
+/// `defaultJSDocParsingMode` (ParseForTypeErrors, _tsc.js:132784) with
+/// [`set_default_js_doc_parsing_mode`] before loading.
+static DEFAULT_JS_DOC_PARSING_MODE: std::sync::atomic::AtomicU8 =
+    std::sync::atomic::AtomicU8::new(JSDocParsingMode::ParseAll as u8);
+
+/// Select the process-wide JSDoc parsing mode for Program parses (see
+/// [`default_js_doc_parsing_mode`]). A command-line process sets it once
+/// before loading a Program; library consumers leave the default.
+pub fn set_default_js_doc_parsing_mode(mode: JSDocParsingMode) {
+    DEFAULT_JS_DOC_PARSING_MODE.store(mode as u8, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// The JSDoc parsing mode Program parses use unless a source-API fact
+/// overrides it.
+pub fn default_js_doc_parsing_mode() -> JSDocParsingMode {
+    match DEFAULT_JS_DOC_PARSING_MODE.load(std::sync::atomic::Ordering::Relaxed) {
+        1 => JSDocParsingMode::ParseNone,
+        2 => JSDocParsingMode::ParseForTypeErrors,
+        3 => JSDocParsingMode::ParseForTypeInfo,
+        _ => JSDocParsingMode::ParseAll,
+    }
+}
+
 pub fn source_request_parse_options(
     source: &PreparedSourceFile,
     options: &CompilerOptions,
@@ -309,6 +335,7 @@ pub fn source_request_parse_options(
         javascript_file,
         force_external_module,
         detect_external_module_from_jsx,
+        js_doc_parsing_mode: default_js_doc_parsing_mode(),
         ..ParseOptions::default()
     }
 }
