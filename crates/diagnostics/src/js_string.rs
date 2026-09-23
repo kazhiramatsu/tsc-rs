@@ -634,7 +634,16 @@ fn append_code_point(bytes: &mut Storage, point: u32) {
     }
 }
 
-const INLINE_CAPACITY: usize = 22;
+// Fifteen bytes keep `JsString` at the size of a `Vec<u8>`: the inline
+// variant fits beside the heap pointer's niche, so no struct holding a
+// string grows (a larger inline buffer made every such record, and every
+// stack frame of the recursive config parser, a third bigger).
+const INLINE_CAPACITY: usize = 15;
+
+const _: () = assert!(
+    std::mem::size_of::<JsString>() == std::mem::size_of::<Vec<u8>>(),
+    "JsString must stay the size of a Vec<u8>"
+);
 
 /// Byte storage of a [`JsString`]: up to `INLINE_CAPACITY` bytes live in the
 /// value itself, so identifier-sized strings are built, copied and dropped
