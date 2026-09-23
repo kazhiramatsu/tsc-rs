@@ -472,6 +472,7 @@ dependencies = [
 name = "tsc-rs-program"
 version = "0.1.0"
 dependencies = [
+ "memchr",
  "rustc-hash",
  "serde_json",
  "tsc-rs-diagnostics",
@@ -484,6 +485,7 @@ dependencies = [
 name = "tsc-rs-syntax"
 version = "0.1.0"
 dependencies = [
+ "memchr",
  "rustc-hash",
  "serde_json",
  "stats_alloc",
