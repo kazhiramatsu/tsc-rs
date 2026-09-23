@@ -1495,27 +1495,45 @@ fn parse_root_ahead(
     options: &CompilerOptions,
 ) -> PrefetchedRead {
     let byte_len = bytes.len();
+    // Under the phase trace a large source reports its decode, snapshot and
+    // parse-plus-plan steps separately.
+    let traced = (tsc_types::trace::enabled() && byte_len >= 256 << 10).then(|| {
+        (
+            std::time::Instant::now(),
+            path.display().to_string_lossy().into_owned(),
+        )
+    });
     let decoded = decode_host_text(bytes).map(|text| {
+        if let Some((started, name)) = &traced {
+            tsc_types::trace::mark(&format!("load: decode {name} ({byte_len} bytes)"), *started);
+        }
+        let prepare_started = std::time::Instant::now();
         let implied = implied_node_format(path.display(), None, options);
         let implied_for_emit = implied_node_format_for_emit(path.display(), None, options);
         let prepared = PreparedSourceFile::new(path.clone(), text)
             .with_implied_node_formats(implied, implied_for_emit);
-        Box::new(
-            match plan_source_requests_retaining_syntax(&prepared, options) {
-                Ok((plan, syntax)) => PrefetchedParse {
-                    implied,
-                    implied_for_emit,
-                    prepared: prepared.with_preparsed_syntax(syntax),
-                    plan: Ok(plan),
-                },
-                Err(error) => PrefetchedParse {
-                    implied,
-                    implied_for_emit,
-                    prepared,
-                    plan: Err(error),
-                },
+        if let Some((_, name)) = &traced {
+            tsc_types::trace::mark(&format!("load: snapshot {name}"), prepare_started);
+        }
+        let plan_started = std::time::Instant::now();
+        let planned = plan_source_requests_retaining_syntax(&prepared, options);
+        if let Some((_, name)) = &traced {
+            tsc_types::trace::mark(&format!("load: parse and plan {name}"), plan_started);
+        }
+        Box::new(match planned {
+            Ok((plan, syntax)) => PrefetchedParse {
+                implied,
+                implied_for_emit,
+                prepared: prepared.with_preparsed_syntax(syntax),
+                plan: Ok(plan),
             },
-        )
+            Err(error) => PrefetchedParse {
+                implied,
+                implied_for_emit,
+                prepared,
+                plan: Err(error),
+            },
+        })
     });
     PrefetchedRead::Parsed { byte_len, decoded }
 }

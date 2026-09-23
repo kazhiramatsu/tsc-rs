@@ -2,7 +2,7 @@ use std::cell::{OnceCell, RefCell};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 mod parsed_metadata;
 pub use parsed_metadata::ParsedEmitMetadata;
@@ -170,6 +170,9 @@ pub struct TransformSource {
     /// Whether the source text contains an `\u{` escape anywhere (see
     /// [`TransformArena::source_text_has_extended_unicode_escape`]).
     text_has_extended_unicode_escape: OnceCell<bool>,
+    /// Synthesized nodes whose transform flags aggregate their whole
+    /// subtree (see [`TransformArena::transform_flags_complete`]).
+    complete_synthesized: FxHashSet<NodeId>,
 }
 
 /// Structural equality covers the emit copy and its provenance; the two
@@ -368,8 +371,40 @@ impl TransformArena {
             identifier_census: RefCell::default(),
             parsed_identifier_names: OnceCell::new(),
             text_has_extended_unicode_escape: OnceCell::new(),
+            complete_synthesized: FxHashSet::default(),
         });
         id
+    }
+
+    /// Whether `node`'s transform flags describe its whole subtree, so a
+    /// visitor gate may trust their absence: every parsed node (the
+    /// parse-time classifier is exact), and every node `update_node` derived
+    /// from such a node, whose flags keep the original's aggregate bits for
+    /// everything the update does not recompute. A node created with a
+    /// creation-site hint (`TransformFlags::NONE` and the like) is not
+    /// complete and is always walked.
+    pub(crate) fn transform_flags_complete(&self, node: TransformNode) -> bool {
+        match self.sources.get(node.source.raw() as usize) {
+            Some(source) => {
+                source.contains_parsed_node(node.node)
+                    || source.complete_synthesized.contains(&node.node)
+            }
+            None => false,
+        }
+    }
+
+    /// Record that `node` (an update of `original`) carries complete
+    /// transform flags when `original` did.
+    pub(crate) fn inherit_transform_flags_completeness(
+        &mut self,
+        node: TransformNode,
+        original: TransformNode,
+    ) {
+        if node.source == original.source && self.transform_flags_complete(original) {
+            if let Some(source) = self.sources.get_mut(node.source.raw() as usize) {
+                source.complete_synthesized.insert(node.node);
+            }
+        }
     }
 
     /// Whether `source`'s text contains an `\u{` escape at all: when it does
@@ -5901,6 +5936,8 @@ impl<'arena> NodeFactory<'arena> {
         updated_record.pos = pos;
         updated_record.end = end;
         self.arena.set_transform_flags(updated, transform_flags);
+        self.arena
+            .inherit_transform_flags_completeness(updated, original);
         if let Some((previous, current)) = literal_payload {
             self.arena
                 .reconcile_literal_properties(updated, &previous, &current);

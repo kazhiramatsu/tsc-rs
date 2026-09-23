@@ -476,17 +476,18 @@ impl<'context> EsNextVisitor<'context> {
     }
 
     /// tsc-port: transformESNext visitor @6.0.3 (_tsc.js:103302-103305)
-    /// A parsed subtree whose transform flags carry no ContainsESNext bit is
-    /// returned as is: the parse-time classifier (compute_transform_flags)
-    /// is exact for parsed nodes. Nodes synthesized by an earlier transform
-    /// are always walked, because their flags are creation-site hints that
-    /// need not aggregate the still-live ESNext syntax inside them.
+    /// A subtree whose transform flags carry no ContainsESNext bit is
+    /// returned as is when those flags are complete: the parse-time
+    /// classifier is exact for parsed nodes, and an update of such a node
+    /// keeps the original's aggregate bits (an earlier transform never adds
+    /// ESNext syntax under an updated node from outside its original
+    /// subtree). Nodes created with creation-site hints are always walked.
     fn visit(&mut self, id: NodeId) -> Result<Option<NodeId>, TransformError> {
         if let Some(mapped) = self.nodes.get(&id) {
             return Ok(*mapped);
         }
         let original = self.node(id);
-        if self.context.arena().is_parsed_node(original)?
+        if self.context.arena().transform_flags_complete(original)
             && !self
                 .context
                 .arena()
