@@ -96,6 +96,10 @@ pub fn debug_resolving_open() -> i64 {
 }
 
 /// tsc NodeLinks (getNodeLinks) — the per-node subset M3 consumes.
+///
+/// The fields most nodes never populate live behind `cold`, one boxed
+/// record allocated on first use, so the record every checked node creates
+/// stays small (PagedTable::slot pushes a default record per node).
 #[derive(Clone, Debug, Default)]
 pub struct NodeLinks {
     /// tsc links.resolvedType (per-arm caching in the
@@ -103,9 +107,6 @@ pub struct NodeLinks {
     pub resolved_type: LinkSlot<TypeId>,
     /// tsc links.resolvedSignature (getSignatureFromDeclaration 59570).
     pub resolved_signature: LinkSlot<SignatureId>,
-    /// tsc links.outerTypeParameters (getObjectTypeInstantiation 63466)
-    /// on the instantiated type's declaration node.
-    pub outer_type_parameters: LinkSlot<Box<[TypeId]>>,
     /// tsc links.resolvedSymbol (getResolvedSymbol 69389) — the
     /// unknownSymbol failure sentinel is cached like tsc's.
     pub resolved_symbol: LinkSlot<SymbolId>,
@@ -114,9 +115,6 @@ pub struct NodeLinks {
     /// JSDoc type is cached separately from the enclosing type
     /// reference result.
     pub resolved_jsdoc_type: LinkSlot<TypeId>,
-    /// tsc links.enumMemberValue (computeEnumMemberValues 85587) on
-    /// EnumMember nodes.
-    pub enum_member_value: Option<crate::evaluate::EvaluatorResult>,
     /// tsc NodeLinks.flags & EnumValuesComputed (85582) on
     /// EnumDeclaration nodes. Unlike tsc this REVERTS on CheckAbort
     /// unwind so a later query recomputes the tail of the member list.
@@ -135,22 +133,10 @@ pub struct NodeLinks {
     /// absent→true, and false→true are valid; true is absorbing. Emit and
     /// check-phase writers are forbidden in speculative contexts.
     pub(crate) is_visible: Option<bool>,
-    /// tsc links.capturedBlockScopeBindings
-    /// (checkNestedBlockScopedBinding 72267-72268): the block-scoped
-    /// symbols a for-statement part captures, recorded beside the
-    /// ContainsCapturedBlockScopeBinding flag and consumed only by the
-    /// emit resolver's isBindingCapturedByNode.
-    pub captured_block_scope_bindings: Vec<SymbolId>,
     /// tsc links.containsArgumentsReference
     /// (containsArgumentsReference 59689): syntax-and-binding-stable
     /// result of the function-body traversal.
     pub contains_arguments_reference: Option<bool>,
-    /// tsc links.assertionExpressionType (checkAssertionWorker 77920):
-    /// the operand type stashed for checkAssertionDeferred.
-    pub assertion_expression_type: Option<TypeId>,
-    /// tsc links.instantiationExpressionTypes (getInstantiationExpressionType
-    /// 77980): exprType.id → instantiated result, STORE-BEFORE-ERROR.
-    pub instantiation_expression_types: Option<rustc_hash::FxHashMap<TypeId, TypeId>>,
     /// tsc links.hasReportedStatementInAmbientContext
     /// (checkGrammarStatementInAmbientContext 90341): the once-flag on
     /// the offending statement OR its enclosing block. Stays false when
@@ -163,6 +149,46 @@ pub struct NodeLinks {
     /// (parameterInitializerContainsUndefined 71602) on Parameter
     /// nodes — the removeOptionalityFromDeclaredType input.
     pub parameter_initializer_contains_undefined: Option<bool>,
+    /// tsc links.jsxFlags (getIntrinsicTagSymbol 74540/74545) on JSX
+    /// opening-like/closing elements — an accumulating flags word.
+    pub jsx_flags: tsc_types::JsxFlags,
+    /// The rarely populated fields, allocated on first write.
+    cold: Option<Box<NodeLinksCold>>,
+}
+
+impl NodeLinks {
+    /// The rarely populated fields, if any was ever written.
+    pub fn cold(&self) -> Option<&NodeLinksCold> {
+        self.cold.as_deref()
+    }
+
+    /// The rarely populated fields, allocated on first use.
+    pub fn cold_mut(&mut self) -> &mut NodeLinksCold {
+        self.cold.get_or_insert_with(Default::default)
+    }
+}
+
+/// The NodeLinks fields most nodes never populate (see [`NodeLinks::cold`]).
+#[derive(Clone, Debug, Default)]
+pub struct NodeLinksCold {
+    /// tsc links.outerTypeParameters (getObjectTypeInstantiation 63466)
+    /// on the instantiated type's declaration node.
+    pub outer_type_parameters: LinkSlot<Box<[TypeId]>>,
+    /// tsc links.enumMemberValue (computeEnumMemberValues 85587) on
+    /// EnumMember nodes.
+    pub enum_member_value: Option<crate::evaluate::EvaluatorResult>,
+    /// tsc links.capturedBlockScopeBindings
+    /// (checkNestedBlockScopedBinding 72267-72268): the block-scoped
+    /// symbols a for-statement part captures, recorded beside the
+    /// ContainsCapturedBlockScopeBinding flag and consumed only by the
+    /// emit resolver's isBindingCapturedByNode.
+    pub captured_block_scope_bindings: Vec<SymbolId>,
+    /// tsc links.assertionExpressionType (checkAssertionWorker 77920):
+    /// the operand type stashed for checkAssertionDeferred.
+    pub assertion_expression_type: Option<TypeId>,
+    /// tsc links.instantiationExpressionTypes (getInstantiationExpressionType
+    /// 77980): exprType.id → instantiated result, STORE-BEFORE-ERROR.
+    pub instantiation_expression_types: Option<rustc_hash::FxHashMap<TypeId, TypeId>>,
     /// tsc links.spreadIndices (getContextualType's ArrayLiteral arm
     /// 73520): (first, last) spread element indices, computed once per
     /// array literal (getSpreadIndices 73248).
@@ -171,9 +197,6 @@ pub struct NodeLinks {
     /// 75417): `{typeId}|{isUncheckedJS}` dedupe keys. Trial-local
     /// insertions are visible to re-entry and restored at the boundary.
     pub non_existent_prop_check_cache: rustc_hash::FxHashSet<String>,
-    /// tsc links.jsxFlags (getIntrinsicTagSymbol 74540/74545) on JSX
-    /// opening-like/closing elements — an accumulating flags word.
-    pub jsx_flags: tsc_types::JsxFlags,
     /// tsc links.resolvedJsxElementAttributesType
     /// (getIntrinsicAttributesTypeFromJsxOpeningLikeElement 74731) —
     /// compute-once; written only on success so a CheckAbort unwind
@@ -1527,7 +1550,7 @@ impl LinksTables {
             return;
         }
         Self::assert_writable(speculation_depth);
-        let links = self.node.slot(id);
+        let links = self.node.slot(id).cold_mut();
         if links.spread_indices.is_none() {
             links.spread_indices = Some(value);
         }
@@ -1558,7 +1581,11 @@ impl LinksTables {
         value: TypeId,
     ) {
         Self::assert_writable(speculation_depth);
-        let slot = &mut self.node.slot(id).resolved_jsx_element_attributes_type;
+        let slot = &mut self
+            .node
+            .slot(id)
+            .cold_mut()
+            .resolved_jsx_element_attributes_type;
         match slot {
             None => *slot = Some(value),
             Some(existing) if *existing == value => {}
@@ -1577,7 +1604,7 @@ impl LinksTables {
         value: TypeId,
     ) {
         Self::assert_writable(speculation_depth);
-        let slot = &mut self.node.slot(id).jsx_fragment_type;
+        let slot = &mut self.node.slot(id).cold_mut().jsx_fragment_type;
         match slot {
             None => *slot = Some(value),
             Some(existing) if *existing == value => {}
@@ -2021,7 +2048,7 @@ impl LinksTables {
                 .speculative_decorator_signature_writes
                 .pop()
                 .expect("length checked");
-            self.node.slot(node).decorator_signature = previous;
+            self.node.slot(node).cold_mut().decorator_signature = previous;
         }
     }
 
@@ -2497,7 +2524,7 @@ impl LinksTables {
             return;
         }
         Self::assert_writable(speculation_depth);
-        let bindings = &mut self.node.slot(id).captured_block_scope_bindings;
+        let bindings = &mut self.node.slot(id).cold_mut().captured_block_scope_bindings;
         if !bindings.contains(&symbol) {
             bindings.push(symbol);
         }
@@ -2587,13 +2614,13 @@ impl LinksTables {
             let previous = self
                 .node
                 .get(id)
-                .and_then(|links| links.decorator_signature);
+                .and_then(|links| links.cold()?.decorator_signature);
             self.speculative_decorator_signature_writes
                 .push((speculation_depth, id, previous));
         } else if speculation_depth == 0 {
             Self::assert_writable(speculation_depth);
         }
-        self.node.slot(id).decorator_signature = value;
+        self.node.slot(id).cold_mut().decorator_signature = value;
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
@@ -2608,7 +2635,7 @@ impl LinksTables {
         // fact. Keep it across candidate commit/rollback just as the
         // CheckAbort unwind twin below keeps already-filled member slots;
         // only the enclosing enum-values-computed once-flag is provisional.
-        let slot = &mut self.node.slot(id).enum_member_value;
+        let slot = &mut self.node.slot(id).cold_mut().enum_member_value;
         assert!(slot.is_none(), "enum member value rewritten");
         *slot = Some(value);
     }
@@ -3205,7 +3232,7 @@ impl LinksTables {
         ty: TypeId,
     ) {
         let _ = speculation_depth;
-        self.node.slot(id).assertion_expression_type = Some(ty);
+        self.node.slot(id).cold_mut().assertion_expression_type = Some(ty);
     }
 
     /// getInstantiationExpressionType's STORE-BEFORE-ERROR map insert.
@@ -3221,6 +3248,7 @@ impl LinksTables {
         Self::assert_writable(speculation_depth);
         self.node
             .slot(id)
+            .cold_mut()
             .instantiation_expression_types
             .get_or_insert_with(Default::default)
             .insert(expr_type, result);
@@ -3266,11 +3294,17 @@ impl LinksTables {
     ) -> bool {
         if speculation_depth == 0 {
             Self::assert_writable(speculation_depth);
-            return self.node.slot(id).non_existent_prop_check_cache.insert(key);
+            return self
+                .node
+                .slot(id)
+                .cold_mut()
+                .non_existent_prop_check_cache
+                .insert(key);
         }
         let inserted = self
             .node
             .slot(id)
+            .cold_mut()
             .non_existent_prop_check_cache
             .insert(key.clone());
         if inserted {
@@ -3289,6 +3323,7 @@ impl LinksTables {
                 .expect("length checked");
             self.node
                 .slot(node)
+                .cold_mut()
                 .non_existent_prop_check_cache
                 .remove(&key);
         }
@@ -3889,7 +3924,7 @@ impl LinksTables {
         }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
-            &mut self.node.slot(id).outer_type_parameters,
+            &mut self.node.slot(id).cold_mut().outer_type_parameters,
             LinkSlot::Resolved(value),
         );
     }

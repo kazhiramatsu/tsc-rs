@@ -1200,7 +1200,8 @@ fn failed_candidate_keeps_deferred_assertion_operand_stash() {
             assert!(state
                 .links
                 .node(assertion)
-                .assertion_expression_type
+                .cold()
+                .and_then(|cold| cold.assertion_expression_type)
                 .is_some());
             assert_eq!(state.speculation_depth, 0);
         },

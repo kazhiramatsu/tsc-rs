@@ -32,10 +32,12 @@ pub struct CheckerBudget {
     leak_states: bool,
 }
 
-/// The automatic budget's cap: tsgo's default checker count. More shards
-/// currently cost more duplicated per-checker work than they save on this
-/// machine (W measurements: 8 checkers were slower than 4 on scale256).
-const AUTOMATIC_CHECKERS_CAP: usize = 4;
+/// The automatic checker count is capped at eight: on a ten-core machine
+/// (four performance, six efficiency cores) a 256-file program checks about
+/// 6% faster with eight shards than with tsgo's default of four, and no
+/// faster with ten, while every extra shard repeats the lazy library-type
+/// work (CPU +19% at eight). tsgo's default stays four.
+const AUTOMATIC_CHECKERS_CAP: usize = 8;
 
 impl Default for CheckerBudget {
     /// The API default: one checker.
@@ -84,7 +86,7 @@ impl CheckerBudget {
     }
 
     /// The CLI default: one checker per available hardware thread, capped
-    /// at tsgo's default of four (and, at partition time, by the file
+    /// at `AUTOMATIC_CHECKERS_CAP` (and, at partition time, by the file
     /// count). `TSRS_CHECKERS` pins another count.
     pub fn automatic() -> Self {
         let available = std::thread::available_parallelism().map_or(1, NonZeroUsize::get);

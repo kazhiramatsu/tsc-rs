@@ -1019,10 +1019,9 @@ impl<'a> CheckerState<'a> {
         let parent = self
             .parent_of(decorator)
             .expect("decorators hang off their decorated node");
-        if let Some(existing) = self
-            .links
-            .read_node(parent, |links| links.decorator_signature)
-        {
+        if let Some(existing) = self.links.read_node(parent, |links| {
+            links.cold().and_then(|cold| cold.decorator_signature)
+        }) {
             return Ok((existing != self.any_signature).then_some(existing));
         }
         let sentinel = self.any_signature;
@@ -1149,10 +1148,9 @@ impl<'a> CheckerState<'a> {
         let parent = self
             .parent_of(decorator)
             .expect("decorators hang off their decorated node");
-        if let Some(existing) = self
-            .links
-            .read_node(parent, |links| links.decorator_signature)
-        {
+        if let Some(existing) = self.links.read_node(parent, |links| {
+            links.cold().and_then(|cold| cold.decorator_signature)
+        }) {
             return Ok((existing != self.any_signature).then_some(existing));
         }
         let sentinel = self.any_signature;

@@ -2588,10 +2588,9 @@ impl<'a> CheckerState<'a> {
                 let Some(element_index) = elements.iter().position(|&e| e == node) else {
                     return Ok(None);
                 };
-                let spread_indices = match self
-                    .links
-                    .read_node(array_literal, |links| links.spread_indices)
-                {
+                let spread_indices = match self.links.read_node(array_literal, |links| {
+                    links.cold().and_then(|cold| cold.spread_indices)
+                }) {
                     Some(cached) => cached,
                     None => {
                         let computed = self.get_spread_indices(&elements);

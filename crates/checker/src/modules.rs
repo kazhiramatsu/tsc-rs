@@ -191,10 +191,11 @@ impl<'a> CheckerState<'a> {
         declaration: NodeId,
     ) -> CheckResult<bool> {
         let symbol = self.get_symbol_of_declaration(declaration)?;
-        Ok(self
-            .links
-            .read_node(node, |links| links.captured_block_scope_bindings.clone())
-            .contains(&symbol))
+        Ok(self.links.read_node(node, |links| {
+            links
+                .cold()
+                .is_some_and(|cold| cold.captured_block_scope_bindings.contains(&symbol))
+        }))
     }
 
     /// tsc-port: getReferencedDeclarationWithCollidingName @6.0.3

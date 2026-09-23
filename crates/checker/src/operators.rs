@@ -2648,7 +2648,9 @@ impl<'a> CheckerState<'a> {
         };
         let stashed = self
             .links
-            .read_node(node, |links| links.assertion_expression_type)
+            .read_node(node, |links| {
+                links.cold().and_then(|cold| cold.assertion_expression_type)
+            })
             .expect("every deferred assertion keeps its stashed operand type across trials");
         let base = self.get_base_type_of_literal_type(stashed)?;
         let expr_type = self.get_regular_type_of_object_literal(base)?;
@@ -2833,10 +2835,11 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(expr_type);
         }
-        if let Some(map) = &self
-            .links
-            .read_node(node, |links| links.instantiation_expression_types.clone())
-        {
+        if let Some(map) = &self.links.read_node(node, |links| {
+            links
+                .cold()
+                .and_then(|cold| cold.instantiation_expression_types.clone())
+        }) {
             if let Some(&cached) = map.get(&expr_type) {
                 return Ok(cached);
             }

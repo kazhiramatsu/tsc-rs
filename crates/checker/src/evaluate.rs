@@ -72,7 +72,9 @@ impl<'a> CheckerState<'a> {
         self.compute_enum_member_values(parent)?;
         Ok(self
             .links
-            .read_node(member, |links| links.enum_member_value.clone())
+            .read_node(member, |links| {
+                links.cold().and_then(|cold| cold.enum_member_value.clone())
+            })
             .unwrap_or_else(undefined_result))
     }
 
@@ -153,10 +155,9 @@ impl<'a> CheckerState<'a> {
         let mut auto_value = Some(0f64);
         let mut previous: Option<NodeId> = None;
         for member in members {
-            let outcome = if let Some(existing) = self
-                .links
-                .read_node(member, |links| links.enum_member_value.clone())
-            {
+            let outcome = if let Some(existing) = self.links.read_node(member, |links| {
+                links.cold().and_then(|cold| cold.enum_member_value.clone())
+            }) {
                 Ok(existing)
             } else {
                 self.compute_enum_member_value(member, auto_value, previous)
@@ -170,7 +171,9 @@ impl<'a> CheckerState<'a> {
             };
             if self
                 .links
-                .read_node(member, |links| links.enum_member_value.clone())
+                .read_node(member, |links| {
+                    links.cold().and_then(|cold| cold.enum_member_value.clone())
+                })
                 .is_none()
             {
                 self.links.set_node_enum_member_value(
@@ -260,7 +263,9 @@ impl<'a> CheckerState<'a> {
             {
                 let numeric_local = self
                     .links
-                    .read_node(previous, |links| links.enum_member_value.clone())
+                    .read_node(previous, |links| {
+                        links.cold().and_then(|cold| cold.enum_member_value.clone())
+                    })
                     .as_ref()
                     .is_some_and(|value| {
                         matches!(value.value, Some(EvalValue::Num(_)))

@@ -20,6 +20,17 @@ fn with_state<R>(run: impl FnOnce(&mut CheckerState) -> R) -> R {
     )
 }
 
+/// The node's nonExistentPropCheckCache keys (empty when the cold record
+/// was never allocated).
+fn cache_keys(state: &CheckerState<'_>, node: tsc_syntax::NodeId) -> rustc_hash::FxHashSet<String> {
+    state
+        .links
+        .node(node)
+        .cold()
+        .map(|cold| cold.non_existent_prop_check_cache.clone())
+        .unwrap_or_default()
+}
+
 #[test]
 fn nonexistent_property_cache_deduplicates_within_nested_speculation() {
     with_state(|state| {
@@ -71,31 +82,31 @@ fn nonexistent_property_cache_deduplicates_within_nested_speculation() {
             state
                 .links
                 .node(node)
-                .non_existent_prop_check_cache
-                .contains(&parent_key),
+                .cold()
+                .is_some_and(|cold| cold.non_existent_prop_check_cache.contains(&parent_key)),
             state
                 .links
                 .node(node)
-                .non_existent_prop_check_cache
-                .contains(&child_key),
+                .cold()
+                .is_some_and(|cold| cold.non_existent_prop_check_cache.contains(&child_key)),
         ]);
         state.rollback_speculation(outer);
         observed.extend([
             state
                 .links
                 .node(node)
-                .non_existent_prop_check_cache
-                .contains(&permanent),
+                .cold()
+                .is_some_and(|cold| cold.non_existent_prop_check_cache.contains(&permanent)),
             state
                 .links
                 .node(node)
-                .non_existent_prop_check_cache
-                .contains(&parent_key),
+                .cold()
+                .is_some_and(|cold| cold.non_existent_prop_check_cache.contains(&parent_key)),
             state
                 .links
                 .node(node)
-                .non_existent_prop_check_cache
-                .contains(&child_key),
+                .cold()
+                .is_some_and(|cold| cold.non_existent_prop_check_cache.contains(&child_key)),
         ]);
         assert_eq!(
             observed,
@@ -113,7 +124,7 @@ fn nonexistent_property_cache_restores_every_transaction_boundary() {
         assert!(state
             .links
             .insert_node_non_existent_prop_key(0, node, permanent.clone()));
-        let baseline = state.links.node(node).non_existent_prop_check_cache;
+        let baseline = cache_keys(&state, node);
         let mut observed = Vec::new();
         for outcome in 0..4 {
             let mut visible_inside = false;
@@ -126,8 +137,8 @@ fn nonexistent_property_cache_restores_every_transaction_boundary() {
                 visible_inside = state
                     .links
                     .node(node)
-                    .non_existent_prop_check_cache
-                    .contains(&trial);
+                    .cold()
+                    .is_some_and(|cold| cold.non_existent_prop_check_cache.contains(&trial));
                 match outcome {
                     0 => Ok(SpeculationOutcome::Commit(())),
                     1 => Ok(SpeculationOutcome::Rollback(())),
@@ -143,10 +154,7 @@ fn nonexistent_property_cache_restores_every_transaction_boundary() {
                     Ok(())
                 }
             );
-            observed.push((
-                visible_inside,
-                state.links.node(node).non_existent_prop_check_cache == baseline,
-            ));
+            observed.push((visible_inside, cache_keys(&state, node) == baseline));
         }
         assert_eq!(observed, [(true, true); 4]);
     });

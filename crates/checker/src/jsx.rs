@@ -1281,10 +1281,11 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
     ) -> CheckResult<TypeId> {
-        if let Some(cached) = self
-            .links
-            .read_node(node, |links| links.resolved_jsx_element_attributes_type)
-        {
+        if let Some(cached) = self.links.read_node(node, |links| {
+            links
+                .cold()
+                .and_then(|cold| cold.resolved_jsx_element_attributes_type)
+        }) {
             return Ok(cached);
         }
         let symbol = self.get_intrinsic_tag_symbol(node)?;
@@ -1524,7 +1525,9 @@ impl<'a> CheckerState<'a> {
     ///
     pub(crate) fn get_jsx_fragment_type(&mut self, node: NodeId) -> CheckResult<TypeId> {
         let root = self.binder.source_of_node(node).root;
-        if let Some(cached) = self.links.read_node(root, |links| links.jsx_fragment_type) {
+        if let Some(cached) = self.links.read_node(root, |links| {
+            links.cold().and_then(|cold| cold.jsx_fragment_type)
+        }) {
             return Ok(cached);
         }
         let fragment_factory_name = self.get_jsx_namespace_name(node);
