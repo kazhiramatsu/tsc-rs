@@ -15,7 +15,7 @@ use crate::node_util::{
     parent_of, statements_of, try_parse_pattern, ParsedPattern,
 };
 use crate::symbols::{SymbolId, SymbolTable};
-use std::collections::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 use tsc_diagnostics::{gen as diagnostics, DiagnosticArgument, JsString};
 use tsc_syntax::{for_each_child, NodeData, NodeId, SourceFile, SyntaxKind};
 use tsc_types::{FlowFlags, ModifierFlags, NodeFlags, SymbolFlags};
@@ -782,7 +782,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 21ca198e239d4aa3c6965ee0c8cb7c4c4cd7534a9e6c906a0fa20356e4413843
     /// tsc-span: _tsc.js:43937-43946
     pub fn declare_module_symbol(&mut self, node: NodeId) -> ModuleInstanceState {
-        let state = get_module_instance_state(self.source, node, &mut HashMap::new());
+        let state = get_module_instance_state(self.source, node, &mut HashMap::default());
         let instantiated = state != ModuleInstanceState::NonInstantiated;
         self.declare_symbol_and_add_to_symbol_table(
             node,

@@ -76,7 +76,17 @@ impl ParsedSourceIdentifierNames {
         let syntax = arena.source(source)?.syntax();
         let node_base = syntax.arena.node_base();
         let mut names = BTreeSet::new();
+        // Most identifier texts repeat many times per file; a hashed
+        // first-sight filter keeps the ordered set's string comparisons
+        // and clones to the distinct names only.
+        let mut seen: rustc_hash::FxHashSet<&str> = rustc_hash::FxHashSet::default();
         for (offset, record) in syntax.arena.nodes().iter().enumerate() {
+            let NodeData::Identifier(identifier) = &record.data else {
+                continue;
+            };
+            if !seen.insert(identifier.text.as_str()) {
+                continue;
+            }
             let offset = u32::try_from(offset).expect("transform node count exceeds u32");
             let id = NodeId(
                 node_base
@@ -85,11 +95,12 @@ impl ParsedSourceIdentifierNames {
             );
             let node = TransformNode::new(source, id);
             if !arena.is_parsed_node(node)? {
+                // A synthesized spelling does not reserve the name; a later
+                // parsed node with the same text still must.
+                seen.remove(identifier.text.as_str());
                 continue;
             }
-            if let NodeData::Identifier(identifier) = &record.data {
-                names.insert(identifier.text.clone());
-            }
+            names.insert(identifier.text.clone());
         }
         Ok(Self(names))
     }
@@ -662,6 +673,12 @@ fn finalize_generated_binding_names_with_policy(
     mut bundle_generated_names: Option<&mut BTreeSet<String>>,
     carried: Option<&CarriedGeneratedNames>,
 ) -> Result<(), TransformError> {
+    // Only generated bindings receive names here; a source whose arena
+    // never allocated one (and no failed print left names to continue)
+    // has nothing to finalize, so the event walk is skipped.
+    if carried.is_none() && context.arena().generated_binding_count() == 0 {
+        return Ok(());
+    }
     let mut events = Vec::new();
     collect_binding_name_events(context.arena(), source, root, true, &mut events)?;
     if events.is_empty() {
@@ -1268,6 +1285,11 @@ impl TransformationContext {
         carried: Option<&CarriedGeneratedNames>,
     ) -> Result<(), TransformError> {
         let source = root.source();
+        if carried.is_none() && self.arena().generated_binding_count() == 0 {
+            // No generated binding exists in this arena: neither the
+            // reconciliation below nor the parsed census has any subject.
+            return Ok(());
+        }
         let mut events = Vec::new();
         collect_binding_name_events(self.arena(), source, root, true, &mut events)?;
         // Transformer-time finalization has no checker oracle. An actual

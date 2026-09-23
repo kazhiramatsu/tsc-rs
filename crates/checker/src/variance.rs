@@ -10,6 +10,7 @@ use tsc_types::{ModifierFlags, ObjectFlags, TypeData, TypeFlags, TypeId, Varianc
 
 use crate::links::LinkSlot;
 use crate::state::{CheckAbort, CheckResult, CheckerState, VarianceHandlerFrame};
+use tsc_types::perf::{self, PerfCounter};
 
 /// tsc arrayVariances (46460): `[VarianceFlags.Covariant]` — shared by
 /// both global array types and every tuple target
@@ -81,10 +82,13 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<VariancesResult> {
         match &self
             .links
-            .read_symbol(symbol, |links| links.variances.clone())
+            .read_symbol(symbol, |links| links.cold().variances.clone())
         {
             LinkSlot::Resolved(list) => return Ok(VariancesResult::Known(list.clone())),
-            LinkSlot::Resolving => return Ok(VariancesResult::InProgress),
+            LinkSlot::Resolving => {
+                perf::bump(PerfCounter::SentinelVarianceInProgress);
+                return Ok(VariancesResult::InProgress);
+            }
             LinkSlot::Vacant => {}
         }
         let old_variance_computation = self.in_variance_computation;

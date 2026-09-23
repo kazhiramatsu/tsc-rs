@@ -232,14 +232,14 @@ struct Parser<'text> {
     js_doc_diagnostics: DiagnosticList,
     parse_error_before_next_finished_node: bool,
     parsing_context: u32,
-    not_parenthesized_arrow: std::collections::HashSet<usize>,
+    not_parenthesized_arrow: rustc_hash::FxHashSet<usize>,
     /// tsc's `withJSDoc` is called while parser nodes are completed. Keep
     /// only those possible hosts so attachment materialization does not
     /// require another whole-tree walk after parsing.
     jsdoc_candidates: Vec<NodeId>,
     /// Full-start positions whose ordinary scanner token carried
     /// TokenFlags.PrecedingJSDocComment.
-    jsdoc_positions: std::collections::HashSet<usize>,
+    jsdoc_positions: rustc_hash::FxHashSet<usize>,
     has_jsdoc_comments: bool,
     syntax_cursor: Option<SyntaxCursor>,
     subtree_copier: Option<SubtreeCopier>,
@@ -911,9 +911,9 @@ impl<'text> Parser<'text> {
             js_doc_diagnostics: Vec::new(),
             parse_error_before_next_finished_node: false,
             parsing_context: 0,
-            not_parenthesized_arrow: std::collections::HashSet::new(),
+            not_parenthesized_arrow: rustc_hash::FxHashSet::default(),
             jsdoc_candidates: Vec::new(),
-            jsdoc_positions: std::collections::HashSet::new(),
+            jsdoc_positions: rustc_hash::FxHashSet::default(),
             has_jsdoc_comments: text.contains("/**"),
             syntax_cursor: None,
             subtree_copier: None,
@@ -1008,6 +1008,9 @@ impl<'text> Parser<'text> {
     }
 
     fn drain_scanner_errors(&mut self) {
+        if !self.scanner.has_errors() {
+            return;
+        }
         for error in self.scanner.take_errors() {
             self.push_parse_diagnostic(
                 error.start,
@@ -9351,7 +9354,11 @@ impl<'text> Parser<'text> {
     // Identifier/private/numeric/regexp token consumers are scalar by grammar.
     // Diagnostic arguments use current_token_value instead, including literals.
     fn current_token_text(&self) -> String {
-        self.current_token_value()
+        let value = self.scanner.token_value();
+        if value.is_empty() {
+            return token_to_string(self.token());
+        }
+        value
             .as_str()
             .expect("identifier, numeric and regexp token text is Unicode scalar text")
             .to_owned()
@@ -9932,7 +9939,7 @@ impl<'text> Parser<'text> {
             });
         }
         let mut range_cache =
-            std::collections::HashMap::<(SyntaxKind, usize), Vec<(usize, usize)>>::new();
+            rustc_hash::FxHashMap::<(SyntaxKind, usize), Vec<(usize, usize)>>::default();
         for host in hosts {
             let (kind, pos, end, flags) = {
                 let node = self.arena.node(host);
@@ -10398,6 +10405,7 @@ fn parse_source_file_from_snapshot_worker(
         debug_assert!(parser.arena.is_empty());
         parser.arena = NodeArena::with_bases(options.node_id_base, options.node_array_id_base);
     }
+    parser.arena.reserve_for_text(text.len());
     parser.next_token();
     let mut statements = parser.parse_list(ParsingContext::SourceElements, |parser| {
         Some(parser.parse_source_element())

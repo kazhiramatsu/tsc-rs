@@ -476,32 +476,78 @@ impl IdentityDomain {
     ) -> Result<Vec<IdentityLease>, IdentityError> {
         validate_spaces(requests.iter().map(|(space, _)| *space))?;
         let mut state = self.lock()?;
-        let mut trial = state.clone();
-        let mut allocated = Vec::with_capacity(requests.len());
-        for &(space, count) in requests {
-            let lease_id = trial.next_lease_id;
-            trial.next_lease_id =
-                trial
-                    .next_lease_id
-                    .checked_add(1)
-                    .ok_or(IdentityError::InvalidLease {
-                        space,
-                        detail: "lease serial exhausted",
-                    })?;
-            let range = trial.allocators[space.index()].allocate(
-                space,
-                count,
-                lease_id,
-                self.inner.policy,
-            )?;
-            allocated.push((space, range, lease_id));
-        }
-        *state = trial;
+        let allocated = if self.inner.policy == IdentityAllocationPolicy::EphemeralBump {
+            // Bump allocations only ever fail before touching the allocator
+            // (limit) or at the active-range insertion, so a failed batch is
+            // undone in place; cloning the domain state (its active ranges
+            // grow with every file) per transaction is what a Program of a
+            // few hundred files would otherwise pay hundreds of times.
+            Self::allocate_batch_in_place(&mut state, requests, self.inner.policy)?
+        } else {
+            let mut trial = state.clone();
+            let allocated = Self::allocate_batch_in_place(&mut trial, requests, self.inner.policy)?;
+            *state = trial;
+            allocated
+        };
         drop(state);
         Ok(allocated
             .into_iter()
             .map(|(space, range, lease_id)| self.make_lease(space, range, lease_id))
             .collect())
+    }
+
+    /// Allocate every request of a batch on `state`, restoring the state on
+    /// failure (the lease serial, each allocator's bump position and the
+    /// active ranges inserted by this batch).
+    fn allocate_batch_in_place(
+        state: &mut DomainState,
+        requests: &[(IdentitySpace, u32)],
+        policy: IdentityAllocationPolicy,
+    ) -> Result<Vec<(IdentitySpace, IdentityRange, u64)>, IdentityError> {
+        let next_lease_id = state.next_lease_id;
+        let bumps = state
+            .allocators
+            .iter()
+            .map(|allocator| allocator.bump)
+            .collect::<Vec<_>>();
+        let mut allocated = Vec::with_capacity(requests.len());
+        let mut failure = None;
+        for &(space, count) in requests {
+            let lease_id = state.next_lease_id;
+            let result = state
+                .next_lease_id
+                .checked_add(1)
+                .ok_or(IdentityError::InvalidLease {
+                    space,
+                    detail: "lease serial exhausted",
+                })
+                .and_then(|next| {
+                    state.next_lease_id = next;
+                    state.allocators[space.index()].allocate(space, count, lease_id, policy)
+                });
+            match result {
+                Ok(range) => allocated.push((space, range, lease_id)),
+                Err(error) => {
+                    failure = Some(error);
+                    break;
+                }
+            }
+        }
+        let Some(error) = failure else {
+            return Ok(allocated);
+        };
+        for (space, range, _) in allocated {
+            if range.start() != range.end() {
+                state.allocators[space.index()]
+                    .active
+                    .remove(&range.start());
+            }
+        }
+        for (allocator, bump) in state.allocators.iter_mut().zip(bumps) {
+            allocator.bump = bump;
+        }
+        state.next_lease_id = next_lease_id;
+        Err(error)
     }
 
     /// Opens the current bump tail without advancing it. Only one one-shot

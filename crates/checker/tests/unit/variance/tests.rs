@@ -21,7 +21,7 @@ fn annotation_type(state: &mut CheckerState, name: &str) -> tsc_types::TypeId {
 
 fn measured_variances(state: &CheckerState, name: &str) -> Vec<VarianceFlags> {
     let symbol = *state.globals.get(name).expect("global interface symbol");
-    match &state.links.symbol(symbol).variances {
+    match &state.links.symbol(symbol).cold().variances {
         LinkSlot::Resolved(list) => list.to_vec(),
         other => panic!("variances not measured for {name}: {other:?}"),
     }
@@ -115,7 +115,7 @@ fn modifier_fast_path_skips_measurement() {
             // the slot stays vacant, proving the fast path.
             let i_symbol = *state.globals.get("I").expect("interface I");
             assert!(matches!(
-                state.links.symbol(i_symbol).variances,
+                state.links.symbol(i_symbol).cold().variances,
                 LinkSlot::Vacant
             ));
         },
@@ -134,7 +134,7 @@ fn alias_variances_drive_the_same_alias_fast_path() {
             assert_eq!(state.is_type_assignable_to(b, a), Ok(false));
             let box_symbol = *state.globals.get("Box").expect("alias Box");
             assert_eq!(
-                match &state.links.symbol(box_symbol).variances {
+                match &state.links.symbol(box_symbol).cold().variances {
                     LinkSlot::Resolved(list) => list.to_vec(),
                     other => panic!("alias variances unmeasured: {other:?}"),
                 },
@@ -240,7 +240,7 @@ fn rolled_back_tuple_rest_variance_replays_relation_cache_markers() {
                 })
                 .expect("rolled-back variance measurement completes");
             assert!(matches!(
-                state.links.symbol(holder_symbol).variances,
+                state.links.symbol(holder_symbol).cold().variances,
                 LinkSlot::Vacant
             ));
 

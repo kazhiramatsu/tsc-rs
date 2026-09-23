@@ -131,6 +131,8 @@ pub fn digest(source: &SourceFile) -> Value {
                 let tsc_syntax::nodes::Node {
                     kind,
                     flags,
+                    // Emit-session state only; zero on every parsed node.
+                    transform_flags: _,
                     numeric_literal_flags,
                     template_flags,
                     multi_line,
@@ -159,6 +161,7 @@ pub fn digest(source: &SourceFile) -> Value {
                     end,
                     has_trailing_comma,
                     is_missing_list,
+                    transform_flags: _,
                 } = source.arena.node_array(id);
                 json!({"array":nodes.iter().map(|id|graph.node(*id)).collect::<Vec<_>>(),
                     "pos":position(*pos),"end":position(*end),

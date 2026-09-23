@@ -10,7 +10,9 @@
 //! arms, member resolution, signatures) live in the checker; everything
 //! here is pure over TypeIds + flags.
 
-use std::collections::HashMap;
+// Interning tables keyed by compiler-assigned ids or by canonical key
+// strings; never iterated, so the lookup-only hasher applies.
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::flags::{AccessFlags, ElementFlags, ObjectFlags, TypeFlags};
 use crate::ty::{
@@ -214,21 +216,21 @@ impl TypeTables {
                 numeric_string: TypeId(0),
                 unique_literal: TypeId(0),
             },
-            string_literal_types: HashMap::new(),
-            utf8_string_literal_types: HashMap::new(),
-            number_literal_types: HashMap::new(),
-            bigint_literal_types: HashMap::new(),
-            enum_literal_types: HashMap::new(),
-            union_types: HashMap::new(),
-            union_of_union_types: HashMap::new(),
-            intersection_types: HashMap::new(),
-            tuple_types: HashMap::new(),
-            template_literal_types: HashMap::new(),
-            string_mapping_types: HashMap::new(),
-            indexed_access_types: HashMap::new(),
-            substitution_types: HashMap::new(),
+            string_literal_types: HashMap::default(),
+            utf8_string_literal_types: HashMap::default(),
+            number_literal_types: HashMap::default(),
+            bigint_literal_types: HashMap::default(),
+            enum_literal_types: HashMap::default(),
+            union_types: HashMap::default(),
+            union_of_union_types: HashMap::default(),
+            intersection_types: HashMap::default(),
+            tuple_types: HashMap::default(),
+            template_literal_types: HashMap::default(),
+            string_mapping_types: HashMap::default(),
+            indexed_access_types: HashMap::default(),
+            substitution_types: HashMap::default(),
             conditional_roots: Vec::new(),
-            instantiations: HashMap::new(),
+            instantiations: HashMap::default(),
         };
         tables.create_initial_types();
         tables
@@ -669,10 +671,12 @@ impl TypeTables {
     /// tsc-span: _tsc.js:63083-63086
     pub fn get_string_literal_type<'a>(&mut self, value: impl Into<crate::JsStr<'a>>) -> TypeId {
         let value = value.into();
+        crate::perf::bump(crate::perf::PerfCounter::StringLiteralLookups);
         let Some(value) = value.as_str() else {
             return self.get_string_literal_type_from_text(&TemplateText::from_js(value));
         };
         if let Some(&id) = self.utf8_string_literal_types.get(value) {
+            crate::perf::bump(crate::perf::PerfCounter::StringLiteralHits);
             return id;
         }
         self.get_string_literal_type_from_text(&TemplateText::from_utf8(value))
@@ -683,6 +687,7 @@ impl TypeTables {
     /// surrogates.
     pub fn get_string_literal_type_from_text(&mut self, value: &TemplateText) -> TypeId {
         if let Some(&id) = self.string_literal_types.get(value) {
+            crate::perf::bump(crate::perf::PerfCounter::StringLiteralHits);
             return id;
         }
         let id = self.create_literal_type(
@@ -706,7 +711,9 @@ impl TypeTables {
     /// tsc-span: _tsc.js:63087-63090
     pub fn get_number_literal_type(&mut self, value: f64) -> TypeId {
         let key = number_map_key(value);
+        crate::perf::bump(crate::perf::PerfCounter::NumberLiteralLookups);
         if let Some(&id) = self.number_literal_types.get(&key) {
+            crate::perf::bump(crate::perf::PerfCounter::NumberLiteralHits);
             return id;
         }
         let id =
@@ -815,6 +822,7 @@ impl TypeTables {
     /// tsc-hash: 08bbe30d7ae7370051e576d48d6bf3103d563a65a92d10740ec9f3c4546f9fea
     /// tsc-span: _tsc.js:60128-60150
     pub fn get_type_list_id(&self, types: &[TypeId]) -> String {
+        crate::perf::bump(crate::perf::PerfCounter::TypeListIdCalls);
         let mut result = String::new();
         let length = types.len();
         let mut i = 0;
@@ -834,6 +842,10 @@ impl TypeTables {
             }
             i += count;
         }
+        crate::perf::add(
+            crate::perf::PerfCounter::TypeListIdBytes,
+            result.len() as u64,
+        );
         result
     }
 
@@ -845,6 +857,7 @@ impl TypeTables {
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
     ) -> String {
+        crate::perf::bump(crate::perf::PerfCounter::AliasIdCalls);
         match alias_symbol {
             None => String::new(),
             Some(symbol) => match alias_type_arguments {
@@ -860,7 +873,16 @@ impl TypeTables {
     /// createTypeReference keys by list id; getObjectTypeInstantiation
     /// keys by list id + alias id over the SAME map.
     pub fn instantiation_get(&self, target: TypeId, key: &str) -> Option<TypeId> {
-        self.instantiations.get(&(target, key.to_owned())).copied()
+        crate::perf::bump(crate::perf::PerfCounter::InstantiationLookups);
+        crate::perf::add(
+            crate::perf::PerfCounter::InstantiationKeyBytesCopied,
+            key.len() as u64,
+        );
+        let hit = self.instantiations.get(&(target, key.to_owned())).copied();
+        if hit.is_some() {
+            crate::perf::bump(crate::perf::PerfCounter::InstantiationHits);
+        }
+        hit
     }
 
     pub fn instantiation_insert(&mut self, target: TypeId, key: String, value: TypeId) {
@@ -932,7 +954,9 @@ impl TypeTables {
             };
             let index = usize::from(types[0].0 >= types[1].0);
             let key = format!("{}{infix}{}", types[index].0, types[1 - index].0);
+            crate::perf::bump(crate::perf::PerfCounter::UnionOfUnionLookups);
             if let Some(&id) = self.union_of_union_types.get(&key) {
+                crate::perf::bump(crate::perf::PerfCounter::UnionOfUnionHits);
                 return id;
             }
             let id = self.get_union_type_worker(types, reduction, None);
@@ -945,7 +969,12 @@ impl TypeTables {
     /// unionOfUnionTypes fast-path cache access for the checker-side
     /// Subtype-capable getUnionType twin.
     pub fn union_of_union_types_get(&self, key: &str) -> Option<TypeId> {
-        self.union_of_union_types.get(key).copied()
+        crate::perf::bump(crate::perf::PerfCounter::UnionOfUnionLookups);
+        let hit = self.union_of_union_types.get(key).copied();
+        if hit.is_some() {
+            crate::perf::bump(crate::perf::PerfCounter::UnionOfUnionHits);
+        }
+        hit
     }
 
     pub fn union_of_union_types_insert(&mut self, key: String, id: TypeId) {
@@ -1385,7 +1414,9 @@ impl TypeTables {
             "{type_key}{}",
             self.get_alias_id(alias_symbol, alias_type_arguments)
         );
+        crate::perf::bump(crate::perf::PerfCounter::UnionLookups);
         if let Some(&id) = self.union_types.get(&key) {
+            crate::perf::bump(crate::perf::PerfCounter::UnionHits);
             return id;
         }
         let boolean_pair = types.len() == 2
@@ -1497,7 +1528,12 @@ impl TypeTables {
     /// intersectionTypes map access for the checker-side
     /// getIntersectionType (the map itself is tsc's 46991).
     pub fn intersection_types_get(&self, key: &str) -> Option<TypeId> {
-        self.intersection_types.get(key).copied()
+        crate::perf::bump(crate::perf::PerfCounter::IntersectionLookups);
+        let hit = self.intersection_types.get(key).copied();
+        if hit.is_some() {
+            crate::perf::bump(crate::perf::PerfCounter::IntersectionHits);
+        }
+        hit
     }
 
     pub fn intersection_types_insert(&mut self, key: String, id: TypeId) {

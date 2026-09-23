@@ -6,7 +6,7 @@
 //! representation directly, including values which JSON.parse accepts but
 //! serde rejects. Object queries accept canonical views, never arbitrary bytes.
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 use std::fmt::Write;
 use std::ops::Index;
 

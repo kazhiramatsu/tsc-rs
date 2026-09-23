@@ -4,13 +4,14 @@ use std::sync::Arc;
 use tsc_diagnostics::{JsStr, JsString};
 
 use tsc_syntax::{
-    for_each_child, parse_source_file_from_snapshot, skip_trivia, LanguageVariant, NodeData,
-    NodeId, ParseOptions, SourceFile, SyntaxKind, TypeReferenceDirectiveResolutionMode,
+    for_each_child, parse_source_file_from_snapshot, skip_trivia, JSDocParsingMode,
+    LanguageVariant, NodeData, NodeId, ParseOptions, SourceFile, SyntaxKind,
+    TypeReferenceDirectiveResolutionMode,
 };
 use tsc_types::{CompilerOptions, NodeFlags};
 
 use crate::module_resolution::is_external_module_name_relative;
-use crate::prepared::PreparedSourceFile;
+use crate::prepared::{PreparedSourceFile, PreparsedSourceFile, PreparsedSyntax};
 use crate::resolution::{
     ResolutionError, ResolutionKey, ResolutionMode, TypeReferenceResolutionKey,
 };
@@ -225,7 +226,9 @@ pub fn plan_static_module_requests(
     source: &PreparedSourceFile,
     options: &CompilerOptions,
 ) -> Result<Vec<ResolutionKey>, ResolutionError> {
-    Ok(plan_module_requests_worker(source, options, false)?.into_module_requests())
+    Ok(plan_module_requests_worker(source, options, false)?
+        .0
+        .into_module_requests())
 }
 
 /// Plan the exact authoritative module keys for the H0 package-map program
@@ -256,12 +259,50 @@ pub fn plan_source_requests(
     source: &PreparedSourceFile,
     options: &CompilerOptions,
 ) -> Result<SourceRequestPlan, ResolutionError> {
-    plan_module_requests_worker(source, options, true)
+    Ok(plan_module_requests_worker(source, options, true)?.0)
+}
+
+/// [`plan_source_requests`] that also retains the parse the plan was computed
+/// from, together with the exact [`ParseOptions`] used, in an opaque
+/// take-once [`PreparsedSyntax`] slot so a later session can adopt the tree
+/// instead of parsing the same snapshot again. This is the only producer of
+/// a filled slot; the tree is the planner's own parse of `source`'s snapshot.
+pub fn plan_source_requests_retaining_syntax(
+    source: &PreparedSourceFile,
+    options: &CompilerOptions,
+) -> Result<(SourceRequestPlan, PreparsedSyntax), ResolutionError> {
+    let (plan, parsed) = plan_module_requests_worker(source, options, true)?;
+    Ok((plan, PreparsedSyntax::new(parsed)))
 }
 
 /// Exact syntax projection used by the module-request planner. Exposed so
 /// corpus replay can capture every load-steering parse without duplicating
 /// module detection, language-variant, or JSDoc-mode rules.
+/// The JSDoc parsing mode of every Program parse in this process:
+/// `createSourceFile`'s ParseAll unless the command line selects tsc's
+/// `defaultJSDocParsingMode` (ParseForTypeErrors, _tsc.js:132784) with
+/// [`set_default_js_doc_parsing_mode`] before loading.
+static DEFAULT_JS_DOC_PARSING_MODE: std::sync::atomic::AtomicU8 =
+    std::sync::atomic::AtomicU8::new(JSDocParsingMode::ParseAll as u8);
+
+/// Select the process-wide JSDoc parsing mode for Program parses (see
+/// [`default_js_doc_parsing_mode`]). A command-line process sets it once
+/// before loading a Program; library consumers leave the default.
+pub fn set_default_js_doc_parsing_mode(mode: JSDocParsingMode) {
+    DEFAULT_JS_DOC_PARSING_MODE.store(mode as u8, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// The JSDoc parsing mode Program parses use unless a source-API fact
+/// overrides it.
+pub fn default_js_doc_parsing_mode() -> JSDocParsingMode {
+    match DEFAULT_JS_DOC_PARSING_MODE.load(std::sync::atomic::Ordering::Relaxed) {
+        1 => JSDocParsingMode::ParseNone,
+        2 => JSDocParsingMode::ParseForTypeErrors,
+        3 => JSDocParsingMode::ParseForTypeInfo,
+        _ => JSDocParsingMode::ParseAll,
+    }
+}
+
 pub fn source_request_parse_options(
     source: &PreparedSourceFile,
     options: &CompilerOptions,
@@ -294,6 +335,7 @@ pub fn source_request_parse_options(
         javascript_file,
         force_external_module,
         detect_external_module_from_jsx,
+        js_doc_parsing_mode: default_js_doc_parsing_mode(),
         ..ParseOptions::default()
     }
 }
@@ -302,7 +344,7 @@ fn plan_module_requests_worker(
     source: &PreparedSourceFile,
     options: &CompilerOptions,
     expanded: bool,
-) -> Result<SourceRequestPlan, ResolutionError> {
+) -> Result<(SourceRequestPlan, PreparsedSourceFile), ResolutionError> {
     let module_kind = options.emit_module_kind();
     if (!expanded && !(100..=199).contains(&module_kind))
         || (expanded && !matches!(module_kind, 0..=7 | 99 | 100..=200))
@@ -343,7 +385,7 @@ fn plan_module_requests_worker(
     let parsed = parse_source_file_from_snapshot(
         file_name.to_owned(),
         Arc::clone(source.snapshot()),
-        parse_options,
+        parse_options.clone(),
         None,
     );
     let path_references: Vec<PlannedPathReference> = parsed
@@ -703,7 +745,7 @@ fn plan_module_requests_worker(
     // an augmentation body observe that ordinary authoritative row.
     unpreprocessed_module_requests.retain(|key| !seen_module_requests.contains(key));
 
-    Ok(SourceRequestPlan {
+    let plan = SourceRequestPlan {
         external_module_diagnostic_span: (!parsed.is_declaration_file)
             .then(|| {
                 parsed
@@ -720,7 +762,8 @@ fn plan_module_requests_worker(
         type_reference_directives,
         lib_reference_directives,
         observed_request_occurrence_count,
-    })
+    };
+    Ok((plan, PreparsedSourceFile::new(parse_options, parsed)))
 }
 
 // tsc-port: getErrorSpanForNode (external module indicators) @6.0.3

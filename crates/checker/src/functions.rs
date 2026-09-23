@@ -73,7 +73,7 @@ impl<'a> CheckerState<'a> {
                             from_method: false,
                             target: None,
                             mapper: None,
-                            instantiations: std::collections::HashMap::new(),
+                            instantiations: rustc_hash::FxHashMap::default(),
                             erased_signature_cache: None,
                             canonical_signature_cache: None,
                             base_signature_cache: None,
@@ -3842,8 +3842,8 @@ impl<'a> CheckerState<'a> {
         let canonical_flags = self.get_effective_declaration_flags(canonical, flags_to_check);
         // group(overloads, fileName) — first-seen file order.
         let mut file_order: Vec<usize> = Vec::new();
-        let mut groups: std::collections::HashMap<usize, Vec<NodeId>> =
-            std::collections::HashMap::new();
+        let mut groups: rustc_hash::FxHashMap<usize, Vec<NodeId>> =
+            rustc_hash::FxHashMap::default();
         for &overload in overloads {
             let file = self.binder.file_index_of_node(overload);
             if !groups.contains_key(&file) {
@@ -4013,7 +4013,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::ModuleDeclaration => {
                 let source = self.binder.source_of_node(decl);
                 let instantiated = node_util::is_ambient_module(source, decl) || {
-                    let mut visited = std::collections::HashMap::new();
+                    let mut visited = rustc_hash::FxHashMap::default();
                     tsc_binder::containers::get_module_instance_state(source, decl, &mut visited)
                         != tsc_binder::containers::ModuleInstanceState::NonInstantiated
                 };

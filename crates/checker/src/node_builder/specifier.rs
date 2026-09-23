@@ -276,6 +276,7 @@ pub(crate) fn get_specifier_for_module_symbol(
     if let Some(specifier) = state
         .links
         .symbol(module_symbol)
+        .cold()
         .specifier_cache
         .as_ref()
         .and_then(|cache| cache.get(&cache_key))

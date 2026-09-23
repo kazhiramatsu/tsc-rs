@@ -7,8 +7,9 @@
 
 mod replay_json;
 use replay_json::{json, JsonWireText};
+use rustc_hash::FxHashSet as HashSet;
 use std::cell::RefCell;
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 
 use tsc_binder::{node_util, SymbolId, SymbolTable};
 use tsc_emitter::{
@@ -975,16 +976,17 @@ impl CheckerState<'_> {
         if enclosing.is_some_and(|node| self.kind_of(node) == SyntaxKind::SourceFile) {
             options = options.with_never_ascii_escape(true);
         }
-        let display = self.emit_display_result();
-        let printed = create_printer(options)
-            .print(
-                &mut display.borrow_mut(),
-                PrintRequest::StandaloneNode {
-                    node,
-                    writer: StandaloneWriter::SingleLine,
-                },
-                None,
-            )
+        let printed = self
+            .with_emit_display(|display| {
+                create_printer(options).print(
+                    display,
+                    PrintRequest::StandaloneNode {
+                        node,
+                        writer: StandaloneWriter::SingleLine,
+                    },
+                    None,
+                )
+            })
             .expect("symbolToString standalone printing must succeed");
         Ok(tsc_types::JsString::from_code_units(
             printed.text_utf16().as_ref(),
@@ -1556,7 +1558,7 @@ impl CheckerState<'_> {
         let Some(export_symbol) = export_symbol else {
             return Ok(None);
         };
-        let mut visited = HashSet::new();
+        let mut visited = HashSet::default();
         visited.insert(export_symbol);
         let mut result = None;
         let declarations = self.binder.symbol(export_symbol).declarations.clone();

@@ -218,7 +218,10 @@ fn declarationless_recovery_alias_uses_stable_miss_sentinels() {
             .expect("declarationless immediate target is absent"),
         None
     );
-    assert_eq!(state.links.symbol(recovered).immediate_target, Some(None));
+    assert_eq!(
+        state.links.symbol(recovered).cold().immediate_target,
+        Some(None)
+    );
 
     state
         .mark_alias_symbol_as_referenced(recovered)

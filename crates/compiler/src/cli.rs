@@ -32,13 +32,13 @@ use tsc_program::{
     parse_config_root_plan_with_cache, CompilerConfigHost, CompilerOptions,
     ConfigEmitOptionOverrides, ConfigExtendedCache, ConfigParseError, ConfigProgramLoadError,
     ConfigRootPlan, ConfigRootPlanRequest, LibraryCatalog, PreparedProgramMode, ProgramLoadLimits,
-    ProgramOptions,
+    ProgramOptions, WorkerBudget,
 };
 
 use crate::no_emit_canary::NoEmitCanary;
 use crate::{
-    EmitFileSystem, FsOutputSink, H2ActivityCounters, NoEmitActivityCounters, NoEmitWorkCounters,
-    ProgramSession,
+    CheckerBudget, EmitFileSystem, FsOutputSink, H2ActivityCounters, NoEmitActivityCounters,
+    NoEmitWorkCounters, ProgramSession,
 };
 
 mod embedded_libraries {
@@ -59,6 +59,51 @@ const DEFAULT_LIMITS: ProgramLoadLimits = ProgramLoadLimits::new(
     64 * 1024 * 1024,
     512 * 1024 * 1024,
 );
+
+/// tsrs-native diagnostic control of the CLI's worker budget (see
+/// [`WorkerBudget`]): `TSRS_WORKERS=<positive integer>` pins the budget
+/// (clamped to the module cap), any other value or an unset variable selects
+/// [`WorkerBudget::automatic`]. This is not a command-line option; every
+/// budget produces identical diagnostics and output, so the variable exists
+/// only for reproducible serial/worker-count measurements.
+const WORKERS_ENV: &str = "TSRS_WORKERS";
+
+fn cli_worker_budget() -> WorkerBudget {
+    match std::env::var(WORKERS_ENV)
+        .ok()
+        .and_then(|value| value.trim().parse::<std::num::NonZeroUsize>().ok())
+    {
+        Some(workers) => WorkerBudget::new(workers),
+        None => WorkerBudget::automatic(),
+    }
+}
+
+/// tsrs-native diagnostic control of the CLI's checker budget (see
+/// [`CheckerBudget`]): `TSRS_CHECKERS=<positive integer>` pins that many
+/// checker states for the whole-Program check and emit (clamped to the module
+/// cap and to the file count); `1` is the serial reference checker. Any other
+/// value or an unset variable selects [`CheckerBudget::automatic`]. Not a
+/// command-line option: every budget must publish identical output, and the
+/// order guard replays a flagged sharded run serially.
+const CHECKERS_ENV: &str = "TSRS_CHECKERS";
+
+fn cli_checker_budget() -> CheckerBudget {
+    match std::env::var(CHECKERS_ENV)
+        .ok()
+        .and_then(|value| value.trim().parse::<std::num::NonZeroUsize>().ok())
+    {
+        Some(checkers) => CheckerBudget::new(checkers),
+        None => CheckerBudget::automatic(),
+    }
+    // The CLI process exits right after publishing: dropping the checker
+    // states would only delay that.
+    .with_leaked_states(true)
+}
+
+/// The CLI's program load limits with its worker budget.
+fn cli_limits() -> ProgramLoadLimits {
+    DEFAULT_LIMITS.with_workers(cli_worker_budget())
+}
 
 /// Result of one CLI invocation. The binary writes the two streams and exits
 /// with [`exit_code`](Self::exit_code); tests and embeddings can inspect the
@@ -155,7 +200,40 @@ struct ConfigCommandLineOverrides {
 #[derive(Default)]
 struct NativeEmitFileSystem;
 
+impl tsc_emitter::SharedEmitFileSystem for NativeEmitFileSystem {
+    fn write_file(&self, path: JsStr<'_>, bytes: &[u8]) -> Result<(), JsString> {
+        // This is the actual filesystem boundary; compiler path keys stay JS.
+        let native = path.to_string_lossy();
+        let native_path = Path::new(native.as_ref());
+        fs::write(native_path, bytes).map_err(|error| stable_io_message(&error, "open", path))
+    }
+
+    fn create_directory(&self, path: JsStr<'_>) -> Result<(), JsString> {
+        // This is the actual filesystem boundary; compiler path keys stay JS.
+        let native = path.to_string_lossy();
+        let native_path = Path::new(native.as_ref());
+        match fs::create_dir(native_path) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists && native_path.is_dir() => {
+                Ok(())
+            }
+            Err(error) => Err(stable_io_message(&error, "mkdir", path)),
+        }
+    }
+
+    fn directory_exists(&self, path: JsStr<'_>) -> bool {
+        // This is the actual filesystem boundary; compiler path keys stay JS.
+        let native = path.to_string_lossy();
+        let native_path = Path::new(native.as_ref());
+        native_path.is_dir()
+    }
+}
+
 impl EmitFileSystem for NativeEmitFileSystem {
+    fn shared(&self) -> Option<&dyn tsc_emitter::SharedEmitFileSystem> {
+        Some(self)
+    }
+
     fn write_file(&mut self, path: JsStr<'_>, bytes: &[u8]) -> Result<(), JsString> {
         // This is the actual filesystem boundary; compiler path keys stay JS.
         let native = path.to_string_lossy();
@@ -377,12 +455,49 @@ impl CompilerHost for CliCompilerHost {
         }
         self.filesystem.realpath(path)
     }
+
+    /// Embedded library bytes are immutable; everything else delegates to the
+    /// filesystem host's own answer.
+    fn permits_source_read_ahead(&self) -> bool {
+        self.filesystem.permits_source_read_ahead()
+    }
 }
 
 /// Execute the bounded H0/H1 command-line surface.
 pub fn run_cli(args: &[String]) -> CliOutput {
+    // tsc's command line never requests suggestion diagnostics, so the
+    // unused-identifier suggestion pass (checkUnusedIdentifiers behind
+    // getSuggestionDiagnostics) is skipped; noUnusedLocals /
+    // noUnusedParameters errors still run.
+    tsc_checker::set_unused_identifier_suggestions(false);
+    // executeCommandLine's host parses JSDoc with defaultJSDocParsingMode
+    // (ParseForTypeErrors, _tsc.js:132784, 132867): TS/TSX comments only
+    // when they contain @see or @link, JS/JSX comments always.
+    tsc_program::set_default_js_doc_parsing_mode(crate::JSDocParsingMode::ParseForTypeErrors);
     let mut no_emit_canary = NoEmitCanary::new();
-    match execute(args, &mut no_emit_canary) {
+    let execute_started = std::time::Instant::now();
+    let result = execute(args, &mut no_emit_canary);
+    tsc_types::trace::mark("cli: execute", execute_started);
+    // Measurement builds only (`perf-counters` feature): aggregate counters
+    // are written to the sidecar file named by TSRS_PERF_COUNTERS (one
+    // `name=value` or `name=unwired` line each); stdout/stderr stay exactly
+    // the ordinary CLI streams. Never compiled into candidate binaries.
+    #[cfg(feature = "perf-counters")]
+    if let Some(path) = std::env::var_os("TSRS_PERF_COUNTERS") {
+        let mut report = String::new();
+        for (name, value) in tsc_types::perf::snapshot() {
+            report.push_str(name);
+            report.push('=');
+            match value {
+                Some(value) => report.push_str(&value.to_string()),
+                None => report.push_str("unwired"),
+            }
+            report.push('\n');
+        }
+        // A failed sidecar write must not change the CLI outcome.
+        let _ = std::fs::write(path, report);
+    }
+    match result {
         Ok(output) => output,
         Err(error) => CliOutput {
             stdout: String::new(),
@@ -396,6 +511,7 @@ pub fn run_cli(args: &[String]) -> CliOutput {
 }
 
 fn execute(args: &[String], no_emit_canary: &mut NoEmitCanary) -> Result<CliOutput, CliError> {
+    let prologue_started = std::time::Instant::now();
     let command_line = parse_arguments(args)?;
     if args.iter().any(|arg| arg == "--version") {
         return Ok(CliOutput {
@@ -419,6 +535,7 @@ fn execute(args: &[String], no_emit_canary: &mut NoEmitCanary) -> Result<CliOutp
     let current_directory = filesystem.current_directory().map_err(host_error)?;
     let host = CliCompilerHost::new(filesystem, &current_directory);
     let catalog = LibraryCatalog::typescript_6_0_3(host.library_directory());
+    tsc_types::trace::mark("cli: arguments, host, catalog", prologue_started);
 
     if let Some(project) = command_line.project.as_ref() {
         let config_file = match resolve_project_file(&host, &current_directory, project)? {
@@ -463,12 +580,14 @@ fn execute(args: &[String], no_emit_canary: &mut NoEmitCanary) -> Result<CliOutp
         } else {
             project.join(CONFIG_FILE_NAME)
         };
+        let config_started = std::time::Instant::now();
         let (plan, source_texts) = parse_config_file(
             &host,
             &current_directory,
             &config_file,
             Some(&config_display),
         )?;
+        tsc_types::trace::mark("cli: project config plan", config_started);
         return execute_config(
             &host,
             &current_directory,
@@ -838,28 +957,25 @@ fn execute_config(
                 .to_owned(),
         ));
     }
+    let limits = cli_limits();
+    let load_started = std::time::Instant::now();
     let prepared = match overrides.no_emit {
-        Some(true) => {
-            load_config_program_with_no_emit_override(host, plan, catalog, DEFAULT_LIMITS)
-        }
+        Some(true) => load_config_program_with_no_emit_override(host, plan, catalog, limits),
         Some(false) => load_emitting_config_program_with_no_emit_override_and_overrides(
             host,
             plan,
             catalog,
-            DEFAULT_LIMITS,
+            limits,
             overrides.emit,
         ),
         None if plan.compiler_options().no_emit == Some(true) => {
-            load_config_program(host, plan, catalog, DEFAULT_LIMITS)
+            load_config_program(host, plan, catalog, limits)
         }
-        None => load_emitting_config_program_with_overrides(
-            host,
-            plan,
-            catalog,
-            DEFAULT_LIMITS,
-            overrides.emit,
-        ),
+        None => {
+            load_emitting_config_program_with_overrides(host, plan, catalog, limits, overrides.emit)
+        }
     };
+    tsc_types::trace::mark("load program", load_started);
     let prepared = match prepared {
         Ok(prepared) => prepared,
         Err(ConfigProgramLoadError::Diagnostics { config, options }) => {
@@ -929,24 +1045,11 @@ fn execute_explicit_files(
     let program_options = no_lib
         .map(|value| ProgramOptions::default().with_no_lib(value))
         .unwrap_or_default();
+    let limits = cli_limits();
     let prepared = if options.no_emit == Some(true) {
-        load_program(
-            host,
-            roots,
-            options,
-            program_options,
-            catalog,
-            DEFAULT_LIMITS,
-        )
+        load_program(host, roots, options, program_options, catalog, limits)
     } else {
-        load_emitting_program(
-            host,
-            roots,
-            options,
-            program_options,
-            catalog,
-            DEFAULT_LIMITS,
-        )
+        load_emitting_program(host, roots, options, program_options, catalog, limits)
     }
     .map_err(|error| CliError::Load(error.to_string()))?;
     let mut source_texts = BTreeMap::new();
@@ -975,13 +1078,18 @@ fn execute_prepared(
             route,
         );
     }
+    let session_started = std::time::Instant::now();
     let outcome = ProgramSession::new(prepared)
+        .with_worker_budget(cli_worker_budget())
+        .with_checker_budget(cli_checker_budget())
+        .with_leaked_program(true)
         .run_with_no_emit_canary(
             false,
             tsc_checker::LibraryPrefixCompletion::Complete,
             route.canary,
         )
         .map_err(|error| CliError::Driver(error.to_string()))?;
+    tsc_types::trace::mark("check session", session_started);
     // Config-owned non-fatal option rows are supplied separately from the
     // prepared program. Insert them at the same bucket boundary as
     // `getOptionsDiagnostics`, before global and semantic rows; appending
@@ -1003,14 +1111,17 @@ fn execute_prepared(
     }
     let work_counters = outcome.work_counters();
     let no_emit_activity = outcome.no_emit_activity();
-    rendered_diagnostics_with_work(
+    let render_started = std::time::Instant::now();
+    let rendered = rendered_diagnostics_with_work(
         current_directory,
         &source_texts,
         &diagnostics,
         route.pretty,
         work_counters,
         no_emit_activity,
-    )
+    );
+    tsc_types::trace::mark("cli: render diagnostics", render_started);
+    rendered
 }
 
 /// Shared command producer for real CLI execution and scoped Program emits.
@@ -1053,10 +1164,27 @@ fn execute_emitting_prepared(
     additional_diagnostics: &[Diagnostic],
     route: &mut CliRoute<'_>,
 ) -> Result<CliOutput, CliError> {
-    let mut sink = FsOutputSink::new(route.output_filesystem);
+    // The real filesystem is stateless: its artifacts are written on the
+    // worker budget; an injected (observing) filesystem keeps ordered writes.
+    let write_workers = cli_worker_budget().max_workers();
+    let mut shared_sink;
+    let mut ordered_sink;
+    let sink: &mut dyn tsc_emitter::OutputSink =
+        if let Some(shared) = route.output_filesystem.shared() {
+            shared_sink = tsc_emitter::SharedFsOutputSink::new(shared, write_workers);
+            &mut shared_sink
+        } else {
+            ordered_sink = FsOutputSink::new(route.output_filesystem);
+            &mut ordered_sink
+        };
+    let session_started = std::time::Instant::now();
     let outcome = ProgramSession::new(prepared)
-        .emit_for_cli(&mut sink)
+        .with_worker_budget(cli_worker_budget())
+        .with_checker_budget(cli_checker_budget())
+        .with_leaked_program(true)
+        .emit_for_cli(sink)
         .map_err(|error| CliError::Driver(error.to_string()))?;
+    tsc_types::trace::mark("check + emit session", session_started);
 
     let (emit, diagnostics, work_counters) = outcome.into_reported(additional_diagnostics);
 

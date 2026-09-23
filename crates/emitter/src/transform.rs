@@ -1208,6 +1208,14 @@ impl TransformationResult<'_> {
         }
         self.context.dispose();
     }
+
+    /// Take the arena out of a hook-less result without disposing it: the
+    /// checker keeps its display arena (a `Send` value) between uses and
+    /// re-wraps it for each print.
+    pub fn into_arena(mut self) -> TransformArena {
+        self.context.state = TransformationState::Disposed;
+        std::mem::take(&mut self.context.arena)
+    }
 }
 
 impl Drop for TransformationResult<'_> {

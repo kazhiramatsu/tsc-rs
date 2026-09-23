@@ -386,7 +386,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(ty);
         }
-        if let Some(literal) = self.links.read_ty(ty, |links| links.literal_type) {
+        if let Some(literal) = self.links.read_ty(ty, |links| links.cold().literal_type) {
             return Ok(literal);
         }
         let literal = self.tables.clone_type_reference(ty);
@@ -739,7 +739,7 @@ impl<'a> CheckerState<'a> {
             NodeData::ObjectLiteralExpression(data) => self.nodes_of(data.properties),
             _ => Vec::new(),
         };
-        let mut seen = std::collections::HashMap::<tsc_types::EscapedName, u8>::new();
+        let mut seen = rustc_hash::FxHashMap::<tsc_types::EscapedName, u8>::default();
         for member in members {
             if self.kind_of(member) == SyntaxKind::SpreadAssignment {
                 if in_destructuring_pattern {
@@ -1013,7 +1013,7 @@ impl<'a> CheckerState<'a> {
             self.get_apparent_type_of_contextual_type(node, ContextFlags::NONE)?;
         acc.contextual_type_has_pattern = acc.contextual_type.is_some_and(|contextual| {
             self.links
-                .read_ty(contextual, |links| links.pattern)
+                .read_ty(contextual, |links| links.cold().pattern)
                 .is_some_and(|pattern| {
                     matches!(
                         self.kind_of(pattern),
@@ -1799,6 +1799,11 @@ impl<'a> CheckerState<'a> {
                     TypeData::Intersection { types } => types.to_vec(),
                     _ => unreachable!("intersection flag implies intersection data"),
                 };
+                // W2c: the LAST constituent (by stored order) is folded.
+                self.order_guard.note(
+                    crate::order_guard::OrderReason::INTERSECTION_LAST,
+                    types.iter().copied(),
+                );
                 let last_left = *types.last().expect("intersections are non-empty");
                 if self.is_non_generic_object_type(last_left)?
                     && self.is_non_generic_object_type(right)?
@@ -1814,8 +1819,8 @@ impl<'a> CheckerState<'a> {
             return self.get_intersection_type(&[left, right], tsc_types::IntersectionFlags::NONE);
         }
         let mut members = SymbolTable::default();
-        let mut skipped_private_members: std::collections::HashSet<tsc_types::EscapedName> =
-            std::collections::HashSet::new();
+        let mut skipped_private_members: rustc_hash::FxHashSet<tsc_types::EscapedName> =
+            rustc_hash::FxHashSet::default();
         let index_infos = if left == self.empty_object_type {
             self.get_index_infos_of_type(right)?
         } else {

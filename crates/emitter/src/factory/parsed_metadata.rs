@@ -93,7 +93,16 @@ impl TransformArena {
         host: &dyn EmitHost,
     ) -> Result<ParsedEmitMetadata, TransformError> {
         let mut snapshot = ParsedEmitMetadata::default();
-        for (&node, metadata) in &self.metadata {
+        // The snapshot numbers entries in (source, node) order; the hashed
+        // table is visited through a sorted projection of its keys.
+        #[allow(clippy::iter_over_hash_type)]
+        let mut entries: Vec<(TransformNode, &EmitMetadata)> = self
+            .metadata
+            .iter()
+            .map(|(node, metadata)| (*node, metadata))
+            .collect();
+        entries.sort_by_key(|(node, _)| *node);
+        for (node, metadata) in entries {
             if !self.is_parsed_node(node)? || metadata == &EmitMetadata::default() {
                 continue;
             }

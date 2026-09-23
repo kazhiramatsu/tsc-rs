@@ -2168,7 +2168,7 @@ module.exports = function MC() {
             state
                 .potentially_unused_identifiers
                 .get(&mc_root)
-                .map(Vec::len),
+                .map(|nodes| nodes.len()),
             Some(1),
             "a cross-file forced registration belongs to MC.js"
         );

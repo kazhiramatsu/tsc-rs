@@ -63,7 +63,8 @@
 //! resolved by dropping the one assert that disagreed
 //! (revert_node_enum_values_computed).
 
-use std::collections::{HashMap, HashSet};
+use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxHashSet as HashSet;
 
 use tsc_binder::flow::FlowId;
 use tsc_syntax::NodeId;

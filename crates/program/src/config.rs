@@ -1710,6 +1710,7 @@ fn parse_config_root_plan_inner(
         root_parse_diagnostics: Vec::new(),
         errors: Vec::new(),
     };
+    let phase_started = std::time::Instant::now();
     let mut node = context
         .parse_node(
             ConfigSourceText::new(request.file_name, request.text),
@@ -1718,6 +1719,7 @@ fn parse_config_root_plan_inner(
             true,
         )?
         .expect("the primary config cannot be a recursive child of itself");
+    tsc_types::trace::mark("config: parse and options", phase_started);
     node.options.finalize_config_dir_templates(&config_base)?;
     if let Some(watch) = &mut node.watch_options {
         watch.finalize_group_config_dir_templates(&config_base, ConfigOptionGroup::Watch)?;
@@ -1742,6 +1744,7 @@ fn parse_config_root_plan_inner(
     option_diagnostics.extend(deprecation_option_diagnostics(&node.options, &node.source));
     option_diagnostics.extend(option_relationship_diagnostics(&node.options, &node.source));
     sort_and_dedupe_diagnostics(&mut option_diagnostics);
+    let phase_started = std::time::Instant::now();
     let file_names = derive_file_names(
         host,
         &node,
@@ -1750,6 +1753,8 @@ fn parse_config_root_plan_inner(
         &discovery_options,
         &mut context.errors,
     )?;
+    tsc_types::trace::mark("config: file names", phase_started);
+    let phase_started = std::time::Instant::now();
     let root_reasons = config_root_reasons(
         &file_names,
         node.files.as_deref(),
@@ -1765,6 +1770,7 @@ fn parse_config_root_plan_inner(
         &discovery_options,
         host.use_case_sensitive_file_names(),
     )?;
+    tsc_types::trace::mark("config: root reasons, references, wildcards", phase_started);
     node.options.restore_public_entry_order();
     let files = node
         .files
@@ -4224,30 +4230,37 @@ fn config_array_elements(source: &SourceFile, array: NodeId) -> Vec<NodeId> {
         .unwrap_or_default()
 }
 
-fn config_spec_location<'v>(
+/// The source locations of the string elements of every root property
+/// named `name`, keyed by element text. The first element with a text
+/// wins, exactly as the former per-spec search did, but the root object is
+/// walked once per property instead of once per spec (quadratic in the
+/// `files` count).
+fn config_spec_locations(
     source: &SourceFile,
     name: &str,
-    value: impl Into<JsStr<'v>>,
-) -> Option<ConfigLocation> {
-    let value = value.into();
-    let root = config_root_expression(source)?;
+) -> rustc_hash::FxHashMap<JsString, Option<ConfigLocation>> {
+    let mut locations = rustc_hash::FxHashMap::default();
+    let Some(root) = config_root_expression(source) else {
+        return locations;
+    };
     if source.arena.node(root).kind != SyntaxKind::ObjectLiteralExpression {
-        return None;
+        return locations;
     }
     for property in config_object_properties(source, root) {
         if property.name != name {
             continue;
         }
         for element in config_array_elements(source, property.initializer) {
-            if matches!(
-                convert_recoverable_json_node_to_value(source, element),
-                Some(RecoverableJsonValue::Defined(Value::String(written))) if written.as_js() == value
-            ) {
-                return config_location(source, element);
+            if let Some(RecoverableJsonValue::Defined(Value::String(written))) =
+                convert_recoverable_json_node_to_value(source, element)
+            {
+                locations
+                    .entry(written)
+                    .or_insert_with(|| config_location(source, element));
             }
         }
     }
-    None
+    locations
 }
 
 fn config_raw_projection(value: Value) -> Value {
@@ -4436,13 +4449,20 @@ fn derive_file_names<'j0, 'j1>(
     let case_sensitive = host.use_case_sensitive_file_names();
     let mut literal = Vec::<(JsString, JsString)>::new();
     if let Some(files) = &config.files {
+        // Same map semantics as before (a repeated key replaces the value in
+        // place and keeps its first position), indexed instead of scanned.
+        let mut literal_index: rustc_hash::FxHashMap<JsString, usize> =
+            rustc_hash::FxHashMap::with_capacity_and_hasher(files.len(), Default::default());
         for file in files {
             let normalized = normalized_spec_path(file, base_path)?;
-            map_insert(
-                &mut literal,
-                file_name_key(normalized.as_js(), case_sensitive),
-                normalized,
-            );
+            let key = file_name_key(normalized.as_js(), case_sensitive);
+            match literal_index.get(&key) {
+                Some(&position) => literal[position].1 = normalized,
+                None => {
+                    literal_index.insert(key.clone(), literal.len());
+                    literal.push((key, normalized));
+                }
+            }
         }
     }
 
@@ -5153,15 +5173,20 @@ fn config_root_reasons<'j0, 'j1>(
 ) -> Result<Vec<RootFileReason>, ConfigParseError> {
     let config_base_path = config_base_path.into();
     let config_file_name = config_file_name.into();
-    let mut normalized_files = Vec::with_capacity(files.map_or(0, <[ConfigSpec]>::len));
+    // The first `files` entry with a given key owns the reason (the former
+    // linear search returned the first match); the map keeps that entry.
+    let mut normalized_files: rustc_hash::FxHashMap<JsString, Arc<JsString>> =
+        rustc_hash::FxHashMap::with_capacity_and_hasher(
+            files.map_or(0, <[ConfigSpec]>::len),
+            Default::default(),
+        );
     for spec in files.unwrap_or(&[]) {
-        normalized_files.push((
-            file_name_key(
+        normalized_files
+            .entry(file_name_key(
                 normalized_spec_path(spec, config_base_path)?.as_js(),
                 case_sensitive,
-            ),
-            Arc::new(spec.text.clone()),
-        ));
+            ))
+            .or_insert_with(|| Arc::new(spec.text.clone()));
     }
 
     let mut include_patterns = Vec::with_capacity(include.map_or(0, <[ConfigSpec]>::len));
@@ -5191,10 +5216,7 @@ fn config_root_reasons<'j0, 'j1>(
         .iter()
         .map(|file_name| {
             let key = file_name_key(file_name.as_js(), case_sensitive);
-            if let Some((_, spec)) = normalized_files
-                .iter()
-                .find(|(candidate, _)| candidate == &key)
-            {
+            if let Some(spec) = normalized_files.get(&key) {
                 return RootFileReason::FilesList { spec: spec.clone() };
             }
             if let Some((_, _, spec)) = include_patterns.iter().find(|(pattern, host_spec, _)| {
@@ -6168,11 +6190,12 @@ fn inheritable_specs<'j0>(
         Value::Bool(_) | Value::Number(_) | Value::Object(_) => Vec::new(),
         Value::Null => unreachable!("falsey raw spec values returned above"),
     };
+    let locations = config_spec_locations(source, name);
     Some(
         texts
             .into_iter()
             .map(|text| ConfigSpec {
-                location: config_spec_location(source, name, &text),
+                location: locations.get(text.as_js().as_bytes()).cloned().flatten(),
                 text,
                 base_path: base_path.to_owned(),
             })
@@ -6217,6 +6240,7 @@ fn specs_from_value<'j0>(
     let element_nodes = initializer.map_or_else(Vec::new, |initializer| {
         config_array_elements(source, initializer)
     });
+    let locations = config_spec_locations(source, name);
     let mut specs = Vec::with_capacity(values.len());
     for (index, value) in values.iter().enumerate() {
         // convertToJson has already removed unsupported syntax, but the
@@ -6232,7 +6256,7 @@ fn specs_from_value<'j0>(
                 // therefore reuses the first matching source location for
                 // duplicate strings, independently of the shifted notifier
                 // location above.
-                location: config_spec_location(source, name, text),
+                location: locations.get(text.as_bytes()).cloned().flatten(),
             });
         } else if !value.is_null() {
             errors.push(config_diagnostic(
@@ -6585,14 +6609,6 @@ fn change_extension(file: JsStr<'_>, extension: &str) -> JsString {
 fn file_extension_is<'p>(file: impl Into<JsStr<'p>>, extension: &str) -> bool {
     let file = file.into();
     file.as_bytes().len() > extension.len() && file.ends_with(extension)
-}
-
-fn map_insert(entries: &mut Vec<(JsString, JsString)>, key: JsString, value: JsString) {
-    if let Some((_, existing)) = entries.iter_mut().find(|(existing, _)| existing == &key) {
-        *existing = value;
-    } else {
-        entries.push((key, value));
-    }
 }
 
 fn canonical_key<'p>(path: impl Into<JsStr<'p>>, case_sensitive: bool) -> JsString {

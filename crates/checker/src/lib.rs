@@ -122,11 +122,13 @@ pub mod modules;
 pub mod narrow;
 mod node_builder;
 pub mod operators;
+pub(crate) mod order_guard;
 mod plain_js_errors;
 pub mod program;
 pub mod relate;
 pub mod relpin;
 pub mod resolve;
+pub mod shard;
 pub mod speculate;
 pub mod spell;
 pub mod state;
@@ -144,7 +146,30 @@ use tsc_binder::BindData;
 use tsc_diagnostics::{
     Diagnostic, DiagnosticCategory, DiagnosticList, DocumentVersion, TextSnapshot,
 };
-use tsc_types::{IdentityDomain, JsStr, JsString};
+use tsc_program::WorkerBudget;
+
+pub use crate::shard::{CheckerBudget, MAX_CHECKERS};
+
+/// Whether checkSourceFile runs the unused-identifier pass when neither
+/// `noUnusedLocals` nor `noUnusedParameters` turns its rows into errors.
+/// tsc computes those rows only for getSuggestionDiagnostics, which the
+/// command line never requests; the API keeps them on for the harnesses that
+/// compare suggestion rows.
+static UNUSED_IDENTIFIER_SUGGESTIONS: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(true);
+
+/// Process-wide switch for the unused-identifier suggestion pass (see
+/// [`unused_identifier_suggestions`]). A command-line process sets it once
+/// before checking; library consumers leave it on.
+pub fn set_unused_identifier_suggestions(enabled: bool) {
+    UNUSED_IDENTIFIER_SUGGESTIONS.store(enabled, std::sync::atomic::Ordering::Relaxed);
+}
+
+pub fn unused_identifier_suggestions() -> bool {
+    UNUSED_IDENTIFIER_SUGGESTIONS.load(std::sync::atomic::Ordering::Relaxed)
+}
+use tsc_types::perf::{self, PerfCounter};
+use tsc_types::{IdentityDomain, IdentityLease, JsStr, JsString};
 
 use crate::emit::CheckerSession;
 
@@ -171,6 +196,12 @@ pub struct InputFile {
     /// Per-file createSourceFile `jsDocParsingMode`; None keeps the
     /// Program's ParseAll default.
     js_doc_parsing_mode: Option<JSDocParsingMode>,
+    /// The Program loader's request-planning parse of this exact snapshot
+    /// (an empty slot for API-built inputs). The checker adopts it only after
+    /// proving it would have parsed with identical options; otherwise it
+    /// parses as before. The slot compares equal in every state, so it never
+    /// participates in `InputFile` equality.
+    preparsed_syntax: tsc_program::PreparsedSyntax,
 }
 
 impl InputFile {
@@ -184,6 +215,7 @@ impl InputFile {
             module_name: None,
             renamed_dependencies: Vec::new(),
             js_doc_parsing_mode: None,
+            preparsed_syntax: tsc_program::PreparsedSyntax::empty(),
         }
     }
 
@@ -200,7 +232,16 @@ impl InputFile {
             module_name: None,
             renamed_dependencies: Vec::new(),
             js_doc_parsing_mode: None,
+            preparsed_syntax: tsc_program::PreparsedSyntax::empty(),
         }
+    }
+
+    /// tsrs-native: offer the loader's planning parse of this snapshot for
+    /// adoption. Only the program crate's planner produces a filled slot, and
+    /// adoption re-verifies snapshot identity, file name and parse options.
+    pub fn with_preparsed_syntax(mut self, syntax: tsc_program::PreparsedSyntax) -> Self {
+        self.preparsed_syntax = syntax;
+        self
     }
 
     /// tsc `sourceFile.moduleName = transpileOptions.moduleName`
@@ -246,7 +287,36 @@ impl InputFile {
             module_name: None,
             renamed_dependencies: Vec::new(),
             js_doc_parsing_mode: None,
+            preparsed_syntax: tsc_program::PreparsedSyntax::empty(),
         }
+    }
+
+    /// Adopt the loader's parse of this input when it is provably the parse
+    /// the checker would perform: same snapshot identity, same file name and
+    /// the same [`tsc_syntax::ParseOptions`] (identity bases excluded). The
+    /// adopted tree is relocated into `identity_domain` exactly as a fresh
+    /// base-0 parse would be. Any other case returns `None` and the caller
+    /// parses.
+    /// The loader's parse of this exact snapshot at local identities, when
+    /// it is provably the parse this session would perform. The caller
+    /// leases its identities in program order and relocates it.
+    fn take_preparsed_source(
+        &self,
+        options: &tsc_syntax::ParseOptions,
+    ) -> Option<tsc_syntax::SourceFile> {
+        let preparsed = self.preparsed_syntax.take()?;
+        let expected = tsc_syntax::ParseOptions {
+            node_id_base: 0,
+            node_array_id_base: 0,
+            ..options.clone()
+        };
+        if *preparsed.parse_options() != expected
+            || preparsed.source().file_name != self.name
+            || !Arc::ptr_eq(preparsed.source().snapshot(), &self.snapshot)
+        {
+            return None;
+        }
+        Some(preparsed.into_source())
     }
 
     /// tsrs-native: expose the shared L0 snapshot owner without its private
@@ -406,7 +476,7 @@ pub enum AuthoritativeModuleLookupFailure {
 /// Object-safe host boundary used only by the authoritative production
 /// entry. Legacy checker entries install no provider and retain their
 /// existing in-memory heuristic resolver.
-pub trait AuthoritativeModuleProvider {
+pub trait AuthoritativeModuleProvider: Sync {
     fn resolve_module(
         &self,
         request: AuthoritativeModuleRequest<'_>,
@@ -555,15 +625,41 @@ impl Eq for CheckResult {}
 
 /// Parse/bind and full-text-copy observations for one checker invocation.
 ///
+/// `parsed_documents` counts documents this invocation parsed itself (the L0
+/// parse-work observation). `adopted_documents` counts documents whose
+/// syntax tree this invocation took over from the Program loader's
+/// request-planning parse ([`tsc_program::PreparsedSyntax`]) and relocated
+/// into its identity domain instead of parsing; the loader's parse happened
+/// outside this invocation and is not counted here. Every materialized
+/// document is either parsed or adopted, so
+/// `parsed_documents + adopted_documents == bound_documents` for an owned
+/// library prefix plus program files; a cached library prefix contributes to
+/// none of the three. A repeated session over the same prepared program, or
+/// an input whose parse options differ from the planner's, parses again and
+/// therefore reports more parse work: the counters describe work performed,
+/// not a fixed expectation.
+///
 /// Text snapshots are shared across checker boundaries, so a fresh parse no
 /// longer contributes a full-text projection. The copy counters remain in
 /// the evidence schema as a zero-valued compatibility observation.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct CheckWorkCounters {
     parsed_documents: u64,
+    adopted_documents: u64,
     bound_documents: u64,
     full_text_copies: u64,
     full_text_bytes_copied: u64,
+    checker_shards: u64,
+    checker_threads: u64,
+    checker_serial_replay: u64,
+    checker_replay_reasons: u64,
+}
+
+/// Parse work performed while materializing an owned library prefix.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct LibParseWork {
+    parsed: u64,
+    adopted: u64,
 }
 
 impl CheckWorkCounters {
@@ -571,6 +667,12 @@ impl CheckWorkCounters {
     /// pinned checker algorithm.
     pub const fn parsed_documents(self) -> u64 {
         self.parsed_documents
+    }
+
+    /// tsrs-native: documents whose loader-planned syntax tree this
+    /// invocation adopted (relocated) instead of parsing.
+    pub const fn adopted_documents(self) -> u64 {
+        self.adopted_documents
     }
 
     /// tsrs-native: expose the L0 bind-work observation without changing the
@@ -591,21 +693,70 @@ impl CheckWorkCounters {
         self.full_text_bytes_copied
     }
 
+    /// tsrs-native: checker states constructed by this invocation (one for
+    /// the serial driver, the effective shard count for the sharded driver).
+    /// Zero means no checker state was constructed (an empty Program).
+    pub const fn checker_shards(self) -> u64 {
+        self.checker_shards
+    }
+
+    /// tsrs-native: distinct threads that ran those checker states; equal
+    /// to `checker_shards` when every shard got its own thread, smaller when
+    /// the coordinator ran a shard after a refused spawn.
+    pub const fn checker_threads(self) -> u64 {
+        self.checker_threads
+    }
+
     fn record_parse(&mut self, text_bytes: usize) {
         self.parsed_documents += 1;
         let _ = text_bytes;
+    }
+
+    fn record_checker_shards(&mut self, shards: u64, threads: u64) {
+        self.checker_shards = shards;
+        self.checker_threads = threads;
+    }
+
+    /// tsrs-native: 1 when a sharded check was discarded and replayed by
+    /// the serial checker because the order-sensitivity guard fired
+    /// (slice W2c); 0 otherwise.
+    pub const fn checker_serial_replay(self) -> u64 {
+        self.checker_serial_replay
+    }
+
+    /// tsrs-native: the union of the guard's reason bits over all shards
+    /// (see `order_guard::OrderReason`); 0 when nothing fired.
+    pub const fn checker_replay_reasons(self) -> u64 {
+        self.checker_replay_reasons
+    }
+
+    fn record_serial_replay(&mut self, reasons: u32) {
+        self.checker_serial_replay = 1;
+        self.checker_replay_reasons = u64::from(reasons);
+    }
+
+    fn record_adoption(&mut self) {
+        self.adopted_documents += 1;
     }
 
     fn record_bind(&mut self) {
         self.bound_documents += 1;
     }
 
-    fn for_fresh_inputs(inputs: &[&InputFile]) -> Self {
+    /// Counters for an owned (uncached) library prefix, from the parse work
+    /// actually performed by `parse_lib_sources`; every owned library is
+    /// bound by this invocation.
+    fn for_owned_libs(work: LibParseWork) -> Self {
         Self {
-            parsed_documents: inputs.len() as u64,
-            bound_documents: inputs.len() as u64,
+            parsed_documents: work.parsed,
+            adopted_documents: work.adopted,
+            bound_documents: work.parsed + work.adopted,
             full_text_copies: 0,
             full_text_bytes_copied: 0,
+            checker_shards: 0,
+            checker_threads: 0,
+            checker_serial_replay: 0,
+            checker_replay_reasons: 0,
         }
     }
 }
@@ -799,7 +950,7 @@ fn is_plain_js_file(
 fn preceding_comment_directive_line(
     text: &str,
     byte_line_starts: &[usize],
-    directive_lines: &std::collections::HashSet<usize>,
+    directive_lines: &rustc_hash::FxHashSet<usize>,
     positions: &tsc_diagnostics::PositionIndex,
     diagnostic_start: u32,
 ) -> Option<usize> {
@@ -826,7 +977,7 @@ fn preceding_comment_directive_line(
 fn filter_by_comment_directives_and_mark_used(
     source: &tsc_syntax::SourceFile,
     diagnostics: impl Iterator<Item = tsc_diagnostics::Diagnostic>,
-    mut used_directive_lines: Option<&mut std::collections::HashSet<usize>>,
+    mut used_directive_lines: Option<&mut rustc_hash::FxHashSet<usize>>,
 ) -> Vec<tsc_diagnostics::Diagnostic> {
     // getMergedBindAndCheckDiagnostics (123744): no directives, no
     // filtering.
@@ -844,7 +995,7 @@ fn filter_by_comment_directives_and_mark_used(
             Err(insert) => insert.saturating_sub(1),
         }
     };
-    let directive_lines: std::collections::HashSet<usize> = source
+    let directive_lines: rustc_hash::FxHashSet<usize> = source
         .comment_directives
         .iter()
         .map(|directive| line_of_byte(directive.end as usize))
@@ -890,7 +1041,7 @@ fn filter_by_comment_directives_and_mark_used(
 fn mark_comment_directives_for_partial_ranges(
     source: &tsc_syntax::SourceFile,
     partial_ranges: &[(u32, u32)],
-    used_directive_lines: &mut std::collections::HashSet<usize>,
+    used_directive_lines: &mut rustc_hash::FxHashSet<usize>,
 ) {
     if source.comment_directives.is_empty() || partial_ranges.is_empty() {
         return;
@@ -903,7 +1054,7 @@ fn mark_comment_directives_for_partial_ranges(
             Err(insert) => insert.saturating_sub(1),
         }
     };
-    let directive_lines: std::collections::HashSet<usize> = source
+    let directive_lines: rustc_hash::FxHashSet<usize> = source
         .comment_directives
         .iter()
         .map(|directive| line_of_byte(directive.end as usize))
@@ -929,7 +1080,7 @@ fn mark_comment_directives_for_partial_ranges(
 
 fn unused_expect_error_diagnostics(
     source: &tsc_syntax::SourceFile,
-    used_directive_lines: &std::collections::HashSet<usize>,
+    used_directive_lines: &rustc_hash::FxHashSet<usize>,
 ) -> Vec<tsc_diagnostics::Diagnostic> {
     use tsc_syntax::CommentDirectiveKind;
 
@@ -1140,7 +1291,7 @@ fn missing_path_reference_diagnostics<'cwd, 'a>(
     if options.no_resolve == Some(true) {
         return Vec::new();
     }
-    let known_paths: std::collections::HashSet<JsString> = host_files.collect();
+    let known_paths: rustc_hash::FxHashSet<JsString> = host_files.collect();
     let mut diagnostics = Vec::new();
     for source in sources {
         let source_path =
@@ -1236,7 +1387,7 @@ pub fn prepare_authoritative_harness_lib_bundle(
     if std::env::var_os("TSRS_LIB_BUNDLE_CACHE").is_some_and(|value| value == "0") {
         return None;
     }
-    let fixture_names: std::collections::HashSet<JsStr<'_>> = files
+    let fixture_names: rustc_hash::FxHashSet<JsStr<'_>> = files
         .iter()
         .filter(|file| !file.host_only)
         .map(|file| file.name.as_js())
@@ -1337,7 +1488,7 @@ fn check_program_with_libs_at_observed_cache_mode_prepared<'cwd>(
     let current_directory = current_directory.into();
     observe_phase(CheckPhase::Parse);
 
-    let fixture_names: std::collections::HashSet<JsStr<'_>> = files
+    let fixture_names: rustc_hash::FxHashSet<JsStr<'_>> = files
         .iter()
         .filter(|file| !file.host_only)
         .map(|file| file.name.as_js())
@@ -1352,8 +1503,18 @@ fn check_program_with_libs_at_observed_cache_mode_prepared<'cwd>(
         // so repeated disabled-cache calls do not leak one bundle each.
         let bundle_options = lib_bundle_options(options);
         let identity_domain = IdentityDomain::ephemeral();
-        let lib_sources = parse_lib_sources(&effective_libs, &bundle_options, &identity_domain);
-        let lib_binders = bind_lib_sources(&lib_sources, &bundle_options, &identity_domain);
+        let (lib_sources, lib_work) = parse_lib_sources(
+            &effective_libs,
+            &bundle_options,
+            &identity_domain,
+            WorkerBudget::serial(),
+        );
+        let lib_binders = bind_lib_sources(
+            &lib_sources,
+            &bundle_options,
+            &identity_domain,
+            WorkerBudget::serial(),
+        );
         let lib_data = binders_into_data(lib_binders);
         let lib_documents = publish_bound_documents(lib_sources, lib_data);
         return check_program_with_prebound_libs_at_observed(
@@ -1363,12 +1524,13 @@ fn check_program_with_libs_at_observed_cache_mode_prepared<'cwd>(
             current_directory,
             &lib_documents,
             &identity_domain,
-            CheckWorkCounters::for_fresh_inputs(&effective_libs),
+            CheckWorkCounters::for_owned_libs(lib_work),
             false,
             observe_phase,
             None,
             None,
             ProgramFileFacts::ORDINARY,
+            WorkerBudget::serial(),
         )
         .result;
     }
@@ -1400,6 +1562,7 @@ fn check_program_with_libs_at_observed_cache_mode_prepared<'cwd>(
         None,
         None,
         ProgramFileFacts::ORDINARY,
+        WorkerBudget::serial(),
     )
     .result
 }
@@ -1416,7 +1579,7 @@ pub fn check_program_with_owned_libs_at<'cwd>(
     current_directory: impl Into<JsStr<'cwd>>,
 ) -> CheckResult {
     let current_directory = current_directory.into();
-    let fixture_names: std::collections::HashSet<JsStr<'_>> = files
+    let fixture_names: rustc_hash::FxHashSet<JsStr<'_>> = files
         .iter()
         .filter(|file| !file.host_only)
         .map(|file| file.name.as_js())
@@ -1427,8 +1590,18 @@ pub fn check_program_with_owned_libs_at<'cwd>(
         .collect();
     let bundle_options = lib_bundle_options(options);
     let identity_domain = IdentityDomain::ephemeral();
-    let lib_sources = parse_lib_sources(&effective_libs, &bundle_options, &identity_domain);
-    let lib_binders = bind_lib_sources(&lib_sources, &bundle_options, &identity_domain);
+    let (lib_sources, lib_work) = parse_lib_sources(
+        &effective_libs,
+        &bundle_options,
+        &identity_domain,
+        WorkerBudget::serial(),
+    );
+    let lib_binders = bind_lib_sources(
+        &lib_sources,
+        &bundle_options,
+        &identity_domain,
+        WorkerBudget::serial(),
+    );
     let lib_data = binders_into_data(lib_binders);
     let lib_documents = publish_bound_documents(lib_sources, lib_data);
     let mut observe_phase = |_| {};
@@ -1440,12 +1613,13 @@ pub fn check_program_with_owned_libs_at<'cwd>(
         current_directory,
         &lib_documents,
         &identity_domain,
-        CheckWorkCounters::for_fresh_inputs(&effective_libs),
+        CheckWorkCounters::for_owned_libs(lib_work),
         true,
         &mut observe_phase,
         None,
         None,
         ProgramFileFacts::DEFAULT_LIBRARY,
+        WorkerBudget::serial(),
     )
     .result
 }
@@ -1476,8 +1650,29 @@ enum DiagnosticSchedule {
     OnDemand,
 }
 
+/// Constructs one [`AuthoritativeModuleProvider`] per checker state.
+///
+/// Sharded checking runs several checker states on scoped threads; a provider
+/// may keep small mutable caches (the compiler's request plans live in a
+/// `RefCell`), so instead of requiring `Sync` on the provider trait each
+/// shard constructs its own provider through this factory inside its thread.
+/// The factory itself is shared read-only across shards, hence `Sync`.
+/// tsrs-native: per-checker construction seam for the sharded driver.
+pub trait AuthoritativeModuleProviderFactory: Sync {
+    fn provider(&self) -> Box<dyn AuthoritativeModuleProvider + '_>;
+}
+
+/// Where a checker run obtains its module provider.
+#[derive(Clone, Copy)]
+enum AuthoritativeProviderSource<'a> {
+    /// One caller-owned provider used by the single serial checker state.
+    Shared(&'a dyn AuthoritativeModuleProvider),
+    /// One provider constructed per checker state (serial or sharded).
+    PerChecker(&'a dyn AuthoritativeModuleProviderFactory),
+}
+
 struct AuthoritativeRun<'a> {
-    provider: &'a dyn AuthoritativeModuleProvider,
+    provider: AuthoritativeProviderSource<'a>,
     lib_metadata: Vec<AuthoritativeSourceMetadata>,
     file_metadata: Vec<AuthoritativeSourceMetadata>,
     library_prefix: LibraryPrefixCompletion,
@@ -1505,6 +1700,34 @@ pub fn check_program_with_authoritative_modules_at<'cwd>(
     current_directory: impl Into<JsStr<'cwd>>,
     provider: &dyn AuthoritativeModuleProvider,
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
+    check_program_with_authoritative_modules_at_with_workers(
+        libs,
+        files,
+        lib_metadata,
+        file_metadata,
+        options,
+        current_directory,
+        provider,
+        WorkerBudget::serial(),
+    )
+}
+
+/// [`check_program_with_authoritative_modules_at`] with an explicit
+/// [`WorkerBudget`] for the scoped per-file binding step. Every budget
+/// publishes the same identities and diagnostics; the serial entry above is
+/// the default and the reproducible control.
+/// tsrs-native: worker control for the production program session.
+#[allow(clippy::too_many_arguments)]
+pub fn check_program_with_authoritative_modules_at_with_workers<'cwd>(
+    libs: &[InputFile],
+    files: &[InputFile],
+    lib_metadata: &[AuthoritativeSourceMetadata],
+    file_metadata: &[AuthoritativeSourceMetadata],
+    options: &CompilerOptions,
+    current_directory: impl Into<JsStr<'cwd>>,
+    provider: &dyn AuthoritativeModuleProvider,
+    workers: WorkerBudget,
+) -> Result<CheckResult, AuthoritativeModuleFailure> {
     let current_directory = current_directory.into();
     check_program_with_authoritative_modules_at_cache_mode(
         libs,
@@ -1519,6 +1742,7 @@ pub fn check_program_with_authoritative_modules_at<'cwd>(
         None,
         LibraryPrefixCompletion::Complete,
         DiagnosticSchedule::Eager,
+        workers,
     )
 }
 
@@ -1535,6 +1759,34 @@ pub fn check_program_with_authoritative_modules_at_for_emit<'cwd>(
     options: &CompilerOptions,
     current_directory: impl Into<JsStr<'cwd>>,
     provider: &dyn AuthoritativeModuleProvider,
+    operation: impl FnMut(&ProgramSnapshot, &CheckerSession<'_>, &CheckResult),
+) -> Result<CheckResult, AuthoritativeModuleFailure> {
+    check_program_with_authoritative_modules_at_for_emit_with_workers(
+        libs,
+        files,
+        lib_metadata,
+        file_metadata,
+        options,
+        current_directory,
+        provider,
+        WorkerBudget::serial(),
+        operation,
+    )
+}
+
+/// [`check_program_with_authoritative_modules_at_for_emit`] with an explicit
+/// [`WorkerBudget`] for the scoped per-file binding step.
+/// tsrs-native: worker control for the production emit session.
+#[allow(clippy::too_many_arguments)]
+pub fn check_program_with_authoritative_modules_at_for_emit_with_workers<'cwd>(
+    libs: &[InputFile],
+    files: &[InputFile],
+    lib_metadata: &[AuthoritativeSourceMetadata],
+    file_metadata: &[AuthoritativeSourceMetadata],
+    options: &CompilerOptions,
+    current_directory: impl Into<JsStr<'cwd>>,
+    provider: &dyn AuthoritativeModuleProvider,
+    workers: WorkerBudget,
     mut operation: impl FnMut(&ProgramSnapshot, &CheckerSession<'_>, &CheckResult),
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
     let current_directory = current_directory.into();
@@ -1551,6 +1803,7 @@ pub fn check_program_with_authoritative_modules_at_for_emit<'cwd>(
         None,
         LibraryPrefixCompletion::Complete,
         DiagnosticSchedule::Eager,
+        workers,
     )
 }
 
@@ -1586,6 +1839,7 @@ pub fn check_program_with_authoritative_modules_at_for_emit_with_harness_lib_bun
         Some(bundle),
         LibraryPrefixCompletion::Complete,
         DiagnosticSchedule::Eager,
+        WorkerBudget::serial(),
     )
 }
 
@@ -1624,6 +1878,7 @@ pub fn check_program_with_authoritative_modules_at_harness_cached<'cwd>(
         None,
         library_prefix,
         DiagnosticSchedule::Eager,
+        WorkerBudget::serial(),
     )
 }
 
@@ -1657,6 +1912,91 @@ pub fn with_authoritative_modules_at_for_declarations<'cwd>(
         None,
         LibraryPrefixCompletion::Complete,
         DiagnosticSchedule::OnDemand,
+        WorkerBudget::serial(),
+    )
+}
+
+/// Run one authoritative no-emit check with an explicit checker budget.
+///
+/// With [`CheckerBudget::serial`] this is exactly
+/// [`check_program_with_authoritative_modules_at_with_workers`] over one
+/// provider constructed by `factory`. With a sharded budget the program files
+/// (library prefix included) are partitioned deterministically over up to
+/// `checkers` checker states, each constructed on its own scoped thread over
+/// the one shared immutable [`ProgramSnapshot`] with its own provider,
+/// type-id domain and caches; only diagnostics and audit records cross
+/// threads and the merged result is assembled in Program order. The
+/// on-demand declaration schedule and the emit callback entries stay serial.
+/// tsrs-native: sharded checker driver (tsgo `--checkers`); tsc has one checker.
+#[allow(clippy::too_many_arguments)]
+pub fn check_program_with_authoritative_modules_at_with_checkers<'cwd>(
+    libs: &[InputFile],
+    files: &[InputFile],
+    lib_metadata: &[AuthoritativeSourceMetadata],
+    file_metadata: &[AuthoritativeSourceMetadata],
+    options: &CompilerOptions,
+    current_directory: impl Into<JsStr<'cwd>>,
+    factory: &dyn AuthoritativeModuleProviderFactory,
+    workers: WorkerBudget,
+    checkers: CheckerBudget,
+) -> Result<CheckResult, AuthoritativeModuleFailure> {
+    let current_directory = current_directory.into();
+    check_program_with_authoritative_modules_at_cache_mode_with_source(
+        libs,
+        files,
+        lib_metadata,
+        file_metadata,
+        options,
+        current_directory,
+        AuthoritativeProviderSource::PerChecker(factory),
+        false,
+        None,
+        None,
+        LibraryPrefixCompletion::Complete,
+        DiagnosticSchedule::Eager,
+        workers,
+        checkers,
+        None,
+    )
+}
+
+/// [`check_program_with_authoritative_modules_at_with_checkers`] for an
+/// emitting session: every shard emits the files it checked with its own
+/// checker once the coordinator has gated the merged diagnostics; the caller
+/// receives the products through `sharded_emit.emissions` and writes them in
+/// Program order. A flagged order-sensitive run replays check and emit
+/// serially with one checker.
+/// tsrs-native: tsgo's per-checker emit over the shared immutable snapshot.
+#[allow(clippy::too_many_arguments)]
+pub fn check_program_with_authoritative_modules_at_for_emit_with_checkers<'cwd>(
+    libs: &[InputFile],
+    files: &[InputFile],
+    lib_metadata: &[AuthoritativeSourceMetadata],
+    file_metadata: &[AuthoritativeSourceMetadata],
+    options: &CompilerOptions,
+    current_directory: impl Into<JsStr<'cwd>>,
+    factory: &dyn AuthoritativeModuleProviderFactory,
+    workers: WorkerBudget,
+    checkers: CheckerBudget,
+    sharded_emit: &mut ShardedEmit<'_>,
+) -> Result<CheckResult, AuthoritativeModuleFailure> {
+    let current_directory = current_directory.into();
+    check_program_with_authoritative_modules_at_cache_mode_with_source(
+        libs,
+        files,
+        lib_metadata,
+        file_metadata,
+        options,
+        current_directory,
+        AuthoritativeProviderSource::PerChecker(factory),
+        false,
+        None,
+        None,
+        LibraryPrefixCompletion::Complete,
+        DiagnosticSchedule::Eager,
+        workers,
+        checkers,
+        Some(sharded_emit),
     )
 }
 
@@ -1674,11 +2014,53 @@ fn check_program_with_authoritative_modules_at_cache_mode<'cwd>(
     prepared_owned_bundle: Option<&OwnedHarnessLibBundle>,
     library_prefix: LibraryPrefixCompletion,
     diagnostic_schedule: DiagnosticSchedule,
+    workers: WorkerBudget,
+) -> Result<CheckResult, AuthoritativeModuleFailure> {
+    check_program_with_authoritative_modules_at_cache_mode_with_source(
+        libs,
+        files,
+        lib_metadata,
+        file_metadata,
+        options,
+        current_directory,
+        AuthoritativeProviderSource::Shared(provider),
+        cache_enabled,
+        emit_operation,
+        prepared_owned_bundle,
+        library_prefix,
+        diagnostic_schedule,
+        workers,
+        CheckerBudget::serial(),
+        None,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn check_program_with_authoritative_modules_at_cache_mode_with_source<'cwd>(
+    libs: &[InputFile],
+    files: &[InputFile],
+    lib_metadata: &[AuthoritativeSourceMetadata],
+    file_metadata: &[AuthoritativeSourceMetadata],
+    options: &CompilerOptions,
+    current_directory: impl Into<JsStr<'cwd>>,
+    provider: AuthoritativeProviderSource<'_>,
+    cache_enabled: bool,
+    emit_operation: Option<&mut CheckedEmitOperation<'_>>,
+    prepared_owned_bundle: Option<&OwnedHarnessLibBundle>,
+    library_prefix: LibraryPrefixCompletion,
+    diagnostic_schedule: DiagnosticSchedule,
+    workers: WorkerBudget,
+    checkers: CheckerBudget,
+    sharded_emit: Option<&mut ShardedEmit<'_>>,
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
     let current_directory = current_directory.into();
+    perf::add(
+        PerfCounter::CheckerShardsRequested,
+        checkers.checkers() as u64,
+    );
     validate_authoritative_metadata(libs, lib_metadata, "library")?;
     validate_authoritative_metadata(files, file_metadata, "program")?;
-    let mut seen_tokens = std::collections::HashSet::new();
+    let mut seen_tokens = rustc_hash::FxHashSet::default();
     for source in lib_metadata.iter().chain(file_metadata) {
         if !seen_tokens.insert(source.token) {
             return Err(AuthoritativeModuleFailure::InvalidMetadata {
@@ -1690,7 +2072,7 @@ fn check_program_with_authoritative_modules_at_cache_mode<'cwd>(
         }
     }
 
-    let fixture_names: std::collections::HashSet<JsStr<'_>> = files
+    let fixture_names: rustc_hash::FxHashSet<JsStr<'_>> = files
         .iter()
         .filter(|file| !file.host_only)
         .map(|file| file.name.as_js())
@@ -1728,6 +2110,7 @@ fn check_program_with_authoritative_modules_at_cache_mode<'cwd>(
                 Some(&run),
                 emit_operation,
                 ProgramFileFacts::DEFAULT_LIBRARY,
+                workers,
             )
         } else {
             let bundle = (!effective_libs.is_empty()).then(|| lib_bundle(&effective_libs, options));
@@ -1751,29 +2134,66 @@ fn check_program_with_authoritative_modules_at_cache_mode<'cwd>(
                 Some(&run),
                 emit_operation,
                 ProgramFileFacts::DEFAULT_LIBRARY,
+                workers,
             )
         }
     } else {
         let bundle_options = lib_bundle_options(options);
         let identity_domain = IdentityDomain::ephemeral();
-        let lib_sources = parse_lib_sources(&effective_libs, &bundle_options, &identity_domain);
-        let lib_binders = bind_lib_sources(&lib_sources, &bundle_options, &identity_domain);
+        let (lib_sources, lib_work) =
+            parse_lib_sources(&effective_libs, &bundle_options, &identity_domain, workers);
+        let lib_binders =
+            bind_lib_sources(&lib_sources, &bundle_options, &identity_domain, workers);
         let lib_data = binders_into_data(lib_binders);
         let lib_documents = publish_bound_documents(lib_sources, lib_data);
-        check_program_with_prebound_libs_at_observed(
-            libs,
-            files,
-            options,
-            current_directory,
-            &lib_documents,
-            &identity_domain,
-            CheckWorkCounters::for_fresh_inputs(&effective_libs),
-            true,
-            &mut observe_phase,
-            Some(&run),
-            emit_operation,
-            ProgramFileFacts::DEFAULT_LIBRARY,
-        )
+        // Sharding is a property of the eager whole-Program schedule with
+        // per-checker providers; the on-demand schedule and emit callbacks
+        // keep the serial driver.
+        let sharded_factory = match run.provider {
+            AuthoritativeProviderSource::PerChecker(factory)
+                if checkers.is_sharded()
+                    && diagnostic_schedule == DiagnosticSchedule::Eager
+                    && emit_operation.is_none() =>
+            {
+                Some(factory)
+            }
+            _ => None,
+        };
+        if let Some(factory) = sharded_factory {
+            check_program_with_prebound_libs_sharded(
+                libs,
+                files,
+                options,
+                current_directory,
+                &lib_documents,
+                &identity_domain,
+                CheckWorkCounters::for_owned_libs(lib_work),
+                true,
+                &mut observe_phase,
+                &run,
+                factory,
+                ProgramFileFacts::DEFAULT_LIBRARY,
+                workers,
+                checkers,
+                sharded_emit,
+            )
+        } else {
+            check_program_with_prebound_libs_at_observed(
+                libs,
+                files,
+                options,
+                current_directory,
+                &lib_documents,
+                &identity_domain,
+                CheckWorkCounters::for_owned_libs(lib_work),
+                true,
+                &mut observe_phase,
+                Some(&run),
+                emit_operation,
+                ProgramFileFacts::DEFAULT_LIBRARY,
+                workers,
+            )
+        }
     };
     match execution.authoritative_failure {
         Some(failure) => Err(failure),
@@ -1810,36 +2230,86 @@ fn validate_authoritative_metadata(
     Ok(())
 }
 
+/// Host facts projected once from the input list: owned data with no
+/// checker identity. The serial driver moves them into its one checker state;
+/// a sharded driver (W2) clones them once per additional shard, so that a
+/// shard constructs its state from the shared immutable snapshot plus this
+/// value alone. The source ASTs themselves are never copied: every state
+/// shares the snapshot's `Arc<BoundDocument>` handles.
+/// tsrs-native: the resolver's host view; tsc reads its host lazily.
+#[derive(Clone)]
+struct HostFacts {
+    current_directory: JsString,
+    file_paths: rustc_hash::FxHashSet<JsString>,
+    input_snapshots: rustc_hash::FxHashMap<JsString, Arc<TextSnapshot>>,
+    package_json_module_types: rustc_hash::FxHashMap<JsString, state::PackageJsonModuleType>,
+    package_json_values: rustc_hash::FxHashMap<JsString, tsc_program::JsonValue>,
+    package_json_names: rustc_hash::FxHashMap<JsString, JsString>,
+}
+
+/// Stage-1 output of the check driver: parsed (or adopted) fixture sources
+/// plus the owned facts every checker state needs. No checker identity or
+/// bind result is created here.
+struct ParsedProgramInputs {
+    program_sources: Vec<Arc<tsc_syntax::SourceFile>>,
+    authoritative_program_metadata: Vec<AuthoritativeSourceMetadata>,
+    program_diagnostics: Vec<Diagnostic>,
+    host: HostFacts,
+}
+
+/// Stage 1: fixture shadowing, root admission, JSON/TS parsing or adoption of
+/// the loader's parse, missing-path-reference diagnostics and the host facts.
+/// tsrs-native: extracted from the one-shot driver so that W2 can run one
+/// parse/bind and many checker states over the same snapshot.
+/// A program source between its identity lease (taken in program order on
+/// the calling thread) and its rewrite into the leased ranges (on a worker).
+enum PendingProgramSource {
+    Ready(tsc_syntax::SourceFile),
+    Leased(tsc_syntax::SourceFile, IdentityLease, IdentityLease),
+}
+
+impl PendingProgramSource {
+    fn weight(&self) -> usize {
+        match self {
+            Self::Ready(_) => 0,
+            Self::Leased(source, _, _) => source.arena.nodes().len(),
+        }
+    }
+
+    fn source_mut(&mut self) -> &mut tsc_syntax::SourceFile {
+        match self {
+            Self::Ready(source) | Self::Leased(source, _, _) => source,
+        }
+    }
+
+    fn relocate(self) -> tsc_syntax::SourceFile {
+        match self {
+            Self::Ready(source) => source,
+            Self::Leased(mut source, node_lease, array_lease) => {
+                source
+                    .relocate_with_leases(node_lease, array_lease)
+                    .expect("source identity relocation failed");
+                source
+            }
+        }
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
-fn check_program_with_prebound_libs_at_observed<'cwd>(
+fn parse_program_inputs(
     libs: &[InputFile],
     files: &[InputFile],
     options: &CompilerOptions,
-    current_directory: impl Into<JsStr<'cwd>>,
-    lib_documents: &[Arc<BoundDocument>],
+    current_directory: JsStr<'_>,
     identity_domain: &IdentityDomain,
-    mut work_counters: CheckWorkCounters,
-    collect_global_diagnostics: bool,
-    observe_phase: &mut impl FnMut(CheckPhase),
     authoritative_run: Option<&AuthoritativeRun<'_>>,
-    emit_operation: Option<&mut CheckedEmitOperation<'_>>,
-    lib_facts: ProgramFileFacts,
-) -> CheckExecution {
-    let current_directory = current_directory.into();
-    let mut file_diagnostics = Vec::new();
-    // An authoritative Program session exposes the whole-Program semantic
-    // getter even when root filtering produces no SourceFiles (for example a
-    // lone `.js` root with `allowJs` disabled). The observable getter result
-    // is an empty list, not an absent capability; emit relies on that typed
-    // distinction to execute the empty output plan without a checker state.
-    let mut program_semantic_diagnostics = authoritative_run.is_some().then(Vec::new);
-    let mut partial_checks = Vec::new();
-    let mut global_diagnostics = Vec::new();
-    let mut authoritative_failure = None;
+    work_counters: &mut CheckWorkCounters,
+    workers: WorkerBudget,
+) -> ParsedProgramInputs {
     // getImpliedNodeFormatForFileWorker's package-scope input. Build it
     // before parsing because getSetExternalModuleIndicator's Auto mode
     // consults the implied format while SourceFiles are created.
-    let host_package_json_module_types: std::collections::HashMap<
+    let host_package_json_module_types: rustc_hash::FxHashMap<
         tsc_types::JsString,
         state::PackageJsonModuleType,
     > = files
@@ -1870,7 +2340,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         .collect();
     // Fixture-file shadowing (unchanged from the libless world): a
     // later file with the same name shadows an earlier one entirely.
-    let mut last_index_by_name = std::collections::HashMap::new();
+    let mut last_index_by_name = rustc_hash::FxHashMap::default();
     for (index, file) in files.iter().enumerate() {
         if file.host_only {
             continue;
@@ -1882,7 +2352,8 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
     // leases from the same domain as the library prefix. JSON files remain in
     // that same program: the binder publishes their root value as the
     // module's default/export= property.
-    let mut program_sources: Vec<Arc<tsc_syntax::SourceFile>> = Vec::new();
+    let serial_started = std::time::Instant::now();
+    let mut pending_sources: Vec<PendingProgramSource> = Vec::new();
     let mut authoritative_program_metadata = Vec::new();
     let mut authoritative_file_index = 0;
     for (index, file) in files.iter().enumerate() {
@@ -1920,7 +2391,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
             )
             .expect("JSON source identity allocation failed");
             work_counters.record_parse(file.text().len());
-            program_sources.push(Arc::new(source_file));
+            pending_sources.push(PendingProgramSource::Ready(source_file));
             continue;
         }
         // tsc getLanguageVariant: JSX scanning for TSX/JSX/JS script kinds.
@@ -1999,37 +2470,70 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
             };
         let detect_external_module_from_jsx =
             !is_declaration_file && module_detection == 2 && matches!(options.jsx, Some(4 | 5));
-        let mut source_file = tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
-            file.name.clone(),
-            Arc::clone(file.snapshot()),
-            tsc_syntax::ParseOptions {
-                script_target: options.emit_script_target(),
-                language_variant,
-                javascript_file,
-                force_external_module,
-                detect_external_module_from_jsx,
-                node_id_base: 0,
-                node_array_id_base: 0,
-                js_doc_parsing_mode: file
-                    .js_doc_parsing_mode
-                    .unwrap_or(tsc_syntax::JSDocParsingMode::ParseAll),
-            },
-            None,
-            identity_domain,
-        )
-        .expect("source identity allocation failed");
+        let parse_options = tsc_syntax::ParseOptions {
+            script_target: options.emit_script_target(),
+            language_variant,
+            javascript_file,
+            force_external_module,
+            detect_external_module_from_jsx,
+            node_id_base: 0,
+            node_array_id_base: 0,
+            js_doc_parsing_mode: file
+                .js_doc_parsing_mode
+                .unwrap_or(tsc_syntax::JSDocParsingMode::ParseAll),
+        };
+        // An adopted tree takes its identity lease here, in program order,
+        // and is rewritten on a worker below; a fresh parse allocates in
+        // the domain directly, in the same order.
+        let mut pending = match file.take_preparsed_source(&parse_options) {
+            Some(source_file) => {
+                work_counters.record_adoption();
+                let (node_lease, array_lease) = source_file
+                    .lease_identities(identity_domain)
+                    .expect("source identity allocation failed");
+                PendingProgramSource::Leased(source_file, node_lease, array_lease)
+            }
+            None => {
+                work_counters.record_parse(file.text().len());
+                PendingProgramSource::Ready(
+                    tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
+                        file.name.clone(),
+                        Arc::clone(file.snapshot()),
+                        parse_options,
+                        None,
+                        identity_domain,
+                    )
+                    .expect("source identity allocation failed"),
+                )
+            }
+        };
         // transpileWorker (typescript.js:146099-146104) assigns the API
         // moduleName / renamedDependencies to the created SourceFile before
         // createProgram; the parsed pragma value is overridden.
+        let source_file = pending.source_mut();
         if let Some(module_name) = &file.module_name {
             source_file.module_name = Some(module_name.clone());
         }
         if !file.renamed_dependencies.is_empty() {
             source_file.renamed_dependencies = file.renamed_dependencies.clone();
         }
-        work_counters.record_parse(file.text().len());
-        program_sources.push(Arc::new(source_file));
+        pending_sources.push(pending);
     }
+    tsc_types::trace::mark(
+        "checker: adopt (serial: parse options, leases)",
+        serial_started,
+    );
+    let rewrite_started = std::time::Instant::now();
+    let program_sources: Vec<Arc<tsc_syntax::SourceFile>> = workers
+        .map_ordered(
+            pending_sources,
+            PendingProgramSource::weight,
+            PendingProgramSource::relocate,
+        )
+        .into_iter()
+        .map(Arc::new)
+        .collect();
+    tsc_types::trace::mark("checker: adopt (parallel rewrite)", rewrite_started);
 
     let host_current_directory = resolve_host_current_directory(current_directory);
     let program_diagnostics = missing_path_reference_diagnostics(
@@ -2039,6 +2543,1051 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         }),
         options,
         &host_current_directory,
+    );
+
+    let file_paths = files
+        .iter()
+        .map(|file| state::CheckerState::normalize_program_path(&file.name, ""))
+        .collect();
+    let input_snapshots = files
+        .iter()
+        .map(|file| {
+            (
+                state::CheckerState::normalize_program_path(&file.name, ""),
+                Arc::clone(file.snapshot()),
+            )
+        })
+        .collect();
+    let package_json_values: rustc_hash::FxHashMap<JsString, tsc_program::JsonValue> = files
+        .iter()
+        .filter_map(|file| {
+            let file_name = file
+                .name
+                .as_js()
+                .split_ascii(b'/')
+                .next_back()?
+                .split_ascii(b'\\')
+                .next_back()?;
+            if file_name != "package.json" {
+                return None;
+            }
+            let value = parse_host_package_json(file);
+            Some((
+                state::CheckerState::normalize_program_path(&file.name, ""),
+                value,
+            ))
+        })
+        .collect();
+    let package_json_names = package_json_values
+        .iter()
+        .filter_map(|(path, value)| {
+            // Package self-name resolution consumes the original string;
+            // getPathComponents does not trim it (_tsc.js:41454–41458).
+            let name = tsc_program::package_json_property(value, "name")?.as_js()?;
+            if name.is_empty() {
+                return None;
+            }
+            Some((path.clone(), name.to_owned()))
+        })
+        .collect();
+    ParsedProgramInputs {
+        program_sources,
+        authoritative_program_metadata,
+        program_diagnostics,
+        host: HostFacts {
+            current_directory: host_current_directory,
+            file_paths,
+            input_snapshots,
+            package_json_module_types: host_package_json_module_types,
+            package_json_values,
+            package_json_names,
+        },
+    }
+}
+
+/// Stage 3: construct one checker state over the shared immutable snapshot.
+/// This is the per-checker constructor: it reads only the shared snapshot and
+/// options (never writing into the shared source ASTs) and owns everything
+/// else it creates, so W2 can call it inside each shard's thread (the provider
+/// is constructed by the caller and outlives the state; the host facts are
+/// moved in).
+/// tsrs-native: initializeTypeChecker's ordered init as one constructor.
+fn init_checker_state<'a>(
+    snapshot: &'a ProgramSnapshot,
+    options: &'a CompilerOptions,
+    authoritative: Option<(
+        &'a dyn AuthoritativeModuleProvider,
+        &[AuthoritativeSourceMetadata],
+    )>,
+    host: HostFacts,
+) -> state::CheckerState<'a> {
+    let mut state = state::CheckerState::from_snapshot(snapshot, options);
+    if let Some((provider, metadata)) = authoritative {
+        if let Err(failure) = state.install_authoritative_module_provider(provider, metadata) {
+            state.record_authoritative_module_failure(failure);
+        }
+    }
+    // path.posix.resolve absoluteness test (charAt(0) === '/') on
+    // the RAW value — a "\\"-led cwd is RELATIVE there, so the
+    // process-cwd join and POSIX dot-segment resolution both happen
+    // on the raw string BEFORE normalizeFileName flips "\\" into
+    // separators. The join base is Node's posixCwd: process.cwd()
+    // untouched on POSIX; on Windows backslashes flipped and
+    // everything before the first "/" (the drive) dropped. ""
+    // (the old "/"-rooted world) is the no-cwd degenerate fallback.
+    state.host_current_directory = host.current_directory;
+    // The resolver's host view (M4 5.8d): every INPUT path, incl.
+    // files the program dropped (.json bodies, .js without
+    // allowJs) — the suppression probes need them to keep 2307
+    // FP-free.
+    state.host_file_paths = host.file_paths;
+    state.host_input_snapshots = host.input_snapshots;
+    state.host_package_json_module_types = host.package_json_module_types;
+    state.host_package_json_values = host.package_json_values;
+    state.host_package_json_names = host.package_json_names;
+    // initializeTypeChecker's augmentation passes (88769/88874)
+    // run here — AFTER the resolver's host view exists (pass 2
+    // resolves module names), BEFORE any file checks.
+    state.merge_module_augmentations();
+    // Type construction is unconditional in tsc. In particular, the
+    // eager array singleton roots establish the type-id order consumed by
+    // getUnionType when stableTypeOrdering is off. Requesting the public
+    // global-diagnostics bucket controls only observation of the rows.
+    state.materialize_init_global_diagnostics();
+    state
+}
+
+/// Stage 4: check `files` in the given order on one state. getDiagnosticsWorker
+/// snapshots the file-less bucket around each requested source, so only the
+/// rows published while checking a file are attributed to that file.
+/// tsrs-native: shared by the fixture pass and the library-completion pass.
+fn check_files_in_order(
+    state: &mut state::CheckerState<'_>,
+    files: &[ProgramFileId],
+    globals_by_file: &mut [Vec<Diagnostic>],
+) {
+    for &file in files {
+        if state.skip_type_checking_file(file) {
+            continue;
+        }
+        let global_start = state.visible_global_diagnostics.len();
+        state.check_source_file(file.index());
+        globals_by_file[file.index()].extend(
+            state.visible_global_diagnostics[global_start..]
+                .iter()
+                .cloned(),
+        );
+    }
+}
+
+/// Syntactic rows for every fixture file of a snapshot, in Program order.
+/// tsc getSyntacticDiagnosticsForFile: JS files prepend the
+/// TypeScript-only-syntax walker output to parser diagnostics.
+fn syntactic_file_rows(
+    snapshot: &ProgramSnapshot,
+    lib_count: usize,
+    options: &CompilerOptions,
+) -> Vec<FileDiagnosticPasses> {
+    snapshot
+        .documents()
+        .iter()
+        .skip(lib_count)
+        .map(|document| {
+            let source = document.source();
+            let mut syntactic = if is_js_file_name(&source.file_name) {
+                js_grammar::get_js_syntactic_diagnostics(source, options.experimental_decorators)
+            } else {
+                Vec::new()
+            };
+            syntactic.extend(source.parse_diagnostics.iter().cloned());
+            tsc_diagnostics::sort_and_dedupe_diagnostics(&mut syntactic);
+            FileDiagnosticPasses {
+                file_name: source.file_name.clone(),
+                syntactic,
+                semantic: Vec::new(),
+                suggestion: Vec::new(),
+            }
+        })
+        .collect()
+}
+
+/// The diagnostic ledger of one checker state at one moment, plus the
+/// file-attributed rows and partially-checked ranges recorded up to then.
+/// Rows are cloned, not indexed by length: later passes may still edit
+/// earlier rows (category/related-information updates), so the serial
+/// driver's projection boundary needs the rows as they were.
+#[derive(Default)]
+struct LedgerSnapshot {
+    rows: Vec<Diagnostic>,
+    globals_by_file: Vec<Vec<Diagnostic>>,
+    partially_checked_ranges: rustc_hash::FxHashMap<usize, Vec<(u32, u32)>>,
+}
+
+impl LedgerSnapshot {
+    fn take(state: &state::CheckerState<'_>, globals_by_file: &[Vec<Diagnostic>]) -> Self {
+        Self {
+            rows: state.diagnostics.iter().cloned().collect(),
+            globals_by_file: globals_by_file.to_vec(),
+            partially_checked_ranges: state.partially_checked_ranges.clone(),
+        }
+    }
+}
+
+/// Everything one checker shard hands back to the coordinating thread.
+/// Owned values only: diagnostics, attribution vectors and audit records.
+/// No `TypeId`, `SymbolId`, signature or mapper identity leaves the shard.
+struct ShardOutput {
+    /// The ledger after the shard's fixture pass (the serial driver's
+    /// per-file projection boundary), before any library-completion check.
+    fixture: LedgerSnapshot,
+    /// The ledger after every pass.
+    complete: LedgerSnapshot,
+    /// The file-less bucket right after checker initialization; identical
+    /// across shards by construction (same snapshot, same init sequence).
+    init_globals: Vec<Diagnostic>,
+    partial_check_records: Vec<PartialCheck>,
+    failure: Option<AuthoritativeModuleFailure>,
+    /// Order-sensitivity guard reasons recorded by this shard (W2c); any
+    /// non-zero value makes the driver replay the whole check serially.
+    order_reasons: u32,
+    /// Type count after this shard's initialization: identical across shards
+    /// by construction (deterministic init over the shared snapshot); the
+    /// driver verifies it and replays on divergence.
+    init_boundary: u32,
+    /// Display-class observations (rendered member lists, order-chosen
+    /// elaborations) of this shard; they matter only if a published
+    /// diagnostic contains them (W2e).
+    display_marks: crate::order_guard::DisplayMarks,
+    /// The thread that ran this shard (participation evidence for the work
+    /// counters and the native controls).
+    thread: std::thread::ThreadId,
+    /// Files whose checkSourceFileWorker body ran in this shard: ownership
+    /// evidence for the debug assertion in the merge (debug builds only).
+    #[cfg(debug_assertions)]
+    checked_files: Vec<usize>,
+}
+
+const _: () = {
+    const fn assert_send<T: Send>() {}
+    assert_send::<ShardOutput>();
+    assert_send::<HostFacts>();
+};
+
+/// One checker shard's emit products plus the evidence the driver merges.
+/// Produced on the shard's thread by the caller's emit closure.
+pub struct ShardEmission {
+    pub units: Vec<tsc_emitter::UnitEmission>,
+    pub counters: tsc_emitter::H2ActivityCounters,
+    /// H2.8c evidence: source files whose checkSourceFileWorker body ran in
+    /// this shard by the end of its emit.
+    pub checked_source_files: u32,
+}
+
+/// The per-shard emit protocol of the sharded driver.
+/// tsrs-native: tsgo shape — every checker emits the files it checked, and
+/// the coordinator publishes the outputs in Program order. The coordinator
+/// decides once, after the merged diagnostics exist, whether any shard emits
+/// (handleNoEmitOptions and driver-level refusals); each shard then runs the
+/// caller's closure with its own live checker session. Outputs are handed
+/// back through [`emissions`](Self::emissions); nothing is written by the
+/// shards themselves.
+pub struct ShardedEmit<'op> {
+    /// Coordinator decision after the merged diagnostics are known: `true`
+    /// runs the per-shard emit, `false` releases the shards without one.
+    pub gate: &'op mut dyn FnMut(&ProgramSnapshot, &CheckResult) -> bool,
+    /// Runs once after every shard has checked, with every shard's checker
+    /// session and the Program file indices each shard checked (Program
+    /// order, index-aligned with the sessions). The caller schedules each
+    /// planned unit on its worker budget against the session of the shard
+    /// that checked the unit's source.
+    pub emit: ShardEmitClosure<'op>,
+    /// Filled by the driver: `None` when the gate refused (or no checker
+    /// ran), otherwise every shard's products (a serial replay yields one).
+    pub emissions: Option<Result<Vec<ShardEmission>, tsc_emitter::UnitEmitError>>,
+}
+
+type ShardEmitClosure<'op> = &'op (dyn Fn(
+    &ProgramSnapshot,
+    &[CheckerSession<'_>],
+    &[Vec<usize>],
+) -> Result<Vec<ShardEmission>, tsc_emitter::UnitEmitError>
+          + Sync);
+
+const _: () = {
+    const fn assert_send<T: Send>() {}
+    assert_send::<ShardEmission>();
+};
+
+/// Run one checker shard on the calling thread: construct its `ProgramBinder`
+/// and `CheckerState` over the shared immutable snapshot with the provider the
+/// coordinator created for it, initialize, check the shard's files, and
+/// report the ledger snapshots. With `keep_state` the checked state is
+/// returned for the coordinator's emit pool; otherwise it is dropped (or
+/// leaked for a one-shot process).
+#[allow(clippy::too_many_arguments)]
+fn run_checker_shard<'a>(
+    shard_index: usize,
+    snapshot: &'a ProgramSnapshot,
+    options: &'a CompilerOptions,
+    provider: &'a dyn AuthoritativeModuleProvider,
+    metadata: &[AuthoritativeSourceMetadata],
+    host: HostFacts,
+    files: &[usize],
+    lib_count: usize,
+    complete_library_prefix: bool,
+    keep_state: bool,
+    leak_state: bool,
+) -> (ShardOutput, Option<state::CheckerState<'a>>) {
+    let shard_started = std::time::Instant::now();
+    let mut state = init_checker_state(snapshot, options, Some((provider, metadata)), host);
+    // W2c: every type created from here on is shard-local; the guard records
+    // order-consuming operations over two or more of them.
+    let init_boundary = state.tables.len();
+    state.order_guard.arm(init_boundary);
+    if tsc_types::trace::enabled() {
+        tsc_types::trace::mark(
+            &format!(
+                "shard {shard_index}: init ({init_boundary} types, {} files)",
+                files.len()
+            ),
+            shard_started,
+        );
+    }
+    let shard_started = std::time::Instant::now();
+    // Shared-AST invariant: the shard's binder borrows the snapshot's
+    // documents (pointer-identical sources); it never copies a tree.
+    debug_assert!(files
+        .iter()
+        .all(|&file| std::ptr::eq(state.binder.source(file), snapshot.document(file).source())));
+    let init_globals = state.visible_global_diagnostics.clone();
+    let mut globals_by_file = vec![Vec::new(); state.binder.file_count()];
+    let ids = files
+        .iter()
+        .map(|&file| ProgramFileId::from_raw(u32::try_from(file).expect("program file index")))
+        .collect::<Vec<_>>();
+    let fixtures = ids
+        .iter()
+        .copied()
+        .filter(|id| id.index() >= lib_count)
+        .collect::<Vec<_>>();
+    check_files_in_order(&mut state, &fixtures, &mut globals_by_file);
+    let fixture = LedgerSnapshot::take(&state, &globals_by_file);
+    if complete_library_prefix {
+        // Program order over the shard's files: libraries first; fixtures
+        // already checked above are TypeChecked no-ops, as in the serial
+        // completion pass.
+        check_files_in_order(&mut state, &ids, &mut globals_by_file);
+    }
+    #[cfg(debug_assertions)]
+    let checked_files = ids
+        .iter()
+        .filter(|id| {
+            state
+                .links
+                .read_node(state.binder.source(id.index()).root, |links| {
+                    links.check_flags
+                })
+                .intersects(tsc_types::NodeCheckFlags::TYPE_CHECKED)
+        })
+        .map(|id| id.index())
+        .collect();
+    let failure = state.take_authoritative_module_failure();
+    let complete = LedgerSnapshot::take(&state, &globals_by_file);
+    if tsc_types::trace::enabled() {
+        tsc_types::trace::mark(
+            &format!(
+                "shard {shard_index}: check ({} types, {} symbol links)",
+                state.tables.len(),
+                state.links.symbol_len()
+            ),
+            shard_started,
+        );
+    }
+    let output = ShardOutput {
+        fixture,
+        complete,
+        init_globals,
+        partial_check_records: std::mem::take(&mut state.partial_check_records),
+        failure,
+        order_reasons: state.order_guard.reasons(),
+        init_boundary: state.order_guard.init_boundary(),
+        display_marks: state.order_guard.marks().clone(),
+        thread: std::thread::current().id(),
+        #[cfg(debug_assertions)]
+        checked_files,
+    };
+    if keep_state {
+        return (output, Some(state));
+    }
+    if leak_state {
+        std::mem::forget(state);
+    }
+    (output, None)
+}
+
+/// Merge the shards' ledgers in Program order into the same observations the
+/// serial driver publishes: the per-file fixture projection (rows of every
+/// shard at its fixture boundary), the whole-Program list (rows of every
+/// shard after completion), init globals, partial-check records and the
+/// checker work counters. Rows for a file published by ANY shard — including
+/// library completion rows on merged declarations and partially-checked
+/// ranges recorded for another shard's file — are merged BEFORE directive
+/// filtering and unused-directive synthesis.
+#[allow(clippy::too_many_arguments)]
+fn merge_shard_outputs(
+    snapshot: &ProgramSnapshot,
+    lib_count: usize,
+    options: &CompilerOptions,
+    program_diagnostics: &[Diagnostic],
+    mut file_diagnostics: Vec<FileDiagnosticPasses>,
+    mut outputs: Vec<ShardOutput>,
+    collect_global_diagnostics: bool,
+    work_counters: CheckWorkCounters,
+) -> Result<CheckExecution, u32> {
+    let authoritative_failure = outputs.iter_mut().find_map(|output| output.failure.take());
+    debug_assert!(
+        outputs
+            .iter()
+            .all(|output| output.init_globals == outputs[0].init_globals),
+        "checker initialization published different global rows in different shards"
+    );
+    #[cfg(debug_assertions)]
+    {
+        let mut owners = vec![0u8; snapshot.documents().len()];
+        for output in &outputs {
+            for &file in &output.checked_files {
+                owners[file] += 1;
+            }
+        }
+        debug_assert!(
+            owners.iter().all(|&count| count <= 1),
+            "a program file was checked by more than one shard"
+        );
+    }
+    let global_diagnostics = if collect_global_diagnostics {
+        let mut rows = outputs[0].init_globals.clone();
+        tsc_diagnostics::sort_and_dedupe_diagnostics(&mut rows);
+        rows
+    } else {
+        Vec::new()
+    };
+
+    // Rows by owning file, in (shard, publication) order.
+    fn rows_by_file<'o>(
+        ledgers: impl Iterator<Item = &'o LedgerSnapshot>,
+    ) -> rustc_hash::FxHashMap<&'o JsString, Vec<&'o Diagnostic>> {
+        let mut by_file: rustc_hash::FxHashMap<&JsString, Vec<&Diagnostic>> =
+            rustc_hash::FxHashMap::default();
+        for ledger in ledgers {
+            for row in &ledger.rows {
+                if let Some(file_name) = row.file_name.as_ref() {
+                    by_file.entry(file_name).or_default().push(row);
+                }
+            }
+        }
+        by_file
+    }
+    let fixture_rows = rows_by_file(outputs.iter().map(|output| &output.fixture));
+    let complete_rows = rows_by_file(outputs.iter().map(|output| &output.complete));
+    let file_count = snapshot.documents().len();
+    let skip = |file: usize| {
+        should_skip_type_checking_file(
+            snapshot.document(file).source(),
+            snapshot.file_facts(ProgramFileId::from_raw(
+                u32::try_from(file).expect("program file index"),
+            )),
+            options,
+        )
+    };
+    let assemble = |file: usize,
+                    rows: &rustc_hash::FxHashMap<&JsString, Vec<&Diagnostic>>,
+                    ledger: fn(&ShardOutput) -> &LedgerSnapshot|
+     -> DiagnosticList {
+        let document = snapshot.document(file);
+        let source = document.source();
+        let empty = Vec::new();
+        let checker_for_file = rows.get(&source.file_name).unwrap_or(&empty);
+        let globals = outputs
+            .iter()
+            .flat_map(|output| ledger(output).globals_by_file[file].iter().cloned())
+            .collect::<Vec<_>>();
+        let ranges = outputs
+            .iter()
+            .flat_map(|output| {
+                ledger(output)
+                    .partially_checked_ranges
+                    .get(&file)
+                    .into_iter()
+                    .flatten()
+                    .copied()
+            })
+            .collect::<Vec<_>>();
+        semantic_diagnostics_for_file_rows(
+            source,
+            &document.data.bind_diagnostics,
+            checker_for_file,
+            (!ranges.is_empty()).then_some(ranges.as_slice()),
+            &globals,
+            program_diagnostics,
+            options,
+        )
+    };
+
+    // Fixture projection: the public per-file getters as observed after the
+    // fixture pass and before library completion.
+    for file in lib_count..file_count {
+        if skip(file) {
+            continue;
+        }
+        let source = snapshot.document(file).source();
+        let result_index = file - lib_count;
+        if let Some(rows) = fixture_rows.get(&source.file_name) {
+            file_diagnostics[result_index].suggestion.extend(
+                rows.iter()
+                    .filter(|diagnostic| diagnostic.category() == DiagnosticCategory::Suggestion)
+                    .map(|diagnostic| (*diagnostic).clone()),
+            );
+        }
+        file_diagnostics[result_index].semantic =
+            assemble(file, &fixture_rows, |output| &output.fixture);
+    }
+
+    // Whole-Program getter: every file after completion, one stable
+    // sort/dedupe after flattening (getDiagnosticsHelper's undefined arm).
+    let mut diagnostics = Vec::new();
+    for file in 0..file_count {
+        if skip(file) {
+            continue;
+        }
+        diagnostics.extend(assemble(file, &complete_rows, |output| &output.complete));
+    }
+    tsc_diagnostics::sort_and_dedupe_diagnostics(&mut diagnostics);
+    // W2e: a display-class observation counts only when the diagnostic it
+    // formatted is actually published (whole-Program list or a per-file
+    // projection); a discarded elaboration marks nothing.
+    let mut marks = crate::order_guard::DisplayMarks::default();
+    for output in &outputs {
+        marks.extend(&output.display_marks);
+    }
+    if !marks.is_empty() {
+        let published_marked = diagnostics
+            .iter()
+            .chain(
+                file_diagnostics
+                    .iter()
+                    .flat_map(|file| file.semantic.iter().chain(file.suggestion.iter())),
+            )
+            .any(|row| marks.is_marked(row));
+        if published_marked {
+            return Err(marks.reasons());
+        }
+    }
+    let partial_checks = outputs
+        .iter()
+        .flat_map(|output| output.partial_check_records.iter().cloned())
+        .collect::<Vec<_>>();
+    Ok(CheckExecution {
+        result: assemble_check_result(
+            &file_diagnostics,
+            Some(&diagnostics),
+            &global_diagnostics,
+            &partial_checks,
+            work_counters,
+        ),
+        authoritative_failure,
+    })
+}
+
+/// The sharded driver: stages 1–2 once (parse/adopt, bind, snapshot), then
+/// one checker state per shard on scoped threads over the shared immutable
+/// snapshot, then the Program-order merge. Equivalent to the serial driver's
+/// fixture projection and whole-Program assembly. With `sharded_emit`, every
+/// shard keeps its checker alive after reporting and emits its own files once
+/// the coordinator has gated the merged diagnostics (tsgo's per-checker emit).
+/// tsrs-native: tsgo checker pool shape; tsc has one checker.
+#[allow(clippy::too_many_arguments)]
+fn check_program_with_prebound_libs_sharded<'cwd>(
+    libs: &[InputFile],
+    files: &[InputFile],
+    options: &CompilerOptions,
+    current_directory: impl Into<JsStr<'cwd>>,
+    lib_documents: &[Arc<BoundDocument>],
+    identity_domain: &IdentityDomain,
+    mut work_counters: CheckWorkCounters,
+    collect_global_diagnostics: bool,
+    observe_phase: &mut impl FnMut(CheckPhase),
+    run: &AuthoritativeRun<'_>,
+    factory: &dyn AuthoritativeModuleProviderFactory,
+    lib_facts: ProgramFileFacts,
+    workers: WorkerBudget,
+    checkers: CheckerBudget,
+    mut sharded_emit: Option<&mut ShardedEmit<'_>>,
+) -> CheckExecution {
+    let current_directory = current_directory.into();
+    let phase_started = std::time::Instant::now();
+    let ParsedProgramInputs {
+        program_sources,
+        authoritative_program_metadata,
+        program_diagnostics,
+        host,
+    } = parse_program_inputs(
+        libs,
+        files,
+        options,
+        current_directory,
+        identity_domain,
+        Some(run),
+        &mut work_counters,
+        workers,
+    );
+    tsc_types::trace::mark("checker: parse/adopt program sources", phase_started);
+
+    let lib_count = lib_documents.len();
+    let mut document_store = EphemeralDocumentStore::with_documents(
+        identity_domain.clone(),
+        lib_documents.iter().cloned(),
+    );
+    observe_phase(CheckPhase::Bind);
+    let phase_started = std::time::Instant::now();
+    let bind_data =
+        bind_sources_in_program_order(&program_sources, options, identity_domain, workers);
+    for (source_file, data) in program_sources.iter().zip(bind_data) {
+        work_counters.record_bind();
+        document_store
+            .publish(Arc::clone(source_file), data)
+            .expect("completed bind must belong to the ephemeral document domain");
+    }
+    tsc_types::trace::mark("checker: bind program sources", phase_started);
+    observe_phase(CheckPhase::Check);
+
+    if lib_documents.is_empty() && program_sources.is_empty() {
+        // Same observable result as the serial driver for an empty Program:
+        // the whole-Program getter exists and is empty.
+        let global_diagnostics = if collect_global_diagnostics {
+            globals::missing_init_global_type_diagnostics(options)
+        } else {
+            Vec::new()
+        };
+        return CheckExecution {
+            result: assemble_check_result(&[], Some(&[]), &global_diagnostics, &[], work_counters),
+            authoritative_failure: None,
+        };
+    }
+    let phase_started = std::time::Instant::now();
+
+    let mut file_facts = vec![lib_facts; lib_count];
+    file_facts.resize(
+        lib_count + program_sources.len(),
+        ProgramFileFacts::ORDINARY,
+    );
+    let snapshot = document_store
+        .into_snapshot_with_file_facts(file_facts)
+        .expect("program snapshot identity allocation failed");
+    let file_diagnostics = syntactic_file_rows(&snapshot, lib_count, options);
+    let mut metadata = run.lib_metadata.clone();
+    metadata.extend(authoritative_program_metadata.iter().cloned());
+    let complete_library_prefix = run.library_prefix == LibraryPrefixCompletion::Complete;
+
+    // Deterministic partition of every Program file (library prefix
+    // included) by node count; each shard keeps Program order.
+    let weights = snapshot
+        .documents()
+        .iter()
+        .map(|document| document.source().arena.len())
+        .collect::<Vec<_>>();
+    let assignment = shard::partition_files(&weights, checkers.checkers());
+    let shard_count = assignment.len();
+
+    // An owned copy for the serial replay (W2c), taken before any shard slot
+    // exists: the replay never reconstructs host facts from admitted sources
+    // (ignored inputs and package.json manifests matter).
+    let replay_host = host.clone();
+    // One HostFacts per shard in take-once slots: a shard takes its slot on
+    // whichever thread runs it, so a refused spawn leaves the facts for the
+    // coordinator's fallback. The original moves into slot 0.
+    let mut hosts = Vec::with_capacity(shard_count);
+    for _ in 1..shard_count {
+        hosts.push(std::sync::Mutex::new(Some(host.clone())));
+    }
+    hosts.insert(0, std::sync::Mutex::new(Some(host)));
+    let emit_closure: Option<ShardEmitClosure<'_>> = sharded_emit.as_ref().map(|emit| emit.emit);
+    let coordinate = emit_closure.is_some();
+    // One provider per shard, owned here so a checked state (which borrows
+    // its provider) can outlive its shard's thread for the emit pool.
+    let providers = (0..shard_count)
+        .map(|_| factory.provider())
+        .collect::<Vec<_>>();
+    let run_shard = |shard_index: usize| {
+        let host = hosts[shard_index]
+            .lock()
+            .expect("host facts slot")
+            .take()
+            .expect("each shard takes its host facts once");
+        run_checker_shard(
+            shard_index,
+            &snapshot,
+            options,
+            &*providers[shard_index],
+            &metadata,
+            host,
+            &assignment[shard_index],
+            lib_count,
+            complete_library_prefix,
+            coordinate,
+            checkers.leaks_states(),
+        )
+    };
+    #[allow(clippy::large_enum_variant)]
+    enum ShardedRun {
+        Merged(CheckExecution),
+        Replay(u32),
+    }
+    let sharded = std::thread::scope(|scope| {
+        let mut handles = Vec::with_capacity(shard_count);
+        let mut results: Vec<Option<(ShardOutput, Option<state::CheckerState<'_>>)>> =
+            (0..shard_count).map(|_| None).collect();
+        // The coordinator runs shard 0 itself; the others run on scoped
+        // threads. A refused thread is not an error: the coordinator runs
+        // that shard too, with the untouched host facts of its slot.
+        for (shard_index, slot) in results.iter_mut().enumerate().skip(1) {
+            match std::thread::Builder::new()
+                .name(format!("tsc-rs-checker-{shard_index}"))
+                .stack_size(tsc_program::WORKER_STACK_BYTES)
+                .spawn_scoped(scope, move || run_shard(shard_index))
+            {
+                Ok(handle) => handles.push((shard_index, handle)),
+                Err(_) => *slot = Some(run_shard(shard_index)),
+            }
+        }
+        results[0] = Some(run_shard(0));
+        for (shard_index, handle) in handles {
+            results[shard_index] = Some(
+                handle
+                    .join()
+                    .unwrap_or_else(|payload| std::panic::resume_unwind(payload)),
+            );
+        }
+        let mut outputs = Vec::with_capacity(shard_count);
+        let mut states = Vec::with_capacity(shard_count);
+        for result in results {
+            let (output, state) = result.expect("every shard reports exactly once");
+            outputs.push(output);
+            states.extend(state);
+        }
+        tsc_types::trace::mark("checker: shards checked", phase_started);
+        let phase_started = std::time::Instant::now();
+        let dispose_states = |states: Vec<state::CheckerState<'_>>| {
+            if checkers.leaks_states() {
+                // The one-shot process exits right after publishing.
+                for state in states {
+                    std::mem::forget(state);
+                }
+            }
+        };
+        // W2c: a shard that consumed the order of two shard-local types may
+        // have diverged from the serial checker (text or semantics); discard
+        // every shard result and replay the whole check serially over the
+        // same snapshot (parse and bind are not repeated).
+        let mut order_reasons = outputs
+            .iter()
+            .fold(0u32, |acc, output| acc | output.order_reasons);
+        // The guard's exemption for pre-guard ids assumes every shard ran the
+        // same deterministic initialization; verify it instead of assuming.
+        if outputs
+            .iter()
+            .any(|output| output.init_boundary != outputs[0].init_boundary)
+        {
+            debug_assert!(false, "shard initialization type counts differ");
+            order_reasons |= crate::order_guard::OrderReason::INIT_DIVERGENCE.bits();
+        }
+        let threads = outputs
+            .iter()
+            .map(|output| output.thread)
+            .collect::<rustc_hash::FxHashSet<_>>();
+        work_counters.record_checker_shards(outputs.len() as u64, threads.len() as u64);
+        perf::add(PerfCounter::CheckerShardsRun, outputs.len() as u64);
+        perf::add(PerfCounter::CheckerShardThreads, threads.len() as u64);
+        if order_reasons != 0 {
+            drop(outputs);
+            dispose_states(states);
+            return ShardedRun::Replay(order_reasons);
+        }
+        // W2e: the merge itself decides whether a display-class mark reached
+        // a published row; only then is the sharded result discarded.
+        let execution = match merge_shard_outputs(
+            &snapshot,
+            lib_count,
+            options,
+            &program_diagnostics,
+            file_diagnostics.clone(),
+            outputs,
+            collect_global_diagnostics,
+            work_counters,
+        ) {
+            Ok(execution) => execution,
+            Err(marked_reasons) => {
+                dispose_states(states);
+                return ShardedRun::Replay(marked_reasons);
+            }
+        };
+        tsc_types::trace::mark("checker: merge shard diagnostics", phase_started);
+        let Some(sharded_emit) = sharded_emit.as_deref_mut() else {
+            dispose_states(states);
+            return ShardedRun::Merged(execution);
+        };
+        if execution.authoritative_failure.is_some()
+            || !(sharded_emit.gate)(&snapshot, &execution.result)
+        {
+            dispose_states(states);
+            return ShardedRun::Merged(execution);
+        }
+        let phase_started = std::time::Instant::now();
+        if states.len() != shard_count {
+            dispose_states(states);
+            return ShardedRun::Replay(crate::order_guard::OrderReason::INIT_DIVERGENCE.bits());
+        }
+        // Every checked state becomes a session; the caller's emit pool runs
+        // each planned unit against the resolver of the shard that checked
+        // it. Emit may create shard-local types (declaration rendering, lazy
+        // resolver queries): an order-consuming operation or a new display
+        // mark discards the products in favour of the serial replay.
+        let marks_before = states
+            .iter()
+            .map(|state| state.order_guard.marks().len())
+            .collect::<Vec<_>>();
+        let sessions = states
+            .into_iter()
+            .map(|state| {
+                CheckerSession::from_checked_state(state).with_program_diagnostics(
+                    program_diagnostics.clone(),
+                    execution.result.program_semantic_diagnostics.clone(),
+                )
+            })
+            .collect::<Vec<_>>();
+        let emitted = (sharded_emit.emit)(&snapshot, &sessions, &assignment);
+        tsc_types::trace::mark("checker: shards emitted", phase_started);
+        let mut emit_reasons = 0u32;
+        let mut states = Vec::with_capacity(sessions.len());
+        for (session, before) in sessions.into_iter().zip(marks_before) {
+            let state = session.into_state();
+            emit_reasons |= state.order_guard.reasons();
+            if state.order_guard.marks().len() > before {
+                emit_reasons |= crate::order_guard::OrderReason::INIT_DIVERGENCE.bits();
+            }
+            states.push(state);
+        }
+        dispose_states(states);
+        if emit_reasons != 0 {
+            return ShardedRun::Replay(emit_reasons);
+        }
+        sharded_emit.emissions = Some(emitted);
+        ShardedRun::Merged(execution)
+    });
+    let replay_reasons = match sharded {
+        ShardedRun::Merged(execution) => {
+            if checkers.leaks_states() {
+                // The one-shot process exits right after publishing: the
+                // shared documents go with the leaked checker states.
+                std::mem::forget(snapshot);
+            }
+            return execution;
+        }
+        ShardedRun::Replay(reasons) => reasons,
+    };
+    work_counters.record_serial_replay(replay_reasons);
+    perf::add(PerfCounter::CheckerSerialReplays, 1);
+    crate::order_guard::count_replay_reasons(replay_reasons);
+    drop(hosts);
+    let provider = factory.provider();
+    let execution = check_snapshot_serially(
+        &snapshot,
+        lib_count,
+        options,
+        &program_diagnostics,
+        file_diagnostics,
+        Some((&*provider, metadata.as_slice())),
+        replay_host,
+        collect_global_diagnostics,
+        complete_library_prefix,
+        work_counters,
+        sharded_emit,
+        checkers.leaks_states(),
+    );
+    drop(provider);
+    if checkers.leaks_states() {
+        std::mem::forget(snapshot);
+    }
+    execution
+}
+
+/// The serial check over an existing snapshot (stages 3–5 of the serial
+/// driver, eager schedule). The serial driver delegates its authoritative
+/// eager no-emit path here and the sharded driver replays a flagged run
+/// through it, so the two cannot drift in check order or assembly; the legacy
+/// fixture-only, on-demand and emit-callback paths keep the serial driver's
+/// inline sequence. A replayed emitting run emits every file with this one
+/// checker through the same per-shard protocol.
+#[allow(clippy::too_many_arguments)]
+fn check_snapshot_serially(
+    snapshot: &ProgramSnapshot,
+    lib_count: usize,
+    options: &CompilerOptions,
+    program_diagnostics: &[Diagnostic],
+    mut file_diagnostics: Vec<FileDiagnosticPasses>,
+    authoritative: Option<(
+        &dyn AuthoritativeModuleProvider,
+        &[AuthoritativeSourceMetadata],
+    )>,
+    host: HostFacts,
+    collect_global_diagnostics: bool,
+    complete_library_prefix: bool,
+    work_counters: CheckWorkCounters,
+    sharded_emit: Option<&mut ShardedEmit<'_>>,
+    leak_state: bool,
+) -> CheckExecution {
+    let mut state = init_checker_state(snapshot, options, authoritative, host);
+    let global_diagnostics = if collect_global_diagnostics {
+        let mut rows = state.visible_global_diagnostics.clone();
+        tsc_diagnostics::sort_and_dedupe_diagnostics(&mut rows);
+        rows
+    } else {
+        Vec::new()
+    };
+    let program_file_ids = state.binder.file_ids().skip(lib_count).collect::<Vec<_>>();
+    let mut global_checker_diagnostics_by_file = vec![Vec::new(); state.binder.file_count()];
+    check_files_in_order(
+        &mut state,
+        &program_file_ids,
+        &mut global_checker_diagnostics_by_file,
+    );
+    for &file in &program_file_ids {
+        if state.skip_type_checking_file(file) {
+            continue;
+        }
+        let source_index = file.index();
+        let result_index = source_index - lib_count;
+        let source = state.binder.source(source_index);
+        file_diagnostics[result_index].suggestion.extend(
+            state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| {
+                    diagnostic.file_name.as_ref().map(JsString::as_js)
+                        == Some(source.file_name.as_js())
+                        && diagnostic.category() == DiagnosticCategory::Suggestion
+                })
+                .cloned(),
+        );
+        file_diagnostics[result_index].semantic = semantic_diagnostics_for_program_file(
+            &state,
+            source_index,
+            &global_checker_diagnostics_by_file[source_index],
+            program_diagnostics,
+            options,
+        );
+    }
+    let all_program_file_ids = state.binder.file_ids().collect::<Vec<_>>();
+    if complete_library_prefix {
+        check_files_in_order(
+            &mut state,
+            &all_program_file_ids,
+            &mut global_checker_diagnostics_by_file,
+        );
+    }
+    let mut diagnostics = Vec::new();
+    for &file in &all_program_file_ids {
+        if state.skip_type_checking_file(file) {
+            continue;
+        }
+        diagnostics.extend(semantic_diagnostics_for_program_file(
+            &state,
+            file.index(),
+            &global_checker_diagnostics_by_file[file.index()],
+            program_diagnostics,
+            options,
+        ));
+    }
+    tsc_diagnostics::sort_and_dedupe_diagnostics(&mut diagnostics);
+    let partial_checks = state.partial_check_records.clone();
+    let authoritative_failure = state.take_authoritative_module_failure();
+    let result = assemble_check_result(
+        &file_diagnostics,
+        Some(&diagnostics),
+        &global_diagnostics,
+        &partial_checks,
+        work_counters,
+    );
+    let state = match sharded_emit {
+        Some(sharded_emit) if authoritative_failure.is_none() => {
+            if (sharded_emit.gate)(snapshot, &result) {
+                let every_file = (0..all_program_file_ids.len()).collect::<Vec<_>>();
+                let session = CheckerSession::from_checked_state(state).with_program_diagnostics(
+                    program_diagnostics.to_vec(),
+                    result.program_semantic_diagnostics.clone(),
+                );
+                let emitted = (sharded_emit.emit)(
+                    snapshot,
+                    std::slice::from_ref(&session),
+                    std::slice::from_ref(&every_file),
+                );
+                sharded_emit.emissions = Some(emitted);
+                session.into_state()
+            } else {
+                state
+            }
+        }
+        _ => state,
+    };
+    if leak_state {
+        std::mem::forget(state);
+    }
+    CheckExecution {
+        result,
+        authoritative_failure,
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn check_program_with_prebound_libs_at_observed<'cwd>(
+    libs: &[InputFile],
+    files: &[InputFile],
+    options: &CompilerOptions,
+    current_directory: impl Into<JsStr<'cwd>>,
+    lib_documents: &[Arc<BoundDocument>],
+    identity_domain: &IdentityDomain,
+    mut work_counters: CheckWorkCounters,
+    collect_global_diagnostics: bool,
+    observe_phase: &mut impl FnMut(CheckPhase),
+    authoritative_run: Option<&AuthoritativeRun<'_>>,
+    emit_operation: Option<&mut CheckedEmitOperation<'_>>,
+    lib_facts: ProgramFileFacts,
+    workers: WorkerBudget,
+) -> CheckExecution {
+    let current_directory = current_directory.into();
+    let mut file_diagnostics = Vec::new();
+    // An authoritative Program session exposes the whole-Program semantic
+    // getter even when root filtering produces no SourceFiles (for example a
+    // lone `.js` root with `allowJs` disabled). The observable getter result
+    // is an empty list, not an absent capability; emit relies on that typed
+    // distinction to execute the empty output plan without a checker state.
+    let mut program_semantic_diagnostics = authoritative_run.is_some().then(Vec::new);
+    let mut partial_checks = Vec::new();
+    let mut global_diagnostics = Vec::new();
+    let mut authoritative_failure = None;
+    let ParsedProgramInputs {
+        program_sources,
+        authoritative_program_metadata,
+        program_diagnostics,
+        host,
+    } = parse_program_inputs(
+        libs,
+        files,
+        options,
+        current_directory,
+        identity_domain,
+        authoritative_run,
+        &mut work_counters,
+        workers,
     );
 
     // The production H0 path publishes through a direct, session-owned store.
@@ -2055,16 +3604,12 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
     // and private-name-serial leases in the source's identity domain.
     observe_phase(CheckPhase::Bind);
 
-    for source_file in &program_sources {
-        let binder = tsc_binder::Binder::bind_in_identity_domain(
-            source_file.as_ref(),
-            options,
-            identity_domain,
-        )
-        .expect("bind identity allocation failed");
+    let bind_data =
+        bind_sources_in_program_order(&program_sources, options, identity_domain, workers);
+    for (source_file, data) in program_sources.iter().zip(bind_data) {
         work_counters.record_bind();
         document_store
-            .publish(Arc::clone(source_file), binder.into_bind_data())
+            .publish(Arc::clone(source_file), data)
             .expect("completed bind must belong to the ephemeral document domain");
     }
 
@@ -2096,111 +3641,72 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         let snapshot = document_store
             .into_snapshot_with_file_facts(file_facts)
             .expect("program snapshot identity allocation failed");
-        file_diagnostics = snapshot
-            .documents()
-            .iter()
-            .skip(lib_count)
-            .map(|document| {
-                let source = document.source();
-                // tsc getSyntacticDiagnosticsForFile: JS files prepend the
-                // TypeScript-only-syntax walker output to parser diagnostics.
-                let mut syntactic = if is_js_file_name(&source.file_name) {
-                    js_grammar::get_js_syntactic_diagnostics(
-                        source,
-                        options.experimental_decorators,
-                    )
-                } else {
-                    Vec::new()
-                };
-                syntactic.extend(source.parse_diagnostics.iter().cloned());
-                tsc_diagnostics::sort_and_dedupe_diagnostics(&mut syntactic);
-                FileDiagnosticPasses {
-                    file_name: source.file_name.clone(),
-                    syntactic,
-                    semantic: Vec::new(),
-                    suggestion: Vec::new(),
-                }
-            })
-            .collect();
-        let mut state = state::CheckerState::from_snapshot(&snapshot, options);
-        if let Some(run) = authoritative_run {
+        file_diagnostics = syntactic_file_rows(&snapshot, lib_count, options);
+        let authoritative_metadata = authoritative_run.map(|run| {
             let mut metadata = run.lib_metadata.clone();
             metadata.extend(authoritative_program_metadata.iter().cloned());
-            if let Err(failure) =
-                state.install_authoritative_module_provider(run.provider, &metadata)
-            {
-                state.record_authoritative_module_failure(failure);
-            }
-        }
-        // path.posix.resolve absoluteness test (charAt(0) === '/') on
-        // the RAW value — a "\\"-led cwd is RELATIVE there, so the
-        // process-cwd join and POSIX dot-segment resolution both happen
-        // on the raw string BEFORE normalizeFileName flips "\\" into
-        // separators. The join base is Node's posixCwd: process.cwd()
-        // untouched on POSIX; on Windows backslashes flipped and
-        // everything before the first "/" (the drive) dropped. ""
-        // (the old "/"-rooted world) is the no-cwd degenerate fallback.
-        state.host_current_directory = host_current_directory;
-        // The resolver's host view (M4 5.8d): every INPUT path, incl.
-        // files the program dropped (.json bodies, .js without
-        // allowJs) — the suppression probes need them to keep 2307
-        // FP-free.
-        state.host_file_paths = files
-            .iter()
-            .map(|file| state::CheckerState::normalize_program_path(&file.name, ""))
-            .collect();
-        state.host_input_snapshots = files
-            .iter()
-            .map(|file| {
-                (
-                    state::CheckerState::normalize_program_path(&file.name, ""),
-                    Arc::clone(file.snapshot()),
-                )
-            })
-            .collect();
-        state.host_package_json_module_types = host_package_json_module_types;
-        state.host_package_json_values = files
-            .iter()
-            .filter_map(|file| {
-                let file_name = file
-                    .name
-                    .as_js()
-                    .split_ascii(b'/')
-                    .next_back()?
-                    .split_ascii(b'\\')
-                    .next_back()?;
-                if file_name != "package.json" {
-                    return None;
-                }
-                let value = parse_host_package_json(file);
+            metadata
+        });
+        // A per-checker provider source reaching the serial driver
+        // constructs exactly one provider for its one checker state.
+        let checker_provider: Option<Box<dyn AuthoritativeModuleProvider + '_>> = authoritative_run
+            .and_then(|run| match run.provider {
+                AuthoritativeProviderSource::Shared(_) => None,
+                AuthoritativeProviderSource::PerChecker(factory) => Some(factory.provider()),
+            });
+        // The authoritative eager no-emit path (the CLI's noEmit check and
+        // the sharded driver's serial replay) shares one implementation.
+        if let Some(run) = authoritative_run.filter(|run| {
+            run.diagnostic_schedule == DiagnosticSchedule::Eager && emit_operation.is_none()
+        }) {
+            let provider: &dyn AuthoritativeModuleProvider = match run.provider {
+                AuthoritativeProviderSource::Shared(provider) => provider,
+                AuthoritativeProviderSource::PerChecker(_) => checker_provider
+                    .as_deref()
+                    .expect("per-checker provider constructed above"),
+            };
+            work_counters.record_checker_shards(1, 1);
+            perf::add(PerfCounter::CheckerShardsRun, 1);
+            perf::add(PerfCounter::CheckerShardThreads, 1);
+            return check_snapshot_serially(
+                &snapshot,
+                lib_count,
+                options,
+                &program_diagnostics,
+                file_diagnostics,
                 Some((
-                    state::CheckerState::normalize_program_path(&file.name, ""),
-                    value,
-                ))
-            })
-            .collect();
-        state.host_package_json_names = state
-            .host_package_json_values
-            .iter()
-            .filter_map(|(path, value)| {
-                // Package self-name resolution consumes the original string;
-                // getPathComponents does not trim it (_tsc.js:41454–41458).
-                let name = tsc_program::package_json_property(value, "name")?.as_js()?;
-                if name.is_empty() {
-                    return None;
-                }
-                Some((path.clone(), name.to_owned()))
-            })
-            .collect();
-        // initializeTypeChecker's augmentation passes (88769/88874)
-        // run here — AFTER the resolver's host view exists (pass 2
-        // resolves module names), BEFORE any file checks.
-        state.merge_module_augmentations();
-        // Type construction is unconditional in tsc. In particular, the
-        // eager array singleton roots establish the type-id order consumed by
-        // getUnionType when stableTypeOrdering is off. Requesting the public
-        // global-diagnostics bucket controls only observation of the rows.
-        state.materialize_init_global_diagnostics();
+                    provider,
+                    authoritative_metadata
+                        .as_deref()
+                        .expect("authoritative metadata assembled above"),
+                )),
+                host,
+                collect_global_diagnostics,
+                run.library_prefix == LibraryPrefixCompletion::Complete,
+                work_counters,
+                None,
+                false,
+            );
+        }
+        let mut state = init_checker_state(
+            &snapshot,
+            options,
+            authoritative_run
+                .zip(authoritative_metadata.as_deref())
+                .map(|(run, metadata)| {
+                    let provider: &dyn AuthoritativeModuleProvider = match run.provider {
+                        AuthoritativeProviderSource::Shared(provider) => provider,
+                        AuthoritativeProviderSource::PerChecker(_) => checker_provider
+                            .as_deref()
+                            .expect("per-checker provider constructed above"),
+                    };
+                    (provider, metadata)
+                }),
+            host,
+        );
+        work_counters.record_checker_shards(1, 1);
+        perf::add(PerfCounter::CheckerShardsRun, 1);
+        perf::add(PerfCounter::CheckerShardThreads, 1);
         if collect_global_diagnostics {
             global_diagnostics = state.visible_global_diagnostics.clone();
             tsc_diagnostics::sort_and_dedupe_diagnostics(&mut global_diagnostics);
@@ -2248,18 +3754,11 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         // ProgramFileId and use the same Program-aware skip policy.
         let program_file_ids = state.binder.file_ids().skip(lib_count).collect::<Vec<_>>();
         let mut global_checker_diagnostics_by_file = vec![Vec::new(); state.binder.file_count()];
-        for &file in &program_file_ids {
-            if state.skip_type_checking_file(file) {
-                continue;
-            }
-            let global_start = state.visible_global_diagnostics.len();
-            state.check_source_file(file.index());
-            global_checker_diagnostics_by_file[file.index()].extend(
-                state.visible_global_diagnostics[global_start..]
-                    .iter()
-                    .cloned(),
-            );
-        }
+        check_files_in_order(
+            &mut state,
+            &program_file_ids,
+            &mut global_checker_diagnostics_by_file,
+        );
 
         // Public per-file getter assembly. This deliberately does not
         // use a name-sorted map: the outer observation order is Program order.
@@ -2319,18 +3818,11 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
             if authoritative_run
                 .is_some_and(|run| run.library_prefix == LibraryPrefixCompletion::Complete)
             {
-                for &file in &all_program_file_ids {
-                    if state.skip_type_checking_file(file) {
-                        continue;
-                    }
-                    let global_start = state.visible_global_diagnostics.len();
-                    state.check_source_file(file.index());
-                    global_checker_diagnostics_by_file[file.index()].extend(
-                        state.visible_global_diagnostics[global_start..]
-                            .iter()
-                            .cloned(),
-                    );
-                }
+                check_files_in_order(
+                    &mut state,
+                    &all_program_file_ids,
+                    &mut global_checker_diagnostics_by_file,
+                );
             }
 
             let mut diagnostics = Vec::new();
@@ -2403,24 +3895,51 @@ fn semantic_diagnostics_for_program_file(
     options: &CompilerOptions,
 ) -> DiagnosticList {
     let source = state.binder.source(source_index);
+    let checker_for_file = state
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| {
+            diagnostic.file_name.as_ref().map(JsString::as_js) == Some(source.file_name.as_js())
+        })
+        .collect::<Vec<_>>();
+    semantic_diagnostics_for_file_rows(
+        source,
+        &state.binder.file(source_index).bind_diagnostics,
+        &checker_for_file,
+        state
+            .partially_checked_ranges
+            .get(&source_index)
+            .map(Vec::as_slice),
+        global_checker_diagnostics,
+        program_diagnostics,
+        options,
+    )
+}
+
+/// The `getSemanticDiagnosticsForFile` assembly over an explicit row source:
+/// the checker rows owned by `source` (in publication order, from one or
+/// several checker states), the owner's partially-checked ranges, and the
+/// file-less rows attributed to this file. The serial driver passes one
+/// state's rows; the sharded driver passes the merged rows of every shard.
+/// tsrs-native: shared assembly so the two drivers cannot drift.
+#[allow(clippy::too_many_arguments)]
+fn semantic_diagnostics_for_file_rows(
+    source: &tsc_syntax::SourceFile,
+    bind_diagnostics: &[Diagnostic],
+    checker_for_file: &[&Diagnostic],
+    partial_ranges: Option<&[(u32, u32)]>,
+    global_checker_diagnostics: &[Diagnostic],
+    program_diagnostics: &[Diagnostic],
+    options: &CompilerOptions,
+) -> DiagnosticList {
     let javascript_file = is_js_file_name(&source.file_name);
     let directive = check_directive(source.text());
     let plain_js = is_plain_js_file(javascript_file, directive, options);
-    let checker_for_file = state.diagnostics.iter().filter(|diagnostic| {
-        diagnostic.file_name.as_ref().map(JsString::as_js) == Some(source.file_name.as_js())
-    });
 
     // getBindAndCheckDiagnosticsForFileNoCache:
     // bind -> check (new globals first) -> checked-JS JSDoc.
     let mut bind_and_check = Vec::new();
-    bind_and_check.extend(
-        state
-            .binder
-            .file(source_index)
-            .bind_diagnostics
-            .iter()
-            .cloned(),
-    );
+    bind_and_check.extend(bind_diagnostics.iter().cloned());
     bind_and_check.extend(
         global_checker_diagnostics
             .iter()
@@ -2429,8 +3948,9 @@ fn semantic_diagnostics_for_program_file(
     );
     bind_and_check.extend(
         checker_for_file
+            .iter()
             .filter(|diagnostic| diagnostic.category() != DiagnosticCategory::Suggestion)
-            .cloned(),
+            .map(|diagnostic| (*diagnostic).clone()),
     );
     if javascript_file && !plain_js {
         bind_and_check.extend(source.js_doc_diagnostics.iter().cloned());
@@ -2439,13 +3959,13 @@ fn semantic_diagnostics_for_program_file(
     if plain_js {
         bind_and_check.retain(|diagnostic| plain_js_errors::is_plain_js_error(diagnostic.code()));
     } else {
-        let mut used_directive_lines = std::collections::HashSet::new();
+        let mut used_directive_lines = rustc_hash::FxHashSet::default();
         bind_and_check = filter_by_comment_directives_and_mark_used(
             source,
             bind_and_check.into_iter(),
             Some(&mut used_directive_lines),
         );
-        if let Some(partial_ranges) = state.partially_checked_ranges.get(&source_index) {
+        if let Some(partial_ranges) = partial_ranges {
             mark_comment_directives_for_partial_ranges(
                 source,
                 partial_ranges,
@@ -2658,7 +4178,7 @@ fn lib_bundle_with_fingerprint(
     options: &CompilerOptions,
     fingerprint: impl Fn(&str) -> u64,
 ) -> &'static LibBundle {
-    use std::collections::HashMap;
+    use rustc_hash::FxHashMap as HashMap;
     use std::sync::{Arc, Mutex, OnceLock};
 
     type Key = (Vec<(JsString, u64)>, CompilerOptions);
@@ -2676,7 +4196,7 @@ fn lib_bundle_with_fingerprint(
             .collect(),
         bundle_options.clone(),
     );
-    let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    let cache = CACHE.get_or_init(|| Mutex::new(HashMap::default()));
     let bucket = {
         let mut cache = cache.lock().expect("lib bundle cache");
         Arc::clone(
@@ -2723,8 +4243,9 @@ fn build_lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static 
     // Binder borrows its CompilerOptions for the bundle's lifetime.
     let options: &'static CompilerOptions = Box::leak(Box::new(options.clone()));
     let identity_domain = IdentityDomain::reclaiming();
-    let sources = parse_lib_sources(libs, options, &identity_domain);
-    let binders = bind_lib_sources(&sources, options, &identity_domain);
+    let (sources, _lib_work) =
+        parse_lib_sources(libs, options, &identity_domain, WorkerBudget::serial());
+    let binders = bind_lib_sources(&sources, options, &identity_domain, WorkerBudget::serial());
     let data = binders_into_data(binders);
     let sources = sources.into_iter().map(Arc::new).collect::<Vec<_>>();
     let documents = publish_bound_documents_from_handles(sources.clone(), data);
@@ -2741,8 +4262,9 @@ fn build_lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static 
 fn build_owned_lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> OwnedHarnessLibBundle {
     let options = lib_bundle_options(options);
     let identity_domain = IdentityDomain::reclaiming();
-    let sources = parse_lib_sources(libs, &options, &identity_domain);
-    let binders = bind_lib_sources(&sources, &options, &identity_domain);
+    let (sources, _lib_work) =
+        parse_lib_sources(libs, &options, &identity_domain, WorkerBudget::serial());
+    let binders = bind_lib_sources(&sources, &options, &identity_domain, WorkerBudget::serial());
     let data = binders_into_data(binders);
     let sources = sources.into_iter().map(Arc::new).collect::<Vec<_>>();
     let documents = publish_bound_documents_from_handles(sources, data);
@@ -2753,49 +4275,140 @@ fn build_owned_lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> Own
     }
 }
 
+/// Materialize the library prefix: adopt each library's loader-planned tree
+/// when it is provably the parse this session would perform, otherwise parse.
+/// Returns the sources with the parse work actually performed.
 fn parse_lib_sources(
     libs: &[&InputFile],
     options: &CompilerOptions,
     identity_domain: &IdentityDomain,
-) -> Vec<tsc_syntax::SourceFile> {
-    let mut sources: Vec<tsc_syntax::SourceFile> = Vec::new();
+    workers: WorkerBudget,
+) -> (Vec<tsc_syntax::SourceFile>, LibParseWork) {
+    let mut work = LibParseWork::default();
+    let mut pending: Vec<PendingProgramSource> = Vec::new();
     for lib in libs {
-        sources.push(
-            tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
-                lib.name.clone(),
-                Arc::clone(lib.snapshot()),
-                tsc_syntax::ParseOptions {
-                    script_target: options.emit_script_target(),
-                    language_variant: tsc_syntax::LanguageVariant::Standard,
-                    javascript_file: false,
-                    force_external_module: false,
-                    detect_external_module_from_jsx: false,
-                    node_id_base: 0,
-                    node_array_id_base: 0,
-                    js_doc_parsing_mode: tsc_syntax::JSDocParsingMode::ParseAll,
-                },
-                None,
-                identity_domain,
-            )
-            .expect("library source identity allocation failed"),
-        );
+        let parse_options = tsc_syntax::ParseOptions {
+            script_target: options.emit_script_target(),
+            language_variant: tsc_syntax::LanguageVariant::Standard,
+            javascript_file: false,
+            force_external_module: false,
+            detect_external_module_from_jsx: false,
+            node_id_base: 0,
+            node_array_id_base: 0,
+            js_doc_parsing_mode: lib
+                .js_doc_parsing_mode
+                .unwrap_or(tsc_syntax::JSDocParsingMode::ParseAll),
+        };
+        pending.push(match lib.take_preparsed_source(&parse_options) {
+            Some(source) => {
+                work.adopted += 1;
+                let (node_lease, array_lease) = source
+                    .lease_identities(identity_domain)
+                    .expect("library source identity allocation failed");
+                PendingProgramSource::Leased(source, node_lease, array_lease)
+            }
+            None => {
+                work.parsed += 1;
+                PendingProgramSource::Ready(
+                    tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
+                        lib.name.clone(),
+                        Arc::clone(lib.snapshot()),
+                        parse_options,
+                        None,
+                        identity_domain,
+                    )
+                    .expect("library source identity allocation failed"),
+                )
+            }
+        });
     }
-    sources
+    let sources = workers.map_ordered(
+        pending,
+        PendingProgramSource::weight,
+        PendingProgramSource::relocate,
+    );
+    (sources, work)
 }
 
+/// Bind the library prefix at local identities on the budget's workers and
+/// relocate each binder into `identity_domain` in order (see
+/// [`bind_sources_in_program_order`]).
 fn bind_lib_sources<'a>(
     sources: &'a [tsc_syntax::SourceFile],
     options: &'a CompilerOptions,
     identity_domain: &IdentityDomain,
+    workers: WorkerBudget,
 ) -> Vec<tsc_binder::Binder<'a>> {
-    let mut binders: Vec<tsc_binder::Binder<'a>> = Vec::new();
-    for source in sources {
-        binders.push(
-            tsc_binder::Binder::bind_in_identity_domain(source, options, identity_domain)
-                .expect("library bind identity allocation failed"),
-        );
-    }
-    binders
+    let binders = workers.map_ordered(
+        (0..sources.len()).collect(),
+        |&index| sources[index].text().len(),
+        |index| tsc_binder::Binder::bind_local(&sources[index], options),
+    );
+    relocate_binders_in_program_order(binders, identity_domain, workers)
+}
+
+/// Lease every bind's identities in program order on the calling thread
+/// (the order-dependent step), then rewrite the binds into their ranges on
+/// the budget's workers. The result is identical to relocating each bind in
+/// turn: a bind's ranges depend only on the leases taken before it.
+fn relocate_binders_in_program_order<'a>(
+    binders: Vec<tsc_binder::Binder<'a>>,
+    identity_domain: &IdentityDomain,
+    workers: WorkerBudget,
+) -> Vec<tsc_binder::Binder<'a>> {
+    let lease_started = std::time::Instant::now();
+    let leased = binders
+        .into_iter()
+        .map(|binder| {
+            let leases = binder
+                .lease_identities(identity_domain)
+                .expect("bind identity allocation failed");
+            (binder, leases)
+        })
+        .collect::<Vec<_>>();
+    tsc_types::trace::mark("checker: bind leases (serial)", lease_started);
+    workers.map_ordered(
+        leased,
+        |(binder, _)| binder.source_text_len(),
+        |(mut binder, (symbol_lease, serial_lease))| {
+            binder
+                .relocate_with_leases(identity_domain, symbol_lease, serial_lease)
+                .expect("bind identity relocation failed");
+            binder
+        },
+    )
+}
+
+/// Bind every Program source at local identities on the budget's scoped
+/// worker threads (the calling thread alone under a serial budget), then
+/// relocate each result into `identity_domain` in Program order on the
+/// calling thread. Binding is per-file (tsc's binder never reads another
+/// file), and in-order relocation through the domain's bump allocator
+/// assigns exactly the persistent-symbol and private-name-serial ranges the
+/// sequential `bind_in_identity_domain` loop assigned, for every budget.
+fn bind_sources_in_program_order(
+    sources: &[Arc<tsc_syntax::SourceFile>],
+    options: &CompilerOptions,
+    identity_domain: &IdentityDomain,
+    workers: WorkerBudget,
+) -> Vec<BindData> {
+    let phase_started = std::time::Instant::now();
+    let binders = workers.map_ordered(
+        (0..sources.len()).collect(),
+        |&index| sources[index].text().len(),
+        |index| tsc_binder::Binder::bind_local(sources[index].as_ref(), options),
+    );
+    tsc_types::trace::mark("checker: bind (parallel, local identities)", phase_started);
+    let phase_started = std::time::Instant::now();
+    let data = relocate_binders_in_program_order(binders, identity_domain, workers)
+        .into_iter()
+        .map(tsc_binder::Binder::into_bind_data)
+        .collect();
+    tsc_types::trace::mark(
+        "checker: bind relocation (leases serial, rewrite parallel)",
+        phase_started,
+    );
+    data
 }
 
 /// Consume completed bind workers into immutable document handles. The

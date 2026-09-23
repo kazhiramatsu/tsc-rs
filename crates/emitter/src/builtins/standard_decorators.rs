@@ -847,14 +847,27 @@ impl<'context> StandardDecoratorVisitor<'context> {
         self.visit_with_value_use(id, DecoratorValueUse::Discarded)
     }
 
+    /// tsc-port: shouldVisitNode @6.0.3 (_tsc.js:99058-99060)
+    /// tsc-span: transformESDecorators — a subtree is visited only when it
+    /// contains decorators, or lexical `this` under a class receiver, or
+    /// lexical `super` under a class receiver with a `_classSuper` binding.
+    fn should_visit_node(&self, original: TransformNode) -> bool {
+        let flags = self.context.arena().transform_flags(original);
+        flags.contains(TransformFlags::CONTAINS_DECORATORS)
+            || (self.receiver_class_this.is_some()
+                && flags.contains(TransformFlags::CONTAINS_LEXICAL_THIS))
+            || (self.receiver_class_this.is_some()
+                && self.receiver_class_super.is_some()
+                && flags.contains(TransformFlags::CONTAINS_LEXICAL_SUPER))
+    }
+
     fn visit_with_value_use(
         &mut self,
         id: NodeId,
         value_use: DecoratorValueUse,
     ) -> Result<Option<NodeId>, TransformError> {
         let original = self.node(id);
-        let record = self.context.arena().node(original)?.clone();
-        let kind = record.kind;
+        let kind = self.context.arena().node(original)?.kind;
         // A discarded lowering must neither reuse nor replace the cached
         // required-value lowering when a synthetic node is shared.
         let mode_sensitive = value_use == DecoratorValueUse::Discarded
@@ -867,6 +880,35 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     | SyntaxKind::ParenthesizedExpression
                     | SyntaxKind::PartiallyEmittedExpression
             );
+        // tsc `visitor` returns an unaffected subtree unchanged; the
+        // discarded-value forms above take their own handlers first
+        // (discardedValueVisitor, _tsc.js:99183-99210). Only parsed nodes
+        // carry exact flags; a subtree synthesized by an earlier transform is
+        // always walked (see EsNextVisitor::visit). Class elements never take
+        // this shortcut: tsc reaches them through classElementVisitor, which
+        // does not consult shouldVisitNode, and an undecorated member of a
+        // decorated class still receives the pending decorator evaluations
+        // of the members before it (its computed name carries them).
+        let class_element = matches!(
+            kind,
+            SyntaxKind::Constructor
+                | SyntaxKind::MethodDeclaration
+                | SyntaxKind::GetAccessor
+                | SyntaxKind::SetAccessor
+                | SyntaxKind::PropertyDeclaration
+                | SyntaxKind::ClassStaticBlockDeclaration
+                | SyntaxKind::SemicolonClassElement
+                | SyntaxKind::IndexSignature
+                | SyntaxKind::ComputedPropertyName
+        );
+        if !mode_sensitive
+            && !class_element
+            && self.context.arena().is_parsed_node(original)?
+            && !self.should_visit_node(original)
+        {
+            return Ok(Some(id));
+        }
+        let record = self.context.arena().node(original)?.clone();
         if !mode_sensitive {
             if let Some(mapped) = self.nodes.get(&id) {
                 self.audit_memo_hit(id)?;

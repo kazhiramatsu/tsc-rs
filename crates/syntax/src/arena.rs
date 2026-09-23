@@ -328,6 +328,16 @@ impl NodeArena {
         }
     }
 
+    /// Reserve storage for a source of `text_len` bytes before parsing it,
+    /// so the node vector does not grow (and move every record) a dozen
+    /// times. Ordinary TypeScript produces about one node per five bytes
+    /// and one array per forty; declaration files far fewer, and the unused
+    /// capacity of a large reservation stays untouched memory.
+    pub fn reserve_for_text(&mut self, text_len: usize) {
+        self.nodes.reserve(text_len / 5);
+        self.arrays.reserve(text_len / 40);
+    }
+
     pub fn node_base(&self) -> u32 {
         self.node_base
     }
@@ -366,6 +376,10 @@ impl NodeArena {
 
     pub fn contains_node(&self, id: NodeId) -> bool {
         id.0 >= self.node_base && id.0 < self.node_end()
+    }
+
+    pub fn contains_array(&self, id: NodeArrayId) -> bool {
+        id.0 >= self.array_base && id.0 < self.array_end()
     }
 
     /// All NodeIds of this arena, in allocation order.
@@ -419,6 +433,7 @@ impl NodeArena {
             end: end as u32,
             has_trailing_comma,
             is_missing_list: false,
+            transform_flags: 0,
         });
         id
     }
@@ -443,6 +458,10 @@ impl NodeArena {
         id
     }
 
+    /// The hottest cross-crate accessor of the checker (root's frozen W2e
+    /// profiles): inlined so the two id checks fold into the caller instead
+    /// of an out-of-line call with its own frame. The checks stay.
+    #[inline]
     pub fn node(&self, id: NodeId) -> &Node {
         &self.nodes[self.node_index(id)]
     }
@@ -460,6 +479,15 @@ impl NodeArena {
         &self.nodes
     }
 
+    pub fn nodes_mut(&mut self) -> &mut [Node] {
+        &mut self.nodes
+    }
+
+    pub fn node_arrays_mut(&mut self) -> &mut [NodeArray] {
+        &mut self.arrays
+    }
+
+    #[inline]
     pub fn node_array(&self, id: NodeArrayId) -> &NodeArray {
         &self.arrays[self.array_index(id)]
     }
@@ -605,6 +633,7 @@ impl NodeArena {
         self.nodes.push(Node {
             kind,
             flags: flags.bits(),
+            transform_flags: 0,
             numeric_literal_flags: 0,
             template_flags: 0,
             multi_line: None,
@@ -619,14 +648,30 @@ impl NodeArena {
 
     /// Explicit two-phase stack: deep trees (left-leaning binary
     /// chains) overflow a recursive walk.
+    ///
+    /// The walk allocates its bookkeeping once per tree: the child list is a
+    /// reused scratch buffer and error aggregation reads children through
+    /// the visitor callback, so finalization no longer allocates one Vec per
+    /// node (several hundred thousand short-lived allocations for a large
+    /// program).
     fn finalize_node(&mut self, root: NodeId, parent: Option<NodeId>, seen: &mut [bool]) -> bool {
         enum Phase {
             Enter,
             Exit,
         }
+        // `error_flags[n]` starts as n's own THIS_NODE_HAS_ERROR bit; a
+        // child reached through a public forEachChild edge folds its
+        // aggregate into its parent when it exits, so no node re-walks its
+        // children. tsc's lazy aggregateChildData follows public
+        // forEachChild, which excludes node.jsDoc: JSDoc parents are fixed
+        // up recursively, but their parse errors are not aggregated into
+        // the attached host (or eagerly through the JSDoc subtree), so a
+        // js_doc edge never propagates and a JSDoc node neither aggregates
+        // nor receives (only its own bit reaches a public parent).
         let mut error_flags = vec![false; self.nodes.len()];
-        let mut stack = vec![(root, parent, Phase::Enter)];
-        while let Some((id, parent, phase)) = stack.pop() {
+        let mut stack = vec![(root, parent, false, Phase::Enter)];
+        let mut children: Vec<NodeId> = Vec::new();
+        while let Some((id, parent, via_js_doc, phase)) = stack.pop() {
             let index = self.node_index(id);
             match phase {
                 Phase::Enter => {
@@ -635,30 +680,31 @@ impl NodeArena {
                     self.nodes[index].parent = parent;
                     error_flags[index] = NodeFlags::from_bits(self.nodes[index].flags)
                         .contains(NodeFlags::THIS_NODE_HAS_ERROR);
-                    stack.push((id, parent, Phase::Exit));
-                    let children = self.children_including_js_doc(id);
-                    for child in children.into_iter().rev() {
-                        stack.push((child, Some(id), Phase::Enter));
+                    stack.push((id, parent, via_js_doc, Phase::Exit));
+                    children.clear();
+                    let public_children = self.collect_children_including_js_doc(id, &mut children);
+                    for (position, &child) in children.iter().enumerate().rev() {
+                        stack.push((child, Some(id), position >= public_children, Phase::Enter));
                     }
                 }
                 Phase::Exit => {
-                    let mut contains_error = error_flags[index];
                     let flags = NodeFlags::from_bits(self.nodes[index].flags);
-                    if !flags.contains(NodeFlags::JS_DOC) {
-                        // tsc's lazy aggregateChildData follows public
-                        // forEachChild, which excludes node.jsDoc. JSDoc
-                        // parents are fixed up recursively, but their parse
-                        // errors are not aggregated into the attached host
-                        // (or eagerly through the JSDoc subtree).
-                        for child in self.children(id) {
-                            if error_flags[self.node_index(child)] {
-                                contains_error = true;
+                    let js_doc = flags.contains(NodeFlags::JS_DOC);
+                    let own = flags.contains(NodeFlags::THIS_NODE_HAS_ERROR);
+                    let contains_error = if js_doc { own } else { error_flags[index] };
+                    if !js_doc && contains_error {
+                        self.nodes[index].flags |=
+                            NodeFlags::THIS_NODE_OR_ANY_SUB_NODES_HAS_ERROR.bits();
+                        error_flags[index] = true;
+                    }
+                    if contains_error && !via_js_doc {
+                        if let Some(parent) = parent {
+                            let parent_index = self.node_index(parent);
+                            if !NodeFlags::from_bits(self.nodes[parent_index].flags)
+                                .contains(NodeFlags::JS_DOC)
+                            {
+                                error_flags[parent_index] = true;
                             }
-                        }
-                        if contains_error {
-                            self.nodes[index].flags |=
-                                NodeFlags::THIS_NODE_OR_ANY_SUB_NODES_HAS_ERROR.bits();
-                            error_flags[index] = true;
                         }
                     }
                 }
@@ -667,27 +713,26 @@ impl NodeArena {
         error_flags[self.node_index(root)]
     }
 
-    fn children(&self, id: NodeId) -> Vec<NodeId> {
-        let mut children = Vec::new();
+    /// Parent finalization includes the internal Node.jsDoc attachment,
+    /// while public for_each_child deliberately does not. This mirrors
+    /// tsc setParentRecursive/bindJSDoc and keeps ordinary syntax walks
+    /// from visiting documentation twice. Children are appended to the
+    /// caller's scratch buffer in visit order.
+    /// Returns how many of the appended children came through public
+    /// forEachChild edges; the rest are the node's JSDoc attachments.
+    fn collect_children_including_js_doc(&self, id: NodeId, children: &mut Vec<NodeId>) -> usize {
         for_each_child(self, self.node(id), |child| {
             children.push(child);
             false
         });
-        children
-    }
-
-    /// Parent finalization includes the internal Node.jsDoc attachment,
-    /// while public for_each_child deliberately does not. This mirrors
-    /// tsc setParentRecursive/bindJSDoc and keeps ordinary syntax walks
-    /// from visiting documentation twice.
-    fn children_including_js_doc(&self, id: NodeId) -> Vec<NodeId> {
-        let mut children = self.children(id);
+        let public_children = children.len();
         if let Some(js_doc) = self.node(id).js_doc {
             children.extend(self.node_array(js_doc).nodes.iter().copied());
         }
-        children
+        public_children
     }
 
+    #[inline]
     fn node_index(&self, id: NodeId) -> usize {
         assert!(
             id.0 >= self.node_base,
@@ -699,6 +744,7 @@ impl NodeArena {
         index
     }
 
+    #[inline]
     fn array_index(&self, id: NodeArrayId) -> usize {
         assert!(
             id.0 >= self.array_base,

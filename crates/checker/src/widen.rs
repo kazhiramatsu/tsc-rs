@@ -255,8 +255,8 @@ impl<'a> CheckerState<'a> {
             return Ok(resolved.clone());
         }
         let mut names: Vec<SymbolId> = Vec::new();
-        let mut index_of: std::collections::HashMap<tsc_types::EscapedName, usize> =
-            std::collections::HashMap::new();
+        let mut index_of: rustc_hash::FxHashMap<tsc_types::EscapedName, usize> =
+            rustc_hash::FxHashMap::default();
         for t in self.get_siblings_of_context(context)? {
             if !self.is_object_literal_type(t)
                 || self

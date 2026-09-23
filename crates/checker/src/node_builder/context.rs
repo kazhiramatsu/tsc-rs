@@ -1,4 +1,5 @@
-use std::collections::{HashMap, HashSet};
+use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxHashSet as HashSet;
 
 use tsc_binder::SymbolId;
 use tsc_emitter::{
@@ -167,7 +168,7 @@ pub(crate) fn with_context<'program, 'tracker, T: ReplayProduced>(
         type_parameter_names_by_text_next_name_count: None,
         synthetic_scope_locals: None,
         synthetic_scope_kind: None,
-        enclosing_symbol_types: HashMap::new(),
+        enclosing_symbol_types: HashMap::default(),
         mapper: None,
         depth: 0,
         type_stack: Vec::new(),

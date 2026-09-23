@@ -12,7 +12,7 @@
 //! reporting adapter needed to retain tsc's final source location for
 //! object-literal and JSX diagnostics.
 
-use std::collections::HashSet;
+use rustc_hash::FxHashSet as HashSet;
 
 use tsc_diagnostics::{
     gen as diagnostics, Diagnostic, DiagnosticMessage, JsString, MessageChain, RelatedInfo,
@@ -27,6 +27,7 @@ use tsc_syntax::NodeId;
 use crate::evaluate::EvalValue;
 use crate::relate::{EnumRelationError, EnumRelationOutcome, RelationKind};
 use crate::state::{CheckResult, CheckerState};
+use tsc_types::perf::{self, PerfCounter};
 
 #[derive(Debug)]
 struct SimpleTypeRelationOutcome {
@@ -187,7 +188,10 @@ impl<'a> CheckerState<'a> {
                 relation,
                 /*ignore_constraints*/ false,
             )?;
+            perf::bump(PerfCounter::RelationLookups);
             if let Some(&related) = self.relations.cache(relation).get(&key) {
+                perf::bump(PerfCounter::RelationEntryFound);
+                perf::bump(PerfCounter::RelationReturnedCached);
                 self.replay_cached_relation_variance_markers(source, related)?;
                 return Ok(related.intersects(RelationComparisonResult::SUCCEEDED));
             }
@@ -563,7 +567,7 @@ impl<'a> CheckerState<'a> {
                     .intersects(ObjectFlags::IDENTICAL_BASE_TYPE_EXISTS)
                 {
                     self.links
-                        .read_ty(ty, |links| links.cached_equivalent_base_type)
+                        .read_ty(ty, |links| links.cold().cached_equivalent_base_type)
                 } else {
                     None
                 },
@@ -776,7 +780,7 @@ impl<'a> CheckerState<'a> {
             st: self,
             relation,
             maybe_keys: Vec::new(),
-            maybe_keys_set: HashSet::new(),
+            maybe_keys_set: HashSet::default(),
             source_stack: Vec::new(),
             target_stack: Vec::new(),
             maybe_count: 0,
@@ -961,7 +965,7 @@ impl<'a> CheckerState<'a> {
             st: self,
             relation,
             maybe_keys: Vec::new(),
-            maybe_keys_set: HashSet::new(),
+            maybe_keys_set: HashSet::default(),
             source_stack: Vec::new(),
             target_stack: Vec::new(),
             maybe_count: 0,
@@ -1000,6 +1004,17 @@ impl<'a> CheckerState<'a> {
         // drops diagnostics produced during JSX child elaboration.
         let related = !is_false(result);
         let mut message = checker.error_state.error_info.take();
+        // W2c/W2e: the elaboration chain carries its display-class reasons;
+        // it is marked BEFORE any containing chain wraps it, so a published
+        // diagnostic that nests or relates it is still recognized.
+        let elaboration_reasons =
+            checker.error_state.order_sensitive | checker.st.order_guard.take_structural();
+        if let (Some(chain), true) = (&message, elaboration_reasons != 0) {
+            checker
+                .st
+                .order_guard
+                .mark_chain(chain, elaboration_reasons);
+        }
         let mut used_containing_message_chain = false;
         if let Some(containing) = containing_message_chain {
             if let Some(inner) = message.take() {
@@ -1095,6 +1110,10 @@ pub(crate) struct RelationErrorState {
     should_skip_elaboration: bool,
     /// tsc's closure-local mutable errorNode, owned as a copyable arena id.
     error_node: Option<tsc_syntax::NodeId>,
+    /// W2c display-class order-sensitivity of the elaboration being built;
+    /// saved and reset with the rest of the error state, so a discarded
+    /// branch's displays never reach a published diagnostic.
+    order_sensitive: u32,
 }
 
 fn count_message_chain_breadth(info: &[MessageChain]) -> usize {
@@ -1299,6 +1318,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             self.relation,
             /*ignore_constraints*/ false,
         )?;
+        perf::bump(PerfCounter::RelationSets);
         self.st.relations.cache_mut(self.relation).insert(
             id,
             RelationComparisonResult::from_bits(
@@ -2048,7 +2068,6 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             source_text = self.st.get_type_name_for_error_display(source)?;
             target_text = self.st.get_type_name_for_error_display(target)?;
         }
-
         let mut generalized_source = source;
         let mut generalized_source_text = source_text.clone();
         if !self.flags(target).intersects(TypeFlags::NEVER)
@@ -3096,7 +3115,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         }
         if report_errors {
-            if let Some(best_matching_type) = self.st.get_best_matching_type(source, target)? {
+            let best_matching_type = self.st.get_best_matching_type(source, target)?;
+            // W2c: the best-match choice is part of this walk's elaboration.
+            self.error_state.order_sensitive |= self.st.order_guard.take_structural();
+            if let Some(best_matching_type) = best_matching_type {
                 self.is_related_to(
                     source,
                     best_matching_type,
@@ -3120,7 +3142,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         intersection_state: IntersectionState,
     ) -> CheckResult<Ternary> {
         let mut result = Ternary::TRUE;
-        for target_type in self.union_members(target) {
+        let target_types = self.union_members(target);
+        for &target_type in &target_types {
             let related = self.is_related_to(
                 source,
                 target_type,
@@ -3129,6 +3152,17 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 intersection_state,
             )?;
             if !is_true(related) {
+                if report_errors
+                    && self
+                        .st
+                        .order_guard
+                        .two_post_init(target_types.iter().copied())
+                {
+                    // W2c (F40): the first failing member is the one reported
+                    // (display-class, owned by this walk's error state).
+                    self.error_state.order_sensitive |=
+                        crate::order_guard::OrderReason::FIRST_FAILURE.bits();
+                }
                 return Ok(Ternary::FALSE);
             }
             result = ternary_and(result, related);
@@ -3151,7 +3185,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             return Ok(Ternary::TRUE);
         }
         let len = source_types.len();
-        for (index, source_type) in source_types.into_iter().enumerate() {
+        for (index, &source_type) in source_types.iter().enumerate() {
             let related = self.is_related_to(
                 source_type,
                 target,
@@ -3162,6 +3196,17 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if is_true(related) {
                 return Ok(related);
             }
+        }
+        if report_errors
+            && self
+                .st
+                .order_guard
+                .two_post_init(source_types.iter().copied())
+        {
+            // W2c (F40): only the LAST member reports, so the reported
+            // member depends on the stored order (display-class).
+            self.error_state.order_sensitive |=
+                crate::order_guard::OrderReason::FIRST_FAILURE.bits();
         }
         Ok(Ternary::FALSE)
     }
@@ -3234,6 +3279,18 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 intersection_state,
             )?;
             if !is_true(related) {
+                if report_errors
+                    && self
+                        .st
+                        .order_guard
+                        .two_post_init(source_types.iter().copied())
+                {
+                    // W2c (F40): the elaboration names the FIRST failing
+                    // member, whatever the outer union prints as
+                    // (display-class, owned by this walk's error state).
+                    self.error_state.order_sensitive |=
+                        crate::order_guard::OrderReason::FIRST_FAILURE.bits();
+                }
                 return Ok(Ternary::FALSE);
             }
             result = ternary_and(result, related);
@@ -3392,7 +3449,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             self.relation,
             /*ignore_constraints*/ false,
         )?;
+        perf::bump(PerfCounter::RelationLookups);
         if let Some(&entry) = self.st.relations.cache(self.relation).get(&id) {
+            perf::bump(PerfCounter::RelationEntryFound);
             // 65739-65741: a failed, non-overflow cached relation is
             // deliberately recomputed in reporting mode so the exact
             // nested error path can be reconstructed.
@@ -3402,7 +3461,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     RelationComparisonResult::COMPLEXITY_OVERFLOW.bits()
                         | RelationComparisonResult::STACK_DEPTH_OVERFLOW.bits(),
                 ));
-            if !replay_failure {
+            if replay_failure {
+                perf::bump(PerfCounter::RelationRecomputedForDiagnostic);
+            } else {
+                perf::bump(PerfCounter::RelationReturnedCached);
                 // 65742-65750: replay the entry's Reports* bits into
                 // the active handler via the reporter mappers.
                 self.st
@@ -3568,6 +3630,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 }
             }
         } else {
+            perf::bump(PerfCounter::RelationSets);
             self.st.relations.cache_mut(self.relation).insert(
                 id,
                 RelationComparisonResult::from_bits(
@@ -3594,6 +3657,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             let key = self.maybe_keys[i].clone();
             self.maybe_keys_set.remove(&key);
             if mark_all_as_succeeded {
+                perf::bump(PerfCounter::RelationSets);
                 self.st.relations.cache_mut(self.relation).insert(
                     key,
                     RelationComparisonResult::from_bits(
@@ -4148,8 +4212,8 @@ impl<'a> CheckerState<'a> {
         &mut self,
         types: &[TypeId],
         name: &EscapedName,
-    ) -> CheckResult<Option<std::collections::HashMap<TypeId, TypeId>>> {
-        let mut map = std::collections::HashMap::new();
+    ) -> CheckResult<Option<rustc_hash::FxHashMap<TypeId, TypeId>>> {
+        let mut map = rustc_hash::FxHashMap::default();
         let mut count = 0usize;
         let object_like = TypeFlags::from_bits(
             TypeFlags::OBJECT.bits()
@@ -4236,6 +4300,16 @@ impl<'a> CheckerState<'a> {
         source: TypeId,
         target: TypeId,
     ) -> CheckResult<Option<TypeId>> {
+        // W2c: the first matching constituent of a union target wins
+        // (display-class structural choice; the next published elaboration
+        // adopts it; borrowed member slice, guard and tables are disjoint
+        // fields, no clone).
+        if let TypeData::Union { types, .. } = &self.tables.type_of(target).data {
+            self.order_guard.note_structural(
+                crate::order_guard::OrderReason::BEST_MATCH,
+                types.iter().copied(),
+            );
+        }
         if let Some(matched) = self.find_matching_discriminant_type(source, target)? {
             return Ok(Some(matched));
         }

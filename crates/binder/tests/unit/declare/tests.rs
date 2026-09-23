@@ -341,3 +341,116 @@ fn escaped_names_key_the_table() {
     assert!(table.contains_key("___proto__"));
     assert!(!table.contains_key("__proto__"));
 }
+
+fn parse_in_domain(name: &str, text: &str, domain: &IdentityDomain) -> SourceFile {
+    tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
+        name,
+        tsc_diagnostics::TextSnapshot::new(
+            text.to_owned(),
+            tsc_diagnostics::DocumentVersion::default(),
+        ),
+        ParseOptions::default(),
+        None,
+        domain,
+    )
+    .unwrap()
+}
+
+/// The checker binds Program sources locally on worker threads and relocates
+/// them in Program order; that must publish exactly the symbol and
+/// private-name-serial identities of the sequential in-domain bind.
+#[test]
+fn local_bind_with_in_order_relocation_matches_sequential_ephemeral_binding() {
+    let texts = [
+        "export class Box { #value = 1; copy(other: Box) { return other.#value + this.#value; } }\nexport const boxed = new Box();\n",
+        "class Other { #x = 2; #y = 3; read() { return this.#x + this.#y; } }\nlet other = new Other();\nfunction f(a: number) { let b = a; return b; }\n",
+        "export {};\nlet unused = 1;\nnamespace N { export const n = 1; }\n",
+    ];
+    let options = tsc_types::CompilerOptions::default();
+
+    let sequential_domain = IdentityDomain::ephemeral();
+    let sequential_sources: Vec<SourceFile> = texts
+        .iter()
+        .enumerate()
+        .map(|(index, text)| parse_in_domain(&format!("/f{index}.ts"), text, &sequential_domain))
+        .collect();
+    let sequential: Vec<Binder<'_>> = sequential_sources
+        .iter()
+        .map(|source| {
+            Binder::bind_in_identity_domain(source, &options, &sequential_domain).unwrap()
+        })
+        .collect();
+
+    let parallel_domain = IdentityDomain::ephemeral();
+    let parallel_sources: Vec<SourceFile> = texts
+        .iter()
+        .enumerate()
+        .map(|(index, text)| parse_in_domain(&format!("/f{index}.ts"), text, &parallel_domain))
+        .collect();
+    let mut parallel: Vec<Binder<'_>> = std::thread::scope(|scope| {
+        let handles: Vec<_> = parallel_sources
+            .iter()
+            .rev()
+            .map(|source| scope.spawn(|| Binder::bind_local(source, &options)))
+            .collect();
+        let mut bound: Vec<Binder<'_>> = handles
+            .into_iter()
+            .map(|handle| handle.join().unwrap())
+            .collect();
+        bound.reverse();
+        bound
+    });
+    for binder in &mut parallel {
+        assert!(binder.symbol_identity_lease().is_none());
+        binder
+            .relocate_into_identity_domain(&parallel_domain)
+            .unwrap();
+        assert!(binder.identity_owned_by(&parallel_domain));
+    }
+
+    for (expected, actual) in sequential.iter().zip(&parallel) {
+        assert_eq!(
+            expected.symbol_identity_lease().unwrap().range(),
+            actual.symbol_identity_lease().unwrap().range()
+        );
+        assert_eq!(
+            expected.private_name_serial_lease().unwrap().range(),
+            actual.private_name_serial_lease().unwrap().range()
+        );
+        assert_eq!(
+            expected.private_name_serial_base,
+            actual.private_name_serial_base
+        );
+        assert_eq!(expected.next_symbol_id, actual.next_symbol_id);
+        assert_eq!(expected.symbols, actual.symbols);
+        assert_eq!(expected.node_symbol, actual.node_symbol);
+        assert_eq!(expected.node_local_symbol, actual.node_local_symbol);
+        assert_eq!(expected.locals, actual.locals);
+        assert_eq!(expected.classifiable_names, actual.classifiable_names);
+        assert_eq!(expected.assigned_symbol_ids, actual.assigned_symbol_ids);
+        assert_eq!(expected.bind_diagnostics, actual.bind_diagnostics);
+        assert_eq!(expected.node_flow, actual.node_flow);
+        assert_eq!(expected.node_flags_mut, actual.node_flags_mut);
+    }
+    // The three files occupy strictly increasing, gap-free identity ranges.
+    let mut previous_symbol_end = None;
+    let mut previous_serial_end = None;
+    for binder in &parallel {
+        let symbols = binder.symbol_identity_lease().unwrap().range();
+        let serials = binder.private_name_serial_lease().unwrap().range();
+        if let Some(end) = previous_symbol_end {
+            assert_eq!(symbols.start(), end);
+        }
+        if let Some(end) = previous_serial_end {
+            assert_eq!(serials.start(), end);
+        }
+        previous_symbol_end = Some(symbols.end());
+        previous_serial_end = Some(serials.end());
+    }
+    for space in [IdentitySpace::Symbol, IdentitySpace::PrivateNameSerial] {
+        assert_eq!(
+            sequential_domain.stats().unwrap().space(space).bump,
+            parallel_domain.stats().unwrap().space(space).bump
+        );
+    }
+}

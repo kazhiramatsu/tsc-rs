@@ -76,6 +76,10 @@ pub enum EmitContractViolation {
     /// TypeScript's declaration printer reaches Debug.checkDefined when the
     /// map flag is on but disabled declarations left no output map path.
     DeclarationMapPathMissing,
+    /// The noEmitOnError declaration gate needs one resolver for the whole
+    /// Program, but the caller supplied none (sharded emit routes that
+    /// configuration through the single-resolver execution).
+    ProgramResolverRequired,
 }
 
 /// Typed failure before or while orchestrating emission.
@@ -125,6 +129,8 @@ impl fmt::Display for EmitFailure {
                 .write_str(
                     "invalid emit execution: a mapped unit produced no source-map recording",
                 ),
+            Self::Contract(EmitContractViolation::ProgramResolverRequired) => formatter
+                .write_str("emit contract violation: the noEmitOnError declaration gate requires a whole-Program resolver"),
             Self::Contract(EmitContractViolation::DeclarationMapPathMissing) => {
                 formatter.write_str("invalid emit execution: declaration map path is missing")
             }

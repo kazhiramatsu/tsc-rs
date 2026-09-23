@@ -1,4 +1,5 @@
-use std::collections::{HashMap, HashSet};
+use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxHashSet as HashSet;
 
 use tsc_binder::{node_util, SymbolId};
 use tsc_emitter::{
@@ -255,14 +256,14 @@ fn get_expanded_parameters(
         None => None,
     };
     if let Some(names) = associated_names.as_mut() {
-        let mut unique_names = HashSet::new();
+        let mut unique_names = HashSet::default();
         let mut duplicates = Vec::new();
         for (index, name) in names.iter().enumerate() {
             if !unique_names.insert(name.clone()) {
                 duplicates.push(index);
             }
         }
-        let mut counters = HashMap::new();
+        let mut counters = HashMap::default();
         for index in duplicates {
             let base = names[index].clone();
             let mut counter = counters.get(&base).copied().unwrap_or(1_u32);
@@ -398,7 +399,7 @@ pub(crate) fn signature_to_signature_declaration_helper(
     if context.enclosing_declaration_is_synthetic {
         let locals = context
             .synthetic_scope_locals
-            .get_or_insert_with(HashMap::new);
+            .get_or_insert_with(HashMap::default);
         for (index, &parameter) in expanded_parameters.iter().enumerate() {
             let original = signature.parameters.get(index).copied();
             if original.is_some_and(|original| original != parameter) {
@@ -1020,7 +1021,7 @@ pub(crate) fn enter_new_scope(
             // rather than mutating locals on a synthesized Block.
             context
                 .type_parameter_names_by_text
-                .get_or_insert_with(HashSet::new);
+                .get_or_insert_with(HashSet::default);
         }
     }
     if context
@@ -1030,7 +1031,7 @@ pub(crate) fn enter_new_scope(
     {
         context
             .type_parameter_names_by_text
-            .get_or_insert_with(HashSet::new);
+            .get_or_insert_with(HashSet::default);
     }
     restore
 }
@@ -1062,7 +1063,7 @@ pub(crate) fn prime_type_parameter_names_for_scope(
         ) {
             context
                 .synthetic_scope_locals
-                .get_or_insert_with(HashMap::new)
+                .get_or_insert_with(HashMap::default)
                 .insert(
                     tsc_types::EscapedName::from_identifier_escaped_text(&data.escaped_text),
                     symbol,

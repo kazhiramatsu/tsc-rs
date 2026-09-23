@@ -192,6 +192,14 @@ impl CompilerHost for MemoryCompilerHost {
             .map(|path| scalar_native_result(path.as_js(), HostOperation::Realpath))
             .transpose()
     }
+
+    /// The memory host is immutable and answers every read from its fixed
+    /// tables (including its configured failures), so reads are pure and
+    /// order-independent. Wrappers that record or sequence calls keep the
+    /// trait default.
+    fn permits_source_read_ahead(&self) -> bool {
+        true
+    }
 }
 
 fn native_query(path: &Path, operation: HostOperation) -> Result<JsString, HostError> {

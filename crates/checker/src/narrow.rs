@@ -19,6 +19,7 @@ use tsc_types::{CheckMode, SymbolFlags, TypeData, TypeFacts, TypeFlags, TypeId};
 
 use crate::flow::FlowQuery;
 use crate::state::{CheckResult, CheckerState, SignatureId};
+use tsc_types::perf::{self, PerfCounter};
 
 impl<'a> CheckerState<'a> {
     /// The narrow-family caches (switch types, exhaustiveness,
@@ -1487,7 +1488,9 @@ impl<'a> CheckerState<'a> {
             None
         };
         if let Some(key) = &key {
+            perf::bump(PerfCounter::NarrowCachedTypeLookups);
             if let Some(&cached) = self.cached_types.get(key) {
+                perf::bump(PerfCounter::NarrowCachedTypeHits);
                 return Ok(cached);
             }
         }
@@ -3028,7 +3031,7 @@ impl<'a> CheckerState<'a> {
             {
                 let origin = self
                     .links
-                    .read_symbol(symbol, |links| links.synthetic_origin);
+                    .read_symbol(symbol, |links| links.cold().synthetic_origin);
                 if let Some(origin) = origin {
                     if self.get_explicit_type_of_symbol(origin)?.is_some() {
                         return self.get_type_of_symbol(symbol).map(Some);

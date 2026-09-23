@@ -33,6 +33,7 @@ use tsc_types::{
 
 use crate::indexed::is_numeric_literal_name;
 use crate::state::{CheckResult, CheckerState, SignatureId};
+use tsc_types::perf::{self, PerfCounter};
 
 /// One lazy discriminator of discriminateTypeByDiscriminableItems'
 /// contextual callers (73357/73391): tsc passes `[() => type, name]`
@@ -143,7 +144,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 4e226620c66910d6b21cfb246af7d8efb7014b85809ff341f1bac1792c0eebff
     /// tsc-span: _tsc.js:47484-47486
     pub(crate) fn get_cached_type(&self, key: &str) -> Option<TypeId> {
-        self.cached_types.get(key).copied()
+        perf::bump(PerfCounter::ContextualCachedTypeLookups);
+        let hit = self.cached_types.get(key).copied();
+        if hit.is_some() {
+            perf::bump(PerfCounter::ContextualCachedTypeHits);
+        }
+        hit
     }
 
     /// tsc-port: setCachedType @6.0.3
@@ -1046,8 +1052,11 @@ impl<'a> CheckerState<'a> {
                 // those get the LHS type.
                 let ty = self.get_contextual_type(binary, context_flags)?;
                 if Some(node) == right {
-                    let has_pattern =
-                        ty.is_some_and(|t| self.links.read_ty(t, |links| links.pattern).is_some());
+                    let has_pattern = ty.is_some_and(|t| {
+                        self.links
+                            .read_ty(t, |links| links.cold().pattern)
+                            .is_some()
+                    });
                     let no_context_non_expando =
                         ty.is_none() && !self.is_defaulted_expando_initializer(binary);
                     if has_pattern || no_context_non_expando {
@@ -3113,7 +3122,7 @@ impl<'a> CheckerState<'a> {
             from_method: self.signature_of(left).from_method,
             target: None,
             mapper,
-            instantiations: std::collections::HashMap::new(),
+            instantiations: rustc_hash::FxHashMap::default(),
             erased_signature_cache: None,
             canonical_signature_cache: None,
             base_signature_cache: None,
@@ -3220,7 +3229,7 @@ impl<'a> CheckerState<'a> {
             _ => unreachable!("union flag implies payload"),
         };
         let mut signature_list: Vec<SignatureId> = Vec::new();
-        for current in types {
+        for &current in &types {
             if let Some(signature) = self.get_contextual_call_signature(current, node)? {
                 if signature_list.is_empty() {
                     signature_list.push(signature);
@@ -3241,6 +3250,12 @@ impl<'a> CheckerState<'a> {
             0 => None,
             1 => Some(signature_list[0]),
             _ => {
+                // W2c (F44): the head signature (its `this` and return type)
+                // is the FIRST constituent's in stored member order.
+                self.order_guard.note(
+                    crate::order_guard::OrderReason::CONTEXTUAL_SIGNATURE,
+                    types.iter().copied(),
+                );
                 let head = signature_list[0];
                 Some(self.create_union_signature(head, signature_list))
             }

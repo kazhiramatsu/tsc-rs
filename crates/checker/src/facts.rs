@@ -506,7 +506,7 @@ impl<'a> CheckerState<'a> {
                 TypeData::Union { types, .. } => types.to_vec(),
                 _ => unreachable!("union flag implies union data"),
             };
-            let mut keep = std::collections::HashSet::new();
+            let mut keep = rustc_hash::FxHashSet::default();
             for member in members {
                 if predicate(self, member)? {
                     keep.insert(member);

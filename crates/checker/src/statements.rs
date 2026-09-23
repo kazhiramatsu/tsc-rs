@@ -1918,7 +1918,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
     ) -> tsc_binder::containers::ModuleInstanceState {
         let source = self.binder.source_of_node(node);
-        let mut visited = std::collections::HashMap::new();
+        let mut visited = rustc_hash::FxHashMap::default();
         tsc_binder::containers::get_module_instance_state(source, node, &mut visited)
     }
 }

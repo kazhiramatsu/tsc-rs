@@ -12,7 +12,7 @@
 //! recursiveTypeRelatedTo) is stage 4.5; structuredTypeRelatedTo is
 //! stage 4.6.
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 use tsc_binder::SymbolId;
 use tsc_syntax::SyntaxKind;

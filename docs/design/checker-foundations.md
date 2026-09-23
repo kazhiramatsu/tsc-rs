@@ -188,6 +188,60 @@ split explicit and total, matching checkDeferredNode's kind list — it
 is the cheapest way to get resolution order right by construction
 instead of chasing order-dependence FNs.
 
+### 2.2 The one-shot Program driver — validated Rust stages (2026-09-22)
+
+`tsc_checker::check_program_with_prebound_libs_at_observed` (crates/checker/src/lib.rs)
+is the production driver behind every `check_program_with_authoritative_modules_at_*`
+entry. Its stages are separate functions so that one parse/bind can serve one
+or more checker states without reparsing or rebinding:
+
+1. `parse_program_inputs` → `ParsedProgramInputs { program_sources,
+   authoritative_program_metadata, program_diagnostics, host: HostFacts }`:
+   fixture shadowing, root admission, JSON/TS parse or adoption of the loader's
+   parse, missing-path-reference diagnostics, and the owned host facts
+   (current directory, input paths/snapshots, package.json module types,
+   values and names). No checker identity is created.
+2. Bind (`bind_sources_in_program_order`, parallel under the parse/bind
+   `WorkerBudget`) → `EphemeralDocumentStore` → immutable `ProgramSnapshot` with
+   per-file `ProgramFileFacts`; syntactic rows per fixture file.
+3. `init_checker_state(&snapshot, options, authoritative provider + metadata,
+   host: HostFacts)` → `CheckerState`: `from_snapshot` (the `ProgramBinder`
+   stores `ProgramEntry::Owned(&Arc<BoundDocument>)`, so source trees AND
+   completed `BindData` are borrowed from the shared snapshot, never
+   deep-copied), provider install (failures recorded, never dropped), host
+   fields MOVED out of `HostFacts`, `merge_module_augmentations`,
+   `materialize_init_global_diagnostics`. This is the per-checker constructor:
+   it reads only the shared snapshot/options, consumes the host facts, and owns
+   everything else it creates.
+4. `check_files_in_order(&mut state, files, globals_by_file)`: `check_source_file`
+   per file in the given order, attributing file-less rows published during a
+   file's check to that file (getDiagnosticsWorker). The driver runs it once for
+   the fixture files (Program order, library prefix skipped) and, for
+   `LibraryPrefixCompletion::Complete`, once more over every Program file.
+5. Per-file assembly (`semantic_diagnostics_for_program_file`: bind rows, new
+   globals, checker rows for the file, JSDoc rows, directive filtering, unused
+   `@ts-expect-error` synthesis, `filterSemanticDiagnostics`, program rows,
+   sort/dedupe) and the whole-Program sort/dedupe; then the optional emit callback
+   over `CheckerSession::from_checked_state(state)`.
+
+Order-observable facts: fixture files are checked before library files within
+the serial driver; the OnDemand schedule (declaration sessions) constructs the
+session before any file check; suggestions keep collection order and
+multiplicity. Checker-count sharding (W, in progress) reuses stages 1–2 once and
+runs stages 3–4 per shard; its diagnostics merge and exactness controls are
+specified in the W ownership packet under the performance run directory.
+
+Invariant (user direction 2026-09-22): the finalized source ASTs are immutable
+and shared by every checker through the same `Arc<BoundDocument>` handles of
+the one `ProgramSnapshot`; they are never cloned per checker, never written to
+(no checked/type/emit flags, no interior-mutability fields, no unsafe shared
+mutation). Everything a checker computes — links, type tables, relation and
+instantiation caches, transient symbols, display/transform arenas and JS
+transform output — lives in that checker's own state or a separate local
+arena/overlay. `HostFacts` is the only per-checker input besides the snapshot
+and options: the serial driver moves it into its state; a sharded driver clones
+it once per additional shard.
+
 ---
 
 ## 3. Contextual typing — the inference/object-literal driver — tsc 73471

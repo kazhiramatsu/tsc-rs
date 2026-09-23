@@ -2,7 +2,7 @@ use tsc_checker::{
     check_program_with_owned_libs_at, AuthoritativeModuleFailure, AuthoritativeModuleLookupFailure,
     InputFile, UnsupportedAuthoritativeResolution,
 };
-use tsc_compiler::{DriverError, NoEmitOutcome, ProgramSession};
+use tsc_compiler::{CheckerBudget, DriverError, NoEmitOutcome, ProgramSession};
 use tsc_diagnostics::{Diagnostic, DiagnosticCategory, MessageChain};
 use tsc_host::MemoryCompilerHost;
 use tsc_program::{
@@ -3195,5 +3195,390 @@ fn conformance_harness_session_elides_only_the_library_prefix_completion() {
     assert_eq!(
         complete.syntactic_diagnostics(),
         fixture_observed.syntactic_diagnostics()
+    );
+}
+
+/// W2: every checker budget publishes the serial `NoEmitOutcome`, including
+/// cross-file merged-declaration rows and directive synthesis after the
+/// shard merge; the work counters prove how many checker states and threads
+/// actually ran (a sharded budget that silently fell back to one checker
+/// would fail here).
+#[test]
+fn sharded_checker_budgets_publish_the_serial_no_emit_outcome() {
+    let files = [
+        ("lib.d.ts", MINIMAL_GLOBALS),
+        ("left.ts", "interface Merged {\n    [key: string]: number;\n}\n"),
+        ("right.ts", "interface Merged {\n    [key: string]: string;\n}\n"),
+        (
+            "consumer.ts",
+            "declare const merged: Merged;\n// @ts-expect-error\nconst text: string = merged.anything;\n// @ts-expect-error\nconst fine: number = 1;\n",
+        ),
+    ];
+    let run = |checkers: usize| {
+        consume(
+            ProgramSession::new(prepared_program(
+                &files,
+                1,
+                PreparationDiagnostics::default(),
+                |options| options.strict = Some(true),
+            ))
+            .with_checker_budget(CheckerBudget::new(
+                std::num::NonZeroUsize::new(checkers).expect("nonzero"),
+            )),
+        )
+    };
+    let serial = run(1);
+    assert_eq!(serial.work_counters().checker_shards(), 1);
+    assert_eq!(serial.work_counters().checker_threads(), 1);
+    let serial_codes = codes(serial.semantic_diagnostics());
+    assert!(serial_codes.contains(&2374), "{serial_codes:?}");
+    assert!(serial_codes.contains(&2578), "{serial_codes:?}");
+    assert!(!serial_codes.contains(&2322), "{serial_codes:?}");
+    for checkers in [2usize, 3, 4, 8] {
+        let sharded = run(checkers);
+        assert_eq!(sharded, serial, "checkers={checkers}");
+        let expected = checkers.min(4) as u64;
+        assert_eq!(
+            sharded.work_counters().checker_shards(),
+            expected,
+            "checkers={checkers}"
+        );
+        assert_eq!(
+            sharded.work_counters().checker_threads(),
+            expected,
+            "checkers={checkers}"
+        );
+        assert_eq!(
+            sharded.work_counters().checker_serial_replay(),
+            0,
+            "checkers={checkers}: no order-consuming operation, no replay"
+        );
+    }
+}
+
+/// W2c: a sharded session whose result could depend on shard-local type-id
+/// order (last-member inference over an intersection of two shard-local
+/// function types) is replayed serially and publishes the serial outcome; the
+/// work counters prove the replay happened, and the clean merged-declaration
+/// program above never replays.
+#[test]
+fn sharded_session_replays_order_sensitive_inference_serially() {
+    let padding = (0..80)
+        .map(|i| format!("declare const pad{i}: number;\n"))
+        .collect::<String>();
+    let first = format!("declare const b: Beta;\ndeclare const a: Alpha;\nconst useB = b;\nconst useA = a;\n{padding}");
+    let files = [
+        ("lib.d.ts", MINIMAL_GLOBALS),
+        ("types.d.ts", "interface Alpha {\n    alpha: number;\n}\ninterface Beta {\n    beta: string;\n}\n"),
+        ("first.ts", first.as_str()),
+        (
+            "second.ts",
+            "type UnionToIntersection<U> = (U extends unknown ? (k: U) => void : never) extends (k: infer I) => void ? I : never;\ntype LastOf<U> = UnionToIntersection<U extends unknown ? () => U : never> extends () => infer R ? R : never;\ndeclare const last: LastOf<Alpha | Beta>;\nconst check: Beta = last;\n",
+        ),
+    ];
+    let run = |checkers: usize| {
+        consume(
+            ProgramSession::new(prepared_program(
+                &files,
+                1,
+                PreparationDiagnostics::default(),
+                |options| {
+                    options.strict = Some(true);
+                    options.skip_lib_check = Some(true);
+                },
+            ))
+            .with_checker_budget(CheckerBudget::new(
+                std::num::NonZeroUsize::new(checkers).expect("nonzero"),
+            )),
+        )
+    };
+    let serial = run(1);
+    assert_eq!(serial.work_counters().checker_serial_replay(), 0);
+    let serial_codes = codes(serial.semantic_diagnostics());
+    assert!(
+        serial_codes.contains(&2741) || serial_codes.contains(&2322),
+        "{serial_codes:?}"
+    );
+    for checkers in [2usize, 4, 8] {
+        let sharded = run(checkers);
+        assert_eq!(sharded, serial, "checkers={checkers}");
+        assert_eq!(
+            sharded.work_counters().checker_serial_replay(),
+            1,
+            "checkers={checkers}"
+        );
+        assert_ne!(
+            sharded.work_counters().checker_replay_reasons(),
+            0,
+            "checkers={checkers}"
+        );
+    }
+}
+
+// W2f (F42/F60): root's order-sensitive CLI controls in their module form
+// (`import type` through authoritative resolution rows), byte-identical to
+// review/shard-constructor-controls-20260922, shard-alias-diagnostic-control-20260922
+// and shard-contextual-this-controls-20260922 except that the minimal globals
+// are the harness's library file. The serial `NoEmitOutcome` must carry the
+// fresh TypeScript 6.0.3 diagnostics recorded from the same texts by
+// target/benchmarks/fable51-parity-20260922/cases-extra/w2f-oracle-probes/,
+// and every sharded budget must publish the identical outcome through the
+// guard's replay — both halves of every pair.
+const SHARDED_CONTROL_TYPES: &str =
+    "export interface Alpha {\n    alpha: number;\n}\nexport interface Beta {\n    beta: string;\n}\n";
+const SHARDED_CONTROL_THIS_TYPES: &str = "export interface Alpha { alpha: number; }\nexport interface Beta { beta: string; }\nexport type FAlpha = (this: Alpha) => number;\nexport type FBeta = (this: Beta) => number;\n";
+
+fn sharded_control_padding() -> String {
+    (0..80)
+        .map(|i| format!("export const pad{i}: number = {i};\n"))
+        .collect()
+}
+
+fn sharded_control_first_touching_types() -> String {
+    format!(
+        "import type {{ Alpha, Beta }} from \"./types\";\n\n// Touches Beta before Alpha: in a serial check this file runs before\n// second.ts, so Beta receives the lower type id. The padding below only\n// gives this file more partition weight than lib.d.ts.\nexport const b: Beta = {{ beta: \"x\" }};\nexport const a: Alpha = {{ alpha: 1 }};\n{}",
+        sharded_control_padding()
+    )
+}
+
+fn sharded_control_first_touching_signatures() -> String {
+    format!(
+        "import type {{ FAlpha, FBeta }} from \"./types\";\n\n// Touch the Beta signature before Alpha; padding separates the later file.\nexport const b: FBeta = function () {{ return 1; }};\nexport const a: FAlpha = function () {{ return 1; }};\n{}",
+        sharded_control_padding()
+    )
+}
+
+fn sharded_control_last_constructor(target: &str) -> String {
+    format!(
+        "import type {{ Alpha, Beta }} from \"./types\";\n\ntype UnionToIntersection<U> =\n    (U extends unknown ? (arg: U) => void : never) extends\n    ((arg: infer I) => void) ? I : never;\ntype LastConstructorOfUnion<U> = UnionToIntersection<\n    U extends unknown ? new () => U : never\n> extends (new () => infer R) ? R : never;\n\ndeclare const selected: LastConstructorOfUnion<Alpha | Beta>;\nexport const result: {target} = selected;\n"
+    )
+}
+
+/// (file, start, length, message chain (code, text) head first, related
+/// (file, start, length, code, text)) — the observable identity of one row.
+type ObservedDiagnostic = (
+    Option<String>,
+    Option<u32>,
+    Option<u32>,
+    Vec<(u32, String)>,
+    Vec<(Option<String>, Option<u32>, Option<u32>, u32, String)>,
+);
+
+fn observe_diagnostic(diagnostic: &Diagnostic) -> ObservedDiagnostic {
+    fn flatten(chain: &MessageChain, out: &mut Vec<(u32, String)>) {
+        out.push((
+            chain.code,
+            chain.text.as_str().expect("UTF-8 message").to_owned(),
+        ));
+        for next in &chain.next {
+            flatten(next, out);
+        }
+    }
+    let name = |name: &Option<tsc_types::JsString>| {
+        name.as_ref()
+            .map(|name| name.as_str().expect("UTF-8 file name").to_owned())
+    };
+    let mut chain = Vec::new();
+    flatten(&diagnostic.message, &mut chain);
+    (
+        name(&diagnostic.file_name),
+        diagnostic.start,
+        diagnostic.length,
+        chain,
+        diagnostic
+            .related
+            .iter()
+            .map(|related| {
+                (
+                    name(&related.file_name),
+                    related.start,
+                    related.length,
+                    related.message.code,
+                    related
+                        .message
+                        .text
+                        .as_str()
+                        .expect("UTF-8 related message")
+                        .to_owned(),
+                )
+            })
+            .collect(),
+    )
+}
+
+fn expected_row(
+    start: u32,
+    length: u32,
+    chain: &[(u32, &str)],
+    related: &[(&str, u32, u32, u32, &str)],
+) -> ObservedDiagnostic {
+    (
+        Some("/second.ts".to_owned()),
+        Some(start),
+        Some(length),
+        chain
+            .iter()
+            .map(|&(code, text)| (code, text.to_owned()))
+            .collect(),
+        related
+            .iter()
+            .map(|&(file, start, length, code, text)| {
+                (
+                    Some(file.to_owned()),
+                    Some(start),
+                    Some(length),
+                    code,
+                    text.to_owned(),
+                )
+            })
+            .collect(),
+    )
+}
+
+/// Builds root's control layout (`/types.d.ts`, padded `/first.ts`,
+/// `/second.ts`, all roots, ES2022 + ESNext + Bundler, strict, skipLibCheck)
+/// and checks it serially and at 2/4/8 checkers.
+fn assert_sharded_control(types: &str, first: &str, second: &str, expected: &[ObservedDiagnostic]) {
+    let run = |checkers: usize| {
+        let prepared = authoritative_program(
+            &[
+                ("/types.d.ts", types),
+                ("/first.ts", first),
+                ("/second.ts", second),
+            ],
+            &[0, 1, 2],
+            CompilerOptions {
+                target: Some(9),              // ScriptTarget.ES2022
+                module: Some(99),             // ModuleKind.ESNext
+                module_resolution: Some(100), // ModuleResolutionKind.Bundler
+                strict: Some(true),
+                skip_lib_check: Some(true),
+                ..CompilerOptions::default()
+            },
+            |builder, ids| {
+                for importer in ["/first.ts", "/second.ts"] {
+                    builder
+                        .add_module_resolution(
+                            module_key(importer, "./types", ResolutionMode::EsNext),
+                            Ok(source_resolution(
+                                ids[0],
+                                "/types.d.ts",
+                                ModuleExtension::Dts,
+                            )),
+                        )
+                        .expect("add authoritative ./types row");
+                }
+            },
+        );
+        consume(
+            ProgramSession::new(prepared).with_checker_budget(CheckerBudget::new(
+                std::num::NonZeroUsize::new(checkers).expect("nonzero"),
+            )),
+        )
+    };
+    let serial = run(1);
+    assert_eq!(serial.work_counters().checker_shards(), 1);
+    assert_eq!(serial.work_counters().checker_serial_replay(), 0);
+    assert_eq!(
+        serial
+            .semantic_diagnostics()
+            .iter()
+            .map(observe_diagnostic)
+            .collect::<Vec<_>>(),
+        expected,
+        "serial semantic diagnostics"
+    );
+    assert!(serial.syntactic_diagnostics().is_empty());
+    assert!(serial.options_diagnostics().is_empty());
+    assert!(serial.global_diagnostics().is_empty());
+    for checkers in [2usize, 4, 8] {
+        let sharded = run(checkers);
+        assert_eq!(sharded, serial, "checkers={checkers}");
+        assert_eq!(
+            sharded.work_counters().checker_shards(),
+            checkers.min(4) as u64,
+            "checkers={checkers}: four Program files"
+        );
+        assert_eq!(
+            sharded.work_counters().checker_serial_replay(),
+            1,
+            "checkers={checkers}: the guard must replay"
+        );
+        assert_ne!(
+            sharded.work_counters().checker_replay_reasons(),
+            0,
+            "checkers={checkers}"
+        );
+    }
+}
+
+#[test]
+fn sharded_session_pins_both_last_constructor_member_controls() {
+    let first = sharded_control_first_touching_types();
+    // last-constructor-member-to-beta: the serial Alpha inference fails the
+    // Beta assignment; an unguarded sharded run infers Beta and loses it.
+    assert_sharded_control(
+        SHARDED_CONTROL_TYPES,
+        &first,
+        &sharded_control_last_constructor("Beta"),
+        &[expected_row(
+            393,
+            6,
+            &[(
+                2741,
+                "Property 'beta' is missing in type 'Alpha' but required in type 'Beta'.",
+            )],
+            &[("/types.d.ts", 74, 4, 2728, "'beta' is declared here.")],
+        )],
+    );
+    // last-constructor-member-to-alpha: clean serially; an unguarded sharded
+    // run would gain an error.
+    assert_sharded_control(
+        SHARDED_CONTROL_TYPES,
+        &first,
+        &sharded_control_last_constructor("Alpha"),
+        &[],
+    );
+}
+
+#[test]
+fn sharded_session_pins_the_aliased_union_first_diagnostic_control() {
+    assert_sharded_control(
+        &format!("{SHARDED_CONTROL_TYPES}\nexport type Either = Alpha | Beta;\n"),
+        &sharded_control_first_touching_types(),
+        "import type { Either } from \"./types\";\n\ndeclare const value: Either;\nexport const n: number = value;\n",
+        &[expected_row(
+            82,
+            1,
+            &[
+                (2322, "Type 'Either' is not assignable to type 'number'."),
+                (2322, "Type 'Beta' is not assignable to type 'number'."),
+            ],
+            &[],
+        )],
+    );
+}
+
+#[test]
+fn sharded_session_pins_both_contextual_this_controls() {
+    let first = sharded_control_first_touching_signatures();
+    // contextual-this-alpha: the serial head signature is FBeta, so
+    // `this.alpha` fails; contextual-this-beta is the clean half.
+    assert_sharded_control(
+        SHARDED_CONTROL_THIS_TYPES,
+        &first,
+        "import type { FAlpha, FBeta } from \"./types\";\n\nexport const f: FAlpha | FBeta = function () {\n    this.alpha;\n    return 1;\n};\n",
+        &[expected_row(
+            103,
+            5,
+            &[(2339, "Property 'alpha' does not exist on type 'Beta'.")],
+            &[],
+        )],
+    );
+    assert_sharded_control(
+        SHARDED_CONTROL_THIS_TYPES,
+        &first,
+        "import type { FAlpha, FBeta } from \"./types\";\n\nexport const f: FAlpha | FBeta = function () {\n    this.beta;\n    return 1;\n};\n",
+        &[],
     );
 }

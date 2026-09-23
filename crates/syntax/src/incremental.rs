@@ -3,7 +3,8 @@ use crate::nodes::{NodeArrayId, NodeId, SourceFileData};
 use crate::parser;
 use crate::relocate::{collect_node_data_ids, node_data_structurally_equal};
 use crate::{CommentDirective, NodeData, ParseOptions, SourceFile, SyntaxKind};
-use std::collections::{hash_map::Entry, HashMap};
+use rustc_hash::FxHashMap as HashMap;
+use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use tsc_diagnostics::{
     sort_and_dedupe_diagnostics, ByteTextChangeRange, ByteTextSpan, Diagnostic, JsString,
@@ -442,8 +443,9 @@ impl SyntaxCursor {
             .ok_or(IncrementalParseError::ChangeRangeOverflow)?;
         let delta = i64::from(change.new_length) - i64::from(change.span.length);
 
-        let mut indexed = HashMap::<u32, (usize, ReusableNode)>::with_capacity(
+        let mut indexed = HashMap::<u32, (usize, ReusableNode)>::with_capacity_and_hasher(
             source.arena.node_arrays().len().saturating_mul(2),
+            Default::default(),
         );
         let mut stack = vec![(source.root, 0usize)];
         while let Some((node_id, depth)) = stack.pop() {

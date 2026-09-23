@@ -171,9 +171,7 @@ fn mutate_everything(state: &mut CheckerState) {
     state.inference_context_nodes.push(root);
     state.inference_contexts.push(None);
     state.awaited_type_stack.push(string);
-    state
-        .active_type_mappers_caches
-        .push(std::collections::HashMap::new());
+    state.active_type_mappers_caches.push(Default::default());
     state.mapped_types_in_progress.push(InProgressMappedType {
         node: root,
         ty: string,
@@ -422,6 +420,7 @@ fn link_protocols_are_temporary_on_commit_and_rollback() {
         assert!(state
             .links
             .symbol(committed_symbol)
+            .cold()
             .unique_es_symbol_type
             .is_none());
         assert!(matches!(
@@ -453,6 +452,7 @@ fn link_protocols_are_temporary_on_commit_and_rollback() {
         assert!(state
             .links
             .symbol(rolled_back_symbol)
+            .cold()
             .unique_es_symbol_type
             .is_none());
         assert!(matches!(
@@ -1135,4 +1135,49 @@ fn canonical_signature_cache_is_bypassed_under_speculation() {
                 .is_none());
         },
     );
+}
+
+/// W2c: the order-sensitivity guard is run-wide and monotonic — a reason
+/// recorded inside a speculative transaction survives its rollback, and a
+/// disarmed state (the serial checker) records nothing.
+#[test]
+fn order_guard_reasons_survive_speculation_rollback() {
+    use crate::order_guard::OrderReason;
+    with_state(|state| {
+        assert_eq!(state.order_guard.reasons(), 0);
+        state
+            .order_guard
+            .note(OrderReason::DISPLAY, [state.tables.intrinsics.string; 2]);
+        assert_eq!(
+            state.order_guard.reasons(),
+            0,
+            "disarmed states record nothing"
+        );
+        let boundary = state.tables.len();
+        state.order_guard.arm(boundary);
+        // The guard compares ids only; ids at and above the boundary stand
+        // for shard-local types without allocating any.
+        let post_init_a = tsc_types::TypeId(boundary as u32);
+        let post_init_b = tsc_types::TypeId(boundary as u32 + 1);
+        let checkpoint = state.begin_speculation();
+        state
+            .order_guard
+            .note(OrderReason::REPRESENTATIVE, [post_init_a, post_init_b]);
+        state.order_guard.note_always(OrderReason::CIRCULARITY);
+        state.rollback_speculation(checkpoint);
+        assert_eq!(
+            state.order_guard.reasons(),
+            OrderReason::REPRESENTATIVE.bits() | OrderReason::CIRCULARITY.bits(),
+            "rollback must not clear the guard"
+        );
+        state.order_guard.note(
+            OrderReason::DISPLAY,
+            [state.tables.intrinsics.string, post_init_a],
+        );
+        assert_eq!(
+            state.order_guard.reasons() & OrderReason::DISPLAY.bits(),
+            0,
+            "one shard-local type is not order-sensitive"
+        );
+    });
 }

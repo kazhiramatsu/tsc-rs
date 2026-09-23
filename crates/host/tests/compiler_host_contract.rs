@@ -395,3 +395,95 @@ fn compiler_host_surface_is_read_only_and_object_safe() {
     let host = host_with_tree(true);
     inspect(&host);
 }
+
+/// A host that forwards every query but does not override the read-ahead
+/// capability keeps the trait default: program construction must observe
+/// its reads in sequential order.
+struct ForwardingHost(MemoryCompilerHost);
+
+impl CompilerHost for ForwardingHost {
+    fn current_directory_js(&self) -> Result<JsString, HostError> {
+        self.0.current_directory_js()
+    }
+
+    fn read_file_js(&self, path: tsc_diagnostics::JsStr<'_>) -> Result<Option<Vec<u8>>, HostError> {
+        self.0.read_file_js(path)
+    }
+
+    fn file_exists_js(&self, path: tsc_diagnostics::JsStr<'_>) -> Result<bool, HostError> {
+        self.0.file_exists_js(path)
+    }
+
+    fn directory_exists_js(&self, path: tsc_diagnostics::JsStr<'_>) -> Result<bool, HostError> {
+        self.0.directory_exists_js(path)
+    }
+
+    fn read_directory_js(
+        &self,
+        path: tsc_diagnostics::JsStr<'_>,
+    ) -> Result<Vec<JsString>, HostError> {
+        self.0.read_directory_js(path)
+    }
+
+    fn get_directories_js(
+        &self,
+        path: tsc_diagnostics::JsStr<'_>,
+    ) -> Result<Vec<JsString>, HostError> {
+        self.0.get_directories_js(path)
+    }
+
+    fn realpath_js(&self, path: tsc_diagnostics::JsStr<'_>) -> Result<Option<JsString>, HostError> {
+        self.0.realpath_js(path)
+    }
+
+    fn current_directory(&self) -> Result<PathBuf, HostError> {
+        self.0.current_directory()
+    }
+
+    fn use_case_sensitive_file_names(&self) -> bool {
+        self.0.use_case_sensitive_file_names()
+    }
+
+    fn read_file(&self, path: &Path) -> Result<Option<Vec<u8>>, HostError> {
+        self.0.read_file(path)
+    }
+
+    fn file_exists(&self, path: &Path) -> Result<bool, HostError> {
+        self.0.file_exists(path)
+    }
+
+    fn directory_exists(&self, path: &Path) -> Result<bool, HostError> {
+        self.0.directory_exists(path)
+    }
+
+    fn read_directory(&self, path: &Path) -> Result<Vec<PathBuf>, HostError> {
+        self.0.read_directory(path)
+    }
+
+    fn realpath(&self, path: &Path) -> Result<Option<PathBuf>, HostError> {
+        self.0.realpath(path)
+    }
+}
+
+#[test]
+fn source_read_ahead_is_opt_in_per_host() {
+    let memory = MemoryCompilerHost::builder("/Work")
+        .file("/Work/a.ts", b"export {};".to_vec())
+        .build()
+        .expect("memory host");
+    assert!(
+        memory.permits_source_read_ahead(),
+        "the immutable memory host answers reads purely"
+    );
+    let forwarding = ForwardingHost(memory);
+    assert!(
+        !forwarding.permits_source_read_ahead(),
+        "an arbitrary wrapper keeps the sequential default"
+    );
+    assert_eq!(
+        forwarding
+            .read_file(Path::new("/Work/a.ts"))
+            .expect("forwarded read"),
+        Some(b"export {};".to_vec())
+    );
+}

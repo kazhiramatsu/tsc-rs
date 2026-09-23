@@ -1144,9 +1144,7 @@ fn resolution_clears_active_mapper_caches_on_every_miss() {
             // Simulate an in-flight instantiation frame (73607):
             // one active mapper with a warm cache row.
             state.active_type_mappers.push(mapper);
-            state
-                .active_type_mappers_caches
-                .push(std::collections::HashMap::new());
+            state.active_type_mappers_caches.push(Default::default());
             state.active_type_mappers_caches[0].insert("probe".to_string(), string);
             let ctx = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
             let _ = state.get_inferred_type(ctx, 0).expect("resolves");

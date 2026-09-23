@@ -266,15 +266,19 @@ impl<'a> BinderWorker<'a> {
             crate::flow::FlowPayload::None,
             None,
         );
+        // Sized from the node count so the per-node maps do not rehash a
+        // dozen times while a large source binds (about one declaration per
+        // eight nodes in ordinary code).
+        let node_count = source.arena.nodes().len();
         Self {
             source,
             options,
             language_version: options.emit_script_target().bits(),
             common_js_module_indicator: None,
             symbols: SymbolArena::with_base(symbol_base),
-            node_symbol: FxHashMap::default(),
+            node_symbol: FxHashMap::with_capacity_and_hasher(node_count / 8, Default::default()),
             node_local_symbol: FxHashMap::default(),
-            locals: FxHashMap::default(),
+            locals: FxHashMap::with_capacity_and_hasher(node_count / 32, Default::default()),
             js_global_augmentations: SymbolTable::default(),
             bind_diagnostics: Vec::new(),
             classifiable_names: EscapedNameSet::new(),
@@ -354,6 +358,25 @@ impl<'a> BinderWorker<'a> {
                 .is_some_and(|lease| lease.belongs_to(domain))
     }
 
+    /// Bind `source` at local identities (symbol base 0, private-name serial
+    /// base 1) without touching any identity domain. The worker must be
+    /// relocated with [`Self::relocate_into_identity_domain`] before it joins
+    /// a Program. Relocating in Program order on one thread yields exactly
+    /// the identities of an in-order [`Self::bind_in_identity_domain`] (an
+    /// ephemeral domain's sealed tail and a batch lease both advance the same
+    /// bump by the same count), which lets independent files bind on worker
+    /// threads first.
+    /// Length of the bound source's text (a relocation job's weight).
+    pub fn source_text_len(&self) -> usize {
+        self.source.text().len()
+    }
+
+    pub fn bind_local(source: &'a SourceFile, options: &'a tsc_types::CompilerOptions) -> Self {
+        let mut binder = Self::with_bases(source, options, 1, 0);
+        binder.bind_source_file();
+        binder
+    }
+
     /// Bind one source and publish completed symbol/private-name identities.
     /// Ephemeral domains construct directly at a sealed tail; reclaiming
     /// domains bind locally and relocate only after exact counts are known.
@@ -402,6 +425,19 @@ impl<'a> BinderWorker<'a> {
         &mut self,
         domain: &IdentityDomain,
     ) -> Result<(), IdentityError> {
+        let (symbol_lease, serial_lease) = self.lease_identities(domain)?;
+        self.relocate_with_leases(domain, symbol_lease, serial_lease)
+    }
+
+    /// Lease this bind's symbol and private-name-serial ranges from `domain`
+    /// without touching its tables. Leasing is the only order-dependent step
+    /// of a relocation: a caller leases several binds in program order and
+    /// may then rewrite them on worker threads with
+    /// [`Self::relocate_with_leases`].
+    pub fn lease_identities(
+        &self,
+        domain: &IdentityDomain,
+    ) -> Result<(IdentityLease, IdentityLease), IdentityError> {
         if !self.source.identity_owned_by(domain) {
             return Err(IdentityError::InvalidLease {
                 space: IdentitySpace::Node,
@@ -413,7 +449,17 @@ impl<'a> BinderWorker<'a> {
             (IdentitySpace::Symbol, symbol_count),
             (IdentitySpace::PrivateNameSerial, serial_count),
         ])?;
-        let (symbol_lease, serial_lease) = bind_leases(leases)?;
+        bind_leases(leases)
+    }
+
+    /// Rewrite every identity of this bind into the leased ranges (the
+    /// second half of [`Self::relocate_into_identity_domain`]).
+    pub fn relocate_with_leases(
+        &mut self,
+        domain: &IdentityDomain,
+        symbol_lease: IdentityLease,
+        serial_lease: IdentityLease,
+    ) -> Result<(), IdentityError> {
         self.apply_identity_relocation(domain, symbol_lease, serial_lease)
     }
 
@@ -1128,62 +1174,57 @@ impl BinderWorker<'_> {
         }
 
         symbols.apply_identity_relocation(symbol_relocation, symbol_lease)?;
-        for symbol in symbols.symbols_mut() {
-            serial_relocation.name(&mut symbol.escaped_name)?;
-            relocate_private_table_keys(&mut symbol.members, &serial_relocation)?;
-            relocate_private_table_keys(&mut symbol.exports, &serial_relocation)?;
-            relocate_private_table_keys(&mut symbol.global_exports, &serial_relocation)?;
+        // A source without private names leased no serials: nothing to
+        // move, so the per-symbol name and per-table key scans are skipped.
+        let has_private_serials = !serial_relocation.old.is_empty();
+        if has_private_serials {
+            for symbol in symbols.symbols_mut() {
+                serial_relocation.name(&mut symbol.escaped_name)?;
+                relocate_private_table_keys(&mut symbol.members, &serial_relocation)?;
+                relocate_private_table_keys(&mut symbol.exports, &serial_relocation)?;
+                relocate_private_table_keys(&mut symbol.global_exports, &serial_relocation)?;
+            }
         }
-        let mut node_symbol_keys = node_symbol.keys().copied().collect::<Vec<_>>();
-        node_symbol_keys.sort_unstable();
-        for node in node_symbol_keys {
-            symbol_relocation.symbol(
-                node_symbol
-                    .get_mut(&node)
-                    .expect("collected node-symbol key must remain present"),
-            )?;
-        }
-        let mut node_local_symbol_keys = node_local_symbol.keys().copied().collect::<Vec<_>>();
-        node_local_symbol_keys.sort_unstable();
-        for node in node_local_symbol_keys {
-            symbol_relocation.symbol(
-                node_local_symbol
-                    .get_mut(&node)
-                    .expect("collected local-symbol key must remain present"),
-            )?;
-        }
-        let mut local_keys = locals.keys().copied().collect::<Vec<_>>();
-        local_keys.sort_unstable();
-        for node in local_keys {
+        // A relocation is a range shift of every id, independent of the
+        // order the entries are visited in, so the maps are rewritten in
+        // place (no key list, no sort).
+        node_symbol
+            .values_mut()
+            .try_for_each(|symbol| symbol_relocation.symbol(symbol))?;
+        node_local_symbol
+            .values_mut()
+            .try_for_each(|symbol| symbol_relocation.symbol(symbol))?;
+        if has_private_serials {
+            locals.values_mut().try_for_each(|table| {
+                relocate_symbol_table(table, &symbol_relocation, &serial_relocation)
+            })?;
             relocate_symbol_table(
-                locals
-                    .get_mut(&node)
-                    .expect("collected locals key must remain present"),
+                js_global_augmentations,
                 &symbol_relocation,
                 &serial_relocation,
             )?;
+        } else {
+            locals
+                .values_mut()
+                .try_for_each(|table| relocate_symbol_table_values(table, &symbol_relocation))?;
+            relocate_symbol_table_values(js_global_augmentations, &symbol_relocation)?;
         }
-        relocate_symbol_table(
-            js_global_augmentations,
-            &symbol_relocation,
-            &serial_relocation,
-        )?;
 
-        let mut old_assigned = std::mem::take(assigned_symbol_ids)
-            .into_iter()
-            .collect::<Vec<_>>();
-        old_assigned.sort_unstable_by_key(|(symbol, _)| *symbol);
+        let old_assigned = std::mem::take(assigned_symbol_ids);
         assigned_symbol_ids.reserve(old_assigned.len());
-        for (mut symbol, mut serial) in old_assigned {
-            symbol_relocation.symbol(&mut symbol)?;
-            serial_relocation.serial(&mut serial)?;
-            if assigned_symbol_ids.insert(symbol, serial).is_some() {
-                return Err(IdentityError::InvalidLease {
-                    space: IdentitySpace::Symbol,
-                    detail: "symbol relocation duplicated an assigned-serial key",
-                });
-            }
-        }
+        old_assigned
+            .into_iter()
+            .try_for_each(|(mut symbol, mut serial)| {
+                symbol_relocation.symbol(&mut symbol)?;
+                serial_relocation.serial(&mut serial)?;
+                if assigned_symbol_ids.insert(symbol, serial).is_some() {
+                    return Err(IdentityError::InvalidLease {
+                        space: IdentitySpace::Symbol,
+                        detail: "symbol relocation duplicated an assigned-serial key",
+                    });
+                }
+                Ok(())
+            })?;
 
         if classifiable_names
             .iter()

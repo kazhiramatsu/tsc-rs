@@ -141,9 +141,8 @@ impl CheckerState<'_> {
             self.emit_display_target(file_index);
         }
 
-        let display = self.emit_display_result();
-        let mut display = display.borrow_mut();
-        build_symbol_display_node(
+        let mut display = self.take_emit_display();
+        let built = build_symbol_display_node(
             self,
             display
                 .arena_mut()
@@ -155,7 +154,9 @@ impl CheckerState<'_> {
             flags,
             internal_flags,
             allow_any_node_kind,
-        )
+        );
+        self.restore_emit_display(display);
+        built
     }
 }
 
@@ -2340,7 +2341,13 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
                 Ok(flags.intersects(SymbolFlags::PROPERTY)
                     && flags.intersects(SymbolFlags::OPTIONAL)
                     && self.checker.is_optional_declaration(declaration)
-                    && self.checker.links.symbol(symbol).mapped_type.is_some()
+                    && self
+                        .checker
+                        .links
+                        .symbol(symbol)
+                        .cold()
+                        .mapped_type
+                        .is_some()
                     && contains_non_missing_undefined(self.checker, r#type))
             }
             SyntaxKind::Parameter | SyntaxKind::JSDocParameterTag => self
@@ -2843,7 +2850,7 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
                         cleanup.record_parameter_local(&name, old_symbol);
                         context
                             .synthetic_scope_locals
-                            .get_or_insert_with(std::collections::HashMap::new)
+                            .get_or_insert_with(rustc_hash::FxHashMap::default)
                             .insert(name, symbol);
                     }
                 }
@@ -2871,7 +2878,7 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
                         cleanup.record_type_parameter_local(&data.escaped_text, old_symbol);
                         context
                             .synthetic_scope_locals
-                            .get_or_insert_with(std::collections::HashMap::new)
+                            .get_or_insert_with(rustc_hash::FxHashMap::default)
                             .insert(
                                 tsc_types::EscapedName::from_identifier_escaped_text(
                                     &data.escaped_text,
@@ -2928,7 +2935,7 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
                         cleanup.record_type_parameter_local(&data.escaped_text, old_symbol);
                         context
                             .synthetic_scope_locals
-                            .get_or_insert_with(std::collections::HashMap::new)
+                            .get_or_insert_with(rustc_hash::FxHashMap::default)
                             .insert(
                                 tsc_types::EscapedName::from_identifier_escaped_text(
                                     &data.escaped_text,

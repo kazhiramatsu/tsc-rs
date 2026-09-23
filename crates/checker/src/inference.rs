@@ -19,7 +19,7 @@
 //! production pushInferenceContext site still passes None until
 //! then).
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 use tsc_syntax::{NodeId, SyntaxKind};
 use tsc_types::{
@@ -811,7 +811,7 @@ impl<'a> CheckerState<'a> {
             bivariant: false,
             propagation_type: None,
             inference_priority: InferencePriority::MAX_VALUE,
-            visited: HashMap::new(),
+            visited: HashMap::default(),
             source_stack: Vec::new(),
             target_stack: Vec::new(),
             expanding_flags: ExpandingFlags::NONE,
@@ -1293,7 +1293,7 @@ impl<'a> CheckerState<'a> {
                             st: self,
                             relation,
                             maybe_keys: Vec::new(),
-                            maybe_keys_set: std::collections::HashSet::new(),
+                            maybe_keys_set: rustc_hash::FxHashSet::default(),
                             source_stack: Vec::new(),
                             target_stack: Vec::new(),
                             maybe_count: 0,
@@ -1761,7 +1761,7 @@ struct InferTypesWalker<'r, 'a> {
     /// 68640: min-tracked priority of every inference actually landed;
     /// MaxValue until the first candidate records.
     inference_priority: InferencePriority,
-    /// 68641: lazily created in tsc; HashMap::new() allocates nothing
+    /// 68641: lazily created in tsc; HashMap::default() allocates nothing
     /// until the first insert, so a plain map is the same. Keyed by
     /// the invokeOnce `source.id + "," + target.id` pair.
     visited: HashMap<(TypeId, TypeId), InferencePriority>,
@@ -1894,7 +1894,7 @@ impl InferTypesWalker<'_, '_> {
                     let variances = match self.st.get_alias_variances(alias)? {
                         VariancesResult::Known(variances) => variances,
                         // In-measurement recursion: tsc reads the
-                        // links.variances = emptyArray placeholder.
+                        // links.cold().variances = emptyArray placeholder.
                         VariancesResult::InProgress => Box::default(),
                     };
                     self.infer_from_type_arguments(&source_types, &target_types, &variances)?;
@@ -3089,7 +3089,7 @@ impl InferTypesWalker<'_, '_> {
             let index_flags = if self
                 .st
                 .links
-                .read_ty(source, |links| links.pattern)
+                .read_ty(source, |links| links.cold().pattern)
                 .is_some()
             {
                 tsc_types::IndexFlags::NO_INDEX_SIGNATURES

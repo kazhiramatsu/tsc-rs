@@ -19,6 +19,7 @@ use tsc_types::{TypeData, TypeFlags, TypeId, UnionReduction};
 
 use crate::relate::RelationKind;
 use crate::state::{CheckResult, CheckerState};
+use tsc_types::perf::{self, PerfCounter};
 
 impl<'a> CheckerState<'a> {
     /// tsc-port: isTypeSubtypeOf @6.0.3
@@ -344,7 +345,9 @@ impl<'a> CheckerState<'a> {
             return Ok(Some(types));
         }
         let id = self.tables.get_type_list_id(&types);
+        perf::bump(PerfCounter::SubtypeReductionLookups);
         if let Some(cached) = self.subtype_reduction_cache.get(&id) {
+            perf::bump(PerfCounter::SubtypeReductionHits);
             return Ok(Some(cached.clone()));
         }
         let mut has_empty_object = false;
@@ -471,6 +474,14 @@ impl<'a> CheckerState<'a> {
                             || !target_is_class
                             || self.is_type_derived_from(source, target)?)
                     {
+                        // W2c: which member survives a removal between two
+                        // shard-local types can depend on their id order (a
+                        // mutual-subtype tie). Noted conservatively from the
+                        // outcome already observed; no extra relation query.
+                        self.order_guard.note(
+                            crate::order_guard::OrderReason::SUBTYPE_TIE,
+                            [source, target],
+                        );
                         types.remove(i);
                         break;
                     }
@@ -525,6 +536,12 @@ impl<'a> CheckerState<'a> {
     }
 
     fn get_single_common_supertype(&mut self, types: &[TypeId]) -> CheckResult<TypeId> {
+        // W2c: reduce-left picks a representative; with two shard-local
+        // candidates the pick can depend on their id order.
+        self.order_guard.note(
+            crate::order_guard::OrderReason::REPRESENTATIVE,
+            types.iter().copied(),
+        );
         let mut candidate = types[0];
         for &t in &types[1..] {
             if self.is_type_strict_subtype_of(candidate, t)? {
@@ -594,6 +611,10 @@ impl<'a> CheckerState<'a> {
     /// seeds; ties keep the earlier element (strict `?:` on the later
     /// one winning only when it IS a subtype).
     pub(crate) fn get_common_subtype(&mut self, types: &[TypeId]) -> CheckResult<TypeId> {
+        self.order_guard.note(
+            crate::order_guard::OrderReason::REPRESENTATIVE,
+            types.iter().copied(),
+        );
         let mut candidate = types[0];
         for &t in &types[1..] {
             if self.is_type_subtype_of(t, candidate)? {

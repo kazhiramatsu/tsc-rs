@@ -181,6 +181,74 @@ fn utf16_comparison_is_explicit_and_byte_ord_satisfies_borrow() {
     assert_eq!(lone.cmp_utf16(non_bmp.as_js()), Ordering::Less);
 }
 
+/// The prefix-skipping `cmp_utf16` must order exactly like a full code-unit
+/// comparison: shared prefixes (including a shared multi-byte lead before
+/// the first differing byte), byte-prefix relations, and the UTF-8/UTF-16
+/// disagreement between astral sequences and high BMP units after a common
+/// prefix, checked against the naive iterator comparison on a deterministic
+/// pseudo-random sample of canonical WTF-8 strings (lone surrogates
+/// included).
+#[test]
+fn utf16_comparison_skips_common_prefixes_without_changing_the_order() {
+    fn naive(left: &JsString, right: &JsString) -> Ordering {
+        left.code_units().cmp(right.code_units())
+    }
+    let cases = [
+        ("same", "same"),
+        ("", ""),
+        ("", "a"),
+        ("abc", "abcd"),
+        ("abcd", "abc"),
+        ("path/é", "path/è"),
+        ("shared\u{E000}", "shared\u{10000}"),
+        ("shared\u{10000}", "shared\u{E000}"),
+        ("shared\u{10000}", "shared\u{10001}"),
+        ("shared\u{FFFF}", "shared\u{10000}"),
+        ("/a/b/file123.ts", "/a/b/file124.ts"),
+        ("/a/b/file123.ts", "/a/b/file123.ts.map"),
+    ];
+    for (left, right) in cases {
+        let (left, right) = (JsString::from(left), JsString::from(right));
+        assert_eq!(
+            left.cmp_utf16(right.as_js()),
+            naive(&left, &right),
+            "{left:?} vs {right:?}"
+        );
+    }
+    assert_eq!(
+        JsString::from("shared\u{E000}").cmp_utf16(JsString::from("shared\u{10000}").as_js()),
+        Ordering::Greater
+    );
+    let alphabet: [u16; 12] = [
+        0x41, 0x42, 0x7F, 0x80, 0x7FF, 0x800, 0xD7FF, 0xD800, 0xDC00, 0xE000, 0xFFFF, 0x41,
+    ];
+    let mut seed = 0x2545_F491_4F6C_DD1Du64;
+    let mut next = || {
+        seed ^= seed << 13;
+        seed ^= seed >> 7;
+        seed ^= seed << 17;
+        seed
+    };
+    let strings = (0..96)
+        .map(|_| {
+            let length = (next() % 6) as usize;
+            let units = (0..length)
+                .map(|_| alphabet[(next() % alphabet.len() as u64) as usize])
+                .collect::<Vec<_>>();
+            JsString::from_code_units(&units)
+        })
+        .collect::<Vec<_>>();
+    for left in &strings {
+        for right in &strings {
+            assert_eq!(
+                left.cmp_utf16(right.as_js()),
+                naive(left, right),
+                "{left:?} vs {right:?}"
+            );
+        }
+    }
+}
+
 #[test]
 fn lossy_conversion_is_only_at_the_explicit_sink_and_debug_preserves_units() {
     let raw = JsString::from_code_units(&[0xD800, 0x41, 0xDC00, 0xD83D, 0xDE00]);

@@ -8,11 +8,13 @@
 //! family). M3 has no speculation yet — the assertion is the contract
 //! future stages inherit.
 
-use std::collections::HashMap;
-
 use rustc_hash::FxHashMap;
+use rustc_hash::FxHashMap as HashMap;
+use std::sync::Arc;
+
 use tsc_binder::SymbolId;
 use tsc_syntax::NodeId;
+use tsc_types::perf::{self, PerfCounter};
 use tsc_types::{ConditionalRootId, EscapedName, JsString, TypeId};
 
 use crate::instantiate::MapperId;
@@ -148,7 +150,7 @@ pub struct NodeLinks {
     pub assertion_expression_type: Option<TypeId>,
     /// tsc links.instantiationExpressionTypes (getInstantiationExpressionType
     /// 77980): exprType.id → instantiated result, STORE-BEFORE-ERROR.
-    pub instantiation_expression_types: Option<std::collections::HashMap<TypeId, TypeId>>,
+    pub instantiation_expression_types: Option<rustc_hash::FxHashMap<TypeId, TypeId>>,
     /// tsc links.hasReportedStatementInAmbientContext
     /// (checkGrammarStatementInAmbientContext 90341): the once-flag on
     /// the offending statement OR its enclosing block. Stays false when
@@ -168,7 +170,7 @@ pub struct NodeLinks {
     /// tsc links.nonExistentPropCheckCache (reportNonexistentProperty
     /// 75417): `{typeId}|{isUncheckedJS}` dedupe keys. Trial-local
     /// insertions are visible to re-entry and restored at the boundary.
-    pub non_existent_prop_check_cache: std::collections::HashSet<String>,
+    pub non_existent_prop_check_cache: rustc_hash::FxHashSet<String>,
     /// tsc links.jsxFlags (getIntrinsicTagSymbol 74540/74545) on JSX
     /// opening-like/closing elements — an accumulating flags word.
     pub jsx_flags: tsc_types::JsxFlags,
@@ -188,21 +190,93 @@ pub struct NodeLinks {
 }
 
 /// tsc SymbolLinks — the per-symbol subset M3 consumes.
+///
+/// The record is split by write frequency: the fields below are read or
+/// written for most symbols a checker touches; everything else lives in
+/// [`SymbolLinksCold`] behind one lazily allocated box (a fresh record is
+/// ~170 bytes instead of ~450, which the per-checker links table and
+/// every default construction pay for).
 #[derive(Clone, Debug, Default)]
 pub struct SymbolLinks {
     /// tsc links.declaredType (getDeclaredTypeOfClassOrInterface 57381).
     pub declared_type: LinkSlot<TypeId>,
     /// tsc links.type (getTypeOfVariableOrParameterOrProperty 56633).
     pub type_of_symbol: LinkSlot<TypeId>,
+    /// tsc TransientSymbol links.checkFlags (synthetic union/
+    /// intersection properties, createUnionOrIntersectionProperty).
+    pub check_flags: tsc_types::CheckFlags,
+    /// tsc symbol.isReferenced — a SymbolFlags meaning mask, not a
+    /// boolean. resolveName ORs the requested meaning into this field;
+    /// the JSX/private-property direct markers write SymbolFlags::All.
+    /// Unused type parameters and value declarations consume different
+    /// bits of the same merged symbol.
+    pub is_referenced: tsc_types::SymbolFlags,
+    /// tsc SymbolLinks.referenced (markAliasSymbolAsReferenced 71930)
+    /// — alias accessibility/emit bookkeeping. This is deliberately
+    /// distinct from Symbol.isReferenced above: unused locals consume
+    /// the latter, while alias visibility consumers read this bit.
+    pub alias_referenced: bool,
+    /// tsc links.target for CheckFlags::INSTANTIATED symbols
+    /// (instantiateSymbol 63455).
+    pub target: Option<SymbolId>,
+    /// tsc links.mapper for CheckFlags::INSTANTIATED symbols (63456).
+    pub mapper: Option<MapperId>,
+    /// tsc links.nameType — written by late-bound member binding (5.3);
+    /// carried through instantiateSymbol's copy (63460).
+    pub name_type: Option<TypeId>,
+    /// tsc links.typeParameters for generic type-alias symbols
+    /// (getDeclaredTypeOfTypeAlias 57416).
+    pub type_parameters: Option<Vec<TypeId>>,
+    /// tsc links.resolvedMembers (getResolvedMembersOrExportsOfSymbol
+    /// 57712) — the early⊕late member table of a late-binding
+    /// container; equal to `symbol.members` while no late-bindable
+    /// member exists (the pre-5.5 slice).
+    pub resolved_members: LinkSlot<Arc<tsc_binder::SymbolTable>>,
+    /// tsc links.lateSymbol (addDeclarationToLateBoundSymbol 57652) —
+    /// the late-bound symbol a member's own binder symbol resolved to.
+    pub late_symbol: Option<SymbolId>,
+    /// tsc links.writeType (getWriteTypeOfAccessors 56787) — the
+    /// setter-side type; the WriteType resolution property.
+    pub write_type: LinkSlot<TypeId>,
+    /// tsc links.resolvedExports (getResolvedMembersOrExportsOfSymbol
+    /// 57712, the static resolutionKind) — equal to `symbol.exports`
+    /// while no late-bindable static member exists.
+    pub resolved_exports: LinkSlot<Arc<tsc_binder::SymbolTable>>,
+    /// tsc symbol.lastAssignmentPos (markNodeAssignments 71523): the
+    /// last assignment's extended position in document order; NEGATIVE
+    /// = a definite-assignment (`x!`-style or sticky), |i64::MAX| =
+    /// "assigned in another function" (unknowable). Position 0 is
+    /// treated as unmarked by isPastLastAssignment — tsc's JS
+    /// falsiness, kept faithfully there.
+    pub last_assignment_pos: Option<i64>,
+    /// tsc links.aliasTarget (resolveAlias 49118): Resolving = the
+    /// resolvingSymbol sentinel — NOT write-once (the re-entrant
+    /// Circular_definition_of_import_alias_0 write and the
+    /// sentinel-on-entry unknownSymbol collapse both rewrite it; M4
+    /// 5.8d, the resolvedSignature protocol twin).
+    pub alias_target: LinkSlot<SymbolId>,
+    /// tsc links.typeOnlyDeclaration (markSymbolOfAliasDeclarationIf
+    /// TypeOnly 49182): TRI-STATE — None = unset, Some(None) = the
+    /// explicit `false` (computed, not type-only), Some(Some(node)) =
+    /// the type-only declaration.
+    pub type_only_declaration: Option<Option<NodeId>>,
+    /// Rarely populated links (see [`SymbolLinksCold`]); `None` reads as
+    /// the default record.
+    pub cold: Option<Box<SymbolLinksCold>>,
+}
+
+/// The rarely populated half of [`SymbolLinks`].
+#[derive(Clone, Debug, Default)]
+pub struct SymbolLinksCold {
     /// tsc links.inferredClassSymbol (mergeJSSymbols 77526-77538): source
     /// symbol-local map from the inferred target symbol id to that
     /// transient merged symbol. The key is the inferred symbol
     /// itself (not necessarily the incoming target), matching tsc's
-    /// clone-then-publish protocol.
-    pub inferred_class_symbols: HashMap<SymbolId, SymbolId>,
-    /// tsc TransientSymbol links.checkFlags (synthetic union/
-    /// intersection properties, createUnionOrIntersectionProperty).
-    pub check_flags: tsc_types::CheckFlags,
+    /// clone-then-publish protocol. Keyed by compiler-assigned ids and only
+    /// ever probed (never iterated), so the lookup-only hasher applies; the
+    /// std `RandomState` default would touch thread-local keys every time a
+    /// vacant symbol entry is initialized.
+    pub inferred_class_symbols: FxHashMap<SymbolId, SymbolId>,
     /// tsc links.specifierCache (getSpecifierForModuleSymbol 53088-53107):
     /// mode-aware cache key -> computed module specifier, populated by the
     /// dormant h2-7a-m-3 specifier synthesis and never read by the display
@@ -227,25 +301,6 @@ pub struct SymbolLinks {
     /// (isConstructorDeclaredProperty 56145): the syntax/annotation-stable
     /// classification of JS assignment-declared instance properties.
     pub is_constructor_declared_property: Option<bool>,
-    /// tsc symbol.isReferenced — a SymbolFlags meaning mask, not a
-    /// boolean. resolveName ORs the requested meaning into this field;
-    /// the JSX/private-property direct markers write SymbolFlags::All.
-    /// Unused type parameters and value declarations consume different
-    /// bits of the same merged symbol.
-    pub is_referenced: tsc_types::SymbolFlags,
-    /// tsc SymbolLinks.referenced (markAliasSymbolAsReferenced 71930)
-    /// — alias accessibility/emit bookkeeping. This is deliberately
-    /// distinct from Symbol.isReferenced above: unused locals consume
-    /// the latter, while alias visibility consumers read this bit.
-    pub alias_referenced: bool,
-    /// tsc links.target for CheckFlags::INSTANTIATED symbols
-    /// (instantiateSymbol 63455).
-    pub target: Option<SymbolId>,
-    /// tsc links.mapper for CheckFlags::INSTANTIATED symbols (63456).
-    pub mapper: Option<MapperId>,
-    /// tsc links.nameType — written by late-bound member binding (5.3);
-    /// carried through instantiateSymbol's copy (63460).
-    pub name_type: Option<TypeId>,
     /// tsc links.mappedType for CheckFlags::MAPPED property symbols
     /// synthesized by resolveMappedTypeMembers (58549), and for
     /// CheckFlags::REVERSE_MAPPED properties (58446/58449).
@@ -257,14 +312,6 @@ pub struct SymbolLinks {
     /// tsc links.keyType for CheckFlags::MAPPED property symbols
     /// (58551); distinct from nameType after key remapping.
     pub key_type: Option<TypeId>,
-    /// tsc links.typeParameters for generic type-alias symbols
-    /// (getDeclaredTypeOfTypeAlias 57416).
-    pub type_parameters: Option<Vec<TypeId>>,
-    /// tsc links.resolvedMembers (getResolvedMembersOrExportsOfSymbol
-    /// 57712) — the early⊕late member table of a late-binding
-    /// container; equal to `symbol.members` while no late-bindable
-    /// member exists (the pre-5.5 slice).
-    pub resolved_members: LinkSlot<tsc_binder::SymbolTable>,
     /// tsc links.tupleLabelDeclaration (createTupleTargetType 61170):
     /// the NamedTupleMember/Parameter node behind a synthesized tuple
     /// index property.
@@ -272,17 +319,7 @@ pub struct SymbolLinks {
     /// tsc links.uniqueESSymbolType (getESSymbolLikeTypeForNode 63127)
     /// — the per-declaration `unique symbol` type memo.
     pub unique_es_symbol_type: Option<TypeId>,
-    /// tsc links.lateSymbol (addDeclarationToLateBoundSymbol 57652) —
-    /// the late-bound symbol a member's own binder symbol resolved to.
-    pub late_symbol: Option<SymbolId>,
-    /// tsc links.writeType (getWriteTypeOfAccessors 56787) — the
-    /// setter-side type; the WriteType resolution property.
-    pub write_type: LinkSlot<TypeId>,
-    /// tsc links.resolvedExports (getResolvedMembersOrExportsOfSymbol
-    /// 57712, the static resolutionKind) — equal to `symbol.exports`
-    /// while no late-bindable static member exists.
-    pub resolved_exports: LinkSlot<tsc_binder::SymbolTable>,
-    /// tsc links.variances (getVariancesWorker 67315): Vacant =
+    /// tsc links.cold().variances (getVariancesWorker 67315): Vacant =
     /// undefined, Resolving = the in-progress emptyArray sentinel
     /// (getVariances call sites answer Ternary.Unknown), Resolved =
     /// the measured list — possibly genuinely empty for zero-parameter
@@ -308,31 +345,13 @@ pub struct SymbolLinks {
     /// 84876) — the once-latch on multi-declaration class/interface
     /// symbols.
     pub type_parameters_checked: bool,
-    /// tsc symbol.lastAssignmentPos (markNodeAssignments 71523): the
-    /// last assignment's extended position in document order; NEGATIVE
-    /// = a definite-assignment (`x!`-style or sticky), |i64::MAX| =
-    /// "assigned in another function" (unknowable). Position 0 is
-    /// treated as unmarked by isPastLastAssignment — tsc's JS
-    /// falsiness, kept faithfully there.
-    pub last_assignment_pos: Option<i64>,
-    /// tsc links.aliasTarget (resolveAlias 49118): Resolving = the
-    /// resolvingSymbol sentinel — NOT write-once (the re-entrant
-    /// Circular_definition_of_import_alias_0 write and the
-    /// sentinel-on-entry unknownSymbol collapse both rewrite it; M4
-    /// 5.8d, the resolvedSignature protocol twin).
-    pub alias_target: LinkSlot<SymbolId>,
-    /// tsc links.typeOnlyDeclaration (markSymbolOfAliasDeclarationIf
-    /// TypeOnly 49182): TRI-STATE — None = unset, Some(None) = the
-    /// explicit `false` (computed, not type-only), Some(Some(node)) =
-    /// the type-only declaration.
-    pub type_only_declaration: Option<Option<NodeId>>,
     /// tsc links.typeOnlyExportStarName (49189): the export-star name
     /// when it differs from the source symbol's own name.
     pub type_only_export_star_name: Option<EscapedName>,
     /// tsc links.typeOnlyExportStarMap (getExportsOfModule 49841):
     /// written WITH the module-flavor resolved_exports; names whose
     /// only path in is a type-only `export type *` declaration.
-    pub type_only_export_star_map: Option<std::collections::HashMap<EscapedName, NodeId>>,
+    pub type_only_export_star_map: Option<rustc_hash::FxHashMap<EscapedName, NodeId>>,
     /// tsc links.exportsChecked (checkExternalModuleExports 86445) —
     /// the per-module once-guard.
     pub exports_checked: bool,
@@ -344,9 +363,31 @@ pub struct SymbolLinks {
     pub immediate_target: Option<Option<SymbolId>>,
 }
 
+impl SymbolLinks {
+    /// The rarely populated fields, or their defaults when never written.
+    #[inline]
+    pub fn cold(&self) -> &SymbolLinksCold {
+        static DEFAULT: std::sync::OnceLock<SymbolLinksCold> = std::sync::OnceLock::new();
+        match &self.cold {
+            Some(cold) => cold,
+            None => DEFAULT.get_or_init(SymbolLinksCold::default),
+        }
+    }
+
+    /// The rarely populated fields for writing; allocated on first use.
+    #[inline]
+    pub fn cold_mut(&mut self) -> &mut SymbolLinksCold {
+        self.cold.get_or_insert_with(Box::default)
+    }
+}
+
 /// Resolved-members store — tsc keeps these directly on the type
 /// object (setStructuredTypeMembers); a side table keeps Type immutable
 /// after interning.
+///
+/// Split by write frequency: the fields below are the ones most records
+/// use; the rest live in [`TypeLinksCold`] behind one lazily allocated
+/// box, so a fresh record and the per-checker table stay small.
 #[derive(Clone, Debug, Default)]
 pub struct TypeLinks {
     pub resolved_members: LinkSlot<crate::state::MembersId>,
@@ -367,6 +408,86 @@ pub struct TypeLinks {
     /// tsc TypeParameter.constraint (getConstraintFromTypeParameter
     /// 60103) — Resolved(noConstraintType sentinel) = computed, none.
     pub type_parameter_constraint: LinkSlot<TypeId>,
+    /// tsc type.resolvedBaseConstraint (getResolvedBaseConstraint
+    /// 58916-58920).
+    pub resolved_base_constraint: LinkSlot<TypeId>,
+    /// tsc type.immediateBaseConstraint (getImmediateBaseConstraint
+    /// 58921-58951; the ImmediateBaseConstraint resolution property).
+    pub immediate_base_constraint: LinkSlot<TypeId>,
+    /// tsc type.target for ObjectFlags::INSTANTIATED anonymous types
+    /// (instantiateAnonymousType 63658).
+    pub instantiated_target: Option<TypeId>,
+    /// tsc type.mapper for ObjectFlags::INSTANTIATED anonymous types
+    /// (63659).
+    pub instantiated_mapper: Option<MapperId>,
+    /// tsc TypeParameter.target (cloneTypeParameter 63403 /
+    /// getRestrictiveTypeParameter 63400).
+    pub type_parameter_target: Option<TypeId>,
+    /// tsc TypeParameter.mapper (instantiateSignature 63418).
+    pub type_parameter_mapper: Option<MapperId>,
+    /// tsc TypeParameter.default (getResolvedTypeParameterDefault
+    /// 59043) — Resolved(noConstraintType) = computed, none;
+    /// Resolved(circularConstraintType) = the cycle sentinel. The
+    /// resolvingDefaultType in-flight sentinel is the checker's
+    /// in-progress set, so Err unwinds stay re-queryable.
+    pub type_parameter_default: LinkSlot<TypeId>,
+    /// tsc TypeReference.node for DEFERRED references
+    /// (createDeferredTypeReference 60196): the TypeReference/ArrayType/
+    /// TupleType node the lazy getTypeArguments reads. `Some` IS the
+    /// deferred-ness test (isNonDeferredTypeReference 67388 checks
+    /// !type.node) — it stays `Some` after the arguments resolve.
+    pub deferred_node: Option<NodeId>,
+    /// tsc TypeReference.mapper (60197): applied to the node-read
+    /// arguments in getTypeArguments (60211); set by
+    /// getObjectTypeInstantiation's deferred-reference result arm.
+    pub deferred_mapper: Option<MapperId>,
+    /// tsc InterfaceTypeWithDeclaredMembers.declaredProperties/
+    /// declaredCallSignatures/declaredConstructSignatures/
+    /// declaredIndexInfos (resolveDeclaredMembers 57602) — one
+    /// ResolvedMembers holding the OWN members, distinct from
+    /// resolved_members (which merges heritage).
+    pub declared_members: LinkSlot<crate::state::MembersId>,
+    /// tsc InterfaceType.resolvedBaseTypes (getBaseTypes 57218).
+    /// MUTABLE like tsc's field: interfaces initialize to [] and push
+    /// per base; a mid-cycle reader observes the partial list.
+    pub resolved_base_types: Option<Vec<TypeId>>,
+    /// tsc InterfaceType.baseTypesResolved (57224/57244) — set true
+    /// even when the resolution stack flags a cycle, freezing whatever
+    /// resolvedBaseTypes holds.
+    pub base_types_resolved: bool,
+    /// tsc InterfaceType.resolvedBaseConstructorType
+    /// (getBaseConstructorTypeOfClass 57146) — the checked extends
+    /// expression type; the ResolvedBaseConstructorType resolution
+    /// property.
+    pub resolved_base_constructor_type: LinkSlot<TypeId>,
+    /// tsc PromiseOrAwaitedType.promisedTypeOfPromise
+    /// (getPromisedTypeOfPromise 82316) — the memoized `then`
+    /// onfulfilled parameter type.
+    pub promised_type_of_promise: Option<TypeId>,
+    /// tsc PromiseOrAwaitedType.awaitedTypeOfType
+    /// (getAwaitedTypeNoAlias 82435) — the memoized awaited unwrap.
+    pub awaited_type_of_type: Option<TypeId>,
+    /// tsc type.widened (getWidenedTypeWithContext 68022/68049) —
+    /// the context-free widening memo; context-carrying calls bypass
+    /// it in both directions.
+    pub widened: Option<TypeId>,
+    /// tsc type[iterationTypesCacheKey] (get/setCachedIterationTypes
+    /// 84056-84061): the five §4 verdict slots. `Some(No)` is the
+    /// cached noIterationTypes poison — distinguishable from "never
+    /// computed" (None), per the m4-58 §4 sentinel rule.
+    pub iteration_types_of_iterable: Option<crate::iterate::IterationTypesResult>,
+    pub iteration_types_of_async_iterable: Option<crate::iterate::IterationTypesResult>,
+    pub iteration_types_of_iterator: Option<crate::iterate::IterationTypesResult>,
+    pub iteration_types_of_async_iterator: Option<crate::iterate::IterationTypesResult>,
+    pub iteration_types_of_iterator_result: Option<crate::iterate::IterationTypesResult>,
+    /// Rarely populated links (see [`TypeLinksCold`]); `None` reads as
+    /// the default record.
+    pub cold: Option<Box<TypeLinksCold>>,
+}
+
+/// The rarely populated half of [`TypeLinks`].
+#[derive(Clone, Debug, Default)]
+pub struct TypeLinksCold {
     /// tsc MappedType.typeParameter (getTypeParameterFromMappedType
     /// 58601): declaration-derived and computed once.
     pub mapped_type_parameter: LinkSlot<TypeId>,
@@ -395,12 +516,6 @@ pub struct TypeLinks {
     pub conditional_inferred_true_type: LinkSlot<TypeId>,
     pub conditional_default_constraint: LinkSlot<TypeId>,
     pub conditional_constraint_of_distributive: LinkSlot<Option<TypeId>>,
-    /// tsc type.resolvedBaseConstraint (getResolvedBaseConstraint
-    /// 58916-58920).
-    pub resolved_base_constraint: LinkSlot<TypeId>,
-    /// tsc type.immediateBaseConstraint (getImmediateBaseConstraint
-    /// 58921-58951; the ImmediateBaseConstraint resolution property).
-    pub immediate_base_constraint: LinkSlot<TypeId>,
     /// tsc synthType.syntheticType (getTypeWithSyntheticDefaultImportType
     /// 77789-77821) — the esModuleInterop default-wrap memo stamped on
     /// the module type itself.
@@ -409,23 +524,6 @@ pub struct TypeLinks {
     /// (getTypeWithSyntheticDefaultOnly 77779-77787): the JSON ESM
     /// default-only wrapper memo.
     pub default_only_type: Option<TypeId>,
-    /// tsc type.target for ObjectFlags::INSTANTIATED anonymous types
-    /// (instantiateAnonymousType 63658).
-    pub instantiated_target: Option<TypeId>,
-    /// tsc type.mapper for ObjectFlags::INSTANTIATED anonymous types
-    /// (63659).
-    pub instantiated_mapper: Option<MapperId>,
-    /// tsc TypeParameter.target (cloneTypeParameter 63403 /
-    /// getRestrictiveTypeParameter 63400).
-    pub type_parameter_target: Option<TypeId>,
-    /// tsc TypeParameter.mapper (instantiateSignature 63418).
-    pub type_parameter_mapper: Option<MapperId>,
-    /// tsc TypeParameter.default (getResolvedTypeParameterDefault
-    /// 59043) — Resolved(noConstraintType) = computed, none;
-    /// Resolved(circularConstraintType) = the cycle sentinel. The
-    /// resolvingDefaultType in-flight sentinel is the checker's
-    /// in-progress set, so Err unwinds stay re-queryable.
-    pub type_parameter_default: LinkSlot<TypeId>,
     /// tsc type.resolvedIndexType / resolvedStringIndexType
     /// (getIndexTypeForGenericType 61932).
     pub resolved_index_type: LinkSlot<TypeId>,
@@ -446,39 +544,10 @@ pub struct TypeLinks {
     /// tsc type.restrictiveInstantiation (getRestrictiveInstantiation
     /// 63818; the result self-stamp makes the second write idempotent).
     pub restrictive_instantiation: LinkSlot<TypeId>,
-    /// tsc TypeReference.node for DEFERRED references
-    /// (createDeferredTypeReference 60196): the TypeReference/ArrayType/
-    /// TupleType node the lazy getTypeArguments reads. `Some` IS the
-    /// deferred-ness test (isNonDeferredTypeReference 67388 checks
-    /// !type.node) — it stays `Some` after the arguments resolve.
-    pub deferred_node: Option<NodeId>,
-    /// tsc TypeReference.mapper (60197): applied to the node-read
-    /// arguments in getTypeArguments (60211); set by
-    /// getObjectTypeInstantiation's deferred-reference result arm.
-    pub deferred_mapper: Option<MapperId>,
-    /// tsc InterfaceTypeWithDeclaredMembers.declaredProperties/
-    /// declaredCallSignatures/declaredConstructSignatures/
-    /// declaredIndexInfos (resolveDeclaredMembers 57602) — one
-    /// ResolvedMembers holding the OWN members, distinct from
-    /// resolved_members (which merges heritage).
-    pub declared_members: LinkSlot<crate::state::MembersId>,
-    /// tsc InterfaceType.resolvedBaseTypes (getBaseTypes 57218).
-    /// MUTABLE like tsc's field: interfaces initialize to [] and push
-    /// per base; a mid-cycle reader observes the partial list.
-    pub resolved_base_types: Option<Vec<TypeId>>,
-    /// tsc InterfaceType.baseTypesResolved (57224/57244) — set true
-    /// even when the resolution stack flags a cycle, freezing whatever
-    /// resolvedBaseTypes holds.
-    pub base_types_resolved: bool,
     /// tsc TypeReference.cachedEquivalentBaseType
     /// (getSingleBaseForNonAugmentingSubtype 67713), guarded by the
     /// IdenticalBaseTypeCalculated/Exists object flags.
     pub cached_equivalent_base_type: Option<TypeId>,
-    /// tsc InterfaceType.resolvedBaseConstructorType
-    /// (getBaseConstructorTypeOfClass 57146) — the checked extends
-    /// expression type; the ResolvedBaseConstructorType resolution
-    /// property.
-    pub resolved_base_constructor_type: LinkSlot<TypeId>,
     /// tsc Type.pattern (getTypeFromObjectBindingPattern 56522 /
     /// getTypeFromArrayBindingPattern 56541): the destructuring pattern
     /// the type was inferred FROM, under includePatternInType only —
@@ -489,33 +558,31 @@ pub struct TypeLinks {
     /// tsc TypeReference.literalType (createArrayLiteralType 74039):
     /// the once-per-reference ArrayLiteral-flagged clone.
     pub literal_type: Option<TypeId>,
-    /// tsc PromiseOrAwaitedType.promisedTypeOfPromise
-    /// (getPromisedTypeOfPromise 82316) — the memoized `then`
-    /// onfulfilled parameter type.
-    pub promised_type_of_promise: Option<TypeId>,
-    /// tsc PromiseOrAwaitedType.awaitedTypeOfType
-    /// (getAwaitedTypeNoAlias 82435) — the memoized awaited unwrap.
-    pub awaited_type_of_type: Option<TypeId>,
-    /// tsc type.widened (getWidenedTypeWithContext 68022/68049) —
-    /// the context-free widening memo; context-carrying calls bypass
-    /// it in both directions.
-    pub widened: Option<TypeId>,
-    /// tsc type[iterationTypesCacheKey] (get/setCachedIterationTypes
-    /// 84056-84061): the five §4 verdict slots. `Some(No)` is the
-    /// cached noIterationTypes poison — distinguishable from "never
-    /// computed" (None), per the m4-58 §4 sentinel rule.
-    pub iteration_types_of_iterable: Option<crate::iterate::IterationTypesResult>,
-    pub iteration_types_of_async_iterable: Option<crate::iterate::IterationTypesResult>,
-    pub iteration_types_of_iterator: Option<crate::iterate::IterationTypesResult>,
-    pub iteration_types_of_async_iterator: Option<crate::iterate::IterationTypesResult>,
-    pub iteration_types_of_iterator_result: Option<crate::iterate::IterationTypesResult>,
+}
+
+impl TypeLinks {
+    /// The rarely populated fields, or their defaults when never written.
+    #[inline]
+    pub fn cold(&self) -> &TypeLinksCold {
+        static DEFAULT: std::sync::OnceLock<TypeLinksCold> = std::sync::OnceLock::new();
+        match &self.cold {
+            Some(cold) => cold,
+            None => DEFAULT.get_or_init(TypeLinksCold::default),
+        }
+    }
+
+    /// The rarely populated fields for writing; allocated on first use.
+    #[inline]
+    pub fn cold_mut(&mut self) -> &mut TypeLinksCold {
+        self.cold.get_or_insert_with(Box::default)
+    }
 }
 
 /// The getKeyPropertyName cache payload.
 #[derive(Clone, Debug, Default)]
 pub struct UnionKeyProperty {
     pub name: Option<tsc_types::EscapedName>,
-    pub constituent_map: Option<std::collections::HashMap<TypeId, TypeId>>,
+    pub constituent_map: Option<rustc_hash::FxHashMap<TypeId, TypeId>>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -585,14 +652,177 @@ pub(crate) struct SpeculativeLinksMarks {
     non_existent_props: usize,
 }
 
+impl LinksTables {
+    /// Pre-size the three ID-keyed tables from the Program's node and
+    /// persistent-symbol counts, bounded so that no input can make the
+    /// eager reservation exceed a fixed number of slots per table.
+    ///
+    /// The ratios come from the measured fill on the benchmark inputs
+    /// (scale256: node links ≈ 1/9 of nodes, symbol links ≈ 71% of symbols,
+    /// type links ≈ 20% of symbols) and are deliberately below the observed
+    /// fill so a hint never allocates a larger table than lazy growth would
+    /// have reached there; the caps bound the cost for inputs with many
+    /// bound but rarely linked symbols (for example a large unused
+    /// declaration file under `skipLibCheck`). Hints only reduce rehash
+    /// work and never change lookup results.
+    pub(crate) fn with_capacity_hint(_nodes: usize, _symbols: usize) -> Self {
+        // The paged tables allocate index pages and record chunks on first
+        // use, so the program's node/symbol counts need no up-front reserve.
+        Self::default()
+    }
+}
+
+/// A compiler-assigned dense identity usable as a paged-table key.
+pub(crate) trait DenseKey: Copy {
+    fn dense_index(self) -> usize;
+}
+
+impl DenseKey for NodeId {
+    #[inline]
+    fn dense_index(self) -> usize {
+        self.0 as usize
+    }
+}
+
+impl DenseKey for SymbolId {
+    /// Persistent (binder) ids and checker-transient ids (those carrying
+    /// `TRANSIENT_SYMBOL_BIT`) are each dense from zero; interleaving them
+    /// keeps both in the dense page range instead of letting the transient
+    /// bit address page 2^21.
+    #[inline]
+    fn dense_index(self) -> usize {
+        let raw = self.0;
+        if raw & tsc_types::TRANSIENT_SYMBOL_BIT != 0 {
+            ((raw & !tsc_types::TRANSIENT_SYMBOL_BIT) as usize) * 2 + 1
+        } else {
+            (raw as usize) * 2
+        }
+    }
+}
+
+impl DenseKey for TypeId {
+    #[inline]
+    fn dense_index(self) -> usize {
+        self.0 as usize
+    }
+}
+
+const PAGE_SHIFT: usize = 10;
+const PAGE_IDS: usize = 1 << PAGE_SHIFT;
+const CHUNK_SHIFT: usize = 8;
+const CHUNK_RECORDS: usize = 1 << CHUNK_SHIFT;
+/// Pages below this index live in the direct vector; the rare id far beyond
+/// the program's dense domain (a sentinel, or an enormous program) takes the
+/// hashed far-page path instead of growing the vector to reach it.
+const DENSE_PAGES: usize = 1 << 12;
+
+/// Side table keyed by a dense compiler-assigned id.
+///
+/// tsrs-native: tsc hangs a links object directly off each node/symbol/type;
+/// Rust keeps the arenas immutable and stores the links here. A lookup is two
+/// indexed loads (an index page, then the record slab) with no hashing; index
+/// pages are allocated on first use per id range, and records live in
+/// fixed-size chunks that never move once written, so a growing table neither
+/// rehashes nor copies the large records. There is no removal: links are
+/// monotone per checker, exactly like tsc's per-object fields.
+#[derive(Debug)]
+pub(crate) struct PagedTable<K, T> {
+    /// id → record slot + 1 (0 = absent), per page of `PAGE_IDS` ids.
+    index: Vec<Option<Box<[u32; PAGE_IDS]>>>,
+    /// Pages at or beyond `DENSE_PAGES`.
+    far: FxHashMap<usize, Box<[u32; PAGE_IDS]>>,
+    chunks: Vec<Vec<T>>,
+    len: usize,
+    key: std::marker::PhantomData<K>,
+}
+
+impl<K, T> Default for PagedTable<K, T> {
+    fn default() -> Self {
+        Self {
+            index: Vec::new(),
+            far: FxHashMap::default(),
+            chunks: Vec::new(),
+            len: 0,
+            key: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<K: DenseKey, T: Default> PagedTable<K, T> {
+    #[inline]
+    fn page(&self, page_index: usize) -> Option<&[u32; PAGE_IDS]> {
+        if page_index < DENSE_PAGES {
+            self.index.get(page_index)?.as_deref()
+        } else {
+            self.far.get(&page_index).map(|page| &**page)
+        }
+    }
+
+    #[inline]
+    fn page_mut(&mut self, page_index: usize) -> &mut [u32; PAGE_IDS] {
+        if page_index < DENSE_PAGES {
+            if page_index >= self.index.len() {
+                self.index.resize_with(page_index + 1, || None);
+            }
+            self.index[page_index].get_or_insert_with(|| Box::new([0; PAGE_IDS]))
+        } else {
+            self.far
+                .entry(page_index)
+                .or_insert_with(|| Box::new([0; PAGE_IDS]))
+        }
+    }
+
+    #[inline]
+    pub(crate) fn get(&self, key: K) -> Option<&T> {
+        let id = key.dense_index();
+        let page = self.page(id >> PAGE_SHIFT)?;
+        let slot = page[id & (PAGE_IDS - 1)];
+        if slot == 0 {
+            return None;
+        }
+        let slot = (slot - 1) as usize;
+        Some(&self.chunks[slot >> CHUNK_SHIFT][slot & (CHUNK_RECORDS - 1)])
+    }
+
+    /// The record for `key`, created as `T::default()` on first use (the
+    /// `entry(key).or_default()` protocol of the previous map).
+    #[inline]
+    pub(crate) fn slot(&mut self, key: K) -> &mut T {
+        let id = key.dense_index();
+        let page_index = id >> PAGE_SHIFT;
+        let offset = id & (PAGE_IDS - 1);
+        let mut entry = self.page_mut(page_index)[offset];
+        if entry == 0 {
+            let slot = self.len;
+            if slot & (CHUNK_RECORDS - 1) == 0 {
+                self.chunks.push(Vec::with_capacity(CHUNK_RECORDS));
+            }
+            self.chunks[slot >> CHUNK_SHIFT].push(T::default());
+            self.len += 1;
+            entry = u32::try_from(slot + 1).expect("links record count fits u32");
+            self.page_mut(page_index)[offset] = entry;
+        }
+        let slot = (entry - 1) as usize;
+        &mut self.chunks[slot >> CHUNK_SHIFT][slot & (CHUNK_RECORDS - 1)]
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct LinksTables {
-    // These lookup-only tables use compiler-assigned IDs. Their iteration
-    // order is not observable, and hashing does not need string-key HashDoS
-    // resistance. Keep the other cache and public field types unchanged.
-    node: FxHashMap<NodeId, NodeLinks>,
-    symbol: FxHashMap<SymbolId, SymbolLinks>,
-    ty: FxHashMap<TypeId, TypeLinks>,
+    // Dense paged tables over compiler-assigned IDs (see PagedTable): no
+    // hashing, no rehash, records never move. Their iteration order is not
+    // observable. Keep the other cache and public field types unchanged.
+    node: PagedTable<NodeId, NodeLinks>,
+    symbol: PagedTable<SymbolId, SymbolLinks>,
+    ty: PagedTable<TypeId, TypeLinks>,
+    // Immutable default records answered by the borrowed `read_*` accessors
+    // on a miss (tsc's "links object with no fields yet"). Built once with
+    // the table so a miss never constructs and drops a full record; they are
+    // never mutated (writes go through the maps' entries), so every reader
+    // observes exactly `Default::default()`.
+    absent_node: NodeLinks,
+    absent_symbol: SymbolLinks,
+    absent_ty: TypeLinks,
     /// Trial-local resolvedSignature protocol writes. Nested call
     /// resolution needs its Resolving sentinel and failure stash while
     /// a candidate is checked. Both rejection and selection restore the
@@ -741,46 +971,63 @@ impl LinksTables {
     /// again; public snapshot getters retain their owned-copy semantics.
     #[inline]
     pub(crate) fn read_node<R>(&self, id: NodeId, read: impl FnOnce(&NodeLinks) -> R) -> R {
-        match self.node.get(&id) {
+        perf::bump(PerfCounter::LinksNodeReads);
+        match self.node.get(id) {
             Some(links) => read(links),
-            None => read(&NodeLinks::default()),
+            None => {
+                perf::bump(PerfCounter::LinksNodeReadAbsent);
+                read(&self.absent_node)
+            }
         }
+    }
+
+    /// Number of symbol records this table holds (trace evidence).
+    pub(crate) fn symbol_len(&self) -> usize {
+        self.symbol.len
     }
 
     /// tsrs-native: owned projection of an immutable symbol-links field.
     #[inline]
     pub(crate) fn read_symbol<R>(&self, id: SymbolId, read: impl FnOnce(&SymbolLinks) -> R) -> R {
-        match self.symbol.get(&id) {
+        perf::bump(PerfCounter::LinksSymbolReads);
+        match self.symbol.get(id) {
             Some(links) => read(links),
-            None => read(&SymbolLinks::default()),
+            None => {
+                perf::bump(PerfCounter::LinksSymbolReadAbsent);
+                read(&self.absent_symbol)
+            }
         }
     }
 
     /// tsrs-native: owned projection of an immutable type-links field.
     #[inline]
     pub(crate) fn read_ty<R>(&self, id: TypeId, read: impl FnOnce(&TypeLinks) -> R) -> R {
-        match self.ty.get(&id) {
+        perf::bump(PerfCounter::LinksTypeReads);
+        match self.ty.get(id) {
             Some(links) => read(links),
-            None => read(&TypeLinks::default()),
+            None => {
+                perf::bump(PerfCounter::LinksTypeReadAbsent);
+                read(&self.absent_ty)
+            }
         }
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn node(&self, id: NodeId) -> NodeLinks {
-        self.node.get(&id).cloned().unwrap_or_default()
+        self.node.get(id).cloned().unwrap_or_default()
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn symbol(&self, id: SymbolId) -> SymbolLinks {
-        self.symbol.get(&id).cloned().unwrap_or_default()
+        self.symbol.get(id).cloned().unwrap_or_default()
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn ty(&self, id: TypeId) -> TypeLinks {
-        self.ty.get(&id).cloned().unwrap_or_default()
+        self.ty.get(id).cloned().unwrap_or_default()
     }
 
     /// tsrs-native: read the immutable-root conditional instantiation cache.
@@ -876,6 +1123,18 @@ impl LinksTables {
     fn write_slot<T: Clone + std::fmt::Debug>(slot: &mut LinkSlot<T>, next: LinkSlot<T>) {
         match (&*slot, &next) {
             (LinkSlot::Vacant, _) | (LinkSlot::Resolving, LinkSlot::Resolved(_)) => {
+                match (&*slot, &next) {
+                    (LinkSlot::Vacant, LinkSlot::Resolving) => {
+                        perf::bump(PerfCounter::LinksSlotResolvingStarted)
+                    }
+                    (LinkSlot::Resolving, LinkSlot::Resolved(_)) => {
+                        perf::bump(PerfCounter::LinksSlotResolvedFromResolving)
+                    }
+                    (LinkSlot::Vacant, LinkSlot::Resolved(_)) => {
+                        perf::bump(PerfCounter::LinksSlotResolvedDirect)
+                    }
+                    _ => {}
+                }
                 note_resolving_transition(slot.is_resolving(), next.is_resolving());
                 *slot = next;
             }
@@ -897,7 +1156,7 @@ impl LinksTables {
         }
         let (resolved_type, resolved_symbol, resolved_jsdoc_type) = self
             .node
-            .get(&id)
+            .get(id)
             .map(|links| {
                 (
                     links.resolved_type.clone(),
@@ -934,13 +1193,17 @@ impl LinksTables {
         {
             return;
         }
-        let links = self.ty.get(&id).cloned().unwrap_or_default();
+        let links = self.ty.get(id).cloned().unwrap_or_default();
         let previous = match kind {
             SpeculativeTypeInstantiationKind::UniqueLiteralFilled => {
-                links.unique_literal_filled_instantiation
+                links.cold().unique_literal_filled_instantiation.clone()
             }
-            SpeculativeTypeInstantiationKind::Permissive => links.permissive_instantiation,
-            SpeculativeTypeInstantiationKind::Restrictive => links.restrictive_instantiation,
+            SpeculativeTypeInstantiationKind::Permissive => {
+                links.cold().permissive_instantiation.clone()
+            }
+            SpeculativeTypeInstantiationKind::Restrictive => {
+                links.cold().restrictive_instantiation.clone()
+            }
             SpeculativeTypeInstantiationKind::BaseConstructor => {
                 links.resolved_base_constructor_type
             }
@@ -963,13 +1226,16 @@ impl LinksTables {
         }
         let snapshot = self
             .ty
-            .get(&id)
+            .get(id)
             .map(|links| SpeculativeConditionalCacheSnapshot {
-                true_type: links.conditional_true_type.clone(),
-                false_type: links.conditional_false_type.clone(),
-                inferred_true_type: links.conditional_inferred_true_type.clone(),
-                default_constraint: links.conditional_default_constraint.clone(),
-                constraint_of_distributive: links.conditional_constraint_of_distributive.clone(),
+                true_type: links.cold().conditional_true_type.clone(),
+                false_type: links.cold().conditional_false_type.clone(),
+                inferred_true_type: links.cold().conditional_inferred_true_type.clone(),
+                default_constraint: links.cold().conditional_default_constraint.clone(),
+                constraint_of_distributive: links
+                    .cold()
+                    .conditional_constraint_of_distributive
+                    .clone(),
             })
             .unwrap_or_default();
         self.speculative_conditional_cache_writes
@@ -998,7 +1264,7 @@ impl LinksTables {
         }
         let previous = self
             .symbol
-            .get(&id)
+            .get(id)
             .map(|links| links.type_of_symbol.clone())
             .unwrap_or_default();
         self.speculative_symbol_type_writes
@@ -1024,7 +1290,7 @@ impl LinksTables {
         }
         let previous = self
             .symbol
-            .get(&id)
+            .get(id)
             .map(|links| links.write_type.clone())
             .unwrap_or_default();
         self.speculative_symbol_write_type_writes
@@ -1045,7 +1311,7 @@ impl LinksTables {
         }
         let previous = self
             .symbol
-            .get(&id)
+            .get(id)
             .map(|links| links.alias_target.clone())
             .unwrap_or_default();
         self.speculative_alias_target_writes
@@ -1066,11 +1332,11 @@ impl LinksTables {
         }
         let (declaration, export_star_name) = self
             .symbol
-            .get(&id)
+            .get(id)
             .map(|links| {
                 (
                     links.type_only_declaration,
-                    links.type_only_export_star_name.clone(),
+                    links.cold().type_only_export_star_name.clone(),
                 )
             })
             .unwrap_or_default();
@@ -1091,7 +1357,7 @@ impl LinksTables {
         value: LinkSlot<TypeId>,
     ) {
         self.journal_node_resolution(speculation_depth, id);
-        Self::write_slot(&mut self.node.entry(id).or_default().resolved_type, value);
+        Self::write_slot(&mut self.node.slot(id).resolved_type, value);
     }
 
     /// getTypeFromTypeReference's tail assignments (60587-60588) are
@@ -1113,7 +1379,7 @@ impl LinksTables {
         value: TypeId,
     ) {
         self.journal_node_resolution(speculation_depth, id);
-        let links = self.node.entry(id).or_default();
+        let links = self.node.slot(id);
         note_resolving_transition(links.resolved_symbol.is_resolving(), false);
         note_resolving_transition(links.resolved_type.is_resolving(), false);
         links.resolved_symbol = symbol.map_or(LinkSlot::Vacant, LinkSlot::Resolved);
@@ -1133,7 +1399,7 @@ impl LinksTables {
         value: TypeId,
     ) {
         self.journal_node_resolution(speculation_depth, id);
-        let links = self.node.entry(id).or_default();
+        let links = self.node.slot(id);
         note_resolving_transition(links.resolved_jsdoc_type.is_resolving(), false);
         links.resolved_jsdoc_type = LinkSlot::Resolved(value);
     }
@@ -1156,7 +1422,7 @@ impl LinksTables {
         value: SymbolId,
     ) {
         self.journal_node_resolution(speculation_depth, id);
-        let links = self.node.entry(id).or_default();
+        let links = self.node.slot(id);
         note_resolving_transition(links.resolved_symbol.is_resolving(), false);
         links.resolved_symbol = LinkSlot::Resolved(value);
     }
@@ -1173,7 +1439,7 @@ impl LinksTables {
         value: TypeId,
     ) {
         self.journal_node_resolution(speculation_depth, id);
-        let links = self.node.entry(id).or_default();
+        let links = self.node.slot(id);
         note_resolving_transition(links.resolved_type.is_resolving(), false);
         links.resolved_type = LinkSlot::Resolved(value);
     }
@@ -1201,7 +1467,7 @@ impl LinksTables {
             id,
             SpeculativeSymbolTypeDisposition::Temporary,
         );
-        let links = self.symbol.entry(id).or_default();
+        let links = self.symbol.slot(id);
         note_resolving_transition(links.type_of_symbol.is_resolving(), false);
         links.type_of_symbol = LinkSlot::Resolved(value);
     }
@@ -1221,10 +1487,7 @@ impl LinksTables {
             return;
         }
         Self::assert_writable(speculation_depth);
-        Self::write_slot(
-            &mut self.node.entry(id).or_default().context_free_type,
-            value,
-        );
+        Self::write_slot(&mut self.node.slot(id).context_free_type, value);
     }
 
     /// tsrs-native: the links-slot setter behind
@@ -1246,10 +1509,7 @@ impl LinksTables {
             return;
         }
         Self::assert_writable(speculation_depth);
-        self.node
-            .entry(id)
-            .or_default()
-            .parameter_initializer_contains_undefined = Some(value);
+        self.node.slot(id).parameter_initializer_contains_undefined = Some(value);
     }
 
     /// `links.spreadIndices ??= getSpreadIndices(...)` (73520) — a
@@ -1267,7 +1527,7 @@ impl LinksTables {
             return;
         }
         Self::assert_writable(speculation_depth);
-        let links = self.node.entry(id).or_default();
+        let links = self.node.slot(id);
         if links.spread_indices.is_none() {
             links.spread_indices = Some(value);
         }
@@ -1284,7 +1544,7 @@ impl LinksTables {
         value: tsc_types::JsxFlags,
     ) {
         Self::assert_writable(speculation_depth);
-        self.node.entry(id).or_default().jsx_flags |= value;
+        self.node.slot(id).jsx_flags |= value;
     }
 
     /// `links.resolvedJsxElementAttributesType = …` (74731) —
@@ -1298,11 +1558,7 @@ impl LinksTables {
         value: TypeId,
     ) {
         Self::assert_writable(speculation_depth);
-        let slot = &mut self
-            .node
-            .entry(id)
-            .or_default()
-            .resolved_jsx_element_attributes_type;
+        let slot = &mut self.node.slot(id).resolved_jsx_element_attributes_type;
         match slot {
             None => *slot = Some(value),
             Some(existing) if *existing == value => {}
@@ -1321,7 +1577,7 @@ impl LinksTables {
         value: TypeId,
     ) {
         Self::assert_writable(speculation_depth);
-        let slot = &mut self.node.entry(id).or_default().jsx_fragment_type;
+        let slot = &mut self.node.slot(id).jsx_fragment_type;
         match slot {
             None => *slot = Some(value),
             Some(existing) if *existing == value => {}
@@ -1345,7 +1601,7 @@ impl LinksTables {
         {
             let previous = self
                 .node
-                .get(&id)
+                .get(id)
                 .map(|links| links.resolved_signature.clone())
                 .unwrap_or_default();
             self.speculative_declaration_signature_writes
@@ -1353,10 +1609,7 @@ impl LinksTables {
         } else if speculation_depth == 0 {
             Self::assert_writable(speculation_depth);
         }
-        Self::write_slot(
-            &mut self.node.entry(id).or_default().resolved_signature,
-            value,
-        );
+        Self::write_slot(&mut self.node.slot(id).resolved_signature, value);
     }
 
     /// getResolvedSignature's cache protocol (77491-77508) on CALL-LIKE
@@ -1391,7 +1644,7 @@ impl LinksTables {
         {
             let previous = self
                 .node
-                .get(&id)
+                .get(id)
                 .map(|links| links.resolved_signature.clone())
                 .unwrap_or_default();
             self.speculative_resolved_signature_writes
@@ -1399,7 +1652,7 @@ impl LinksTables {
         } else if speculation_depth == 0 {
             Self::assert_writable(speculation_depth);
         }
-        let slot = &mut self.node.entry(id).or_default().resolved_signature;
+        let slot = &mut self.node.slot(id).resolved_signature;
         match (&*slot, &value) {
             (LinkSlot::Vacant, LinkSlot::Resolving)
             | (LinkSlot::Resolving, LinkSlot::Resolving)
@@ -1430,7 +1683,7 @@ impl LinksTables {
         // publication; its caller restores the returned slot even when
         // the checked argument returns Err.
         let _ = speculation_depth;
-        let slot = &mut self.node.entry(id).or_default().resolved_signature;
+        let slot = &mut self.node.slot(id).resolved_signature;
         note_resolving_transition(slot.is_resolving(), value.is_resolving());
         std::mem::replace(slot, value)
     }
@@ -1444,7 +1697,7 @@ impl LinksTables {
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn revert_node_resolved_signature_call(&mut self, id: NodeId) {
-        let slot = &mut self.node.entry(id).or_default().resolved_signature;
+        let slot = &mut self.node.slot(id).resolved_signature;
         if matches!(slot, LinkSlot::Resolving) {
             note_resolving_transition(true, false);
             *slot = LinkSlot::Vacant;
@@ -1462,7 +1715,7 @@ impl LinksTables {
     /// over the outer frame's sentinel and the outer frame's
     /// Resolving-gated Err revert can no longer see it (the F7 leak).
     pub fn restore_node_resolved_signature_call_resolving(&mut self, id: NodeId) {
-        let slot = &mut self.node.entry(id).or_default().resolved_signature;
+        let slot = &mut self.node.slot(id).resolved_signature;
         if !matches!(slot, LinkSlot::Resolving) {
             note_resolving_transition(slot.is_resolving(), true);
             *slot = LinkSlot::Resolving;
@@ -1481,7 +1734,7 @@ impl LinksTables {
     /// poisoning the later statement-path check into skipping
     /// argument checking).
     pub fn clear_node_resolved_signature_call(&mut self, id: NodeId) {
-        let slot = &mut self.node.entry(id).or_default().resolved_signature;
+        let slot = &mut self.node.slot(id).resolved_signature;
         if !matches!(slot, LinkSlot::Vacant) {
             note_resolving_transition(slot.is_resolving(), false);
             *slot = LinkSlot::Vacant;
@@ -1696,7 +1949,7 @@ impl LinksTables {
                 .speculative_resolved_signature_writes
                 .pop()
                 .expect("length checked");
-            let slot = &mut self.node.entry(node).or_default().resolved_signature;
+            let slot = &mut self.node.slot(node).resolved_signature;
             note_resolving_transition(slot.is_resolving(), previous.is_resolving());
             *slot = previous;
         }
@@ -1728,7 +1981,7 @@ impl LinksTables {
                 .speculative_declaration_signature_writes
                 .pop()
                 .expect("length checked");
-            let slot = &mut self.node.entry(node).or_default().resolved_signature;
+            let slot = &mut self.node.slot(node).resolved_signature;
             note_resolving_transition(slot.is_resolving(), previous.is_resolving());
             *slot = previous;
         }
@@ -1741,7 +1994,7 @@ impl LinksTables {
                 .speculative_resolved_type_writes
                 .pop()
                 .expect("length checked");
-            let links = self.node.entry(node).or_default();
+            let links = self.node.slot(node);
             note_resolving_transition(
                 links.resolved_type.is_resolving(),
                 previous_type.is_resolving(),
@@ -1768,7 +2021,7 @@ impl LinksTables {
                 .speculative_decorator_signature_writes
                 .pop()
                 .expect("length checked");
-            self.node.entry(node).or_default().decorator_signature = previous;
+            self.node.slot(node).decorator_signature = previous;
         }
     }
 
@@ -1780,7 +2033,7 @@ impl LinksTables {
                 .speculative_enum_values_computed_writes
                 .pop()
                 .expect("length checked");
-            self.node.entry(node).or_default().enum_values_computed = previous;
+            self.node.slot(node).enum_values_computed = previous;
         }
     }
 
@@ -1815,7 +2068,7 @@ impl LinksTables {
                 .speculative_context_checked_writes
                 .pop()
                 .expect("length checked");
-            self.node.entry(node).or_default().check_flags = previous;
+            self.node.slot(node).check_flags = previous;
         }
     }
 
@@ -1827,7 +2080,7 @@ impl LinksTables {
                 .speculative_symbol_declared_type_writes
                 .pop()
                 .expect("length checked");
-            let slot = &mut self.symbol.entry(symbol).or_default().declared_type;
+            let slot = &mut self.symbol.slot(symbol).declared_type;
             note_resolving_transition(slot.is_resolving(), previous.is_resolving());
             *slot = previous;
         }
@@ -1842,7 +2095,7 @@ impl LinksTables {
         for write in committed {
             match write.disposition {
                 SpeculativeSymbolTypeDisposition::Temporary => {
-                    let slot = &mut self.symbol.entry(write.symbol).or_default().type_of_symbol;
+                    let slot = &mut self.symbol.slot(write.symbol).type_of_symbol;
                     note_resolving_transition(slot.is_resolving(), write.previous.is_resolving());
                     *slot = write.previous;
                 }
@@ -1876,7 +2129,8 @@ impl LinksTables {
                 .speculative_symbol_type_writes
                 .pop()
                 .expect("length checked");
-            let slot = &mut self.symbol.entry(write.symbol).or_default().type_of_symbol;
+            let slot = &mut self.symbol.slot(write.symbol).type_of_symbol;
+            perf::bump(PerfCounter::LinksSymbolTypeRollbacks);
             note_resolving_transition(slot.is_resolving(), write.previous.is_resolving());
             *slot = write.previous;
         }
@@ -1890,7 +2144,7 @@ impl LinksTables {
                 .speculative_symbol_write_type_writes
                 .pop()
                 .expect("length checked");
-            let slot = &mut self.symbol.entry(symbol).or_default().write_type;
+            let slot = &mut self.symbol.slot(symbol).write_type;
             note_resolving_transition(slot.is_resolving(), previous.is_resolving());
             *slot = previous;
         }
@@ -1904,7 +2158,7 @@ impl LinksTables {
                 .speculative_unique_es_symbol_type_writes
                 .pop()
                 .expect("length checked");
-            self.symbol.entry(symbol).or_default().unique_es_symbol_type = previous;
+            self.symbol.slot(symbol).cold_mut().unique_es_symbol_type = previous;
         }
     }
 
@@ -1916,7 +2170,7 @@ impl LinksTables {
                 .speculative_late_symbol_writes
                 .pop()
                 .expect("length checked");
-            self.symbol.entry(symbol).or_default().late_symbol = previous;
+            self.symbol.slot(symbol).late_symbol = previous;
         }
     }
 
@@ -1950,7 +2204,7 @@ impl LinksTables {
                 .speculative_symbol_variance_writes
                 .pop()
                 .expect("length checked");
-            let slot = &mut self.symbol.entry(symbol).or_default().variances;
+            let slot = &mut self.symbol.slot(symbol).cold_mut().variances;
             note_resolving_transition(slot.is_resolving(), previous.is_resolving());
             *slot = previous;
         }
@@ -1963,7 +2217,7 @@ impl LinksTables {
                 .speculative_alias_target_writes
                 .pop()
                 .expect("length checked");
-            let slot = &mut self.symbol.entry(symbol).or_default().alias_target;
+            let slot = &mut self.symbol.slot(symbol).alias_target;
             note_resolving_transition(slot.is_resolving(), previous.is_resolving());
             *slot = previous;
         }
@@ -1977,9 +2231,9 @@ impl LinksTables {
                 .speculative_type_only_alias_writes
                 .pop()
                 .expect("length checked");
-            let links = self.symbol.entry(symbol).or_default();
+            let links = self.symbol.slot(symbol);
             links.type_only_declaration = declaration;
-            links.type_only_export_star_name = export_star_name;
+            links.cold_mut().type_only_export_star_name = export_star_name;
         }
     }
 
@@ -2023,14 +2277,16 @@ impl LinksTables {
                 .speculative_type_instantiation_writes
                 .pop()
                 .expect("length checked");
-            let links = self.ty.entry(ty).or_default();
+            let links = self.ty.slot(ty);
             let slot = match kind {
                 SpeculativeTypeInstantiationKind::UniqueLiteralFilled => {
-                    &mut links.unique_literal_filled_instantiation
+                    &mut links.cold_mut().unique_literal_filled_instantiation
                 }
-                SpeculativeTypeInstantiationKind::Permissive => &mut links.permissive_instantiation,
+                SpeculativeTypeInstantiationKind::Permissive => {
+                    &mut links.cold_mut().permissive_instantiation
+                }
                 SpeculativeTypeInstantiationKind::Restrictive => {
-                    &mut links.restrictive_instantiation
+                    &mut links.cold_mut().restrictive_instantiation
                 }
                 SpeculativeTypeInstantiationKind::BaseConstructor => {
                     &mut links.resolved_base_constructor_type
@@ -2049,32 +2305,36 @@ impl LinksTables {
                 .speculative_conditional_cache_writes
                 .pop()
                 .expect("length checked");
-            let links = self.ty.entry(ty).or_default();
+            let links = self.ty.slot(ty);
             note_resolving_transition(
-                links.conditional_true_type.is_resolving(),
+                links.cold().conditional_true_type.is_resolving(),
                 previous.true_type.is_resolving(),
             );
             note_resolving_transition(
-                links.conditional_false_type.is_resolving(),
+                links.cold().conditional_false_type.is_resolving(),
                 previous.false_type.is_resolving(),
             );
             note_resolving_transition(
-                links.conditional_inferred_true_type.is_resolving(),
+                links.cold().conditional_inferred_true_type.is_resolving(),
                 previous.inferred_true_type.is_resolving(),
             );
             note_resolving_transition(
-                links.conditional_default_constraint.is_resolving(),
+                links.cold().conditional_default_constraint.is_resolving(),
                 previous.default_constraint.is_resolving(),
             );
             note_resolving_transition(
-                links.conditional_constraint_of_distributive.is_resolving(),
+                links
+                    .cold()
+                    .conditional_constraint_of_distributive
+                    .is_resolving(),
                 previous.constraint_of_distributive.is_resolving(),
             );
-            links.conditional_true_type = previous.true_type;
-            links.conditional_false_type = previous.false_type;
-            links.conditional_inferred_true_type = previous.inferred_true_type;
-            links.conditional_default_constraint = previous.default_constraint;
-            links.conditional_constraint_of_distributive = previous.constraint_of_distributive;
+            links.cold_mut().conditional_true_type = previous.true_type;
+            links.cold_mut().conditional_false_type = previous.false_type;
+            links.cold_mut().conditional_inferred_true_type = previous.inferred_true_type;
+            links.cold_mut().conditional_default_constraint = previous.default_constraint;
+            links.cold_mut().conditional_constraint_of_distributive =
+                previous.constraint_of_distributive;
         }
     }
 
@@ -2086,7 +2346,7 @@ impl LinksTables {
                 .speculative_type_member_writes
                 .pop()
                 .expect("length checked");
-            self.ty.entry(ty).or_default().resolved_members = previous;
+            self.ty.slot(ty).resolved_members = previous;
         }
     }
 
@@ -2098,11 +2358,11 @@ impl LinksTables {
                 .speculative_simplified_type_writes
                 .pop()
                 .expect("length checked");
-            let links = self.ty.entry(ty).or_default();
+            let links = self.ty.slot(ty);
             let slot = if writing {
-                &mut links.simplified_for_writing
+                &mut links.cold_mut().simplified_for_writing
             } else {
-                &mut links.simplified_for_reading
+                &mut links.cold_mut().simplified_for_reading
             };
             note_resolving_transition(slot.is_resolving(), previous.is_resolving());
             *slot = previous;
@@ -2125,15 +2385,15 @@ impl LinksTables {
         {
             let previous = self
                 .symbol
-                .get(&id)
-                .map(|links| links.variances.clone())
+                .get(id)
+                .map(|links| links.cold().variances.clone())
                 .unwrap_or_default();
             self.speculative_symbol_variance_writes
                 .push((speculation_depth, id, previous));
         } else if speculation_depth == 0 {
             Self::assert_writable(speculation_depth);
         }
-        Self::write_slot(&mut self.symbol.entry(id).or_default().variances, value);
+        Self::write_slot(&mut self.symbol.slot(id).cold_mut().variances, value);
     }
 
     /// Err-unwind twin for the variances slot: tsc cannot fail inside
@@ -2142,7 +2402,7 @@ impl LinksTables {
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn revert_symbol_variances(&mut self, id: SymbolId) {
-        let slot = &mut self.symbol.entry(id).or_default().variances;
+        let slot = &mut self.symbol.slot(id).cold_mut().variances;
         assert!(
             matches!(slot, LinkSlot::Resolving),
             "variances revert without an in-progress measurement for {id:?}"
@@ -2171,7 +2431,7 @@ impl LinksTables {
         {
             let previous = self
                 .node
-                .get(&id)
+                .get(id)
                 .map(|links| links.check_flags)
                 .unwrap_or_default();
             self.speculative_context_checked_writes
@@ -2189,7 +2449,7 @@ impl LinksTables {
         if speculation_depth == 0 {
             Self::assert_writable(speculation_depth);
         }
-        let links = self.node.entry(id).or_default();
+        let links = self.node.slot(id);
         links.check_flags =
             tsc_types::NodeCheckFlags::from_bits(links.check_flags.bits() | bits.bits());
     }
@@ -2200,7 +2460,7 @@ impl LinksTables {
     /// `calculatedFlags |=` sites (88170/88179/88187/88199/88201/88213); current prose
     /// cites 88132, which is the noCheck guard: fix it
     pub fn or_calculated_flags(&mut self, id: NodeId, bits: tsc_types::NodeCheckFlags) {
-        let links = self.node.entry(id).or_default();
+        let links = self.node.slot(id);
         links.calculated_flags =
             tsc_types::NodeCheckFlags::from_bits(links.calculated_flags.bits() | bits.bits());
     }
@@ -2216,7 +2476,7 @@ impl LinksTables {
             speculation_depth, 0,
             "NodeLinks.isVisible writes are forbidden during speculation"
         );
-        let slot = &mut self.node.entry(id).or_default().is_visible;
+        let slot = &mut self.node.slot(id).is_visible;
         *slot = Some(slot.unwrap_or(false) || value);
     }
 
@@ -2237,11 +2497,7 @@ impl LinksTables {
             return;
         }
         Self::assert_writable(speculation_depth);
-        let bindings = &mut self
-            .node
-            .entry(id)
-            .or_default()
-            .captured_block_scope_bindings;
+        let bindings = &mut self.node.slot(id).captured_block_scope_bindings;
         if !bindings.contains(&symbol) {
             bindings.push(symbol);
         }
@@ -2264,7 +2520,7 @@ impl LinksTables {
         // during a candidate. This is the balancing half of that
         // protocol, not a cache publication.
         let _ = speculation_depth;
-        let links = self.node.entry(id).or_default();
+        let links = self.node.slot(id);
         links.check_flags =
             tsc_types::NodeCheckFlags::from_bits(links.check_flags.bits() & !bits.bits());
     }
@@ -2281,7 +2537,7 @@ impl LinksTables {
         value: Option<i64>,
     ) {
         let _ = speculation_depth;
-        self.symbol.entry(id).or_default().last_assignment_pos = value;
+        self.symbol.slot(id).last_assignment_pos = value;
     }
 
     /// checkGrammarStatementInAmbientContext's once-flag (90344/90349):
@@ -2294,10 +2550,7 @@ impl LinksTables {
         id: NodeId,
     ) {
         Self::assert_writable(speculation_depth);
-        self.node
-            .entry(id)
-            .or_default()
-            .has_reported_statement_in_ambient_context = true;
+        self.node.slot(id).has_reported_statement_in_ambient_context = true;
     }
 
     /// tsrs-native: links-table setter for tsc's direct
@@ -2312,10 +2565,7 @@ impl LinksTables {
         value: bool,
     ) {
         let _ = speculation_depth;
-        self.node
-            .entry(id)
-            .or_default()
-            .contains_arguments_reference = Some(value);
+        self.node.slot(id).contains_arguments_reference = Some(value);
     }
 
     /// tsrs-native: links-table setter (tsc plain property write).
@@ -2336,14 +2586,14 @@ impl LinksTables {
         {
             let previous = self
                 .node
-                .get(&id)
+                .get(id)
                 .and_then(|links| links.decorator_signature);
             self.speculative_decorator_signature_writes
                 .push((speculation_depth, id, previous));
         } else if speculation_depth == 0 {
             Self::assert_writable(speculation_depth);
         }
-        self.node.entry(id).or_default().decorator_signature = value;
+        self.node.slot(id).decorator_signature = value;
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
@@ -2358,7 +2608,7 @@ impl LinksTables {
         // fact. Keep it across candidate commit/rollback just as the
         // CheckAbort unwind twin below keeps already-filled member slots;
         // only the enclosing enum-values-computed once-flag is provisional.
-        let slot = &mut self.node.entry(id).or_default().enum_member_value;
+        let slot = &mut self.node.slot(id).enum_member_value;
         assert!(slot.is_none(), "enum member value rewritten");
         *slot = Some(value);
     }
@@ -2374,14 +2624,14 @@ impl LinksTables {
         {
             let previous = self
                 .node
-                .get(&id)
+                .get(id)
                 .is_some_and(|links| links.enum_values_computed);
             self.speculative_enum_values_computed_writes
                 .push((speculation_depth, id, previous));
         } else if speculation_depth == 0 {
             Self::assert_writable(speculation_depth);
         }
-        self.node.entry(id).or_default().enum_values_computed = true;
+        self.node.slot(id).enum_values_computed = true;
     }
 
     /// CheckAbort-unwind twin of set_node_enum_values_computed — the
@@ -2396,7 +2646,7 @@ impl LinksTables {
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn revert_node_enum_values_computed(&mut self, id: NodeId) {
-        self.node.entry(id).or_default().enum_values_computed = false;
+        self.node.slot(id).enum_values_computed = false;
     }
 
     /// tsrs-native: links-table setter (tsc plain property write).
@@ -2405,7 +2655,7 @@ impl LinksTables {
     /// declared-type forcing sees the latch and skips.
     pub fn set_symbol_type_parameters_checked(&mut self, speculation_depth: u32, id: SymbolId) {
         Self::assert_writable(speculation_depth);
-        self.symbol.entry(id).or_default().type_parameters_checked = true;
+        self.symbol.slot(id).cold_mut().type_parameters_checked = true;
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
@@ -2424,7 +2674,7 @@ impl LinksTables {
         {
             let previous = self
                 .symbol
-                .get(&id)
+                .get(id)
                 .map(|links| links.declared_type.clone())
                 .unwrap_or_default();
             self.speculative_symbol_declared_type_writes
@@ -2432,7 +2682,7 @@ impl LinksTables {
         } else if speculation_depth == 0 {
             Self::assert_writable(speculation_depth);
         }
-        Self::write_slot(&mut self.symbol.entry(id).or_default().declared_type, value);
+        Self::write_slot(&mut self.symbol.slot(id).declared_type, value);
     }
 
     /// tsrs-native: declared type-parameter singleton initialization.
@@ -2444,7 +2694,7 @@ impl LinksTables {
     /// when a candidate transaction closes. This path is restricted to
     /// the diagnostic-free declared-type-parameter constructor.
     pub fn set_fresh_symbol_declared_type(&mut self, id: SymbolId, value: LinkSlot<TypeId>) {
-        Self::write_slot(&mut self.symbol.entry(id).or_default().declared_type, value);
+        Self::write_slot(&mut self.symbol.slot(id).declared_type, value);
     }
 
     /// tsrs-native: publish a class or interface declared-type identity
@@ -2465,7 +2715,7 @@ impl LinksTables {
         id: SymbolId,
         value: LinkSlot<TypeId>,
     ) {
-        Self::write_slot(&mut self.symbol.entry(id).or_default().declared_type, value);
+        Self::write_slot(&mut self.symbol.slot(id).declared_type, value);
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
@@ -2481,10 +2731,7 @@ impl LinksTables {
             id,
             SpeculativeSymbolTypeDisposition::Temporary,
         );
-        Self::write_slot(
-            &mut self.symbol.entry(id).or_default().type_of_symbol,
-            value,
-        );
+        Self::write_slot(&mut self.symbol.slot(id).type_of_symbol, value);
     }
 
     /// Retain a completed declaration-owned value type across completed
@@ -2505,10 +2752,7 @@ impl LinksTables {
             id,
             SpeculativeSymbolTypeDisposition::CompletedOnceResult,
         );
-        Self::write_slot(
-            &mut self.symbol.entry(id).or_default().type_of_symbol,
-            value,
-        );
+        Self::write_slot(&mut self.symbol.slot(id).type_of_symbol, value);
     }
 
     /// tsrs-native: candidate-local contextual symbol initialization.
@@ -2529,7 +2773,7 @@ impl LinksTables {
             id,
             SpeculativeSymbolTypeDisposition::CompletedOnceResult,
         );
-        let slot = &mut self.symbol.entry(id).or_default().type_of_symbol;
+        let slot = &mut self.symbol.slot(id).type_of_symbol;
         note_resolving_transition(slot.is_resolving(), value.is_resolving());
         *slot = value;
     }
@@ -2540,10 +2784,7 @@ impl LinksTables {
     /// symbol. The symbol and this slot form one semantic object, so
     /// construction is safe inside a candidate trial.
     pub fn set_fresh_symbol_type(&mut self, id: SymbolId, value: LinkSlot<TypeId>) {
-        Self::write_slot(
-            &mut self.symbol.entry(id).or_default().type_of_symbol,
-            value,
-        );
+        Self::write_slot(&mut self.symbol.slot(id).type_of_symbol, value);
     }
 
     /// tsrs-native: links-table setter (tsc plain property write).
@@ -2564,7 +2805,7 @@ impl LinksTables {
             id,
             SpeculativeSymbolTypeDisposition::Temporary,
         );
-        self.symbol.entry(id).or_default().type_of_symbol = LinkSlot::Resolved(value);
+        self.symbol.slot(id).type_of_symbol = LinkSlot::Resolved(value);
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
@@ -2578,9 +2819,9 @@ impl LinksTables {
         type_of_symbol: TypeId,
     ) {
         let _ = speculation_depth;
-        let links = self.symbol.entry(id).or_default();
+        let links = self.symbol.slot(id);
         links.check_flags = check_flags;
-        links.containing_type = Some(containing_type);
+        links.cold_mut().containing_type = Some(containing_type);
         Self::write_slot(
             &mut links.type_of_symbol,
             LinkSlot::Resolved(type_of_symbol),
@@ -2601,14 +2842,14 @@ impl LinksTables {
         constituents: Vec<TypeId>,
         write_constituents: Option<Vec<TypeId>>,
     ) {
-        let links = self.symbol.entry(id).or_default();
+        let links = self.symbol.slot(id);
         links.check_flags = tsc_types::CheckFlags::from_bits(
             check_flags.bits() | tsc_types::CheckFlags::DEFERRED_TYPE.bits(),
         );
-        links.containing_type = Some(containing_type);
-        links.deferral_parent = Some(containing_type);
-        links.deferral_constituents = Some(constituents);
-        links.deferral_write_constituents = write_constituents;
+        links.cold_mut().containing_type = Some(containing_type);
+        links.cold_mut().deferral_parent = Some(containing_type);
+        links.cold_mut().deferral_constituents = Some(constituents);
+        links.cold_mut().deferral_write_constituents = write_constituents;
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
@@ -2623,7 +2864,7 @@ impl LinksTables {
             return;
         }
         Self::assert_writable(speculation_depth);
-        self.symbol.entry(id).or_default().is_discriminant_property = Some(value);
+        self.symbol.slot(id).cold_mut().is_discriminant_property = Some(value);
     }
 
     /// tsrs-native: links-table setter for tsc's
@@ -2642,8 +2883,8 @@ impl LinksTables {
         }
         Self::assert_writable(speculation_depth);
         self.symbol
-            .entry(id)
-            .or_default()
+            .slot(id)
+            .cold_mut()
             .is_declaration_with_colliding_name = Some(value);
     }
 
@@ -2659,8 +2900,8 @@ impl LinksTables {
     ) {
         let _ = speculation_depth;
         self.symbol
-            .entry(id)
-            .or_default()
+            .slot(id)
+            .cold_mut()
             .is_constructor_declared_property = Some(value);
     }
 
@@ -2670,8 +2911,8 @@ impl LinksTables {
     /// return CheckAbort; a failed computation must remain retryable.
     pub fn clear_symbol_is_constructor_declared_property(&mut self, id: SymbolId) {
         self.symbol
-            .entry(id)
-            .or_default()
+            .slot(id)
+            .cold_mut()
             .is_constructor_declared_property = None;
     }
 
@@ -2715,14 +2956,14 @@ impl LinksTables {
         {
             let previous = self
                 .symbol
-                .get(&id)
-                .and_then(|links| links.unique_es_symbol_type);
+                .get(id)
+                .and_then(|links| links.cold().unique_es_symbol_type);
             self.speculative_unique_es_symbol_type_writes
                 .push((speculation_depth, id, previous));
         } else if speculation_depth == 0 {
             Self::assert_writable(speculation_depth);
         }
-        self.symbol.entry(id).or_default().unique_es_symbol_type = Some(ty);
+        self.symbol.slot(id).cold_mut().unique_es_symbol_type = Some(ty);
     }
 
     /// tsc createSymbol's checkFlags seed (47656) for transient symbols
@@ -2736,7 +2977,7 @@ impl LinksTables {
         check_flags: tsc_types::CheckFlags,
     ) {
         let _ = speculation_depth;
-        self.symbol.entry(id).or_default().check_flags = check_flags;
+        self.symbol.slot(id).check_flags = check_flags;
     }
 
     /// `links.nameType = ...` on a fresh transient symbol (getSpreadSymbol
@@ -2750,7 +2991,7 @@ impl LinksTables {
         name_type: Option<TypeId>,
     ) {
         let _ = speculation_depth;
-        self.symbol.entry(id).or_default().name_type = name_type;
+        self.symbol.slot(id).name_type = name_type;
     }
 
     /// tsc-port: getSpecifierForModuleSymbol @6.0.3 (links.specifierCache write)
@@ -2771,8 +3012,8 @@ impl LinksTables {
         );
         let _ = speculation_depth;
         self.symbol
-            .entry(id)
-            .or_default()
+            .slot(id)
+            .cold_mut()
             .specifier_cache
             .get_or_insert_with(Default::default)
             .insert(cache_key, specifier);
@@ -2790,14 +3031,14 @@ impl LinksTables {
         key_type: TypeId,
     ) {
         let _ = speculation_depth;
-        let links = self.symbol.entry(id).or_default();
+        let links = self.symbol.slot(id);
         assert!(
-            links.mapped_type.is_none() && links.key_type.is_none(),
+            links.cold().mapped_type.is_none() && links.cold().key_type.is_none(),
             "mapped symbol links rewritten"
         );
-        links.mapped_type = Some(mapped_type);
+        links.cold_mut().mapped_type = Some(mapped_type);
         links.name_type = Some(name_type);
-        links.key_type = Some(key_type);
+        links.cold_mut().key_type = Some(key_type);
     }
 
     /// tsrs-native: grouped fresh-link writes from
@@ -2812,17 +3053,17 @@ impl LinksTables {
         constraint_type: TypeId,
     ) {
         let _ = speculation_depth;
-        let links = self.symbol.entry(id).or_default();
+        let links = self.symbol.slot(id);
         assert!(
-            links.mapped_type.is_none()
-                && links.property_type.is_none()
-                && links.constraint_type.is_none(),
+            links.cold().mapped_type.is_none()
+                && links.cold().property_type.is_none()
+                && links.cold().constraint_type.is_none(),
             "reverse-mapped symbol links rewritten"
         );
         links.name_type = name_type;
-        links.property_type = Some(property_type);
-        links.mapped_type = Some(mapped_type);
-        links.constraint_type = Some(constraint_type);
+        links.cold_mut().property_type = Some(property_type);
+        links.cold_mut().mapped_type = Some(mapped_type);
+        links.cold_mut().constraint_type = Some(constraint_type);
     }
 
     /// tsrs-native: grouped LinksTables setter for tsc
@@ -2836,13 +3077,13 @@ impl LinksTables {
         key_type: TypeId,
     ) {
         Self::assert_writable(speculation_depth);
-        let links = self.symbol.entry(id).or_default();
+        let links = self.symbol.slot(id);
         assert!(
-            links.mapped_type.is_some(),
+            links.cold().mapped_type.is_some(),
             "only mapped symbols merge name/key links"
         );
         links.name_type = Some(name_type);
-        links.key_type = Some(key_type);
+        links.cold_mut().key_type = Some(key_type);
     }
 
     /// `links.target = ...` (checkObjectLiteral 74209 — the object
@@ -2851,7 +3092,7 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn set_symbol_target(&mut self, speculation_depth: u32, id: SymbolId, target: SymbolId) {
         let _ = speculation_depth;
-        self.symbol.entry(id).or_default().target = Some(target);
+        self.symbol.slot(id).target = Some(target);
     }
 
     /// `links.originatingImport = referenceParent` on a fresh interop
@@ -2865,7 +3106,7 @@ impl LinksTables {
         reference_parent: NodeId,
     ) {
         Self::assert_writable(speculation_depth);
-        self.symbol.entry(id).or_default().originating_import = Some(reference_parent);
+        self.symbol.slot(id).cold_mut().originating_import = Some(reference_parent);
     }
 
     /// `links.leftSpread/rightSpread` (getSpreadType 63024-63025).
@@ -2879,9 +3120,9 @@ impl LinksTables {
         right: SymbolId,
     ) {
         Self::assert_writable(speculation_depth);
-        let links = self.symbol.entry(id).or_default();
-        links.left_spread = Some(left);
-        links.right_spread = Some(right);
+        let links = self.symbol.slot(id);
+        links.cold_mut().left_spread = Some(left);
+        links.cold_mut().right_spread = Some(right);
     }
 
     /// `links.syntheticOrigin` (getSpreadSymbol 63052 /
@@ -2896,7 +3137,7 @@ impl LinksTables {
         origin: SymbolId,
     ) {
         let _ = speculation_depth;
-        self.symbol.entry(id).or_default().synthetic_origin = Some(origin);
+        self.symbol.slot(id).cold_mut().synthetic_origin = Some(origin);
     }
 
     /// `type.literalType = cloneTypeReference(type)` (createArrayLiteralType
@@ -2908,9 +3149,9 @@ impl LinksTables {
             return;
         }
         Self::assert_writable(speculation_depth);
-        let links = self.ty.entry(id).or_default();
-        assert!(links.literal_type.is_none(), "literalType rewritten");
-        links.literal_type = Some(literal);
+        let links = self.ty.slot(id);
+        assert!(links.cold().literal_type.is_none(), "literalType rewritten");
+        links.cold_mut().literal_type = Some(literal);
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
@@ -2925,7 +3166,7 @@ impl LinksTables {
             return;
         }
         Self::assert_writable(speculation_depth);
-        let links = self.ty.entry(id).or_default();
+        let links = self.ty.slot(id);
         assert!(
             links.promised_type_of_promise.is_none(),
             "promisedTypeOfPromise rewritten"
@@ -2945,7 +3186,7 @@ impl LinksTables {
             return;
         }
         Self::assert_writable(speculation_depth);
-        let links = self.ty.entry(id).or_default();
+        let links = self.ty.slot(id);
         assert!(
             links.awaited_type_of_type.is_none(),
             "awaitedTypeOfType rewritten"
@@ -2964,7 +3205,7 @@ impl LinksTables {
         ty: TypeId,
     ) {
         let _ = speculation_depth;
-        self.node.entry(id).or_default().assertion_expression_type = Some(ty);
+        self.node.slot(id).assertion_expression_type = Some(ty);
     }
 
     /// getInstantiationExpressionType's STORE-BEFORE-ERROR map insert.
@@ -2979,8 +3220,7 @@ impl LinksTables {
     ) {
         Self::assert_writable(speculation_depth);
         self.node
-            .entry(id)
-            .or_default()
+            .slot(id)
             .instantiation_expression_types
             .get_or_insert_with(Default::default)
             .insert(expr_type, result);
@@ -2991,7 +3231,7 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn set_symbol_is_referenced(&mut self, speculation_depth: u32, id: SymbolId) {
         let _ = speculation_depth;
-        self.symbol.entry(id).or_default().is_referenced = tsc_types::SymbolFlags::ALL;
+        self.symbol.slot(id).is_referenced = tsc_types::SymbolFlags::ALL;
     }
 
     /// tsrs-native: Links-table adapter for tsc resolveNameHelper
@@ -3004,14 +3244,14 @@ impl LinksTables {
         meaning: tsc_types::SymbolFlags,
     ) {
         let _ = speculation_depth;
-        self.symbol.entry(id).or_default().is_referenced |= meaning;
+        self.symbol.slot(id).is_referenced |= meaning;
     }
 
     /// tsrs-native: grow-only LinksTables setter for tsc
     /// `getSymbolLinks(symbol).referenced = true`; freely repeatable.
     pub fn set_symbol_alias_referenced(&mut self, speculation_depth: u32, id: SymbolId) {
         let _ = speculation_depth;
-        self.symbol.entry(id).or_default().alias_referenced = true;
+        self.symbol.slot(id).alias_referenced = true;
     }
 
     /// nonExistentPropCheckCache add (75419-75423): returns true when
@@ -3026,17 +3266,11 @@ impl LinksTables {
     ) -> bool {
         if speculation_depth == 0 {
             Self::assert_writable(speculation_depth);
-            return self
-                .node
-                .entry(id)
-                .or_default()
-                .non_existent_prop_check_cache
-                .insert(key);
+            return self.node.slot(id).non_existent_prop_check_cache.insert(key);
         }
         let inserted = self
             .node
-            .entry(id)
-            .or_default()
+            .slot(id)
             .non_existent_prop_check_cache
             .insert(key.clone());
         if inserted {
@@ -3054,8 +3288,7 @@ impl LinksTables {
                 .pop()
                 .expect("length checked");
             self.node
-                .entry(node)
-                .or_default()
+                .slot(node)
                 .non_existent_prop_check_cache
                 .remove(&key);
         }
@@ -3074,7 +3307,7 @@ impl LinksTables {
         }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
-            &mut self.ty.entry(id).or_default().resolved_properties,
+            &mut self.ty.slot(id).resolved_properties,
             LinkSlot::Resolved(value),
         );
     }
@@ -3095,7 +3328,7 @@ impl LinksTables {
         }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
-            &mut self.ty.entry(id).or_default().array_fallback_signatures,
+            &mut self.ty.slot(id).array_fallback_signatures,
             LinkSlot::Resolved(value),
         );
     }
@@ -3113,7 +3346,7 @@ impl LinksTables {
         }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
-            &mut self.ty.entry(id).or_default().resolved_reduced_type,
+            &mut self.ty.slot(id).resolved_reduced_type,
             LinkSlot::Resolved(value),
         );
     }
@@ -3131,7 +3364,7 @@ impl LinksTables {
         }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
-            &mut self.ty.entry(id).or_default().union_key_property,
+            &mut self.ty.slot(id).union_key_property,
             LinkSlot::Resolved(value),
         );
     }
@@ -3140,9 +3373,9 @@ impl LinksTables {
     /// a fresh (or freshly-cloned) type. The type and its pattern form
     /// one semantic object, so construction is safe inside speculation.
     pub fn set_fresh_type_pattern(&mut self, id: TypeId, pattern: NodeId) {
-        let links = self.ty.entry(id).or_default();
-        assert!(links.pattern.is_none(), "type pattern rewritten");
-        links.pattern = Some(pattern);
+        let links = self.ty.slot(id);
+        assert!(links.cold().pattern.is_none(), "type pattern rewritten");
+        links.cold_mut().pattern = Some(pattern);
     }
 
     /// `type.widened = result` (getWidenedTypeWithContext 68049) —
@@ -3156,7 +3389,7 @@ impl LinksTables {
             return;
         }
         Self::assert_writable(speculation_depth);
-        let links = self.ty.entry(id).or_default();
+        let links = self.ty.slot(id);
         assert!(
             links.widened.is_none() || links.widened == Some(widened),
             "type widened memo rewritten with a DIFFERENT value"
@@ -3186,7 +3419,7 @@ impl LinksTables {
             return;
         }
         Self::assert_writable(speculation_depth);
-        let links = self.ty.entry(id).or_default();
+        let links = self.ty.slot(id);
         let slot = match key {
             crate::iterate::IterationCacheKey::Iterable => &mut links.iteration_types_of_iterable,
             crate::iterate::IterationCacheKey::AsyncIterable => {
@@ -3219,7 +3452,7 @@ impl LinksTables {
         }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
-            &mut self.ty.entry(id).or_default().type_parameter_constraint,
+            &mut self.ty.slot(id).type_parameter_constraint,
             LinkSlot::Resolved(value),
         );
     }
@@ -3231,7 +3464,7 @@ impl LinksTables {
     /// of the fresh type's semantic state and may be written speculatively.
     pub fn set_fresh_type_parameter_constraint(&mut self, id: TypeId, value: TypeId) {
         Self::write_slot(
-            &mut self.ty.entry(id).or_default().type_parameter_constraint,
+            &mut self.ty.slot(id).type_parameter_constraint,
             LinkSlot::Resolved(value),
         );
     }
@@ -3244,7 +3477,7 @@ impl LinksTables {
         }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
-            &mut self.ty.entry(id).or_default().mapped_type_parameter,
+            &mut self.ty.slot(id).cold_mut().mapped_type_parameter,
             LinkSlot::Resolved(value),
         );
     }
@@ -3253,7 +3486,7 @@ impl LinksTables {
     /// allocated mapped-type instantiation.
     pub fn set_fresh_mapped_type_parameter(&mut self, id: TypeId, value: TypeId) {
         Self::write_slot(
-            &mut self.ty.entry(id).or_default().mapped_type_parameter,
+            &mut self.ty.slot(id).cold_mut().mapped_type_parameter,
             LinkSlot::Resolved(value),
         );
     }
@@ -3271,7 +3504,7 @@ impl LinksTables {
         }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
-            &mut self.ty.entry(id).or_default().mapped_constraint_type,
+            &mut self.ty.slot(id).cold_mut().mapped_constraint_type,
             LinkSlot::Resolved(value),
         );
     }
@@ -3289,7 +3522,7 @@ impl LinksTables {
         }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
-            &mut self.ty.entry(id).or_default().mapped_name_type,
+            &mut self.ty.slot(id).cold_mut().mapped_name_type,
             LinkSlot::Resolved(value),
         );
     }
@@ -3302,7 +3535,7 @@ impl LinksTables {
         }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
-            &mut self.ty.entry(id).or_default().mapped_template_type,
+            &mut self.ty.slot(id).cold_mut().mapped_template_type,
             LinkSlot::Resolved(value),
         );
     }
@@ -3315,7 +3548,7 @@ impl LinksTables {
         }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
-            &mut self.ty.entry(id).or_default().mapped_modifiers_type,
+            &mut self.ty.slot(id).cold_mut().mapped_modifiers_type,
             LinkSlot::Resolved(value),
         );
     }
@@ -3328,7 +3561,7 @@ impl LinksTables {
             return;
         }
         Self::assert_writable(speculation_depth);
-        self.ty.entry(id).or_default().mapped_contains_error = true;
+        self.ty.slot(id).cold_mut().mapped_contains_error = true;
     }
 
     /// tsrs-native: one-write TypeLinks setter for tsc
@@ -3339,7 +3572,7 @@ impl LinksTables {
         }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
-            &mut self.ty.entry(id).or_default().mapped_apparent_type,
+            &mut self.ty.slot(id).cold_mut().mapped_apparent_type,
             LinkSlot::Resolved(value),
         );
     }
@@ -3348,7 +3581,7 @@ impl LinksTables {
     pub fn set_conditional_true_type(&mut self, speculation_depth: u32, id: TypeId, value: TypeId) {
         self.journal_conditional_cache(speculation_depth, id);
         Self::write_slot(
-            &mut self.ty.entry(id).or_default().conditional_true_type,
+            &mut self.ty.slot(id).cold_mut().conditional_true_type,
             LinkSlot::Resolved(value),
         );
     }
@@ -3362,7 +3595,7 @@ impl LinksTables {
     ) {
         self.journal_conditional_cache(speculation_depth, id);
         Self::write_slot(
-            &mut self.ty.entry(id).or_default().conditional_false_type,
+            &mut self.ty.slot(id).cold_mut().conditional_false_type,
             LinkSlot::Resolved(value),
         );
     }
@@ -3376,11 +3609,7 @@ impl LinksTables {
     ) {
         self.journal_conditional_cache(speculation_depth, id);
         Self::write_slot(
-            &mut self
-                .ty
-                .entry(id)
-                .or_default()
-                .conditional_inferred_true_type,
+            &mut self.ty.slot(id).cold_mut().conditional_inferred_true_type,
             LinkSlot::Resolved(value),
         );
     }
@@ -3394,11 +3623,7 @@ impl LinksTables {
     ) {
         self.journal_conditional_cache(speculation_depth, id);
         Self::write_slot(
-            &mut self
-                .ty
-                .entry(id)
-                .or_default()
-                .conditional_default_constraint,
+            &mut self.ty.slot(id).cold_mut().conditional_default_constraint,
             LinkSlot::Resolved(value),
         );
     }
@@ -3412,8 +3637,13 @@ impl LinksTables {
     ) {
         if self
             .ty
-            .get(&id)
-            .and_then(|links| links.conditional_constraint_of_distributive.resolved())
+            .get(id)
+            .and_then(|links| {
+                links
+                    .cold()
+                    .conditional_constraint_of_distributive
+                    .resolved()
+            })
             .is_some_and(|existing| existing == value)
         {
             return;
@@ -3422,8 +3652,8 @@ impl LinksTables {
         Self::write_slot(
             &mut self
                 .ty
-                .entry(id)
-                .or_default()
+                .slot(id)
+                .cold_mut()
                 .conditional_constraint_of_distributive,
             LinkSlot::Resolved(value),
         );
@@ -3442,7 +3672,7 @@ impl LinksTables {
         }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
-            &mut self.ty.entry(id).or_default().resolved_base_constraint,
+            &mut self.ty.slot(id).resolved_base_constraint,
             LinkSlot::Resolved(value),
         );
     }
@@ -3460,7 +3690,7 @@ impl LinksTables {
         }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
-            &mut self.ty.entry(id).or_default().immediate_base_constraint,
+            &mut self.ty.slot(id).immediate_base_constraint,
             LinkSlot::Resolved(value),
         );
     }
@@ -3486,12 +3716,12 @@ impl LinksTables {
         {
             let previous = self
                 .ty
-                .get(&id)
+                .get(id)
                 .map(|links| {
                     if writing {
-                        links.simplified_for_writing.clone()
+                        links.cold().simplified_for_writing.clone()
                     } else {
-                        links.simplified_for_reading.clone()
+                        links.cold().simplified_for_reading.clone()
                     }
                 })
                 .unwrap_or_default();
@@ -3504,11 +3734,11 @@ impl LinksTables {
         } else if speculation_depth == 0 {
             Self::assert_writable(speculation_depth);
         }
-        let links = self.ty.entry(id).or_default();
+        let links = self.ty.slot(id);
         let slot = if writing {
-            &mut links.simplified_for_writing
+            &mut links.cold_mut().simplified_for_writing
         } else {
-            &mut links.simplified_for_reading
+            &mut links.cold_mut().simplified_for_reading
         };
         Self::write_slot(slot, value);
     }
@@ -3519,11 +3749,11 @@ impl LinksTables {
     /// Vacant; a later query re-simplifies instead of observing a
     /// phantom mid-flight sentinel.
     pub fn revert_type_simplified(&mut self, id: TypeId, writing: bool) {
-        let links = self.ty.entry(id).or_default();
+        let links = self.ty.slot(id);
         let slot = if writing {
-            &mut links.simplified_for_writing
+            &mut links.cold_mut().simplified_for_writing
         } else {
-            &mut links.simplified_for_reading
+            &mut links.cold_mut().simplified_for_reading
         };
         assert!(
             matches!(slot, LinkSlot::Resolving),
@@ -3549,7 +3779,7 @@ impl LinksTables {
         value: SymbolId,
     ) {
         self.journal_node_resolution(speculation_depth, id);
-        let slot = &mut self.node.entry(id).or_default().resolved_symbol;
+        let slot = &mut self.node.slot(id).resolved_symbol;
         note_resolving_transition(slot.is_resolving(), false);
         *slot = LinkSlot::Resolved(value);
     }
@@ -3562,7 +3792,7 @@ impl LinksTables {
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn revert_node_resolved_symbol_late_bind(&mut self, id: NodeId) {
-        let slot = &mut self.node.entry(id).or_default().resolved_symbol;
+        let slot = &mut self.node.slot(id).resolved_symbol;
         note_resolving_transition(slot.is_resolving(), false);
         *slot = LinkSlot::Vacant;
     }
@@ -3571,14 +3801,14 @@ impl LinksTables {
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn clear_symbol_late_symbol(&mut self, id: SymbolId) {
-        self.symbol.entry(id).or_default().late_symbol = None;
+        self.symbol.slot(id).late_symbol = None;
     }
 
     /// The instantiation root: follow links.target (instantiated /
     /// mapped symbols) to the underlying declaration symbol.
     fn instantiation_root(&self, id: SymbolId) -> SymbolId {
         let mut current = id;
-        while let Some(target) = self.symbol.get(&current).and_then(|links| links.target) {
+        while let Some(target) = self.symbol.get(current).and_then(|links| links.target) {
             if target == current {
                 break;
             }
@@ -3616,17 +3846,17 @@ impl LinksTables {
         self.journal_node_resolution(speculation_depth, id);
         let sanctioned_rewrite = self
             .node
-            .get(&id)
+            .get(id)
             .and_then(|links| links.resolved_symbol.resolved())
             .is_some_and(|existing| {
                 existing != value
                     && (self
                         .symbol
-                        .get(&existing)
+                        .get(existing)
                         .is_some_and(|links| links.late_symbol == Some(value))
                         || self.instantiation_root(existing) == self.instantiation_root(value))
             });
-        let slot = &mut self.node.entry(id).or_default().resolved_symbol;
+        let slot = &mut self.node.slot(id).resolved_symbol;
         match &*slot {
             LinkSlot::Resolved(existing) if *existing == value => {}
             // A candidate may re-check the same access after bypassing
@@ -3659,7 +3889,7 @@ impl LinksTables {
         }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
-            &mut self.node.entry(id).or_default().outer_type_parameters,
+            &mut self.node.slot(id).outer_type_parameters,
             LinkSlot::Resolved(value),
         );
     }
@@ -3676,8 +3906,8 @@ impl LinksTables {
         mapper: Option<MapperId>,
     ) {
         let _ = speculation_depth;
-        let links = self.symbol.entry(id).or_default();
-        links.containing_type = Some(containing_type);
+        let links = self.symbol.slot(id);
+        links.cold_mut().containing_type = Some(containing_type);
         links.mapper = mapper;
     }
 
@@ -3694,7 +3924,7 @@ impl LinksTables {
         name_type: Option<TypeId>,
     ) {
         let _ = speculation_depth;
-        let links = self.symbol.entry(id).or_default();
+        let links = self.symbol.slot(id);
         assert!(
             links.target.is_none() && links.mapper.is_none(),
             "instantiation links written twice for {id:?}"
@@ -3714,12 +3944,12 @@ impl LinksTables {
             return;
         }
         Self::assert_writable(speculation_depth);
-        let links = self.ty.entry(id).or_default();
+        let links = self.ty.slot(id);
         assert!(
-            links.synthetic_type.is_none(),
+            links.cold().synthetic_type.is_none(),
             "syntheticType written twice for {id:?}"
         );
-        links.synthetic_type = Some(value);
+        links.cold_mut().synthetic_type = Some(value);
     }
 
     /// tsrs-native: links-table setter for tsc's type.defaultOnlyType write.
@@ -3733,12 +3963,12 @@ impl LinksTables {
             return;
         }
         Self::assert_writable(speculation_depth);
-        let links = self.ty.entry(id).or_default();
+        let links = self.ty.slot(id);
         assert!(
-            links.default_only_type.is_none(),
+            links.cold().default_only_type.is_none(),
             "defaultOnlyType written twice for {id:?}"
         );
-        links.default_only_type = Some(value);
+        links.cold_mut().default_only_type = Some(value);
     }
 
     /// instantiateAnonymousType's target/mapper seed (63658-63659),
@@ -3753,7 +3983,7 @@ impl LinksTables {
         mapper: MapperId,
     ) {
         let _ = speculation_depth;
-        let links = self.ty.entry(id).or_default();
+        let links = self.ty.slot(id);
         assert!(
             links.instantiated_target.is_none() && links.instantiated_mapper.is_none(),
             "type instantiation links written twice for {id:?}"
@@ -3780,7 +4010,7 @@ impl LinksTables {
         // isolated-signature type. It is semantic object construction,
         // not publication into a cache on a pre-existing type.
         let _ = speculation_depth;
-        let links = self.ty.entry(id).or_default();
+        let links = self.ty.slot(id);
         assert!(
             links.instantiated_target.is_none() && links.instantiated_mapper.is_none(),
             "isolated-signature mapper written over instantiation links for {id:?}"
@@ -3796,11 +4026,11 @@ impl LinksTables {
         &mut self,
         speculation_depth: u32,
         id: SymbolId,
-        value: tsc_binder::SymbolTable,
+        value: Arc<tsc_binder::SymbolTable>,
     ) {
         Self::assert_writable(speculation_depth);
         Self::write_slot(
-            &mut self.symbol.entry(id).or_default().resolved_members,
+            &mut self.symbol.slot(id).resolved_members,
             LinkSlot::Resolved(value),
         );
     }
@@ -3817,10 +4047,10 @@ impl LinksTables {
         &mut self,
         speculation_depth: u32,
         id: SymbolId,
-        value: tsc_binder::SymbolTable,
+        value: Arc<tsc_binder::SymbolTable>,
     ) {
         let _ = speculation_depth;
-        let slot = &mut self.symbol.entry(id).or_default().resolved_members;
+        let slot = &mut self.symbol.slot(id).resolved_members;
         note_resolving_transition(slot.is_resolving(), false);
         *slot = LinkSlot::Resolved(value);
     }
@@ -3829,7 +4059,7 @@ impl LinksTables {
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn revert_symbol_resolved_members(&mut self, id: SymbolId) {
-        let slot = &mut self.symbol.entry(id).or_default().resolved_members;
+        let slot = &mut self.symbol.slot(id).resolved_members;
         note_resolving_transition(slot.is_resolving(), false);
         *slot = LinkSlot::Vacant;
     }
@@ -3841,10 +4071,10 @@ impl LinksTables {
         &mut self,
         speculation_depth: u32,
         id: SymbolId,
-        value: tsc_binder::SymbolTable,
+        value: Arc<tsc_binder::SymbolTable>,
     ) {
         let _ = speculation_depth;
-        let slot = &mut self.symbol.entry(id).or_default().resolved_exports;
+        let slot = &mut self.symbol.slot(id).resolved_exports;
         note_resolving_transition(slot.is_resolving(), false);
         *slot = LinkSlot::Resolved(value);
     }
@@ -3853,7 +4083,7 @@ impl LinksTables {
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn revert_symbol_resolved_exports(&mut self, id: SymbolId) {
-        let slot = &mut self.symbol.entry(id).or_default().resolved_exports;
+        let slot = &mut self.symbol.slot(id).resolved_exports;
         note_resolving_transition(slot.is_resolving(), false);
         *slot = LinkSlot::Vacant;
     }
@@ -3874,7 +4104,7 @@ impl LinksTables {
         value: LinkSlot<SymbolId>,
     ) {
         self.journal_alias_target(speculation_depth, id);
-        Self::write_slot(&mut self.symbol.entry(id).or_default().alias_target, value);
+        Self::write_slot(&mut self.symbol.slot(id).alias_target, value);
     }
 
     /// tsrs-native: initialize a freshly synthesized alias symbol.
@@ -3882,14 +4112,14 @@ impl LinksTables {
     /// The wrapper symbol and its pre-resolved target are constructed
     /// together; no pre-existing cache entry is published.
     pub fn set_fresh_symbol_alias_target(&mut self, id: SymbolId, value: LinkSlot<SymbolId>) {
-        Self::write_slot(&mut self.symbol.entry(id).or_default().alias_target, value);
+        Self::write_slot(&mut self.symbol.slot(id).alias_target, value);
     }
 
     /// tsrs-native: links accessor — Err-unwind twin for the alias
     /// protocol; only the frame that wrote the sentinel reverts
     /// (Resolved memos stay).
     pub fn revert_symbol_alias_target(&mut self, id: SymbolId) {
-        let slot = &mut self.symbol.entry(id).or_default().alias_target;
+        let slot = &mut self.symbol.slot(id).alias_target;
         if matches!(slot, LinkSlot::Resolving) {
             note_resolving_transition(true, false);
             *slot = LinkSlot::Vacant;
@@ -3909,7 +4139,7 @@ impl LinksTables {
         value: Option<NodeId>,
     ) {
         self.journal_type_only_alias(speculation_depth, id);
-        self.symbol.entry(id).or_default().type_only_declaration = Some(value);
+        self.symbol.slot(id).type_only_declaration = Some(value);
     }
 
     /// tsrs-native: links accessor — links.typeOnlyExportStarName
@@ -3921,10 +4151,7 @@ impl LinksTables {
         value: EscapedName,
     ) {
         self.journal_type_only_alias(speculation_depth, id);
-        self.symbol
-            .entry(id)
-            .or_default()
-            .type_only_export_star_name = Some(value);
+        self.symbol.slot(id).cold_mut().type_only_export_star_name = Some(value);
     }
 
     /// tsrs-native: links accessor — the MODULE flavor of
@@ -3937,8 +4164,8 @@ impl LinksTables {
         &mut self,
         speculation_depth: u32,
         id: SymbolId,
-        exports: tsc_binder::SymbolTable,
-        type_only_export_star_map: Option<std::collections::HashMap<EscapedName, NodeId>>,
+        exports: Arc<tsc_binder::SymbolTable>,
+        type_only_export_star_map: Option<rustc_hash::FxHashMap<EscapedName, NodeId>>,
     ) {
         // The worker owns its cycle guard and returns the completed
         // table directly. A candidate may consume that table without
@@ -3947,14 +4174,15 @@ impl LinksTables {
             return;
         }
         Self::assert_writable(speculation_depth);
-        let links = self.symbol.entry(id).or_default();
+        let links = self.symbol.slot(id);
         match &links.resolved_exports {
             LinkSlot::Vacant | LinkSlot::Resolving => {
                 note_resolving_transition(links.resolved_exports.is_resolving(), false);
                 links.resolved_exports = LinkSlot::Resolved(exports);
-                links.type_only_export_star_map = type_only_export_star_map;
+                links.cold_mut().type_only_export_star_map = type_only_export_star_map;
             }
-            LinkSlot::Resolved(existing) if *existing == exports => {}
+            LinkSlot::Resolved(existing)
+                if Arc::ptr_eq(existing, &exports) || **existing == *exports => {}
             LinkSlot::Resolved(_) => {
                 panic!("module resolvedExports rewritten with a different table: {id:?}")
             }
@@ -3965,7 +4193,7 @@ impl LinksTables {
     /// (checkExternalModuleExports 86445); monotone.
     pub fn set_symbol_exports_checked(&mut self, speculation_depth: u32, id: SymbolId) {
         Self::assert_writable(speculation_depth);
-        self.symbol.entry(id).or_default().exports_checked = true;
+        self.symbol.slot(id).cold_mut().exports_checked = true;
     }
 
     /// tsrs-native: links accessor — links.immediateTarget
@@ -3982,7 +4210,7 @@ impl LinksTables {
             return;
         }
         Self::assert_writable(speculation_depth);
-        let slot = &mut self.symbol.entry(id).or_default().immediate_target;
+        let slot = &mut self.symbol.slot(id).cold_mut().immediate_target;
         match slot {
             None => *slot = Some(value),
             Some(existing) if *existing == value => {}
@@ -3999,7 +4227,7 @@ impl LinksTables {
         value: SymbolId,
     ) {
         Self::assert_writable(speculation_depth);
-        let slot = &mut self.symbol.entry(id).or_default().cjs_export_merged;
+        let slot = &mut self.symbol.slot(id).cold_mut().cjs_export_merged;
         match slot {
             None => *slot = Some(value),
             Some(existing) if *existing == value => {}
@@ -4021,11 +4249,7 @@ impl LinksTables {
         inferred: SymbolId,
     ) {
         let _ = speculation_depth;
-        let cache = &mut self
-            .symbol
-            .entry(source)
-            .or_default()
-            .inferred_class_symbols;
+        let cache = &mut self.symbol.slot(source).cold_mut().inferred_class_symbols;
         match cache.get(&inferred).copied() {
             None => {
                 cache.insert(inferred, inferred);
@@ -4048,13 +4272,13 @@ impl LinksTables {
                 .iter()
                 .any(|(depth, symbol, _)| *depth == speculation_depth && *symbol == id)
         {
-            let previous = self.symbol.get(&id).and_then(|links| links.late_symbol);
+            let previous = self.symbol.get(id).and_then(|links| links.late_symbol);
             self.speculative_late_symbol_writes
                 .push((speculation_depth, id, previous));
         } else if speculation_depth == 0 {
             Self::assert_writable(speculation_depth);
         }
-        self.symbol.entry(id).or_default().late_symbol = Some(late);
+        self.symbol.slot(id).late_symbol = Some(late);
     }
 
     /// resolveDeclaredMembers' declared-members stamp (57604-57613),
@@ -4072,7 +4296,7 @@ impl LinksTables {
         }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
-            &mut self.ty.entry(id).or_default().declared_members,
+            &mut self.ty.slot(id).declared_members,
             LinkSlot::Resolved(value),
         );
     }
@@ -4089,7 +4313,7 @@ impl LinksTables {
         value: Vec<TypeId>,
     ) {
         let _ = speculation_depth;
-        self.ty.entry(id).or_default().resolved_base_types = Some(value);
+        self.ty.slot(id).resolved_base_types = Some(value);
     }
 
     /// `type.baseTypesResolved = true` (57244).
@@ -4097,13 +4321,13 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn set_type_base_types_resolved(&mut self, speculation_depth: u32, id: TypeId) {
         let _ = speculation_depth;
-        self.ty.entry(id).or_default().base_types_resolved = true;
+        self.ty.slot(id).base_types_resolved = true;
     }
 
     /// tsrs-native: remove the temporary base-type publication used
     /// while a rollback-capable candidate computes a cold base list.
     pub fn clear_speculative_type_base_types(&mut self, id: TypeId) {
-        let links = self.ty.entry(id).or_default();
+        let links = self.ty.slot(id);
         links.resolved_base_types = None;
         links.base_types_resolved = false;
     }
@@ -4114,7 +4338,7 @@ impl LinksTables {
     pub fn set_symbol_write_type(&mut self, speculation_depth: u32, id: SymbolId, value: TypeId) {
         self.journal_symbol_write_type(speculation_depth, id);
         Self::write_slot(
-            &mut self.symbol.entry(id).or_default().write_type,
+            &mut self.symbol.slot(id).write_type,
             LinkSlot::Resolved(value),
         );
     }
@@ -4123,7 +4347,7 @@ impl LinksTables {
     /// property symbol.
     pub fn set_fresh_symbol_write_type(&mut self, id: SymbolId, value: TypeId) {
         Self::write_slot(
-            &mut self.symbol.entry(id).or_default().write_type,
+            &mut self.symbol.slot(id).write_type,
             LinkSlot::Resolved(value),
         );
     }
@@ -4135,11 +4359,11 @@ impl LinksTables {
         &mut self,
         speculation_depth: u32,
         id: SymbolId,
-        value: tsc_binder::SymbolTable,
+        value: Arc<tsc_binder::SymbolTable>,
     ) {
         Self::assert_writable(speculation_depth);
         Self::write_slot(
-            &mut self.symbol.entry(id).or_default().resolved_exports,
+            &mut self.symbol.slot(id).resolved_exports,
             LinkSlot::Resolved(value),
         );
     }
@@ -4160,11 +4384,7 @@ impl LinksTables {
             SpeculativeTypeInstantiationKind::BaseConstructor,
         );
         Self::write_slot(
-            &mut self
-                .ty
-                .entry(id)
-                .or_default()
-                .resolved_base_constructor_type,
+            &mut self.ty.slot(id).resolved_base_constructor_type,
             LinkSlot::Resolved(value),
         );
     }
@@ -4180,12 +4400,12 @@ impl LinksTables {
         declaration: NodeId,
     ) {
         let _ = speculation_depth;
-        let links = self.symbol.entry(id).or_default();
+        let links = self.symbol.slot(id);
         assert!(
-            links.tuple_label_declaration.is_none(),
+            links.cold().tuple_label_declaration.is_none(),
             "tuple label written twice for {id:?}"
         );
-        links.tuple_label_declaration = Some(declaration);
+        links.cold_mut().tuple_label_declaration = Some(declaration);
     }
 
     /// getSingleBaseForNonAugmentingSubtype's cachedEquivalentBaseType
@@ -4199,12 +4419,12 @@ impl LinksTables {
         value: TypeId,
     ) {
         Self::assert_writable(speculation_depth);
-        let links = self.ty.entry(id).or_default();
+        let links = self.ty.slot(id);
         assert!(
-            links.cached_equivalent_base_type.is_none(),
+            links.cold().cached_equivalent_base_type.is_none(),
             "equivalent base type written twice for {id:?}"
         );
-        links.cached_equivalent_base_type = Some(value);
+        links.cold_mut().cached_equivalent_base_type = Some(value);
     }
 
     /// The Err-unwind retraction for the members slot: tsc has no
@@ -4215,7 +4435,7 @@ impl LinksTables {
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn retract_type_members(&mut self, id: TypeId) {
-        let slot = &mut self.ty.entry(id).or_default().resolved_members;
+        let slot = &mut self.ty.slot(id).resolved_members;
         assert!(
             matches!(slot, LinkSlot::Resolved(_)),
             "retract without a members write for {id:?}"
@@ -4230,7 +4450,7 @@ impl LinksTables {
     /// walks; a CheckAbort unwind must leave the slot Vacant, not
     /// partial.
     pub fn retract_type_declared_members(&mut self, id: TypeId) {
-        let slot = &mut self.ty.entry(id).or_default().declared_members;
+        let slot = &mut self.ty.slot(id).declared_members;
         assert!(
             matches!(slot, LinkSlot::Resolved(_)),
             "retract without a declared-members write for {id:?}"
@@ -4246,7 +4466,7 @@ impl LinksTables {
         node: NodeId,
         mapper: Option<MapperId>,
     ) {
-        let links = self.ty.entry(id).or_default();
+        let links = self.ty.slot(id);
         assert!(
             links.deferred_node.is_none() && links.deferred_mapper.is_none(),
             "deferred reference links written twice for {id:?}"
@@ -4265,7 +4485,7 @@ impl LinksTables {
         target: TypeId,
     ) {
         let _ = speculation_depth;
-        let links = self.ty.entry(id).or_default();
+        let links = self.ty.slot(id);
         assert!(
             links.type_parameter_target.is_none(),
             "type parameter target written twice for {id:?}"
@@ -4288,7 +4508,7 @@ impl LinksTables {
         }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
-            &mut self.ty.entry(id).or_default().type_parameter_default,
+            &mut self.ty.slot(id).type_parameter_default,
             LinkSlot::Resolved(value),
         );
     }
@@ -4303,7 +4523,7 @@ impl LinksTables {
         mapper: MapperId,
     ) {
         let _ = speculation_depth;
-        let links = self.ty.entry(id).or_default();
+        let links = self.ty.slot(id);
         assert!(
             links.type_parameter_mapper.is_none(),
             "type parameter mapper written twice for {id:?}"
@@ -4330,7 +4550,7 @@ impl LinksTables {
         id: SymbolId,
         type_parameters: Vec<TypeId>,
     ) {
-        let links = self.symbol.entry(id).or_default();
+        let links = self.symbol.slot(id);
         match &links.type_parameters {
             Some(existing) => assert_eq!(
                 existing, &type_parameters,
@@ -4356,7 +4576,7 @@ impl LinksTables {
         value: TypeId,
     ) {
         Self::write_slot(
-            &mut self.ty.entry(id).or_default().resolved_index_type,
+            &mut self.ty.slot(id).cold_mut().resolved_index_type,
             LinkSlot::Resolved(value),
         );
     }
@@ -4372,7 +4592,7 @@ impl LinksTables {
         value: TypeId,
     ) {
         Self::write_slot(
-            &mut self.ty.entry(id).or_default().resolved_string_index_type,
+            &mut self.ty.slot(id).cold_mut().resolved_string_index_type,
             LinkSlot::Resolved(value),
         );
     }
@@ -4393,8 +4613,8 @@ impl LinksTables {
         Self::write_slot(
             &mut self
                 .ty
-                .entry(id)
-                .or_default()
+                .slot(id)
+                .cold_mut()
                 .unique_literal_filled_instantiation,
             LinkSlot::Resolved(value),
         );
@@ -4414,7 +4634,7 @@ impl LinksTables {
             SpeculativeTypeInstantiationKind::Permissive,
         );
         Self::write_slot(
-            &mut self.ty.entry(id).or_default().permissive_instantiation,
+            &mut self.ty.slot(id).cold_mut().permissive_instantiation,
             LinkSlot::Resolved(value),
         );
     }
@@ -4434,7 +4654,7 @@ impl LinksTables {
             id,
             SpeculativeTypeInstantiationKind::Restrictive,
         );
-        let slot = &mut self.ty.entry(id).or_default().restrictive_instantiation;
+        let slot = &mut self.ty.slot(id).cold_mut().restrictive_instantiation;
         match &*slot {
             LinkSlot::Resolved(existing) if *existing == value => {}
             _ => Self::write_slot(slot, LinkSlot::Resolved(value)),
@@ -4457,13 +4677,13 @@ impl LinksTables {
         {
             let previous = self
                 .ty
-                .get(&id)
+                .get(id)
                 .map(|links| links.resolved_members.clone())
                 .unwrap_or_default();
             self.speculative_type_member_writes
                 .push((speculation_depth, id, previous));
         }
-        let links = self.ty.entry(id).or_default();
+        let links = self.ty.slot(id);
         if speculation_depth == 0 {
             Self::assert_writable(speculation_depth);
         }
@@ -4483,6 +4703,6 @@ impl LinksTables {
     /// semantic type. This is object construction, not publication of
     /// a cold cache on a pre-existing type.
     pub fn set_fresh_type_members(&mut self, id: TypeId, value: LinkSlot<crate::state::MembersId>) {
-        Self::write_slot(&mut self.ty.entry(id).or_default().resolved_members, value);
+        Self::write_slot(&mut self.ty.slot(id).resolved_members, value);
     }
 }

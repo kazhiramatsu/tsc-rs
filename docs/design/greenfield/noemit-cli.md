@@ -678,7 +678,45 @@ qualification and a focused Windows x64 host/program filesystem canary.
 Ambiguous raw drive-relative roots are outside that profile and fail closed.
 Discovery stays
 sequential where vendored host calls and failure precedence are observable;
-future pipeline parallelism must preserve that contract.
+future pipeline parallelism must preserve that contract. The one admitted
+exception is explicit and doubly gated: a host may declare
+`CompilerHost::permits_source_read_ahead` (default `false`; `true` for the
+immutable memory host and the filesystem-backed CLI host) to state that its
+source reads are pure and order-independent for one program construction,
+and the caller must pass a parallel `WorkerBudget` in `ProgramLoadLimits`
+(`with_workers`; the API default is `serial()`, the exact pre-concurrency
+behaviour; the CLI uses `automatic()` = min(available parallelism, 8) unless
+the tsrs-native diagnostic variable `TSRS_WORKERS=<n>` pins it). Only then
+does the loader read explicit roots ahead of the walk and parse them on
+scoped standard-library workers (named threads with a 16 MiB stack budget,
+twice the default main-thread stack; the parser and binder recurse without a
+universal depth bound, so this is stated headroom, not an absolute
+guarantee). A retained read-ahead result (bytes, absence, error) is applied
+at the root's original visit position instead of a second host call; results
+the walk never reaches are dropped. The source-count and byte limits are joint
+bounds over admitted sources and retained read-ahead payloads: a payload that
+would not fit either bound, or the per-file limit, is never retained (the
+visit reads the root again, equivalent under the purity contract), read-ahead
+stops at the first such root and at a host error, and when the walk admits a
+source that was not read ahead (a dependency or skipped root) retained
+payloads are evicted from the tail of root order until the joint bound holds.
+Limit errors therefore surface at their sequential position with their
+sequential observed values. Roots the walk would not read (unsupported or
+extensionless), JSON roots, and roots whose implied module format needs the
+package scope stay on the sequential path. A parser panic is a compiler
+defect, not part of the supported contract; read-ahead neither catches nor
+defers it. The loader's request-planning parse of every source is retained in
+an opaque take-once `PreparsedSyntax` slot on the prepared source (excluded
+from prepared-program equality); the checker session adopts it only after
+proving identical file name, snapshot identity and parse options, relocating
+the base-zero tree into its identity domain, and otherwise parses as before.
+`CheckWorkCounters` therefore reports `parsed_documents` (parses the session
+performed) and `adopted_documents` (loader trees it took over) separately;
+their sum plus a cached library prefix equals the bound documents. Program
+and owned-library sources also bind locally on the session's `WorkerBudget`
+(`ProgramSession::with_worker_budget`; serial by default) and relocate in
+Program order, which publishes the same symbol and private-name-serial
+identities as the sequential in-domain bind under every budget.
 
 The compiler-suite harness now exposes a bounded `load_compiler_no_emit`
 adapter. It reconstructs the recorded compiler fixture VFS (including

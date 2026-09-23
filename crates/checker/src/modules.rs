@@ -14,6 +14,7 @@
 //! are projected only for mode-mismatch diagnostics while their
 //! ordinary resolver verdict remains suppressed).
 
+use std::sync::Arc;
 use tsc_binder::{
     escape_leading_underscores, node_util, unescape_leading_underscores, SymbolId, SymbolTable,
 };
@@ -28,6 +29,7 @@ use tsc_types::{
 use crate::expr::Ancestor;
 use crate::links::LinkSlot;
 use crate::state::{CheckResult, CheckerState, PackageJsonModuleType};
+use tsc_types::perf::{self, PerfCounter};
 use tsc_types::TypeId;
 
 /// The export-star collision tracker (getExportsOfModuleWorker's
@@ -260,7 +262,9 @@ impl<'a> CheckerState<'a> {
         }
         if self
             .links
-            .read_symbol(symbol, |links| links.is_declaration_with_colliding_name)
+            .read_symbol(symbol, |links| {
+                links.cold().is_declaration_with_colliding_name
+            })
             .is_none()
         {
             let Some(container) = self.get_enclosing_block_scope_container(value_declaration)
@@ -311,7 +315,9 @@ impl<'a> CheckerState<'a> {
         }
         Ok(self
             .links
-            .read_symbol(symbol, |links| links.is_declaration_with_colliding_name)
+            .read_symbol(symbol, |links| {
+                links.cold().is_declaration_with_colliding_name
+            })
             .unwrap_or(false))
     }
 
@@ -1628,6 +1634,7 @@ impl<'a> CheckerState<'a> {
         {
             LinkSlot::Resolved(target) => return Ok(target),
             LinkSlot::Resolving => {
+                perf::bump(PerfCounter::SentinelAliasResolving);
                 // Sentinel found ON ENTRY: cycle collapse to unknown.
                 let unknown = self.unknown_symbol;
                 self.links.set_symbol_alias_target(
@@ -2654,7 +2661,9 @@ impl<'a> CheckerState<'a> {
         let resolved = self.resolve_symbol_ex(export_symbol, dont_resolve_alias)?;
         let export_star_declaration = self
             .links
-            .read_symbol(symbol, |links| links.type_only_export_star_map.clone())
+            .read_symbol(symbol, |links| {
+                links.cold().type_only_export_star_map.clone()
+            })
             .as_ref()
             .and_then(|map| map.get(name_text.as_bytes()))
             .copied();
@@ -3389,7 +3398,7 @@ impl<'a> CheckerState<'a> {
             self.binder.symbol(symbol).flags
         };
         let mut symbol = symbol;
-        let mut seen_symbols: Option<std::collections::HashSet<SymbolId>> = None;
+        let mut seen_symbols: Option<rustc_hash::FxHashSet<SymbolId>> = None;
         while self
             .binder
             .symbol(symbol)
@@ -3431,7 +3440,7 @@ impl<'a> CheckerState<'a> {
                         seen.insert(target);
                     }
                     None => {
-                        seen_symbols = Some(std::collections::HashSet::from_iter([symbol, target]));
+                        seen_symbols = Some(rustc_hash::FxHashSet::from_iter([symbol, target]));
                     }
                 }
             }
@@ -3622,7 +3631,9 @@ impl<'a> CheckerState<'a> {
             let exports = self.get_exports_of_module(parent)?;
             let lookup_name = self
                 .links
-                .read_symbol(symbol, |links| links.type_only_export_star_name.clone())
+                .read_symbol(symbol, |links| {
+                    links.cold().type_only_export_star_name.clone()
+                })
                 .unwrap_or_else(|| self.binder.symbol(symbol).escaped_name.clone());
             let export_symbol = exports.get(&lookup_name).copied();
             self.resolve_symbol_ex(export_symbol, false)?
@@ -3659,7 +3670,7 @@ impl<'a> CheckerState<'a> {
         );
         let links_immediate = self
             .links
-            .read_symbol(symbol, |links| links.immediate_target);
+            .read_symbol(symbol, |links| links.cold().immediate_target);
         if let Some(immediate) = links_immediate {
             return Ok(immediate);
         }
@@ -4527,7 +4538,7 @@ impl<'a> CheckerState<'a> {
         };
         let augmentation_file = self.binder.source_of_node(augmentation).file_name.clone();
         let mut worklist = vec![(root, Vec::new())];
-        let mut seen = std::collections::HashSet::new();
+        let mut seen = rustc_hash::FxHashSet::default();
         while let Some((current, path)) = worklist.pop() {
             if !seen.insert(current) {
                 continue;
@@ -6891,7 +6902,34 @@ impl<'a> CheckerState<'a> {
         &self,
         location: NodeId,
     ) -> Option<ModuleResolutionMode> {
-        self.implied_node_format_for_file_name(&self.binder.source_of_node(location).file_name)
+        let file_index = self.binder.file_index_of_node(location);
+        if let Some(memo) = self
+            .implied_node_format_memo
+            .borrow()
+            .get(file_index)
+            .and_then(|memo| memo.for_file)
+        {
+            return memo;
+        }
+        let computed =
+            self.implied_node_format_for_file_name(&self.binder.source(file_index).file_name);
+        self.implied_node_format_memo_slot(file_index).for_file = Some(computed);
+        computed
+    }
+
+    /// The memo row for one Program file, growing the table on first use.
+    fn implied_node_format_memo_slot(
+        &self,
+        file_index: usize,
+    ) -> std::cell::RefMut<'_, crate::state::ImpliedNodeFormatMemo> {
+        let mut memo = self.implied_node_format_memo.borrow_mut();
+        if memo.len() <= file_index {
+            memo.resize(
+                self.binder.file_count().max(file_index + 1),
+                crate::state::ImpliedNodeFormatMemo::default(),
+            );
+        }
+        std::cell::RefMut::map(memo, |memo| &mut memo[file_index])
     }
 
     fn implied_node_format_for_file_name<'n>(
@@ -7028,14 +7066,28 @@ impl<'a> CheckerState<'a> {
         &self,
         location: NodeId,
     ) -> Option<ModuleResolutionMode> {
-        self.implied_node_format_for_emit_file_name(&self.binder.source_of_node(location).file_name)
+        self.implied_node_format_for_emit_file_index(self.binder.file_index_of_node(location))
     }
 
+    /// Memoized per Program file: the worker below re-normalizes and hashes
+    /// the file path, and checkCollisionsForDeclarationName asks for it on
+    /// every declaration.
     fn implied_node_format_for_emit_file_index(
         &self,
         file_index: usize,
     ) -> Option<ModuleResolutionMode> {
-        self.implied_node_format_for_emit_file_name(&self.binder.source(file_index).file_name)
+        if let Some(memo) = self
+            .implied_node_format_memo
+            .borrow()
+            .get(file_index)
+            .and_then(|memo| memo.for_emit)
+        {
+            return memo;
+        }
+        let computed =
+            self.implied_node_format_for_emit_file_name(&self.binder.source(file_index).file_name);
+        self.implied_node_format_memo_slot(file_index).for_emit = Some(computed);
+        computed
     }
 
     fn implied_node_format_for_emit_file_name<'n>(
@@ -7432,7 +7484,7 @@ impl<'a> CheckerState<'a> {
         }
         if let Some(merged) = self
             .links
-            .read_symbol(exported, |links| links.cjs_export_merged)
+            .read_symbol(exported, |links| links.cold().cjs_export_merged)
         {
             return Ok(Some(merged));
         }
@@ -7714,7 +7766,10 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(None);
         }
-        if let Some(memo) = self.links.read_ty(ty, |links| links.default_only_type) {
+        if let Some(memo) = self
+            .links
+            .read_ty(ty, |links| links.cold().default_only_type)
+        {
             return Ok(Some(memo));
         }
         let default_only =
@@ -7739,7 +7794,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(ty);
         }
-        if let Some(memo) = self.links.read_ty(ty, |links| links.synthetic_type) {
+        if let Some(memo) = self.links.read_ty(ty, |links| links.cold().synthetic_type) {
             return Ok(memo);
         }
         let file_index = self.source_file_index_of_symbol(original_symbol);
@@ -7885,7 +7940,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_exports_of_module(
         &mut self,
         module_symbol: SymbolId,
-    ) -> CheckResult<SymbolTable> {
+    ) -> CheckResult<Arc<SymbolTable>> {
         if let LinkSlot::Resolved(exports) = self
             .links
             .read_symbol(module_symbol, |links| links.resolved_exports.clone())
@@ -7894,10 +7949,11 @@ impl<'a> CheckerState<'a> {
         }
         let (exports, type_only_export_star_map) =
             self.get_exports_of_module_worker(module_symbol)?;
+        let exports = Arc::new(exports);
         self.links.set_symbol_module_exports(
             self.speculation_depth,
             module_symbol,
-            exports.clone(),
+            Arc::clone(&exports),
             type_only_export_star_map,
         );
         Ok(exports)
@@ -7911,10 +7967,10 @@ impl<'a> CheckerState<'a> {
         module_symbol: SymbolId,
     ) -> CheckResult<(
         SymbolTable,
-        Option<std::collections::HashMap<EscapedName, NodeId>>,
+        Option<rustc_hash::FxHashMap<EscapedName, NodeId>>,
     )> {
         let mut visited: Vec<SymbolId> = Vec::new();
-        let mut type_only_export_star_map: Option<std::collections::HashMap<EscapedName, NodeId>> =
+        let mut type_only_export_star_map: Option<rustc_hash::FxHashMap<EscapedName, NodeId>> =
             None;
         let mut non_type_only_names: indexmap::IndexSet<EscapedName> = indexmap::IndexSet::new();
         let module_symbol = self
@@ -7947,7 +8003,7 @@ impl<'a> CheckerState<'a> {
         is_type_only: bool,
         visited: &mut Vec<SymbolId>,
         non_type_only_names: &mut indexmap::IndexSet<EscapedName>,
-        type_only_export_star_map: &mut Option<std::collections::HashMap<EscapedName, NodeId>>,
+        type_only_export_star_map: &mut Option<rustc_hash::FxHashMap<EscapedName, NodeId>>,
     ) -> CheckResult<Option<SymbolTable>> {
         if !is_type_only {
             if let Some(symbol) = symbol {
@@ -10376,7 +10432,7 @@ impl<'a> CheckerState<'a> {
         let module_symbol = self.get_merged_symbol(module_symbol);
         if self
             .links
-            .read_symbol(module_symbol, |links| links.exports_checked)
+            .read_symbol(module_symbol, |links| links.cold().exports_checked)
         {
             return Ok(());
         }
@@ -10405,7 +10461,7 @@ impl<'a> CheckerState<'a> {
             }
         }
         let exports = self.get_exports_of_module(module_symbol)?;
-        for (id, &export_symbol) in &exports {
+        for (id, &export_symbol) in exports.iter() {
             if id == InternalSymbolName::EXPORT_STAR {
                 continue;
             }

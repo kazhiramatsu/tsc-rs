@@ -1154,8 +1154,9 @@ enum ListElementPosition {
 /// nodes and keeps target-specific spelling out of ECMAScript transformers.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 struct EmissionPlan {
-    structured_nodes: BTreeSet<TransformNode>,
-    function_body_blocks: BTreeSet<TransformNode>,
+    // Membership-only sets over node handles (never iterated): hashed.
+    structured_nodes: rustc_hash::FxHashSet<TransformNode>,
+    function_body_blocks: rustc_hash::FxHashSet<TransformNode>,
     block_helpers: BTreeMap<TransformNode, Vec<EmitHelper>>,
 }
 
@@ -1512,9 +1513,9 @@ impl Printer {
         transformation: &TransformationResult<'_>,
         root: TransformNode,
     ) -> Result<(), PrinterError> {
-        let mut structured_nodes = BTreeSet::new();
-        let mut function_body_blocks = BTreeSet::new();
-        let mut memo = BTreeMap::new();
+        let mut structured_nodes = rustc_hash::FxHashSet::default();
+        let mut function_body_blocks = rustc_hash::FxHashSet::default();
+        let mut memo = rustc_hash::FxHashMap::default();
         Self::collect_emission_plan(
             transformation,
             root,
@@ -1535,9 +1536,9 @@ impl Printer {
         transformation: &TransformationResult<'_>,
         node: TransformNode,
         target: Option<ScriptTarget>,
-        memo: &mut BTreeMap<TransformNode, bool>,
-        structured_nodes: &mut BTreeSet<TransformNode>,
-        function_body_blocks: &mut BTreeSet<TransformNode>,
+        memo: &mut rustc_hash::FxHashMap<TransformNode, bool>,
+        structured_nodes: &mut rustc_hash::FxHashSet<TransformNode>,
+        function_body_blocks: &mut rustc_hash::FxHashSet<TransformNode>,
     ) -> Result<bool, PrinterError> {
         if let Some(requires_structured_emit) = memo.get(&node) {
             return Ok(*requires_structured_emit);

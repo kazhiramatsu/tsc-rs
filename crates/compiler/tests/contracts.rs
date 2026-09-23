@@ -76,6 +76,8 @@ mod library_loader_session_contract;
 mod no_resolve_session_contract;
 #[path = "integration/original_path_session_contract.rs"]
 mod original_path_session_contract;
+#[path = "integration/preparsed_adoption_contract.rs"]
+mod preparsed_adoption_contract;
 #[path = "integration/preserve_symlinks_session_contract.rs"]
 mod preserve_symlinks_session_contract;
 #[path = "integration/program_session_contract.rs"]

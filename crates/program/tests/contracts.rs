@@ -41,6 +41,8 @@ mod no_lib_program_loader_contract;
 mod path_identity_contract;
 #[path = "integration/prepared_program_contract.rs"]
 mod prepared_program_contract;
+#[path = "integration/source_read_ahead_contract.rs"]
+mod source_read_ahead_contract;
 #[path = "integration/typescript_library_catalog_contract.rs"]
 mod typescript_library_catalog_contract;
 

@@ -1,5 +1,6 @@
 use crate::js_string_ops::types_package_name;
-use std::collections::{BTreeMap, BTreeSet, HashSet, VecDeque};
+use rustc_hash::FxHashSet as HashSet;
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::error::Error;
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -12,8 +13,8 @@ use tsc_types::CompilerOptions;
 use crate::json::{json_object_get, parse_json_object};
 use crate::library::{replacement_package_name, LibraryCatalog};
 use crate::module_requests::{
-    is_declaration_file_name, plan_source_requests, PlannedLibReferenceDirective,
-    PlannedPathReference, PlannedTypeReferenceDirective,
+    is_declaration_file_name, plan_source_requests_retaining_syntax, PlannedLibReferenceDirective,
+    PlannedPathReference, PlannedTypeReferenceDirective, SourceRequestPlan,
 };
 use crate::module_resolution::{
     make_program_path, HostModuleResolution, HostResolvedTypeReferenceDirective, ModuleResolver,
@@ -30,6 +31,7 @@ use crate::resolution::{
     UnloadedModuleReason,
 };
 use crate::text::{decode_host_text, HostTextDecodeError};
+use crate::workers::WorkerBudget;
 use crate::PreparationError;
 
 /// The deepest source chain admitted by the recursive H0.4 loader worker.
@@ -57,6 +59,18 @@ const INFERRED_TYPES_CONTAINING_FILE: &str = "__inferred type names__.ts";
 /// payloads are likewise outside these source-byte counters. The request-edge
 /// limit counts the final automatic-name occurrences after wildcard filtering,
 /// not raw directory entries.
+///
+/// The source-count and byte limits are joint bounds over the admitted
+/// program sources and any root payloads the loader reads ahead of its
+/// sequential discovery (see `CompilerHost::permits_source_read_ahead`): a
+/// read-ahead payload is retained only while `admitted + retained` stays
+/// within both limits, so the limits bound the live decoded/parsed source
+/// state regardless of read-ahead.
+///
+/// `workers` is the [`WorkerBudget`] for the load's scoped parse-ahead.
+/// [`Self::new`] keeps the serial default (no read-ahead, no worker thread),
+/// which is the exact pre-concurrency behaviour; callers opt in with
+/// [`Self::with_workers`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ProgramLoadLimits {
     max_source_files: usize,
@@ -64,6 +78,7 @@ pub struct ProgramLoadLimits {
     max_source_depth: usize,
     max_source_file_bytes: usize,
     max_total_source_bytes: usize,
+    workers: WorkerBudget,
 }
 
 impl ProgramLoadLimits {
@@ -80,7 +95,19 @@ impl ProgramLoadLimits {
             max_source_depth,
             max_source_file_bytes,
             max_total_source_bytes,
+            workers: WorkerBudget::serial(),
         }
+    }
+
+    /// The same limits with an explicit worker budget for parse-ahead.
+    /// tsrs-native: see [`WorkerBudget`].
+    pub const fn with_workers(mut self, workers: WorkerBudget) -> Self {
+        self.workers = workers;
+        self
+    }
+
+    pub const fn workers(self) -> WorkerBudget {
+        self.workers
     }
 
     pub const fn max_source_files(self) -> usize {
@@ -827,6 +854,23 @@ fn load_program_worker(
         resolver: &mut resolver,
         library_resolver: library_resolver.as_mut(),
     });
+    // Parse-ahead of the explicit roots. Normalization errors are left for
+    // the sequential loop below, which reports them in root order.
+    let mut prefetch_roots = Vec::with_capacity(root_names.len());
+    for index in 0..root_names.len() {
+        let Ok(root_spelling) = root_names.name(index) else {
+            break;
+        };
+        let Ok(root) = normalize_root(root_spelling, &path_context) else {
+            break;
+        };
+        prefetch_roots.push(root);
+    }
+    let phase_started = std::time::Instant::now();
+    graph.prefetch_roots(&prefetch_roots);
+    drop(prefetch_roots);
+    tsc_types::trace::mark("load: read-ahead parse of roots", phase_started);
+    let phase_started = std::time::Instant::now();
     for index in 0..root_names.len() {
         let root_spelling = root_names.name(index)?;
         let root = normalize_root(root_spelling, &path_context)?;
@@ -842,6 +886,8 @@ fn load_program_worker(
         }
     }
     let staged = graph.finish();
+    tsc_types::trace::mark("load: root walk and graph finish", phase_started);
+    let phase_started = std::time::Instant::now();
     // Before the package table is collected: the prelude's resolutions read
     // package.json files under their symlink spellings, and module-specifier
     // generation later reads those spellings back (upstream shares one
@@ -861,6 +907,7 @@ fn load_program_worker(
     let packages = packages_by_path.into_values().collect::<Vec<_>>();
     drop(resolver);
     drop(library_resolver);
+    tsc_types::trace::mark("load: dependency symlinks and packages", phase_started);
 
     publish_program(
         mode,
@@ -1367,6 +1414,112 @@ struct StagedRoot {
     missing_diagnostic: Option<Diagnostic>,
 }
 
+/// A root source read ahead of its sequential visit; see
+/// [`StagedGraph::prefetch_roots`] for the host contract and the resource
+/// bound that permit it.
+///
+/// `visit_source` performs every admission, limit, redirect and package-scope
+/// step in its original order. A retained read applies only to a visit under
+/// the identical display spelling (another spelling of the same canonical
+/// path is a distinct host query and reads as before). A retained parse is
+/// adopted only when the facts the worker assumed (display spelling and
+/// implied module formats) are the ones the visit computed itself; otherwise
+/// the retained text is planned on the loading thread exactly as a fresh
+/// read would be.
+struct PrefetchedSource {
+    /// The display spelling the read-ahead queried.
+    display: JsString,
+    read: PrefetchedRead,
+}
+
+enum PrefetchedRead {
+    /// `read_file_js` answered `Ok(None)`; the visit records the miss.
+    Missing,
+    /// `read_file_js` failed; the visit reports this error, never re-reads.
+    Failed(HostError),
+    /// Decoded and, when decoding succeeded, parsed and planned on a worker.
+    /// `byte_len` is reserved against the load budget while the entry is
+    /// retained. The parse is boxed so the small `Missing`/`Failed` entries
+    /// do not carry its size.
+    Parsed {
+        byte_len: usize,
+        decoded: Result<Box<PrefetchedParse>, HostTextDecodeError>,
+    },
+}
+
+impl PrefetchedRead {
+    /// The payload this entry holds against the joint load budget, if any.
+    fn reserved_bytes(&self) -> Option<usize> {
+        match self {
+            Self::Parsed { byte_len, .. } => Some(*byte_len),
+            Self::Missing | Self::Failed(_) => None,
+        }
+    }
+}
+
+struct PrefetchedParse {
+    implied: Option<ResolutionMode>,
+    implied_for_emit: Option<ResolutionMode>,
+    prepared: PreparedSourceFile,
+    plan: Result<SourceRequestPlan, ResolutionError>,
+}
+
+/// The text of a source about to be planned: a fresh host read, or the
+/// retained read-ahead of the same bytes.
+enum SourceInput {
+    Fresh(Vec<u8>),
+    Prefetched {
+        byte_len: usize,
+        decoded: Result<Box<PrefetchedParse>, HostTextDecodeError>,
+    },
+}
+
+enum DecodedSource {
+    Text(String),
+    Parsed(Box<PrefetchedParse>),
+}
+
+/// Decode, snapshot, parse and request-plan one read-ahead root on a worker.
+/// The implied module formats are computed without a package scope (roots
+/// whose format needs one never reach this path); the sequential visit
+/// re-derives them and adopts the parse only on agreement.
+///
+/// The parser and planner are total over decoded text: they report
+/// malformed input through diagnostics and resolution errors, never by
+/// panicking. A panic here is therefore a compiler defect, and it
+/// propagates through the scoped worker to the loading thread exactly as a
+/// sequential parse panic would; read-ahead does not catch or defer it.
+fn parse_root_ahead(
+    path: &ProgramPath,
+    bytes: Vec<u8>,
+    options: &CompilerOptions,
+) -> PrefetchedRead {
+    let byte_len = bytes.len();
+    let decoded = decode_host_text(bytes).map(|text| {
+        let implied = implied_node_format(path.display(), None, options);
+        let implied_for_emit = implied_node_format_for_emit(path.display(), None, options);
+        let prepared = PreparedSourceFile::new(path.clone(), text)
+            .with_implied_node_formats(implied, implied_for_emit);
+        Box::new(
+            match plan_source_requests_retaining_syntax(&prepared, options) {
+                Ok((plan, syntax)) => PrefetchedParse {
+                    implied,
+                    implied_for_emit,
+                    prepared: prepared.with_preparsed_syntax(syntax),
+                    plan: Ok(plan),
+                },
+                Err(error) => PrefetchedParse {
+                    implied,
+                    implied_for_emit,
+                    prepared,
+                    plan: Err(error),
+                },
+            },
+        )
+    });
+    PrefetchedRead::Parsed { byte_len, decoded }
+}
+
 enum LibraryRootReason {
     Default { target: String },
     Explicit { file_name: String },
@@ -1423,6 +1576,16 @@ struct StagedGraph<'host, 'options, 'resolver> {
     program_diagnostics: Vec<Diagnostic>,
     request_edges: usize,
     total_source_bytes: usize,
+    /// Roots parsed ahead of their sequential visit, by canonical path.
+    prefetched: BTreeMap<CanonicalPath, PrefetchedSource>,
+    /// The canonical paths of `prefetched` in root order; eviction under
+    /// budget pressure drops the last (latest-visited) payload first.
+    prefetch_order: Vec<CanonicalPath>,
+    /// Retained read-ahead payloads not yet admitted: their count and bytes
+    /// are held against the load limits together with the admitted sources
+    /// (`sources.len()` / `total_source_bytes`).
+    reserved_sources: usize,
+    reserved_bytes: usize,
 }
 
 /// Immutable and borrowed inputs for one staged graph. Keeping this boundary
@@ -1468,6 +1631,194 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             program_diagnostics: Vec::new(),
             request_edges: 0,
             total_source_bytes: 0,
+            prefetched: BTreeMap::new(),
+            prefetch_order: Vec::new(),
+            reserved_sources: 0,
+            reserved_bytes: 0,
+        }
+    }
+
+    /// Read explicit roots ahead of the sequential graph walk and parse them
+    /// on scoped standard-library worker threads.
+    ///
+    /// This runs only when the load's [`WorkerBudget`] is parallel and the
+    /// host declares [`CompilerHost::permits_source_read_ahead`]: its reads
+    /// are then pure and order-independent, so reading a root before the walk
+    /// changes no observable host behavior. A read result that is retained
+    /// (bytes, `Ok(None)`, `Err`) stands in for the host call at the root's
+    /// original visit and is not re-read; results the walk never reaches are
+    /// dropped.
+    ///
+    /// Resource bound: the source-count and byte limits are joint bounds over
+    /// admitted sources and retained read-ahead payloads
+    /// (`sources.len() + reserved_sources` and
+    /// `total_source_bytes + reserved_bytes`). A read whose payload would
+    /// exceed either bound, or the per-file limit, is never retained: the
+    /// bytes are dropped after the host's one-call allocation and the visit
+    /// reads the root again (equivalent under the purity contract), which
+    /// keeps every limit error at its sequential position with its sequential
+    /// observed value. Read-ahead stops at the first such root, at a host
+    /// error (the walk fails at that root's visit at the latest, so a later
+    /// root is only ever reached as a dependency of an earlier one, which the
+    /// walk discovers and reads normally) and when the count bound is
+    /// reached. When the walk later admits a
+    /// source that was not read ahead (a dependency or a skipped root) and
+    /// the joint bound would break, [`Self::evict_read_ahead_for_admission`]
+    /// drops retained payloads from the tail of root order until it holds;
+    /// those roots read fresh at their visit.
+    ///
+    /// Roots the walk does not read through `visit_source` (extensionless,
+    /// unsupported extension), JSON roots, roots whose implied module format
+    /// needs the package scope, and duplicate or already-visited paths stay
+    /// entirely on the sequential path. Hosts that keep the trait default and
+    /// serial budgets see the unchanged sequential discovery.
+    fn prefetch_roots(&mut self, roots: &[ProgramPath]) {
+        let workers = self.limits.workers;
+        if !workers.is_parallel() || !self.host.permits_source_read_ahead() {
+            return;
+        }
+        let mut pending: Vec<ProgramPath> = Vec::new();
+        let mut seen = BTreeSet::new();
+        for path in roots {
+            if !path_has_extension(path.display())
+                || (!is_admitted_source(path.canonical(), self.compiler_options)
+                    && self.compiler_options.allow_non_ts_extensions != Some(true))
+                || is_json_source(path.canonical())
+                || implied_node_format_needs_package_scope(path.display(), self.compiler_options)
+                || self.states.contains_key(path.canonical())
+                || !seen.insert(path.canonical().clone())
+            {
+                continue;
+            }
+            pending.push(path.clone());
+        }
+        if pending.len() < 2 {
+            return;
+        }
+        // Host reads: loading thread, root order, each retained payload
+        // reserved against the joint budget before the next read. Each
+        // retained payload is handed to the parse workers as soon as it is
+        // read, so the reads overlap the parses already running.
+        let phase_started = std::time::Instant::now();
+        let mut reads: Vec<(ProgramPath, Option<PrefetchedRead>)> =
+            Vec::with_capacity(pending.len());
+        let capacity = pending.len();
+        let mut pending = pending.into_iter();
+        let mut stopped = false;
+        let options = self.compiler_options;
+        let parsed = workers.map_streamed(
+            capacity,
+            |_| {
+                if stopped {
+                    return None;
+                }
+                loop {
+                    let path = pending.next()?;
+                    if self.sources.len() + self.reserved_sources + 1 > self.limits.max_source_files
+                    {
+                        stopped = true;
+                        return None;
+                    }
+                    match self.host.read_file_js(path.display()) {
+                        Err(error) => {
+                            // Reported at this root's visit, where the walk
+                            // fails at the latest. A later root can still be
+                            // admitted before that as a dependency of an
+                            // earlier root; the walk then reads it itself, so
+                            // stopping here is merely conservative.
+                            reads.push((path, Some(PrefetchedRead::Failed(error))));
+                            stopped = true;
+                            return None;
+                        }
+                        Ok(None) => reads.push((path, Some(PrefetchedRead::Missing))),
+                        Ok(Some(bytes)) => {
+                            if bytes.len() > self.limits.max_source_file_bytes
+                                || self
+                                    .total_source_bytes
+                                    .saturating_add(self.reserved_bytes)
+                                    .saturating_add(bytes.len())
+                                    > self.limits.max_total_source_bytes
+                            {
+                                // Not retained: dropped here, read again at
+                                // the visit.
+                                stopped = true;
+                                return None;
+                            }
+                            self.reserved_sources += 1;
+                            self.reserved_bytes += bytes.len();
+                            let index = reads.len();
+                            reads.push((path.clone(), None));
+                            return Some((index, path, bytes));
+                        }
+                    }
+                }
+            },
+            |(index, path, bytes)| (index, parse_root_ahead(&path, bytes, options)),
+        );
+        tsc_types::trace::mark("load: read-ahead streamed read and parse", phase_started);
+        for (index, read) in parsed {
+            reads[index].1 = Some(read);
+        }
+        for (path, read) in reads {
+            let read = read.expect("every read-ahead root was read or parsed");
+            self.prefetch_order.push(path.canonical().clone());
+            self.prefetched.insert(
+                path.canonical().clone(),
+                PrefetchedSource {
+                    display: path.display().to_owned(),
+                    read,
+                },
+            );
+        }
+    }
+
+    /// The retained read-ahead result for a visit under `path`, if the
+    /// read-ahead queried this exact display spelling. Another spelling of
+    /// the same canonical path is a distinct host query: its entry is
+    /// discarded and the visit reads as before. Either way the entry's
+    /// reservation is released; the visit's own admission accounts for it.
+    fn take_prefetched(&mut self, path: &ProgramPath) -> Option<PrefetchedRead> {
+        let prefetched = self.prefetched.remove(path.canonical())?;
+        self.release_read_ahead_reservation(&prefetched.read);
+        (prefetched.display.as_js() == path.display()).then_some(prefetched.read)
+    }
+
+    fn release_read_ahead_reservation(&mut self, read: &PrefetchedRead) {
+        if let Some(byte_len) = read.reserved_bytes() {
+            self.reserved_sources = self.reserved_sources.saturating_sub(1);
+            self.reserved_bytes = self.reserved_bytes.saturating_sub(byte_len);
+        }
+    }
+
+    /// Keep the joint bound over admitted and retained sources when the
+    /// walk is about to admit `byte_len` more bytes of a source that its own
+    /// limit checks have already accepted: drop retained read-ahead payloads
+    /// from the tail of root order until `admitted + 1 + retained` fits the
+    /// source-count limit and the bytes fit the total-byte limit. Dropped
+    /// roots are read from the (pure) host again at their visit.
+    fn evict_read_ahead_for_admission(&mut self, byte_len: usize) {
+        while self.reserved_sources > 0
+            && (self.sources.len() + 1 + self.reserved_sources > self.limits.max_source_files
+                || self
+                    .total_source_bytes
+                    .saturating_add(byte_len)
+                    .saturating_add(self.reserved_bytes)
+                    > self.limits.max_total_source_bytes)
+        {
+            let Some(canonical) = self.prefetch_order.pop() else {
+                break;
+            };
+            let holds_payload = self
+                .prefetched
+                .get(&canonical)
+                .is_some_and(|entry| entry.read.reserved_bytes().is_some());
+            if holds_payload {
+                let entry = self
+                    .prefetched
+                    .remove(&canonical)
+                    .expect("entry was just observed");
+                self.release_read_ahead_reservation(&entry.read);
+            }
         }
     }
 
@@ -1755,7 +2106,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         }
 
         let wildcard_matches: Vec<JsString> = self.discover_wildcard_type_directives()?;
-        let mut seen = HashSet::new();
+        let mut seen = HashSet::default();
         let mut names = Vec::new();
         for configured_name in configured {
             if configured_name == "*" {
@@ -2218,17 +2569,34 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             }
             return Ok(state.source());
         }
-        let bytes = self.host.read_file_js(path.display()).map_err(|error| {
+        // A retained read-ahead result stands in for the host call it already
+        // made (see `prefetch_roots`); otherwise the host is queried here.
+        let read = match self.take_prefetched(&path) {
+            Some(PrefetchedRead::Failed(error)) => Err(error),
+            Some(PrefetchedRead::Missing) => Ok(None),
+            Some(PrefetchedRead::Parsed { byte_len, decoded }) => {
+                Ok(Some(SourceInput::Prefetched { byte_len, decoded }))
+            }
+            None => self
+                .host
+                .read_file_js(path.display())
+                .map(|bytes| bytes.map(SourceInput::Fresh)),
+        };
+        let input = read.map_err(|error| {
             ProgramLoadError::host_js(
                 ProgramLoadOperation::ReadSource,
                 Some(path.display().to_owned()),
                 error,
             )
         })?;
-        let Some(bytes) = bytes else {
+        let Some(input) = input else {
             self.states
                 .insert(path.canonical().clone(), VisitState::Missing);
             return Ok(None);
+        };
+        let byte_len = match &input {
+            SourceInput::Fresh(bytes) => bytes.len(),
+            SourceInput::Prefetched { byte_len, .. } => *byte_len,
         };
 
         self.enforce_limit(
@@ -2251,9 +2619,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             ProgramLoadLimit::SourceFileBytes,
             Some(path.display().to_owned()),
             self.limits.max_source_file_bytes,
-            bytes.len(),
+            byte_len,
         )?;
-        let total_source_bytes = self.total_source_bytes.saturating_add(bytes.len());
+        let total_source_bytes = self.total_source_bytes.saturating_add(byte_len);
         self.enforce_limit(
             ProgramLoadOperation::ReadSource,
             ProgramLoadLimit::TotalSourceBytes,
@@ -2262,7 +2630,15 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             total_source_bytes,
         )?;
 
-        let text = decode_host_text(bytes).map_err(|source| {
+        // The limit checks above admitted this source; keep the joint bound
+        // with the payloads still retained by read-ahead (see prefetch_roots)
+        // before any of its text is decoded or retained here.
+        self.evict_read_ahead_for_admission(byte_len);
+        let decoded = match input {
+            SourceInput::Fresh(bytes) => decode_host_text(bytes).map(DecodedSource::Text),
+            SourceInput::Prefetched { decoded, .. } => decoded.map(DecodedSource::Parsed),
+        }
+        .map_err(|source| {
             ProgramLoadError::decode_js(
                 ProgramLoadOperation::DecodeSource,
                 path.display().to_owned(),
@@ -2310,8 +2686,27 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         let implied = implied_node_format(file_name, package_scope.as_ref(), self.compiler_options);
         let implied_for_emit =
             implied_node_format_for_emit(file_name, package_scope.as_ref(), self.compiler_options);
-        let mut prepared = PreparedSourceFile::new(path.clone(), text)
-            .with_implied_node_formats(implied, implied_for_emit);
+        // A read-ahead parse is adopted only when its assumptions are the
+        // facts computed above; otherwise its decoded text is planned here.
+        let (mut prepared, prefetched_plan) = match decoded {
+            DecodedSource::Text(text) => (PreparedSourceFile::new(path.clone(), text), None),
+            DecodedSource::Parsed(parsed)
+                if parsed.implied == implied
+                    && parsed.implied_for_emit == implied_for_emit
+                    && parsed.prepared.path().display() == path.display() =>
+            {
+                let parsed = *parsed;
+                (parsed.prepared, Some(parsed.plan))
+            }
+            DecodedSource::Parsed(parsed) => (
+                PreparedSourceFile::from_snapshot(
+                    path.clone(),
+                    Arc::clone(parsed.prepared.snapshot()),
+                ),
+                None,
+            ),
+        };
+        prepared = prepared.with_implied_node_formats(implied, implied_for_emit);
         if is_json_source(path.canonical())
             && self.compiler_options.out_dir.is_none()
             && self.compiler_options.out_file.is_none()
@@ -2329,16 +2724,28 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         let plan = if is_json_source(path.canonical()) {
             None
         } else {
-            Some(
-                plan_source_requests(&prepared, self.compiler_options).map_err(|error| {
-                    ProgramLoadError::resolution_js(
-                        ProgramLoadOperation::PlanSourceRequests,
-                        Some(path.display().to_owned()),
-                        None,
-                        error,
-                    )
-                })?,
-            )
+            let planned = match prefetched_plan {
+                Some(planned) => planned,
+                // The planning parse is the only parse of this snapshot: the
+                // checker session adopts it after proving equal parse options.
+                None => {
+                    match plan_source_requests_retaining_syntax(&prepared, self.compiler_options) {
+                        Ok((plan, syntax)) => {
+                            prepared = prepared.with_preparsed_syntax(syntax);
+                            Ok(plan)
+                        }
+                        Err(error) => Err(error),
+                    }
+                }
+            };
+            Some(planned.map_err(|error| {
+                ProgramLoadError::resolution_js(
+                    ProgramLoadOperation::PlanSourceRequests,
+                    Some(path.display().to_owned()),
+                    None,
+                    error,
+                )
+            })?)
         };
         let request_edges = self.request_edges.saturating_add(
             plan.as_ref()
@@ -2402,6 +2809,16 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             processing_references: false,
             pending_reprocesses: VecDeque::new(),
         });
+        // The joint bound over admitted sources and retained read-ahead
+        // payloads holds after every admission (see prefetch_roots).
+        debug_assert!(
+            self.sources.len() + self.reserved_sources <= self.limits.max_source_files,
+            "retained read-ahead payloads exceed the source-count limit"
+        );
+        debug_assert!(
+            self.total_source_bytes + self.reserved_bytes <= self.limits.max_total_source_bytes,
+            "retained read-ahead payloads exceed the total-byte limit"
+        );
         if let Some(package_id) = reason.package_id.clone() {
             self.package_id_to_source.insert(package_id, source);
         }
@@ -3777,6 +4194,31 @@ pub(crate) fn implied_node_format(
         );
     }
     None
+}
+
+/// Whether [`implied_node_format`] consults the package scope for this file
+/// name. Only such files need the sequential resolver before their parse
+/// options are known; the parse-ahead skips them.
+fn implied_node_format_needs_package_scope(
+    file_name: JsStr<'_>,
+    options: &CompilerOptions,
+) -> bool {
+    if file_name.ends_with(".mts")
+        || file_name.ends_with(".mjs")
+        || file_name.ends_with(".cts")
+        || file_name.ends_with(".cjs")
+    {
+        return false;
+    }
+    let package_eligible = file_name.ends_with(".ts")
+        || file_name.ends_with(".tsx")
+        || file_name.ends_with(".js")
+        || file_name.ends_with(".jsx");
+    package_eligible
+        && (matches!(options.emit_module_resolution_kind(), 3..=99)
+            || file_name
+                .split_ascii(b'/')
+                .any(|segment| segment == "node_modules"))
 }
 
 fn implied_node_format_for_emit(

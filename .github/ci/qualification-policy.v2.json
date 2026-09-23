@@ -53,10 +53,10 @@
       ".github/workflows/ci.yml": "de915626e641960446a9d08a62203069d27e43819b6429ac1a5154c182f2759e",
       ".github/workflows/witness.yml": "aa6103235da53ac62342b8b251dc504e14f32b924263f1caabc383d63f80e143",
       ".github/ci/replay.py": "79d1d9a5386321a2c341a43a91eb1bbc5851707389e3baa9555c4965897d0a6e",
-      "scripts/witness.py": "e98c704057beaa64f7b911952f4baa6e3451bad111977376fccfea6fb4be6a01",
+      "scripts/witness.py": "126affc0a6e611f94547721b89bd554490fbf98f5ddbb9305d4752315202eee9",
       "crates/xtask/src/acceptance_plan.rs": "b8d6d492420bff1814eb81ff08fa2725f75070d746c1fd959f8f6a9eea5a97e6",
       "crates/xtask/src/acceptance_slices.rs": "93a4eefa18ebe006ecc75a472c678322954bb99a69b7c096b1f75b509287c7fa",
-      ".github/ci/test_replay.py": "99a013ab3f0c5545b4babac489156ba70b6dac1e9925ea09657d629e795bb0c9",
+      ".github/ci/test_replay.py": "5217afb3de31f8efdfe1f0e5a7a8be8f828837880e71bab69a6e265cdcf53350",
       "scripts/foundation_witnesses.py": "d96836287984d1dd6dc095a3004148a84a5c4add2764af330fafc03ccab0928f",
       "scripts/emitter_final_witnesses.py": "3ac4ca2410c779acdb8e04f85bc64e77abcb548f7b5f0203c02cc20733568015"
     }
