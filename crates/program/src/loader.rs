@@ -1,5 +1,5 @@
 use crate::js_string_ops::types_package_name;
-use rustc_hash::FxHashSet as HashSet;
+use rustc_hash::{FxHashMap, FxHashSet as HashSet};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::error::Error;
 use std::fmt;
@@ -1577,9 +1577,9 @@ struct StagedGraph<'host, 'options, 'resolver> {
     resolver: &'resolver mut ModuleResolver<'host>,
     library_resolver: Option<&'resolver mut ModuleResolver<'host>>,
     resolved_library_paths: BTreeMap<String, ProgramPath>,
-    states: BTreeMap<CanonicalPath, VisitState>,
+    states: FxHashMap<CanonicalPath, VisitState>,
     package_id_to_source: BTreeMap<PackageId, usize>,
-    files_by_name_ignore_case: BTreeMap<JsString, usize>,
+    files_by_name_ignore_case: FxHashMap<JsString, usize>,
     case_sensitive_casing_conflicts: Vec<CaseSensitiveCasingConflict>,
     sources: Vec<StagedSource>,
     source_edges: Vec<Vec<(usize, bool)>>,
@@ -1589,13 +1589,13 @@ struct StagedGraph<'host, 'options, 'resolver> {
     module_resolutions: Vec<StagedModuleResolution>,
     type_resolution_by_key: BTreeMap<TypeReferenceResolutionKey, usize>,
     type_resolutions: Vec<StagedTypeResolution>,
-    diagnosed_missing_roots: BTreeSet<JsString>,
-    diagnosed_missing_library_roots: BTreeSet<JsString>,
+    diagnosed_missing_roots: HashSet<JsString>,
+    diagnosed_missing_library_roots: HashSet<JsString>,
     program_diagnostics: Vec<Diagnostic>,
     request_edges: usize,
     total_source_bytes: usize,
     /// Roots parsed ahead of their sequential visit, by canonical path.
-    prefetched: BTreeMap<CanonicalPath, PrefetchedSource>,
+    prefetched: FxHashMap<CanonicalPath, PrefetchedSource>,
     /// The canonical paths of `prefetched` in root order; eviction under
     /// budget pressure drops the last (latest-visited) payload first.
     prefetch_order: Vec<CanonicalPath>,
@@ -1632,9 +1632,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             resolver: config.resolver,
             library_resolver: config.library_resolver,
             resolved_library_paths: BTreeMap::new(),
-            states: BTreeMap::new(),
+            states: FxHashMap::default(),
             package_id_to_source: BTreeMap::new(),
-            files_by_name_ignore_case: BTreeMap::new(),
+            files_by_name_ignore_case: FxHashMap::default(),
             case_sensitive_casing_conflicts: Vec::new(),
             sources: Vec::new(),
             source_edges: Vec::new(),
@@ -1644,12 +1644,12 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             module_resolutions: Vec::new(),
             type_resolution_by_key: BTreeMap::new(),
             type_resolutions: Vec::new(),
-            diagnosed_missing_roots: BTreeSet::new(),
-            diagnosed_missing_library_roots: BTreeSet::new(),
+            diagnosed_missing_roots: HashSet::default(),
+            diagnosed_missing_library_roots: HashSet::default(),
             program_diagnostics: Vec::new(),
             request_edges: 0,
             total_source_bytes: 0,
-            prefetched: BTreeMap::new(),
+            prefetched: FxHashMap::default(),
             prefetch_order: Vec::new(),
             reserved_sources: 0,
             reserved_bytes: 0,
