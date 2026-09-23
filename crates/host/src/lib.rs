@@ -77,6 +77,14 @@ pub trait CompilerHost {
 
     fn read_file_js(&self, path: JsStr<'_>) -> Result<Option<Vec<u8>>, HostError>;
 
+    /// The byte length of the file at `path` when the host can tell without
+    /// reading it, or `None`. The loader reads the largest roots first so the
+    /// longest parse starts earliest; a host without a cheap answer keeps
+    /// this default, and its roots are read in their own order.
+    fn file_size_hint_js(&self, _path: JsStr<'_>) -> Result<Option<u64>, HostError> {
+        Ok(None)
+    }
+
     fn file_exists_js(&self, path: JsStr<'_>) -> Result<bool, HostError>;
 
     fn directory_exists_js(&self, path: JsStr<'_>) -> Result<bool, HostError>;

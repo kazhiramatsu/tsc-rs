@@ -1713,6 +1713,21 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         if pending.len() < 2 {
             return;
         }
+        // The largest roots first: the longest parse then starts as early as
+        // the streaming allows instead of after every smaller read before it
+        // in root order. Hosts without a cheap size answer keep root order.
+        let sizes: Vec<Option<u64>> = pending
+            .iter()
+            .map(|path| self.host.file_size_hint_js(path.display()).ok().flatten())
+            .collect();
+        if sizes.iter().any(Option::is_some) {
+            let mut order: Vec<usize> = (0..pending.len()).collect();
+            order.sort_by_key(|&index| (std::cmp::Reverse(sizes[index].unwrap_or(0)), index));
+            pending = order
+                .into_iter()
+                .map(|index| pending[index].clone())
+                .collect();
+        }
         // Host reads: loading thread, root order, each retained payload
         // reserved against the joint budget before the next read. Each
         // retained payload is handed to the parse workers as soon as it is
