@@ -171,6 +171,23 @@ pub struct TypeTables {
     instantiations: HashMap<(TypeId, String), TypeId>,
 }
 
+/// Append `value` in decimal without the formatting machinery: cache keys
+/// (type lists, aliases, relations) are built for every lookup.
+pub fn push_decimal(result: &mut String, value: u32) {
+    let mut digits = [0u8; 10];
+    let mut index = digits.len();
+    let mut rest = value;
+    loop {
+        index -= 1;
+        digits[index] = b'0' + (rest % 10) as u8;
+        rest /= 10;
+        if rest == 0 {
+            break;
+        }
+    }
+    result.push_str(std::str::from_utf8(&digits[index..]).expect("decimal digits are ASCII"));
+}
+
 impl TypeTables {
     pub fn new(strict_null_checks: bool, exact_optional_property_types: bool) -> Self {
         let mut tables = Self {
@@ -397,6 +414,7 @@ impl TypeTables {
         self.types.reserve(additional);
         self.string_literal_types.reserve(additional / 8);
         self.utf8_string_literal_types.reserve(additional / 8);
+        self.union_types.reserve(additional / 16);
     }
 
     pub fn len(&self) -> usize {
@@ -832,8 +850,16 @@ impl TypeTables {
     /// tsc-hash: 08bbe30d7ae7370051e576d48d6bf3103d563a65a92d10740ec9f3c4546f9fea
     /// tsc-span: _tsc.js:60128-60150
     pub fn get_type_list_id(&self, types: &[TypeId]) -> String {
+        let mut result = String::with_capacity(types.len() * 6);
+        self.push_type_list_id(types, &mut result);
+        result
+    }
+
+    /// `get_type_list_id` appended to `result` (cache keys are built for
+    /// every union, alias and instantiation lookup).
+    pub fn push_type_list_id(&self, types: &[TypeId], result: &mut String) {
         crate::perf::bump(crate::perf::PerfCounter::TypeListIdCalls);
-        let mut result = String::new();
+        let start_len = result.len();
         let length = types.len();
         let mut i = 0;
         while i < length {
@@ -842,21 +868,23 @@ impl TypeTables {
             while i + count < length && types[i + count].0 == start_id + count as u32 {
                 count += 1;
             }
-            if !result.is_empty() {
+            if result.len() > start_len {
                 result.push(',');
             }
-            result.push_str(&start_id.to_string());
+            push_decimal(result, start_id);
             if count > 1 {
                 result.push(':');
-                result.push_str(&count.to_string());
+                push_decimal(
+                    result,
+                    u32::try_from(count).expect("type list length fits u32"),
+                );
             }
             i += count;
         }
         crate::perf::add(
             crate::perf::PerfCounter::TypeListIdBytes,
-            result.len() as u64,
+            (result.len() - start_len) as u64,
         );
-        result
     }
 
     /// tsc-port: getAliasId @6.0.3
@@ -867,15 +895,27 @@ impl TypeTables {
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
     ) -> String {
+        let mut result = String::new();
+        self.push_alias_id(alias_symbol, alias_type_arguments, &mut result);
+        result
+    }
+
+    /// `get_alias_id` appended to `result`.
+    pub fn push_alias_id(
+        &self,
+        alias_symbol: Option<SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
+        result: &mut String,
+    ) {
         crate::perf::bump(crate::perf::PerfCounter::AliasIdCalls);
-        match alias_symbol {
-            None => String::new(),
-            Some(symbol) => match alias_type_arguments {
-                None => format!("@{}", symbol.0),
-                Some(arguments) => {
-                    format!("@{}:{}", symbol.0, self.get_type_list_id(arguments))
-                }
-            },
+        let Some(symbol) = alias_symbol else {
+            return;
+        };
+        result.push('@');
+        push_decimal(result, symbol.0);
+        if let Some(arguments) = alias_type_arguments {
+            result.push(':');
+            self.push_type_list_id(arguments, result);
         }
     }
 
@@ -963,7 +1003,10 @@ impl TypeTables {
                 UnionReduction::Literal => "L",
             };
             let index = usize::from(types[0].0 >= types[1].0);
-            let key = format!("{}{infix}{}", types[index].0, types[1 - index].0);
+            let mut key = String::with_capacity(24);
+            push_decimal(&mut key, types[index].0);
+            key.push_str(infix);
+            push_decimal(&mut key, types[1 - index].0);
             crate::perf::bump(crate::perf::PerfCounter::UnionOfUnionLookups);
             if let Some(&id) = self.union_of_union_types.get(&key) {
                 crate::perf::bump(crate::perf::PerfCounter::UnionOfUnionHits);
@@ -1401,29 +1444,30 @@ impl TypeTables {
         if types.len() == 1 {
             return types[0];
         }
-        let type_key = match origin {
-            None => self.get_type_list_id(&types),
+        let mut key = String::with_capacity(16 + types.len() * 6);
+        match origin {
+            None => self.push_type_list_id(&types, &mut key),
             Some(origin) => match &self.type_of(origin).data {
                 TypeData::Union { types: members, .. } => {
-                    let members = members.clone();
-                    format!("|{}", self.get_type_list_id(&members))
+                    key.push('|');
+                    self.push_type_list_id(members, &mut key);
                 }
                 TypeData::Intersection { types: members } => {
-                    let members = members.clone();
-                    format!("&{}", self.get_type_list_id(&members))
+                    key.push('&');
+                    self.push_type_list_id(members, &mut key);
                 }
                 // 61619: the `#` form for keyof origins (origin index
                 // types, createOriginIndexType).
                 TypeData::Index { ty, .. } => {
-                    format!("#{}|{}", ty.0, self.get_type_list_id(&types))
+                    key.push('#');
+                    push_decimal(&mut key, ty.0);
+                    key.push('|');
+                    self.push_type_list_id(&types, &mut key);
                 }
                 _ => unreachable!("union origins are unions/intersections/index types"),
             },
-        };
-        let key = format!(
-            "{type_key}{}",
-            self.get_alias_id(alias_symbol, alias_type_arguments)
-        );
+        }
+        self.push_alias_id(alias_symbol, alias_type_arguments, &mut key);
         crate::perf::bump(crate::perf::PerfCounter::UnionLookups);
         if let Some(&id) = self.union_types.get(&key) {
             crate::perf::bump(crate::perf::PerfCounter::UnionHits);

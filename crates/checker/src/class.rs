@@ -397,8 +397,10 @@ impl<'a> CheckerState<'a> {
             NodeData::InterfaceDeclaration(data) => data.members,
             _ => None,
         };
-        let mut names: rustc_hash::FxHashSet<JsString> = rustc_hash::FxHashSet::default();
-        for member in self.nodes_of(members) {
+        let members = self.nodes_of(members);
+        let mut names: rustc_hash::FxHashSet<JsString> =
+            rustc_hash::FxHashSet::with_capacity_and_hasher(members.len(), Default::default());
+        for member in members {
             if self.kind_of(member) != SyntaxKind::PropertySignature {
                 continue;
             }
