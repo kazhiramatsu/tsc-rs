@@ -363,7 +363,7 @@ impl<'a> CheckerState<'a> {
                             .binder
                             .node_symbol(loc)
                             .map(|s| self.get_merged_symbol(s));
-                        let module_exports = module_symbol.map(|s| &self.binder.symbol(s).exports);
+                        let module_exports = module_symbol.map(|s| &*self.binder.symbol(s).exports);
                         if is_source_file
                             || (self.kind_of(loc) == SyntaxKind::ModuleDeclaration
                                 && self.node_flags(loc) & NodeFlags::AMBIENT.bits() != 0
@@ -450,7 +450,7 @@ impl<'a> CheckerState<'a> {
                         .binder
                         .node_symbol(loc)
                         .map(|s| self.get_merged_symbol(s))
-                        .map(|s| &self.binder.symbol(s).exports);
+                        .map(|s| &*self.binder.symbol(s).exports);
                     let masked = meaning & SymbolFlags::ENUM_MEMBER;
                     let input = LookupInput::new(exports, name, suggestion);
                     let probe = self.lookup_probe(input, name, masked, false)?;
@@ -516,7 +516,7 @@ impl<'a> CheckerState<'a> {
                         .binder
                         .node_symbol(loc)
                         .map(|s| self.get_merged_symbol(s))
-                        .map(|s| &self.binder.symbol(s).members);
+                        .map(|s| &*self.binder.symbol(s).members);
                     let masked = meaning & SymbolFlags::TYPE;
                     let input = LookupInput::new(members, name, suggestion);
                     let probe = self.lookup_probe(input, name, masked, false)?;
@@ -574,7 +574,7 @@ impl<'a> CheckerState<'a> {
                                     .node_symbol(container)
                                     // getSymbolOfDeclaration (19660).
                                     .map(|s| self.get_merged_symbol(s))
-                                    .map(|s| &self.binder.symbol(s).members);
+                                    .map(|s| &*self.binder.symbol(s).members);
                                 let masked = meaning & SymbolFlags::TYPE;
                                 let input = LookupInput::new(members, name, suggestion);
                                 let probe = self.lookup_probe(input, name, masked, false)?;
@@ -608,7 +608,7 @@ impl<'a> CheckerState<'a> {
                                 .node_symbol(grandparent)
                                 // getSymbolOfDeclaration (19679).
                                 .map(|s| self.get_merged_symbol(s))
-                                .map(|s| &self.binder.symbol(s).members);
+                                .map(|s| &*self.binder.symbol(s).members);
                             let masked = meaning & SymbolFlags::TYPE;
                             let input = LookupInput::new(members, name, suggestion);
                             let probe = self.lookup_probe(input, name, masked, false)?;

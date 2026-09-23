@@ -605,14 +605,12 @@ impl EmitResolver for CheckerSession<'_> {
                     reason: abort.description(),
                 })?;
             let source_file = state.binder.source_of_node(node);
-            let mut children = Vec::new();
+            let first = stack.len();
             tsc_syntax::for_each_child(&source_file.arena, source_file.arena.node(node), |child| {
-                children.push(child);
+                stack.push(child);
                 false
             });
-            for child in children.into_iter().rev() {
-                stack.push(child);
-            }
+            stack[first..].reverse();
         }
         Ok(())
     }

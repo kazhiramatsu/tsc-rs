@@ -2091,7 +2091,7 @@ impl<'a> CheckerState<'a> {
         }
         let node_members: Option<&tsc_binder::SymbolTable> = self
             .node_symbol(node)
-            .map(|s| &self.binder.symbol(s).members);
+            .map(|s| &*self.binder.symbol(s).members);
         let has_members = node_members.is_some_and(|m| !m.is_empty());
         let mut absent_optional: Vec<tsc_types::EscapedName> = Vec::new();
         if has_members {
@@ -2588,10 +2588,9 @@ impl<'a> CheckerState<'a> {
                 let Some(element_index) = elements.iter().position(|&e| e == node) else {
                     return Ok(None);
                 };
-                let spread_indices = match self
-                    .links
-                    .read_node(array_literal, |links| links.spread_indices)
-                {
+                let spread_indices = match self.links.read_node(array_literal, |links| {
+                    links.cold().and_then(|cold| cold.spread_indices)
+                }) {
                     Some(cached) => cached,
                     None => {
                         let computed = self.get_spread_indices(&elements);

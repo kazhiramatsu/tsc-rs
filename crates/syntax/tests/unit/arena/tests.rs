@@ -28,7 +28,7 @@ fn finalizes_parent_links_and_error_aggregation() {
         NodeFlags::NONE,
     );
 
-    arena.finalize_tree(root);
+    arena.finalize_tree(root, &[stmt]);
 
     assert_eq!(arena.node(stmt).parent, Some(root));
     assert_eq!(arena.node(eof).parent, Some(root));

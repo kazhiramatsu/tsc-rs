@@ -1,5 +1,5 @@
 use crate::js_string_ops::types_package_name;
-use rustc_hash::FxHashSet as HashSet;
+use rustc_hash::{FxHashMap, FxHashSet as HashSet};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::error::Error;
 use std::fmt;
@@ -1495,27 +1495,45 @@ fn parse_root_ahead(
     options: &CompilerOptions,
 ) -> PrefetchedRead {
     let byte_len = bytes.len();
+    // Under the phase trace a large source reports its decode, snapshot and
+    // parse-plus-plan steps separately.
+    let traced = (tsc_types::trace::enabled() && byte_len >= 256 << 10).then(|| {
+        (
+            std::time::Instant::now(),
+            path.display().to_string_lossy().into_owned(),
+        )
+    });
     let decoded = decode_host_text(bytes).map(|text| {
+        if let Some((started, name)) = &traced {
+            tsc_types::trace::mark(&format!("load: decode {name} ({byte_len} bytes)"), *started);
+        }
+        let prepare_started = std::time::Instant::now();
         let implied = implied_node_format(path.display(), None, options);
         let implied_for_emit = implied_node_format_for_emit(path.display(), None, options);
         let prepared = PreparedSourceFile::new(path.clone(), text)
             .with_implied_node_formats(implied, implied_for_emit);
-        Box::new(
-            match plan_source_requests_retaining_syntax(&prepared, options) {
-                Ok((plan, syntax)) => PrefetchedParse {
-                    implied,
-                    implied_for_emit,
-                    prepared: prepared.with_preparsed_syntax(syntax),
-                    plan: Ok(plan),
-                },
-                Err(error) => PrefetchedParse {
-                    implied,
-                    implied_for_emit,
-                    prepared,
-                    plan: Err(error),
-                },
+        if let Some((_, name)) = &traced {
+            tsc_types::trace::mark(&format!("load: snapshot {name}"), prepare_started);
+        }
+        let plan_started = std::time::Instant::now();
+        let planned = plan_source_requests_retaining_syntax(&prepared, options);
+        if let Some((_, name)) = &traced {
+            tsc_types::trace::mark(&format!("load: parse and plan {name}"), plan_started);
+        }
+        Box::new(match planned {
+            Ok((plan, syntax)) => PrefetchedParse {
+                implied,
+                implied_for_emit,
+                prepared: prepared.with_preparsed_syntax(syntax),
+                plan: Ok(plan),
             },
-        )
+            Err(error) => PrefetchedParse {
+                implied,
+                implied_for_emit,
+                prepared,
+                plan: Err(error),
+            },
+        })
     });
     PrefetchedRead::Parsed { byte_len, decoded }
 }
@@ -1559,9 +1577,9 @@ struct StagedGraph<'host, 'options, 'resolver> {
     resolver: &'resolver mut ModuleResolver<'host>,
     library_resolver: Option<&'resolver mut ModuleResolver<'host>>,
     resolved_library_paths: BTreeMap<String, ProgramPath>,
-    states: BTreeMap<CanonicalPath, VisitState>,
+    states: FxHashMap<CanonicalPath, VisitState>,
     package_id_to_source: BTreeMap<PackageId, usize>,
-    files_by_name_ignore_case: BTreeMap<JsString, usize>,
+    files_by_name_ignore_case: FxHashMap<JsString, usize>,
     case_sensitive_casing_conflicts: Vec<CaseSensitiveCasingConflict>,
     sources: Vec<StagedSource>,
     source_edges: Vec<Vec<(usize, bool)>>,
@@ -1571,13 +1589,13 @@ struct StagedGraph<'host, 'options, 'resolver> {
     module_resolutions: Vec<StagedModuleResolution>,
     type_resolution_by_key: BTreeMap<TypeReferenceResolutionKey, usize>,
     type_resolutions: Vec<StagedTypeResolution>,
-    diagnosed_missing_roots: BTreeSet<JsString>,
-    diagnosed_missing_library_roots: BTreeSet<JsString>,
+    diagnosed_missing_roots: HashSet<JsString>,
+    diagnosed_missing_library_roots: HashSet<JsString>,
     program_diagnostics: Vec<Diagnostic>,
     request_edges: usize,
     total_source_bytes: usize,
     /// Roots parsed ahead of their sequential visit, by canonical path.
-    prefetched: BTreeMap<CanonicalPath, PrefetchedSource>,
+    prefetched: FxHashMap<CanonicalPath, PrefetchedSource>,
     /// The canonical paths of `prefetched` in root order; eviction under
     /// budget pressure drops the last (latest-visited) payload first.
     prefetch_order: Vec<CanonicalPath>,
@@ -1614,9 +1632,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             resolver: config.resolver,
             library_resolver: config.library_resolver,
             resolved_library_paths: BTreeMap::new(),
-            states: BTreeMap::new(),
+            states: FxHashMap::default(),
             package_id_to_source: BTreeMap::new(),
-            files_by_name_ignore_case: BTreeMap::new(),
+            files_by_name_ignore_case: FxHashMap::default(),
             case_sensitive_casing_conflicts: Vec::new(),
             sources: Vec::new(),
             source_edges: Vec::new(),
@@ -1626,12 +1644,12 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             module_resolutions: Vec::new(),
             type_resolution_by_key: BTreeMap::new(),
             type_resolutions: Vec::new(),
-            diagnosed_missing_roots: BTreeSet::new(),
-            diagnosed_missing_library_roots: BTreeSet::new(),
+            diagnosed_missing_roots: HashSet::default(),
+            diagnosed_missing_library_roots: HashSet::default(),
             program_diagnostics: Vec::new(),
             request_edges: 0,
             total_source_bytes: 0,
-            prefetched: BTreeMap::new(),
+            prefetched: FxHashMap::default(),
             prefetch_order: Vec::new(),
             reserved_sources: 0,
             reserved_bytes: 0,
@@ -1695,6 +1713,21 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         if pending.len() < 2 {
             return;
         }
+        // The largest roots first: the longest parse then starts as early as
+        // the streaming allows instead of after every smaller read before it
+        // in root order. Hosts without a cheap size answer keep root order.
+        let sizes: Vec<Option<u64>> = pending
+            .iter()
+            .map(|path| self.host.file_size_hint_js(path.display()).ok().flatten())
+            .collect();
+        if sizes.iter().any(Option::is_some) {
+            let mut order: Vec<usize> = (0..pending.len()).collect();
+            order.sort_by_key(|&index| (std::cmp::Reverse(sizes[index].unwrap_or(0)), index));
+            pending = order
+                .into_iter()
+                .map(|index| pending[index].clone())
+                .collect();
+        }
         // Host reads: loading thread, root order, each retained payload
         // reserved against the joint budget before the next read. Each
         // retained payload is handed to the parse workers as soon as it is
@@ -1753,7 +1786,18 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     }
                 }
             },
-            |(index, path, bytes)| (index, parse_root_ahead(&path, bytes, options)),
+            |(index, path, bytes)| {
+                let large_parse_started = (tsc_types::trace::enabled() && bytes.len() >= 256 << 10)
+                    .then(|| (std::time::Instant::now(), bytes.len()));
+                let parsed = parse_root_ahead(&path, bytes, options);
+                if let Some((started, len)) = large_parse_started {
+                    tsc_types::trace::mark(
+                        &format!("load: parse {:?} ({len} bytes)", path.display()),
+                        started,
+                    );
+                }
+                (index, parsed)
+            },
         );
         tsc_types::trace::mark("load: read-ahead streamed read and parse", phase_started);
         for (index, read) in parsed {

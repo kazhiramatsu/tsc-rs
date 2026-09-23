@@ -37,6 +37,25 @@ pub const MAX_WORKERS: usize = 16;
 /// committed only as used.
 pub const WORKER_STACK_BYTES: usize = 16 << 20;
 
+/// The hook every worker thread and checker shard runs first, installed at
+/// most once per process by the embedding (the CLI asks the OS for
+/// interactive scheduling, which on macOS steers the thread to the
+/// performance cores). Libraries never install one; without a hook the
+/// threads start as they always did.
+static THREAD_START_HOOK: std::sync::OnceLock<fn()> = std::sync::OnceLock::new();
+
+/// Install the thread-start hook; a second installation is ignored.
+pub fn set_thread_start_hook(hook: fn()) {
+    let _ = THREAD_START_HOOK.set(hook);
+}
+
+/// Run the installed thread-start hook, if any, on the calling thread.
+pub fn run_thread_start_hook() {
+    if let Some(hook) = THREAD_START_HOOK.get() {
+        hook();
+    }
+}
+
 /// The number of threads (including the calling thread) one scoped
 /// parallel step may use.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -147,7 +166,10 @@ impl WorkerBudget {
                 let _ = std::thread::Builder::new()
                     .name("tsc-rs-worker".to_owned())
                     .stack_size(WORKER_STACK_BYTES)
-                    .spawn_scoped(scope, run);
+                    .spawn_scoped(scope, || {
+                        run_thread_start_hook();
+                        run();
+                    });
             }
             run();
         });
@@ -247,7 +269,10 @@ impl WorkerBudget {
                 let _ = std::thread::Builder::new()
                     .name("tsc-rs-worker".to_owned())
                     .stack_size(WORKER_STACK_BYTES)
-                    .spawn_scoped(scope, run);
+                    .spawn_scoped(scope, || {
+                        run_thread_start_hook();
+                        run();
+                    });
             }
             let mut produced = 0;
             {

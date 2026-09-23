@@ -14,7 +14,7 @@ use std::iter::FusedIterator;
 
 /// An owned canonical WTF-8 string. It has no lossy `Display` or `str` deref.
 #[derive(Clone, Default, Eq, PartialEq, Ord, PartialOrd)]
-pub struct JsString(Vec<u8>);
+pub struct JsString(Storage);
 
 /// A safe, zero-copy borrowed view of canonical WTF-8.
 ///
@@ -56,11 +56,11 @@ impl JsStringByteLength {
 
 impl JsString {
     pub const fn new() -> Self {
-        Self(Vec::new())
+        Self(Storage::new())
     }
 
     pub fn with_capacity(bytes: usize) -> Self {
-        Self(Vec::with_capacity(bytes))
+        Self(Storage::with_capacity(bytes))
     }
 
     /// Reserve canonical WTF-8 storage at a caller-owned allocation boundary.
@@ -359,7 +359,7 @@ impl<'a> JsStr<'a> {
     }
 
     pub fn to_owned(self) -> JsString {
-        JsString(self.bytes.to_vec())
+        JsString(Storage::from_slice(self.bytes))
     }
 
     /// JavaScript's case-sensitive lexicographic UTF-16 comparison.
@@ -409,13 +409,13 @@ impl<'a> JsStr<'a> {
 
 impl From<&str> for JsString {
     fn from(text: &str) -> Self {
-        Self(text.as_bytes().to_vec())
+        Self(Storage::from_slice(text.as_bytes()))
     }
 }
 
 impl From<String> for JsString {
     fn from(text: String) -> Self {
-        Self(text.into_bytes())
+        Self(Storage::from_vec(text.into_bytes()))
     }
 }
 
@@ -614,7 +614,7 @@ fn combine_pair(lead: u16, trail: u16) -> u32 {
     0x10000 + ((u32::from(lead) - 0xD800) << 10) + u32::from(trail) - 0xDC00
 }
 
-fn append_code_point(bytes: &mut Vec<u8>, point: u32) {
+fn append_code_point(bytes: &mut Storage, point: u32) {
     match point {
         0..=0x7F => bytes.push(point as u8),
         0x80..=0x7FF => {
@@ -631,6 +631,179 @@ fn append_code_point(bytes: &mut Vec<u8>, point: u32) {
             0x80 | ((point >> 6) & 0x3F) as u8,
             0x80 | (point & 0x3F) as u8,
         ]),
+    }
+}
+
+// Fifteen bytes keep `JsString` at the size of a `Vec<u8>`: the inline
+// variant fits beside the heap pointer's niche, so no struct holding a
+// string grows (a larger inline buffer made every such record, and every
+// stack frame of the recursive config parser, a third bigger).
+const INLINE_CAPACITY: usize = 15;
+
+const _: () = assert!(
+    std::mem::size_of::<JsString>() == std::mem::size_of::<Vec<u8>>(),
+    "JsString must stay the size of a Vec<u8>"
+);
+
+/// Byte storage of a [`JsString`]: up to `INLINE_CAPACITY` bytes live in the
+/// value itself, so identifier-sized strings are built, copied and dropped
+/// without the allocator; longer strings move to a `Vec`. Every observer
+/// sees one contiguous byte slice either way.
+#[derive(Clone)]
+enum Storage {
+    Inline {
+        len: u8,
+        bytes: [u8; INLINE_CAPACITY],
+    },
+    Heap(Vec<u8>),
+}
+
+impl Storage {
+    const fn new() -> Self {
+        Self::Inline {
+            len: 0,
+            bytes: [0; INLINE_CAPACITY],
+        }
+    }
+
+    fn with_capacity(bytes: usize) -> Self {
+        if bytes <= INLINE_CAPACITY {
+            Self::new()
+        } else {
+            Self::Heap(Vec::with_capacity(bytes))
+        }
+    }
+
+    fn from_slice(slice: &[u8]) -> Self {
+        let mut storage = Self::with_capacity(slice.len());
+        storage.extend_from_slice(slice);
+        storage
+    }
+
+    fn from_vec(vec: Vec<u8>) -> Self {
+        if vec.len() <= INLINE_CAPACITY {
+            Self::from_slice(&vec)
+        } else {
+            Self::Heap(vec)
+        }
+    }
+
+    fn as_slice(&self) -> &[u8] {
+        match self {
+            Self::Inline { len, bytes } => &bytes[..usize::from(*len)],
+            Self::Heap(vec) => vec,
+        }
+    }
+
+    /// Move an inline value to the heap with room for `additional` more
+    /// bytes, or return the existing heap vector.
+    fn heap(&mut self, additional: usize) -> &mut Vec<u8> {
+        if let Self::Inline { len, bytes } = self {
+            let mut vec = Vec::with_capacity(usize::from(*len) + additional);
+            vec.extend_from_slice(&bytes[..usize::from(*len)]);
+            *self = Self::Heap(vec);
+        }
+        match self {
+            Self::Heap(vec) => vec,
+            Self::Inline { .. } => unreachable!("just moved to the heap"),
+        }
+    }
+
+    fn extend_from_slice(&mut self, more: &[u8]) {
+        if let Self::Inline { len, bytes } = self {
+            let start = usize::from(*len);
+            if start + more.len() <= INLINE_CAPACITY {
+                bytes[start..start + more.len()].copy_from_slice(more);
+                *len = (start + more.len()) as u8;
+                return;
+            }
+        }
+        self.heap(more.len()).extend_from_slice(more);
+    }
+
+    fn push(&mut self, byte: u8) {
+        self.extend_from_slice(&[byte]);
+    }
+
+    fn truncate(&mut self, length: usize) {
+        match self {
+            Self::Inline { len, .. } => {
+                if length < usize::from(*len) {
+                    *len = length as u8;
+                }
+            }
+            Self::Heap(vec) => vec.truncate(length),
+        }
+    }
+
+    fn clear(&mut self) {
+        match self {
+            Self::Inline { len, .. } => *len = 0,
+            Self::Heap(vec) => vec.clear(),
+        }
+    }
+
+    fn try_reserve_exact(
+        &mut self,
+        additional: usize,
+    ) -> Result<(), std::collections::TryReserveError> {
+        match self {
+            Self::Inline { len, .. } if usize::from(*len) + additional <= INLINE_CAPACITY => Ok(()),
+            Self::Inline { len, bytes } => {
+                let mut vec = Vec::new();
+                vec.try_reserve_exact(usize::from(*len) + additional)?;
+                vec.extend_from_slice(&bytes[..usize::from(*len)]);
+                *self = Self::Heap(vec);
+                Ok(())
+            }
+            Self::Heap(vec) => vec.try_reserve_exact(additional),
+        }
+    }
+}
+
+impl Default for Storage {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl std::ops::Deref for Storage {
+    type Target = [u8];
+
+    fn deref(&self) -> &[u8] {
+        self.as_slice()
+    }
+}
+
+impl PartialEq for Storage {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_slice() == other.as_slice()
+    }
+}
+
+impl Eq for Storage {}
+
+impl PartialOrd for Storage {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Storage {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.as_slice().cmp(other.as_slice())
+    }
+}
+
+impl PartialEq<&[u8]> for Storage {
+    fn eq(&self, other: &&[u8]) -> bool {
+        self.as_slice() == *other
+    }
+}
+
+impl fmt::Debug for Storage {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(self.as_slice(), formatter)
     }
 }
 

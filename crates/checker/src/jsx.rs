@@ -587,7 +587,7 @@ impl<'a> CheckerState<'a> {
                     child_prop_map.insert(children_name.clone(), children_prop_symbol);
                     let child_type = self.make_resolved_anonymous_type(
                         attributes_symbol,
-                        child_prop_map,
+                        child_prop_map.into(),
                         vec![children_prop_symbol],
                         Vec::new(),
                         ObjectFlags::ANONYMOUS,
@@ -646,7 +646,7 @@ impl<'a> CheckerState<'a> {
         let properties: Vec<SymbolId> = attributes_table.values().copied().collect();
         self.make_resolved_anonymous_type(
             attributes_symbol,
-            attributes_table.clone(),
+            attributes_table.clone().into(),
             properties,
             Vec::new(),
             flags,
@@ -1281,10 +1281,11 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
     ) -> CheckResult<TypeId> {
-        if let Some(cached) = self
-            .links
-            .read_node(node, |links| links.resolved_jsx_element_attributes_type)
-        {
+        if let Some(cached) = self.links.read_node(node, |links| {
+            links
+                .cold()
+                .and_then(|cold| cold.resolved_jsx_element_attributes_type)
+        }) {
             return Ok(cached);
         }
         let symbol = self.get_intrinsic_tag_symbol(node)?;
@@ -1438,7 +1439,7 @@ impl<'a> CheckerState<'a> {
         self.tables.type_mut(id).object_flags =
             ObjectFlags::ANONYMOUS | ObjectFlags::SINGLE_SIGNATURE_TYPE;
         let members = self.alloc_members(crate::state::ResolvedMembers {
-            members: SymbolTable::default(),
+            members: Default::default(),
             properties: Vec::new(),
             call_signatures: if is_constructor {
                 Vec::new()
@@ -1524,7 +1525,9 @@ impl<'a> CheckerState<'a> {
     ///
     pub(crate) fn get_jsx_fragment_type(&mut self, node: NodeId) -> CheckResult<TypeId> {
         let root = self.binder.source_of_node(node).root;
-        if let Some(cached) = self.links.read_node(root, |links| links.jsx_fragment_type) {
+        if let Some(cached) = self.links.read_node(root, |links| {
+            links.cold().and_then(|cold| cold.jsx_fragment_type)
+        }) {
             return Ok(cached);
         }
         let fragment_factory_name = self.get_jsx_namespace_name(node);

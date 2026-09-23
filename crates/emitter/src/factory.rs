@@ -1,6 +1,8 @@
-use std::collections::BTreeMap;
+use std::cell::{OnceCell, RefCell};
+use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 mod parsed_metadata;
 pub use parsed_metadata::ParsedEmitMetadata;
@@ -9,8 +11,8 @@ use tsc_program::SourceFileId;
 use tsc_syntax::nodes::*;
 use tsc_syntax::FileReference;
 use tsc_syntax::{
-    for_each_observable_field, try_visit_each_child, Node, NodeArray, NodeArrayId, NodeData,
-    NodeDataChildVisitor, NodeId, ObservableField, SourceFile, SyntaxKind, TypeReferenceDirective,
+    try_visit_each_child, Node, NodeArray, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId,
+    SourceFile, SyntaxKind, TypeReferenceDirective,
 };
 use tsc_types::{JsStr, JsString, ModifierFlags, NodeFlags, TokenFlags};
 
@@ -148,7 +150,7 @@ impl TransformNodeArray {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct TransformSource {
     program_source: Option<SourceFileId>,
     parsed_node_base: u32,
@@ -158,6 +160,40 @@ pub struct TransformSource {
     parsed_node_identity_lease: Option<tsc_types::IdentityLease>,
     source: SourceFile,
     has_no_default_lib: Option<bool>,
+    /// The identifier texts of every node at the last census, with the node
+    /// count it covers (see [`TransformArena::identifier_texts`]).
+    identifier_census: RefCell<IdentifierCensus>,
+    /// The parsed identifiers only (tsc's `SourceFile.identifiers`), filled
+    /// once by their collector (see
+    /// [`TransformArena::parsed_identifier_names_cell`]).
+    parsed_identifier_names: OnceCell<Arc<BTreeSet<String>>>,
+    /// Whether the source text contains an `\u{` escape anywhere (see
+    /// [`TransformArena::source_text_has_extended_unicode_escape`]).
+    text_has_extended_unicode_escape: OnceCell<bool>,
+    /// Synthesized nodes whose transform flags aggregate their whole
+    /// subtree (see [`TransformArena::transform_flags_complete`]).
+    complete_synthesized: FxHashSet<NodeId>,
+}
+
+/// Structural equality covers the emit copy and its provenance; the two
+/// censuses are derived from the nodes and stay out of it.
+impl PartialEq for TransformSource {
+    fn eq(&self, other: &Self) -> bool {
+        self.program_source == other.program_source
+            && self.parsed_node_base == other.parsed_node_base
+            && self.parsed_node_end == other.parsed_node_end
+            && self.parsed_node_identity_lease == other.parsed_node_identity_lease
+            && self.source == other.source
+            && self.has_no_default_lib == other.has_no_default_lib
+    }
+}
+
+/// The identifier texts among the first `scanned` nodes of an emit source,
+/// shared with every name allocator that started from them.
+#[derive(Clone, Debug, Default)]
+struct IdentifierCensus {
+    names: Arc<BTreeSet<String>>,
+    scanned: usize,
 }
 
 impl TransformSource {
@@ -313,6 +349,30 @@ impl TransformArena {
         Ok(None)
     }
 
+    /// [`Self::parse_tree_transform_node`] for a resolver node whose program
+    /// source the arena may not have mounted: that source is mounted from
+    /// `host` on first use. A declaration transform thus carries only the
+    /// sources it reaches (tsc reads another file's nodes through shared
+    /// object references); mounting every program source up front copied
+    /// the whole program's syntax once per emitted file.
+    pub fn mount_parse_tree_transform_node(
+        &mut self,
+        node: EmitResolverNode,
+        host: &dyn crate::EmitHost,
+    ) -> Result<Option<TransformNode>, TransformError> {
+        if let Some(found) = self.parse_tree_transform_node(node)? {
+            return Ok(Some(found));
+        }
+        let Some(syntax) = host
+            .source_file(node.source())
+            .and_then(|source| source.syntax())
+        else {
+            return Ok(None);
+        };
+        self.add_source(syntax, Some(node.source()));
+        self.parse_tree_transform_node(node)
+    }
+
     pub fn add_source(
         &mut self,
         source: &SourceFile,
@@ -332,8 +392,94 @@ impl TransformArena {
             parsed_node_identity_lease: source.node_identity_lease().cloned(),
             source: detached,
             has_no_default_lib: None,
+            identifier_census: RefCell::default(),
+            parsed_identifier_names: OnceCell::new(),
+            text_has_extended_unicode_escape: OnceCell::new(),
+            complete_synthesized: FxHashSet::default(),
         });
         id
+    }
+
+    /// Whether `node`'s transform flags describe its whole subtree, so a
+    /// visitor gate may trust their absence: every parsed node (the
+    /// parse-time classifier is exact), and every node `update_node` derived
+    /// from such a node, whose flags keep the original's aggregate bits for
+    /// everything the update does not recompute. A node created with a
+    /// creation-site hint (`TransformFlags::NONE` and the like) is not
+    /// complete and is always walked.
+    pub(crate) fn transform_flags_complete(&self, node: TransformNode) -> bool {
+        match self.sources.get(node.source.raw() as usize) {
+            Some(source) => {
+                source.contains_parsed_node(node.node)
+                    || source.complete_synthesized.contains(&node.node)
+            }
+            None => false,
+        }
+    }
+
+    /// Record that `node` (an update of `original`) carries complete
+    /// transform flags when `original` did.
+    pub(crate) fn inherit_transform_flags_completeness(
+        &mut self,
+        node: TransformNode,
+        original: TransformNode,
+    ) {
+        if node.source == original.source && self.transform_flags_complete(original) {
+            if let Some(source) = self.sources.get_mut(node.source.raw() as usize) {
+                source.complete_synthesized.insert(node.node);
+            }
+        }
+    }
+
+    /// Whether `source`'s text contains an `\u{` escape at all: when it does
+    /// not, no identifier's source slice does either, so the per-identifier
+    /// extended-unicode classification is answered once per source.
+    pub(crate) fn source_text_has_extended_unicode_escape(
+        &self,
+        source: TransformSourceId,
+    ) -> Result<bool, TransformError> {
+        let source = self.source(source)?;
+        Ok(*source
+            .text_has_extended_unicode_escape
+            .get_or_init(|| source.source.text().contains("\\u{")))
+    }
+
+    /// The identifier texts of every node of `source` at this moment,
+    /// parsed and synthesized alike, as one shared set: the file-level
+    /// census each name allocator of an emit unit starts from. The census is
+    /// extended in place over the nodes appended since the last call, so
+    /// every caller receives exactly the set it would have collected itself
+    /// without rescanning the source per transformer. Generated names go
+    /// into a caller's copy-on-write handle, never into the census.
+    pub(crate) fn identifier_texts(&self, source: TransformSourceId) -> Arc<BTreeSet<String>> {
+        let Ok(source) = self.source(source) else {
+            return Arc::default();
+        };
+        let nodes = source.source.arena.nodes();
+        let mut census = source.identifier_census.borrow_mut();
+        if census.scanned < nodes.len() {
+            let scanned = census.scanned;
+            let names = Arc::make_mut(&mut census.names);
+            for node in &nodes[scanned..] {
+                if let NodeData::Identifier(data) = &node.data {
+                    if !names.contains(data.text.as_str()) {
+                        names.insert(data.text.clone());
+                    }
+                }
+            }
+            census.scanned = nodes.len();
+        }
+        Arc::clone(&census.names)
+    }
+
+    /// The cell holding `source`'s parsed-identifier census (tsc's
+    /// `SourceFile.identifiers`), filled once by its collector; the parsed
+    /// nodes never change, so the first census serves every later reader.
+    pub(crate) fn parsed_identifier_names_cell(
+        &self,
+        source: TransformSourceId,
+    ) -> Result<&OnceCell<Arc<BTreeSet<String>>>, TransformError> {
+        Ok(&self.source(source)?.parsed_identifier_names)
     }
 
     pub fn source(&self, id: TransformSourceId) -> Result<&TransformSource, TransformError> {
@@ -1443,16 +1589,58 @@ pub(crate) const fn classify_created_token_flags(kind: SyntaxKind) -> TransformF
     }
 }
 
+/// The node's observable `name` field (every variant `for_each_observable_field`
+/// reports one for), read directly: this runs once per child of every
+/// classified node.
 fn named_declaration_name(node: &Node) -> Option<NodeId> {
-    let mut name = None;
-    for_each_observable_field(node, |field, value| {
-        if field == "name" {
-            if let ObservableField::Node(node) = value {
-                name = Some(node);
-            }
-        }
-    });
-    name
+    match &node.data {
+        NodeData::BindingElement(data) => data.name,
+        NodeData::ClassDeclaration(data) => data.name,
+        NodeData::ClassExpression(data) => data.name,
+        NodeData::Constructor(data) => data.name,
+        NodeData::EnumDeclaration(data) => data.name,
+        NodeData::EnumMember(data) => data.name,
+        NodeData::ExportSpecifier(data) => data.name,
+        NodeData::FunctionDeclaration(data) => data.name,
+        NodeData::FunctionExpression(data) => data.name,
+        NodeData::GetAccessor(data) => data.name,
+        NodeData::ImportAttribute(data) => data.name,
+        NodeData::ImportClause(data) => data.name,
+        NodeData::ImportEqualsDeclaration(data) => data.name,
+        NodeData::ImportSpecifier(data) => data.name,
+        NodeData::InterfaceDeclaration(data) => data.name,
+        NodeData::JSDocCallbackTag(data) => data.name,
+        NodeData::JSDocFunctionType(data) => data.name,
+        NodeData::JSDocLink(data) => data.name,
+        NodeData::JSDocLinkCode(data) => data.name,
+        NodeData::JSDocLinkPlain(data) => data.name,
+        NodeData::JSDocNameReference(data) => data.name,
+        NodeData::JSDocParameterTag(data) => data.name,
+        NodeData::JSDocPropertyTag(data) => data.name,
+        NodeData::JSDocSeeTag(data) => data.name,
+        NodeData::JSDocTypedefTag(data) => data.name,
+        NodeData::JsxAttribute(data) => data.name,
+        NodeData::JsxNamespacedName(data) => data.name,
+        NodeData::MetaProperty(data) => data.name,
+        NodeData::MethodDeclaration(data) => data.name,
+        NodeData::MethodSignature(data) => data.name,
+        NodeData::ModuleDeclaration(data) => data.name,
+        NodeData::NamedTupleMember(data) => data.name,
+        NodeData::NamespaceExport(data) => data.name,
+        NodeData::NamespaceExportDeclaration(data) => data.name,
+        NodeData::NamespaceImport(data) => data.name,
+        NodeData::Parameter(data) => data.name,
+        NodeData::PropertyAccessExpression(data) => data.name,
+        NodeData::PropertyAssignment(data) => data.name,
+        NodeData::PropertyDeclaration(data) => data.name,
+        NodeData::PropertySignature(data) => data.name,
+        NodeData::SetAccessor(data) => data.name,
+        NodeData::ShorthandPropertyAssignment(data) => data.name,
+        NodeData::TypeAliasDeclaration(data) => data.name,
+        NodeData::TypeParameter(data) => data.name,
+        NodeData::VariableDeclaration(data) => data.name,
+        _ => None,
+    }
 }
 
 const fn is_property_name(kind: SyntaxKind) -> bool {
@@ -5772,6 +5960,8 @@ impl<'arena> NodeFactory<'arena> {
         updated_record.pos = pos;
         updated_record.end = end;
         self.arena.set_transform_flags(updated, transform_flags);
+        self.arena
+            .inherit_transform_flags_completeness(updated, original);
         if let Some((previous, current)) = literal_payload {
             self.arena
                 .reconcile_literal_properties(updated, &previous, &current);

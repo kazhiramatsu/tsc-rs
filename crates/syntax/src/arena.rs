@@ -611,9 +611,89 @@ impl NodeArena {
         Ok(())
     }
 
-    pub fn finalize_tree(&mut self, root: NodeId) {
-        let mut seen = vec![false; self.nodes.len()];
-        self.finalize_node(root, None, &mut seen);
+    /// Set every reachable node's parent and fold parse errors upward.
+    ///
+    /// One downward pass with an explicit stack (deep trees, left-leaning
+    /// binary chains, overflow a recursive walk) sets `parent`. The error
+    /// aggregate then starts from the nodes the parser flagged
+    /// (`error_nodes`, rare) and climbs their parent chains. tsc's lazy
+    /// aggregateChildData follows public forEachChild, which excludes
+    /// node.jsDoc: a JSDoc node neither aggregates nor receives, and no
+    /// error crosses a js_doc edge, so the climb stops at a JSDoc node.
+    /// Debug builds re-run the two-phase reference walk and compare.
+    pub fn finalize_tree(&mut self, root: NodeId, error_nodes: &[NodeId]) {
+        #[cfg(debug_assertions)]
+        let reference = self.finalize_reference(root);
+        let mut stack = vec![root];
+        let mut children: Vec<NodeId> = Vec::new();
+        while let Some(id) = stack.pop() {
+            children.clear();
+            self.collect_children_including_js_doc(id, &mut children);
+            for &child in children.iter().rev() {
+                let index = self.node_index(child);
+                self.nodes[index].parent = Some(id);
+                stack.push(child);
+            }
+        }
+        for &error in error_nodes {
+            let mut current = error;
+            loop {
+                let index = self.node_index(current);
+                let flags = NodeFlags::from_bits(self.nodes[index].flags);
+                if flags.contains(NodeFlags::JS_DOC)
+                    || (current != error
+                        && flags.contains(NodeFlags::THIS_NODE_OR_ANY_SUB_NODES_HAS_ERROR))
+                {
+                    break;
+                }
+                self.nodes[index].flags |= NodeFlags::THIS_NODE_OR_ANY_SUB_NODES_HAS_ERROR.bits();
+                match self.nodes[index].parent {
+                    Some(parent) => current = parent,
+                    None => break,
+                }
+            }
+        }
+        #[cfg(debug_assertions)]
+        self.assert_finalized_like(&reference);
+    }
+
+    /// The parents and error aggregates the two-phase reference walk
+    /// computes for a copy of this arena, with its reachability mask.
+    #[cfg(debug_assertions)]
+    fn finalize_reference(&self, root: NodeId) -> (Vec<Option<NodeId>>, Vec<bool>, Vec<bool>) {
+        let mut reference = self.clone();
+        let mut seen = vec![false; reference.nodes.len()];
+        reference.finalize_node_reference(root, None, &mut seen);
+        let parents = reference.nodes.iter().map(|node| node.parent).collect();
+        let errors = reference
+            .nodes
+            .iter()
+            .map(|node| {
+                NodeFlags::from_bits(node.flags)
+                    .contains(NodeFlags::THIS_NODE_OR_ANY_SUB_NODES_HAS_ERROR)
+            })
+            .collect();
+        (parents, errors, seen)
+    }
+
+    #[cfg(debug_assertions)]
+    fn assert_finalized_like(&self, reference: &(Vec<Option<NodeId>>, Vec<bool>, Vec<bool>)) {
+        let (parents, errors, reachable) = reference;
+        for (index, node) in self.nodes.iter().enumerate() {
+            if !reachable[index] {
+                continue;
+            }
+            assert_eq!(
+                node.parent, parents[index],
+                "finalize_tree parent of node {index} differs from the reference walk"
+            );
+            assert_eq!(
+                NodeFlags::from_bits(node.flags)
+                    .contains(NodeFlags::THIS_NODE_OR_ANY_SUB_NODES_HAS_ERROR),
+                errors[index],
+                "finalize_tree error aggregate of node {index} differs from the reference walk"
+            );
+        }
     }
 
     fn push_node(
@@ -646,6 +726,9 @@ impl NodeArena {
         id
     }
 
+    /// The two-phase reference walk `finalize_tree` replaced; debug builds
+    /// still run it to check the one-pass finalization.
+    ///
     /// Explicit two-phase stack: deep trees (left-leaning binary
     /// chains) overflow a recursive walk.
     ///
@@ -654,7 +737,13 @@ impl NodeArena {
     /// the visitor callback, so finalization no longer allocates one Vec per
     /// node (several hundred thousand short-lived allocations for a large
     /// program).
-    fn finalize_node(&mut self, root: NodeId, parent: Option<NodeId>, seen: &mut [bool]) -> bool {
+    #[cfg(debug_assertions)]
+    fn finalize_node_reference(
+        &mut self,
+        root: NodeId,
+        parent: Option<NodeId>,
+        seen: &mut [bool],
+    ) -> bool {
         enum Phase {
             Enter,
             Exit,

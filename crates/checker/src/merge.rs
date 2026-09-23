@@ -208,7 +208,7 @@ impl<'a> CheckerState<'a> {
             let mut inferred_exports =
                 std::mem::take(&mut self.binder.symbol_mut(inferred).exports);
             self.merge_symbol_table(
-                &mut inferred_exports,
+                std::sync::Arc::make_mut(&mut inferred_exports),
                 &source_exports,
                 /*unidirectional*/ false,
                 Some(inferred),
@@ -220,7 +220,7 @@ impl<'a> CheckerState<'a> {
             let mut inferred_members =
                 std::mem::take(&mut self.binder.symbol_mut(inferred).members);
             self.merge_symbol_table(
-                &mut inferred_members,
+                std::sync::Arc::make_mut(&mut inferred_members),
                 &source_members,
                 /*unidirectional*/ false,
                 None,
@@ -348,7 +348,12 @@ impl<'a> CheckerState<'a> {
             if !source_members.is_empty() {
                 let mut target_members =
                     std::mem::take(&mut self.binder.symbol_mut(target).members);
-                self.merge_symbol_table(&mut target_members, &source_members, unidirectional, None);
+                self.merge_symbol_table(
+                    std::sync::Arc::make_mut(&mut target_members),
+                    &source_members,
+                    unidirectional,
+                    None,
+                );
                 self.binder.symbol_mut(target).members = target_members;
             }
             let source_exports = self.binder.symbol(source).exports.clone();
@@ -356,7 +361,7 @@ impl<'a> CheckerState<'a> {
                 let mut target_exports =
                     std::mem::take(&mut self.binder.symbol_mut(target).exports);
                 self.merge_symbol_table(
-                    &mut target_exports,
+                    std::sync::Arc::make_mut(&mut target_exports),
                     &source_exports,
                     unidirectional,
                     Some(target),
@@ -896,9 +901,9 @@ impl<'a> CheckerState<'a> {
             // already in globals join.
             if let Some(file_symbol) = self.binder.node_symbol(source.root) {
                 let global_exports = self.binder.symbol(file_symbol).global_exports.clone();
-                for (id, source_symbol) in global_exports {
-                    if !self.globals.contains_key(&id) {
-                        self.globals.insert(id, source_symbol);
+                for (id, &source_symbol) in global_exports.iter() {
+                    if !self.globals.contains_key(id) {
+                        self.globals.insert(id.clone(), source_symbol);
                     }
                 }
             }
@@ -1154,7 +1159,7 @@ impl<'a> CheckerState<'a> {
                 let augmentation_exports = self.binder.symbol(augmentation_symbol).exports.clone();
                 if has_export_star && !augmentation_exports.is_empty() {
                     let resolved_exports = self.get_exports_of_module(main_module)?;
-                    for (key, &value) in &augmentation_exports {
+                    for (key, &value) in augmentation_exports.iter() {
                         if let Some(&resolved) = resolved_exports.get(key) {
                             if !self.binder.symbol(main_module).exports.contains_key(key) {
                                 self.merge_symbol(resolved, value, false);

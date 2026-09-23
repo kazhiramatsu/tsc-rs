@@ -1015,15 +1015,14 @@ fn add_synthetic_trailing_comment(
     node
 }
 
+/// See `chains::project_parse_node`: the program source is mounted into
+/// `arena` on first use.
 pub(super) fn project_parse_node(
     checker: &CheckerState<'_>,
-    arena: &TransformArena,
+    arena: &mut TransformArena,
     node: NodeId,
 ) -> BuildResult<Option<TransformNode>> {
-    let source = u32::try_from(checker.binder.file_index_of_node(node)).unwrap_or(0);
-    arena
-        .parse_tree_transform_node(EmitResolverNode::new(SourceFileId::from_raw(source), node))
-        .map_err(factory_error)
+    super::chains::project_parse_node(checker, arena, node)
 }
 
 pub(super) fn clone_parse_node(

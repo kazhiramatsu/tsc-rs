@@ -237,7 +237,7 @@ impl<'a> CheckerState<'a> {
                 continue;
             }
             if self.kind_of(grand_parent) == SyntaxKind::MappedType {
-                let NodeData::MappedType(mapped) = self.data_of(grand_parent).clone() else {
+                let NodeData::MappedType(mapped) = self.data_of(grand_parent) else {
                     unreachable!("MappedType kind implies payload");
                 };
                 let mapped_type = mapped.r#type.map(|node| {
@@ -253,8 +253,7 @@ impl<'a> CheckerState<'a> {
                 let Some(conditional_node) = self.parent_of(grand_parent) else {
                     continue;
                 };
-                let NodeData::ConditionalType(conditional) = self.data_of(conditional_node).clone()
-                else {
+                let NodeData::ConditionalType(conditional) = self.data_of(conditional_node) else {
                     continue;
                 };
                 if mapped_type != Some(infer_node) || conditional.extends_type != Some(grand_parent)
@@ -264,8 +263,7 @@ impl<'a> CheckerState<'a> {
                 let Some(check_mapped_node) = conditional.check_type else {
                     continue;
                 };
-                let NodeData::MappedType(check_mapped) = self.data_of(check_mapped_node).clone()
-                else {
+                let NodeData::MappedType(check_mapped) = self.data_of(check_mapped_node) else {
                     continue;
                 };
                 let (Some(check_template_node), Some(check_parameter_node)) =
@@ -273,8 +271,7 @@ impl<'a> CheckerState<'a> {
                 else {
                     continue;
                 };
-                let NodeData::TypeParameter(check_parameter) =
-                    self.data_of(check_parameter_node).clone()
+                let NodeData::TypeParameter(check_parameter) = self.data_of(check_parameter_node)
                 else {
                     continue;
                 };

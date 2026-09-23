@@ -1558,9 +1558,10 @@ impl<'a> ProgramBinder<'a> {
     /// tsrs-native: binder-table projection for tsc's direct
     /// `node.flags` property access.
     pub fn flags_of(&self, node: NodeId) -> tsc_types::NodeFlags {
-        let source = self.source_of_node(node);
-        self.binder_of_node(node)
-            .flags_of(node, source.arena.node_base())
+        let file = self.file_index_of_node(node);
+        self.file_entries[file]
+            .data()
+            .flags_of(node, self.sources[file].arena.node_base())
     }
 
     /// tsc isExternalOrCommonJsModule for the file owning `node`.

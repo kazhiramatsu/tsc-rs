@@ -166,17 +166,87 @@ impl CliEmitSessionOutcome {
 }
 
 /// Whether the per-shard emit covers this option set. outFile bundles write
-/// at bundle-local points of one resolver's pass, and the noEmitOnError
-/// declaration gate runs the declaration transform for every source with
-/// one whole-Program resolver; both keep the single-checker session.
+/// at bundle-local points of one resolver's pass and keep the single-checker
+/// session; the noEmitOnError declaration gate runs per shard
+/// (`sharded_declaration_diagnostics`).
 fn sharded_emit_supported(options: &CompilerOptions) -> bool {
-    let bundled = options
-        .out_file
-        .as_ref()
-        .is_some_and(|path| !path.is_empty());
-    let declaration_gate = options.no_emit_on_error == Some(true)
-        && (options.declaration == Some(true) || options.composite == Some(true));
-    !bundled && !declaration_gate
+    options.out_file.as_ref().is_none_or(|path| path.is_empty())
+}
+
+/// The whole-Program declaration diagnostics for the noEmitOnError gate of a
+/// sharded emit: every source selected for emit is transformed against the
+/// resolver of the shard that checked it (matched by source name, as the
+/// emit pool matches its units), in parallel on the worker budget. Sorted
+/// and deduplicated like the serial getter's result.
+fn sharded_declaration_diagnostics(
+    checked_host: &CheckedEmitHost<'_, '_>,
+    emit_host: &PreparedEmitHost<'_>,
+    preflight: &tsc_emitter::EmitPreflight,
+    sessions: &[CheckerSession<'_>],
+    files_by_shard: &[Vec<usize>],
+    worker_budget: WorkerBudget,
+    activity: &mut H2ActivityCanary,
+) -> Result<Vec<Diagnostic>, EmitFailure> {
+    let mut owner_by_name = std::collections::HashMap::new();
+    for (shard, files) in files_by_shard.iter().enumerate() {
+        for &file in files {
+            owner_by_name.insert(
+                checked_host
+                    .snapshot
+                    .document(file)
+                    .source()
+                    .file_name
+                    .as_js(),
+                shard,
+            );
+        }
+    }
+    let mut jobs = Vec::new();
+    for source in tsc_emitter::get_source_files_to_emit(checked_host, EmitSelection::WholeProgram)?
+    {
+        let name = emit_host
+            .expected_source_name(source)
+            .ok_or(EmitFailure::Contract(
+                EmitContractViolation::PlannedSourceMissing(source),
+            ))?;
+        let shard = *owner_by_name
+            .get(&name.as_js())
+            .ok_or(EmitFailure::Contract(
+                EmitContractViolation::PlannedSourceMissing(source),
+            ))?;
+        jobs.push((source, shard));
+    }
+    let weight = |&(source, _): &(SourceFileId, usize)| {
+        emit_host
+            .prepared
+            .source_file(source)
+            .map_or(0, |source| source.text().len())
+    };
+    let results = worker_budget.map_ordered(jobs, weight, |(source, shard)| {
+        let mut activity = H2ActivityCanary::h2_7e_profile();
+        let result = sessions[shard].with_emit_resolver(|resolver| {
+            tsc_emitter::declaration_diagnostics_for_sources(
+                resolver,
+                checked_host,
+                preflight,
+                &[source],
+                &mut activity,
+            )
+        });
+        (result, activity.counters())
+    });
+    // One resolver borrow per checker session, as when each shard ran the
+    // getter over its own files in one borrow.
+    for _ in sessions {
+        activity.borrow_emit_resolver();
+    }
+    let mut diagnostics = Vec::new();
+    for (result, counters) in results {
+        activity.absorb(counters);
+        diagnostics.extend(result?);
+    }
+    sort_and_dedupe_diagnostics(&mut diagnostics);
+    Ok(diagnostics)
 }
 
 /// tsc-port: getEmitDeclarations @6.0.3
@@ -1642,10 +1712,14 @@ impl ProgramSession {
         h2_activity.construct_emit_session();
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         validate_bootstrap_emit_request(&emit_host).map_err(DriverError::Emit)?;
+        tsc_types::trace::mark("emit: host and request validation", setup_started);
         let selection = EmitSelection::WholeProgram;
         h2_activity.construct_output_plan();
+        let preflight_started = std::time::Instant::now();
         let preflight = preflight_emit(&emit_host, selection).map_err(DriverError::Emit)?;
         let preflight_diagnostics = preflight.diagnostics().to_vec();
+        tsc_types::trace::mark("emit: preflight (output plan)", preflight_started);
+        let inputs_started = std::time::Instant::now();
         // A shard owns the planned units whose source is one of the snapshot
         // documents it checked; the checked host matches them by this name.
         let unit_names = preflight
@@ -1663,6 +1737,7 @@ impl ProgramSession {
         let factory = PreparedProviderFactory {
             prepared: &prepared,
         };
+        tsc_types::trace::mark("emit: unit names and checker inputs", inputs_started);
         tsc_types::trace::mark("emit: host, preflight, checker inputs", setup_started);
 
         #[allow(clippy::large_enum_variant)]
@@ -1676,7 +1751,11 @@ impl ProgramSession {
         // unit's artifacts as soon as they are printed.
         let eager_sink = sink.shared();
         let (checked, emissions) = {
-            let mut gate = |snapshot: &ProgramSnapshot, checked: &CheckResult| -> bool {
+            let mut gate = |snapshot: &ProgramSnapshot,
+                            checked: &CheckResult,
+                            sessions: &[CheckerSession<'_>],
+                            files_by_shard: &[Vec<usize>]|
+             -> bool {
                 // Each evaluation (the sharded run, or its serial replay)
                 // starts the coordinator's recorder afresh so the observed
                 // counts describe exactly the run that is published.
@@ -1695,13 +1774,46 @@ impl ProgramSession {
                 }
                 let gate_started = std::time::Instant::now();
                 let diagnostics = emit_session_diagnostics(&prepared, checked);
-                let diagnostic_gate = diagnostics.gate();
+                let mut diagnostic_gate = diagnostics.gate();
                 let work_counters = check_work_counters(checked);
                 let checked_host = CheckedEmitHost {
                     prepared: &emit_host,
                     snapshot,
                 };
                 tsc_types::trace::mark("emit: gate diagnostics", gate_started);
+                if diagnostic_gate.wants_declaration_diagnostics(
+                    prepared.compiler_options(),
+                    preflight.diagnostics(),
+                ) {
+                    // tsc's handleNoEmitOptions transforms every source's
+                    // declarations before any emit; here each source is
+                    // transformed against the resolver of the shard that
+                    // checked it, on the worker budget, and the merged
+                    // result feeds the gate.
+                    let declaration_started = std::time::Instant::now();
+                    match sharded_declaration_diagnostics(
+                        &checked_host,
+                        &emit_host,
+                        &preflight,
+                        sessions,
+                        files_by_shard,
+                        worker_budget,
+                        &mut h2_activity,
+                    ) {
+                        Ok(declaration) => {
+                            diagnostic_gate =
+                                diagnostic_gate.with_declaration_diagnostics(declaration);
+                        }
+                        Err(error) => {
+                            gate_outcome = Some(GateOutcome::Failed(DriverError::Emit(error)));
+                            return false;
+                        }
+                    }
+                    tsc_types::trace::mark(
+                        "emit: declaration diagnostics (per shard)",
+                        declaration_started,
+                    );
+                }
                 let begin_started = std::time::Instant::now();
                 let started = begin_emit_files(
                     None,

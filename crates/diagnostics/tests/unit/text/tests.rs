@@ -169,7 +169,7 @@ fn edits_split_and_merge_every_supported_line_break_without_treating_nel_as_one(
         (0..after_second.positions().line_count())
             .map(|line| after_second.positions().line_start_byte(line).unwrap())
             .collect::<Vec<_>>(),
-        compute_line_starts_in_both_units(after_second.text()).0
+        compute_line_starts_byte(after_second.text())
     );
 }
 

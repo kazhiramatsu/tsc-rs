@@ -10,7 +10,7 @@ use super::{
 #[test]
 fn traversal_temp_policy_uses_final_scope_cursor() {
     let mut scopes =
-        GeneratedBindingScopes::new(BTreeSet::new(), AncestorBindingPolicy::AllowShadow);
+        GeneratedBindingScopes::new(BTreeSet::new().into(), AncestorBindingPolicy::AllowShadow);
 
     assert_eq!(
         allocate_ordinary_temp_name(
@@ -27,7 +27,7 @@ fn traversal_temp_policy_uses_final_scope_cursor() {
 #[test]
 fn authoritative_temp_policy_retains_available_planned_spelling() {
     let mut scopes =
-        GeneratedBindingScopes::new(BTreeSet::new(), AncestorBindingPolicy::AllowShadow);
+        GeneratedBindingScopes::new(BTreeSet::new().into(), AncestorBindingPolicy::AllowShadow);
 
     assert_eq!(
         allocate_ordinary_temp_name(
@@ -44,7 +44,7 @@ fn authoritative_temp_policy_retains_available_planned_spelling() {
 #[test]
 fn authoritative_temp_policy_falls_back_on_collision() {
     let mut scopes = GeneratedBindingScopes::new(
-        BTreeSet::from(["_d".to_owned()]),
+        BTreeSet::from(["_d".to_owned()]).into(),
         AncestorBindingPolicy::AllowShadow,
     );
 

@@ -286,7 +286,12 @@ impl<'a> CheckerState<'a> {
                 ignore_constraints,
             );
         }
-        Ok(format!("{},{}{post_fix}", source.0, target.0))
+        let mut key = String::with_capacity(24 + post_fix.len());
+        tsc_types::tables::push_decimal(&mut key, source.0);
+        key.push(',');
+        tsc_types::tables::push_decimal(&mut key, target.0);
+        key.push_str(&post_fix);
+        Ok(key)
     }
 
     /// tsc-port: isEnumTypeRelatedTo @6.0.3

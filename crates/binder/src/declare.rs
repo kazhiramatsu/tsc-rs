@@ -3,6 +3,7 @@
 //! getDeclarationName, the duplicate-declaration report family).
 
 use rustc_hash::FxHashMap;
+use std::sync::Arc;
 
 use crate::node_util::{
     declaration_name_to_string, get_containing_class, get_error_span_for_node,
@@ -53,7 +54,7 @@ pub struct BinderWorker<'a> {
     pub common_js_module_indicator: Option<NodeId>,
     pub symbols: SymbolArena,
     /// tsc node.symbol (set by addDeclarationToSymbol).
-    pub node_symbol: FxHashMap<NodeId, SymbolId>,
+    pub node_symbol: NodeSymbolMap,
     /// tsc node.localSymbol (set by declareModuleMember).
     pub node_local_symbol: FxHashMap<NodeId, SymbolId>,
     /// tsc container.locals, keyed by the scope-owning node.
@@ -98,7 +99,7 @@ pub struct BinderWorker<'a> {
     pub current_exception_target: Option<crate::flow::FlowId>,
     pub pre_switch_case_flow: Option<crate::flow::FlowId>,
     /// tsc node.flowNode / endFlowNode / returnFlowNode side tables.
-    pub node_flow: FxHashMap<NodeId, crate::flow::FlowId>,
+    pub node_flow: NodeFlowMap,
     pub node_end_flow: FxHashMap<NodeId, crate::flow::FlowId>,
     pub node_return_flow: FxHashMap<NodeId, crate::flow::FlowId>,
     /// tsc ConditionalExpression flowNodeWhenTrue/WhenFalse (stamped in
@@ -109,6 +110,9 @@ pub struct BinderWorker<'a> {
     pub possibly_exhaustive: FxHashMap<NodeId, bool>,
     /// tsc clause.fallthroughFlowNode (noFallthroughCasesInSwitch).
     pub node_fallthrough_flow: FxHashMap<NodeId, crate::flow::FlowId>,
+    /// Scratch child list shared by every `bind_each_child`: one buffer per
+    /// bind instead of one allocation per node with children.
+    pub child_scratch: Vec<NodeId>,
     /// tsc activeLabelList (a stack; tsc uses a linked list).
     pub active_label_list: Vec<crate::flow::ActiveLabel>,
 
@@ -142,7 +146,7 @@ pub struct BindData {
     pub language_version: i32,
     pub common_js_module_indicator: Option<NodeId>,
     pub symbols: SymbolArena,
-    pub node_symbol: FxHashMap<NodeId, SymbolId>,
+    pub node_symbol: NodeSymbolMap,
     pub node_local_symbol: FxHashMap<NodeId, SymbolId>,
     pub locals: FxHashMap<NodeId, SymbolTable>,
     pub js_global_augmentations: SymbolTable,
@@ -157,7 +161,7 @@ pub struct BindData {
     pub pattern_ambient_modules: Vec<(JsString, JsString, SymbolId)>,
     pub flow: crate::flow::FlowArena,
     pub unreachable_flow: crate::flow::FlowId,
-    pub node_flow: FxHashMap<NodeId, crate::flow::FlowId>,
+    pub node_flow: NodeFlowMap,
     pub node_end_flow: FxHashMap<NodeId, crate::flow::FlowId>,
     pub node_return_flow: FxHashMap<NodeId, crate::flow::FlowId>,
     pub node_flow_when_true: FxHashMap<NodeId, crate::flow::FlowId>,
@@ -275,8 +279,10 @@ impl<'a> BinderWorker<'a> {
             options,
             language_version: options.emit_script_target().bits(),
             common_js_module_indicator: None,
-            symbols: SymbolArena::with_base(symbol_base),
-            node_symbol: FxHashMap::with_capacity_and_hasher(node_count / 8, Default::default()),
+            // About one symbol per six nodes: size the arena once instead of
+            // growing (and moving every symbol) a dozen times.
+            symbols: SymbolArena::with_base_and_capacity(symbol_base, node_count / 6),
+            node_symbol: NodeSymbolMap::with_len(source.arena.node_base(), node_count),
             node_local_symbol: FxHashMap::default(),
             locals: FxHashMap::with_capacity_and_hasher(node_count / 32, Default::default()),
             js_global_augmentations: SymbolTable::default(),
@@ -303,7 +309,7 @@ impl<'a> BinderWorker<'a> {
             current_false_target: None,
             current_exception_target: None,
             pre_switch_case_flow: None,
-            node_flow: FxHashMap::default(),
+            node_flow: NodeFlowMap::with_len(source.arena.node_base(), node_count),
             node_end_flow: FxHashMap::default(),
             node_return_flow: FxHashMap::default(),
             node_flow_when_true: FxHashMap::default(),
@@ -320,6 +326,7 @@ impl<'a> BinderWorker<'a> {
             emit_flags: 0,
             delayed_type_aliases: Vec::new(),
             js_doc_imports: Vec::new(),
+            child_scratch: Vec::new(),
         }
     }
 
@@ -375,6 +382,72 @@ impl<'a> BinderWorker<'a> {
         let mut binder = Self::with_bases(source, options, 1, 0);
         binder.bind_source_file();
         binder
+    }
+
+    /// Bind `source` at identities reserved before binding: symbols allocate
+    /// from `symbol_base`, private-name serials from `serial_base`. The
+    /// reservations are published afterwards with
+    /// [`Self::attach_reserved_leases`], so no identity is rewritten.
+    pub fn bind_reserved(
+        source: &'a SourceFile,
+        options: &'a tsc_types::CompilerOptions,
+        symbol_base: u32,
+        serial_base: u32,
+    ) -> Self {
+        let mut binder = Self::with_bases(source, options, serial_base, symbol_base);
+        binder.bind_source_file();
+        binder
+    }
+
+    /// Publish a bind constructed at reserved bases under leases that start
+    /// there and may exceed the actual counts (over-approximations leased in
+    /// Program order before a parallel bind). `Ok(false)` reports a bind
+    /// that outgrew a reservation, with nothing attached; the caller
+    /// relocates it with [`Self::relocate_into_identity_domain`] instead.
+    pub fn attach_reserved_leases(
+        &mut self,
+        domain: &IdentityDomain,
+        symbol_lease: IdentityLease,
+        serial_lease: IdentityLease,
+    ) -> Result<bool, IdentityError> {
+        if !self.source.identity_owned_by(domain) {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::Node,
+                detail: "bound source and bind identities would use different domains",
+            });
+        }
+        if !domain.owns(&symbol_lease)
+            || !domain.owns(&serial_lease)
+            || !symbol_lease.same_domain(&serial_lease)
+        {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::Symbol,
+                detail: "reserved bind leases do not share the requested domain",
+            });
+        }
+        if self.private_name_serial_lease.is_some() {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::PrivateNameSerial,
+                detail: "binder is already identity-owned",
+            });
+        }
+        if serial_lease.space() != IdentitySpace::PrivateNameSerial
+            || serial_lease.range().start() != self.private_name_serial_base
+        {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::PrivateNameSerial,
+                detail: "reserved serial lease base differs from the binder seed",
+            });
+        }
+        let (_, serial_count) = self.identity_counts()?;
+        if serial_lease.range().len() < serial_count {
+            return Ok(false);
+        }
+        if !self.symbols.attach_reserved_identity_lease(symbol_lease)? {
+            return Ok(false);
+        }
+        self.private_name_serial_lease = Some(serial_lease);
+        Ok(true)
     }
 
     /// Bind one source and publish completed symbol/private-name identities.
@@ -552,9 +625,15 @@ impl<'a> BinderWorker<'a> {
     fn table_mut(&mut self, table: TableRef) -> &mut SymbolTable {
         match table {
             TableRef::Locals(node) => self.locals.entry(node).or_default(),
-            TableRef::Members(symbol) => &mut self.symbols.symbol_mut(symbol).members,
-            TableRef::Exports(symbol) => &mut self.symbols.symbol_mut(symbol).exports,
-            TableRef::GlobalExports(symbol) => &mut self.symbols.symbol_mut(symbol).global_exports,
+            TableRef::Members(symbol) => {
+                Arc::make_mut(&mut self.symbols.symbol_mut(symbol).members)
+            }
+            TableRef::Exports(symbol) => {
+                Arc::make_mut(&mut self.symbols.symbol_mut(symbol).exports)
+            }
+            TableRef::GlobalExports(symbol) => {
+                Arc::make_mut(&mut self.symbols.symbol_mut(symbol).global_exports)
+            }
         }
     }
 
@@ -1164,6 +1243,7 @@ impl BinderWorker<'_> {
             emit_flags: _,
             delayed_type_aliases: _,
             js_doc_imports: _,
+            child_scratch: _,
         } = self;
 
         if private_name_serial_lease.is_some() {
@@ -1180,9 +1260,15 @@ impl BinderWorker<'_> {
         if has_private_serials {
             for symbol in symbols.symbols_mut() {
                 serial_relocation.name(&mut symbol.escaped_name)?;
-                relocate_private_table_keys(&mut symbol.members, &serial_relocation)?;
-                relocate_private_table_keys(&mut symbol.exports, &serial_relocation)?;
-                relocate_private_table_keys(&mut symbol.global_exports, &serial_relocation)?;
+                for table in [
+                    &mut symbol.members,
+                    &mut symbol.exports,
+                    &mut symbol.global_exports,
+                ] {
+                    if !table.is_empty() {
+                        relocate_private_table_keys(Arc::make_mut(table), &serial_relocation)?;
+                    }
+                }
             }
         }
         // A relocation is a range shift of every id, independent of the
@@ -1409,6 +1495,7 @@ impl BinderWorker<'_> {
             emit_flags,
             delayed_type_aliases: _,
             js_doc_imports: _,
+            child_scratch: _,
         } = self;
         BindData {
             language_version,
@@ -1444,3 +1531,88 @@ impl BinderWorker<'_> {
 #[cfg(test)]
 #[path = "../tests/unit/declare/tests.rs"]
 mod tests;
+
+/// tsc node.symbol for one source: one slot per node of the file, indexed by
+/// the node's offset from the arena base, instead of a hash map keyed by
+/// NodeId. About one node in eight declares a symbol, so the table is small,
+/// and both the binder's inserts and the checker's lookups are a bounds check
+/// and an index.
+#[derive(Clone, Debug, Default)]
+pub struct DenseNodeMap<V> {
+    base: u32,
+    slots: Vec<Option<V>>,
+}
+
+/// tsc `node.symbol`: the declaring symbol of a node.
+pub type NodeSymbolMap = DenseNodeMap<SymbolId>;
+
+/// tsc `node.flowNode`: the flow node current when a reference, statement
+/// or function expression was bound. Roughly every identifier in a flow
+/// container carries one, so the dense form also replaces the largest of
+/// the binder's per-file hash maps.
+pub type NodeFlowMap = DenseNodeMap<crate::flow::FlowId>;
+
+impl<V: Copy> DenseNodeMap<V> {
+    pub fn with_len(base: u32, len: usize) -> Self {
+        Self {
+            base,
+            slots: vec![None; len],
+        }
+    }
+
+    fn slot(&self, node: &NodeId) -> Option<usize> {
+        node.0.checked_sub(self.base).map(|offset| offset as usize)
+    }
+
+    pub fn get(&self, node: &NodeId) -> Option<&V> {
+        self.slots.get(self.slot(node)?)?.as_ref()
+    }
+
+    pub fn insert(&mut self, node: NodeId, value: V) -> Option<V> {
+        let index = self
+            .slot(&node)
+            .expect("a bound node belongs to the bind's own arena");
+        if index >= self.slots.len() {
+            self.slots.resize(index + 1, None);
+        }
+        self.slots[index].replace(value)
+    }
+
+    pub fn remove(&mut self, node: &NodeId) -> Option<V> {
+        let index = self.slot(node)?;
+        self.slots.get_mut(index)?.take()
+    }
+
+    pub fn contains_key(&self, node: &NodeId) -> bool {
+        self.get(node).is_some()
+    }
+
+    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut V> {
+        self.slots.iter_mut().flatten()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (NodeId, V)> + '_ {
+        self.slots
+            .iter()
+            .enumerate()
+            .filter_map(move |(index, slot)| {
+                slot.map(|value| (NodeId(self.base + index as u32), value))
+            })
+    }
+}
+
+impl<V: Copy> std::ops::Index<&NodeId> for DenseNodeMap<V> {
+    type Output = V;
+
+    fn index(&self, node: &NodeId) -> &V {
+        self.get(node).expect("node carries an entry")
+    }
+}
+
+/// Two maps are equal when they hold the same node → value entries for the
+/// same arena base; unused trailing slots do not count.
+impl<V: Copy + PartialEq> PartialEq for DenseNodeMap<V> {
+    fn eq(&self, other: &Self) -> bool {
+        self.base == other.base && self.iter().eq(other.iter())
+    }
+}

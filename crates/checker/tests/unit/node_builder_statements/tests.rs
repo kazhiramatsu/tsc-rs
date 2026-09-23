@@ -97,7 +97,7 @@ fn with_declaration_statements(
         let table = checker
             .binder
             .node_symbol(root)
-            .map(|symbol| checker.binder.symbol(symbol).exports.clone())
+            .map(|symbol| (*checker.binder.symbol(symbol).exports).clone())
             .or_else(|| checker.binder.locals_of(root).cloned())
             .expect("source-file symbol table");
         let mut arena = TransformArena::new();

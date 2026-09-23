@@ -1,6 +1,6 @@
 use crate::transform::try_visit_transform_children;
 use rustc_hash::FxHashMap as HashMap;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 use tsc_syntax::{NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind};
 use tsc_types::{CompilerOptions, JsStr, JsString, NodeFlags, ScriptTarget};
@@ -14,7 +14,7 @@ use crate::{
 
 use super::flatten_destructuring::{flatten_destructuring_assignment, FlattenHost, FlattenLevel};
 use super::generated_bindings::GeneratedBindingScopes;
-use super::target_bindings::TargetBinding;
+use super::target_bindings::{TargetBinding, UsedNames};
 use super::{
     flags_after_update, generated_module_name, has_modifier, identifier_or_literal_text,
     identifier_text_owned, is_identifier_export_name, is_prologue_statement, node_array_nodes,
@@ -494,13 +494,13 @@ struct SystemVisitor<'context, 'resolver> {
     downlevel_iteration: bool,
     exports_name: String,
     context_name: String,
-    used_names: BTreeSet<String>,
+    used_names: UsedNames,
     generated_bindings: BTreeMap<String, TargetBinding>,
     export_star_name: Option<String>,
     hoisted_names: Vec<SystemHoistedName>,
     hoisted_declarations: Vec<TransformNode>,
     function_scope_depth: usize,
-    arrays: BTreeMap<NodeArrayId, NodeArrayId>,
+    arrays: rustc_hash::FxHashMap<NodeArrayId, NodeArrayId>,
 }
 
 #[derive(Clone)]
@@ -706,7 +706,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             hoisted_names: Vec::new(),
             hoisted_declarations: Vec::new(),
             function_scope_depth: 0,
-            arrays: BTreeMap::new(),
+            arrays: rustc_hash::FxHashMap::default(),
         })
     }
 
@@ -4531,29 +4531,17 @@ impl NodeDataChildVisitor for SystemVisitor<'_, '_> {
     }
 }
 
+/// Every identifier text of the source's nodes at this moment (parsed and
+/// synthesized alike), shared through the arena's census: see
+/// [`TransformArena::identifier_texts`].
 pub(super) fn collect_identifier_texts(
     arena: &TransformArena,
     source: TransformSourceId,
-) -> BTreeSet<String> {
-    let syntax = match arena.source(source) {
-        Ok(source) => source.syntax(),
-        Err(_) => return BTreeSet::new(),
-    };
-    let mut seen: rustc_hash::FxHashSet<&str> = rustc_hash::FxHashSet::default();
-    syntax
-        .arena
-        .nodes()
-        .iter()
-        .filter_map(|node| match &node.data {
-            NodeData::Identifier(data) if seen.insert(data.text.as_str()) => {
-                Some(data.text.clone())
-            }
-            _ => None,
-        })
-        .collect()
+) -> UsedNames {
+    UsedNames::from(arena.identifier_texts(source))
 }
 
-fn unique_generated_name(used: &mut BTreeSet<String>, base: &str) -> String {
+fn unique_generated_name(used: &mut UsedNames, base: &str) -> String {
     let mut ordinal = 1usize;
     loop {
         // makeUniqueName appends a separator only when the base lacks one.

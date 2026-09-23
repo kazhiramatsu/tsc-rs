@@ -190,6 +190,13 @@ fn observe_script_source_routing(
     let source_name = source_record
         .map(|record| record.path().to_string_lossy().to_ascii_lowercase())
         .unwrap_or_default();
+    // One walk answers every syntactic fact below; a source without syntax
+    // (none is mounted) reports none of them, as the former per-fact walks
+    // did.
+    let facts = source_record
+        .and_then(crate::EmitSource::syntax)
+        .map(source_routing_facts)
+        .unwrap_or_default();
     let owns_node_format_option = matches!(
         options.emit_module_kind(),
         MODULE_NODE16 | MODULE_NODE18 | MODULE_NODE20 | MODULE_NODE_NEXT
@@ -198,49 +205,29 @@ fn observe_script_source_routing(
         || (!owns_node_format_option
             && (source_name.ends_with(".mts")
                 || source_name.ends_with(".cts")
-                || source_record
-                    .and_then(crate::EmitSource::syntax)
-                    .is_some_and(source_contains_import_attributes)));
+                || facts.import_attributes));
     if owns_node_format {
         activity.observe_runtime_slice(H2RuntimeSlice::H2_1e);
     }
-    if source_record
-        .and_then(crate::EmitSource::syntax)
-        .is_some_and(source_contains_runtime_enum)
-    {
+    if facts.runtime_enum {
         activity.observe_runtime_slice(H2RuntimeSlice::H2_2a);
     }
-    if source_record
-        .and_then(crate::EmitSource::syntax)
-        .is_some_and(source_contains_runtime_namespace)
-    {
+    if facts.runtime_namespace {
         activity.observe_runtime_slice(H2RuntimeSlice::H2_2b);
     }
-    if source_record
-        .and_then(crate::EmitSource::syntax)
-        .is_some_and(source_contains_parameter_property)
-    {
+    if facts.parameter_property {
         activity.observe_runtime_slice(H2RuntimeSlice::H2_2c);
     }
-    if source_record
-        .and_then(crate::EmitSource::syntax)
-        .is_some_and(source_contains_import_or_export_equals)
-    {
+    if facts.import_or_export_equals {
         activity.observe_runtime_slice(H2RuntimeSlice::H2_2d);
     }
-    if options.experimental_decorators
-        && source_record
-            .and_then(crate::EmitSource::syntax)
-            .is_some_and(source_contains_decorator)
-    {
+    if options.experimental_decorators && facts.decorator {
         activity.observe_runtime_slice(H2RuntimeSlice::H2_4a);
     }
     if (first_source && !options.use_define_for_class_fields_effective())
         || (options.use_define_for_class_fields_effective()
             && !options.experimental_decorators
-            && source_record
-                .and_then(crate::EmitSource::syntax)
-                .is_some_and(source_contains_decorator))
+            && facts.decorator)
     {
         activity.observe_runtime_slice(H2RuntimeSlice::H2_4b);
     }
@@ -1448,7 +1435,7 @@ struct EcmaScriptModuleEqualsVisitor<'context> {
     source: TransformSourceId,
     module_kind: i32,
     target: ScriptTarget,
-    used_names: BTreeSet<String>,
+    used_names: target_bindings::UsedNames,
     create_require_name: Option<String>,
     require_name: Option<String>,
 }
@@ -2026,8 +2013,8 @@ struct RelativeModuleSpecifierVisitor<'context> {
     rewrite_calls: &'context mut relative_imports::ImportCallRewrites,
     context: &'context mut TransformationContext,
     source: TransformSourceId,
-    nodes: BTreeMap<NodeId, NodeId>,
-    arrays: BTreeMap<NodeArrayId, NodeArrayId>,
+    nodes: rustc_hash::FxHashMap<NodeId, NodeId>,
+    arrays: rustc_hash::FxHashMap<NodeArrayId, NodeArrayId>,
 }
 
 impl<'context> RelativeModuleSpecifierVisitor<'context> {
@@ -2042,8 +2029,8 @@ impl<'context> RelativeModuleSpecifierVisitor<'context> {
             rewrite_calls,
             context,
             source,
-            nodes: BTreeMap::new(),
-            arrays: BTreeMap::new(),
+            nodes: rustc_hash::FxHashMap::default(),
+            arrays: rustc_hash::FxHashMap::default(),
         }
     }
 
@@ -3003,7 +2990,7 @@ impl ImportEqualsPublication {
 
 #[derive(Debug)]
 struct GeneratedModuleNameAllocator {
-    used_names: BTreeSet<String>,
+    used_names: target_bindings::UsedNames,
     generated_bases: BTreeMap<String, String>,
 }
 
@@ -4407,161 +4394,105 @@ fn source_contains_import_reference_substitution(
     Ok(false)
 }
 
-fn source_contains_import_attributes(source: &tsc_syntax::SourceFile) -> bool {
-    let mut stack = vec![source.root];
-    while let Some(id) = stack.pop() {
-        let record = source.arena.node(id);
-        // Missing declarations retain syntax for binding, but emit no subtree.
-        if record.kind == SyntaxKind::MissingDeclaration {
-            continue;
-        }
-        let static_attributes = matches!(
-            &record.data,
-            NodeData::ImportDeclaration(data) if data.attributes.is_some()
-        ) || matches!(
-            &record.data,
-            NodeData::ExportDeclaration(data) if data.attributes.is_some()
-        );
-        let dynamic_attributes = match &record.data {
-            NodeData::CallExpression(data) => {
-                let is_dynamic_import = data.expression.is_some_and(|expression| {
-                    source.arena.node(expression).kind == SyntaxKind::ImportKeyword
-                });
-                let argument_count = data
-                    .arguments
-                    .map(|arguments| source.arena.node_array(arguments).nodes.len())
-                    .unwrap_or(0);
-                is_dynamic_import && argument_count > 1
-            }
-            _ => false,
-        };
-        if static_attributes || dynamic_attributes {
-            return true;
-        }
-        for_each_child(&source.arena, record, |child| {
-            stack.push(child);
-            false
-        });
-    }
-    false
+/// The per-source facts `observe_script_source_routing` reports, gathered in
+/// one walk from the root that skips MissingDeclaration subtrees (they retain
+/// syntax for binding but emit nothing). Each fact is exactly the answer its
+/// former dedicated walk gave — some reachable node matches — so a source
+/// without any of the constructs is walked once instead of once per fact.
+#[derive(Clone, Copy, Debug, Default)]
+struct SourceRoutingFacts {
+    import_attributes: bool,
+    runtime_enum: bool,
+    runtime_namespace: bool,
+    parameter_property: bool,
+    import_or_export_equals: bool,
+    decorator: bool,
 }
 
-fn source_contains_runtime_enum(source: &tsc_syntax::SourceFile) -> bool {
-    let mut stack = vec![source.root];
-    while let Some(id) = stack.pop() {
-        let record = source.arena.node(id);
-        // Missing declarations retain syntax for binding, but emit no subtree.
-        if record.kind == SyntaxKind::MissingDeclaration {
-            continue;
-        }
-        if record.kind == SyntaxKind::EnumDeclaration {
-            return true;
-        }
-        for_each_child(&source.arena, record, |child| {
-            stack.push(child);
-            false
-        });
+impl SourceRoutingFacts {
+    fn complete(self) -> bool {
+        self.import_attributes
+            && self.runtime_enum
+            && self.runtime_namespace
+            && self.parameter_property
+            && self.import_or_export_equals
+            && self.decorator
     }
-    false
 }
 
-fn source_contains_runtime_namespace(source: &tsc_syntax::SourceFile) -> bool {
+fn source_routing_facts(source: &tsc_syntax::SourceFile) -> SourceRoutingFacts {
+    let mut facts = SourceRoutingFacts::default();
     let mut stack = vec![source.root];
     while let Some(id) = stack.pop() {
         let record = source.arena.node(id);
-        // Missing declarations retain syntax for binding, but emit no subtree.
         if record.kind == SyntaxKind::MissingDeclaration {
             continue;
         }
-        if let NodeData::ModuleDeclaration(data) = &record.data {
-            let flags = NodeFlags::from_bits(record.flags);
-            let declared = data.modifiers.is_some_and(|modifiers| {
-                source
-                    .arena
-                    .node_array(modifiers)
-                    .nodes
-                    .iter()
-                    .any(|modifier| source.arena.node(*modifier).kind == SyntaxKind::DeclareKeyword)
-            });
-            let identifier_named = data
-                .name
-                .is_some_and(|name| source.arena.node(name).kind == SyntaxKind::Identifier);
-            if identifier_named
-                && !declared
-                && !flags.contains(NodeFlags::AMBIENT)
-                && !flags.contains(NodeFlags::GLOBAL_AUGMENTATION)
-            {
-                return true;
-            }
-        }
-        for_each_child(&source.arena, record, |child| {
-            stack.push(child);
-            false
-        });
-    }
-    false
-}
-
-fn source_contains_parameter_property(source: &tsc_syntax::SourceFile) -> bool {
-    let mut stack = vec![source.root];
-    while let Some(id) = stack.pop() {
-        let record = source.arena.node(id);
-        // Missing declarations retain syntax for binding, but emit no subtree.
-        if record.kind == SyntaxKind::MissingDeclaration {
-            continue;
-        }
-        if parameter_has_property_modifier(source, record) {
-            return true;
-        }
-        for_each_child(&source.arena, record, |child| {
-            stack.push(child);
-            false
-        });
-    }
-    false
-}
-
-fn source_contains_import_or_export_equals(source: &tsc_syntax::SourceFile) -> bool {
-    let mut stack = vec![source.root];
-    while let Some(id) = stack.pop() {
-        let record = source.arena.node(id);
-        // Missing declarations retain syntax for binding, but emit no subtree.
-        if record.kind == SyntaxKind::MissingDeclaration {
-            continue;
-        }
-        if record.kind == SyntaxKind::ImportEqualsDeclaration
+        facts.import_attributes |= node_has_import_attributes(source, record);
+        facts.runtime_enum |= record.kind == SyntaxKind::EnumDeclaration;
+        facts.runtime_namespace |= node_is_runtime_namespace(source, record);
+        facts.parameter_property |= parameter_has_property_modifier(source, record);
+        facts.import_or_export_equals |= record.kind == SyntaxKind::ImportEqualsDeclaration
             || matches!(
                 &record.data,
                 NodeData::ExportAssignment(data) if data.is_export_equals == Some(true)
-            )
-        {
-            return true;
+            );
+        facts.decorator |= record.kind == SyntaxKind::Decorator;
+        if facts.complete() {
+            break;
         }
         for_each_child(&source.arena, record, |child| {
             stack.push(child);
             false
         });
     }
-    false
+    facts
 }
 
-fn source_contains_decorator(source: &tsc_syntax::SourceFile) -> bool {
-    let mut stack = vec![source.root];
-    while let Some(id) = stack.pop() {
-        let record = source.arena.node(id);
-        // Missing declarations retain syntax for binding, but emit no subtree.
-        if record.kind == SyntaxKind::MissingDeclaration {
-            continue;
+fn node_has_import_attributes(source: &tsc_syntax::SourceFile, record: &Node) -> bool {
+    let static_attributes = matches!(
+        &record.data,
+        NodeData::ImportDeclaration(data) if data.attributes.is_some()
+    ) || matches!(
+        &record.data,
+        NodeData::ExportDeclaration(data) if data.attributes.is_some()
+    );
+    let dynamic_attributes = match &record.data {
+        NodeData::CallExpression(data) => {
+            let is_dynamic_import = data.expression.is_some_and(|expression| {
+                source.arena.node(expression).kind == SyntaxKind::ImportKeyword
+            });
+            let argument_count = data
+                .arguments
+                .map(|arguments| source.arena.node_array(arguments).nodes.len())
+                .unwrap_or(0);
+            is_dynamic_import && argument_count > 1
         }
-        if record.kind == SyntaxKind::Decorator {
-            return true;
-        }
-        for_each_child(&source.arena, record, |child| {
-            stack.push(child);
-            false
-        });
-    }
-    false
+        _ => false,
+    };
+    static_attributes || dynamic_attributes
+}
+
+fn node_is_runtime_namespace(source: &tsc_syntax::SourceFile, record: &Node) -> bool {
+    let NodeData::ModuleDeclaration(data) = &record.data else {
+        return false;
+    };
+    let flags = NodeFlags::from_bits(record.flags);
+    let declared = data.modifiers.is_some_and(|modifiers| {
+        source
+            .arena
+            .node_array(modifiers)
+            .nodes
+            .iter()
+            .any(|modifier| source.arena.node(*modifier).kind == SyntaxKind::DeclareKeyword)
+    });
+    let identifier_named = data
+        .name
+        .is_some_and(|name| source.arena.node(name).kind == SyntaxKind::Identifier);
+    identifier_named
+        && !declared
+        && !flags.contains(NodeFlags::AMBIENT)
+        && !flags.contains(NodeFlags::GLOBAL_AUGMENTATION)
 }
 
 fn string_literal_text(
@@ -5152,10 +5083,10 @@ struct CommonJsVisitor<'context, 'resolver> {
     target: ScriptTarget,
     info: CommonJsModuleInfo,
     generated_module_bindings: BTreeMap<String, target_bindings::TargetBinding>,
-    nodes: BTreeMap<NodeId, NodeId>,
-    arrays: BTreeMap<NodeArrayId, NodeArrayId>,
+    nodes: rustc_hash::FxHashMap<NodeId, NodeId>,
+    arrays: rustc_hash::FxHashMap<NodeArrayId, NodeArrayId>,
     dynamic_import_ordinal: usize,
-    used_names: BTreeSet<String>,
+    used_names: target_bindings::UsedNames,
     temp_ordinal: usize,
     expression_value_use: CommonJsExpressionValueUse,
 }
@@ -5188,8 +5119,8 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             target: options.target,
             info,
             generated_module_bindings: BTreeMap::new(),
-            nodes: BTreeMap::new(),
-            arrays: BTreeMap::new(),
+            nodes: rustc_hash::FxHashMap::default(),
+            arrays: rustc_hash::FxHashMap::default(),
             dynamic_import_ordinal: 0,
             used_names,
             temp_ordinal: 0,
@@ -11256,8 +11187,8 @@ struct TypeScriptVisitor<'context, 'resolver> {
     downlevel_iteration: bool,
     promote_class_iife: bool,
     verbatim_module_syntax: bool,
-    nodes: BTreeMap<NodeId, Option<NodeId>>,
-    arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
+    nodes: rustc_hash::FxHashMap<NodeId, Option<NodeId>>,
+    arrays: rustc_hash::FxHashMap<NodeArrayId, Option<NodeArrayId>>,
     class_member_arrays: BTreeMap<NodeArrayId, ClassMemberArrayVisit>,
     expanded_enums: BTreeMap<NodeId, Vec<NodeId>>,
     expanded_modules: BTreeMap<NodeId, Vec<NodeId>>,
@@ -11275,7 +11206,7 @@ struct TypeScriptVisitor<'context, 'resolver> {
     generated_declaration_bindings: BTreeMap<String, target_bindings::TargetBinding>,
     /// The parsed identifier census, collected on the first unique-name
     /// request (most sources never make one).
-    source_identifier_names: std::cell::OnceCell<BTreeSet<String>>,
+    source_identifier_names: std::cell::OnceCell<target_bindings::UsedNames>,
     generated_namespace_names: BTreeSet<String>,
     temp_ordinal: usize,
 }
@@ -11391,8 +11322,8 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             downlevel_iteration,
             promote_class_iife,
             verbatim_module_syntax,
-            nodes: BTreeMap::new(),
-            arrays: BTreeMap::new(),
+            nodes: rustc_hash::FxHashMap::default(),
+            arrays: rustc_hash::FxHashMap::default(),
             class_member_arrays: BTreeMap::new(),
             expanded_enums: BTreeMap::new(),
             expanded_modules: BTreeMap::new(),
@@ -16497,7 +16428,180 @@ enum FlagWalkState {
 /// cycle) contributes `NONE` to its parent's array aggregate, a node already
 /// completed through another path contributes its final flags, and every
 /// array aggregate is stored before its owner's own flags are classified.
+/// `TSC_RS_VERIFY_TRANSFORM_FLAGS`: classify every source both ways and
+/// compare (a development check of the linear pass against the walk).
+fn verify_linear_transform_flags() -> bool {
+    static VERIFY: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *VERIFY.get_or_init(|| std::env::var_os("TSC_RS_VERIFY_TRANSFORM_FLAGS").is_some())
+}
+
+/// Classify the parsed source reachable from `root`: the linear pass when
+/// the records are in child-before-parent order (the parser's order), the
+/// general postorder walk otherwise.
 fn compute_transform_flags(
+    arena: &mut TransformArena,
+    source: TransformSourceId,
+    root: NodeId,
+) -> Result<(), TransformError> {
+    if !verify_linear_transform_flags() {
+        if compute_transform_flags_linear(arena, source, root)? {
+            return Ok(());
+        }
+        return compute_transform_flags_walk(arena, source, root);
+    }
+    let linear = compute_transform_flags_linear(arena, source, root)?;
+    let snapshot = snapshot_transform_flags(arena, source)?;
+    compute_transform_flags_walk(arena, source, root)?;
+    if linear {
+        let walked = snapshot_transform_flags(arena, source)?;
+        assert!(
+            snapshot == walked,
+            "linear transform flags differ from the walk in source {source:?}: {:?}",
+            snapshot
+                .0
+                .iter()
+                .zip(&walked.0)
+                .enumerate()
+                .filter(|(_, (linear, walked))| linear != walked)
+                .take(8)
+                .collect::<Vec<_>>()
+        );
+    }
+    Ok(())
+}
+
+/// Every node's and every array's transform flags of `source`, in arena
+/// order (the development check's comparison key).
+fn snapshot_transform_flags(
+    arena: &TransformArena,
+    source: TransformSourceId,
+) -> Result<(Vec<i32>, Vec<i32>), TransformError> {
+    let syntax = arena.source(source)?.syntax();
+    let nodes = syntax
+        .arena
+        .nodes()
+        .iter()
+        .map(|node| node.transform_flags)
+        .collect();
+    let arrays = (syntax.arena.array_base()..syntax.arena.array_end())
+        .map(|array| syntax.arena.node_array(NodeArrayId(array)).transform_flags)
+        .collect();
+    Ok((nodes, arrays))
+}
+
+/// Forward-pass classification of a parsed source: the parser records each
+/// node after its children, so visiting the arena in index order sees every
+/// child and array element before its parent and needs no explicit
+/// postorder stack. Exactly the nodes reachable from `root` are classified,
+/// as the walk does, with the same per-node rules and the same array
+/// aggregates. `Ok(false)` reports records that are not in child-before-
+/// parent order (nothing was written); the caller takes the walk instead.
+fn compute_transform_flags_linear(
+    arena: &mut TransformArena,
+    source: TransformSourceId,
+    root: NodeId,
+) -> Result<bool, TransformError> {
+    let (node_base, node_count) = {
+        let syntax = arena.source(source)?.syntax();
+        (syntax.arena.node_base(), syntax.arena.nodes().len())
+    };
+    let index_of = |id: NodeId| -> Option<usize> {
+        id.0.checked_sub(node_base)
+            .map(|index| index as usize)
+            .filter(|index| *index < node_count)
+    };
+    let Some(root_index) = index_of(root) else {
+        return Err(TransformError::UnknownNode(TransformNode::new(
+            source, root,
+        )));
+    };
+    // Reachability from the root, parents before children.
+    let mut reachable = vec![false; node_count];
+    reachable[root_index] = true;
+    let mut children: Vec<NodeId> = Vec::new();
+    {
+        let syntax = arena.source(source)?.syntax();
+        for index in (0..=root_index).rev() {
+            if !reachable[index] {
+                continue;
+            }
+            let record = &syntax.arena.nodes()[index];
+            children.clear();
+            for_each_child(&syntax.arena, record, |child| {
+                children.push(child);
+                false
+            });
+            for_each_child_array(record, |array| {
+                if syntax.arena.contains_array(array) {
+                    children.extend(syntax.arena.node_array(array).nodes.iter().copied());
+                }
+                false
+            });
+            for &child in &children {
+                match index_of(child) {
+                    Some(child_index) if child_index < index => reachable[child_index] = true,
+                    _ => return Ok(false),
+                }
+            }
+        }
+    }
+    let mut array_scratch: Vec<NodeArrayId> = Vec::new();
+    for index in 0..=root_index {
+        if !reachable[index] {
+            continue;
+        }
+        let id = NodeId(node_base + index as u32);
+        let node = TransformNode::new(source, id);
+        // Array aggregates first (their owner's classification reads them),
+        // then the node's own flags — the walk's exit step.
+        array_scratch.clear();
+        {
+            let syntax = arena.source(source)?.syntax();
+            for_each_child_array(&syntax.arena.nodes()[index], |array| {
+                array_scratch.push(array);
+                false
+            });
+        }
+        for &array in &array_scratch {
+            let array_ref = arena
+                .node_array_ref(source, array)
+                .expect("generated child array belongs to its source");
+            let flags = {
+                let syntax = arena.source(source)?.syntax();
+                let mut flags = TransformFlags::NONE;
+                for &element in &syntax.arena.node_array(array).nodes {
+                    let Some(element_index) = index_of(element) else {
+                        return Err(TransformError::UnknownNode(TransformNode::new(
+                            source, element,
+                        )));
+                    };
+                    let element_flags = if reachable[element_index] {
+                        arena.transform_flags(TransformNode::new(source, element))
+                    } else {
+                        TransformFlags::NONE
+                    };
+                    let kind = syntax.arena.nodes()[element_index].kind;
+                    flags |= element_flags & !TransformFlags::subtree_exclusions(kind);
+                }
+                flags
+            };
+            arena.set_array_transform_flags(array_ref, flags);
+        }
+        let flags = {
+            let syntax = arena.source(source)?.syntax();
+            let record = &syntax.arena.nodes()[index];
+            let mut flags = local_transform_flags(record)
+                | local_contextual_target_flags(arena, source, record)?;
+            flags |= factory_child_transform_flags(arena, source, record)?;
+            let flags = complete_class_transform_flags(arena, source, record, flags)?;
+            flags | static_this_substitute_flags(arena, node)
+        };
+        arena.set_transform_flags(node, flags);
+    }
+    Ok(true)
+}
+
+fn compute_transform_flags_walk(
     arena: &mut TransformArena,
     source: TransformSourceId,
     root: NodeId,
@@ -17228,7 +17332,11 @@ fn local_contextual_target_flags(
             // stamp no flag, so the facet derives from the token's SOURCE
             // spelling (the printer's own spelling channel): an `\u{`
             // escape in the identifier slice is exactly the scanner's
-            // hasExtendedUnicodeEscape carrier.
+            // hasExtendedUnicodeEscape carrier. A source without any such
+            // escape answers every identifier at once.
+            if !arena.source_text_has_extended_unicode_escape(source)? {
+                return Ok(TransformFlags::NONE);
+            }
             let syntax = arena.source(source)?.syntax();
             let text = syntax.text();
             let start = node.pos as usize;

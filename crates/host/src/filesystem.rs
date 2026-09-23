@@ -149,6 +149,18 @@ impl CompilerHost for FsCompilerHost {
             .map_err(|error| retain_query_path(error, path, &native))
     }
 
+    fn file_size_hint_js(&self, path: JsStr<'_>) -> Result<Option<u64>, HostError> {
+        let native = crate::js_path::filesystem_path(path, HostOperation::ReadFile)?;
+        validate_input_path(&native, HostOperation::ReadFile)
+            .and_then(|_| metadata_if_present(&native, HostOperation::ReadFile))
+            .map(|metadata| {
+                metadata
+                    .filter(fs::Metadata::is_file)
+                    .map(|metadata| metadata.len())
+            })
+            .map_err(|error| retain_query_path(error, path, &native))
+    }
+
     fn file_exists_js(&self, path: JsStr<'_>) -> Result<bool, HostError> {
         let native = crate::js_path::filesystem_path(path, HostOperation::FileExists)?;
         self.file_exists(&native)

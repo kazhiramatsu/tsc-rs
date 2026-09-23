@@ -6,7 +6,6 @@
 //! implementation's nested mutable closures.
 
 use crate::transform::try_visit_transform_children;
-use std::collections::BTreeMap;
 
 use tsc_syntax::{for_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind};
 use tsc_types::{CompilerOptions, JsStr, NodeFlags, ScriptTarget};
@@ -309,8 +308,8 @@ struct Es2018Visitor<'context> {
     context: &'context mut TransformationContext,
     source: TransformSourceId,
     target: ScriptTarget,
-    nodes: BTreeMap<NodeId, Option<NodeId>>,
-    arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
+    nodes: rustc_hash::FxHashMap<NodeId, Option<NodeId>>,
+    arrays: rustc_hash::FxHashMap<NodeArrayId, Option<NodeArrayId>>,
     /// A tagged-template visit deliberately revisits its tag at LiftRestriction.
     /// Both node and array memoization must be bypassed within that subtree.
     memo_enabled: bool,
@@ -337,14 +336,14 @@ impl<'context> Es2018Visitor<'context> {
     ) -> Result<Self, TransformError> {
         Ok(Self {
             generated_bindings: GeneratedBindingScopes::new(
-                collect_untagged_identifier_texts(context.arena(), source, root)?,
+                collect_untagged_identifier_texts(context.arena(), source, root)?.into(),
                 AncestorBindingPolicy::AllowShadow,
             ),
             context,
             source,
             target,
-            nodes: BTreeMap::new(),
-            arrays: BTreeMap::new(),
+            nodes: rustc_hash::FxHashMap::default(),
+            arrays: rustc_hash::FxHashMap::default(),
             memo_enabled: true,
             tagged_template_string_declarations: Vec::new(),
             value_use: ExpressionValueUse::Required,

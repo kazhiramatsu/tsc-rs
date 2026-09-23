@@ -13,6 +13,7 @@ name = "tsc_syntax"
 path = "src/lib.rs"
 
 [dependencies]
+memchr = "2"
 rustc-hash.workspace = true
 tsc-diagnostics.workspace = true
 tsc-types.workspace = true

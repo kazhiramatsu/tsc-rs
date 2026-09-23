@@ -32,10 +32,12 @@ pub struct CheckerBudget {
     leak_states: bool,
 }
 
-/// The automatic budget's cap: tsgo's default checker count. More shards
-/// currently cost more duplicated per-checker work than they save on this
-/// machine (W measurements: 8 checkers were slower than 4 on scale256).
-const AUTOMATIC_CHECKERS_CAP: usize = 4;
+/// The automatic checker count is capped at eight: on a ten-core machine
+/// (four performance, six efficiency cores) a 256-file program checks about
+/// 6% faster with eight shards than with tsgo's default of four, and no
+/// faster with ten, while every extra shard repeats the lazy library-type
+/// work (CPU +19% at eight). tsgo's default stays four.
+const AUTOMATIC_CHECKERS_CAP: usize = 8;
 
 impl Default for CheckerBudget {
     /// The API default: one checker.
@@ -84,7 +86,7 @@ impl CheckerBudget {
     }
 
     /// The CLI default: one checker per available hardware thread, capped
-    /// at tsgo's default of four (and, at partition time, by the file
+    /// at `AUTOMATIC_CHECKERS_CAP` (and, at partition time, by the file
     /// count). `TSRS_CHECKERS` pins another count.
     pub fn automatic() -> Self {
         let available = std::thread::available_parallelism().map_or(1, NonZeroUsize::get);
@@ -106,23 +108,31 @@ impl CheckerBudget {
 
 /// Assign program files (by index) to at most `shards` checkers.
 ///
-/// Deterministic least-load baseline: files are visited in program order and
-/// each goes to the shard with the smallest accumulated weight, lowest shard
-/// index on ties; every shard's list therefore stays in program order. Empty
-/// shards are dropped, so the result has `min(shards, files)` entries when
-/// `files` is non-empty. This is a simpler baseline than tsgo's weighted
-/// graph partition (import affinity + load cap); it is measured against
-/// that design in the W follow-up, not assumed equivalent.
+/// Deterministic least-load, heaviest first: files are visited from the
+/// heaviest down (program order between equal weights) and each goes to the
+/// shard with the smallest accumulated weight, lowest shard index on ties,
+/// so one source heavier than the rest of a shard's share ends up alone
+/// instead of sharing its checker with the light files scheduled before it
+/// in program order. Every shard's list is then sorted back into program
+/// order. Empty shards are dropped, so the result has `min(shards, files)`
+/// entries when `files` is non-empty. This is a simpler baseline than tsgo's
+/// weighted graph partition (import affinity + load cap); it is measured
+/// against that design in the W follow-up, not assumed equivalent.
 pub(crate) fn partition_files(weights: &[usize], shards: usize) -> Vec<Vec<usize>> {
     let shards = shards.clamp(1, weights.len().max(1));
+    let mut order: Vec<usize> = (0..weights.len()).collect();
+    order.sort_by_key(|&file| (std::cmp::Reverse(weights[file].max(1)), file));
     let mut assignment: Vec<Vec<usize>> = vec![Vec::new(); shards];
     let mut load = vec![0usize; shards];
-    for (file, &weight) in weights.iter().enumerate() {
+    for file in order {
         let target = (0..shards)
             .min_by_key(|&shard| (load[shard], shard))
             .expect("at least one shard");
         assignment[target].push(file);
-        load[target] += weight.max(1);
+        load[target] += weights[file].max(1);
+    }
+    for files in &mut assignment {
+        files.sort_unstable();
     }
     assignment.retain(|files| !files.is_empty());
     assignment

@@ -611,8 +611,8 @@ pub fn preflight_emit(
         .iter()
         .filter_map(|id| host.source_file(*id))
         .map(|source| canonical_case_key(host, source.canonical_path()))
-        .collect::<BTreeSet<_>>();
-    let mut emitted_paths = BTreeSet::new();
+        .collect::<rustc_hash::FxHashSet<_>>();
+    let mut emitted_paths = rustc_hash::FxHashSet::default();
     let mut blocked_outputs = BTreeSet::new();
     let mut diagnostics = Vec::new();
     let options = host.compiler_options();
@@ -796,8 +796,8 @@ pub(crate) fn declaration_output_path(source_file: JsStr<'_>, host: &dyn EmitHos
 fn verify_emit_file_path(
     host: &dyn EmitHost,
     path: JsStr<'_>,
-    input_paths: &BTreeSet<JsString>,
-    emitted_paths: &mut BTreeSet<JsString>,
+    input_paths: &rustc_hash::FxHashSet<JsString>,
+    emitted_paths: &mut rustc_hash::FxHashSet<JsString>,
     blocked_outputs: &mut BTreeSet<JsString>,
     diagnostics: &mut DiagnosticList,
 ) {

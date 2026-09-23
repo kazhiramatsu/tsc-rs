@@ -7,6 +7,7 @@
 //! pass has already occupied `_a`, `_b`, and the remaining generated slots.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 use tsc_syntax::{for_each_child, NodeData, NodeId, SyntaxKind};
 
@@ -57,6 +58,55 @@ enum OrdinaryTempNamePolicy {
     LoopVariable,
 }
 
+/// A set of used identifier spellings shared between the name allocators of
+/// an emit unit: each starts from the arena's census
+/// ([`TransformArena::identifier_texts`] or the parsed census below) and
+/// copies the set only when it records a generated name, so the source is
+/// scanned once per unit instead of once per transformer. Reads go through
+/// `Deref`; `insert` and `extend` are `BTreeSet`'s, copy-on-write.
+#[derive(Clone, Debug, Default)]
+pub(super) struct UsedNames(Arc<BTreeSet<String>>);
+
+impl UsedNames {
+    /// `BTreeSet::insert`: false, and no copy, when the name is used already.
+    pub(super) fn insert(&mut self, name: String) -> bool {
+        if self.0.contains(&name) {
+            return false;
+        }
+        Arc::make_mut(&mut self.0).insert(name)
+    }
+
+    pub(super) fn extend(&mut self, names: impl IntoIterator<Item = String>) {
+        Arc::make_mut(&mut self.0).extend(names);
+    }
+}
+
+impl std::ops::Deref for UsedNames {
+    type Target = BTreeSet<String>;
+
+    fn deref(&self) -> &BTreeSet<String> {
+        &self.0
+    }
+}
+
+impl From<Arc<BTreeSet<String>>> for UsedNames {
+    fn from(names: Arc<BTreeSet<String>>) -> Self {
+        Self(names)
+    }
+}
+
+impl From<BTreeSet<String>> for UsedNames {
+    fn from(names: BTreeSet<String>) -> Self {
+        Self(Arc::new(names))
+    }
+}
+
+impl FromIterator<String> for UsedNames {
+    fn from_iter<I: IntoIterator<Item = String>>(names: I) -> Self {
+        Self(Arc::new(names.into_iter().collect()))
+    }
+}
+
 /// Immutable `SourceFile.identifiers` projection used by file-level names.
 ///
 /// A transform arena also contains nodes appended by earlier passes. Filtering
@@ -64,15 +114,21 @@ enum OrdinaryTempNamePolicy {
 /// in ordinary scoped name generation, but TypeScript's file-level predicate
 /// deliberately ignores them. Candidate lookup never mutates this snapshot,
 /// so two independently allocated file-level bindings can select the same
-/// spelling while retaining distinct [`GeneratedBindingId`] values.
+/// spelling while retaining distinct [`GeneratedBindingId`] values. The
+/// parsed nodes never change, so the census is collected once per emit
+/// source and shared by every later reader.
 #[derive(Clone, Debug)]
-pub(super) struct ParsedSourceIdentifierNames(BTreeSet<String>);
+pub(super) struct ParsedSourceIdentifierNames(UsedNames);
 
 impl ParsedSourceIdentifierNames {
     pub(super) fn collect(
         arena: &TransformArena,
         source: TransformSourceId,
     ) -> Result<Self, TransformError> {
+        let cell = arena.parsed_identifier_names_cell(source)?;
+        if let Some(names) = cell.get() {
+            return Ok(Self(UsedNames::from(Arc::clone(names))));
+        }
         let syntax = arena.source(source)?.syntax();
         let node_base = syntax.arena.node_base();
         let mut names = BTreeSet::new();
@@ -102,14 +158,19 @@ impl ParsedSourceIdentifierNames {
             }
             names.insert(identifier.text.clone());
         }
-        Ok(Self(names))
+        let names = Arc::new(names);
+        // A concurrent first collector of the same source (none exists: an
+        // arena is used by one thread) would have won the cell; either way
+        // the census returned is the parsed one.
+        let _ = cell.set(Arc::clone(&names));
+        Ok(Self(UsedNames::from(names)))
     }
 
     pub(super) fn contains(&self, name: &str) -> bool {
         self.0.contains(name)
     }
 
-    pub(super) fn into_names(self) -> BTreeSet<String> {
+    pub(super) fn into_names(self) -> UsedNames {
         self.0
     }
 
@@ -661,7 +722,7 @@ impl TransformationContext {
 #[derive(Clone, Copy, Debug)]
 enum GeneratedNameReservedSetPolicy<'reserved> {
     TransformerRoot,
-    PrintSource(&'reserved BTreeSet<String>),
+    PrintSource(&'reserved UsedNames),
 }
 
 fn finalize_generated_binding_names_with_policy(

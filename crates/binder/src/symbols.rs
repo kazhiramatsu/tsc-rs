@@ -2,6 +2,8 @@
 //! and the leading-underscore name escape.
 
 use indexmap::IndexMap;
+use std::sync::Arc;
+
 use tsc_syntax::NodeId;
 use tsc_types::{
     EscapedName, IdentityError, IdentityLease, IdentityRange, IdentitySpace, JsStr, SymbolFlags,
@@ -35,10 +37,12 @@ pub struct Symbol {
     pub declarations: Vec<NodeId>,
     /// addDeclarationToSymbol: FIRST value declaration wins.
     pub value_declaration: Option<NodeId>,
-    pub members: SymbolTable,
-    pub exports: SymbolTable,
+    /// Shared with every checker that resolves this symbol's members: the
+    /// binder fills the table in place, readers clone the handle.
+    pub members: Arc<SymbolTable>,
+    pub exports: Arc<SymbolTable>,
     /// tsc Symbol.globalExports (bindNamespaceExportDeclaration).
-    pub global_exports: SymbolTable,
+    pub global_exports: Arc<SymbolTable>,
     pub parent: Option<SymbolId>,
     /// local ↔ export link installed by declareModuleMember.
     pub export_symbol: Option<SymbolId>,
@@ -59,9 +63,9 @@ impl Symbol {
             escaped_name,
             declarations: Vec::new(),
             value_declaration: None,
-            members: SymbolTable::default(),
-            exports: SymbolTable::default(),
-            global_exports: SymbolTable::default(),
+            members: empty_symbol_table(),
+            exports: empty_symbol_table(),
+            global_exports: empty_symbol_table(),
             parent: None,
             export_symbol: None,
             const_enum_only_module: None,
@@ -149,8 +153,13 @@ impl std::error::Error for SymbolArenaExhausted {}
 
 impl SymbolArena {
     pub fn with_base(base: u32) -> Self {
+        Self::with_base_and_capacity(base, 0)
+    }
+
+    /// An arena at `base` with room for `capacity` symbols before it grows.
+    pub fn with_base_and_capacity(base: u32, capacity: usize) -> Self {
         Self {
-            symbols: Vec::new(),
+            symbols: Vec::with_capacity(capacity),
             base,
             lease: None,
         }
@@ -254,9 +263,15 @@ impl SymbolArena {
         lease: IdentityLease,
     ) -> Result<(), IdentityError> {
         for symbol in &mut self.symbols {
-            relocate_symbol_table_values(&mut symbol.members, &relocation)?;
-            relocate_symbol_table_values(&mut symbol.exports, &relocation)?;
-            relocate_symbol_table_values(&mut symbol.global_exports, &relocation)?;
+            for table in [
+                &mut symbol.members,
+                &mut symbol.exports,
+                &mut symbol.global_exports,
+            ] {
+                if !table.is_empty() {
+                    relocate_symbol_table_values(Arc::make_mut(table), &relocation)?;
+                }
+            }
             if let Some(parent) = &mut symbol.parent {
                 relocation.symbol(parent)?;
             }
@@ -282,6 +297,45 @@ impl SymbolArena {
         }
         self.lease = Some(lease);
         Ok(())
+    }
+
+    /// Attach a lease reserved before binding: it starts at the arena base
+    /// and may run past the allocated count (an over-approximation leased
+    /// from the file's node count). `Ok(false)` reports an arena that
+    /// outgrew its reservation and must relocate instead; nothing is
+    /// attached in that case.
+    pub(crate) fn attach_reserved_identity_lease(
+        &mut self,
+        lease: IdentityLease,
+    ) -> Result<bool, IdentityError> {
+        if self.lease.is_some() {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::Symbol,
+                detail: "symbol arena is already identity-owned",
+            });
+        }
+        if lease.space() != IdentitySpace::Symbol {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::Symbol,
+                detail: "symbol arena received a non-symbol lease",
+            });
+        }
+        if lease.range().start() != self.base {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::Symbol,
+                detail: "reserved symbol lease base differs from the arena base",
+            });
+        }
+        let count = u32::try_from(self.symbols.len()).map_err(|_| IdentityError::Exhausted {
+            space: IdentitySpace::Symbol,
+            requested: u32::MAX,
+            limit: TRANSIENT_SYMBOL_BIT,
+        })?;
+        if lease.range().len() < count {
+            return Ok(false);
+        }
+        self.lease = Some(lease);
+        Ok(true)
     }
 
     pub fn symbols(&self) -> &[Symbol] {
@@ -348,3 +402,16 @@ pub fn unescape_leading_underscores<'a>(escaped: impl Into<JsStr<'a>>) -> JsStr<
 #[cfg(test)]
 #[path = "../tests/unit/symbols/tests.rs"]
 mod tests;
+
+/// The empty member table every fresh symbol starts with: one shared
+/// allocation per thread, so that binding files on several threads never
+/// contends on one reference count (a process-wide table made every symbol
+/// creation an atomic write to the same cache line, and the parallel bind
+/// six times slower). The first insertion into a symbol's table makes that
+/// symbol its own copy.
+pub fn empty_symbol_table() -> Arc<SymbolTable> {
+    thread_local! {
+        static EMPTY: Arc<SymbolTable> = Arc::new(SymbolTable::default());
+    }
+    EMPTY.with(Arc::clone)
+}

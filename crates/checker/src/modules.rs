@@ -191,10 +191,11 @@ impl<'a> CheckerState<'a> {
         declaration: NodeId,
     ) -> CheckResult<bool> {
         let symbol = self.get_symbol_of_declaration(declaration)?;
-        Ok(self
-            .links
-            .read_node(node, |links| links.captured_block_scope_bindings.clone())
-            .contains(&symbol))
+        Ok(self.links.read_node(node, |links| {
+            links
+                .cold()
+                .is_some_and(|cold| cold.captured_block_scope_bindings.contains(&symbol))
+        }))
     }
 
     /// tsc-port: getReferencedDeclarationWithCollidingName @6.0.3
@@ -7518,7 +7519,8 @@ impl<'a> CheckerState<'a> {
                 Some(existing) => self.merge_symbol(existing, source_symbol, false),
                 None => source_symbol,
             };
-            self.binder.symbol_mut(merged).exports.insert(name, value);
+            std::sync::Arc::make_mut(&mut self.binder.symbol_mut(merged).exports)
+                .insert(name, value);
         }
         if merged == exported {
             // tsc resets the memoized member/export resolutions after
@@ -7744,7 +7746,7 @@ impl<'a> CheckerState<'a> {
         };
         Ok(self.make_resolved_anonymous_type(
             anonymous_symbol,
-            member_table,
+            member_table.into(),
             properties,
             Vec::new(),
             ObjectFlags::ANONYMOUS,
@@ -8019,7 +8021,7 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         }
         visited.push(symbol);
-        let mut symbols = self.binder.symbol(symbol).exports.clone();
+        let mut symbols = (*self.binder.symbol(symbol).exports).clone();
         let export_stars = symbols.get(InternalSymbolName::EXPORT_STAR).copied();
         if let Some(export_stars) = export_stars {
             let mut nested_symbols = SymbolTable::default();
@@ -9589,7 +9591,7 @@ impl<'a> CheckerState<'a> {
         }
         let ty = self.make_resolved_anonymous_type(
             Some(object_symbol),
-            members,
+            members.into(),
             properties,
             Vec::new(),
             tsc_types::ObjectFlags::OBJECT_LITERAL | tsc_types::ObjectFlags::NON_INFERRABLE_TYPE,

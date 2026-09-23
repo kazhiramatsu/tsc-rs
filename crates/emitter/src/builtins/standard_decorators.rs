@@ -17,7 +17,7 @@ use crate::{
 use super::{
     constructor_prologue, flags_after_update,
     system::collect_identifier_texts,
-    target_bindings::{ParsedSourceIdentifierNames, TargetBinding},
+    target_bindings::{ParsedSourceIdentifierNames, TargetBinding, UsedNames},
     ConstructorPrologue,
 };
 
@@ -677,8 +677,8 @@ struct DecoratorLexicalEnvironment {
 struct DecoratorLexicalThisRewriter<'visitor, 'context> {
     visitor: &'visitor mut StandardDecoratorVisitor<'context>,
     bindings: &'visitor mut DecoratorDefinitionBindings,
-    nodes: BTreeMap<NodeId, NodeId>,
-    arrays: BTreeMap<NodeArrayId, NodeArrayId>,
+    nodes: rustc_hash::FxHashMap<NodeId, NodeId>,
+    arrays: rustc_hash::FxHashMap<NodeArrayId, NodeArrayId>,
 }
 
 /// Substitutes the semantic class-definition identity into an existing named
@@ -689,23 +689,23 @@ struct DecoratorLexicalThisRewriter<'visitor, 'context> {
 struct DecoratorClassThisRewriter<'visitor, 'context> {
     visitor: &'visitor mut StandardDecoratorVisitor<'context>,
     class_this: TransformNode,
-    nodes: BTreeMap<NodeId, NodeId>,
-    arrays: BTreeMap<NodeArrayId, NodeArrayId>,
+    nodes: rustc_hash::FxHashMap<NodeId, NodeId>,
+    arrays: rustc_hash::FxHashMap<NodeArrayId, NodeArrayId>,
 }
 
 struct StandardDecoratorVisitor<'context> {
     context: &'context mut TransformationContext,
     source: TransformSourceId,
     target: ScriptTarget,
-    nodes: BTreeMap<NodeId, Option<NodeId>>,
-    arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
+    nodes: rustc_hash::FxHashMap<NodeId, Option<NodeId>>,
+    arrays: rustc_hash::FxHashMap<NodeArrayId, Option<NodeArrayId>>,
     inferred_class_names: BTreeMap<NodeId, JsString>,
     inferred_class_name_sources: BTreeMap<NodeId, TransformNode>,
     /// Named evaluation through a non-literal computed property name: the
     /// anonymous decorated class receives the property's hoisted key temp.
     inferred_class_name_references: BTreeMap<NodeId, TargetBinding>,
     expanded_classes: BTreeMap<NodeId, Vec<NodeId>>,
-    used_names: BTreeSet<String>,
+    used_names: UsedNames,
     generated_reference_names: BTreeSet<String>,
     /// Generated private names (`#a_accessor_storage`) of the decorated
     /// classes enclosing the class being transformed. tsc reserves every
@@ -719,7 +719,7 @@ struct StandardDecoratorVisitor<'context> {
     /// Source-level identifier texts: the only collision set tsc consults
     /// for `GeneratedIdentifierFlags.FileLevel` helper names
     /// (`isFileLevelUniqueName`), independent of earlier generated names.
-    file_level_names: BTreeSet<String>,
+    file_level_names: UsedNames,
     /// tsc `transformESDecorators` lexical frames (`top`) and the receiver
     /// (`classThis`) that `updateState` derives from them.
     receiver_frames: Vec<DecoratorReceiverFrame>,
@@ -814,8 +814,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
             context,
             source,
             target,
-            nodes: BTreeMap::new(),
-            arrays: BTreeMap::new(),
+            nodes: rustc_hash::FxHashMap::default(),
+            arrays: rustc_hash::FxHashMap::default(),
             inferred_class_names: BTreeMap::new(),
             inferred_class_name_sources: BTreeMap::new(),
             inferred_class_name_references: BTreeMap::new(),
@@ -7220,8 +7220,8 @@ impl<'visitor, 'context> DecoratorLexicalThisRewriter<'visitor, 'context> {
         Self {
             visitor,
             bindings,
-            nodes: BTreeMap::new(),
-            arrays: BTreeMap::new(),
+            nodes: rustc_hash::FxHashMap::default(),
+            arrays: rustc_hash::FxHashMap::default(),
         }
     }
 
@@ -7324,8 +7324,8 @@ impl<'visitor, 'context> DecoratorClassThisRewriter<'visitor, 'context> {
         Self {
             visitor,
             class_this,
-            nodes: BTreeMap::new(),
-            arrays: BTreeMap::new(),
+            nodes: rustc_hash::FxHashMap::default(),
+            arrays: rustc_hash::FxHashMap::default(),
         }
     }
 

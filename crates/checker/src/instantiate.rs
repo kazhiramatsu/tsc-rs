@@ -711,10 +711,11 @@ impl<'a> CheckerState<'a> {
         } else {
             ty
         };
-        let type_parameters = match self
-            .links
-            .read_node(declaration, |links| links.outer_type_parameters.resolved())
-        {
+        let type_parameters = match self.links.read_node(declaration, |links| {
+            links
+                .cold()
+                .and_then(|cold| cold.outer_type_parameters.resolved())
+        }) {
             Some(cached) => cached.to_vec(),
             None => {
                 let mut outer = self

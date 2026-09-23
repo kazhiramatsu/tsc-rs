@@ -343,6 +343,16 @@ impl CompilerHost for CliCompilerHost {
         }
         self.filesystem.read_file_js(path)
     }
+    fn file_size_hint_js(&self, path: JsStr<'_>) -> Result<Option<u64>, HostError> {
+        if let Some(path) = path
+            .as_str()
+            .map(Path::new)
+            .filter(|path| self.embedded_file_name(path).is_some())
+        {
+            return Ok(self.embedded_bytes(path).map(|bytes| bytes.len() as u64));
+        }
+        self.filesystem.file_size_hint_js(path)
+    }
     fn file_exists_js(&self, path: JsStr<'_>) -> Result<bool, HostError> {
         if let Some(path) = path
             .as_str()

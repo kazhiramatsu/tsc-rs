@@ -1,9 +1,8 @@
 use std::collections::VecDeque;
 use std::fmt;
 use std::ops::Range;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
-const INVALID_POSITION: u32 = u32::MAX;
 const CHANGE_NUMBER_THRESHOLD: usize = 8;
 const CHANGE_LENGTH_THRESHOLD_UTF16: u32 = 256;
 const MAX_RETAINED_SNAPSHOTS: usize = 8;
@@ -51,51 +50,146 @@ pub enum PositionIndexKind {
     PersistentLines,
 }
 
+/// Byte ↔ UTF-16 position index of one immutable text: the line starts in
+/// both domains, plus every non-ASCII character as a sparse table. Between
+/// two non-ASCII characters each byte is one UTF-16 unit, so a position
+/// converts by the difference accumulated at the nearest preceding
+/// non-ASCII character (a binary search over that table, which is empty for
+/// ASCII text) instead of through a table with one entry per byte.
 #[derive(Debug)]
 struct DensePositionIndex {
-    byte_to_utf16: Vec<u32>,
-    utf16_to_byte: Vec<u32>,
+    byte_len: u32,
+    utf16_len: u32,
+    /// Every non-ASCII character, in text order.
+    wide: Vec<WideCharacter>,
     line_starts_byte: Vec<u32>,
     line_starts_utf16: Vec<u32>,
 }
 
+/// One non-ASCII character: where it ends in both domains, and its widths.
+#[derive(Clone, Copy, Debug)]
+struct WideCharacter {
+    byte_end: u32,
+    utf16_end: u32,
+    byte_len: u8,
+    utf16_len: u8,
+}
+
 impl DensePositionIndex {
     fn new(text: &str) -> Self {
-        assert!(
-            u32::try_from(text.len()).is_ok(),
-            "source text must fit in the u32 position domain"
-        );
-
-        let mut byte_to_utf16 = vec![INVALID_POSITION; text.len() + 1];
-        let mut utf16_to_byte = Vec::with_capacity(text.encode_utf16().count() + 1);
-        byte_to_utf16[0] = 0;
-        utf16_to_byte.push(0);
-
+        let byte_len =
+            u32::try_from(text.len()).expect("source text must fit in the u32 position domain");
+        let bytes = text.as_bytes();
+        let mut wide = Vec::new();
+        let mut position = 0usize;
+        // The UTF-16 position of `position`.
         let mut utf16_position = 0u32;
-        for (byte_position, character) in text.char_indices() {
-            let byte_position = byte_position as u32;
-            byte_to_utf16[byte_position as usize] = utf16_position;
-            let byte_end = byte_position + character.len_utf8() as u32;
-            match character.len_utf16() {
-                1 => utf16_to_byte.push(byte_end),
-                2 => {
-                    utf16_to_byte.push(INVALID_POSITION);
-                    utf16_to_byte.push(byte_end);
-                }
-                _ => unreachable!("a Unicode scalar is one or two UTF-16 code units"),
-            }
-            utf16_position += character.len_utf16() as u32;
-            byte_to_utf16[byte_end as usize] = utf16_position;
+        while let Some(offset) = bytes[position..].iter().position(|&byte| byte >= 0x80) {
+            let start = position + offset;
+            let character = text[start..]
+                .chars()
+                .next()
+                .expect("a non-ASCII lead byte starts a character");
+            let byte_end = start + character.len_utf8();
+            utf16_position += (start - position) as u32 + character.len_utf16() as u32;
+            wide.push(WideCharacter {
+                byte_end: byte_end as u32,
+                utf16_end: utf16_position,
+                byte_len: character.len_utf8() as u8,
+                utf16_len: character.len_utf16() as u8,
+            });
+            position = byte_end;
         }
-
-        let (line_starts_byte, line_starts_utf16) = compute_line_starts_in_both_units(text);
-        Self {
-            byte_to_utf16,
-            utf16_to_byte,
-            line_starts_byte,
-            line_starts_utf16,
-        }
+        let utf16_len = utf16_position + (bytes.len() - position) as u32;
+        let mut index = Self {
+            byte_len,
+            utf16_len,
+            wide,
+            line_starts_byte: Vec::new(),
+            line_starts_utf16: Vec::new(),
+        };
+        index.line_starts_byte = compute_line_starts_byte(text);
+        index.line_starts_utf16 = index
+            .line_starts_byte
+            .iter()
+            .map(|&start| {
+                index
+                    .byte_to_utf16(start)
+                    .expect("a line starts at a scalar boundary")
+            })
+            .collect();
+        index
     }
+
+    const fn utf16_len(&self) -> u32 {
+        self.utf16_len
+    }
+
+    fn byte_to_utf16(&self, position: u32) -> Option<u32> {
+        if position > self.byte_len {
+            return None;
+        }
+        // The wide characters ending at or before `position` carry the
+        // accumulated difference; a position inside the next one is not a
+        // scalar boundary.
+        let index = self
+            .wide
+            .partition_point(|character| character.byte_end <= position);
+        if let Some(next) = self.wide.get(index) {
+            if next.byte_end - u32::from(next.byte_len) < position {
+                return None;
+            }
+        }
+        let delta = index.checked_sub(1).map_or(0, |previous| {
+            let character = self.wide[previous];
+            i64::from(character.utf16_end) - i64::from(character.byte_end)
+        });
+        Some((i64::from(position) + delta) as u32)
+    }
+
+    fn utf16_to_byte(&self, position: u32) -> Option<u32> {
+        if position > self.utf16_len {
+            return None;
+        }
+        let index = self
+            .wide
+            .partition_point(|character| character.utf16_end <= position);
+        if let Some(next) = self.wide.get(index) {
+            // Inside the next wide character: the low surrogate of a pair.
+            if next.utf16_end - u32::from(next.utf16_len) < position {
+                return None;
+            }
+        }
+        let delta = index.checked_sub(1).map_or(0, |previous| {
+            let character = self.wide[previous];
+            i64::from(character.byte_end) - i64::from(character.utf16_end)
+        });
+        Some((i64::from(position) + delta) as u32)
+    }
+}
+
+/// Line starts in bytes: one after every `\n`, `\r\n`, lone `\r`, U+2028
+/// and U+2029, found with a three-byte scan (the UTF-8 lead byte of both
+/// separators is 0xE2, which never occurs as a continuation byte).
+fn compute_line_starts_byte(text: &str) -> Vec<u32> {
+    let bytes = text.as_bytes();
+    let mut starts = vec![0u32];
+    let mut position = 0usize;
+    while let Some(offset) = memchr::memchr3(b'\n', b'\r', 0xE2, &bytes[position..]) {
+        let at = position + offset;
+        let end = match bytes[at] {
+            b'\r' if bytes.get(at + 1) == Some(&b'\n') => at + 2,
+            b'\r' | b'\n' => at + 1,
+            _ if matches!(bytes.get(at + 1..at + 3), Some([0x80, 0xA8 | 0xA9])) => at + 3,
+            _ => {
+                position = at + 1;
+                continue;
+            }
+        };
+        starts.push(end as u32);
+        position = end;
+    }
+    starts
 }
 
 #[derive(Clone, Debug)]
@@ -462,6 +556,13 @@ fn append_node_text(node: &Arc<LineNode>, output: &mut String) {
 #[derive(Debug)]
 enum PositionIndexData {
     StaticDense(DensePositionIndex),
+    /// Built from the shared text on first use: a snapshot's index is
+    /// rarely consulted before diagnostics are rendered or output is
+    /// printed, and a large source pays for it only then.
+    LazyDense {
+        text: Arc<str>,
+        dense: OnceLock<DensePositionIndex>,
+    },
     PersistentLines(PersistentLineTree),
 }
 
@@ -469,35 +570,51 @@ enum PositionIndexData {
 pub struct PositionIndex {
     data: PositionIndexData,
     byte_len: u32,
-    utf16_len: u32,
-    line_count: u32,
 }
 
 impl PositionIndex {
     pub fn new_static(text: &str) -> Self {
-        let dense = DensePositionIndex::new(text);
         Self {
             byte_len: u32::try_from(text.len()).expect("source text must fit in u32"),
-            utf16_len: u32::try_from(dense.utf16_to_byte.len() - 1)
-                .expect("source text must fit in u32"),
-            line_count: u32::try_from(dense.line_starts_byte.len())
-                .expect("source line count must fit in u32"),
-            data: PositionIndexData::StaticDense(dense),
+            data: PositionIndexData::StaticDense(DensePositionIndex::new(text)),
+        }
+    }
+
+    /// A static index over `text` whose tables are built on first use.
+    pub fn new_lazy(text: Arc<str>) -> Self {
+        Self {
+            byte_len: u32::try_from(text.len()).expect("source text must fit in u32"),
+            data: PositionIndexData::LazyDense {
+                text,
+                dense: OnceLock::new(),
+            },
         }
     }
 
     fn from_persistent(tree: PersistentLineTree) -> Self {
         Self {
             byte_len: tree.byte_len(),
-            utf16_len: tree.utf16_len(),
-            line_count: tree.line_count(),
             data: PositionIndexData::PersistentLines(tree),
+        }
+    }
+
+    /// The dense tables of a static index (built now if deferred); a
+    /// persistent index has none.
+    fn dense(&self) -> Option<&DensePositionIndex> {
+        match &self.data {
+            PositionIndexData::StaticDense(dense) => Some(dense),
+            PositionIndexData::LazyDense { text, dense } => {
+                Some(dense.get_or_init(|| DensePositionIndex::new(text)))
+            }
+            PositionIndexData::PersistentLines(_) => None,
         }
     }
 
     pub const fn kind(&self) -> PositionIndexKind {
         match self.data {
-            PositionIndexData::StaticDense(_) => PositionIndexKind::StaticDense,
+            PositionIndexData::StaticDense(_) | PositionIndexData::LazyDense { .. } => {
+                PositionIndexKind::StaticDense
+            }
             PositionIndexData::PersistentLines(_) => PositionIndexKind::PersistentLines,
         }
     }
@@ -506,33 +623,32 @@ impl PositionIndex {
         self.byte_len
     }
 
-    pub const fn utf16_len(&self) -> u32 {
-        self.utf16_len
+    pub fn utf16_len(&self) -> u32 {
+        match &self.data {
+            PositionIndexData::PersistentLines(tree) => tree.utf16_len(),
+            _ => self.dense().expect("static index").utf16_len(),
+        }
     }
 
-    pub const fn line_count(&self) -> u32 {
-        self.line_count
+    pub fn line_count(&self) -> u32 {
+        match &self.data {
+            PositionIndexData::PersistentLines(tree) => tree.line_count(),
+            _ => u32::try_from(self.dense().expect("static index").line_starts_byte.len())
+                .expect("source line count must fit in u32"),
+        }
     }
 
     pub fn byte_to_utf16(&self, position: u32) -> Option<u32> {
         match &self.data {
-            PositionIndexData::StaticDense(index) => index
-                .byte_to_utf16
-                .get(position as usize)
-                .copied()
-                .filter(|position| *position != INVALID_POSITION),
             PositionIndexData::PersistentLines(tree) => tree.byte_to_utf16(position),
+            _ => self.dense()?.byte_to_utf16(position),
         }
     }
 
     pub fn utf16_to_byte(&self, position: u32) -> Option<u32> {
         match &self.data {
-            PositionIndexData::StaticDense(index) => index
-                .utf16_to_byte
-                .get(position as usize)
-                .copied()
-                .filter(|position| *position != INVALID_POSITION),
             PositionIndexData::PersistentLines(tree) => tree.utf16_to_byte(position),
+            _ => self.dense()?.utf16_to_byte(position),
         }
     }
 
@@ -546,27 +662,23 @@ impl PositionIndex {
 
     pub fn line_start_byte(&self, line: u32) -> Option<u32> {
         match &self.data {
-            PositionIndexData::StaticDense(index) => {
-                index.line_starts_byte.get(line as usize).copied()
-            }
             PositionIndexData::PersistentLines(tree) => tree.line_start_byte(line),
+            _ => self.dense()?.line_starts_byte.get(line as usize).copied(),
         }
     }
 
     pub fn line_start_utf16(&self, line: u32) -> Option<u32> {
         match &self.data {
-            PositionIndexData::StaticDense(index) => {
-                index.line_starts_utf16.get(line as usize).copied()
-            }
             PositionIndexData::PersistentLines(tree) => tree.line_start_utf16(line),
+            _ => self.dense()?.line_starts_utf16.get(line as usize).copied(),
         }
     }
 
     pub fn line_and_character_utf16(&self, position: u32) -> Option<LineAndCharacter> {
-        if position > self.utf16_len {
+        if position > self.utf16_len() {
             return None;
         }
-        let line = greatest_line_start(self.line_count, position, |line| {
+        let line = greatest_line_start(self.line_count(), position, |line| {
             self.line_start_utf16(line)
         })?;
         Some(LineAndCharacter {
@@ -619,7 +731,7 @@ impl TextSnapshot {
     }
 
     pub fn from_shared_text(text: Arc<str>, document_version: DocumentVersion) -> Arc<Self> {
-        let positions = Arc::new(PositionIndex::new_static(&text));
+        let positions = Arc::new(PositionIndex::new_lazy(Arc::clone(&text)));
         Arc::new(Self {
             document_version,
             lineage: SnapshotLineage {
@@ -1138,34 +1250,6 @@ fn collapse_changes(changes: impl IntoIterator<Item = (u32, u32, u32)>) -> (u32,
     )
 }
 
-fn compute_line_starts_in_both_units(text: &str) -> (Vec<u32>, Vec<u32>) {
-    let mut byte_starts = vec![0];
-    let mut utf16_starts = vec![0];
-    let mut utf16_position = 0u32;
-    let mut characters = text.char_indices().peekable();
-    while let Some((byte_position, character)) = characters.next() {
-        utf16_position += character.len_utf16() as u32;
-        match character {
-            '\r' => {
-                let mut byte_end = byte_position + character.len_utf8();
-                if let Some((next_byte, '\n')) = characters.peek().copied() {
-                    characters.next();
-                    utf16_position += 1;
-                    byte_end = next_byte + 1;
-                }
-                byte_starts.push(byte_end as u32);
-                utf16_starts.push(utf16_position);
-            }
-            '\n' | '\u{2028}' | '\u{2029}' => {
-                byte_starts.push((byte_position + character.len_utf8()) as u32);
-                utf16_starts.push(utf16_position);
-            }
-            _ => {}
-        }
-    }
-    (byte_starts, utf16_starts)
-}
-
 fn line_ranges(text: &str) -> Vec<Range<usize>> {
     let mut ranges = Vec::new();
     let mut line_start = 0usize;
@@ -1217,3 +1301,107 @@ fn byte_offset_at_utf16(text: &str, utf16_position: u32) -> Option<u32> {
 #[cfg(test)]
 #[path = "../tests/unit/text/tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod sparse_position_index_tests {
+    use super::PositionIndex;
+
+    /// Byte→UTF-16 and UTF-16→byte tables plus line starts, computed
+    /// character by character (the former dense construction).
+    #[allow(clippy::type_complexity)]
+    fn reference(text: &str) -> (Vec<Option<u32>>, Vec<Option<u32>>, Vec<u32>, Vec<u32>) {
+        let mut byte_to_utf16 = vec![None; text.len() + 1];
+        let mut utf16_to_byte = vec![None; text.encode_utf16().count() + 1];
+        byte_to_utf16[0] = Some(0);
+        utf16_to_byte[0] = Some(0);
+        let mut utf16 = 0u32;
+        for (byte, character) in text.char_indices() {
+            let byte_end = byte + character.len_utf8();
+            utf16 += character.len_utf16() as u32;
+            byte_to_utf16[byte_end] = Some(utf16);
+            utf16_to_byte[utf16 as usize] = Some(byte_end as u32);
+        }
+        let mut line_bytes = vec![0u32];
+        let mut line_utf16 = vec![0u32];
+        let mut characters = text.char_indices().peekable();
+        let mut position = 0u32;
+        while let Some((byte, character)) = characters.next() {
+            position += character.len_utf16() as u32;
+            match character {
+                '\r' => {
+                    let mut end = byte + 1;
+                    if let Some((next, '\n')) = characters.peek().copied() {
+                        characters.next();
+                        position += 1;
+                        end = next + 1;
+                    }
+                    line_bytes.push(end as u32);
+                    line_utf16.push(position);
+                }
+                '\n' | '\u{2028}' | '\u{2029}' => {
+                    line_bytes.push((byte + character.len_utf8()) as u32);
+                    line_utf16.push(position);
+                }
+                _ => {}
+            }
+        }
+        (byte_to_utf16, utf16_to_byte, line_bytes, line_utf16)
+    }
+
+    #[test]
+    fn sparse_index_matches_the_character_walk() {
+        for text in [
+            "",
+            "abc",
+            "a\nb\r\nc\rd",
+            "é😀日本\u{2028}x\u{2029}y\n",
+            "// UTF-16境界😀; generated\ninterface A { x: 1 }\r\n😀\r\né",
+            "\u{2028}",
+            "😀",
+            "\u{e2}\u{80}",
+        ] {
+            let index = PositionIndex::new_static(text);
+            let (byte_to_utf16, utf16_to_byte, line_bytes, line_utf16) = reference(text);
+            assert_eq!(index.byte_len() as usize, text.len(), "{text:?}");
+            assert_eq!(
+                index.utf16_len() as usize,
+                text.encode_utf16().count(),
+                "{text:?}"
+            );
+            for (position, expected) in byte_to_utf16.iter().enumerate() {
+                assert_eq!(
+                    index.byte_to_utf16(position as u32),
+                    *expected,
+                    "byte {position} of {text:?}"
+                );
+            }
+            assert_eq!(index.byte_to_utf16(text.len() as u32 + 1), None, "{text:?}");
+            for (position, expected) in utf16_to_byte.iter().enumerate() {
+                assert_eq!(
+                    index.utf16_to_byte(position as u32),
+                    *expected,
+                    "utf16 {position} of {text:?}"
+                );
+            }
+            assert_eq!(index.utf16_to_byte(index.utf16_len() + 1), None, "{text:?}");
+            assert_eq!(index.line_count() as usize, line_bytes.len(), "{text:?}");
+            for (line, (&byte, &utf16)) in line_bytes.iter().zip(&line_utf16).enumerate() {
+                assert_eq!(
+                    index.line_start_byte(line as u32),
+                    Some(byte),
+                    "line {line} of {text:?}"
+                );
+                assert_eq!(
+                    index.line_start_utf16(line as u32),
+                    Some(utf16),
+                    "line {line} of {text:?}"
+                );
+            }
+            assert_eq!(
+                index.line_start_byte(line_bytes.len() as u32),
+                None,
+                "{text:?}"
+            );
+        }
+    }
+}

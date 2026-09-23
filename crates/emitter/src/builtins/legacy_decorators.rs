@@ -22,7 +22,7 @@ use super::{
     },
     is_prologue_statement,
     system::collect_identifier_texts,
-    target_bindings::TargetBinding,
+    target_bindings::{TargetBinding, UsedNames},
 };
 
 const DECORATE_HELPER_TEXT: &str = r#"var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
@@ -112,10 +112,10 @@ struct LegacyDecoratorVisitor<'context, 'resolver> {
     target: ScriptTarget,
     emit_decorator_metadata: bool,
     strict_null_checks: bool,
-    nodes: BTreeMap<NodeId, Option<NodeId>>,
-    arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
+    nodes: rustc_hash::FxHashMap<NodeId, Option<NodeId>>,
+    arrays: rustc_hash::FxHashMap<NodeArrayId, Option<NodeArrayId>>,
     expanded_classes: BTreeMap<NodeId, Vec<NodeId>>,
-    used_names: BTreeSet<String>,
+    used_names: UsedNames,
     generated_bindings: GeneratedBindingScopes,
     lexical_binding_frames: Vec<LegacyLexicalBindingFrame>,
     generated_binding_scope_stack: Vec<(GeneratedBindingScopeId, GeneratedBindingScopeId)>,
@@ -455,8 +455,8 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             target,
             emit_decorator_metadata,
             strict_null_checks,
-            nodes: BTreeMap::new(),
-            arrays: BTreeMap::new(),
+            nodes: rustc_hash::FxHashMap::default(),
+            arrays: rustc_hash::FxHashMap::default(),
             expanded_classes: BTreeMap::new(),
             used_names,
             generated_bindings,

@@ -455,7 +455,25 @@ fn plan_module_requests_worker(
     // tsc. In particular, module-declaration boundaries affect the static
     // collector above but do not hide import types or dynamic import calls.
     let mut contains_jsx = false;
-    let mut stack = vec![parsed.root];
+    // tsc walks the whole file only when the parser saw a dynamic import
+    // or import type (PossiblyContainsDynamicImport) or the file is
+    // JavaScript (require calls, JSDoc `@import`). This walk reacts to
+    // exactly those nodes plus JSX elements (JSX language variant only),
+    // JSDoc import tags (a `/**` comment) and `require(...)` calls in any
+    // file (the static plan fails closed on them), so a file with none of
+    // those markers has nothing for it to find.
+    let root_flags = NodeFlags::from_bits(parsed.arena.node(parsed.root).flags);
+    let text = source.text();
+    let dynamic_walk = root_flags.contains(NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT)
+        || javascript_file
+        || parsed.language_variant == LanguageVariant::Jsx
+        || memchr::memmem::find(text.as_bytes(), b"/**").is_some()
+        || memchr::memmem::find(text.as_bytes(), b"require").is_some();
+    let mut stack = if dynamic_walk {
+        vec![parsed.root]
+    } else {
+        Vec::new()
+    };
     while let Some(node_id) = stack.pop() {
         let node = parsed.arena.node(node_id);
         contains_jsx |= matches!(
@@ -651,17 +669,19 @@ fn plan_module_requests_worker(
         // JSDoc is an internal attachment rather than a for_each_child edge.
         // collectExternalModuleReferences descends into those attachments
         // only for JavaScript sources.
-        let mut children = Vec::new();
+        // Children go straight onto the walk stack, reversed in place so
+        // the first child is visited first (no per-node vector).
+        let first_child = stack.len();
         if javascript_file {
             if let Some(js_doc) = node.js_doc {
-                children.extend(parsed.arena.node_array(js_doc).nodes.iter().copied());
+                stack.extend(parsed.arena.node_array(js_doc).nodes.iter().copied());
             }
         }
         for_each_child(&parsed.arena, node, |child| {
-            children.push(child);
+            stack.push(child);
             false
         });
-        stack.extend(children.into_iter().rev());
+        stack[first_child..].reverse();
     }
 
     static_occurrences.sort_by_key(|occurrence| occurrence.pos);
