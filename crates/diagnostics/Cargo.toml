@@ -11,3 +11,6 @@ dev-profile-opt-level = 3
 [lib]
 name = "tsc_diagnostics"
 path = "src/lib.rs"
+
+[dependencies]
+memchr = "2"

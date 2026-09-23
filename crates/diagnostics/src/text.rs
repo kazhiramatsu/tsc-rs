@@ -53,18 +53,35 @@ pub enum PositionIndexKind {
 
 #[derive(Debug)]
 struct DensePositionIndex {
-    byte_to_utf16: Vec<u32>,
-    utf16_to_byte: Vec<u32>,
+    /// Byte ↔ UTF-16 tables; `None` for ASCII text, where the two position
+    /// domains coincide and every position maps to itself.
+    units: Option<DenseUnitTables>,
+    byte_len: u32,
     line_starts_byte: Vec<u32>,
     line_starts_utf16: Vec<u32>,
 }
 
+#[derive(Debug)]
+struct DenseUnitTables {
+    byte_to_utf16: Vec<u32>,
+    utf16_to_byte: Vec<u32>,
+}
+
 impl DensePositionIndex {
     fn new(text: &str) -> Self {
-        assert!(
-            u32::try_from(text.len()).is_ok(),
-            "source text must fit in the u32 position domain"
-        );
+        let byte_len =
+            u32::try_from(text.len()).expect("source text must fit in the u32 position domain");
+        if text.is_ascii() {
+            // Every byte is one UTF-16 unit: no tables, and one line-break
+            // scan serves both domains.
+            let line_starts_byte = compute_ascii_line_starts(text);
+            return Self {
+                units: None,
+                byte_len,
+                line_starts_utf16: line_starts_byte.clone(),
+                line_starts_byte,
+            };
+        }
 
         let mut byte_to_utf16 = vec![INVALID_POSITION; text.len() + 1];
         let mut utf16_to_byte = Vec::with_capacity(text.encode_utf16().count() + 1);
@@ -90,12 +107,66 @@ impl DensePositionIndex {
 
         let (line_starts_byte, line_starts_utf16) = compute_line_starts_in_both_units(text);
         Self {
-            byte_to_utf16,
-            utf16_to_byte,
+            units: Some(DenseUnitTables {
+                byte_to_utf16,
+                utf16_to_byte,
+            }),
+            byte_len,
             line_starts_byte,
             line_starts_utf16,
         }
     }
+
+    fn utf16_len(&self) -> u32 {
+        match &self.units {
+            None => self.byte_len,
+            Some(units) => {
+                u32::try_from(units.utf16_to_byte.len() - 1).expect("source text must fit in u32")
+            }
+        }
+    }
+
+    fn byte_to_utf16(&self, position: u32) -> Option<u32> {
+        match &self.units {
+            None => (position <= self.byte_len).then_some(position),
+            Some(units) => units
+                .byte_to_utf16
+                .get(position as usize)
+                .copied()
+                .filter(|position| *position != INVALID_POSITION),
+        }
+    }
+
+    fn utf16_to_byte(&self, position: u32) -> Option<u32> {
+        match &self.units {
+            None => (position <= self.byte_len).then_some(position),
+            Some(units) => units
+                .utf16_to_byte
+                .get(position as usize)
+                .copied()
+                .filter(|position| *position != INVALID_POSITION),
+        }
+    }
+}
+
+/// Line starts of ASCII text (byte positions, which are its UTF-16 positions
+/// too): one after every `\n`, `\r\n` and lone `\r`, exactly as
+/// `compute_line_starts_in_both_units` finds them.
+fn compute_ascii_line_starts(text: &str) -> Vec<u32> {
+    let bytes = text.as_bytes();
+    let mut starts = vec![0u32];
+    let mut position = 0usize;
+    while let Some(offset) = memchr::memchr2(b'\n', b'\r', &bytes[position..]) {
+        let at = position + offset;
+        let end = if bytes[at] == b'\r' && bytes.get(at + 1) == Some(&b'\n') {
+            at + 2
+        } else {
+            at + 1
+        };
+        starts.push(end as u32);
+        position = end;
+    }
+    starts
 }
 
 #[derive(Clone, Debug)]
@@ -478,8 +549,7 @@ impl PositionIndex {
         let dense = DensePositionIndex::new(text);
         Self {
             byte_len: u32::try_from(text.len()).expect("source text must fit in u32"),
-            utf16_len: u32::try_from(dense.utf16_to_byte.len() - 1)
-                .expect("source text must fit in u32"),
+            utf16_len: dense.utf16_len(),
             line_count: u32::try_from(dense.line_starts_byte.len())
                 .expect("source line count must fit in u32"),
             data: PositionIndexData::StaticDense(dense),
@@ -516,22 +586,14 @@ impl PositionIndex {
 
     pub fn byte_to_utf16(&self, position: u32) -> Option<u32> {
         match &self.data {
-            PositionIndexData::StaticDense(index) => index
-                .byte_to_utf16
-                .get(position as usize)
-                .copied()
-                .filter(|position| *position != INVALID_POSITION),
+            PositionIndexData::StaticDense(index) => index.byte_to_utf16(position),
             PositionIndexData::PersistentLines(tree) => tree.byte_to_utf16(position),
         }
     }
 
     pub fn utf16_to_byte(&self, position: u32) -> Option<u32> {
         match &self.data {
-            PositionIndexData::StaticDense(index) => index
-                .utf16_to_byte
-                .get(position as usize)
-                .copied()
-                .filter(|position| *position != INVALID_POSITION),
+            PositionIndexData::StaticDense(index) => index.utf16_to_byte(position),
             PositionIndexData::PersistentLines(tree) => tree.utf16_to_byte(position),
         }
     }
