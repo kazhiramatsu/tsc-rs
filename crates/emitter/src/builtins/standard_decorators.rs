@@ -17,7 +17,7 @@ use crate::{
 use super::{
     constructor_prologue, flags_after_update,
     system::collect_identifier_texts,
-    target_bindings::{ParsedSourceIdentifierNames, TargetBinding},
+    target_bindings::{ParsedSourceIdentifierNames, TargetBinding, UsedNames},
     ConstructorPrologue,
 };
 
@@ -705,7 +705,7 @@ struct StandardDecoratorVisitor<'context> {
     /// anonymous decorated class receives the property's hoisted key temp.
     inferred_class_name_references: BTreeMap<NodeId, TargetBinding>,
     expanded_classes: BTreeMap<NodeId, Vec<NodeId>>,
-    used_names: BTreeSet<String>,
+    used_names: UsedNames,
     generated_reference_names: BTreeSet<String>,
     /// Generated private names (`#a_accessor_storage`) of the decorated
     /// classes enclosing the class being transformed. tsc reserves every
@@ -719,7 +719,7 @@ struct StandardDecoratorVisitor<'context> {
     /// Source-level identifier texts: the only collision set tsc consults
     /// for `GeneratedIdentifierFlags.FileLevel` helper names
     /// (`isFileLevelUniqueName`), independent of earlier generated names.
-    file_level_names: BTreeSet<String>,
+    file_level_names: UsedNames,
     /// tsc `transformESDecorators` lexical frames (`top`) and the receiver
     /// (`classThis`) that `updateState` derives from them.
     receiver_frames: Vec<DecoratorReceiverFrame>,

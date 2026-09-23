@@ -190,6 +190,13 @@ fn observe_script_source_routing(
     let source_name = source_record
         .map(|record| record.path().to_string_lossy().to_ascii_lowercase())
         .unwrap_or_default();
+    // One walk answers every syntactic fact below; a source without syntax
+    // (none is mounted) reports none of them, as the former per-fact walks
+    // did.
+    let facts = source_record
+        .and_then(crate::EmitSource::syntax)
+        .map(source_routing_facts)
+        .unwrap_or_default();
     let owns_node_format_option = matches!(
         options.emit_module_kind(),
         MODULE_NODE16 | MODULE_NODE18 | MODULE_NODE20 | MODULE_NODE_NEXT
@@ -198,49 +205,29 @@ fn observe_script_source_routing(
         || (!owns_node_format_option
             && (source_name.ends_with(".mts")
                 || source_name.ends_with(".cts")
-                || source_record
-                    .and_then(crate::EmitSource::syntax)
-                    .is_some_and(source_contains_import_attributes)));
+                || facts.import_attributes));
     if owns_node_format {
         activity.observe_runtime_slice(H2RuntimeSlice::H2_1e);
     }
-    if source_record
-        .and_then(crate::EmitSource::syntax)
-        .is_some_and(source_contains_runtime_enum)
-    {
+    if facts.runtime_enum {
         activity.observe_runtime_slice(H2RuntimeSlice::H2_2a);
     }
-    if source_record
-        .and_then(crate::EmitSource::syntax)
-        .is_some_and(source_contains_runtime_namespace)
-    {
+    if facts.runtime_namespace {
         activity.observe_runtime_slice(H2RuntimeSlice::H2_2b);
     }
-    if source_record
-        .and_then(crate::EmitSource::syntax)
-        .is_some_and(source_contains_parameter_property)
-    {
+    if facts.parameter_property {
         activity.observe_runtime_slice(H2RuntimeSlice::H2_2c);
     }
-    if source_record
-        .and_then(crate::EmitSource::syntax)
-        .is_some_and(source_contains_import_or_export_equals)
-    {
+    if facts.import_or_export_equals {
         activity.observe_runtime_slice(H2RuntimeSlice::H2_2d);
     }
-    if options.experimental_decorators
-        && source_record
-            .and_then(crate::EmitSource::syntax)
-            .is_some_and(source_contains_decorator)
-    {
+    if options.experimental_decorators && facts.decorator {
         activity.observe_runtime_slice(H2RuntimeSlice::H2_4a);
     }
     if (first_source && !options.use_define_for_class_fields_effective())
         || (options.use_define_for_class_fields_effective()
             && !options.experimental_decorators
-            && source_record
-                .and_then(crate::EmitSource::syntax)
-                .is_some_and(source_contains_decorator))
+            && facts.decorator)
     {
         activity.observe_runtime_slice(H2RuntimeSlice::H2_4b);
     }
@@ -1448,7 +1435,7 @@ struct EcmaScriptModuleEqualsVisitor<'context> {
     source: TransformSourceId,
     module_kind: i32,
     target: ScriptTarget,
-    used_names: BTreeSet<String>,
+    used_names: target_bindings::UsedNames,
     create_require_name: Option<String>,
     require_name: Option<String>,
 }
@@ -3003,7 +2990,7 @@ impl ImportEqualsPublication {
 
 #[derive(Debug)]
 struct GeneratedModuleNameAllocator {
-    used_names: BTreeSet<String>,
+    used_names: target_bindings::UsedNames,
     generated_bases: BTreeMap<String, String>,
 }
 
@@ -4407,161 +4394,105 @@ fn source_contains_import_reference_substitution(
     Ok(false)
 }
 
-fn source_contains_import_attributes(source: &tsc_syntax::SourceFile) -> bool {
-    let mut stack = vec![source.root];
-    while let Some(id) = stack.pop() {
-        let record = source.arena.node(id);
-        // Missing declarations retain syntax for binding, but emit no subtree.
-        if record.kind == SyntaxKind::MissingDeclaration {
-            continue;
-        }
-        let static_attributes = matches!(
-            &record.data,
-            NodeData::ImportDeclaration(data) if data.attributes.is_some()
-        ) || matches!(
-            &record.data,
-            NodeData::ExportDeclaration(data) if data.attributes.is_some()
-        );
-        let dynamic_attributes = match &record.data {
-            NodeData::CallExpression(data) => {
-                let is_dynamic_import = data.expression.is_some_and(|expression| {
-                    source.arena.node(expression).kind == SyntaxKind::ImportKeyword
-                });
-                let argument_count = data
-                    .arguments
-                    .map(|arguments| source.arena.node_array(arguments).nodes.len())
-                    .unwrap_or(0);
-                is_dynamic_import && argument_count > 1
-            }
-            _ => false,
-        };
-        if static_attributes || dynamic_attributes {
-            return true;
-        }
-        for_each_child(&source.arena, record, |child| {
-            stack.push(child);
-            false
-        });
-    }
-    false
+/// The per-source facts `observe_script_source_routing` reports, gathered in
+/// one walk from the root that skips MissingDeclaration subtrees (they retain
+/// syntax for binding but emit nothing). Each fact is exactly the answer its
+/// former dedicated walk gave — some reachable node matches — so a source
+/// without any of the constructs is walked once instead of once per fact.
+#[derive(Clone, Copy, Debug, Default)]
+struct SourceRoutingFacts {
+    import_attributes: bool,
+    runtime_enum: bool,
+    runtime_namespace: bool,
+    parameter_property: bool,
+    import_or_export_equals: bool,
+    decorator: bool,
 }
 
-fn source_contains_runtime_enum(source: &tsc_syntax::SourceFile) -> bool {
-    let mut stack = vec![source.root];
-    while let Some(id) = stack.pop() {
-        let record = source.arena.node(id);
-        // Missing declarations retain syntax for binding, but emit no subtree.
-        if record.kind == SyntaxKind::MissingDeclaration {
-            continue;
-        }
-        if record.kind == SyntaxKind::EnumDeclaration {
-            return true;
-        }
-        for_each_child(&source.arena, record, |child| {
-            stack.push(child);
-            false
-        });
+impl SourceRoutingFacts {
+    fn complete(self) -> bool {
+        self.import_attributes
+            && self.runtime_enum
+            && self.runtime_namespace
+            && self.parameter_property
+            && self.import_or_export_equals
+            && self.decorator
     }
-    false
 }
 
-fn source_contains_runtime_namespace(source: &tsc_syntax::SourceFile) -> bool {
+fn source_routing_facts(source: &tsc_syntax::SourceFile) -> SourceRoutingFacts {
+    let mut facts = SourceRoutingFacts::default();
     let mut stack = vec![source.root];
     while let Some(id) = stack.pop() {
         let record = source.arena.node(id);
-        // Missing declarations retain syntax for binding, but emit no subtree.
         if record.kind == SyntaxKind::MissingDeclaration {
             continue;
         }
-        if let NodeData::ModuleDeclaration(data) = &record.data {
-            let flags = NodeFlags::from_bits(record.flags);
-            let declared = data.modifiers.is_some_and(|modifiers| {
-                source
-                    .arena
-                    .node_array(modifiers)
-                    .nodes
-                    .iter()
-                    .any(|modifier| source.arena.node(*modifier).kind == SyntaxKind::DeclareKeyword)
-            });
-            let identifier_named = data
-                .name
-                .is_some_and(|name| source.arena.node(name).kind == SyntaxKind::Identifier);
-            if identifier_named
-                && !declared
-                && !flags.contains(NodeFlags::AMBIENT)
-                && !flags.contains(NodeFlags::GLOBAL_AUGMENTATION)
-            {
-                return true;
-            }
-        }
-        for_each_child(&source.arena, record, |child| {
-            stack.push(child);
-            false
-        });
-    }
-    false
-}
-
-fn source_contains_parameter_property(source: &tsc_syntax::SourceFile) -> bool {
-    let mut stack = vec![source.root];
-    while let Some(id) = stack.pop() {
-        let record = source.arena.node(id);
-        // Missing declarations retain syntax for binding, but emit no subtree.
-        if record.kind == SyntaxKind::MissingDeclaration {
-            continue;
-        }
-        if parameter_has_property_modifier(source, record) {
-            return true;
-        }
-        for_each_child(&source.arena, record, |child| {
-            stack.push(child);
-            false
-        });
-    }
-    false
-}
-
-fn source_contains_import_or_export_equals(source: &tsc_syntax::SourceFile) -> bool {
-    let mut stack = vec![source.root];
-    while let Some(id) = stack.pop() {
-        let record = source.arena.node(id);
-        // Missing declarations retain syntax for binding, but emit no subtree.
-        if record.kind == SyntaxKind::MissingDeclaration {
-            continue;
-        }
-        if record.kind == SyntaxKind::ImportEqualsDeclaration
+        facts.import_attributes |= node_has_import_attributes(source, record);
+        facts.runtime_enum |= record.kind == SyntaxKind::EnumDeclaration;
+        facts.runtime_namespace |= node_is_runtime_namespace(source, record);
+        facts.parameter_property |= parameter_has_property_modifier(source, record);
+        facts.import_or_export_equals |= record.kind == SyntaxKind::ImportEqualsDeclaration
             || matches!(
                 &record.data,
                 NodeData::ExportAssignment(data) if data.is_export_equals == Some(true)
-            )
-        {
-            return true;
+            );
+        facts.decorator |= record.kind == SyntaxKind::Decorator;
+        if facts.complete() {
+            break;
         }
         for_each_child(&source.arena, record, |child| {
             stack.push(child);
             false
         });
     }
-    false
+    facts
 }
 
-fn source_contains_decorator(source: &tsc_syntax::SourceFile) -> bool {
-    let mut stack = vec![source.root];
-    while let Some(id) = stack.pop() {
-        let record = source.arena.node(id);
-        // Missing declarations retain syntax for binding, but emit no subtree.
-        if record.kind == SyntaxKind::MissingDeclaration {
-            continue;
+fn node_has_import_attributes(source: &tsc_syntax::SourceFile, record: &Node) -> bool {
+    let static_attributes = matches!(
+        &record.data,
+        NodeData::ImportDeclaration(data) if data.attributes.is_some()
+    ) || matches!(
+        &record.data,
+        NodeData::ExportDeclaration(data) if data.attributes.is_some()
+    );
+    let dynamic_attributes = match &record.data {
+        NodeData::CallExpression(data) => {
+            let is_dynamic_import = data.expression.is_some_and(|expression| {
+                source.arena.node(expression).kind == SyntaxKind::ImportKeyword
+            });
+            let argument_count = data
+                .arguments
+                .map(|arguments| source.arena.node_array(arguments).nodes.len())
+                .unwrap_or(0);
+            is_dynamic_import && argument_count > 1
         }
-        if record.kind == SyntaxKind::Decorator {
-            return true;
-        }
-        for_each_child(&source.arena, record, |child| {
-            stack.push(child);
-            false
-        });
-    }
-    false
+        _ => false,
+    };
+    static_attributes || dynamic_attributes
+}
+
+fn node_is_runtime_namespace(source: &tsc_syntax::SourceFile, record: &Node) -> bool {
+    let NodeData::ModuleDeclaration(data) = &record.data else {
+        return false;
+    };
+    let flags = NodeFlags::from_bits(record.flags);
+    let declared = data.modifiers.is_some_and(|modifiers| {
+        source
+            .arena
+            .node_array(modifiers)
+            .nodes
+            .iter()
+            .any(|modifier| source.arena.node(*modifier).kind == SyntaxKind::DeclareKeyword)
+    });
+    let identifier_named = data
+        .name
+        .is_some_and(|name| source.arena.node(name).kind == SyntaxKind::Identifier);
+    identifier_named
+        && !declared
+        && !flags.contains(NodeFlags::AMBIENT)
+        && !flags.contains(NodeFlags::GLOBAL_AUGMENTATION)
 }
 
 fn string_literal_text(
@@ -5155,7 +5086,7 @@ struct CommonJsVisitor<'context, 'resolver> {
     nodes: BTreeMap<NodeId, NodeId>,
     arrays: BTreeMap<NodeArrayId, NodeArrayId>,
     dynamic_import_ordinal: usize,
-    used_names: BTreeSet<String>,
+    used_names: target_bindings::UsedNames,
     temp_ordinal: usize,
     expression_value_use: CommonJsExpressionValueUse,
 }
@@ -11275,7 +11206,7 @@ struct TypeScriptVisitor<'context, 'resolver> {
     generated_declaration_bindings: BTreeMap<String, target_bindings::TargetBinding>,
     /// The parsed identifier census, collected on the first unique-name
     /// request (most sources never make one).
-    source_identifier_names: std::cell::OnceCell<BTreeSet<String>>,
+    source_identifier_names: std::cell::OnceCell<target_bindings::UsedNames>,
     generated_namespace_names: BTreeSet<String>,
     temp_ordinal: usize,
 }
@@ -17228,7 +17159,11 @@ fn local_contextual_target_flags(
             // stamp no flag, so the facet derives from the token's SOURCE
             // spelling (the printer's own spelling channel): an `\u{`
             // escape in the identifier slice is exactly the scanner's
-            // hasExtendedUnicodeEscape carrier.
+            // hasExtendedUnicodeEscape carrier. A source without any such
+            // escape answers every identifier at once.
+            if !arena.source_text_has_extended_unicode_escape(source)? {
+                return Ok(TransformFlags::NONE);
+            }
             let syntax = arena.source(source)?.syntax();
             let text = syntax.text();
             let start = node.pos as usize;

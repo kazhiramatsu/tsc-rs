@@ -22,7 +22,7 @@ use super::{
     },
     is_prologue_statement,
     system::collect_identifier_texts,
-    target_bindings::TargetBinding,
+    target_bindings::{TargetBinding, UsedNames},
 };
 
 const DECORATE_HELPER_TEXT: &str = r#"var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
@@ -115,7 +115,7 @@ struct LegacyDecoratorVisitor<'context, 'resolver> {
     nodes: BTreeMap<NodeId, Option<NodeId>>,
     arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
     expanded_classes: BTreeMap<NodeId, Vec<NodeId>>,
-    used_names: BTreeSet<String>,
+    used_names: UsedNames,
     generated_bindings: GeneratedBindingScopes,
     lexical_binding_frames: Vec<LegacyLexicalBindingFrame>,
     generated_binding_scope_stack: Vec<(GeneratedBindingScopeId, GeneratedBindingScopeId)>,

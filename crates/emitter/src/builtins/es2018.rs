@@ -337,7 +337,7 @@ impl<'context> Es2018Visitor<'context> {
     ) -> Result<Self, TransformError> {
         Ok(Self {
             generated_bindings: GeneratedBindingScopes::new(
-                collect_untagged_identifier_texts(context.arena(), source, root)?,
+                collect_untagged_identifier_texts(context.arena(), source, root)?.into(),
                 AncestorBindingPolicy::AllowShadow,
             ),
             context,

@@ -54,7 +54,7 @@ impl Transformer for FlattenProjectionTransformer {
         let current_root = context.arena().root(source)?;
         let mut visitor = ProjectionVisitor {
             generated_bindings: GeneratedBindingScopes::new(
-                collect_untagged_identifier_texts(context.arena(), source, current_root)?,
+                collect_untagged_identifier_texts(context.arena(), source, current_root)?.into(),
                 AncestorBindingPolicy::AllowShadow,
             ),
             context,

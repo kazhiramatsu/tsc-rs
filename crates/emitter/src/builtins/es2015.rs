@@ -956,7 +956,7 @@ impl<'context, 'resolver, 'state> Es2015Visitor<'context, 'resolver, 'state> {
             converted_loop_state: None,
             tagged_template_string_declarations: Vec::new(),
             generated_bindings: GeneratedBindingScopes::new(
-                reserved,
+                reserved.into(),
                 AncestorBindingPolicy::Reserve,
             ),
             parsed_names,

@@ -204,7 +204,7 @@ fn generated_name_state_starts_fresh_for_each_print() {
 #[test]
 fn planned_temp_is_retained_when_available() {
     let mut scopes =
-        GeneratedBindingScopes::new(BTreeSet::new(), AncestorBindingPolicy::AllowShadow);
+        GeneratedBindingScopes::new(BTreeSet::new().into(), AncestorBindingPolicy::AllowShadow);
 
     assert_eq!(
         scopes.allocate_planned_temp_with_policy("_c".into(), false),
@@ -215,7 +215,7 @@ fn planned_temp_is_retained_when_available() {
 #[test]
 fn duplicate_planned_temp_in_same_scope_falls_back_to_temp_sequence() {
     let mut scopes =
-        GeneratedBindingScopes::new(BTreeSet::new(), AncestorBindingPolicy::AllowShadow);
+        GeneratedBindingScopes::new(BTreeSet::new().into(), AncestorBindingPolicy::AllowShadow);
 
     assert_eq!(
         scopes.allocate_planned_temp_with_policy("_a".into(), false),
@@ -230,7 +230,7 @@ fn duplicate_planned_temp_in_same_scope_falls_back_to_temp_sequence() {
 #[test]
 fn planned_temp_can_be_reused_in_sibling_scopes() {
     let mut scopes =
-        GeneratedBindingScopes::new(BTreeSet::new(), AncestorBindingPolicy::AllowShadow);
+        GeneratedBindingScopes::new(BTreeSet::new().into(), AncestorBindingPolicy::AllowShadow);
     let (source, first) = scopes.enter(GeneratedBindingOwner::FunctionBody);
     assert_eq!(
         scopes.allocate_planned_temp_with_policy("_a".into(), false),
@@ -249,7 +249,7 @@ fn planned_temp_can_be_reused_in_sibling_scopes() {
 #[test]
 fn descendant_reserved_preferred_bindings_still_reuse_in_siblings() {
     let mut scopes =
-        GeneratedBindingScopes::new(BTreeSet::new(), AncestorBindingPolicy::AllowShadow);
+        GeneratedBindingScopes::new(BTreeSet::new().into(), AncestorBindingPolicy::AllowShadow);
     let (source, first) = scopes.enter(GeneratedBindingOwner::FunctionBody);
     assert_eq!(
         scopes.allocate_planned_preferred_with_policy("_super", "_super".into(), true),
@@ -274,7 +274,7 @@ fn descendant_reserved_preferred_bindings_still_reuse_in_siblings() {
 #[test]
 fn preferred_reconciliation_advances_from_the_planned_suffix() {
     let mut scopes = GeneratedBindingScopes::new(
-        BTreeSet::from(["_super".to_owned(), "_super_1".to_owned()]),
+        BTreeSet::from(["_super".to_owned(), "_super_1".to_owned()]).into(),
         AncestorBindingPolicy::AllowShadow,
     );
     let (source, function) = scopes.enter(GeneratedBindingOwner::FunctionBody);
@@ -288,7 +288,7 @@ fn preferred_reconciliation_advances_from_the_planned_suffix() {
 #[test]
 fn file_level_optimistic_peers_share_text_but_reserve_descendants() {
     let mut scopes =
-        GeneratedBindingScopes::new(BTreeSet::new(), AncestorBindingPolicy::AllowShadow);
+        GeneratedBindingScopes::new(BTreeSet::new().into(), AncestorBindingPolicy::AllowShadow);
     assert_eq!(
         scopes.reserve_planned_file_level_optimistic_with_policy("_default".into(), true),
         "_default",
@@ -316,7 +316,7 @@ fn file_level_optimistic_peers_share_text_but_reserve_descendants() {
 #[test]
 fn eager_local_preferred_reservations_are_not_hoisted_bindings() {
     let mut scopes =
-        GeneratedBindingScopes::new(BTreeSet::new(), AncestorBindingPolicy::AllowShadow);
+        GeneratedBindingScopes::new(BTreeSet::new().into(), AncestorBindingPolicy::AllowShadow);
     let (source, outer) = scopes.enter(GeneratedBindingOwner::FunctionBody);
     assert_eq!(
         scopes.allocate_local_preferred_with_policy("_super".into(), true),
@@ -334,7 +334,7 @@ fn eager_local_preferred_reservations_are_not_hoisted_bindings() {
 #[test]
 fn formatted_private_temps_have_a_role_local_sequence() {
     let mut scopes =
-        GeneratedBindingScopes::new(BTreeSet::new(), AncestorBindingPolicy::AllowShadow);
+        GeneratedBindingScopes::new(BTreeSet::new().into(), AncestorBindingPolicy::AllowShadow);
     assert_eq!(scopes.allocate_local_temp(), "_a");
     assert_eq!(
         scopes.allocate_private_temp_with_role_suffix("_accessor_storage", &BTreeSet::new(),),
@@ -349,7 +349,7 @@ fn formatted_private_temps_have_a_role_local_sequence() {
 #[test]
 fn generated_private_names_reserve_ancestors_but_reuse_in_siblings() {
     let mut scopes =
-        GeneratedBindingScopes::new(BTreeSet::new(), AncestorBindingPolicy::AllowShadow);
+        GeneratedBindingScopes::new(BTreeSet::new().into(), AncestorBindingPolicy::AllowShadow);
     assert_eq!(
         scopes.allocate_private_preferred_with_role_suffix(
             "a",
@@ -396,7 +396,8 @@ fn generated_private_names_reserve_ancestors_but_reuse_in_siblings() {
 
 #[test]
 fn loop_variable_prefers_the_dedicated_slot_once_per_scope() {
-    let mut scopes = GeneratedBindingScopes::new(BTreeSet::new(), AncestorBindingPolicy::Reserve);
+    let mut scopes =
+        GeneratedBindingScopes::new(BTreeSet::new().into(), AncestorBindingPolicy::Reserve);
     let (source, body) = scopes.enter(GeneratedBindingOwner::FunctionBody);
     assert_eq!(scopes.allocate_loop_variable(false), "_i");
     assert_eq!(scopes.allocate_loop_variable(false), "_a");
@@ -417,7 +418,8 @@ fn occupied_loop_slot_falls_through_to_the_temp_sequence() {
 fn sibling_scopes_reuse_the_loop_variable_spelling() {
     // §12.3(b) sibling-reuse arm: tsc resets tempFlags per function, so
     // sibling function scopes may both own `_i`.
-    let mut scopes = GeneratedBindingScopes::new(BTreeSet::new(), AncestorBindingPolicy::Reserve);
+    let mut scopes =
+        GeneratedBindingScopes::new(BTreeSet::new().into(), AncestorBindingPolicy::Reserve);
     let (source, first) = scopes.enter(GeneratedBindingOwner::FunctionBody);
     assert_eq!(scopes.allocate_loop_variable(false), "_i");
     let _ = scopes.exit(source, first);
@@ -430,7 +432,8 @@ fn sibling_scopes_reuse_the_loop_variable_spelling() {
 fn active_ancestor_bindings_stay_reserved_in_descendants() {
     // §12.3(b) ancestor-reservation arm: an active ancestor's generated
     // bindings remain reserved while a descendant scope allocates.
-    let mut scopes = GeneratedBindingScopes::new(BTreeSet::new(), AncestorBindingPolicy::Reserve);
+    let mut scopes =
+        GeneratedBindingScopes::new(BTreeSet::new().into(), AncestorBindingPolicy::Reserve);
     let (source, outer) = scopes.enter(GeneratedBindingOwner::FunctionBody);
     assert_eq!(scopes.allocate_temp(), "_a");
     assert_eq!(scopes.allocate_loop_variable(false), "_i");
@@ -443,7 +446,8 @@ fn active_ancestor_bindings_stay_reserved_in_descendants() {
 
 #[test]
 fn node_keyed_allocation_is_stable_per_node_and_advances_per_source_name() {
-    let mut scopes = GeneratedBindingScopes::new(BTreeSet::new(), AncestorBindingPolicy::Reserve);
+    let mut scopes =
+        GeneratedBindingScopes::new(BTreeSet::new().into(), AncestorBindingPolicy::Reserve);
     assert_eq!(
         scopes.allocate_source_numbered_for_node((0, 1), "loop_init"),
         "loop_init_1",

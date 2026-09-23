@@ -20,7 +20,7 @@ use crate::{
 use super::{
     flags_after_update,
     system::collect_identifier_texts,
-    target_bindings::{ParsedSourceIdentifierNames, TargetBinding},
+    target_bindings::{ParsedSourceIdentifierNames, TargetBinding, UsedNames},
 };
 
 const ADD_DISPOSABLE_RESOURCE_HELPER_TEXT: &str = r#"var __addDisposableResource = (this && this.__addDisposableResource) || function (env, value, async) {
@@ -269,7 +269,7 @@ struct EsNextVisitor<'context> {
     source: TransformSourceId,
     nodes: BTreeMap<NodeId, Option<NodeId>>,
     arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
-    used_names: BTreeSet<String>,
+    used_names: UsedNames,
     parsed_source_identifier_names: ParsedSourceIdentifierNames,
     generated_ordinals: BTreeMap<String, usize>,
     disposal_scopes: BTreeMap<NodeId, DisposalScope>,

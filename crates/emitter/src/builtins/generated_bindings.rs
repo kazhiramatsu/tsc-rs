@@ -1,5 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use super::target_bindings::UsedNames;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct GeneratedBindingScopeId(usize);
 
@@ -59,7 +61,7 @@ impl GeneratedBindings {
 /// boundary whose runtime semantics it controls.
 #[derive(Debug)]
 pub(super) struct GeneratedBindingScopes {
-    reserved_source_names: BTreeSet<String>,
+    reserved_source_names: UsedNames,
     /// tsc `generatedNames` (`_tsc.js:116934`, cleared by `reset()` at
     /// 117121): every name `makeUniqueName` returned without `scoped` /
     /// `privateName` — file-level optimistic, file-wide optimistic and
@@ -78,7 +80,7 @@ pub(super) struct GeneratedBindingScopes {
 
 impl GeneratedBindingScopes {
     pub(super) fn new(
-        reserved_source_names: BTreeSet<String>,
+        reserved_source_names: UsedNames,
         ancestor_policy: AncestorBindingPolicy,
     ) -> Self {
         Self {

@@ -1,4 +1,6 @@
-use std::collections::BTreeMap;
+use std::cell::{OnceCell, RefCell};
+use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 use rustc_hash::FxHashMap;
 
@@ -148,7 +150,7 @@ impl TransformNodeArray {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct TransformSource {
     program_source: Option<SourceFileId>,
     parsed_node_base: u32,
@@ -158,6 +160,37 @@ pub struct TransformSource {
     parsed_node_identity_lease: Option<tsc_types::IdentityLease>,
     source: SourceFile,
     has_no_default_lib: Option<bool>,
+    /// The identifier texts of every node at the last census, with the node
+    /// count it covers (see [`TransformArena::identifier_texts`]).
+    identifier_census: RefCell<IdentifierCensus>,
+    /// The parsed identifiers only (tsc's `SourceFile.identifiers`), filled
+    /// once by their collector (see
+    /// [`TransformArena::parsed_identifier_names_cell`]).
+    parsed_identifier_names: OnceCell<Arc<BTreeSet<String>>>,
+    /// Whether the source text contains an `\u{` escape anywhere (see
+    /// [`TransformArena::source_text_has_extended_unicode_escape`]).
+    text_has_extended_unicode_escape: OnceCell<bool>,
+}
+
+/// Structural equality covers the emit copy and its provenance; the two
+/// censuses are derived from the nodes and stay out of it.
+impl PartialEq for TransformSource {
+    fn eq(&self, other: &Self) -> bool {
+        self.program_source == other.program_source
+            && self.parsed_node_base == other.parsed_node_base
+            && self.parsed_node_end == other.parsed_node_end
+            && self.parsed_node_identity_lease == other.parsed_node_identity_lease
+            && self.source == other.source
+            && self.has_no_default_lib == other.has_no_default_lib
+    }
+}
+
+/// The identifier texts among the first `scanned` nodes of an emit source,
+/// shared with every name allocator that started from them.
+#[derive(Clone, Debug, Default)]
+struct IdentifierCensus {
+    names: Arc<BTreeSet<String>>,
+    scanned: usize,
 }
 
 impl TransformSource {
@@ -332,8 +365,62 @@ impl TransformArena {
             parsed_node_identity_lease: source.node_identity_lease().cloned(),
             source: detached,
             has_no_default_lib: None,
+            identifier_census: RefCell::default(),
+            parsed_identifier_names: OnceCell::new(),
+            text_has_extended_unicode_escape: OnceCell::new(),
         });
         id
+    }
+
+    /// Whether `source`'s text contains an `\u{` escape at all: when it does
+    /// not, no identifier's source slice does either, so the per-identifier
+    /// extended-unicode classification is answered once per source.
+    pub(crate) fn source_text_has_extended_unicode_escape(
+        &self,
+        source: TransformSourceId,
+    ) -> Result<bool, TransformError> {
+        let source = self.source(source)?;
+        Ok(*source
+            .text_has_extended_unicode_escape
+            .get_or_init(|| source.source.text().contains("\\u{")))
+    }
+
+    /// The identifier texts of every node of `source` at this moment,
+    /// parsed and synthesized alike, as one shared set: the file-level
+    /// census each name allocator of an emit unit starts from. The census is
+    /// extended in place over the nodes appended since the last call, so
+    /// every caller receives exactly the set it would have collected itself
+    /// without rescanning the source per transformer. Generated names go
+    /// into a caller's copy-on-write handle, never into the census.
+    pub(crate) fn identifier_texts(&self, source: TransformSourceId) -> Arc<BTreeSet<String>> {
+        let Ok(source) = self.source(source) else {
+            return Arc::default();
+        };
+        let nodes = source.source.arena.nodes();
+        let mut census = source.identifier_census.borrow_mut();
+        if census.scanned < nodes.len() {
+            let scanned = census.scanned;
+            let names = Arc::make_mut(&mut census.names);
+            for node in &nodes[scanned..] {
+                if let NodeData::Identifier(data) = &node.data {
+                    if !names.contains(data.text.as_str()) {
+                        names.insert(data.text.clone());
+                    }
+                }
+            }
+            census.scanned = nodes.len();
+        }
+        Arc::clone(&census.names)
+    }
+
+    /// The cell holding `source`'s parsed-identifier census (tsc's
+    /// `SourceFile.identifiers`), filled once by its collector; the parsed
+    /// nodes never change, so the first census serves every later reader.
+    pub(crate) fn parsed_identifier_names_cell(
+        &self,
+        source: TransformSourceId,
+    ) -> Result<&OnceCell<Arc<BTreeSet<String>>>, TransformError> {
+        Ok(&self.source(source)?.parsed_identifier_names)
     }
 
     pub fn source(&self, id: TransformSourceId) -> Result<&TransformSource, TransformError> {
