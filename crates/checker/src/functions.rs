@@ -5121,7 +5121,7 @@ impl<'a> CheckerState<'a> {
         let mut seen_optional_parameter = false;
         let parameter_count = parameters.len();
         for (i, &parameter) in parameters.iter().enumerate() {
-            let NodeData::Parameter(data) = self.data_of(parameter).clone() else {
+            let NodeData::Parameter(data) = self.data_of(parameter) else {
                 continue;
             };
             if let Some(dot_dot_dot) = data.dot_dot_dot_token {
@@ -5185,7 +5185,7 @@ impl<'a> CheckerState<'a> {
         if self.kind_of(node) != SyntaxKind::ArrowFunction {
             return false;
         }
-        let NodeData::ArrowFunction(data) = self.data_of(node).clone() else {
+        let NodeData::ArrowFunction(data) = self.data_of(node) else {
             return false;
         };
         if let Some(type_parameters) = data.type_parameters {
@@ -5687,7 +5687,7 @@ impl<'a> CheckerState<'a> {
         }
         let ty;
         if self.kind_of(pattern) == SyntaxKind::ObjectBindingPattern {
-            let NodeData::BindingElement(data) = self.data_of(declaration).clone() else {
+            let NodeData::BindingElement(data) = self.data_of(declaration) else {
                 return Ok(self.tables.intrinsics.error);
             };
             if data.dot_dot_dot_token.is_some() {
@@ -5748,7 +5748,7 @@ impl<'a> CheckerState<'a> {
         } else {
             // 55984-55996: the array-pattern arm — Destructuring use,
             // PossiblyOutOfBounds only for non-rest elements.
-            let NodeData::BindingElement(data) = self.data_of(declaration).clone() else {
+            let NodeData::BindingElement(data) = self.data_of(declaration) else {
                 return Ok(self.tables.intrinsics.error);
             };
             let use_ = if data.dot_dot_dot_token.is_some() {

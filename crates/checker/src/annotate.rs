@@ -466,7 +466,7 @@ impl<'a> CheckerState<'a> {
     /// Scoped to the literal kinds a LiteralTypeNode can hold; the full
     /// checkExpression is M4/M6.
     fn check_literal_expression(&mut self, literal: NodeId) -> CheckResult<TypeId> {
-        match self.data_of(literal).clone() {
+        match self.data_of(literal) {
             NodeData::StringLiteral(data) => {
                 let regular = self.tables.get_string_literal_type(&data.text);
                 Ok(self.tables.get_fresh_type_of_literal_type(regular))
@@ -496,7 +496,7 @@ impl<'a> CheckerState<'a> {
                 // first. Its regular/fresh identities precede the negative
                 // literal even when this expression occurs in a type node.
                 self.check_literal_expression(operand)?;
-                match self.data_of(operand).clone() {
+                match self.data_of(operand) {
                     NodeData::NumericLiteral(data) => {
                         let value = -parse_numeric_literal_text(&data.text)?;
                         let regular = self.tables.get_number_literal_type(value);
@@ -652,7 +652,7 @@ impl<'a> CheckerState<'a> {
         let mut texts = vec![tsc_types::TemplateText::from_js(head_data.text.as_js())];
         let mut types = Vec::with_capacity(spans.len());
         for span in spans {
-            let NodeData::TemplateLiteralTypeSpan(span_data) = self.data_of(span).clone() else {
+            let NodeData::TemplateLiteralTypeSpan(span_data) = self.data_of(span) else {
                 unreachable!("parser invariant: template spans are TemplateLiteralTypeSpan nodes");
             };
             let span_type = span_data
@@ -1227,7 +1227,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(cached);
         }
-        let NodeData::NamedTupleMember(data) = self.data_of(node).clone() else {
+        let NodeData::NamedTupleMember(data) = self.data_of(node) else {
             unreachable!("NamedTupleMember kind implies payload");
         };
         let inner = data
@@ -1708,7 +1708,7 @@ impl<'a> CheckerState<'a> {
     /// names reproduce the written parent chain, and the full path
     /// interns that symbol across all references in the program.
     fn get_unresolved_symbol_for_entity_name(&mut self, name: NodeId) -> SymbolId {
-        let (identifier, parent_name) = match self.data_of(name).clone() {
+        let (identifier, parent_name) = match self.data_of(name) {
             NodeData::QualifiedName(data) => match (data.right, data.left) {
                 (Some(right), left) => (right, left),
                 _ => return self.unknown_symbol,
@@ -3020,7 +3020,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(cached);
         }
-        let NodeData::ConditionalType(data) = self.data_of(node).clone() else {
+        let NodeData::ConditionalType(data) = self.data_of(node) else {
             unreachable!("ConditionalType kind implies payload");
         };
         let check_node = data
@@ -7532,7 +7532,7 @@ impl<'a> CheckerState<'a> {
         let mut readonly_computed_string_property = true;
         let mut computed_property_symbols: Vec<SymbolId> = Vec::new();
         for declaration in declarations {
-            if let NodeData::IndexSignature(data) = self.data_of(declaration).clone() {
+            if let NodeData::IndexSignature(data) = self.data_of(declaration) {
                 let parameters = self.nodes_of(data.parameters);
                 if parameters.len() != 1 {
                     continue;
@@ -10547,7 +10547,7 @@ impl<'a> CheckerState<'a> {
                 continue;
             }
             let (name, type_node, question_token, initializer, is_normal_parameter) =
-                match self.data_of(parameter).clone() {
+                match self.data_of(parameter) {
                     NodeData::Parameter(data) => (
                         data.name,
                         data.r#type,
