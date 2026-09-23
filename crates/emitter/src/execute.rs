@@ -69,6 +69,22 @@ impl EmitDiagnosticGate {
         self
     }
 
+    /// Whether `begin_emit_files` would run the whole-Program declaration
+    /// getter for `options`: noEmitOnError with declaration output, no
+    /// cached result, and no earlier stream (options with `preflight`,
+    /// syntactic, global, semantic) already blocking the emit. A coordinator
+    /// with several checker sessions gathers that result itself.
+    pub fn wants_declaration_diagnostics(
+        &self,
+        options: &CompilerOptions,
+        preflight: &[Diagnostic],
+    ) -> bool {
+        self.declaration.is_none()
+            && options.no_emit_on_error == Some(true)
+            && (options.declaration == Some(true) || options.composite == Some(true))
+            && self.collect_with_preflight(preflight).is_empty()
+    }
+
     fn collect_with_preflight(&self, preflight: &[Diagnostic]) -> DiagnosticList {
         let mut options = self.options.clone();
         options.extend_from_slice(preflight);
@@ -969,6 +985,32 @@ pub fn begin_emit_files(
         emitted_files_enabled,
         map_options_enabled,
     }))
+}
+
+/// The declaration diagnostics of `sources` (Program sources selected for
+/// emit) against one resolver: the per-source getter that `begin_emit_files`
+/// runs itself over the single Program resolver, for a coordinator that
+/// gathers the whole-Program noEmitOnError declaration gate from several
+/// checker sessions. The caller sorts and deduplicates the union.
+pub fn declaration_diagnostics_for_sources(
+    resolver: &dyn EmitResolver,
+    host: &dyn EmitHost,
+    preflight: &EmitPreflight,
+    sources: &[SourceFileId],
+    activity: &mut H2ActivityCanary,
+) -> Result<Vec<Diagnostic>, EmitFailure> {
+    let declaration_paths: &PlanDeclarationPaths = preflight.declaration_paths(host);
+    let mut diagnostics = Vec::new();
+    for &source in sources {
+        diagnostics.extend(get_declaration_diagnostics(
+            resolver,
+            host,
+            declaration_paths,
+            source,
+            activity,
+        )?);
+    }
+    Ok(diagnostics)
 }
 
 fn new_line_kind(options: &CompilerOptions) -> Result<NewLineKind, EmitFailure> {

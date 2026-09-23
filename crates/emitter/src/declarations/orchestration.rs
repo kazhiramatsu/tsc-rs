@@ -16,6 +16,10 @@ use super::{
     DeclarationCustomTransformers, DeclarationPathResolver,
 };
 
+/// Mount the declaration unit's own source. Any other program source a
+/// resolver answer reaches is mounted on first use
+/// (`TransformArena::mount_parse_tree_transform_node`), so the transform of
+/// one file never copies the syntax of every file.
 fn mount_declaration_program_sources(
     arena: &mut TransformArena,
     host: &dyn EmitHost,
@@ -27,16 +31,7 @@ fn mount_declaration_program_sources(
     let syntax = emit_source.syntax().ok_or(EmitFailure::Contract(
         EmitContractViolation::CheckedSyntaxUnavailable(source),
     ))?;
-    let transform_source = arena.add_source(syntax, Some(source));
-    for &other in host.source_file_ids() {
-        if other == source {
-            continue;
-        }
-        if let Some(syntax) = host.source_file(other).and_then(|source| source.syntax()) {
-            arena.add_source(syntax, Some(other));
-        }
-    }
-    Ok(transform_source)
+    Ok(arena.add_source(syntax, Some(source)))
 }
 
 /// The five upstream inputs recorded at the declaration-blocking boundary.
@@ -177,14 +172,9 @@ pub(crate) fn emit_declaration_unit(
         }
     }
     let mut arena = TransformArena::new();
+    // Other program sources are mounted on first use
+    // (`TransformArena::mount_parse_tree_transform_node`).
     let transform_root = crate::execute::mount_emit_root(&mut arena, host, &root)?;
-    for &other in host.source_file_ids() {
-        if !files_for_emit.contains(&other) {
-            if let Some(syntax) = host.source_file(other).and_then(crate::EmitSource::syntax) {
-                arena.add_source(syntax, Some(other));
-            }
-        }
-    }
     if let Some(metadata) = parsed_emit_metadata {
         arena.restore_parsed_emit_metadata(metadata, host)?;
     }

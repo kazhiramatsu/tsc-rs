@@ -349,6 +349,30 @@ impl TransformArena {
         Ok(None)
     }
 
+    /// [`Self::parse_tree_transform_node`] for a resolver node whose program
+    /// source the arena may not have mounted: that source is mounted from
+    /// `host` on first use. A declaration transform thus carries only the
+    /// sources it reaches (tsc reads another file's nodes through shared
+    /// object references); mounting every program source up front copied
+    /// the whole program's syntax once per emitted file.
+    pub fn mount_parse_tree_transform_node(
+        &mut self,
+        node: EmitResolverNode,
+        host: &dyn crate::EmitHost,
+    ) -> Result<Option<TransformNode>, TransformError> {
+        if let Some(found) = self.parse_tree_transform_node(node)? {
+            return Ok(Some(found));
+        }
+        let Some(syntax) = host
+            .source_file(node.source())
+            .and_then(|source| source.syntax())
+        else {
+            return Ok(None);
+        };
+        self.add_source(syntax, Some(node.source()));
+        self.parse_tree_transform_node(node)
+    }
+
     pub fn add_source(
         &mut self,
         source: &SourceFile,

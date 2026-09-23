@@ -1943,8 +1943,8 @@ fn expando_declaration_arm(
             continue;
         };
         let Some(value_declaration_transform) = context
-            .arena()
-            .parse_tree_transform_node(value_declaration)?
+            .arena_mut()?
+            .mount_parse_tree_transform_node(value_declaration, transformer.host)?
         else {
             continue;
         };

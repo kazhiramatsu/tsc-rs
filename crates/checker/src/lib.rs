@@ -2792,9 +2792,12 @@ pub struct ShardEmission {
 /// back through [`emissions`](Self::emissions); nothing is written by the
 /// shards themselves.
 pub struct ShardedEmit<'op> {
-    /// Coordinator decision after the merged diagnostics are known: `true`
-    /// runs the per-shard emit, `false` releases the shards without one.
-    pub gate: &'op mut dyn FnMut(&ProgramSnapshot, &CheckResult) -> bool,
+    /// Coordinator decision after the merged diagnostics are known, given
+    /// every shard's checker session and the Program file indices each
+    /// checked (as `emit` receives them) so a noEmitOnError declaration gate
+    /// can query each shard's resolver: `true` runs the per-shard emit,
+    /// `false` releases the shards without one.
+    pub gate: ShardGateClosure<'op>,
     /// Runs once after every shard has checked, with every shard's checker
     /// session and the Program file indices each shard checked (Program
     /// order, index-aligned with the sessions). The caller schedules each
@@ -2805,6 +2808,13 @@ pub struct ShardedEmit<'op> {
     /// ran), otherwise every shard's products (a serial replay yields one).
     pub emissions: Option<Result<Vec<ShardEmission>, tsc_emitter::UnitEmitError>>,
 }
+
+type ShardGateClosure<'op> = &'op mut dyn FnMut(
+    &ProgramSnapshot,
+    &CheckResult,
+    &[CheckerSession<'_>],
+    &[Vec<usize>],
+) -> bool;
 
 type ShardEmitClosure<'op> = &'op (dyn Fn(
     &ProgramSnapshot,
@@ -3365,22 +3375,21 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             dispose_states(states);
             return ShardedRun::Merged(execution);
         };
-        if execution.authoritative_failure.is_some()
-            || !(sharded_emit.gate)(&snapshot, &execution.result)
-        {
+        if execution.authoritative_failure.is_some() {
             dispose_states(states);
             return ShardedRun::Merged(execution);
         }
-        let phase_started = std::time::Instant::now();
         if states.len() != shard_count {
             dispose_states(states);
             return ShardedRun::Replay(crate::order_guard::OrderReason::INIT_DIVERGENCE.bits());
         }
-        // Every checked state becomes a session; the caller's emit pool runs
-        // each planned unit against the resolver of the shard that checked
-        // it. Emit may create shard-local types (declaration rendering, lazy
-        // resolver queries): an order-consuming operation or a new display
-        // mark discards the products in favour of the serial replay.
+        // Every checked state becomes a session before the gate: the
+        // coordinator's noEmitOnError declaration gate queries each shard's
+        // resolver, and its emit pool then runs each planned unit against the
+        // resolver of the shard that checked it. Both may create shard-local
+        // types (declaration rendering, lazy resolver queries): an
+        // order-consuming operation or a new display mark discards the
+        // products in favour of the serial replay.
         let marks_before = states
             .iter()
             .map(|state| state.order_guard.marks().len())
@@ -3394,8 +3403,14 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
                 )
             })
             .collect::<Vec<_>>();
-        let emitted = (sharded_emit.emit)(&snapshot, &sessions, &assignment);
-        tsc_types::trace::mark("checker: shards emitted", phase_started);
+        let phase_started = std::time::Instant::now();
+        let admitted = (sharded_emit.gate)(&snapshot, &execution.result, &sessions, &assignment);
+        tsc_types::trace::mark("checker: emit gate", phase_started);
+        let phase_started = std::time::Instant::now();
+        let emitted = admitted.then(|| (sharded_emit.emit)(&snapshot, &sessions, &assignment));
+        if admitted {
+            tsc_types::trace::mark("checker: shards emitted", phase_started);
+        }
         let mut emit_reasons = 0u32;
         let mut states = Vec::with_capacity(sessions.len());
         for (session, before) in sessions.into_iter().zip(marks_before) {
@@ -3410,7 +3425,9 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         if emit_reasons != 0 {
             return ShardedRun::Replay(emit_reasons);
         }
-        sharded_emit.emissions = Some(emitted);
+        if let Some(emitted) = emitted {
+            sharded_emit.emissions = Some(emitted);
+        }
         ShardedRun::Merged(execution)
     });
     let replay_reasons = match sharded {
@@ -3550,22 +3567,25 @@ fn check_snapshot_serially(
     );
     let state = match sharded_emit {
         Some(sharded_emit) if authoritative_failure.is_none() => {
-            if (sharded_emit.gate)(snapshot, &result) {
-                let every_file = (0..all_program_file_ids.len()).collect::<Vec<_>>();
-                let session = CheckerSession::from_checked_state(state).with_program_diagnostics(
-                    program_diagnostics.to_vec(),
-                    result.program_semantic_diagnostics.clone(),
-                );
+            let every_file = (0..all_program_file_ids.len()).collect::<Vec<_>>();
+            let session = CheckerSession::from_checked_state(state).with_program_diagnostics(
+                program_diagnostics.to_vec(),
+                result.program_semantic_diagnostics.clone(),
+            );
+            if (sharded_emit.gate)(
+                snapshot,
+                &result,
+                std::slice::from_ref(&session),
+                std::slice::from_ref(&every_file),
+            ) {
                 let emitted = (sharded_emit.emit)(
                     snapshot,
                     std::slice::from_ref(&session),
                     std::slice::from_ref(&every_file),
                 );
                 sharded_emit.emissions = Some(emitted);
-                session.into_state()
-            } else {
-                state
             }
+            session.into_state()
         }
         _ => state,
     };
