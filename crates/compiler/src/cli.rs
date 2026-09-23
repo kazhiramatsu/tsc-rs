@@ -23,7 +23,7 @@ use tsc_diagnostics::{
     FormatDiagnosticsHost, MessageChain, TextSnapshot,
 };
 use tsc_diagnostics::{gen, JsStr, JsString};
-use tsc_host::{CompilerHost, FsCompilerHost, HostError};
+use tsc_host::{CompilerHost, FsCompilerHost, HostError, ParallelSourceReader};
 use tsc_program::{
     decode_host_text, is_non_fatal_option_diagnostic, load_config_program,
     load_config_program_with_no_emit_override,
@@ -470,6 +470,19 @@ impl CompilerHost for CliCompilerHost {
     /// filesystem host's own answer.
     fn permits_source_read_ahead(&self) -> bool {
         self.filesystem.permits_source_read_ahead()
+    }
+
+    fn parallel_source_reader(&self) -> Option<&(dyn ParallelSourceReader + Sync)> {
+        self.filesystem
+            .parallel_source_reader()
+            .is_some()
+            .then_some(self as &(dyn ParallelSourceReader + Sync))
+    }
+}
+
+impl ParallelSourceReader for CliCompilerHost {
+    fn read_source_js(&self, path: JsStr<'_>) -> Result<Option<Vec<u8>>, HostError> {
+        CompilerHost::read_file_js(self, path)
     }
 }
 

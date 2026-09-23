@@ -4,10 +4,11 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::error::Error;
 use std::fmt;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use tsc_diagnostics::{gen, Diagnostic, JsStr, JsString, MessageChain, RelatedInfo};
-use tsc_host::{to_file_name_lower_case_js, CompilerHost, HostError};
+use tsc_host::{to_file_name_lower_case_js, CompilerHost, HostError, ParallelSourceReader};
 use tsc_types::CompilerOptions;
 
 use crate::json::{json_object_get, parse_json_object};
@@ -1728,11 +1729,17 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 .map(|index| pending[index].clone())
                 .collect();
         }
+        let phase_started = std::time::Instant::now();
+        if let Some(reader) = self.host.parallel_source_reader() {
+            let reads = self.read_roots_ahead_in_parallel(pending, reader, workers);
+            tsc_types::trace::mark("load: read-ahead streamed read and parse", phase_started);
+            self.retain_read_ahead(reads);
+            return;
+        }
         // Host reads: loading thread, root order, each retained payload
         // reserved against the joint budget before the next read. Each
         // retained payload is handed to the parse workers as soon as it is
         // read, so the reads overlap the parses already running.
-        let phase_started = std::time::Instant::now();
         let mut reads: Vec<(ProgramPath, Option<PrefetchedRead>)> =
             Vec::with_capacity(pending.len());
         let capacity = pending.len();
@@ -1803,8 +1810,116 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         for (index, read) in parsed {
             reads[index].1 = Some(read);
         }
+        self.retain_read_ahead(
+            reads
+                .into_iter()
+                .map(|(path, read)| {
+                    (
+                        path,
+                        read.expect("every read-ahead root was read or parsed"),
+                    )
+                })
+                .collect(),
+        );
+    }
+
+    /// Read-ahead over a host that reads from any thread: every root is read
+    /// and parsed on the worker that takes it, and the loading thread only
+    /// hands out paths. Admission — the joint load limits and the first
+    /// failed read, in root order — is then decided over the results exactly
+    /// as the sequential reads decide it before each read, so the retained
+    /// payloads and reservations are the same; a root after the stop was
+    /// read but is dropped and read again at its visit, which the host's
+    /// purity makes unobservable. Production stops early once the bytes read
+    /// so far exceed the total budget, so the payloads in flight beyond it
+    /// stay bounded by the worker count.
+    fn read_roots_ahead_in_parallel(
+        &mut self,
+        pending: Vec<ProgramPath>,
+        reader: &(dyn ParallelSourceReader + Sync),
+        workers: WorkerBudget,
+    ) -> Vec<(ProgramPath, PrefetchedRead)> {
+        let options = self.compiler_options;
+        let max_source_file_bytes = self.limits.max_source_file_bytes;
+        let max_source_files = self.limits.max_source_files;
+        let max_total_source_bytes = self.limits.max_total_source_bytes;
+        let base_sources = self.sources.len() + self.reserved_sources;
+        let base_bytes = self.total_source_bytes.saturating_add(self.reserved_bytes);
+        let read_bytes = AtomicUsize::new(0);
+        let capacity = pending.len();
+        let mut pending = pending.into_iter();
+        let results = workers.map_streamed(
+            capacity,
+            |produced| {
+                if base_sources + produced + 1 > max_source_files
+                    || base_bytes.saturating_add(read_bytes.load(Ordering::Relaxed))
+                        > max_total_source_bytes
+                {
+                    return None;
+                }
+                pending.next()
+            },
+            |path| {
+                let read = match reader.read_source_js(path.display()) {
+                    Err(error) => Some(PrefetchedRead::Failed(error)),
+                    Ok(None) => Some(PrefetchedRead::Missing),
+                    Ok(Some(bytes)) => {
+                        read_bytes.fetch_add(bytes.len(), Ordering::Relaxed);
+                        if bytes.len() > max_source_file_bytes {
+                            // Not retained: read again at the visit.
+                            None
+                        } else {
+                            let large_parse_started = (tsc_types::trace::enabled()
+                                && bytes.len() >= 256 << 10)
+                                .then(|| (std::time::Instant::now(), bytes.len()));
+                            let parsed = parse_root_ahead(&path, bytes, options);
+                            if let Some((started, len)) = large_parse_started {
+                                tsc_types::trace::mark(
+                                    &format!("load: parse {:?} ({len} bytes)", path.display()),
+                                    started,
+                                );
+                            }
+                            Some(parsed)
+                        }
+                    }
+                };
+                (path, read)
+            },
+        );
+        let mut reads = Vec::with_capacity(results.len());
+        for (path, read) in results {
+            if self.sources.len() + self.reserved_sources + 1 > max_source_files {
+                break;
+            }
+            match read {
+                None => break,
+                Some(PrefetchedRead::Failed(error)) => {
+                    reads.push((path, PrefetchedRead::Failed(error)));
+                    break;
+                }
+                Some(PrefetchedRead::Missing) => reads.push((path, PrefetchedRead::Missing)),
+                Some(read @ PrefetchedRead::Parsed { .. }) => {
+                    let byte_len = read.reserved_bytes().unwrap_or(0);
+                    if self
+                        .total_source_bytes
+                        .saturating_add(self.reserved_bytes)
+                        .saturating_add(byte_len)
+                        > max_total_source_bytes
+                    {
+                        break;
+                    }
+                    self.reserved_sources += 1;
+                    self.reserved_bytes += byte_len;
+                    reads.push((path, read));
+                }
+            }
+        }
+        reads
+    }
+
+    /// Record the read-ahead results, in root order, for the visits.
+    fn retain_read_ahead(&mut self, reads: Vec<(ProgramPath, PrefetchedRead)>) {
         for (path, read) in reads {
-            let read = read.expect("every read-ahead root was read or parsed");
             self.prefetch_order.push(path.canonical().clone());
             self.prefetched.insert(
                 path.canonical().clone(),

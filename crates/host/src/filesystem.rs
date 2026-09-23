@@ -134,6 +134,12 @@ impl FsCompilerHost {
     }
 }
 
+impl crate::ParallelSourceReader for FsCompilerHost {
+    fn read_source_js(&self, path: JsStr<'_>) -> Result<Option<Vec<u8>>, HostError> {
+        CompilerHost::read_file_js(self, path)
+    }
+}
+
 impl CompilerHost for FsCompilerHost {
     fn current_directory_js(&self) -> Result<JsString, HostError> {
         crate::js_path::from_native(
@@ -271,6 +277,10 @@ impl CompilerHost for FsCompilerHost {
     /// load is outside the host contract either way.
     fn permits_source_read_ahead(&self) -> bool {
         true
+    }
+
+    fn parallel_source_reader(&self) -> Option<&(dyn crate::ParallelSourceReader + Sync)> {
+        Some(self)
     }
 }
 
