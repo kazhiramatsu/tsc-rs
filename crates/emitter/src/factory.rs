@@ -11,8 +11,8 @@ use tsc_program::SourceFileId;
 use tsc_syntax::nodes::*;
 use tsc_syntax::FileReference;
 use tsc_syntax::{
-    for_each_observable_field, try_visit_each_child, Node, NodeArray, NodeArrayId, NodeData,
-    NodeDataChildVisitor, NodeId, ObservableField, SourceFile, SyntaxKind, TypeReferenceDirective,
+    try_visit_each_child, Node, NodeArray, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId,
+    SourceFile, SyntaxKind, TypeReferenceDirective,
 };
 use tsc_types::{JsStr, JsString, ModifierFlags, NodeFlags, TokenFlags};
 
@@ -1530,16 +1530,58 @@ pub(crate) const fn classify_created_token_flags(kind: SyntaxKind) -> TransformF
     }
 }
 
+/// The node's observable `name` field (every variant `for_each_observable_field`
+/// reports one for), read directly: this runs once per child of every
+/// classified node.
 fn named_declaration_name(node: &Node) -> Option<NodeId> {
-    let mut name = None;
-    for_each_observable_field(node, |field, value| {
-        if field == "name" {
-            if let ObservableField::Node(node) = value {
-                name = Some(node);
-            }
-        }
-    });
-    name
+    match &node.data {
+        NodeData::BindingElement(data) => data.name,
+        NodeData::ClassDeclaration(data) => data.name,
+        NodeData::ClassExpression(data) => data.name,
+        NodeData::Constructor(data) => data.name,
+        NodeData::EnumDeclaration(data) => data.name,
+        NodeData::EnumMember(data) => data.name,
+        NodeData::ExportSpecifier(data) => data.name,
+        NodeData::FunctionDeclaration(data) => data.name,
+        NodeData::FunctionExpression(data) => data.name,
+        NodeData::GetAccessor(data) => data.name,
+        NodeData::ImportAttribute(data) => data.name,
+        NodeData::ImportClause(data) => data.name,
+        NodeData::ImportEqualsDeclaration(data) => data.name,
+        NodeData::ImportSpecifier(data) => data.name,
+        NodeData::InterfaceDeclaration(data) => data.name,
+        NodeData::JSDocCallbackTag(data) => data.name,
+        NodeData::JSDocFunctionType(data) => data.name,
+        NodeData::JSDocLink(data) => data.name,
+        NodeData::JSDocLinkCode(data) => data.name,
+        NodeData::JSDocLinkPlain(data) => data.name,
+        NodeData::JSDocNameReference(data) => data.name,
+        NodeData::JSDocParameterTag(data) => data.name,
+        NodeData::JSDocPropertyTag(data) => data.name,
+        NodeData::JSDocSeeTag(data) => data.name,
+        NodeData::JSDocTypedefTag(data) => data.name,
+        NodeData::JsxAttribute(data) => data.name,
+        NodeData::JsxNamespacedName(data) => data.name,
+        NodeData::MetaProperty(data) => data.name,
+        NodeData::MethodDeclaration(data) => data.name,
+        NodeData::MethodSignature(data) => data.name,
+        NodeData::ModuleDeclaration(data) => data.name,
+        NodeData::NamedTupleMember(data) => data.name,
+        NodeData::NamespaceExport(data) => data.name,
+        NodeData::NamespaceExportDeclaration(data) => data.name,
+        NodeData::NamespaceImport(data) => data.name,
+        NodeData::Parameter(data) => data.name,
+        NodeData::PropertyAccessExpression(data) => data.name,
+        NodeData::PropertyAssignment(data) => data.name,
+        NodeData::PropertyDeclaration(data) => data.name,
+        NodeData::PropertySignature(data) => data.name,
+        NodeData::SetAccessor(data) => data.name,
+        NodeData::ShorthandPropertyAssignment(data) => data.name,
+        NodeData::TypeAliasDeclaration(data) => data.name,
+        NodeData::TypeParameter(data) => data.name,
+        NodeData::VariableDeclaration(data) => data.name,
+        _ => None,
+    }
 }
 
 const fn is_property_name(kind: SyntaxKind) -> bool {

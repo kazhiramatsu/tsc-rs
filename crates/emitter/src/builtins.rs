@@ -16428,7 +16428,180 @@ enum FlagWalkState {
 /// cycle) contributes `NONE` to its parent's array aggregate, a node already
 /// completed through another path contributes its final flags, and every
 /// array aggregate is stored before its owner's own flags are classified.
+/// `TSC_RS_VERIFY_TRANSFORM_FLAGS`: classify every source both ways and
+/// compare (a development check of the linear pass against the walk).
+fn verify_linear_transform_flags() -> bool {
+    static VERIFY: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *VERIFY.get_or_init(|| std::env::var_os("TSC_RS_VERIFY_TRANSFORM_FLAGS").is_some())
+}
+
+/// Classify the parsed source reachable from `root`: the linear pass when
+/// the records are in child-before-parent order (the parser's order), the
+/// general postorder walk otherwise.
 fn compute_transform_flags(
+    arena: &mut TransformArena,
+    source: TransformSourceId,
+    root: NodeId,
+) -> Result<(), TransformError> {
+    if !verify_linear_transform_flags() {
+        if compute_transform_flags_linear(arena, source, root)? {
+            return Ok(());
+        }
+        return compute_transform_flags_walk(arena, source, root);
+    }
+    let linear = compute_transform_flags_linear(arena, source, root)?;
+    let snapshot = snapshot_transform_flags(arena, source)?;
+    compute_transform_flags_walk(arena, source, root)?;
+    if linear {
+        let walked = snapshot_transform_flags(arena, source)?;
+        assert!(
+            snapshot == walked,
+            "linear transform flags differ from the walk in source {source:?}: {:?}",
+            snapshot
+                .0
+                .iter()
+                .zip(&walked.0)
+                .enumerate()
+                .filter(|(_, (linear, walked))| linear != walked)
+                .take(8)
+                .collect::<Vec<_>>()
+        );
+    }
+    Ok(())
+}
+
+/// Every node's and every array's transform flags of `source`, in arena
+/// order (the development check's comparison key).
+fn snapshot_transform_flags(
+    arena: &TransformArena,
+    source: TransformSourceId,
+) -> Result<(Vec<i32>, Vec<i32>), TransformError> {
+    let syntax = arena.source(source)?.syntax();
+    let nodes = syntax
+        .arena
+        .nodes()
+        .iter()
+        .map(|node| node.transform_flags)
+        .collect();
+    let arrays = (syntax.arena.array_base()..syntax.arena.array_end())
+        .map(|array| syntax.arena.node_array(NodeArrayId(array)).transform_flags)
+        .collect();
+    Ok((nodes, arrays))
+}
+
+/// Forward-pass classification of a parsed source: the parser records each
+/// node after its children, so visiting the arena in index order sees every
+/// child and array element before its parent and needs no explicit
+/// postorder stack. Exactly the nodes reachable from `root` are classified,
+/// as the walk does, with the same per-node rules and the same array
+/// aggregates. `Ok(false)` reports records that are not in child-before-
+/// parent order (nothing was written); the caller takes the walk instead.
+fn compute_transform_flags_linear(
+    arena: &mut TransformArena,
+    source: TransformSourceId,
+    root: NodeId,
+) -> Result<bool, TransformError> {
+    let (node_base, node_count) = {
+        let syntax = arena.source(source)?.syntax();
+        (syntax.arena.node_base(), syntax.arena.nodes().len())
+    };
+    let index_of = |id: NodeId| -> Option<usize> {
+        id.0.checked_sub(node_base)
+            .map(|index| index as usize)
+            .filter(|index| *index < node_count)
+    };
+    let Some(root_index) = index_of(root) else {
+        return Err(TransformError::UnknownNode(TransformNode::new(
+            source, root,
+        )));
+    };
+    // Reachability from the root, parents before children.
+    let mut reachable = vec![false; node_count];
+    reachable[root_index] = true;
+    let mut children: Vec<NodeId> = Vec::new();
+    {
+        let syntax = arena.source(source)?.syntax();
+        for index in (0..=root_index).rev() {
+            if !reachable[index] {
+                continue;
+            }
+            let record = &syntax.arena.nodes()[index];
+            children.clear();
+            for_each_child(&syntax.arena, record, |child| {
+                children.push(child);
+                false
+            });
+            for_each_child_array(record, |array| {
+                if syntax.arena.contains_array(array) {
+                    children.extend(syntax.arena.node_array(array).nodes.iter().copied());
+                }
+                false
+            });
+            for &child in &children {
+                match index_of(child) {
+                    Some(child_index) if child_index < index => reachable[child_index] = true,
+                    _ => return Ok(false),
+                }
+            }
+        }
+    }
+    let mut array_scratch: Vec<NodeArrayId> = Vec::new();
+    for index in 0..=root_index {
+        if !reachable[index] {
+            continue;
+        }
+        let id = NodeId(node_base + index as u32);
+        let node = TransformNode::new(source, id);
+        // Array aggregates first (their owner's classification reads them),
+        // then the node's own flags — the walk's exit step.
+        array_scratch.clear();
+        {
+            let syntax = arena.source(source)?.syntax();
+            for_each_child_array(&syntax.arena.nodes()[index], |array| {
+                array_scratch.push(array);
+                false
+            });
+        }
+        for &array in &array_scratch {
+            let array_ref = arena
+                .node_array_ref(source, array)
+                .expect("generated child array belongs to its source");
+            let flags = {
+                let syntax = arena.source(source)?.syntax();
+                let mut flags = TransformFlags::NONE;
+                for &element in &syntax.arena.node_array(array).nodes {
+                    let Some(element_index) = index_of(element) else {
+                        return Err(TransformError::UnknownNode(TransformNode::new(
+                            source, element,
+                        )));
+                    };
+                    let element_flags = if reachable[element_index] {
+                        arena.transform_flags(TransformNode::new(source, element))
+                    } else {
+                        TransformFlags::NONE
+                    };
+                    let kind = syntax.arena.nodes()[element_index].kind;
+                    flags |= element_flags & !TransformFlags::subtree_exclusions(kind);
+                }
+                flags
+            };
+            arena.set_array_transform_flags(array_ref, flags);
+        }
+        let flags = {
+            let syntax = arena.source(source)?.syntax();
+            let record = &syntax.arena.nodes()[index];
+            let mut flags = local_transform_flags(record)
+                | local_contextual_target_flags(arena, source, record)?;
+            flags |= factory_child_transform_flags(arena, source, record)?;
+            let flags = complete_class_transform_flags(arena, source, record, flags)?;
+            flags | static_this_substitute_flags(arena, node)
+        };
+        arena.set_transform_flags(node, flags);
+    }
+    Ok(true)
+}
+
+fn compute_transform_flags_walk(
     arena: &mut TransformArena,
     source: TransformSourceId,
     root: NodeId,
