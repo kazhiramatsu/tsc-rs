@@ -2818,6 +2818,27 @@ const _: () = {
     assert_send::<ShardEmission>();
 };
 
+/// Size a checker's type arena from the syntax it will check. Types are
+/// created at a fraction of the node count (about one per two nodes for
+/// declaration-heavy sources, far fewer elsewhere), so one reservation
+/// replaces the doubling copies of a growing arena; the unused capacity is
+/// never touched. Purely an allocation hint: no type identity depends on it.
+fn reserve_type_tables(state: &mut state::CheckerState<'_>, node_count: usize) {
+    const MIN_RESERVED_TYPES: usize = 1 << 12;
+    const MAX_RESERVED_TYPES: usize = 1 << 20;
+    state
+        .tables
+        .reserve_types((node_count / 2).clamp(MIN_RESERVED_TYPES, MAX_RESERVED_TYPES));
+}
+
+fn snapshot_node_count(snapshot: &ProgramSnapshot) -> usize {
+    snapshot
+        .documents()
+        .iter()
+        .map(|document| document.source().arena.nodes().len())
+        .sum()
+}
+
 /// Run one checker shard on the calling thread: construct its `ProgramBinder`
 /// and `CheckerState` over the shared immutable snapshot with the provider the
 /// coordinator created for it, initialize, check the shard's files, and
@@ -2840,6 +2861,13 @@ fn run_checker_shard<'a>(
 ) -> (ShardOutput, Option<state::CheckerState<'a>>) {
     let shard_started = std::time::Instant::now();
     let mut state = init_checker_state(snapshot, options, Some((provider, metadata)), host);
+    reserve_type_tables(
+        &mut state,
+        files
+            .iter()
+            .map(|&file| snapshot.document(file).source().arena.nodes().len())
+            .sum(),
+    );
     // W2c: every type created from here on is shard-local; the guard records
     // order-consuming operations over two or more of them.
     let init_boundary = state.tables.len();
@@ -3448,6 +3476,7 @@ fn check_snapshot_serially(
     leak_state: bool,
 ) -> CheckExecution {
     let mut state = init_checker_state(snapshot, options, authoritative, host);
+    reserve_type_tables(&mut state, snapshot_node_count(snapshot));
     let global_diagnostics = if collect_global_diagnostics {
         let mut rows = state.visible_global_diagnostics.clone();
         tsc_diagnostics::sort_and_dedupe_diagnostics(&mut rows);
@@ -3706,6 +3735,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                 }),
             host,
         );
+        reserve_type_tables(&mut state, snapshot_node_count(&snapshot));
         work_counters.record_checker_shards(1, 1);
         perf::add(PerfCounter::CheckerShardsRun, 1);
         perf::add(PerfCounter::CheckerShardThreads, 1);

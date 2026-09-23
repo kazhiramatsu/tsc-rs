@@ -99,7 +99,7 @@ pub struct BinderWorker<'a> {
     pub current_exception_target: Option<crate::flow::FlowId>,
     pub pre_switch_case_flow: Option<crate::flow::FlowId>,
     /// tsc node.flowNode / endFlowNode / returnFlowNode side tables.
-    pub node_flow: FxHashMap<NodeId, crate::flow::FlowId>,
+    pub node_flow: NodeFlowMap,
     pub node_end_flow: FxHashMap<NodeId, crate::flow::FlowId>,
     pub node_return_flow: FxHashMap<NodeId, crate::flow::FlowId>,
     /// tsc ConditionalExpression flowNodeWhenTrue/WhenFalse (stamped in
@@ -161,7 +161,7 @@ pub struct BindData {
     pub pattern_ambient_modules: Vec<(JsString, JsString, SymbolId)>,
     pub flow: crate::flow::FlowArena,
     pub unreachable_flow: crate::flow::FlowId,
-    pub node_flow: FxHashMap<NodeId, crate::flow::FlowId>,
+    pub node_flow: NodeFlowMap,
     pub node_end_flow: FxHashMap<NodeId, crate::flow::FlowId>,
     pub node_return_flow: FxHashMap<NodeId, crate::flow::FlowId>,
     pub node_flow_when_true: FxHashMap<NodeId, crate::flow::FlowId>,
@@ -309,7 +309,7 @@ impl<'a> BinderWorker<'a> {
             current_false_target: None,
             current_exception_target: None,
             pre_switch_case_flow: None,
-            node_flow: FxHashMap::default(),
+            node_flow: NodeFlowMap::with_len(source.arena.node_base(), node_count),
             node_end_flow: FxHashMap::default(),
             node_return_flow: FxHashMap::default(),
             node_flow_when_true: FxHashMap::default(),
@@ -1538,12 +1538,21 @@ mod tests;
 /// and both the binder's inserts and the checker's lookups are a bounds check
 /// and an index.
 #[derive(Clone, Debug, Default)]
-pub struct NodeSymbolMap {
+pub struct DenseNodeMap<V> {
     base: u32,
-    slots: Vec<Option<SymbolId>>,
+    slots: Vec<Option<V>>,
 }
 
-impl NodeSymbolMap {
+/// tsc `node.symbol`: the declaring symbol of a node.
+pub type NodeSymbolMap = DenseNodeMap<SymbolId>;
+
+/// tsc `node.flowNode`: the flow node current when a reference, statement
+/// or function expression was bound. Roughly every identifier in a flow
+/// container carries one, so the dense form also replaces the largest of
+/// the binder's per-file hash maps.
+pub type NodeFlowMap = DenseNodeMap<crate::flow::FlowId>;
+
+impl<V: Copy> DenseNodeMap<V> {
     pub fn with_len(base: u32, len: usize) -> Self {
         Self {
             base,
@@ -1555,49 +1564,54 @@ impl NodeSymbolMap {
         node.0.checked_sub(self.base).map(|offset| offset as usize)
     }
 
-    pub fn get(&self, node: &NodeId) -> Option<&SymbolId> {
+    pub fn get(&self, node: &NodeId) -> Option<&V> {
         self.slots.get(self.slot(node)?)?.as_ref()
     }
 
-    pub fn insert(&mut self, node: NodeId, symbol: SymbolId) -> Option<SymbolId> {
+    pub fn insert(&mut self, node: NodeId, value: V) -> Option<V> {
         let index = self
             .slot(&node)
             .expect("a bound node belongs to the bind's own arena");
         if index >= self.slots.len() {
             self.slots.resize(index + 1, None);
         }
-        self.slots[index].replace(symbol)
+        self.slots[index].replace(value)
+    }
+
+    pub fn remove(&mut self, node: &NodeId) -> Option<V> {
+        let index = self.slot(node)?;
+        self.slots.get_mut(index)?.take()
     }
 
     pub fn contains_key(&self, node: &NodeId) -> bool {
         self.get(node).is_some()
     }
 
-    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut SymbolId> {
+    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut V> {
         self.slots.iter_mut().flatten()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (NodeId, SymbolId)> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = (NodeId, V)> + '_ {
         self.slots
             .iter()
             .enumerate()
             .filter_map(move |(index, slot)| {
-                slot.map(|symbol| (NodeId(self.base + index as u32), symbol))
+                slot.map(|value| (NodeId(self.base + index as u32), value))
             })
     }
 }
 
-impl std::ops::Index<&NodeId> for NodeSymbolMap {
-    type Output = SymbolId;
+impl<V: Copy> std::ops::Index<&NodeId> for DenseNodeMap<V> {
+    type Output = V;
 
-    fn index(&self, node: &NodeId) -> &SymbolId {
-        self.get(node).expect("node carries a symbol")
+    fn index(&self, node: &NodeId) -> &V {
+        self.get(node).expect("node carries an entry")
     }
 }
 
-/// Two maps are equal when they hold the same node → symbol entries for the
+/// Two maps are equal when they hold the same node → value entries for the
 /// same arena base; unused trailing slots do not count.
-impl PartialEq for NodeSymbolMap {
+impl<V: Copy + PartialEq> PartialEq for DenseNodeMap<V> {
     fn eq(&self, other: &Self) -> bool {
         self.base == other.base && self.iter().eq(other.iter())
     }

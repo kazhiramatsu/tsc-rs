@@ -4437,7 +4437,11 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(declared);
         }
-        if let TypeData::TupleTarget(data) = self.tables.type_of(target).data.clone() {
+        let tuple_target = match &self.tables.type_of(target).data {
+            TypeData::TupleTarget(data) => Some(data.clone()),
+            _ => None,
+        };
+        if let Some(data) = tuple_target {
             // createTupleTargetType's property synthesis (61160-61185),
             // deferred from creation to first read: per-index props for
             // positions before the first Variable element (links.type =
@@ -4799,10 +4803,11 @@ impl<'a> CheckerState<'a> {
         if let Some(resolved) = cached {
             return Ok(resolved);
         }
-        // One copy of the binder table per container symbol; every later
-        // reader and the links slot share it (tsc stores the same object).
+        // The binder's own table, shared by every later reader and the
+        // links slot (tsc stores the same object); late-bound members below
+        // build a fresh table instead of writing through it.
         let early: Arc<tsc_binder::SymbolTable> = if !is_static {
-            Arc::new(self.symbol_members(symbol).clone())
+            Arc::clone(&self.binder.symbol(symbol).members)
         } else if self.symbol_flags(symbol).intersects(SymbolFlags::MODULE) {
             Arc::new(self.get_exports_of_module_worker(symbol)?.0)
         } else {

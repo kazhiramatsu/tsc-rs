@@ -389,6 +389,16 @@ impl TypeTables {
         &mut self.types[id.0 as usize]
     }
 
+    /// Reserve room for `additional` more types (and the literal-type
+    /// interning maps that grow with them) so a checker sized from its
+    /// syntax fills the arena without the doubling copies of a growing
+    /// vector. Untouched capacity stays virtual memory.
+    pub fn reserve_types(&mut self, additional: usize) {
+        self.types.reserve(additional);
+        self.string_literal_types.reserve(additional / 8);
+        self.utf8_string_literal_types.reserve(additional / 8);
+    }
+
     pub fn len(&self) -> usize {
         self.types.len()
     }

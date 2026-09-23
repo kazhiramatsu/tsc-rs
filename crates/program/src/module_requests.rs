@@ -651,17 +651,19 @@ fn plan_module_requests_worker(
         // JSDoc is an internal attachment rather than a for_each_child edge.
         // collectExternalModuleReferences descends into those attachments
         // only for JavaScript sources.
-        let mut children = Vec::new();
+        // Children go straight onto the walk stack, reversed in place so
+        // the first child is visited first (no per-node vector).
+        let first_child = stack.len();
         if javascript_file {
             if let Some(js_doc) = node.js_doc {
-                children.extend(parsed.arena.node_array(js_doc).nodes.iter().copied());
+                stack.extend(parsed.arena.node_array(js_doc).nodes.iter().copied());
             }
         }
         for_each_child(&parsed.arena, node, |child| {
-            children.push(child);
+            stack.push(child);
             false
         });
-        stack.extend(children.into_iter().rev());
+        stack[first_child..].reverse();
     }
 
     static_occurrences.sort_by_key(|occurrence| occurrence.pos);
