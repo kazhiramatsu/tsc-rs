@@ -149,10 +149,15 @@ pub(crate) fn partition_files(weights: &[usize], shards: usize) -> Vec<Vec<usize
 /// between shards follows the measured check times: a shard on a slower
 /// core simply takes fewer files instead of finishing last (the node-count
 /// partition's eight equal shares finished up to 2x apart on a mixed
-/// performance/efficiency-core machine). Which files a shard checks is then
-/// not reproducible run to run; the merged result is, because every shard
-/// checks each file exactly as the serial driver would and the order guard
-/// replays any order-consuming shard-local operation serially.
+/// performance/efficiency-core machine). A file heavier than an equal share
+/// dominates whichever shard checks it, so it is pinned to a shard of its
+/// own (heaviest first, at most `shards - 1` of them) and checked from the
+/// start instead of waiting its turn in Program order behind that shard's
+/// lighter pulls: a 1 MB source last in Program order, or the largest
+/// library file, otherwise started 1-2 ms late. Which files a shard checks
+/// is then not reproducible run to run; the merged result is, because every
+/// shard checks each file exactly as the serial driver would and the order
+/// guard replays any order-consuming shard-local operation serially.
 ///
 /// Partitioned: each shard pulls only from its own share of the
 /// deterministic node-count partition ([`partition_files`]). The driver
@@ -172,9 +177,14 @@ pub(crate) struct ShardFileQueue {
 enum Lanes {
     Shared {
         shards: usize,
-        /// Node count each shard sizes its type tables for: the mean share,
-        /// or the largest single file when that is bigger (a file is never
-        /// split).
+        /// Shards `0..pinned.len()` each check one file heavier than an
+        /// equal share; the shards after them pull from the cursors.
+        pinned: Vec<Lane>,
+        /// The pinned files, ascending, skipped by the cursors.
+        pinned_files: Vec<usize>,
+        /// Node count each pulling shard sizes its type tables for: the mean
+        /// share of the unpinned files, or the largest of them when that is
+        /// bigger (a file is never split).
         reserved_nodes: usize,
         next_fixture: AtomicUsize,
         next_library: AtomicUsize,
@@ -200,13 +210,41 @@ impl ShardFileQueue {
         debug_assert!(lib_count <= file_count);
         let shards = shards.clamp(1, file_count.max(1));
         let total: usize = weights.iter().sum();
-        let largest = weights.iter().copied().max().unwrap_or(0);
+        // Fewer than `shards` files can each exceed an equal share; the
+        // truncation only guards the arithmetic.
+        let share = total / shards;
+        let mut heavy: Vec<usize> = (0..file_count)
+            .filter(|&file| shards > 1 && weights[file] > share)
+            .collect();
+        heavy.sort_by_key(|&file| (std::cmp::Reverse(weights[file]), file));
+        heavy.truncate(shards - 1);
+        let pinned = heavy
+            .iter()
+            .map(|&file| Lane {
+                fixtures: (file >= lib_count).then_some(file).into_iter().collect(),
+                libraries: (file < lib_count).then_some(file).into_iter().collect(),
+                weight: weights[file],
+                next_fixture: AtomicUsize::new(0),
+                next_library: AtomicUsize::new(0),
+            })
+            .collect::<Vec<_>>();
+        let mut pinned_files = heavy;
+        pinned_files.sort_unstable();
+        let pinned_total: usize = pinned.iter().map(|lane| lane.weight).sum();
+        let pulling_shards = shards - pinned.len();
+        let largest_unpinned = (0..file_count)
+            .filter(|file| pinned_files.binary_search(file).is_err())
+            .map(|file| weights[file])
+            .max()
+            .unwrap_or(0);
         Self {
             lib_count,
             file_count,
             lanes: Lanes::Shared {
                 shards,
-                reserved_nodes: (total / shards).max(largest),
+                pinned,
+                pinned_files,
+                reserved_nodes: ((total - pinned_total) / pulling_shards).max(largest_unpinned),
                 next_fixture: AtomicUsize::new(lib_count),
                 next_library: AtomicUsize::new(0),
             },
@@ -253,7 +291,13 @@ impl ShardFileQueue {
     /// The node count `shard` should size its type tables for.
     pub(crate) fn reserved_nodes(&self, shard: usize) -> usize {
         match &self.lanes {
-            Lanes::Shared { reserved_nodes, .. } => *reserved_nodes,
+            Lanes::Shared {
+                pinned,
+                reserved_nodes,
+                ..
+            } => pinned
+                .get(shard)
+                .map_or(*reserved_nodes, |lane| lane.weight),
             Lanes::Partitioned(lanes) => lanes.get(shard).map_or(0, |lane| lane.weight),
         }
     }
@@ -261,14 +305,18 @@ impl ShardFileQueue {
     /// The next unchecked fixture for `shard`, in Program order, if any.
     pub(crate) fn next_fixture(&self, shard: usize) -> Option<usize> {
         match &self.lanes {
-            Lanes::Shared { next_fixture, .. } => {
-                let file = next_fixture.fetch_add(1, Ordering::Relaxed);
-                (file < self.file_count).then_some(file)
-            }
+            Lanes::Shared {
+                pinned,
+                pinned_files,
+                next_fixture,
+                ..
+            } => match pinned.get(shard) {
+                Some(lane) => Self::pull(&lane.fixtures, &lane.next_fixture),
+                None => Self::pull_unpinned(next_fixture, self.file_count, pinned_files),
+            },
             Lanes::Partitioned(lanes) => {
                 let lane = lanes.get(shard)?;
-                let index = lane.next_fixture.fetch_add(1, Ordering::Relaxed);
-                lane.fixtures.get(index).copied()
+                Self::pull(&lane.fixtures, &lane.next_fixture)
             }
         }
     }
@@ -276,14 +324,35 @@ impl ShardFileQueue {
     /// The next unchecked library file for `shard`, in Program order, if any.
     pub(crate) fn next_library(&self, shard: usize) -> Option<usize> {
         match &self.lanes {
-            Lanes::Shared { next_library, .. } => {
-                let file = next_library.fetch_add(1, Ordering::Relaxed);
-                (file < self.lib_count).then_some(file)
-            }
+            Lanes::Shared {
+                pinned,
+                pinned_files,
+                next_library,
+                ..
+            } => match pinned.get(shard) {
+                Some(lane) => Self::pull(&lane.libraries, &lane.next_library),
+                None => Self::pull_unpinned(next_library, self.lib_count, pinned_files),
+            },
             Lanes::Partitioned(lanes) => {
                 let lane = lanes.get(shard)?;
-                let index = lane.next_library.fetch_add(1, Ordering::Relaxed);
-                lane.libraries.get(index).copied()
+                Self::pull(&lane.libraries, &lane.next_library)
+            }
+        }
+    }
+
+    fn pull(files: &[usize], next: &AtomicUsize) -> Option<usize> {
+        files.get(next.fetch_add(1, Ordering::Relaxed)).copied()
+    }
+
+    /// The next file below `end` from a shared cursor that is not pinned.
+    fn pull_unpinned(next: &AtomicUsize, end: usize, pinned_files: &[usize]) -> Option<usize> {
+        loop {
+            let file = next.fetch_add(1, Ordering::Relaxed);
+            if file >= end {
+                return None;
+            }
+            if pinned_files.binary_search(&file).is_err() {
+                return Some(file);
             }
         }
     }
@@ -359,23 +428,58 @@ mod tests {
 
     #[test]
     fn shared_queue_hands_out_every_file_once_in_program_order() {
-        let weights = [4, 1, 9, 2, 2, 2, 2, 2, 2, 2];
-        let queue = ShardFileQueue::shared(3, &weights, 8);
-        assert_eq!(queue.shard_count(), 8);
-        // The mean share (28 / 8 = 3) is below the largest file.
-        assert_eq!(queue.reserved_nodes(5), 9);
+        let weights = [2; 16];
+        let queue = ShardFileQueue::shared(4, &weights, 4);
+        assert_eq!(queue.shard_count(), 4);
+        // Sixteen equal files over four shards: nothing is pinned and the
+        // mean share is the reservation.
+        assert_eq!(queue.reserved_nodes(0), 8);
         let fixtures: Vec<usize> = std::iter::from_fn(|| queue.next_fixture(0)).collect();
-        assert_eq!(fixtures, vec![3, 4, 5, 6, 7, 8, 9]);
+        assert_eq!(fixtures, (4..16).collect::<Vec<_>>());
         assert_eq!(queue.next_fixture(1), None);
-        let libraries: Vec<usize> = std::iter::from_fn(|| queue.next_library(7)).collect();
-        assert_eq!(libraries, vec![0, 1, 2]);
+        let libraries: Vec<usize> = std::iter::from_fn(|| queue.next_library(3)).collect();
+        assert_eq!(libraries, vec![0, 1, 2, 3]);
         assert_eq!(queue.next_library(0), None);
         let empty = ShardFileQueue::shared(0, &[], 8);
         assert_eq!(empty.shard_count(), 1);
         assert_eq!(empty.next_fixture(0), None);
         assert_eq!(empty.next_library(0), None);
-        // Sixteen equal files over four shards: the mean share wins.
-        assert_eq!(ShardFileQueue::shared(0, &[2; 16], 4).reserved_nodes(0), 8);
+    }
+
+    #[test]
+    fn shared_queue_pins_files_heavier_than_an_equal_share_to_their_own_shards() {
+        // 28 nodes over 8 shards: files 2 (9) and 0 (4) exceed the share of
+        // 3 and take shards 0 and 1, heaviest first; the other six shards
+        // pull the rest in Program order, skipping the pinned files.
+        let weights = [4, 1, 9, 2, 2, 2, 2, 2, 2, 2];
+        let queue = ShardFileQueue::shared(3, &weights, 8);
+        assert_eq!(queue.shard_count(), 8);
+        assert_eq!(queue.next_fixture(0), None);
+        assert_eq!(queue.next_library(0), Some(2));
+        assert_eq!(queue.next_library(0), None);
+        assert_eq!(queue.next_library(1), Some(0));
+        assert_eq!(queue.next_library(1), None);
+        assert_eq!(queue.reserved_nodes(0), 9);
+        assert_eq!(queue.reserved_nodes(1), 4);
+        let fixtures: Vec<usize> = std::iter::from_fn(|| queue.next_fixture(5)).collect();
+        assert_eq!(fixtures, vec![3, 4, 5, 6, 7, 8, 9]);
+        assert_eq!(queue.next_fixture(2), None);
+        let libraries: Vec<usize> = std::iter::from_fn(|| queue.next_library(7)).collect();
+        assert_eq!(libraries, vec![1]);
+        assert_eq!(queue.next_library(2), None);
+        // (28 - 13) / 6 = 2, and no unpinned file is bigger.
+        assert_eq!(queue.reserved_nodes(5), 2);
+        // Two of three shards may be pinned; the third still pulls.
+        let queue = ShardFileQueue::shared(0, &[100, 100, 1], 3);
+        assert_eq!(queue.next_fixture(0), Some(0));
+        assert_eq!(queue.next_fixture(1), Some(1));
+        assert_eq!(queue.next_fixture(2), Some(2));
+        assert_eq!(queue.next_fixture(2), None);
+        // One shard: nothing is pinned.
+        let queue = ShardFileQueue::shared(0, &[100, 1], 1);
+        assert_eq!(queue.next_fixture(0), Some(0));
+        assert_eq!(queue.next_fixture(0), Some(1));
+        assert_eq!(queue.reserved_nodes(0), 101);
     }
 
     #[test]
