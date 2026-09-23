@@ -1,5 +1,6 @@
-//! Explicit checker-count budget and the deterministic file partition used by
-//! sharded checking.
+//! Explicit checker-count budget and the file queue (shared Program-order
+//! pulling or the deterministic node-count partition) used by sharded
+//! checking.
 //!
 //! tsrs-native: tsc has one checker; tsgo's `--checkers` (default 4,
 //! independent of the CPU count) and `--singleThreaded` are the closest
@@ -12,13 +13,13 @@
 //! exact single-checker behaviour.
 
 use std::num::NonZeroUsize;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// The most checker shards one budget ever uses, regardless of the machine.
 ///
 /// A provisional resource cap (tsgo caps at min(files, 256)): every shard
 /// duplicates the checker's initialization and any shared dependency it
-/// resolves, and the partition below is a load-balancing baseline that has not
-/// been measured beyond this width. Revisit from the W measurements.
+/// resolves, and the queue below has not been measured beyond this width. Revisit from the W measurements.
 pub const MAX_CHECKERS: usize = 8;
 
 /// The number of checker states (including the calling thread's) one program
@@ -138,6 +139,156 @@ pub(crate) fn partition_files(weights: &[usize], shards: usize) -> Vec<Vec<usize
     assignment
 }
 
+/// The work queue the checker shards pull their files from, in one of two
+/// modes.
+///
+/// Shared: every shard pulls the next fixture from one Program-order cursor
+/// until none is left, then (when the driver completes the library prefix)
+/// the next library file. Each pull is one atomic increment, so a shard
+/// still checks its files in increasing Program order while the split
+/// between shards follows the measured check times: a shard on a slower
+/// core simply takes fewer files instead of finishing last (the node-count
+/// partition's eight equal shares finished up to 2x apart on a mixed
+/// performance/efficiency-core machine). Which files a shard checks is then
+/// not reproducible run to run; the merged result is, because every shard
+/// checks each file exactly as the serial driver would and the order guard
+/// replays any order-consuming shard-local operation serially.
+///
+/// Partitioned: each shard pulls only from its own share of the
+/// deterministic node-count partition ([`partition_files`]). The driver
+/// chooses this when the phases after the check — the declaration
+/// diagnostics gate and the emit, which run each file on the checker that
+/// checked it — would outweigh the check (declaration emit), or when there
+/// are too few fixtures per shard for the pull to balance anything while
+/// the partition still spreads the library pass from the start.
+#[derive(Debug)]
+pub(crate) struct ShardFileQueue {
+    lib_count: usize,
+    file_count: usize,
+    lanes: Lanes,
+}
+
+#[derive(Debug)]
+enum Lanes {
+    Shared {
+        shards: usize,
+        /// Node count each shard sizes its type tables for: the mean share,
+        /// or the largest single file when that is bigger (a file is never
+        /// split).
+        reserved_nodes: usize,
+        next_fixture: AtomicUsize,
+        next_library: AtomicUsize,
+    },
+    Partitioned(Vec<Lane>),
+}
+
+#[derive(Debug)]
+struct Lane {
+    fixtures: Vec<usize>,
+    libraries: Vec<usize>,
+    weight: usize,
+    next_fixture: AtomicUsize,
+    next_library: AtomicUsize,
+}
+
+impl ShardFileQueue {
+    /// One shared Program-order cursor per pass over the files whose node
+    /// counts are `weights` (index = Program file; `0..lib_count` are the
+    /// libraries), served to at most `shards` shards.
+    pub(crate) fn shared(lib_count: usize, weights: &[usize], shards: usize) -> Self {
+        let file_count = weights.len();
+        debug_assert!(lib_count <= file_count);
+        let shards = shards.clamp(1, file_count.max(1));
+        let total: usize = weights.iter().sum();
+        let largest = weights.iter().copied().max().unwrap_or(0);
+        Self {
+            lib_count,
+            file_count,
+            lanes: Lanes::Shared {
+                shards,
+                reserved_nodes: (total / shards).max(largest),
+                next_fixture: AtomicUsize::new(lib_count),
+                next_library: AtomicUsize::new(0),
+            },
+        }
+    }
+
+    /// One lane per non-empty share of the deterministic node-count
+    /// partition of `weights` into at most `shards` shares.
+    pub(crate) fn partitioned(lib_count: usize, weights: &[usize], shards: usize) -> Self {
+        debug_assert!(lib_count <= weights.len());
+        let lanes = partition_files(weights, shards)
+            .into_iter()
+            .map(|files| Lane {
+                weight: files.iter().map(|&file| weights[file]).sum(),
+                fixtures: files
+                    .iter()
+                    .copied()
+                    .filter(|&file| file >= lib_count)
+                    .collect(),
+                libraries: files
+                    .iter()
+                    .copied()
+                    .filter(|&file| file < lib_count)
+                    .collect(),
+                next_fixture: AtomicUsize::new(0),
+                next_library: AtomicUsize::new(0),
+            })
+            .collect();
+        Self {
+            lib_count,
+            file_count: weights.len(),
+            lanes: Lanes::Partitioned(lanes),
+        }
+    }
+
+    /// The number of shards this queue serves (at least one).
+    pub(crate) fn shard_count(&self) -> usize {
+        match &self.lanes {
+            Lanes::Shared { shards, .. } => *shards,
+            Lanes::Partitioned(lanes) => lanes.len().max(1),
+        }
+    }
+
+    /// The node count `shard` should size its type tables for.
+    pub(crate) fn reserved_nodes(&self, shard: usize) -> usize {
+        match &self.lanes {
+            Lanes::Shared { reserved_nodes, .. } => *reserved_nodes,
+            Lanes::Partitioned(lanes) => lanes.get(shard).map_or(0, |lane| lane.weight),
+        }
+    }
+
+    /// The next unchecked fixture for `shard`, in Program order, if any.
+    pub(crate) fn next_fixture(&self, shard: usize) -> Option<usize> {
+        match &self.lanes {
+            Lanes::Shared { next_fixture, .. } => {
+                let file = next_fixture.fetch_add(1, Ordering::Relaxed);
+                (file < self.file_count).then_some(file)
+            }
+            Lanes::Partitioned(lanes) => {
+                let lane = lanes.get(shard)?;
+                let index = lane.next_fixture.fetch_add(1, Ordering::Relaxed);
+                lane.fixtures.get(index).copied()
+            }
+        }
+    }
+
+    /// The next unchecked library file for `shard`, in Program order, if any.
+    pub(crate) fn next_library(&self, shard: usize) -> Option<usize> {
+        match &self.lanes {
+            Lanes::Shared { next_library, .. } => {
+                let file = next_library.fetch_add(1, Ordering::Relaxed);
+                (file < self.lib_count).then_some(file)
+            }
+            Lanes::Partitioned(lanes) => {
+                let lane = lanes.get(shard)?;
+                let index = lane.next_library.fetch_add(1, Ordering::Relaxed);
+                lane.libraries.get(index).copied()
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -204,5 +355,94 @@ mod tests {
             vec![vec![0], vec![1], vec![2]]
         );
         assert!(partition_files(&[], 4).is_empty());
+    }
+
+    #[test]
+    fn shared_queue_hands_out_every_file_once_in_program_order() {
+        let weights = [4, 1, 9, 2, 2, 2, 2, 2, 2, 2];
+        let queue = ShardFileQueue::shared(3, &weights, 8);
+        assert_eq!(queue.shard_count(), 8);
+        // The mean share (28 / 8 = 3) is below the largest file.
+        assert_eq!(queue.reserved_nodes(5), 9);
+        let fixtures: Vec<usize> = std::iter::from_fn(|| queue.next_fixture(0)).collect();
+        assert_eq!(fixtures, vec![3, 4, 5, 6, 7, 8, 9]);
+        assert_eq!(queue.next_fixture(1), None);
+        let libraries: Vec<usize> = std::iter::from_fn(|| queue.next_library(7)).collect();
+        assert_eq!(libraries, vec![0, 1, 2]);
+        assert_eq!(queue.next_library(0), None);
+        let empty = ShardFileQueue::shared(0, &[], 8);
+        assert_eq!(empty.shard_count(), 1);
+        assert_eq!(empty.next_fixture(0), None);
+        assert_eq!(empty.next_library(0), None);
+        // Sixteen equal files over four shards: the mean share wins.
+        assert_eq!(ShardFileQueue::shared(0, &[2; 16], 4).reserved_nodes(0), 8);
+    }
+
+    #[test]
+    fn shared_queue_splits_files_between_concurrent_shards_without_overlap() {
+        let queue = ShardFileQueue::shared(4, &[1; 64], 4);
+        let pulls: Vec<Vec<usize>> = std::thread::scope(|scope| {
+            let handles: Vec<_> = (0..4)
+                .map(|shard| {
+                    let queue = &queue;
+                    scope.spawn(move || {
+                        let mut files: Vec<usize> =
+                            std::iter::from_fn(|| queue.next_fixture(shard)).collect();
+                        files.extend(std::iter::from_fn(|| queue.next_library(shard)));
+                        files
+                    })
+                })
+                .collect();
+            handles
+                .into_iter()
+                .map(|handle| handle.join().unwrap())
+                .collect()
+        });
+        let mut seen = vec![0usize; 64];
+        for files in &pulls {
+            // Fixtures and then libraries each arrive in increasing order.
+            let split = files
+                .iter()
+                .position(|&file| file < 4)
+                .unwrap_or(files.len());
+            assert!(files[..split].windows(2).all(|pair| pair[0] < pair[1]));
+            assert!(files[split..].windows(2).all(|pair| pair[0] < pair[1]));
+            for &file in files {
+                seen[file] += 1;
+            }
+        }
+        assert!(seen.iter().all(|&count| count == 1));
+    }
+
+    #[test]
+    fn partitioned_queue_serves_each_shard_its_own_share_in_program_order() {
+        // File 0 is the (heavy) library; the fixtures are light.
+        let weights = [5, 1, 1, 1, 1, 1, 1];
+        let queue = ShardFileQueue::partitioned(1, &weights, 2);
+        let expected = partition_files(&weights, 2);
+        assert_eq!(queue.shard_count(), expected.len());
+        for (shard, share) in expected.iter().enumerate() {
+            let fixtures: Vec<usize> = std::iter::from_fn(|| queue.next_fixture(shard)).collect();
+            let libraries: Vec<usize> = std::iter::from_fn(|| queue.next_library(shard)).collect();
+            assert!(fixtures.windows(2).all(|pair| pair[0] < pair[1]));
+            assert!(fixtures.iter().all(|&file| file >= 1));
+            assert!(libraries.iter().all(|&file| file < 1));
+            let mut files = fixtures;
+            files.extend(libraries);
+            files.sort_unstable();
+            assert_eq!(&files, share, "shard {shard}");
+            assert_eq!(
+                queue.reserved_nodes(shard),
+                share.iter().map(|&file| weights[file]).sum::<usize>()
+            );
+            assert_eq!(queue.next_fixture(shard), None);
+            assert_eq!(queue.next_library(shard), None);
+        }
+        // A shard index beyond the partition serves nothing.
+        assert_eq!(queue.next_fixture(expected.len()), None);
+        assert_eq!(queue.reserved_nodes(expected.len()), 0);
+        let empty = ShardFileQueue::partitioned(0, &[], 4);
+        assert_eq!(empty.shard_count(), 1);
+        assert_eq!(empty.next_fixture(0), None);
     }
 }
