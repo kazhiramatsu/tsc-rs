@@ -1301,6 +1301,15 @@ impl<'a> ProgramBinder<'a> {
         self.sources[index]
     }
 
+    /// The program's `Arc` of a file's parsed tree (owned documents only):
+    /// an emit arena mounts it without copying the tree.
+    pub fn shared_source(&self, index: usize) -> Option<Arc<SourceFile>> {
+        match &self.file_entries[index] {
+            ProgramEntry::Owned(document) => Some(Arc::clone(&document.parsed.source)),
+            ProgramEntry::Legacy(_) => None,
+        }
+    }
+
     /// Owning file of a node id (nodes allocate contiguously per file).
     /// tsrs-native: validated last-owner hint, then binary-search routing for
     /// Rust's numeric NodeId arena; tsc carries object identity directly.

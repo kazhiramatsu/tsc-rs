@@ -105,10 +105,28 @@ pub(super) fn project_parse_node(
     {
         return Ok(Some(found));
     }
-    arena.add_source(checker.binder.source(file_index), Some(source));
+    mount_checker_source(checker, arena, file_index, source);
     arena
         .parse_tree_transform_node(resolver)
         .map_err(factory_error)
+}
+
+/// Mount the checker's copy of program file `file_index` into `arena`:
+/// shared with the program when the file is an owned document.
+pub(super) fn mount_checker_source(
+    checker: &CheckerState<'_>,
+    arena: &mut TransformArena,
+    file_index: usize,
+    source: SourceFileId,
+) {
+    match checker.binder.shared_source(file_index) {
+        Some(parsed) => {
+            arena.add_shared_source(parsed, Some(source));
+        }
+        None => {
+            arena.add_source(checker.binder.source(file_index), Some(source));
+        }
+    }
 }
 
 fn clone_parse_node(

@@ -72,11 +72,13 @@ pub(crate) fn build_symbol_display_node(
             .map_err(factory_error)?
             .is_none()
         {
-            arena.add_source(
-                checker.binder.source(file_index),
-                Some(SourceFileId::from_raw(
+            super::chains::mount_checker_source(
+                checker,
+                arena,
+                file_index,
+                SourceFileId::from_raw(
                     u32::try_from(file_index).expect("checker source index exceeds u32"),
-                )),
+                ),
             );
         }
     }
@@ -1310,11 +1312,13 @@ impl<'state, 'program> ProductionSyntacticBuilderResolver<'state, 'program> {
             .map_err(factory_error)?
             .is_none()
         {
-            arena.add_source(
-                self.checker.binder.source(file_index),
-                Some(SourceFileId::from_raw(
+            super::chains::mount_checker_source(
+                self.checker,
+                arena,
+                file_index,
+                SourceFileId::from_raw(
                     u32::try_from(file_index).expect("checker source index exceeds u32"),
-                )),
+                ),
             );
         }
         arena

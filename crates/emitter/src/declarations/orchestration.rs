@@ -31,7 +31,7 @@ fn mount_declaration_program_sources(
     let syntax = emit_source.syntax().ok_or(EmitFailure::Contract(
         EmitContractViolation::CheckedSyntaxUnavailable(source),
     ))?;
-    Ok(arena.add_source(syntax, Some(source)))
+    Ok(arena.mount_host_source(host, syntax, source))
 }
 
 /// The five upstream inputs recorded at the declaration-blocking boundary.

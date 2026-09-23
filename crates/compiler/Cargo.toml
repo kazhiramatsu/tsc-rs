@@ -30,6 +30,7 @@ tsc-diagnostics.workspace = true
 tsc-emitter.workspace = true
 tsc-host.workspace = true
 tsc-program.workspace = true
+tsc-syntax.workspace = true
 tsc-types.workspace = true
 
 [dev-dependencies]

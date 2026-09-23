@@ -377,7 +377,7 @@ pub fn print_script_units_with_recording_for_harness(
             EmitContractViolation::CheckedSyntaxUnavailable(*source_id),
         ))?;
         let mut arena = TransformArena::new();
-        let transform_source = arena.add_source(syntax, Some(*source_id));
+        let transform_source = arena.mount_host_source(host, syntax, *source_id);
         let transformers = get_script_transformers_with_activity(
             options,
             resolver,
@@ -759,7 +759,7 @@ pub(crate) fn mount_emit_root(
         let syntax = file.syntax().ok_or(EmitFailure::Contract(
             EmitContractViolation::CheckedSyntaxUnavailable(source),
         ))?;
-        sources.push(arena.add_source(syntax, Some(source)));
+        sources.push(arena.mount_host_source(host, syntax, source));
     }
     Ok(match root {
         EmitRoot::SourceFile(_) => TransformRoot::SourceFile(sources[0]),

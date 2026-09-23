@@ -1,4 +1,5 @@
 use crate::source_map::paths;
+use std::sync::Arc;
 use tsc_diagnostics::{JsStr, JsString};
 
 use tsc_program::{ResolutionMode, SourceFileId};
@@ -118,6 +119,13 @@ pub trait EmitHost {
     fn config_file_path(&self) -> Option<JsStr<'_>>;
     fn use_case_sensitive_file_names(&self) -> bool;
     fn source_file_ids(&self) -> &[SourceFileId];
+    /// The program's own `Arc` of a source's parsed tree, when the host
+    /// holds one: an emit arena then reads it in place instead of copying
+    /// the tree. Hosts without a shared tree return `None` (the arena
+    /// copies `syntax()` as before).
+    fn shared_syntax(&self, _id: SourceFileId) -> Option<Arc<SourceFile>> {
+        None
+    }
     fn source_file(&self, id: SourceFileId) -> Option<EmitSource<'_>>;
 
     /// Resolve a preserved triple-slash path reference against its containing

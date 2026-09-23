@@ -531,6 +531,26 @@ struct CheckedEmitHost<'host, 'snapshot> {
 }
 
 impl EmitHost for CheckedEmitHost<'_, '_> {
+    fn shared_syntax(&self, id: SourceFileId) -> Option<Arc<tsc_syntax::SourceFile>> {
+        let source = self.prepared.prepared.source_file(id)?;
+        let expected_name = self
+            .prepared
+            .display_names
+            .get(&id)
+            .map_or_else(|| source.path().display(), JsString::as_js);
+        self.snapshot
+            .documents()
+            .get(id.index())
+            .filter(|document| document.source().file_name.as_js() == expected_name)
+            .or_else(|| {
+                self.snapshot
+                    .documents()
+                    .iter()
+                    .find(|document| document.source().file_name.as_js() == expected_name)
+            })
+            .map(|document| Arc::clone(&document.parsed.source))
+    }
+
     fn compiler_options(&self) -> &CompilerOptions {
         self.prepared.compiler_options()
     }

@@ -170,6 +170,37 @@ pub struct SourceFile {
 
 impl SourceFile {
     /// Committed syntactic recovery facts, including suppressed diagnostics.
+    /// This file's metadata (everything but the tree) with `arena` as its
+    /// node arena: an emit session shares the parsed tree and keeps only
+    /// its synthesized nodes in a copy like this.
+    pub fn with_arena(&self, arena: NodeArena) -> Self {
+        Self {
+            file_name: self.file_name.clone(),
+            snapshot: Arc::clone(&self.snapshot),
+            language_version: self.language_version,
+            language_variant: self.language_variant,
+            is_declaration_file: self.is_declaration_file,
+            js_doc_parsing_mode: self.js_doc_parsing_mode,
+            arena,
+            root: self.root,
+            external_module_indicator: self.external_module_indicator,
+            parse_diagnostics: self.parse_diagnostics.clone(),
+            parse_recovery: self.parse_recovery.clone(),
+            js_doc_diagnostics: self.js_doc_diagnostics.clone(),
+            referenced_files: self.referenced_files.clone(),
+            type_reference_directives: self.type_reference_directives.clone(),
+            lib_reference_directives: self.lib_reference_directives.clone(),
+            amd_dependencies: self.amd_dependencies.clone(),
+            module_name: self.module_name.clone(),
+            renamed_dependencies: self.renamed_dependencies.clone(),
+            has_jsx_import_source_pragma: self.has_jsx_import_source_pragma,
+            jsx_import_source_pragma: self.jsx_import_source_pragma.clone(),
+            has_jsx_runtime_pragma: self.has_jsx_runtime_pragma,
+            jsx_runtime_pragma: self.jsx_runtime_pragma.clone(),
+            comment_directives: self.comment_directives.clone(),
+        }
+    }
+
     pub fn parse_recovery(&self) -> &ParseRecovery {
         &self.parse_recovery
     }
