@@ -222,19 +222,24 @@ fn sharded_declaration_diagnostics(
             .source_file(source)
             .map_or(0, |source| source.text().len())
     };
-    let results = worker_budget.map_ordered(jobs, weight, |(source, shard)| {
-        let mut activity = H2ActivityCanary::h2_7e_profile();
-        let result = sessions[shard].with_emit_resolver(|resolver| {
-            tsc_emitter::declaration_diagnostics_for_sources(
-                resolver,
-                checked_host,
-                preflight,
-                &[source],
-                &mut activity,
-            )
-        });
-        (result, activity.counters())
-    });
+    let jobs = interleave_by_session(jobs, |&(_, shard)| shard, weight);
+    let results = worker_budget.map_ordered(
+        jobs,
+        |&(position, _)| usize::MAX - position,
+        |(_, (source, shard))| {
+            let mut activity = H2ActivityCanary::h2_7e_profile();
+            let result = sessions[shard].with_emit_resolver(|resolver| {
+                tsc_emitter::declaration_diagnostics_for_sources(
+                    resolver,
+                    checked_host,
+                    preflight,
+                    &[source],
+                    &mut activity,
+                )
+            });
+            (result, activity.counters())
+        },
+    );
     // One resolver borrow per checker session, as when each shard ran the
     // getter over its own files in one borrow.
     for _ in sessions {
@@ -247,6 +252,42 @@ fn sharded_declaration_diagnostics(
     }
     sort_and_dedupe_diagnostics(&mut diagnostics);
     Ok(diagnostics)
+}
+
+/// Order pool jobs over the checker sessions: heaviest first within each
+/// session, then round-robin across the sessions, numbered in that order.
+/// Every resolver query locks its session, so two pool threads on the same
+/// session contend on every query; this spread keeps the threads on
+/// distinct sessions as long as the sessions have work left, instead of
+/// clustering them on the session whose units happen to be heaviest.
+fn interleave_by_session<J>(
+    jobs: Vec<J>,
+    session: impl Fn(&J) -> usize,
+    weight: impl Fn(&J) -> usize,
+) -> Vec<(usize, J)> {
+    let mut lanes: std::collections::BTreeMap<usize, Vec<J>> = std::collections::BTreeMap::new();
+    for job in jobs {
+        lanes.entry(session(&job)).or_default().push(job);
+    }
+    let mut lanes = lanes
+        .into_values()
+        .map(|mut lane| {
+            lane.sort_by_key(|job| std::cmp::Reverse(weight(job)));
+            lane.into_iter()
+        })
+        .collect::<Vec<_>>();
+    let mut ordered = Vec::new();
+    loop {
+        let before = ordered.len();
+        for lane in &mut lanes {
+            if let Some(job) = lane.next() {
+                ordered.push((ordered.len(), job));
+            }
+        }
+        if ordered.len() == before {
+            return ordered;
+        }
+    }
 }
 
 /// tsc-port: getEmitDeclarations @6.0.3
@@ -1876,23 +1917,28 @@ impl ProgramSession {
                         .and_then(|&id| emit_host.prepared.source_file(id))
                         .map_or(0, |source| source.text().len())
                 };
-                let results = worker_budget.map_ordered(jobs, weight, |(unit, shard)| {
-                    let mut activity = H2ActivityCanary::h2_7e_profile();
-                    let mut eager = eager_sink.map(tsc_emitter::EagerUnitSink);
-                    let result = sessions[shard].with_emit_resolver(|resolver| {
-                        emit_planned_units(
-                            resolver,
-                            &checked_host,
-                            &preflight,
-                            &[unit],
-                            eager
-                                .as_mut()
-                                .map(|sink| sink as &mut dyn tsc_emitter::OutputSink),
-                            &mut activity,
-                        )
-                    });
-                    (result, activity.counters())
-                });
+                let jobs = interleave_by_session(jobs, |&(_, shard)| shard, weight);
+                let results = worker_budget.map_ordered(
+                    jobs,
+                    |&(position, _)| usize::MAX - position,
+                    |(_, (unit, shard))| {
+                        let mut activity = H2ActivityCanary::h2_7e_profile();
+                        let mut eager = eager_sink.map(tsc_emitter::EagerUnitSink);
+                        let result = sessions[shard].with_emit_resolver(|resolver| {
+                            emit_planned_units(
+                                resolver,
+                                &checked_host,
+                                &preflight,
+                                &[unit],
+                                eager
+                                    .as_mut()
+                                    .map(|sink| sink as &mut dyn tsc_emitter::OutputSink),
+                                &mut activity,
+                            )
+                        });
+                        (result, activity.counters())
+                    },
+                );
                 let mut activity = H2ActivityCanary::h2_7e_profile();
                 // One resolver borrow per checker session, as when each
                 // shard emitted its own units in one borrow.
