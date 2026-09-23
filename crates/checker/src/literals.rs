@@ -1418,7 +1418,7 @@ impl<'a> CheckerState<'a> {
         let table_properties: Vec<SymbolId> = acc.properties_table.values().copied().collect();
         let id = self.make_resolved_anonymous_type(
             symbol,
-            acc.properties_table.clone(),
+            acc.properties_table.clone().into(),
             table_properties,
             index_infos,
             object_flags,
@@ -1437,7 +1437,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn make_resolved_anonymous_type(
         &mut self,
         symbol: Option<SymbolId>,
-        members: SymbolTable,
+        members: std::sync::Arc<SymbolTable>,
         properties: Vec<SymbolId>,
         index_infos: Vec<IndexInfo>,
         object_flags: ObjectFlags,
@@ -1452,7 +1452,7 @@ impl<'a> CheckerState<'a> {
         self.tables.type_mut(id).object_flags = object_flags | ObjectFlags::ANONYMOUS;
         self.tables.type_mut(id).symbol = symbol;
         let members_id = self.alloc_members(crate::state::ResolvedMembers {
-            members,
+            members: members.into(),
             properties,
             call_signatures: Vec::new(),
             construct_signatures: Vec::new(),
@@ -1661,7 +1661,7 @@ impl<'a> CheckerState<'a> {
         let symbol = self.tables.type_of(ty).symbol;
         Ok(self.make_resolved_anonymous_type(
             symbol,
-            members,
+            members.into(),
             properties,
             index_infos,
             ObjectFlags::ANONYMOUS
@@ -1899,7 +1899,7 @@ impl<'a> CheckerState<'a> {
         let properties: Vec<SymbolId> = members.values().copied().collect();
         let spread = self.make_resolved_anonymous_type(
             symbol,
-            members,
+            members.into(),
             properties,
             index_infos,
             ObjectFlags::ANONYMOUS

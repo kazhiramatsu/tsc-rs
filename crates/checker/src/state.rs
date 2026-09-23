@@ -238,7 +238,9 @@ pub type WideningContextId = usize;
 /// 50198): members table + named properties + signatures + index infos.
 #[derive(Clone, Debug, Default)]
 pub struct ResolvedMembers {
-    pub members: SymbolTable,
+    /// Shared with the declaring symbol's own table when the members are
+    /// exactly its declared members; a fresh table otherwise.
+    pub members: std::sync::Arc<SymbolTable>,
     pub properties: Vec<SymbolId>,
     pub call_signatures: Vec<SignatureId>,
     pub construct_signatures: Vec<SignatureId>,

@@ -655,9 +655,7 @@ impl<'a> BinderWorker<'a> {
             EscapedName::internal(InternalSymbolName::TYPE),
         );
         self.add_declaration_to_symbol(type_literal_symbol, node, SymbolFlags::TYPE_LITERAL);
-        self.symbols
-            .symbol_mut(type_literal_symbol)
-            .members
+        std::sync::Arc::make_mut(&mut self.symbols.symbol_mut(type_literal_symbol).members)
             .insert(name, symbol);
     }
 
@@ -767,9 +765,7 @@ impl<'a> BinderWorker<'a> {
                 self.bind_diagnostics.push(diag);
             }
         }
-        self.symbols
-            .symbol_mut(symbol)
-            .exports
+        std::sync::Arc::make_mut(&mut self.symbols.symbol_mut(symbol).exports)
             .insert(EscapedName::internal("prototype"), prototype_symbol);
         self.symbols.symbol_mut(prototype_symbol).parent = Some(symbol);
     }

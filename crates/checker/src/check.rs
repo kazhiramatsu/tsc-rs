@@ -8146,7 +8146,7 @@ impl<'a> CheckerState<'a> {
                 SyntaxKind::SourceFile | SyntaxKind::ModuleDeclaration => {
                     if let Some(symbol) = self.binder.node_symbol(loc) {
                         let symbol = self.get_merged_symbol(symbol);
-                        let exports = self.binder.symbol(symbol).exports.clone();
+                        let exports = (*self.binder.symbol(symbol).exports).clone();
                         tables.push((
                             ScopeTableKey::Exports(symbol),
                             exports,

@@ -3804,7 +3804,7 @@ impl<'a> CheckerState<'a> {
         let index_infos = self.get_index_infos_of_type(source)?;
         let result = self.make_resolved_anonymous_type(
             symbol,
-            members,
+            members.into(),
             result_properties,
             index_infos,
             tsc_types::ObjectFlags::OBJECT_REST_TYPE,

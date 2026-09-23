@@ -587,7 +587,7 @@ impl<'a> CheckerState<'a> {
                     child_prop_map.insert(children_name.clone(), children_prop_symbol);
                     let child_type = self.make_resolved_anonymous_type(
                         attributes_symbol,
-                        child_prop_map,
+                        child_prop_map.into(),
                         vec![children_prop_symbol],
                         Vec::new(),
                         ObjectFlags::ANONYMOUS,
@@ -646,7 +646,7 @@ impl<'a> CheckerState<'a> {
         let properties: Vec<SymbolId> = attributes_table.values().copied().collect();
         self.make_resolved_anonymous_type(
             attributes_symbol,
-            attributes_table.clone(),
+            attributes_table.clone().into(),
             properties,
             Vec::new(),
             flags,
@@ -1438,7 +1438,7 @@ impl<'a> CheckerState<'a> {
         self.tables.type_mut(id).object_flags =
             ObjectFlags::ANONYMOUS | ObjectFlags::SINGLE_SIGNATURE_TYPE;
         let members = self.alloc_members(crate::state::ResolvedMembers {
-            members: SymbolTable::default(),
+            members: Default::default(),
             properties: Vec::new(),
             call_signatures: if is_constructor {
                 Vec::new()

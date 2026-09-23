@@ -2,6 +2,8 @@
 //! and the leading-underscore name escape.
 
 use indexmap::IndexMap;
+use std::sync::Arc;
+
 use tsc_syntax::NodeId;
 use tsc_types::{
     EscapedName, IdentityError, IdentityLease, IdentityRange, IdentitySpace, JsStr, SymbolFlags,
@@ -35,10 +37,12 @@ pub struct Symbol {
     pub declarations: Vec<NodeId>,
     /// addDeclarationToSymbol: FIRST value declaration wins.
     pub value_declaration: Option<NodeId>,
-    pub members: SymbolTable,
-    pub exports: SymbolTable,
+    /// Shared with every checker that resolves this symbol's members: the
+    /// binder fills the table in place, readers clone the handle.
+    pub members: Arc<SymbolTable>,
+    pub exports: Arc<SymbolTable>,
     /// tsc Symbol.globalExports (bindNamespaceExportDeclaration).
-    pub global_exports: SymbolTable,
+    pub global_exports: Arc<SymbolTable>,
     pub parent: Option<SymbolId>,
     /// local ↔ export link installed by declareModuleMember.
     pub export_symbol: Option<SymbolId>,
@@ -59,9 +63,9 @@ impl Symbol {
             escaped_name,
             declarations: Vec::new(),
             value_declaration: None,
-            members: SymbolTable::default(),
-            exports: SymbolTable::default(),
-            global_exports: SymbolTable::default(),
+            members: empty_symbol_table(),
+            exports: empty_symbol_table(),
+            global_exports: empty_symbol_table(),
             parent: None,
             export_symbol: None,
             const_enum_only_module: None,
@@ -254,9 +258,15 @@ impl SymbolArena {
         lease: IdentityLease,
     ) -> Result<(), IdentityError> {
         for symbol in &mut self.symbols {
-            relocate_symbol_table_values(&mut symbol.members, &relocation)?;
-            relocate_symbol_table_values(&mut symbol.exports, &relocation)?;
-            relocate_symbol_table_values(&mut symbol.global_exports, &relocation)?;
+            for table in [
+                &mut symbol.members,
+                &mut symbol.exports,
+                &mut symbol.global_exports,
+            ] {
+                if !table.is_empty() {
+                    relocate_symbol_table_values(Arc::make_mut(table), &relocation)?;
+                }
+            }
             if let Some(parent) = &mut symbol.parent {
                 relocation.symbol(parent)?;
             }
@@ -387,3 +397,11 @@ pub fn unescape_leading_underscores<'a>(escaped: impl Into<JsStr<'a>>) -> JsStr<
 #[cfg(test)]
 #[path = "../tests/unit/symbols/tests.rs"]
 mod tests;
+
+/// The empty member table every fresh symbol starts with, one shared
+/// allocation per process; the first insertion into a symbol's table makes
+/// that symbol its own copy.
+pub fn empty_symbol_table() -> Arc<SymbolTable> {
+    static EMPTY: std::sync::OnceLock<Arc<SymbolTable>> = std::sync::OnceLock::new();
+    Arc::clone(EMPTY.get_or_init(|| Arc::new(SymbolTable::default())))
+}

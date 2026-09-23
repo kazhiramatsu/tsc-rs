@@ -5,7 +5,7 @@
 //! Error rendering follows tsc's diagnostic chains, including
 //! elaboration for object/array literals and function bodies.
 
-use tsc_binder::{node_util, SymbolId, SymbolTable};
+use tsc_binder::{node_util, SymbolId};
 use tsc_diagnostics::{
     gen as diagnostics, Diagnostic, DiagnosticMessage, MessageChain, RelatedInfo,
 };
@@ -1511,7 +1511,7 @@ impl<'a> CheckerState<'a> {
             .read_ty(override_type, |links| links.resolved_members.resolved())
             .expect("freshly created anonymous types carry resolved members");
         let resolved = self.members_mut(members_id);
-        resolved.members = members;
+        resolved.members = members.into();
         resolved.properties = vec![name_prop, private_prop, static_prop];
         self.decorator_context_override_type_cache
             .insert(key, override_type);
@@ -7031,7 +7031,7 @@ impl<'a> CheckerState<'a> {
         }
         if self.is_in_js_file(node) {
             if let Some(js_symbol) = self.get_symbol_of_expando(node) {
-                let exports: SymbolTable = self.binder.symbol(js_symbol).exports.clone();
+                let exports = std::sync::Arc::clone(&self.binder.symbol(js_symbol).exports);
                 if !exports.is_empty() {
                     let properties = exports.values().copied().collect();
                     let js_assignment_type = self.make_resolved_anonymous_type(

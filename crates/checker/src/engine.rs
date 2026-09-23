@@ -4115,7 +4115,7 @@ impl<'a> CheckerState<'a> {
         }
         let source_members = self.members_of(resolved);
         let members_id = self.alloc_members(crate::state::ResolvedMembers {
-            members,
+            members: members.into(),
             properties,
             call_signatures: source_members.call_signatures.clone(),
             construct_signatures: source_members.construct_signatures.clone(),

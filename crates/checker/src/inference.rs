@@ -704,8 +704,7 @@ impl<'a> CheckerState<'a> {
                 prop.declarations = declarations;
                 prop.value_declaration = value_declaration;
             }
-            self.members_mut(members_id)
-                .members
+            std::sync::Arc::make_mut(&mut self.members_mut(members_id).members)
                 .insert(name, literal_prop);
         }
         if self.tables.flags_of(ty).intersects(TypeFlags::STRING) {

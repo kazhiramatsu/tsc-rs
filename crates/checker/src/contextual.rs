@@ -2091,7 +2091,7 @@ impl<'a> CheckerState<'a> {
         }
         let node_members: Option<&tsc_binder::SymbolTable> = self
             .node_symbol(node)
-            .map(|s| &self.binder.symbol(s).members);
+            .map(|s| &*self.binder.symbol(s).members);
         let has_members = node_members.is_some_and(|m| !m.is_empty());
         let mut absent_optional: Vec<tsc_types::EscapedName> = Vec::new();
         if has_members {

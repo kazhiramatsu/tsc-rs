@@ -3,6 +3,7 @@
 //! getDeclarationName, the duplicate-declaration report family).
 
 use rustc_hash::FxHashMap;
+use std::sync::Arc;
 
 use crate::node_util::{
     declaration_name_to_string, get_containing_class, get_error_span_for_node,
@@ -622,9 +623,15 @@ impl<'a> BinderWorker<'a> {
     fn table_mut(&mut self, table: TableRef) -> &mut SymbolTable {
         match table {
             TableRef::Locals(node) => self.locals.entry(node).or_default(),
-            TableRef::Members(symbol) => &mut self.symbols.symbol_mut(symbol).members,
-            TableRef::Exports(symbol) => &mut self.symbols.symbol_mut(symbol).exports,
-            TableRef::GlobalExports(symbol) => &mut self.symbols.symbol_mut(symbol).global_exports,
+            TableRef::Members(symbol) => {
+                Arc::make_mut(&mut self.symbols.symbol_mut(symbol).members)
+            }
+            TableRef::Exports(symbol) => {
+                Arc::make_mut(&mut self.symbols.symbol_mut(symbol).exports)
+            }
+            TableRef::GlobalExports(symbol) => {
+                Arc::make_mut(&mut self.symbols.symbol_mut(symbol).global_exports)
+            }
         }
     }
 
@@ -1251,9 +1258,15 @@ impl BinderWorker<'_> {
         if has_private_serials {
             for symbol in symbols.symbols_mut() {
                 serial_relocation.name(&mut symbol.escaped_name)?;
-                relocate_private_table_keys(&mut symbol.members, &serial_relocation)?;
-                relocate_private_table_keys(&mut symbol.exports, &serial_relocation)?;
-                relocate_private_table_keys(&mut symbol.global_exports, &serial_relocation)?;
+                for table in [
+                    &mut symbol.members,
+                    &mut symbol.exports,
+                    &mut symbol.global_exports,
+                ] {
+                    if !table.is_empty() {
+                        relocate_private_table_keys(Arc::make_mut(table), &serial_relocation)?;
+                    }
+                }
             }
         }
         // A relocation is a range shift of every id, independent of the

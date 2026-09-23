@@ -517,7 +517,7 @@ impl<'a> CheckerState<'a> {
             }
             let properties = members.values().copied().collect();
             Ok(ResolvedMembers {
-                members,
+                members: members.into(),
                 properties,
                 call_signatures: Vec::new(),
                 construct_signatures: Vec::new(),
