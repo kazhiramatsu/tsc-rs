@@ -275,6 +275,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 1de145bdc6a4fc936f2d547c707305081eede73870da72023bc151fa83e65252
     /// tsc-span: _tsc.js:63327-63358
     pub fn get_mapped_type(&mut self, ty: TypeId, mapper: MapperId) -> CheckResult<TypeId> {
+        self.profile_ops[crate::line_profile::OP_MAPPED] += 1;
         match self.mapper(mapper).clone() {
             TypeMapper::Simple { source, target } => Ok(if ty == source { target } else { ty }),
             TypeMapper::Array { sources, targets } => {
@@ -695,9 +696,25 @@ impl<'a> CheckerState<'a> {
         let target = if is_reference {
             // 63466: the canonical deferred reference cached on the
             // node hosts the instantiations map.
-            self.links
+            match self
+                .links
                 .read_node(declaration, |links| links.resolved_type.resolved())
-                .expect("deferred references are node-cached before instantiation")
+            {
+                Some(target) => target,
+                None => {
+                    // The node's cache was unwound with a discarded
+                    // speculative candidate while this reference, created
+                    // in that candidate, stayed reachable (a signature's
+                    // resolved return type, for one). Resolving the node
+                    // again re-creates and caches the canonical reference,
+                    // as if the candidate had never resolved it; tsc never
+                    // unwinds, so its cache is always present here.
+                    let resolved = self.get_type_from_type_node(declaration)?;
+                    self.links
+                        .read_node(declaration, |links| links.resolved_type.resolved())
+                        .unwrap_or(resolved)
+                }
+            }
         } else if object_flags.intersects(ObjectFlags::INSTANTIATED) {
             match &self.tables.type_of(ty).data {
                 TypeData::Mapped(mapped) => mapped
@@ -2478,11 +2495,9 @@ impl<'a> CheckerState<'a> {
             return Ok(existing);
         }
         let instantiation = self.create_signature_instantiation(signature, type_arguments)?;
-        if self.speculation_depth == 0 {
-            self.signatures[signature.0 as usize]
-                .instantiations
-                .insert(key, instantiation);
-        }
+        self.signatures[signature.0 as usize]
+            .instantiations
+            .insert(key, instantiation);
         Ok(instantiation)
     }
 
@@ -2611,9 +2626,7 @@ impl<'a> CheckerState<'a> {
             return Ok(cached);
         }
         let erased = self.create_erased_signature(signature)?;
-        if self.speculation_depth == 0 {
-            self.signatures[signature.0 as usize].erased_signature_cache = Some(erased);
-        }
+        self.signatures[signature.0 as usize].erased_signature_cache = Some(erased);
         Ok(erased)
     }
 
@@ -2631,9 +2644,7 @@ impl<'a> CheckerState<'a> {
             return Ok(cached);
         }
         let canonical = self.create_canonical_signature(signature)?;
-        if self.speculation_depth == 0 {
-            self.signatures[signature.0 as usize].canonical_signature_cache = Some(canonical);
-        }
+        self.signatures[signature.0 as usize].canonical_signature_cache = Some(canonical);
         Ok(canonical)
     }
 
@@ -2707,9 +2718,7 @@ impl<'a> CheckerState<'a> {
             final_mapper,
             /*erase_type_parameters*/ true,
         )?;
-        if self.speculation_depth == 0 {
-            self.signatures[signature.0 as usize].base_signature_cache = Some(base);
-        }
+        self.signatures[signature.0 as usize].base_signature_cache = Some(base);
         Ok(base)
     }
 

@@ -32,7 +32,7 @@ fn cache_keys(state: &CheckerState<'_>, node: tsc_syntax::NodeId) -> rustc_hash:
 }
 
 #[test]
-fn nonexistent_property_cache_deduplicates_within_nested_speculation() {
+fn nonexistent_property_cache_persists_across_nested_speculation() {
     with_state(|state| {
         let node = state.binder.source(0).root;
         let permanent = format!("{}|false", state.tables.intrinsics.string.0);
@@ -110,13 +110,13 @@ fn nonexistent_property_cache_deduplicates_within_nested_speculation() {
         ]);
         assert_eq!(
             observed,
-            [false, true, false, false, true, false, true, false, true, false, false]
+            [false, true, false, false, true, false, true, true, true, true, true]
         );
     });
 }
 
 #[test]
-fn nonexistent_property_cache_restores_every_transaction_boundary() {
+fn nonexistent_property_cache_persists_across_every_transaction_boundary() {
     with_state(|state| {
         let node = state.binder.source(0).root;
         let permanent = format!("{}|false", state.tables.intrinsics.string.0);
@@ -156,7 +156,8 @@ fn nonexistent_property_cache_restores_every_transaction_boundary() {
             );
             observed.push((visible_inside, cache_keys(state, node) == baseline));
         }
-        assert_eq!(observed, [(true, true); 4]);
+        // Visible inside the trial and kept afterwards, whatever the outcome.
+        assert_eq!(observed, [(true, false); 4]);
     });
 }
 
@@ -254,6 +255,19 @@ struct Observed {
     potential_unused_renamed_binding_elements_in_types: usize,
 }
 
+/// The observation after one `mutate_everything` trial unwound: the sinks
+/// keep what the trial reported (tsc semantics), everything else returns
+/// to its entry value.
+fn reported_once(before: Observed) -> Observed {
+    Observed {
+        diagnostics: before.diagnostics + 1,
+        visible_global_diagnostics: before.visible_global_diagnostics + 1,
+        partial_check_records: before.partial_check_records + 1,
+        partially_checked_files: before.partially_checked_files.max(1),
+        ..before
+    }
+}
+
 fn observe(state: &CheckerState) -> Observed {
     Observed {
         speculation_depth: state.speculation_depth,
@@ -295,14 +309,14 @@ fn observe(state: &CheckerState) -> Observed {
 }
 
 #[test]
-fn rollback_restores_stacks_counters_and_sinks() {
+fn rollback_restores_stacks_and_counters_and_keeps_sinks() {
     with_state(|state| {
         let before = observe(state);
         let checkpoint = state.begin_speculation();
         assert_eq!(state.speculation_depth, 1);
         mutate_everything(state);
         state.rollback_speculation(checkpoint);
-        assert_eq!(observe(state), before);
+        assert_eq!(observe(state), reported_once(before));
     });
 }
 
@@ -347,7 +361,7 @@ fn commit_keeps_sinks_and_budget_consumption() {
 }
 
 #[test]
-fn link_protocols_are_temporary_on_commit_and_rollback() {
+fn link_protocols_persist_on_commit_and_rollback() {
     with_state(|state| {
         let committed_node = state.binder.source(0).root;
         let rolled_back_node = state
@@ -415,25 +429,27 @@ fn link_protocols_are_temporary_on_commit_and_rollback() {
         state.commit_speculation(committed);
         assert!(matches!(
             state.links.node(committed_node).resolved_signature,
-            LinkSlot::Vacant
+            LinkSlot::Resolved(_)
         ));
+        // A completed node resolution persists (tsc never clears
+        // links.resolvedType); only a `Resolving` sentinel is unwound.
         assert!(matches!(
             state.links.node(committed_node).resolved_type,
-            LinkSlot::Vacant
+            LinkSlot::Resolved(_)
         ));
         assert!(matches!(
             state.links.symbol(committed_symbol).declared_type,
-            LinkSlot::Vacant
+            LinkSlot::Resolved(_)
         ));
         assert!(state
             .links
             .symbol(committed_symbol)
             .cold()
             .unique_es_symbol_type
-            .is_none());
+            .is_some());
         assert!(matches!(
             state.links.ty(committed_type).resolved_members,
-            LinkSlot::Vacant
+            LinkSlot::Resolved(_)
         ));
 
         let rolled_back = state.begin_speculation();
@@ -447,25 +463,25 @@ fn link_protocols_are_temporary_on_commit_and_rollback() {
         state.rollback_speculation(rolled_back);
         assert!(matches!(
             state.links.node(rolled_back_node).resolved_signature,
-            LinkSlot::Vacant
+            LinkSlot::Resolved(_)
         ));
         assert!(matches!(
             state.links.node(rolled_back_node).resolved_type,
-            LinkSlot::Vacant
+            LinkSlot::Resolved(_)
         ));
         assert!(matches!(
             state.links.symbol(rolled_back_symbol).declared_type,
-            LinkSlot::Vacant
+            LinkSlot::Resolved(_)
         ));
         assert!(state
             .links
             .symbol(rolled_back_symbol)
             .cold()
             .unique_es_symbol_type
-            .is_none());
+            .is_some());
         assert!(matches!(
             state.links.ty(rolled_back_type).resolved_members,
-            LinkSlot::Vacant
+            LinkSlot::Resolved(_)
         ));
         assert_eq!(state.links.speculative_resolved_signature_mark(), 0);
         assert_eq!(state.links.speculative_resolved_type_mark(), 0);
@@ -476,7 +492,7 @@ fn link_protocols_are_temporary_on_commit_and_rollback() {
 }
 
 #[test]
-fn declaration_signatures_commit_and_nested_rollback_restores() {
+fn declaration_signatures_persist_through_nested_rollback() {
     with_program_state(
         &[(
             "a.ts",
@@ -516,7 +532,7 @@ fn declaration_signatures_commit_and_nested_rollback_restores() {
             state.rollback_speculation(outer);
             assert!(matches!(
                 state.links.node(g).resolved_signature,
-                LinkSlot::Vacant
+                LinkSlot::Resolved(_)
             ));
             assert_eq!(state.links.speculative_declaration_signature_mark(), 0);
         },
@@ -524,7 +540,7 @@ fn declaration_signatures_commit_and_nested_rollback_restores() {
 }
 
 #[test]
-fn selected_context_state_commits_and_nested_rollback_restores() {
+fn selected_context_state_persists_through_nested_rollback() {
     with_state(|state| {
         let mut nodes = state.binder.source(0).arena.node_ids();
         let committed_node = nodes.next().expect("fixture root");
@@ -591,22 +607,22 @@ fn selected_context_state_commits_and_nested_rollback_restores() {
         );
 
         state.rollback_speculation(outer);
-        assert!(!state
+        assert!(state
             .links
             .node(nested_node)
             .check_flags
             .intersects(NodeCheckFlags::CONTEXT_CHECKED));
-        assert!(matches!(
-            state.links.symbol(nested_symbol).type_of_symbol,
-            LinkSlot::Vacant
-        ));
+        assert_eq!(
+            state.links.symbol(nested_symbol).type_of_symbol.resolved(),
+            Some(state.tables.intrinsics.number)
+        );
         assert_eq!(state.links.speculative_context_checked_mark(), 0);
         assert_eq!(state.links.speculative_symbol_type_mark(), 0);
     });
 }
 
 #[test]
-fn rejected_candidate_retains_completed_context_state_and_its_diagnostics() {
+fn rejected_candidate_keeps_its_context_state_and_diagnostics() {
     with_state(|state| {
         let node = state.binder.source(0).root;
         let contextual_symbol = state.binder.create_symbol(
@@ -665,20 +681,32 @@ fn rejected_candidate_retains_completed_context_state_and_its_diagnostics() {
                 .resolved(),
             Some(state.tables.intrinsics.string)
         );
-        assert!(matches!(
-            state.links.symbol(temporary_symbol).type_of_symbol,
-            LinkSlot::Vacant
-        ));
-        assert_eq!(state.diagnostics.len(), diagnostics_before + 1);
         assert_eq!(
             state
-                .diagnostics
-                .last()
-                .unwrap()
-                .message_text()
-                .as_str()
-                .expect("scalar diagnostic observation"),
-            "Cannot find name 'contextual'."
+                .links
+                .symbol(temporary_symbol)
+                .type_of_symbol
+                .resolved(),
+            Some(state.tables.intrinsics.number)
+        );
+        // Both rows the candidate reported persist, in report order.
+        assert_eq!(state.diagnostics.len(), diagnostics_before + 2);
+        let reported = state.diagnostics[diagnostics_before..]
+            .iter()
+            .map(|diagnostic| {
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation")
+                    .to_owned()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            reported,
+            [
+                "Cannot find name 'contextual'.",
+                "Cannot find name 'trial'."
+            ]
         );
         assert_eq!(state.links.speculative_context_checked_mark(), 0);
         assert_eq!(state.links.speculative_symbol_type_mark(), 0);
@@ -709,13 +737,14 @@ fn speculate_outcomes_commit_and_rollback() {
             Ok(SpeculationOutcome::Rollback(2))
         });
         assert_eq!(rolled_back, Ok(2));
-        assert_eq!(state.diagnostics.len(), baseline + 1);
+        // The rolled-back candidate's row stays reported (tsc semantics).
+        assert_eq!(state.diagnostics.len(), baseline + 2);
         assert_eq!(state.speculation_depth, 0);
     });
 }
 
 #[test]
-fn signature_return_seals_commit_and_nested_rollback_restores() {
+fn signature_return_seals_persist_through_rollback() {
     with_program_state(
         &[("a.ts", "declare function f(): string;\n")],
         &CompilerOptions::default(),
@@ -737,7 +766,7 @@ fn signature_return_seals_commit_and_nested_rollback_restores() {
             state.rollback_speculation(rolled_back);
             assert!(matches!(
                 state.signature_of(signature).resolved_return_type,
-                LinkSlot::Vacant
+                LinkSlot::Resolved(ty) if ty == state.tables.intrinsics.string
             ));
 
             let outer = state.begin_speculation();
@@ -751,7 +780,7 @@ fn signature_return_seals_commit_and_nested_rollback_restores() {
             state.rollback_speculation(outer);
             assert!(matches!(
                 state.signature_of(signature).resolved_return_type,
-                LinkSlot::Vacant
+                LinkSlot::Resolved(_)
             ));
 
             let committed = state.begin_speculation();
@@ -782,7 +811,7 @@ fn speculate_rolls_back_before_err_reaches_caller() {
             Err(boundary_probe())
         });
         assert_eq!(result, Err(boundary_probe()));
-        assert_eq!(observe(state), before);
+        assert_eq!(observe(state), reported_once(before));
     });
 }
 
@@ -805,7 +834,7 @@ fn nested_speculation_resolves_lifo() {
 }
 
 #[test]
-fn tsc_eager_nested_reporting_rows_survive_inner_rollback_while_ordinary_rows_do_not() {
+fn tsc_eager_and_ordinary_rows_survive_inner_rollback() {
     with_state(|state| {
         let diagnostics_before = state.diagnostics.len();
         let visible_before = state.visible_global_diagnostics.len();
@@ -837,15 +866,15 @@ fn tsc_eager_nested_reporting_rows_survive_inner_rollback_while_ordinary_rows_do
         );
 
         state.rollback_speculation(inner);
-        assert!(!state.diagnostics.contains(&ordinary_before));
-        assert!(!state.diagnostics.contains(&ordinary_after));
+        assert!(state.diagnostics.contains(&ordinary_before));
+        assert!(state.diagnostics.contains(&ordinary_after));
         assert!(state.diagnostics.contains(&eager));
         assert!(state.visible_global_diagnostics.contains(&eager));
         assert_eq!(state.tsc_eager_iteration_capture_depth, 1);
 
         state.end_tsc_eager_iteration_diagnostic_capture(outer_capture);
         state.rollback_speculation(outer);
-        assert_eq!(state.diagnostics.len(), diagnostics_before + 1);
+        assert_eq!(state.diagnostics.len(), diagnostics_before + 3);
         assert_eq!(state.visible_global_diagnostics.len(), visible_before + 1);
         assert_eq!(
             state
@@ -934,13 +963,13 @@ fn tsc_eager_iteration_diagnostic_survives_nested_and_outer_rollback_in_both_sin
         assert_eq!(state.tsc_eager_diagnostics[0].related.len(), 1);
 
         state.rollback_speculation(inner);
-        assert!(!state.diagnostics.contains(&ordinary));
+        assert!(state.diagnostics.contains(&ordinary));
         assert!(state.diagnostics.contains(&eager));
         assert!(state.visible_global_diagnostics.contains(&eager));
         assert_eq!(state.tsc_eager_diagnostics, std::slice::from_ref(&eager));
 
         state.rollback_speculation(outer);
-        assert_eq!(state.diagnostics.len(), diagnostics_before + 1);
+        assert_eq!(state.diagnostics.len(), diagnostics_before + 2);
         assert_eq!(state.visible_global_diagnostics.len(), visible_before + 1);
         assert!(state.diagnostics.contains(&eager));
         assert!(state.visible_global_diagnostics.contains(&eager));
@@ -1036,7 +1065,7 @@ fn revert_twin_is_legal_under_speculation() {
 }
 
 #[test]
-fn ranges_rollback_truncates_files_and_removes_new_ones() {
+fn ranges_persist_through_rollback() {
     with_program_state(
         &[
             ("a.ts", "declare var a: string;\n"),
@@ -1057,17 +1086,18 @@ fn ranges_rollback_truncates_files_and_removes_new_ones() {
             // New file: inserts a fresh map key.
             state.mark_partially_checked_node(file_b, "speculative new-file");
             state.rollback_speculation(checkpoint);
-            assert_eq!(state.partially_checked_ranges.len(), 1);
-            assert_eq!(state.partially_checked_ranges[&0].len(), 1);
-            assert_eq!(state.partial_check_records.len(), records_before);
+            // Partial-check evidence persists with the trial's results.
+            assert_eq!(state.partially_checked_ranges.len(), 2);
+            assert_eq!(state.partially_checked_ranges[&0].len(), 2);
+            assert_eq!(state.partial_check_records.len(), records_before + 2);
         },
     );
 }
 
-/// Cold structural signature answers may be computed during a
-/// trial, but the permanent raw-signature cache stays untouched.
+/// Structural signature answers computed during a trial persist in the
+/// permanent raw-signature cache, as tsc's signature.erasedSignatureCache.
 #[test]
-fn erased_signature_cache_is_bypassed_under_speculation() {
+fn erased_signature_cache_persists_under_speculation() {
     with_program_state(
         &[("a.ts", "declare function f<T>(x: T): T;\n")],
         &CompilerOptions::default(),
@@ -1082,26 +1112,25 @@ fn erased_signature_cache_is_bypassed_under_speculation() {
             let erased = state
                 .speculate(|state| {
                     let erased = state.get_erased_signature(signature)?;
-                    assert!(state
-                        .signature_of(signature)
-                        .erased_signature_cache
-                        .is_none());
+                    assert_eq!(
+                        state.signature_of(signature).erased_signature_cache,
+                        Some(erased)
+                    );
                     Ok(SpeculationOutcome::Rollback(erased))
                 })
-                .expect("trial computes without publishing");
+                .expect("trial computes and publishes");
             assert_ne!(erased, signature);
-            assert!(state
-                .signature_of(signature)
-                .erased_signature_cache
-                .is_none());
+            assert_eq!(
+                state.signature_of(signature).erased_signature_cache,
+                Some(erased)
+            );
         },
     );
 }
 
-/// The canonical twin: prerequisite structural caches may be
-/// warm, but the cold canonical slot is still not published.
+/// The canonical twin persists as well (tsc's canonicalSignatureCache).
 #[test]
-fn canonical_signature_cache_is_bypassed_under_speculation() {
+fn canonical_signature_cache_persists_under_speculation() {
     with_program_state(
         &[("a.ts", "declare function f<T>(x: T): T;\n")],
         &CompilerOptions::default(),
@@ -1129,18 +1158,18 @@ fn canonical_signature_cache_is_bypassed_under_speculation() {
             let canonical = state
                 .speculate(|state| {
                     let canonical = state.get_canonical_signature(signature)?;
-                    assert!(state
-                        .signature_of(signature)
-                        .canonical_signature_cache
-                        .is_none());
+                    assert_eq!(
+                        state.signature_of(signature).canonical_signature_cache,
+                        Some(canonical)
+                    );
                     Ok(SpeculationOutcome::Rollback(canonical))
                 })
-                .expect("trial computes without publishing");
+                .expect("trial computes and publishes");
             assert_ne!(canonical, signature);
-            assert!(state
-                .signature_of(signature)
-                .canonical_signature_cache
-                .is_none());
+            assert_eq!(
+                state.signature_of(signature).canonical_signature_cache,
+                Some(canonical)
+            );
         },
     );
 }

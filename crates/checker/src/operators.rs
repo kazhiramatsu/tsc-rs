@@ -3692,14 +3692,18 @@ impl<'a> CheckerState<'a> {
         let Some(list) = list else {
             return false;
         };
-        let Some(current) = self.current_node else {
-            return false;
-        };
-        let source = self.binder.source_of_node(current);
-        let array = source.arena.node_array(list);
+        // The list belongs to the node whose grammar is checked, which a
+        // constraint or type query may have brought in from another file
+        // (tsc reports at list[0]'s source file): route by the array and
+        // its first element, never by the file under check.
+        let array = self.binder.node_array(list);
         if !array.has_trailing_comma {
             return false;
         }
+        let Some(&first) = array.nodes.first() else {
+            return false;
+        };
+        let source = self.binder.source_of_node(first);
         if !source.parse_diagnostics.is_empty() {
             return false;
         }

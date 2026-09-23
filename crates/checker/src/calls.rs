@@ -1897,13 +1897,11 @@ impl<'a> CheckerState<'a> {
         let result = self.clone_signature(signature);
         let data = self.signature_mut(result);
         data.flags = SignatureFlags::from_bits(data.flags.bits() | call_chain_flags.bits());
-        if self.speculation_depth == 0 {
-            let cache = &mut self.signature_mut(signature).optional_call_signature_cache;
-            if inner {
-                cache.0 = Some(result);
-            } else {
-                cache.1 = Some(result);
-            }
+        let cache = &mut self.signature_mut(signature).optional_call_signature_cache;
+        if inner {
+            cache.0 = Some(result);
+        } else {
+            cache.1 = Some(result);
         }
         result
     }
@@ -6805,6 +6803,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         check_mode: CheckMode,
     ) -> CheckResult<SignatureId> {
+        self.profile_ops[crate::line_profile::OP_SIGNATURES] += 1;
         let cached = self
             .links
             .read_node(node, |links| links.resolved_signature.clone());

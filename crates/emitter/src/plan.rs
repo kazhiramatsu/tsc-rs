@@ -309,7 +309,7 @@ impl EmitPreflight {
     /// The declaration/reference paths projected from this plan for `host`
     /// (the host the plan was computed for): getOutputPathsFor over every
     /// planned unit, built once.
-    pub(crate) fn declaration_paths(&self, host: &dyn EmitHost) -> &crate::PlanDeclarationPaths {
+    pub fn declaration_paths(&self, host: &dyn EmitHost) -> &crate::PlanDeclarationPaths {
         self.declaration_paths
             .get_or_init(|| crate::PlanDeclarationPaths::new(host, self))
     }

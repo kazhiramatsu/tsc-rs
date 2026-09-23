@@ -523,6 +523,11 @@ pub struct CheckerState<'a> {
     /// tsc evolvingArrayTypes (70079): elementType→evolving-array memo
     /// (tsc indexes a sparse array by elementType.id).
     pub(crate) evolving_array_types: rustc_hash::FxHashMap<TypeId, TypeId>,
+    /// tsc's IsGenericTypeComputed memo (getGenericObjectFlags 62442/62448):
+    /// the generic object/index flags of a type, computed once. A real
+    /// program's mapped/conditional instantiation queries them constantly
+    /// (29% of a Next.js check recomputed them).
+    pub(crate) generic_object_flags: rustc_hash::FxHashMap<TypeId, ObjectFlags>,
     /// tsc EvolvingArrayType.finalArrayType (getFinalArrayType 70091):
     /// evolving→final memo — the arena Type is immutable once minted,
     /// so the per-type lazy slot lives here.
@@ -572,6 +577,12 @@ pub struct CheckerState<'a> {
     /// inside — related-info anchor for depth-limiter diagnostics
     /// (instantiateTypeWithAlias's 2589).
     pub(crate) current_node: Option<NodeId>,
+    /// `TSRS_LINE_PROFILE`: per-source-line time and work of every
+    /// statement-level check (see `line_profile`).
+    pub(crate) line_profile: crate::line_profile::LineProfiler<'a>,
+    /// Operation counters the line profile snapshots around each element
+    /// (`line_profile::OP_*`); plain increments, always on.
+    pub(crate) profile_ops: [u64; crate::line_profile::OPS],
     /// tsc NodeLinks.deferredNodes, keyed by the owning file's root
     /// node. Driver state, not memoization (like the resolution stack),
     /// so it lives here instead of the clone-on-read NodeLinks; the JS
@@ -1281,6 +1292,7 @@ impl<'a> CheckerState<'a> {
             shared_flow: Vec::new(),
             reduce_label_overrides: rustc_hash::FxHashMap::default(),
             evolving_array_types: rustc_hash::FxHashMap::default(),
+            generic_object_flags: rustc_hash::FxHashMap::default(),
             final_array_types: rustc_hash::FxHashMap::default(),
             flow_loop_caches: rustc_hash::FxHashMap::default(),
             last_flow_node: None,
@@ -1290,6 +1302,8 @@ impl<'a> CheckerState<'a> {
             within_unreachable_code: false,
             reported_unreachable_nodes: rustc_hash::FxHashSet::default(),
             current_node: None,
+            line_profile: crate::line_profile::LineProfiler::new(),
+            profile_ops: [0; crate::line_profile::OPS],
             deferred_nodes: rustc_hash::FxHashMap::default(),
             potential_this_collisions: Vec::new(),
             potential_new_target_collisions: Vec::new(),
@@ -1692,24 +1706,8 @@ impl<'a> CheckerState<'a> {
     /// When the commit is nested, promote the first-write snapshot to
     /// the parent transaction so a later outer rollback can still
     /// restore its entry state.
-    pub(crate) fn commit_speculative_signature_returns(&mut self, mark: usize, parent_depth: u32) {
-        let committed: Vec<_> = self
-            .speculative_signature_return_writes
-            .drain(mark..)
-            .collect();
-        if parent_depth == 0 {
-            return;
-        }
-        for (_, signature, previous) in committed {
-            if !self
-                .speculative_signature_return_writes
-                .iter()
-                .any(|(depth, existing, _)| *depth == parent_depth && *existing == signature)
-            {
-                self.speculative_signature_return_writes
-                    .push((parent_depth, signature, previous));
-            }
-        }
+    pub(crate) fn commit_speculative_signature_returns(&mut self, mark: usize, _parent_depth: u32) {
+        self.restore_speculative_signature_returns(mark);
     }
 
     /// tsrs-native: restore candidate-local signature return slots.
@@ -1719,7 +1717,10 @@ impl<'a> CheckerState<'a> {
                 .speculative_signature_return_writes
                 .pop()
                 .expect("length checked");
-            self.signatures[signature.0 as usize].resolved_return_type = previous;
+            let slot = &mut self.signatures[signature.0 as usize].resolved_return_type;
+            if slot.is_resolving() {
+                *slot = previous;
+            }
         }
     }
 

@@ -31,7 +31,8 @@ impl<'a> CheckerState<'a> {
     /// transaction must trip HERE, not silently memoize a
     /// speculative value.
     fn narrow_cache_writable(&self) -> bool {
-        self.speculation_depth == 0
+        // tsc keeps these caches from a candidate trial as well.
+        true
     }
 
     /// tsc-port: narrowType @6.0.3

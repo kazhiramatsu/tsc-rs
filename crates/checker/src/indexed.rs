@@ -618,10 +618,18 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 7ea070b17fceb8ba8275f5641dccb325aeff6b32c33b499e1de70b696192d94f
     /// tsc-span: _tsc.js:62440-62454
     ///
-    /// The IsGenericTypeComputed memo (62442/62448) is elided: the
-    /// port's type tables are append-only, so the composite reduction
-    /// recomputes per query — cache-only deviation, verdict-identical.
+    /// The IsGenericTypeComputed memo (62442/62448) lives in
+    /// `generic_object_flags`: the first answer sticks, as tsc's flag bits do.
     pub(crate) fn get_generic_object_flags(&mut self, ty: TypeId) -> CheckResult<ObjectFlags> {
+        if let Some(&memo) = self.generic_object_flags.get(&ty) {
+            return Ok(memo);
+        }
+        let computed = self.get_generic_object_flags_uncached(ty)?;
+        self.generic_object_flags.insert(ty, computed);
+        Ok(computed)
+    }
+
+    fn get_generic_object_flags_uncached(&mut self, ty: TypeId) -> CheckResult<ObjectFlags> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::UNION | TypeFlags::INTERSECTION) {
             let (TypeData::Union { types, .. } | TypeData::Intersection { types }) =
@@ -962,6 +970,7 @@ impl<'a> CheckerState<'a> {
         alias_type_arguments: Option<&[TypeId]>,
         synthetic_access: bool,
     ) -> CheckResult<Option<TypeId>> {
+        self.profile_ops[crate::line_profile::OP_INDEXED] += 1;
         if object_type == self.tables.intrinsics.wildcard
             || index_type == self.tables.intrinsics.wildcard
         {

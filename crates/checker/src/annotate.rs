@@ -4141,6 +4141,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:58679-58704
     ///
     pub fn resolve_structured_type_members(&mut self, ty: TypeId) -> CheckResult<MembersId> {
+        self.profile_ops[crate::line_profile::OP_MEMBERS] += 1;
         if let Some(members) = self
             .links
             .read_ty(ty, |links| links.resolved_members.resolved())
@@ -4974,16 +4975,9 @@ impl<'a> CheckerState<'a> {
         })(self, &mut freshly_bound);
         match result {
             Ok(resolved) => {
-                if self.speculation_depth != 0 {
-                    if is_static {
-                        self.links.revert_symbol_resolved_exports(symbol);
-                    } else {
-                        self.links.revert_symbol_resolved_members(symbol);
-                    }
-                    for member in freshly_bound {
-                        self.links.revert_node_resolved_symbol_late_bind(member);
-                    }
-                } else if is_static {
+                // The combined table persists from a candidate trial as
+                // well: tsc resolves a symbol's members once.
+                if is_static {
                     self.links.set_symbol_resolved_exports_late_bind(
                         self.speculation_depth,
                         symbol,

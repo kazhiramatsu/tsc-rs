@@ -220,7 +220,7 @@ fn class_union_tuple_rest_variance_survives_nested_candidate_measurement() {
 }
 
 #[test]
-fn rolled_back_tuple_rest_variance_replays_relation_cache_markers() {
+fn rolled_back_tuple_rest_variance_persists_with_relation_cache_markers() {
     with_program_state(
         &[("a.ts", TUPLE_REST_CLASS_SOURCE)],
         &CompilerOptions {
@@ -241,7 +241,7 @@ fn rolled_back_tuple_rest_variance_replays_relation_cache_markers() {
                 .expect("rolled-back variance measurement completes");
             assert!(matches!(
                 state.links.symbol(holder_symbol).cold().variances,
-                LinkSlot::Vacant
+                LinkSlot::Resolved(_)
             ));
 
             // Relation caches are monotone across candidate rollback. Their

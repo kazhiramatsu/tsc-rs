@@ -3258,9 +3258,11 @@ fn sharded_checker_budgets_publish_the_serial_no_emit_outcome() {
 
 /// W2c: a sharded session whose result could depend on shard-local type-id
 /// order (last-member inference over an intersection of two shard-local
-/// function types) is replayed serially and publishes the serial outcome; the
+/// function types) is replayed serially in the exact mode
+/// (`CheckerBudget::with_order_replay`) and publishes the serial outcome; the
 /// work counters prove the replay happened, and the clean merged-declaration
-/// program above never replays.
+/// program above never replays. The default mode keeps the sharded result,
+/// records the consumed order in the same counters and stays deterministic.
 #[test]
 fn sharded_session_replays_order_sensitive_inference_serially() {
     let padding = (0..80)
@@ -3276,7 +3278,7 @@ fn sharded_session_replays_order_sensitive_inference_serially() {
             "type UnionToIntersection<U> = (U extends unknown ? (k: U) => void : never) extends (k: infer I) => void ? I : never;\ntype LastOf<U> = UnionToIntersection<U extends unknown ? () => U : never> extends () => infer R ? R : never;\ndeclare const last: LastOf<Alpha | Beta>;\nconst check: Beta = last;\n",
         ),
     ];
-    let run = |checkers: usize| {
+    let run_with = |checkers: usize, order_replay: bool| {
         consume(
             ProgramSession::new(prepared_program(
                 &files,
@@ -3287,11 +3289,21 @@ fn sharded_session_replays_order_sensitive_inference_serially() {
                     options.skip_lib_check = Some(true);
                 },
             ))
-            .with_checker_budget(CheckerBudget::new(
-                std::num::NonZeroUsize::new(checkers).expect("nonzero"),
-            )),
+            .with_checker_budget(
+                CheckerBudget::new(std::num::NonZeroUsize::new(checkers).expect("nonzero"))
+                    .with_order_replay(order_replay),
+            ),
         )
     };
+    let run = |checkers: usize| run_with(checkers, true);
+    let relaxed = run_with(2, false);
+    assert_eq!(relaxed.work_counters().checker_serial_replay(), 0);
+    assert_ne!(relaxed.work_counters().checker_replay_reasons(), 0);
+    assert_eq!(
+        run_with(2, false),
+        relaxed,
+        "the relaxed mode is deterministic"
+    );
     let serial = run(1);
     assert_eq!(serial.work_counters().checker_serial_replay(), 0);
     let serial_codes = codes(serial.semantic_diagnostics());
@@ -3471,9 +3483,10 @@ fn assert_sharded_control(types: &str, first: &str, second: &str, expected: &[Ob
             },
         );
         consume(
-            ProgramSession::new(prepared).with_checker_budget(CheckerBudget::new(
-                std::num::NonZeroUsize::new(checkers).expect("nonzero"),
-            )),
+            ProgramSession::new(prepared).with_checker_budget(
+                CheckerBudget::new(std::num::NonZeroUsize::new(checkers).expect("nonzero"))
+                    .with_order_replay(true),
+            ),
         )
     };
     let serial = run(1);

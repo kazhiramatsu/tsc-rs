@@ -114,6 +114,7 @@ pub mod iterate;
 mod js_grammar;
 mod jsdoc;
 pub mod jsx;
+pub mod line_profile;
 pub mod links;
 pub mod literals;
 pub mod mapped;
@@ -148,7 +149,7 @@ use tsc_diagnostics::{
 };
 use tsc_program::WorkerBudget;
 
-pub use crate::shard::{CheckerBudget, MAX_CHECKERS};
+pub use crate::shard::{order_replay_requested, CheckerBudget, MAX_CHECKERS};
 
 /// Whether checkSourceFile runs the unused-identifier pass when neither
 /// `noUnusedLocals` nor `noUnusedParameters` turns its rows into errors.
@@ -732,6 +733,11 @@ impl CheckWorkCounters {
 
     fn record_serial_replay(&mut self, reasons: u32) {
         self.checker_serial_replay = 1;
+        self.checker_replay_reasons = u64::from(reasons);
+    }
+
+    /// Order-guard reasons a merged (not replayed) sharded run recorded.
+    fn record_order_reasons(&mut self, reasons: u32) {
         self.checker_replay_reasons = u64::from(reasons);
     }
 
@@ -2886,6 +2892,7 @@ fn run_checker_shard<'a>(
     complete_library_prefix: bool,
     keep_state: bool,
     leak_state: bool,
+    replay_on_order: bool,
 ) -> (ShardOutput, Option<state::CheckerState<'a>>) {
     let shard_started = std::time::Instant::now();
     let mut state = init_checker_state(snapshot, options, Some((provider, metadata)), host);
@@ -2917,6 +2924,14 @@ fn run_checker_shard<'a>(
         ));
         check_program_file(&mut state, program_file_id(file), &mut globals_by_file);
         files.push(file);
+        if state.order_guard.reasons() != 0 && replay_on_order {
+            // The replay is certain: release the other shards' remaining
+            // files too (a real program consumes shard-local type order in
+            // its first files; without this the whole parallel phase ran to
+            // completion before being discarded).
+            queue.abort();
+            break;
+        }
     }
     let fixture = LedgerSnapshot::take(&state, &globals_by_file);
     if complete_library_prefix {
@@ -2927,6 +2942,10 @@ fn run_checker_shard<'a>(
             ));
             check_program_file(&mut state, program_file_id(file), &mut globals_by_file);
             files.push(file);
+            if state.order_guard.reasons() != 0 && replay_on_order {
+                queue.abort();
+                break;
+            }
         }
     }
     files.sort_unstable();
@@ -2954,6 +2973,7 @@ fn run_checker_shard<'a>(
             shard_started,
         );
     }
+    state.line_profile.flush();
     let output = ShardOutput {
         fixture,
         complete,
@@ -2995,6 +3015,7 @@ fn merge_shard_outputs(
     mut outputs: Vec<ShardOutput>,
     collect_global_diagnostics: bool,
     work_counters: CheckWorkCounters,
+    replay_on_display_marks: bool,
 ) -> Result<CheckExecution, u32> {
     let authoritative_failure = outputs.iter_mut().find_map(|output| output.failure.take());
     debug_assert!(
@@ -3130,7 +3151,7 @@ fn merge_shard_outputs(
                     .flat_map(|file| file.semantic.iter().chain(file.suggestion.iter())),
             )
             .any(|row| marks.is_marked(row));
-        if published_marked {
+        if published_marked && replay_on_display_marks {
             return Err(marks.reasons());
         }
     }
@@ -3254,8 +3275,12 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         .iter()
         .map(|document| document.source().arena.len())
         .collect::<Vec<_>>();
-    let declaration_emit = options.declaration == Some(true) || options.composite == Some(true);
-    let queue = if !declaration_emit && weights.len() - lib_count >= 4 * checkers.checkers() {
+    // The deterministic node-count partition is the default: a run's
+    // shard-local type order then repeats run to run, as tsgo's does. The
+    // shared queue (`TSRS_SHARD_QUEUE=shared`) balances mixed cores better
+    // but lets the files a shard checks — and every ordering that follows
+    // type ids — vary between runs.
+    let queue = if shard::shared_queue_requested() {
         shard::ShardFileQueue::shared(lib_count, &weights, checkers.checkers())
     } else {
         shard::ShardFileQueue::partitioned(lib_count, &weights, checkers.checkers())
@@ -3299,6 +3324,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             complete_library_prefix,
             coordinate,
             checkers.leaks_states(),
+            checkers.order_replay(),
         )
     };
     #[allow(clippy::large_enum_variant)]
@@ -3380,10 +3406,14 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         work_counters.record_checker_shards(outputs.len() as u64, threads.len() as u64);
         perf::add(PerfCounter::CheckerShardsRun, outputs.len() as u64);
         perf::add(PerfCounter::CheckerShardThreads, threads.len() as u64);
+        let replay_on_order = checkers.order_replay();
         if order_reasons != 0 {
-            drop(outputs);
-            dispose_states(states);
-            return ShardedRun::Replay(order_reasons);
+            work_counters.record_order_reasons(order_reasons);
+            if replay_on_order {
+                drop(outputs);
+                dispose_states(states);
+                return ShardedRun::Replay(order_reasons);
+            }
         }
         // W2e: the merge itself decides whether a display-class mark reached
         // a published row; only then is the sharded result discarded.
@@ -3396,6 +3426,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             outputs,
             collect_global_diagnostics,
             work_counters,
+            replay_on_order,
         ) {
             Ok(execution) => execution,
             Err(marked_reasons) => {
@@ -3455,7 +3486,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             states.push(state);
         }
         dispose_states(states);
-        if emit_reasons != 0 {
+        if emit_reasons != 0 && replay_on_order {
             return ShardedRun::Replay(emit_reasons);
         }
         if let Some(emitted) = emitted {
@@ -3477,6 +3508,13 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     work_counters.record_serial_replay(replay_reasons);
     perf::add(PerfCounter::CheckerSerialReplays, 1);
     crate::order_guard::count_replay_reasons(replay_reasons);
+    let replay_started = std::time::Instant::now();
+    if tsc_types::trace::enabled() {
+        tsc_types::trace::mark(
+            &format!("checker: serial replay selected (order guard reasons {replay_reasons:#x})"),
+            replay_started,
+        );
+    }
     drop(hosts);
     let provider = factory.provider();
     let execution = check_snapshot_serially(
@@ -3591,6 +3629,7 @@ fn check_snapshot_serially(
     tsc_diagnostics::sort_and_dedupe_diagnostics(&mut diagnostics);
     let partial_checks = state.partial_check_records.clone();
     let authoritative_failure = state.take_authoritative_module_failure();
+    state.line_profile.flush();
     let result = assemble_check_result(
         &file_diagnostics,
         Some(&diagnostics),

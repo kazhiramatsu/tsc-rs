@@ -13,7 +13,7 @@
 //! exact single-checker behaviour.
 
 use std::num::NonZeroUsize;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 /// The most checker shards one budget ever uses, regardless of the machine.
 ///
@@ -31,6 +31,9 @@ pub struct CheckerBudget {
     /// process exits right after publishing; tearing down the links tables,
     /// type tables and transient symbols was ~5 % of its sampled ticks).
     leak_states: bool,
+    /// Discard an order-consuming sharded result for a serial replay (the
+    /// exact mode); see [`CheckerBudget::with_order_replay`].
+    order_replay: bool,
 }
 
 /// The automatic checker count is capped at eight: on a ten-core machine
@@ -39,6 +42,12 @@ pub struct CheckerBudget {
 /// faster with ten, while every extra shard repeats the lazy library-type
 /// work (CPU +19% at eight). tsgo's default stays four.
 const AUTOMATIC_CHECKERS_CAP: usize = 8;
+
+/// tsrs-native diagnostic control: `TSRS_ORDER_REPLAY=1` requests the exact
+/// mode of [`CheckerBudget::with_order_replay`] from the environment.
+pub fn order_replay_requested() -> bool {
+    std::env::var_os("TSRS_ORDER_REPLAY").is_some_and(|v| v == "1")
+}
 
 impl Default for CheckerBudget {
     /// The API default: one checker.
@@ -54,6 +63,7 @@ impl CheckerBudget {
         Self {
             checkers: NonZeroUsize::MIN,
             leak_states: false,
+            order_replay: false,
         }
     }
 
@@ -72,6 +82,7 @@ impl CheckerBudget {
                 None => NonZeroUsize::MIN,
             },
             leak_states: false,
+            order_replay: false,
         }
     }
 
@@ -84,6 +95,26 @@ impl CheckerBudget {
 
     pub const fn leaks_states(self) -> bool {
         self.leak_states
+    }
+
+    /// Whether a shard's order-consuming operation discards the sharded
+    /// result for a serial replay (the exact mode). By default the order
+    /// guard is telemetry only: every real program consumes shard-local
+    /// type order in its first files (union subtype reduction, common
+    /// supertypes, union signatures), so the replay made the parallel check
+    /// a wasted prologue to a serial one. The accepted divergences are those
+    /// tsgo accepts as well: orderings that follow type ids (union
+    /// constituents in displayed types, declaration output order), and the
+    /// order-dependent inference results such constructions produce; a run
+    /// is deterministic because the partition is. One checker remains the
+    /// exact serial mode.
+    pub const fn with_order_replay(mut self, replay: bool) -> Self {
+        self.order_replay = replay;
+        self
+    }
+
+    pub const fn order_replay(self) -> bool {
+        self.order_replay
     }
 
     /// The CLI default: one checker per available hardware thread, capped
@@ -139,6 +170,13 @@ pub(crate) fn partition_files(weights: &[usize], shards: usize) -> Vec<Vec<usize
     assignment
 }
 
+/// `TSRS_SHARD_QUEUE=shared` selects the shared Program-order queue (see
+/// [`ShardFileQueue`]); the default is the deterministic partition.
+pub(crate) fn shared_queue_requested() -> bool {
+    static SHARED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *SHARED.get_or_init(|| std::env::var_os("TSRS_SHARD_QUEUE").is_some_and(|v| v == "shared"))
+}
+
 /// The work queue the checker shards pull their files from, in one of two
 /// modes.
 ///
@@ -171,6 +209,10 @@ pub(crate) struct ShardFileQueue {
     lib_count: usize,
     file_count: usize,
     lanes: Lanes,
+    /// Set once any shard's order guard has recorded a reason: the driver
+    /// will discard every shard result and replay serially, so the shards
+    /// stop pulling files instead of finishing work that is thrown away.
+    aborted: AtomicBool,
 }
 
 #[derive(Debug)]
@@ -248,6 +290,7 @@ impl ShardFileQueue {
                 next_fixture: AtomicUsize::new(lib_count),
                 next_library: AtomicUsize::new(0),
             },
+            aborted: AtomicBool::new(false),
         }
     }
 
@@ -277,7 +320,18 @@ impl ShardFileQueue {
             lib_count,
             file_count: weights.len(),
             lanes: Lanes::Partitioned(lanes),
+            aborted: AtomicBool::new(false),
         }
+    }
+
+    /// Stop handing out files: a shard recorded an order-guard reason, so
+    /// the serial replay is already certain.
+    pub(crate) fn abort(&self) {
+        self.aborted.store(true, Ordering::Relaxed);
+    }
+
+    pub(crate) fn aborted(&self) -> bool {
+        self.aborted.load(Ordering::Relaxed)
     }
 
     /// The number of shards this queue serves (at least one).
@@ -304,6 +358,9 @@ impl ShardFileQueue {
 
     /// The next unchecked fixture for `shard`, in Program order, if any.
     pub(crate) fn next_fixture(&self, shard: usize) -> Option<usize> {
+        if self.aborted() {
+            return None;
+        }
         match &self.lanes {
             Lanes::Shared {
                 pinned,
@@ -323,6 +380,9 @@ impl ShardFileQueue {
 
     /// The next unchecked library file for `shard`, in Program order, if any.
     pub(crate) fn next_library(&self, shard: usize) -> Option<usize> {
+        if self.aborted() {
+            return None;
+        }
         match &self.lanes {
             Lanes::Shared {
                 pinned,

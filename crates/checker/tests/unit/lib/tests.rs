@@ -7154,7 +7154,7 @@ fn order_guard_replays_last_union_member_inference_at_every_width() {
         skip_lib_check: Some(true),
         ..CompilerOptions::default()
     };
-    let run = |checkers: usize| {
+    let run_with = |checkers: usize, order_replay: bool| {
         check_program_with_authoritative_modules_at_cache_mode_with_source(
             &libs,
             &files,
@@ -7169,11 +7169,19 @@ fn order_guard_replays_last_union_member_inference_at_every_width() {
             crate::LibraryPrefixCompletion::Complete,
             crate::DiagnosticSchedule::Eager,
             tsc_program::WorkerBudget::serial(),
-            CheckerBudget::new(std::num::NonZeroUsize::new(checkers).unwrap()),
+            CheckerBudget::new(std::num::NonZeroUsize::new(checkers).unwrap())
+                .with_order_replay(order_replay),
             None,
         )
         .expect("authoritative result")
     };
+    let run = |checkers: usize| run_with(checkers, true);
+    // The default (relaxed) budget keeps the sharded result, records the
+    // consumed order in its telemetry, and stays deterministic.
+    let relaxed = run_with(2, false);
+    assert_eq!(relaxed.work_counters.checker_serial_replay(), 0);
+    assert_ne!(relaxed.work_counters.checker_replay_reasons(), 0);
+    assert_eq!(run_with(2, false), relaxed);
     let serial = run(1);
     assert_eq!(serial.work_counters.checker_serial_replay(), 0);
     let program = serial
@@ -7414,7 +7422,8 @@ fn assert_order_guard_shape(
             crate::LibraryPrefixCompletion::Complete,
             crate::DiagnosticSchedule::Eager,
             tsc_program::WorkerBudget::serial(),
-            CheckerBudget::new(std::num::NonZeroUsize::new(checkers).unwrap()),
+            CheckerBudget::new(std::num::NonZeroUsize::new(checkers).unwrap())
+                .with_order_replay(true),
             None,
         )
         .expect("authoritative result")

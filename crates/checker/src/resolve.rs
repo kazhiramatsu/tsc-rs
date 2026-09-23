@@ -246,6 +246,7 @@ impl<'a> CheckerState<'a> {
         exclude_globals: bool,
         suggestion: bool,
     ) -> CheckResult<Option<SymbolId>> {
+        self.profile_ops[crate::line_profile::OP_RESOLVE_NAME] += 1;
         let original_location = location;
         let mut location = location;
         let mut result: Option<SymbolId> = None;
@@ -2910,10 +2911,8 @@ impl<'a> CheckerState<'a> {
             )?
         };
         let cached = resolved.unwrap_or(self.unknown_symbol);
-        if self.speculation_depth == 0 {
-            self.links
-                .set_node_resolved_symbol(self.speculation_depth, node, cached);
-        }
+        self.links
+            .set_node_resolved_symbol(self.speculation_depth, node, cached);
         Ok(resolved)
     }
 
