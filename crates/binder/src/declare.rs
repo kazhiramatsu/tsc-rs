@@ -54,7 +54,7 @@ pub struct BinderWorker<'a> {
     pub common_js_module_indicator: Option<NodeId>,
     pub symbols: SymbolArena,
     /// tsc node.symbol (set by addDeclarationToSymbol).
-    pub node_symbol: FxHashMap<NodeId, SymbolId>,
+    pub node_symbol: NodeSymbolMap,
     /// tsc node.localSymbol (set by declareModuleMember).
     pub node_local_symbol: FxHashMap<NodeId, SymbolId>,
     /// tsc container.locals, keyed by the scope-owning node.
@@ -146,7 +146,7 @@ pub struct BindData {
     pub language_version: i32,
     pub common_js_module_indicator: Option<NodeId>,
     pub symbols: SymbolArena,
-    pub node_symbol: FxHashMap<NodeId, SymbolId>,
+    pub node_symbol: NodeSymbolMap,
     pub node_local_symbol: FxHashMap<NodeId, SymbolId>,
     pub locals: FxHashMap<NodeId, SymbolTable>,
     pub js_global_augmentations: SymbolTable,
@@ -280,7 +280,7 @@ impl<'a> BinderWorker<'a> {
             language_version: options.emit_script_target().bits(),
             common_js_module_indicator: None,
             symbols: SymbolArena::with_base(symbol_base),
-            node_symbol: FxHashMap::with_capacity_and_hasher(node_count / 8, Default::default()),
+            node_symbol: NodeSymbolMap::with_len(source.arena.node_base(), node_count),
             node_local_symbol: FxHashMap::default(),
             locals: FxHashMap::with_capacity_and_hasher(node_count / 32, Default::default()),
             js_global_augmentations: SymbolTable::default(),
@@ -1529,3 +1529,74 @@ impl BinderWorker<'_> {
 #[cfg(test)]
 #[path = "../tests/unit/declare/tests.rs"]
 mod tests;
+
+/// tsc node.symbol for one source: one slot per node of the file, indexed by
+/// the node's offset from the arena base, instead of a hash map keyed by
+/// NodeId. About one node in eight declares a symbol, so the table is small,
+/// and both the binder's inserts and the checker's lookups are a bounds check
+/// and an index.
+#[derive(Clone, Debug, Default)]
+pub struct NodeSymbolMap {
+    base: u32,
+    slots: Vec<Option<SymbolId>>,
+}
+
+impl NodeSymbolMap {
+    pub fn with_len(base: u32, len: usize) -> Self {
+        Self {
+            base,
+            slots: vec![None; len],
+        }
+    }
+
+    fn slot(&self, node: &NodeId) -> Option<usize> {
+        node.0.checked_sub(self.base).map(|offset| offset as usize)
+    }
+
+    pub fn get(&self, node: &NodeId) -> Option<&SymbolId> {
+        self.slots.get(self.slot(node)?)?.as_ref()
+    }
+
+    pub fn insert(&mut self, node: NodeId, symbol: SymbolId) -> Option<SymbolId> {
+        let index = self
+            .slot(&node)
+            .expect("a bound node belongs to the bind's own arena");
+        if index >= self.slots.len() {
+            self.slots.resize(index + 1, None);
+        }
+        self.slots[index].replace(symbol)
+    }
+
+    pub fn contains_key(&self, node: &NodeId) -> bool {
+        self.get(node).is_some()
+    }
+
+    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut SymbolId> {
+        self.slots.iter_mut().flatten()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (NodeId, SymbolId)> + '_ {
+        self.slots
+            .iter()
+            .enumerate()
+            .filter_map(move |(index, slot)| {
+                slot.map(|symbol| (NodeId(self.base + index as u32), symbol))
+            })
+    }
+}
+
+impl std::ops::Index<&NodeId> for NodeSymbolMap {
+    type Output = SymbolId;
+
+    fn index(&self, node: &NodeId) -> &SymbolId {
+        self.get(node).expect("node carries a symbol")
+    }
+}
+
+/// Two maps are equal when they hold the same node → symbol entries for the
+/// same arena base; unused trailing slots do not count.
+impl PartialEq for NodeSymbolMap {
+    fn eq(&self, other: &Self) -> bool {
+        self.base == other.base && self.iter().eq(other.iter())
+    }
+}
