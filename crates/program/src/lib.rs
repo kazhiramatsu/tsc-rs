@@ -144,6 +144,7 @@ pub use loader::{
     load_emitting_program, load_emitting_program_js, load_no_lib_program, load_program,
     load_program_js, ProgramLoadError, ProgramLoadErrorKind, ProgramLoadLimit,
     ProgramLoadLimitExceeded, ProgramLoadLimits, ProgramLoadOperation,
+    PARALLEL_READ_AHEAD_MIN_ROOTS,
 };
 pub use module_requests::{
     default_js_doc_parsing_mode, plan_module_requests, plan_source_requests,

@@ -348,6 +348,61 @@ fn read_ahead_programs_equal_sequential_programs() {
         .all(|source| source.preparsed_syntax().is_available()));
 }
 
+/// Eighty small roots (`export const`), every eighth importing its successor.
+fn many_root_host() -> (MemoryCompilerHost, Vec<String>) {
+    let mut builder = MemoryCompilerHost::builder("/work");
+    let mut roots = Vec::new();
+    for index in 0..tsc_program::PARALLEL_READ_AHEAD_MIN_ROOTS + 16 {
+        let path = format!("/work/f{index}.ts");
+        let text = if index % 8 == 0 {
+            format!(
+                "import './f{}';\nexport const v{index} = {index};\n",
+                index + 1
+            )
+        } else {
+            format!("export const v{index} = {index};\n")
+        };
+        builder = builder.file(path.clone(), text.into_bytes());
+        roots.push(path);
+    }
+    (builder.build().expect("build many-root host"), roots)
+}
+
+#[test]
+fn many_roots_read_on_the_workers_load_the_sequential_program() {
+    // From `PARALLEL_READ_AHEAD_MIN_ROOTS` roots on, a host with a parallel
+    // source reader (the immutable memory host) has the parse workers read
+    // the roots; the traced wrapper offers no such reader, so the loading
+    // thread reads them in root order as before. Both loads must produce
+    // the same program, and under a source-count bound below the root
+    // count the same failure.
+    let (host, roots) = many_root_host();
+    let (traced_inner, _) = many_root_host();
+    let traced = TracedHost::new(traced_inner, true);
+    let roots = roots.iter().map(String::as_str).collect::<Vec<_>>();
+    assert!(roots.len() >= tsc_program::PARALLEL_READ_AHEAD_MIN_ROOTS);
+    let generous = || limits(GENEROUS_LIMIT, GENEROUS_LIMIT, 1 << 20, parallel());
+    let parallel_program = load(&host, &roots, compiler_options(), generous())
+        .expect("parallel read-ahead load succeeds");
+    let sequential_program = load(&traced, &roots, compiler_options(), generous())
+        .expect("sequential read-ahead load succeeds");
+    assert_eq!(parallel_program, sequential_program);
+    assert_eq!(traced.reads().len(), roots.len());
+    assert!(parallel_program
+        .source_files()
+        .iter()
+        .all(|source| source.preparsed_syntax().is_available()));
+
+    let bounded = || limits(roots.len() / 2, GENEROUS_LIMIT, 1 << 20, parallel());
+    let parallel_failure = load(&host, &roots, compiler_options(), bounded());
+    let sequential_failure = load(&traced, &roots, compiler_options(), bounded());
+    assert!(parallel_failure.is_err());
+    assert_eq!(
+        format!("{parallel_failure:?}"),
+        format!("{sequential_failure:?}")
+    );
+}
+
 #[test]
 fn read_ahead_root_reached_first_as_a_dependency_is_not_re_read() {
     let host = MemoryCompilerHost::builder("/work")

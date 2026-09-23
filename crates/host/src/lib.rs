@@ -158,4 +158,22 @@ pub trait CompilerHost {
     fn permits_source_read_ahead(&self) -> bool {
         false
     }
+
+    /// A reader for the source read-ahead's parallel host reads: `Some` when
+    /// this host answers `read_file_js` for any path from any thread with the
+    /// result the loading thread would get, and reads leave no observable
+    /// order (a filesystem host, the immutable memory host). Hosts whose
+    /// reads are ordered observations (query ledgers) or that are not `Sync`
+    /// keep the default `None`: the loading thread then reads every
+    /// read-ahead root itself, in root order. Consulted only when
+    /// [`Self::permits_source_read_ahead`] is true.
+    fn parallel_source_reader(&self) -> Option<&(dyn ParallelSourceReader + Sync)> {
+        None
+    }
+}
+
+/// `CompilerHost::read_file_js` callable from several threads at once during
+/// source read-ahead; see [`CompilerHost::parallel_source_reader`].
+pub trait ParallelSourceReader {
+    fn read_source_js(&self, path: JsStr<'_>) -> Result<Option<Vec<u8>>, HostError>;
 }

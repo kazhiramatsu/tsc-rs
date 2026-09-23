@@ -71,6 +71,12 @@ impl MemoryCompilerHost {
     }
 }
 
+impl crate::ParallelSourceReader for MemoryCompilerHost {
+    fn read_source_js(&self, path: JsStr<'_>) -> Result<Option<Vec<u8>>, HostError> {
+        CompilerHost::read_file_js(self, path)
+    }
+}
+
 impl CompilerHost for MemoryCompilerHost {
     fn current_directory_js(&self) -> Result<JsString, HostError> {
         if let Some(error) = self.failure(HostOperation::CurrentDirectory, None) {
@@ -199,6 +205,10 @@ impl CompilerHost for MemoryCompilerHost {
     /// trait default.
     fn permits_source_read_ahead(&self) -> bool {
         true
+    }
+
+    fn parallel_source_reader(&self) -> Option<&(dyn crate::ParallelSourceReader + Sync)> {
+        Some(self)
     }
 }
 
