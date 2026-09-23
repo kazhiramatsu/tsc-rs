@@ -377,6 +377,72 @@ impl<'a> BinderWorker<'a> {
         binder
     }
 
+    /// Bind `source` at identities reserved before binding: symbols allocate
+    /// from `symbol_base`, private-name serials from `serial_base`. The
+    /// reservations are published afterwards with
+    /// [`Self::attach_reserved_leases`], so no identity is rewritten.
+    pub fn bind_reserved(
+        source: &'a SourceFile,
+        options: &'a tsc_types::CompilerOptions,
+        symbol_base: u32,
+        serial_base: u32,
+    ) -> Self {
+        let mut binder = Self::with_bases(source, options, serial_base, symbol_base);
+        binder.bind_source_file();
+        binder
+    }
+
+    /// Publish a bind constructed at reserved bases under leases that start
+    /// there and may exceed the actual counts (over-approximations leased in
+    /// Program order before a parallel bind). `Ok(false)` reports a bind
+    /// that outgrew a reservation, with nothing attached; the caller
+    /// relocates it with [`Self::relocate_into_identity_domain`] instead.
+    pub fn attach_reserved_leases(
+        &mut self,
+        domain: &IdentityDomain,
+        symbol_lease: IdentityLease,
+        serial_lease: IdentityLease,
+    ) -> Result<bool, IdentityError> {
+        if !self.source.identity_owned_by(domain) {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::Node,
+                detail: "bound source and bind identities would use different domains",
+            });
+        }
+        if !domain.owns(&symbol_lease)
+            || !domain.owns(&serial_lease)
+            || !symbol_lease.same_domain(&serial_lease)
+        {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::Symbol,
+                detail: "reserved bind leases do not share the requested domain",
+            });
+        }
+        if self.private_name_serial_lease.is_some() {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::PrivateNameSerial,
+                detail: "binder is already identity-owned",
+            });
+        }
+        if serial_lease.space() != IdentitySpace::PrivateNameSerial
+            || serial_lease.range().start() != self.private_name_serial_base
+        {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::PrivateNameSerial,
+                detail: "reserved serial lease base differs from the binder seed",
+            });
+        }
+        let (_, serial_count) = self.identity_counts()?;
+        if serial_lease.range().len() < serial_count {
+            return Ok(false);
+        }
+        if !self.symbols.attach_reserved_identity_lease(symbol_lease)? {
+            return Ok(false);
+        }
+        self.private_name_serial_lease = Some(serial_lease);
+        Ok(true)
+    }
+
     /// Bind one source and publish completed symbol/private-name identities.
     /// Ephemeral domains construct directly at a sealed tail; reclaiming
     /// domains bind locally and relocate only after exact counts are known.

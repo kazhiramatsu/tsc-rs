@@ -284,6 +284,45 @@ impl SymbolArena {
         Ok(())
     }
 
+    /// Attach a lease reserved before binding: it starts at the arena base
+    /// and may run past the allocated count (an over-approximation leased
+    /// from the file's node count). `Ok(false)` reports an arena that
+    /// outgrew its reservation and must relocate instead; nothing is
+    /// attached in that case.
+    pub(crate) fn attach_reserved_identity_lease(
+        &mut self,
+        lease: IdentityLease,
+    ) -> Result<bool, IdentityError> {
+        if self.lease.is_some() {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::Symbol,
+                detail: "symbol arena is already identity-owned",
+            });
+        }
+        if lease.space() != IdentitySpace::Symbol {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::Symbol,
+                detail: "symbol arena received a non-symbol lease",
+            });
+        }
+        if lease.range().start() != self.base {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::Symbol,
+                detail: "reserved symbol lease base differs from the arena base",
+            });
+        }
+        let count = u32::try_from(self.symbols.len()).map_err(|_| IdentityError::Exhausted {
+            space: IdentitySpace::Symbol,
+            requested: u32::MAX,
+            limit: TRANSIENT_SYMBOL_BIT,
+        })?;
+        if lease.range().len() < count {
+            return Ok(false);
+        }
+        self.lease = Some(lease);
+        Ok(true)
+    }
+
     pub fn symbols(&self) -> &[Symbol] {
         &self.symbols
     }

@@ -4330,85 +4330,128 @@ fn parse_lib_sources(
     (sources, work)
 }
 
-/// Bind the library prefix at local identities on the budget's workers and
-/// relocate each binder into `identity_domain` in order (see
-/// [`bind_sources_in_program_order`]).
+/// Bind the library prefix on the budget's workers at identities reserved
+/// in order from `identity_domain` (see [`bind_reserved_in_program_order`]).
 fn bind_lib_sources<'a>(
     sources: &'a [tsc_syntax::SourceFile],
     options: &'a CompilerOptions,
     identity_domain: &IdentityDomain,
     workers: WorkerBudget,
 ) -> Vec<tsc_binder::Binder<'a>> {
-    let binders = workers.map_ordered(
-        (0..sources.len()).collect(),
-        |&index| sources[index].text().len(),
-        |index| tsc_binder::Binder::bind_local(&sources[index], options),
-    );
-    relocate_binders_in_program_order(binders, identity_domain, workers)
+    let sources = sources.iter().collect::<Vec<_>>();
+    bind_reserved_in_program_order(&sources, options, identity_domain, workers)
 }
 
-/// Lease every bind's identities in program order on the calling thread
-/// (the order-dependent step), then rewrite the binds into their ranges on
-/// the budget's workers. The result is identical to relocating each bind in
-/// turn: a bind's ranges depend only on the leases taken before it.
-fn relocate_binders_in_program_order<'a>(
-    binders: Vec<tsc_binder::Binder<'a>>,
+/// Reserve every source's symbol and private-name-serial ranges in order on
+/// the calling thread (the order-dependent step), then bind each source on
+/// the budget's workers directly at its reserved bases, so no bind identity
+/// is rewritten afterwards. A source's ranges depend only on the sources
+/// before it, so the identities are the same for every budget. A source
+/// that outgrows a reservation (its node count bounds both spaces, so none
+/// is expected) relocates into an exact lease at the domain's tail, still in
+/// Program order.
+fn bind_reserved_in_program_order<'a>(
+    sources: &[&'a tsc_syntax::SourceFile],
+    options: &'a CompilerOptions,
     identity_domain: &IdentityDomain,
     workers: WorkerBudget,
 ) -> Vec<tsc_binder::Binder<'a>> {
-    let lease_started = std::time::Instant::now();
-    let leased = binders
-        .into_iter()
-        .map(|binder| {
-            let leases = binder
-                .lease_identities(identity_domain)
-                .expect("bind identity allocation failed");
-            (binder, leases)
-        })
+    let phase_started = std::time::Instant::now();
+    let reservations = sources
+        .iter()
+        .map(|source| reserve_bind_identities(source, identity_domain))
         .collect::<Vec<_>>();
-    tsc_types::trace::mark("checker: bind leases (serial)", lease_started);
-    workers.map_ordered(
-        leased,
-        |(binder, _)| binder.source_text_len(),
-        |(mut binder, (symbol_lease, serial_lease))| {
-            binder
-                .relocate_with_leases(identity_domain, symbol_lease, serial_lease)
-                .expect("bind identity relocation failed");
-            binder
+    tsc_types::trace::mark("checker: bind reservations (serial)", phase_started);
+    let phase_started = std::time::Instant::now();
+    let mut binders = workers.map_ordered(
+        (0..sources.len()).collect(),
+        |&index| sources[index].text().len(),
+        |index| {
+            let (symbol_lease, serial_lease) = &reservations[index];
+            let mut binder = tsc_binder::Binder::bind_reserved(
+                sources[index],
+                options,
+                symbol_lease.range().start(),
+                serial_lease.range().start(),
+            );
+            let attached = binder
+                .attach_reserved_leases(identity_domain, symbol_lease.clone(), serial_lease.clone())
+                .expect("bind identity reservation failed");
+            (binder, attached)
         },
+    );
+    tsc_types::trace::mark(
+        "checker: bind (parallel, reserved identities)",
+        phase_started,
+    );
+    let phase_started = std::time::Instant::now();
+    let mut overflowed = 0usize;
+    for (binder, attached) in &mut binders {
+        if !*attached {
+            binder
+                .relocate_into_identity_domain(identity_domain)
+                .expect("bind identity relocation failed");
+            overflowed += 1;
+        }
+    }
+    if tsc_types::trace::enabled() {
+        tsc_types::trace::mark(
+            &format!("checker: bind overflow relocation ({overflowed} sources)"),
+            phase_started,
+        );
+    }
+    binders.into_iter().map(|(binder, _)| binder).collect()
+}
+
+/// One symbol range and one private-name-serial range for `source`, leased
+/// from the domain's bump tail in the caller's (Program) order. Every
+/// persistent symbol and every serial is minted for a node of the source, so
+/// its node count bounds both; a bind that still outgrows its range
+/// relocates into an exact lease instead.
+fn reserve_bind_identities(
+    source: &tsc_syntax::SourceFile,
+    identity_domain: &IdentityDomain,
+) -> (IdentityLease, IdentityLease) {
+    let bound = u32::try_from(source.arena.nodes().len())
+        .expect("source node count exceeds u32")
+        .max(1);
+    let mut symbol = None;
+    let mut serial = None;
+    let leases = identity_domain
+        .lease_batch(&[
+            (tsc_types::IdentitySpace::Symbol, bound),
+            (tsc_types::IdentitySpace::PrivateNameSerial, bound),
+        ])
+        .expect("bind identity reservation failed");
+    for lease in leases {
+        match lease.space() {
+            tsc_types::IdentitySpace::Symbol => symbol = Some(lease),
+            tsc_types::IdentitySpace::PrivateNameSerial => serial = Some(lease),
+            space => panic!("unexpected bind reservation space {space}"),
+        }
+    }
+    (
+        symbol.expect("symbol reservation"),
+        serial.expect("private-name serial reservation"),
     )
 }
 
-/// Bind every Program source at local identities on the budget's scoped
-/// worker threads (the calling thread alone under a serial budget), then
-/// relocate each result into `identity_domain` in Program order on the
-/// calling thread. Binding is per-file (tsc's binder never reads another
-/// file), and in-order relocation through the domain's bump allocator
-/// assigns exactly the persistent-symbol and private-name-serial ranges the
-/// sequential `bind_in_identity_domain` loop assigned, for every budget.
+/// Bind every Program source on the budget's scoped worker threads (the
+/// calling thread alone under a serial budget) at identities reserved in
+/// Program order beforehand (see [`bind_reserved_in_program_order`]).
+/// Binding is per-file (tsc's binder never reads another file), and the
+/// reservations are the same for every budget.
 fn bind_sources_in_program_order(
     sources: &[Arc<tsc_syntax::SourceFile>],
     options: &CompilerOptions,
     identity_domain: &IdentityDomain,
     workers: WorkerBudget,
 ) -> Vec<BindData> {
-    let phase_started = std::time::Instant::now();
-    let binders = workers.map_ordered(
-        (0..sources.len()).collect(),
-        |&index| sources[index].text().len(),
-        |index| tsc_binder::Binder::bind_local(sources[index].as_ref(), options),
-    );
-    tsc_types::trace::mark("checker: bind (parallel, local identities)", phase_started);
-    let phase_started = std::time::Instant::now();
-    let data = relocate_binders_in_program_order(binders, identity_domain, workers)
+    let sources = sources.iter().map(Arc::as_ref).collect::<Vec<_>>();
+    bind_reserved_in_program_order(&sources, options, identity_domain, workers)
         .into_iter()
         .map(tsc_binder::Binder::into_bind_data)
-        .collect();
-    tsc_types::trace::mark(
-        "checker: bind relocation (leases serial, rewrite parallel)",
-        phase_started,
-    );
-    data
+        .collect()
 }
 
 /// Consume completed bind workers into immutable document handles. The
