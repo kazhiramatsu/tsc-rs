@@ -2602,7 +2602,8 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             && (active(&options.out_dir)
                 || active(&options.out_file)
                 || declarations && active(&options.declaration_dir));
-        if !verify && !migration {
+        let composite = options.composite == Some(true);
+        if !verify && !migration && !composite {
             return (Vec::new(), Vec::new());
         }
 
@@ -2637,18 +2638,22 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         );
         let mut diagnostics = Vec::new();
         let mut root_diagnostics = Vec::new();
-        let root = options
-            .root_dir
-            .as_ref()
-            .filter(|root| !root.is_empty())
-            .cloned()
-            .or_else(|| config_path.map(crate::js_path::directory_name));
+        let packages = self
+            .resolver
+            .observed_package_metadata()
+            .map(|package| (package.package_json().canonical(), package))
+            .collect::<BTreeMap<_, _>>();
+        let root = (verify || migration)
+            .then(|| {
+                options
+                    .root_dir
+                    .as_ref()
+                    .filter(|root| !root.is_empty())
+                    .cloned()
+                    .or_else(|| config_path.map(crate::js_path::directory_name))
+            })
+            .flatten();
         if let Some(root) = root {
-            let packages = self
-                .resolver
-                .observed_package_metadata()
-                .map(|package| (package.package_json().canonical(), package))
-                .collect::<BTreeMap<_, _>>();
             let canonical_root =
                 canonical_emit_path(root.as_js(), current_directory, case_sensitive);
             for source in &emitted {
@@ -2661,6 +2666,31 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     root_diagnostics.push(root_directory_diagnostic(
                         source,
                         root.as_js(),
+                        self.program_options.config_file(),
+                        source
+                            .prepared
+                            .package_scope()
+                            .and_then(|key| packages.get(key).copied()),
+                    ));
+                }
+            }
+        }
+        // tsc verifyCompilerOptions: a composite project lists every file it
+        // would emit, so a file reached only through an import is reported at
+        // that import, explained like a rootDir violation.
+        if composite {
+            let root_paths = self
+                .roots
+                .iter()
+                .map(|root| root.path.canonical())
+                .collect::<HashSet<_>>();
+            let empty = JsString::new();
+            let project = config_path.unwrap_or_else(|| empty.as_js());
+            for source in &emitted {
+                if !root_paths.contains(source.prepared.path().canonical()) {
+                    root_diagnostics.push(file_list_diagnostic(
+                        source,
+                        project,
                         self.program_options.config_file(),
                         source
                             .prepared
@@ -4826,12 +4856,50 @@ fn append_output_option_diagnostic(
     }
 }
 
-/// tsc-port: createDiagnosticExplainingFile @6.0.3
-/// tsc-hash: a52da4c2aafdb0c939e2bf00de5064eb03340c4858ad40378af65b5b6c9de41d
-/// tsc-span: _tsc.js:125851-125932
+/// The rootDir violation of `source` (tsc checkSourceFilesBelongToPath),
+/// explained like every program diagnostic about a file.
 fn root_directory_diagnostic(
     source: &StagedSource,
     root: JsStr<'_>,
+    config: Option<&ProgramConfigFile>,
+    package: Option<&PackageMetadata>,
+) -> Diagnostic {
+    explaining_file_diagnostic(
+        source,
+        MessageChain::new_js_parts(
+            &gen::File_0_is_not_under_rootDir_1_rootDir_is_expected_to_contain_all_source_files,
+            &[source.prepared.path().display(), root],
+        ),
+        config,
+        package,
+    )
+}
+
+/// The composite file-list violation of `source` (tsc verifyCompilerOptions:
+/// a composite project lists every file it would emit).
+fn file_list_diagnostic(
+    source: &StagedSource,
+    project: JsStr<'_>,
+    config: Option<&ProgramConfigFile>,
+    package: Option<&PackageMetadata>,
+) -> Diagnostic {
+    explaining_file_diagnostic(
+        source,
+        MessageChain::new_js_parts(
+            &gen::File_0_is_not_listed_within_the_file_list_of_project_1_Projects_must_list_all_files_or_use_an_include_pattern,
+            &[source.prepared.path().display(), project],
+        ),
+        config,
+        package,
+    )
+}
+
+/// tsc-port: createDiagnosticExplainingFile @6.0.3
+/// tsc-hash: a52da4c2aafdb0c939e2bf00de5064eb03340c4858ad40378af65b5b6c9de41d
+/// tsc-span: _tsc.js:125851-125932
+fn explaining_file_diagnostic(
+    source: &StagedSource,
+    mut message: MessageChain,
     config: Option<&ProgramConfigFile>,
     package: Option<&PackageMetadata>,
 ) -> Diagnostic {
@@ -4839,10 +4907,6 @@ fn root_directory_diagnostic(
     let located = reasons.iter().enumerate().find_map(|(index, reason)| {
         source_inclusion_location(reason).map(|location| (index, location))
     });
-    let mut message = MessageChain::new_js_parts(
-        &gen::File_0_is_not_under_rootDir_1_rootDir_is_expected_to_contain_all_source_files,
-        &[source.prepared.path().display(), root],
-    );
     if !reasons.is_empty() && (reasons.len() != 1 || located.is_none()) {
         message = message.with_next(vec![MessageChain::new(
             &gen::The_file_is_in_the_program_because,

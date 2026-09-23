@@ -212,14 +212,14 @@ impl ModuleExtension {
             )
     }
 
+    /// tsc's tryAddingExtensions records the extension it appended, so a
+    /// `./x.d.js` specifier resolving to `x.d.ts` (as @edge-runtime/primitives
+    /// ships) carries `.ts` on a declaration path; the `.ts`, `.mts` and
+    /// `.cts` discriminants therefore accept declaration endings, and only
+    /// the declaration discriminants require them.
     pub(crate) fn matches_path<'p>(&self, path: impl Into<JsStr<'p>>) -> bool {
         let path = path.into();
-        match self {
-            Self::Ts => path.ends_with(".ts") && !path.ends_with(".d.ts"),
-            Self::Mts => path.ends_with(".mts") && !path.ends_with(".d.mts"),
-            Self::Cts => path.ends_with(".cts") && !path.ends_with(".d.cts"),
-            extension => path.ends_with_js(extension.as_js()),
-        }
+        path.ends_with_js(self.as_js())
     }
 
     pub(crate) fn matches_path_with_case<'p>(
@@ -232,23 +232,16 @@ impl ModuleExtension {
             return self.matches_path(path);
         }
         let path = to_file_name_lower_case_js(path);
-        match self {
-            Self::Ts => path.ends_with(".ts") && !path.ends_with(".d.ts"),
-            Self::Mts => path.ends_with(".mts") && !path.ends_with(".d.mts"),
-            Self::Cts => path.ends_with(".cts") && !path.ends_with(".d.cts"),
-            extension => path
-                .as_js()
-                .ends_with_js(to_file_name_lower_case_js(extension.as_js()).as_js()),
-        }
+        path.as_js()
+            .ends_with_js(to_file_name_lower_case_js(self.as_js()).as_js())
     }
 
     /// Match the resolver's logical extension against the selected physical
     /// path after `moduleSuffixes` probing.
     ///
     /// Most ordinary extension variants still match their discriminant after
-    /// a suffix is inserted (`foo.ios.ts` ends in `.ts`). The `.ts`, `.mts`,
-    /// and `.cts` variants deliberately reject declaration endings, though,
-    /// so a suffix such as `.d` needs the exact insertion check as well.
+    /// a suffix is inserted (`foo.ios.ts` ends in `.ts`); the exact insertion
+    /// check below covers the suffix spellings that do not.
     /// Arbitrary declaration twins also retain their logical extension:
     /// resolving `foo.css` through `foo.d.css.ios.ts` publishes `.d.css.ts`.
     /// Reconstruct the suffix insertion before rejecting the resolver-owned

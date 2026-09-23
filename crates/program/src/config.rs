@@ -1880,9 +1880,15 @@ fn unsupported_config_scope(
             continue;
         }
         // sourceMap is already projected and validated. An ordinary no-emit
-        // command retains it without constructing an emitter. Keep this later
-        // extension separate from the frozen H0 qualification inventory.
-        let no_emit_projection = !emitting && option.name == "sourceMap";
+        // command retains it without constructing an emitter, as it does the
+        // emitter-only options below, which change no diagnostic. Keep this
+        // later extension separate from the frozen H0 qualification inventory.
+        let no_emit_projection = !emitting
+            && (option.name == "sourceMap"
+                || H0_NO_EMIT_NEUTRAL_CONFIG_OPTIONS
+                    .iter()
+                    .chain(H0_NO_EMIT_DECLARATION_CONFIG_OPTIONS)
+                    .any(|candidate| option.name == *candidate));
         if !(config_option_is_supported_by_h0(&option.name)
             || no_emit_projection
             || emitting && config_option_is_projected_for_h1_emit(&option.name))
@@ -2191,6 +2197,36 @@ pub const H0_SUPPORTED_CONFIG_OPTIONS: &[&str] = &[
     "paths",
     "outDir",
     "declarationDir",
+];
+
+/// Emitter-only options a no-emit command retains without an emitter: none
+/// of them selects a checker behaviour or carries a cross-option config
+/// diagnostic, so a `--noEmit` check of a project that sets them (Next.js's
+/// `stripInternal`) reports exactly what tsc reports. An emitting command
+/// still projects them through the H1 inventory.
+const H0_NO_EMIT_NEUTRAL_CONFIG_OPTIONS: &[&str] = &[
+    "stripInternal",
+    "newLine",
+    "removeComments",
+    "noEmitHelpers",
+    "emitBOM",
+    "listEmittedFiles",
+    "pretty",
+];
+
+/// Declaration-product options a no-emit command admits: tsc's
+/// emitFilesAndReportErrors reports the declaration diagnostics of a
+/// `--noEmit` command when getEmitDeclarations(options) holds, and the
+/// driver's no-emit hook runs the same getter; `composite` adds the
+/// project-listing and `rootDir` program diagnostics the loader reports for
+/// an emitting command as well.
+const H0_NO_EMIT_DECLARATION_CONFIG_OPTIONS: &[&str] = &[
+    "declaration",
+    "declarationMap",
+    "emitDeclarationOnly",
+    "isolatedDeclarations",
+    "composite",
+    "rootDir",
 ];
 
 fn config_option_is_supported_by_h0<'n>(name: impl Into<JsStr<'n>>) -> bool {

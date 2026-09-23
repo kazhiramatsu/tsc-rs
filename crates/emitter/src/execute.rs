@@ -178,8 +178,18 @@ fn validate_emit_options(
             options.stable_type_ordering == Some(true),
             "stableTypeOrdering",
         ),
-        (options.incremental == Some(true), "incremental"),
-        (options.composite == Some(true), "composite"),
+        // `incremental` and `composite` select the builder's build info,
+        // which only the file emit would write; the declaration diagnostics
+        // getter reads neither (a --noEmit check of a composite project
+        // reports its declaration diagnostics as tsc does).
+        (
+            operation != EmitOperation::DeclarationDiagnostics && options.incremental == Some(true),
+            "incremental",
+        ),
+        (
+            operation != EmitOperation::DeclarationDiagnostics && options.composite == Some(true),
+            "composite",
+        ),
         // assumeChangesOnlyAffectDirectDependencies changes the builder's
         // affected-file traversal only. It is inert in this fresh Program.
         // `emitDecoratorMetadata` without `experimentalDecorators` is inert

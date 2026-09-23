@@ -62,21 +62,18 @@ fn unsupported_h0_config_scope_fails_at_the_program_gate() {
         },
     )
     .expect("declaration config remains observable as a partial plan");
-    let emit_error = load_config_program_with_no_emit_override(
+    // tsc reports a --noEmit command's declaration diagnostics when
+    // getEmitDeclarations(options) holds, so the no-emit loader admits the
+    // declaration-product options (composite, declaration, isolatedDeclarations...).
+    let prepared = load_config_program_with_no_emit_override(
         &host,
         &emit,
         &LibraryCatalog::typescript_6_0_3(PathBuf::from("/work/lib")),
         LIMITS,
     )
-    .expect_err("declaration output must not enter the no-emit loader");
-    let ConfigProgramLoadError::Program(emit_error) = emit_error else {
-        panic!("declaration output should be a typed program-scope failure");
-    };
-    assert_eq!(
-        emit_error.kind(),
-        tsc_program::ProgramLoadErrorKind::Unsupported
-    );
-    assert!(emit_error.to_string().contains("declaration"));
+    .expect("declaration output is admitted for a no-emit check");
+    assert_eq!(prepared.compiler_options().declaration, Some(true));
+    assert_eq!(prepared.compiler_options().no_emit, Some(true));
 }
 
 #[test]
@@ -86,10 +83,10 @@ fn recognized_but_unprojected_config_options_fail_closed() {
     let plan = parse_config_root_plan(
         &adapter,
         request(
-            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"rootDir":"src"},"files":["main.ts"]}"#,
+            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"incremental":true},"files":["main.ts"]}"#,
         ),
     )
-    .expect("rootDir is a recognized partial-plan option");
+    .expect("incremental is a recognized partial-plan option");
 
     let error = load_config_program_with_no_emit_override(
         &host,
@@ -97,12 +94,12 @@ fn recognized_but_unprojected_config_options_fail_closed() {
         &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
         LIMITS,
     )
-    .expect_err("rootDir must not be silently ignored by the no-emit loader");
+    .expect_err("incremental must not be silently ignored by the no-emit loader");
     let ConfigProgramLoadError::Program(error) = error else {
         panic!("recognized out-of-scope options must fail at the program gate");
     };
     assert_eq!(error.kind(), tsc_program::ProgramLoadErrorKind::Unsupported);
-    assert!(error.to_string().contains("rootDir"));
+    assert!(error.to_string().contains("incremental"));
 }
 
 #[test]
@@ -339,6 +336,50 @@ fn conflicting_lib_and_no_lib_are_option_diagnostics_at_both_names() {
             .expect("scalar diagnostic observation"),
         "Option 'lib' cannot be specified with option 'noLib'."
     );
+}
+
+#[test]
+fn composite_project_reports_an_unlisted_file_beside_its_root_dir_violation() {
+    // tsc verifyCompilerOptions: a composite project lists every file it
+    // would emit (TS6307), reported at the import that pulled the file in
+    // like the rootDir violation (TS6059) that precedes it.
+    let host = MemoryCompilerHost::builder("/project")
+        .file(
+            "/project/src/a.ts",
+            b"import { b } from \"../other/b\";\nexport const a: number = b;\n".to_vec(),
+        )
+        .file("/project/other/b.ts", b"export const b = 1;\n".to_vec())
+        .build()
+        .expect("memory compiler host");
+    let adapter = ConfigHostAdapter::new(&host);
+    let plan = parse_config_root_plan(
+        &adapter,
+        request(
+            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"composite":true,"rootDir":"src"},"files":["src/a.ts"]}"#,
+        ),
+    )
+    .expect("parse composite plan");
+    let prepared = load_config_program(
+        &host,
+        &plan,
+        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        LIMITS,
+    )
+    .expect("a --noEmit check of a composite project loads");
+    let diagnostics = prepared.diagnostics().program();
+    let codes = diagnostics
+        .iter()
+        .map(|diagnostic| diagnostic.code())
+        .collect::<Vec<_>>();
+    assert_eq!(codes, [6059, 6307]);
+    let import_specifier = "import { b } from ".len() as u32;
+    for diagnostic in diagnostics {
+        assert_eq!(
+            diagnostic.file_name.as_ref().and_then(|name| name.as_str()),
+            Some("/project/src/a.ts")
+        );
+        assert_eq!(diagnostic.start, Some(import_specifier));
+    }
 }
 
 #[test]
@@ -812,14 +853,19 @@ fn config_plan_retains_h1_printer_options_without_broadening_h0_loader() {
     assert_eq!(plan.compiler_options().no_implicit_use_strict, Some(false));
     assert_eq!(plan.compiler_options().no_emit_helpers, Some(true));
 
-    let error = load_config_program(
+    // Emitter-only options change no diagnostic of a no-emit check, so the
+    // loader retains them without constructing an emitter (as tsc ignores
+    // them under --noEmit).
+    let prepared = load_config_program(
         &host,
         &plan,
         &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
         LIMITS,
     )
-    .expect_err("the H0 loader remains closed over its no-emit option profile");
-    assert!(error.to_string().contains("unsupported-config-option"));
+    .expect("the no-emit loader retains emitter-only options");
+    assert_eq!(prepared.compiler_options().new_line, Some(0));
+    assert_eq!(prepared.compiler_options().remove_comments, Some(true));
+    assert_eq!(prepared.compiler_options().no_emit_helpers, Some(true));
 }
 
 #[test]
