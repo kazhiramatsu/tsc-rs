@@ -153,8 +153,13 @@ impl std::error::Error for SymbolArenaExhausted {}
 
 impl SymbolArena {
     pub fn with_base(base: u32) -> Self {
+        Self::with_base_and_capacity(base, 0)
+    }
+
+    /// An arena at `base` with room for `capacity` symbols before it grows.
+    pub fn with_base_and_capacity(base: u32, capacity: usize) -> Self {
         Self {
-            symbols: Vec::new(),
+            symbols: Vec::with_capacity(capacity),
             base,
             lease: None,
         }
