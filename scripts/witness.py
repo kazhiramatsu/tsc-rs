@@ -253,7 +253,7 @@ COMPILER_DIRECT = {
             "h2_8b_library_replacement::library_order_controls_match_program_membership",
         ),
         "tests": 24,
-        "filtered_tests": 464,
+        "filtered_tests": 473,
         "sources": tuple(f"crates/compiler/tests/integration/{module}.rs" for module in (
             "h2_8b_config_commands",
             "h2_8b_config_conversion_commands",
@@ -855,10 +855,10 @@ def run_resolution_cache(command, env):
     print(result.stdout, end="", flush=True)
     result.check_returncode()
     counts = re.findall(r"test result: ok\. (\d+) passed; 0 failed; (\d+) ignored;.*? (\d+) filtered out;", result.stdout)
-    if sorted(tuple(map(int, row)) for row in counts) != [(11, 0, 0), (57, 0, 0)]:
+    if sorted(tuple(map(int, row)) for row in counts) != [(11, 0, 0), (61, 0, 0)]:
         raise ValueError("resolution-cache: missing, ignored, filtered or changed target results")
     print(json.dumps({"resolution_cache": {"families": 26, "generations": 112, "requests": 197},
-                      "contract_tests": 11, "program_unit_tests": 57,
+                      "contract_tests": 11, "program_unit_tests": 61,
                       "observer_seconds": round(oracle_seconds, 3),
                       "cargo_build_and_replay_seconds": round(time.monotonic() - started, 3)}), flush=True)
 
