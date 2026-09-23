@@ -500,7 +500,7 @@ struct SystemVisitor<'context, 'resolver> {
     hoisted_names: Vec<SystemHoistedName>,
     hoisted_declarations: Vec<TransformNode>,
     function_scope_depth: usize,
-    arrays: BTreeMap<NodeArrayId, NodeArrayId>,
+    arrays: rustc_hash::FxHashMap<NodeArrayId, NodeArrayId>,
 }
 
 #[derive(Clone)]
@@ -706,7 +706,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             hoisted_names: Vec::new(),
             hoisted_declarations: Vec::new(),
             function_scope_depth: 0,
-            arrays: BTreeMap::new(),
+            arrays: rustc_hash::FxHashMap::default(),
         })
     }
 

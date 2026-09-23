@@ -1,5 +1,4 @@
 use crate::transform::try_visit_transform_children;
-use std::collections::BTreeMap;
 
 use tsc_diagnostics::{JsStr, JsString};
 use tsc_syntax::{
@@ -227,8 +226,8 @@ struct JsxVisitor<'context> {
     used_names: super::target_bindings::UsedNames,
     implicit_imports: Vec<ImplicitImportGroup>,
     filename_declaration: Option<TransformNode>,
-    nodes: BTreeMap<NodeId, Option<NodeId>>,
-    arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
+    nodes: rustc_hash::FxHashMap<NodeId, Option<NodeId>>,
+    arrays: rustc_hash::FxHashMap<NodeArrayId, Option<NodeArrayId>>,
 }
 
 struct JsxVisitorSettings<'settings> {
@@ -332,8 +331,8 @@ impl<'context> JsxVisitor<'context> {
             used_names,
             implicit_imports: Vec::new(),
             filename_declaration: None,
-            nodes: BTreeMap::new(),
-            arrays: BTreeMap::new(),
+            nodes: rustc_hash::FxHashMap::default(),
+            arrays: rustc_hash::FxHashMap::default(),
         }
     }
 

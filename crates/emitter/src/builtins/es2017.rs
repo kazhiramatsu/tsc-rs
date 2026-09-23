@@ -7,7 +7,7 @@
 //! the reference transform's mutable closure graph.
 
 use crate::transform::try_visit_transform_children;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 
 use tsc_syntax::{for_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind};
 use tsc_types::{CompilerOptions, NodeCheckFlags, NodeFlags, ScriptTarget};
@@ -228,8 +228,8 @@ struct Es2017Visitor<'context, 'resolver> {
     source: TransformSourceId,
     resolver: &'resolver dyn EmitResolver,
     target: ScriptTarget,
-    nodes: BTreeMap<NodeId, Option<NodeId>>,
-    arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
+    nodes: rustc_hash::FxHashMap<NodeId, Option<NodeId>>,
+    arrays: rustc_hash::FxHashMap<NodeArrayId, Option<NodeArrayId>>,
     generated_bindings: GeneratedBindingScopes,
     frames: Vec<FunctionFrame>,
     non_top_level_depth: usize,
@@ -256,8 +256,8 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             source,
             resolver,
             target,
-            nodes: BTreeMap::new(),
-            arrays: BTreeMap::new(),
+            nodes: rustc_hash::FxHashMap::default(),
+            arrays: rustc_hash::FxHashMap::default(),
             frames: Vec::new(),
             non_top_level_depth: 0,
             has_lexical_this,

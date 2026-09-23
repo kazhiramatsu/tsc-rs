@@ -1516,6 +1516,7 @@ impl Printer {
         let mut structured_nodes = rustc_hash::FxHashSet::default();
         let mut function_body_blocks = rustc_hash::FxHashSet::default();
         let mut memo = rustc_hash::FxHashMap::default();
+        let mut children = Vec::new();
         Self::collect_emission_plan(
             transformation,
             root,
@@ -1523,6 +1524,7 @@ impl Printer {
             &mut memo,
             &mut structured_nodes,
             &mut function_body_blocks,
+            &mut children,
         )?;
         self.emission_plan = EmissionPlan {
             structured_nodes,
@@ -1539,6 +1541,9 @@ impl Printer {
         memo: &mut rustc_hash::FxHashMap<TransformNode, bool>,
         structured_nodes: &mut rustc_hash::FxHashSet<TransformNode>,
         function_body_blocks: &mut rustc_hash::FxHashSet<TransformNode>,
+        // One child buffer for the whole walk: a node's children occupy the
+        // tail while it recurses through them and are released afterwards.
+        children: &mut Vec<NodeId>,
     ) -> Result<bool, PrinterError> {
         if let Some(requires_structured_emit) = memo.get(&node) {
             return Ok(*requires_structured_emit);
@@ -1578,28 +1583,43 @@ impl Printer {
             NodeData::BigIntLiteral(_) => true,
             _ => false,
         };
-        let mut children = Vec::new();
+        let first_child = children.len();
         let source = transformation.arena().source(node.source())?.syntax();
         for_each_child(&source.arena, record, |child| {
             children.push(child);
             false
         });
+        let last_child = children.len();
 
         let mut requires_structured_emit = requires_literal_rewrite;
-        for child in children {
-            let child = transformation
-                .arena()
-                .node_ref(node.source(), child)
-                .ok_or(PrinterError::UnknownStatement(child.0))?;
-            requires_structured_emit |= Self::collect_emission_plan(
+        let mut result = Ok(());
+        for position in first_child..last_child {
+            let child = children[position];
+            let child = match transformation.arena().node_ref(node.source(), child) {
+                Some(child) => child,
+                None => {
+                    result = Err(PrinterError::UnknownStatement(child.0));
+                    break;
+                }
+            };
+            match Self::collect_emission_plan(
                 transformation,
                 child,
                 target,
                 memo,
                 structured_nodes,
                 function_body_blocks,
-            )?;
+                children,
+            ) {
+                Ok(structured) => requires_structured_emit |= structured,
+                Err(error) => {
+                    result = Err(error);
+                    break;
+                }
+            }
         }
+        children.truncate(first_child);
+        result?;
         if requires_structured_emit {
             structured_nodes.insert(node);
         }

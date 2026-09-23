@@ -677,8 +677,8 @@ struct DecoratorLexicalEnvironment {
 struct DecoratorLexicalThisRewriter<'visitor, 'context> {
     visitor: &'visitor mut StandardDecoratorVisitor<'context>,
     bindings: &'visitor mut DecoratorDefinitionBindings,
-    nodes: BTreeMap<NodeId, NodeId>,
-    arrays: BTreeMap<NodeArrayId, NodeArrayId>,
+    nodes: rustc_hash::FxHashMap<NodeId, NodeId>,
+    arrays: rustc_hash::FxHashMap<NodeArrayId, NodeArrayId>,
 }
 
 /// Substitutes the semantic class-definition identity into an existing named
@@ -689,16 +689,16 @@ struct DecoratorLexicalThisRewriter<'visitor, 'context> {
 struct DecoratorClassThisRewriter<'visitor, 'context> {
     visitor: &'visitor mut StandardDecoratorVisitor<'context>,
     class_this: TransformNode,
-    nodes: BTreeMap<NodeId, NodeId>,
-    arrays: BTreeMap<NodeArrayId, NodeArrayId>,
+    nodes: rustc_hash::FxHashMap<NodeId, NodeId>,
+    arrays: rustc_hash::FxHashMap<NodeArrayId, NodeArrayId>,
 }
 
 struct StandardDecoratorVisitor<'context> {
     context: &'context mut TransformationContext,
     source: TransformSourceId,
     target: ScriptTarget,
-    nodes: BTreeMap<NodeId, Option<NodeId>>,
-    arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
+    nodes: rustc_hash::FxHashMap<NodeId, Option<NodeId>>,
+    arrays: rustc_hash::FxHashMap<NodeArrayId, Option<NodeArrayId>>,
     inferred_class_names: BTreeMap<NodeId, JsString>,
     inferred_class_name_sources: BTreeMap<NodeId, TransformNode>,
     /// Named evaluation through a non-literal computed property name: the
@@ -814,8 +814,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
             context,
             source,
             target,
-            nodes: BTreeMap::new(),
-            arrays: BTreeMap::new(),
+            nodes: rustc_hash::FxHashMap::default(),
+            arrays: rustc_hash::FxHashMap::default(),
             inferred_class_names: BTreeMap::new(),
             inferred_class_name_sources: BTreeMap::new(),
             inferred_class_name_references: BTreeMap::new(),
@@ -7220,8 +7220,8 @@ impl<'visitor, 'context> DecoratorLexicalThisRewriter<'visitor, 'context> {
         Self {
             visitor,
             bindings,
-            nodes: BTreeMap::new(),
-            arrays: BTreeMap::new(),
+            nodes: rustc_hash::FxHashMap::default(),
+            arrays: rustc_hash::FxHashMap::default(),
         }
     }
 
@@ -7324,8 +7324,8 @@ impl<'visitor, 'context> DecoratorClassThisRewriter<'visitor, 'context> {
         Self {
             visitor,
             class_this,
-            nodes: BTreeMap::new(),
-            arrays: BTreeMap::new(),
+            nodes: rustc_hash::FxHashMap::default(),
+            arrays: rustc_hash::FxHashMap::default(),
         }
     }
 

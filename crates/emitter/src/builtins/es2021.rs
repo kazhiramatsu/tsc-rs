@@ -7,7 +7,6 @@
 //! than mirroring TypeScript's nested closures or synthetic internal nodes.
 
 use crate::transform::try_visit_transform_children;
-use std::collections::BTreeMap;
 
 use tsc_syntax::{for_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind};
 use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget};
@@ -294,8 +293,8 @@ struct TargetVisitor<'context> {
     source: TransformSourceId,
     pass: TargetPass,
     target: ScriptTarget,
-    nodes: BTreeMap<NodeId, Option<NodeId>>,
-    arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
+    nodes: rustc_hash::FxHashMap<NodeId, Option<NodeId>>,
+    arrays: rustc_hash::FxHashMap<NodeArrayId, Option<NodeArrayId>>,
     generated_bindings: GeneratedBindingScopes,
 }
 
@@ -316,8 +315,8 @@ impl<'context> TargetVisitor<'context> {
             source,
             pass,
             target,
-            nodes: BTreeMap::new(),
-            arrays: BTreeMap::new(),
+            nodes: rustc_hash::FxHashMap::default(),
+            arrays: rustc_hash::FxHashMap::default(),
         })
     }
 

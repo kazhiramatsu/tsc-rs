@@ -1753,7 +1753,18 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     }
                 }
             },
-            |(index, path, bytes)| (index, parse_root_ahead(&path, bytes, options)),
+            |(index, path, bytes)| {
+                let large_parse_started = (tsc_types::trace::enabled() && bytes.len() >= 256 << 10)
+                    .then(|| (std::time::Instant::now(), bytes.len()));
+                let parsed = parse_root_ahead(&path, bytes, options);
+                if let Some((started, len)) = large_parse_started {
+                    tsc_types::trace::mark(
+                        &format!("load: parse {:?} ({len} bytes)", path.display()),
+                        started,
+                    );
+                }
+                (index, parsed)
+            },
         );
         tsc_types::trace::mark("load: read-ahead streamed read and parse", phase_started);
         for (index, read) in parsed {
