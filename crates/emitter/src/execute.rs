@@ -759,7 +759,12 @@ pub(crate) fn mount_emit_root(
         let syntax = file.syntax().ok_or(EmitFailure::Contract(
             EmitContractViolation::CheckedSyntaxUnavailable(source),
         ))?;
+        let node_count = syntax.arena.nodes().len();
         sources.push(arena.add_source(syntax, Some(source)));
+        // The transforms attach metadata (original links, emit flags) to a
+        // sizeable share of a source's nodes; one reservation replaces the
+        // map's repeated rehashing (2% of the emit profile).
+        arena.reserve_metadata(node_count / 4);
     }
     Ok(match root {
         EmitRoot::SourceFile(_) => TransformRoot::SourceFile(sources[0]),

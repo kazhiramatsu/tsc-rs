@@ -900,7 +900,10 @@ impl<'text> Parser<'text> {
         Self {
             scanner: Scanner::new_with_target(text, language_variant, language_version),
             source_text: text,
-            arena: NodeArena::new(),
+            // About one node per eight bytes of source and one array per
+            // sixty-four: size the tables once instead of moving every record
+            // at each doubling (the arena push was 2% of the emit profile).
+            arena: NodeArena::with_capacity(text.len() / 8, text.len() / 64),
             file_name,
             language_version,
             language_variant,

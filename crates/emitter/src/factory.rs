@@ -880,6 +880,11 @@ impl TransformArena {
         self.metadata.entry(node).or_default()
     }
 
+    /// Room for `additional` more metadata entries before the map rehashes.
+    pub(crate) fn reserve_metadata(&mut self, additional: usize) {
+        self.metadata.reserve(additional);
+    }
+
     /// tsc-port: removeAllComments @6.0.3
     /// tsc-hash: 0c7777d935b2911fb5bcfe50ed0cc9ea772e2811f389bb598b86fbb40a95d8d2
     /// tsc-span: _tsc.js:25311-25317

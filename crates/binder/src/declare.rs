@@ -279,9 +279,10 @@ impl<'a> BinderWorker<'a> {
             options,
             language_version: options.emit_script_target().bits(),
             common_js_module_indicator: None,
-            // About one symbol per six nodes: size the arena once instead of
-            // growing (and moving every symbol) a dozen times.
-            symbols: SymbolArena::with_base_and_capacity(symbol_base, node_count / 6),
+            // Up to one symbol per four nodes (declaration-heavy sources):
+            // size the arena once instead of growing (and moving every
+            // symbol) a dozen times.
+            symbols: SymbolArena::with_base_and_capacity(symbol_base, node_count / 4),
             node_symbol: NodeSymbolMap::with_len(source.arena.node_base(), node_count),
             node_local_symbol: FxHashMap::default(),
             locals: FxHashMap::with_capacity_and_hasher(node_count / 32, Default::default()),
