@@ -69,7 +69,7 @@ fn symbol_flags_for_meaning(meaning: EmitSymbolMeaning) -> SymbolFlags {
     }
 }
 
-fn program_source_id(checker: &CheckerState<'_>, file_index: usize) -> SourceFileId {
+pub(super) fn program_source_id(checker: &CheckerState<'_>, file_index: usize) -> SourceFileId {
     let raw = checker
         .authoritative_source_tokens
         .get(file_index)
@@ -87,14 +87,27 @@ fn enclosing_resolver_node(checker: &CheckerState<'_>, node: NodeId) -> EmitReso
     )
 }
 
-fn project_parse_node(
+/// The parse-tree transform node of `node`, mounting its program source
+/// into `arena` on first use: the emitter mounts only the sources a
+/// transform reaches, while the node builder reuses declarations and type
+/// annotations from any file of the program.
+pub(super) fn project_parse_node(
     checker: &CheckerState<'_>,
-    arena: &TransformArena,
+    arena: &mut TransformArena,
     node: NodeId,
 ) -> BuildResult<Option<TransformNode>> {
-    let source = program_source_id(checker, checker.binder.file_index_of_node(node));
+    let file_index = checker.binder.file_index_of_node(node);
+    let source = program_source_id(checker, file_index);
+    let resolver = EmitResolverNode::new(source, node);
+    if let Some(found) = arena
+        .parse_tree_transform_node(resolver)
+        .map_err(factory_error)?
+    {
+        return Ok(Some(found));
+    }
+    arena.add_source(checker.binder.source(file_index), Some(source));
     arena
-        .parse_tree_transform_node(EmitResolverNode::new(source, node))
+        .parse_tree_transform_node(resolver)
         .map_err(factory_error)
 }
 
