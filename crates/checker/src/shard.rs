@@ -106,23 +106,31 @@ impl CheckerBudget {
 
 /// Assign program files (by index) to at most `shards` checkers.
 ///
-/// Deterministic least-load baseline: files are visited in program order and
-/// each goes to the shard with the smallest accumulated weight, lowest shard
-/// index on ties; every shard's list therefore stays in program order. Empty
-/// shards are dropped, so the result has `min(shards, files)` entries when
-/// `files` is non-empty. This is a simpler baseline than tsgo's weighted
-/// graph partition (import affinity + load cap); it is measured against
-/// that design in the W follow-up, not assumed equivalent.
+/// Deterministic least-load, heaviest first: files are visited from the
+/// heaviest down (program order between equal weights) and each goes to the
+/// shard with the smallest accumulated weight, lowest shard index on ties,
+/// so one source heavier than the rest of a shard's share ends up alone
+/// instead of sharing its checker with the light files scheduled before it
+/// in program order. Every shard's list is then sorted back into program
+/// order. Empty shards are dropped, so the result has `min(shards, files)`
+/// entries when `files` is non-empty. This is a simpler baseline than tsgo's
+/// weighted graph partition (import affinity + load cap); it is measured
+/// against that design in the W follow-up, not assumed equivalent.
 pub(crate) fn partition_files(weights: &[usize], shards: usize) -> Vec<Vec<usize>> {
     let shards = shards.clamp(1, weights.len().max(1));
+    let mut order: Vec<usize> = (0..weights.len()).collect();
+    order.sort_by_key(|&file| (std::cmp::Reverse(weights[file].max(1)), file));
     let mut assignment: Vec<Vec<usize>> = vec![Vec::new(); shards];
     let mut load = vec![0usize; shards];
-    for (file, &weight) in weights.iter().enumerate() {
+    for file in order {
         let target = (0..shards)
             .min_by_key(|&shard| (load[shard], shard))
             .expect("at least one shard");
         assignment[target].push(file);
-        load[target] += weight.max(1);
+        load[target] += weights[file].max(1);
+    }
+    for files in &mut assignment {
+        files.sort_unstable();
     }
     assignment.retain(|files| !files.is_empty());
     assignment
