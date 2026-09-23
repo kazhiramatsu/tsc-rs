@@ -7,10 +7,10 @@
 
 use std::collections::BTreeSet;
 use tsc_diagnostics::{JsStr, JsString};
-use tsc_host::{CompilerHost, HostError};
+use tsc_host::{CompilerHost, DirectoryListingKind, HostError};
 
 use crate::config::{ConfigHostError, ConfigHostOperation, ConfigParseHost};
-use crate::config_matcher::ConfigFilePattern;
+use crate::config_matcher::{ConfigFilePattern, MatchInput};
 use crate::decode_host_text;
 use crate::js_path::{
     base_file_name, directory_name, eq_ignore_case, file_name_key, normalize_slashes, root_parts,
@@ -41,10 +41,15 @@ impl<'a> CompilerConfigHost<'a> {
         ConfigHostError::new(operation, path, error.to_string())
     }
 
+    /// `canonical` is the visited-set key of `directory` when the caller
+    /// already knows it: a directory reached through its plain (non-link)
+    /// entry has its parent's real path plus its name, so only a base
+    /// directory and a linked entry need the host's realpath.
     #[allow(clippy::too_many_arguments)]
     fn walk_directory(
         &self,
         directory: JsStr<'_>,
+        canonical: Option<JsString>,
         extensions: &[&str],
         includes: &[ConfigFilePattern],
         excludes: &[ConfigFilePattern],
@@ -55,62 +60,66 @@ impl<'a> CompilerConfigHost<'a> {
         if depth == 0 {
             return Ok(());
         }
-        let canonical_directory = self.canonical_directory(directory)?;
-        if !visited.insert(canonical_directory) {
+        let canonical_directory = match canonical {
+            Some(canonical) => canonical,
+            None => self.canonical_directory(directory)?,
+        };
+        if !visited.insert(canonical_directory.clone()) {
             return Ok(());
         }
-        let entries = self.host.read_directory_js(directory).map_err(|error| {
-            self.host_error(ConfigHostOperation::ReadDirectory, directory, error)
-        })?;
+        let entries = self
+            .host
+            .read_directory_listing_js(directory)
+            .map_err(|error| {
+                self.host_error(ConfigHostOperation::ReadDirectory, directory, error)
+            })?;
         // matchFiles.visitDirectory visits current files before child
         // directories (_tsc.js:18539–18571). CompilerHost already supplies
         // UTF-16 name order; partitioning preserves that order within each.
+        let case_sensitive = self.host.use_case_sensitive_file_names();
         let mut child_directories = Vec::new();
         for entry in entries {
-            let text = entry.as_js();
-            if self
-                .host
-                .directory_exists_js(entry.as_js())
-                .map_err(|error| self.host_error(ConfigHostOperation::ReadDirectory, text, error))?
-            {
+            let text = entry.path.as_js();
+            if entry.kind == DirectoryListingKind::Directory {
                 child_directories.push(entry);
                 continue;
             }
             if !extensions.iter().any(|extension| text.ends_with(extension)) {
                 continue;
             }
-            if excludes.iter().any(|pattern| pattern.matches(text)) {
+            // Prepared once for every pattern; a path that is not absolute
+            // matches no pattern (as before), so it is neither excluded nor
+            // bucketed by an include.
+            let input = MatchInput::new(text, case_sensitive);
+            if input
+                .as_ref()
+                .is_some_and(|input| excludes.iter().any(|pattern| pattern.matches_input(input)))
+            {
                 continue;
             }
             if includes.is_empty() {
                 files[0].push(text.to_owned());
-            } else if let Some(include_index) =
-                includes.iter().position(|pattern| pattern.matches(text))
-            {
+            } else if let Some(include_index) = input.as_ref().and_then(|input| {
+                includes
+                    .iter()
+                    .position(|pattern| pattern.matches_input(input))
+            }) {
                 files[include_index].push(text.to_owned());
             }
         }
         for entry in child_directories {
-            let text = entry.as_js();
-            if !includes.is_empty() && is_implicit_excluded_directory(entry.as_js()) {
-                // A package directory is excluded by the implicit recursive
-                // wildcard, but an explicit include such as
-                // `node_modules/**/*.ts` must still be able to enter it.
-                if !includes
-                    .iter()
-                    .any(|pattern| pattern.could_match_descendant(text))
-                {
-                    continue;
-                }
-            }
-            if !excludes.iter().any(|pattern| pattern.matches(text))
-                && (includes.is_empty()
-                    || includes
-                        .iter()
-                        .any(|pattern| pattern.could_match_descendant(text)))
-            {
+            let text = entry.path.as_js();
+            if enters_child_directory(text, case_sensitive, includes, excludes) {
+                let child_canonical = (!entry.symlink).then(|| {
+                    let name = text.split_ascii(b'/').next_back().unwrap_or(text);
+                    let mut key = canonical_directory.clone();
+                    key.push_str("/");
+                    key.push_js(file_name_key(name, case_sensitive).as_js());
+                    key
+                });
                 self.walk_directory(
-                    entry.as_js(),
+                    text,
+                    child_canonical,
                     extensions,
                     includes,
                     excludes,
@@ -178,6 +187,7 @@ impl ConfigParseHost for CompilerConfigHost<'_> {
         for base in discovery_base_paths(directory, includes, case_sensitive)? {
             self.walk_directory(
                 base.as_js(),
+                None,
                 extensions,
                 &include_patterns,
                 &exclude_patterns,
@@ -285,6 +295,36 @@ fn discovery_base_paths(
         }
     }
     Ok(bases)
+}
+
+/// matchFiles.visitDirectory's descent decision for one child directory
+/// (_tsc.js:18562–18570): a package directory is excluded by the implicit
+/// recursive wildcard unless an explicit include such as
+/// `node_modules/**/*.ts` can still enter it, and otherwise the directory is
+/// entered when no exclude matches it and some include could match a
+/// descendant.
+fn enters_child_directory(
+    text: JsStr<'_>,
+    case_sensitive: bool,
+    includes: &[ConfigFilePattern],
+    excludes: &[ConfigFilePattern],
+) -> bool {
+    let input = MatchInput::new(text, case_sensitive);
+    let could_match_descendant = |pattern: &ConfigFilePattern| {
+        input
+            .as_ref()
+            .is_some_and(|input| pattern.could_match_descendant_input(input))
+    };
+    if !includes.is_empty()
+        && is_implicit_excluded_directory(text)
+        && !includes.iter().any(could_match_descendant)
+    {
+        return false;
+    }
+    !input
+        .as_ref()
+        .is_some_and(|input| excludes.iter().any(|pattern| pattern.matches_input(input)))
+        && (includes.is_empty() || includes.iter().any(could_match_descendant))
 }
 
 fn discovery_has_extension(path: JsStr<'_>) -> bool {

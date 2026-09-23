@@ -391,6 +391,30 @@ impl CompilerHost for CliCompilerHost {
         }
         self.filesystem.read_directory_js(path)
     }
+    fn read_directory_listing_js(
+        &self,
+        path: JsStr<'_>,
+    ) -> Result<Vec<tsc_host::DirectoryListingEntry>, HostError> {
+        if path
+            .as_str()
+            .is_some_and(|path| Path::new(path) == self.library_directory)
+        {
+            return Ok(embedded_libraries::TYPESCRIPT_6_0_3_LIBRARIES
+                .iter()
+                .map(|(name, _)| {
+                    let mut entry = path.to_owned();
+                    entry.push_str("/");
+                    entry.push_str(name);
+                    tsc_host::DirectoryListingEntry {
+                        path: entry,
+                        kind: tsc_host::DirectoryListingKind::File,
+                        symlink: false,
+                    }
+                })
+                .collect());
+        }
+        self.filesystem.read_directory_listing_js(path)
+    }
     fn get_directories_js(&self, path: JsStr<'_>) -> Result<Vec<JsString>, HostError> {
         if path
             .as_str()

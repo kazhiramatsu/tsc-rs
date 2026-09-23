@@ -108,28 +108,39 @@ impl ConfigFilePattern {
     /// component DP uses linear scratch space; `**` only has recursive meaning
     /// when it is an entire pattern component.
     pub fn matches<'s>(&self, absolute_path: impl Into<JsStr<'s>>) -> bool {
-        let Ok(path) = normalize_absolute(absolute_path.into()) else {
-            return false;
-        };
-        let root = path
+        MatchInput::new(absolute_path.into(), self.case_sensitive)
+            .is_some_and(|input| self.matches_input(&input))
+    }
+
+    /// [`Self::matches`] over a candidate prepared once for every pattern of
+    /// a walk (all compiled for the same case sensitivity).
+    pub(crate) fn matches_input(&self, input: &MatchInput) -> bool {
+        if !self
             .root
-            .as_js()
-            .strip_suffix("/")
-            .unwrap_or(path.root.as_js());
-        if !self.root.matches(
-            &InputComponent::new(root, self.case_sensitive),
-            self.components.is_empty(),
-            self.case_sensitive,
-        ) {
+            .matches(&input.root, self.components.is_empty(), self.case_sensitive)
+        {
             return false;
         }
 
-        let inputs = path
-            .components
-            .iter()
-            .map(|text| InputComponent::new(text.as_js(), self.case_sensitive))
-            .collect::<Vec<_>>();
+        let inputs = &input.components;
         let input_count = inputs.len();
+        // The leading wildcard-free components must match the input's
+        // leading components one to one; most of a walk's patterns part
+        // from a candidate here, before the component DP below.
+        for (index, component) in self.components.iter().enumerate() {
+            let PatternComponent::Glob(glob) = component else {
+                break;
+            };
+            if glob.has_wildcard {
+                break;
+            }
+            let Some(input) = inputs.get(index) else {
+                return false;
+            };
+            if !glob.matches(input, index + 1 == input_count, self.case_sensitive) {
+                return false;
+            }
+        }
         let mut previous = vec![false; input_count + 1];
         let mut current = vec![false; input_count + 1];
         previous[0] = true;
@@ -173,29 +184,43 @@ impl ConfigFilePattern {
     /// consume a directory only when the same implicit-directory rules used by
     /// [`Self::matches`] allow it; an explicit `node_modules` component thus
     /// remains selectable while `**/*` still skips it.
+    #[cfg(test)]
     pub(crate) fn could_match_descendant<'s>(
         &self,
         absolute_directory: impl Into<JsStr<'s>>,
     ) -> bool {
-        let Ok(path) = normalize_absolute(absolute_directory.into()) else {
-            return false;
-        };
-        let root = path
+        MatchInput::new(absolute_directory.into(), self.case_sensitive)
+            .is_some_and(|input| self.could_match_descendant_input(&input))
+    }
+
+    /// [`Self::could_match_descendant`] over a prepared candidate.
+    pub(crate) fn could_match_descendant_input(&self, input: &MatchInput) -> bool {
+        if !self
             .root
-            .as_js()
-            .strip_suffix("/")
-            .unwrap_or(path.root.as_js());
-        if !self.root.matches(
-            &InputComponent::new(root, self.case_sensitive),
-            self.components.is_empty(),
-            self.case_sensitive,
-        ) {
+            .matches(&input.root, self.components.is_empty(), self.case_sensitive)
+        {
             return false;
+        }
+        // As in matches_input: a directory whose leading components differ
+        // from the pattern's wildcard-free prefix has no matching descendant.
+        for (index, component) in self.components.iter().enumerate() {
+            let PatternComponent::Glob(glob) = component else {
+                break;
+            };
+            if glob.has_wildcard {
+                break;
+            }
+            let Some(input) = input.components.get(index) else {
+                break;
+            };
+            if !glob.matches(input, false, self.case_sensitive) {
+                return false;
+            }
         }
 
         let mut states = vec![0usize];
-        for component in &path.components {
-            states = self.advance_directory_states(&states, component.as_js());
+        for component in &input.components {
+            states = self.advance_directory_states(&states, component);
             if states.is_empty() {
                 return false;
             }
@@ -210,7 +235,7 @@ impl ConfigFilePattern {
             .any(|state| state < self.components.len())
     }
 
-    fn advance_directory_states(&self, states: &[usize], input: JsStr<'_>) -> Vec<usize> {
+    fn advance_directory_states(&self, states: &[usize], input: &InputComponent) -> Vec<usize> {
         let mut closure = states.to_vec();
         let mut index = 0;
         while index < closure.len() {
@@ -225,7 +250,6 @@ impl ConfigFilePattern {
             index += 1;
         }
 
-        let input = InputComponent::new(input, self.case_sensitive);
         let mut next = Vec::new();
         for state in closure {
             match self.components.get(state) {
@@ -235,7 +259,7 @@ impl ConfigFilePattern {
                     }
                 }
                 Some(PatternComponent::Glob(glob)) => {
-                    if glob.matches(&input, false, self.case_sensitive) {
+                    if glob.matches(input, false, self.case_sensitive) {
                         next.push(state + 1);
                     }
                 }
@@ -294,7 +318,7 @@ impl GlobComponent {
 
     fn matches(
         &self,
-        input: &InputComponent<'_>,
+        input: &InputComponent,
         is_last_path_component: bool,
         case_sensitive: bool,
     ) -> bool {
@@ -359,16 +383,16 @@ enum GlobToken {
     Question,
 }
 
-struct InputComponent<'a> {
-    text: JsStr<'a>,
+struct InputComponent {
+    text: JsString,
     characters: Vec<u16>,
     common_package_folder: bool,
 }
 
-impl<'a> InputComponent<'a> {
-    fn new(text: JsStr<'a>, case_sensitive: bool) -> Self {
+impl InputComponent {
+    fn new(text: JsStr<'_>, case_sensitive: bool) -> Self {
         Self {
-            text,
+            text: text.to_owned(),
             characters: text.code_units().collect(),
             common_package_folder: COMMON_PACKAGE_FOLDERS
                 .iter()
@@ -377,7 +401,34 @@ impl<'a> InputComponent<'a> {
     }
 
     fn recursive_wildcard_allowed(&self) -> bool {
-        !self.text.starts_with(".") && !self.common_package_folder
+        !self.text.as_js().starts_with(".") && !self.common_package_folder
+    }
+}
+
+/// A candidate path prepared once for every compiled pattern of one walk:
+/// normalized and split into components, each carrying the facts the
+/// matchers need. A path that is not absolute matches nothing.
+pub(crate) struct MatchInput {
+    root: InputComponent,
+    components: Vec<InputComponent>,
+}
+
+impl MatchInput {
+    pub(crate) fn new(absolute_path: JsStr<'_>, case_sensitive: bool) -> Option<Self> {
+        let path = normalize_absolute(absolute_path).ok()?;
+        let root = path
+            .root
+            .as_js()
+            .strip_suffix("/")
+            .unwrap_or(path.root.as_js());
+        Some(Self {
+            root: InputComponent::new(root, case_sensitive),
+            components: path
+                .components
+                .iter()
+                .map(|text| InputComponent::new(text.as_js(), case_sensitive))
+                .collect(),
+        })
     }
 }
 

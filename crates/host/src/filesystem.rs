@@ -5,7 +5,10 @@ use std::path::{Path, PathBuf};
 use tsc_diagnostics::{JsStr, JsString};
 
 use crate::ordering::compare_utf16;
-use crate::{CompilerHost, HostError, HostErrorKind, HostOperation};
+use crate::{
+    CompilerHost, DirectoryListingEntry, DirectoryListingKind, HostError, HostErrorKind,
+    HostOperation,
+};
 
 /// Read-only [`CompilerHost`] backed by the process filesystem.
 ///
@@ -73,17 +76,27 @@ impl FsCompilerHost {
         path: &Path,
         directories_only: bool,
     ) -> Result<Vec<PathBuf>, HostError> {
-        validate_input_path(path, HostOperation::ReadDirectory)?;
-        let Some(metadata) = metadata_if_present(path, HostOperation::ReadDirectory)? else {
-            return Ok(Vec::new());
-        };
-        if !metadata.is_dir() {
-            return Ok(Vec::new());
-        }
+        Ok(self
+            .read_immediate_entry_records(path)?
+            .into_iter()
+            .filter(|record| record.directory || !directories_only)
+            .map(|record| record.path)
+            .collect())
+    }
 
+    /// The immediate file and directory entries below `path` in display-name
+    /// order, each with the kind its directory entry names. Only a symbolic
+    /// link has its target inspected (a dangling link is not an entry); every
+    /// other entry's kind comes from the listing itself.
+    fn read_immediate_entry_records(&self, path: &Path) -> Result<Vec<EntryRecord>, HostError> {
+        validate_input_path(path, HostOperation::ReadDirectory)?;
+        // An absent path or a non-directory has no entries; read_dir reports
+        // both itself, without a separate stat.
         let reader = match fs::read_dir(path) {
             Ok(reader) => reader,
             Err(error) if is_absence(&error) => return Ok(Vec::new()),
+            #[cfg(windows)]
+            Err(_) if is_incomplete_windows_namespace_ancestor(path) => return Ok(Vec::new()),
             Err(error) => {
                 return Err(map_io_error(
                     error,
@@ -104,34 +117,58 @@ impl FsCompilerHost {
             })?;
             let entry_path = entry.path();
             validate_observed_path(&entry_path, HostOperation::ReadDirectory)?;
-            let entry_metadata = match fs::metadata(&entry_path) {
-                Ok(metadata) => metadata,
-                Err(error) if is_absence(&error) => continue,
-                Err(error) => {
-                    return Err(map_io_error(
-                        error,
-                        HostOperation::ReadDirectory,
-                        Some(entry_path),
-                    ));
+            let file_type = entry.file_type().map_err(|error| {
+                map_io_error(
+                    error,
+                    HostOperation::ReadDirectory,
+                    Some(entry_path.clone()),
+                )
+            })?;
+            let symlink = file_type.is_symlink();
+            let directory = if symlink {
+                match fs::metadata(&entry_path) {
+                    Ok(metadata) if metadata.is_dir() => true,
+                    Ok(metadata) if metadata.is_file() => false,
+                    Ok(_) => continue,
+                    Err(error) if is_absence(&error) => continue,
+                    Err(error) => {
+                        return Err(map_io_error(
+                            error,
+                            HostOperation::ReadDirectory,
+                            Some(entry_path),
+                        ));
+                    }
                 }
-            };
-            if directories_only {
-                if !entry_metadata.is_dir() {
-                    continue;
-                }
-            } else if !entry_metadata.is_file() && !entry_metadata.is_dir() {
+            } else if file_type.is_dir() {
+                true
+            } else if file_type.is_file() {
+                false
+            } else {
                 continue;
-            }
+            };
 
             let display_name = entry
                 .file_name()
                 .into_string()
                 .expect("validated filesystem-host entry name is Unicode");
-            entries.push((display_name, entry_path));
+            entries.push(EntryRecord {
+                name: display_name,
+                path: entry_path,
+                directory,
+                symlink,
+            });
         }
-        entries.sort_by(|left, right| compare_utf16(&left.0, &right.0));
-        Ok(entries.into_iter().map(|(_, path)| path).collect())
+        entries.sort_by(|left, right| compare_utf16(&left.name, &right.name));
+        Ok(entries)
     }
+}
+
+/// One entry of [`FsCompilerHost::read_immediate_entry_records`].
+struct EntryRecord {
+    name: String,
+    path: PathBuf,
+    directory: bool,
+    symlink: bool,
 }
 
 impl crate::ParallelSourceReader for FsCompilerHost {
@@ -181,6 +218,27 @@ impl CompilerHost for FsCompilerHost {
 
     fn read_directory_js(&self, path: JsStr<'_>) -> Result<Vec<JsString>, HostError> {
         self.read_immediate_entries_js(path, false)
+    }
+
+    fn read_directory_listing_js(
+        &self,
+        path: JsStr<'_>,
+    ) -> Result<Vec<DirectoryListingEntry>, HostError> {
+        let native = crate::js_path::filesystem_path(path, HostOperation::ReadDirectory)?;
+        Ok(self
+            .read_immediate_entry_records(&native)
+            .map_err(|error| retain_query_path(error, path, &native))?
+            .into_iter()
+            .map(|record| DirectoryListingEntry {
+                path: crate::js_path::join_observed_name(path, &record.name),
+                kind: if record.directory {
+                    DirectoryListingKind::Directory
+                } else {
+                    DirectoryListingKind::File
+                },
+                symlink: record.symlink,
+            })
+            .collect())
     }
 
     fn get_directories_js(&self, path: JsStr<'_>) -> Result<Vec<JsString>, HostError> {
