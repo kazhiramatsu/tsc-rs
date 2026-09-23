@@ -1529,7 +1529,7 @@ enum ReadAheadOutcome {
     Resolved {
         key: ResolutionKey,
         loads_source: bool,
-        host: Option<HostModuleResolution>,
+        host: Option<Box<HostModuleResolution>>,
     },
     Read {
         path: ProgramPath,
@@ -2347,7 +2347,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                         ReadAheadOutcome::Resolved {
                             key,
                             loads_source,
-                            host,
+                            host: host.map(Box::new),
                         }
                     }
                     ReadAheadTask::Read { path, scope } => {
@@ -2419,7 +2419,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     } => self.pipeline_apply_resolution(
                         key,
                         loads_source,
-                        host,
+                        host.map(|host| *host),
                         &pipeline,
                         &mut state,
                     ),
