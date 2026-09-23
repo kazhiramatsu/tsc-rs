@@ -1,7 +1,9 @@
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, RwLock};
 use tsc_diagnostics::{JsStr, JsString};
 
 use crate::ordering::compare_utf16;
@@ -19,6 +21,91 @@ use crate::{
 pub struct FsCompilerHost {
     current_directory: PathBuf,
     case_sensitive: bool,
+    observations: Arc<ObservationCache>,
+}
+
+/// What one `stat` of a path observed.
+#[derive(Clone, Copy, Debug)]
+enum Presence {
+    Missing,
+    File { len: u64 },
+    Directory,
+    Other,
+}
+
+const OBSERVATION_SHARDS: usize = 32;
+
+/// The host's memo of what it observed on disk, shared by every clone of
+/// the host and every thread that resolves over it. One program
+/// construction treats the disk as fixed, exactly as TypeScript's
+/// `createProgram` does (`changeCompilerHostLikeToUseCache` memoizes
+/// fileExists/directoryExists/readFile for the same reason), and module
+/// resolution probes the same node_modules ancestors, package directories
+/// and symlinked packages once per request from every file: the memo turns
+/// those repeats into a lookup instead of a syscall. Only successful
+/// observations are kept; a host error is reported every time.
+#[derive(Debug, Default)]
+struct ObservationCache {
+    presence: [RwLock<HashMap<PathBuf, Presence>>; OBSERVATION_SHARDS],
+    realpath: [RwLock<HashMap<PathBuf, Option<PathBuf>>>; OBSERVATION_SHARDS],
+}
+
+impl ObservationCache {
+    fn shard(path: &Path) -> usize {
+        // FNV-1a over the path bytes: cheap, and the shard only spreads
+        // lock contention.
+        let mut hash = 0xcbf2_9ce4_8422_2325_u64;
+        for &byte in path.as_os_str().as_encoded_bytes() {
+            hash ^= u64::from(byte);
+            hash = hash.wrapping_mul(0x0100_0000_01b3);
+        }
+        (hash % OBSERVATION_SHARDS as u64) as usize
+    }
+
+    fn presence(&self, path: &Path, operation: HostOperation) -> Result<Presence, HostError> {
+        let shard = &self.presence[Self::shard(path)];
+        if let Some(present) = shard
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get(path)
+        {
+            return Ok(*present);
+        }
+        let present = match metadata_if_present(path, operation)? {
+            None => Presence::Missing,
+            Some(metadata) if metadata.is_file() => Presence::File {
+                len: metadata.len(),
+            },
+            Some(metadata) if metadata.is_dir() => Presence::Directory,
+            Some(_) => Presence::Other,
+        };
+        shard
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert(path.to_path_buf(), present);
+        Ok(present)
+    }
+
+    fn realpath(
+        &self,
+        path: &Path,
+        compute: impl FnOnce() -> Result<Option<PathBuf>, HostError>,
+    ) -> Result<Option<PathBuf>, HostError> {
+        let shard = &self.realpath[Self::shard(path)];
+        if let Some(physical) = shard
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get(path)
+        {
+            return Ok(physical.clone());
+        }
+        let physical = compute()?;
+        shard
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert(path.to_path_buf(), physical.clone());
+        Ok(physical)
+    }
 }
 
 impl FsCompilerHost {
@@ -46,6 +133,7 @@ impl FsCompilerHost {
             Some(metadata) if metadata.is_dir() => Ok(Self {
                 current_directory,
                 case_sensitive: use_case_sensitive_file_names,
+                observations: Arc::default(),
             }),
             Some(_) => Err(HostError::new(
                 HostErrorKind::InvalidInput,
@@ -195,11 +283,10 @@ impl CompilerHost for FsCompilerHost {
     fn file_size_hint_js(&self, path: JsStr<'_>) -> Result<Option<u64>, HostError> {
         let native = crate::js_path::filesystem_path(path, HostOperation::ReadFile)?;
         validate_input_path(&native, HostOperation::ReadFile)
-            .and_then(|_| metadata_if_present(&native, HostOperation::ReadFile))
-            .map(|metadata| {
-                metadata
-                    .filter(fs::Metadata::is_file)
-                    .map(|metadata| metadata.len())
+            .and_then(|_| self.observations.presence(&native, HostOperation::ReadFile))
+            .map(|present| match present {
+                Presence::File { len } => Some(len),
+                _ => None,
             })
             .map_err(|error| retain_query_path(error, path, &native))
     }
@@ -269,10 +356,10 @@ impl CompilerHost for FsCompilerHost {
 
     fn read_file(&self, path: &Path) -> Result<Option<Vec<u8>>, HostError> {
         validate_input_path(path, HostOperation::ReadFile)?;
-        let Some(metadata) = metadata_if_present(path, HostOperation::ReadFile)? else {
-            return Ok(None);
-        };
-        if !metadata.is_file() {
+        if !matches!(
+            self.observations.presence(path, HostOperation::ReadFile)?,
+            Presence::File { .. }
+        ) {
             return Ok(None);
         }
 
@@ -289,14 +376,20 @@ impl CompilerHost for FsCompilerHost {
 
     fn file_exists(&self, path: &Path) -> Result<bool, HostError> {
         validate_input_path(path, HostOperation::FileExists)?;
-        Ok(metadata_if_present(path, HostOperation::FileExists)?
-            .is_some_and(|metadata| metadata.is_file()))
+        Ok(matches!(
+            self.observations
+                .presence(path, HostOperation::FileExists)?,
+            Presence::File { .. }
+        ))
     }
 
     fn directory_exists(&self, path: &Path) -> Result<bool, HostError> {
         validate_input_path(path, HostOperation::DirectoryExists)?;
-        Ok(metadata_if_present(path, HostOperation::DirectoryExists)?
-            .is_some_and(|metadata| metadata.is_dir()))
+        Ok(matches!(
+            self.observations
+                .presence(path, HostOperation::DirectoryExists)?,
+            Presence::Directory
+        ))
     }
 
     fn read_directory(&self, path: &Path) -> Result<Vec<PathBuf>, HostError> {
@@ -309,24 +402,28 @@ impl CompilerHost for FsCompilerHost {
 
     fn realpath(&self, path: &Path) -> Result<Option<PathBuf>, HostError> {
         validate_input_path(path, HostOperation::Realpath)?;
-        if metadata_if_present(path, HostOperation::Realpath)?.is_none() {
-            return Ok(None);
-        }
-
-        let physical = match fs::canonicalize(path) {
-            Ok(physical) => physical,
-            Err(error) if is_absence(&error) => return Ok(None),
-            Err(error) => {
-                return Err(map_io_error(
-                    error,
-                    HostOperation::Realpath,
-                    Some(path.to_path_buf()),
-                ));
+        self.observations.realpath(path, || {
+            if matches!(
+                self.observations.presence(path, HostOperation::Realpath)?,
+                Presence::Missing
+            ) {
+                return Ok(None);
             }
-        };
-        let physical = normalize_windows_realpath(physical);
-        validate_observed_path(&physical, HostOperation::Realpath)?;
-        Ok(Some(physical))
+            let physical = match fs::canonicalize(path) {
+                Ok(physical) => physical,
+                Err(error) if is_absence(&error) => return Ok(None),
+                Err(error) => {
+                    return Err(map_io_error(
+                        error,
+                        HostOperation::Realpath,
+                        Some(path.to_path_buf()),
+                    ));
+                }
+            };
+            let physical = normalize_windows_realpath(physical);
+            validate_observed_path(&physical, HostOperation::Realpath)?;
+            Ok(Some(physical))
+        })
     }
 
     /// Filesystem reads are pure functions of the on-disk state, which one
@@ -338,6 +435,10 @@ impl CompilerHost for FsCompilerHost {
     }
 
     fn parallel_source_reader(&self) -> Option<&(dyn crate::ParallelSourceReader + Sync)> {
+        Some(self)
+    }
+
+    fn parallel_resolution_host(&self) -> Option<&(dyn CompilerHost + Sync)> {
         Some(self)
     }
 }

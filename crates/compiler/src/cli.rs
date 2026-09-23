@@ -504,6 +504,13 @@ impl CompilerHost for CliCompilerHost {
             .is_some()
             .then_some(self as &(dyn ParallelSourceReader + Sync))
     }
+
+    fn parallel_resolution_host(&self) -> Option<&(dyn CompilerHost + Sync)> {
+        self.filesystem
+            .parallel_resolution_host()
+            .is_some()
+            .then_some(self as &(dyn CompilerHost + Sync))
+    }
 }
 
 impl ParallelSourceReader for CliCompilerHost {

@@ -218,6 +218,14 @@ pub trait CompilerHost {
     fn parallel_source_reader(&self) -> Option<&(dyn ParallelSourceReader + Sync)> {
         None
     }
+
+    /// This host as a host shared by several threads at once, for work that
+    /// resolves modules ahead of the program walk (each thread constructs its
+    /// own resolver over it), or `None` (the default) to keep every
+    /// resolution on the loading thread.
+    fn parallel_resolution_host(&self) -> Option<&(dyn CompilerHost + Sync)> {
+        None
+    }
 }
 
 /// `CompilerHost::read_file_js` callable from several threads at once during

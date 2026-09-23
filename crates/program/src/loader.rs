@@ -868,6 +868,10 @@ fn load_program_worker(
         prefetch_roots.push(root);
     }
     let phase_started = std::time::Instant::now();
+    // What the walk loads after the roots (the selected libraries and the
+    // automatic type directives' targets) reads ahead with them, so those
+    // parses overlap the largest root's instead of following it.
+    prefetch_roots.extend(graph.read_ahead_seeds());
     graph.prefetch_roots(&prefetch_roots);
     drop(prefetch_roots);
     tsc_types::trace::mark("load: read-ahead parse of roots", phase_started);
@@ -883,21 +887,47 @@ fn load_program_worker(
             .unwrap_or(RootFileReason::Explicit);
         graph.load_root(root, root_spelling, reason)?;
     }
+    tsc_types::trace::mark("load: root walk (roots only)", phase_started);
     if root_names.len() != 0 {
+        let directives_started = std::time::Instant::now();
         graph.load_automatic_type_directives()?;
+        tsc_types::trace::mark("load: automatic type directives", directives_started);
         if program_options.no_lib() != Some(true) {
+            let libraries_started = std::time::Instant::now();
             graph.load_selected_libraries()?;
+            tsc_types::trace::mark("load: selected libraries", libraries_started);
         }
     }
     tsc_types::trace::mark(
         &format!(
-            "load: root walk ({} pre-resolved hits, {} left, {} resolutions)",
+            "load: root walk ({} pre-resolved hits, {} directory hits, {} left, {} resolutions)",
             graph.pre_resolved_hits,
+            graph.directory_resolution_hits,
             graph.pre_resolved.len(),
             graph.module_resolutions.len()
         ),
         phase_started,
     );
+    if tsc_types::trace::enabled() {
+        // The sources whose read-ahead resolutions the walk never took: read
+        // ahead in vain, so worth knowing about.
+        let mut unvisited: BTreeMap<&CanonicalPath, usize> = BTreeMap::new();
+        for key in graph.pre_resolved.keys() {
+            *unvisited.entry(key.source()).or_default() += 1;
+        }
+        for (source, requests) in unvisited.iter().take(8) {
+            eprintln!(
+                "[phase] load: read ahead in vain: {:?} ({requests} requests)",
+                source.as_js()
+            );
+        }
+        if unvisited.len() > 8 {
+            eprintln!(
+                "[phase] load: read ahead in vain: {} more sources",
+                unvisited.len() - 8
+            );
+        }
+    }
     let staged = graph.finish();
     tsc_types::trace::mark("load: root walk and graph finish", phase_started);
     let phase_started = std::time::Instant::now();
@@ -1481,6 +1511,101 @@ struct PrefetchedParse {
     plan: Result<SourceRequestPlan, ResolutionError>,
 }
 
+/// One unit of the pipelined dependency read-ahead
+/// (`StagedGraph::prefetch_dependencies_pipelined`).
+enum ReadAheadTask {
+    Resolve {
+        containing_file: JsString,
+        key: ResolutionKey,
+        loads_source: bool,
+    },
+    Read {
+        path: ProgramPath,
+        scope: Option<PackageMetadata>,
+    },
+}
+
+enum ReadAheadOutcome {
+    Resolved {
+        key: ResolutionKey,
+        loads_source: bool,
+        host: Option<HostModuleResolution>,
+    },
+    Read {
+        path: ProgramPath,
+        read: Option<PrefetchedRead>,
+    },
+}
+
+struct ReadAheadQueue {
+    pending: VecDeque<ReadAheadTask>,
+    closed: bool,
+}
+
+struct ReadAheadPipeline {
+    queue: std::sync::Mutex<ReadAheadQueue>,
+    ready: std::sync::Condvar,
+}
+
+impl ReadAheadPipeline {
+    fn push(&self, task: ReadAheadTask) {
+        self.queue
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .pending
+            .push_back(task);
+        self.ready.notify_one();
+    }
+
+    /// The next task, waiting for one; `None` once the queue is closed and
+    /// drained.
+    fn take(&self) -> Option<ReadAheadTask> {
+        let mut queue = self
+            .queue
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        loop {
+            if let Some(task) = queue.pending.pop_front() {
+                return Some(task);
+            }
+            if queue.closed {
+                return None;
+            }
+            queue = self
+                .ready
+                .wait(queue)
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+        }
+    }
+
+    fn close(&self) {
+        self.queue
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .closed = true;
+        self.ready.notify_all();
+    }
+}
+
+/// The loading thread's bookkeeping for the pipelined read-ahead.
+#[derive(Default)]
+struct ReadAheadState {
+    outstanding: usize,
+    reads_in_flight: usize,
+    resolutions: usize,
+    directory_reuses: usize,
+    reads: usize,
+    /// Targets queued for a read (canonical), so a target reached twice is
+    /// read once.
+    queued: BTreeSet<CanonicalPath>,
+    /// Requests waiting for the in-flight resolution of their (containing
+    /// directory, specifier, mode).
+    waiting: BTreeMap<(JsString, JsString, ResolutionMode), Vec<(ResolutionKey, bool)>>,
+    /// Set once a read hit the load budget or failed: nothing more is read
+    /// ahead (the walk reads and reports as before).
+    stopped: bool,
+}
+
 /// The text of a source about to be planned: a fresh host read, or the
 /// retained read-ahead of the same bytes.
 enum SourceInput {
@@ -1510,6 +1635,7 @@ fn parse_root_ahead(
     path: &ProgramPath,
     bytes: Vec<u8>,
     options: &CompilerOptions,
+    package_scope: Option<&PackageMetadata>,
 ) -> PrefetchedRead {
     let byte_len = bytes.len();
     // Under the phase trace a large source reports its decode, snapshot and
@@ -1525,8 +1651,8 @@ fn parse_root_ahead(
             tsc_types::trace::mark(&format!("load: decode {name} ({byte_len} bytes)"), *started);
         }
         let prepare_started = std::time::Instant::now();
-        let implied = implied_node_format(path.display(), None, options);
-        let implied_for_emit = implied_node_format_for_emit(path.display(), None, options);
+        let implied = implied_node_format(path.display(), package_scope, options);
+        let implied_for_emit = implied_node_format_for_emit(path.display(), package_scope, options);
         let prepared = PreparedSourceFile::new(path.clone(), text)
             .with_implied_node_formats(implied, implied_for_emit);
         if let Some((_, name)) = &traced {
@@ -1538,12 +1664,20 @@ fn parse_root_ahead(
             tsc_types::trace::mark(&format!("load: parse and plan {name}"), plan_started);
         }
         Box::new(match planned {
-            Ok((plan, syntax)) => PrefetchedParse {
-                implied,
-                implied_for_emit,
-                prepared: prepared.with_preparsed_syntax(syntax),
-                plan: Ok(plan),
-            },
+            Ok((plan, syntax)) => {
+                if !plan.module_requests().is_empty() {
+                    // The walk slices each request's text for its inclusion
+                    // reason through the UTF-16 index: built here, on the
+                    // worker, instead of on the loading thread per source.
+                    let _ = prepared.snapshot().positions().utf16_len();
+                }
+                PrefetchedParse {
+                    implied,
+                    implied_for_emit,
+                    prepared: prepared.with_preparsed_syntax(syntax),
+                    plan: Ok(plan),
+                }
+            }
             Err(error) => PrefetchedParse {
                 implied,
                 implied_for_emit,
@@ -1626,6 +1760,16 @@ struct StagedGraph<'host, 'options, 'resolver> {
     /// takes each one at the request that would have computed it.
     pre_resolved: BTreeMap<ResolutionKey, HostModuleResolution>,
     pre_resolved_hits: usize,
+    /// Type-reference resolutions computed by the read-ahead that the walk
+    /// has not reached yet, taken like `pre_resolved`.
+    pre_resolved_types:
+        BTreeMap<TypeReferenceResolutionKey, ResolutionOutcome<HostResolvedTypeReferenceDirective>>,
+    /// One resolution per (containing directory, specifier, mode): tsc's
+    /// perDirectoryResolutionCache. A module resolution depends on the
+    /// containing file only through its directory (and the package scope
+    /// that directory selects), so every file of a directory shares it.
+    directory_resolutions: BTreeMap<(JsString, JsString, ResolutionMode), HostModuleResolution>,
+    directory_resolution_hits: usize,
 }
 
 /// Immutable and borrowed inputs for one staged graph. Keeping this boundary
@@ -1675,6 +1819,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             prefetch_order: Vec::new(),
             pre_resolved: BTreeMap::new(),
             pre_resolved_hits: 0,
+            pre_resolved_types: BTreeMap::new(),
+            directory_resolutions: BTreeMap::new(),
+            directory_resolution_hits: 0,
             reserved_sources: 0,
             reserved_bytes: 0,
         }
@@ -1726,7 +1873,6 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 || (!is_admitted_source(path.canonical(), self.compiler_options)
                     && self.compiler_options.allow_non_ts_extensions != Some(true))
                 || is_json_source(path.canonical())
-                || implied_node_format_needs_package_scope(path.display(), self.compiler_options)
                 || self.states.contains_key(path.canonical())
                 || !seen.insert(path.canonical().clone())
             {
@@ -1737,12 +1883,34 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         if pending.len() < 2 {
             return;
         }
+        // A source whose implied module format depends on its package scope
+        // (under NodeNext, every .ts source) is parsed against that scope:
+        // looked up here, on the loading thread, from the resolver's
+        // per-directory memo, exactly as its visit looks it up. A lookup
+        // failure leaves the scope unknown; the visit then reports it.
+        let mut pending: Vec<(ProgramPath, Option<PackageMetadata>)> = pending
+            .into_iter()
+            .map(|path| {
+                let scope = if implied_node_format_needs_package_scope(
+                    path.display(),
+                    self.compiler_options,
+                ) {
+                    self.resolver
+                        .package_scope_for_file(path.display())
+                        .ok()
+                        .flatten()
+                } else {
+                    None
+                };
+                (path, scope)
+            })
+            .collect();
         // The largest roots first: the longest parse then starts as early as
         // the streaming allows instead of after every smaller read before it
         // in root order. Hosts without a cheap size answer keep root order.
         let sizes: Vec<Option<u64>> = pending
             .iter()
-            .map(|path| self.host.file_size_hint_js(path.display()).ok().flatten())
+            .map(|(path, _)| self.host.file_size_hint_js(path.display()).ok().flatten())
             .collect();
         if sizes.iter().any(Option::is_some) {
             let mut order: Vec<usize> = (0..pending.len()).collect();
@@ -1784,7 +1952,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     return None;
                 }
                 loop {
-                    let path = pending.next()?;
+                    let (path, scope) = pending.next()?;
                     if self.sources.len() + self.reserved_sources + 1 > self.limits.max_source_files
                     {
                         stopped = true;
@@ -1819,15 +1987,15 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                             self.reserved_bytes += bytes.len();
                             let index = reads.len();
                             reads.push((path.clone(), None));
-                            return Some((index, path, bytes));
+                            return Some((index, path, scope, bytes));
                         }
                     }
                 }
             },
-            |(index, path, bytes)| {
+            |(index, path, scope, bytes)| {
                 let large_parse_started = (tsc_types::trace::enabled() && bytes.len() >= 256 << 10)
                     .then(|| (std::time::Instant::now(), bytes.len()));
-                let parsed = parse_root_ahead(&path, bytes, options);
+                let parsed = parse_root_ahead(&path, bytes, options, scope.as_ref());
                 if let Some((started, len)) = large_parse_started {
                     tsc_types::trace::mark(
                         &format!("load: parse {:?} ({len} bytes)", path.display()),
@@ -1866,7 +2034,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
     /// stay bounded by the worker count.
     fn read_roots_ahead_in_parallel(
         &mut self,
-        pending: Vec<ProgramPath>,
+        pending: Vec<(ProgramPath, Option<PackageMetadata>)>,
         reader: &(dyn ParallelSourceReader + Sync),
         workers: WorkerBudget,
     ) -> Vec<(ProgramPath, PrefetchedRead)> {
@@ -1890,7 +2058,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 }
                 pending.next()
             },
-            |path| {
+            |(path, scope)| {
                 let read = match reader.read_source_js(path.display()) {
                     Err(error) => Some(PrefetchedRead::Failed(error)),
                     Ok(None) => Some(PrefetchedRead::Missing),
@@ -1903,7 +2071,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                             let large_parse_started = (tsc_types::trace::enabled()
                                 && bytes.len() >= 256 << 10)
                                 .then(|| (std::time::Instant::now(), bytes.len()));
-                            let parsed = parse_root_ahead(&path, bytes, options);
+                            let parsed = parse_root_ahead(&path, bytes, options, scope.as_ref());
                             if let Some((started, len)) = large_parse_started {
                                 tsc_types::trace::mark(
                                     &format!("load: parse {:?} ({len} bytes)", path.display()),
@@ -1969,15 +2137,38 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
     /// reservation is released; the visit's own admission accounts for it.
     /// tsrs-native: read ahead the dependencies of the read-ahead roots.
     ///
-    /// Level by level: resolve every module request of the sources read
-    /// ahead so far (the walk takes these resolutions in its own order, see
-    /// `pre_resolved`), read and parse their loadable targets on the
-    /// workers as `prefetch_roots` does, and repeat with the targets' own
-    /// requests. The sequential walk keeps every decision it makes (visit
-    /// order, unloaded reasons, diagnostics, limits); this only answers its
-    /// reads and resolutions from memory. A request whose resolution fails
-    /// here is left for the walk to resolve and report in order.
+    /// Resolve every module request of the sources read ahead so far (the
+    /// walk takes these resolutions in its own order, see `pre_resolved`),
+    /// read and parse their loadable targets on the workers as
+    /// `prefetch_roots` does, and repeat with the targets' own requests,
+    /// along with the reference edges (path, lib and type directives) the
+    /// walk follows. The sequential walk keeps every decision it makes
+    /// (visit order, unloaded reasons, diagnostics, limits); this only
+    /// answers its reads and resolutions from memory. A request whose
+    /// resolution fails here is left for the walk to resolve and report in
+    /// order.
+    ///
+    /// Over a host that resolves and reads on several threads the work is
+    /// one pipeline: a parsed source's requests resolve while other sources
+    /// are still being read, and a resolved target is read as soon as it is
+    /// known, so no level barrier waits for the largest parse in progress.
+    /// Otherwise the same edges are followed level by level.
     fn prefetch_dependencies(&mut self) {
+        let workers = self.limits.workers;
+        let host_ref = self.host;
+        if workers.is_parallel() && host_ref.permits_source_read_ahead() {
+            if let (Some(host), Some(reader)) = (
+                host_ref.parallel_resolution_host(),
+                host_ref.parallel_source_reader(),
+            ) {
+                self.prefetch_dependencies_pipelined(host, reader, workers);
+                return;
+            }
+        }
+        self.prefetch_dependencies_by_level();
+    }
+
+    fn prefetch_dependencies_by_level(&mut self) {
         const MAX_LEVELS: usize = 64;
         let mut frontier: Vec<CanonicalPath> = self.prefetch_order.clone();
         for level in 0..MAX_LEVELS {
@@ -1986,51 +2177,34 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             }
             let level_started = std::time::Instant::now();
             let mut requests: Vec<(JsString, ResolutionKey, bool)> = Vec::new();
+            let mut targets: Vec<ProgramPath> = Vec::new();
+            let mut queued: BTreeSet<CanonicalPath> = BTreeSet::new();
             for canonical in &frontier {
-                let Some(entry) = self.prefetched.get(canonical) else {
-                    continue;
-                };
-                let PrefetchedRead::Parsed {
-                    decoded: Ok(parse), ..
-                } = &entry.read
-                else {
-                    continue;
-                };
-                let Ok(plan) = &parse.plan else {
-                    continue;
-                };
-                let containing_file = parse.prepared.path().display().to_owned();
-                for (key, loads_source) in plan.module_requests_with_loadability() {
-                    if self.module_resolution_by_key.contains_key(key)
-                        || self.pre_resolved.contains_key(key)
-                    {
-                        continue;
-                    }
-                    requests.push((containing_file.clone(), key.clone(), loads_source));
+                let (edges, references) = self.read_ahead_edges(canonical);
+                requests.extend(edges);
+                for target in references {
+                    self.queue_read_ahead_target(&mut targets, &mut queued, &target);
                 }
             }
             let request_count = requests.len();
-            let mut targets: Vec<ProgramPath> = Vec::new();
-            let mut queued: BTreeSet<CanonicalPath> = BTreeSet::new();
-            for (containing_file, key, loads_source) in requests {
+            let resolved = self.resolve_requests_ahead_by_directory(requests);
+            for (key, loads_source, host) in resolved {
+                let Some(host) = host else {
+                    continue;
+                };
                 if self.pre_resolved.contains_key(&key) {
                     continue;
                 }
-                let Ok(host) =
-                    self.resolver
-                        .resolve_with_facts(&containing_file, key.specifier(), key.mode())
-                else {
-                    continue;
-                };
                 if loads_source {
                     if let ResolutionOutcome::Resolved(target) = host.outcome() {
-                        let path = target.resolved_file();
                         if !matches!(target.extension(), ModuleExtension::Json)
-                            && !self.states.contains_key(path.canonical())
-                            && !self.prefetched.contains_key(path.canonical())
-                            && queued.insert(path.canonical().clone())
+                            && !self.read_ahead_elides_target(target)
                         {
-                            targets.push(path.clone());
+                            self.queue_read_ahead_target(
+                                &mut targets,
+                                &mut queued,
+                                target.resolved_file(),
+                            );
                         }
                     }
                 }
@@ -2064,6 +2238,704 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 level_started,
             );
         }
+    }
+
+    /// The edges of a source read ahead: its module requests not resolved
+    /// yet (containing file, key, loadability) and the reference targets
+    /// (path, lib and type directives, computed as the walk computes them)
+    /// the walk will visit.
+    fn read_ahead_edges(
+        &mut self,
+        canonical: &CanonicalPath,
+    ) -> (Vec<(JsString, ResolutionKey, bool)>, Vec<ProgramPath>) {
+        let mut requests = Vec::new();
+        let mut path_references: Vec<PlannedPathReference> = Vec::new();
+        let mut lib_references: Vec<PlannedLibReferenceDirective> = Vec::new();
+        let mut type_references: Vec<PlannedTypeReferenceDirective> = Vec::new();
+        let containing_path = {
+            let Some(entry) = self.prefetched.get(canonical) else {
+                return (requests, Vec::new());
+            };
+            let PrefetchedRead::Parsed {
+                decoded: Ok(parse), ..
+            } = &entry.read
+            else {
+                return (requests, Vec::new());
+            };
+            let Ok(plan) = &parse.plan else {
+                return (requests, Vec::new());
+            };
+            let containing_file = parse.prepared.path().display().to_owned();
+            for (key, loads_source) in plan.module_requests_with_loadability() {
+                if self.module_resolution_by_key.contains_key(key)
+                    || self.pre_resolved.contains_key(key)
+                {
+                    continue;
+                }
+                requests.push((containing_file.clone(), key.clone(), loads_source));
+            }
+            if self.compiler_options.no_resolve != Some(true) {
+                path_references.extend(plan.path_references().iter().cloned());
+                type_references.extend(plan.type_reference_directives().iter().cloned());
+            }
+            if self.program_options.no_lib() != Some(true) {
+                lib_references.extend(plan.lib_reference_directives().iter().cloned());
+            }
+            parse.prepared.path().clone()
+        };
+        let mut targets = Vec::new();
+        for reference in &path_references {
+            if let Some(target) =
+                self.path_reference_target_ahead(containing_path.display(), reference)
+            {
+                targets.push(target);
+            }
+        }
+        for directive in &lib_references {
+            if let Some(target) = self.lib_reference_target_ahead(directive) {
+                targets.push(target);
+            }
+        }
+        for directive in &type_references {
+            if let Some(target) =
+                self.type_reference_target_ahead(&containing_path, directive.key())
+            {
+                targets.push(target);
+            }
+        }
+        (requests, targets)
+    }
+
+    /// The pipelined form of the dependency read-ahead: `threads` workers
+    /// take resolution and read-and-parse tasks from one queue (each with
+    /// its own resolver, whose package memo stays warm for the whole
+    /// read-ahead) and hand every outcome to this thread, which records it
+    /// as the level form does and queues the work it uncovers.
+    fn prefetch_dependencies_pipelined(
+        &mut self,
+        host: &(dyn CompilerHost + Sync),
+        reader: &(dyn ParallelSourceReader + Sync),
+        workers: WorkerBudget,
+    ) {
+        let phase_started = std::time::Instant::now();
+        let options = self.compiler_options;
+        let program_options = self.program_options;
+        let max_source_file_bytes = self.limits.max_source_file_bytes;
+        let pipeline = ReadAheadPipeline {
+            queue: std::sync::Mutex::new(ReadAheadQueue {
+                pending: VecDeque::new(),
+                closed: false,
+            }),
+            ready: std::sync::Condvar::new(),
+        };
+        let (sender, receiver) = std::sync::mpsc::channel::<ReadAheadOutcome>();
+        let run = |sender: std::sync::mpsc::Sender<ReadAheadOutcome>| {
+            let mut resolver =
+                ModuleResolver::new_with_program_options(host, options, program_options).ok();
+            while let Some(task) = pipeline.take() {
+                let outcome = match task {
+                    ReadAheadTask::Resolve {
+                        containing_file,
+                        key,
+                        loads_source,
+                    } => {
+                        let host = resolver.as_mut().and_then(|resolver| {
+                            resolver
+                                .resolve_with_facts(&containing_file, key.specifier(), key.mode())
+                                .ok()
+                        });
+                        ReadAheadOutcome::Resolved {
+                            key,
+                            loads_source,
+                            host,
+                        }
+                    }
+                    ReadAheadTask::Read { path, scope } => {
+                        let read = match reader.read_source_js(path.display()) {
+                            Err(error) => Some(PrefetchedRead::Failed(error)),
+                            Ok(None) => Some(PrefetchedRead::Missing),
+                            Ok(Some(bytes)) => {
+                                if bytes.len() > max_source_file_bytes {
+                                    // Not retained: read again at the visit.
+                                    None
+                                } else {
+                                    let large_parse_started = (tsc_types::trace::enabled()
+                                        && bytes.len() >= 256 << 10)
+                                        .then(|| (std::time::Instant::now(), bytes.len()));
+                                    let parsed =
+                                        parse_root_ahead(&path, bytes, options, scope.as_ref());
+                                    if let Some((started, len)) = large_parse_started {
+                                        tsc_types::trace::mark(
+                                            &format!(
+                                                "load: parse {:?} ({len} bytes)",
+                                                path.display()
+                                            ),
+                                            started,
+                                        );
+                                    }
+                                    Some(parsed)
+                                }
+                            }
+                        };
+                        ReadAheadOutcome::Read { path, read }
+                    }
+                };
+                if sender.send(outcome).is_err() {
+                    break;
+                }
+            }
+        };
+        let threads = workers.max_workers();
+        let mut state = ReadAheadState::default();
+        std::thread::scope(|scope| {
+            for _ in 0..threads {
+                let sender = sender.clone();
+                // A refused thread is not an error: the threads that started
+                // finish the work.
+                let _ = std::thread::Builder::new()
+                    .name("tsc-rs-worker".to_owned())
+                    .stack_size(crate::workers::WORKER_STACK_BYTES)
+                    .spawn_scoped(scope, move || {
+                        crate::workers::run_thread_start_hook();
+                        run(sender);
+                    });
+            }
+            drop(sender);
+            for canonical in self.prefetch_order.clone() {
+                self.pipeline_follow_source(&canonical, &pipeline, &mut state);
+            }
+            while state.outstanding > 0 {
+                // Every sender is a live worker; none left means the work
+                // cannot complete (no thread could be started).
+                let Ok(outcome) = receiver.recv() else {
+                    break;
+                };
+                state.outstanding -= 1;
+                match outcome {
+                    ReadAheadOutcome::Resolved {
+                        key,
+                        loads_source,
+                        host,
+                    } => self.pipeline_apply_resolution(
+                        key,
+                        loads_source,
+                        host,
+                        &pipeline,
+                        &mut state,
+                    ),
+                    ReadAheadOutcome::Read { path, read } => {
+                        self.pipeline_retain_read(path, read, &pipeline, &mut state);
+                    }
+                }
+            }
+            pipeline.close();
+        });
+        tsc_types::trace::mark(
+            &format!(
+                "load: read-ahead of dependencies (pipelined on {threads} threads: {} resolutions, {} directory reuses, {} reads, {} pre-resolved)",
+                state.resolutions,
+                state.directory_reuses,
+                state.reads,
+                self.pre_resolved.len()
+            ),
+            phase_started,
+        );
+    }
+
+    /// Queue what a source read ahead leads to: its module requests (one
+    /// resolution per containing directory, specifier and mode, the others
+    /// waiting for it) and its reference targets.
+    fn pipeline_follow_source(
+        &mut self,
+        canonical: &CanonicalPath,
+        pipeline: &ReadAheadPipeline,
+        state: &mut ReadAheadState,
+    ) {
+        let (requests, targets) = self.read_ahead_edges(canonical);
+        for (containing_file, key, loads_source) in requests {
+            let directory_key = (
+                crate::js_path::directory_name(containing_file.as_js()),
+                key.specifier().to_owned(),
+                key.mode(),
+            );
+            if let Some(host) = self.directory_resolutions.get(&directory_key) {
+                self.directory_resolution_hits += 1;
+                state.directory_reuses += 1;
+                let host = host.clone();
+                self.pipeline_record_resolution(key, loads_source, host, pipeline, state);
+                continue;
+            }
+            match state.waiting.entry(directory_key) {
+                std::collections::btree_map::Entry::Occupied(mut waiting) => {
+                    self.directory_resolution_hits += 1;
+                    state.directory_reuses += 1;
+                    waiting.get_mut().push((key, loads_source));
+                }
+                std::collections::btree_map::Entry::Vacant(waiting) => {
+                    waiting.insert(Vec::new());
+                    state.outstanding += 1;
+                    state.resolutions += 1;
+                    pipeline.push(ReadAheadTask::Resolve {
+                        containing_file,
+                        key,
+                        loads_source,
+                    });
+                }
+            }
+        }
+        for target in targets {
+            self.pipeline_queue_read(target, pipeline, state);
+        }
+    }
+
+    /// A resolution outcome from a worker: memoized for its directory and
+    /// recorded for its request and every request that waited for it.
+    fn pipeline_apply_resolution(
+        &mut self,
+        key: ResolutionKey,
+        loads_source: bool,
+        host: Option<HostModuleResolution>,
+        pipeline: &ReadAheadPipeline,
+        state: &mut ReadAheadState,
+    ) {
+        let directory_key = (
+            crate::js_path::directory_name(self.pipeline_containing_file(&key).as_js()),
+            key.specifier().to_owned(),
+            key.mode(),
+        );
+        let waiting = state.waiting.remove(&directory_key).unwrap_or_default();
+        let Some(host) = host else {
+            // Left for the walk to resolve and report, like the waiters.
+            return;
+        };
+        self.directory_resolutions
+            .insert(directory_key, host.clone());
+        for (key, loads_source) in waiting {
+            self.pipeline_record_resolution(key, loads_source, host.clone(), pipeline, state);
+        }
+        self.pipeline_record_resolution(key, loads_source, host, pipeline, state);
+    }
+
+    /// The display spelling of a request's containing file: the request's
+    /// source is a read-ahead entry (its requests were planned from it).
+    fn pipeline_containing_file(&self, key: &ResolutionKey) -> JsString {
+        self.prefetched
+            .get(key.source())
+            .map(|entry| entry.display.clone())
+            .unwrap_or_else(|| key.source().as_js().to_owned())
+    }
+
+    fn pipeline_record_resolution(
+        &mut self,
+        key: ResolutionKey,
+        loads_source: bool,
+        host: HostModuleResolution,
+        pipeline: &ReadAheadPipeline,
+        state: &mut ReadAheadState,
+    ) {
+        if self.pre_resolved.contains_key(&key) {
+            return;
+        }
+        if loads_source {
+            if let ResolutionOutcome::Resolved(target) = host.outcome() {
+                if !matches!(target.extension(), ModuleExtension::Json)
+                    && !self.read_ahead_elides_target(target)
+                {
+                    self.pipeline_queue_read(target.resolved_file().clone(), pipeline, state);
+                }
+            }
+        }
+        self.pre_resolved.insert(key, host);
+    }
+
+    /// Whether the walk elides a JavaScript target found through a
+    /// node_modules search at every depth (processImportedModules'
+    /// maxNodeModuleJsDepth rule at the shallowest depth, 1): reading it
+    /// ahead would be wasted. A deeper visit elides at least as much.
+    fn read_ahead_elides_target(
+        &self,
+        target: &crate::module_resolution::HostResolvedModule,
+    ) -> bool {
+        target.extension().is_javascript()
+            && target.is_external_library_import()
+            && (target.original_path().is_none()
+                || path_contains_node_modules(target.resolved_file().canonical().as_js()))
+            && self.compiler_options.node_modules_depth_exceeds_limit(1)
+    }
+
+    /// Queue a target's read-and-parse under the same admission as
+    /// `prefetch_roots`, with the package scope its parse needs looked up
+    /// here as the visit looks it up.
+    fn pipeline_queue_read(
+        &mut self,
+        path: ProgramPath,
+        pipeline: &ReadAheadPipeline,
+        state: &mut ReadAheadState,
+    ) {
+        if state.stopped
+            || !path_has_extension(path.display())
+            || (!is_admitted_source(path.canonical(), self.compiler_options)
+                && self.compiler_options.allow_non_ts_extensions != Some(true))
+            || is_json_source(path.canonical())
+            || self.states.contains_key(path.canonical())
+            || self.prefetched.contains_key(path.canonical())
+            || !state.queued.insert(path.canonical().clone())
+        {
+            return;
+        }
+        if self.sources.len() + self.reserved_sources + state.reads_in_flight + 1
+            > self.limits.max_source_files
+        {
+            state.stopped = true;
+            return;
+        }
+        let scope =
+            if implied_node_format_needs_package_scope(path.display(), self.compiler_options) {
+                self.resolver
+                    .package_scope_for_file(path.display())
+                    .ok()
+                    .flatten()
+            } else {
+                None
+            };
+        state.outstanding += 1;
+        state.reads += 1;
+        state.reads_in_flight += 1;
+        pipeline.push(ReadAheadTask::Read { path, scope });
+    }
+
+    /// A read outcome from a worker: retained under the load budget as
+    /// `read_roots_ahead_in_parallel` retains a batch, then followed.
+    fn pipeline_retain_read(
+        &mut self,
+        path: ProgramPath,
+        read: Option<PrefetchedRead>,
+        pipeline: &ReadAheadPipeline,
+        state: &mut ReadAheadState,
+    ) {
+        state.reads_in_flight -= 1;
+        if state.stopped {
+            return;
+        }
+        let Some(read) = read else {
+            // Over the single-source limit: read again at the visit.
+            return;
+        };
+        if self.sources.len() + self.reserved_sources + 1 > self.limits.max_source_files {
+            state.stopped = true;
+            return;
+        }
+        match read {
+            PrefetchedRead::Failed(error) => {
+                // The visit reports this error; nothing after it is needed.
+                state.stopped = true;
+                self.retain_read_ahead(vec![(path, PrefetchedRead::Failed(error))]);
+            }
+            PrefetchedRead::Missing => {
+                self.retain_read_ahead(vec![(path, PrefetchedRead::Missing)])
+            }
+            read @ PrefetchedRead::Parsed { .. } => {
+                let byte_len = read.reserved_bytes().unwrap_or(0);
+                if self
+                    .total_source_bytes
+                    .saturating_add(self.reserved_bytes)
+                    .saturating_add(byte_len)
+                    > self.limits.max_total_source_bytes
+                {
+                    state.stopped = true;
+                    return;
+                }
+                self.reserved_sources += 1;
+                self.reserved_bytes += byte_len;
+                let canonical = path.canonical().clone();
+                self.retain_read_ahead(vec![(path, read)]);
+                self.pipeline_follow_source(&canonical, pipeline, state);
+            }
+        }
+    }
+
+    fn queue_read_ahead_target(
+        &self,
+        targets: &mut Vec<ProgramPath>,
+        queued: &mut BTreeSet<CanonicalPath>,
+        path: &ProgramPath,
+    ) {
+        if !self.states.contains_key(path.canonical())
+            && !self.prefetched.contains_key(path.canonical())
+            && queued.insert(path.canonical().clone())
+        {
+            targets.push(path.clone());
+        }
+    }
+
+    /// The files the walk loads after the roots: the selected libraries
+    /// (their lib references chain on through the dependency levels) and the
+    /// automatic type directives' targets, resolved as the walk resolves them
+    /// (it takes each resolution from `pre_resolved_types`).
+    fn read_ahead_seeds(&mut self) -> Vec<ProgramPath> {
+        let mut seeds = Vec::new();
+        if self.program_options.no_lib() != Some(true) {
+            if let Some(catalog) = self.library_catalog {
+                let selected: Vec<String> = match self.compiler_options.lib.as_deref() {
+                    Some(libraries) => libraries
+                        .iter()
+                        .filter_map(|value| catalog.option_file_name(value))
+                        .map(str::to_owned)
+                        .collect(),
+                    None => vec![self
+                        .program_options
+                        .default_library_file_name()
+                        .unwrap_or_else(|| catalog.default_file_name(self.compiler_options))
+                        .to_owned()],
+                };
+                for file_name in selected {
+                    if let Ok(path) = self.resolved_library_path(&file_name) {
+                        seeds.push(path);
+                    }
+                }
+            }
+        }
+        if let Ok((names, _)) = self.automatic_type_directive_names() {
+            if !names.is_empty() {
+                if let Ok(containing_file) = self.automatic_types_containing_file() {
+                    for name in names {
+                        let key = TypeReferenceResolutionKey::automatic(
+                            containing_file.canonical().clone(),
+                            name,
+                        );
+                        if let Some(target) =
+                            self.type_reference_target_ahead(&containing_file, &key)
+                        {
+                            seeds.push(target);
+                        }
+                    }
+                }
+            }
+        }
+        seeds
+    }
+
+    /// The path a `/// <reference path>` names, as `process_path_reference`
+    /// computes it, when the walk would load it.
+    fn path_reference_target_ahead(
+        &self,
+        containing_file: JsStr<'_>,
+        reference: &PlannedPathReference,
+    ) -> Option<ProgramPath> {
+        if reference.file_name().is_empty() {
+            return None;
+        }
+        let base = crate::js_path::directory_name(containing_file);
+        let normalized = crate::module_resolution::normalize_absolute_js_path(
+            reference.file_name(),
+            Some(base.as_js()),
+            true,
+        )
+        .ok()?;
+        let reference_path = crate::js_path::normalize_slashes(reference.file_name());
+        let has_extension = reference_path
+            .as_js()
+            .split_ascii(b'/')
+            .next_back()
+            .is_some_and(|name| name.contains("."));
+        if !has_extension {
+            return None;
+        }
+        let target = make_program_path(
+            &normalized,
+            self.resolver.path_context().use_case_sensitive_file_names(),
+        )
+        .ok()?;
+        (is_typescript_source(target.canonical())
+            || is_javascript_source(target.canonical()) && self.compiler_options.allow_js)
+            .then_some(target)
+    }
+
+    /// The library file a `/// <reference lib>` names, as
+    /// `process_lib_references` resolves it.
+    fn lib_reference_target_ahead(
+        &mut self,
+        directive: &PlannedLibReferenceDirective,
+    ) -> Option<ProgramPath> {
+        let catalog = self.library_catalog?;
+        let lib_name = to_file_name_lower_case_js(directive.file_name());
+        let file_name = catalog.reference_file_name(&lib_name)?;
+        self.resolved_library_path(file_name).ok()
+    }
+
+    /// Resolve a type reference directive ahead of the walk (which takes the
+    /// resolution from `pre_resolved_types`) and name its loadable target.
+    fn type_reference_target_ahead(
+        &mut self,
+        containing_file: &ProgramPath,
+        key: &TypeReferenceResolutionKey,
+    ) -> Option<ProgramPath> {
+        if self.type_resolution_by_key.contains_key(key)
+            || self.pre_resolved_types.contains_key(key)
+        {
+            return None;
+        }
+        let type_roots = self.program_options.type_roots().map(<[_]>::to_vec);
+        let host = self
+            .resolver
+            .resolve_type_reference(
+                containing_file.display(),
+                key.specifier(),
+                key.mode(),
+                type_roots.as_deref(),
+            )
+            .ok()?;
+        let target = match &host {
+            ResolutionOutcome::Resolved(target)
+                if is_loadable_typescript_extension(target.extension()) =>
+            {
+                Some(target.resolved_file().clone())
+            }
+            _ => None,
+        };
+        self.pre_resolved_types.insert(key.clone(), host);
+        target
+    }
+
+    /// [`Self::resolve_requests_ahead`] behind the per-directory memo: one
+    /// resolution per (containing directory, specifier, mode), reused for
+    /// every request that shares them, now and in the walk.
+    fn resolve_requests_ahead_by_directory(
+        &mut self,
+        requests: Vec<(JsString, ResolutionKey, bool)>,
+    ) -> Vec<(ResolutionKey, bool, Option<HostModuleResolution>)> {
+        let mut unique: Vec<(JsString, ResolutionKey, bool)> = Vec::new();
+        let mut by_directory: BTreeMap<(JsString, JsString, ResolutionMode), usize> =
+            BTreeMap::new();
+        let mut planned: Vec<(ResolutionKey, bool, Result<HostModuleResolution, usize>)> =
+            Vec::with_capacity(requests.len());
+        for (containing_file, key, loads_source) in requests {
+            let directory_key = (
+                crate::js_path::directory_name(containing_file.as_js()),
+                key.specifier().to_owned(),
+                key.mode(),
+            );
+            if let Some(host) = self.directory_resolutions.get(&directory_key) {
+                self.directory_resolution_hits += 1;
+                planned.push((key, loads_source, Ok(host.clone())));
+                continue;
+            }
+            let index = match by_directory.get(&directory_key) {
+                Some(&index) => {
+                    self.directory_resolution_hits += 1;
+                    index
+                }
+                None => {
+                    let index = unique.len();
+                    unique.push((containing_file, key.clone(), loads_source));
+                    by_directory.insert(directory_key, index);
+                    index
+                }
+            };
+            planned.push((key, loads_source, Err(index)));
+        }
+        let resolved = self.resolve_requests_ahead(unique);
+        for (directory_key, index) in by_directory {
+            if let Some(host) = &resolved[index].2 {
+                self.directory_resolutions
+                    .insert(directory_key, host.clone());
+            }
+        }
+        planned
+            .into_iter()
+            .map(|(key, loads_source, lookup)| match lookup {
+                Ok(host) => (key, loads_source, Some(host)),
+                Err(index) => (key, loads_source, resolved[index].2.clone()),
+            })
+            .collect()
+    }
+
+    /// Resolve the read-ahead's requests, in request order: on the workers
+    /// when the host can be shared across threads (each thread constructs
+    /// its own resolver over it; a resolution is a pure observation of the
+    /// host, so every result is the one the walk's resolver would compute),
+    /// otherwise on the loading thread. A failed resolution is `None` and
+    /// is left for the walk to resolve and report.
+    fn resolve_requests_ahead(
+        &mut self,
+        requests: Vec<(JsString, ResolutionKey, bool)>,
+    ) -> Vec<(ResolutionKey, bool, Option<HostModuleResolution>)> {
+        // Spawning the workers costs tens of microseconds; a level of a few
+        // dozen requests already resolves faster on them than in sequence.
+        const MIN_PARALLEL_REQUESTS: usize = 32;
+        let workers = self.limits.workers;
+        if let Some(host) = self
+            .host
+            .parallel_resolution_host()
+            .filter(|_| workers.is_parallel() && requests.len() >= MIN_PARALLEL_REQUESTS)
+        {
+            let threads = workers.max_workers().clamp(1, requests.len());
+            let chunk_size = requests.len().div_ceil(threads);
+            let resolve_started = std::time::Instant::now();
+            let request_count = requests.len();
+            let options = self.compiler_options;
+            let program_options = self.program_options;
+            let resolve_chunk = |chunk: &[(JsString, ResolutionKey, bool)]| {
+                let host: &dyn CompilerHost = host;
+                let mut resolver =
+                    ModuleResolver::new_with_program_options(host, options, program_options).ok();
+                chunk
+                    .iter()
+                    .map(|(containing_file, key, loads_source)| {
+                        let result = resolver.as_mut().and_then(|resolver| {
+                            resolver
+                                .resolve_with_facts(containing_file, key.specifier(), key.mode())
+                                .ok()
+                        });
+                        (key.clone(), *loads_source, result)
+                    })
+                    .collect::<Vec<_>>()
+            };
+            let results = std::thread::scope(|scope| {
+                let handles = requests
+                    .chunks(chunk_size)
+                    .map(|chunk| {
+                        std::thread::Builder::new()
+                            .name("tsc-rs-worker".to_owned())
+                            .stack_size(crate::workers::WORKER_STACK_BYTES)
+                            .spawn_scoped(scope, || resolve_chunk(chunk))
+                    })
+                    .collect::<Vec<_>>();
+                handles
+                    .into_iter()
+                    .zip(requests.chunks(chunk_size))
+                    .map(|(handle, chunk)| match handle {
+                        Ok(handle) => handle.join().expect("a resolution worker panicked"),
+                        // The OS refused the thread: its chunk runs here.
+                        Err(_) => resolve_chunk(chunk),
+                    })
+                    .collect::<Vec<_>>()
+            });
+            tsc_types::trace::mark(
+                &format!(
+                    "load: read-ahead resolution ({request_count} requests on {threads} threads)"
+                ),
+                resolve_started,
+            );
+            return results.into_iter().flatten().collect();
+        }
+        let resolve_started = std::time::Instant::now();
+        let request_count = requests.len();
+        let resolved = requests
+            .into_iter()
+            .map(|(containing_file, key, loads_source)| {
+                let result = self
+                    .resolver
+                    .resolve_with_facts(&containing_file, key.specifier(), key.mode())
+                    .ok();
+                (key, loads_source, result)
+            })
+            .collect();
+        tsc_types::trace::mark(
+            &format!("load: read-ahead resolution ({request_count} requests, loading thread)"),
+            resolve_started,
+        );
+        resolved
     }
 
     fn take_prefetched(&mut self, path: &ProgramPath) -> Option<PrefetchedRead> {
@@ -2299,22 +3171,25 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             let index = if let Some(index) = self.type_resolution_by_key.get(&key).copied() {
                 index
             } else {
-                let host = self
-                    .resolver
-                    .resolve_type_reference(
-                        containing_file.display(),
-                        name,
-                        ResolutionMode::Unspecified,
-                        type_roots.as_deref(),
-                    )
-                    .map_err(|error| {
-                        ProgramLoadError::resolution_js(
-                            ProgramLoadOperation::ResolveTypeReference,
-                            Some(containing_file.display().to_owned()),
-                            Some(name.clone()),
-                            error,
+                let host = match self.pre_resolved_types.remove(&key) {
+                    Some(host) => host,
+                    None => self
+                        .resolver
+                        .resolve_type_reference(
+                            containing_file.display(),
+                            name,
+                            ResolutionMode::Unspecified,
+                            type_roots.as_deref(),
                         )
-                    })?;
+                        .map_err(|error| {
+                            ProgramLoadError::resolution_js(
+                                ProgramLoadOperation::ResolveTypeReference,
+                                Some(containing_file.display().to_owned()),
+                                Some(name.clone()),
+                                error,
+                            )
+                        })?,
+                };
                 let index = self.type_resolutions.len();
                 self.type_resolutions.push(StagedTypeResolution {
                     key: key.clone(),
@@ -3757,22 +4632,25 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             let index = if let Some(index) = self.type_resolution_by_key.get(&key).copied() {
                 index
             } else {
-                let host = self
-                    .resolver
-                    .resolve_type_reference(
-                        containing_source.display(),
-                        key.specifier(),
-                        key.mode(),
-                        type_roots.as_deref(),
-                    )
-                    .map_err(|error| {
-                        ProgramLoadError::resolution_js(
-                            ProgramLoadOperation::ResolveTypeReference,
-                            Some(containing_source.display().to_owned()),
-                            Some(key.specifier().to_owned()),
-                            error,
+                let host = match self.pre_resolved_types.remove(&key) {
+                    Some(host) => host,
+                    None => self
+                        .resolver
+                        .resolve_type_reference(
+                            containing_source.display(),
+                            key.specifier(),
+                            key.mode(),
+                            type_roots.as_deref(),
                         )
-                    })?;
+                        .map_err(|error| {
+                            ProgramLoadError::resolution_js(
+                                ProgramLoadOperation::ResolveTypeReference,
+                                Some(containing_source.display().to_owned()),
+                                Some(key.specifier().to_owned()),
+                                error,
+                            )
+                        })?,
+                };
                 let index = self.type_resolutions.len();
                 self.type_resolutions.push(StagedTypeResolution {
                     key: key.clone(),
@@ -3899,17 +4777,39 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                         self.pre_resolved_hits += 1;
                         host
                     }
-                    None => self
-                        .resolver
-                        .resolve_with_facts(&containing_file, key.specifier(), key.mode())
-                        .map_err(|error| {
-                            ProgramLoadError::resolution_js(
-                                ProgramLoadOperation::ResolveModule,
-                                Some(containing_file.clone()),
-                                Some(key.specifier().to_owned()),
-                                error,
-                            )
-                        })?,
+                    None => {
+                        let directory_key = (
+                            crate::js_path::directory_name(containing_file.as_js()),
+                            key.specifier().to_owned(),
+                            key.mode(),
+                        );
+                        match self.directory_resolutions.get(&directory_key) {
+                            Some(host) => {
+                                self.directory_resolution_hits += 1;
+                                host.clone()
+                            }
+                            None => {
+                                let host = self
+                                    .resolver
+                                    .resolve_with_facts(
+                                        &containing_file,
+                                        key.specifier(),
+                                        key.mode(),
+                                    )
+                                    .map_err(|error| {
+                                        ProgramLoadError::resolution_js(
+                                            ProgramLoadOperation::ResolveModule,
+                                            Some(containing_file.clone()),
+                                            Some(key.specifier().to_owned()),
+                                            error,
+                                        )
+                                    })?;
+                                self.directory_resolutions
+                                    .insert(directory_key, host.clone());
+                                host
+                            }
+                        }
+                    }
                 };
                 let index = self.module_resolutions.len();
                 self.module_resolutions.push(StagedModuleResolution {

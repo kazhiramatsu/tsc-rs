@@ -1,7 +1,6 @@
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
-use std::rc::Rc;
 use std::sync::Arc;
 
 use crate::js_string_ops::{js_replace_all_stars, js_replace_first_star};
@@ -40,7 +39,8 @@ const MAX_JS_JSON_COERCION_OUTPUT_BUDGET: usize = 64 << 20;
 /// Manifest-backed resolutions retain the decoded `package.json` observation
 /// used for package scopes and implied node formats. Manifestless legacy
 /// results carry no synthetic metadata. Retained metadata is reference-counted
-/// so repeated resolutions do not copy the decoded JSON text.
+/// (atomically, so a resolution computed on a worker can be handed to the
+/// loading thread) and repeated resolutions do not copy the decoded JSON text.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HostResolvedModule {
     resolved_file: ProgramPath,
@@ -50,7 +50,7 @@ pub struct HostResolvedModule {
     resolved_using_ts_extension: bool,
     package_id: Option<PackageId>,
     alternate_result: Option<ProgramPath>,
-    package_metadata: Option<Rc<PackageMetadata>>,
+    package_metadata: Option<Arc<PackageMetadata>>,
     realpath_may_be_missing_after_suffix_predicate: bool,
 }
 
@@ -182,7 +182,7 @@ pub struct HostResolvedTypeReferenceDirective {
     primary: bool,
     is_external_library_import: bool,
     package_id: Option<PackageId>,
-    package_metadata: Option<Rc<PackageMetadata>>,
+    package_metadata: Option<Arc<PackageMetadata>>,
 }
 
 impl HostResolvedTypeReferenceDirective {
@@ -267,13 +267,13 @@ struct CachedPackage {
     types: Option<JsString>,
     main: Option<JsString>,
     tsconfig: Option<JsString>,
-    metadata: Rc<PackageMetadata>,
+    metadata: Arc<PackageMetadata>,
 }
 
 #[derive(Clone, Debug)]
 enum PackageCacheEntry {
     Missing,
-    Found(Rc<CachedPackage>),
+    Found(Arc<CachedPackage>),
 }
 
 /// A suffix-free hit borrows its canonical query; only an expanded
@@ -324,7 +324,7 @@ struct SelectedPackageMapTarget<'a> {
 
 enum ImportsTargetState {
     Target {
-        package: Rc<CachedPackage>,
+        package: Arc<CachedPackage>,
         target: Value,
         subpath: JsString,
         pattern: bool,
@@ -338,7 +338,7 @@ enum ImportsTargetState {
 
 enum ImportsTargetFrame {
     Sequence {
-        package: Rc<CachedPackage>,
+        package: Arc<CachedPackage>,
         remaining: std::vec::IntoIter<Value>,
         subpath: JsString,
         pattern: bool,
@@ -553,7 +553,7 @@ pub struct ModuleResolver<'a> {
     /// while the package cache is enabled: a project's files share a few
     /// directories, and each file's scope was searched up the ancestors
     /// twice (visit and dependency symlinks).
-    package_scope_by_directory: BTreeMap<JsString, Option<Rc<CachedPackage>>>,
+    package_scope_by_directory: BTreeMap<JsString, Option<Arc<CachedPackage>>>,
     active_resolutions: Vec<ActiveResolution>,
     active_package_maps: Vec<JsString>,
     input_requests: Vec<InputResolutionRequest>,
@@ -1494,7 +1494,7 @@ impl<'a> ModuleResolver<'a> {
             &lexical_path,
             true,
         )?;
-        module.package_metadata = Some(Rc::clone(&package.metadata));
+        module.package_metadata = Some(Arc::clone(&package.metadata));
         Ok(())
     }
 
@@ -2516,7 +2516,7 @@ impl<'a> ModuleResolver<'a> {
                             .into_iter();
                         if let Some(target) = remaining.next() {
                             frames.push(ImportsTargetFrame::Sequence {
-                                package: Rc::clone(&package),
+                                package: Arc::clone(&package),
                                 remaining,
                                 subpath: subpath.clone(),
                                 pattern,
@@ -2535,7 +2535,7 @@ impl<'a> ModuleResolver<'a> {
                         let mut remaining = targets.into_iter();
                         if let Some(target) = remaining.next() {
                             frames.push(ImportsTargetFrame::Sequence {
-                                package: Rc::clone(&package),
+                                package: Arc::clone(&package),
                                 remaining,
                                 subpath: subpath.clone(),
                                 pattern,
@@ -2571,7 +2571,7 @@ impl<'a> ModuleResolver<'a> {
                             Search::Continue => {
                                 if let Some(target) = remaining.next() {
                                     frames.push(ImportsTargetFrame::Sequence {
-                                        package: Rc::clone(&package),
+                                        package: Arc::clone(&package),
                                         remaining,
                                         subpath: subpath.clone(),
                                         pattern,
@@ -4828,7 +4828,7 @@ impl<'a> ModuleResolver<'a> {
     fn find_nearest_package_scope<'p>(
         &mut self,
         containing_directory: impl Into<JsStr<'p>>,
-    ) -> Result<Option<Rc<CachedPackage>>, ResolutionError> {
+    ) -> Result<Option<Arc<CachedPackage>>, ResolutionError> {
         let containing_directory = containing_directory.into();
         let memo_key = self.package_cache_enabled.then(|| {
             canonical_text(
@@ -4858,7 +4858,7 @@ impl<'a> ModuleResolver<'a> {
     fn load_package<'p>(
         &mut self,
         package_json: impl Into<JsStr<'p>>,
-    ) -> Result<Option<Rc<CachedPackage>>, ResolutionError> {
+    ) -> Result<Option<Arc<CachedPackage>>, ResolutionError> {
         let package_json = package_json.into();
         let cache_key = canonical_text(
             package_json,
@@ -4868,7 +4868,7 @@ impl<'a> ModuleResolver<'a> {
             if let Some(entry) = self.package_cache.get(&cache_key) {
                 return Ok(match entry {
                     PackageCacheEntry::Missing => None,
-                    PackageCacheEntry::Found(package) => Some(Rc::clone(package)),
+                    PackageCacheEntry::Found(package) => Some(Arc::clone(package)),
                 });
             }
         }
@@ -4908,13 +4908,13 @@ impl<'a> ModuleResolver<'a> {
             Some(_) => PackageJsonType::Other,
             None => PackageJsonType::Unspecified,
         };
-        let metadata = Rc::new(
+        let metadata = Arc::new(
             PackageMetadata::from_trusted_snapshot(package_path, text, name, version, module_type)
                 .with_type_field_truthiness(
                     json_object_get(&object, "type").is_some_and(js_json_value_is_truthy),
                 ),
         );
-        let package = Rc::new(CachedPackage {
+        let package = Arc::new(CachedPackage {
             root: package_directory,
             exports: json_object_get(&object, "exports").cloned(),
             has_own_exports: json_object_own_get(&object, "exports").is_some(),
@@ -4934,7 +4934,7 @@ impl<'a> ModuleResolver<'a> {
         });
         if self.package_cache_enabled {
             self.package_cache
-                .insert(cache_key, PackageCacheEntry::Found(Rc::clone(&package)));
+                .insert(cache_key, PackageCacheEntry::Found(Arc::clone(&package)));
         }
         Ok(Some(package))
     }
@@ -5668,7 +5668,7 @@ impl<'a> ModuleResolver<'a> {
             resolved_using_ts_extension: context.resolved_using_ts_extension,
             package_id,
             alternate_result: None,
-            package_metadata: package.map(|package| Rc::clone(&package.metadata)),
+            package_metadata: package.map(|package| Arc::clone(&package.metadata)),
             realpath_may_be_missing_after_suffix_predicate: allow_missing_realpath
                 && !context.follow_realpath,
         }))
