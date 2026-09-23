@@ -425,14 +425,12 @@ impl<'a> CheckerState<'a> {
             self.links.or_calculated_flags(current, group);
             visited.push(current);
             let source = self.binder.source_of_node(current);
-            let mut children = Vec::new();
+            let first = stack.len();
             for_each_child(&source.arena, source.arena.node(current), |child| {
-                children.push(child);
+                stack.push(child);
                 false
             });
-            for child in children.into_iter().rev() {
-                stack.push(child);
-            }
+            stack[first..].reverse();
         }
         visited
     }
@@ -2083,14 +2081,19 @@ impl<'a> CheckerState<'a> {
 
     fn check_source_element_children(&mut self, node: NodeId) {
         let source = self.binder.source_of_node(node);
-        let mut children = Vec::new();
+        // The children occupy the tail of the shared buffer while this node
+        // checks them and are released afterwards.
+        let first = self.child_scratch.len();
         for_each_child(&source.arena, source.arena.node(node), |child| {
-            children.push(child);
+            self.child_scratch.push(child);
             false
         });
-        for child in children {
+        let last = self.child_scratch.len();
+        for position in first..last {
+            let child = self.child_scratch[position];
             self.check_source_element(Some(child));
         }
+        self.child_scratch.truncate(first);
     }
 
     /// tsc-port: checkJSDocTypeAliasTag @6.0.3.
@@ -2804,12 +2807,10 @@ impl<'a> CheckerState<'a> {
                 continue;
             }
             let source = self.binder.source_of_node(current);
-            let mut children = Vec::new();
             for_each_child(&source.arena, source.arena.node(current), |child| {
-                children.push(child);
+                stack.push(child);
                 false
             });
-            stack.extend(children);
         }
         self.links.set_node_contains_arguments_reference(
             self.speculation_depth,
@@ -2998,14 +2999,12 @@ impl<'a> CheckerState<'a> {
                 }
             }
             let source = self.binder.source_of_node(node);
-            let mut children = Vec::new();
+            let first = stack.len();
             for_each_child(&source.arena, source.arena.node(node), |child| {
-                children.push(child);
+                stack.push(child);
                 false
             });
-            for child in children.into_iter().rev() {
-                stack.push(child);
-            }
+            stack[first..].reverse();
         }
         Ok(())
     }
@@ -3743,14 +3742,17 @@ impl<'a> CheckerState<'a> {
     /// stays on the annotate side, with no self-force here.
     fn check_conditional_type(&mut self, node: NodeId) -> CheckResult<()> {
         let source = self.binder.source_of_node(node);
-        let mut children = Vec::new();
+        let first = self.child_scratch.len();
         for_each_child(&source.arena, source.arena.node(node), |child| {
-            children.push(child);
+            self.child_scratch.push(child);
             false
         });
-        for child in children {
+        let last = self.child_scratch.len();
+        for position in first..last {
+            let child = self.child_scratch[position];
             self.check_source_element(Some(child));
         }
+        self.child_scratch.truncate(first);
         Ok(())
     }
 

@@ -109,6 +109,9 @@ pub struct BinderWorker<'a> {
     pub possibly_exhaustive: FxHashMap<NodeId, bool>,
     /// tsc clause.fallthroughFlowNode (noFallthroughCasesInSwitch).
     pub node_fallthrough_flow: FxHashMap<NodeId, crate::flow::FlowId>,
+    /// Scratch child list shared by every `bind_each_child`: one buffer per
+    /// bind instead of one allocation per node with children.
+    pub child_scratch: Vec<NodeId>,
     /// tsc activeLabelList (a stack; tsc uses a linked list).
     pub active_label_list: Vec<crate::flow::ActiveLabel>,
 
@@ -320,6 +323,7 @@ impl<'a> BinderWorker<'a> {
             emit_flags: 0,
             delayed_type_aliases: Vec::new(),
             js_doc_imports: Vec::new(),
+            child_scratch: Vec::new(),
         }
     }
 
@@ -1230,6 +1234,7 @@ impl BinderWorker<'_> {
             emit_flags: _,
             delayed_type_aliases: _,
             js_doc_imports: _,
+            child_scratch: _,
         } = self;
 
         if private_name_serial_lease.is_some() {
@@ -1475,6 +1480,7 @@ impl BinderWorker<'_> {
             emit_flags,
             delayed_type_aliases: _,
             js_doc_imports: _,
+            child_scratch: _,
         } = self;
         BindData {
             language_version,

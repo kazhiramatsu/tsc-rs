@@ -277,6 +277,9 @@ pub struct CheckerState<'a> {
     pub(crate) emit_display: Option<tsc_emitter::TransformArena>,
     pub(crate) emit_display_sources:
         std::collections::BTreeMap<usize, tsc_emitter::TransformSourceId>,
+    /// Scratch child list shared by the per-node check traversals: one
+    /// buffer per checker instead of one allocation per node with children.
+    pub(crate) child_scratch: Vec<tsc_syntax::NodeId>,
     pub tables: TypeTables,
     /// tsc strictFunctionTypes via getStrictOptionValue.
     pub strict_function_types: bool,
@@ -1201,6 +1204,7 @@ impl<'a> CheckerState<'a> {
             options,
             emit_display: None,
             emit_display_sources: std::collections::BTreeMap::new(),
+            child_scratch: Vec::new(),
             tables,
             strict_function_types,
             links: LinksTables::with_capacity_hint(program_nodes, program_symbols),

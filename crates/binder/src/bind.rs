@@ -2746,14 +2746,25 @@ impl<'a> BinderWorker<'a> {
 
     /// tsc bindEachChild (42840): every child in forEachChild order.
     fn bind_each_child(&mut self, node: NodeId) {
-        let mut children = Vec::new();
-        for_each_child(&self.source.arena, self.source.arena.node(node), |child| {
-            children.push(child);
+        // The children occupy the tail of the shared buffer while this node
+        // binds them and are released afterwards; a nested call appends its
+        // own children beyond them.
+        let first = self.child_scratch.len();
+        let Self {
+            source,
+            child_scratch,
+            ..
+        } = self;
+        for_each_child(&source.arena, source.arena.node(node), |child| {
+            child_scratch.push(child);
             false
         });
-        for child in children {
+        let last = self.child_scratch.len();
+        for position in first..last {
+            let child = self.child_scratch[position];
             self.bind(Some(child));
         }
+        self.child_scratch.truncate(first);
     }
 
     /// tsc-port: bindChildren @6.0.3
