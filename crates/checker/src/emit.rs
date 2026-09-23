@@ -51,7 +51,10 @@ impl<'program> CheckerSession<'program> {
 
     /// Transfer a fully initialized checker into the scoped resolver owner.
     /// tsrs-native: ownership adapter for the H1 checker callback boundary.
-    pub fn from_checked_state(state: CheckerState<'program>) -> Self {
+    pub fn from_checked_state(mut state: CheckerState<'program>) -> Self {
+        // The line profile of every path that hands a checked state to a
+        // session (the emit gate, the no-emit declaration getter).
+        state.line_profile.flush();
         Self {
             state: Mutex::new(state),
             session_token: NEXT_EMIT_RESOLVER_SESSION_TOKEN.fetch_add(1, Ordering::Relaxed),

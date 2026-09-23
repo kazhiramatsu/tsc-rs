@@ -787,7 +787,7 @@ impl<'a> CheckerState<'a> {
                 Some(existing) => self.merge_symbol(existing, source_symbol, unidirectional),
                 None => self.get_merged_symbol(source_symbol),
             };
-            self.globals.insert(id.clone(), merged);
+            std::sync::Arc::make_mut(&mut self.globals).insert(id.clone(), merged);
         }
     }
 
@@ -805,7 +805,7 @@ impl<'a> CheckerState<'a> {
                 Some(existing) => self.merge_symbol(existing, source_symbol, unidirectional),
                 None => self.get_merged_symbol(source_symbol),
             };
-            self.globals.insert(id.clone(), merged);
+            std::sync::Arc::make_mut(&mut self.globals).insert(id.clone(), merged);
         }
     }
 
@@ -833,7 +833,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
             None => {
-                self.globals.insert(name, self.undefined_symbol);
+                std::sync::Arc::make_mut(&mut self.globals).insert(name, self.undefined_symbol);
             }
         }
     }
@@ -903,7 +903,8 @@ impl<'a> CheckerState<'a> {
                 let global_exports = self.binder.symbol(file_symbol).global_exports.clone();
                 for (id, &source_symbol) in global_exports.iter() {
                     if !self.globals.contains_key(id) {
-                        self.globals.insert(id.clone(), source_symbol);
+                        std::sync::Arc::make_mut(&mut self.globals)
+                            .insert(id.clone(), source_symbol);
                     }
                 }
             }

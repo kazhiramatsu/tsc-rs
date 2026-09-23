@@ -3273,7 +3273,16 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     let weights = snapshot
         .documents()
         .iter()
-        .map(|document| document.source().arena.len())
+        .map(|document| {
+            let source = document.source();
+            // A JSON source is admitted for its module shape and checked in
+            // constant time; its node count would otherwise claim a share.
+            if source.file_name.as_js().ends_with(".json") {
+                1
+            } else {
+                source.arena.len()
+            }
+        })
         .collect::<Vec<_>>();
     // The deterministic node-count partition is the default: a run's
     // shard-local type order then repeats run to run, as tsgo's does. The

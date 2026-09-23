@@ -19,8 +19,8 @@ pub use identity::{
 };
 pub use options::{CompilerOptionNumber, CompilerOptions, ModuleSuffix};
 pub use tables::{
-    js_number_to_string, IntersectionFlags, Intrinsics, TupleTargetFlags, TypeTables,
-    UnionReduction,
+    js_number_to_string, InstantiationKey, IntersectionFlags, Intrinsics, TupleTargetFlags,
+    TypeListId, TypeTables, UnionReduction,
 };
 pub use tsc_diagnostics::{JsStr, JsString};
 pub use ty::{

@@ -478,7 +478,7 @@ pub struct CheckerState<'a> {
     /// tsc activeTypeMappers/activeTypeMappersCaches/activeTypeMappersCount
     /// (47412-47414): the instantiation cache stack.
     pub(crate) active_type_mappers: Vec<crate::instantiate::MapperId>,
-    pub(crate) active_type_mappers_caches: Vec<rustc_hash::FxHashMap<String, TypeId>>,
+    pub(crate) active_type_mappers_caches: Vec<rustc_hash::FxHashMap<MapperCacheKey, TypeId>>,
     /// tsc instantiationDepth/instantiationCount (46451-46452); the
     /// count resets at tsc's three entry points — checkExpression,
     /// checkSourceElement, checkDeferredNode (wired at 5.4/5.5).
@@ -835,7 +835,12 @@ pub struct CheckerState<'a> {
     // ---- M4 5.0: the global environment (initializeTypeChecker) ----
     /// tsc `globals` (46488): non-module file locals merged in program
     /// order.
-    pub globals: SymbolTable,
+    /// The merged global scope. Shared through an `Arc` because
+    /// globalThis's exports ARE this table (initializeTypeChecker 46492)
+    /// and scope walks read it while the checker keeps resolving: readers
+    /// clone the handle, and the initialization-time merge writes copy on
+    /// write only while a reader still holds one.
+    pub globals: std::sync::Arc<SymbolTable>,
     /// tsc undefinedSymbol (46489).
     pub undefined_symbol: SymbolId,
     /// tsc globalThisSymbol (46491) — its exports ARE `globals` (the
@@ -1359,7 +1364,7 @@ impl<'a> CheckerState<'a> {
             contained_call_resolutions: rustc_hash::FxHashSet::default(),
             partial_check_records: Vec::new(),
             elaborated_satisfies_expressions: rustc_hash::FxHashSet::default(),
-            globals: SymbolTable::default(),
+            globals: std::sync::Arc::default(),
             undefined_symbol,
             global_this_symbol,
             arguments_symbol,
@@ -1417,7 +1422,7 @@ impl<'a> CheckerState<'a> {
                 Self::normalize_js_program_path(&state.binder.source(index).file_name, "");
             state.program_path_index.insert(normalized, index);
         }
-        state.globals.insert(
+        std::sync::Arc::make_mut(&mut state.globals).insert(
             tsc_types::EscapedName::from_identifier_escaped_text("globalThis"),
             global_this_symbol,
         );
@@ -2311,3 +2316,14 @@ mod tests;
 #[cfg(test)]
 #[path = "../tests/unit/state/resolution_unwind_tests.rs"]
 mod resolution_unwind_tests;
+
+/// The active-mapper instantiation cache key: tsc's
+/// `type.id + getAliasId(aliasSymbol, aliasTypeArguments)` (73584) as one
+/// value instead of a formatted string. The alias arguments count only with
+/// an alias symbol, as in getAliasId, and are interned as one type-list id.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) struct MapperCacheKey {
+    pub(crate) ty: TypeId,
+    pub(crate) alias_symbol: Option<SymbolId>,
+    pub(crate) alias_arguments: Option<tsc_types::TypeListId>,
+}

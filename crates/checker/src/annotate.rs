@@ -3946,7 +3946,8 @@ impl<'a> CheckerState<'a> {
             // 57392-57393: the instantiations map is seeded with the
             // target under its own type-parameter list id (the shared
             // tables map that createTypeReference consults).
-            let list_id = self.tables.get_type_list_id(&type_parameters);
+            let list_id =
+                tsc_types::InstantiationKey::plain(self.tables.intern_type_list(&type_parameters));
             self.tables.instantiation_insert(id, list_id, id);
             // 57400-57402: thisType — isThisType, constraint = target
             // (the inline constraint slot, like tuple this types).
@@ -5315,7 +5316,7 @@ impl<'a> CheckerState<'a> {
         // table lives on CheckerState, not on the binder symbol; the
         // module walk below would answer the empty binder table.
         if symbol == self.global_this_symbol {
-            return Ok(Arc::new(self.globals.clone()));
+            return Ok(Arc::clone(&self.globals));
         }
         if self.symbol_flags(symbol).intersects(SymbolFlags::MODULE) {
             return self.get_exports_of_module(symbol);

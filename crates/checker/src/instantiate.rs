@@ -831,26 +831,24 @@ impl<'a> CheckerState<'a> {
                 None => None,
             }
         };
-        let id_key = format!(
-            "{}{}",
-            self.tables.get_type_list_id(&type_arguments),
-            self.tables
-                .get_alias_id(new_alias_symbol, new_alias_type_arguments.as_deref())
+        let id_key = self.tables.instantiation_key(
+            &type_arguments,
+            new_alias_symbol,
+            new_alias_type_arguments.as_deref(),
         );
         // 63489-63492: the target's instantiations map is seeded with
         // itself under its own type-parameter list id.
         let target_alias_symbol = self.tables.type_of(target).alias_symbol;
         let target_alias_arguments = self.tables.type_of(target).alias_type_arguments.clone();
-        let self_key = format!(
-            "{}{}",
-            self.tables.get_type_list_id(&type_parameters),
-            self.tables
-                .get_alias_id(target_alias_symbol, target_alias_arguments.as_deref())
+        let self_key = self.tables.instantiation_key(
+            &type_parameters,
+            target_alias_symbol,
+            target_alias_arguments.as_deref(),
         );
-        if self.tables.instantiation_get(target, &self_key).is_none() {
+        if self.tables.instantiation_get(target, self_key).is_none() {
             self.tables.instantiation_insert(target, self_key, target);
         }
-        if let Some(existing) = self.tables.instantiation_get(target, &id_key) {
+        if let Some(existing) = self.tables.instantiation_get(target, id_key) {
             return Ok(existing);
         }
         let mut new_mapper =
@@ -1556,11 +1554,14 @@ impl<'a> CheckerState<'a> {
         if index.is_none() {
             self.push_active_mapper(mapper);
         }
-        let key = format!(
-            "{}{}",
-            ty.0,
-            self.tables.get_alias_id(alias_symbol, alias_type_arguments)
-        );
+        let alias_arguments = alias_symbol
+            .and(alias_type_arguments)
+            .map(|arguments| self.tables.intern_type_list(arguments));
+        let key = crate::state::MapperCacheKey {
+            ty,
+            alias_symbol,
+            alias_arguments,
+        };
         let cache_index = index.unwrap_or(self.active_type_mappers.len() - 1);
         perf::bump(PerfCounter::MapperCacheLookups);
         if let Some(&cached) = self.active_type_mappers_caches[cache_index].get(&key) {
