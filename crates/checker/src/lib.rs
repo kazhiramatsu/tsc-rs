@@ -3253,8 +3253,10 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             match std::thread::Builder::new()
                 .name(format!("tsc-rs-checker-{shard_index}"))
                 .stack_size(tsc_program::WORKER_STACK_BYTES)
-                .spawn_scoped(scope, move || run_shard(shard_index))
-            {
+                .spawn_scoped(scope, move || {
+                    tsc_program::run_thread_start_hook();
+                    run_shard(shard_index)
+                }) {
                 Ok(handle) => handles.push((shard_index, handle)),
                 Err(_) => *slot = Some(run_shard(shard_index)),
             }

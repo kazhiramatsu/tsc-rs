@@ -410,6 +410,9 @@ dependencies = [
 [[package]]
 name = "tsc-rs-diagnostics"
 version = "0.1.0"
+dependencies = [
+ "memchr",
+]
 
 [[package]]
 name = "tsc-rs-emitter"

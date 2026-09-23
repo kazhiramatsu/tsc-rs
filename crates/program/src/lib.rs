@@ -188,4 +188,6 @@ pub use resolution_cache::{
 pub use symlinks::{discover_symlink_facts, SymlinkFacts};
 pub use text::{decode_host_text, HostTextDecodeError, HostTextEncoding};
 pub use tsc_types::{CompilerOptionNumber, CompilerOptions, ModuleSuffix};
-pub use workers::{WorkerBudget, MAX_WORKERS, WORKER_STACK_BYTES};
+pub use workers::{
+    run_thread_start_hook, set_thread_start_hook, WorkerBudget, MAX_WORKERS, WORKER_STACK_BYTES,
+};
