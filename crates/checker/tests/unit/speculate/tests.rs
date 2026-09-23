@@ -124,7 +124,7 @@ fn nonexistent_property_cache_restores_every_transaction_boundary() {
         assert!(state
             .links
             .insert_node_non_existent_prop_key(0, node, permanent.clone()));
-        let baseline = cache_keys(&state, node);
+        let baseline = cache_keys(state, node);
         let mut observed = Vec::new();
         for outcome in 0..4 {
             let mut visible_inside = false;
@@ -154,7 +154,7 @@ fn nonexistent_property_cache_restores_every_transaction_boundary() {
                     Ok(())
                 }
             );
-            observed.push((visible_inside, cache_keys(&state, node) == baseline));
+            observed.push((visible_inside, cache_keys(state, node) == baseline));
         }
         assert_eq!(observed, [(true, true); 4]);
     });

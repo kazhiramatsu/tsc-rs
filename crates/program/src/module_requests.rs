@@ -467,8 +467,8 @@ fn plan_module_requests_worker(
     let dynamic_walk = root_flags.contains(NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT)
         || javascript_file
         || parsed.language_variant == LanguageVariant::Jsx
-        || text.contains("/**")
-        || text.contains("require");
+        || memchr::memmem::find(text.as_bytes(), b"/**").is_some()
+        || memchr::memmem::find(text.as_bytes(), b"require").is_some();
     let mut stack = if dynamic_walk {
         vec![parsed.root]
     } else {

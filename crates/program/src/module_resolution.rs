@@ -549,6 +549,11 @@ pub struct ModuleResolver<'a> {
     root_dirs: Option<Vec<JsString>>,
     package_cache: BTreeMap<JsString, PackageCacheEntry>,
     package_cache_enabled: bool,
+    /// The nearest package scope of a directory (canonical text), memoized
+    /// while the package cache is enabled: a project's files share a few
+    /// directories, and each file's scope was searched up the ancestors
+    /// twice (visit and dependency symlinks).
+    package_scope_by_directory: BTreeMap<JsString, Option<Rc<CachedPackage>>>,
     active_resolutions: Vec<ActiveResolution>,
     active_package_maps: Vec<JsString>,
     input_requests: Vec<InputResolutionRequest>,
@@ -654,6 +659,7 @@ impl<'a> ModuleResolver<'a> {
             root_dirs,
             package_cache: BTreeMap::new(),
             package_cache_enabled: true,
+            package_scope_by_directory: BTreeMap::new(),
             active_resolutions: Vec::new(),
             active_package_maps: Vec::new(),
             input_requests: Vec::new(),
@@ -690,6 +696,7 @@ impl<'a> ModuleResolver<'a> {
             root_dirs: None,
             package_cache: BTreeMap::new(),
             package_cache_enabled: true,
+            package_scope_by_directory: BTreeMap::new(),
             active_resolutions: Vec::new(),
             active_package_maps: Vec::new(),
             input_requests: Vec::new(),
@@ -4823,13 +4830,29 @@ impl<'a> ModuleResolver<'a> {
         containing_directory: impl Into<JsStr<'p>>,
     ) -> Result<Option<Rc<CachedPackage>>, ResolutionError> {
         let containing_directory = containing_directory.into();
+        let memo_key = self.package_cache_enabled.then(|| {
+            canonical_text(
+                containing_directory,
+                self.path_context.use_case_sensitive_file_names(),
+            )
+        });
+        if let Some(key) = &memo_key {
+            if let Some(scope) = self.package_scope_by_directory.get(key) {
+                return Ok(scope.clone());
+            }
+        }
+        let mut found = None;
         for ancestor in ancestor_directories(containing_directory) {
             let package_json = join_normalized(&ancestor, "package.json");
             if let Some(package) = self.load_package(&package_json)? {
-                return Ok(Some(package));
+                found = Some(package);
+                break;
             }
         }
-        Ok(None)
+        if let Some(key) = memo_key {
+            self.package_scope_by_directory.insert(key, found.clone());
+        }
+        Ok(found)
     }
 
     fn load_package<'p>(

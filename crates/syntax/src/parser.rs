@@ -919,7 +919,7 @@ impl<'text> Parser<'text> {
             jsdoc_candidates: Vec::new(),
             error_nodes: Vec::new(),
             jsdoc_positions: rustc_hash::FxHashSet::default(),
-            has_jsdoc_comments: text.contains("/**"),
+            has_jsdoc_comments: memchr::memmem::find(text.as_bytes(), b"/**").is_some(),
             syntax_cursor: None,
             subtree_copier: None,
             incremental_options: IncrementalParseOptions::default(),
