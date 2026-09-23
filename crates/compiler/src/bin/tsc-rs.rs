@@ -19,7 +19,22 @@ fn main() {
     unsafe { libmimalloc_sys::mi_option_set(MI_OPTION_PURGE_DELAY, -1) };
     let arguments = std::env::args().skip(1).collect::<Vec<_>>();
     let output = tsc_compiler::run_cli(&arguments);
-    print!("{}", output.stdout());
-    eprint!("{}", output.stderr());
-    std::process::exit(output.exit_code());
+    {
+        use std::io::Write;
+        let mut stdout = std::io::stdout().lock();
+        let _ = stdout.write_all(output.stdout().as_bytes());
+        let _ = stdout.flush();
+        let mut stderr = std::io::stderr().lock();
+        let _ = stderr.write_all(output.stderr().as_bytes());
+        let _ = stderr.flush();
+    }
+    // Leave without the C runtime's exit chain: the CLI keeps its arenas
+    // until the end on purpose, and mimalloc's exit hook would otherwise walk
+    // and unmap every segment it still holds (milliseconds for a large
+    // Program) before the kernel reclaims the address space anyway. Every
+    // artifact was written and closed by the sink; both streams are flushed
+    // above.
+    // SAFETY: _exit terminates the process immediately; nothing runs after
+    // it, and no other thread holds work the process still needs.
+    unsafe { libc::_exit(output.exit_code()) }
 }

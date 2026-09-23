@@ -22,6 +22,7 @@ path = "src/bin/tsc-rs.rs"
 perf-counters = ["tsc-checker/perf-counters", "tsc-types/perf-counters"]
 
 [dependencies]
+libc.workspace = true
 libmimalloc-sys = { version = "0.1", features = ["extended"] }
 mimalloc = "0.1"
 tsc-checker.workspace = true
