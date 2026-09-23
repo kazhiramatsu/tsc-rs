@@ -1,9 +1,18 @@
+use std::sync::Arc;
+
+use rustc_hash::FxHashMap;
+
 use crate::for_each_child::{for_each_child, NodeLookup};
 use crate::nodes::{Node, NodeArray, NodeArrayId, NodeData, NodeId};
 use crate::relocate::{collect_node_data_ids, relocate_node_data, remap_node_data_ids};
-use crate::SyntaxKind;
+use crate::{SourceFile, SyntaxKind};
 use tsc_types::{IdentityError, IdentityLease, IdentityRange, IdentitySpace, NodeFlags};
 
+/// The records an arena owns itself (`nodes`, `arrays`, numbered from
+/// `node_base` / `array_base`), optionally after a shared prefix: the
+/// parsed tree of a program source that an emit session extends with
+/// synthesized nodes (see [`NodeArena::extending`]). Accessors route by
+/// id, so a reader never sees the seam.
 #[derive(Clone, Debug, Default)]
 pub struct NodeArena {
     nodes: Vec<Node>,
@@ -17,6 +26,19 @@ pub struct NodeArena {
     array_base: u32,
     node_lease: Option<IdentityLease>,
     array_lease: Option<IdentityLease>,
+    shared: Option<Box<SharedPrefix>>,
+}
+
+/// A parsed tree an arena extends without copying it: the shared records
+/// stay untouched; their transform flags live here, and a record a
+/// transform mutates in place gets a private copy (copy on write).
+#[derive(Clone, Debug, PartialEq)]
+struct SharedPrefix {
+    parsed: Arc<SourceFile>,
+    node_flags: Vec<i32>,
+    array_flags: Vec<i32>,
+    node_overrides: FxHashMap<NodeId, Node>,
+    array_overrides: FxHashMap<NodeArrayId, NodeArray>,
 }
 
 impl PartialEq for NodeArena {
@@ -26,6 +48,7 @@ impl PartialEq for NodeArena {
             && self.arrays == other.arrays
             && self.node_base == other.node_base
             && self.array_base == other.array_base
+            && self.shared == other.shared
     }
 }
 
@@ -328,6 +351,36 @@ impl NodeArena {
         }
     }
 
+    /// An empty arena that extends `parsed`'s tree: reads of the parsed ids
+    /// go to the shared records, new nodes and arrays are numbered right
+    /// after them, and the parsed records' transform flags start at zero
+    /// in this arena's own side tables.
+    pub fn extending(parsed: Arc<SourceFile>) -> Self {
+        assert!(
+            parsed.arena.shared.is_none(),
+            "a shared parse tree must not itself extend another tree"
+        );
+        let node_count = (parsed.arena.node_end() - parsed.arena.node_base()) as usize;
+        let array_count = (parsed.arena.array_end() - parsed.arena.array_base()) as usize;
+        Self {
+            node_base: parsed.arena.node_end(),
+            array_base: parsed.arena.array_end(),
+            shared: Some(Box::new(SharedPrefix {
+                node_flags: vec![0; node_count],
+                array_flags: vec![0; array_count],
+                node_overrides: FxHashMap::default(),
+                array_overrides: FxHashMap::default(),
+                parsed,
+            })),
+            ..Self::default()
+        }
+    }
+
+    /// Whether this arena extends a shared parsed tree.
+    pub fn has_shared_prefix(&self) -> bool {
+        self.shared.is_some()
+    }
+
     /// Reserve storage for a source of `text_len` bytes before parsing it,
     /// so the node vector does not grow (and move every record) a dozen
     /// times. Ordinary TypeScript produces about one node per five bytes
@@ -338,12 +391,20 @@ impl NodeArena {
         self.arrays.reserve(text_len / 40);
     }
 
+    /// The first node id this arena answers (the shared prefix's base when
+    /// it extends one).
     pub fn node_base(&self) -> u32 {
-        self.node_base
+        match &self.shared {
+            Some(shared) => shared.parsed.arena.node_base,
+            None => self.node_base,
+        }
     }
 
     pub fn array_base(&self) -> u32 {
-        self.array_base
+        match &self.shared {
+            Some(shared) => shared.parsed.arena.array_base,
+            None => self.array_base,
+        }
     }
 
     pub fn node_identity_lease(&self) -> Option<&IdentityLease> {
@@ -375,16 +436,80 @@ impl NodeArena {
     }
 
     pub fn contains_node(&self, id: NodeId) -> bool {
-        id.0 >= self.node_base && id.0 < self.node_end()
+        id.0 >= self.node_base() && id.0 < self.node_end()
     }
 
     pub fn contains_array(&self, id: NodeArrayId) -> bool {
-        id.0 >= self.array_base && id.0 < self.array_end()
+        id.0 >= self.array_base() && id.0 < self.array_end()
     }
 
-    /// All NodeIds of this arena, in allocation order.
+    /// Every node id this arena answers, shared prefix first.
     pub fn node_ids(&self) -> impl Iterator<Item = NodeId> + '_ {
-        (self.node_base..self.node_end()).map(NodeId)
+        (self.node_base()..self.node_end()).map(NodeId)
+    }
+
+    /// Every node-array id this arena answers, shared prefix first.
+    pub fn array_ids(&self) -> impl Iterator<Item = NodeArrayId> + '_ {
+        (self.array_base()..self.array_end()).map(NodeArrayId)
+    }
+
+    /// tsc `node.transformFlags`: for a shared record the flags live in
+    /// this arena's side table, for an own record in the record.
+    pub fn transform_flags(&self, id: NodeId) -> i32 {
+        if let Some(shared) = &self.shared {
+            if id.0 < self.node_base {
+                return shared.node_flags[(id.0 - shared.parsed.arena.node_base) as usize];
+            }
+        }
+        self.nodes[self.node_index(id)].transform_flags
+    }
+
+    pub fn set_transform_flags(&mut self, id: NodeId, flags: i32) {
+        let own_base = self.node_base;
+        if let Some(shared) = &mut self.shared {
+            if id.0 < own_base {
+                shared.node_flags[(id.0 - shared.parsed.arena.node_base) as usize] = flags;
+                return;
+            }
+        }
+        let index = self.node_index(id);
+        self.nodes[index].transform_flags = flags;
+    }
+
+    pub fn array_transform_flags(&self, id: NodeArrayId) -> i32 {
+        if let Some(shared) = &self.shared {
+            if id.0 < self.array_base {
+                return shared.array_flags[(id.0 - shared.parsed.arena.array_base) as usize];
+            }
+        }
+        self.arrays[self.array_index(id)].transform_flags
+    }
+
+    pub fn set_array_transform_flags(&mut self, id: NodeArrayId, flags: i32) {
+        let own_base = self.array_base;
+        if let Some(shared) = &mut self.shared {
+            if id.0 < own_base {
+                shared.array_flags[(id.0 - shared.parsed.arena.array_base) as usize] = flags;
+                return;
+            }
+        }
+        let index = self.array_index(id);
+        self.arrays[index].transform_flags = flags;
+    }
+
+    /// Reset every transform flag this arena answers (an emit session
+    /// starting over).
+    pub fn clear_transform_flags(&mut self) {
+        if let Some(shared) = &mut self.shared {
+            shared.node_flags.fill(0);
+            shared.array_flags.fill(0);
+        }
+        for node in &mut self.nodes {
+            node.transform_flags = 0;
+        }
+        for array in &mut self.arrays {
+            array.transform_flags = 0;
+        }
     }
 
     pub fn alloc_node(
@@ -463,10 +588,34 @@ impl NodeArena {
     /// of an out-of-line call with its own frame. The checks stay.
     #[inline]
     pub fn node(&self, id: NodeId) -> &Node {
+        if let Some(shared) = &self.shared {
+            if id.0 < self.node_base {
+                if !shared.node_overrides.is_empty() {
+                    if let Some(record) = shared.node_overrides.get(&id) {
+                        return record;
+                    }
+                }
+                return shared.parsed.arena.node(id);
+            }
+        }
         &self.nodes[self.node_index(id)]
     }
 
+    /// Mutable access to a record; a shared record is copied into this
+    /// arena's overrides on first write (the shared tree is never mutated).
     pub fn node_mut(&mut self, id: NodeId) -> &mut Node {
+        let own_base = self.node_base;
+        if id.0 < own_base {
+            let shared = self
+                .shared
+                .as_mut()
+                .unwrap_or_else(|| panic!("NodeId below arena base: {id:?} (base {own_base})"));
+            let parsed = &shared.parsed;
+            return shared
+                .node_overrides
+                .entry(id)
+                .or_insert_with(|| parsed.arena.node(id).clone());
+        }
         let index = self.node_index(id);
         &mut self.nodes[index]
     }
@@ -475,6 +624,8 @@ impl NodeArena {
         self.node_mut(host).js_doc = Some(js_doc);
     }
 
+    /// The records this arena owns itself (a shared prefix's records are
+    /// reachable only through [`Self::node`]).
     pub fn nodes(&self) -> &[Node] {
         &self.nodes
     }
@@ -489,10 +640,31 @@ impl NodeArena {
 
     #[inline]
     pub fn node_array(&self, id: NodeArrayId) -> &NodeArray {
+        if let Some(shared) = &self.shared {
+            if id.0 < self.array_base {
+                if !shared.array_overrides.is_empty() {
+                    if let Some(record) = shared.array_overrides.get(&id) {
+                        return record;
+                    }
+                }
+                return shared.parsed.arena.node_array(id);
+            }
+        }
         &self.arrays[self.array_index(id)]
     }
 
     pub fn node_array_mut(&mut self, id: NodeArrayId) -> &mut NodeArray {
+        let own_base = self.array_base;
+        if id.0 < own_base {
+            let shared = self.shared.as_mut().unwrap_or_else(|| {
+                panic!("NodeArrayId below arena base: {id:?} (base {own_base})")
+            });
+            let parsed = &shared.parsed;
+            return shared
+                .array_overrides
+                .entry(id)
+                .or_insert_with(|| parsed.arena.node_array(id).clone());
+        }
         let index = self.array_index(id);
         &mut self.arrays[index]
     }
@@ -501,12 +673,13 @@ impl NodeArena {
         &self.arrays
     }
 
+    /// The number of nodes this arena answers (shared prefix included).
     pub fn len(&self) -> usize {
-        self.nodes.len()
+        (self.node_end() - self.node_base()) as usize
     }
 
     pub fn is_empty(&self) -> bool {
-        self.nodes.is_empty()
+        self.len() == 0
     }
 
     pub(crate) fn identity_relocation(

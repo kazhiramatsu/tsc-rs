@@ -60,9 +60,16 @@ fn build_fixture_resolver(arena: &TransformArena, source: TransformSourceId) -> 
         .expect("fixture source registered")
         .syntax();
     let node_base = syntax.arena.node_base();
+    // The emit copy extends the program's shared tree; gather every record
+    // it answers (parsed and synthesized) in id order for the fixture.
+    let all_nodes: Vec<tsc_syntax::Node> = syntax
+        .arena
+        .node_ids()
+        .map(|id| syntax.arena.node(id).clone())
+        .collect();
     let mut catches = Vec::new();
     let mut identifiers = std::collections::BTreeMap::new();
-    for (offset, record) in syntax.arena.nodes().iter().enumerate() {
+    for (offset, record) in all_nodes.iter().enumerate() {
         let id = NodeId(node_base + u32::try_from(offset).expect("node count fits u32"));
         match &record.data {
             NodeData::Identifier(data) => {
@@ -73,17 +80,16 @@ fn build_fixture_resolver(arena: &TransformArena, source: TransformSourceId) -> 
                 else {
                     continue;
                 };
-                let declaration_record =
-                    &syntax.arena.nodes()[(declaration.0 - node_base) as usize];
+                let declaration_record = &all_nodes[(declaration.0 - node_base) as usize];
                 let NodeData::VariableDeclaration(variable) = &declaration_record.data else {
                     continue;
                 };
                 let Some(name) = variable.name else { continue };
-                let name_record = &syntax.arena.nodes()[(name.0 - node_base) as usize];
+                let name_record = &all_nodes[(name.0 - node_base) as usize];
                 let NodeData::Identifier(name_data) = &name_record.data else {
                     continue;
                 };
-                let block_record = &syntax.arena.nodes()[(block.0 - node_base) as usize];
+                let block_record = &all_nodes[(block.0 - node_base) as usize];
                 catches.push((
                     name_data.text.clone(),
                     block_record.pos,

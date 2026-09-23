@@ -1341,9 +1341,9 @@ impl<'context, 'resolver, 'state> Es2015Visitor<'context, 'resolver, 'state> {
         let candidates: Vec<TransformNode> = {
             let arena = self.context.arena();
             let syntax = arena.source(self.source)?.syntax();
-            let node_base = syntax.arena.node_base();
             let mut out = Vec::new();
-            for (offset, record) in syntax.arena.nodes().iter().enumerate() {
+            for id in syntax.arena.node_ids() {
+                let record = syntax.arena.node(id);
                 let name = match &record.data {
                     NodeData::VariableDeclaration(data) => data.name,
                     NodeData::BindingElement(data) => data.name,
@@ -1353,7 +1353,6 @@ impl<'context, 'resolver, 'state> Es2015Visitor<'context, 'resolver, 'state> {
                     _ => None,
                 };
                 let Some(name) = name else { continue };
-                let id = NodeId(node_base + u32::try_from(offset).expect("node count fits u32"));
                 let declaration = self.node(id);
                 let name = self.node(name);
                 if !matches!(arena.node(name)?.data, NodeData::Identifier(_)) {

@@ -16479,12 +16479,13 @@ fn snapshot_transform_flags(
     let syntax = arena.source(source)?.syntax();
     let nodes = syntax
         .arena
-        .nodes()
-        .iter()
-        .map(|node| node.transform_flags)
+        .node_ids()
+        .map(|id| syntax.arena.transform_flags(id))
         .collect();
-    let arrays = (syntax.arena.array_base()..syntax.arena.array_end())
-        .map(|array| syntax.arena.node_array(NodeArrayId(array)).transform_flags)
+    let arrays = syntax
+        .arena
+        .array_ids()
+        .map(|id| syntax.arena.array_transform_flags(id))
         .collect();
     Ok((nodes, arrays))
 }
@@ -16503,7 +16504,7 @@ fn compute_transform_flags_linear(
 ) -> Result<bool, TransformError> {
     let (node_base, node_count) = {
         let syntax = arena.source(source)?.syntax();
-        (syntax.arena.node_base(), syntax.arena.nodes().len())
+        (syntax.arena.node_base(), syntax.arena.len())
     };
     let index_of = |id: NodeId| -> Option<usize> {
         id.0.checked_sub(node_base)
@@ -16525,7 +16526,7 @@ fn compute_transform_flags_linear(
             if !reachable[index] {
                 continue;
             }
-            let record = &syntax.arena.nodes()[index];
+            let record = syntax.arena.node(NodeId(node_base + index as u32));
             children.clear();
             for_each_child(&syntax.arena, record, |child| {
                 children.push(child);
@@ -16557,10 +16558,13 @@ fn compute_transform_flags_linear(
         array_scratch.clear();
         {
             let syntax = arena.source(source)?.syntax();
-            for_each_child_array(&syntax.arena.nodes()[index], |array| {
-                array_scratch.push(array);
-                false
-            });
+            for_each_child_array(
+                syntax.arena.node(NodeId(node_base + index as u32)),
+                |array| {
+                    array_scratch.push(array);
+                    false
+                },
+            );
         }
         for &array in &array_scratch {
             let array_ref = arena
@@ -16580,7 +16584,7 @@ fn compute_transform_flags_linear(
                     } else {
                         TransformFlags::NONE
                     };
-                    let kind = syntax.arena.nodes()[element_index].kind;
+                    let kind = syntax.arena.node(element).kind;
                     flags |= element_flags & !TransformFlags::subtree_exclusions(kind);
                 }
                 flags
@@ -16589,7 +16593,7 @@ fn compute_transform_flags_linear(
         }
         let flags = {
             let syntax = arena.source(source)?.syntax();
-            let record = &syntax.arena.nodes()[index];
+            let record = syntax.arena.node(NodeId(node_base + index as u32));
             let mut flags = local_transform_flags(record)
                 | local_contextual_target_flags(arena, source, record)?;
             flags |= factory_child_transform_flags(arena, source, record)?;

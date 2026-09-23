@@ -552,8 +552,15 @@ fn build_fixture_resolver(arena: &TransformArena, source: TransformSourceId) -> 
         .expect("fixture source registered")
         .syntax();
     let node_base = syntax.arena.node_base();
+    // The emit copy extends the program's shared tree; gather every record
+    // it answers (parsed and synthesized) in id order for the fixture.
+    let all_nodes: Vec<tsc_syntax::Node> = syntax
+        .arena
+        .node_ids()
+        .map(|id| syntax.arena.node(id).clone())
+        .collect();
     let binder = FixtureBinder {
-        nodes: syntax.arena.nodes(),
+        nodes: &all_nodes,
         node_base,
     };
     let id_at = |offset: usize| NodeId(node_base + offset as u32);
@@ -600,7 +607,7 @@ fn build_fixture_resolver(arena: &TransformArena, source: TransformSourceId) -> 
             }
         };
 
-    for (offset, record) in syntax.arena.nodes().iter().enumerate() {
+    for (offset, record) in all_nodes.iter().enumerate() {
         let id = id_at(offset);
         match &record.data {
             NodeData::Identifier(data) => {
@@ -4005,13 +4012,10 @@ fn type_script_class_wrapper_surgery_flattens_the_wrapped_class() {
     {
         let syntax_nodes: Vec<(NodeId, SyntaxKind)> = {
             let syntax = arena.source(source).expect("source").syntax();
-            let node_base = syntax.arena.node_base();
             syntax
                 .arena
-                .nodes()
-                .iter()
-                .enumerate()
-                .map(|(offset, record)| (NodeId(node_base + offset as u32), record.kind))
+                .node_ids()
+                .map(|id| (id, syntax.arena.node(id).kind))
                 .collect()
         };
         let outer_call = syntax_nodes

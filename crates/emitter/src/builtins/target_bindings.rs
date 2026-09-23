@@ -9,7 +9,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
-use tsc_syntax::{for_each_child, NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{for_each_child, NodeData, SyntaxKind};
 
 use crate::{
     transform::{CarriedBindingKey, CarriedGeneratedNames, CarriedNodeKey, GeneratedBindingId},
@@ -130,25 +130,19 @@ impl ParsedSourceIdentifierNames {
             return Ok(Self(UsedNames::from(Arc::clone(names))));
         }
         let syntax = arena.source(source)?.syntax();
-        let node_base = syntax.arena.node_base();
         let mut names = BTreeSet::new();
         // Most identifier texts repeat many times per file; a hashed
         // first-sight filter keeps the ordered set's string comparisons
         // and clones to the distinct names only.
         let mut seen: rustc_hash::FxHashSet<&str> = rustc_hash::FxHashSet::default();
-        for (offset, record) in syntax.arena.nodes().iter().enumerate() {
+        for id in syntax.arena.node_ids() {
+            let record = syntax.arena.node(id);
             let NodeData::Identifier(identifier) = &record.data else {
                 continue;
             };
             if !seen.insert(identifier.text.as_str()) {
                 continue;
             }
-            let offset = u32::try_from(offset).expect("transform node count exceeds u32");
-            let id = NodeId(
-                node_base
-                    .checked_add(offset)
-                    .expect("transform node identity overflow"),
-            );
             let node = TransformNode::new(source, id);
             if !arena.is_parsed_node(node)? {
                 // A synthesized spelling does not reserve the name; a later

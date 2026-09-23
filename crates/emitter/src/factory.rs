@@ -369,27 +369,39 @@ impl TransformArena {
         else {
             return Ok(None);
         };
-        self.add_source(syntax, Some(node.source()));
+        self.mount_host_source(host, syntax, node.source());
         self.parse_tree_transform_node(node)
     }
 
+    /// Mount a copy of `source` (see `add_shared_source` for the shared
+    /// form the program hosts use).
     pub fn add_source(
         &mut self,
         source: &SourceFile,
         program_source: Option<SourceFileId>,
     ) -> TransformSourceId {
+        self.add_shared_source(Arc::new(source.clone()), program_source)
+    }
+
+    /// Mount `parsed` without copying its tree: the source's arena extends
+    /// the shared records with this session's synthesized nodes, transform
+    /// flags and copy-on-write overrides.
+    pub fn add_shared_source(
+        &mut self,
+        parsed: Arc<SourceFile>,
+        program_source: Option<SourceFileId>,
+    ) -> TransformSourceId {
         let id = TransformSourceId(
             u32::try_from(self.sources.len()).expect("transform source count exceeds u32"),
         );
-        let parsed_node_base = source.arena.node_base();
-        let parsed_node_end = source.arena.node_end();
-        let mut detached = source.clone();
-        detached.arena = std::mem::take(&mut detached.arena).into_detached();
+        let parsed_node_base = parsed.arena.node_base();
+        let parsed_node_end = parsed.arena.node_end();
+        let detached = parsed.with_arena(tsc_syntax::NodeArena::extending(Arc::clone(&parsed)));
         self.sources.push(TransformSource {
             program_source,
             parsed_node_base,
             parsed_node_end,
-            parsed_node_identity_lease: source.node_identity_lease().cloned(),
+            parsed_node_identity_lease: parsed.node_identity_lease().cloned(),
             source: detached,
             has_no_default_lib: None,
             identifier_census: RefCell::default(),
@@ -407,6 +419,20 @@ impl TransformArena {
     /// everything the update does not recompute. A node created with a
     /// creation-site hint (`TransformFlags::NONE` and the like) is not
     /// complete and is always walked.
+    /// Mount a program source from `host`: shared when the host lends the
+    /// program's own tree, copied otherwise.
+    pub fn mount_host_source(
+        &mut self,
+        host: &dyn crate::EmitHost,
+        syntax: &SourceFile,
+        program_source: SourceFileId,
+    ) -> TransformSourceId {
+        match host.shared_syntax(program_source) {
+            Some(parsed) => self.add_shared_source(parsed, Some(program_source)),
+            None => self.add_source(syntax, Some(program_source)),
+        }
+    }
+
     pub(crate) fn transform_flags_complete(&self, node: TransformNode) -> bool {
         match self.sources.get(node.source.raw() as usize) {
             Some(source) => {
@@ -455,19 +481,20 @@ impl TransformArena {
         let Ok(source) = self.source(source) else {
             return Arc::default();
         };
-        let nodes = source.source.arena.nodes();
+        let arena = &source.source.arena;
+        let node_count = arena.len();
         let mut census = source.identifier_census.borrow_mut();
-        if census.scanned < nodes.len() {
+        if census.scanned < node_count {
             let scanned = census.scanned;
             let names = Arc::make_mut(&mut census.names);
-            for node in &nodes[scanned..] {
-                if let NodeData::Identifier(data) = &node.data {
+            for id in arena.node_ids().skip(scanned) {
+                if let NodeData::Identifier(data) = &arena.node(id).data {
                     if !names.contains(data.text.as_str()) {
                         names.insert(data.text.clone());
                     }
                 }
             }
-            census.scanned = nodes.len();
+            census.scanned = node_count;
         }
         Arc::clone(&census.names)
     }
@@ -689,7 +716,7 @@ impl TransformArena {
     pub fn transform_flags(&self, node: TransformNode) -> TransformFlags {
         match self.sources.get(node.source.raw() as usize) {
             Some(source) if source.source.arena.contains_node(node.node) => {
-                TransformFlags::from_bits(source.source.arena.node(node.node).transform_flags)
+                TransformFlags::from_bits(source.source.arena.transform_flags(node.node))
             }
             _ => TransformFlags::NONE,
         }
@@ -701,7 +728,10 @@ impl TransformArena {
     pub fn set_transform_flags(&mut self, node: TransformNode, flags: TransformFlags) {
         if let Some(source) = self.sources.get_mut(node.source.raw() as usize) {
             if source.source.arena.contains_node(node.node) {
-                source.source.arena.node_mut(node.node).transform_flags = flags.bits();
+                source
+                    .source
+                    .arena
+                    .set_transform_flags(node.node, flags.bits());
             }
         }
     }
@@ -710,9 +740,7 @@ impl TransformArena {
     pub fn array_transform_flags(&self, array: TransformNodeArray) -> TransformFlags {
         match self.sources.get(array.source.raw() as usize) {
             Some(source) if source.source.arena.contains_array(array.array) => {
-                TransformFlags::from_bits(
-                    source.source.arena.node_array(array.array).transform_flags,
-                )
+                TransformFlags::from_bits(source.source.arena.array_transform_flags(array.array))
             }
             _ => TransformFlags::NONE,
         }
@@ -725,8 +753,7 @@ impl TransformArena {
                 source
                     .source
                     .arena
-                    .node_array_mut(array.array)
-                    .transform_flags = flags.bits();
+                    .set_array_transform_flags(array.array, flags.bits());
             }
         }
     }
@@ -921,12 +948,7 @@ impl TransformArena {
     pub fn clear_session_metadata(&mut self) {
         self.metadata.clear();
         for source in &mut self.sources {
-            for node in source.source.arena.nodes_mut() {
-                node.transform_flags = 0;
-            }
-            for array in source.source.arena.node_arrays_mut() {
-                array.transform_flags = 0;
-            }
+            source.source.arena.clear_transform_flags();
         }
     }
 
