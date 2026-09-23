@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use std::fmt;
 use std::ops::Range;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 const CHANGE_NUMBER_THRESHOLD: usize = 8;
 const CHANGE_LENGTH_THRESHOLD_UTF16: u32 = 256;
@@ -556,6 +556,13 @@ fn append_node_text(node: &Arc<LineNode>, output: &mut String) {
 #[derive(Debug)]
 enum PositionIndexData {
     StaticDense(DensePositionIndex),
+    /// Built from the shared text on first use: a snapshot's index is
+    /// rarely consulted before diagnostics are rendered or output is
+    /// printed, and a large source pays for it only then.
+    LazyDense {
+        text: Arc<str>,
+        dense: OnceLock<DensePositionIndex>,
+    },
     PersistentLines(PersistentLineTree),
 }
 
@@ -563,34 +570,51 @@ enum PositionIndexData {
 pub struct PositionIndex {
     data: PositionIndexData,
     byte_len: u32,
-    utf16_len: u32,
-    line_count: u32,
 }
 
 impl PositionIndex {
     pub fn new_static(text: &str) -> Self {
-        let dense = DensePositionIndex::new(text);
         Self {
             byte_len: u32::try_from(text.len()).expect("source text must fit in u32"),
-            utf16_len: dense.utf16_len(),
-            line_count: u32::try_from(dense.line_starts_byte.len())
-                .expect("source line count must fit in u32"),
-            data: PositionIndexData::StaticDense(dense),
+            data: PositionIndexData::StaticDense(DensePositionIndex::new(text)),
+        }
+    }
+
+    /// A static index over `text` whose tables are built on first use.
+    pub fn new_lazy(text: Arc<str>) -> Self {
+        Self {
+            byte_len: u32::try_from(text.len()).expect("source text must fit in u32"),
+            data: PositionIndexData::LazyDense {
+                text,
+                dense: OnceLock::new(),
+            },
         }
     }
 
     fn from_persistent(tree: PersistentLineTree) -> Self {
         Self {
             byte_len: tree.byte_len(),
-            utf16_len: tree.utf16_len(),
-            line_count: tree.line_count(),
             data: PositionIndexData::PersistentLines(tree),
+        }
+    }
+
+    /// The dense tables of a static index (built now if deferred); a
+    /// persistent index has none.
+    fn dense(&self) -> Option<&DensePositionIndex> {
+        match &self.data {
+            PositionIndexData::StaticDense(dense) => Some(dense),
+            PositionIndexData::LazyDense { text, dense } => {
+                Some(dense.get_or_init(|| DensePositionIndex::new(text)))
+            }
+            PositionIndexData::PersistentLines(_) => None,
         }
     }
 
     pub const fn kind(&self) -> PositionIndexKind {
         match self.data {
-            PositionIndexData::StaticDense(_) => PositionIndexKind::StaticDense,
+            PositionIndexData::StaticDense(_) | PositionIndexData::LazyDense { .. } => {
+                PositionIndexKind::StaticDense
+            }
             PositionIndexData::PersistentLines(_) => PositionIndexKind::PersistentLines,
         }
     }
@@ -599,25 +623,32 @@ impl PositionIndex {
         self.byte_len
     }
 
-    pub const fn utf16_len(&self) -> u32 {
-        self.utf16_len
+    pub fn utf16_len(&self) -> u32 {
+        match &self.data {
+            PositionIndexData::PersistentLines(tree) => tree.utf16_len(),
+            _ => self.dense().expect("static index").utf16_len(),
+        }
     }
 
-    pub const fn line_count(&self) -> u32 {
-        self.line_count
+    pub fn line_count(&self) -> u32 {
+        match &self.data {
+            PositionIndexData::PersistentLines(tree) => tree.line_count(),
+            _ => u32::try_from(self.dense().expect("static index").line_starts_byte.len())
+                .expect("source line count must fit in u32"),
+        }
     }
 
     pub fn byte_to_utf16(&self, position: u32) -> Option<u32> {
         match &self.data {
-            PositionIndexData::StaticDense(index) => index.byte_to_utf16(position),
             PositionIndexData::PersistentLines(tree) => tree.byte_to_utf16(position),
+            _ => self.dense()?.byte_to_utf16(position),
         }
     }
 
     pub fn utf16_to_byte(&self, position: u32) -> Option<u32> {
         match &self.data {
-            PositionIndexData::StaticDense(index) => index.utf16_to_byte(position),
             PositionIndexData::PersistentLines(tree) => tree.utf16_to_byte(position),
+            _ => self.dense()?.utf16_to_byte(position),
         }
     }
 
@@ -631,27 +662,23 @@ impl PositionIndex {
 
     pub fn line_start_byte(&self, line: u32) -> Option<u32> {
         match &self.data {
-            PositionIndexData::StaticDense(index) => {
-                index.line_starts_byte.get(line as usize).copied()
-            }
             PositionIndexData::PersistentLines(tree) => tree.line_start_byte(line),
+            _ => self.dense()?.line_starts_byte.get(line as usize).copied(),
         }
     }
 
     pub fn line_start_utf16(&self, line: u32) -> Option<u32> {
         match &self.data {
-            PositionIndexData::StaticDense(index) => {
-                index.line_starts_utf16.get(line as usize).copied()
-            }
             PositionIndexData::PersistentLines(tree) => tree.line_start_utf16(line),
+            _ => self.dense()?.line_starts_utf16.get(line as usize).copied(),
         }
     }
 
     pub fn line_and_character_utf16(&self, position: u32) -> Option<LineAndCharacter> {
-        if position > self.utf16_len {
+        if position > self.utf16_len() {
             return None;
         }
-        let line = greatest_line_start(self.line_count, position, |line| {
+        let line = greatest_line_start(self.line_count(), position, |line| {
             self.line_start_utf16(line)
         })?;
         Some(LineAndCharacter {
@@ -704,7 +731,7 @@ impl TextSnapshot {
     }
 
     pub fn from_shared_text(text: Arc<str>, document_version: DocumentVersion) -> Arc<Self> {
-        let positions = Arc::new(PositionIndex::new_static(&text));
+        let positions = Arc::new(PositionIndex::new_lazy(Arc::clone(&text)));
         Arc::new(Self {
             document_version,
             lineage: SnapshotLineage {

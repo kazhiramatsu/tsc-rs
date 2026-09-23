@@ -237,6 +237,10 @@ struct Parser<'text> {
     /// only those possible hosts so attachment materialization does not
     /// require another whole-tree walk after parsing.
     jsdoc_candidates: Vec<NodeId>,
+    /// Nodes finished with THIS_NODE_HAS_ERROR, in finish order: the
+    /// starting points of the error aggregate in `finalize_tree` (a
+    /// rolled-back speculation truncates the list with its candidates).
+    error_nodes: Vec<NodeId>,
     /// Full-start positions whose ordinary scanner token carried
     /// TokenFlags.PrecedingJSDocComment.
     jsdoc_positions: rustc_hash::FxHashSet<usize>,
@@ -913,6 +917,7 @@ impl<'text> Parser<'text> {
             parsing_context: 0,
             not_parenthesized_arrow: rustc_hash::FxHashSet::default(),
             jsdoc_candidates: Vec::new(),
+            error_nodes: Vec::new(),
             jsdoc_positions: rustc_hash::FxHashSet::default(),
             has_jsdoc_comments: text.contains("/**"),
             syntax_cursor: None,
@@ -1366,6 +1371,7 @@ impl<'text> Parser<'text> {
         let context_flags = self.context_flags;
         let parsing_context = self.parsing_context;
         let jsdoc_candidates_len = self.jsdoc_candidates.len();
+        let error_nodes_len = self.error_nodes.len();
 
         let result = f(self);
         if !result.is_truthy() {
@@ -1376,6 +1382,7 @@ impl<'text> Parser<'text> {
             self.context_flags = context_flags;
             self.parsing_context = parsing_context;
             self.jsdoc_candidates.truncate(jsdoc_candidates_len);
+            self.error_nodes.truncate(error_nodes_len);
         }
         result
     }
@@ -1388,6 +1395,7 @@ impl<'text> Parser<'text> {
         let context_flags = self.context_flags;
         let parsing_context = self.parsing_context;
         let jsdoc_candidates_len = self.jsdoc_candidates.len();
+        let error_nodes_len = self.error_nodes.len();
         let result = f(self);
         self.scanner.restore(scanner_state);
         self.parse_diagnostics.truncate(diagnostics_len);
@@ -1396,6 +1404,7 @@ impl<'text> Parser<'text> {
         self.context_flags = context_flags;
         self.parsing_context = parsing_context;
         self.jsdoc_candidates.truncate(jsdoc_candidates_len);
+        self.error_nodes.truncate(error_nodes_len);
         result
     }
 
@@ -10016,7 +10025,7 @@ impl<'text> Parser<'text> {
             eof_end,
             self.source_flags,
         );
-        self.arena.finalize_tree(root);
+        self.arena.finalize_tree(root, &self.error_nodes);
 
         // M8-P01: parseSourceFile runs pragma processing after building the
         // SourceFile and appends its diagnostics to the syntactic bucket;
@@ -10134,6 +10143,7 @@ impl<'text> Parser<'text> {
             if self.parse_error_before_next_finished_node {
                 self.parse_error_before_next_finished_node = false;
                 node.flags |= NodeFlags::THIS_NODE_HAS_ERROR.bits();
+                self.error_nodes.push(id);
             }
             self.has_jsdoc_comments
                 && self.jsdoc_positions.contains(&pos)

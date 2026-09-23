@@ -170,10 +170,7 @@ impl CliEmitSessionOutcome {
 /// session; the noEmitOnError declaration gate runs per shard
 /// (`sharded_declaration_diagnostics`).
 fn sharded_emit_supported(options: &CompilerOptions) -> bool {
-    !options
-        .out_file
-        .as_ref()
-        .is_some_and(|path| !path.is_empty())
+    options.out_file.as_ref().is_none_or(|path| path.is_empty())
 }
 
 /// The whole-Program declaration diagnostics for the noEmitOnError gate of a

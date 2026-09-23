@@ -4660,7 +4660,7 @@ impl<'a> CheckerState<'a> {
             // Early write (57829): partial members become observable.
             let properties = self.get_named_members(&members)?;
             let id = self.alloc_members(ResolvedMembers {
-                members: members.clone().into(),
+                members: members.clone(),
                 properties,
                 call_signatures: call_signatures.clone(),
                 construct_signatures: construct_signatures.clone(),
@@ -4728,7 +4728,7 @@ impl<'a> CheckerState<'a> {
         };
         let properties = self.get_named_members(&members)?;
         let resolved = ResolvedMembers {
-            members: members.into(),
+            members,
             properties,
             call_signatures,
             construct_signatures,

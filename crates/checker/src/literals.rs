@@ -1452,7 +1452,7 @@ impl<'a> CheckerState<'a> {
         self.tables.type_mut(id).object_flags = object_flags | ObjectFlags::ANONYMOUS;
         self.tables.type_mut(id).symbol = symbol;
         let members_id = self.alloc_members(crate::state::ResolvedMembers {
-            members: members.into(),
+            members,
             properties,
             call_signatures: Vec::new(),
             construct_signatures: Vec::new(),
