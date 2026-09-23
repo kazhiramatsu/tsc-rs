@@ -1712,10 +1712,14 @@ impl ProgramSession {
         h2_activity.construct_emit_session();
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         validate_bootstrap_emit_request(&emit_host).map_err(DriverError::Emit)?;
+        tsc_types::trace::mark("emit: host and request validation", setup_started);
         let selection = EmitSelection::WholeProgram;
         h2_activity.construct_output_plan();
+        let preflight_started = std::time::Instant::now();
         let preflight = preflight_emit(&emit_host, selection).map_err(DriverError::Emit)?;
         let preflight_diagnostics = preflight.diagnostics().to_vec();
+        tsc_types::trace::mark("emit: preflight (output plan)", preflight_started);
+        let inputs_started = std::time::Instant::now();
         // A shard owns the planned units whose source is one of the snapshot
         // documents it checked; the checked host matches them by this name.
         let unit_names = preflight
@@ -1733,6 +1737,7 @@ impl ProgramSession {
         let factory = PreparedProviderFactory {
             prepared: &prepared,
         };
+        tsc_types::trace::mark("emit: unit names and checker inputs", inputs_started);
         tsc_types::trace::mark("emit: host, preflight, checker inputs", setup_started);
 
         #[allow(clippy::large_enum_variant)]
