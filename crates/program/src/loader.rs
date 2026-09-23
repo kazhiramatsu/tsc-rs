@@ -872,6 +872,9 @@ fn load_program_worker(
     drop(prefetch_roots);
     tsc_types::trace::mark("load: read-ahead parse of roots", phase_started);
     let phase_started = std::time::Instant::now();
+    graph.prefetch_dependencies();
+    tsc_types::trace::mark("load: read-ahead of dependencies", phase_started);
+    let phase_started = std::time::Instant::now();
     for index in 0..root_names.len() {
         let root_spelling = root_names.name(index)?;
         let root = normalize_root(root_spelling, &path_context)?;
@@ -886,6 +889,15 @@ fn load_program_worker(
             graph.load_selected_libraries()?;
         }
     }
+    tsc_types::trace::mark(
+        &format!(
+            "load: root walk ({} pre-resolved hits, {} left, {} resolutions)",
+            graph.pre_resolved_hits,
+            graph.pre_resolved.len(),
+            graph.module_resolutions.len()
+        ),
+        phase_started,
+    );
     let staged = graph.finish();
     tsc_types::trace::mark("load: root walk and graph finish", phase_started);
     let phase_started = std::time::Instant::now();
@@ -1609,6 +1621,11 @@ struct StagedGraph<'host, 'options, 'resolver> {
     /// (`sources.len()` / `total_source_bytes`).
     reserved_sources: usize,
     reserved_bytes: usize,
+    /// Module resolutions computed by the dependency read-ahead
+    /// (`prefetch_dependencies`) that the walk has not reached yet; the walk
+    /// takes each one at the request that would have computed it.
+    pre_resolved: BTreeMap<ResolutionKey, HostModuleResolution>,
+    pre_resolved_hits: usize,
 }
 
 /// Immutable and borrowed inputs for one staged graph. Keeping this boundary
@@ -1656,6 +1673,8 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             total_source_bytes: 0,
             prefetched: FxHashMap::default(),
             prefetch_order: Vec::new(),
+            pre_resolved: BTreeMap::new(),
+            pre_resolved_hits: 0,
             reserved_sources: 0,
             reserved_bytes: 0,
         }
@@ -1948,6 +1967,105 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
     /// the same canonical path is a distinct host query: its entry is
     /// discarded and the visit reads as before. Either way the entry's
     /// reservation is released; the visit's own admission accounts for it.
+    /// tsrs-native: read ahead the dependencies of the read-ahead roots.
+    ///
+    /// Level by level: resolve every module request of the sources read
+    /// ahead so far (the walk takes these resolutions in its own order, see
+    /// `pre_resolved`), read and parse their loadable targets on the
+    /// workers as `prefetch_roots` does, and repeat with the targets' own
+    /// requests. The sequential walk keeps every decision it makes (visit
+    /// order, unloaded reasons, diagnostics, limits); this only answers its
+    /// reads and resolutions from memory. A request whose resolution fails
+    /// here is left for the walk to resolve and report in order.
+    fn prefetch_dependencies(&mut self) {
+        const MAX_LEVELS: usize = 64;
+        let mut frontier: Vec<CanonicalPath> = self.prefetch_order.clone();
+        for level in 0..MAX_LEVELS {
+            if frontier.is_empty() {
+                break;
+            }
+            let level_started = std::time::Instant::now();
+            let mut requests: Vec<(JsString, ResolutionKey, bool)> = Vec::new();
+            for canonical in &frontier {
+                let Some(entry) = self.prefetched.get(canonical) else {
+                    continue;
+                };
+                let PrefetchedRead::Parsed {
+                    decoded: Ok(parse), ..
+                } = &entry.read
+                else {
+                    continue;
+                };
+                let Ok(plan) = &parse.plan else {
+                    continue;
+                };
+                let containing_file = parse.prepared.path().display().to_owned();
+                for (key, loads_source) in plan.module_requests_with_loadability() {
+                    if self.module_resolution_by_key.contains_key(key)
+                        || self.pre_resolved.contains_key(key)
+                    {
+                        continue;
+                    }
+                    requests.push((containing_file.clone(), key.clone(), loads_source));
+                }
+            }
+            let request_count = requests.len();
+            let mut targets: Vec<ProgramPath> = Vec::new();
+            let mut queued: BTreeSet<CanonicalPath> = BTreeSet::new();
+            for (containing_file, key, loads_source) in requests {
+                if self.pre_resolved.contains_key(&key) {
+                    continue;
+                }
+                let Ok(host) =
+                    self.resolver
+                        .resolve_with_facts(&containing_file, key.specifier(), key.mode())
+                else {
+                    continue;
+                };
+                if loads_source {
+                    if let ResolutionOutcome::Resolved(target) = host.outcome() {
+                        let path = target.resolved_file();
+                        if !matches!(target.extension(), ModuleExtension::Json)
+                            && !self.states.contains_key(path.canonical())
+                            && !self.prefetched.contains_key(path.canonical())
+                            && queued.insert(path.canonical().clone())
+                        {
+                            targets.push(path.clone());
+                        }
+                    }
+                }
+                self.pre_resolved.insert(key, host);
+            }
+            if targets.is_empty() {
+                tsc_types::trace::mark(
+                    &format!(
+                        "load: dependency level {} ({} sources, {} requests, no new targets, {} pre-resolved)",
+                        level,
+                        frontier.len(),
+                        request_count,
+                        self.pre_resolved.len()
+                    ),
+                    level_started,
+                );
+                break;
+            }
+            let before = self.prefetch_order.len();
+            self.prefetch_roots(&targets);
+            frontier = self.prefetch_order[before..].to_vec();
+            tsc_types::trace::mark(
+                &format!(
+                    "load: dependency level {} ({} requests, {} targets, {} read ahead, {} pre-resolved)",
+                    level,
+                    request_count,
+                    targets.len(),
+                    frontier.len(),
+                    self.pre_resolved.len()
+                ),
+                level_started,
+            );
+        }
+    }
+
     fn take_prefetched(&mut self, path: &ProgramPath) -> Option<PrefetchedRead> {
         let prefetched = self.prefetched.remove(path.canonical())?;
         self.release_read_ahead_reservation(&prefetched.read);
@@ -3773,17 +3891,26 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 self.module_resolutions[index].loads_source |= loads_source;
                 index
             } else {
-                let host = self
-                    .resolver
-                    .resolve_with_facts(&containing_file, key.specifier(), key.mode())
-                    .map_err(|error| {
-                        ProgramLoadError::resolution_js(
-                            ProgramLoadOperation::ResolveModule,
-                            Some(containing_file.clone()),
-                            Some(key.specifier().to_owned()),
-                            error,
-                        )
-                    })?;
+                // A resolution the read-ahead computed for this exact request
+                // is the same pure host observation the resolver would make
+                // here; it is taken in this request's turn.
+                let host = match self.pre_resolved.remove(&key) {
+                    Some(host) => {
+                        self.pre_resolved_hits += 1;
+                        host
+                    }
+                    None => self
+                        .resolver
+                        .resolve_with_facts(&containing_file, key.specifier(), key.mode())
+                        .map_err(|error| {
+                            ProgramLoadError::resolution_js(
+                                ProgramLoadOperation::ResolveModule,
+                                Some(containing_file.clone()),
+                                Some(key.specifier().to_owned()),
+                                error,
+                            )
+                        })?,
+                };
                 let index = self.module_resolutions.len();
                 self.module_resolutions.push(StagedModuleResolution {
                     key: key.clone(),
