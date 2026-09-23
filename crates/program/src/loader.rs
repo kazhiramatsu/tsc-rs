@@ -1433,6 +1433,10 @@ struct PrefetchedSource {
     read: PrefetchedRead,
 }
 
+/// The fewest read-ahead roots for which the parse workers read the sources
+/// themselves (see `StagedGraph::prefetch_roots`).
+pub const PARALLEL_READ_AHEAD_MIN_ROOTS: usize = 64;
+
 enum PrefetchedRead {
     /// `read_file_js` answered `Ok(None)`; the visit records the miss.
     Missing,
@@ -1730,7 +1734,15 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 .collect();
         }
         let phase_started = std::time::Instant::now();
-        if let Some(reader) = self.host.parallel_source_reader() {
+        // Parallel reads pay off once the root list is long enough for the
+        // loading thread's reads to be the critical path (256 roots: -4 ms
+        // here); for a short list they only add concurrent syscalls to
+        // reads that already overlap the parses under way (58 roots: +0.7 ms).
+        if let Some(reader) = self
+            .host
+            .parallel_source_reader()
+            .filter(|_| pending.len() >= PARALLEL_READ_AHEAD_MIN_ROOTS)
+        {
             let reads = self.read_roots_ahead_in_parallel(pending, reader, workers);
             tsc_types::trace::mark("load: read-ahead streamed read and parse", phase_started);
             self.retain_read_ahead(reads);
