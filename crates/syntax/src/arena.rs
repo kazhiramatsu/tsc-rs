@@ -300,16 +300,6 @@ impl NodeArena {
         Self::default()
     }
 
-    /// An empty arena whose node and array tables hold `nodes` and `arrays`
-    /// records before growing.
-    pub fn with_capacity(nodes: usize, arrays: usize) -> Self {
-        Self {
-            nodes: Vec::with_capacity(nodes),
-            arrays: Vec::with_capacity(arrays),
-            ..Self::default()
-        }
-    }
-
     /// Clone syntax storage without cloning its identity capabilities.
     ///
     /// Parsed arenas published through L0 own exact leases whose ranges must
