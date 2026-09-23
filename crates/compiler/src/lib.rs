@@ -188,6 +188,8 @@ fn sharded_declaration_diagnostics(
     files_by_shard: &[Vec<usize>],
     worker_budget: WorkerBudget,
     activity: &mut H2ActivityCanary,
+    shard_label_offset: usize,
+    partial: bool,
 ) -> Result<Vec<Diagnostic>, EmitFailure> {
     let mut owner_by_name = std::collections::HashMap::new();
     for (shard, files) in files_by_shard.iter().enumerate() {
@@ -211,11 +213,17 @@ fn sharded_declaration_diagnostics(
             .ok_or(EmitFailure::Contract(
                 EmitContractViolation::PlannedSourceMissing(source),
             ))?;
-        let shard = *owner_by_name
-            .get(&name.as_js())
-            .ok_or(EmitFailure::Contract(
-                EmitContractViolation::PlannedSourceMissing(source),
-            ))?;
+        let shard = match owner_by_name.get(&name.as_js()) {
+            Some(&shard) => shard,
+            // The sessions given cover a part of the program (a shard's
+            // eager share): the other shards' sources are theirs.
+            None if partial => continue,
+            None => {
+                return Err(EmitFailure::Contract(
+                    EmitContractViolation::PlannedSourceMissing(source),
+                ))
+            }
+        };
         sources_by_shard[shard].push(source);
     }
     let jobs = sources_by_shard
@@ -253,7 +261,10 @@ fn sharded_declaration_diagnostics(
         });
         if tsc_types::trace::enabled() {
             tsc_types::trace::mark(
-                &format!("shard {shard}: declaration diagnostics ({source_count} files)"),
+                &format!(
+                    "shard {}: declaration diagnostics ({source_count} files)",
+                    shard + shard_label_offset
+                ),
                 started,
             );
         }
@@ -316,6 +327,8 @@ fn no_emit_declaration_diagnostics(
     sessions: &[CheckerSession<'_>],
     files_by_shard: &[Vec<usize>],
     worker_budget: WorkerBudget,
+    shard_label_offset: usize,
+    partial: bool,
 ) -> Result<DiagnosticList, DriverError> {
     let emit_host = PreparedEmitHost::new_for_route(prepared, emit_route, source_api_facts)?;
     tsc_emitter::validate_declaration_diagnostics_request(&emit_host).map_err(DriverError::Emit)?;
@@ -334,6 +347,8 @@ fn no_emit_declaration_diagnostics(
         files_by_shard,
         worker_budget,
         &mut activity,
+        shard_label_offset,
+        partial,
     )
     .map_err(DriverError::Emit)
 }
@@ -1897,6 +1912,8 @@ impl ProgramSession {
                         files_by_shard,
                         worker_budget,
                         &mut h2_activity,
+                        0,
+                        false,
                     ) {
                         Ok(declaration) => {
                             diagnostic_gate =
@@ -2041,6 +2058,7 @@ impl ProgramSession {
                 gate: &mut gate,
                 emit: &emit,
                 emissions: None,
+                eager: None,
             };
             let checked = check_program_with_authoritative_modules_at_for_emit_with_checkers(
                 &inputs.libs,
@@ -2230,6 +2248,8 @@ impl ProgramSession {
                         std::slice::from_ref(session),
                         std::slice::from_ref(&every_file),
                         self.worker_budget,
+                        0,
+                        false,
                     ));
                     tsc_types::trace::mark(
                         "checker: declaration diagnostics (one checker)",
@@ -2251,6 +2271,35 @@ impl ProgramSession {
         } else if declaration_getter {
             // The getter runs through the shard gate, while every shard's
             // checker session is alive; the gate admits nothing to emit.
+            // Each shard's share is computed on the shard's own thread as
+            // soon as it has checked; the gate joins those shares when it
+            // admits, and computes the getter itself if any share is
+            // missing (the getter over one shard is the same job).
+            let eager_shares: std::sync::Mutex<Vec<Option<Result<DiagnosticList, DriverError>>>> =
+                std::sync::Mutex::new(Vec::new());
+            let eager = |shard: usize,
+                         snapshot: &ProgramSnapshot,
+                         session: &CheckerSession<'_>,
+                         files: &[usize]| {
+                let share = no_emit_declaration_diagnostics(
+                    &self.prepared,
+                    self.emit_route,
+                    &self.source_api_facts,
+                    snapshot,
+                    std::slice::from_ref(session),
+                    std::slice::from_ref(&files.to_vec()),
+                    self.worker_budget,
+                    shard,
+                    true,
+                );
+                let mut shares = eager_shares
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                if shares.len() <= shard {
+                    shares.resize_with(shard + 1, || None);
+                }
+                shares[shard] = Some(share);
+            };
             let mut gate = |snapshot: &ProgramSnapshot,
                             checked: &CheckResult,
                             sessions: &[CheckerSession<'_>],
@@ -2258,16 +2307,40 @@ impl ProgramSession {
              -> bool {
                 if no_emit_report_is_clean(&self.prepared, checked) {
                     let started = std::time::Instant::now();
-                    declaration_diagnostics = Some(no_emit_declaration_diagnostics(
-                        &self.prepared,
-                        self.emit_route,
-                        &self.source_api_facts,
-                        snapshot,
-                        sessions,
-                        files_by_shard,
-                        self.worker_budget,
-                    ));
-                    tsc_types::trace::mark("checker: declaration diagnostics (per shard)", started);
+                    let mut shares = eager_shares
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner);
+                    let mut joined = Some(Ok(Vec::new()));
+                    for shard in 0..sessions.len() {
+                        match (shares.get_mut(shard).and_then(Option::take), &mut joined) {
+                            (Some(Ok(share)), Some(Ok(diagnostics))) => diagnostics.extend(share),
+                            (Some(Err(error)), _) => joined = Some(Err(error)),
+                            (None, _) => {
+                                joined = None;
+                                break;
+                            }
+                            (Some(Ok(_)), _) => {}
+                        }
+                    }
+                    declaration_diagnostics = Some(match joined {
+                        Some(Ok(mut diagnostics)) => {
+                            sort_and_dedupe_diagnostics(&mut diagnostics);
+                            Ok(diagnostics)
+                        }
+                        Some(Err(error)) => Err(error),
+                        None => no_emit_declaration_diagnostics(
+                            &self.prepared,
+                            self.emit_route,
+                            &self.source_api_facts,
+                            snapshot,
+                            sessions,
+                            files_by_shard,
+                            self.worker_budget,
+                            0,
+                            false,
+                        ),
+                    });
+                    tsc_types::trace::mark("checker: declaration diagnostics (join)", started);
                 }
                 false
             };
@@ -2279,6 +2352,7 @@ impl ProgramSession {
                 gate: &mut gate,
                 emit: &emit,
                 emissions: None,
+                eager: Some(&eager),
             };
             check_program_with_authoritative_modules_at_for_emit_with_checkers(
                 &inputs.libs,
