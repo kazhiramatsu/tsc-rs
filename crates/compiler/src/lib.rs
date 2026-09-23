@@ -177,8 +177,9 @@ fn sharded_emit_supported(options: &CompilerOptions) -> bool {
 /// sharded check (the noEmitOnError gate of a sharded emit, and the --noEmit
 /// command's declaration getter): every source selected for emit is
 /// transformed against the resolver of the shard that checked it (matched by
-/// source name, as the emit pool matches its units), in parallel on the
-/// worker budget. Sorted and deduplicated like the serial getter's result.
+/// source name, as the emit pool matches its units), each session's sources
+/// in one resolver borrow on the worker budget, so no two workers contend
+/// for one session. Sorted and deduplicated like the serial getter's result.
 fn sharded_declaration_diagnostics(
     checked_host: &CheckedEmitHost<'_, '_>,
     emit_host: &PreparedEmitHost<'_>,
@@ -202,7 +203,7 @@ fn sharded_declaration_diagnostics(
             );
         }
     }
-    let mut jobs = Vec::new();
+    let mut sources_by_shard: Vec<Vec<SourceFileId>> = vec![Vec::new(); sessions.len()];
     for source in tsc_emitter::get_source_files_to_emit(checked_host, EmitSelection::WholeProgram)?
     {
         let name = emit_host
@@ -215,32 +216,49 @@ fn sharded_declaration_diagnostics(
             .ok_or(EmitFailure::Contract(
                 EmitContractViolation::PlannedSourceMissing(source),
             ))?;
-        jobs.push((source, shard));
+        sources_by_shard[shard].push(source);
     }
-    let weight = |&(source, _): &(SourceFileId, usize)| {
-        emit_host
-            .prepared
-            .source_file(source)
-            .map_or(0, |source| source.text().len())
+    let jobs = sources_by_shard
+        .into_iter()
+        .enumerate()
+        .filter(|(_, sources)| !sources.is_empty())
+        .collect::<Vec<_>>();
+    let weight = |(_, sources): &(usize, Vec<SourceFileId>)| {
+        sources
+            .iter()
+            .map(|&source| {
+                emit_host
+                    .prepared
+                    .source_file(source)
+                    .map_or(0, |source| source.text().len())
+            })
+            .sum::<usize>()
     };
-    let jobs = interleave_by_session(jobs, |&(_, shard)| shard, weight);
-    let results = worker_budget.map_ordered(
-        jobs,
-        |&(position, _)| usize::MAX - position,
-        |(_, (source, shard))| {
-            let mut activity = H2ActivityCanary::h2_7e_profile();
-            let result = sessions[shard].with_emit_resolver(|resolver| {
-                tsc_emitter::get_declaration_diagnostics(
+    let results = worker_budget.map_ordered(jobs, weight, |(shard, sources)| {
+        let started = std::time::Instant::now();
+        let source_count = sources.len();
+        let mut activity = H2ActivityCanary::h2_7e_profile();
+        let result = sessions[shard].with_emit_resolver(|resolver| {
+            let mut diagnostics = Vec::new();
+            for source in sources {
+                diagnostics.extend(tsc_emitter::get_declaration_diagnostics(
                     resolver,
                     checked_host,
                     paths,
                     source,
                     &mut activity,
-                )
-            });
-            (result, activity.counters())
-        },
-    );
+                )?);
+            }
+            Ok::<_, EmitFailure>(diagnostics)
+        });
+        if tsc_types::trace::enabled() {
+            tsc_types::trace::mark(
+                &format!("shard {shard}: declaration diagnostics ({source_count} files)"),
+                started,
+            );
+        }
+        (result, activity.counters())
+    });
     // One resolver borrow per checker session, as when each shard ran the
     // getter over its own files in one borrow.
     for _ in sessions {
@@ -318,42 +336,6 @@ fn no_emit_declaration_diagnostics(
         &mut activity,
     )
     .map_err(DriverError::Emit)
-}
-
-/// Order pool jobs over the checker sessions: heaviest first within each
-/// session, then round-robin across the sessions, numbered in that order.
-/// Every resolver query locks its session, so two pool threads on the same
-/// session contend on every query; this spread keeps the threads on
-/// distinct sessions as long as the sessions have work left, instead of
-/// clustering them on the session whose units happen to be heaviest.
-fn interleave_by_session<J>(
-    jobs: Vec<J>,
-    session: impl Fn(&J) -> usize,
-    weight: impl Fn(&J) -> usize,
-) -> Vec<(usize, J)> {
-    let mut lanes: std::collections::BTreeMap<usize, Vec<J>> = std::collections::BTreeMap::new();
-    for job in jobs {
-        lanes.entry(session(&job)).or_default().push(job);
-    }
-    let mut lanes = lanes
-        .into_values()
-        .map(|mut lane| {
-            lane.sort_by_key(|job| std::cmp::Reverse(weight(job)));
-            lane.into_iter()
-        })
-        .collect::<Vec<_>>();
-    let mut ordered = Vec::new();
-    loop {
-        let before = ordered.len();
-        for lane in &mut lanes {
-            if let Some(job) = lane.next() {
-                ordered.push((ordered.len(), job));
-            }
-        }
-        if ordered.len() == before {
-            return ordered;
-        }
-    }
 }
 
 /// tsc-port: getEmitDeclarations @6.0.3
@@ -1966,9 +1948,10 @@ impl ProgramSession {
                     snapshot,
                 };
                 // Each planned unit belongs to the shard that checked its
-                // source; the units then run on the worker budget (tsgo's
-                // shape: emit per file on every core, each file querying its
-                // own checker's resolver).
+                // source; every session then emits its own units in one
+                // resolver borrow on the worker budget (tsgo's shape: each
+                // checker emits the files it checked), so no two workers
+                // contend for one session's resolver.
                 let mut owner_by_name = std::collections::HashMap::new();
                 for (shard, files) in files_by_shard.iter().enumerate() {
                     for &file in files {
@@ -1976,44 +1959,50 @@ impl ProgramSession {
                             .insert(snapshot.document(file).source().file_name.as_js(), shard);
                     }
                 }
-                let jobs = unit_names
-                    .iter()
+                let mut units_by_shard: Vec<Vec<usize>> = vec![Vec::new(); sessions.len()];
+                for (unit, name) in unit_names.iter().enumerate() {
+                    if let Some(&shard) = name
+                        .as_ref()
+                        .and_then(|name| owner_by_name.get(&name.as_js()))
+                    {
+                        units_by_shard[shard].push(unit);
+                    }
+                }
+                let jobs = units_by_shard
+                    .into_iter()
                     .enumerate()
-                    .filter_map(|(unit, name)| {
-                        let shard = *owner_by_name.get(&name.as_ref()?.as_js())?;
-                        Some((unit, shard))
-                    })
+                    .filter(|(_, units)| !units.is_empty())
                     .collect::<Vec<_>>();
-                let weight = |&(unit, _): &(usize, usize)| {
-                    preflight.plan().units()[unit]
-                        .root()
-                        .source_files()
-                        .first()
-                        .and_then(|&id| emit_host.prepared.source_file(id))
-                        .map_or(0, |source| source.text().len())
+                let weight = |(_, units): &(usize, Vec<usize>)| {
+                    units
+                        .iter()
+                        .map(|&unit| {
+                            preflight.plan().units()[unit]
+                                .root()
+                                .source_files()
+                                .first()
+                                .and_then(|&id| emit_host.prepared.source_file(id))
+                                .map_or(0, |source| source.text().len())
+                        })
+                        .sum::<usize>()
                 };
-                let jobs = interleave_by_session(jobs, |&(_, shard)| shard, weight);
-                let results = worker_budget.map_ordered(
-                    jobs,
-                    |&(position, _)| usize::MAX - position,
-                    |(_, (unit, shard))| {
-                        let mut activity = H2ActivityCanary::h2_7e_profile();
-                        let mut eager = eager_sink.map(tsc_emitter::EagerUnitSink);
-                        let result = sessions[shard].with_emit_resolver(|resolver| {
-                            emit_planned_units(
-                                resolver,
-                                &checked_host,
-                                &preflight,
-                                &[unit],
-                                eager
-                                    .as_mut()
-                                    .map(|sink| sink as &mut dyn tsc_emitter::OutputSink),
-                                &mut activity,
-                            )
-                        });
-                        (result, activity.counters())
-                    },
-                );
+                let results = worker_budget.map_ordered(jobs, weight, |(shard, units)| {
+                    let mut activity = H2ActivityCanary::h2_7e_profile();
+                    let mut eager = eager_sink.map(tsc_emitter::EagerUnitSink);
+                    let result = sessions[shard].with_emit_resolver(|resolver| {
+                        emit_planned_units(
+                            resolver,
+                            &checked_host,
+                            &preflight,
+                            &units,
+                            eager
+                                .as_mut()
+                                .map(|sink| sink as &mut dyn tsc_emitter::OutputSink),
+                            &mut activity,
+                        )
+                    });
+                    (result, activity.counters())
+                });
                 let mut activity = H2ActivityCanary::h2_7e_profile();
                 // One resolver borrow per checker session, as when each
                 // shard emitted its own units in one borrow.
