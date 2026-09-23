@@ -10,7 +10,7 @@ use tsc_diagnostics::{JsStr, JsString};
 use tsc_host::{CompilerHost, DirectoryListingKind, HostError};
 
 use crate::config::{ConfigHostError, ConfigHostOperation, ConfigParseHost};
-use crate::config_matcher::{ConfigFilePattern, MatchInput};
+use crate::config_matcher::{ConfigFilePattern, InputComponent, MatchInput};
 use crate::decode_host_text;
 use crate::js_path::{
     base_file_name, directory_name, eq_ignore_case, file_name_key, normalize_slashes, root_parts,
@@ -44,15 +44,18 @@ impl<'a> CompilerConfigHost<'a> {
     /// `canonical` is the visited-set key of `directory` when the caller
     /// already knows it: a directory reached through its plain (non-link)
     /// entry has its parent's real path plus its name, so only a base
-    /// directory and a linked entry need the host's realpath.
+    /// directory and a linked entry need the host's realpath. `states` are
+    /// every include and exclude pattern's automaton states at `directory`
+    /// (see [`ConfigFilePattern::directory_states`]): each entry is then
+    /// matched by its own name alone.
     #[allow(clippy::too_many_arguments)]
     fn walk_directory(
         &self,
         directory: JsStr<'_>,
         canonical: Option<JsString>,
         extensions: &[&str],
-        includes: &[ConfigFilePattern],
-        excludes: &[ConfigFilePattern],
+        patterns: &WalkPatterns,
+        states: &PatternStates,
         depth: usize,
         files: &mut [Vec<JsString>],
         visited: &mut BTreeSet<JsString>,
@@ -87,42 +90,32 @@ impl<'a> CompilerConfigHost<'a> {
             if !extensions.iter().any(|extension| text.ends_with(extension)) {
                 continue;
             }
-            // Prepared once for every pattern; a path that is not absolute
-            // matches no pattern (as before), so it is neither excluded nor
-            // bucketed by an include.
-            let input = MatchInput::new(text, case_sensitive);
-            if input
-                .as_ref()
-                .is_some_and(|input| excludes.iter().any(|pattern| pattern.matches_input(input)))
-            {
+            let name = InputComponent::new(entry_name(text), case_sensitive);
+            if states.excludes_entry(patterns, &name) {
                 continue;
             }
-            if includes.is_empty() {
+            if patterns.includes.is_empty() {
                 files[0].push(text.to_owned());
-            } else if let Some(include_index) = input.as_ref().and_then(|input| {
-                includes
-                    .iter()
-                    .position(|pattern| pattern.matches_input(input))
-            }) {
+            } else if let Some(include_index) = states.include_index(patterns, &name) {
                 files[include_index].push(text.to_owned());
             }
         }
         for entry in child_directories {
             let text = entry.path.as_js();
-            if enters_child_directory(text, case_sensitive, includes, excludes) {
+            let name = InputComponent::new(entry_name(text), case_sensitive);
+            if let Some(child_states) = states.enter_child_directory(patterns, text, &name) {
                 let child_canonical = (!entry.symlink).then(|| {
-                    let name = text.split_ascii(b'/').next_back().unwrap_or(text);
                     let mut key = canonical_directory.clone();
                     key.push_str("/");
-                    key.push_js(file_name_key(name, case_sensitive).as_js());
+                    key.push_js(file_name_key(entry_name(text), case_sensitive).as_js());
                     key
                 });
                 self.walk_directory(
                     text,
                     child_canonical,
                     extensions,
-                    includes,
-                    excludes,
+                    patterns,
+                    &child_states,
                     depth - 1,
                     files,
                     visited,
@@ -178,19 +171,22 @@ impl ConfigParseHost for CompilerConfigHost<'_> {
         depth: Option<usize>,
     ) -> Result<Vec<JsString>, ConfigHostError> {
         let case_sensitive = self.host.use_case_sensitive_file_names();
-        let include_patterns = compile_patterns(includes, directory, case_sensitive)?;
-        let exclude_patterns = compile_patterns(excludes, directory, case_sensitive)?;
-        let mut file_buckets = (0..include_patterns.len().max(1))
+        let patterns = WalkPatterns {
+            includes: compile_patterns(includes, directory, case_sensitive)?,
+            excludes: compile_patterns(excludes, directory, case_sensitive)?,
+        };
+        let mut file_buckets = (0..patterns.includes.len().max(1))
             .map(|_| Vec::new())
             .collect::<Vec<Vec<JsString>>>();
         let mut visited = BTreeSet::new();
         for base in discovery_base_paths(directory, includes, case_sensitive)? {
+            let states = PatternStates::at_base(&patterns, base.as_js(), case_sensitive);
             self.walk_directory(
                 base.as_js(),
                 None,
                 extensions,
-                &include_patterns,
-                &exclude_patterns,
+                &patterns,
+                &states,
                 depth.unwrap_or(MAX_DIRECTORY_DEPTH),
                 &mut file_buckets,
                 &mut visited,
@@ -297,34 +293,111 @@ fn discovery_base_paths(
     Ok(bases)
 }
 
-/// matchFiles.visitDirectory's descent decision for one child directory
-/// (_tsc.js:18562–18570): a package directory is excluded by the implicit
-/// recursive wildcard unless an explicit include such as
-/// `node_modules/**/*.ts` can still enter it, and otherwise the directory is
-/// entered when no exclude matches it and some include could match a
-/// descendant.
-fn enters_child_directory(
-    text: JsStr<'_>,
-    case_sensitive: bool,
-    includes: &[ConfigFilePattern],
-    excludes: &[ConfigFilePattern],
-) -> bool {
-    let input = MatchInput::new(text, case_sensitive);
-    let could_match_descendant = |pattern: &ConfigFilePattern| {
-        input
-            .as_ref()
-            .is_some_and(|input| pattern.could_match_descendant_input(input))
-    };
-    if !includes.is_empty()
-        && is_implicit_excluded_directory(text)
-        && !includes.iter().any(could_match_descendant)
-    {
-        return false;
+/// The compiled include and exclude patterns of one walk.
+struct WalkPatterns {
+    includes: Vec<ConfigFilePattern>,
+    excludes: Vec<ConfigFilePattern>,
+}
+
+/// Every pattern's automaton states at one directory of the walk (`None`:
+/// nothing below the directory can match that pattern).
+struct PatternStates {
+    includes: Vec<Option<Vec<usize>>>,
+    excludes: Vec<Option<Vec<usize>>>,
+}
+
+impl PatternStates {
+    /// The states at a base directory of the walk, from its whole path.
+    fn at_base(patterns: &WalkPatterns, base: JsStr<'_>, case_sensitive: bool) -> Self {
+        let input = MatchInput::new(base, case_sensitive);
+        let states = |pattern: &ConfigFilePattern| {
+            input
+                .as_ref()
+                .and_then(|input| pattern.directory_states(input))
+        };
+        Self {
+            includes: patterns.includes.iter().map(states).collect(),
+            excludes: patterns.excludes.iter().map(states).collect(),
+        }
     }
-    !input
-        .as_ref()
-        .is_some_and(|input| excludes.iter().any(|pattern| pattern.matches_input(input)))
-        && (includes.is_empty() || includes.iter().any(could_match_descendant))
+
+    /// Whether an exclude pattern matches the entry `name` of this directory.
+    fn excludes_entry(&self, patterns: &WalkPatterns, name: &InputComponent) -> bool {
+        patterns
+            .excludes
+            .iter()
+            .zip(&self.excludes)
+            .any(|(pattern, states)| {
+                states
+                    .as_ref()
+                    .is_some_and(|states| pattern.accepts_entry(states, name))
+            })
+    }
+
+    /// The first include pattern matching the entry `name` of this directory.
+    fn include_index(&self, patterns: &WalkPatterns, name: &InputComponent) -> Option<usize> {
+        patterns
+            .includes
+            .iter()
+            .zip(&self.includes)
+            .position(|(pattern, states)| {
+                states
+                    .as_ref()
+                    .is_some_and(|states| pattern.accepts_entry(states, name))
+            })
+    }
+
+    /// matchFiles.visitDirectory's descent decision for the child directory
+    /// `name` (_tsc.js:18562–18570), with the states below it when it is
+    /// entered: a package directory is excluded by the implicit recursive
+    /// wildcard unless an explicit include such as `node_modules/**/*.ts`
+    /// can still enter it, and otherwise the directory is entered when no
+    /// exclude matches it and some include could match a descendant.
+    fn enter_child_directory(
+        &self,
+        patterns: &WalkPatterns,
+        text: JsStr<'_>,
+        name: &InputComponent,
+    ) -> Option<Self> {
+        let includes = patterns
+            .includes
+            .iter()
+            .zip(&self.includes)
+            .map(|(pattern, states)| {
+                states
+                    .as_ref()
+                    .and_then(|states| pattern.advance_directory(states, name))
+            })
+            .collect::<Vec<_>>();
+        let some_include_could_match = includes.iter().any(Option::is_some);
+        if !patterns.includes.is_empty()
+            && is_implicit_excluded_directory(text)
+            && !some_include_could_match
+        {
+            return None;
+        }
+        if self.excludes_entry(patterns, name)
+            || !(patterns.includes.is_empty() || some_include_could_match)
+        {
+            return None;
+        }
+        let excludes = patterns
+            .excludes
+            .iter()
+            .zip(&self.excludes)
+            .map(|(pattern, states)| {
+                states
+                    .as_ref()
+                    .and_then(|states| pattern.advance_directory(states, name))
+            })
+            .collect::<Vec<_>>();
+        Some(Self { includes, excludes })
+    }
+}
+
+/// The last path component of an entry path spelled by the listing.
+fn entry_name(text: JsStr<'_>) -> JsStr<'_> {
+    text.split_ascii(b'/').next_back().unwrap_or(text)
 }
 
 fn discovery_has_extension(path: JsStr<'_>) -> bool {

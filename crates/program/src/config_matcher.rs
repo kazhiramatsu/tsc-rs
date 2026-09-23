@@ -194,48 +194,72 @@ impl ConfigFilePattern {
     }
 
     /// [`Self::could_match_descendant`] over a prepared candidate.
+    #[cfg(test)]
     pub(crate) fn could_match_descendant_input(&self, input: &MatchInput) -> bool {
+        self.directory_states(input).is_some()
+    }
+
+    /// The states of this pattern's component automaton after the
+    /// components of the directory `input`, or `None` when no descendant
+    /// of that directory can match (the directory itself included: an end
+    /// state is only a directory match, and the constructor never leaves a
+    /// bare trailing `**`). A walk keeps these per directory and steps them
+    /// by one entry name with [`Self::advance_directory`] and
+    /// [`Self::accepts_entry`] instead of matching each entry's whole path
+    /// again; both give exactly [`Self::matches_input`]'s answers.
+    pub(crate) fn directory_states(&self, input: &MatchInput) -> Option<Vec<usize>> {
         if !self
             .root
             .matches(&input.root, self.components.is_empty(), self.case_sensitive)
         {
-            return false;
+            return None;
         }
-        // As in matches_input: a directory whose leading components differ
-        // from the pattern's wildcard-free prefix has no matching descendant.
-        for (index, component) in self.components.iter().enumerate() {
-            let PatternComponent::Glob(glob) = component else {
-                break;
-            };
-            if glob.has_wildcard {
-                break;
-            }
-            let Some(input) = input.components.get(index) else {
-                break;
-            };
-            if !glob.matches(input, false, self.case_sensitive) {
-                return false;
-            }
-        }
-
         let mut states = vec![0usize];
         for component in &input.components {
-            states = self.advance_directory_states(&states, component);
+            states = self.advance_directory_states(&states, component, false);
             if states.is_empty() {
-                return false;
+                return None;
             }
         }
-
-        // A state before the end has at least one remaining pattern component
-        // which can be supplied by a descendant path.  The constructor never
-        // leaves a bare trailing `**`, so an end state is only a directory
-        // match and does not itself prove a descendant file match.
-        states
-            .into_iter()
-            .any(|state| state < self.components.len())
+        self.live_states(states)
     }
 
-    fn advance_directory_states(&self, states: &[usize], input: &InputComponent) -> Vec<usize> {
+    /// The states below the child directory named `name` of a directory
+    /// with `states`, or `None` when nothing below it can match.
+    pub(crate) fn advance_directory(
+        &self,
+        states: &[usize],
+        name: &InputComponent,
+    ) -> Option<Vec<usize>> {
+        self.live_states(self.advance_directory_states(states, name, false))
+    }
+
+    /// Whether the entry named `name` of a directory with `states` matches
+    /// this pattern as a whole path (the entry is the path's last
+    /// component).
+    pub(crate) fn accepts_entry(&self, states: &[usize], name: &InputComponent) -> bool {
+        self.advance_directory_states(states, name, true)
+            .contains(&self.components.len())
+    }
+
+    fn live_states(&self, states: Vec<usize>) -> Option<Vec<usize>> {
+        // A state before the end has at least one remaining pattern component
+        // which can be supplied by a descendant path.
+        states
+            .iter()
+            .any(|&state| state < self.components.len())
+            .then_some(states)
+    }
+
+    /// One step of the component automaton: the states after consuming
+    /// `input`, with `is_last_path_component` naming the path's last
+    /// component (the min.js rule of [`GlobComponent::matches`]).
+    fn advance_directory_states(
+        &self,
+        states: &[usize],
+        input: &InputComponent,
+        is_last_path_component: bool,
+    ) -> Vec<usize> {
         let mut closure = states.to_vec();
         let mut index = 0;
         while index < closure.len() {
@@ -259,7 +283,7 @@ impl ConfigFilePattern {
                     }
                 }
                 Some(PatternComponent::Glob(glob)) => {
-                    if glob.matches(input, false, self.case_sensitive) {
+                    if glob.matches(input, is_last_path_component, self.case_sensitive) {
                         next.push(state + 1);
                     }
                 }
@@ -325,13 +349,35 @@ impl GlobComponent {
         if self.has_wildcard && input.common_package_folder {
             return false;
         }
-
         let input_count = input.characters.len();
+        // A wildcard-free component matches exactly its own text; the
+        // component DP below is only for `*` and `?`.
+        if !self.has_wildcard {
+            return self.tokens.len() == input_count
+                && self.tokens.iter().zip(&input.characters).all(
+                    |(token, &character)| match token {
+                        GlobToken::Literal(literal) => {
+                            regex_code_unit_eq(*literal, character, case_sensitive)
+                        }
+                        GlobToken::Star | GlobToken::Question => false,
+                    },
+                );
+        }
+
         let min_js_dot = is_last_path_component
             .then(|| min_js_dot_index(&input.characters, case_sensitive))
             .flatten();
-        let mut previous = vec![false; input_count + 1];
-        let mut current = vec![false; input_count + 1];
+        // The DP rows live on the stack for every ordinary component name.
+        const INLINE_ROW: usize = 128;
+        let mut inline_rows = [[false; INLINE_ROW]; 2];
+        let mut heap_rows = Vec::new();
+        let (mut previous, mut current): (&mut [bool], &mut [bool]) = if input_count < INLINE_ROW {
+            let [first, second] = &mut inline_rows;
+            (&mut first[..=input_count], &mut second[..=input_count])
+        } else {
+            heap_rows.resize(2 * (input_count + 1), false);
+            heap_rows.split_at_mut(input_count + 1)
+        };
         previous[0] = true;
 
         for (token_index, token) in self.tokens.iter().enumerate() {
@@ -383,14 +429,15 @@ enum GlobToken {
     Question,
 }
 
-struct InputComponent {
+/// One path component prepared for the matchers (see [`MatchInput`]).
+pub(crate) struct InputComponent {
     text: JsString,
     characters: Vec<u16>,
     common_package_folder: bool,
 }
 
 impl InputComponent {
-    fn new(text: JsStr<'_>, case_sensitive: bool) -> Self {
+    pub(crate) fn new(text: JsStr<'_>, case_sensitive: bool) -> Self {
         Self {
             text: text.to_owned(),
             characters: text.code_units().collect(),
