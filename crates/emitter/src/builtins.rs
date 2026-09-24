@@ -17408,6 +17408,9 @@ fn local_transform_flags(node: &Node) -> TransformFlags {
                 flags |= TransformFlags::CONTAINS_TYPE_SCRIPT;
             }
             SyntaxKind::ThisKeyword => flags |= TransformFlags::CONTAINS_LEXICAL_THIS,
+            // createToken (_tsc.js: the AccessorKeyword row): the `accessor`
+            // modifier is class-fields syntax.
+            SyntaxKind::AccessorKeyword => flags |= TransformFlags::CONTAINS_CLASS_FIELDS,
             SyntaxKind::SuperKeyword => {
                 flags |= TransformFlags::CONTAINS_ES_2015;
                 flags |= TransformFlags::CONTAINS_LEXICAL_SUPER;
@@ -17480,6 +17483,13 @@ fn local_transform_flags(node: &Node) -> TransformFlags {
             if data.dot_dot_dot_token.is_some() {
                 flags |= TransformFlags::CONTAINS_REST_OR_SPREAD;
             }
+        }
+        // createBasePrivateIdentifier and createClassStaticBlockDeclaration
+        // both stamp ContainsClassFields (tsc nodeFactory.ts: the private
+        // name and the static block are class-fields syntax wherever they
+        // appear); transformClassFields gates its visitor on that bit.
+        NodeData::PrivateIdentifier(_) | NodeData::ClassStaticBlockDeclaration(_) => {
+            flags |= TransformFlags::CONTAINS_CLASS_FIELDS;
         }
         NodeData::PropertyDeclaration(data) => {
             flags |= TransformFlags::CONTAINS_CLASS_FIELDS;
