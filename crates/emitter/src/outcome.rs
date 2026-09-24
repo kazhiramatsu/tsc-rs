@@ -95,6 +95,12 @@ impl EmitOutcome {
         &self.diagnostics
     }
 
+    /// The driver retains each row's canonical Program path
+    /// (`Diagnostic.file.path`) so the emit rows sort with the checker's.
+    pub fn diagnostics_mut(&mut self) -> &mut DiagnosticList {
+        &mut self.diagnostics
+    }
+
     pub const fn emit_skipped(&self) -> bool {
         self.emit_skipped
     }

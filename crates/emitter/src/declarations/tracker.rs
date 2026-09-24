@@ -711,11 +711,12 @@ impl EmitModuleSpecifierHost for ModuleSpecifierHostAdapter<'_> {
 
 impl ModuleSpecifierHostAdapter<'_> {
     fn find_source(&self, file_name: JsStr<'_>) -> Option<crate::EmitSource<'_>> {
+        // One canonicalization per probe; the host indexes its sources by
+        // canonical path (scanning every source per probe made the module
+        // specifier generation of a 3,000-file declaration emit quadratic).
         let wanted = self.host.canonical_output_path(file_name);
-        self.host.source_file_ids().iter().find_map(|&source| {
-            let candidate = self.host.source_file(source)?;
-            (self.host.canonical_output_path(candidate.path()) == wanted).then_some(candidate)
-        })
+        let id = self.host.source_file_by_canonical_path(wanted.as_js())?;
+        self.host.source_file(id)
     }
 }
 

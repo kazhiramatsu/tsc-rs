@@ -424,6 +424,12 @@ pub struct ProgramDiagnostics {
     options: DiagnosticList,
     global: DiagnosticList,
     semantic: DiagnosticList,
+    /// Display spelling → canonical Program path of every source whose two
+    /// spellings differ: the emit result's rows (declaration diagnostics of an
+    /// emitting command) carry the display name only and must sort by
+    /// `Diagnostic.file.path` like the checker's rows
+    /// (sortAndDeduplicateDiagnostics compares file paths).
+    source_paths: Vec<(JsString, JsString)>,
 }
 
 impl ProgramDiagnostics {
@@ -457,11 +463,12 @@ impl ProgramDiagnostics {
     fn with_emit(
         mut self,
         preflight_diagnostics: &[Diagnostic],
-        emit: EmitOutcome,
+        mut emit: EmitOutcome,
         work_counters: NoEmitWorkCounters,
     ) -> CliEmitSessionOutcome {
         self.options.extend_from_slice(preflight_diagnostics);
         sort_and_dedupe_diagnostics(&mut self.options);
+        retain_diagnostic_paths(&self.source_paths, emit.diagnostics_mut());
         CliEmitSessionOutcome {
             emit,
             config_diagnostics: self.config,
@@ -507,6 +514,11 @@ struct PreparedEmitHost<'program> {
     /// Caller file-name spellings (SourceApiFacts::file_name): the parsed
     /// syntax carries this name, so the checked host matches documents by it.
     display_names: BTreeMap<SourceFileId, JsString>,
+    /// Canonical output path → source, built on the first module-specifier
+    /// `fileExists`/`readFile` probe (every candidate path of every specifier
+    /// asks; scanning the sources per probe made a 3,000-file declaration
+    /// emit quadratic).
+    canonical_index: std::sync::OnceLock<std::collections::HashMap<Box<[u8]>, SourceFileId>>,
 }
 
 impl<'program> PreparedEmitHost<'program> {
@@ -549,6 +561,7 @@ impl<'program> PreparedEmitHost<'program> {
             source_files,
             common_source_directory: prepared.current_directory().display().to_owned(),
             symlinks,
+            canonical_index: std::sync::OnceLock::new(),
             emit_route,
             display_names,
         };
@@ -614,6 +627,20 @@ impl EmitHost for PreparedEmitHost<'_> {
         &self.source_files
     }
 
+    fn source_file_by_canonical_path(&self, canonical: JsStr<'_>) -> Option<SourceFileId> {
+        let index = self.canonical_index.get_or_init(|| {
+            self.source_files
+                .iter()
+                .filter_map(|&id| {
+                    let source = self.prepared.source_file(id)?;
+                    let canonical = self.canonical_output_path(source.path().display());
+                    Some((Box::<[u8]>::from(canonical.as_bytes()), id))
+                })
+                .collect()
+        });
+        index.get(canonical.as_bytes()).copied()
+    }
+
     fn source_file(&self, id: SourceFileId) -> Option<EmitSource<'_>> {
         let source = self.prepared.source_file(id)?;
         Some(
@@ -639,6 +666,10 @@ struct CheckedEmitHost<'host, 'snapshot> {
 impl EmitHost for CheckedEmitHost<'_, '_> {
     fn compiler_options(&self) -> &CompilerOptions {
         self.prepared.compiler_options()
+    }
+
+    fn source_file_by_canonical_path(&self, canonical: JsStr<'_>) -> Option<SourceFileId> {
+        self.prepared.source_file_by_canonical_path(canonical)
     }
 
     fn emit_route(&self) -> EmitRouteKind {
@@ -2948,20 +2979,38 @@ fn retain_source_diagnostic_paths(prepared: &PreparedProgram, diagnostics: &mut 
     {
         return;
     }
-    let paths = prepared
+    retain_diagnostic_paths(&source_diagnostic_paths(prepared), diagnostics);
+}
+
+/// Every source's (display spelling, canonical path) pair whose spellings
+/// differ, the map `retain_source_diagnostic_paths` applies.
+fn source_diagnostic_paths(prepared: &PreparedProgram) -> Vec<(JsString, JsString)> {
+    prepared
         .source_files()
         .iter()
-        .map(|source| (source.path().display(), source.path().canonical().as_js()))
-        .collect::<std::collections::BTreeMap<_, _>>();
+        .filter(|source| source.path().canonical().as_js() != source.path().display())
+        .map(|source| {
+            (
+                JsString::from(source.path().display()),
+                source.path().canonical().as_js().to_owned(),
+            )
+        })
+        .collect()
+}
+
+fn retain_diagnostic_paths(paths: &[(JsString, JsString)], diagnostics: &mut [Diagnostic]) {
+    if paths.is_empty() {
+        return;
+    }
     for diagnostic in diagnostics {
         if diagnostic.file_path.is_some() {
             continue;
         }
-        let Some(name) = diagnostic.file_name.as_ref().map(JsString::as_js) else {
+        let Some(name) = diagnostic.file_name.as_ref() else {
             continue;
         };
-        if let Some(&path) = paths.get(&name).filter(|&&path| path != name) {
-            diagnostic.file_path = Some(path.to_owned());
+        if let Some((_, path)) = paths.iter().find(|(display, _)| display == name) {
+            diagnostic.file_path = Some(path.clone());
         }
     }
 }
@@ -3040,6 +3089,7 @@ fn emit_session_diagnostics(
         syntactic,
         global,
         semantic,
+        source_paths: source_diagnostic_paths(prepared),
     }
 }
 
