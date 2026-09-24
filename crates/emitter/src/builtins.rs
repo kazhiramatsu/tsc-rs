@@ -2014,8 +2014,8 @@ struct RelativeModuleSpecifierVisitor<'context> {
     rewrite_calls: &'context mut relative_imports::ImportCallRewrites,
     context: &'context mut TransformationContext,
     source: TransformSourceId,
-    nodes: rustc_hash::FxHashMap<NodeId, NodeId>,
-    arrays: rustc_hash::FxHashMap<NodeArrayId, NodeArrayId>,
+    nodes: NodeMemo<NodeId>,
+    arrays: ArrayMemo<NodeArrayId>,
 }
 
 impl<'context> RelativeModuleSpecifierVisitor<'context> {
@@ -2025,13 +2025,15 @@ impl<'context> RelativeModuleSpecifierVisitor<'context> {
         preserve_jsx: bool,
         rewrite_calls: &'context mut relative_imports::ImportCallRewrites,
     ) -> Self {
+        let nodes = node_memo(context.arena(), source);
+        let arrays = array_memo(context.arena(), source);
         Self {
             preserve_jsx,
             rewrite_calls,
             context,
             source,
-            nodes: rustc_hash::FxHashMap::default(),
-            arrays: rustc_hash::FxHashMap::default(),
+            nodes,
+            arrays,
         }
     }
 
