@@ -1862,7 +1862,10 @@ fn unsupported_config_scope(
         }
     }
 
-    if let Some(scope) = unsupported_root_scopes.into_iter().find(|_| !emitting) {
+    if let Some(scope) = unsupported_root_scopes
+        .into_iter()
+        .find(|scope| !emitting && !H0_NO_EMIT_INERT_ROOT_SCOPES.contains(&scope.as_ref()))
+    {
         let scope = scope.as_ref();
         let detail = match scope {
             "watchOptions" => "watchOptions are outside the H0 single-project no-emit driver",
@@ -1888,6 +1891,7 @@ fn unsupported_config_scope(
                 || H0_NO_EMIT_NEUTRAL_CONFIG_OPTIONS
                     .iter()
                     .chain(H0_NO_EMIT_DECLARATION_CONFIG_OPTIONS)
+                    .chain(H0_NO_EMIT_SERVICE_CONFIG_OPTIONS)
                     .any(|candidate| option.name == *candidate));
         if !(config_option_is_supported_by_h0(&option.name)
             || no_emit_projection
@@ -2228,6 +2232,24 @@ const H0_NO_EMIT_DECLARATION_CONFIG_OPTIONS: &[&str] = &[
     "composite",
     "rootDir",
 ];
+
+/// Language-service options a no-emit command retains: tsc declares
+/// `plugins` under Editor Support ("A list of plugins to load in the language
+/// service", _tsc.js:37896) and no tsc code path outside the service reads
+/// `options.plugins`, so a `--noEmit` check of a project that lists service
+/// plugins (VS Code's tsec) reports exactly what tsc reports. An emitting
+/// command keeps its projected-option inventory closed.
+const H0_NO_EMIT_SERVICE_CONFIG_OPTIONS: &[&str] = &["plugins"];
+
+/// Root config scopes tsc parses for editors only: `compileOnSave` reaches
+/// ParsedCommandLine.compileOnSave (convertCompileOnSaveOptionFromJson,
+/// _tsc.js:39338) and executeCommandLine never reads it, so a `--noEmit`
+/// check of a project that sets it (Playwright's root tsconfig) reports
+/// exactly what tsc reports, as an emitting command already does. The plan
+/// still observes the scope; only the no-emit gate admits it. `watchOptions`
+/// and `typeAcquisition` keep their explicit gate until a real-project
+/// control needs them.
+const H0_NO_EMIT_INERT_ROOT_SCOPES: &[&str] = &["compileOnSave"];
 
 fn config_option_is_supported_by_h0<'n>(name: impl Into<JsStr<'n>>) -> bool {
     let name = name.into();

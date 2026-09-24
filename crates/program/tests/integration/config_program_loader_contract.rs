@@ -135,6 +135,17 @@ fn inherited_root_scopes_respect_acquisition_noninheritance() {
             assert_eq!(plan.unsupported_root_scopes().next(), None);
             continue;
         }
+        if scope == "compileOnSave" {
+            // tsc copies an inherited truthy compileOnSave into the child's
+            // raw config and executeCommandLine never reads it: the plan
+            // observes the scope and the no-emit loader admits it.
+            assert!(loaded.is_ok(), "compileOnSave is inert for a tsc command");
+            assert_eq!(
+                plan.unsupported_root_scopes().collect::<Vec<_>>(),
+                ["compileOnSave"]
+            );
+            continue;
+        }
         let error = loaded.expect_err("inherited H0 root scope must retain its explicit gate");
         let ConfigProgramLoadError::Program(error) = error else {
             panic!("unported root scope should be a typed program-scope failure");
@@ -142,6 +153,66 @@ fn inherited_root_scopes_respect_acquisition_noninheritance() {
         assert_eq!(error.kind(), tsc_program::ProgramLoadErrorKind::Unsupported);
         assert!(error.to_string().contains(scope));
     }
+}
+
+#[test]
+fn compile_on_save_is_admitted_for_a_no_emit_check() {
+    // tsc parses compileOnSave into ParsedCommandLine.compileOnSave
+    // (convertCompileOnSaveOptionFromJson) for editors and executeCommandLine
+    // never reads it, so a --noEmit check of a project that sets it
+    // (Playwright's root tsconfig) loads and reports exactly what tsc reports.
+    let host = host();
+    let plan = parse_config_root_plan(
+        &ConfigHostAdapter::new(&host),
+        request(
+            r#"{"compilerOptions":{"noEmit":true,"noLib":true},"files":["main.ts"],"compileOnSave":true}"#,
+        ),
+    )
+    .expect("compileOnSave remains a partial plan");
+    assert_eq!(
+        plan.unsupported_root_scopes().collect::<Vec<_>>(),
+        ["compileOnSave"]
+    );
+    let prepared = load_config_program_with_no_emit_override(
+        &host,
+        &plan,
+        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        LIMITS,
+    )
+    .expect("compileOnSave is inert for a no-emit check");
+    assert_eq!(prepared.compiler_options().no_emit, Some(true));
+}
+
+#[test]
+fn language_service_plugins_are_admitted_for_a_no_emit_check() {
+    // tsc declares `plugins` under Editor Support ("A list of plugins to load
+    // in the language service") and no code path outside the service reads
+    // options.plugins, so a --noEmit check of a project that lists service
+    // plugins (VS Code's tsec) loads and reports exactly what tsc reports.
+    // The emitting driver keeps its projected-option inventory closed.
+    let host = host();
+    let catalog = LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib");
+    let plan = parse_config_root_plan(
+        &ConfigHostAdapter::new(&host),
+        request(
+            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"plugins":[{"name":"tsec","exemptionConfig":"./tsec.exemptions.json"}]},"files":["main.ts"]}"#,
+        ),
+    )
+    .expect("plugins remain a partial plan");
+    let prepared = load_config_program_with_no_emit_override(&host, &plan, &catalog, LIMITS)
+        .expect("language service plugins are inert for a no-emit check");
+    assert_eq!(prepared.compiler_options().no_emit, Some(true));
+
+    let emitting = parse_config_root_plan(
+        &ConfigHostAdapter::new(&host),
+        request(
+            r#"{"compilerOptions":{"noLib":true,"plugins":[{"name":"tsec"}]},"files":["main.ts"]}"#,
+        ),
+    )
+    .expect("plugins remain a partial plan");
+    let error = load_emitting_config_program(&host, &emitting, &catalog, LIMITS)
+        .expect_err("the emitting driver keeps its projected-option inventory closed");
+    assert!(error.to_string().contains("plugins"));
 }
 
 struct TempTree {
