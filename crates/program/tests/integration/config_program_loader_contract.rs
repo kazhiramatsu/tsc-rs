@@ -215,6 +215,31 @@ fn language_service_plugins_are_admitted_for_a_no_emit_check() {
     assert!(error.to_string().contains("plugins"));
 }
 
+#[test]
+fn emit_decorator_metadata_is_admitted_for_a_no_emit_check() {
+    // emitDecoratorMetadata selects checker behaviour the checker implements
+    // (decorator metadata type references count as referenced), so a
+    // --noEmit check of a project that sets it (zod's base tsconfig) loads
+    // and reports exactly what tsc reports, including its
+    // experimentalDecorators requirement.
+    let host = host();
+    let catalog = LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib");
+    let plan = parse_config_root_plan(
+        &ConfigHostAdapter::new(&host),
+        request(
+            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"experimentalDecorators":true,"emitDecoratorMetadata":true},"files":["main.ts"]}"#,
+        ),
+    )
+    .expect("emitDecoratorMetadata remains a partial plan");
+    let prepared = load_config_program_with_no_emit_override(&host, &plan, &catalog, LIMITS)
+        .expect("emitDecoratorMetadata is admitted for a no-emit check");
+    assert_eq!(prepared.compiler_options().no_emit, Some(true));
+    assert_eq!(
+        prepared.compiler_options().emit_decorator_metadata,
+        Some(true)
+    );
+}
+
 struct TempTree {
     root: PathBuf,
 }
