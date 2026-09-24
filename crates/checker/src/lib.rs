@@ -2841,9 +2841,16 @@ pub struct ShardedEmit<'op> {
 }
 
 /// The per-shard eager work of a [`ShardedEmit`] request: the shard index,
-/// the snapshot, the shard's checked session and its Program file indices.
-pub type ShardEagerClosure<'op> =
-    &'op (dyn Fn(usize, &ProgramSnapshot, &CheckerSession<'_>, &[usize]) + Sync);
+/// the snapshot, the shard's checked session, its Program file indices and
+/// the number of shards still checking (the closure may stop its eager work
+/// once that reaches zero and leave the rest to the coordinator's pool).
+pub type ShardEagerClosure<'op> = &'op (dyn Fn(
+    usize,
+    &ProgramSnapshot,
+    &CheckerSession<'_>,
+    &[usize],
+    &std::sync::atomic::AtomicUsize,
+) + Sync);
 
 type ShardGateClosure<'op> = &'op mut dyn FnMut(
     &ProgramSnapshot,
@@ -2914,6 +2921,7 @@ fn run_checker_shard<'a>(
     leak_state: bool,
     replay_on_order: bool,
     eager: Option<ShardEagerClosure<'_>>,
+    checking: &std::sync::atomic::AtomicUsize,
 ) -> (ShardOutput, Option<state::CheckerState<'a>>) {
     let shard_started = std::time::Instant::now();
     let mut state = init_checker_state(snapshot, options, Some((provider, metadata)), host);
@@ -2985,6 +2993,9 @@ fn run_checker_shard<'a>(
         }
     }
     files.sort_unstable();
+    // This shard has checked its files: the eager work of every shard reads
+    // the count of shards still checking.
+    checking.fetch_sub(1, std::sync::atomic::Ordering::AcqRel);
     #[cfg(debug_assertions)]
     let checked_files = files
         .iter()
@@ -3032,7 +3043,7 @@ fn run_checker_shard<'a>(
                 // shard's diagnostics, and the type order it consumes counts
                 // like the check's own.
                 let session = CheckerSession::from_checked_state(state);
-                eager(shard_index, snapshot, &session, &output.files);
+                eager(shard_index, snapshot, &session, &output.files, checking);
                 let state = session.into_state();
                 output.order_reasons = state.order_guard.reasons();
                 output.display_marks = state.order_guard.marks().clone();
@@ -3226,7 +3237,7 @@ fn merge_shard_outputs(
 /// (which implies it), including `emitDeclarationOnly`. Type printing in
 /// `.d.ts` output observes the shard-local type-id order, so such a run keeps
 /// a scheduling-independent file-to-shard assignment.
-fn declaration_output_requested(options: &CompilerOptions) -> bool {
+pub fn declaration_output_requested(options: &CompilerOptions) -> bool {
     options.declaration == Some(true)
         || options.composite == Some(true)
         || options.emit_declaration_only == Some(true)
@@ -3449,6 +3460,8 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     let providers = (0..shard_count)
         .map(|_| factory.provider())
         .collect::<Vec<_>>();
+    // Shards still checking, read by every shard's eager emit.
+    let checking = std::sync::atomic::AtomicUsize::new(shard_count);
     let run_shard = |shard_index: usize| {
         let host = hosts[shard_index]
             .lock()
@@ -3469,6 +3482,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             checkers.leaks_states(),
             checkers.order_replay(),
             eager_closure,
+            &checking,
         )
     };
     #[allow(clippy::large_enum_variant)]

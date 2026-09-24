@@ -1905,6 +1905,11 @@ impl ProgramSession {
         // files it was computed for so a serial replay (fresh sessions,
         // another assignment) cannot consume a discarded run's products.
         let eager_emit_enabled = prepared.compiler_options().no_emit_on_error != Some(true);
+        // `.d.ts` printing creates types in resolver order, so a declaration
+        // run emits one session's units in one ordered job; JavaScript
+        // output does not depend on that order.
+        let declaration_output =
+            tsc_checker::declaration_output_requested(prepared.compiler_options());
         type EagerShardEmission = (
             Vec<usize>,
             Result<(Vec<tsc_emitter::UnitEmission>, H2ActivityCounters), UnitEmitError>,
@@ -2049,13 +2054,37 @@ impl ProgramSession {
                         *entry = None;
                     }
                 }
-                let jobs = units_by_shard
-                    .into_iter()
-                    .enumerate()
-                    .filter(|(shard, units)| {
-                        !units.is_empty() && stashed.get(*shard).is_none_or(Option::is_none)
-                    })
-                    .collect::<Vec<_>>();
+                // Units a shard already emitted eagerly leave its job; a
+                // shard whose eager emit failed keeps no job (its error is
+                // reported below). Without declaration output the pool takes
+                // one unit per job, so every worker shares the tail the last
+                // shards leave behind; with declaration output a shard's
+                // units stay one ordered job.
+                let mut jobs: Vec<(usize, Vec<usize>)> = Vec::new();
+                for (shard, units) in units_by_shard.into_iter().enumerate() {
+                    let remaining: Vec<usize> = match stashed.get(shard) {
+                        Some(Some((_, Ok((emitted, _))))) => {
+                            let emitted = emitted
+                                .iter()
+                                .map(|emission| emission.unit())
+                                .collect::<std::collections::HashSet<_>>();
+                            units
+                                .into_iter()
+                                .filter(|unit| !emitted.contains(unit))
+                                .collect()
+                        }
+                        Some(Some((_, Err(_)))) => Vec::new(),
+                        _ => units,
+                    };
+                    if remaining.is_empty() {
+                        continue;
+                    }
+                    if declaration_output {
+                        jobs.push((shard, remaining));
+                    } else {
+                        jobs.extend(remaining.into_iter().map(|unit| (shard, vec![unit])));
+                    }
+                }
                 let weight = |(_, units): &(usize, Vec<usize>)| {
                     units
                         .iter()
@@ -2132,7 +2161,8 @@ impl ProgramSession {
             let eager = |shard: usize,
                          snapshot: &ProgramSnapshot,
                          session: &CheckerSession<'_>,
-                         files: &[usize]| {
+                         files: &[usize],
+                         checking: &std::sync::atomic::AtomicUsize| {
                 let owned = files
                     .iter()
                     .map(|&file| snapshot.document(file).source().file_name.as_js())
@@ -2156,23 +2186,46 @@ impl ProgramSession {
                 };
                 let mut activity = H2ActivityCanary::h2_7e_profile();
                 let mut eager_unit_sink = eager_sink.map(tsc_emitter::EagerUnitSink);
-                let result = session.with_emit_resolver(|resolver| {
-                    emit_planned_units(
-                        resolver,
-                        &checked_host,
-                        &preflight,
-                        &units,
-                        eager_unit_sink
-                            .as_mut()
-                            .map(|sink| sink as &mut dyn tsc_emitter::OutputSink),
-                        &mut activity,
-                    )
+                // A shard emits its own units while another shard is still
+                // checking: that work overlaps the check. Once it is the last
+                // shard checking, its remaining units go to the coordinator's
+                // pool, where every worker takes part, instead of one thread
+                // finishing them alone after every check is done.
+                let (emitted, failure) = session.with_emit_resolver(|resolver| {
+                    let mut emitted = Vec::new();
+                    for &unit in &units {
+                        if checking.load(std::sync::atomic::Ordering::Acquire) == 0 {
+                            break;
+                        }
+                        match emit_planned_units(
+                            resolver,
+                            &checked_host,
+                            &preflight,
+                            &[unit],
+                            eager_unit_sink
+                                .as_mut()
+                                .map(|sink| sink as &mut dyn tsc_emitter::OutputSink),
+                            &mut activity,
+                        ) {
+                            Ok(units) => emitted.extend(units),
+                            Err(error) => return (emitted, Some(error)),
+                        }
+                    }
+                    (emitted, None)
                 });
                 if tsc_types::trace::enabled() {
                     tsc_types::trace::mark(
-                        &format!("shard {shard}: emit (eager, {} units)", units.len()),
+                        &format!(
+                            "shard {shard}: emit (eager, {} of {} units)",
+                            emitted.len(),
+                            units.len()
+                        ),
                         emit_started,
                     );
+                }
+                if emitted.is_empty() && failure.is_none() {
+                    // Nothing emitted here: the pool takes every unit.
+                    return;
                 }
                 let mut stash = eager_emissions
                     .lock()
@@ -2182,7 +2235,10 @@ impl ProgramSession {
                 }
                 stash[shard] = Some((
                     files.to_vec(),
-                    result.map(|units| (units, activity.counters())),
+                    match failure {
+                        Some(error) => Err(error),
+                        None => Ok((emitted, activity.counters())),
+                    },
                 ));
             };
             let eager: tsc_checker::ShardEagerClosure<'_> = &eager;
@@ -2412,7 +2468,8 @@ impl ProgramSession {
             let eager = |shard: usize,
                          snapshot: &ProgramSnapshot,
                          session: &CheckerSession<'_>,
-                         files: &[usize]| {
+                         files: &[usize],
+                         _checking: &std::sync::atomic::AtomicUsize| {
                 let share = no_emit_declaration_diagnostics(
                     &self.prepared,
                     self.emit_route,
