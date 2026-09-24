@@ -2624,6 +2624,7 @@ fn transform_module_with_optional_host<'resolver>(
         target: options.emit_script_target(),
         import_helpers: options.import_helpers.unwrap_or(false),
         current_source: None,
+        retained: Vec::new(),
     })
 }
 
@@ -2644,6 +2645,24 @@ struct CommonJsModuleTransformer<'resolver> {
     downlevel_iteration: bool,
     import_helpers: bool,
     current_source: Option<TransformSourceId>,
+    /// The module state of every transformed source, kept for the print-time
+    /// substitutions (tsc's `onSubstituteNode` reads `currentModuleInfo`).
+    retained: Vec<(TransformSourceId, CommonJsModuleState)>,
+}
+
+impl CommonJsModuleTransformer<'_> {
+    fn visitor_options(&self, has_dynamic_import: bool) -> CommonJsVisitorOptions {
+        CommonJsVisitorOptions {
+            preserve_jsx: self.preserve_jsx,
+            module_kind: self.module_kind,
+            es_module_interop: self.es_module_interop,
+            has_dynamic_import,
+            preserves_native_parameter_defaults: self.preserves_native_parameter_defaults,
+            rewrite_relative_import_extensions: self.rewrite_relative_import_extensions,
+            downlevel_iteration: self.downlevel_iteration,
+            target: self.target,
+        }
+    }
 }
 
 impl Transformer for CommonJsModuleTransformer<'_> {
@@ -2728,6 +2747,11 @@ impl Transformer for CommonJsModuleTransformer<'_> {
             context.arena_mut()?.replace_root(source, strict_root)?;
         }
 
+        // The walk gates on the module transform flags (dynamic import,
+        // destructuring assignment, identifier update); classify whatever
+        // the earlier passes appended (or everything, when this is the first
+        // pass) so the gate reads exact flags.
+        initialize_transform_flags(context.arena_mut()?, source)?;
         let current_root = context.arena().root(source)?;
         let mut info = CommonJsModuleInfo::collect(
             context.arena(),
@@ -2742,22 +2766,21 @@ impl Transformer for CommonJsModuleTransformer<'_> {
         if self.rewrite_relative_import_extensions {
             self.rewrite_calls.append(context.arena(), current_root)?;
         }
+        let mut state = CommonJsModuleState {
+            info,
+            generated_module_bindings: BTreeMap::new(),
+            dynamic_import_ordinal: 0,
+            used_names: system::collect_identifier_texts(context.arena(), source),
+            temp_ordinal: 0,
+        };
+        let options = self.visitor_options(has_dynamic_import);
         let mut visitor = CommonJsVisitor::new(
             context,
             source,
             self.resolver,
             self.host,
-            CommonJsVisitorOptions {
-                preserve_jsx: self.preserve_jsx,
-                module_kind: self.module_kind,
-                es_module_interop: self.es_module_interop,
-                has_dynamic_import,
-                preserves_native_parameter_defaults: self.preserves_native_parameter_defaults,
-                rewrite_relative_import_extensions: self.rewrite_relative_import_extensions,
-                downlevel_iteration: self.downlevel_iteration,
-                target: self.target,
-            },
-            info,
+            options,
+            &mut state,
             &mut self.rewrite_calls,
         );
         let updated = if json_amd_bundle {
@@ -2770,6 +2793,8 @@ impl Transformer for CommonJsModuleTransformer<'_> {
             updated
         };
         visitor.context.arena_mut()?.replace_root(source, updated)?;
+        drop(visitor);
+        self.retained.push((source, state));
         Ok(TransformRoot::SourceFile(source))
     }
 
@@ -2779,10 +2804,62 @@ impl Transformer for CommonJsModuleTransformer<'_> {
         hint: EmitHint,
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        // Ordinary module substitutions remain eager. Helper qualification
-        // belongs to the source notification extent at print time.
+        let kind = context.arena().node(node)?.kind;
+        let Some(source) = self.current_source else {
+            return Ok(node);
+        };
+        // tsc-port: onSubstituteNode / substituteExpression @6.0.3
+        // (module.ts): an expression identifier, call, tagged template or
+        // binary expression, and a shorthand property assignment under any
+        // hint, are substituted as they print against the module state the
+        // transform retained; nothing is substituted eagerly.
+        let module_substitution = match kind {
+            SyntaxKind::Identifier => {
+                hint == EmitHint::Expression
+                    && !context
+                        .arena()
+                        .metadata(node)
+                        .is_some_and(|metadata| metadata.flags().contains(EmitFlags::HELPER_NAME))
+            }
+            // A call, tagged template or binary expression is an expression
+            // wherever it prints (the printer's hint for a statement's
+            // expression or a call argument is not `Expression`).
+            SyntaxKind::CallExpression
+            | SyntaxKind::TaggedTemplateExpression
+            | SyntaxKind::BinaryExpression
+            | SyntaxKind::ShorthandPropertyAssignment => true,
+            _ => false,
+        };
+        if module_substitution {
+            let Some(index) = self
+                .retained
+                .iter()
+                .position(|(retained, _)| *retained == source)
+            else {
+                return Ok(node);
+            };
+            let options = self.visitor_options(false);
+            let (_, state) = &mut self.retained[index];
+            context.enter_substitution();
+            let substituted = {
+                let mut visitor = CommonJsVisitor::for_substitution(
+                    context,
+                    source,
+                    self.resolver,
+                    self.host,
+                    options,
+                    state,
+                    &mut self.rewrite_calls,
+                );
+                visitor.substitute_at_print(node, kind)
+            };
+            context.exit_substitution();
+            return substituted;
+        }
+        // Helper qualification belongs to the source notification extent at
+        // print time.
         if hint != EmitHint::Expression
-            || context.arena().node(node)?.kind != SyntaxKind::Identifier
+            || kind != SyntaxKind::Identifier
             || !context
                 .arena()
                 .metadata(node)
@@ -2790,9 +2867,6 @@ impl Transformer for CommonJsModuleTransformer<'_> {
         {
             return Ok(node);
         }
-        let Some(source) = self.current_source else {
-            return Ok(node);
-        };
         let Some(namespace) = get_external_helpers_module_name(context.arena(), source)? else {
             return Ok(node);
         };
@@ -4771,6 +4845,9 @@ fn is_non_reference_identifier_node(
             data.name == Some(node.node()) || data.property_name == Some(node.node())
         }
         NodeData::JsxAttribute(data) => data.name == Some(node.node()),
+        // emitMetaProperty emits its name with Unspecified: `meta` /
+        // `target` is never a value reference.
+        NodeData::MetaProperty(data) => data.name == Some(node.node()),
         _ => false,
     })
 }
@@ -5084,14 +5161,23 @@ struct CommonJsVisitor<'context, 'resolver> {
     rewrite_relative_import_extensions: bool,
     downlevel_iteration: bool,
     target: ScriptTarget,
-    info: CommonJsModuleInfo,
-    generated_module_bindings: BTreeMap<String, target_bindings::TargetBinding>,
+    /// The module's state, owned by the transformer: the transform builds
+    /// it and the print-time substitutions continue it.
+    state: &'context mut CommonJsModuleState,
     nodes: NodeMemo<NodeId>,
     arrays: ArrayMemo<NodeArrayId>,
+    expression_value_use: CommonJsExpressionValueUse,
+}
+
+/// The per-source module state shared by the CommonJS transform and its
+/// print-time substitutions (tsc keeps `currentModuleInfo` and the generated
+/// names of the module across `transformSourceFile` and `onSubstituteNode`).
+struct CommonJsModuleState {
+    info: CommonJsModuleInfo,
+    generated_module_bindings: BTreeMap<String, target_bindings::TargetBinding>,
     dynamic_import_ordinal: usize,
     used_names: target_bindings::UsedNames,
     temp_ordinal: usize,
-    expression_value_use: CommonJsExpressionValueUse,
 }
 
 impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
@@ -5101,14 +5187,66 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         resolver: &'resolver dyn EmitResolver,
         host: Option<&'resolver dyn EmitHost>,
         options: CommonJsVisitorOptions,
-        info: CommonJsModuleInfo,
+        state: &'context mut CommonJsModuleState,
         rewrite_calls: &'context mut relative_imports::ImportCallRewrites,
     ) -> Self {
-        let used_names = system::collect_identifier_texts(context.arena(), source);
         let nodes = node_memo(context.arena(), source);
         let arrays = array_memo(context.arena(), source);
+        Self::with_memos(
+            CommonJsVisitPhase::Transform,
+            context,
+            source,
+            resolver,
+            host,
+            options,
+            state,
+            rewrite_calls,
+            nodes,
+            arrays,
+        )
+    }
+
+    /// The visitor of one print-time substitution: the Substitute phase
+    /// over the retained module state, without visit memos (it maps no
+    /// subtree; the printer walks the children itself).
+    fn for_substitution(
+        context: &'context mut TransformationContext,
+        source: TransformSourceId,
+        resolver: &'resolver dyn EmitResolver,
+        host: Option<&'resolver dyn EmitHost>,
+        options: CommonJsVisitorOptions,
+        state: &'context mut CommonJsModuleState,
+        rewrite_calls: &'context mut relative_imports::ImportCallRewrites,
+    ) -> Self {
+        Self::with_memos(
+            CommonJsVisitPhase::Substitute,
+            context,
+            source,
+            resolver,
+            host,
+            options,
+            state,
+            rewrite_calls,
+            DenseMemo::default(),
+            DenseMemo::default(),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn with_memos(
+        visit_phase: CommonJsVisitPhase,
+        context: &'context mut TransformationContext,
+        source: TransformSourceId,
+        resolver: &'resolver dyn EmitResolver,
+        host: Option<&'resolver dyn EmitHost>,
+        options: CommonJsVisitorOptions,
+        state: &'context mut CommonJsModuleState,
+        rewrite_calls: &'context mut relative_imports::ImportCallRewrites,
+        nodes: NodeMemo<NodeId>,
+        arrays: ArrayMemo<NodeArrayId>,
+    ) -> Self {
         Self {
-            visit_phase: CommonJsVisitPhase::Transform,
+            visit_phase,
             preserve_jsx: options.preserve_jsx,
             rewrite_calls,
             context,
@@ -5122,15 +5260,173 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             rewrite_relative_import_extensions: options.rewrite_relative_import_extensions,
             downlevel_iteration: options.downlevel_iteration,
             target: options.target,
-            info,
-            generated_module_bindings: BTreeMap::new(),
+            state,
             nodes,
             arrays,
-            dynamic_import_ordinal: 0,
-            used_names,
-            temp_ordinal: 0,
             expression_value_use: CommonJsExpressionValueUse::Required,
         }
+    }
+
+    /// tsc-port: onSubstituteNode @6.0.3 (module.ts): the shallow
+    /// substitution of one printed node. The printer substitutes the
+    /// children as it reaches them.
+    fn substitute_at_print(
+        &mut self,
+        node: TransformNode,
+        kind: SyntaxKind,
+    ) -> Result<TransformNode, TransformError> {
+        match kind {
+            SyntaxKind::Identifier => {
+                if is_non_reference_identifier_node(self.context.arena(), node)? {
+                    Ok(node)
+                } else {
+                    self.substitute_identifier(node)
+                }
+            }
+            SyntaxKind::CallExpression => self.substitute_call_at_print(node),
+            SyntaxKind::TaggedTemplateExpression => self.substitute_tagged_template_at_print(node),
+            SyntaxKind::BinaryExpression => self.substitute_binary_at_print(node),
+            SyntaxKind::ShorthandPropertyAssignment => {
+                self.substitute_shorthand_property_assignment_at_print(node)
+            }
+            _ => Ok(node),
+        }
+    }
+
+    /// tsc's `noSubstitution` set: a node the substitution produced (or
+    /// wrapped) is not substituted again when the printer reaches it.
+    fn mark_no_substitution(&mut self, node: TransformNode) -> Result<(), TransformError> {
+        self.context
+            .arena_mut()?
+            .metadata_mut(node)
+            .add_flags(EmitFlags::NO_SUBSTITUTION);
+        Ok(())
+    }
+
+    /// The identifier callee (or tag) of a printed call: substituted, and
+    /// when the substitution is no longer an identifier the call loses its
+    /// receiver (`(0, mod_1.f)(...)`), as substituteCallExpression /
+    /// substituteTaggedTemplateExpression do.
+    fn substitute_indirect_callee_at_print(
+        &mut self,
+        callee: Option<NodeId>,
+    ) -> Result<Option<TransformNode>, TransformError> {
+        let Some(callee) = callee.and_then(|id| self.context.arena().node_ref(self.source, id))
+        else {
+            return Ok(None);
+        };
+        if self.context.arena().node(callee)?.kind != SyntaxKind::Identifier
+            || self
+                .context
+                .arena()
+                .metadata(callee)
+                .is_some_and(|metadata| metadata.flags().contains(EmitFlags::HELPER_NAME))
+            || is_non_reference_identifier_node(self.context.arena(), callee)?
+        {
+            return Ok(None);
+        }
+        let substituted = self.substitute_identifier(callee)?;
+        if substituted == callee
+            || self.context.arena().node(substituted)?.kind == SyntaxKind::Identifier
+        {
+            return Ok(None);
+        }
+        self.mark_no_substitution(substituted)?;
+        Ok(Some(self.create_receiver_erased_expression(substituted)?))
+    }
+
+    fn substitute_call_at_print(
+        &mut self,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::CallExpression(mut data) = self.context.arena().node(node)?.data.clone()
+        else {
+            return Ok(node);
+        };
+        let Some(erased) = self.substitute_indirect_callee_at_print(data.expression)? else {
+            return Ok(node);
+        };
+        data.expression = Some(erased.node());
+        self.update_generic_without_visit(node, NodeData::CallExpression(data))
+    }
+
+    fn substitute_tagged_template_at_print(
+        &mut self,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::TaggedTemplateExpression(mut data) =
+            self.context.arena().node(node)?.data.clone()
+        else {
+            return Ok(node);
+        };
+        let Some(erased) = self.substitute_indirect_callee_at_print(data.tag)? else {
+            return Ok(node);
+        };
+        data.tag = Some(erased.node());
+        self.update_generic_without_visit(node, NodeData::TaggedTemplateExpression(data))
+    }
+
+    /// tsc-port: substituteBinaryExpression @6.0.3 (module.ts): an
+    /// assignment to an exported binding also assigns each of its exports.
+    fn substitute_binary_at_print(
+        &mut self,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::BinaryExpression(data) = &self.context.arena().node(node)?.data else {
+            return Ok(node);
+        };
+        let exports = self.exports_for_assignment(data)?;
+        let mut expression = node;
+        for export in exports {
+            self.mark_no_substitution(expression)?;
+            let target = self.create_export_access_from_module_name(&export)?;
+            expression = self.create_assignment(target, expression)?;
+            self.context.factory()?.set_text_range(expression, node)?;
+        }
+        Ok(expression)
+    }
+
+    /// tsc-port: substituteShorthandPropertyAssignment @6.0.3 (module.ts).
+    fn substitute_shorthand_property_assignment_at_print(
+        &mut self,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::ShorthandPropertyAssignment(data) =
+            self.context.arena().node(node)?.data.clone()
+        else {
+            return Ok(node);
+        };
+        let Some(name) = data
+            .name
+            .and_then(|name| self.context.arena().node_ref(self.source, name))
+        else {
+            return Ok(node);
+        };
+        let value = self.substitute_identifier(name)?;
+        if value == name {
+            return Ok(node);
+        }
+        let value = if let Some(initializer) = data
+            .object_assignment_initializer
+            .and_then(|initializer| self.context.arena().node_ref(self.source, initializer))
+        {
+            self.create_assignment(value, initializer)?
+        } else {
+            value
+        };
+        let property = self.context.factory()?.create_node(
+            self.source,
+            NodeData::PropertyAssignment(tsc_syntax::nodes::PropertyAssignmentData {
+                name: Some(name.node()),
+                initializer: Some(value.node()),
+                modifiers: data.modifiers,
+                question_token: None,
+                exclamation_token: None,
+            }),
+            TransformFlags::NONE,
+        )?;
+        self.set_original_and_range(property, node)?;
+        Ok(property)
     }
 
     fn transform_source_file(
@@ -5182,8 +5478,8 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             if self.should_emit_es_module_marker(root)? {
                 output.push(self.create_es_module_marker()?);
             }
-            let hoisted_function_exports = self.info.hoisted_function_exports.clone();
-            let preinitialized = self.info.exported_names.clone();
+            let hoisted_function_exports = self.state.info.hoisted_function_exports.clone();
+            let preinitialized = self.state.info.exported_names.clone();
             for chunk in preinitialized.chunks(50) {
                 let mut expression = self.create_void_zero()?;
                 for name in chunk {
@@ -5192,13 +5488,13 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 }
                 output.push(self.create_expression_statement(expression)?);
             }
-            if self.info.appends_declaration_exports() {
+            if self.state.info.appends_declaration_exports() {
                 for exports in hoisted_function_exports {
                     output.extend(self.materialize_hoisted_declaration_exports(exports)?);
                 }
             }
 
-            if let Some(import) = self.info.external_helpers_import_declaration {
+            if let Some(import) = self.state.info.external_helpers_import_declaration {
                 output.extend(self.visit_top_level_statement(import)?);
             }
             if self.module_kind == MODULE_AMD {
@@ -5207,7 +5503,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             for statement in input.into_iter().skip(offset) {
                 output.extend(self.visit_top_level_statement(statement)?);
             }
-            if let Some(export_equals) = self.info.export_equals {
+            if let Some(export_equals) = self.state.info.export_equals {
                 output.push(self.create_export_equals_statement(export_equals)?);
             }
             Ok((output, temp_insertion))
@@ -5238,7 +5534,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
     /// tsc-span: _tsc.js:110158-110166
     fn should_emit_es_module_marker(&self, root: TransformNode) -> Result<bool, TransformError> {
         // These branches decide the marker without a fallible binder query.
-        if !self.info.is_external || self.info.export_equals.is_some() {
+        if !self.state.info.is_external || self.state.info.export_equals.is_some() {
             return Ok(false);
         }
         let source = self.context.arena().source(self.source)?.syntax();
@@ -5288,10 +5584,11 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
 
     fn create_amd_import_initializers(&mut self) -> Result<Vec<TransformNode>, TransformError> {
         let plans = self
+            .state
             .info
             .external_imports
             .iter()
-            .filter_map(|key| self.info.imports.get(key).cloned())
+            .filter_map(|key| self.state.info.imports.get(key).cloned())
             .collect::<Vec<_>>();
         let mut statements = Vec::new();
         for plan in plans {
@@ -5397,10 +5694,11 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let source = self.context.arena().source(self.source)?.syntax();
         let amd_dependencies = source.amd_dependencies.clone();
         let import_plans = self
+            .state
             .info
             .external_imports
             .iter()
-            .filter_map(|key| self.info.imports.get(key).cloned())
+            .filter_map(|key| self.state.info.imports.get(key).cloned())
             .collect::<Vec<_>>();
         let mut aliased = Vec::new();
         let mut unaliased = Vec::new();
@@ -5763,6 +6061,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 if data.name.is_none() {
                     let key = self.context.arena().get_original_node(statement).node();
                     if let Some(name) = self
+                        .state
                         .info
                         .generated_declaration_names
                         .get(&key)
@@ -5790,6 +6089,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 if data.name.is_none() {
                     let key = self.context.arena().get_original_node(statement).node();
                     if let Some(name) = self
+                        .state
                         .info
                         .generated_declaration_names
                         .get(&key)
@@ -5811,7 +6111,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 let exported = name
                     .as_deref()
                     .map(|name| {
-                        self.info.hoisted_declaration_exports(
+                        self.state.info.hoisted_declaration_exports(
                             self.context.arena(),
                             self.source,
                             original_declaration,
@@ -5852,15 +6152,12 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         data: tsc_syntax::nodes::ImportDeclarationData,
     ) -> Result<Vec<TransformNode>, TransformError> {
         let key = self.context.arena().get_original_node(original).node();
-        let plan =
-            self.info
-                .imports
-                .get(&key)
-                .cloned()
-                .ok_or(TransformError::RequiredChildRemoved {
-                    parent: SyntaxKind::ImportDeclaration,
-                    field: "module plan",
-                })?;
+        let plan = self.state.info.imports.get(&key).cloned().ok_or(
+            TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::ImportDeclaration,
+                field: "module plan",
+            },
+        )?;
         let module_specifier = data
             .module_specifier
             .and_then(|id| self.context.arena().node_ref(self.source, id))
@@ -5947,7 +6244,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         &self,
         import: &tsc_syntax::nodes::ImportDeclarationData,
     ) -> Result<Vec<ImportReExportPlan>, TransformError> {
-        if !self.info.appends_declaration_exports() {
+        if !self.state.info.appends_declaration_exports() {
             return Ok(Vec::new());
         }
         let Some(clause) = import
@@ -6014,10 +6311,11 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
     ) -> Result<Vec<ImportReExportPlan>, TransformError> {
         let local = identifier_text_owned(self.context.arena(), local_name)?;
         let key = self.context.arena().get_original_node(declaration).node();
-        if !self.info.import_bindings.contains_key(&key) {
+        if !self.state.info.import_bindings.contains_key(&key) {
             return Ok(Vec::new());
         }
         let exports = self
+            .state
             .info
             .export_specifiers_by_local
             .get(local.as_bytes())
@@ -6027,6 +6325,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .into_iter()
             .map(|exported_name| {
                 let location = self
+                    .state
                     .info
                     .export_specifier_locations
                     .get(&(JsString::from(&local), exported_name.text.clone()))
@@ -6269,15 +6568,12 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         data: tsc_syntax::nodes::ImportEqualsDeclarationData,
     ) -> Result<Vec<TransformNode>, TransformError> {
         let key = self.context.arena().get_original_node(original).node();
-        let plan =
-            self.info
-                .imports
-                .get(&key)
-                .cloned()
-                .ok_or(TransformError::RequiredChildRemoved {
-                    parent: SyntaxKind::ImportEqualsDeclaration,
-                    field: "module plan",
-                })?;
+        let plan = self.state.info.imports.get(&key).cloned().ok_or(
+            TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::ImportEqualsDeclaration,
+                field: "module plan",
+            },
+        )?;
         let publication =
             plan.import_equals_publication
                 .clone()
@@ -6379,15 +6675,12 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 field: "module_specifier",
             })?;
         let key = self.context.arena().get_original_node(original).node();
-        let plan =
-            self.info
-                .imports
-                .get(&key)
-                .cloned()
-                .ok_or(TransformError::RequiredChildRemoved {
-                    parent: SyntaxKind::ExportDeclaration,
-                    field: "module plan",
-                })?;
+        let plan = self.state.info.imports.get(&key).cloned().ok_or(
+            TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::ExportDeclaration,
+                field: "module plan",
+            },
+        )?;
         let Some(clause) = data
             .export_clause
             .and_then(|id| self.context.arena().node_ref(self.source, id))
@@ -6593,7 +6886,13 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 .and_then(|name| identifier_text_owned(self.context.arena(), name).ok());
             let exports = local
                 .as_deref()
-                .and_then(|name| self.info.exports_by_local.get(name.as_bytes()).cloned())
+                .and_then(|name| {
+                    self.state
+                        .info
+                        .exports_by_local
+                        .get(name.as_bytes())
+                        .cloned()
+                })
                 .unwrap_or_default();
             let local_name = variable
                 .name
@@ -6636,7 +6935,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                         declaration,
                     )?;
                     exported_expressions.push(expression);
-                    if self.info.appends_declaration_exports() {
+                    if self.state.info.appends_declaration_exports() {
                         trailing
                             .extend(self.create_declaration_export_statements(declaration, true)?);
                     }
@@ -6650,7 +6949,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     } else {
                         CommonJsDirectVariableStorage::ExportObject
                     };
-                    let collector_targets = if self.info.appends_declaration_exports() {
+                    let collector_targets = if self.state.info.appends_declaration_exports() {
                         exports.clone()
                     } else {
                         Default::default()
@@ -6742,7 +7041,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 self.update_variable_declaration_after_initializer(declaration, variable)?;
             retained.push(updated);
             if !direct_export
-                && self.info.appends_declaration_exports()
+                && self.state.info.appends_declaration_exports()
                 && variable_has_initializer(self.context.arena(), updated)?
             {
                 trailing.extend(self.create_declaration_export_statements(declaration, false)?);
@@ -7104,7 +7403,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     self.context.arena(),
                     self.source,
                     initializer,
-                    &self.info.exported_bindings,
+                    &self.state.info.exported_bindings,
                 )?
             {
                 let statement = self.context.factory()?.create_node(
@@ -7204,7 +7503,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         &mut self,
         initializer: Option<NodeId>,
     ) -> Result<Vec<TransformNode>, TransformError> {
-        if !self.info.appends_declaration_exports() {
+        if !self.state.info.appends_declaration_exports() {
             return Ok(Vec::new());
         }
         let Some(initializer) =
@@ -7263,6 +7562,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 .unwrap_or(leaf.name);
             let local_name = identifier_text_owned(self.context.arena(), lookup_name)?;
             let exports = self
+                .state
                 .info
                 .export_specifiers_by_local
                 .get(local_name.as_bytes())
@@ -7270,6 +7570,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 .unwrap_or_default();
             for exported_name in exports {
                 let Some(location) = self
+                    .state
                     .info
                     .export_specifier_locations
                     .get(&(JsString::from(&local_name), exported_name.text.clone()))
@@ -7563,6 +7864,25 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .arena()
             .node_ref(self.source, id)
             .ok_or_else(|| TransformError::UnknownNode(self.node(id)))?;
+        // tsc-port: transformModule visitorWorker @6.0.3 (module.ts): the
+        // transform descends only into a subtree with a dynamic import, a
+        // destructuring assignment or an update of an identifier, or while
+        // an import/require call is still to be rewritten; everything else
+        // is substituted as it prints.
+        if self.visit_phase == CommonJsVisitPhase::Transform {
+            let arena = self.context.arena();
+            if arena.transform_flags_complete(original)
+                && arena.transform_flags(original)
+                    & (TransformFlags::CONTAINS_DYNAMIC_IMPORT
+                        | TransformFlags::CONTAINS_DESTRUCTURING_ASSIGNMENT
+                        | TransformFlags::CONTAINS_UPDATE_EXPRESSION_FOR_IDENTIFIER)
+                    == TransformFlags::NONE
+                && self.rewrite_calls.is_empty()
+            {
+                self.nodes.insert(id, original.node());
+                return Ok(original);
+            }
+        }
         // The payload is cloned only for a node an arm below consumes; every
         // other node maps its children from a slot snapshot.
         let (substitute_generic, identifier, specialized) = {
@@ -7609,7 +7929,12 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let transformed = if substitute_generic {
             update_children_lazily(self, original)?
         } else if identifier {
-            if is_non_reference_identifier_node(self.context.arena(), original)? {
+            // An identifier is substituted as it prints (onSubstituteNode);
+            // only the Substitute phase (a subtree the transform itself
+            // rebuilds) substitutes eagerly.
+            if self.visit_phase == CommonJsVisitPhase::Transform
+                || is_non_reference_identifier_node(self.context.arena(), original)?
+            {
                 original
             } else {
                 self.substitute_identifier(original)?
@@ -8209,7 +8534,14 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 parent: SyntaxKind::ShorthandPropertyAssignment,
                 field: "name",
             })?;
-        let value = self.substitute_identifier(name)?;
+        // The shorthand's exported or imported name prints through
+        // substituteShorthandPropertyAssignment; the Substitute phase keeps
+        // the eager form.
+        let value = if self.visit_phase == CommonJsVisitPhase::Substitute {
+            self.substitute_identifier(name)?
+        } else {
+            name
+        };
         data.object_assignment_initializer = data
             .object_assignment_initializer
             .map(|initializer| self.visit(initializer).map(TransformNode::node))
@@ -8286,7 +8618,13 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         original: TransformNode,
         data: tsc_syntax::nodes::BinaryExpressionData,
     ) -> Result<TransformNode, TransformError> {
-        let exports = self.exports_for_assignment(&data)?;
+        // The export assignments of an assignment print through
+        // substituteBinaryExpression; the Substitute phase keeps them eager.
+        let exports = if self.visit_phase == CommonJsVisitPhase::Substitute {
+            self.exports_for_assignment(&data)?
+        } else {
+            Vec::new()
+        };
         let mut expression = self.update_generic(original, NodeData::BinaryExpression(data))?;
         for export in exports {
             let target = self.create_export_access_from_module_name(&export)?;
@@ -8339,6 +8677,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 if plan.direct_export_storage && export.as_js() == plan.local_name.as_str() {
                     continue;
                 }
+                self.mark_no_substitution(expression)?;
                 let target = self.create_export_access_from_module_name(&export)?;
                 expression = self.create_assignment(target, expression)?;
                 self.set_original_and_range(expression, original)?;
@@ -8417,6 +8756,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         expression = self.create_binary(expression, SyntaxKind::CommaToken, current_value)?;
         self.set_original_and_range(expression, original)?;
         for export in exports {
+            self.mark_no_substitution(expression)?;
             let target = self.create_export_access_from_module_name(&export)?;
             expression = self.create_assignment(target, expression)?;
             self.set_original_and_range(expression, original)?;
@@ -8483,6 +8823,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     return Ok(None);
                 }
                 return Ok(self
+                    .state
                     .info
                     .file_level_generated_binding_exports
                     .get_for_identifier(self.context.arena(), identifier)
@@ -8505,6 +8846,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .get_referenced_import_declaration(resolver_node)?
         {
             return Ok(self
+                .state
                 .info
                 .exported_bindings
                 .get(&import.node())
@@ -8512,6 +8854,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     local_name: data.text.clone(),
                     exports: exports.clone(),
                     direct_export_storage: self
+                        .state
                         .info
                         .direct_exported_variable_names
                         .contains(data.text.as_str())
@@ -8526,7 +8869,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let mut exports = Vec::new();
         let mut seen = BTreeSet::new();
         for declaration in declarations {
-            if let Some(bindings) = self.info.exported_bindings.get(&declaration.node()) {
+            if let Some(bindings) = self.state.info.exported_bindings.get(&declaration.node()) {
                 for binding in bindings {
                     if seen.insert(binding.text.clone()) {
                         exports.push(binding.clone());
@@ -8539,6 +8882,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         }
         let local_name = data.text.clone();
         let direct_export_storage = self
+            .state
             .info
             .direct_exported_variable_names
             .contains(local_name.as_str())
@@ -8977,6 +9321,11 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             if plan.direct_export_storage && export.as_js() == plan.local_name.as_str() {
                 continue;
             }
+            // createAllExportExpressions: the wrapped expression is not
+            // substituted again when it prints (its assignment target is
+            // an exported binding; substituteBinaryExpression would wrap
+            // it a second time).
+            self.mark_no_substitution(expression)?;
             let access = self.create_export_access_from_module_name(&export)?;
             expression = self.create_assignment(access, expression)?;
             if let Some(original) = original {
@@ -9502,20 +9851,25 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         // identifier and keeps `fn()`, while a named CommonJS import or a
         // direct export substitutes to a property access and needs
         // `(0, object.fn)()` to erase the receiver.
-        let callee_requires_receiver_erasure = data
-            .expression
-            .and_then(|id| self.context.arena().node_ref(self.source, id))
-            .is_some_and(|callee| {
-                self.context
-                    .arena()
-                    .node(callee)
-                    .is_ok_and(|node| node.kind == SyntaxKind::Identifier)
-                    && !self
-                        .context
+        // The receiver erasure of a substituted callee prints through
+        // substituteCallExpression; the Substitute phase keeps it eager.
+        let callee_requires_receiver_erasure = self.visit_phase == CommonJsVisitPhase::Substitute
+            && data
+                .expression
+                .and_then(|id| self.context.arena().node_ref(self.source, id))
+                .is_some_and(|callee| {
+                    self.context
                         .arena()
-                        .metadata(callee)
-                        .is_some_and(|metadata| metadata.flags().contains(EmitFlags::HELPER_NAME))
-            });
+                        .node(callee)
+                        .is_ok_and(|node| node.kind == SyntaxKind::Identifier)
+                        && !self
+                            .context
+                            .arena()
+                            .metadata(callee)
+                            .is_some_and(|metadata| {
+                                metadata.flags().contains(EmitFlags::HELPER_NAME)
+                            })
+                });
         if needs_rewrite {
             // shimOrRewriteImportOrRequireCall: the first argument is not
             // recursively visited. Preserve later emit-time callee substitution.
@@ -9591,8 +9945,9 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         original: TransformNode,
         data: tsc_syntax::nodes::TaggedTemplateExpressionData,
     ) -> Result<TransformNode, TransformError> {
-        let tag_requires_receiver_erasure =
-            data.tag
+        let tag_requires_receiver_erasure = self.visit_phase == CommonJsVisitPhase::Substitute
+            && data
+                .tag
                 .and_then(|id| self.context.arena().node_ref(self.source, id))
                 .is_some_and(|tag| {
                     self.context
@@ -9720,10 +10075,10 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
     }
 
     fn reserve_amd_dynamic_import_bindings(&mut self) -> AmdDynamicImportBindings {
-        self.dynamic_import_ordinal += 1;
+        self.state.dynamic_import_ordinal += 1;
         AmdDynamicImportBindings {
-            resolve: format!("resolve_{}", self.dynamic_import_ordinal).into_boxed_str(),
-            reject: format!("reject_{}", self.dynamic_import_ordinal).into_boxed_str(),
+            resolve: format!("resolve_{}", self.state.dynamic_import_ordinal).into_boxed_str(),
+            reject: format!("reject_{}", self.state.dynamic_import_ordinal).into_boxed_str(),
         }
     }
 
@@ -9952,14 +10307,14 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
 
     fn next_generated_name(&mut self) -> String {
         loop {
-            let ordinal = self.temp_ordinal;
-            self.temp_ordinal += 1;
+            let ordinal = self.state.temp_ordinal;
+            self.state.temp_ordinal += 1;
             let candidate = if ordinal < 26 {
                 format!("_{}", (b'a' + ordinal as u8) as char)
             } else {
                 format!("_{}", ordinal - 26)
             };
-            if self.used_names.insert(candidate.clone()) {
+            if self.state.used_names.insert(candidate.clone()) {
                 return candidate;
             }
         }
@@ -10084,11 +10439,13 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let import_key = import_declaration.node();
 
         let planned_runtime_name = self
+            .state
             .info
             .imports
             .get(&import_key)
             .and_then(|plan| plan.runtime_name.clone());
         let cached_runtime_name = self
+            .state
             .info
             .elided_import_runtime_names
             .get(&import_key)
@@ -10109,10 +10466,12 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 _ => return Ok(None),
             };
             let name = self
+                .state
                 .info
                 .generated_module_names
                 .allocate(module_text.as_js());
-            self.info
+            self.state
+                .info
                 .elided_import_runtime_names
                 .insert(import_key, name.clone());
             name
@@ -10135,6 +10494,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .and_then(crate::EmitMetadata::referenced_import_declaration)
         {
             if let Some(export) = self
+                .state
                 .info
                 .imports
                 .get(&declaration.node())
@@ -10147,7 +10507,13 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     property_node: None,
                 }));
             }
-            if let Some(binding) = self.info.import_bindings.get(&declaration.node()).cloned() {
+            if let Some(binding) = self
+                .state
+                .info
+                .import_bindings
+                .get(&declaration.node())
+                .cloned()
+            {
                 return Ok(Some(binding));
             }
 
@@ -10155,7 +10521,8 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 let Some(binding) = self.elided_import_binding(declaration)? else {
                     return Ok(None);
                 };
-                self.info
+                self.state
+                    .info
                     .import_bindings
                     .insert(declaration.node(), binding.clone());
                 return Ok(Some(binding));
@@ -10191,7 +10558,8 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 property: Some(property),
                 property_node,
             };
-            self.info
+            self.state
+                .info
                 .import_bindings
                 .insert(declaration.node(), binding.clone());
             return Ok(Some(binding));
@@ -10211,6 +10579,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .filter(|declaration| declaration.source() == resolver_node.source());
         Ok(declaration.and_then(|declaration| {
             if let Some(export) = self
+                .state
                 .info
                 .imports
                 .get(&declaration.node())
@@ -10223,7 +10592,11 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     property_node: None,
                 });
             }
-            self.info.import_bindings.get(&declaration.node()).cloned()
+            self.state
+                .info
+                .import_bindings
+                .get(&declaration.node())
+                .cloned()
         }))
     }
 
@@ -10309,10 +10682,17 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         // binding registered from an earlier transform's generated
         // declaration name (transformTypeScript's `default_1`) takes
         // precedence over allocating a module-name binding for the spelling.
-        if let Some(binding) = self.generated_module_bindings.get(text) {
+        let binding = if let Some(binding) = self.state.generated_module_bindings.get(text) {
             binding.write_generated_metadata(self.context.arena_mut()?, identifier);
-        } else if let Some(base) = self.info.generated_module_names.generated_bases.get(text) {
-            let binding = match self.generated_module_bindings.entry(text.to_owned()) {
+            Some(binding.id())
+        } else if let Some(base) = self
+            .state
+            .info
+            .generated_module_names
+            .generated_bases
+            .get(text)
+        {
+            let binding = match self.state.generated_module_bindings.entry(text.to_owned()) {
                 std::collections::btree_map::Entry::Vacant(entry) => {
                     entry.insert(target_bindings::TargetBinding::allocate_numbered(
                         self.context,
@@ -10323,6 +10703,21 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 std::collections::btree_map::Entry::Occupied(entry) => entry.into_mut(),
             };
             binding.write_generated_metadata(self.context.arena_mut()?, identifier);
+            Some(binding.id())
+        } else {
+            None
+        };
+        // A reference created while the source prints (onSubstituteNode)
+        // comes after the names were finalized: it takes the binding's final
+        // spelling, as the declaration and the references created in the
+        // transform received it from the finalizer.
+        if let Some(final_name) = binding
+            .and_then(|binding| self.context.generated_binding_name(binding))
+            .map(str::to_owned)
+        {
+            self.context
+                .arena_mut()?
+                .set_generated_identifier_text(identifier, &final_name)?;
         }
         Ok(identifier)
     }
@@ -10338,7 +10733,8 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         else {
             return;
         };
-        self.generated_module_bindings
+        self.state
+            .generated_module_bindings
             .entry(binding.provisional_name().to_owned())
             .or_insert(binding);
     }
@@ -16487,7 +16883,10 @@ fn flags_after_update_probe(
         | TransformFlags::CONTAINS_ES_2019
         | TransformFlags::CONTAINS_ES_2018
         | TransformFlags::CONTAINS_ES_2016
-        | TransformFlags::CONTAINS_PRIVATE_IDENTIFIER_IN_EXPRESSION;
+        | TransformFlags::CONTAINS_PRIVATE_IDENTIFIER_IN_EXPRESSION
+        | TransformFlags::CONTAINS_DYNAMIC_IMPORT
+        | TransformFlags::CONTAINS_DESTRUCTURING_ASSIGNMENT
+        | TransformFlags::CONTAINS_UPDATE_EXPRESSION_FOR_IDENTIFIER;
     let recomputed = if matches!(
         probe.data,
         NodeData::PropertyDeclaration(_)
@@ -17785,6 +18184,35 @@ const fn propagates_transform_child_flags(kind: SyntaxKind) -> bool {
     )
 }
 
+fn update_expression_for_identifier_flags(
+    arena: &TransformArena,
+    source: TransformSourceId,
+    operator: SyntaxKind,
+    operand: Option<NodeId>,
+) -> TransformFlags {
+    if !matches!(
+        operator,
+        SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
+    ) {
+        return TransformFlags::NONE;
+    }
+    let Some(operand) = operand.and_then(|operand| arena.node_ref(source, operand)) else {
+        return TransformFlags::NONE;
+    };
+    let is_identifier = arena
+        .node(operand)
+        .is_ok_and(|record| record.kind == SyntaxKind::Identifier);
+    let generated_or_local = arena.metadata(operand).is_some_and(|metadata| {
+        metadata.generated_binding_id().is_some()
+            || metadata.flags().contains(EmitFlags::LOCAL_NAME)
+    });
+    if is_identifier && !generated_or_local {
+        TransformFlags::CONTAINS_UPDATE_EXPRESSION_FOR_IDENTIFIER
+    } else {
+        TransformFlags::NONE
+    }
+}
+
 fn local_contextual_target_flags(
     arena: &TransformArena,
     source: TransformSourceId,
@@ -17814,11 +18242,40 @@ fn local_contextual_target_flags(
                     .and_then(|receiver| arena.node(receiver).ok())
                     .is_some_and(|receiver| receiver.kind == SyntaxKind::SuperKeyword)
             });
-            if is_super_property_callee {
-                return Ok(TransformFlags::CONTAINS_LEXICAL_THIS);
+            let mut flags = if is_super_property_callee {
+                TransformFlags::CONTAINS_LEXICAL_THIS
+            } else {
+                TransformFlags::NONE
+            };
+            // createCallExpression (nodeFactory.ts): `import(...)` carries
+            // ContainsDynamicImport; transformModule gates its visitor on it.
+            let is_dynamic_import = data
+                .expression
+                .and_then(|callee| arena.node_ref(source, callee))
+                .and_then(|callee| arena.node(callee).ok())
+                .is_some_and(|callee| callee.kind == SyntaxKind::ImportKeyword);
+            if is_dynamic_import {
+                flags |= TransformFlags::CONTAINS_DYNAMIC_IMPORT;
             }
-            Ok(TransformFlags::NONE)
+            Ok(flags)
         }
+        // createPrefixUnaryExpression / createPostfixUnaryExpression
+        // (nodeFactory.ts): `++`/`--` over an identifier that is neither a
+        // generated identifier nor a local name carries
+        // ContainsUpdateExpressionForIdentifier (transformModule's visitor
+        // gate and its exported-binding updates).
+        NodeData::PrefixUnaryExpression(data) => Ok(update_expression_for_identifier_flags(
+            arena,
+            source,
+            data.operator,
+            data.operand,
+        )),
+        NodeData::PostfixUnaryExpression(data) => Ok(update_expression_for_identifier_flags(
+            arena,
+            source,
+            data.operator,
+            data.operand,
+        )),
         NodeData::Identifier(_) => {
             // createIdentifier extended-unicode row (_tsc.js:21621-21623;
             // NodeFlags 256). The parse records keep the COOKED text and

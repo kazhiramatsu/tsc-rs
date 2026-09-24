@@ -67,6 +67,11 @@ impl ImportCallRewrites {
         Ok(())
     }
 
+    /// Whether no import or require call is left to rewrite.
+    pub(super) fn is_empty(&self) -> bool {
+        self.pending.is_empty()
+    }
+
     pub(super) fn take(&mut self, node: TransformNode) -> bool {
         if self.pending.front() != Some(&node) {
             return false;

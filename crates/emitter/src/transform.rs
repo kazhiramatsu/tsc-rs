@@ -582,6 +582,10 @@ impl std::ops::Not for LexicalEnvironmentFlags {
 pub struct TransformationContext {
     arena: TransformArena,
     state: TransformationState,
+    /// Depth of the print-time substitutions in progress: while one runs,
+    /// the ordinary node factory is usable after completion (a substitution
+    /// hook reuses the transform's own construction code).
+    substitution_depth: u32,
     enabled_syntax_features: Vec<u8>,
     lexical_environment: LexicalEnvironment,
     lexical_environment_flags: LexicalEnvironmentFlags,
@@ -603,6 +607,7 @@ impl TransformationContext {
         Self {
             arena,
             state: TransformationState::Uninitialized,
+            substitution_depth: 0,
             enabled_syntax_features: vec![0; SyntaxKind::Count as usize],
             lexical_environment: LexicalEnvironment::default(),
             lexical_environment_flags: LexicalEnvironmentFlags::NONE,
@@ -634,8 +639,26 @@ impl TransformationContext {
     }
 
     pub fn factory(&mut self) -> Result<NodeFactory<'_>, TransformError> {
-        self.require_before_completed("construct or use the node factory")?;
+        if self.substitution_depth > 0 {
+            self.require_before_disposed("construct or use the node factory")?;
+        } else {
+            self.require_before_completed("construct or use the node factory")?;
+        }
         Ok(NodeFactory::new(&mut self.arena))
+    }
+
+    /// Enter a print-time substitution: until the matching exit, the
+    /// ordinary factory constructs nodes on the completed context, as
+    /// [`Self::substitution_factory`] does.
+    pub fn enter_substitution(&mut self) {
+        self.substitution_depth += 1;
+    }
+
+    pub fn exit_substitution(&mut self) {
+        self.substitution_depth = self
+            .substitution_depth
+            .checked_sub(1)
+            .expect("substitution depth underflow");
     }
 
     pub(crate) fn allocate_generated_binding_id(
