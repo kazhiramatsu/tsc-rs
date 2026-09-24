@@ -473,11 +473,49 @@ pub(crate) fn partition_files_contiguous(weights: &[usize], shards: usize) -> Ve
     assignment
 }
 
-/// `TSRS_SHARD_QUEUE=shared` selects the shared Program-order queue (see
-/// [`ShardFileQueue`]); the default is the deterministic partition.
-pub(crate) fn shared_queue_requested() -> bool {
-    static SHARED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *SHARED.get_or_init(|| std::env::var_os("TSRS_SHARD_QUEUE").is_some_and(|v| v == "shared"))
+/// How the shards take their files. `TSRS_SHARD_QUEUE=shared` selects the
+/// shared Program-order queue (see [`ShardFileQueue`]) pulling one file per
+/// turn, `shared:K` pulling K consecutive files per turn, `partition` the
+/// deterministic partition; unset, the driver picks by program size and
+/// command (see [`SHARED_QUEUE_MIN_FIXTURES`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum QueueMode {
+    Shared(usize),
+    Partition,
+}
+
+/// Files per pull of the default shared queue: measured at one binary with
+/// eight checkers on VS Code `src`, chunks of 8 / 32 / 128 files took the
+/// check from 4.46 s (static partition) to 4.20 / 4.16 / 4.21 s, every
+/// shard finishing within 3% of the others.
+pub(crate) const DEFAULT_SHARED_CHUNK: usize = 32;
+
+/// From this many fixtures a `--noEmit` check pulls from the shared queue
+/// by default. Below it the static directory-preferring partition wins:
+/// the balance the queue buys is small against the resolution locality it
+/// loses (Playwright, 646 files: 478 → 513 ms; Next.js `packages/next`,
+/// 1,543 files: 936 → 1,132 ms; the Next.js root, 3,427 files: 765 → 767
+/// ms; VS Code `src`, 9,442 files: 4.46 → 4.16 s). The queue's split
+/// between shards follows the measured check times, so which shard checks
+/// a file varies run to run; the diagnostics of the projects measured were
+/// byte-identical across runs.
+pub(crate) const SHARED_QUEUE_MIN_FIXTURES: usize = 4096;
+
+pub(crate) fn queue_mode_requested() -> Option<QueueMode> {
+    static MODE: std::sync::OnceLock<Option<QueueMode>> = std::sync::OnceLock::new();
+    *MODE.get_or_init(|| {
+        let value = std::env::var("TSRS_SHARD_QUEUE").unwrap_or_default();
+        if value == "partition" {
+            return Some(QueueMode::Partition);
+        }
+        let rest = value.strip_prefix("shared")?;
+        Some(QueueMode::Shared(
+            rest.strip_prefix(':')
+                .and_then(|k| k.parse::<usize>().ok())
+                .unwrap_or(1)
+                .max(1),
+        ))
+    })
 }
 
 /// The work queue the checker shards pull their files from, in one of two
@@ -533,6 +571,16 @@ enum Lanes {
         reserved_nodes: usize,
         next_fixture: AtomicUsize,
         next_library: AtomicUsize,
+        /// Files taken from a cursor per pull: a run of consecutive Program
+        /// files shares its imports (the include walk lists a directory's
+        /// files together), so a chunk keeps the shard's resolution local
+        /// while the pulls still balance the shards; one file per pull
+        /// (the original queue) spreads every directory over every shard.
+        chunk: usize,
+        /// Each shard's current chunk of fixtures and of libraries as
+        /// `(next, end)`; only its own shard touches a pair.
+        local_fixture: Vec<(AtomicUsize, AtomicUsize)>,
+        local_library: Vec<(AtomicUsize, AtomicUsize)>,
     },
     Partitioned(Vec<Lane>),
 }
@@ -551,9 +599,21 @@ impl ShardFileQueue {
     /// counts are `weights` (index = Program file; `0..lib_count` are the
     /// libraries), served to at most `shards` shards.
     pub(crate) fn shared(lib_count: usize, weights: &[usize], shards: usize) -> Self {
+        Self::shared_chunked(lib_count, weights, shards, 1)
+    }
+
+    /// [`shared`](Self::shared) pulling `chunk` consecutive Program files
+    /// per turn at the cursor (1 = one file per pull).
+    pub(crate) fn shared_chunked(
+        lib_count: usize,
+        weights: &[usize],
+        shards: usize,
+        chunk: usize,
+    ) -> Self {
         let file_count = weights.len();
         debug_assert!(lib_count <= file_count);
         let shards = shards.clamp(1, file_count.max(1));
+        let chunk = chunk.max(1);
         let total: usize = weights.iter().sum();
         // Fewer than `shards` files can each exceed an equal share; the
         // truncation only guards the arithmetic.
@@ -592,6 +652,13 @@ impl ShardFileQueue {
                 reserved_nodes: ((total - pinned_total) / pulling_shards).max(largest_unpinned),
                 next_fixture: AtomicUsize::new(lib_count),
                 next_library: AtomicUsize::new(0),
+                chunk,
+                local_fixture: (0..shards)
+                    .map(|_| (AtomicUsize::new(0), AtomicUsize::new(0)))
+                    .collect(),
+                local_library: (0..shards)
+                    .map(|_| (AtomicUsize::new(0), AtomicUsize::new(0)))
+                    .collect(),
             },
             aborted: AtomicBool::new(false),
         }
@@ -697,10 +764,18 @@ impl ShardFileQueue {
                 pinned,
                 pinned_files,
                 next_fixture,
+                chunk,
+                local_fixture,
                 ..
             } => match pinned.get(shard) {
                 Some(lane) => Self::pull(&lane.fixtures, &lane.next_fixture),
-                None => Self::pull_unpinned(next_fixture, self.file_count, pinned_files),
+                None => Self::pull_unpinned(
+                    next_fixture,
+                    local_fixture.get(shard)?,
+                    *chunk,
+                    self.file_count,
+                    pinned_files,
+                ),
             },
             Lanes::Partitioned(lanes) => {
                 let lane = lanes.get(shard)?;
@@ -719,10 +794,18 @@ impl ShardFileQueue {
                 pinned,
                 pinned_files,
                 next_library,
+                chunk,
+                local_library,
                 ..
             } => match pinned.get(shard) {
                 Some(lane) => Self::pull(&lane.libraries, &lane.next_library),
-                None => Self::pull_unpinned(next_library, self.lib_count, pinned_files),
+                None => Self::pull_unpinned(
+                    next_library,
+                    local_library.get(shard)?,
+                    *chunk,
+                    self.lib_count,
+                    pinned_files,
+                ),
             },
             Lanes::Partitioned(lanes) => {
                 let lane = lanes.get(shard)?;
@@ -735,16 +818,33 @@ impl ShardFileQueue {
         files.get(next.fetch_add(1, Ordering::Relaxed)).copied()
     }
 
-    /// The next file below `end` from a shared cursor that is not pinned.
-    fn pull_unpinned(next: &AtomicUsize, end: usize, pinned_files: &[usize]) -> Option<usize> {
+    /// The next file below `end` that is not pinned: from the shard's
+    /// current chunk `local` (`(next, end)`), refilled with `chunk`
+    /// consecutive files from the shared cursor when empty.
+    fn pull_unpinned(
+        next: &AtomicUsize,
+        local: &(AtomicUsize, AtomicUsize),
+        chunk: usize,
+        end: usize,
+        pinned_files: &[usize],
+    ) -> Option<usize> {
         loop {
-            let file = next.fetch_add(1, Ordering::Relaxed);
-            if file >= end {
+            let file = local.0.load(Ordering::Relaxed);
+            if file < local.1.load(Ordering::Relaxed) {
+                local.0.store(file + 1, Ordering::Relaxed);
+                if pinned_files.binary_search(&file).is_err() {
+                    return Some(file);
+                }
+                continue;
+            }
+            let base = next.fetch_add(chunk, Ordering::Relaxed);
+            if base >= end {
                 return None;
             }
-            if pinned_files.binary_search(&file).is_err() {
-                return Some(file);
-            }
+            local.0.store(base, Ordering::Relaxed);
+            local
+                .1
+                .store(base.saturating_add(chunk).min(end), Ordering::Relaxed);
         }
     }
 }
@@ -1007,5 +1107,43 @@ mod tests {
         assert!(partition_files_contiguous(&[], 4).is_empty());
         assert!(partition_files_blocks(&[], 4, 4).is_empty());
         assert_eq!(partition_files_by_directory(&[], &[], 4, 10).len(), 0);
+    }
+
+    #[test]
+    fn chunked_shared_queue_hands_out_every_file_once_in_chunks() {
+        // Three shards pull chunks of four from twenty fixtures behind two
+        // libraries; file 9 is heavier than a share and pinned to shard 0.
+        let mut weights = [1usize; 22];
+        weights[9] = 100;
+        let queue = ShardFileQueue::shared_chunked(2, &weights, 3, 4);
+        assert_eq!(queue.shard_count(), 3);
+        assert_eq!(queue.next_fixture(0), Some(9));
+        assert_eq!(queue.next_fixture(0), None);
+        let mut pulls: Vec<(usize, usize)> = Vec::new();
+        for shard in [
+            1, 2, 1, 1, 2, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2,
+        ] {
+            if let Some(file) = queue.next_fixture(shard) {
+                pulls.push((shard, file));
+            }
+        }
+        let mut files: Vec<usize> = pulls.iter().map(|&(_, file)| file).collect();
+        files.sort_unstable();
+        assert_eq!(files, (2..22).filter(|&file| file != 9).collect::<Vec<_>>());
+        // The first chunk went to shard 1 whole: files 2..6 in order.
+        assert_eq!(
+            pulls
+                .iter()
+                .filter(|&&(shard, _)| shard == 1)
+                .map(|&(_, file)| file)
+                .take(4)
+                .collect::<Vec<_>>(),
+            [2, 3, 4, 5]
+        );
+        assert_eq!(queue.next_fixture(1), None);
+        assert_eq!(queue.next_fixture(2), None);
+        let libraries: Vec<usize> = std::iter::from_fn(|| queue.next_library(1)).collect();
+        assert_eq!(libraries, [0, 1]);
+        assert_eq!(queue.next_library(2), None);
     }
 }

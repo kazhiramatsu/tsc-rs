@@ -3333,12 +3333,14 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             }
         })
         .collect::<Vec<_>>();
-    // The deterministic partition is the default (least load by node count
-    // with a directory preference): a run's shard-local type order then
-    // repeats run to run, as tsgo's does. The shared queue
-    // (`TSRS_SHARD_QUEUE=shared`) balances mixed cores better but lets the
-    // files a shard checks — and every ordering that follows type ids —
-    // vary between runs.
+    // A large --noEmit check pulls from the shared queue in chunks: the
+    // split between shards then follows the measured check times (mixed
+    // cores, cost the node count does not predict) while a chunk keeps a
+    // directory's files together. Otherwise the deterministic partition
+    // (least load by node count with a directory preference): a run's
+    // shard-local type order then repeats run to run, as tsgo's does, and
+    // the emit phases run each file on the checker that checked it.
+    // `TSRS_SHARD_QUEUE` overrides the choice.
     let checker_count = checkers.checkers();
     // Each file's directory, interned, for the directory-preferring
     // partition (files of one directory share their imports).
@@ -3359,8 +3361,15 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         .iter()
         .map(|document| document.data.symbols.len())
         .collect::<Vec<usize>>();
-    let queue = if shard::shared_queue_requested() {
-        shard::ShardFileQueue::shared(lib_count, &weights, checker_count)
+    let fixtures = weights.len().saturating_sub(lib_count);
+    let shared_chunk = match shard::queue_mode_requested() {
+        Some(shard::QueueMode::Shared(chunk)) => Some(chunk),
+        Some(shard::QueueMode::Partition) => None,
+        None => (sharded_emit.is_none() && fixtures >= shard::SHARED_QUEUE_MIN_FIXTURES)
+            .then_some(shard::DEFAULT_SHARED_CHUNK),
+    };
+    let queue = if let Some(chunk) = shared_chunk {
+        shard::ShardFileQueue::shared_chunked(lib_count, &weights, checker_count, chunk)
     } else {
         shard::ShardFileQueue::partitioned_with_directories(
             lib_count,
