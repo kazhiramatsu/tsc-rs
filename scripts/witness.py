@@ -855,10 +855,10 @@ def run_resolution_cache(command, env):
     print(result.stdout, end="", flush=True)
     result.check_returncode()
     counts = re.findall(r"test result: ok\. (\d+) passed; 0 failed; (\d+) ignored;.*? (\d+) filtered out;", result.stdout)
-    if sorted(tuple(map(int, row)) for row in counts) != [(11, 0, 0), (61, 0, 0)]:
+    if sorted(tuple(map(int, row)) for row in counts) != [(11, 0, 0), (62, 0, 0)]:
         raise ValueError("resolution-cache: missing, ignored, filtered or changed target results")
     print(json.dumps({"resolution_cache": {"families": 26, "generations": 112, "requests": 197},
-                      "contract_tests": 11, "program_unit_tests": 61,
+                      "contract_tests": 11, "program_unit_tests": 62,
                       "observer_seconds": round(oracle_seconds, 3),
                       "cargo_build_and_replay_seconds": round(time.monotonic() - started, 3)}), flush=True)
 
