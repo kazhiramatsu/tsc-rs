@@ -236,8 +236,9 @@ pub(crate) fn partition_mode_requested() -> PartitionMode {
 /// then lower index). Files of one directory import each other and the
 /// same modules, so a shard resolves fewer foreign declarations than under
 /// the plain least-load spread while every load stays within the slack of
-/// the lightest. Files are dealt heaviest first like [`partition_files`].
-/// Deterministic.
+/// the lightest. A directory of two equal shares of the files or more gets
+/// no preference (nothing to contain; the slack would only skew the load).
+/// Files are dealt heaviest first like [`partition_files`]. Deterministic.
 pub(crate) fn partition_files_by_directory(
     weights: &[usize],
     directories: &[u32],
@@ -250,13 +251,30 @@ pub(crate) fn partition_files_by_directory(
     let slack = total / shards as u64 * slack_percent / 100;
     let mut order: Vec<usize> = (0..weights.len()).collect();
     order.sort_by_key(|&file| (std::cmp::Reverse(costs[file]), file));
+    // A directory holding two equal shares of the files or more gains
+    // nothing from the preference (its files land everywhere anyway) and
+    // would pay the slack as imbalance: TypeScript's src/compiler keeps
+    // its 248 files in one directory. Such files take the lightest shard.
+    let mut directory_sizes: rustc_hash::FxHashMap<u32, usize> = Default::default();
+    for &directory in directories {
+        *directory_sizes.entry(directory).or_insert(0) += 1;
+    }
+    let preferred = |directory: u32| {
+        directory_sizes
+            .get(&directory)
+            .is_some_and(|&size| size * shards < weights.len() * 2)
+    };
     let mut assignment: Vec<Vec<usize>> = vec![Vec::new(); shards];
     let mut load = vec![0u64; shards];
     let mut affinity: Vec<rustc_hash::FxHashMap<u32, u32>> = vec![Default::default(); shards];
     for file in order {
         let directory = directories.get(file).copied().unwrap_or(u32::MAX);
         let lightest = load.iter().copied().min().unwrap_or(0);
-        let limit = lightest.saturating_add(slack);
+        let limit = if preferred(directory) {
+            lightest.saturating_add(slack)
+        } else {
+            lightest
+        };
         let target = (0..shards)
             .filter(|&shard| load[shard] <= limit)
             .max_by_key(|&shard| {
@@ -871,6 +889,10 @@ mod tests {
         let strict = partition_files_by_directory(&weights, &directories, 2, 0);
         covers_every_file_once(&strict, 8);
         assert_eq!(strict, partition_files(&weights, 2));
+        // One directory holding every file gets no preference: the deal is
+        // the plain least-load one whatever the slack.
+        let single = partition_files_by_directory(&weights, &[0; 8], 2, 100);
+        assert_eq!(single, partition_files(&weights, 2));
     }
 
     #[test]
