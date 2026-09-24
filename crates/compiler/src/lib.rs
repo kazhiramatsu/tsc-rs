@@ -2158,25 +2158,44 @@ impl ProgramSession {
                         .fold(0u32, u32::saturating_add),
                 }])
             };
+            // The tail protocol of the eager emit: the last shard to finish
+            // checking claims the tail (`tail_claimed`) and emits its
+            // heaviest remaining unit at once; every other shard keeps
+            // emitting its own units in plan order until the tail owner
+            // opens the pool (`pool_open`), which then balances whatever is
+            // left across every worker.
+            let tail_claimed = std::sync::atomic::AtomicBool::new(false);
+            let pool_open = std::sync::atomic::AtomicBool::new(false);
             let eager = |shard: usize,
                          snapshot: &ProgramSnapshot,
                          session: &CheckerSession<'_>,
                          files: &[usize],
                          checking: &std::sync::atomic::AtomicUsize| {
+                use std::sync::atomic::Ordering;
                 let owned = files
                     .iter()
-                    .map(|&file| snapshot.document(file).source().file_name.as_js())
-                    .collect::<std::collections::HashSet<_>>();
+                    .map(|&file| {
+                        let source = snapshot.document(file).source();
+                        (source.file_name.as_js(), source.text().len())
+                    })
+                    .collect::<std::collections::HashMap<_, _>>();
+                // The shard's units in plan order, each with its source size
+                // (the pool's job weight).
                 let units = unit_names
                     .iter()
                     .enumerate()
-                    .filter(|(_, name)| {
+                    .filter_map(|(unit, name)| {
                         name.as_ref()
-                            .is_some_and(|name| owned.contains(&name.as_js()))
+                            .and_then(|name| owned.get(&name.as_js()))
+                            .map(|&size| (unit, size))
                     })
-                    .map(|(unit, _)| unit)
                     .collect::<Vec<_>>();
                 if units.is_empty() {
+                    // A last shard without units of its own opens the pool
+                    // for the units the other shards leave behind.
+                    if checking.load(Ordering::Acquire) == 0 {
+                        pool_open.store(true, Ordering::Release);
+                    }
                     return;
                 }
                 let emit_started = std::time::Instant::now();
@@ -2186,17 +2205,53 @@ impl ProgramSession {
                 };
                 let mut activity = H2ActivityCanary::h2_7e_profile();
                 let mut eager_unit_sink = eager_sink.map(tsc_emitter::EagerUnitSink);
-                // A shard emits its own units while another shard is still
-                // checking: that work overlaps the check. Once it is the last
-                // shard checking, its remaining units go to the coordinator's
-                // pool, where every worker takes part, instead of one thread
-                // finishing them alone after every check is done.
-                let (emitted, failure) = session.with_emit_resolver(|resolver| {
+                // A shard emits its own units in plan order while another
+                // shard is still checking: that work overlaps the check. Once
+                // it is the last shard checking, the coordinator's pool takes
+                // the remaining units so that every worker shares them. The
+                // pool only starts after every shard thread has joined,
+                // though, and another shard may still be inside an eager
+                // unit; the heaviest remaining unit of the last shard (the
+                // one that decides the tail) therefore starts here at once
+                // instead of waiting for that join. With declaration output a
+                // shard's units are one ordered pool job anyway, so the last
+                // shard simply finishes them in order.
+                let (emitted, failure, owns_tail) = session.with_emit_resolver(|resolver| {
                     let mut emitted = Vec::new();
-                    for &unit in &units {
-                        if checking.load(std::sync::atomic::Ordering::Acquire) == 0 {
-                            break;
+                    let mut remaining = units.clone();
+                    // The shard that finds every check finished before it
+                    // has emitted anything is the last one checking (the
+                    // count drops before this closure runs).
+                    let mut owns_tail = false;
+                    let mut first = true;
+                    while !remaining.is_empty() {
+                        if checking.load(Ordering::Acquire) == 0 && !owns_tail {
+                            if first
+                                && tail_claimed
+                                    .compare_exchange(
+                                        false,
+                                        true,
+                                        Ordering::AcqRel,
+                                        Ordering::Acquire,
+                                    )
+                                    .is_ok()
+                            {
+                                owns_tail = true;
+                            } else if pool_open.load(Ordering::Acquire) {
+                                break;
+                            }
                         }
+                        first = false;
+                        let index = if owns_tail && !declaration_output {
+                            remaining
+                                .iter()
+                                .enumerate()
+                                .max_by_key(|(_, (_, size))| *size)
+                                .map_or(0, |(index, _)| index)
+                        } else {
+                            0
+                        };
+                        let (unit, _) = remaining.remove(index);
                         match emit_planned_units(
                             resolver,
                             &checked_host,
@@ -2208,17 +2263,24 @@ impl ProgramSession {
                             &mut activity,
                         ) {
                             Ok(units) => emitted.extend(units),
-                            Err(error) => return (emitted, Some(error)),
+                            Err(error) => return (emitted, Some(error), owns_tail),
+                        }
+                        if owns_tail && !declaration_output {
+                            break;
                         }
                     }
-                    (emitted, None)
+                    (emitted, None, owns_tail)
                 });
+                if owns_tail {
+                    pool_open.store(true, Ordering::Release);
+                }
                 if tsc_types::trace::enabled() {
                     tsc_types::trace::mark(
                         &format!(
-                            "shard {shard}: emit (eager, {} of {} units)",
+                            "shard {shard}: emit (eager, {} of {} units{})",
                             emitted.len(),
-                            units.len()
+                            units.len(),
+                            if owns_tail { ", tail owner" } else { "" }
                         ),
                         emit_started,
                     );
