@@ -885,12 +885,14 @@ fn common_js_require_indicator_requires_exactly_one_argument() {
         assert_eq!(binder.common_js_module_indicator.is_some(), expected);
     }
 
-    // bindCallExpression is not JS-gated in tsc: a require call
-    // also makes an otherwise-script TypeScript source external.
+    // bindWorker calls bindCallExpression only `if (isInJSFile(node))`
+    // (_tsc.js:44460-44462): a require call leaves an otherwise-script
+    // TypeScript source a global script (playwright-core's bootstrap.ts
+    // keeps its top-level declarations in the declaration output).
     let source = parse_named("a.ts", "require('a');\n", false);
     let binder = bind(&source);
-    assert!(binder.common_js_module_indicator.is_some());
-    assert!(binder.node_symbol.contains_key(&source.root));
+    assert!(binder.common_js_module_indicator.is_none());
+    assert!(!binder.node_symbol.contains_key(&source.root));
 }
 
 #[test]
