@@ -19411,6 +19411,35 @@ pub(crate) fn collect_source_comment_ranges(
     } else {
         position
     };
+    // Most positions begin an ASCII whitespace run that ends at a token: no
+    // comment. That answer needs no character decoding; the run is scanned
+    // by byte, and the loop below (which reaches the same cursor) runs only
+    // when a `/` or a non-ASCII byte ends it.
+    {
+        let bytes = source.as_bytes();
+        let mut fast = cursor;
+        let no_comment_end = loop {
+            match bytes.get(fast) {
+                Some(b' ' | b'\t' | 0x0B | 0x0C) => fast += 1,
+                Some(b'\r' | b'\n') if trailing => {
+                    fast += 1;
+                    if bytes.get(fast - 1) == Some(&b'\r') && bytes.get(fast) == Some(&b'\n') {
+                        fast += 1;
+                    }
+                    break Some(fast);
+                }
+                Some(b'\r' | b'\n') => fast += 1,
+                Some(b'/') | Some(0x80..) => break None,
+                Some(_) | None => break Some(fast),
+            }
+        };
+        if let Some(end) = no_comment_end {
+            #[cfg(test)]
+            crate::token_cursor::record_cursor_source_work(end.saturating_sub(position));
+            let _ = end;
+            return ranges;
+        }
+    }
     let mut pending = None::<SourceCommentRange>;
     let mut collecting = trailing || position == 0;
 

@@ -73,6 +73,12 @@ struct DensePositionIndex {
     /// stay on one line, which is then answered without a binary search. A
     /// stale hint only costs the search.
     line_hint: std::sync::atomic::AtomicU32,
+    /// The `wide` partition point of the last conversion: a printer's
+    /// conversions run through the text in order, so the next position
+    /// usually shares the preceding wide character, which is then answered
+    /// with two comparisons instead of a binary search. A stale hint only
+    /// costs the search.
+    wide_hint: std::sync::atomic::AtomicU32,
 }
 
 /// One non-ASCII character: where it ends in both domains, and its widths.
@@ -121,6 +127,7 @@ impl DensePositionIndex {
             line_starts_byte: Vec::new(),
             line_starts_utf16: Vec::new(),
             line_hint: std::sync::atomic::AtomicU32::new(0),
+            wide_hint: std::sync::atomic::AtomicU32::new(0),
         };
         index.line_starts_byte = compute_line_starts_byte(text);
         index.line_starts_utf16 = index
@@ -164,6 +171,52 @@ impl DensePositionIndex {
         })
     }
 
+    /// The number of wide characters ending at or before the byte
+    /// `position` (the partition point of `wide`), through the hint.
+    fn wide_index_by_byte(&self, position: u32) -> usize {
+        use std::sync::atomic::Ordering::Relaxed;
+        let hint = self.wide_hint.load(Relaxed) as usize;
+        if hint <= self.wide.len()
+            && hint
+                .checked_sub(1)
+                .is_none_or(|previous| self.wide[previous].byte_end <= position)
+            && self
+                .wide
+                .get(hint)
+                .is_none_or(|next| next.byte_end > position)
+        {
+            return hint;
+        }
+        let index = self
+            .wide
+            .partition_point(|character| character.byte_end <= position);
+        self.wide_hint.store(index as u32, Relaxed);
+        index
+    }
+
+    /// The number of wide characters ending at or before the UTF-16
+    /// `position`, through the same hint.
+    fn wide_index_by_utf16(&self, position: u32) -> usize {
+        use std::sync::atomic::Ordering::Relaxed;
+        let hint = self.wide_hint.load(Relaxed) as usize;
+        if hint <= self.wide.len()
+            && hint
+                .checked_sub(1)
+                .is_none_or(|previous| self.wide[previous].utf16_end <= position)
+            && self
+                .wide
+                .get(hint)
+                .is_none_or(|next| next.utf16_end > position)
+        {
+            return hint;
+        }
+        let index = self
+            .wide
+            .partition_point(|character| character.utf16_end <= position);
+        self.wide_hint.store(index as u32, Relaxed);
+        index
+    }
+
     fn byte_to_utf16(&self, position: u32) -> Option<u32> {
         if position <= self.ascii_prefix_end {
             return Some(position);
@@ -174,9 +227,7 @@ impl DensePositionIndex {
         // The wide characters ending at or before `position` carry the
         // accumulated difference; a position inside the next one is not a
         // scalar boundary.
-        let index = self
-            .wide
-            .partition_point(|character| character.byte_end <= position);
+        let index = self.wide_index_by_byte(position);
         if let Some(next) = self.wide.get(index) {
             if next.byte_end - u32::from(next.byte_len) < position {
                 return None;
@@ -196,9 +247,7 @@ impl DensePositionIndex {
         if position > self.utf16_len {
             return None;
         }
-        let index = self
-            .wide
-            .partition_point(|character| character.utf16_end <= position);
+        let index = self.wide_index_by_utf16(position);
         if let Some(next) = self.wide.get(index) {
             // Inside the next wide character: the low surrogate of a pair.
             if next.utf16_end - u32::from(next.utf16_len) < position {
@@ -687,6 +736,23 @@ impl PositionIndex {
         match &self.data {
             PositionIndexData::PersistentLines(tree) => tree.byte_to_utf16(position),
             _ => self.dense()?.byte_to_utf16(position),
+        }
+    }
+
+    /// Whether the byte `position` is a Unicode scalar boundary of the text
+    /// (`byte_to_utf16` answers exactly then): the text's own byte answers
+    /// when the index still holds the text (only a UTF-8 continuation byte
+    /// is inside a character), the tables otherwise.
+    pub fn is_scalar_boundary(&self, position: u32) -> bool {
+        if position > self.byte_len {
+            return false;
+        }
+        match &self.data {
+            PositionIndexData::LazyDense { text, .. } => text
+                .as_bytes()
+                .get(position as usize)
+                .is_none_or(|&byte| byte & 0xC0 != 0x80),
+            _ => self.byte_to_utf16(position).is_some(),
         }
     }
 
