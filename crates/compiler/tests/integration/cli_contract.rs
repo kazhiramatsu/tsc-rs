@@ -1420,3 +1420,78 @@ fn filesystem_config_and_source_diagnostic_order_matches_typescript() {
         }
     }
 }
+
+fn run_with_env(tree: &TempTree, arguments: &[&str], env: &[(&str, &str)]) -> std::process::Output {
+    Command::new(env!("CARGO_BIN_EXE_tsc-rs"))
+        .current_dir(tree.path("."))
+        .args(arguments)
+        .envs(env.iter().copied())
+        .output()
+        .expect("run tsc-rs binary")
+}
+
+#[test]
+fn no_emit_declaration_diagnostics_join_the_report_from_every_checker_budget() {
+    // tsc emitFilesAndReportErrors: a --noEmit command with declaration
+    // reports program.getDeclarationDiagnostics() after a clean semantic
+    // pass. The getter runs on the checker sessions of that same check, so
+    // every checker budget must report exactly TypeScript's rows.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        "export const answer = () => 42;\nexport function pick(value: { name: string }) {\n    return value.name;\n}\n",
+    )
+    .expect("write source");
+    fs::write(
+        tree.path("b.ts"),
+        "import { answer } from \"./a\";\nexport const twice = () => answer() * 2;\nexport class Box {\n    value = answer();\n}\n",
+    )
+    .expect("write source");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"declaration":true,"isolatedDeclarations":true,"module":"commonjs","target":"es2015","lib":["es5"],"types":[]},"files":["a.ts","b.ts"]}"#,
+    )
+    .expect("write config");
+    let arguments = ["--pretty", "false", "-p", "tsconfig.json"];
+    let typescript = run_typescript(&tree, &arguments);
+    let expected = String::from_utf8_lossy(&typescript.stdout).into_owned();
+    assert!(expected.contains("error TS9007"), "{expected}");
+    for checkers in ["1", "2", "3"] {
+        let rust = run_with_env(&tree, &arguments, &[("TSRS_CHECKERS", checkers)]);
+        assert_eq!(
+            rust.status.code(),
+            typescript.status.code(),
+            "checkers={checkers}"
+        );
+        assert_eq!(
+            String::from_utf8_lossy(&rust.stdout),
+            expected,
+            "checkers={checkers}"
+        );
+        assert!(rust.stderr.is_empty(), "checkers={checkers}");
+    }
+
+    // A semantic error closes the gate: no declaration diagnostics join.
+    fs::write(
+        tree.path("b.ts"),
+        "import { answer } from \"./a\";\nexport const wrong: number = answer;\n",
+    )
+    .expect("write source");
+    let typescript = run_typescript(&tree, &arguments);
+    let expected = String::from_utf8_lossy(&typescript.stdout).into_owned();
+    assert!(expected.contains("error TS2322"), "{expected}");
+    assert!(!expected.contains("TS9007"), "{expected}");
+    for checkers in ["1", "2"] {
+        let rust = run_with_env(&tree, &arguments, &[("TSRS_CHECKERS", checkers)]);
+        assert_eq!(
+            rust.status.code(),
+            typescript.status.code(),
+            "checkers={checkers}"
+        );
+        assert_eq!(
+            String::from_utf8_lossy(&rust.stdout),
+            expected,
+            "checkers={checkers}"
+        );
+    }
+}

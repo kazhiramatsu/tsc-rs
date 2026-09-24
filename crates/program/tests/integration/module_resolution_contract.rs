@@ -10887,3 +10887,52 @@ fn package_input_request_diagnostics_restore_after_host_error_and_nested_rewrite
 }
 
 use super::utf16_scalar_path::ScalarTestPath as _;
+
+#[test]
+fn declaration_reached_by_appending_ts_to_a_d_js_specifier_keeps_the_ts_extension() {
+    // tsc's tryAddingExtensions records the extension it appended: a
+    // `./b.d.js` specifier resolves to `b.d.ts` with extension `.ts`
+    // (@edge-runtime/primitives re-exports its types this way), and the
+    // program admits that record instead of requiring a declaration
+    // discriminant on a declaration path.
+    let host = MemoryCompilerHost::builder("/work")
+        .file(
+            "/work/a.ts",
+            b"import { x } from \"./b.d.js\";\nexport const y: number = x;\n".to_vec(),
+        )
+        .file(
+            "/work/b.d.ts",
+            b"export declare const x: number;\n".to_vec(),
+        )
+        .build()
+        .expect("build .d.js specifier host");
+    let options = CompilerOptions {
+        no_emit: Some(true),
+        module: Some(99),
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create bundler resolver");
+    let module = resolved(
+        resolver
+            .resolve("/work/a.ts", "./b.d.js", ResolutionMode::EsNext)
+            .expect("resolve the .d.js specifier"),
+    );
+    assert_eq!(
+        module.resolved_file().display().scalar_test_path(),
+        Path::new("/work/b.d.ts")
+    );
+    assert_eq!(module.extension(), &ModuleExtension::Ts);
+
+    let program = tsc_program::load_no_lib_program(
+        &host,
+        &[PathBuf::from("/work/a.ts")],
+        options,
+        ProgramOptions::default()
+            .with_no_lib(true)
+            .with_types(Vec::new()),
+        tsc_program::ProgramLoadLimits::new(128, 512, 32, 1 << 20, 1 << 22),
+    )
+    .expect("the program admits the `.ts` record on a declaration path");
+    assert_eq!(program.source_files().len(), 2);
+}

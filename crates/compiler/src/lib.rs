@@ -173,15 +173,16 @@ fn sharded_emit_supported(options: &CompilerOptions) -> bool {
     options.out_file.as_ref().is_none_or(|path| path.is_empty())
 }
 
-/// The whole-Program declaration diagnostics for the noEmitOnError gate of a
-/// sharded emit: every source selected for emit is transformed against the
-/// resolver of the shard that checked it (matched by source name, as the
-/// emit pool matches its units), in parallel on the worker budget. Sorted
-/// and deduplicated like the serial getter's result.
+/// The whole-Program declaration diagnostics over the checker sessions of one
+/// sharded check (the noEmitOnError gate of a sharded emit, and the --noEmit
+/// command's declaration getter): every source selected for emit is
+/// transformed against the resolver of the shard that checked it (matched by
+/// source name, as the emit pool matches its units), in parallel on the
+/// worker budget. Sorted and deduplicated like the serial getter's result.
 fn sharded_declaration_diagnostics(
     checked_host: &CheckedEmitHost<'_, '_>,
     emit_host: &PreparedEmitHost<'_>,
-    preflight: &tsc_emitter::EmitPreflight,
+    paths: &tsc_emitter::PlanDeclarationPaths,
     sessions: &[CheckerSession<'_>],
     files_by_shard: &[Vec<usize>],
     worker_budget: WorkerBudget,
@@ -229,11 +230,11 @@ fn sharded_declaration_diagnostics(
         |(_, (source, shard))| {
             let mut activity = H2ActivityCanary::h2_7e_profile();
             let result = sessions[shard].with_emit_resolver(|resolver| {
-                tsc_emitter::declaration_diagnostics_for_sources(
+                tsc_emitter::get_declaration_diagnostics(
                     resolver,
                     checked_host,
-                    preflight,
-                    &[source],
+                    paths,
+                    source,
                     &mut activity,
                 )
             });
@@ -252,6 +253,71 @@ fn sharded_declaration_diagnostics(
     }
     sort_and_dedupe_diagnostics(&mut diagnostics);
     Ok(diagnostics)
+}
+
+/// Whether the --noEmit command reports nothing beyond the config-file
+/// parsing diagnostics: the emitFilesAndReportErrors gate
+/// (_tsc.js:129433-129440) that admits `program.getDeclarationDiagnostics()`,
+/// decided on the checker's result before `run_inner` assembles its buckets.
+/// Every source those buckets draw from must be empty (sorting and
+/// deduplication never empty a bucket), so the test is exact; a partial
+/// check fails the command instead of reaching the getter.
+fn no_emit_report_is_clean(prepared: &PreparedProgram, checked: &CheckResult) -> bool {
+    let preparation = prepared.diagnostics();
+    checked.syntactic_diagnostics.is_empty()
+        && checked.partial_checks.is_empty()
+        && checked.global_diagnostics.is_empty()
+        && checked
+            .program_semantic_diagnostics
+            .as_ref()
+            .is_some_and(Vec::is_empty)
+        && preparation.options().is_empty()
+        && preparation.program().is_empty()
+        && programmatic_option_diagnostics(prepared).is_empty()
+        && prepared
+            .resolutions()
+            .type_references()
+            .all(|(_, resolution)| resolution.diagnostics().is_empty())
+        && prepared
+            .resolutions()
+            .modules()
+            .all(|(_, resolution)| resolution.diagnostics().is_empty())
+}
+
+/// `program.getDeclarationDiagnostics()` for the --noEmit command, over the
+/// checker sessions of the whole-Program check that just completed: each
+/// source is transformed for diagnostics by the shard that checked it, on
+/// the worker budget, and nothing is emitted. The declaration request is
+/// validated here, once the command's gate admits the getter, exactly as
+/// the explicit getter session validates it.
+fn no_emit_declaration_diagnostics(
+    prepared: &PreparedProgram,
+    emit_route: EmitRouteKind,
+    source_api_facts: &BTreeMap<SourceFileId, SourceApiFacts>,
+    snapshot: &ProgramSnapshot,
+    sessions: &[CheckerSession<'_>],
+    files_by_shard: &[Vec<usize>],
+    worker_budget: WorkerBudget,
+) -> Result<DiagnosticList, DriverError> {
+    let emit_host = PreparedEmitHost::new_for_route(prepared, emit_route, source_api_facts)?;
+    tsc_emitter::validate_declaration_diagnostics_request(&emit_host).map_err(DriverError::Emit)?;
+    let checked_host = CheckedEmitHost {
+        prepared: &emit_host,
+        snapshot,
+    };
+    let paths = tsc_emitter::PlanDeclarationPaths::for_declaration_diagnostics(&checked_host)
+        .map_err(DriverError::Emit)?;
+    let mut activity = H2ActivityCanary::h2_7e_profile();
+    sharded_declaration_diagnostics(
+        &checked_host,
+        &emit_host,
+        &paths,
+        sessions,
+        files_by_shard,
+        worker_budget,
+        &mut activity,
+    )
+    .map_err(DriverError::Emit)
 }
 
 /// Order pool jobs over the checker sessions: heaviest first within each
@@ -293,7 +359,7 @@ fn interleave_by_session<J>(
 /// tsc-port: getEmitDeclarations @6.0.3
 /// tsc-hash: f385c1e1ef2b314fab891cf63605d192e845fd49775c89849d96a7fa96389541
 /// tsc-span: _tsc.js:18151-18156
-fn get_emit_declarations(options: &CompilerOptions) -> bool {
+pub(crate) fn get_emit_declarations(options: &CompilerOptions) -> bool {
     options.declaration == Some(true) || options.composite == Some(true)
 }
 
@@ -1089,6 +1155,26 @@ impl ProgramSession {
         self.run_with_no_emit_canary(
             false,
             LibraryPrefixCompletion::Complete,
+            false,
+            &mut no_emit_canary,
+        )
+    }
+
+    /// The --noEmit command's report: the no-emit diagnostic pass of
+    /// [`run`](Self::run) plus, when the options request declarations
+    /// (getEmitDeclarations) and nothing beyond the config-file parsing
+    /// diagnostics is reported, `program.getDeclarationDiagnostics()` as
+    /// emitFilesAndReportErrors adds it (_tsc.js:129433-129440). The getter
+    /// runs over the same checker sessions: each source is transformed for
+    /// diagnostics by the shard that checked it, on the worker budget, and
+    /// nothing is emitted. `run` itself keeps H0's no-emitter contract.
+    pub fn run_no_emit_command(self) -> Result<NoEmitOutcome, DriverError> {
+        self.require_mode(PreparedProgramMode::NoEmit)?;
+        let mut no_emit_canary = no_emit_canary::NoEmitCanary::new();
+        self.run_with_no_emit_canary(
+            false,
+            LibraryPrefixCompletion::Complete,
+            true,
             &mut no_emit_canary,
         )
     }
@@ -1282,31 +1368,20 @@ impl ProgramSession {
             // tsc emitFilesAndReportErrors (_tsc.js:129433-129440): with noEmit
             // and getEmitDeclarations(options), program.getDeclarationDiagnostics()
             // joins the report after the semantic pass, only while nothing
-            // beyond the config-file parsing diagnostics was reported. run()
-            // keeps H0's separate no-emitter contract, so the getter uses a
-            // second consuming session over a clone of the prepared program,
-            // opened only when that gate holds.
-            let declaration_program = (options.no_emit == Some(true)
-                && get_emit_declarations(&options))
-            .then(|| self.prepared.clone());
-            let outcome = self.run()?;
-            // Preserve H0's separate typed execution and zero emitter activity.
-            // Only the upstream whole-program empty build-info return value is
-            // added for the command observer; no sink or resolver is invoked.
+            // beyond the config-file parsing diagnostics was reported; the
+            // command session runs that getter over its own checker sessions.
+            let outcome = self.run_no_emit_command()?;
+            // Preserve H0's separate typed execution: only the upstream
+            // whole-program empty build-info return value is added for the
+            // command observer; no sink is invoked.
             let emit =
                 EmitOutcome::no_emit_without_build_info(&options).map_err(DriverError::Emit)?;
-            let declaration_diagnostics = match declaration_program {
-                Some(prepared)
-                    if outcome.syntactic_diagnostics.is_empty()
-                        && outcome.options_diagnostics.is_empty()
-                        && additional_options_diagnostics.is_empty()
-                        && outcome.global_diagnostics.is_empty()
-                        && outcome.semantic_diagnostics.is_empty() =>
-                {
-                    ProgramSession::new(prepared)
-                        .get_declaration_diagnostics(EmitSelection::WholeProgram)?
-                }
-                _ => DiagnosticList::new(),
+            // The option rows supplied here close the declaration gate too;
+            // the session could not see them.
+            let declaration_diagnostics = if additional_options_diagnostics.is_empty() {
+                outcome.declaration_diagnostics
+            } else {
+                DiagnosticList::new()
             };
             let reported = CliEmitSessionOutcome {
                 emit,
@@ -1835,7 +1910,7 @@ impl ProgramSession {
                     match sharded_declaration_diagnostics(
                         &checked_host,
                         &emit_host,
-                        &preflight,
+                        preflight.declaration_paths(&checked_host),
                         sessions,
                         files_by_shard,
                         worker_budget,
@@ -2060,7 +2135,12 @@ impl ProgramSession {
     pub fn run_for_harness_with_lib_cache(self) -> Result<NoEmitOutcome, DriverError> {
         self.require_mode(PreparedProgramMode::NoEmit)?;
         let mut no_emit_canary = no_emit_canary::NoEmitCanary::new();
-        self.run_with_no_emit_canary(true, LibraryPrefixCompletion::Complete, &mut no_emit_canary)
+        self.run_with_no_emit_canary(
+            true,
+            LibraryPrefixCompletion::Complete,
+            false,
+            &mut no_emit_canary,
+        )
     }
 
     /// Conformance-runner execution: the lib-cache harness path with the
@@ -2083,6 +2163,7 @@ impl ProgramSession {
         self.run_with_no_emit_canary(
             true,
             LibraryPrefixCompletion::FixtureObservedOnly,
+            false,
             &mut no_emit_canary,
         )
     }
@@ -2091,9 +2172,15 @@ impl ProgramSession {
         self,
         harness_lib_cache: bool,
         library_prefix: LibraryPrefixCompletion,
+        declaration_getter: bool,
         no_emit_canary: &mut no_emit_canary::NoEmitCanary,
     ) -> Result<NoEmitOutcome, DriverError> {
-        self.run_inner(harness_lib_cache, library_prefix, no_emit_canary)
+        self.run_inner(
+            harness_lib_cache,
+            library_prefix,
+            declaration_getter,
+            no_emit_canary,
+        )
     }
 
     fn require_mode(&self, expected: PreparedProgramMode) -> Result<(), DriverError> {
@@ -2109,6 +2196,7 @@ impl ProgramSession {
         self,
         harness_lib_cache: bool,
         library_prefix: LibraryPrefixCompletion,
+        declaration_getter: bool,
         _no_emit_canary: &mut no_emit_canary::NoEmitCanary,
     ) -> Result<NoEmitOutcome, DriverError> {
         let inputs = project_checker_inputs(&self.prepared, &self.source_api_facts)?;
@@ -2117,6 +2205,14 @@ impl ProgramSession {
             prepared: &self.prepared,
             request_plans: std::sync::Mutex::new(BTreeMap::new()),
         };
+        // tsc emitFilesAndReportErrors (_tsc.js:129433-129440): the --noEmit
+        // command's declaration getter, requested by `run_no_emit_command`
+        // when the options ask for declarations.
+        let declaration_getter = declaration_getter
+            && !harness_lib_cache
+            && self.prepared.compiler_options().no_emit == Some(true)
+            && get_emit_declarations(self.prepared.compiler_options());
+        let mut declaration_diagnostics: Option<Result<DiagnosticList, DriverError>> = None;
         let checked = if harness_lib_cache {
             check_program_with_authoritative_modules_at_harness_cached(
                 &inputs.libs,
@@ -2127,6 +2223,87 @@ impl ProgramSession {
                 &inputs.current_directory,
                 &provider,
                 library_prefix,
+            )
+        } else if declaration_getter && !self.checker_budget.is_sharded() {
+            // One checker: the getter runs in the checked-session callback
+            // over that session, as the shard gate does per shard below.
+            let mut operation = |snapshot: &ProgramSnapshot,
+                                 session: &CheckerSession<'_>,
+                                 checked: &CheckResult| {
+                if no_emit_report_is_clean(&self.prepared, checked) {
+                    let started = std::time::Instant::now();
+                    let every_file = (0..snapshot.documents().len()).collect::<Vec<_>>();
+                    declaration_diagnostics = Some(no_emit_declaration_diagnostics(
+                        &self.prepared,
+                        self.emit_route,
+                        &self.source_api_facts,
+                        snapshot,
+                        std::slice::from_ref(session),
+                        std::slice::from_ref(&every_file),
+                        self.worker_budget,
+                    ));
+                    tsc_types::trace::mark(
+                        "checker: declaration diagnostics (one checker)",
+                        started,
+                    );
+                }
+            };
+            check_program_with_authoritative_modules_at_for_emit_with_workers(
+                &inputs.libs,
+                &inputs.files,
+                &inputs.lib_metadata,
+                &inputs.file_metadata,
+                self.prepared.compiler_options(),
+                &inputs.current_directory,
+                &provider,
+                self.worker_budget,
+                &mut operation,
+            )
+        } else if declaration_getter {
+            // The getter runs through the shard gate, while every shard's
+            // checker session is alive; the gate admits nothing to emit.
+            let mut gate = |snapshot: &ProgramSnapshot,
+                            checked: &CheckResult,
+                            sessions: &[CheckerSession<'_>],
+                            files_by_shard: &[Vec<usize>]|
+             -> bool {
+                if no_emit_report_is_clean(&self.prepared, checked) {
+                    let started = std::time::Instant::now();
+                    declaration_diagnostics = Some(no_emit_declaration_diagnostics(
+                        &self.prepared,
+                        self.emit_route,
+                        &self.source_api_facts,
+                        snapshot,
+                        sessions,
+                        files_by_shard,
+                        self.worker_budget,
+                    ));
+                    tsc_types::trace::mark("checker: declaration diagnostics (per shard)", started);
+                }
+                false
+            };
+            let emit = |_: &ProgramSnapshot,
+                        _: &[CheckerSession<'_>],
+                        _: &[Vec<usize>]|
+             -> Result<Vec<ShardEmission>, UnitEmitError> { Ok(Vec::new()) };
+            let mut sharded_emit = ShardedEmit {
+                gate: &mut gate,
+                emit: &emit,
+                emissions: None,
+            };
+            check_program_with_authoritative_modules_at_for_emit_with_checkers(
+                &inputs.libs,
+                &inputs.files,
+                &inputs.lib_metadata,
+                &inputs.file_metadata,
+                self.prepared.compiler_options(),
+                &inputs.current_directory,
+                &PreparedProviderFactory {
+                    prepared: &self.prepared,
+                },
+                self.worker_budget,
+                self.checker_budget,
+                &mut sharded_emit,
             )
         } else if self.checker_budget.is_sharded() {
             check_program_with_authoritative_modules_at_with_checkers(
@@ -2155,6 +2332,7 @@ impl ProgramSession {
             )
         }
         .map_err(|failure| map_authoritative_failure(&self.prepared, failure))?;
+        let declaration_diagnostics = declaration_diagnostics.transpose()?.unwrap_or_default();
         let checker_work = checked.work_counters;
         let work_counters = NoEmitWorkCounters {
             parsed_documents: checker_work.parsed_documents(),
@@ -2292,6 +2470,7 @@ impl ProgramSession {
             options_diagnostics,
             global_diagnostics,
             semantic_diagnostics,
+            declaration_diagnostics,
             conformance_diagnostics,
             work_counters,
             no_emit_activity: NoEmitActivityCounters,
@@ -2311,6 +2490,10 @@ pub struct NoEmitOutcome {
     options_diagnostics: DiagnosticList,
     global_diagnostics: DiagnosticList,
     semantic_diagnostics: DiagnosticList,
+    /// `program.getDeclarationDiagnostics()` of the --noEmit command
+    /// ([`ProgramSession::run_no_emit_command`]): empty for `run()` and
+    /// whenever the command's gate is closed.
+    declaration_diagnostics: DiagnosticList,
     // The legacy differential harness compares the aggregate of public
     // per-file getters, including suggestions. This stream is retained only
     // as evidence; diagnostics()/into_diagnostics intentionally exclude it.
@@ -2330,6 +2513,7 @@ impl PartialEq for NoEmitOutcome {
             && self.options_diagnostics == other.options_diagnostics
             && self.global_diagnostics == other.global_diagnostics
             && self.semantic_diagnostics == other.semantic_diagnostics
+            && self.declaration_diagnostics == other.declaration_diagnostics
             && self.conformance_diagnostics == other.conformance_diagnostics
     }
 }
@@ -2423,6 +2607,12 @@ impl NoEmitOutcome {
         &self.semantic_diagnostics
     }
 
+    /// The --noEmit command's declaration diagnostics
+    /// ([`ProgramSession::run_no_emit_command`]); empty otherwise.
+    pub fn declaration_diagnostics(&self) -> &[Diagnostic] {
+        &self.declaration_diagnostics
+    }
+
     /// Aggregate public-getter stream used only by differential conformance.
     /// It includes suggestions and is therefore not CLI output.
     pub fn conformance_diagnostics(&self) -> &[Diagnostic] {
@@ -2447,6 +2637,7 @@ impl NoEmitOutcome {
             .chain(&self.options_diagnostics)
             .chain(&self.global_diagnostics)
             .chain(&self.semantic_diagnostics)
+            .chain(&self.declaration_diagnostics)
     }
 
     /// Consume the outcome and flatten it in no-emit command bucket order.
@@ -2455,13 +2646,15 @@ impl NoEmitOutcome {
             + self.syntactic_diagnostics.len()
             + self.options_diagnostics.len()
             + self.global_diagnostics.len()
-            + self.semantic_diagnostics.len();
+            + self.semantic_diagnostics.len()
+            + self.declaration_diagnostics.len();
         let mut diagnostics = Vec::with_capacity(capacity);
         diagnostics.extend(self.config_diagnostics);
         diagnostics.extend(self.syntactic_diagnostics);
         diagnostics.extend(self.options_diagnostics);
         diagnostics.extend(self.global_diagnostics);
         diagnostics.extend(self.semantic_diagnostics);
+        diagnostics.extend(self.declaration_diagnostics);
         diagnostics
     }
 }

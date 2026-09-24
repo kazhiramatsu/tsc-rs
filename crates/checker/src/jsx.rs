@@ -1455,13 +1455,9 @@ impl<'a> CheckerState<'a> {
         });
         self.links
             .set_fresh_type_members(id, LinkSlot::Resolved(members));
-        // The anonymous type and its members are one semantic object,
-        // so construction is safe inside a candidate trial. The
-        // signature memo is a cold permanent cache, however: a failed
-        // candidate must not publish its trial-local TypeId.
-        if self.speculation_depth == 0 {
-            self.signature_mut(signature).isolated_signature_type = Some(id);
-        }
+        // The anonymous type and its members are one semantic object;
+        // the memo persists like tsc's signature.isolatedSignatureType.
+        self.signature_mut(signature).isolated_signature_type = Some(id);
         Ok(id)
     }
 

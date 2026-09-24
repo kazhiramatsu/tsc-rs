@@ -584,21 +584,6 @@ impl CheckerState<'_> {
             self.tsc_eager_iteration_capture_depth, checkpoint.tsc_eager_iteration_capture_depth,
             "a speculation transaction rolled back with an unbalanced reporting iteration capture"
         );
-        let tsc_eager_diagnostics =
-            self.tsc_eager_diagnostics[checkpoint.tsc_eager_diagnostics..].to_vec();
-        let tsc_eager_visible_global_diagnostics = self.tsc_eager_visible_global_diagnostics
-            [checkpoint.tsc_eager_visible_global_diagnostics..]
-            .to_vec();
-        let completed_contextual_diagnostics = retain_completed_semantics.then(|| {
-            self.completed_contextual_diagnostics[checkpoint.completed_contextual_diagnostics..]
-                .to_vec()
-        });
-        let completed_contextual_visible_global_diagnostics =
-            retain_completed_semantics.then(|| {
-                self.completed_contextual_visible_global_diagnostics
-                    [checkpoint.completed_contextual_visible_global_diagnostics..]
-                    .to_vec()
-            });
         if retain_completed_semantics {
             self.links
                 .commit_speculative_writes(checkpoint.speculative_links, checkpoint.depth - 1);
@@ -667,33 +652,19 @@ impl CheckerState<'_> {
         self.suggestion_count = checkpoint.suggestion_count;
         self.is_inference_partially_blocked = checkpoint.is_inference_partially_blocked;
 
-        // D: diagnostics sinks.
-        self.diagnostics.truncate(checkpoint.diagnostics);
-        self.visible_global_diagnostics
-            .truncate(checkpoint.visible_global_diagnostics);
-        for diagnostic in tsc_eager_diagnostics {
-            self.push_error_diagnostic(diagnostic);
-        }
-        for diagnostic in tsc_eager_visible_global_diagnostics {
-            if !self.visible_global_diagnostics.contains(&diagnostic) {
-                self.visible_global_diagnostics.push(diagnostic);
-            }
-        }
-        if let Some(diagnostics) = completed_contextual_diagnostics {
-            for diagnostic in diagnostics {
-                self.push_error_diagnostic(diagnostic);
-            }
-        } else {
+        // D: diagnostics sinks. tsc keeps every diagnostic a candidate
+        // reports (its collection deduplicates, and the candidate's node
+        // results persist), so the sinks are left as they are; the
+        // completed-contextual journals only track nesting.
+        let _ = (
+            checkpoint.diagnostics,
+            checkpoint.visible_global_diagnostics,
+            checkpoint.tsc_eager_diagnostics,
+            checkpoint.tsc_eager_visible_global_diagnostics,
+        );
+        if !retain_completed_semantics {
             self.completed_contextual_diagnostics
                 .truncate(checkpoint.completed_contextual_diagnostics);
-        }
-        if let Some(diagnostics) = completed_contextual_visible_global_diagnostics {
-            for diagnostic in diagnostics {
-                if !self.visible_global_diagnostics.contains(&diagnostic) {
-                    self.visible_global_diagnostics.push(diagnostic);
-                }
-            }
-        } else {
             self.completed_contextual_visible_global_diagnostics
                 .truncate(checkpoint.completed_contextual_visible_global_diagnostics);
         }
@@ -707,21 +678,12 @@ impl CheckerState<'_> {
             self.completed_contextual_diagnostics.clear();
             self.completed_contextual_visible_global_diagnostics.clear();
         }
-        self.partial_check_records
-            .truncate(checkpoint.partial_check_records);
-        let saved_ranges: HashMap<usize, usize> = checkpoint
-            .partially_checked_ranges
-            .iter()
-            .copied()
-            .collect();
-        self.partially_checked_ranges
-            .retain(|file, ranges| match saved_ranges.get(file) {
-                Some(&length) => {
-                    ranges.truncate(length);
-                    true
-                }
-                None => false,
-            });
+        // Partial-check records persist with the node results they
+        // describe: the fail-closed evidence follows the persisted checks.
+        let _ = (
+            checkpoint.partial_check_records,
+            &checkpoint.partially_checked_ranges,
+        );
         self.elaborated_satisfies_expressions =
             std::mem::take(&mut checkpoint.elaborated_satisfies_expressions);
         self.potential_this_collisions

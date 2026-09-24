@@ -2659,15 +2659,13 @@ impl PreparedProgramBuilder {
         }
 
         match original_path {
-            None if matches_package_redirect => Ok(()),
-            Some(original) if matches_package_redirect => Err(PreparationError::new_js(
-                PreparationErrorKind::InvalidData,
-                operation,
-                Some(original.display()),
-                format!(
-                    "{label} combines package redirection with an unowned lexical symlink path"
-                ),
-            )),
+            // A duplicate of an already loaded package (same package id at
+            // another physical path, as pnpm's peer-suffixed installs of one
+            // version produce) redirects to the loaded source whether the
+            // resolution reached it directly or through a symlinked
+            // node_modules entry; the lexical path stays on the record, as
+            // tsc keeps resolvedModule.originalPath beside the redirect.
+            None | Some(_) if matches_package_redirect => Ok(()),
             Some(original)
                 if original.canonical() == program_path
                     && distinct_real == Some(target.canonical())

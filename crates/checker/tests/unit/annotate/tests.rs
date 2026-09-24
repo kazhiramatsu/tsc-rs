@@ -512,7 +512,11 @@ fn resolved_conditional_and_unresolved_name_shapes_are_sound() {
 }
 
 #[test]
-fn type_node_resolution_is_trial_local_under_speculation() {
+fn type_node_resolution_persists_across_a_rolled_back_trial() {
+    // tsc caches `links.resolvedType` in any check mode and never clears
+    // it: a resolution a candidate completed stays published after the
+    // candidate is discarded, and the next use is a cache hit on the same
+    // type (unwinding it re-resolved and re-instantiated on every later use).
     with_state("declare var a: 1 | 2;\n", |state| {
         let annotation = find_probe_annotation(state.binder.source(0), "a")
             .expect("declared var with annotation");
@@ -528,7 +532,7 @@ fn type_node_resolution_is_trial_local_under_speculation() {
             .expect("trial resolves");
         assert!(matches!(
             state.links.node(annotation).resolved_type,
-            LinkSlot::Vacant
+            LinkSlot::Resolved(cached) if cached == resolved
         ));
         assert_eq!(annotation_type(state, "a"), resolved);
     });

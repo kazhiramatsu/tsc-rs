@@ -573,18 +573,12 @@ impl<'a> CheckerState<'a> {
                 },
             );
         }
-        // The flag and equivalent-base slot are both monotone links.  A
-        // relation candidate may reach this helper speculatively; publishing
-        // either value there would escape the candidate transaction (the
-        // links table deliberately rejects such writes).  Compute the value
-        // for that candidate, but publish the cache only on the ordinary
-        // non-speculative path.
-        let speculative = self.speculation_depth != 0;
-        if !speculative {
-            let with_calculated = self.tables.object_flags_of(ty).bits()
-                | ObjectFlags::IDENTICAL_BASE_TYPE_CALCULATED.bits();
-            self.tables.type_mut(ty).object_flags = ObjectFlags::from_bits(with_calculated);
-        }
+        // The flag and equivalent-base slot are both monotone links that
+        // persist from a relation candidate too (tsc marks the type once).
+        let speculative = false;
+        let with_calculated = self.tables.object_flags_of(ty).bits()
+            | ObjectFlags::IDENTICAL_BASE_TYPE_CALCULATED.bits();
+        self.tables.type_mut(ty).object_flags = ObjectFlags::from_bits(with_calculated);
         if self
             .tables
             .type_of(target)
@@ -1407,6 +1401,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         head_message: Option<&'static DiagnosticMessage>,
         intersection_state: IntersectionState,
     ) -> CheckResult<Ternary> {
+        self.st.profile_ops[crate::line_profile::OP_RELATIONS] += 1;
         if original_source == original_target {
             return Ok(Ternary::TRUE);
         }

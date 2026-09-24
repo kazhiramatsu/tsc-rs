@@ -488,12 +488,8 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        // The reduction is a pure cold cache. Candidate checking may
-        // consume the computed answer but must not publish it beyond
-        // the speculation boundary.
-        if self.speculation_depth == 0 {
-            self.subtype_reduction_cache.insert(id, types.clone());
-        }
+        // The reduction is a pure cache (tsc's subtypeReductionCache).
+        self.subtype_reduction_cache.insert(id, types.clone());
         Ok(Some(types))
     }
 

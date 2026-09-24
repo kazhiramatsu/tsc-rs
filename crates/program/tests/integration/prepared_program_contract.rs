@@ -809,9 +809,12 @@ fn resolved_module_target_and_extension_metadata_are_validated_exactly() {
         .unwrap_err();
     assert_eq!(error.kind(), PreparationErrorKind::InvalidData);
 
-    let (mut mismatched_extension, target) =
+    // tsc's tryAddingExtensions records the extension it appended: a
+    // `./dep.d.js` specifier reaches `dep.d.ts` with extension `.ts`, and
+    // the program admits that record.
+    let (mut declaration_reached_as_ts, target) =
         owned_target_builder(path("/Work/dep.d.ts", "/work/dep.d.ts"));
-    let error = mismatched_extension
+    declaration_reached_as_ts
         .add_module_resolution(
             key(),
             Ok(ModuleResolution::resolved(ResolvedModule::new(
@@ -822,8 +825,7 @@ fn resolved_module_target_and_extension_metadata_are_validated_exactly() {
                 ModuleExtension::Ts,
             ))),
         )
-        .unwrap_err();
-    assert_eq!(error.kind(), PreparationErrorKind::InvalidData);
+        .expect("a `.ts` record on a declaration path is tsc's own classification");
 
     let mut unloaded_targets = builder();
     let source = unloaded_targets

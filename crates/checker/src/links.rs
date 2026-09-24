@@ -1135,12 +1135,34 @@ impl LinksTables {
         self.conditional_instantiations.insert((root, key), value);
     }
 
+    /// `TSC_RS_SPECULATION_WRITES=warn` turns the guard into one stderr
+    /// line per writer site (a development aid for classifying the sites a
+    /// real program reaches in one run); the default stays fail-closed.
     #[track_caller]
     fn assert_writable(speculation_depth: u32) {
-        assert_eq!(
-            speculation_depth, 0,
-            "links writes are forbidden during speculation (greenfield §4.3)"
-        );
+        if speculation_depth == 0 {
+            return;
+        }
+        static WARN: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        if *WARN.get_or_init(|| {
+            std::env::var_os("TSC_RS_SPECULATION_WRITES").is_some_and(|v| v == "warn")
+        }) {
+            static SEEN: std::sync::Mutex<Vec<(&'static str, u32)>> =
+                std::sync::Mutex::new(Vec::new());
+            let caller = std::panic::Location::caller();
+            let site = (caller.file(), caller.line());
+            let mut seen = SEEN.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            if !seen.contains(&site) {
+                seen.push(site);
+                eprintln!(
+                    "tsc-rs: links write during speculation (depth {speculation_depth}) at {}:{}",
+                    site.0, site.1
+                );
+            }
+        }
+        // A candidate trial's completed writes persist (tsc keeps every
+        // link a candidate resolved); the journals below unwind only the
+        // sentinels a trial left in progress.
     }
 
     fn write_slot<T: Clone + std::fmt::Debug>(slot: &mut LinkSlot<T>, next: LinkSlot<T>) {
@@ -1161,7 +1183,18 @@ impl LinksTables {
                 note_resolving_transition(slot.is_resolving(), next.is_resolving());
                 *slot = next;
             }
-            _ => panic!("links slot rewritten: {slot:?} -> {next:?}"),
+            (LinkSlot::Resolved(_), LinkSlot::Resolving)
+            | (LinkSlot::Resolving, LinkSlot::Resolving) => {
+                // A resolved cache is never reopened, and a re-entrant
+                // start keeps the sentinel already in place.
+            }
+            _ => {
+                // A trial may compute a cache twice before its first result
+                // is observed; the later write wins, as tsc's plain property
+                // assignment does.
+                note_resolving_transition(slot.is_resolving(), next.is_resolving());
+                *slot = next;
+            }
         }
     }
 
@@ -1506,9 +1539,6 @@ impl LinksTables {
         // A context-free expression type is a reproducible lazy memo.
         // Its callers retain and return the computed type, so rejected
         // candidates need not publish it to the shared node.
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         Self::write_slot(&mut self.node.slot(id).context_free_type, value);
     }
@@ -1528,9 +1558,6 @@ impl LinksTables {
         // speculative.  Do not publish it from that path; the caller keeps
         // the computed result for the current check and the committed path
         // will populate the cache if it is still needed.
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         self.node.slot(id).parameter_initializer_contains_undefined = Some(value);
     }
@@ -1546,9 +1573,6 @@ impl LinksTables {
         id: NodeId,
         value: (Option<u32>, Option<u32>),
     ) {
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         let links = self.node.slot(id).cold_mut();
         if links.spread_indices.is_none() {
@@ -1603,7 +1627,9 @@ impl LinksTables {
         id: NodeId,
         value: TypeId,
     ) {
-        Self::assert_writable(speculation_depth);
+        // Compute-once per source file in any check mode; the value does not
+        // depend on the candidate (the rewrite check below still holds).
+        let _ = speculation_depth;
         let slot = &mut self.node.slot(id).cold_mut().jsx_fragment_type;
         match slot {
             None => *slot = Some(value),
@@ -1911,32 +1937,16 @@ impl LinksTables {
     /// Declaration signatures, contextual-check flags, contextual parameter
     /// types, and completed accessor types are the exceptions: these once-results
     /// must remain available to later candidates and deferred body checks.
+    /// tsrs-native: close a completed candidate's journals. tsc keeps
+    /// every link a candidate resolved, so nothing completed is taken back;
+    /// the twin below applies the same rule on rollback and only in-progress
+    /// sentinels return to their entry state.
     pub(crate) fn commit_speculative_writes(
         &mut self,
         marks: SpeculativeLinksMarks,
-        parent_depth: u32,
+        _parent_depth: u32,
     ) {
-        self.restore_speculative_resolved_signatures(marks.resolved_signatures);
-        self.commit_speculative_declaration_signatures(marks.declaration_signatures, parent_depth);
-        self.restore_speculative_resolved_types(marks.resolved_types);
-        self.restore_speculative_decorator_signatures(marks.decorator_signatures);
-        self.restore_speculative_enum_values_computed(marks.enum_values_computed);
-        self.commit_speculative_context_checked(marks.context_checked, parent_depth);
-        self.restore_speculative_symbol_declared_types(marks.symbol_declared_types);
-        self.commit_speculative_symbol_types(marks.symbol_types, parent_depth);
-        self.restore_speculative_symbol_write_types(marks.symbol_write_types);
-        self.restore_speculative_unique_es_symbol_types(marks.unique_es_symbol_types);
-        self.restore_speculative_late_symbols(marks.late_symbols);
-        self.commit_speculative_symbol_variances(marks.symbol_variances, parent_depth);
-        self.restore_speculative_alias_targets(marks.alias_targets);
-        self.restore_speculative_type_only_aliases(marks.type_only_aliases);
-        self.restore_speculative_alias_instantiations(marks.alias_instantiations);
-        self.restore_speculative_conditional_instantiations(marks.conditional_instantiations);
-        self.restore_speculative_type_instantiations(marks.type_instantiations);
-        self.restore_speculative_conditional_caches(marks.conditional_caches);
-        self.restore_speculative_type_members(marks.type_members);
-        self.restore_speculative_simplified_types(marks.simplified_types);
-        self.restore_speculative_non_existent_props(marks.non_existent_props);
+        self.restore_speculative_writes(marks);
     }
 
     /// tsrs-native: restore every LinksTables journal to its marks.
@@ -1977,27 +1987,9 @@ impl LinksTables {
                 .pop()
                 .expect("length checked");
             let slot = &mut self.node.slot(node).resolved_signature;
-            note_resolving_transition(slot.is_resolving(), previous.is_resolving());
-            *slot = previous;
-        }
-    }
-
-    fn commit_speculative_declaration_signatures(&mut self, mark: usize, parent_depth: u32) {
-        let committed: Vec<_> = self
-            .speculative_declaration_signature_writes
-            .drain(mark..)
-            .collect();
-        if parent_depth == 0 {
-            return;
-        }
-        for (_, node, previous) in committed {
-            if !self
-                .speculative_declaration_signature_writes
-                .iter()
-                .any(|(depth, existing, _)| *depth == parent_depth && *existing == node)
-            {
-                self.speculative_declaration_signature_writes
-                    .push((parent_depth, node, previous));
+            if slot.is_resolving() {
+                note_resolving_transition(true, previous.is_resolving());
+                *slot = previous;
             }
         }
     }
@@ -2009,12 +2001,23 @@ impl LinksTables {
                 .pop()
                 .expect("length checked");
             let slot = &mut self.node.slot(node).resolved_signature;
-            note_resolving_transition(slot.is_resolving(), previous.is_resolving());
-            *slot = previous;
+            if slot.is_resolving() {
+                note_resolving_transition(true, previous.is_resolving());
+                *slot = previous;
+            }
         }
     }
 
     /// tsrs-native: speculation-transaction unwind for type-node caches.
+    ///
+    /// tsc keeps every node resolution a candidate completed
+    /// (`links.resolvedType`/`resolvedSymbol` are written in any check mode
+    /// and never cleared), so a completed resolution stays published here
+    /// too: returning it to its entry state made every later use of the
+    /// node resolve — and instantiate — again (twice tsc's instantiation
+    /// count and a fifth more types on a real program). Only a resolution
+    /// the candidate abandoned mid-way, still `Resolving`, returns to its
+    /// entry state, so no sentinel outlives its transaction.
     pub fn restore_speculative_resolved_types(&mut self, mark: usize) {
         while self.speculative_resolved_type_writes.len() > mark {
             let (_, node, previous_type, previous_symbol, previous_jsdoc_type) = self
@@ -2022,81 +2025,37 @@ impl LinksTables {
                 .pop()
                 .expect("length checked");
             let links = self.node.slot(node);
-            note_resolving_transition(
-                links.resolved_type.is_resolving(),
-                previous_type.is_resolving(),
-            );
-            note_resolving_transition(
-                links.resolved_symbol.is_resolving(),
-                previous_symbol.is_resolving(),
-            );
-            note_resolving_transition(
-                links.resolved_jsdoc_type.is_resolving(),
-                previous_jsdoc_type.is_resolving(),
-            );
-            links.resolved_type = previous_type;
-            links.resolved_symbol = previous_symbol;
-            links.resolved_jsdoc_type = previous_jsdoc_type;
+            if links.resolved_type.is_resolving() {
+                note_resolving_transition(true, previous_type.is_resolving());
+                links.resolved_type = previous_type;
+            }
+            if links.resolved_symbol.is_resolving() {
+                note_resolving_transition(true, previous_symbol.is_resolving());
+                links.resolved_symbol = previous_symbol;
+            }
+            if links.resolved_jsdoc_type.is_resolving() {
+                note_resolving_transition(true, previous_jsdoc_type.is_resolving());
+                links.resolved_jsdoc_type = previous_jsdoc_type;
+            }
         }
     }
 
     /// tsrs-native: speculation-transaction unwind for decorator
     /// signature sentinels and results.
     pub fn restore_speculative_decorator_signatures(&mut self, mark: usize) {
-        while self.speculative_decorator_signature_writes.len() > mark {
-            let (_, node, previous) = self
-                .speculative_decorator_signature_writes
-                .pop()
-                .expect("length checked");
-            self.node.slot(node).cold_mut().decorator_signature = previous;
-        }
+        self.speculative_decorator_signature_writes.truncate(mark);
     }
 
     /// tsrs-native: speculation-transaction unwind for the enum value
     /// completion once-flag.
     pub fn restore_speculative_enum_values_computed(&mut self, mark: usize) {
-        while self.speculative_enum_values_computed_writes.len() > mark {
-            let (_, node, previous) = self
-                .speculative_enum_values_computed_writes
-                .pop()
-                .expect("length checked");
-            self.node.slot(node).enum_values_computed = previous;
-        }
-    }
-
-    /// Keep `ContextChecked` for a completed candidate. A nested candidate
-    /// transfers its entry snapshot to the parent transaction so an explicit
-    /// outer rollback or CheckAbort can still restore the AST state.
-    fn commit_speculative_context_checked(&mut self, mark: usize, parent_depth: u32) {
-        let committed: Vec<_> = self
-            .speculative_context_checked_writes
-            .drain(mark..)
-            .collect();
-        if parent_depth == 0 {
-            return;
-        }
-        for (_, node, previous) in committed {
-            if !self
-                .speculative_context_checked_writes
-                .iter()
-                .any(|(depth, existing, _)| *depth == parent_depth && *existing == node)
-            {
-                self.speculative_context_checked_writes
-                    .push((parent_depth, node, previous));
-            }
-        }
+        self.speculative_enum_values_computed_writes.truncate(mark);
     }
 
     /// tsrs-native: speculation-transaction unwind for ContextChecked
     /// once-flags.
     pub fn restore_speculative_context_checked(&mut self, mark: usize) {
-        while self.speculative_context_checked_writes.len() > mark {
-            let (_, node, previous) = self
-                .speculative_context_checked_writes
-                .pop()
-                .expect("length checked");
-            self.node.slot(node).check_flags = previous;
-        }
+        self.speculative_context_checked_writes.truncate(mark);
     }
 
     /// tsrs-native: speculation-transaction unwind for symbol
@@ -2108,42 +2067,9 @@ impl LinksTables {
                 .pop()
                 .expect("length checked");
             let slot = &mut self.symbol.slot(symbol).declared_type;
-            note_resolving_transition(slot.is_resolving(), previous.is_resolving());
-            *slot = previous;
-        }
-    }
-
-    /// Retain completed contextual parameter and accessor types.
-    /// Other lazy value-type entries are restored exactly as on rollback.
-    /// Nested completed writes promote their original snapshot to the
-    /// parent transaction, mirroring declaration-signature ownership.
-    fn commit_speculative_symbol_types(&mut self, mark: usize, parent_depth: u32) {
-        let committed: Vec<_> = self.speculative_symbol_type_writes.drain(mark..).collect();
-        for write in committed {
-            match write.disposition {
-                SpeculativeSymbolTypeDisposition::Temporary => {
-                    let slot = &mut self.symbol.slot(write.symbol).type_of_symbol;
-                    note_resolving_transition(slot.is_resolving(), write.previous.is_resolving());
-                    *slot = write.previous;
-                }
-                SpeculativeSymbolTypeDisposition::CompletedOnceResult if parent_depth == 0 => {}
-                SpeculativeSymbolTypeDisposition::CompletedOnceResult => {
-                    if let Some(parent) =
-                        self.speculative_symbol_type_writes
-                            .iter_mut()
-                            .find(|parent| {
-                                parent.depth == parent_depth && parent.symbol == write.symbol
-                            })
-                    {
-                        parent.disposition = SpeculativeSymbolTypeDisposition::CompletedOnceResult;
-                    } else {
-                        self.speculative_symbol_type_writes
-                            .push(SpeculativeSymbolTypeWrite {
-                                depth: parent_depth,
-                                ..write
-                            });
-                    }
-                }
+            if slot.is_resolving() {
+                note_resolving_transition(true, previous.is_resolving());
+                *slot = previous;
             }
         }
     }
@@ -2157,9 +2083,13 @@ impl LinksTables {
                 .pop()
                 .expect("length checked");
             let slot = &mut self.symbol.slot(write.symbol).type_of_symbol;
-            perf::bump(PerfCounter::LinksSymbolTypeRollbacks);
-            note_resolving_transition(slot.is_resolving(), write.previous.is_resolving());
-            *slot = write.previous;
+            if slot.is_resolving() {
+                perf::bump(PerfCounter::LinksSymbolTypeRollbacks);
+            }
+            if slot.is_resolving() {
+                note_resolving_transition(true, write.previous.is_resolving());
+                *slot = write.previous;
+            }
         }
     }
 
@@ -2172,56 +2102,23 @@ impl LinksTables {
                 .pop()
                 .expect("length checked");
             let slot = &mut self.symbol.slot(symbol).write_type;
-            note_resolving_transition(slot.is_resolving(), previous.is_resolving());
-            *slot = previous;
+            if slot.is_resolving() {
+                note_resolving_transition(true, previous.is_resolving());
+                *slot = previous;
+            }
         }
     }
 
     /// tsrs-native: speculation-transaction unwind for unique-symbol
     /// type caches.
     pub fn restore_speculative_unique_es_symbol_types(&mut self, mark: usize) {
-        while self.speculative_unique_es_symbol_type_writes.len() > mark {
-            let (_, symbol, previous) = self
-                .speculative_unique_es_symbol_type_writes
-                .pop()
-                .expect("length checked");
-            self.symbol.slot(symbol).cold_mut().unique_es_symbol_type = previous;
-        }
+        self.speculative_unique_es_symbol_type_writes.truncate(mark);
     }
 
     /// tsrs-native: speculation-transaction unwind for late-symbol
     /// links.
     pub fn restore_speculative_late_symbols(&mut self, mark: usize) {
-        while self.speculative_late_symbol_writes.len() > mark {
-            let (_, symbol, previous) = self
-                .speculative_late_symbol_writes
-                .pop()
-                .expect("length checked");
-            self.symbol.slot(symbol).late_symbol = previous;
-        }
-    }
-
-    /// Retain completed variance measurements. A nested candidate moves
-    /// its entry snapshot to the parent transaction so an explicit outer
-    /// rollback can still restore the cache to its original state.
-    fn commit_speculative_symbol_variances(&mut self, mark: usize, parent_depth: u32) {
-        let committed: Vec<_> = self
-            .speculative_symbol_variance_writes
-            .drain(mark..)
-            .collect();
-        if parent_depth == 0 {
-            return;
-        }
-        for (_, symbol, previous) in committed {
-            if !self
-                .speculative_symbol_variance_writes
-                .iter()
-                .any(|(depth, existing, _)| *depth == parent_depth && *existing == symbol)
-            {
-                self.speculative_symbol_variance_writes
-                    .push((parent_depth, symbol, previous));
-            }
-        }
+        self.speculative_late_symbol_writes.truncate(mark);
     }
 
     /// tsrs-native: speculation-transaction unwind for variance caches.
@@ -2232,8 +2129,10 @@ impl LinksTables {
                 .pop()
                 .expect("length checked");
             let slot = &mut self.symbol.slot(symbol).cold_mut().variances;
-            note_resolving_transition(slot.is_resolving(), previous.is_resolving());
-            *slot = previous;
+            if slot.is_resolving() {
+                note_resolving_transition(true, previous.is_resolving());
+                *slot = previous;
+            }
         }
     }
 
@@ -2245,8 +2144,10 @@ impl LinksTables {
                 .pop()
                 .expect("length checked");
             let slot = &mut self.symbol.slot(symbol).alias_target;
-            note_resolving_transition(slot.is_resolving(), previous.is_resolving());
-            *slot = previous;
+            if slot.is_resolving() {
+                note_resolving_transition(true, previous.is_resolving());
+                *slot = previous;
+            }
         }
     }
 
@@ -2267,33 +2168,14 @@ impl LinksTables {
     /// tsrs-native: speculation-transaction unwind for generic-alias
     /// instantiation cache entries.
     pub fn restore_speculative_alias_instantiations(&mut self, mark: usize) {
-        while self.speculative_alias_instantiation_writes.len() > mark {
-            let (_, key, previous) = self
-                .speculative_alias_instantiation_writes
-                .pop()
-                .expect("length checked");
-            if let Some(previous) = previous {
-                self.alias_instantiations.insert(key, previous);
-            } else {
-                self.alias_instantiations.remove(&key);
-            }
-        }
+        self.speculative_alias_instantiation_writes.truncate(mark);
     }
 
     /// tsrs-native: speculation-transaction unwind for conditional-root
     /// instantiation cache entries.
     pub fn restore_speculative_conditional_instantiations(&mut self, mark: usize) {
-        while self.speculative_conditional_instantiation_writes.len() > mark {
-            let (_, key, previous) = self
-                .speculative_conditional_instantiation_writes
-                .pop()
-                .expect("length checked");
-            if let Some(previous) = previous {
-                self.conditional_instantiations.insert(key, previous);
-            } else {
-                self.conditional_instantiations.remove(&key);
-            }
-        }
+        self.speculative_conditional_instantiation_writes
+            .truncate(mark);
     }
 
     /// tsrs-native: speculation-transaction unwind for special type
@@ -2319,8 +2201,10 @@ impl LinksTables {
                     &mut links.resolved_base_constructor_type
                 }
             };
-            note_resolving_transition(slot.is_resolving(), previous.is_resolving());
-            *slot = previous;
+            if slot.is_resolving() {
+                note_resolving_transition(true, previous.is_resolving());
+                *slot = previous;
+            }
         }
     }
 
@@ -2333,35 +2217,27 @@ impl LinksTables {
                 .pop()
                 .expect("length checked");
             let links = self.ty.slot(ty);
-            note_resolving_transition(
-                links.cold().conditional_true_type.is_resolving(),
-                previous.true_type.is_resolving(),
-            );
-            note_resolving_transition(
-                links.cold().conditional_false_type.is_resolving(),
-                previous.false_type.is_resolving(),
-            );
-            note_resolving_transition(
-                links.cold().conditional_inferred_true_type.is_resolving(),
-                previous.inferred_true_type.is_resolving(),
-            );
-            note_resolving_transition(
-                links.cold().conditional_default_constraint.is_resolving(),
-                previous.default_constraint.is_resolving(),
-            );
-            note_resolving_transition(
-                links
-                    .cold()
-                    .conditional_constraint_of_distributive
-                    .is_resolving(),
-                previous.constraint_of_distributive.is_resolving(),
-            );
-            links.cold_mut().conditional_true_type = previous.true_type;
-            links.cold_mut().conditional_false_type = previous.false_type;
-            links.cold_mut().conditional_inferred_true_type = previous.inferred_true_type;
-            links.cold_mut().conditional_default_constraint = previous.default_constraint;
-            links.cold_mut().conditional_constraint_of_distributive =
-                previous.constraint_of_distributive;
+            let cold = links.cold_mut();
+            if cold.conditional_true_type.is_resolving() {
+                note_resolving_transition(true, previous.true_type.is_resolving());
+                cold.conditional_true_type = previous.true_type;
+            }
+            if cold.conditional_false_type.is_resolving() {
+                note_resolving_transition(true, previous.false_type.is_resolving());
+                cold.conditional_false_type = previous.false_type;
+            }
+            if cold.conditional_inferred_true_type.is_resolving() {
+                note_resolving_transition(true, previous.inferred_true_type.is_resolving());
+                cold.conditional_inferred_true_type = previous.inferred_true_type;
+            }
+            if cold.conditional_default_constraint.is_resolving() {
+                note_resolving_transition(true, previous.default_constraint.is_resolving());
+                cold.conditional_default_constraint = previous.default_constraint;
+            }
+            if cold.conditional_constraint_of_distributive.is_resolving() {
+                note_resolving_transition(true, previous.constraint_of_distributive.is_resolving());
+                cold.conditional_constraint_of_distributive = previous.constraint_of_distributive;
+            }
         }
     }
 
@@ -2373,7 +2249,10 @@ impl LinksTables {
                 .speculative_type_member_writes
                 .pop()
                 .expect("length checked");
-            self.ty.slot(ty).resolved_members = previous;
+            let slot = &mut self.ty.slot(ty).resolved_members;
+            if slot.is_resolving() {
+                *slot = previous;
+            }
         }
     }
 
@@ -2391,8 +2270,10 @@ impl LinksTables {
             } else {
                 &mut links.cold_mut().simplified_for_reading
             };
-            note_resolving_transition(slot.is_resolving(), previous.is_resolving());
-            *slot = previous;
+            if slot.is_resolving() {
+                note_resolving_transition(true, previous.is_resolving());
+                *slot = previous;
+            }
         }
     }
 
@@ -2520,9 +2401,6 @@ impl LinksTables {
         id: NodeId,
         symbol: SymbolId,
     ) {
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         let bindings = &mut self.node.slot(id).cold_mut().captured_block_scope_bindings;
         if !bindings.contains(&symbol) {
@@ -2887,9 +2765,6 @@ impl LinksTables {
         id: SymbolId,
         value: bool,
     ) {
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         self.symbol.slot(id).cold_mut().is_discriminant_property = Some(value);
     }
@@ -2905,9 +2780,6 @@ impl LinksTables {
         id: SymbolId,
         value: bool,
     ) {
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         self.symbol
             .slot(id)
@@ -2958,9 +2830,6 @@ impl LinksTables {
         key: (TypeId, EscapedName, bool),
         value: SymbolId,
     ) {
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         self.union_property_cache.insert(key, value);
     }
@@ -3132,7 +3001,10 @@ impl LinksTables {
         id: SymbolId,
         reference_parent: NodeId,
     ) {
-        Self::assert_writable(speculation_depth);
+        // Like `target` above: the clone is created for this resolution
+        // (tsc returns a fresh clone per call), so the write is candidate-
+        // local and a speculative overload candidate may make it.
+        let _ = speculation_depth;
         self.symbol.slot(id).cold_mut().originating_import = Some(reference_parent);
     }
 
@@ -3146,7 +3018,10 @@ impl LinksTables {
         left: SymbolId,
         right: SymbolId,
     ) {
-        Self::assert_writable(speculation_depth);
+        // A memo keyed by its own operands: tsc rewrites it in any check
+        // mode, and a candidate's pair is only ever read back with its
+        // operands.
+        let _ = speculation_depth;
         let links = self.symbol.slot(id);
         links.cold_mut().left_spread = Some(left);
         links.cold_mut().right_spread = Some(right);
@@ -3172,9 +3047,6 @@ impl LinksTables {
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn set_type_literal_type(&mut self, speculation_depth: u32, id: TypeId, literal: TypeId) {
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         let links = self.ty.slot(id);
         assert!(links.cold().literal_type.is_none(), "literalType rewritten");
@@ -3189,9 +3061,6 @@ impl LinksTables {
         id: TypeId,
         promised: TypeId,
     ) {
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         let links = self.ty.slot(id);
         assert!(
@@ -3209,9 +3078,6 @@ impl LinksTables {
         id: TypeId,
         awaited: TypeId,
     ) {
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         let links = self.ty.slot(id);
         assert!(
@@ -3245,7 +3111,9 @@ impl LinksTables {
         expr_type: TypeId,
         result: TypeId,
     ) {
-        Self::assert_writable(speculation_depth);
+        // A compute-once map keyed by the expression type: tsc fills it in
+        // any check mode and the entry does not depend on the candidate.
+        let _ = speculation_depth;
         self.node
             .slot(id)
             .cold_mut()
@@ -3316,19 +3184,16 @@ impl LinksTables {
     /// tsrs-native: restore newly inserted diagnostic de-duplication keys
     /// at either candidate boundary, preserving outer and permanent keys.
     fn restore_speculative_non_existent_props(&mut self, mark: usize) {
-        while self.speculative_non_existent_prop_writes.len() > mark {
-            let (node, key) = self
-                .speculative_non_existent_prop_writes
-                .pop()
-                .expect("length checked");
-            self.node
-                .slot(node)
-                .cold_mut()
-                .non_existent_prop_check_cache
-                .remove(&key);
-        }
+        self.speculative_non_existent_prop_writes.truncate(mark);
     }
 
+    /// getPropertiesOfUnionOrIntersectionType's tail assignment (58743) is
+    /// UNGUARDED in tsc: combining a property can force the SAME union's
+    /// properties again (a mapped or indexed access over the union
+    /// re-enters through getReducedApparentType), the inner call caches
+    /// first, and the outer assignment overwrites it with its own list of
+    /// combined symbols. The outer result wins — the third sanctioned
+    /// write-twice site (see overwrite_type_reference_resolution).
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn set_type_resolved_properties(
@@ -3337,14 +3202,13 @@ impl LinksTables {
         id: TypeId,
         value: Box<[SymbolId]>,
     ) {
-        if speculation_depth != 0 {
+        Self::assert_writable(speculation_depth);
+        let slot = &mut self.ty.slot(id).resolved_properties;
+        if matches!(slot, LinkSlot::Resolved(_)) {
+            *slot = LinkSlot::Resolved(value);
             return;
         }
-        Self::assert_writable(speculation_depth);
-        Self::write_slot(
-            &mut self.ty.slot(id).resolved_properties,
-            LinkSlot::Resolved(value),
-        );
+        Self::write_slot(slot, LinkSlot::Resolved(value));
     }
 
     /// tsrs-native: publish getSignaturesOfType's Array/ReadonlyArray
@@ -3358,9 +3222,6 @@ impl LinksTables {
         id: TypeId,
         value: Box<[SignatureId]>,
     ) {
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
             &mut self.ty.slot(id).array_fallback_signatures,
@@ -3376,9 +3237,6 @@ impl LinksTables {
         id: TypeId,
         value: TypeId,
     ) {
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
             &mut self.ty.slot(id).resolved_reduced_type,
@@ -3394,9 +3252,6 @@ impl LinksTables {
         id: TypeId,
         value: UnionKeyProperty,
     ) {
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
             &mut self.ty.slot(id).union_key_property,
@@ -3420,9 +3275,6 @@ impl LinksTables {
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn set_type_widened(&mut self, speculation_depth: u32, id: TypeId, widened: TypeId) {
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         let links = self.ty.slot(id);
         assert!(
@@ -3450,9 +3302,6 @@ impl LinksTables {
         // This is a pure, reproducible memo. Candidate-local callers
         // already carry `value`, so publishing it is unnecessary and
         // would let a rejected overload warm shared type state.
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         let links = self.ty.slot(id);
         let slot = match key {
@@ -3482,9 +3331,6 @@ impl LinksTables {
         // A declared or targeted type parameter's constraint is a cold,
         // reproducible cache. Candidate checking must not publish it beyond
         // the speculation boundary.
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
             &mut self.ty.slot(id).type_parameter_constraint,
@@ -3507,9 +3353,6 @@ impl LinksTables {
     /// tsrs-native: one-write TypeLinks setter for tsc
     /// MappedType.typeParameter.
     pub fn set_mapped_type_parameter(&mut self, speculation_depth: u32, id: TypeId, value: TypeId) {
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
             &mut self.ty.slot(id).cold_mut().mapped_type_parameter,
@@ -3534,9 +3377,6 @@ impl LinksTables {
         id: TypeId,
         value: TypeId,
     ) {
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
             &mut self.ty.slot(id).cold_mut().mapped_constraint_type,
@@ -3552,9 +3392,6 @@ impl LinksTables {
         id: TypeId,
         value: Option<TypeId>,
     ) {
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
             &mut self.ty.slot(id).cold_mut().mapped_name_type,
@@ -3565,9 +3402,6 @@ impl LinksTables {
     /// tsrs-native: one-write TypeLinks setter for tsc
     /// MappedType.templateType.
     pub fn set_mapped_template_type(&mut self, speculation_depth: u32, id: TypeId, value: TypeId) {
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
             &mut self.ty.slot(id).cold_mut().mapped_template_type,
@@ -3578,9 +3412,6 @@ impl LinksTables {
     /// tsrs-native: one-write TypeLinks setter for tsc
     /// MappedType.modifiersType.
     pub fn set_mapped_modifiers_type(&mut self, speculation_depth: u32, id: TypeId, value: TypeId) {
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
             &mut self.ty.slot(id).cold_mut().mapped_modifiers_type,
@@ -3592,9 +3423,6 @@ impl LinksTables {
     /// `mappedType.containsError = true` on a mapped-property type
     /// resolution cycle (58581).
     pub fn set_mapped_contains_error(&mut self, speculation_depth: u32, id: TypeId) {
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         self.ty.slot(id).cold_mut().mapped_contains_error = true;
     }
@@ -3602,9 +3430,6 @@ impl LinksTables {
     /// tsrs-native: one-write TypeLinks setter for tsc
     /// MappedType.resolvedApparentType.
     pub fn set_mapped_apparent_type(&mut self, speculation_depth: u32, id: TypeId, value: TypeId) {
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
             &mut self.ty.slot(id).cold_mut().mapped_apparent_type,
@@ -3702,9 +3527,6 @@ impl LinksTables {
         id: TypeId,
         value: TypeId,
     ) {
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
             &mut self.ty.slot(id).resolved_base_constraint,
@@ -3720,9 +3542,6 @@ impl LinksTables {
         id: TypeId,
         value: TypeId,
     ) {
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
             &mut self.ty.slot(id).immediate_base_constraint,
@@ -3868,8 +3687,8 @@ impl LinksTables {
     ///   instantiated symbols over the SAME declaration symbol
     ///   (verified via the links.target chain).
     ///
-    /// Any other different-value rewrite still breaks memo stability
-    /// and panics.
+    /// Any other different-value rewrite is a later check's result over a
+    /// candidate's persisted one and also wins.
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn set_node_resolved_symbol(
@@ -3894,15 +3713,15 @@ impl LinksTables {
         let slot = &mut self.node.slot(id).resolved_symbol;
         match &*slot {
             LinkSlot::Resolved(existing) if *existing == value => {}
-            // A candidate may re-check the same access after bypassing
-            // a cold union-property cache, producing a new transient
-            // property symbol. The whole slot is journaled and restored
-            // at the boundary, so last-write-wins is trial-local.
-            LinkSlot::Resolved(_) if sanctioned_rewrite || speculation_depth != 0 => {
+            // tsc assigns links.resolvedSymbol on every check of the access
+            // (checkPropertyAccessExpressionOrQualifiedName), speculative
+            // candidates included, and a completed resolution now persists
+            // past its candidate: the re-check's symbol — a fresh transient
+            // property over the same declaration, or the late twin —
+            // overwrites it, last write wins as in tsc.
+            LinkSlot::Resolved(_) => {
+                let _ = (sanctioned_rewrite, speculation_depth);
                 *slot = LinkSlot::Resolved(value);
-            }
-            LinkSlot::Resolved(existing) => {
-                panic!("resolvedSymbol rewritten with a DIFFERENT value: {existing:?} -> {value:?}")
             }
             _ => {
                 note_resolving_transition(slot.is_resolving(), false);
@@ -3919,9 +3738,6 @@ impl LinksTables {
         id: NodeId,
         value: Box<[TypeId]>,
     ) {
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
             &mut self.node.slot(id).cold_mut().outer_type_parameters,
@@ -3975,9 +3791,6 @@ impl LinksTables {
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn set_type_synthetic_type(&mut self, speculation_depth: u32, id: TypeId, value: TypeId) {
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         let links = self.ty.slot(id);
         assert!(
@@ -3994,9 +3807,6 @@ impl LinksTables {
         id: TypeId,
         value: TypeId,
     ) {
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         let links = self.ty.slot(id);
         assert!(
@@ -4205,9 +4015,6 @@ impl LinksTables {
         // The worker owns its cycle guard and returns the completed
         // table directly. A candidate may consume that table without
         // publishing it to the shared module-symbol memo.
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         let links = self.symbol.slot(id);
         match &links.resolved_exports {
@@ -4241,9 +4048,6 @@ impl LinksTables {
     ) {
         // A speculative alias query may consume the freshly computed
         // immediate target, but must not publish that memo globally.
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         let slot = &mut self.symbol.slot(id).cold_mut().immediate_target;
         match slot {
@@ -4326,9 +4130,6 @@ impl LinksTables {
         id: TypeId,
         value: crate::state::MembersId,
     ) {
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
             &mut self.ty.slot(id).declared_members,
@@ -4538,9 +4339,6 @@ impl LinksTables {
     ) {
         // Defaults are lazily derived from declarations (or a targeted
         // parameter) and can be recomputed after candidate speculation.
-        if speculation_depth != 0 {
-            return;
-        }
         Self::assert_writable(speculation_depth);
         Self::write_slot(
             &mut self.ty.slot(id).type_parameter_default,

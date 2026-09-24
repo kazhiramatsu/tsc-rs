@@ -130,7 +130,10 @@ pub struct TypeTables {
     /// UTF-8 entry. The UTF-16 map above remains canonical and owns
     /// every value; this mirror avoids allocating an encoded key on
     /// each `get_string_literal_type(&str)` cache hit.
-    utf8_string_literal_types: HashMap<String, TypeId>,
+    /// The WTF-8 bytes of every UTF-8 literal text, so a lookup by
+    /// JavaScript string never validates the text (property-name lookups
+    /// were 5% of a real program's check in from_utf8).
+    utf8_string_literal_types: HashMap<Vec<u8>, TypeId>,
     /// numberLiteralTypes (46993), keyed by the numeric value with JS
     /// Map SameValueZero semantics (-0 and +0 share a key).
     number_literal_types: HashMap<u64, TypeId>,
@@ -700,13 +703,13 @@ impl TypeTables {
     pub fn get_string_literal_type<'a>(&mut self, value: impl Into<crate::JsStr<'a>>) -> TypeId {
         let value = value.into();
         crate::perf::bump(crate::perf::PerfCounter::StringLiteralLookups);
-        let Some(value) = value.as_str() else {
-            return self.get_string_literal_type_from_text(&TemplateText::from_js(value));
-        };
-        if let Some(&id) = self.utf8_string_literal_types.get(value) {
+        if let Some(&id) = self.utf8_string_literal_types.get(value.as_bytes()) {
             crate::perf::bump(crate::perf::PerfCounter::StringLiteralHits);
             return id;
         }
+        let Some(value) = value.as_str() else {
+            return self.get_string_literal_type_from_text(&TemplateText::from_js(value));
+        };
         self.get_string_literal_type_from_text(&TemplateText::from_utf8(value))
     }
 
@@ -725,7 +728,8 @@ impl TypeTables {
         );
         self.string_literal_types.insert(value.clone(), id);
         if let Some(value) = value.to_utf8() {
-            self.utf8_string_literal_types.insert(value, id);
+            self.utf8_string_literal_types
+                .insert(value.into_bytes(), id);
         }
         id
     }

@@ -231,7 +231,7 @@ fn declaration_family_options_remain_typed_refusals() {
 }
 
 #[test]
-fn h2_7de_preserves_the_declaration_profile_chain_with_six_production_constructors() {
+fn h2_7de_preserves_the_declaration_profile_chain_across_the_production_constructors() {
     let workspace = workspace();
     let activity = fs::read_to_string(workspace.join("crates/emitter/src/activity.rs"))
         .expect("read activity source");
@@ -264,7 +264,10 @@ fn h2_7de_preserves_the_declaration_profile_chain_with_six_production_constructo
     }
     let expected = BTreeSet::from([
         "crates/compiler/src/declaration_diagnostics.rs:1".to_owned(),
-        "crates/compiler/src/lib.rs:1".to_owned(),
+        // The whole-Program emit, its sharded twin (session, gate replay,
+        // per-unit pool, per-source declaration gate) and the --noEmit
+        // command's declaration getter each construct the production profile.
+        "crates/compiler/src/lib.rs:7".to_owned(),
         "crates/emitter/src/builtins.rs:2".to_owned(),
         "crates/emitter/src/execute.rs:2".to_owned(),
     ]);

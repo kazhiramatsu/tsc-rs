@@ -122,6 +122,7 @@ impl<'a> CheckerState<'a> {
         mut alias_symbol: Option<SymbolId>,
         mut alias_type_arguments: Option<&[TypeId]>,
     ) -> CheckResult<TypeId> {
+        self.profile_ops[crate::line_profile::OP_CONDITIONAL] += 1;
         let mut extra_types = Vec::new();
         let mut tail_count = 0usize;
         loop {
@@ -526,10 +527,8 @@ impl<'a> CheckerState<'a> {
                 UnionReduction::Literal,
             )?
         };
-        if self.speculation_depth == 0 {
-            self.links
-                .set_conditional_default_constraint(self.speculation_depth, ty, resolved);
-        }
+        self.links
+            .set_conditional_default_constraint(self.speculation_depth, ty, resolved);
         Ok(resolved)
     }
 
@@ -573,21 +572,17 @@ impl<'a> CheckerState<'a> {
                     .flags_of(instantiated)
                     .intersects(TypeFlags::NEVER)
                 {
-                    if self.speculation_depth == 0 {
-                        self.links.set_conditional_constraint_of_distributive(
-                            self.speculation_depth,
-                            ty,
-                            Some(instantiated),
-                        );
-                    }
+                    self.links.set_conditional_constraint_of_distributive(
+                        self.speculation_depth,
+                        ty,
+                        Some(instantiated),
+                    );
                     return Ok(Some(instantiated));
                 }
             }
         }
-        if self.speculation_depth == 0 {
-            self.links
-                .set_conditional_constraint_of_distributive(self.speculation_depth, ty, None);
-        }
+        self.links
+            .set_conditional_constraint_of_distributive(self.speculation_depth, ty, None);
         Ok(None)
     }
 

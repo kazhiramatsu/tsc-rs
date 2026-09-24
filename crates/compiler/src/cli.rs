@@ -83,8 +83,9 @@ fn cli_worker_budget() -> WorkerBudget {
 /// checker states for the whole-Program check and emit (clamped to the module
 /// cap and to the file count); `1` is the serial reference checker. Any other
 /// value or an unset variable selects [`CheckerBudget::automatic`]. Not a
-/// command-line option: every budget must publish identical output, and the
-/// order guard replays a flagged sharded run serially.
+/// command-line option. One checker is the exact serial mode; a wider budget
+/// keeps the sharded result unless `TSRS_ORDER_REPLAY=1` requests the serial
+/// replay of an order-consuming run (see `CheckerBudget::with_order_replay`).
 const CHECKERS_ENV: &str = "TSRS_CHECKERS";
 
 fn cli_checker_budget() -> CheckerBudget {
@@ -98,6 +99,7 @@ fn cli_checker_budget() -> CheckerBudget {
     // The CLI process exits right after publishing: dropping the checker
     // states would only delay that.
     .with_leaked_states(true)
+    .with_order_replay(tsc_checker::order_replay_requested())
 }
 
 /// The CLI's program load limits with its worker budget.
@@ -1102,6 +1104,12 @@ fn execute_prepared(
         );
     }
     let session_started = std::time::Instant::now();
+    // tsc emitFilesAndReportErrors (_tsc.js:129433-129440): a --noEmit
+    // command with getEmitDeclarations(options) reports the declaration
+    // diagnostics after the semantic pass, only while nothing beyond the
+    // config-file parsing diagnostics was reported. The command session runs
+    // that getter over its own checker sessions
+    // (`ProgramSession::run_no_emit_command`).
     let outcome = ProgramSession::new(prepared)
         .with_worker_budget(cli_worker_budget())
         .with_checker_budget(cli_checker_budget())
@@ -1109,10 +1117,12 @@ fn execute_prepared(
         .run_with_no_emit_canary(
             false,
             tsc_checker::LibraryPrefixCompletion::Complete,
+            true,
             route.canary,
         )
         .map_err(|error| CliError::Driver(error.to_string()))?;
     tsc_types::trace::mark("check session", session_started);
+    tsc_checker::line_profile::write_report();
     // Config-owned non-fatal option rows are supplied separately from the
     // prepared program. Insert them at the same bucket boundary as
     // `getOptionsDiagnostics`, before global and semantic rows; appending
@@ -1131,6 +1141,11 @@ fn execute_prepared(
         {
             diagnostics.extend(outcome.semantic_diagnostics().iter().cloned());
         }
+    }
+    // The command's own option rows (`additional_diagnostics`) close the
+    // declaration gate as well; the session could not see them.
+    if diagnostics.len() == outcome.config_diagnostics().len() {
+        diagnostics.extend(outcome.declaration_diagnostics().iter().cloned());
     }
     let work_counters = outcome.work_counters();
     let no_emit_activity = outcome.no_emit_activity();
@@ -1208,6 +1223,7 @@ fn execute_emitting_prepared(
         .emit_for_cli(sink)
         .map_err(|error| CliError::Driver(error.to_string()))?;
     tsc_types::trace::mark("check + emit session", session_started);
+    tsc_checker::line_profile::write_report();
 
     let (emit, diagnostics, work_counters) = outcome.into_reported(additional_diagnostics);
 
@@ -1432,7 +1448,11 @@ fn append_pretty_error_summary(
             continue;
         };
         total += 1;
-        let display_name = relative_file_name(file_name, current_directory);
+        let display_name = relative_file_name(
+            file_name,
+            current_directory,
+            process_case_sensitive_file_names(),
+        );
         let line = diagnostic
             .start
             .and_then(|start| {
@@ -1766,7 +1786,14 @@ fn format_plain_diagnostics(
                 .positions()
                 .line_and_character_utf16(position)
                 .expect("clamped diagnostic position has a source line");
-            output.push_js(relative_file_name(file_name, current_directory).as_js());
+            output.push_js(
+                relative_file_name(
+                    file_name,
+                    current_directory,
+                    process_case_sensitive_file_names(),
+                )
+                .as_js(),
+            );
             output.push_str(&format!(
                 "({},{}): ",
                 location.line + 1,
@@ -1794,28 +1821,86 @@ fn append_plain_message(message: &MessageChain, indent: usize, output: &mut JsSt
     }
 }
 
-fn relative_file_name<'p>(file_name: impl Into<JsStr<'p>>, current_directory: &str) -> JsString {
+/// The process filesystem's case sensitivity for diagnostic path rendering
+/// (tsc's host.getCanonicalFileName), probed once.
+fn process_case_sensitive_file_names() -> bool {
+    static CASE_SENSITIVE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *CASE_SENSITIVE.get_or_init(|| {
+        FsCompilerHost::from_process().map_or(true, |host| host.use_case_sensitive_file_names())
+    })
+}
+
+/// tsc-port: convertToRelativePath / getPathComponentsRelativeTo @6.0.3
+/// (formatDiagnostic's file name): a rooted file name is rendered relative
+/// to the current directory, climbing with `..` when the file lies outside
+/// it (`../font/google/index.d.ts`); components after the root compare
+/// through the host's canonical (case-folded) spelling, the root itself
+/// case-insensitively, and a file sharing no root with the directory keeps
+/// its absolute spelling.
+fn relative_file_name<'p>(
+    file_name: impl Into<JsStr<'p>>,
+    current_directory: &str,
+    case_sensitive: bool,
+) -> JsString {
     let file_name = normalize_slashes(file_name);
-    let normalized_current_directory = normalize_slashes(current_directory);
-    let mut directory = normalized_current_directory.as_js();
-    while let Some(parent) = directory.strip_suffix("/") {
-        directory = parent;
-    }
-    if directory.is_empty() {
+    if !file_name.as_js().starts_with("/") {
         return file_name;
     }
-    if file_name.as_js() == directory {
-        return ".".into();
-    }
-    if file_name.as_js().starts_with_js(directory) {
-        let suffix = file_name
-            .as_js()
-            .substring(directory.len_units(), file_name.len_units());
-        if let Some(suffix) = suffix.as_js().strip_prefix("/") {
-            return suffix.to_owned();
+    let directory = normalize_slashes(current_directory);
+    let reduce = |path: JsStr<'_>| -> Vec<JsString> {
+        // getPathComponents + reducePathComponents: a root component and
+        // the segments, with `.` dropped and `..` folded.
+        let mut components: Vec<JsString> = vec!["/".into()];
+        for segment in path.split_ascii(b'/') {
+            if segment.is_empty() || segment == "." {
+                continue;
+            }
+            if segment == ".." {
+                if components.len() > 1 {
+                    components.pop();
+                }
+                continue;
+            }
+            components.push(segment.to_owned());
         }
+        components
+    };
+    let from = reduce(directory.as_js());
+    let to = reduce(file_name.as_js());
+    let canonical = |component: &JsString| -> JsString {
+        if case_sensitive {
+            component.clone()
+        } else {
+            tsc_host::to_file_name_lower_case_js(component.as_js())
+        }
+    };
+    let mut start = 0;
+    while start < from.len() && start < to.len() {
+        let equal = if start == 0 {
+            tsc_host::to_file_name_lower_case_js(from[start].as_js())
+                == tsc_host::to_file_name_lower_case_js(to[start].as_js())
+        } else {
+            canonical(&from[start]) == canonical(&to[start])
+        };
+        if !equal {
+            break;
+        }
+        start += 1;
     }
-    file_name
+    if start == 0 {
+        return file_name;
+    }
+    let mut relative = JsString::new();
+    for _ in start..from.len() {
+        relative.push_str("../");
+    }
+    for (index, component) in to[start..].iter().enumerate() {
+        if index > 0 {
+            relative.push_str("/");
+        }
+        relative.push_js(component.as_js());
+    }
+    relative
 }
 
 fn normalize_slashes<'p>(path: impl Into<JsStr<'p>>) -> JsString {
