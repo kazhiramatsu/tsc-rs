@@ -6034,17 +6034,8 @@ impl<'arena> NodeFactory<'arena> {
     ) -> Result<TransformNode, TransformError> {
         let data = {
             let record = self.arena.node(original)?;
-            let normalizes_embedded_statements = matches!(
-                record.data,
-                NodeData::IfStatement(_)
-                    | NodeData::DoStatement(_)
-                    | NodeData::WhileStatement(_)
-                    | NodeData::ForStatement(_)
-                    | NodeData::ForInStatement(_)
-                    | NodeData::ForOfStatement(_)
-                    | NodeData::WithStatement(_)
-                    | NodeData::LabeledStatement(_)
-            );
+            let normalizes_embedded_statements =
+                crate::builtins::normalizes_embedded_statements(&record.data);
             let flags = transform_flags
                 | private_identifier_expression_flags(self.arena, original.source, &record.data)?;
             if !normalizes_embedded_statements && self.arena.transform_flags(original) == flags {

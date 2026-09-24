@@ -16644,13 +16644,59 @@ pub(crate) fn update_children_lazily<V: LazyChildVisitor>(
     } else {
         let flags = {
             let arena = visitor.transformation_context().arena();
-            flags_after_update_probe(arena, original, arena.node(original)?)?
+            let record = arena.node(original)?;
+            // No child changed. When the node's flags describe its whole
+            // subtree (a parsed node, or an update of one), the probe reads
+            // the same payload and the same child flags that produced them
+            // and recomputes exactly the stored value, so `update_node_
+            // unchanged` would return the node itself: skip the probe.
+            // Embedded-statement kinds take the full path (`update_node`
+            // normalizes their bodies), and so does a private-name
+            // expression whose stored flags lack the bit the update adds.
+            if !normalizes_embedded_statements(&record.data)
+                && arena.transform_flags_complete(original)
+            {
+                let private = crate::factory::private_identifier_expression_flags(
+                    arena,
+                    original.source(),
+                    &record.data,
+                )?;
+                let stored = arena.transform_flags(original);
+                if stored.contains(private) {
+                    if verify_linear_transform_flags() {
+                        let probe = flags_after_update_probe(arena, original, record)? | private;
+                        assert!(
+                            probe == stored,
+                            "unchanged complete node {original:?} ({:?}) would change its transform flags: stored {stored:?}, probe {probe:?}",
+                            record.kind
+                        );
+                    }
+                    return Ok(original);
+                }
+            }
+            flags_after_update_probe(arena, original, record)?
         };
         visitor
             .transformation_context_mut()
             .factory()?
             .update_node_unchanged(original, flags)
     }
+}
+
+/// The statement kinds whose `update_node` normalizes an embedded statement
+/// body (the kinds `update_node_unchanged` always routes through it).
+pub(crate) fn normalizes_embedded_statements(data: &NodeData) -> bool {
+    matches!(
+        data,
+        NodeData::IfStatement(_)
+            | NodeData::DoStatement(_)
+            | NodeData::WhileStatement(_)
+            | NodeData::ForStatement(_)
+            | NodeData::ForInStatement(_)
+            | NodeData::ForOfStatement(_)
+            | NodeData::WithStatement(_)
+            | NodeData::LabeledStatement(_)
+    )
 }
 
 fn initialize_transform_flags(
