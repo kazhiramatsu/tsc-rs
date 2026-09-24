@@ -586,6 +586,9 @@ impl Transformer for TypeScriptTransformer<'_> {
                 && !(syntax.external_module_indicator.is_some() && self.module_kind >= 5)
                 && !is_json_file_name(&syntax.file_name)
         };
+        // Classified first: the preflight reads the parsed tree's depth and
+        // flags from the classification instead of walking the tree.
+        initialize_transform_flags(context.arena_mut()?, source)?;
         preflight_source(
             context.arena(),
             source,
@@ -593,7 +596,6 @@ impl Transformer for TypeScriptTransformer<'_> {
             self.allow_jsx,
             self.allow_legacy_decorators,
         )?;
-        initialize_transform_flags(context.arena_mut()?, source)?;
         let root_node = context.arena().root(source)?;
         let mut visitor = TypeScriptVisitor::new(
             context,
@@ -17045,6 +17047,31 @@ fn preflight_source(
         });
     }
     const MAX_TRANSFORM_DEPTH: usize = 256;
+    // The classification that precedes this preflight already measured the
+    // parsed tree: its depth along the walk's edges (MissingDeclaration
+    // subtrees excluded), and its JSX and decorator content, which stamp
+    // flags no exclusion strips on the way to the root. A source the
+    // classifier did not measure, or whose root carries a disallowed
+    // feature, takes the walk below, which answers exactly (a feature inside
+    // a MissingDeclaration is not an error).
+    let parsed_root = TransformNode::new(source, syntax.root);
+    if let Some(max_depth) = arena.source(source)?.parsed_max_depth() {
+        if arena.transform_flags_complete(parsed_root) {
+            let flags = arena.transform_flags(parsed_root);
+            let disallowed_feature = (!allow_legacy_decorators
+                && flags.contains(TransformFlags::CONTAINS_DECORATORS))
+                || (!allow_jsx && flags.contains(TransformFlags::CONTAINS_JSX));
+            if !disallowed_feature {
+                if max_depth as usize > MAX_TRANSFORM_DEPTH {
+                    return Err(TransformError::AstDepthDeferred {
+                        limit: MAX_TRANSFORM_DEPTH,
+                        owner_slice: "H2.9",
+                    });
+                }
+                return Ok(());
+            }
+        }
+    }
     let mut stack = vec![(syntax.root, 1usize)];
     while let Some((id, depth)) = stack.pop() {
         if depth > MAX_TRANSFORM_DEPTH {
@@ -17768,17 +17795,31 @@ fn compute_transform_flags_linear(
             source, root,
         )));
     };
-    // Reachability from the root, parents before children.
+    // Reachability from the root, parents before children. The same pass
+    // measures each node's depth along those edges for the transform
+    // preflight (the root at 1; a MissingDeclaration's subtree is not
+    // counted, as the preflight walk skipped it).
+    const UNCOUNTED_DEPTH: u32 = u32::MAX;
     let mut reachable = vec![false; node_count];
     reachable[root_index] = true;
+    let mut depth = vec![0u32; node_count];
+    depth[root_index] = 1;
+    let mut max_depth = 1u32;
     let mut children: Vec<NodeId> = Vec::new();
-    {
+    let parsed_root = {
         let syntax = arena.source(source)?.syntax();
         for index in (0..=root_index).rev() {
             if !reachable[index] {
                 continue;
             }
             let record = &syntax.arena.nodes()[index];
+            let child_depth = if record.kind == SyntaxKind::MissingDeclaration
+                || depth[index] == UNCOUNTED_DEPTH
+            {
+                UNCOUNTED_DEPTH
+            } else {
+                depth[index] + 1
+            };
             children.clear();
             for_each_child(&syntax.arena, record, |child| {
                 children.push(child);
@@ -17792,11 +17833,23 @@ fn compute_transform_flags_linear(
             });
             for &child in &children {
                 match index_of(child) {
-                    Some(child_index) if child_index < index => reachable[child_index] = true,
+                    Some(child_index) if child_index < index => {
+                        reachable[child_index] = true;
+                        if depth[child_index] == 0 {
+                            depth[child_index] = child_depth;
+                            if child_depth != UNCOUNTED_DEPTH {
+                                max_depth = max_depth.max(child_depth);
+                            }
+                        }
+                    }
                     _ => return Ok(false),
                 }
             }
         }
+        syntax.root
+    };
+    if root == parsed_root {
+        arena.source_mut(source)?.set_parsed_max_depth(max_depth);
     }
     let mut array_scratch: Vec<NodeArrayId> = Vec::new();
     for index in 0..=root_index {

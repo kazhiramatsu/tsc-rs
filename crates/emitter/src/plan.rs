@@ -319,6 +319,11 @@ impl EmitPreflight {
     }
 
     pub fn is_emit_blocked(&self, host: &dyn EmitHost, path: JsStr<'_>) -> bool {
+        // The common program blocks no output; its every unit skips the
+        // canonical-key computation.
+        if self.blocked_outputs.is_empty() {
+            return false;
+        }
         self.blocked_outputs
             .contains(&canonical_case_key(host, path))
     }
