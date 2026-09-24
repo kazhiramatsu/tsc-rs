@@ -3391,6 +3391,42 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     } else {
         checkers.checkers()
     };
+    // A program dominated by one heavy file (the TypeScript compiler's
+    // checker.ts) gains nothing from shards beyond `total / heaviest`: the
+    // check ends with that file's check either way, and every extra shard
+    // repeats the lazy library-type work and contends with the critical
+    // shard. An explicit `TSRS_CHECKERS` count is kept as requested.
+    let checker_count = if checkers.is_automatic() {
+        let checked_weight = |index: usize, document: &Arc<BoundDocument>| {
+            let source = document.source();
+            if index < lib_count
+                || should_skip_type_checking_file(
+                    source,
+                    snapshot.file_facts(ProgramFileId::from_raw(
+                        u32::try_from(index).expect("program file index"),
+                    )),
+                    options,
+                )
+            {
+                0
+            } else {
+                source.arena.len()
+            }
+        };
+        let (total, heaviest) = snapshot
+            .documents()
+            .iter()
+            .enumerate()
+            .map(|(index, document)| checked_weight(index, document))
+            .fold((0usize, 0usize), |(total, heaviest), weight| {
+                (total + weight, heaviest.max(weight))
+            });
+        checker_count
+            .min(shard::dominant_file_shard_cap(total, heaviest))
+            .max(1)
+    } else {
+        checker_count
+    };
     // Each file's directory, interned, for the directory-preferring
     // partition (files of one directory share their imports).
     let mut directory_ids: rustc_hash::FxHashMap<&[u8], u32> = Default::default();
