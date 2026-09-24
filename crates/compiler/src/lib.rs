@@ -2185,8 +2185,7 @@ impl ProgramSession {
                     result.map(|units| (units, activity.counters())),
                 ));
             };
-            let eager: &(dyn Fn(usize, &ProgramSnapshot, &CheckerSession<'_>, &[usize]) + Sync) =
-                &eager;
+            let eager: tsc_checker::ShardEagerClosure<'_> = &eager;
             let mut sharded_emit = ShardedEmit {
                 gate: &mut gate,
                 emit: &emit,

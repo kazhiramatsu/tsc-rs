@@ -2840,7 +2840,9 @@ pub struct ShardedEmit<'op> {
     pub eager: Option<ShardEagerClosure<'op>>,
 }
 
-type ShardEagerClosure<'op> =
+/// The per-shard eager work of a [`ShardedEmit`] request: the shard index,
+/// the snapshot, the shard's checked session and its Program file indices.
+pub type ShardEagerClosure<'op> =
     &'op (dyn Fn(usize, &ProgramSnapshot, &CheckerSession<'_>, &[usize]) + Sync);
 
 type ShardGateClosure<'op> = &'op mut dyn FnMut(
