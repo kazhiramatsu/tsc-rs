@@ -502,6 +502,16 @@ pub(crate) const DEFAULT_SHARED_CHUNK: usize = 32;
 /// byte-identical across runs.
 pub(crate) const SHARED_QUEUE_MIN_FIXTURES: usize = 4096;
 
+/// Whether an exhausted partition lane steals from the others (default).
+pub(crate) fn stealing_enabled() -> bool {
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ENABLED.get_or_init(|| {
+        std::env::var("TSRS_SHARD_STEAL")
+            .ok()
+            .is_none_or(|value| value != "0")
+    })
+}
+
 pub(crate) fn queue_mode_requested() -> Option<QueueMode> {
     static MODE: std::sync::OnceLock<Option<QueueMode>> = std::sync::OnceLock::new();
     *MODE.get_or_init(|| {
@@ -551,6 +561,9 @@ pub(crate) struct ShardFileQueue {
     lib_count: usize,
     file_count: usize,
     lanes: Lanes,
+    /// Partitioned lanes only: an exhausted lane steals from the others
+    /// (see [`Self::steal_fixture`]).
+    steal: bool,
     /// Set once any shard's order guard has recorded a reason: the driver
     /// will discard every shard result and replay serially, so the shards
     /// stop pulling files instead of finishing work that is thrown away.
@@ -662,6 +675,7 @@ impl ShardFileQueue {
                     .map(|_| (AtomicUsize::new(0), AtomicUsize::new(0)))
                     .collect(),
             },
+            steal: false,
             aborted: AtomicBool::new(false),
         }
     }
@@ -673,12 +687,15 @@ impl ShardFileQueue {
     /// shares, by the mode of [`partition_mode_requested`]; `directories`
     /// gives each file's interned directory for the directory-preferring
     /// default (an empty slice falls back to the plain least-load spread).
+    /// With `steal`, a shard whose share is exhausted takes files from the
+    /// share with the most still waiting (see [`Self::steal_fixture`]).
     pub(crate) fn partitioned_with_directories(
         lib_count: usize,
         weights: &[usize],
         symbols: &[usize],
         directories: &[u32],
         shards: usize,
+        steal: bool,
     ) -> Self {
         debug_assert!(lib_count <= weights.len());
         let files = match partition_mode_requested() {
@@ -720,6 +737,7 @@ impl ShardFileQueue {
             lib_count,
             file_count: weights.len(),
             lanes: Lanes::Partitioned(lanes),
+            steal,
             aborted: AtomicBool::new(false),
         }
     }
@@ -781,7 +799,44 @@ impl ShardFileQueue {
             },
             Lanes::Partitioned(lanes) => {
                 let lane = lanes.get(shard)?;
-                Self::pull(&lane.fixtures, &lane.next_fixture)
+                if let Some(file) = Self::pull(&lane.fixtures, &lane.next_fixture) {
+                    return Some(file);
+                }
+                if !self.steal {
+                    return None;
+                }
+                Self::steal_fixture(lanes, shard)
+            }
+        }
+    }
+
+    /// Work stealing over the deterministic partition: a shard whose own
+    /// lane is exhausted takes the next file of the lane with the most
+    /// files still waiting, so a share whose files check far slower than
+    /// their node count predicted (type-level heavy code) does not hold
+    /// the phase alone. Each lane's cursor hands every file out once; the
+    /// emit phases attribute a file to the shard that checked it, so the
+    /// stolen files follow their checker. `TSRS_SHARD_STEAL=0` keeps the
+    /// static shares (see [`stealing_enabled`]).
+    fn steal_fixture(lanes: &[Lane], shard: usize) -> Option<usize> {
+        loop {
+            let (victim, remaining) = lanes
+                .iter()
+                .enumerate()
+                .filter(|&(index, _)| index != shard)
+                .map(|(_, lane)| {
+                    let remaining = lane
+                        .fixtures
+                        .len()
+                        .saturating_sub(lane.next_fixture.load(Ordering::Relaxed));
+                    (lane, remaining)
+                })
+                .max_by_key(|&(_, remaining)| remaining)?;
+            if remaining == 0 {
+                return None;
+            }
+            if let Some(file) = Self::pull(&victim.fixtures, &victim.next_fixture) {
+                return Some(file);
             }
         }
     }
@@ -1015,7 +1070,7 @@ mod tests {
     fn partitioned_queue_serves_each_shard_its_own_share_in_program_order() {
         // File 0 is the (heavy) library; the fixtures are light.
         let weights = [5, 1, 1, 1, 1, 1, 1];
-        let queue = ShardFileQueue::partitioned_with_directories(1, &weights, &[], &[], 2);
+        let queue = ShardFileQueue::partitioned_with_directories(1, &weights, &[], &[], 2, false);
         let expected = partition_files(&weights, 2);
         assert_eq!(queue.shard_count(), expected.len());
         for (shard, share) in expected.iter().enumerate() {
@@ -1038,9 +1093,36 @@ mod tests {
         // A shard index beyond the partition serves nothing.
         assert_eq!(queue.next_fixture(expected.len()), None);
         assert_eq!(queue.reserved_nodes(expected.len()), 0);
-        let empty = ShardFileQueue::partitioned_with_directories(0, &[], &[], &[], 4);
+        let empty = ShardFileQueue::partitioned_with_directories(0, &[], &[], &[], 4, false);
         assert_eq!(empty.shard_count(), 1);
         assert_eq!(empty.next_fixture(0), None);
+    }
+
+    #[test]
+    fn partitioned_queue_steals_from_the_share_with_the_most_waiting_files() {
+        // File 0 is the library; seven equal weights alternate between the
+        // two shares, so the fixtures split into [2, 4, 6] and [1, 3, 5].
+        let weights = [1; 7];
+        let queue = ShardFileQueue::partitioned_with_directories(1, &weights, &[], &[], 2, true);
+        assert_eq!(
+            partition_files(&weights, 2),
+            vec![vec![0, 2, 4, 6], vec![1, 3, 5]]
+        );
+        // Shard 1 takes its own share, then the first waiting file of
+        // shard 0's share.
+        assert_eq!(queue.next_fixture(1), Some(1));
+        assert_eq!(queue.next_fixture(1), Some(3));
+        assert_eq!(queue.next_fixture(1), Some(5));
+        assert_eq!(queue.next_fixture(1), Some(2));
+        // Shard 0 continues its own share after the stolen file.
+        assert_eq!(queue.next_fixture(0), Some(4));
+        assert_eq!(queue.next_fixture(1), Some(6));
+        assert_eq!(queue.next_fixture(0), None);
+        assert_eq!(queue.next_fixture(1), None);
+        // Libraries are never stolen.
+        assert_eq!(queue.next_library(1), None);
+        assert_eq!(queue.next_library(0), Some(0));
+        assert_eq!(queue.next_library(0), None);
     }
 
     fn covers_every_file_once(assignment: &[Vec<usize>], files: usize) {

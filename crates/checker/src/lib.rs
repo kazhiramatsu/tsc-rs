@@ -3377,6 +3377,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             &symbols,
             &directories,
             checker_count,
+            shard::stealing_enabled(),
         )
     };
     let shard_count = queue.shard_count();
