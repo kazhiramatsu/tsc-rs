@@ -6853,12 +6853,19 @@ fn meta_property_token_maps_module_name_context_is_not_a_value_reference() {
             SourceFileId::from_raw(0),
         )
         .unwrap();
-        let _transformed = transform_nodes(
+        let mut transformed = transform_nodes(
             arena,
             vec![TransformRoot::SourceFile(source)],
             transformers,
             false,
         )
+        .unwrap();
+        // transformModule asks about a reference as it prints
+        // (onSubstituteNode); the System transform still asks in its walk.
+        create_printer(
+            PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+        )
+        .print(&mut transformed, PrintRequest::SourceFile(source), None)
         .unwrap();
         let queried = resolver.queried.borrow();
         let name_was_not_queried = !queried.contains(&meta_name);
