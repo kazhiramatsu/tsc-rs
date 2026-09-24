@@ -60,6 +60,10 @@ pub enum PositionIndexKind {
 struct DensePositionIndex {
     byte_len: u32,
     utf16_len: u32,
+    /// The byte (and UTF-16) length of the text's leading ASCII run: below
+    /// it both domains coincide and every position is a scalar boundary,
+    /// so the hot conversions answer without consulting `wide`.
+    ascii_prefix_end: u32,
     /// Every non-ASCII character, in text order.
     wide: Vec<WideCharacter>,
     line_starts_byte: Vec<u32>,
@@ -101,9 +105,13 @@ impl DensePositionIndex {
             position = byte_end;
         }
         let utf16_len = utf16_position + (bytes.len() - position) as u32;
+        let ascii_prefix_end = wide
+            .first()
+            .map_or(byte_len, |first| first.byte_end - u32::from(first.byte_len));
         let mut index = Self {
             byte_len,
             utf16_len,
+            ascii_prefix_end,
             wide,
             line_starts_byte: Vec::new(),
             line_starts_utf16: Vec::new(),
@@ -126,6 +134,9 @@ impl DensePositionIndex {
     }
 
     fn byte_to_utf16(&self, position: u32) -> Option<u32> {
+        if position <= self.ascii_prefix_end {
+            return Some(position);
+        }
         if position > self.byte_len {
             return None;
         }
@@ -148,6 +159,9 @@ impl DensePositionIndex {
     }
 
     fn utf16_to_byte(&self, position: u32) -> Option<u32> {
+        if position <= self.ascii_prefix_end {
+            return Some(position);
+        }
         if position > self.utf16_len {
             return None;
         }
