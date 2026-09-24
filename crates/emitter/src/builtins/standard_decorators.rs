@@ -705,7 +705,9 @@ struct StandardDecoratorVisitor<'context> {
     /// anonymous decorated class receives the property's hoisted key temp.
     inferred_class_name_references: BTreeMap<NodeId, TargetBinding>,
     expanded_classes: BTreeMap<NodeId, Vec<NodeId>>,
-    used_names: UsedNames,
+    /// The planner's used names, started from the file-level census the
+    /// first time a name is planned (see [`Self::used_names`]).
+    used_names: Option<UsedNames>,
     generated_reference_names: BTreeSet<String>,
     /// Generated private names (`#a_accessor_storage`) of the decorated
     /// classes enclosing the class being transformed. tsc reserves every
@@ -719,7 +721,9 @@ struct StandardDecoratorVisitor<'context> {
     /// Source-level identifier texts: the only collision set tsc consults
     /// for `GeneratedIdentifierFlags.FileLevel` helper names
     /// (`isFileLevelUniqueName`), independent of earlier generated names.
-    file_level_names: UsedNames,
+    /// Collected the first time a name is planned: a source without a
+    /// decorated class never scans for it.
+    file_level_names: Option<UsedNames>,
     /// tsc `transformESDecorators` lexical frames (`top`) and the receiver
     /// (`classThis`) that `updateState` derives from them.
     receiver_frames: Vec<DecoratorReceiverFrame>,
@@ -799,17 +803,6 @@ impl<'context> StandardDecoratorVisitor<'context> {
         source: TransformSourceId,
         target: ScriptTarget,
     ) -> Self {
-        // isFileLevelUniqueName and isUniqueName both consult
-        // `SourceFile.identifiers`: the parsed identifier census, not the
-        // transform arena's synthetic nodes (a plain identifier synthesized
-        // by an earlier transform never shifts a generated name). The planner
-        // starts from that census and adds only the names it plans itself;
-        // the finalizer reconciles the planned spellings with the generated
-        // bindings of the other passes.
-        let file_level_names = ParsedSourceIdentifierNames::collect(context.arena(), source)
-            .map(ParsedSourceIdentifierNames::into_names)
-            .unwrap_or_else(|_| collect_identifier_texts(context.arena(), source));
-        let used_names = file_level_names.clone();
         let nodes = super::node_memo(context.arena(), source);
         let arrays = super::array_memo(context.arena(), source);
         Self {
@@ -822,11 +815,11 @@ impl<'context> StandardDecoratorVisitor<'context> {
             inferred_class_name_sources: BTreeMap::new(),
             inferred_class_name_references: BTreeMap::new(),
             expanded_classes: BTreeMap::new(),
-            used_names,
+            used_names: None,
             generated_reference_names: BTreeSet::new(),
             reserved_private_generated_names: BTreeSet::new(),
             should_transform_private_static_elements_in_file: false,
-            file_level_names,
+            file_level_names: None,
             receiver_frames: Vec::new(),
             receiver_class_this: None,
             receiver_class_super: None,
@@ -6418,14 +6411,52 @@ impl<'context> StandardDecoratorVisitor<'context> {
         TargetBinding::allocate_file_level_optimistic(self.context, base.to_owned(), planned)
     }
 
+    /// isFileLevelUniqueName and isUniqueName both consult
+    /// `SourceFile.identifiers`: the parsed identifier census, not the
+    /// transform arena's synthetic nodes (a plain identifier synthesized by
+    /// an earlier transform never shifts a generated name). The planner
+    /// starts from that census and adds only the names it plans itself; the
+    /// finalizer reconciles the planned spellings with the generated bindings
+    /// of the other passes. Both sets are collected on first use.
+    fn collect_name_censuses(&mut self) {
+        if self.file_level_names.is_none() {
+            let file_level_names =
+                ParsedSourceIdentifierNames::collect(self.context.arena(), self.source)
+                    .map(ParsedSourceIdentifierNames::into_names)
+                    .unwrap_or_else(|_| {
+                        collect_identifier_texts(self.context.arena(), self.source)
+                    });
+            self.file_level_names = Some(file_level_names);
+        }
+        // A class scope restored to the state before any name was planned
+        // starts again from the census (as the eager copy did).
+        if self.used_names.is_none() {
+            self.used_names = self.file_level_names.clone();
+        }
+    }
+
+    fn used_names(&mut self) -> &mut UsedNames {
+        self.collect_name_censuses();
+        self.used_names
+            .as_mut()
+            .expect("the census is collected above")
+    }
+
+    fn file_level_names(&mut self) -> &UsedNames {
+        self.collect_name_censuses();
+        self.file_level_names
+            .as_ref()
+            .expect("the census is collected above")
+    }
+
     fn plan_helper_name(&mut self, base: &str) -> String {
-        if self.used_names.insert(base.to_owned()) {
+        if self.used_names().insert(base.to_owned()) {
             return base.to_owned();
         }
         let mut ordinal = 1usize;
         loop {
             let candidate = format!("{base}_{ordinal}");
-            if self.used_names.insert(candidate.clone()) {
+            if self.used_names().insert(candidate.clone()) {
                 return candidate;
             }
             ordinal += 1;
@@ -6909,7 +6940,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let mut ordinal = 1usize;
         loop {
             let candidate = format!("{stem}_{ordinal}");
-            if !self.used_names.contains(&candidate)
+            if !self.used_names().contains(&candidate)
                 && self.generated_reference_names.insert(candidate.clone())
             {
                 return candidate;
@@ -7761,15 +7792,15 @@ impl StandardDecoratorVisitor<'_> {
     /// The chosen name is still recorded for later scoped allocations, as
     /// tsc adds it to `generatedNames`.
     fn plan_file_level_name(&mut self, base: &str) -> String {
-        if !self.file_level_names.contains(base) {
-            self.used_names.insert(base.to_owned());
+        if !self.file_level_names().contains(base) {
+            self.used_names().insert(base.to_owned());
             return base.to_owned();
         }
         let mut ordinal = 1usize;
         loop {
             let candidate = format!("{base}_{ordinal}");
-            if !self.file_level_names.contains(&candidate) {
-                self.used_names.insert(candidate.clone());
+            if !self.file_level_names().contains(&candidate) {
+                self.used_names().insert(candidate.clone());
                 return candidate;
             }
             ordinal += 1;

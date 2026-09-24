@@ -62,13 +62,17 @@ impl Transformer for JsxTransformer<'_> {
         if context.arena().source(source)?.syntax().is_declaration_file {
             return Ok(TransformRoot::SourceFile(source));
         }
+        // The visitor gates on ContainsJsx; classify whatever the earlier
+        // passes appended so the gate reads exact flags.
+        super::initialize_transform_flags(context.arena_mut()?, source)?;
         let syntax = context.arena().source(source)?.syntax();
-        let text = syntax.text().to_owned();
         let file_name = syntax.file_name.clone();
         let source_runtime = syntax.jsx_runtime_pragma.clone();
         let source_import = syntax.jsx_import_source_pragma.clone();
         let is_external_module = syntax.external_module_indicator.is_some();
-        let pragmas = leading_jsx_pragmas(&text);
+        // The pragma scan reads the leading comments of the source text in
+        // place (it copied the whole text before).
+        let pragmas = leading_jsx_pragmas(syntax.text());
         let root = context.arena().root(source)?;
         let import_base = jsx_implicit_import_base(
             self.jsx_mode,
@@ -223,7 +227,9 @@ struct JsxVisitor<'context> {
     is_external_module: bool,
     is_external_or_common_js_module: bool,
     target: ScriptTarget,
-    used_names: super::target_bindings::UsedNames,
+    /// The source's identifier census, collected the first time a fresh
+    /// name is needed (a source without JSX never needs one).
+    used_names: Option<super::target_bindings::UsedNames>,
     implicit_imports: Vec<ImplicitImportGroup>,
     filename_declaration: Option<TransformNode>,
     nodes: rustc_hash::FxHashMap<NodeId, Option<NodeId>>,
@@ -315,7 +321,6 @@ impl<'context> JsxVisitor<'context> {
                 .unwrap_or(default_fragment),
         };
 
-        let used_names = super::system::collect_identifier_texts(context.arena(), source);
         Self {
             context,
             source,
@@ -328,7 +333,7 @@ impl<'context> JsxVisitor<'context> {
             is_external_module,
             is_external_or_common_js_module,
             target,
-            used_names,
+            used_names: None,
             implicit_imports: Vec::new(),
             filename_declaration: None,
             nodes: rustc_hash::FxHashMap::default(),
@@ -345,6 +350,21 @@ impl<'context> JsxVisitor<'context> {
             .arena()
             .node_ref(self.source, id)
             .ok_or_else(|| TransformError::UnknownNode(self.node(id)))?;
+        // tsc-port: transformJsx visitor @6.0.3: a subtree without JSX maps
+        // to itself. The flags of a parsed or update-derived node describe
+        // its whole subtree; a synthesized node without complete flags is
+        // walked.
+        {
+            let arena = self.context.arena();
+            if arena.transform_flags_complete(original)
+                && !arena
+                    .transform_flags(original)
+                    .contains(TransformFlags::CONTAINS_JSX)
+            {
+                self.nodes.insert(id, Some(id));
+                return Ok(Some(id));
+            }
+        }
         let record = self.context.arena().node(original)?.clone();
         let transformed = match record.data {
             NodeData::JsxElement(data) => {
@@ -1340,14 +1360,26 @@ impl<'context> JsxVisitor<'context> {
         Ok(reference)
     }
 
+    fn used_names(&mut self) -> &mut super::target_bindings::UsedNames {
+        if self.used_names.is_none() {
+            self.used_names = Some(super::system::collect_identifier_texts(
+                self.context.arena(),
+                self.source,
+            ));
+        }
+        self.used_names
+            .as_mut()
+            .expect("the census is collected above")
+    }
+
     fn fresh_name(&mut self, base: &str) -> String {
-        if self.used_names.insert(base.to_owned()) {
+        if self.used_names().insert(base.to_owned()) {
             return base.to_owned();
         }
         let mut ordinal = 1usize;
         loop {
             let candidate = format!("{base}_{ordinal}");
-            if self.used_names.insert(candidate.clone()) {
+            if self.used_names().insert(candidate.clone()) {
                 return candidate;
             }
             ordinal += 1;
