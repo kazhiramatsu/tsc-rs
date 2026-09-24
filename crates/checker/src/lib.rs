@@ -3331,6 +3331,11 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     // check. With fewer than four fixtures per shard there is little to
     // balance, and the node-count partition spreads the library pass from
     // the start instead of after the last fixture.
+    // Declaration output prints types in shard-local type-id order, so a run
+    // that writes `.d.ts` files keeps a static file-to-shard assignment that
+    // nothing rebalances later (see `declaration_output_requested`).
+    let static_declaration_partition =
+        sharded_emit.is_some() && declaration_output_requested(options);
     let weights = snapshot
         .documents()
         .iter()
@@ -3339,16 +3344,22 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             let source = document.source();
             // A JSON source is admitted for its module shape and checked in
             // constant time; its node count would otherwise claim a share.
-            // So is a file whose check is skipped (`skipLibCheck` on a
-            // declaration file, the default libraries under
-            // `skipDefaultLibCheck`): the shard neither checks nor emits it.
-            let skipped = should_skip_type_checking_file(
-                source,
-                snapshot.file_facts(ProgramFileId::from_raw(
-                    u32::try_from(index).expect("program file index"),
-                )),
-                options,
-            );
+            // The static declaration partition also weighs a file whose
+            // check is skipped (`skipLibCheck` on a declaration file, the
+            // default libraries under `skipDefaultLibCheck`) as constant:
+            // the shard neither checks nor emits it, and zod's node-count
+            // split gave one shard 165 such files and no checking while
+            // another checked for 842 ms. A stealing run keeps the
+            // node-count weights of round 9, whose measured assignment the
+            // skipped files' weights are part of.
+            let skipped = static_declaration_partition
+                && should_skip_type_checking_file(
+                    source,
+                    snapshot.file_facts(ProgramFileId::from_raw(
+                        u32::try_from(index).expect("program file index"),
+                    )),
+                    options,
+                );
             if skipped || source.file_name.as_js().ends_with(".json") {
                 1
             } else {
@@ -3408,7 +3419,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             // its output then repeats run to run, as tsgo's does.
             shard::stealing_enabled()
                 && fixtures >= shard::STEAL_MIN_FIXTURES
-                && !(sharded_emit.is_some() && declaration_output_requested(options)),
+                && !static_declaration_partition,
         )
     };
     let shard_count = queue.shard_count();
