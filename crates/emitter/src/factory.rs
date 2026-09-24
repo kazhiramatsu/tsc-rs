@@ -228,6 +228,11 @@ impl TransformSource {
     pub const fn contains_parsed_node(&self, node: NodeId) -> bool {
         node.0 >= self.parsed_node_base && node.0 < self.parsed_node_end
     }
+
+    /// The number of parsed nodes the emit copy started from.
+    pub fn parsed_node_count(&self) -> usize {
+        (self.parsed_node_end - self.parsed_node_base) as usize
+    }
 }
 
 /// Emit-only mutable syntax copies plus sparse transform/emit side tables.

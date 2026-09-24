@@ -1047,6 +1047,12 @@ fn javascript_map_options_enabled(options: &CompilerOptions) -> bool {
 /// emitDeclarationFileOrBundle when a sink is supplied.
 /// tsrs-native: the per-resolver body of the whole-Program emit; a checker
 /// shard runs it for the units of its own files.
+/// Whether `TSRS_FILE_TRACE` is set: the per-unit development trace.
+fn file_trace_enabled() -> bool {
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var_os("TSRS_FILE_TRACE").is_some())
+}
+
 pub fn emit_planned_units(
     resolver: &dyn EmitResolver,
     host: &dyn EmitHost,
@@ -1077,9 +1083,18 @@ pub fn emit_planned_units(
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
     let javascript_map_options_enabled = javascript_map_options_enabled(options);
+    // `TSRS_FILE_TRACE=1` prints one line per emitted unit with its wall
+    // time and timeline position (the checker prints the checked files).
+    let unit_trace = file_trace_enabled();
     for &unit_index in units {
         let unit = &preflight.plan().units()[unit_index];
         let attach = attach(unit_index);
+        let unit_started = unit_trace.then(|| {
+            (
+                std::time::Instant::now(),
+                tsc_types::trace::since_epoch_ms(),
+            )
+        });
         let mut emission = UnitEmission {
             unit: unit_index,
             artifacts: Vec::with_capacity(2),
@@ -1203,6 +1218,19 @@ pub fn emit_planned_units(
         emission.javascript_map_path = javascript_map_path.filter(|_| javascript_printed);
         emission.declaration_path = declaration_path;
         emission.declaration_map_path = printed_declaration_map_path;
+        if let Some((started, at)) = unit_started {
+            let path = host
+                .source_file(source_id)
+                .map(|source| source.path().to_string_lossy().into_owned())
+                .unwrap_or_default();
+            eprintln!(
+                "[unit] ms={:.3} at={:.1} js={} decl={} {path}",
+                started.elapsed().as_secs_f64() * 1e3,
+                at,
+                emission.javascript_path.is_some(),
+                emission.declaration_path.is_some(),
+            );
+        }
         emissions.push(emission);
     }
     Ok(emissions)
@@ -1264,6 +1292,17 @@ fn emit_javascript_unit(
     }
     activity.construct_transform_context();
     let mut transformation = transform_nodes(arena, vec![transform_root], transformers, false)?;
+    if file_trace_enabled() {
+        if let Some(TransformRoot::SourceFile(source)) = transformation.roots().first() {
+            let source = transformation.arena().source(*source)?;
+            eprintln!(
+                "[unit-nodes] parsed={} total={} {}",
+                source.parsed_node_count(),
+                source.syntax().arena.nodes().len(),
+                source.syntax().file_name.to_string_lossy()
+            );
+        }
+    }
     let transformed_root = match transformation.roots() {
         [root] => root.clone(),
         _ => {
