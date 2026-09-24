@@ -2269,6 +2269,10 @@ fn config_option_is_supported_by_h0<'n>(name: impl Into<JsStr<'n>>) -> bool {
 }
 
 const H1_EMIT_PROJECTED_CONFIG_OPTIONS: &[&str] = &[
+    // `pretty` only selects the diagnostic renderer, which the command line
+    // already decides (`--pretty false`); zod's base tsconfig sets it, so an
+    // emitting command admits it like the no-emit inventory does.
+    "pretty",
     "listEmittedFiles",
     "emitBOM",
     "noEmitOnError",
