@@ -238,6 +238,24 @@ impl TransformSource {
     }
 }
 
+/// A source's emit copy prepared ahead of its emit: the detached clone of
+/// the parsed syntax with its parse-time transform flags classified, exactly
+/// what `add_source` followed by the first classification produces. A driver
+/// prepares the large sources while the checkers run and hands them to the
+/// emit through [`crate::EmitHost::take_prepared_source`].
+#[derive(Debug)]
+pub struct PreparedEmitSource(TransformSource);
+
+impl PreparedEmitSource {
+    /// Whether this copy was prepared from exactly `syntax` (the same parsed
+    /// arena: same identity range and file name).
+    pub fn matches(&self, syntax: &SourceFile) -> bool {
+        self.0.parsed_node_base == syntax.arena.node_base()
+            && self.0.parsed_node_end == syntax.arena.node_end()
+            && self.0.source.file_name == syntax.file_name
+    }
+}
+
 /// Emit-only mutable syntax copies plus sparse transform/emit side tables.
 /// Parsed `SourceFile` values and their identity leases are never mutated.
 #[derive(Debug)]

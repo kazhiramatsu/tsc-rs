@@ -16699,6 +16699,15 @@ pub(crate) fn normalizes_embedded_statements(data: &NodeData) -> bool {
     )
 }
 
+/// The first (parse-time) transform-flag classification of a freshly mounted
+/// source, run ahead of its emit by [`crate::prepare_emit_source`].
+pub(crate) fn classify_prepared_source(
+    arena: &mut TransformArena,
+    source: TransformSourceId,
+) -> Result<(), TransformError> {
+    initialize_transform_flags(arena, source)
+}
+
 fn initialize_transform_flags(
     arena: &mut TransformArena,
     source: TransformSourceId,

@@ -1,7 +1,9 @@
 use crate::artifact::EmitCallbackText;
+use crate::PreparedEmitSource;
 use tsc_diagnostics::{gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList, MessageChain};
 use tsc_diagnostics::{JsStr, JsString};
 use tsc_program::SourceFileId;
+use tsc_syntax::SourceFile;
 use tsc_types::{CompilerOptions, ScriptTarget};
 
 use crate::builtins::{
@@ -756,10 +758,27 @@ impl crate::GlobalNameOracle for ResolverGlobalNameOracle<'_> {
 
 /// Mount the exact ordered members of one planned root. Cross-file declaration
 /// lookup mounts the remaining Program sources separately without widening it.
+/// Prepare `source`'s emit copy ahead of its emit: the detached clone with
+/// its parse-time transform flags classified, as the JavaScript emit would
+/// build it first thing. A driver runs this on a spare thread while the
+/// checkers work and hands the copy back through
+/// [`EmitHost::take_prepared_source`]; the copy depends on the parsed syntax
+/// only, never on a checker.
+pub fn prepare_emit_source(
+    source: &SourceFile,
+    program_source: Option<SourceFileId>,
+) -> Result<PreparedEmitSource, TransformError> {
+    let mut arena = TransformArena::new();
+    let id = arena.add_source(source, program_source);
+    crate::builtins::classify_prepared_source(&mut arena, id)?;
+    Ok(arena.into_prepared_source(id))
+}
+
 pub(crate) fn mount_emit_root(
     arena: &mut TransformArena,
     host: &dyn EmitHost,
     root: &EmitRoot,
+    take_prepared: bool,
 ) -> Result<TransformRoot, EmitFailure> {
     let mut sources = Vec::with_capacity(root.source_files().len());
     for &source in root.source_files() {
@@ -770,7 +789,16 @@ pub(crate) fn mount_emit_root(
             EmitContractViolation::CheckedSyntaxUnavailable(source),
         ))?;
         let node_count = syntax.arena.nodes().len();
-        sources.push(arena.add_source(syntax, Some(source)));
+        // A copy prepared while the checkers ran replaces the clone and the
+        // first classification; it must have come from this very syntax.
+        let prepared = take_prepared
+            .then(|| host.take_prepared_source(source))
+            .flatten()
+            .filter(|prepared| prepared.matches(syntax));
+        sources.push(match prepared {
+            Some(prepared) => arena.add_prepared_source(prepared),
+            None => arena.add_source(syntax, Some(source)),
+        });
         // The transforms attach metadata (original links, emit flags) to a
         // sizeable share of a source's nodes; one reservation replaces the
         // map's repeated rehashing (2% of the emit profile).
@@ -1260,7 +1288,7 @@ fn emit_javascript_unit(
 ) -> Result<(), EmitFailure> {
     let _ = preflight;
     let mut arena = TransformArena::new();
-    let transform_root = mount_emit_root(&mut arena, host, unit.root())?;
+    let transform_root = mount_emit_root(&mut arena, host, unit.root(), true)?;
     // tsc-port: emitJsFileOrBundle @6.0.3 (_tsc.js:116594-116598)
     // Unchecked sources (noCheck, or a file excluded by
     // canIncludeBindAndCheckDiagnostics) have their alias

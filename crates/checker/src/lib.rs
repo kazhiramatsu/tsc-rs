@@ -2838,7 +2838,14 @@ pub struct ShardedEmit<'op> {
     /// overlaps the shards still checking instead of following the slowest.
     /// The gate decides whether the work counts; it must be able to redo it.
     pub eager: Option<ShardEagerClosure<'op>>,
+    /// Runs on its own thread over the snapshot while the shards check:
+    /// work that depends on the parsed syntax only, such as preparing the
+    /// emit copies of the largest sources ahead of their emit.
+    pub prelude: Option<ShardPreludeClosure<'op>>,
 }
+
+/// The syntax-only work a [`ShardedEmit`] request runs beside the shards.
+pub type ShardPreludeClosure<'op> = &'op (dyn Fn(&ProgramSnapshot) + Sync);
 
 /// The per-shard eager work of a [`ShardedEmit`] request: the shard index,
 /// the snapshot, the shard's checked session, its Program file indices and
@@ -3490,6 +3497,8 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     let emit_closure: Option<ShardEmitClosure<'_>> = sharded_emit.as_ref().map(|emit| emit.emit);
     let eager_closure: Option<ShardEagerClosure<'_>> =
         sharded_emit.as_ref().and_then(|emit| emit.eager);
+    let prelude_closure: Option<ShardPreludeClosure<'_>> =
+        sharded_emit.as_ref().and_then(|emit| emit.prelude);
     let coordinate = emit_closure.is_some();
     // One provider per shard, owned here so a checked state (which borrows
     // its provider) can outlive its shard's thread for the emit pool.
@@ -3530,6 +3539,19 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         let mut handles = Vec::with_capacity(shard_count);
         let mut results: Vec<Option<(ShardOutput, Option<state::CheckerState<'_>>)>> =
             (0..shard_count).map(|_| None).collect();
+        // The syntax-only prelude (emit copies of the largest sources) runs
+        // beside the shards; a refused thread just leaves the emit to prepare
+        // its copies itself.
+        if let Some(prelude) = prelude_closure {
+            let snapshot = &snapshot;
+            let _ = std::thread::Builder::new()
+                .name("tsc-rs-emit-prelude".to_owned())
+                .stack_size(tsc_program::WORKER_STACK_BYTES)
+                .spawn_scoped(scope, move || {
+                    tsc_program::run_thread_start_hook();
+                    prelude(snapshot);
+                });
+        }
         // The coordinator runs shard 0 itself; the others run on scoped
         // threads. A refused thread is not an error: the coordinator runs
         // that shard too, with the untouched host facts of its slot.
