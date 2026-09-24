@@ -67,6 +67,26 @@ pub struct Node {
     pub data: NodeData,
 }
 
+impl Node {
+    /// This record's scalar facts with another payload: a probe for the
+    /// emitter's flag classifier that clones no payload of its own.
+    pub fn with_data(&self, data: NodeData) -> Node {
+        Node {
+            kind: self.kind,
+            flags: self.flags,
+            transform_flags: self.transform_flags,
+            numeric_literal_flags: self.numeric_literal_flags,
+            template_flags: self.template_flags,
+            multi_line: self.multi_line,
+            pos: self.pos,
+            end: self.end,
+            parent: self.parent,
+            js_doc: self.js_doc,
+            data,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct ArrayBindingPatternData {
     pub elements: Option<NodeArrayId>,

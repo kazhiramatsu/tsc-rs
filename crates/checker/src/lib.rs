@@ -2840,7 +2840,9 @@ pub struct ShardedEmit<'op> {
     pub eager: Option<ShardEagerClosure<'op>>,
 }
 
-type ShardEagerClosure<'op> =
+/// The per-shard eager work of a [`ShardedEmit`] request: the shard index,
+/// the snapshot, the shard's checked session and its Program file indices.
+pub type ShardEagerClosure<'op> =
     &'op (dyn Fn(usize, &ProgramSnapshot, &CheckerSession<'_>, &[usize]) + Sync);
 
 type ShardGateClosure<'op> = &'op mut dyn FnMut(
@@ -3220,6 +3222,16 @@ fn merge_shard_outputs(
     })
 }
 
+/// Whether the run writes declaration files: `declaration` or `composite`
+/// (which implies it), including `emitDeclarationOnly`. Type printing in
+/// `.d.ts` output observes the shard-local type-id order, so such a run keeps
+/// a scheduling-independent file-to-shard assignment.
+fn declaration_output_requested(options: &CompilerOptions) -> bool {
+    options.declaration == Some(true)
+        || options.composite == Some(true)
+        || options.emit_declaration_only == Some(true)
+}
+
 /// The sharded driver: stages 1–2 once (parse/adopt, bind, snapshot), then
 /// one checker state per shard on scoped threads over the shared immutable
 /// snapshot, then the Program-order merge. Equivalent to the serial driver's
@@ -3319,14 +3331,36 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     // check. With fewer than four fixtures per shard there is little to
     // balance, and the node-count partition spreads the library pass from
     // the start instead of after the last fixture.
+    // Declaration output prints types in shard-local type-id order, so a run
+    // that writes `.d.ts` files keeps a static file-to-shard assignment that
+    // nothing rebalances later (see `declaration_output_requested`).
+    let static_declaration_partition =
+        sharded_emit.is_some() && declaration_output_requested(options);
     let weights = snapshot
         .documents()
         .iter()
-        .map(|document| {
+        .enumerate()
+        .map(|(index, document)| {
             let source = document.source();
             // A JSON source is admitted for its module shape and checked in
             // constant time; its node count would otherwise claim a share.
-            if source.file_name.as_js().ends_with(".json") {
+            // The static declaration partition also weighs a file whose
+            // check is skipped (`skipLibCheck` on a declaration file, the
+            // default libraries under `skipDefaultLibCheck`) as constant:
+            // the shard neither checks nor emits it, and zod's node-count
+            // split gave one shard 165 such files and no checking while
+            // another checked for 842 ms. A stealing run keeps the
+            // node-count weights of round 9, whose measured assignment the
+            // skipped files' weights are part of.
+            let skipped = static_declaration_partition
+                && should_skip_type_checking_file(
+                    source,
+                    snapshot.file_facts(ProgramFileId::from_raw(
+                        u32::try_from(index).expect("program file index"),
+                    )),
+                    options,
+                );
+            if skipped || source.file_name.as_js().ends_with(".json") {
                 1
             } else {
                 source.arena.len()
@@ -3341,7 +3375,11 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     // shard-local type order then repeats run to run, as tsgo's does, and
     // the emit phases run each file on the checker that checked it.
     // `TSRS_SHARD_QUEUE` overrides the choice.
-    let checker_count = checkers.checkers();
+    let checker_count = if static_declaration_partition {
+        checkers.checkers_for_static_partition()
+    } else {
+        checkers.checkers()
+    };
     // Each file's directory, interned, for the directory-preferring
     // partition (files of one directory share their imports).
     let mut directory_ids: rustc_hash::FxHashMap<&[u8], u32> = Default::default();
@@ -3380,7 +3418,12 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             // A large program balances its shares by stealing; a small one
             // keeps the static shares, so its run-to-run type order (the
             // relaxed sharded mode's determinism) does not depend on timing.
-            shard::stealing_enabled() && fixtures >= shard::STEAL_MIN_FIXTURES,
+            // Declaration output prints types in type-id order, so a run
+            // that writes `.d.ts` files keeps the static shares at any size:
+            // its output then repeats run to run, as tsgo's does.
+            shard::stealing_enabled()
+                && fixtures >= shard::STEAL_MIN_FIXTURES
+                && !static_declaration_partition,
         )
     };
     let shard_count = queue.shard_count();

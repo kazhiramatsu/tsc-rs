@@ -30,6 +30,9 @@ pub const MAX_CHECKERS: usize = 16;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CheckerBudget {
     checkers: NonZeroUsize,
+    /// The count came from [`CheckerBudget::automatic`] rather than an
+    /// explicit request, so a static partition may take more shards.
+    automatic: bool,
     /// Leak every checker state instead of dropping it (the CLI's one-shot
     /// process exits right after publishing; tearing down the links tables,
     /// type tables and transient symbols was ~5 % of its sampled ticks).
@@ -65,6 +68,7 @@ impl CheckerBudget {
     pub const fn serial() -> Self {
         Self {
             checkers: NonZeroUsize::MIN,
+            automatic: false,
             leak_states: false,
             order_replay: false,
         }
@@ -84,6 +88,7 @@ impl CheckerBudget {
                 Some(value) => value,
                 None => NonZeroUsize::MIN,
             },
+            automatic: false,
             leak_states: false,
             order_replay: false,
         }
@@ -125,14 +130,36 @@ impl CheckerBudget {
     /// count). `TSRS_CHECKERS` pins another count.
     pub fn automatic() -> Self {
         let available = std::thread::available_parallelism().map_or(1, NonZeroUsize::get);
-        Self::new(
+        let mut budget = Self::new(
             NonZeroUsize::new(available.clamp(1, AUTOMATIC_CHECKERS_CAP))
                 .expect("at least one checker"),
-        )
+        );
+        budget.automatic = true;
+        budget
     }
 
     pub const fn checkers(self) -> usize {
         self.checkers.get()
+    }
+
+    /// The checker count for a partition nothing rebalances later (the
+    /// static split of a declaration-emitting run): one and a half times the
+    /// automatic count, capped at [`MAX_CHECKERS`]. Smaller shares leave a
+    /// shorter tail behind the heaviest share: on a ten-core machine the
+    /// hono, playwright, zod and Next.js declaration runs were 4–13 % faster
+    /// with twelve shards than with eight, ten gained nothing and sixteen
+    /// lost. An explicit count (`TSRS_CHECKERS`) is kept as requested.
+    pub const fn checkers_for_static_partition(self) -> usize {
+        if self.automatic {
+            let scaled = self.checkers.get() * 3 / 2;
+            if scaled > MAX_CHECKERS {
+                MAX_CHECKERS
+            } else {
+                scaled
+            }
+        } else {
+            self.checkers.get()
+        }
     }
 
     /// Whether more than one checker state may be constructed.
@@ -929,6 +956,22 @@ mod tests {
             CheckerBudget::new(NonZeroUsize::new(1_000).unwrap()).checkers(),
             MAX_CHECKERS
         );
+    }
+
+    #[test]
+    fn a_static_partition_takes_one_and_a_half_automatic_checkers() {
+        // The automatic budget grows for a split nothing rebalances later; an
+        // explicit count is kept as requested, and the growth stays capped.
+        let automatic = CheckerBudget::automatic();
+        let expected = (automatic.checkers() * 3 / 2).min(MAX_CHECKERS);
+        assert_eq!(automatic.checkers_for_static_partition(), expected);
+        assert!(automatic.checkers_for_static_partition() >= automatic.checkers());
+        let explicit = CheckerBudget::new(NonZeroUsize::new(6).unwrap());
+        assert_eq!(explicit.checkers_for_static_partition(), 6);
+        let serial = CheckerBudget::serial();
+        assert_eq!(serial.checkers_for_static_partition(), 1);
+        let capped = CheckerBudget::new(NonZeroUsize::new(MAX_CHECKERS).unwrap());
+        assert_eq!(capped.checkers_for_static_partition(), MAX_CHECKERS);
     }
 
     #[test]

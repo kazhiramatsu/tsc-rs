@@ -8,7 +8,11 @@
 use crate::transform::try_visit_transform_children;
 use std::collections::{BTreeMap, BTreeSet};
 
-use tsc_syntax::{NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind};
+use tsc_syntax::{
+    child_slots, map_child_slots, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind,
+};
+
+use super::{array_memo, node_memo, ArrayMemo, NodeMemo};
 use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget};
 
 use crate::{
@@ -267,8 +271,8 @@ impl NamedEvaluationOutcome {
 struct EsNextVisitor<'context> {
     context: &'context mut TransformationContext,
     source: TransformSourceId,
-    nodes: rustc_hash::FxHashMap<NodeId, Option<NodeId>>,
-    arrays: rustc_hash::FxHashMap<NodeArrayId, Option<NodeArrayId>>,
+    nodes: NodeMemo<Option<NodeId>>,
+    arrays: ArrayMemo<Option<NodeArrayId>>,
     used_names: UsedNames,
     parsed_source_identifier_names: ParsedSourceIdentifierNames,
     generated_ordinals: BTreeMap<String, usize>,
@@ -289,6 +293,8 @@ impl<'context> EsNextVisitor<'context> {
         source: TransformSourceId,
         moves_class_initializers: bool,
     ) -> Result<Self, TransformError> {
+        let nodes = node_memo(context.arena(), source);
+        let arrays = array_memo(context.arena(), source);
         Ok(Self {
             used_names: collect_identifier_texts(context.arena(), source),
             parsed_source_identifier_names: ParsedSourceIdentifierNames::collect(
@@ -297,8 +303,8 @@ impl<'context> EsNextVisitor<'context> {
             )?,
             context,
             source,
-            nodes: rustc_hash::FxHashMap::default(),
-            arrays: rustc_hash::FxHashMap::default(),
+            nodes,
+            arrays,
             generated_ordinals: BTreeMap::new(),
             disposal_scopes: BTreeMap::new(),
             function_body_blocks: BTreeSet::new(),
@@ -354,32 +360,36 @@ impl<'context> EsNextVisitor<'context> {
         is_scope_root: bool,
         nested_scopes: &mut Vec<TransformNode>,
     ) -> Result<(), TransformError> {
-        let record = self.context.arena().node(node)?.clone();
-        if !is_scope_root && Self::establishes_name_generation_scope(record.kind) {
+        let (kind, body, statements) = {
+            let record = self.context.arena().node(node)?;
+            let statements = match &record.data {
+                NodeData::SourceFile(data) => Some(data.statements),
+                NodeData::Block(data) => Some(data.statements),
+                _ => None,
+            };
+            (record.kind, Self::function_body(&record.data), statements)
+        };
+        if !is_scope_root && Self::establishes_name_generation_scope(kind) {
             nested_scopes.push(node);
             return Ok(());
         }
 
-        if let Some(body) = Self::function_body(&record.data) {
+        if let Some(body) = body {
             self.function_body_blocks.insert(body);
         }
 
-        let mode = match &record.data {
-            NodeData::SourceFile(data) => {
-                let statements = self.array_nodes(data.statements)?;
+        let mode = match statements {
+            Some(statements) => {
+                let statements = self.array_nodes(statements)?;
                 self.statements_mode(&statements)?
             }
-            NodeData::Block(data) => {
-                let statements = self.array_nodes(data.statements)?;
-                self.statements_mode(&statements)?
-            }
-            _ => None,
+            None => None,
         };
 
         let environment = mode
             .map(|_| self.allocate_generated_binding("env"))
             .transpose()?;
-        for child in self.direct_children(record.data)? {
+        for child in self.direct_children(node)? {
             self.plan_node_in_name_scope(child, false, nested_scopes)?;
         }
         if let (Some(mode), Some(environment)) = (mode, environment) {
@@ -433,13 +443,19 @@ impl<'context> EsNextVisitor<'context> {
         }
     }
 
-    fn direct_children(&self, mut data: NodeData) -> Result<Vec<TransformNode>, TransformError> {
+    /// The children `try_visit_transform_children` would visit, in its
+    /// order, read from the node's slots without cloning its payload.
+    fn direct_children(&self, node: TransformNode) -> Result<Vec<TransformNode>, TransformError> {
         let mut collector = DirectChildCollector {
             arena: self.context.arena(),
             source: self.source,
             children: Vec::new(),
         };
-        try_visit_transform_children(&mut data, &mut collector)?;
+        let record = self.context.arena().node(node)?;
+        if !matches!(record.data, NodeData::MissingDeclaration(_)) {
+            let mut slots = child_slots(&record.data, &collector);
+            map_child_slots(&mut slots, &mut collector)?;
+        }
         Ok(collector
             .children
             .into_iter()
@@ -2408,12 +2424,10 @@ impl NodeDataChildVisitor for DirectChildCollector<'_> {
     }
 
     fn visit_nodes(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, Self::Error> {
-        let nodes = self
+        let array = self
             .arena
-            .node_array(TransformNodeArray::new(self.source, id))?
-            .nodes
-            .clone();
-        self.children.extend(nodes);
+            .node_array(TransformNodeArray::new(self.source, id))?;
+        self.children.extend_from_slice(&array.nodes);
         Ok(Some(id))
     }
 

@@ -4173,3 +4173,1969 @@ where
 {
     id.and_then(|id| visit_nodes(lookup, id, cb))
 }
+
+/// One child position of a node, as [`child_slots`] lists them and
+/// [`apply_child_slots`] writes them back: the visit order and the
+/// conditional JSDoc tag orders are those of [`try_visit_each_child`].
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ChildSlot {
+    /// An absent optional child (or a JSDoc comment that is text).
+    Absent,
+    Node(NodeId),
+    Nodes(NodeArrayId),
+    /// A `JSDocComment::Nodes` comment.
+    JsDocNodes(NodeArrayId),
+}
+
+/// The most children any node kind has.
+pub const MAX_CHILD_SLOTS: usize = 9;
+
+/// The child slots of one node, in [`child_slots`] order.
+#[derive(Clone, Copy, Debug)]
+pub struct ChildSlots {
+    len: usize,
+    slots: [ChildSlot; MAX_CHILD_SLOTS],
+}
+
+impl ChildSlots {
+    pub const fn new() -> Self {
+        Self {
+            len: 0,
+            slots: [ChildSlot::Absent; MAX_CHILD_SLOTS],
+        }
+    }
+    fn push(&mut self, slot: ChildSlot) {
+        self.slots[self.len] = slot;
+        self.len += 1;
+    }
+    pub fn as_slice(&self) -> &[ChildSlot] {
+        &self.slots[..self.len]
+    }
+    pub fn as_mut_slice(&mut self) -> &mut [ChildSlot] {
+        &mut self.slots[..self.len]
+    }
+}
+
+impl Default for ChildSlots {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ChildSlot {
+    fn of_node(id: Option<NodeId>) -> Self {
+        id.map_or(Self::Absent, Self::Node)
+    }
+    fn of_nodes(id: Option<NodeArrayId>) -> Self {
+        id.map_or(Self::Absent, Self::Nodes)
+    }
+    fn of_jsdoc_comment(comment: Option<&JSDocComment>) -> Self {
+        match comment {
+            Some(JSDocComment::Nodes(id)) => Self::JsDocNodes(*id),
+            _ => Self::Absent,
+        }
+    }
+    fn node(self) -> Option<NodeId> {
+        match self {
+            Self::Node(id) => Some(id),
+            _ => None,
+        }
+    }
+    fn nodes(self) -> Option<NodeArrayId> {
+        match self {
+            Self::Nodes(id) | Self::JsDocNodes(id) => Some(id),
+            _ => None,
+        }
+    }
+}
+
+/// The children of `data` in [`try_visit_each_child`] order, without
+/// cloning its payload. The visitor's `node_kind` answers the JSDocTypedefTag order.
+pub fn child_slots<V: NodeDataChildVisitor>(data: &NodeData, visitor: &V) -> ChildSlots {
+    let mut out = ChildSlots::new();
+    match data {
+        NodeData::Token => {}
+        NodeData::ArrayBindingPattern(data) => {
+            out.push(ChildSlot::of_nodes(data.elements));
+        }
+        NodeData::ArrayLiteralExpression(data) => {
+            out.push(ChildSlot::of_nodes(data.elements));
+        }
+        NodeData::ArrayType(data) => {
+            out.push(ChildSlot::of_node(data.element_type));
+        }
+        NodeData::ArrowFunction(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_nodes(data.type_parameters));
+            out.push(ChildSlot::of_nodes(data.parameters));
+            out.push(ChildSlot::of_node(data.r#type));
+            out.push(ChildSlot::of_node(data.equals_greater_than_token));
+            out.push(ChildSlot::of_node(data.body));
+        }
+        NodeData::AsExpression(data) => {
+            out.push(ChildSlot::of_node(data.expression));
+            out.push(ChildSlot::of_node(data.r#type));
+        }
+        NodeData::AwaitExpression(data) => {
+            out.push(ChildSlot::of_node(data.expression));
+        }
+        NodeData::BigIntLiteral(_data) => {}
+        NodeData::BinaryExpression(data) => {
+            out.push(ChildSlot::of_node(data.left));
+            out.push(ChildSlot::of_node(data.operator_token));
+            out.push(ChildSlot::of_node(data.right));
+        }
+        NodeData::BindingElement(data) => {
+            out.push(ChildSlot::of_node(data.dot_dot_dot_token));
+            out.push(ChildSlot::of_node(data.property_name));
+            out.push(ChildSlot::of_node(data.name));
+            out.push(ChildSlot::of_node(data.initializer));
+        }
+        NodeData::Block(data) => {
+            out.push(ChildSlot::of_nodes(data.statements));
+        }
+        NodeData::BreakStatement(data) => {
+            out.push(ChildSlot::of_node(data.label));
+        }
+        NodeData::CallExpression(data) => {
+            out.push(ChildSlot::of_node(data.expression));
+            out.push(ChildSlot::of_node(data.question_dot_token));
+            out.push(ChildSlot::of_nodes(data.type_arguments));
+            out.push(ChildSlot::of_nodes(data.arguments));
+        }
+        NodeData::CallSignature(data) => {
+            out.push(ChildSlot::of_nodes(data.type_parameters));
+            out.push(ChildSlot::of_nodes(data.parameters));
+            out.push(ChildSlot::of_node(data.r#type));
+        }
+        NodeData::CaseBlock(data) => {
+            out.push(ChildSlot::of_nodes(data.clauses));
+        }
+        NodeData::CaseClause(data) => {
+            out.push(ChildSlot::of_node(data.expression));
+            out.push(ChildSlot::of_nodes(data.statements));
+        }
+        NodeData::CatchClause(data) => {
+            out.push(ChildSlot::of_node(data.variable_declaration));
+            out.push(ChildSlot::of_node(data.block));
+        }
+        NodeData::ClassDeclaration(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_node(data.name));
+            out.push(ChildSlot::of_nodes(data.type_parameters));
+            out.push(ChildSlot::of_nodes(data.heritage_clauses));
+            out.push(ChildSlot::of_nodes(data.members));
+        }
+        NodeData::ClassExpression(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_node(data.name));
+            out.push(ChildSlot::of_nodes(data.type_parameters));
+            out.push(ChildSlot::of_nodes(data.heritage_clauses));
+            out.push(ChildSlot::of_nodes(data.members));
+        }
+        NodeData::ClassStaticBlockDeclaration(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_node(data.body));
+        }
+        NodeData::CommaListExpression(data) => {
+            out.push(ChildSlot::of_nodes(data.elements));
+        }
+        NodeData::ComputedPropertyName(data) => {
+            out.push(ChildSlot::of_node(data.expression));
+        }
+        NodeData::ConditionalExpression(data) => {
+            out.push(ChildSlot::of_node(data.condition));
+            out.push(ChildSlot::of_node(data.question_token));
+            out.push(ChildSlot::of_node(data.when_true));
+            out.push(ChildSlot::of_node(data.colon_token));
+            out.push(ChildSlot::of_node(data.when_false));
+        }
+        NodeData::ConditionalType(data) => {
+            out.push(ChildSlot::of_node(data.check_type));
+            out.push(ChildSlot::of_node(data.extends_type));
+            out.push(ChildSlot::of_node(data.true_type));
+            out.push(ChildSlot::of_node(data.false_type));
+        }
+        NodeData::ConstructSignature(data) => {
+            out.push(ChildSlot::of_nodes(data.type_parameters));
+            out.push(ChildSlot::of_nodes(data.parameters));
+            out.push(ChildSlot::of_node(data.r#type));
+        }
+        NodeData::Constructor(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_node(data.name));
+            out.push(ChildSlot::of_nodes(data.type_parameters));
+            out.push(ChildSlot::of_nodes(data.parameters));
+            out.push(ChildSlot::of_node(data.r#type));
+            out.push(ChildSlot::of_node(data.body));
+        }
+        NodeData::ConstructorType(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_nodes(data.type_parameters));
+            out.push(ChildSlot::of_nodes(data.parameters));
+            out.push(ChildSlot::of_node(data.r#type));
+        }
+        NodeData::ContinueStatement(data) => {
+            out.push(ChildSlot::of_node(data.label));
+        }
+        NodeData::DebuggerStatement(_data) => {}
+        NodeData::Decorator(data) => {
+            out.push(ChildSlot::of_node(data.expression));
+        }
+        NodeData::DefaultClause(data) => {
+            out.push(ChildSlot::of_nodes(data.statements));
+        }
+        NodeData::DeleteExpression(data) => {
+            out.push(ChildSlot::of_node(data.expression));
+        }
+        NodeData::DoStatement(data) => {
+            out.push(ChildSlot::of_node(data.statement));
+            out.push(ChildSlot::of_node(data.expression));
+        }
+        NodeData::ElementAccessExpression(data) => {
+            out.push(ChildSlot::of_node(data.expression));
+            out.push(ChildSlot::of_node(data.question_dot_token));
+            out.push(ChildSlot::of_node(data.argument_expression));
+        }
+        NodeData::EmptyStatement(_data) => {}
+        NodeData::EnumDeclaration(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_node(data.name));
+            out.push(ChildSlot::of_nodes(data.members));
+        }
+        NodeData::EnumMember(data) => {
+            out.push(ChildSlot::of_node(data.name));
+            out.push(ChildSlot::of_node(data.initializer));
+        }
+        NodeData::ExportAssignment(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_node(data.expression));
+        }
+        NodeData::ExportDeclaration(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_node(data.export_clause));
+            out.push(ChildSlot::of_node(data.module_specifier));
+            out.push(ChildSlot::of_node(data.attributes));
+        }
+        NodeData::ExportSpecifier(data) => {
+            out.push(ChildSlot::of_node(data.property_name));
+            out.push(ChildSlot::of_node(data.name));
+        }
+        NodeData::ExpressionStatement(data) => {
+            out.push(ChildSlot::of_node(data.expression));
+        }
+        NodeData::ExpressionWithTypeArguments(data) => {
+            out.push(ChildSlot::of_node(data.expression));
+            out.push(ChildSlot::of_nodes(data.type_arguments));
+        }
+        NodeData::ExternalModuleReference(data) => {
+            out.push(ChildSlot::of_node(data.expression));
+        }
+        NodeData::ForInStatement(data) => {
+            out.push(ChildSlot::of_node(data.initializer));
+            out.push(ChildSlot::of_node(data.expression));
+            out.push(ChildSlot::of_node(data.statement));
+        }
+        NodeData::ForOfStatement(data) => {
+            out.push(ChildSlot::of_node(data.await_modifier));
+            out.push(ChildSlot::of_node(data.initializer));
+            out.push(ChildSlot::of_node(data.expression));
+            out.push(ChildSlot::of_node(data.statement));
+        }
+        NodeData::ForStatement(data) => {
+            out.push(ChildSlot::of_node(data.initializer));
+            out.push(ChildSlot::of_node(data.condition));
+            out.push(ChildSlot::of_node(data.incrementor));
+            out.push(ChildSlot::of_node(data.statement));
+        }
+        NodeData::FunctionDeclaration(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_node(data.asterisk_token));
+            out.push(ChildSlot::of_node(data.name));
+            out.push(ChildSlot::of_nodes(data.type_parameters));
+            out.push(ChildSlot::of_nodes(data.parameters));
+            out.push(ChildSlot::of_node(data.r#type));
+            out.push(ChildSlot::of_node(data.body));
+        }
+        NodeData::FunctionExpression(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_node(data.asterisk_token));
+            out.push(ChildSlot::of_node(data.name));
+            out.push(ChildSlot::of_nodes(data.type_parameters));
+            out.push(ChildSlot::of_nodes(data.parameters));
+            out.push(ChildSlot::of_node(data.r#type));
+            out.push(ChildSlot::of_node(data.body));
+        }
+        NodeData::FunctionType(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_nodes(data.type_parameters));
+            out.push(ChildSlot::of_nodes(data.parameters));
+            out.push(ChildSlot::of_node(data.r#type));
+        }
+        NodeData::GetAccessor(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_node(data.name));
+            out.push(ChildSlot::of_nodes(data.type_parameters));
+            out.push(ChildSlot::of_nodes(data.parameters));
+            out.push(ChildSlot::of_node(data.r#type));
+            out.push(ChildSlot::of_node(data.body));
+        }
+        NodeData::HeritageClause(data) => {
+            out.push(ChildSlot::of_nodes(data.types));
+        }
+        NodeData::Identifier(_data) => {}
+        NodeData::IfStatement(data) => {
+            out.push(ChildSlot::of_node(data.expression));
+            out.push(ChildSlot::of_node(data.then_statement));
+            out.push(ChildSlot::of_node(data.else_statement));
+        }
+        NodeData::ImportAttribute(data) => {
+            out.push(ChildSlot::of_node(data.name));
+            out.push(ChildSlot::of_node(data.value));
+        }
+        NodeData::ImportAttributes(data) => {
+            out.push(ChildSlot::of_nodes(data.elements));
+        }
+        NodeData::ImportClause(data) => {
+            out.push(ChildSlot::of_node(data.name));
+            out.push(ChildSlot::of_node(data.named_bindings));
+        }
+        NodeData::ImportDeclaration(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_node(data.import_clause));
+            out.push(ChildSlot::of_node(data.module_specifier));
+            out.push(ChildSlot::of_node(data.attributes));
+        }
+        NodeData::ImportEqualsDeclaration(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_node(data.name));
+            out.push(ChildSlot::of_node(data.module_reference));
+        }
+        NodeData::ImportSpecifier(data) => {
+            out.push(ChildSlot::of_node(data.property_name));
+            out.push(ChildSlot::of_node(data.name));
+        }
+        NodeData::ImportType(data) => {
+            out.push(ChildSlot::of_node(data.argument));
+            out.push(ChildSlot::of_node(data.attributes));
+            out.push(ChildSlot::of_node(data.qualifier));
+            out.push(ChildSlot::of_nodes(data.type_arguments));
+        }
+        NodeData::ImportTypeAssertionContainer(data) => {
+            out.push(ChildSlot::of_node(data.assert_clause));
+        }
+        NodeData::IndexSignature(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_nodes(data.type_parameters));
+            out.push(ChildSlot::of_nodes(data.parameters));
+            out.push(ChildSlot::of_node(data.r#type));
+        }
+        NodeData::IndexedAccessType(data) => {
+            out.push(ChildSlot::of_node(data.object_type));
+            out.push(ChildSlot::of_node(data.index_type));
+        }
+        NodeData::InferType(data) => {
+            out.push(ChildSlot::of_node(data.type_parameter));
+        }
+        NodeData::InterfaceDeclaration(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_node(data.name));
+            out.push(ChildSlot::of_nodes(data.type_parameters));
+            out.push(ChildSlot::of_nodes(data.heritage_clauses));
+            out.push(ChildSlot::of_nodes(data.members));
+        }
+        NodeData::IntersectionType(data) => {
+            out.push(ChildSlot::of_nodes(data.types));
+        }
+        NodeData::JSDoc(data) => {
+            out.push(ChildSlot::of_jsdoc_comment(data.comment.as_ref()));
+            out.push(ChildSlot::of_nodes(data.tags));
+        }
+        NodeData::JSDocAllType(_data) => {}
+        NodeData::JSDocAugmentsTag(data) => {
+            out.push(ChildSlot::of_node(data.tag_name));
+            out.push(ChildSlot::of_node(data.class));
+            out.push(ChildSlot::of_jsdoc_comment(data.comment.as_ref()));
+        }
+        NodeData::JSDocAuthorTag(data) => {
+            out.push(ChildSlot::of_node(data.tag_name));
+            out.push(ChildSlot::of_jsdoc_comment(data.comment.as_ref()));
+        }
+        NodeData::JSDocCallbackTag(data) => {
+            out.push(ChildSlot::of_node(data.tag_name));
+            out.push(ChildSlot::of_node(data.full_name));
+            out.push(ChildSlot::of_node(data.type_expression));
+            out.push(ChildSlot::of_jsdoc_comment(data.comment.as_ref()));
+        }
+        NodeData::JSDocClassTag(data) => {
+            out.push(ChildSlot::of_node(data.tag_name));
+            out.push(ChildSlot::of_jsdoc_comment(data.comment.as_ref()));
+        }
+        NodeData::JSDocDeprecatedTag(data) => {
+            out.push(ChildSlot::of_node(data.tag_name));
+            out.push(ChildSlot::of_jsdoc_comment(data.comment.as_ref()));
+        }
+        NodeData::JSDocEnumTag(data) => {
+            out.push(ChildSlot::of_node(data.tag_name));
+            out.push(ChildSlot::of_node(data.type_expression));
+            out.push(ChildSlot::of_jsdoc_comment(data.comment.as_ref()));
+        }
+        NodeData::JSDocFunctionType(data) => {
+            out.push(ChildSlot::of_nodes(data.parameters));
+            out.push(ChildSlot::of_node(data.r#type));
+        }
+        NodeData::JSDocImplementsTag(data) => {
+            out.push(ChildSlot::of_node(data.tag_name));
+            out.push(ChildSlot::of_node(data.class));
+            out.push(ChildSlot::of_jsdoc_comment(data.comment.as_ref()));
+        }
+        NodeData::JSDocImportTag(data) => {
+            out.push(ChildSlot::of_node(data.tag_name));
+            out.push(ChildSlot::of_node(data.import_clause));
+            out.push(ChildSlot::of_node(data.module_specifier));
+            out.push(ChildSlot::of_node(data.attributes));
+            out.push(ChildSlot::of_jsdoc_comment(data.comment.as_ref()));
+        }
+        NodeData::JSDocLink(data) => {
+            out.push(ChildSlot::of_node(data.name));
+        }
+        NodeData::JSDocLinkCode(data) => {
+            out.push(ChildSlot::of_node(data.name));
+        }
+        NodeData::JSDocLinkPlain(data) => {
+            out.push(ChildSlot::of_node(data.name));
+        }
+        NodeData::JSDocMemberName(data) => {
+            out.push(ChildSlot::of_node(data.left));
+            out.push(ChildSlot::of_node(data.right));
+        }
+        NodeData::JSDocNameReference(data) => {
+            out.push(ChildSlot::of_node(data.name));
+        }
+        NodeData::JSDocNamepathType(_data) => {}
+        NodeData::JSDocNonNullableType(data) => {
+            out.push(ChildSlot::of_node(data.r#type));
+        }
+        NodeData::JSDocNullableType(data) => {
+            out.push(ChildSlot::of_node(data.r#type));
+        }
+        NodeData::JSDocOptionalType(data) => {
+            out.push(ChildSlot::of_node(data.r#type));
+        }
+        NodeData::JSDocOverloadTag(data) => {
+            out.push(ChildSlot::of_node(data.tag_name));
+            out.push(ChildSlot::of_node(data.type_expression));
+            out.push(ChildSlot::of_jsdoc_comment(data.comment.as_ref()));
+        }
+        NodeData::JSDocOverrideTag(data) => {
+            out.push(ChildSlot::of_node(data.tag_name));
+            out.push(ChildSlot::of_jsdoc_comment(data.comment.as_ref()));
+        }
+        NodeData::JSDocParameterTag(data) => {
+            out.push(ChildSlot::of_node(data.tag_name));
+            if data.is_name_first {
+                out.push(ChildSlot::of_node(data.name));
+                out.push(ChildSlot::of_node(data.type_expression));
+            } else {
+                out.push(ChildSlot::of_node(data.type_expression));
+                out.push(ChildSlot::of_node(data.name));
+            }
+            out.push(ChildSlot::of_jsdoc_comment(data.comment.as_ref()));
+        }
+        NodeData::JSDocPrivateTag(data) => {
+            out.push(ChildSlot::of_node(data.tag_name));
+            out.push(ChildSlot::of_jsdoc_comment(data.comment.as_ref()));
+        }
+        NodeData::JSDocPropertyTag(data) => {
+            out.push(ChildSlot::of_node(data.tag_name));
+            if data.is_name_first {
+                out.push(ChildSlot::of_node(data.name));
+                out.push(ChildSlot::of_node(data.type_expression));
+            } else {
+                out.push(ChildSlot::of_node(data.type_expression));
+                out.push(ChildSlot::of_node(data.name));
+            }
+            out.push(ChildSlot::of_jsdoc_comment(data.comment.as_ref()));
+        }
+        NodeData::JSDocProtectedTag(data) => {
+            out.push(ChildSlot::of_node(data.tag_name));
+            out.push(ChildSlot::of_jsdoc_comment(data.comment.as_ref()));
+        }
+        NodeData::JSDocPublicTag(data) => {
+            out.push(ChildSlot::of_node(data.tag_name));
+            out.push(ChildSlot::of_jsdoc_comment(data.comment.as_ref()));
+        }
+        NodeData::JSDocReadonlyTag(data) => {
+            out.push(ChildSlot::of_node(data.tag_name));
+            out.push(ChildSlot::of_jsdoc_comment(data.comment.as_ref()));
+        }
+        NodeData::JSDocReturnTag(data) => {
+            out.push(ChildSlot::of_node(data.tag_name));
+            out.push(ChildSlot::of_node(data.type_expression));
+            out.push(ChildSlot::of_jsdoc_comment(data.comment.as_ref()));
+        }
+        NodeData::JSDocSatisfiesTag(data) => {
+            out.push(ChildSlot::of_node(data.tag_name));
+            out.push(ChildSlot::of_node(data.type_expression));
+            out.push(ChildSlot::of_jsdoc_comment(data.comment.as_ref()));
+        }
+        NodeData::JSDocSeeTag(data) => {
+            out.push(ChildSlot::of_node(data.tag_name));
+            out.push(ChildSlot::of_node(data.name));
+            out.push(ChildSlot::of_jsdoc_comment(data.comment.as_ref()));
+        }
+        NodeData::JSDocSignature(data) => {
+            out.push(ChildSlot::of_nodes(data.type_parameters));
+            out.push(ChildSlot::of_nodes(data.parameters));
+            out.push(ChildSlot::of_node(data.r#type));
+        }
+        NodeData::JSDocTag(data) => {
+            out.push(ChildSlot::of_node(data.tag_name));
+            out.push(ChildSlot::of_jsdoc_comment(data.comment.as_ref()));
+        }
+        NodeData::JSDocTemplateTag(data) => {
+            out.push(ChildSlot::of_node(data.tag_name));
+            out.push(ChildSlot::of_node(data.constraint));
+            out.push(ChildSlot::of_nodes(data.type_parameters));
+            out.push(ChildSlot::of_jsdoc_comment(data.comment.as_ref()));
+        }
+        NodeData::JSDocText(_data) => {}
+        NodeData::JSDocThisTag(data) => {
+            out.push(ChildSlot::of_node(data.tag_name));
+            out.push(ChildSlot::of_node(data.type_expression));
+            out.push(ChildSlot::of_jsdoc_comment(data.comment.as_ref()));
+        }
+        NodeData::JSDocThrowsTag(data) => {
+            out.push(ChildSlot::of_node(data.tag_name));
+            out.push(ChildSlot::of_node(data.type_expression));
+            out.push(ChildSlot::of_jsdoc_comment(data.comment.as_ref()));
+        }
+        NodeData::JSDocTypeExpression(data) => {
+            out.push(ChildSlot::of_node(data.r#type));
+        }
+        NodeData::JSDocTypeLiteral(data) => {
+            out.push(ChildSlot::of_nodes(data.js_doc_property_tags));
+        }
+        NodeData::JSDocTypeTag(data) => {
+            out.push(ChildSlot::of_node(data.tag_name));
+            out.push(ChildSlot::of_node(data.type_expression));
+            out.push(ChildSlot::of_jsdoc_comment(data.comment.as_ref()));
+        }
+        NodeData::JSDocTypedefTag(data) => {
+            out.push(ChildSlot::of_node(data.tag_name));
+            let type_expression_first = data
+                .type_expression
+                .is_some_and(|node| visitor.node_kind(node) == SyntaxKind::JSDocTypeExpression);
+            if type_expression_first {
+                out.push(ChildSlot::of_node(data.type_expression));
+                out.push(ChildSlot::of_node(data.full_name));
+            } else {
+                out.push(ChildSlot::of_node(data.full_name));
+                out.push(ChildSlot::of_node(data.type_expression));
+            }
+            out.push(ChildSlot::of_jsdoc_comment(data.comment.as_ref()));
+        }
+        NodeData::JSDocUnknownType(_data) => {}
+        NodeData::JSDocVariadicType(data) => {
+            out.push(ChildSlot::of_node(data.r#type));
+        }
+        NodeData::JsxAttribute(data) => {
+            out.push(ChildSlot::of_node(data.name));
+            out.push(ChildSlot::of_node(data.initializer));
+        }
+        NodeData::JsxAttributes(data) => {
+            out.push(ChildSlot::of_nodes(data.properties));
+        }
+        NodeData::JsxClosingElement(data) => {
+            out.push(ChildSlot::of_node(data.tag_name));
+        }
+        NodeData::JsxElement(data) => {
+            out.push(ChildSlot::of_node(data.opening_element));
+            out.push(ChildSlot::of_nodes(data.children));
+            out.push(ChildSlot::of_node(data.closing_element));
+        }
+        NodeData::JsxExpression(data) => {
+            out.push(ChildSlot::of_node(data.dot_dot_dot_token));
+            out.push(ChildSlot::of_node(data.expression));
+        }
+        NodeData::JsxFragment(data) => {
+            out.push(ChildSlot::of_node(data.opening_fragment));
+            out.push(ChildSlot::of_nodes(data.children));
+            out.push(ChildSlot::of_node(data.closing_fragment));
+        }
+        NodeData::JsxNamespacedName(data) => {
+            out.push(ChildSlot::of_node(data.namespace));
+            out.push(ChildSlot::of_node(data.name));
+        }
+        NodeData::JsxOpeningElement(data) => {
+            out.push(ChildSlot::of_node(data.tag_name));
+            out.push(ChildSlot::of_nodes(data.type_arguments));
+            out.push(ChildSlot::of_node(data.attributes));
+        }
+        NodeData::JsxSelfClosingElement(data) => {
+            out.push(ChildSlot::of_node(data.tag_name));
+            out.push(ChildSlot::of_nodes(data.type_arguments));
+            out.push(ChildSlot::of_node(data.attributes));
+        }
+        NodeData::JsxSpreadAttribute(data) => {
+            out.push(ChildSlot::of_node(data.expression));
+        }
+        NodeData::JsxText(_data) => {}
+        NodeData::LabeledStatement(data) => {
+            out.push(ChildSlot::of_node(data.label));
+            out.push(ChildSlot::of_node(data.statement));
+        }
+        NodeData::LiteralType(data) => {
+            out.push(ChildSlot::of_node(data.literal));
+        }
+        NodeData::MappedType(data) => {
+            out.push(ChildSlot::of_node(data.readonly_token));
+            out.push(ChildSlot::of_node(data.type_parameter));
+            out.push(ChildSlot::of_node(data.name_type));
+            out.push(ChildSlot::of_node(data.question_token));
+            out.push(ChildSlot::of_node(data.r#type));
+            out.push(ChildSlot::of_nodes(data.members));
+        }
+        NodeData::MetaProperty(data) => {
+            out.push(ChildSlot::of_node(data.name));
+        }
+        NodeData::MethodDeclaration(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_node(data.asterisk_token));
+            out.push(ChildSlot::of_node(data.name));
+            out.push(ChildSlot::of_node(data.question_token));
+            out.push(ChildSlot::of_node(data.exclamation_token));
+            out.push(ChildSlot::of_nodes(data.type_parameters));
+            out.push(ChildSlot::of_nodes(data.parameters));
+            out.push(ChildSlot::of_node(data.r#type));
+            out.push(ChildSlot::of_node(data.body));
+        }
+        NodeData::MethodSignature(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_node(data.name));
+            out.push(ChildSlot::of_node(data.question_token));
+            out.push(ChildSlot::of_nodes(data.type_parameters));
+            out.push(ChildSlot::of_nodes(data.parameters));
+            out.push(ChildSlot::of_node(data.r#type));
+        }
+        NodeData::MissingDeclaration(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+        }
+        NodeData::ModuleBlock(data) => {
+            out.push(ChildSlot::of_nodes(data.statements));
+        }
+        NodeData::ModuleDeclaration(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_node(data.name));
+            out.push(ChildSlot::of_node(data.body));
+        }
+        NodeData::NamedExports(data) => {
+            out.push(ChildSlot::of_nodes(data.elements));
+        }
+        NodeData::NamedImports(data) => {
+            out.push(ChildSlot::of_nodes(data.elements));
+        }
+        NodeData::NamedTupleMember(data) => {
+            out.push(ChildSlot::of_node(data.dot_dot_dot_token));
+            out.push(ChildSlot::of_node(data.name));
+            out.push(ChildSlot::of_node(data.question_token));
+            out.push(ChildSlot::of_node(data.r#type));
+        }
+        NodeData::NamespaceExport(data) => {
+            out.push(ChildSlot::of_node(data.name));
+        }
+        NodeData::NamespaceExportDeclaration(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_node(data.name));
+        }
+        NodeData::NamespaceImport(data) => {
+            out.push(ChildSlot::of_node(data.name));
+        }
+        NodeData::NewExpression(data) => {
+            out.push(ChildSlot::of_node(data.expression));
+            out.push(ChildSlot::of_node(data.question_dot_token));
+            out.push(ChildSlot::of_nodes(data.type_arguments));
+            out.push(ChildSlot::of_nodes(data.arguments));
+        }
+        NodeData::NoSubstitutionTemplateLiteral(_data) => {}
+        NodeData::NonNullExpression(data) => {
+            out.push(ChildSlot::of_node(data.expression));
+        }
+        NodeData::NotEmittedStatement(_data) => {}
+        NodeData::NumericLiteral(_data) => {}
+        NodeData::ObjectBindingPattern(data) => {
+            out.push(ChildSlot::of_nodes(data.elements));
+        }
+        NodeData::ObjectLiteralExpression(data) => {
+            out.push(ChildSlot::of_nodes(data.properties));
+        }
+        NodeData::OmittedExpression(_data) => {}
+        NodeData::OptionalType(data) => {
+            out.push(ChildSlot::of_node(data.r#type));
+        }
+        NodeData::Parameter(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_node(data.dot_dot_dot_token));
+            out.push(ChildSlot::of_node(data.name));
+            out.push(ChildSlot::of_node(data.question_token));
+            out.push(ChildSlot::of_node(data.r#type));
+            out.push(ChildSlot::of_node(data.initializer));
+        }
+        NodeData::ParenthesizedExpression(data) => {
+            out.push(ChildSlot::of_node(data.expression));
+        }
+        NodeData::ParenthesizedType(data) => {
+            out.push(ChildSlot::of_node(data.r#type));
+        }
+        NodeData::PartiallyEmittedExpression(data) => {
+            out.push(ChildSlot::of_node(data.expression));
+        }
+        NodeData::PostfixUnaryExpression(data) => {
+            out.push(ChildSlot::of_node(data.operand));
+        }
+        NodeData::PrefixUnaryExpression(data) => {
+            out.push(ChildSlot::of_node(data.operand));
+        }
+        NodeData::PrivateIdentifier(_data) => {}
+        NodeData::PropertyAccessExpression(data) => {
+            out.push(ChildSlot::of_node(data.expression));
+            out.push(ChildSlot::of_node(data.question_dot_token));
+            out.push(ChildSlot::of_node(data.name));
+        }
+        NodeData::PropertyAssignment(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_node(data.name));
+            out.push(ChildSlot::of_node(data.question_token));
+            out.push(ChildSlot::of_node(data.exclamation_token));
+            out.push(ChildSlot::of_node(data.initializer));
+        }
+        NodeData::PropertyDeclaration(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_node(data.name));
+            out.push(ChildSlot::of_node(data.question_token));
+            out.push(ChildSlot::of_node(data.exclamation_token));
+            out.push(ChildSlot::of_node(data.r#type));
+            out.push(ChildSlot::of_node(data.initializer));
+        }
+        NodeData::PropertySignature(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_node(data.name));
+            out.push(ChildSlot::of_node(data.question_token));
+            out.push(ChildSlot::of_node(data.r#type));
+            out.push(ChildSlot::of_node(data.initializer));
+        }
+        NodeData::QualifiedName(data) => {
+            out.push(ChildSlot::of_node(data.left));
+            out.push(ChildSlot::of_node(data.right));
+        }
+        NodeData::RegularExpressionLiteral(_data) => {}
+        NodeData::RestType(data) => {
+            out.push(ChildSlot::of_node(data.r#type));
+        }
+        NodeData::ReturnStatement(data) => {
+            out.push(ChildSlot::of_node(data.expression));
+        }
+        NodeData::SatisfiesExpression(data) => {
+            out.push(ChildSlot::of_node(data.expression));
+            out.push(ChildSlot::of_node(data.r#type));
+        }
+        NodeData::SetAccessor(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_node(data.name));
+            out.push(ChildSlot::of_nodes(data.type_parameters));
+            out.push(ChildSlot::of_nodes(data.parameters));
+            out.push(ChildSlot::of_node(data.r#type));
+            out.push(ChildSlot::of_node(data.body));
+        }
+        NodeData::ShorthandPropertyAssignment(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_node(data.name));
+            out.push(ChildSlot::of_node(data.question_token));
+            out.push(ChildSlot::of_node(data.exclamation_token));
+            out.push(ChildSlot::of_node(data.equals_token));
+            out.push(ChildSlot::of_node(data.object_assignment_initializer));
+        }
+        NodeData::SourceFile(data) => {
+            out.push(ChildSlot::of_nodes(data.statements));
+            out.push(ChildSlot::of_node(data.end_of_file_token));
+        }
+        NodeData::SpreadAssignment(data) => {
+            out.push(ChildSlot::of_node(data.expression));
+        }
+        NodeData::SpreadElement(data) => {
+            out.push(ChildSlot::of_node(data.expression));
+        }
+        NodeData::StringLiteral(_data) => {}
+        NodeData::SwitchStatement(data) => {
+            out.push(ChildSlot::of_node(data.expression));
+            out.push(ChildSlot::of_node(data.case_block));
+        }
+        NodeData::SyntaxList(_data) => {}
+        NodeData::TaggedTemplateExpression(data) => {
+            out.push(ChildSlot::of_node(data.tag));
+            out.push(ChildSlot::of_node(data.question_dot_token));
+            out.push(ChildSlot::of_nodes(data.type_arguments));
+            out.push(ChildSlot::of_node(data.template));
+        }
+        NodeData::TemplateExpression(data) => {
+            out.push(ChildSlot::of_node(data.head));
+            out.push(ChildSlot::of_nodes(data.template_spans));
+        }
+        NodeData::TemplateHead(_data) => {}
+        NodeData::TemplateLiteralType(data) => {
+            out.push(ChildSlot::of_node(data.head));
+            out.push(ChildSlot::of_nodes(data.template_spans));
+        }
+        NodeData::TemplateLiteralTypeSpan(data) => {
+            out.push(ChildSlot::of_node(data.r#type));
+            out.push(ChildSlot::of_node(data.literal));
+        }
+        NodeData::TemplateMiddle(_data) => {}
+        NodeData::TemplateSpan(data) => {
+            out.push(ChildSlot::of_node(data.expression));
+            out.push(ChildSlot::of_node(data.literal));
+        }
+        NodeData::TemplateTail(_data) => {}
+        NodeData::ThrowStatement(data) => {
+            out.push(ChildSlot::of_node(data.expression));
+        }
+        NodeData::TryStatement(data) => {
+            out.push(ChildSlot::of_node(data.try_block));
+            out.push(ChildSlot::of_node(data.catch_clause));
+            out.push(ChildSlot::of_node(data.finally_block));
+        }
+        NodeData::TupleType(data) => {
+            out.push(ChildSlot::of_nodes(data.elements));
+        }
+        NodeData::TypeAliasDeclaration(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_node(data.name));
+            out.push(ChildSlot::of_nodes(data.type_parameters));
+            out.push(ChildSlot::of_node(data.r#type));
+        }
+        NodeData::TypeAssertionExpression(data) => {
+            out.push(ChildSlot::of_node(data.r#type));
+            out.push(ChildSlot::of_node(data.expression));
+        }
+        NodeData::TypeLiteral(data) => {
+            out.push(ChildSlot::of_nodes(data.members));
+        }
+        NodeData::TypeOfExpression(data) => {
+            out.push(ChildSlot::of_node(data.expression));
+        }
+        NodeData::TypeOperator(data) => {
+            out.push(ChildSlot::of_node(data.r#type));
+        }
+        NodeData::TypeParameter(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_node(data.name));
+            out.push(ChildSlot::of_node(data.constraint));
+            out.push(ChildSlot::of_node(data.r#default));
+            out.push(ChildSlot::of_node(data.expression));
+        }
+        NodeData::TypePredicate(data) => {
+            out.push(ChildSlot::of_node(data.asserts_modifier));
+            out.push(ChildSlot::of_node(data.parameter_name));
+            out.push(ChildSlot::of_node(data.r#type));
+        }
+        NodeData::TypeQuery(data) => {
+            out.push(ChildSlot::of_node(data.expr_name));
+            out.push(ChildSlot::of_nodes(data.type_arguments));
+        }
+        NodeData::TypeReference(data) => {
+            out.push(ChildSlot::of_node(data.type_name));
+            out.push(ChildSlot::of_nodes(data.type_arguments));
+        }
+        NodeData::UnionType(data) => {
+            out.push(ChildSlot::of_nodes(data.types));
+        }
+        NodeData::VariableDeclaration(data) => {
+            out.push(ChildSlot::of_node(data.name));
+            out.push(ChildSlot::of_node(data.exclamation_token));
+            out.push(ChildSlot::of_node(data.r#type));
+            out.push(ChildSlot::of_node(data.initializer));
+        }
+        NodeData::VariableDeclarationList(data) => {
+            out.push(ChildSlot::of_nodes(data.declarations));
+        }
+        NodeData::VariableStatement(data) => {
+            out.push(ChildSlot::of_nodes(data.modifiers));
+            out.push(ChildSlot::of_node(data.declaration_list));
+        }
+        NodeData::VoidExpression(data) => {
+            out.push(ChildSlot::of_node(data.expression));
+        }
+        NodeData::WhileStatement(data) => {
+            out.push(ChildSlot::of_node(data.expression));
+            out.push(ChildSlot::of_node(data.statement));
+        }
+        NodeData::WithStatement(data) => {
+            out.push(ChildSlot::of_node(data.expression));
+            out.push(ChildSlot::of_node(data.statement));
+        }
+        NodeData::YieldExpression(data) => {
+            out.push(ChildSlot::of_node(data.asterisk_token));
+            out.push(ChildSlot::of_node(data.expression));
+        }
+    }
+    out
+}
+
+/// Write mapped child slots back into `data`, in [`child_slots`] order.
+/// A required child mapped to `Absent` reports `required_child_removed`.
+pub fn apply_child_slots<V>(
+    data: &mut NodeData,
+    slots: &ChildSlots,
+    visitor: &mut V,
+) -> Result<(), V::Error>
+where
+    V: NodeDataChildVisitor,
+{
+    let mut slots = slots.as_slice().iter().copied();
+    let mut next = || slots.next().unwrap_or(ChildSlot::Absent);
+    match data {
+        NodeData::Token => Ok(()),
+        NodeData::ArrayBindingPattern(data) => {
+            data.elements = next().nodes();
+            Ok(())
+        }
+        NodeData::ArrayLiteralExpression(data) => {
+            data.elements = next().nodes();
+            Ok(())
+        }
+        NodeData::ArrayType(data) => {
+            data.element_type = next().node();
+            Ok(())
+        }
+        NodeData::ArrowFunction(data) => {
+            data.modifiers = next().nodes();
+            data.type_parameters = next().nodes();
+            data.parameters = next().nodes();
+            data.r#type = next().node();
+            data.equals_greater_than_token = next().node();
+            data.body = next().node();
+            Ok(())
+        }
+        NodeData::AsExpression(data) => {
+            data.expression = next().node();
+            data.r#type = next().node();
+            Ok(())
+        }
+        NodeData::AwaitExpression(data) => {
+            data.expression = next().node();
+            Ok(())
+        }
+        NodeData::BigIntLiteral(_data) => Ok(()),
+        NodeData::BinaryExpression(data) => {
+            data.left = next().node();
+            data.operator_token = next().node();
+            data.right = next().node();
+            Ok(())
+        }
+        NodeData::BindingElement(data) => {
+            data.dot_dot_dot_token = next().node();
+            data.property_name = next().node();
+            data.name = next().node();
+            data.initializer = next().node();
+            Ok(())
+        }
+        NodeData::Block(data) => {
+            data.statements = next().nodes();
+            Ok(())
+        }
+        NodeData::BreakStatement(data) => {
+            data.label = next().node();
+            Ok(())
+        }
+        NodeData::CallExpression(data) => {
+            data.expression = next().node();
+            data.question_dot_token = next().node();
+            data.type_arguments = next().nodes();
+            data.arguments = next().nodes();
+            Ok(())
+        }
+        NodeData::CallSignature(data) => {
+            data.type_parameters = next().nodes();
+            data.parameters = next().nodes();
+            data.r#type = next().node();
+            Ok(())
+        }
+        NodeData::CaseBlock(data) => {
+            data.clauses = next().nodes();
+            Ok(())
+        }
+        NodeData::CaseClause(data) => {
+            data.expression = next().node();
+            data.statements = next().nodes();
+            Ok(())
+        }
+        NodeData::CatchClause(data) => {
+            data.variable_declaration = next().node();
+            data.block = next().node();
+            Ok(())
+        }
+        NodeData::ClassDeclaration(data) => {
+            data.modifiers = next().nodes();
+            data.name = next().node();
+            data.type_parameters = next().nodes();
+            data.heritage_clauses = next().nodes();
+            data.members = next().nodes();
+            Ok(())
+        }
+        NodeData::ClassExpression(data) => {
+            data.modifiers = next().nodes();
+            data.name = next().node();
+            data.type_parameters = next().nodes();
+            data.heritage_clauses = next().nodes();
+            data.members = next().nodes();
+            Ok(())
+        }
+        NodeData::ClassStaticBlockDeclaration(data) => {
+            data.modifiers = next().nodes();
+            data.body = next().node();
+            Ok(())
+        }
+        NodeData::CommaListExpression(data) => {
+            data.elements = next().nodes();
+            Ok(())
+        }
+        NodeData::ComputedPropertyName(data) => {
+            data.expression = next().node();
+            Ok(())
+        }
+        NodeData::ConditionalExpression(data) => {
+            data.condition = next().node();
+            data.question_token = next().node();
+            data.when_true = next().node();
+            data.colon_token = next().node();
+            data.when_false = next().node();
+            Ok(())
+        }
+        NodeData::ConditionalType(data) => {
+            data.check_type = next().node();
+            data.extends_type = next().node();
+            data.true_type = next().node();
+            data.false_type = next().node();
+            Ok(())
+        }
+        NodeData::ConstructSignature(data) => {
+            data.type_parameters = next().nodes();
+            data.parameters = next().nodes();
+            data.r#type = next().node();
+            Ok(())
+        }
+        NodeData::Constructor(data) => {
+            data.modifiers = next().nodes();
+            data.name = next().node();
+            data.type_parameters = next().nodes();
+            data.parameters = next().nodes();
+            data.r#type = next().node();
+            data.body = next().node();
+            Ok(())
+        }
+        NodeData::ConstructorType(data) => {
+            data.modifiers = next().nodes();
+            data.type_parameters = next().nodes();
+            data.parameters = next().nodes();
+            data.r#type = next().node();
+            Ok(())
+        }
+        NodeData::ContinueStatement(data) => {
+            data.label = next().node();
+            Ok(())
+        }
+        NodeData::DebuggerStatement(_data) => Ok(()),
+        NodeData::Decorator(data) => {
+            data.expression = next().node();
+            Ok(())
+        }
+        NodeData::DefaultClause(data) => {
+            data.statements = next().nodes();
+            Ok(())
+        }
+        NodeData::DeleteExpression(data) => {
+            data.expression = next().node();
+            Ok(())
+        }
+        NodeData::DoStatement(data) => {
+            data.statement = next().node();
+            data.expression = next().node();
+            Ok(())
+        }
+        NodeData::ElementAccessExpression(data) => {
+            data.expression = next().node();
+            data.question_dot_token = next().node();
+            data.argument_expression = next().node();
+            Ok(())
+        }
+        NodeData::EmptyStatement(_data) => Ok(()),
+        NodeData::EnumDeclaration(data) => {
+            data.modifiers = next().nodes();
+            data.name = next().node();
+            data.members = next().nodes();
+            Ok(())
+        }
+        NodeData::EnumMember(data) => {
+            data.name = next().node();
+            data.initializer = next().node();
+            Ok(())
+        }
+        NodeData::ExportAssignment(data) => {
+            data.modifiers = next().nodes();
+            data.expression = next().node();
+            Ok(())
+        }
+        NodeData::ExportDeclaration(data) => {
+            data.modifiers = next().nodes();
+            data.export_clause = next().node();
+            data.module_specifier = next().node();
+            data.attributes = next().node();
+            Ok(())
+        }
+        NodeData::ExportSpecifier(data) => {
+            data.property_name = next().node();
+            data.name = next().node();
+            Ok(())
+        }
+        NodeData::ExpressionStatement(data) => {
+            data.expression = next().node();
+            Ok(())
+        }
+        NodeData::ExpressionWithTypeArguments(data) => {
+            data.expression = next().node();
+            data.type_arguments = next().nodes();
+            Ok(())
+        }
+        NodeData::ExternalModuleReference(data) => {
+            data.expression = next().node();
+            Ok(())
+        }
+        NodeData::ForInStatement(data) => {
+            data.initializer = next().node();
+            data.expression = next().node();
+            data.statement = next().node();
+            Ok(())
+        }
+        NodeData::ForOfStatement(data) => {
+            data.await_modifier = next().node();
+            data.initializer = next().node();
+            data.expression = next().node();
+            data.statement = next().node();
+            Ok(())
+        }
+        NodeData::ForStatement(data) => {
+            data.initializer = next().node();
+            data.condition = next().node();
+            data.incrementor = next().node();
+            data.statement = next().node();
+            Ok(())
+        }
+        NodeData::FunctionDeclaration(data) => {
+            data.modifiers = next().nodes();
+            data.asterisk_token = next().node();
+            data.name = next().node();
+            data.type_parameters = next().nodes();
+            data.parameters = next().nodes();
+            data.r#type = next().node();
+            data.body = next().node();
+            Ok(())
+        }
+        NodeData::FunctionExpression(data) => {
+            data.modifiers = next().nodes();
+            data.asterisk_token = next().node();
+            data.name = next().node();
+            data.type_parameters = next().nodes();
+            data.parameters = next().nodes();
+            data.r#type = next().node();
+            data.body = next().node();
+            Ok(())
+        }
+        NodeData::FunctionType(data) => {
+            data.modifiers = next().nodes();
+            data.type_parameters = next().nodes();
+            data.parameters = next().nodes();
+            data.r#type = next().node();
+            Ok(())
+        }
+        NodeData::GetAccessor(data) => {
+            data.modifiers = next().nodes();
+            data.name = next().node();
+            data.type_parameters = next().nodes();
+            data.parameters = next().nodes();
+            data.r#type = next().node();
+            data.body = next().node();
+            Ok(())
+        }
+        NodeData::HeritageClause(data) => {
+            data.types = next().nodes();
+            Ok(())
+        }
+        NodeData::Identifier(_data) => Ok(()),
+        NodeData::IfStatement(data) => {
+            data.expression = next().node();
+            data.then_statement = next().node();
+            data.else_statement = next().node();
+            Ok(())
+        }
+        NodeData::ImportAttribute(data) => {
+            data.name = next().node();
+            data.value = next().node();
+            Ok(())
+        }
+        NodeData::ImportAttributes(data) => {
+            data.elements = next().nodes();
+            Ok(())
+        }
+        NodeData::ImportClause(data) => {
+            data.name = next().node();
+            data.named_bindings = next().node();
+            Ok(())
+        }
+        NodeData::ImportDeclaration(data) => {
+            data.modifiers = next().nodes();
+            data.import_clause = next().node();
+            data.module_specifier = next().node();
+            data.attributes = next().node();
+            Ok(())
+        }
+        NodeData::ImportEqualsDeclaration(data) => {
+            data.modifiers = next().nodes();
+            data.name = next().node();
+            data.module_reference = next().node();
+            Ok(())
+        }
+        NodeData::ImportSpecifier(data) => {
+            data.property_name = next().node();
+            data.name = next().node();
+            Ok(())
+        }
+        NodeData::ImportType(data) => {
+            data.argument = next().node();
+            data.attributes = next().node();
+            data.qualifier = next().node();
+            data.type_arguments = next().nodes();
+            Ok(())
+        }
+        NodeData::ImportTypeAssertionContainer(data) => {
+            data.assert_clause = next().node();
+            Ok(())
+        }
+        NodeData::IndexSignature(data) => {
+            data.modifiers = next().nodes();
+            data.type_parameters = next().nodes();
+            data.parameters = next().nodes();
+            data.r#type = next().node();
+            Ok(())
+        }
+        NodeData::IndexedAccessType(data) => {
+            data.object_type = next().node();
+            data.index_type = next().node();
+            Ok(())
+        }
+        NodeData::InferType(data) => {
+            data.type_parameter = next().node();
+            Ok(())
+        }
+        NodeData::InterfaceDeclaration(data) => {
+            data.modifiers = next().nodes();
+            data.name = next().node();
+            data.type_parameters = next().nodes();
+            data.heritage_clauses = next().nodes();
+            data.members = next().nodes();
+            Ok(())
+        }
+        NodeData::IntersectionType(data) => {
+            data.types = next().nodes();
+            Ok(())
+        }
+        NodeData::JSDoc(data) => {
+            apply_optional_jsdoc_comment(&mut data.comment, next());
+            data.tags = next().nodes();
+            Ok(())
+        }
+        NodeData::JSDocAllType(_data) => Ok(()),
+        NodeData::JSDocAugmentsTag(data) => {
+            data.tag_name = next().node();
+            data.class = next().node();
+            apply_optional_jsdoc_comment(&mut data.comment, next());
+            Ok(())
+        }
+        NodeData::JSDocAuthorTag(data) => {
+            data.tag_name = next().node();
+            apply_optional_jsdoc_comment(&mut data.comment, next());
+            Ok(())
+        }
+        NodeData::JSDocCallbackTag(data) => {
+            data.tag_name = next().node();
+            data.full_name = next().node();
+            data.type_expression = next().node();
+            apply_optional_jsdoc_comment(&mut data.comment, next());
+            Ok(())
+        }
+        NodeData::JSDocClassTag(data) => {
+            data.tag_name = next().node();
+            apply_optional_jsdoc_comment(&mut data.comment, next());
+            Ok(())
+        }
+        NodeData::JSDocDeprecatedTag(data) => {
+            data.tag_name = next().node();
+            apply_optional_jsdoc_comment(&mut data.comment, next());
+            Ok(())
+        }
+        NodeData::JSDocEnumTag(data) => {
+            data.tag_name = next().node();
+            data.type_expression = next().node();
+            apply_optional_jsdoc_comment(&mut data.comment, next());
+            Ok(())
+        }
+        NodeData::JSDocFunctionType(data) => {
+            data.parameters = next().nodes();
+            data.r#type = next().node();
+            Ok(())
+        }
+        NodeData::JSDocImplementsTag(data) => {
+            data.tag_name = next().node();
+            data.class = next().node();
+            apply_optional_jsdoc_comment(&mut data.comment, next());
+            Ok(())
+        }
+        NodeData::JSDocImportTag(data) => {
+            data.tag_name = next().node();
+            data.import_clause = next().node();
+            data.module_specifier = next().node();
+            data.attributes = next().node();
+            apply_optional_jsdoc_comment(&mut data.comment, next());
+            Ok(())
+        }
+        NodeData::JSDocLink(data) => {
+            data.name = next().node();
+            Ok(())
+        }
+        NodeData::JSDocLinkCode(data) => {
+            data.name = next().node();
+            Ok(())
+        }
+        NodeData::JSDocLinkPlain(data) => {
+            data.name = next().node();
+            Ok(())
+        }
+        NodeData::JSDocMemberName(data) => {
+            data.left = next().node();
+            data.right = next().node();
+            Ok(())
+        }
+        NodeData::JSDocNameReference(data) => {
+            data.name = next().node();
+            Ok(())
+        }
+        NodeData::JSDocNamepathType(_data) => Ok(()),
+        NodeData::JSDocNonNullableType(data) => {
+            data.r#type = next().node();
+            Ok(())
+        }
+        NodeData::JSDocNullableType(data) => {
+            data.r#type = next().node();
+            Ok(())
+        }
+        NodeData::JSDocOptionalType(data) => {
+            data.r#type = next().node();
+            Ok(())
+        }
+        NodeData::JSDocOverloadTag(data) => {
+            data.tag_name = next().node();
+            data.type_expression = next().node();
+            apply_optional_jsdoc_comment(&mut data.comment, next());
+            Ok(())
+        }
+        NodeData::JSDocOverrideTag(data) => {
+            data.tag_name = next().node();
+            apply_optional_jsdoc_comment(&mut data.comment, next());
+            Ok(())
+        }
+        NodeData::JSDocParameterTag(data) => {
+            data.tag_name = next().node();
+            if data.is_name_first {
+                data.name = next().node();
+                data.type_expression = next().node();
+            } else {
+                data.type_expression = next().node();
+                data.name = next().node();
+            }
+            apply_optional_jsdoc_comment(&mut data.comment, next());
+            Ok(())
+        }
+        NodeData::JSDocPrivateTag(data) => {
+            data.tag_name = next().node();
+            apply_optional_jsdoc_comment(&mut data.comment, next());
+            Ok(())
+        }
+        NodeData::JSDocPropertyTag(data) => {
+            data.tag_name = next().node();
+            if data.is_name_first {
+                data.name = next().node();
+                data.type_expression = next().node();
+            } else {
+                data.type_expression = next().node();
+                data.name = next().node();
+            }
+            apply_optional_jsdoc_comment(&mut data.comment, next());
+            Ok(())
+        }
+        NodeData::JSDocProtectedTag(data) => {
+            data.tag_name = next().node();
+            apply_optional_jsdoc_comment(&mut data.comment, next());
+            Ok(())
+        }
+        NodeData::JSDocPublicTag(data) => {
+            data.tag_name = next().node();
+            apply_optional_jsdoc_comment(&mut data.comment, next());
+            Ok(())
+        }
+        NodeData::JSDocReadonlyTag(data) => {
+            data.tag_name = next().node();
+            apply_optional_jsdoc_comment(&mut data.comment, next());
+            Ok(())
+        }
+        NodeData::JSDocReturnTag(data) => {
+            data.tag_name = next().node();
+            data.type_expression = next().node();
+            apply_optional_jsdoc_comment(&mut data.comment, next());
+            Ok(())
+        }
+        NodeData::JSDocSatisfiesTag(data) => {
+            data.tag_name = next().node();
+            data.type_expression = next().node();
+            apply_optional_jsdoc_comment(&mut data.comment, next());
+            Ok(())
+        }
+        NodeData::JSDocSeeTag(data) => {
+            data.tag_name = next().node();
+            data.name = next().node();
+            apply_optional_jsdoc_comment(&mut data.comment, next());
+            Ok(())
+        }
+        NodeData::JSDocSignature(data) => {
+            data.type_parameters = next().nodes();
+            data.parameters = next().nodes();
+            data.r#type = next().node();
+            Ok(())
+        }
+        NodeData::JSDocTag(data) => {
+            data.tag_name = next().node();
+            apply_optional_jsdoc_comment(&mut data.comment, next());
+            Ok(())
+        }
+        NodeData::JSDocTemplateTag(data) => {
+            data.tag_name = next().node();
+            data.constraint = next().node();
+            data.type_parameters = next().nodes();
+            apply_optional_jsdoc_comment(&mut data.comment, next());
+            Ok(())
+        }
+        NodeData::JSDocText(_data) => Ok(()),
+        NodeData::JSDocThisTag(data) => {
+            data.tag_name = next().node();
+            data.type_expression = next().node();
+            apply_optional_jsdoc_comment(&mut data.comment, next());
+            Ok(())
+        }
+        NodeData::JSDocThrowsTag(data) => {
+            data.tag_name = next().node();
+            data.type_expression = next().node();
+            apply_optional_jsdoc_comment(&mut data.comment, next());
+            Ok(())
+        }
+        NodeData::JSDocTypeExpression(data) => {
+            data.r#type = next().node();
+            Ok(())
+        }
+        NodeData::JSDocTypeLiteral(data) => {
+            data.js_doc_property_tags = next().nodes();
+            Ok(())
+        }
+        NodeData::JSDocTypeTag(data) => {
+            data.tag_name = next().node();
+            data.type_expression = next().node();
+            apply_optional_jsdoc_comment(&mut data.comment, next());
+            Ok(())
+        }
+        NodeData::JSDocTypedefTag(data) => {
+            data.tag_name = next().node();
+            let type_expression_first = data
+                .type_expression
+                .is_some_and(|node| visitor.node_kind(node) == SyntaxKind::JSDocTypeExpression);
+            if type_expression_first {
+                data.type_expression = next().node();
+                data.full_name = next().node();
+            } else {
+                data.full_name = next().node();
+                data.type_expression = next().node();
+            }
+            apply_optional_jsdoc_comment(&mut data.comment, next());
+            Ok(())
+        }
+        NodeData::JSDocUnknownType(_data) => Ok(()),
+        NodeData::JSDocVariadicType(data) => {
+            data.r#type = next().node();
+            Ok(())
+        }
+        NodeData::JsxAttribute(data) => {
+            data.name = next().node();
+            data.initializer = next().node();
+            Ok(())
+        }
+        NodeData::JsxAttributes(data) => {
+            data.properties = next().nodes();
+            Ok(())
+        }
+        NodeData::JsxClosingElement(data) => {
+            data.tag_name = next().node();
+            Ok(())
+        }
+        NodeData::JsxElement(data) => {
+            data.opening_element = next().node();
+            data.children = next().nodes();
+            data.closing_element = next().node();
+            Ok(())
+        }
+        NodeData::JsxExpression(data) => {
+            data.dot_dot_dot_token = next().node();
+            data.expression = next().node();
+            Ok(())
+        }
+        NodeData::JsxFragment(data) => {
+            data.opening_fragment = next().node();
+            data.children = next().nodes();
+            data.closing_fragment = next().node();
+            Ok(())
+        }
+        NodeData::JsxNamespacedName(data) => {
+            data.namespace = next().node();
+            data.name = next().node();
+            Ok(())
+        }
+        NodeData::JsxOpeningElement(data) => {
+            data.tag_name = next().node();
+            data.type_arguments = next().nodes();
+            data.attributes = next().node();
+            Ok(())
+        }
+        NodeData::JsxSelfClosingElement(data) => {
+            data.tag_name = next().node();
+            data.type_arguments = next().nodes();
+            data.attributes = next().node();
+            Ok(())
+        }
+        NodeData::JsxSpreadAttribute(data) => {
+            data.expression = next().node();
+            Ok(())
+        }
+        NodeData::JsxText(_data) => Ok(()),
+        NodeData::LabeledStatement(data) => {
+            data.label = next().node();
+            data.statement = next().node();
+            Ok(())
+        }
+        NodeData::LiteralType(data) => {
+            data.literal = next().node();
+            Ok(())
+        }
+        NodeData::MappedType(data) => {
+            data.readonly_token = next().node();
+            data.type_parameter = next().node();
+            data.name_type = next().node();
+            data.question_token = next().node();
+            data.r#type = next().node();
+            data.members = next().nodes();
+            Ok(())
+        }
+        NodeData::MetaProperty(data) => {
+            data.name = next().node();
+            Ok(())
+        }
+        NodeData::MethodDeclaration(data) => {
+            data.modifiers = next().nodes();
+            data.asterisk_token = next().node();
+            data.name = next().node();
+            data.question_token = next().node();
+            data.exclamation_token = next().node();
+            data.type_parameters = next().nodes();
+            data.parameters = next().nodes();
+            data.r#type = next().node();
+            data.body = next().node();
+            Ok(())
+        }
+        NodeData::MethodSignature(data) => {
+            data.modifiers = next().nodes();
+            data.name = next().node();
+            data.question_token = next().node();
+            data.type_parameters = next().nodes();
+            data.parameters = next().nodes();
+            data.r#type = next().node();
+            Ok(())
+        }
+        NodeData::MissingDeclaration(data) => {
+            data.modifiers = next().nodes();
+            Ok(())
+        }
+        NodeData::ModuleBlock(data) => {
+            data.statements = next().nodes();
+            Ok(())
+        }
+        NodeData::ModuleDeclaration(data) => {
+            data.modifiers = next().nodes();
+            data.name = next().node();
+            data.body = next().node();
+            Ok(())
+        }
+        NodeData::NamedExports(data) => {
+            data.elements = next().nodes();
+            Ok(())
+        }
+        NodeData::NamedImports(data) => {
+            data.elements = next().nodes();
+            Ok(())
+        }
+        NodeData::NamedTupleMember(data) => {
+            data.dot_dot_dot_token = next().node();
+            data.name = next().node();
+            data.question_token = next().node();
+            data.r#type = next().node();
+            Ok(())
+        }
+        NodeData::NamespaceExport(data) => {
+            data.name = next().node();
+            Ok(())
+        }
+        NodeData::NamespaceExportDeclaration(data) => {
+            data.modifiers = next().nodes();
+            data.name = next().node();
+            Ok(())
+        }
+        NodeData::NamespaceImport(data) => {
+            data.name = next().node();
+            Ok(())
+        }
+        NodeData::NewExpression(data) => {
+            data.expression = next().node();
+            data.question_dot_token = next().node();
+            data.type_arguments = next().nodes();
+            data.arguments = next().nodes();
+            Ok(())
+        }
+        NodeData::NoSubstitutionTemplateLiteral(_data) => Ok(()),
+        NodeData::NonNullExpression(data) => {
+            data.expression = next().node();
+            Ok(())
+        }
+        NodeData::NotEmittedStatement(_data) => Ok(()),
+        NodeData::NumericLiteral(_data) => Ok(()),
+        NodeData::ObjectBindingPattern(data) => {
+            data.elements = next().nodes();
+            Ok(())
+        }
+        NodeData::ObjectLiteralExpression(data) => {
+            data.properties = next().nodes();
+            Ok(())
+        }
+        NodeData::OmittedExpression(_data) => Ok(()),
+        NodeData::OptionalType(data) => {
+            data.r#type = next().node();
+            Ok(())
+        }
+        NodeData::Parameter(data) => {
+            data.modifiers = next().nodes();
+            data.dot_dot_dot_token = next().node();
+            data.name = next().node();
+            data.question_token = next().node();
+            data.r#type = next().node();
+            data.initializer = next().node();
+            Ok(())
+        }
+        NodeData::ParenthesizedExpression(data) => {
+            data.expression = next().node();
+            Ok(())
+        }
+        NodeData::ParenthesizedType(data) => {
+            data.r#type = next().node();
+            Ok(())
+        }
+        NodeData::PartiallyEmittedExpression(data) => {
+            data.expression = next().node();
+            Ok(())
+        }
+        NodeData::PostfixUnaryExpression(data) => {
+            data.operand = next().node();
+            Ok(())
+        }
+        NodeData::PrefixUnaryExpression(data) => {
+            data.operand = next().node();
+            Ok(())
+        }
+        NodeData::PrivateIdentifier(_data) => Ok(()),
+        NodeData::PropertyAccessExpression(data) => {
+            data.expression = next().node();
+            data.question_dot_token = next().node();
+            data.name = next().node();
+            Ok(())
+        }
+        NodeData::PropertyAssignment(data) => {
+            data.modifiers = next().nodes();
+            data.name = next().node();
+            data.question_token = next().node();
+            data.exclamation_token = next().node();
+            data.initializer = next().node();
+            Ok(())
+        }
+        NodeData::PropertyDeclaration(data) => {
+            data.modifiers = next().nodes();
+            data.name = next().node();
+            data.question_token = next().node();
+            data.exclamation_token = next().node();
+            data.r#type = next().node();
+            data.initializer = next().node();
+            Ok(())
+        }
+        NodeData::PropertySignature(data) => {
+            data.modifiers = next().nodes();
+            data.name = next().node();
+            data.question_token = next().node();
+            data.r#type = next().node();
+            data.initializer = next().node();
+            Ok(())
+        }
+        NodeData::QualifiedName(data) => {
+            data.left = next().node();
+            data.right = next().node();
+            Ok(())
+        }
+        NodeData::RegularExpressionLiteral(_data) => Ok(()),
+        NodeData::RestType(data) => {
+            data.r#type = next().node();
+            Ok(())
+        }
+        NodeData::ReturnStatement(data) => {
+            data.expression = next().node();
+            Ok(())
+        }
+        NodeData::SatisfiesExpression(data) => {
+            data.expression = next().node();
+            data.r#type = next().node();
+            Ok(())
+        }
+        NodeData::SetAccessor(data) => {
+            data.modifiers = next().nodes();
+            data.name = next().node();
+            data.type_parameters = next().nodes();
+            data.parameters = next().nodes();
+            data.r#type = next().node();
+            data.body = next().node();
+            Ok(())
+        }
+        NodeData::ShorthandPropertyAssignment(data) => {
+            data.modifiers = next().nodes();
+            data.name = next().node();
+            data.question_token = next().node();
+            data.exclamation_token = next().node();
+            data.equals_token = next().node();
+            data.object_assignment_initializer = next().node();
+            Ok(())
+        }
+        NodeData::SourceFile(data) => {
+            data.statements = next().nodes();
+            data.end_of_file_token = next().node();
+            Ok(())
+        }
+        NodeData::SpreadAssignment(data) => {
+            data.expression = next().node();
+            Ok(())
+        }
+        NodeData::SpreadElement(data) => {
+            data.expression = next().node();
+            Ok(())
+        }
+        NodeData::StringLiteral(_data) => Ok(()),
+        NodeData::SwitchStatement(data) => {
+            data.expression = next().node();
+            data.case_block = next().node();
+            Ok(())
+        }
+        NodeData::SyntaxList(_data) => Ok(()),
+        NodeData::TaggedTemplateExpression(data) => {
+            data.tag = next().node();
+            data.question_dot_token = next().node();
+            data.type_arguments = next().nodes();
+            data.template = next().node();
+            Ok(())
+        }
+        NodeData::TemplateExpression(data) => {
+            data.head = next().node();
+            data.template_spans = next().nodes();
+            Ok(())
+        }
+        NodeData::TemplateHead(_data) => Ok(()),
+        NodeData::TemplateLiteralType(data) => {
+            data.head = next().node();
+            data.template_spans = next().nodes();
+            Ok(())
+        }
+        NodeData::TemplateLiteralTypeSpan(data) => {
+            data.r#type = next().node();
+            data.literal = next().node();
+            Ok(())
+        }
+        NodeData::TemplateMiddle(_data) => Ok(()),
+        NodeData::TemplateSpan(data) => {
+            data.expression = next().node();
+            data.literal = next().node();
+            Ok(())
+        }
+        NodeData::TemplateTail(_data) => Ok(()),
+        NodeData::ThrowStatement(data) => {
+            data.expression = next().node();
+            Ok(())
+        }
+        NodeData::TryStatement(data) => {
+            data.try_block = next().node();
+            data.catch_clause = next().node();
+            data.finally_block = next().node();
+            Ok(())
+        }
+        NodeData::TupleType(data) => {
+            data.elements = next().nodes();
+            Ok(())
+        }
+        NodeData::TypeAliasDeclaration(data) => {
+            data.modifiers = next().nodes();
+            data.name = next().node();
+            data.type_parameters = next().nodes();
+            data.r#type = next().node();
+            Ok(())
+        }
+        NodeData::TypeAssertionExpression(data) => {
+            data.r#type = next().node();
+            data.expression = next().node();
+            Ok(())
+        }
+        NodeData::TypeLiteral(data) => {
+            data.members = next().nodes();
+            Ok(())
+        }
+        NodeData::TypeOfExpression(data) => {
+            data.expression = next().node();
+            Ok(())
+        }
+        NodeData::TypeOperator(data) => {
+            data.r#type = next().node();
+            Ok(())
+        }
+        NodeData::TypeParameter(data) => {
+            data.modifiers = next().nodes();
+            data.name = next().node();
+            data.constraint = next().node();
+            data.r#default = next().node();
+            data.expression = next().node();
+            Ok(())
+        }
+        NodeData::TypePredicate(data) => {
+            data.asserts_modifier = next().node();
+            data.parameter_name = next().node();
+            data.r#type = next().node();
+            Ok(())
+        }
+        NodeData::TypeQuery(data) => {
+            data.expr_name = next().node();
+            data.type_arguments = next().nodes();
+            Ok(())
+        }
+        NodeData::TypeReference(data) => {
+            data.type_name = next().node();
+            data.type_arguments = next().nodes();
+            Ok(())
+        }
+        NodeData::UnionType(data) => {
+            data.types = next().nodes();
+            Ok(())
+        }
+        NodeData::VariableDeclaration(data) => {
+            data.name = next().node();
+            data.exclamation_token = next().node();
+            data.r#type = next().node();
+            data.initializer = next().node();
+            Ok(())
+        }
+        NodeData::VariableDeclarationList(data) => {
+            data.declarations = next().nodes();
+            Ok(())
+        }
+        NodeData::VariableStatement(data) => {
+            data.modifiers = next().nodes();
+            data.declaration_list = next().node();
+            Ok(())
+        }
+        NodeData::VoidExpression(data) => {
+            data.expression = next().node();
+            Ok(())
+        }
+        NodeData::WhileStatement(data) => {
+            data.expression = next().node();
+            data.statement = next().node();
+            Ok(())
+        }
+        NodeData::WithStatement(data) => {
+            data.expression = next().node();
+            data.statement = next().node();
+            Ok(())
+        }
+        NodeData::YieldExpression(data) => {
+            data.asterisk_token = next().node();
+            data.expression = next().node();
+            Ok(())
+        }
+    }
+}
+
+fn apply_optional_jsdoc_comment(slot: &mut Option<JSDocComment>, mapped: ChildSlot) {
+    if let Some(JSDocComment::Nodes(_)) = slot {
+        *slot = mapped.nodes().map(JSDocComment::Nodes);
+    }
+}
+
+#[allow(dead_code)]
+fn apply_jsdoc_comment<V: NodeDataChildVisitor>(
+    slot: &mut JSDocComment,
+    mapped: ChildSlot,
+    parent: SyntaxKind,
+    field: &'static str,
+    visitor: &mut V,
+) -> Result<(), V::Error> {
+    if let JSDocComment::Nodes(id) = slot {
+        *id = mapped
+            .nodes()
+            .ok_or_else(|| visitor.required_child_removed(parent, field))?;
+    }
+    Ok(())
+}
+
+/// Map every slot through the visitor. Returns whether any slot changed.
+pub fn map_child_slots<V>(slots: &mut ChildSlots, visitor: &mut V) -> Result<bool, V::Error>
+where
+    V: NodeDataChildVisitor,
+{
+    let mut changed = false;
+    for slot in slots.as_mut_slice() {
+        let mapped = match *slot {
+            ChildSlot::Absent => continue,
+            ChildSlot::Node(id) => ChildSlot::of_node(visitor.visit_node(id)?),
+            ChildSlot::Nodes(id) => ChildSlot::of_nodes(visitor.visit_nodes(id)?),
+            ChildSlot::JsDocNodes(id) => visitor
+                .visit_nodes(id)?
+                .map_or(ChildSlot::Absent, ChildSlot::JsDocNodes),
+        };
+        if mapped != *slot {
+            changed = true;
+            *slot = mapped;
+        }
+    }
+    Ok(changed)
+}
