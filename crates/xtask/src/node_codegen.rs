@@ -1179,6 +1179,16 @@ fn render_nodes_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Error>> {
     writeln!(out, "    pub has_trailing_comma: bool,")?;
     writeln!(out, "    /// tsc createMissingList's isMissingList marker.")?;
     writeln!(out, "    pub is_missing_list: bool,")?;
+    writeln!(
+        out,
+        "    /// tsc NodeArray.transformFlags: written only on an emit session's"
+    )?;
+    writeln!(
+        out,
+        "    /// detached copy of the tree (the emitter's transform-flag classifier);"
+    )?;
+    writeln!(out, "    /// zero on every parsed array.")?;
+    writeln!(out, "    pub transform_flags: i32,")?;
     writeln!(out, "}}")?;
     writeln!(out)?;
     writeln!(out, "#[derive(Clone, Debug, PartialEq)]")?;
@@ -1193,6 +1203,16 @@ fn render_nodes_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Error>> {
     writeln!(out, "pub struct Node {{")?;
     writeln!(out, "    pub kind: SyntaxKind,")?;
     writeln!(out, "    pub flags: i32,")?;
+    writeln!(
+        out,
+        "    /// tsc Node.transformFlags: written only on an emit session's detached"
+    )?;
+    writeln!(
+        out,
+        "    /// copy of the tree (the emitter's transform-flag classifier and factory);"
+    )?;
+    writeln!(out, "    /// zero on every parsed node.")?;
+    writeln!(out, "    pub transform_flags: i32,")?;
     writeln!(
         out,
         "    /// tsc NumericLiteral.numericLiteralFlags; zero on every other node kind."
@@ -1217,6 +1237,38 @@ fn render_nodes_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Error>> {
     )?;
     writeln!(out, "    pub js_doc: Option<NodeArrayId>,")?;
     writeln!(out, "    pub data: NodeData,")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(out, "impl Node {{")?;
+    writeln!(
+        out,
+        "    /// This record's scalar facts with another payload: a probe for the"
+    )?;
+    writeln!(
+        out,
+        "    /// emitter's flag classifier that clones no payload of its own."
+    )?;
+    writeln!(
+        out,
+        "    pub fn with_data(&self, data: NodeData) -> Node {{"
+    )?;
+    writeln!(out, "        Node {{")?;
+    writeln!(out, "            kind: self.kind,")?;
+    writeln!(out, "            flags: self.flags,")?;
+    writeln!(out, "            transform_flags: self.transform_flags,")?;
+    writeln!(
+        out,
+        "            numeric_literal_flags: self.numeric_literal_flags,"
+    )?;
+    writeln!(out, "            template_flags: self.template_flags,")?;
+    writeln!(out, "            multi_line: self.multi_line,")?;
+    writeln!(out, "            pos: self.pos,")?;
+    writeln!(out, "            end: self.end,")?;
+    writeln!(out, "            parent: self.parent,")?;
+    writeln!(out, "            js_doc: self.js_doc,")?;
+    writeln!(out, "            data,")?;
+    writeln!(out, "        }}")?;
+    writeln!(out, "    }}")?;
     writeln!(out, "}}")?;
     writeln!(out)?;
 
@@ -1837,6 +1889,373 @@ fn render_for_each_child_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Er
     writeln!(out)?;
     writeln!(out, "fn visit_optional_nodes<L, F>(lookup: &L, id: Option<NodeArrayId>, cb: &mut F) -> Option<NodeId>")?;
     writeln!(out, "where L: NodeLookup, F: FnMut(NodeId) -> bool {{ id.and_then(|id| visit_nodes(lookup, id, cb)) }}")?;
+    writeln!(out)?;
+    // Clone-free child mapping: a visitor snapshots the child ids of a node,
+    // maps them, and only when one changed clones the payload and writes the
+    // mapped ids back. `child_slots` and `apply_child_slots` are generated
+    // from the same child table as `try_visit_each_child`, in the same
+    // order, so the slots of the one can be applied by the other.
+    writeln!(
+        out,
+        "/// One child position of a node, as [`child_slots`] lists them and"
+    )?;
+    writeln!(
+        out,
+        "/// [`apply_child_slots`] writes them back: the visit order and the"
+    )?;
+    writeln!(
+        out,
+        "/// conditional JSDoc tag orders are those of [`try_visit_each_child`]."
+    )?;
+    writeln!(out, "#[derive(Clone, Copy, Debug, Eq, PartialEq)]")?;
+    writeln!(out, "pub enum ChildSlot {{")?;
+    writeln!(
+        out,
+        "    /// An absent optional child (or a JSDoc comment that is text)."
+    )?;
+    writeln!(out, "    Absent,")?;
+    writeln!(out, "    Node(NodeId),")?;
+    writeln!(out, "    Nodes(NodeArrayId),")?;
+    writeln!(out, "    /// A `JSDocComment::Nodes` comment.")?;
+    writeln!(out, "    JsDocNodes(NodeArrayId),")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    let max_children = schemas
+        .iter()
+        .map(|schema| schema.children.len())
+        .max()
+        .unwrap_or(0);
+    writeln!(out, "/// The most children any node kind has.")?;
+    writeln!(out, "pub const MAX_CHILD_SLOTS: usize = {};", max_children)?;
+    writeln!(out)?;
+    writeln!(
+        out,
+        "/// The child slots of one node, in [`child_slots`] order."
+    )?;
+    writeln!(out, "#[derive(Clone, Copy, Debug)]")?;
+    writeln!(out, "pub struct ChildSlots {{")?;
+    writeln!(out, "    len: usize,")?;
+    writeln!(out, "    slots: [ChildSlot; MAX_CHILD_SLOTS],")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(out, "impl ChildSlots {{")?;
+    writeln!(out, "    pub const fn new() -> Self {{ Self {{ len: 0, slots: [ChildSlot::Absent; MAX_CHILD_SLOTS] }} }}")?;
+    writeln!(
+        out,
+        "    fn push(&mut self, slot: ChildSlot) {{ self.slots[self.len] = slot; self.len += 1; }}"
+    )?;
+    writeln!(
+        out,
+        "    pub fn as_slice(&self) -> &[ChildSlot] {{ &self.slots[..self.len] }}"
+    )?;
+    writeln!(
+        out,
+        "    pub fn as_mut_slice(&mut self) -> &mut [ChildSlot] {{ &mut self.slots[..self.len] }}"
+    )?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(out, "impl Default for ChildSlots {{")?;
+    writeln!(out, "    fn default() -> Self {{ Self::new() }}")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(out, "impl ChildSlot {{")?;
+    writeln!(
+        out,
+        "    fn of_node(id: Option<NodeId>) -> Self {{ id.map_or(Self::Absent, Self::Node) }}"
+    )?;
+    writeln!(out, "    fn of_nodes(id: Option<NodeArrayId>) -> Self {{ id.map_or(Self::Absent, Self::Nodes) }}")?;
+    writeln!(
+        out,
+        "    fn of_jsdoc_comment(comment: Option<&JSDocComment>) -> Self {{"
+    )?;
+    writeln!(out, "        match comment {{ Some(JSDocComment::Nodes(id)) => Self::JsDocNodes(*id), _ => Self::Absent }}")?;
+    writeln!(out, "    }}")?;
+    writeln!(out, "    fn node(self) -> Option<NodeId> {{ match self {{ Self::Node(id) => Some(id), _ => None }} }}")?;
+    writeln!(out, "    fn nodes(self) -> Option<NodeArrayId> {{ match self {{ Self::Nodes(id) | Self::JsDocNodes(id) => Some(id), _ => None }} }}")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(
+        out,
+        "/// The children of `data` in [`try_visit_each_child`] order, without"
+    )?;
+    writeln!(
+        out,
+        "/// cloning its payload. The visitor's `node_kind` answers the JSDocTypedefTag order."
+    )?;
+    writeln!(out, "pub fn child_slots<V: NodeDataChildVisitor>(data: &NodeData, visitor: &V) -> ChildSlots {{")?;
+    writeln!(out, "    let mut out = ChildSlots::new();")?;
+    writeln!(out, "    match data {{")?;
+    writeln!(out, "        NodeData::Token => {{}}")?;
+    for schema in schemas {
+        if schema.children.is_empty() {
+            writeln!(out, "        NodeData::{}(_data) => {{}}", schema.kind_name)?;
+            continue;
+        }
+        writeln!(out, "        NodeData::{}(data) => {{", schema.kind_name)?;
+        if matches!(
+            schema.kind_name.as_str(),
+            "JSDocParameterTag" | "JSDocPropertyTag"
+        ) {
+            writeln!(
+                out,
+                "            out.push(ChildSlot::of_node(data.tag_name));"
+            )?;
+            writeln!(out, "            if data.is_name_first {{")?;
+            writeln!(
+                out,
+                "                out.push(ChildSlot::of_node(data.name));"
+            )?;
+            writeln!(
+                out,
+                "                out.push(ChildSlot::of_node(data.type_expression));"
+            )?;
+            writeln!(out, "            }} else {{")?;
+            writeln!(
+                out,
+                "                out.push(ChildSlot::of_node(data.type_expression));"
+            )?;
+            writeln!(
+                out,
+                "                out.push(ChildSlot::of_node(data.name));"
+            )?;
+            writeln!(out, "            }}")?;
+            writeln!(
+                out,
+                "            out.push(ChildSlot::of_jsdoc_comment(data.comment.as_ref()));"
+            )?;
+            writeln!(out, "        }}")?;
+            continue;
+        }
+        if schema.kind_name == "JSDocTypedefTag" {
+            writeln!(
+                out,
+                "            out.push(ChildSlot::of_node(data.tag_name));"
+            )?;
+            writeln!(out, "            let type_expression_first = data.type_expression.is_some_and(|node| visitor.node_kind(node) == SyntaxKind::JSDocTypeExpression);")?;
+            writeln!(out, "            if type_expression_first {{")?;
+            writeln!(
+                out,
+                "                out.push(ChildSlot::of_node(data.type_expression));"
+            )?;
+            writeln!(
+                out,
+                "                out.push(ChildSlot::of_node(data.full_name));"
+            )?;
+            writeln!(out, "            }} else {{")?;
+            writeln!(
+                out,
+                "                out.push(ChildSlot::of_node(data.full_name));"
+            )?;
+            writeln!(
+                out,
+                "                out.push(ChildSlot::of_node(data.type_expression));"
+            )?;
+            writeln!(out, "            }}")?;
+            writeln!(
+                out,
+                "            out.push(ChildSlot::of_jsdoc_comment(data.comment.as_ref()));"
+            )?;
+            writeln!(out, "        }}")?;
+            continue;
+        }
+        for child in &schema.children {
+            let field = schema
+                .fields
+                .iter()
+                .find(|field| field.ts_name == child.name)
+                .ok_or_else(|| format!("missing generated field for child {}", child.name))?;
+            if field.ty == RustFieldType::JSDocComment {
+                if rust_optional(field) {
+                    writeln!(
+                        out,
+                        "            out.push(ChildSlot::of_jsdoc_comment(data.{}.as_ref()));",
+                        field.rust_name
+                    )?;
+                } else {
+                    writeln!(
+                        out,
+                        "            out.push(ChildSlot::of_jsdoc_comment(Some(&data.{})));",
+                        field.rust_name
+                    )?;
+                }
+                continue;
+            }
+            match (child.kind, rust_optional(field)) {
+                (ChildKind::Node, true) => writeln!(
+                    out,
+                    "            out.push(ChildSlot::of_node(data.{}));",
+                    field.rust_name
+                )?,
+                (ChildKind::Nodes, true) => writeln!(
+                    out,
+                    "            out.push(ChildSlot::of_nodes(data.{}));",
+                    field.rust_name
+                )?,
+                (ChildKind::Node, false) => writeln!(
+                    out,
+                    "            out.push(ChildSlot::Node(data.{}));",
+                    field.rust_name
+                )?,
+                (ChildKind::Nodes, false) => writeln!(
+                    out,
+                    "            out.push(ChildSlot::Nodes(data.{}));",
+                    field.rust_name
+                )?,
+            }
+        }
+        writeln!(out, "        }}")?;
+    }
+    writeln!(out, "    }}")?;
+    writeln!(out, "    out")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(
+        out,
+        "/// Write mapped child slots back into `data`, in [`child_slots`] order."
+    )?;
+    writeln!(
+        out,
+        "/// A required child mapped to `Absent` reports `required_child_removed`."
+    )?;
+    writeln!(out, "pub fn apply_child_slots<V>(data: &mut NodeData, slots: &ChildSlots, visitor: &mut V) -> Result<(), V::Error>")?;
+    writeln!(out, "where")?;
+    writeln!(out, "    V: NodeDataChildVisitor,")?;
+    writeln!(out, "{{")?;
+    writeln!(out, "    let mut slots = slots.as_slice().iter().copied();")?;
+    writeln!(
+        out,
+        "    let mut next = || slots.next().unwrap_or(ChildSlot::Absent);"
+    )?;
+    writeln!(out, "    match data {{")?;
+    writeln!(out, "        NodeData::Token => Ok(()),")?;
+    for schema in schemas {
+        if schema.children.is_empty() {
+            writeln!(
+                out,
+                "        NodeData::{}(_data) => Ok(()),",
+                schema.kind_name
+            )?;
+            continue;
+        }
+        writeln!(out, "        NodeData::{}(data) => {{", schema.kind_name)?;
+        if matches!(
+            schema.kind_name.as_str(),
+            "JSDocParameterTag" | "JSDocPropertyTag"
+        ) {
+            writeln!(out, "            data.tag_name = next().node();")?;
+            writeln!(out, "            if data.is_name_first {{")?;
+            writeln!(out, "                data.name = next().node();")?;
+            writeln!(out, "                data.type_expression = next().node();")?;
+            writeln!(out, "            }} else {{")?;
+            writeln!(out, "                data.type_expression = next().node();")?;
+            writeln!(out, "                data.name = next().node();")?;
+            writeln!(out, "            }}")?;
+            writeln!(
+                out,
+                "            apply_optional_jsdoc_comment(&mut data.comment, next());"
+            )?;
+            writeln!(out, "            Ok(())")?;
+            writeln!(out, "        }}")?;
+            continue;
+        }
+        if schema.kind_name == "JSDocTypedefTag" {
+            writeln!(out, "            data.tag_name = next().node();")?;
+            writeln!(out, "            let type_expression_first = data.type_expression.is_some_and(|node| visitor.node_kind(node) == SyntaxKind::JSDocTypeExpression);")?;
+            writeln!(out, "            if type_expression_first {{")?;
+            writeln!(out, "                data.type_expression = next().node();")?;
+            writeln!(out, "                data.full_name = next().node();")?;
+            writeln!(out, "            }} else {{")?;
+            writeln!(out, "                data.full_name = next().node();")?;
+            writeln!(out, "                data.type_expression = next().node();")?;
+            writeln!(out, "            }}")?;
+            writeln!(
+                out,
+                "            apply_optional_jsdoc_comment(&mut data.comment, next());"
+            )?;
+            writeln!(out, "            Ok(())")?;
+            writeln!(out, "        }}")?;
+            continue;
+        }
+        for child in &schema.children {
+            let field = schema
+                .fields
+                .iter()
+                .find(|field| field.ts_name == child.name)
+                .ok_or_else(|| format!("missing generated field for child {}", child.name))?;
+            if field.ty == RustFieldType::JSDocComment {
+                if rust_optional(field) {
+                    writeln!(
+                        out,
+                        "            apply_optional_jsdoc_comment(&mut data.{}, next());",
+                        field.rust_name
+                    )?;
+                } else {
+                    writeln!(out, "            apply_jsdoc_comment(&mut data.{}, next(), SyntaxKind::{}, \"{}\", visitor)?;", field.rust_name, schema.kind_name, field.rust_name)?;
+                }
+                continue;
+            }
+            match (child.kind, rust_optional(field)) {
+                (ChildKind::Node, true) => writeln!(out, "            data.{} = next().node();", field.rust_name)?,
+                (ChildKind::Nodes, true) => writeln!(out, "            data.{} = next().nodes();", field.rust_name)?,
+                (ChildKind::Node, false) => writeln!(out, "            data.{} = next().node().ok_or_else(|| visitor.required_child_removed(SyntaxKind::{}, \"{}\"))?;", field.rust_name, schema.kind_name, field.rust_name)?,
+                (ChildKind::Nodes, false) => writeln!(out, "            data.{} = next().nodes().ok_or_else(|| visitor.required_child_removed(SyntaxKind::{}, \"{}\"))?;", field.rust_name, schema.kind_name, field.rust_name)?,
+            }
+        }
+        writeln!(out, "            Ok(())")?;
+        writeln!(out, "        }}")?;
+    }
+    writeln!(out, "    }}")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(
+        out,
+        "fn apply_optional_jsdoc_comment(slot: &mut Option<JSDocComment>, mapped: ChildSlot) {{"
+    )?;
+    writeln!(out, "    if let Some(JSDocComment::Nodes(_)) = slot {{")?;
+    writeln!(
+        out,
+        "        *slot = mapped.nodes().map(JSDocComment::Nodes);"
+    )?;
+    writeln!(out, "    }}")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(out, "#[allow(dead_code)]")?;
+    writeln!(out, "fn apply_jsdoc_comment<V: NodeDataChildVisitor>(slot: &mut JSDocComment, mapped: ChildSlot, parent: SyntaxKind, field: &'static str, visitor: &mut V) -> Result<(), V::Error> {{")?;
+    writeln!(out, "    if let JSDocComment::Nodes(id) = slot {{")?;
+    writeln!(out, "        *id = mapped.nodes().ok_or_else(|| visitor.required_child_removed(parent, field))?;")?;
+    writeln!(out, "    }}")?;
+    writeln!(out, "    Ok(())")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(
+        out,
+        "/// Map every slot through the visitor. Returns whether any slot changed."
+    )?;
+    writeln!(out, "pub fn map_child_slots<V>(slots: &mut ChildSlots, visitor: &mut V) -> Result<bool, V::Error>")?;
+    writeln!(out, "where")?;
+    writeln!(out, "    V: NodeDataChildVisitor,")?;
+    writeln!(out, "{{")?;
+    writeln!(out, "    let mut changed = false;")?;
+    writeln!(out, "    for slot in slots.as_mut_slice() {{")?;
+    writeln!(out, "        let mapped = match *slot {{")?;
+    writeln!(out, "            ChildSlot::Absent => continue,")?;
+    writeln!(
+        out,
+        "            ChildSlot::Node(id) => ChildSlot::of_node(visitor.visit_node(id)?),"
+    )?;
+    writeln!(
+        out,
+        "            ChildSlot::Nodes(id) => ChildSlot::of_nodes(visitor.visit_nodes(id)?),"
+    )?;
+    writeln!(out, "            ChildSlot::JsDocNodes(id) => visitor.visit_nodes(id)?.map_or(ChildSlot::Absent, ChildSlot::JsDocNodes),")?;
+    writeln!(out, "        }};")?;
+    writeln!(out, "        if mapped != *slot {{")?;
+    writeln!(out, "            changed = true;")?;
+    writeln!(out, "            *slot = mapped;")?;
+    writeln!(out, "        }}")?;
+    writeln!(out, "    }}")?;
+    writeln!(out, "    Ok(changed)")?;
+    writeln!(out, "}}")?;
     Ok(out)
 }
 

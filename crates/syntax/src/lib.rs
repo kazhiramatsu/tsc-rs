@@ -26,7 +26,8 @@ use tsc_types::{
 
 pub use arena::NodeArena;
 pub use for_each_child::{
-    for_each_child, for_each_child_array, try_visit_each_child, NodeDataChildVisitor, NodeLookup,
+    apply_child_slots, child_slots, for_each_child, for_each_child_array, map_child_slots,
+    try_visit_each_child, ChildSlot, ChildSlots, NodeDataChildVisitor, NodeLookup, MAX_CHILD_SLOTS,
 };
 pub use incremental::{
     create_language_service_source_file, create_language_service_source_file_in_identity_domain,
