@@ -177,6 +177,9 @@ pub struct TransformSource {
     /// classifier has run (zero before the first classification); the next
     /// pass classifies only the ids appended since.
     classified_transform_flags: (u32, u32),
+    /// Whether generated-binding metadata was ever merged onto a parsed
+    /// node (see [`TransformArena::parsed_nodes_carry_no_generated_binding`]).
+    generated_binding_on_parsed_node: bool,
 }
 
 /// Structural equality covers the emit copy and its provenance; the two
@@ -416,8 +419,25 @@ impl TransformArena {
             text_has_extended_unicode_escape: OnceCell::new(),
             complete_synthesized: FxHashSet::default(),
             classified_transform_flags: (0, 0),
+            generated_binding_on_parsed_node: false,
         });
         id
+    }
+
+    /// Whether no parsed node of `source` carries a generated binding. A
+    /// generated identifier is created synthesized, and every ancestor of a
+    /// synthesized node is synthesized too (an update creates new nodes up
+    /// to the root), so while this holds a parsed subtree contains no
+    /// generated binding at all and a name walk may skip it whole. The one
+    /// way a parsed node can acquire one is a metadata merge in
+    /// `set_original_node`, which records it here.
+    pub(crate) fn parsed_nodes_carry_no_generated_binding(
+        &self,
+        source: TransformSourceId,
+    ) -> bool {
+        self.sources
+            .get(source.0 as usize)
+            .is_some_and(|source| !source.generated_binding_on_parsed_node)
     }
 
     /// Whether `node`'s transform flags describe its whole subtree, so a
@@ -1086,12 +1106,21 @@ impl TransformArena {
         let metadata = self.metadata.entry(node).or_default();
         metadata.original = original;
         metadata.original_is_semantic = false;
+        let mut carries_generated_binding = false;
         if let Some(source_metadata) = source_metadata {
             let generated_binding_before = metadata.generated_binding_id;
             metadata.merge_from(&source_metadata);
             metadata.original = original;
             if !node_is_member_name && generated_binding_before.is_none() {
                 metadata.clear_generated_binding();
+            }
+            carries_generated_binding = metadata.generated_binding_id.is_some();
+        }
+        if carries_generated_binding {
+            if let Some(source) = self.sources.get_mut(node.source.0 as usize) {
+                if source.contains_parsed_node(node.node) {
+                    source.generated_binding_on_parsed_node = true;
+                }
             }
         }
         Ok(())

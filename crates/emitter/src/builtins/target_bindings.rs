@@ -1456,6 +1456,12 @@ fn collect_binding_name_events(
     scope_root: bool,
     events: &mut Vec<BindingNameEvent>,
 ) -> Result<(), TransformError> {
+    // A parsed subtree holds no generated binding (its nodes are all parsed:
+    // an update creates new nodes up to the root), so it contributes only
+    // balanced scope events, which allocate nothing: skip it whole.
+    if arena.is_parsed_node(node)? && arena.parsed_nodes_carry_no_generated_binding(source) {
+        return Ok(());
+    }
     let record = arena.node(node)?;
     // `EmitFlags.ReuseTempVariableScope` (metadata.rs:40): tsc's
     // `createTempVariable` scope stack skips push/pop for flagged
@@ -1780,6 +1786,10 @@ fn collect_function_body_declaration_name_events(
     node: TransformNode,
     events: &mut Vec<BindingNameEvent>,
 ) -> Result<(), TransformError> {
+    // As in `collect_binding_name_events`: a parsed subtree names nothing.
+    if arena.is_parsed_node(node)? && arena.parsed_nodes_carry_no_generated_binding(source) {
+        return Ok(());
+    }
     let record = arena.node(node)?;
     let mut children = Vec::new();
     let mut arrays = Vec::new();
