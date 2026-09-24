@@ -10391,7 +10391,11 @@ impl Printer {
             TokenText::RawUtf16(units) => writer.write_literal_utf16(units),
             TokenText::Cooked(text) => writer.write_literal_utf16(text.code_units()),
         }
-        writer.write_punctuation(suffix);
+        // tsc writes the whole token text (delimiters included) in one
+        // writeLiteral call, so a template whose text ends with a line
+        // break puts its closing delimiter at column 0; a separate indented
+        // write would indent it.
+        writer.raw_write(suffix);
         Ok(())
     }
 
@@ -10744,6 +10748,7 @@ impl Printer {
         self.emit_comma_list(
             transformation,
             node.source(),
+            Some(node),
             data.parameters,
             expression_context,
             writer,
@@ -11124,6 +11129,7 @@ impl Printer {
             self.emit_comma_list(
                 transformation,
                 node.source(),
+                Some(node),
                 data.elements,
                 expression_context,
                 writer,
@@ -11252,6 +11258,7 @@ impl Printer {
         self.emit_separated_declaration_list(
             transformation,
             node.source(),
+            Some(node),
             types,
             " | ",
             expression_context,
@@ -11274,6 +11281,7 @@ impl Printer {
         self.emit_separated_declaration_list(
             transformation,
             node.source(),
+            Some(node),
             types,
             " & ",
             expression_context,
@@ -12294,6 +12302,7 @@ impl Printer {
             self.emit_comma_list(
                 transformation,
                 source,
+                None,
                 type_parameters,
                 expression_context,
                 writer,
@@ -12512,6 +12521,7 @@ impl Printer {
         &mut self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
+        parent: Option<TransformNode>,
         array: Option<tsc_syntax::NodeArrayId>,
         expression_context: EmitContext,
         writer: &mut TextWriter,
@@ -12519,6 +12529,7 @@ impl Printer {
         self.emit_separated_declaration_list(
             transformation,
             source,
+            parent,
             array,
             ", ",
             expression_context,
@@ -12536,6 +12547,7 @@ impl Printer {
         &mut self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
+        parent: Option<TransformNode>,
         array: Option<tsc_syntax::NodeArrayId>,
         separator: &str,
         expression_context: EmitContext,
@@ -12566,9 +12578,38 @@ impl Printer {
                 expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                 writer,
             )?;
-            self.emit_list_element_end_comments(transformation, child, writer)?;
+            // emitNodeListItems emits the comments at the final element's
+            // end only when `parentNode.end !== previousSibling.end`: a
+            // union type ends with its last constituent, so the comments
+            // after it belong to the next statement (`type A = B | C` with
+            // no semicolon, then a JSDoc comment).
+            let last_shares_parent_end = index + 1 == ids.len()
+                && parent.is_some_and(|parent| {
+                    Self::list_parent_shares_end(transformation, parent, child)
+                });
+            if !last_shares_parent_end {
+                self.emit_list_element_end_comments(transformation, child, writer)?;
+            }
         }
         Ok(())
+    }
+
+    /// `parentNode.end === previousSibling.end` on the emitted nodes: both
+    /// raw ends compare equal within one transform source; a list whose
+    /// parent lives in another source never shares its end.
+    fn list_parent_shares_end(
+        transformation: &TransformationResult<'_>,
+        parent: TransformNode,
+        child: TransformNode,
+    ) -> bool {
+        if parent.source() != child.source() {
+            return false;
+        }
+        let arena = transformation.arena();
+        match (arena.node(parent), arena.node(child)) {
+            (Ok(parent), Ok(child)) => parent.end == child.end,
+            _ => false,
+        }
     }
 
     fn emit_separated_declaration_list_item_comments(
