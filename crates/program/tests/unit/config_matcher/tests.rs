@@ -189,3 +189,68 @@ fn relative_patterns_can_select_files_outside_the_config_base() {
     assert!(outside.matches("/shared/nested/main.ts"));
     assert!(!outside.matches("/work/shared/main.ts"));
 }
+
+/// The walk matches each entry from its directory's automaton states; those
+/// answers are exactly the whole-path answers of `matches` and
+/// `could_match_descendant`.
+#[test]
+fn per_directory_states_agree_with_whole_path_matching() {
+    use super::{InputComponent, MatchInput};
+
+    let patterns = [
+        pattern("src/**/*.ts"),
+        pattern("**/*.test.ts"),
+        pattern("lib/*/index.ts"),
+        pattern("node_modules/**/*.ts"),
+        pattern("src/**/*.min.js"),
+        pattern("src/exact.ts"),
+        pattern("*/a?c.ts"),
+    ];
+    let paths = [
+        "/work/src/index.ts",
+        "/work/src/exact.ts",
+        "/work/src/nested/deep/x.test.ts",
+        "/work/src/node_modules/pkg/index.ts",
+        "/work/lib/a/index.ts",
+        "/work/lib/a/b/index.ts",
+        "/work/lib/index.ts",
+        "/work/node_modules/pkg/index.ts",
+        "/work/src/.cache/y.ts",
+        "/work/src/vendor/lib.min.js",
+        "/work/src/app.min.js",
+        "/work/src/abc.ts",
+        "/work/other/abc.ts",
+        "/elsewhere/src/index.ts",
+    ];
+    for pattern in &patterns {
+        for path in paths {
+            let (directory, name) = path.rsplit_once('/').expect("absolute path");
+            let states = MatchInput::new(directory.into(), true)
+                .and_then(|input| pattern.directory_states(&input));
+            let entry = InputComponent::new(name.into(), true);
+            let by_states = states
+                .as_ref()
+                .is_some_and(|states| pattern.accepts_entry(states, &entry));
+            assert_eq!(by_states, pattern.matches(path), "{path}");
+
+            if let Some((parent, directory_name)) = directory.rsplit_once('/') {
+                if parent.is_empty() {
+                    continue;
+                }
+                let stepped = MatchInput::new(parent.into(), true)
+                    .and_then(|input| pattern.directory_states(&input))
+                    .and_then(|states| {
+                        pattern.advance_directory(
+                            &states,
+                            &InputComponent::new(directory_name.into(), true),
+                        )
+                    });
+                assert_eq!(
+                    stepped.is_some(),
+                    pattern.could_match_descendant(directory),
+                    "{directory}"
+                );
+            }
+        }
+    }
+}

@@ -1,11 +1,16 @@
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, RwLock};
 use tsc_diagnostics::{JsStr, JsString};
 
 use crate::ordering::compare_utf16;
-use crate::{CompilerHost, HostError, HostErrorKind, HostOperation};
+use crate::{
+    CompilerHost, DirectoryListingEntry, DirectoryListingKind, HostError, HostErrorKind,
+    HostOperation,
+};
 
 /// Read-only [`CompilerHost`] backed by the process filesystem.
 ///
@@ -16,6 +21,91 @@ use crate::{CompilerHost, HostError, HostErrorKind, HostOperation};
 pub struct FsCompilerHost {
     current_directory: PathBuf,
     case_sensitive: bool,
+    observations: Arc<ObservationCache>,
+}
+
+/// What one `stat` of a path observed.
+#[derive(Clone, Copy, Debug)]
+enum Presence {
+    Missing,
+    File { len: u64 },
+    Directory,
+    Other,
+}
+
+const OBSERVATION_SHARDS: usize = 32;
+
+/// The host's memo of what it observed on disk, shared by every clone of
+/// the host and every thread that resolves over it. One program
+/// construction treats the disk as fixed, exactly as TypeScript's
+/// `createProgram` does (`changeCompilerHostLikeToUseCache` memoizes
+/// fileExists/directoryExists/readFile for the same reason), and module
+/// resolution probes the same node_modules ancestors, package directories
+/// and symlinked packages once per request from every file: the memo turns
+/// those repeats into a lookup instead of a syscall. Only successful
+/// observations are kept; a host error is reported every time.
+#[derive(Debug, Default)]
+struct ObservationCache {
+    presence: [RwLock<HashMap<PathBuf, Presence>>; OBSERVATION_SHARDS],
+    realpath: [RwLock<HashMap<PathBuf, Option<PathBuf>>>; OBSERVATION_SHARDS],
+}
+
+impl ObservationCache {
+    fn shard(path: &Path) -> usize {
+        // FNV-1a over the path bytes: cheap, and the shard only spreads
+        // lock contention.
+        let mut hash = 0xcbf2_9ce4_8422_2325_u64;
+        for &byte in path.as_os_str().as_encoded_bytes() {
+            hash ^= u64::from(byte);
+            hash = hash.wrapping_mul(0x0100_0000_01b3);
+        }
+        (hash % OBSERVATION_SHARDS as u64) as usize
+    }
+
+    fn presence(&self, path: &Path, operation: HostOperation) -> Result<Presence, HostError> {
+        let shard = &self.presence[Self::shard(path)];
+        if let Some(present) = shard
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get(path)
+        {
+            return Ok(*present);
+        }
+        let present = match metadata_if_present(path, operation)? {
+            None => Presence::Missing,
+            Some(metadata) if metadata.is_file() => Presence::File {
+                len: metadata.len(),
+            },
+            Some(metadata) if metadata.is_dir() => Presence::Directory,
+            Some(_) => Presence::Other,
+        };
+        shard
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert(path.to_path_buf(), present);
+        Ok(present)
+    }
+
+    fn realpath(
+        &self,
+        path: &Path,
+        compute: impl FnOnce() -> Result<Option<PathBuf>, HostError>,
+    ) -> Result<Option<PathBuf>, HostError> {
+        let shard = &self.realpath[Self::shard(path)];
+        if let Some(physical) = shard
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get(path)
+        {
+            return Ok(physical.clone());
+        }
+        let physical = compute()?;
+        shard
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert(path.to_path_buf(), physical.clone());
+        Ok(physical)
+    }
 }
 
 impl FsCompilerHost {
@@ -43,6 +133,7 @@ impl FsCompilerHost {
             Some(metadata) if metadata.is_dir() => Ok(Self {
                 current_directory,
                 case_sensitive: use_case_sensitive_file_names,
+                observations: Arc::default(),
             }),
             Some(_) => Err(HostError::new(
                 HostErrorKind::InvalidInput,
@@ -73,17 +164,27 @@ impl FsCompilerHost {
         path: &Path,
         directories_only: bool,
     ) -> Result<Vec<PathBuf>, HostError> {
-        validate_input_path(path, HostOperation::ReadDirectory)?;
-        let Some(metadata) = metadata_if_present(path, HostOperation::ReadDirectory)? else {
-            return Ok(Vec::new());
-        };
-        if !metadata.is_dir() {
-            return Ok(Vec::new());
-        }
+        Ok(self
+            .read_immediate_entry_records(path)?
+            .into_iter()
+            .filter(|record| record.directory || !directories_only)
+            .map(|record| record.path)
+            .collect())
+    }
 
+    /// The immediate file and directory entries below `path` in display-name
+    /// order, each with the kind its directory entry names. Only a symbolic
+    /// link has its target inspected (a dangling link is not an entry); every
+    /// other entry's kind comes from the listing itself.
+    fn read_immediate_entry_records(&self, path: &Path) -> Result<Vec<EntryRecord>, HostError> {
+        validate_input_path(path, HostOperation::ReadDirectory)?;
+        // An absent path or a non-directory has no entries; read_dir reports
+        // both itself, without a separate stat.
         let reader = match fs::read_dir(path) {
             Ok(reader) => reader,
             Err(error) if is_absence(&error) => return Ok(Vec::new()),
+            #[cfg(windows)]
+            Err(_) if is_incomplete_windows_namespace_ancestor(path) => return Ok(Vec::new()),
             Err(error) => {
                 return Err(map_io_error(
                     error,
@@ -104,34 +205,58 @@ impl FsCompilerHost {
             })?;
             let entry_path = entry.path();
             validate_observed_path(&entry_path, HostOperation::ReadDirectory)?;
-            let entry_metadata = match fs::metadata(&entry_path) {
-                Ok(metadata) => metadata,
-                Err(error) if is_absence(&error) => continue,
-                Err(error) => {
-                    return Err(map_io_error(
-                        error,
-                        HostOperation::ReadDirectory,
-                        Some(entry_path),
-                    ));
+            let file_type = entry.file_type().map_err(|error| {
+                map_io_error(
+                    error,
+                    HostOperation::ReadDirectory,
+                    Some(entry_path.clone()),
+                )
+            })?;
+            let symlink = file_type.is_symlink();
+            let directory = if symlink {
+                match fs::metadata(&entry_path) {
+                    Ok(metadata) if metadata.is_dir() => true,
+                    Ok(metadata) if metadata.is_file() => false,
+                    Ok(_) => continue,
+                    Err(error) if is_absence(&error) => continue,
+                    Err(error) => {
+                        return Err(map_io_error(
+                            error,
+                            HostOperation::ReadDirectory,
+                            Some(entry_path),
+                        ));
+                    }
                 }
-            };
-            if directories_only {
-                if !entry_metadata.is_dir() {
-                    continue;
-                }
-            } else if !entry_metadata.is_file() && !entry_metadata.is_dir() {
+            } else if file_type.is_dir() {
+                true
+            } else if file_type.is_file() {
+                false
+            } else {
                 continue;
-            }
+            };
 
             let display_name = entry
                 .file_name()
                 .into_string()
                 .expect("validated filesystem-host entry name is Unicode");
-            entries.push((display_name, entry_path));
+            entries.push(EntryRecord {
+                name: display_name,
+                path: entry_path,
+                directory,
+                symlink,
+            });
         }
-        entries.sort_by(|left, right| compare_utf16(&left.0, &right.0));
-        Ok(entries.into_iter().map(|(_, path)| path).collect())
+        entries.sort_by(|left, right| compare_utf16(&left.name, &right.name));
+        Ok(entries)
     }
+}
+
+/// One entry of [`FsCompilerHost::read_immediate_entry_records`].
+struct EntryRecord {
+    name: String,
+    path: PathBuf,
+    directory: bool,
+    symlink: bool,
 }
 
 impl crate::ParallelSourceReader for FsCompilerHost {
@@ -158,11 +283,10 @@ impl CompilerHost for FsCompilerHost {
     fn file_size_hint_js(&self, path: JsStr<'_>) -> Result<Option<u64>, HostError> {
         let native = crate::js_path::filesystem_path(path, HostOperation::ReadFile)?;
         validate_input_path(&native, HostOperation::ReadFile)
-            .and_then(|_| metadata_if_present(&native, HostOperation::ReadFile))
-            .map(|metadata| {
-                metadata
-                    .filter(fs::Metadata::is_file)
-                    .map(|metadata| metadata.len())
+            .and_then(|_| self.observations.presence(&native, HostOperation::ReadFile))
+            .map(|present| match present {
+                Presence::File { len } => Some(len),
+                _ => None,
             })
             .map_err(|error| retain_query_path(error, path, &native))
     }
@@ -181,6 +305,27 @@ impl CompilerHost for FsCompilerHost {
 
     fn read_directory_js(&self, path: JsStr<'_>) -> Result<Vec<JsString>, HostError> {
         self.read_immediate_entries_js(path, false)
+    }
+
+    fn read_directory_listing_js(
+        &self,
+        path: JsStr<'_>,
+    ) -> Result<Vec<DirectoryListingEntry>, HostError> {
+        let native = crate::js_path::filesystem_path(path, HostOperation::ReadDirectory)?;
+        Ok(self
+            .read_immediate_entry_records(&native)
+            .map_err(|error| retain_query_path(error, path, &native))?
+            .into_iter()
+            .map(|record| DirectoryListingEntry {
+                path: crate::js_path::join_observed_name(path, &record.name),
+                kind: if record.directory {
+                    DirectoryListingKind::Directory
+                } else {
+                    DirectoryListingKind::File
+                },
+                symlink: record.symlink,
+            })
+            .collect())
     }
 
     fn get_directories_js(&self, path: JsStr<'_>) -> Result<Vec<JsString>, HostError> {
@@ -211,10 +356,10 @@ impl CompilerHost for FsCompilerHost {
 
     fn read_file(&self, path: &Path) -> Result<Option<Vec<u8>>, HostError> {
         validate_input_path(path, HostOperation::ReadFile)?;
-        let Some(metadata) = metadata_if_present(path, HostOperation::ReadFile)? else {
-            return Ok(None);
-        };
-        if !metadata.is_file() {
+        if !matches!(
+            self.observations.presence(path, HostOperation::ReadFile)?,
+            Presence::File { .. }
+        ) {
             return Ok(None);
         }
 
@@ -231,14 +376,20 @@ impl CompilerHost for FsCompilerHost {
 
     fn file_exists(&self, path: &Path) -> Result<bool, HostError> {
         validate_input_path(path, HostOperation::FileExists)?;
-        Ok(metadata_if_present(path, HostOperation::FileExists)?
-            .is_some_and(|metadata| metadata.is_file()))
+        Ok(matches!(
+            self.observations
+                .presence(path, HostOperation::FileExists)?,
+            Presence::File { .. }
+        ))
     }
 
     fn directory_exists(&self, path: &Path) -> Result<bool, HostError> {
         validate_input_path(path, HostOperation::DirectoryExists)?;
-        Ok(metadata_if_present(path, HostOperation::DirectoryExists)?
-            .is_some_and(|metadata| metadata.is_dir()))
+        Ok(matches!(
+            self.observations
+                .presence(path, HostOperation::DirectoryExists)?,
+            Presence::Directory
+        ))
     }
 
     fn read_directory(&self, path: &Path) -> Result<Vec<PathBuf>, HostError> {
@@ -251,24 +402,28 @@ impl CompilerHost for FsCompilerHost {
 
     fn realpath(&self, path: &Path) -> Result<Option<PathBuf>, HostError> {
         validate_input_path(path, HostOperation::Realpath)?;
-        if metadata_if_present(path, HostOperation::Realpath)?.is_none() {
-            return Ok(None);
-        }
-
-        let physical = match fs::canonicalize(path) {
-            Ok(physical) => physical,
-            Err(error) if is_absence(&error) => return Ok(None),
-            Err(error) => {
-                return Err(map_io_error(
-                    error,
-                    HostOperation::Realpath,
-                    Some(path.to_path_buf()),
-                ));
+        self.observations.realpath(path, || {
+            if matches!(
+                self.observations.presence(path, HostOperation::Realpath)?,
+                Presence::Missing
+            ) {
+                return Ok(None);
             }
-        };
-        let physical = normalize_windows_realpath(physical);
-        validate_observed_path(&physical, HostOperation::Realpath)?;
-        Ok(Some(physical))
+            let physical = match fs::canonicalize(path) {
+                Ok(physical) => physical,
+                Err(error) if is_absence(&error) => return Ok(None),
+                Err(error) => {
+                    return Err(map_io_error(
+                        error,
+                        HostOperation::Realpath,
+                        Some(path.to_path_buf()),
+                    ));
+                }
+            };
+            let physical = normalize_windows_realpath(physical);
+            validate_observed_path(&physical, HostOperation::Realpath)?;
+            Ok(Some(physical))
+        })
     }
 
     /// Filesystem reads are pure functions of the on-disk state, which one
@@ -280,6 +435,10 @@ impl CompilerHost for FsCompilerHost {
     }
 
     fn parallel_source_reader(&self) -> Option<&(dyn crate::ParallelSourceReader + Sync)> {
+        Some(self)
+    }
+
+    fn parallel_resolution_host(&self) -> Option<&(dyn CompilerHost + Sync)> {
         Some(self)
     }
 }

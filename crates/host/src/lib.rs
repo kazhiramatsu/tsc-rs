@@ -62,6 +62,27 @@ pub fn to_file_name_lower_case(path: &str) -> String {
     folded
 }
 
+/// The kind an immediate directory entry resolves to.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DirectoryListingKind {
+    File,
+    Directory,
+}
+
+/// One immediate entry of a directory listing, as
+/// [`CompilerHost::read_directory_listing_js`] reports it.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DirectoryListingEntry {
+    /// The entry's path, spelled as [`CompilerHost::read_directory_js`]
+    /// spells it.
+    pub path: JsString,
+    pub kind: DirectoryListingKind,
+    /// The entry is, or may be, a symbolic link, so its real path is not
+    /// its parent's real path plus its name. A host that cannot tell
+    /// reports true.
+    pub symlink: bool,
+}
+
 /// The read-only host surface used by program construction and resolution.
 ///
 /// `Ok(None)` and `Ok(false)` mean that an entry is absent. An inability to
@@ -90,6 +111,33 @@ pub trait CompilerHost {
     fn directory_exists_js(&self, path: JsStr<'_>) -> Result<bool, HostError>;
 
     fn read_directory_js(&self, path: JsStr<'_>) -> Result<Vec<JsString>, HostError>;
+
+    /// The immediate file and directory entries below `path` with the kind
+    /// each one resolves to, in [`Self::read_directory_js`] order. A host
+    /// that learns the kinds while listing overrides this (the filesystem
+    /// host reads them from the directory entries themselves); the default
+    /// asks [`Self::directory_exists_js`] per entry and cannot tell links
+    /// apart.
+    fn read_directory_listing_js(
+        &self,
+        path: JsStr<'_>,
+    ) -> Result<Vec<DirectoryListingEntry>, HostError> {
+        self.read_directory_js(path)?
+            .into_iter()
+            .map(|entry| {
+                let kind = if self.directory_exists_js(entry.as_js())? {
+                    DirectoryListingKind::Directory
+                } else {
+                    DirectoryListingKind::File
+                };
+                Ok(DirectoryListingEntry {
+                    path: entry,
+                    kind,
+                    symlink: true,
+                })
+            })
+            .collect()
+    }
 
     fn get_directories_js(&self, path: JsStr<'_>) -> Result<Vec<JsString>, HostError>;
 
@@ -168,6 +216,14 @@ pub trait CompilerHost {
     /// read-ahead root itself, in root order. Consulted only when
     /// [`Self::permits_source_read_ahead`] is true.
     fn parallel_source_reader(&self) -> Option<&(dyn ParallelSourceReader + Sync)> {
+        None
+    }
+
+    /// This host as a host shared by several threads at once, for work that
+    /// resolves modules ahead of the program walk (each thread constructs its
+    /// own resolver over it), or `None` (the default) to keep every
+    /// resolution on the loading thread.
+    fn parallel_resolution_host(&self) -> Option<&(dyn CompilerHost + Sync)> {
         None
     }
 }

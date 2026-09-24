@@ -419,3 +419,49 @@ fn filesystem_host_declares_pure_source_reads() {
     let host = FsCompilerHost::new(tree.root(), native_case_profile()).unwrap();
     assert!(host.permits_source_read_ahead());
 }
+
+#[cfg(unix)]
+#[test]
+fn filesystem_host_lists_entry_kinds_from_the_directory_entries() {
+    use std::os::unix::fs::symlink;
+    use tsc_host::{DirectoryListingEntry, DirectoryListingKind};
+
+    let tree = TempTree::new();
+    fs::create_dir(tree.path("actual-dir")).unwrap();
+    fs::write(tree.path("actual.ts"), b"target").unwrap();
+    symlink(tree.path("actual.ts"), tree.path("link.ts")).unwrap();
+    symlink(tree.path("actual-dir"), tree.path("link-dir")).unwrap();
+    symlink(tree.path("absent.ts"), tree.path("dangling.ts")).unwrap();
+
+    let host = FsCompilerHost::new(tree.root(), true).unwrap();
+    let mut root = JsString::default();
+    root.push_str(tree.root().to_str().unwrap());
+    let entry = |name: &str, kind: DirectoryListingKind, symlink: bool| {
+        let mut path = root.clone();
+        path.push(std::path::MAIN_SEPARATOR);
+        path.push_str(name);
+        DirectoryListingEntry {
+            path,
+            kind,
+            symlink,
+        }
+    };
+    let listing = host.read_directory_listing_js(root.as_js()).unwrap();
+    assert_eq!(
+        listing,
+        [
+            entry("actual-dir", DirectoryListingKind::Directory, false),
+            entry("actual.ts", DirectoryListingKind::File, false),
+            entry("link-dir", DirectoryListingKind::Directory, true),
+            entry("link.ts", DirectoryListingKind::File, true),
+        ]
+    );
+    // The listing spells and orders its entries exactly as read_directory_js.
+    assert_eq!(
+        listing
+            .iter()
+            .map(|entry| entry.path.clone())
+            .collect::<Vec<_>>(),
+        host.read_directory_js(root.as_js()).unwrap()
+    );
+}

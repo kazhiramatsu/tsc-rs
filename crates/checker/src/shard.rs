@@ -153,21 +153,32 @@ impl CheckerBudget {
 pub(crate) fn partition_files(weights: &[usize], shards: usize) -> Vec<Vec<usize>> {
     let shards = shards.clamp(1, weights.len().max(1));
     let mut order: Vec<usize> = (0..weights.len()).collect();
-    order.sort_by_key(|&file| (std::cmp::Reverse(weights[file].max(1)), file));
+    order.sort_by_key(|&file| (std::cmp::Reverse(cost_weight(weights[file])), file));
     let mut assignment: Vec<Vec<usize>> = vec![Vec::new(); shards];
-    let mut load = vec![0usize; shards];
+    let mut load = vec![0u64; shards];
     for file in order {
         let target = (0..shards)
             .min_by_key(|&shard| (load[shard], shard))
             .expect("at least one shard");
         assignment[target].push(file);
-        load[target] += weights[file].max(1);
+        load[target] += cost_weight(weights[file]);
     }
     for files in &mut assignment {
         files.sort_unstable();
     }
     assignment.retain(|files| !files.is_empty());
     assignment
+}
+
+/// The partition's cost estimate for a source of `nodes` syntax nodes: the
+/// node count scaled by its logarithm. Checking cost per node grows with the
+/// source (the largest sources carry the deepest types), so the plain node
+/// count left the shard holding the largest sources finishing last; on the
+/// Next.js package the heaviest shard's excess over the mean fell with this
+/// scaling.
+fn cost_weight(nodes: usize) -> u64 {
+    let nodes = nodes.max(1) as u64;
+    nodes * (u64::from(nodes.ilog2()) + 1)
 }
 
 /// `TSRS_SHARD_QUEUE=shared` selects the shared Program-order queue (see

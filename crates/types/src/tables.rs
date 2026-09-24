@@ -118,6 +118,33 @@ impl IntersectionFlags {
     }
 }
 
+/// One interned list of types: equal lists intern to the same id (see
+/// [`TypeTables::intern_type_list`]).
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct TypeListId(pub u32);
+
+/// The key of a target's instantiations map (`type.instantiations`):
+/// createTypeReference's `getTypeListId(typeArguments)` and
+/// getObjectTypeInstantiation's list id plus `getAliasId(aliasSymbol,
+/// aliasTypeArguments)`, as one value. The alias arguments count only
+/// with an alias symbol, as in getAliasId.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct InstantiationKey {
+    pub arguments: TypeListId,
+    pub alias_symbol: Option<SymbolId>,
+    pub alias_arguments: Option<TypeListId>,
+}
+
+impl InstantiationKey {
+    pub const fn plain(arguments: TypeListId) -> Self {
+        Self {
+            arguments,
+            alias_symbol: None,
+            alias_arguments: None,
+        }
+    }
+}
+
 pub struct TypeTables {
     types: Vec<Type>,
     pub strict_null_checks: bool,
@@ -134,6 +161,8 @@ pub struct TypeTables {
     /// JavaScript string never validates the text (property-name lookups
     /// were 5% of a real program's check in from_utf8).
     utf8_string_literal_types: HashMap<Vec<u8>, TypeId>,
+    /// Interned type lists (see [`TypeTables::intern_type_list`]).
+    type_lists: HashMap<Box<[TypeId]>, TypeListId>,
     /// numberLiteralTypes (46993), keyed by the numeric value with JS
     /// Map SameValueZero semantics (-0 and +0 share a key).
     number_literal_types: HashMap<u64, TypeId>,
@@ -171,7 +200,7 @@ pub struct TypeTables {
     /// Per-target `type.instantiations` maps (createTypeReference
     /// 60170-60174 AND getObjectTypeInstantiation 63489-63492 — one map
     /// per target in tsc), flattened to one table keyed (target, id).
-    instantiations: HashMap<(TypeId, String), TypeId>,
+    instantiations: HashMap<(TypeId, InstantiationKey), TypeId>,
 }
 
 /// Append `value` in decimal without the formatting machinery: cache keys
@@ -238,6 +267,7 @@ impl TypeTables {
             },
             string_literal_types: HashMap::default(),
             utf8_string_literal_types: HashMap::default(),
+            type_lists: HashMap::default(),
             number_literal_types: HashMap::default(),
             bigint_literal_types: HashMap::default(),
             enum_literal_types: HashMap::default(),
@@ -850,6 +880,18 @@ impl TypeTables {
 
     // ---- list ids & propagating flags ----
 
+    /// The identity of a list of types as one value: equal lists intern to
+    /// the same id, so a cache that tsc keys by a `getTypeListId` string can
+    /// carry this id in a value key instead of formatting the list.
+    pub fn intern_type_list(&mut self, types: &[TypeId]) -> TypeListId {
+        if let Some(&id) = self.type_lists.get(types) {
+            return id;
+        }
+        let id = TypeListId(self.type_lists.len() as u32);
+        self.type_lists.insert(types.into(), id);
+        id
+    }
+
     /// tsc-port: getTypeListId @6.0.3
     /// tsc-hash: 08bbe30d7ae7370051e576d48d6bf3103d563a65a92d10740ec9f3c4546f9fea
     /// tsc-span: _tsc.js:60128-60150
@@ -926,21 +968,33 @@ impl TypeTables {
     /// The per-target instantiations map (`type.instantiations`) —
     /// createTypeReference keys by list id; getObjectTypeInstantiation
     /// keys by list id + alias id over the SAME map.
-    pub fn instantiation_get(&self, target: TypeId, key: &str) -> Option<TypeId> {
+    pub fn instantiation_get(&self, target: TypeId, key: InstantiationKey) -> Option<TypeId> {
         crate::perf::bump(crate::perf::PerfCounter::InstantiationLookups);
-        crate::perf::add(
-            crate::perf::PerfCounter::InstantiationKeyBytesCopied,
-            key.len() as u64,
-        );
-        let hit = self.instantiations.get(&(target, key.to_owned())).copied();
+        let hit = self.instantiations.get(&(target, key)).copied();
         if hit.is_some() {
             crate::perf::bump(crate::perf::PerfCounter::InstantiationHits);
         }
         hit
     }
 
-    pub fn instantiation_insert(&mut self, target: TypeId, key: String, value: TypeId) {
+    pub fn instantiation_insert(&mut self, target: TypeId, key: InstantiationKey, value: TypeId) {
         self.instantiations.insert((target, key), value);
+    }
+
+    /// The instantiations-map key of `type_arguments` under an alias.
+    pub fn instantiation_key(
+        &mut self,
+        type_arguments: &[TypeId],
+        alias_symbol: Option<SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
+    ) -> InstantiationKey {
+        InstantiationKey {
+            arguments: self.intern_type_list(type_arguments),
+            alias_symbol,
+            alias_arguments: alias_symbol
+                .and(alias_type_arguments)
+                .map(|arguments| self.intern_type_list(arguments)),
+        }
     }
 
     /// tsc-port: getPropagatingFlagsOfTypes @6.0.3
@@ -1842,7 +1896,10 @@ impl TypeTables {
     /// tsc-hash: 17f8bfecf79e7fa7858909317b8081cfc45fe59c0e11ba4cae5ba8b38abfeaff
     /// tsc-span: _tsc.js:60169-60180
     pub fn create_type_reference(&mut self, target: TypeId, type_arguments: &[TypeId]) -> TypeId {
-        let key = (target, self.get_type_list_id(type_arguments));
+        let key = (
+            target,
+            InstantiationKey::plain(self.intern_type_list(type_arguments)),
+        );
         if let Some(&id) = self.instantiations.get(&key) {
             return id;
         }
@@ -2107,7 +2164,10 @@ impl TypeTables {
         };
         data.this_type = this_type;
         // instantiations.set(getTypeListId(typeParameters), type) (61191).
-        let key = (target, self.get_type_list_id(&type_parameters));
+        let key = (
+            target,
+            InstantiationKey::plain(self.intern_type_list(&type_parameters)),
+        );
         self.instantiations.insert(key, target);
         target
     }

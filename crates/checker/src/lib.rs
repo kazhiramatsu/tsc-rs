@@ -2831,7 +2831,17 @@ pub struct ShardedEmit<'op> {
     /// Filled by the driver: `None` when the gate refused (or no checker
     /// ran), otherwise every shard's products (a serial replay yields one).
     pub emissions: Option<Result<Vec<ShardEmission>, tsc_emitter::UnitEmitError>>,
+    /// Runs on a shard's own thread once it has checked its files, over the
+    /// session of its checked state (its diagnostics already taken), before
+    /// the shards are merged: work the gate may use if it admits, such as
+    /// the --noEmit declaration diagnostics of the shard's files, then
+    /// overlaps the shards still checking instead of following the slowest.
+    /// The gate decides whether the work counts; it must be able to redo it.
+    pub eager: Option<ShardEagerClosure<'op>>,
 }
+
+type ShardEagerClosure<'op> =
+    &'op (dyn Fn(usize, &ProgramSnapshot, &CheckerSession<'_>, &[usize]) + Sync);
 
 type ShardGateClosure<'op> = &'op mut dyn FnMut(
     &ProgramSnapshot,
@@ -2893,6 +2903,7 @@ fn run_checker_shard<'a>(
     keep_state: bool,
     leak_state: bool,
     replay_on_order: bool,
+    eager: Option<ShardEagerClosure<'_>>,
 ) -> (ShardOutput, Option<state::CheckerState<'a>>) {
     let shard_started = std::time::Instant::now();
     let mut state = init_checker_state(snapshot, options, Some((provider, metadata)), host);
@@ -2974,7 +2985,7 @@ fn run_checker_shard<'a>(
         );
     }
     state.line_profile.flush();
-    let output = ShardOutput {
+    let mut output = ShardOutput {
         fixture,
         complete,
         init_globals,
@@ -2989,6 +3000,21 @@ fn run_checker_shard<'a>(
         checked_files,
     };
     if keep_state {
+        let state = match eager {
+            Some(eager) => {
+                // Over the session of the checked state, whose ledgers were
+                // taken above: what the eager work resolves cannot reach the
+                // shard's diagnostics, and the type order it consumes counts
+                // like the check's own.
+                let session = CheckerSession::from_checked_state(state);
+                eager(shard_index, snapshot, &session, &output.files);
+                let state = session.into_state();
+                output.order_reasons = state.order_guard.reasons();
+                output.display_marks = state.order_guard.marks().clone();
+                state
+            }
+            None => state,
+        };
         return (output, Some(state));
     }
     if leak_state {
@@ -3273,7 +3299,16 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     let weights = snapshot
         .documents()
         .iter()
-        .map(|document| document.source().arena.len())
+        .map(|document| {
+            let source = document.source();
+            // A JSON source is admitted for its module shape and checked in
+            // constant time; its node count would otherwise claim a share.
+            if source.file_name.as_js().ends_with(".json") {
+                1
+            } else {
+                source.arena.len()
+            }
+        })
         .collect::<Vec<_>>();
     // The deterministic node-count partition is the default: a run's
     // shard-local type order then repeats run to run, as tsgo's does. The
@@ -3300,6 +3335,8 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     }
     hosts.insert(0, std::sync::Mutex::new(Some(host)));
     let emit_closure: Option<ShardEmitClosure<'_>> = sharded_emit.as_ref().map(|emit| emit.emit);
+    let eager_closure: Option<ShardEagerClosure<'_>> =
+        sharded_emit.as_ref().and_then(|emit| emit.eager);
     let coordinate = emit_closure.is_some();
     // One provider per shard, owned here so a checked state (which borrows
     // its provider) can outlive its shard's thread for the emit pool.
@@ -3325,6 +3362,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             coordinate,
             checkers.leaks_states(),
             checkers.order_replay(),
+            eager_closure,
         )
     };
     #[allow(clippy::large_enum_variant)]

@@ -8161,17 +8161,17 @@ impl<'a> CheckerState<'a> {
     fn symbol_tables_in_scope_slice(
         &mut self,
         enclosing: Option<NodeId>,
-    ) -> Vec<(ScopeTableKey, tsc_binder::SymbolTable, bool)> {
+    ) -> Vec<(ScopeTableKey, crate::program::ScopeTable<'a>, bool)> {
         let mut tables = Vec::new();
         let mut location = enclosing;
         while let Some(loc) = location {
             let is_global_source_file = self.kind_of(loc) == SyntaxKind::SourceFile
                 && !self.binder.is_external_or_common_js_module_of_node(loc);
             if !is_global_source_file {
-                if let Some(locals) = self.binder.locals_of(loc) {
+                if let Some(locals) = self.binder.locals_of_scope(loc) {
                     tables.push((
                         ScopeTableKey::Locals(loc),
-                        locals.clone(),
+                        locals,
                         /*is_local_name_lookup*/ true,
                     ));
                 }
@@ -8181,10 +8181,10 @@ impl<'a> CheckerState<'a> {
                 SyntaxKind::SourceFile | SyntaxKind::ModuleDeclaration => {
                     if let Some(symbol) = self.binder.node_symbol(loc) {
                         let symbol = self.get_merged_symbol(symbol);
-                        let exports = (*self.binder.symbol(symbol).exports).clone();
+                        let exports = std::sync::Arc::clone(&self.binder.symbol(symbol).exports);
                         tables.push((
                             ScopeTableKey::Exports(symbol),
-                            exports,
+                            crate::program::ScopeTable::Shared(exports),
                             /*is_local_name_lookup*/ true,
                         ));
                     }
@@ -8195,7 +8195,7 @@ impl<'a> CheckerState<'a> {
         }
         tables.push((
             ScopeTableKey::Globals,
-            self.globals.clone(),
+            crate::program::ScopeTable::Shared(std::sync::Arc::clone(&self.globals)),
             /*is_local_name_lookup*/ true,
         ));
         tables

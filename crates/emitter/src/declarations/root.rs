@@ -90,8 +90,18 @@ pub(crate) fn transform_root(
     };
 
     let root_node = context.arena().root(source)?;
-    let source_syntax = context.arena().source(source)?.syntax().clone();
-    if source_syntax.is_declaration_file {
+    // The facts read from the parsed source; the source itself stays in the
+    // arena (copying a whole parse tree per transformed file was measured).
+    let (is_declaration_file, is_javascript, source_file_name, is_external_module) = {
+        let source_syntax = context.arena().source(source)?.syntax();
+        (
+            source_syntax.is_declaration_file,
+            is_javascript_source(source_syntax, context.arena().node(root_node)?.flags),
+            source_syntax.file_name.clone(),
+            source_syntax.external_module_indicator.is_some(),
+        )
+    };
+    if is_declaration_file {
         return Ok(TransformRoot::SourceFile(source));
     }
 
@@ -100,8 +110,6 @@ pub(crate) fn transform_root(
         .source(source)?
         .program_source()
         .ok_or(TransformError::MissingProgramSource(root_node))?;
-    let is_javascript =
-        is_javascript_source(&source_syntax, context.arena().node(root_node)?.flags);
     transformer.state = Some(TransformState::for_source(source, root_node));
     transformer
         .tracker
@@ -111,7 +119,7 @@ pub(crate) fn transform_root(
     let declaration_path = transformer
         .paths
         .declaration_file_path(program_source)
-        .unwrap_or_else(|| source_syntax.file_name.clone());
+        .unwrap_or_else(|| source_file_name.clone());
     let declaration_path = normalize_slashes(declaration_path);
     let output_directory = crate::source_map::paths::directory_path(&declaration_path);
 
@@ -132,7 +140,6 @@ pub(crate) fn transform_root(
             context,
             statements,
         )?;
-        let is_external_module = source_syntax.external_module_indicator.is_some();
         let state = transformer.state()?;
         if is_external_module
             && (!state.result_has_external_module_indicator

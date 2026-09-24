@@ -1145,7 +1145,14 @@ fn resolution_clears_active_mapper_caches_on_every_miss() {
             // one active mapper with a warm cache row.
             state.active_type_mappers.push(mapper);
             state.active_type_mappers_caches.push(Default::default());
-            state.active_type_mappers_caches[0].insert("probe".to_string(), string);
+            state.active_type_mappers_caches[0].insert(
+                crate::state::MapperCacheKey {
+                    ty: string,
+                    alias_symbol: None,
+                    alias_arguments: None,
+                },
+                string,
+            );
             let ctx = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
             let _ = state.get_inferred_type(ctx, 0).expect("resolves");
             // 69310: a fresh resolution invalidates every level of
@@ -1154,7 +1161,14 @@ fn resolution_clears_active_mapper_caches_on_every_miss() {
             assert!(state.active_type_mappers_caches[0].is_empty());
             // A memo HIT does not re-clear (the 69272 early
             // return).
-            state.active_type_mappers_caches[0].insert("probe".to_string(), string);
+            state.active_type_mappers_caches[0].insert(
+                crate::state::MapperCacheKey {
+                    ty: string,
+                    alias_symbol: None,
+                    alias_arguments: None,
+                },
+                string,
+            );
             let _ = state.get_inferred_type(ctx, 0).expect("memo");
             assert_eq!(state.active_type_mappers_caches[0].len(), 1);
             state.active_type_mappers.pop();

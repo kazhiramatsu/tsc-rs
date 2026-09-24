@@ -814,6 +814,28 @@ enum ProgramEntry<'a> {
     Owned(&'a Arc<BoundDocument>),
 }
 
+/// A scope's symbol table for a lookup that also drives the checker:
+/// borrowed for the program lifetime from a program-owned document, shared
+/// when the table lives behind an `Arc` (module exports, the globals), and
+/// copied only for a legacy borrowed-binder entry.
+pub(crate) enum ScopeTable<'a> {
+    Borrowed(&'a SymbolTable),
+    Shared(Arc<SymbolTable>),
+    Owned(SymbolTable),
+}
+
+impl std::ops::Deref for ScopeTable<'_> {
+    type Target = SymbolTable;
+
+    fn deref(&self) -> &SymbolTable {
+        match self {
+            Self::Borrowed(table) => table,
+            Self::Shared(table) => table,
+            Self::Owned(table) => table,
+        }
+    }
+}
+
 impl<'a> ProgramEntry<'a> {
     fn source(&self) -> &'a SourceFile {
         match self {
@@ -1525,6 +1547,26 @@ impl<'a> ProgramBinder<'a> {
     /// `container.locals` property access.
     pub fn locals_of(&self, scope: NodeId) -> Option<&SymbolTable> {
         self.binder_of_node(scope).locals.get(&scope)
+    }
+
+    /// [`Self::locals_of`] held for the program lifetime instead of the
+    /// binder borrow, so a scope walk can read the table while the checker
+    /// resolves aliases and merges symbols (tsc's forEachSymbolTableInScope
+    /// reads the live table object; copying it per lookup was the cost).
+    /// A legacy borrowed-binder entry (unit-test callers) owns its bind data,
+    /// so its table is copied.
+    pub(crate) fn locals_of_scope(&self, scope: NodeId) -> Option<ScopeTable<'a>> {
+        match &self.file_entries[self.file_index_of_node(scope)] {
+            ProgramEntry::Owned(document) => {
+                let document: &'a Arc<BoundDocument> = document;
+                document.data.locals.get(&scope).map(ScopeTable::Borrowed)
+            }
+            ProgramEntry::Legacy(entry) => entry
+                .data
+                .locals
+                .get(&scope)
+                .map(|table| ScopeTable::Owned(table.clone())),
+        }
     }
 
     /// tsrs-native: validates Rust numeric node ownership while projecting

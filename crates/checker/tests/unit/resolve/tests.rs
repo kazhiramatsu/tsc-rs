@@ -23,7 +23,7 @@ fn canonical_name_resolution_keeps_lone_surrogates_distinct() {
                     let symbol = state
                         .binder
                         .create_symbol(SymbolFlags::TYPE_ALIAS, escaped.clone());
-                    state.globals.insert(escaped, symbol);
+                    std::sync::Arc::make_mut(&mut state.globals).insert(escaped, symbol);
                     symbol
                 })
                 .collect::<Vec<_>>();

@@ -812,7 +812,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
             if !exclude_globals {
-                let input = LookupInput::new(Some(&self.globals), name, suggestion);
+                let input = LookupInput::new(Some(&*self.globals), name, suggestion);
                 let probe = self.lookup_probe(input, name, meaning, true)?;
                 result = self.finish_lookup(probe, name, meaning);
             }
@@ -2179,9 +2179,9 @@ impl<'a> CheckerState<'a> {
                     && self.binder.is_external_or_common_js_module_of_node(last)
             }) {
                 let name = self.binder.symbol(result).escaped_name.clone();
-                let globals = self.globals.clone();
+                let globals = Arc::clone(&self.globals);
                 if self.get_symbol_in_table(&globals, &name, meaning)? == Some(result) {
-                    if let Some(locals) = self.binder.locals_of(source_file).cloned() {
+                    if let Some(locals) = self.binder.locals_of_scope(source_file) {
                         if let Some(non_value) = self.get_symbol_in_table(
                             &locals,
                             &name,
@@ -2402,7 +2402,7 @@ impl<'a> CheckerState<'a> {
                 // globalThisSymbol's exports ARE the merged globals
                 // table (initializeTypeChecker 46492 aliases them).
                 let exports = if namespace == self.global_this_symbol {
-                    Arc::new(self.globals.clone())
+                    Arc::clone(&self.globals)
                 } else {
                     self.get_exports_of_symbol(namespace)?
                 };
@@ -2418,7 +2418,7 @@ impl<'a> CheckerState<'a> {
                 {
                     let resolved_namespace = self.resolve_alias(namespace)?;
                     let alias_exports = if resolved_namespace == self.global_this_symbol {
-                        Arc::new(self.globals.clone())
+                        Arc::clone(&self.globals)
                     } else {
                         self.get_exports_of_symbol(resolved_namespace)?
                     };
