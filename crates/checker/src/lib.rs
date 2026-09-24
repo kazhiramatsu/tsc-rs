@@ -3375,7 +3375,11 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     // shard-local type order then repeats run to run, as tsgo's does, and
     // the emit phases run each file on the checker that checked it.
     // `TSRS_SHARD_QUEUE` overrides the choice.
-    let checker_count = checkers.checkers();
+    let checker_count = if static_declaration_partition {
+        checkers.checkers_for_static_partition()
+    } else {
+        checkers.checkers()
+    };
     // Each file's directory, interned, for the directory-preferring
     // partition (files of one directory share their imports).
     let mut directory_ids: rustc_hash::FxHashMap<&[u8], u32> = Default::default();
