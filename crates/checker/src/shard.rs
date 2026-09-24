@@ -142,6 +142,13 @@ impl CheckerBudget {
         self.checkers.get()
     }
 
+    /// Whether the count came from [`CheckerBudget::automatic`] (a driver
+    /// may then lower it for the program at hand) rather than an explicit
+    /// request, which is kept as made.
+    pub const fn is_automatic(self) -> bool {
+        self.automatic
+    }
+
     /// The checker count for a partition nothing rebalances later (the
     /// static split of a declaration-emitting run): one and a half times the
     /// automatic count, capped at [`MAX_CHECKERS`]. Smaller shares leave a
@@ -166,6 +173,25 @@ impl CheckerBudget {
     pub const fn is_sharded(self) -> bool {
         self.checkers.get() > 1
     }
+}
+
+/// The most shards worth running for a program whose heaviest checked file
+/// weighs `heaviest` of `total` and dominates it (a quarter of the checked
+/// nodes or more): the check cannot finish before that file's check, so
+/// shards beyond `total / heaviest` (rounded up) shorten no schedule; they
+/// only repeat the lazy library-type work and contend with the critical
+/// shard for cores and memory. The TypeScript compiler's `checker.ts` is
+/// about a third of its program: four shards check it in 351 ms where
+/// eight take 380 ms (tsgo: 355 ms), and emit it in 648 ms where eight
+/// take 682 ms. Below that share the node count of the heaviest file says
+/// little about its check time (hono's `types.ts` is a seventh of the
+/// nodes and a cheap check; its static declaration split lost 25 % of its
+/// time to a cap of seven), so no cap applies.
+pub(crate) fn dominant_file_shard_cap(total: usize, heaviest: usize) -> usize {
+    if heaviest == 0 || heaviest * 4 < total {
+        return usize::MAX;
+    }
+    total.div_ceil(heaviest).max(1)
 }
 
 /// Assign program files (by index) to at most `shards` checkers.
@@ -956,6 +982,21 @@ mod tests {
             CheckerBudget::new(NonZeroUsize::new(1_000).unwrap()).checkers(),
             MAX_CHECKERS
         );
+    }
+
+    #[test]
+    fn a_dominant_file_caps_the_shard_count() {
+        // One file of a third of the program: four shards, never more.
+        assert_eq!(dominant_file_shard_cap(941_600, 301_859), 4);
+        // Exactly a quarter still dominates.
+        assert_eq!(dominant_file_shard_cap(400_000, 100_000), 4);
+        // A seventh of the nodes (hono's types.ts) does not: no cap.
+        assert_eq!(dominant_file_shard_cap(137_692, 19_925), usize::MAX);
+        // A program of equal small files keeps every shard.
+        assert_eq!(dominant_file_shard_cap(300_000, 3_000), usize::MAX);
+        // One file is one shard; nothing checked is no bound.
+        assert_eq!(dominant_file_shard_cap(5_000, 5_000), 1);
+        assert_eq!(dominant_file_shard_cap(0, 0), usize::MAX);
     }
 
     #[test]

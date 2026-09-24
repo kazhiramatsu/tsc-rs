@@ -59,7 +59,52 @@ impl RelationKind {
 /// One relation's verdict cache: getRelationKey string →
 /// RelationComparisonResult (Succeeded/Failed + Reports*/Overflow
 /// bits).
-pub type RelationCache = HashMap<String, RelationComparisonResult>;
+pub type RelationCache = HashMap<RelationKey, RelationComparisonResult>;
+
+/// tsc-port: getRelationKey @6.0.3 (the cache key). Ordinary types key by
+/// their id pair and intersection state without allocating (tsc builds the
+/// string `"${source},${target}"` per lookup; the checker looks up one per
+/// structured comparison); a type reference with generic arguments keeps
+/// tsc's text form, which carries the shared type-parameter indices and
+/// the leading `*` constraint marker `recursiveTypeRelatedTo` tests.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum RelationKey {
+    Pair {
+        source: u32,
+        target: u32,
+        intersection: i32,
+    },
+    Generic(Box<str>),
+}
+
+impl RelationKey {
+    /// tsc `id.startsWith("*")`: a generic key whose reference has a
+    /// constrained type parameter among its arguments.
+    pub(crate) fn has_constraint_marker(&self) -> bool {
+        matches!(self, Self::Generic(text) if text.starts_with('*'))
+    }
+}
+
+/// tsc's string spelling of the key (`"a,b"`, `"a,b:2"`, or the generic
+/// text), for tests and traces.
+impl std::fmt::Display for RelationKey {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Pair {
+                source,
+                target,
+                intersection,
+            } => {
+                write!(formatter, "{source},{target}")?;
+                if *intersection != 0 {
+                    write!(formatter, ":{intersection}")?;
+                }
+                Ok(())
+            }
+            Self::Generic(text) => formatter.write_str(text),
+        }
+    }
+}
 
 /// The per-checker relation state: `[RelCache; 5]` plus the auxiliary
 /// enumRelation map (symbol-id-pair keyed, 64683).
@@ -182,7 +227,7 @@ impl<'a> CheckerState<'a> {
         target: TypeId,
         post_fix: &str,
         ignore_constraints: bool,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<RelationKey> {
         let mut type_parameters: Vec<TypeId> = Vec::new();
         let mut constraint_marker = "";
         let source_id = self.get_type_reference_id(
@@ -199,8 +244,8 @@ impl<'a> CheckerState<'a> {
             &mut type_parameters,
             &mut constraint_marker,
         )?;
-        Ok(format!(
-            "{constraint_marker}{source_id},{target_id}{post_fix}"
+        Ok(RelationKey::Generic(
+            format!("{constraint_marker}{source_id},{target_id}{post_fix}").into_boxed_str(),
         ))
     }
 
@@ -265,20 +310,20 @@ impl<'a> CheckerState<'a> {
         intersection_state: IntersectionState,
         relation: RelationKind,
         ignore_constraints: bool,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<RelationKey> {
         let (source, target) = if relation == RelationKind::Identity && source.0 > target.0 {
             (target, source)
         } else {
             (source, target)
         };
-        let post_fix = if intersection_state.bits() != 0 {
-            format!(":{}", intersection_state.bits())
-        } else {
-            String::new()
-        };
         if self.is_type_reference_with_generic_arguments(source)
             && self.is_type_reference_with_generic_arguments(target)
         {
+            let post_fix = if intersection_state.bits() != 0 {
+                format!(":{}", intersection_state.bits())
+            } else {
+                String::new()
+            };
             return self.get_generic_type_reference_relation_key(
                 source,
                 target,
@@ -286,12 +331,11 @@ impl<'a> CheckerState<'a> {
                 ignore_constraints,
             );
         }
-        let mut key = String::with_capacity(24 + post_fix.len());
-        tsc_types::tables::push_decimal(&mut key, source.0);
-        key.push(',');
-        tsc_types::tables::push_decimal(&mut key, target.0);
-        key.push_str(&post_fix);
-        Ok(key)
+        Ok(RelationKey::Pair {
+            source: source.0,
+            target: target.0,
+            intersection: intersection_state.bits(),
+        })
     }
 
     /// tsc-port: isEnumTypeRelatedTo @6.0.3

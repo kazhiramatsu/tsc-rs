@@ -4,7 +4,7 @@ use tsc_types::{
     CompilerOptions, ElementFlags, IntersectionState, RelationComparisonResult, TupleTargetFlags,
 };
 
-use super::{RelationCaches, RelationKind};
+use super::{RelationCaches, RelationKey, RelationKind};
 use crate::state::CheckerState;
 
 fn with_state<R>(run: impl FnOnce(&mut CheckerState) -> R) -> R {
@@ -27,14 +27,20 @@ fn with_state<R>(run: impl FnOnce(&mut CheckerState) -> R) -> R {
 #[test]
 fn relation_caches_are_per_relation() {
     let mut caches = RelationCaches::default();
+    let key = RelationKey::Pair {
+        source: 1,
+        target: 2,
+        intersection: 0,
+    };
+    assert_eq!(key.to_string(), "1,2");
     caches
         .cache_mut(RelationKind::Assignable)
-        .insert("1,2".to_owned(), RelationComparisonResult::SUCCEEDED);
-    assert!(caches.cache(RelationKind::Assignable).contains_key("1,2"));
+        .insert(key.clone(), RelationComparisonResult::SUCCEEDED);
+    assert!(caches.cache(RelationKind::Assignable).contains_key(&key));
     for relation in RelationKind::ALL {
         if relation != RelationKind::Assignable {
             assert!(
-                !caches.cache(relation).contains_key("1,2"),
+                !caches.cache(relation).contains_key(&key),
                 "{relation:?} must not share the assignable cache"
             );
         }
@@ -60,7 +66,7 @@ fn relation_keys_swap_ids_for_identity_only() {
                 false,
             )
             .expect("relation key");
-        assert_eq!(identity, format!("{},{}", small.0, large.0));
+        assert_eq!(identity.to_string(), format!("{},{}", small.0, large.0));
         let assignable = state
             .get_relation_key(
                 large,
@@ -70,7 +76,7 @@ fn relation_keys_swap_ids_for_identity_only() {
                 false,
             )
             .expect("relation key");
-        assert_eq!(assignable, format!("{},{}", large.0, small.0));
+        assert_eq!(assignable.to_string(), format!("{},{}", large.0, small.0));
         let suffixed = state
             .get_relation_key(
                 small,
@@ -80,7 +86,7 @@ fn relation_keys_swap_ids_for_identity_only() {
                 false,
             )
             .expect("relation key");
-        assert_eq!(suffixed, format!("{},{}:2", small.0, large.0));
+        assert_eq!(suffixed.to_string(), format!("{},{}:2", small.0, large.0));
     });
 }
 
@@ -106,7 +112,10 @@ fn generic_reference_keys_use_backrefs() {
             )
             .expect("relation key");
         // Shared type-parameter indices across both sides.
-        assert_eq!(key, format!("{}=0=1,{}=0=1", target.0, target.0));
+        assert_eq!(
+            key.to_string(),
+            format!("{}=0=1,{}=0=1", target.0, target.0)
+        );
         // A concrete tuple reference is NOT a generic reference:
         // plain id-pair key.
         let number = state.tables.intrinsics.number;
@@ -123,7 +132,7 @@ fn generic_reference_keys_use_backrefs() {
                 false,
             )
             .expect("relation key");
-        assert_eq!(key, format!("{},{}", concrete.0, concrete.0));
+        assert_eq!(key.to_string(), format!("{},{}", concrete.0, concrete.0));
     });
 }
 

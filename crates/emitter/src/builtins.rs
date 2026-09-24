@@ -16658,7 +16658,177 @@ fn initialize_transform_flags(
     source: TransformSourceId,
 ) -> Result<(), TransformError> {
     let root = arena.root(source)?.node();
-    compute_transform_flags(arena, source, root)
+    let (classified_nodes, classified_arrays) = arena.source(source)?.classified_transform_flags();
+    let (node_end, array_end) = {
+        let syntax = arena.source(source)?.syntax();
+        (syntax.arena.node_end(), syntax.arena.array_end())
+    };
+    // After the first classification a pass classifies only the nodes and
+    // arrays appended since: a transform never touches an older node (the
+    // tree is immutable; a change creates new nodes up to the root), so the
+    // older flags stay exact. The development check keeps the whole-tree
+    // classification and compares the incremental result against it.
+    let nothing_new = classified_nodes == node_end && classified_arrays == array_end;
+    if classified_nodes == 0 {
+        compute_transform_flags(arena, source, root)?;
+    } else if verify_linear_transform_flags() {
+        let snapshot = if !nothing_new
+            && compute_transform_flags_incremental(arena, source, classified_nodes)?
+        {
+            Some(snapshot_transform_flags(arena, source)?)
+        } else {
+            None
+        };
+        compute_transform_flags(arena, source, root)?;
+        if let Some((incremental_nodes, _)) = snapshot {
+            let (full_nodes, _) = snapshot_transform_flags(arena, source)?;
+            let reachable = reachable_nodes(arena, source, root)?;
+            let differing = incremental_nodes
+                .iter()
+                .zip(&full_nodes)
+                .enumerate()
+                .filter(|(index, (incremental, full))| reachable[*index] && incremental != full)
+                .take(8)
+                .collect::<Vec<_>>();
+            assert!(
+                differing.is_empty(),
+                "incremental transform flags differ from the whole-tree classification in source {source:?}: {differing:?}"
+            );
+        }
+    } else if !nothing_new && !compute_transform_flags_incremental(arena, source, classified_nodes)?
+    {
+        compute_transform_flags(arena, source, root)?;
+    }
+    arena
+        .source_mut(source)?
+        .set_classified_transform_flags(node_end, array_end);
+    Ok(())
+}
+
+/// The nodes reachable from `root` through ordinary child edges and child
+/// arrays, by arena index (the development check's comparison filter).
+fn reachable_nodes(
+    arena: &TransformArena,
+    source: TransformSourceId,
+    root: NodeId,
+) -> Result<Vec<bool>, TransformError> {
+    let syntax = arena.source(source)?.syntax();
+    let node_base = syntax.arena.node_base();
+    let node_count = syntax.arena.nodes().len();
+    let mut reachable = vec![false; node_count];
+    let mut stack = vec![root];
+    while let Some(id) = stack.pop() {
+        let Some(index) =
+            id.0.checked_sub(node_base)
+                .map(|index| index as usize)
+                .filter(|index| *index < node_count)
+        else {
+            return Err(TransformError::UnknownNode(TransformNode::new(source, id)));
+        };
+        if reachable[index] {
+            continue;
+        }
+        reachable[index] = true;
+        let record = &syntax.arena.nodes()[index];
+        for_each_child(&syntax.arena, record, |child| {
+            stack.push(child);
+            false
+        });
+        for_each_child_array(record, |array| {
+            if syntax.arena.contains_array(array) {
+                stack.extend(syntax.arena.node_array(array).nodes.iter().copied());
+            }
+            false
+        });
+    }
+    Ok(reachable)
+}
+
+/// Classify the nodes appended since the last classification (ids from
+/// `first_node`), in id order: a transform creates children before their
+/// parent, so each new node's children are classified already (older nodes
+/// kept their exact flags). Child arrays of a new node are aggregated first,
+/// as in the whole-tree pass. `Ok(false)` reports a new node that precedes
+/// one of its children (nothing written from there on); the caller then
+/// classifies the whole tree.
+fn compute_transform_flags_incremental(
+    arena: &mut TransformArena,
+    source: TransformSourceId,
+    first_node: u32,
+) -> Result<bool, TransformError> {
+    let (node_base, node_count) = {
+        let syntax = arena.source(source)?.syntax();
+        (syntax.arena.node_base(), syntax.arena.nodes().len())
+    };
+    let Some(start) = first_node
+        .checked_sub(node_base)
+        .map(|index| index as usize)
+        .filter(|index| *index <= node_count)
+    else {
+        return Ok(false);
+    };
+    let mut array_scratch: Vec<NodeArrayId> = Vec::new();
+    for index in start..node_count {
+        let id = NodeId(node_base + index as u32);
+        let node = TransformNode::new(source, id);
+        array_scratch.clear();
+        {
+            let syntax = arena.source(source)?.syntax();
+            let record = &syntax.arena.nodes()[index];
+            let mut ordered = true;
+            for_each_child(&syntax.arena, record, |child| {
+                ordered &= child.0 < id.0;
+                false
+            });
+            for_each_child_array(record, |array| {
+                if syntax.arena.contains_array(array) {
+                    ordered &= syntax
+                        .arena
+                        .node_array(array)
+                        .nodes
+                        .iter()
+                        .all(|element| element.0 < id.0);
+                    array_scratch.push(array);
+                }
+                false
+            });
+            if !ordered {
+                return Ok(false);
+            }
+        }
+        for &array in &array_scratch {
+            let array_ref = arena
+                .node_array_ref(source, array)
+                .expect("generated child array belongs to its source");
+            let flags = {
+                let syntax = arena.source(source)?.syntax();
+                let mut flags = TransformFlags::NONE;
+                for &element in &syntax.arena.node_array(array).nodes {
+                    if !syntax.arena.contains_node(element) {
+                        return Err(TransformError::UnknownNode(TransformNode::new(
+                            source, element,
+                        )));
+                    }
+                    let element_flags = arena.transform_flags(TransformNode::new(source, element));
+                    let kind = syntax.arena.node(element).kind;
+                    flags |= element_flags & !TransformFlags::subtree_exclusions(kind);
+                }
+                flags
+            };
+            arena.set_array_transform_flags(array_ref, flags);
+        }
+        let flags = {
+            let syntax = arena.source(source)?.syntax();
+            let record = &syntax.arena.nodes()[index];
+            let mut flags = local_transform_flags(record)
+                | local_contextual_target_flags(arena, source, record)?;
+            flags |= factory_child_transform_flags(arena, source, record)?;
+            let flags = complete_class_transform_flags(arena, source, record, flags)?;
+            flags | static_this_substitute_flags(arena, node)
+        };
+        arena.set_transform_flags(node, flags);
+    }
+    Ok(true)
 }
 
 /// Postorder classification state of one node during `compute_transform_flags`.
