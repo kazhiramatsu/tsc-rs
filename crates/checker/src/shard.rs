@@ -239,6 +239,7 @@ pub(crate) fn partition_mode_requested() -> PartitionMode {
 /// the lightest. A directory of two equal shares of the files or more gets
 /// no preference (nothing to contain; the slack would only skew the load).
 /// Files are dealt heaviest first like [`partition_files`]. Deterministic.
+#[cfg(test)]
 pub(crate) fn partition_files_by_directory(
     weights: &[usize],
     directories: &[u32],
@@ -598,6 +599,7 @@ impl ShardFileQueue {
     /// One shared Program-order cursor per pass over the files whose node
     /// counts are `weights` (index = Program file; `0..lib_count` are the
     /// libraries), served to at most `shards` shards.
+    #[cfg(test)]
     pub(crate) fn shared(lib_count: usize, weights: &[usize], shards: usize) -> Self {
         Self::shared_chunked(lib_count, weights, shards, 1)
     }
