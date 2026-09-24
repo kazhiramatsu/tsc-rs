@@ -59,21 +59,19 @@ fn a_lowered_optional_chain_operand_keeps_its_line_break() {
     // target ES2018 exactly as tsc 6.0.3 prints it.
     assert_eq!(
         javascript_output(
-            "declare const a: boolean;
-             declare const b: { c?: () => number; d?: number } | undefined;
-             export const x1 = a ||
-               b?.d;
-             export const x2 = a ||
-               b?.c?.();
-",
+            "declare const a: boolean;\n\
+             declare const b: { c?: () => number; d?: number } | undefined;\n\
+             export const x1 = a ||\n\
+             \x20 b?.d;\n\
+             export const x2 = a ||\n\
+             \x20 b?.c?.();\n",
             /* ES2018 */ 5,
         ),
-        "var _a;
-         export const x1 = a ||
-             (b === null || b === void 0 ? void 0 : b.d);
-         export const x2 = a ||
-             ((_a = b === null || b === void 0 ? void 0 : b.c) === null || _a === void 0 ? void 0 : _a.call(b));
-"
+        "var _a;\n\
+         export const x1 = a ||\n\
+         \x20   (b === null || b === void 0 ? void 0 : b.d);\n\
+         export const x2 = a ||\n\
+         \x20   ((_a = b === null || b === void 0 ? void 0 : b.c) === null || _a === void 0 ? void 0 : _a.call(b));\n"
     );
 }
 
@@ -121,17 +119,15 @@ fn a_typescript_script_with_a_require_call_keeps_its_global_declarations() {
     // (playwright-core's bootstrap.ts).
     assert_eq!(
         declaration_output(
-            "const minimumMajorNodeVersion = 20
-             const currentNodeVersion: string = \"1\"
-             if (currentNodeVersion) {
-               const Module = require(\"module\")
-               console.log(Module, minimumMajorNodeVersion)
-             }
-",
+            "const minimumMajorNodeVersion = 20\n\
+             const currentNodeVersion: string = \"1\"\n\
+             if (currentNodeVersion) {\n\
+             \x20 const Module = require(\"module\")\n\
+             \x20 console.log(Module, minimumMajorNodeVersion)\n\
+             }\n",
         ),
-        "declare const minimumMajorNodeVersion = 20;
-         declare const currentNodeVersion: string;
-"
+        "declare const minimumMajorNodeVersion = 20;\n\
+         declare const currentNodeVersion: string;\n"
     );
 }
 

@@ -9102,7 +9102,6 @@ impl Printer {
         ))
     }
 
-
     /// tsc-port: createPrinter.getSeparatingLineTerminatorCount @6.0.3
     /// tsc-hash: 78d63da04f114ae40f8ad9f012131e94a83000cf268d393c5608372aab734539
     /// tsc-span: _tsc.js:120301-120329
