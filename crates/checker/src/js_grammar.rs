@@ -134,24 +134,15 @@ impl<'a> JsGrammarWalker<'a> {
         let node = self.source.arena.node(id);
         if node.kind == SyntaxKind::Constructor {
             let start = tsc_syntax::skip_trivia(self.source.text(), node.pos as usize);
-            let tokens =
-                tsc_syntax::scan_tokens(&self.source.text()[start..], self.source.language_variant);
-            let end = tokens
-                .iter()
-                .find(|token| {
-                    matches!(
-                        token.kind,
-                        SyntaxKind::ConstructorKeyword | SyntaxKind::EndOfFileToken
-                    )
-                })
-                .map(|token| {
-                    self.source
-                        .positions()
-                        .byte_offset_from_utf16_delta(start as u32, token.end)
-                        .expect("scanner UTF-16 token offsets are scalar boundaries")
-                        as usize
-                })
-                .unwrap_or(start);
+            // Lazily scan up to the `constructor` keyword; the token
+            // iterator stops at the end of the file.
+            let end = tsc_syntax::scan_byte_tokens(
+                &self.source.text()[start..],
+                self.source.language_variant,
+            )
+            .find(|token| token.kind == SyntaxKind::ConstructorKeyword)
+            .map(|token| start + token.end as usize)
+            .unwrap_or(start);
             return (start, end);
         }
         let error_node = match node.kind {
@@ -213,25 +204,16 @@ impl<'a> JsGrammarWalker<'a> {
 
     /// tsc getSpanOfTokenAtPosition: one token scanned fresh at `pos`.
     fn token_span_at(&self, pos: usize) -> (usize, usize) {
-        let tokens = tsc_syntax::scan_tokens(&self.source.text()[pos..], LanguageVariant::Standard);
-        match tokens.first() {
-            Some(token) => {
-                let positions = self.source.positions();
-                let to_byte = |relative_utf16| {
-                    positions
-                        .byte_offset_from_utf16_delta(pos as u32, relative_utf16)
-                        .expect("scanner UTF-16 token offsets are scalar boundaries")
-                        as usize
-                };
-                (to_byte(token.start), to_byte(token.end))
-            }
-            None => (pos, pos),
-        }
+        let (start, end) = tsc_syntax::scan_first_token_span(
+            &self.source.text()[pos..],
+            LanguageVariant::Standard,
+        );
+        (pos + start, pos + end)
     }
 
     fn token_kind_at(&self, pos: usize) -> Option<SyntaxKind> {
-        tsc_syntax::scan_tokens(&self.source.text()[pos..], LanguageVariant::Standard)
-            .first()
+        tsc_syntax::scan_byte_tokens(&self.source.text()[pos..], LanguageVariant::Standard)
+            .next()
             .map(|token| token.kind)
     }
 

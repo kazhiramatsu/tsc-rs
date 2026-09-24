@@ -1148,20 +1148,13 @@ pub fn declaration_name_to_string(source: &SourceFile, name: Option<NodeId>) -> 
 /// tsc-hash: 1389c564d97e9dbaa92975ba813b8d14180a73654923d1bc6d0817ac357009b0
 /// tsc-span: _tsc.js:13983-13997
 pub fn get_span_of_token_at_position(source: &SourceFile, pos: usize) -> (usize, usize) {
-    let tokens = tsc_syntax::scan_tokens(&source.text()[pos..], source.language_variant);
-    match tokens.first() {
-        Some(token) => {
-            let positions = source.positions();
-            let to_byte = |relative_utf16| {
-                positions
-                    .byte_offset_from_utf16_delta(pos as u32, relative_utf16)
-                    .expect("scanner UTF-16 token offsets are scalar boundaries")
-                    as usize
-            };
-            (to_byte(token.start), to_byte(token.end))
-        }
-        None => (pos, pos),
-    }
+    // tsc scans exactly one token at `pos` (createScanner(..., text, undefined,
+    // pos); scanner.scan()). Scanning the rest of the file into a token
+    // vector made every diagnostic cost O(file size); the byte offsets of the
+    // first token are the span.
+    let (start, end) =
+        tsc_syntax::scan_first_token_span(&source.text()[pos..], source.language_variant);
+    (pos + start, pos + end)
 }
 
 /// tsc-port: getErrorSpanForNode @6.0.3
@@ -1213,15 +1206,13 @@ pub fn get_error_span_for_node(source: &SourceFile, id: NodeId) -> (usize, usize
         }
         NodeData::Constructor(_) => {
             let start = tsc_syntax::skip_trivia(source.text(), node.pos as usize);
-            let tokens = tsc_syntax::scan_tokens(&source.text()[start..], source.language_variant);
-            for token in &tokens {
+            // Lazily scan up to the `constructor` keyword instead of
+            // materializing every token to the end of the file.
+            for token in
+                tsc_syntax::scan_byte_tokens(&source.text()[start..], source.language_variant)
+            {
                 if token.kind == SyntaxKind::ConstructorKeyword {
-                    let end = source
-                        .positions()
-                        .byte_offset_from_utf16_delta(start as u32, token.end)
-                        .expect("scanner UTF-16 token end is a scalar boundary")
-                        as usize;
-                    return (start, end);
+                    return (start, start + token.end as usize);
                 }
             }
             return (start, node.end as usize);
