@@ -147,3 +147,70 @@ fn static_blocks_and_privates_flow_type_auto_properties() {
         [(2322, 51, 1)]
     );
 }
+
+fn strict_rows(text: &str) -> Vec<(u32, u32, u32)> {
+    let options = CompilerOptions {
+        strict: Some(true),
+        ..CompilerOptions::default()
+    };
+    with_program_state(&[("a.ts", text)], &options, |state| {
+        state.check_source_file(0);
+        state
+            .diagnostics
+            .iter()
+            .filter(|diag| {
+                diag.file_name.is_some()
+                    && diag.category() == tsc_diagnostics::DiagnosticCategory::Error
+            })
+            .map(|diag| {
+                (
+                    diag.code(),
+                    diag.start.unwrap_or(u32::MAX),
+                    diag.length.unwrap_or(u32::MAX),
+                )
+            })
+            .collect()
+    })
+}
+
+#[test]
+fn never_returning_this_call_through_a_contextual_this_parameter_ends_its_branch() {
+    // assignContextualParameterTypes (78386) creates the function's
+    // thisParameter with createSymbolWithType, which copies the contextual
+    // parameter's declarations; getExplicitThisType (72464) then finds an
+    // explicitly annotated `this`, and `this.skip()` (`skip(): never`) is an
+    // effects call that ends its branch (VS Code's mocha `this.skip()`).
+    let text = "interface Context { skip(): never; }\n\
+                declare function setup(fn: (this: Context) => void): void;\n\
+                declare function resolveTarget(): string | undefined;\n\
+                let host: string;\n\
+                setup(function () {\n\
+                \tconst target = resolveTarget();\n\
+                \tif (!target) {\n\
+                \t\tthis.skip();\n\
+                \t}\n\
+                \thost = target;\n\
+                });\n\
+                export { host };\n";
+    assert_eq!(strict_rows(text), []);
+}
+
+#[test]
+fn exhaustive_switch_query_may_open_candidate_trials_while_computing() {
+    // functionHasImplicitReturn reaches the switch clause while the arrow's
+    // return type is inferred, and computeExhaustiveSwitchStatement checks
+    // the switch expression (checkExpressionCached, 78946): resolving
+    // `pick(x)` opens overload candidate trials while the switch's
+    // in-process marker is set. The speculation transaction keeps the
+    // marker set balanced instead of requiring it empty (VS Code witness).
+    let text = "declare function pick(x: string): 'a' | 'b';\n\
+                declare function pick(x: number): 'a' | 'b';\n\
+                const g = (x: string) => {\n\
+                \tswitch (pick(x)) {\n\
+                \t\tcase 'a': return 1;\n\
+                \t\tcase 'b': return 2;\n\
+                \t}\n\
+                };\n\
+                export const n: number = g('');\n";
+    assert_eq!(strict_rows(text), []);
+}

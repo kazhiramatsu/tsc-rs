@@ -574,3 +574,37 @@ fn unchecked_js_does_not_publish_implicit_any_index_diagnostic() {
         .iter()
         .all(|diagnostic| diagnostic.code() != 7053));
 }
+
+#[test]
+fn keyof_takes_the_getter_visibility_of_an_accessor_pair() {
+    // getLiteralTypeFromProperty (61984) consults
+    // getDeclarationModifierFlagsFromSymbol (17438), which reads the get
+    // accessor's modifiers: a public `get` beside a private `set` keeps the
+    // key public, so a homomorphic mapped type carries it (VS Code's
+    // ChatWidget.viewModel through Partial<ChatWidget>).
+    let text = "class VM { model = 1; }\n\
+                export class Widget {\n\
+                \tprivate _vm: VM | undefined;\n\
+                \tlocation = 1;\n\
+                \tprivate set vm(v: VM | undefined) { this._vm = v; }\n\
+                \tget vm() { return this._vm; }\n\
+                }\n\
+                type Loose<T> = { [P in keyof T]?: T[P] };\n\
+                declare function upcast<T>(partial: Loose<T>): T;\n\
+                export const w = upcast<Widget>({ location: 2, vm: new VM() });\n\
+                export const k: keyof Widget = 'vm';\n";
+    let options = CompilerOptions {
+        strict: Some(true),
+        ..CompilerOptions::default()
+    };
+    let rows = check_program(
+        &[InputFile::new("a.ts".to_owned(), text.to_owned())],
+        &options,
+    )
+    .diagnostics
+    .into_iter()
+    .filter(|diagnostic| matches!(diagnostic.code(), 2322 | 2353))
+    .map(|diagnostic| (diagnostic.code(), diagnostic.start.unwrap_or(u32::MAX)))
+    .collect::<Vec<_>>();
+    assert!(rows.is_empty(), "{rows:?}");
+}
