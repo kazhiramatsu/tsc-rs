@@ -3377,6 +3377,10 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             &symbols,
             &directories,
             checker_count,
+            // A large program balances its shares by stealing; a small one
+            // keeps the static shares, so its run-to-run type order (the
+            // relaxed sharded mode's determinism) does not depend on timing.
+            shard::stealing_enabled() && fixtures >= shard::STEAL_MIN_FIXTURES,
         )
     };
     let shard_count = queue.shard_count();

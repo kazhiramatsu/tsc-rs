@@ -1341,7 +1341,11 @@ fn emit_javascript_unit(
             let mut recording = crate::source_map::SourceMapRecording::new(
                 recording_inputs.expect("recording input matched above"),
             );
-            recording.set_current_source(transform_source, syntax.file_name.as_js(), syntax.text());
+            recording.set_current_source(
+                transform_source,
+                syntax.file_name.as_js(),
+                syntax.snapshot(),
+            );
             (printed, Some(recording.into_generator()))
         }
         Err(error) => return Err(error.into()),

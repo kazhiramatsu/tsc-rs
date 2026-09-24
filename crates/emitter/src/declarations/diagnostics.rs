@@ -979,13 +979,11 @@ fn error_span_for_node(source: &SourceFile, node: NodeId) -> (usize, usize) {
         }
         NodeData::Constructor(_) => {
             let start = tsc_syntax::skip_trivia(source.text(), record.pos as usize);
-            for token in tsc_syntax::scan_tokens(&source.text()[start..], source.language_variant) {
+            for token in
+                tsc_syntax::scan_byte_tokens(&source.text()[start..], source.language_variant)
+            {
                 if token.kind == SyntaxKind::ConstructorKeyword {
-                    let end = source
-                        .positions()
-                        .byte_offset_from_utf16_delta(start as u32, token.end)
-                        .unwrap_or(record.end) as usize;
-                    return (start, end);
+                    return (start, start + token.end as usize);
                 }
             }
             return (start, record.end as usize);
@@ -1064,19 +1062,10 @@ fn arrow_function_span(source: &SourceFile, node: NodeId, body: Option<NodeId>) 
 }
 
 fn token_span(source: &SourceFile, start: usize) -> (usize, usize) {
-    let Some(token) = tsc_syntax::scan_tokens(&source.text()[start..], source.language_variant)
-        .into_iter()
-        .next()
-    else {
-        return (start, start);
-    };
-    let positions = source.positions();
-    let to_byte = |relative_utf16| {
-        positions
-            .byte_offset_from_utf16_delta(start as u32, relative_utf16)
-            .unwrap_or(start as u32) as usize
-    };
-    (to_byte(token.start), to_byte(token.end))
+    // getSpanOfTokenAtPosition: one token scanned at `start`.
+    let (token_start, token_end) =
+        tsc_syntax::scan_first_token_span(&source.text()[start..], source.language_variant);
+    (start + token_start, start + token_end)
 }
 
 fn byte_line_starts(text: &str) -> Vec<usize> {

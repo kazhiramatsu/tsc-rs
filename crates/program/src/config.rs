@@ -1892,6 +1892,7 @@ fn unsupported_config_scope(
                     .iter()
                     .chain(H0_NO_EMIT_DECLARATION_CONFIG_OPTIONS)
                     .chain(H0_NO_EMIT_SERVICE_CONFIG_OPTIONS)
+                    .chain(H0_NO_EMIT_CHECKER_CONFIG_OPTIONS)
                     .any(|candidate| option.name == *candidate));
         if !(config_option_is_supported_by_h0(&option.name)
             || no_emit_projection
@@ -2241,6 +2242,15 @@ const H0_NO_EMIT_DECLARATION_CONFIG_OPTIONS: &[&str] = &[
 /// command keeps its projected-option inventory closed.
 const H0_NO_EMIT_SERVICE_CONFIG_OPTIONS: &[&str] = &["plugins"];
 
+/// Checker-selecting emit options a no-emit command admits because the
+/// checker implements their diagnostics: `emitDecoratorMetadata` marks the
+/// decorator metadata type references (markDecoratorMetadataTypeNodeAsReferenced,
+/// so `import type` aliases used only in decorated signatures count as
+/// referenced) and the loader reports its experimentalDecorators
+/// requirement, so a `--noEmit` check of a project that sets it (zod's base
+/// tsconfig) reports exactly what tsc reports.
+const H0_NO_EMIT_CHECKER_CONFIG_OPTIONS: &[&str] = &["emitDecoratorMetadata"];
+
 /// Root config scopes tsc parses for editors only: `compileOnSave` reaches
 /// ParsedCommandLine.compileOnSave (convertCompileOnSaveOptionFromJson,
 /// _tsc.js:39338) and executeCommandLine never reads it, so a `--noEmit`
@@ -2259,6 +2269,10 @@ fn config_option_is_supported_by_h0<'n>(name: impl Into<JsStr<'n>>) -> bool {
 }
 
 const H1_EMIT_PROJECTED_CONFIG_OPTIONS: &[&str] = &[
+    // `pretty` only selects the diagnostic renderer, which the command line
+    // already decides (`--pretty false`); zod's base tsconfig sets it, so an
+    // emitting command admits it like the no-emit inventory does.
+    "pretty",
     "listEmittedFiles",
     "emitBOM",
     "noEmitOnError",

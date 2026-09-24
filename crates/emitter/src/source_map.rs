@@ -427,6 +427,11 @@ pub struct SourceMapRecording {
     generator: SourceMapGenerator,
     registered: HashMap<crate::TransformSourceId, RegisteredSource>,
     current: Option<RegisteredSource>,
+    /// The current print source's text snapshot: its line table locates the
+    /// comments the printer records against the current source (upstream
+    /// `emitPos(commentPos)` reads `currentSourceFile`'s line map) without
+    /// recomputing line starts per comment.
+    current_snapshot: Option<std::sync::Arc<tsc_diagnostics::TextSnapshot>>,
     suppressed_depth: u32,
     inline_sources: bool,
 }
@@ -443,6 +448,7 @@ impl SourceMapRecording {
             ),
             registered: HashMap::default(),
             current: None,
+            current_snapshot: None,
             suppressed_depth: 0,
             inline_sources: inputs.inline_sources,
         }
@@ -498,10 +504,47 @@ impl SourceMapRecording {
         &mut self,
         source: crate::TransformSourceId,
         file_name: JsStr<'_>,
-        source_text: &str,
+        snapshot: &std::sync::Arc<tsc_diagnostics::TextSnapshot>,
     ) {
-        let registered = self.register(source, file_name, Some(source_text));
+        let registered = self.register(source, file_name, Some(snapshot.text()));
         self.current = Some(registered);
+        self.current_snapshot = Some(std::sync::Arc::clone(snapshot));
+    }
+
+    /// `record_current` for a byte offset of the current source's text: the
+    /// comment lane passes the text it read the comment from; when it is the
+    /// current snapshot's text the snapshot's line table answers, otherwise
+    /// the position is located in the passed text.
+    pub(crate) fn record_current_byte(
+        &mut self,
+        source: &str,
+        byte: usize,
+        generated_line: u32,
+        generated_character: u32,
+    ) {
+        if self.suppressed_depth > 0 || !matches!(self.current, Some(RegisteredSource::Indexed(_)))
+        {
+            return;
+        }
+        let byte = u32::try_from(byte).expect("comment position exceeds u32");
+        let location = match &self.current_snapshot {
+            Some(snapshot)
+                if snapshot.text().len() == source.len()
+                    && snapshot.text().as_ptr() == source.as_ptr() =>
+            {
+                snapshot.positions().line_and_character_byte(byte)
+            }
+            _ => tsc_diagnostics::PositionIndex::new_static(source).line_and_character_byte(byte),
+        };
+        let Some(location) = location else {
+            return;
+        };
+        self.record_current(
+            location.line,
+            location.character,
+            generated_line,
+            generated_character,
+        );
     }
 
     pub(crate) fn suppress(&mut self) {

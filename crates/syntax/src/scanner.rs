@@ -2613,6 +2613,15 @@ pub fn scan_tokens(text: &str, variant: LanguageVariant) -> Vec<TokenRecord> {
     tokens
 }
 
+/// tsc getSpanOfTokenAtPosition: the byte span of the one token scanned at
+/// the start of `text` (its start after the leading trivia, its end), with
+/// the scanner's end-of-text position when nothing follows the trivia.
+pub fn scan_first_token_span(text: &str, variant: LanguageVariant) -> (usize, usize) {
+    let mut scanner = Scanner::new(text, variant);
+    scanner.scan();
+    (scanner.token_start(), scanner.pos())
+}
+
 /// Scan source tokens lazily in UTF-8 byte space without materializing token
 /// records or a UTF-16 offset map.
 pub fn scan_byte_tokens(text: &str, variant: LanguageVariant) -> ByteTokenIter<'_> {

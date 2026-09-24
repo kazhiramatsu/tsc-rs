@@ -119,6 +119,17 @@ pub trait EmitHost {
     fn use_case_sensitive_file_names(&self) -> bool;
     fn source_file_ids(&self) -> &[SourceFileId];
     fn source_file(&self, id: SourceFileId) -> Option<EmitSource<'_>>;
+    /// The Program source whose canonical path is `canonical`, if any: the
+    /// module-specifier host's `fileExists`/`readFile` probes ask this for
+    /// every candidate path, so an implementation indexes its sources once
+    /// (the default scans them).
+    fn source_file_by_canonical_path(&self, canonical: JsStr<'_>) -> Option<SourceFileId> {
+        self.source_file_ids().iter().copied().find(|&id| {
+            self.source_file(id).is_some_and(|source| {
+                self.canonical_output_path(source.path()).as_js() == canonical
+            })
+        })
+    }
 
     /// Resolve a preserved triple-slash path reference against its containing
     /// source. Hosts with redirect-aware Program resolution may override this

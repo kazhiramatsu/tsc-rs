@@ -409,23 +409,30 @@ impl EmitTrackerAccess for CheckerTrackerAccess<'_, '_> {
 }
 
 #[derive(Clone)]
-struct BasicModuleSpecifierHost {
+/// The checker's own module-specifier host view: every Program source and
+/// host input by normalized path, with each file's default resolution
+/// mode. Built once per checker state (see
+/// [`CheckerState::basic_module_specifier_host`]): building it walked every
+/// file, normalized its path and copied its text on every specifier lookup
+/// of a declaration emit.
+pub(crate) struct BasicModuleSpecifierHost {
     current_directory: JsString,
-    files: HashMap<JsString, Option<String>>,
+    files: HashMap<JsString, Option<std::sync::Arc<tsc_diagnostics::TextSnapshot>>>,
     modes: HashMap<u32, EmitResolutionMode>,
 }
 
 impl BasicModuleSpecifierHost {
-    fn new(checker: &CheckerState<'_>) -> Self {
+    pub(crate) fn new(checker: &CheckerState<'_>) -> Self {
         let current_directory = checker.host_current_directory.clone();
-        let mut files = HashMap::default();
+        let mut files =
+            HashMap::with_capacity_and_hasher(checker.binder.file_count(), Default::default());
         let mut modes =
             HashMap::with_capacity_and_hasher(checker.binder.file_count(), Default::default());
         for index in 0..checker.binder.file_count() {
             let source = checker.binder.source(index);
             let normalized =
                 CheckerState::normalize_js_program_path(&source.file_name, &current_directory);
-            files.insert(normalized, Some(source.text().to_owned()));
+            files.insert(normalized, Some(source.snapshot().clone()));
             modes.insert(
                 program_source_id(checker, index).raw(),
                 default_resolution_mode_for_checker_file(checker, source.root),
@@ -445,7 +452,7 @@ impl BasicModuleSpecifierHost {
         host_inputs.sort_unstable_by(|(left, _), (right, _)| left.cmp_utf16(right.as_js()));
         for (path, snapshot) in host_inputs {
             let normalized = CheckerState::normalize_js_program_path(path, &current_directory);
-            files.insert(normalized, Some(snapshot.text().to_owned()));
+            files.insert(normalized, Some(snapshot.clone()));
         }
 
         Self {
@@ -555,7 +562,7 @@ impl EmitModuleSpecifierHost for BasicModuleSpecifierHost {
     fn read_file(&self, file_name: JsStr<'_>) -> Option<String> {
         self.files
             .get(&self.normalized(file_name))
-            .and_then(Clone::clone)
+            .and_then(|snapshot| snapshot.as_ref().map(|snapshot| snapshot.text().to_owned()))
     }
 
     fn get_common_source_directory(&self) -> JsString {
@@ -907,9 +914,32 @@ fn alternative_containing_module_chains(
         return Ok(Vec::new());
     };
     let file_index = checker.binder.file_index_of_node(enclosing);
+    if let Some(cached) = checker
+        .links
+        .symbol(symbol)
+        .cold()
+        .extended_containers_by_file
+        .get(&file_index)
+    {
+        return Ok(cached.clone());
+    }
     let (imports, _) = module_name_literals(checker, file_index);
     let mut results = Vec::new();
     for import_ref in imports {
+        // resolveExternalModuleName(enclosingDeclaration, importRef) reads
+        // the mode from the enclosing declaration — no import syntax around
+        // it, so getDefaultResolutionModeForFile — while the program
+        // recorded the import under its usage mode; host.getResolvedModule
+        // answers only recorded resolutions, so the two modes must agree for
+        // the import to contribute a container (they always do while import
+        // syntax does not affect resolution; under bundler resolution a
+        // `.ts` file without a package `type` has no default mode).
+        if checker.import_syntax_affects_module_resolution()
+            && checker.default_resolution_mode_for_file(enclosing)
+                != checker.resolution_mode_for_usage(import_ref)
+        {
+            continue;
+        }
         let Some(module) = checker
             .resolve_external_module_name(enclosing, import_ref, true)
             .map_err(|abort| checker_abort_error(checker, context, abort))?
@@ -927,7 +957,19 @@ fn alternative_containing_module_chains(
         results.push(chain);
     }
     if !results.is_empty() {
+        checker
+            .links
+            .set_symbol_extended_containers_by_file(symbol, file_index, results.clone());
         return Ok(results);
+    }
+    if let Some(cached) = checker
+        .links
+        .symbol(symbol)
+        .cold()
+        .extended_containers
+        .as_ref()
+    {
+        return Ok(cached.clone());
     }
 
     // Once the per-containing-file import cache misses, upstream computes
@@ -953,6 +995,9 @@ fn alternative_containing_module_chains(
         }
         results.push(chain);
     }
+    checker
+        .links
+        .set_symbol_extended_containers(symbol, results.clone());
     Ok(results)
 }
 
@@ -1050,14 +1095,11 @@ fn prefer_alternative_containing_module_chain(
         let relative_a = module_specifier_is_relative(specifier_a);
         let relative_b = module_specifier_is_relative(specifier_b);
         if relative_a == relative_b {
-            let components = |specifier: &tsc_types::JsString| {
-                specifier
-                    .as_bytes()
-                    .iter()
-                    .filter(|&&byte| byte == b'/')
-                    .count()
-            };
-            components(specifier_a).cmp(&components(specifier_b))
+            // moduleSpecifiers.countPathComponents skips a leading `./`, so
+            // `./jsx-dev-runtime` (0) beats `../base` (1) on hono's .d.ts.
+            super::specifier::count_path_components(specifier_a.as_js()).cmp(
+                &super::specifier::count_path_components(specifier_b.as_js()),
+            )
         } else if relative_b {
             std::cmp::Ordering::Less
         } else {
@@ -1241,12 +1283,17 @@ pub(crate) fn specifier_for_module_symbol(
         )
         .map_err(|abort| checker_abort_error(checker, context, abort));
     }
-    let fallback = BasicModuleSpecifierHost::new(checker);
+    let fallback = match &checker.basic_module_specifier_host {
+        Some(host) => host.clone(),
+        None => {
+            let host = std::sync::Arc::new(BasicModuleSpecifierHost::new(checker));
+            checker.basic_module_specifier_host = Some(host.clone());
+            host
+        }
+    };
+    let fallback: &BasicModuleSpecifierHost = &fallback;
     if let Some(primary) = context.tracker.caller_module_resolver_host() {
-        let host = ModuleSpecifierHostWithFallback {
-            primary,
-            fallback: &fallback,
-        };
+        let host = ModuleSpecifierHostWithFallback { primary, fallback };
         return get_specifier_for_module_symbol(
             checker,
             symbol,
@@ -1261,7 +1308,7 @@ pub(crate) fn specifier_for_module_symbol(
     get_specifier_for_module_symbol(
         checker,
         symbol,
-        Some(&fallback),
+        Some(fallback),
         enclosing_file,
         enclosing_declaration,
         bundled,

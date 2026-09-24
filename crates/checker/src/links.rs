@@ -305,6 +305,13 @@ pub struct SymbolLinksCold {
     /// dormant h2-7a-m-3 specifier synthesis and never read by the display
     /// path.
     pub specifier_cache: Option<std::collections::BTreeMap<JsString, JsString>>,
+    /// tsc links.extendedContainersByFile (getAlternativeContainingModules
+    /// 49954-49973): per enclosing Program file, the re-exporting module
+    /// chains (module, alias) found through that file's imports.
+    pub extended_containers_by_file: FxHashMap<usize, Vec<Vec<SymbolId>>>,
+    /// tsc links.extendedContainers (49976-49988): the program-wide
+    /// fallback over every external module, computed once per symbol.
+    pub extended_containers: Option<Vec<Vec<SymbolId>>>,
     /// tsc links.containingType for synthetic properties.
     pub containing_type: Option<TypeId>,
     /// tsc links.deferralParent / deferralConstituents /
@@ -2913,6 +2920,27 @@ impl LinksTables {
             .specifier_cache
             .get_or_insert_with(Default::default)
             .insert(cache_key, specifier);
+    }
+
+    /// tsc-port: getAlternativeContainingModules @6.0.3
+    /// (links.extendedContainersByFile write, _tsc.js:49972)
+    pub fn set_symbol_extended_containers_by_file(
+        &mut self,
+        id: SymbolId,
+        file_index: usize,
+        chains: Vec<Vec<SymbolId>>,
+    ) {
+        self.symbol
+            .slot(id)
+            .cold_mut()
+            .extended_containers_by_file
+            .insert(file_index, chains);
+    }
+
+    /// tsc-port: getAlternativeContainingModules @6.0.3
+    /// (links.extendedContainers write, _tsc.js:49988)
+    pub fn set_symbol_extended_containers(&mut self, id: SymbolId, chains: Vec<Vec<SymbolId>>) {
+        self.symbol.slot(id).cold_mut().extended_containers = Some(chains);
     }
 
     /// tsrs-native: grouped LinksTables setter for tsc

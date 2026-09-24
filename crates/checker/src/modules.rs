@@ -6783,7 +6783,7 @@ impl<'a> CheckerState<'a> {
     /// tsc importSyntaxAffectsModuleResolution over the represented
     /// option set. Node16 and NodeNext always participate; Bundler does so
     /// only while at least one package-map feature is effectively enabled.
-    fn import_syntax_affects_module_resolution(&self) -> bool {
+    pub(crate) fn import_syntax_affects_module_resolution(&self) -> bool {
         let module_resolution = self.options.emit_module_resolution_kind();
         (3..=99).contains(&module_resolution)
             || (matches!(module_resolution, 3 | 99 | 100)
@@ -6793,7 +6793,7 @@ impl<'a> CheckerState<'a> {
     /// tsc getModeForUsageLocationWorker / getEmitSyntaxForUsageLocationWorker.
     /// A valid type-only resolution-mode override wins before the
     /// compiler-option gate.
-    fn resolution_mode_for_usage(&self, location: NodeId) -> ModuleResolutionMode {
+    pub(crate) fn resolution_mode_for_usage(&self, location: NodeId) -> ModuleResolutionMode {
         if let Some(mode) = self.resolution_mode_override_for_usage(location) {
             return mode;
         }
@@ -6828,6 +6828,36 @@ impl<'a> CheckerState<'a> {
             };
         }
         self.static_resolution_mode_for_file(location)
+    }
+
+    /// tsc getDefaultResolutionModeForFileWorker (_tsc.js:125510-125512):
+    /// with import syntax affecting resolution (the caller checks), the
+    /// file's implied format for emit, else no mode. resolveExternalModule
+    /// reads this mode for a location without import syntax around it
+    /// (getAlternativeContainingModules resolves the enclosing file's
+    /// imports against the enclosing declaration): a bundler-resolved `.ts`
+    /// file outside node_modules without a package `type` has no implied
+    /// format, so that lookup misses an import the program recorded with
+    /// its ESNext usage mode and the import contributes no container.
+    pub(crate) fn default_resolution_mode_for_file(
+        &self,
+        location: NodeId,
+    ) -> ModuleResolutionMode {
+        if let Some(mode) = self.implied_resolution_mode_from_extension(location) {
+            return mode;
+        }
+        if self.authoritative_module_provider.is_some() {
+            return self
+                .implied_node_format_for_emit(location)
+                .unwrap_or(ModuleResolutionMode::Unknown);
+        }
+        let module_kind = self.options.emit_module_kind();
+        if (100..=199).contains(&module_kind) {
+            return self
+                .implied_node_format_for_file(location)
+                .unwrap_or(ModuleResolutionMode::Unknown);
+        }
+        ModuleResolutionMode::Unknown
     }
 
     fn require_call_for_resolution_usage(&self, location: NodeId) -> bool {

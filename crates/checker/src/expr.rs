@@ -4024,6 +4024,20 @@ impl<'a> CheckerState<'a> {
             };
             return self.is_const_type_variable(object_type, depth + 1);
         }
+        // A deferred conditional type is const when its constraint is: a
+        // `<const def>(def: validate<def>)` parameter keeps the object
+        // literal argument in a const context (arktype's `type({...})`).
+        if flags.intersects(TypeFlags::CONDITIONAL) {
+            let constraint = self.get_constraint_of_conditional_type(ty)?;
+            return self.is_const_type_variable(constraint, depth + 1);
+        }
+        if flags.intersects(TypeFlags::SUBSTITUTION) {
+            let base_type = match &self.tables.type_of(ty).data {
+                TypeData::Substitution(data) => Some(data.base_type),
+                _ => None,
+            };
+            return self.is_const_type_variable(base_type, depth);
+        }
         if self
             .tables
             .object_flags_of(ty)

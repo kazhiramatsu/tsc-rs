@@ -831,6 +831,35 @@ fn js_constructor_prototype_method_uses_the_instance_this_type() {
 }
 
 #[test]
+fn deferred_conditional_type_inherits_const_type_parameter_through_its_constraint() {
+    // isConstTypeVariable follows a conditional type to its constraint
+    // (the union of its branches), which names the const type parameter:
+    // arktype's `type({ name: "string.trim" })` keeps the object literal
+    // argument of `<const def>(def: validate<def>)` in a const context.
+    with_program_state(
+        &[(
+            "a.ts",
+            "type Validate<T> = [T] extends [never] ? T : T extends string ? T : { [K in keyof T]: T[K] };\n\
+             function f<const T>(value: Validate<T>) {}\n",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let reference = find_node(state, SyntaxKind::TypeReference, Some(SyntaxKind::Parameter));
+            let conditional = state
+                .get_type_from_type_node(reference)
+                .expect("conditional type resolves");
+            assert!(state
+                .tables
+                .flags_of(conditional)
+                .intersects(tsc_types::TypeFlags::CONDITIONAL));
+            assert!(state
+                .is_const_type_variable(Some(conditional), 0)
+                .expect("conditional constness resolves"));
+        },
+    );
+}
+
+#[test]
 fn homomorphic_mapped_type_inherits_const_type_parameter() {
     with_program_state(
         &[(

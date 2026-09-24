@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
 
-use tsc_diagnostics::{compute_line_starts, PositionIndex};
+use tsc_diagnostics::PositionIndex;
 use tsc_syntax::{
     for_each_child, is_js_whitespace, is_line_break, is_whitespace_like, skip_trivia, NodeData,
     NodeId, SyntaxKind,
@@ -2116,7 +2116,7 @@ impl Printer {
     ) -> Result<(), PrinterError> {
         if let Some(recording) = writer.recording_mut() {
             let source = transformation.arena().source(source_id)?.syntax();
-            recording.set_current_source(source_id, source.file_name.as_js(), source.text());
+            recording.set_current_source(source_id, source.file_name.as_js(), source.snapshot());
         }
         Ok(())
     }
@@ -8038,30 +8038,23 @@ impl Printer {
                 let right_node = data
                     .right
                     .and_then(|id| transformation.arena().node_ref(node.source(), id));
-                let line_before_operator = match (left_node, operator_node) {
-                    (Some(left), Some(operator)) => !self
-                        .source_node_end_and_node_start_are_on_same_line(
-                            transformation,
-                            left,
-                            operator,
-                        )?,
-                    _ => false,
-                };
-                let line_after_operator = match (operator_node, right_node) {
-                    (Some(operator), Some(right)) => {
-                        transformation
-                            .arena()
-                            .metadata(right)
-                            .and_then(|metadata| metadata.starts_on_new_line())
-                            == Some(true)
-                            || !self.source_node_end_and_node_start_are_on_same_line(
-                                transformation,
-                                operator,
-                                right,
-                            )?
-                    }
-                    _ => false,
-                };
+                // emitBinaryExpression reads getLinesBetweenNodes(node, left,
+                // operatorToken) and (node, operatorToken, right): synthesized
+                // parentheses are skipped, so a lowered optional chain
+                // (`a ||\n b?.c` → `a ||\n (b === null ... )`) keeps its
+                // operand's line break through the ranged conditional.
+                let line_before_operator = self.lines_between_optional_nodes(
+                    transformation,
+                    node,
+                    left_node,
+                    operator_node,
+                )? > 0;
+                let line_after_operator = self.lines_between_optional_nodes(
+                    transformation,
+                    node,
+                    operator_node,
+                    right_node,
+                )? > 0;
                 let operator_kind = operator_node
                     .map(|operator| transformation.arena().node(operator))
                     .transpose()?
@@ -9107,53 +9100,6 @@ impl Printer {
             start,
             end,
         ))
-    }
-
-    fn source_node_end_and_node_start_are_on_same_line(
-        &self,
-        transformation: &TransformationResult<'_>,
-        left: TransformNode,
-        right: TransformNode,
-    ) -> Result<bool, PrinterError> {
-        Ok(self
-            .source_node_end_and_node_start_same_line_comparable(transformation, left, right)?
-            .unwrap_or(true))
-    }
-
-    /// `siblingNodePositionsAreComparable` + the text scan: `None` when the
-    /// sibling positions are not comparable (synthesized, cross-source, or
-    /// out of order) — the caller supplies tsc's per-list fallback
-    /// (`format & MultiLine ? line : none`).
-    fn source_node_end_and_node_start_same_line_comparable(
-        &self,
-        transformation: &TransformationResult<'_>,
-        left: TransformNode,
-        right: TransformNode,
-    ) -> Result<Option<bool>, PrinterError> {
-        let left = transformation.arena().get_original_node(left);
-        let right = transformation.arena().get_original_node(right);
-        if left.source() != right.source() {
-            return Ok(None);
-        }
-        let source = transformation.arena().source(left.source())?.syntax();
-        let left_record = transformation.arena().node(left)?;
-        let right_record = transformation.arena().node(right)?;
-        let (SourceRange::Original(left_range), SourceRange::Original(right_range)) = (
-            SourceRange::from_raw(left_record.pos, left_record.end, source.positions())?,
-            SourceRange::from_raw(right_record.pos, right_record.end, source.positions())?,
-        ) else {
-            return Ok(None);
-        };
-        let left_end = left_range.end().value() as usize;
-        let right_start = skip_trivia(source.text(), right_range.start().value() as usize);
-        if left_end > right_start || right_start > source.text().len() {
-            return Ok(None);
-        }
-        Ok(Some(Self::source_positions_are_on_same_line(
-            source.positions(),
-            left_end,
-            right_start,
-        )))
     }
 
     /// tsc-port: createPrinter.getSeparatingLineTerminatorCount @6.0.3
@@ -10391,7 +10337,11 @@ impl Printer {
             TokenText::RawUtf16(units) => writer.write_literal_utf16(units),
             TokenText::Cooked(text) => writer.write_literal_utf16(text.code_units()),
         }
-        writer.write_punctuation(suffix);
+        // tsc writes the whole token text (delimiters included) in one
+        // writeLiteral call, so a template whose text ends with a line
+        // break puts its closing delimiter at column 0; a separate indented
+        // write would indent it.
+        writer.raw_write(suffix);
         Ok(())
     }
 
@@ -10744,6 +10694,7 @@ impl Printer {
         self.emit_comma_list(
             transformation,
             node.source(),
+            Some(node),
             data.parameters,
             expression_context,
             writer,
@@ -11124,6 +11075,7 @@ impl Printer {
             self.emit_comma_list(
                 transformation,
                 node.source(),
+                Some(node),
                 data.elements,
                 expression_context,
                 writer,
@@ -11252,6 +11204,7 @@ impl Printer {
         self.emit_separated_declaration_list(
             transformation,
             node.source(),
+            Some(node),
             types,
             " | ",
             expression_context,
@@ -11274,6 +11227,7 @@ impl Printer {
         self.emit_separated_declaration_list(
             transformation,
             node.source(),
+            Some(node),
             types,
             " & ",
             expression_context,
@@ -12294,6 +12248,7 @@ impl Printer {
             self.emit_comma_list(
                 transformation,
                 source,
+                None,
                 type_parameters,
                 expression_context,
                 writer,
@@ -12512,6 +12467,7 @@ impl Printer {
         &mut self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
+        parent: Option<TransformNode>,
         array: Option<tsc_syntax::NodeArrayId>,
         expression_context: EmitContext,
         writer: &mut TextWriter,
@@ -12519,6 +12475,7 @@ impl Printer {
         self.emit_separated_declaration_list(
             transformation,
             source,
+            parent,
             array,
             ", ",
             expression_context,
@@ -12532,10 +12489,12 @@ impl Printer {
     /// tsc-port: emitList @6.0.3
     /// tsc-hash: 8a0512c2af9ba16a7481b372c31ae88611a0f3f8b4daaf5919a7278927262b5c
     /// tsc-span: _tsc.js:120015-120025
+    #[allow(clippy::too_many_arguments)]
     fn emit_separated_declaration_list(
         &mut self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
+        parent: Option<TransformNode>,
         array: Option<tsc_syntax::NodeArrayId>,
         separator: &str,
         expression_context: EmitContext,
@@ -12566,9 +12525,38 @@ impl Printer {
                 expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                 writer,
             )?;
-            self.emit_list_element_end_comments(transformation, child, writer)?;
+            // emitNodeListItems emits the comments at the final element's
+            // end only when `parentNode.end !== previousSibling.end`: a
+            // union type ends with its last constituent, so the comments
+            // after it belong to the next statement (`type A = B | C` with
+            // no semicolon, then a JSDoc comment).
+            let last_shares_parent_end = index + 1 == ids.len()
+                && parent.is_some_and(|parent| {
+                    Self::list_parent_shares_end(transformation, parent, child)
+                });
+            if !last_shares_parent_end {
+                self.emit_list_element_end_comments(transformation, child, writer)?;
+            }
         }
         Ok(())
+    }
+
+    /// `parentNode.end === previousSibling.end` on the emitted nodes: both
+    /// raw ends compare equal within one transform source; a list whose
+    /// parent lives in another source never shares its end.
+    fn list_parent_shares_end(
+        transformation: &TransformationResult<'_>,
+        parent: TransformNode,
+        child: TransformNode,
+    ) -> bool {
+        if parent.source() != child.source() {
+            return false;
+        }
+        let arena = transformation.arena();
+        match (arena.node(parent), arena.node(child)) {
+            (Ok(parent), Ok(child)) => parent.end == child.end,
+            _ => false,
+        }
     }
 
     fn emit_separated_declaration_list_item_comments(
@@ -19841,19 +19829,6 @@ fn emit_pinned_leading_comments(trivia: SourceTrivia<'_>, writer: &mut TextWrite
 /// always record against the CURRENT print source (upstream
 /// `forEachLeadingCommentRange`/`forEachTrailingCommentRange` walk
 /// `currentSourceFile.text`), so the text at hand is authoritative.
-fn source_comment_utf16_location(source: &str, byte: usize) -> (u32, u32) {
-    let prefix = &source[..byte];
-    let starts = compute_line_starts(prefix);
-    let line = u32::try_from(starts.len().saturating_sub(1)).expect("comment line exceeds u32");
-    // compute_line_starts returns UTF-16 offsets, not byte offsets. Keep
-    // both operands in that domain after non-ASCII text on an earlier line.
-    let line_start = starts.last().copied().unwrap_or(0);
-    let character = u32::try_from(prefix.encode_utf16().count())
-        .expect("comment position exceeds u32")
-        - line_start;
-    (line, character)
-}
-
 /// tsc-port: emitComment @6.0.3
 /// tsc-hash: de39b3978e8dba172c826b342b82c229fa28a6dfac8d407647aae6f2736857a6
 /// tsc-span: _tsc.js:121268-121273
@@ -19876,15 +19851,12 @@ fn write_source_comment(
     debug_assert!(source.is_char_boundary(comment_start));
     debug_assert!(source.is_char_boundary(comment_end));
 
-    if writer.has_source_map_recording() {
-        let (line, character) = source_comment_utf16_location(source, comment_start);
-        writer.record_source_map_position(line, character);
-    }
+    // emitPos(commentPos) / emitPos(commentEnd): located through the current
+    // print source's line table (recomputing the prefix's line starts per
+    // comment made a source-map emit quadratic in the file).
+    writer.record_source_map_byte_position(source, comment_start);
     write_source_comment_text(source, comment_start, comment_end, writer);
-    if writer.has_source_map_recording() {
-        let (line, character) = source_comment_utf16_location(source, comment_end);
-        writer.record_source_map_position(line, character);
-    }
+    writer.record_source_map_byte_position(source, comment_end);
 }
 
 fn write_source_comment_text(

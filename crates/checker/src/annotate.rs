@@ -6506,15 +6506,11 @@ impl<'a> CheckerState<'a> {
                     kind,
                     SyntaxKind::PrivateIdentifier | SyntaxKind::StringLiteral
                 ) {
-                    tsc_syntax::scan_tokens(&source.text()[start..], source.language_variant)
-                        .first()
-                        .map_or(raw.end as usize, |token| {
-                            source
-                                .positions()
-                                .byte_offset_from_utf16_delta(start as u32, token.end)
-                                .expect("scanner UTF-16 token end is a scalar boundary")
-                                as usize
-                        })
+                    // One token scanned at `start` (getSpanOfTokenAtPosition),
+                    // in byte offsets; the rest of the file is not scanned.
+                    tsc_syntax::scan_byte_tokens(&source.text()[start..], source.language_variant)
+                        .next()
+                        .map_or(raw.end as usize, |token| start + token.end as usize)
                 } else {
                     raw.end as usize
                 };
@@ -6548,13 +6544,10 @@ impl<'a> CheckerState<'a> {
             let raw = source.arena.node(name);
             let start = tsc_syntax::skip_trivia(source.text(), raw.pos as usize);
             if let Some(token) =
-                tsc_syntax::scan_tokens(&source.text()[start..], source.language_variant).first()
+                tsc_syntax::scan_byte_tokens(&source.text()[start..], source.language_variant)
+                    .next()
             {
-                let end = source
-                    .positions()
-                    .byte_offset_from_utf16_delta(start as u32, token.end)
-                    .expect("scanner UTF-16 token end is a scalar boundary")
-                    as usize;
+                let end = start + token.end as usize;
                 let to_utf16 = |byte: usize| {
                     source
                         .positions()

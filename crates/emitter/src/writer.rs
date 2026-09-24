@@ -200,18 +200,14 @@ impl TextWriter {
         self.recording.as_mut()
     }
 
-    /// Record a mapping against the CURRENT print source (the comment
-    /// lane and every default-range site of the printed file).
-    pub(crate) fn record_source_map_position(&mut self, source_line: u32, source_character: u32) {
+    /// Record a mapping against the CURRENT print source for a byte offset
+    /// of its text (the comment lane; every default-range site of the
+    /// printed file records through the range machinery).
+    pub(crate) fn record_source_map_byte_position(&mut self, source: &str, byte: usize) {
         let generated_line = self.line();
         let generated_character = self.column();
         if let Some(recording) = self.recording.as_mut() {
-            recording.record_current(
-                source_line,
-                source_character,
-                generated_line,
-                generated_character,
-            );
+            recording.record_current_byte(source, byte, generated_line, generated_character);
         }
     }
 
