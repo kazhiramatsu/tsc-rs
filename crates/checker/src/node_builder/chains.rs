@@ -926,6 +926,20 @@ fn alternative_containing_module_chains(
     let (imports, _) = module_name_literals(checker, file_index);
     let mut results = Vec::new();
     for import_ref in imports {
+        // resolveExternalModuleName(enclosingDeclaration, importRef) reads
+        // the mode from the enclosing declaration — no import syntax around
+        // it, so getDefaultResolutionModeForFile — while the program
+        // recorded the import under its usage mode; host.getResolvedModule
+        // answers only recorded resolutions, so the two modes must agree for
+        // the import to contribute a container (they always do while import
+        // syntax does not affect resolution; under bundler resolution a
+        // `.ts` file without a package `type` has no default mode).
+        if checker.import_syntax_affects_module_resolution()
+            && checker.default_resolution_mode_for_file(enclosing)
+                != checker.resolution_mode_for_usage(import_ref)
+        {
+            continue;
+        }
         let Some(module) = checker
             .resolve_external_module_name(enclosing, import_ref, true)
             .map_err(|abort| checker_abort_error(checker, context, abort))?
