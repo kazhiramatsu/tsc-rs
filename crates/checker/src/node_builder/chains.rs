@@ -914,6 +914,15 @@ fn alternative_containing_module_chains(
         return Ok(Vec::new());
     };
     let file_index = checker.binder.file_index_of_node(enclosing);
+    if let Some(cached) = checker
+        .links
+        .symbol(symbol)
+        .cold()
+        .extended_containers_by_file
+        .get(&file_index)
+    {
+        return Ok(cached.clone());
+    }
     let (imports, _) = module_name_literals(checker, file_index);
     let mut results = Vec::new();
     for import_ref in imports {
@@ -934,7 +943,19 @@ fn alternative_containing_module_chains(
         results.push(chain);
     }
     if !results.is_empty() {
+        checker
+            .links
+            .set_symbol_extended_containers_by_file(symbol, file_index, results.clone());
         return Ok(results);
+    }
+    if let Some(cached) = checker
+        .links
+        .symbol(symbol)
+        .cold()
+        .extended_containers
+        .as_ref()
+    {
+        return Ok(cached.clone());
     }
 
     // Once the per-containing-file import cache misses, upstream computes
@@ -960,6 +981,9 @@ fn alternative_containing_module_chains(
         }
         results.push(chain);
     }
+    checker
+        .links
+        .set_symbol_extended_containers(symbol, results.clone());
     Ok(results)
 }
 
@@ -1057,14 +1081,11 @@ fn prefer_alternative_containing_module_chain(
         let relative_a = module_specifier_is_relative(specifier_a);
         let relative_b = module_specifier_is_relative(specifier_b);
         if relative_a == relative_b {
-            let components = |specifier: &tsc_types::JsString| {
-                specifier
-                    .as_bytes()
-                    .iter()
-                    .filter(|&&byte| byte == b'/')
-                    .count()
-            };
-            components(specifier_a).cmp(&components(specifier_b))
+            // moduleSpecifiers.countPathComponents skips a leading `./`, so
+            // `./jsx-dev-runtime` (0) beats `../base` (1) on hono's .d.ts.
+            super::specifier::count_path_components(specifier_a.as_js()).cmp(
+                &super::specifier::count_path_components(specifier_b.as_js()),
+            )
         } else if relative_b {
             std::cmp::Ordering::Less
         } else {

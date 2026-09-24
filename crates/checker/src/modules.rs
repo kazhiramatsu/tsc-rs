@@ -5015,6 +5015,20 @@ impl<'a> CheckerState<'a> {
                     package_bundles_types: resolved.package_bundles_types,
                 })
             }
+            // host.getResolvedModule(file, name, mode) answers only the
+            // resolutions the program recorded. A lookup from a plain
+            // location (no import syntax around it) uses the file's default
+            // mode, which misses an import recorded with its usage mode, and
+            // resolveExternalModuleName yields undefined: tsc's
+            // getAlternativeContainingModules then skips that import. A miss
+            // at an import site remains a driver failure.
+            Err(crate::AuthoritativeModuleLookupFailure::Missing)
+                if !self.has_resolution_context_specifier(location) =>
+            {
+                ProgramModuleResolution::Missed(UnresolvedProgramModule {
+                    alternate_result: None,
+                })
+            }
             Err(failure) => {
                 self.record_authoritative_module_failure(
                     crate::AuthoritativeModuleFailure::Lookup {
@@ -6827,7 +6841,80 @@ impl<'a> CheckerState<'a> {
                 ModuleResolutionMode::EsNext
             };
         }
-        self.static_resolution_mode_for_file(location)
+        if self.has_resolution_context_specifier(location) {
+            return self.static_resolution_mode_for_file(location);
+        }
+        self.default_resolution_mode_for_file(location)
+    }
+
+    /// resolveExternalModule's `contextSpecifier` (_tsc.js:49489): the
+    /// usage whose syntax selects the mode. A string-literal location, a
+    /// module declaration or its name, a literal import type node, a
+    /// require initializer, or an enclosing import call, import or export
+    /// declaration, JSDoc import or import-equals supplies one. Any other
+    /// location (getAlternativeContainingModules resolves the enclosing
+    /// declaration's file imports against the declaration itself) reads
+    /// `getDefaultResolutionModeForFile` instead.
+    fn has_resolution_context_specifier(&self, location: NodeId) -> bool {
+        if matches!(
+            self.kind_of(location),
+            SyntaxKind::StringLiteral
+                | SyntaxKind::NoSubstitutionTemplateLiteral
+                | SyntaxKind::ModuleDeclaration
+        ) {
+            return true;
+        }
+        if self.parent_of(location).is_some_and(|parent| {
+            matches!(self.data_of(parent), NodeData::ModuleDeclaration(data) if data.name == Some(location))
+        }) {
+            return true;
+        }
+        if self.is_literal_import_type_node(location)
+            || (self.kind_of(location) == SyntaxKind::VariableDeclaration
+                && self.external_module_require_argument(location).is_some())
+            || self.has_import_call_ancestor(location)
+        {
+            return true;
+        }
+        // getJsxNamespaceContainerForImplicitImport resolves the runtime
+        // module from the file's synthetic `react/jsx-runtime` import
+        // literal (getJSXRuntimeImportSpecifier), whose mode is the import
+        // syntax's; this port resolves from the JSX node itself.
+        [
+            SyntaxKind::ImportDeclaration,
+            SyntaxKind::JSDocImportTag,
+            SyntaxKind::ExportDeclaration,
+            SyntaxKind::ImportEqualsDeclaration,
+            SyntaxKind::JsxElement,
+            SyntaxKind::JsxSelfClosingElement,
+            SyntaxKind::JsxFragment,
+        ]
+        .into_iter()
+        .any(|kind| self.has_ancestor_kind(location, kind))
+    }
+
+    /// tsc getDefaultResolutionModeForFileWorker (_tsc.js:125510-125512):
+    /// with import syntax affecting resolution (checked by the caller), the
+    /// file's implied format for emit, else no mode. A bundler-resolved
+    /// `.ts` file outside node_modules without a package `type` has no
+    /// implied format, so a lookup from a plain location misses an import
+    /// the program recorded with its ESNext usage mode, as tsc's does.
+    fn default_resolution_mode_for_file(&self, location: NodeId) -> ModuleResolutionMode {
+        if let Some(mode) = self.implied_resolution_mode_from_extension(location) {
+            return mode;
+        }
+        if self.authoritative_module_provider.is_some() {
+            return self
+                .implied_node_format_for_emit(location)
+                .unwrap_or(ModuleResolutionMode::Unknown);
+        }
+        let module_kind = self.options.emit_module_kind();
+        if (100..=199).contains(&module_kind) {
+            return self
+                .implied_node_format_for_file(location)
+                .unwrap_or(ModuleResolutionMode::Unknown);
+        }
+        ModuleResolutionMode::Unknown
     }
 
     fn require_call_for_resolution_usage(&self, location: NodeId) -> bool {
