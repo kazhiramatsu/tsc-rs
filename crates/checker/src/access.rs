@@ -1534,10 +1534,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 0770c7a837e9843098d84cf804221d6b1098a3f9a41815ff22a08f16c4203b56
     /// tsc-span: _tsc.js:47641-47643
     pub(crate) fn is_deprecated_declaration(&self, declaration: NodeId) -> bool {
+        // 47642: getCombinedNodeFlags & Deprecated. The parser sets the flag
+        // on the JSDoc host exactly as tsc's withJSDoc does (29244), so the
+        // combined modifier flags (a JSDoc tag scan per ancestor, called for
+        // every property access through isDeprecatedSymbol) add nothing.
         let source = self.binder.source_of_node(declaration);
-        node_util::node_flags(source, declaration).intersects(NodeFlags::DEPRECATED)
-            || node_util::get_combined_modifier_flags(source, declaration)
-                .intersects(ModifierFlags::DEPRECATED)
+        node_util::get_combined_node_flags(source, declaration).intersects(NodeFlags::DEPRECATED)
     }
 
     /// tsc-port: isDeprecatedSymbol @6.0.3

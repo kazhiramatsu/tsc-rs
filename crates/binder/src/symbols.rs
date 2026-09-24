@@ -165,6 +165,13 @@ impl SymbolArena {
         }
     }
 
+    /// Room for `additional` more symbols without moving the arena: a
+    /// checker sizes its transient arena from its share of the program
+    /// instead of doubling (and copying 176 bytes per symbol) as it grows.
+    pub fn reserve(&mut self, additional: usize) {
+        self.symbols.reserve(additional);
+    }
+
     pub fn base(&self) -> u32 {
         self.base
     }

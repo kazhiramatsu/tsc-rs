@@ -2870,9 +2870,17 @@ const _: () = {
 fn reserve_type_tables(state: &mut state::CheckerState<'_>, node_count: usize) {
     const MIN_RESERVED_TYPES: usize = 1 << 12;
     const MAX_RESERVED_TYPES: usize = 1 << 20;
+    // Transient symbols (instantiated members, contextual parameters) come at
+    // a smaller fraction of the nodes; the doubling copies of the 176-byte
+    // records were a third of a VS Code shard's memmove.
+    const MIN_RESERVED_SYMBOLS: usize = 1 << 11;
+    const MAX_RESERVED_SYMBOLS: usize = 1 << 19;
     state
         .tables
         .reserve_types((node_count / 2).clamp(MIN_RESERVED_TYPES, MAX_RESERVED_TYPES));
+    state.binder.reserve_transient_symbols(
+        (node_count / 8).clamp(MIN_RESERVED_SYMBOLS, MAX_RESERVED_SYMBOLS),
+    );
 }
 
 fn snapshot_node_count(snapshot: &ProgramSnapshot) -> usize {

@@ -1526,6 +1526,12 @@ impl<'a> ProgramBinder<'a> {
         }
     }
 
+    /// tsrs-native: size the transient arena for `additional` symbols up
+    /// front (an allocation hint; no identity depends on it).
+    pub fn reserve_transient_symbols(&mut self, additional: usize) {
+        self.transient.reserve(additional);
+    }
+
     /// tsc-port: createSymbol @6.0.3
     /// tsc-hash: b9b2c65d71ec1e9d3a55d36fe5224e5f31dd618ee1428293b371d2f2881ad16a
     /// tsc-span: _tsc.js:47652-47658
