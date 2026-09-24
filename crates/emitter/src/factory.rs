@@ -5974,6 +5974,38 @@ impl<'arena> NodeFactory<'arena> {
         Ok(updated)
     }
 
+    /// `update_node` for a node whose children all mapped to themselves:
+    /// the same flags reconciliation, without cloning the payload when the
+    /// node keeps its identity. Embedded-statement kinds take the full path
+    /// because `update_node` normalizes their `NotEmittedStatement` bodies.
+    pub fn update_node_unchanged(
+        &mut self,
+        original: TransformNode,
+        transform_flags: TransformFlags,
+    ) -> Result<TransformNode, TransformError> {
+        let data = {
+            let record = self.arena.node(original)?;
+            let normalizes_embedded_statements = matches!(
+                record.data,
+                NodeData::IfStatement(_)
+                    | NodeData::DoStatement(_)
+                    | NodeData::WhileStatement(_)
+                    | NodeData::ForStatement(_)
+                    | NodeData::ForInStatement(_)
+                    | NodeData::ForOfStatement(_)
+                    | NodeData::WithStatement(_)
+                    | NodeData::LabeledStatement(_)
+            );
+            let flags = transform_flags
+                | private_identifier_expression_flags(self.arena, original.source, &record.data)?;
+            if !normalizes_embedded_statements && self.arena.transform_flags(original) == flags {
+                return Ok(original);
+            }
+            record.data.clone()
+        };
+        self.update_node(original, data, transform_flags)
+    }
+
     /// Update the runtime-owned constructor shape while retaining the
     /// signature fields that the parser attaches after factory creation.
     /// `typeParameters` and `type` are deliberately absent from the public

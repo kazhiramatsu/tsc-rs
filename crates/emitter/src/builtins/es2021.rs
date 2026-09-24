@@ -6,6 +6,7 @@
 //! synthetic-reference, access-stabilization, and lexical-scope plans rather
 //! than mirroring TypeScript's nested closures or synthetic internal nodes.
 
+use super::{array_memo, node_memo, update_children_lazily, ArrayMemo, LazyChildVisitor, NodeMemo};
 use crate::transform::try_visit_transform_children;
 
 use tsc_syntax::{for_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind};
@@ -293,8 +294,8 @@ struct TargetVisitor<'context> {
     source: TransformSourceId,
     pass: TargetPass,
     target: ScriptTarget,
-    nodes: rustc_hash::FxHashMap<NodeId, Option<NodeId>>,
-    arrays: rustc_hash::FxHashMap<NodeArrayId, Option<NodeArrayId>>,
+    nodes: NodeMemo<Option<NodeId>>,
+    arrays: ArrayMemo<Option<NodeArrayId>>,
     generated_bindings: GeneratedBindingScopes,
 }
 
@@ -306,6 +307,8 @@ impl<'context> TargetVisitor<'context> {
         target: ScriptTarget,
         root: TransformNode,
     ) -> Result<Self, TransformError> {
+        let nodes = node_memo(context.arena(), source);
+        let arrays = array_memo(context.arena(), source);
         Ok(Self {
             generated_bindings: GeneratedBindingScopes::new(
                 collect_untagged_identifier_texts(context.arena(), source, root)?.into(),
@@ -315,8 +318,8 @@ impl<'context> TargetVisitor<'context> {
             source,
             pass,
             target,
-            nodes: rustc_hash::FxHashMap::default(),
-            arrays: rustc_hash::FxHashMap::default(),
+            nodes,
+            arrays,
         })
     }
 
@@ -335,6 +338,36 @@ impl<'context> TargetVisitor<'context> {
             return Ok(Some(id));
         }
 
+        // The payload is cloned only for a node an arm below consumes; every
+        // other node maps its children from a slot snapshot.
+        let specialized = {
+            let data = &self.context.arena().node(original)?.data;
+            matches!(
+                data,
+                NodeData::Token
+                    | NodeData::BinaryExpression(_)
+                    | NodeData::FunctionDeclaration(_)
+                    | NodeData::FunctionExpression(_)
+                    | NodeData::ArrowFunction(_)
+                    | NodeData::MethodDeclaration(_)
+                    | NodeData::GetAccessor(_)
+                    | NodeData::SetAccessor(_)
+                    | NodeData::Constructor(_)
+            ) || (self.pass == TargetPass::Es2020
+                && matches!(
+                    data,
+                    NodeData::CallExpression(_)
+                        | NodeData::PropertyAccessExpression(_)
+                        | NodeData::ElementAccessExpression(_)
+                        | NodeData::DeleteExpression(_)
+                ))
+                || (self.pass == TargetPass::Es2019 && matches!(data, NodeData::CatchClause(_)))
+        };
+        if !specialized {
+            let transformed = Some(update_children_lazily(self, original)?.node());
+            self.nodes.insert(id, transformed);
+            return Ok(transformed);
+        }
         let record = self.context.arena().node(original)?.clone();
         let transformed = match record.data {
             NodeData::BinaryExpression(data) => Some(self.visit_binary_expression(original, data)?),
@@ -2646,5 +2679,15 @@ impl NodeDataChildVisitor for TargetVisitor<'_> {
 
     fn required_child_removed(&mut self, parent: SyntaxKind, field: &'static str) -> Self::Error {
         TransformError::RequiredChildRemoved { parent, field }
+    }
+}
+
+impl LazyChildVisitor for TargetVisitor<'_> {
+    fn transformation_context(&self) -> &TransformationContext {
+        self.context
+    }
+
+    fn transformation_context_mut(&mut self) -> &mut TransformationContext {
+        self.context
     }
 }

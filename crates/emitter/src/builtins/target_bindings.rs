@@ -634,19 +634,26 @@ pub(super) fn collect_untagged_identifier_texts(
     let syntax = arena.source(source)?.syntax();
     let mut names = BTreeSet::new();
     let mut stack = vec![root.node()];
-    let mut seen = BTreeSet::new();
+    // Visited marks, dense over the arena's id range (a node may be reached
+    // through several parents once transforms share subtrees).
+    let node_base = syntax.arena.node_base();
+    let mut seen = vec![false; syntax.arena.nodes().len()];
     while let Some(id) = stack.pop() {
-        if !seen.insert(id) {
-            continue;
+        let index = id.0.wrapping_sub(node_base) as usize;
+        match seen.get_mut(index) {
+            Some(mark) if *mark => continue,
+            Some(mark) => *mark = true,
+            None => return Err(TransformError::UnknownNode(TransformNode::new(source, id))),
         }
         let node = TransformNode::new(source, id);
         let record = arena.node(node)?;
-        if arena
-            .metadata(node)
-            .and_then(|metadata| metadata.generated_binding_id())
-            .is_none()
-        {
-            if let NodeData::Identifier(data) = &record.data {
+        if let NodeData::Identifier(data) = &record.data {
+            if !names.contains(data.text.as_str())
+                && arena
+                    .metadata(node)
+                    .and_then(|metadata| metadata.generated_binding_id())
+                    .is_none()
+            {
                 names.insert(data.text.clone());
             }
         }
@@ -1442,7 +1449,7 @@ fn collect_binding_name_events(
     scope_root: bool,
     events: &mut Vec<BindingNameEvent>,
 ) -> Result<(), TransformError> {
-    let record = arena.node(node)?.clone();
+    let record = arena.node(node)?;
     // `EmitFlags.ReuseTempVariableScope` (metadata.rs:40): tsc's
     // `createTempVariable` scope stack skips push/pop for flagged
     // function-likes, so their temps continue the enclosing alphabet. The
@@ -1477,7 +1484,7 @@ fn collect_binding_name_events(
         let syntax = arena.source(source)?.syntax();
         let mut surface = Vec::new();
         let mut scoped = Vec::new();
-        for_each_child(&syntax.arena, &record, |child| {
+        for_each_child(&syntax.arena, record, |child| {
             let child_node = TransformNode::new(source, child);
             if Some(child) == body
                 || arena
@@ -1539,7 +1546,7 @@ fn collect_binding_name_events(
         let syntax = arena.source(source)?.syntax();
         let mut surface = Vec::new();
         let mut scoped = Vec::new();
-        for_each_child(&syntax.arena, &record, |child| {
+        for_each_child(&syntax.arena, record, |child| {
             let child_node = TransformNode::new(source, child);
             if Some(child) == body
                 || arena
@@ -1593,7 +1600,7 @@ fn collect_binding_name_events(
         let syntax = arena.source(source)?.syntax();
         let mut surface = Vec::new();
         let mut scoped = Vec::new();
-        for_each_child(&syntax.arena, &record, |child| {
+        for_each_child(&syntax.arena, record, |child| {
             if Some(child) == body {
                 scoped.push(child);
             } else {
@@ -1643,7 +1650,7 @@ fn collect_binding_name_events(
         collect_function_body_declaration_name_events(arena, source, node, events)?;
         let syntax = arena.source(source)?.syntax();
         let mut children = Vec::new();
-        for_each_child(&syntax.arena, &record, |child| {
+        for_each_child(&syntax.arena, record, |child| {
             children.push(child);
             false
         });
@@ -1737,7 +1744,7 @@ fn collect_binding_name_events(
     }
     let syntax = arena.source(source)?.syntax();
     let mut children = Vec::new();
-    for_each_child(&syntax.arena, &record, |child| {
+    for_each_child(&syntax.arena, record, |child| {
         children.push(child);
         false
     });

@@ -4,6 +4,9 @@
 //! static operations.  The representation keeps target policy out of the AST
 //! walk and gives private storage and static-super aliases one ownership point.
 
+use super::super::{
+    array_memo, node_memo, update_children_lazily, ArrayMemo, LazyChildVisitor, NodeMemo,
+};
 use crate::transform::try_visit_transform_children;
 use std::{
     cell::RefCell,
@@ -836,7 +839,7 @@ enum ParentOwnership {
 /// keeping contextual decisions independent from mutable parser parent links.
 #[derive(Debug, Default)]
 struct OriginalTreeOwnership {
-    parents: BTreeMap<NodeId, ParentOwnership>,
+    parents: rustc_hash::FxHashMap<NodeId, ParentOwnership>,
 }
 
 impl OriginalTreeOwnership {
@@ -847,7 +850,9 @@ impl OriginalTreeOwnership {
     ) -> Result<Self, TransformError> {
         let mut ownership = Self::default();
         let mut pending = vec![root];
-        let mut visited = BTreeSet::new();
+        let mut visited = rustc_hash::FxHashSet::default();
+        let syntax = arena.source(source)?.syntax();
+        let mut children = Vec::new();
         while let Some(parent) = pending.pop() {
             if !visited.insert(parent) {
                 continue;
@@ -855,14 +860,13 @@ impl OriginalTreeOwnership {
             let parent_node = arena
                 .node_ref(source, parent)
                 .ok_or_else(|| TransformError::UnknownNode(TransformNode::new(source, parent)))?;
-            let record = arena.node(parent_node)?.clone();
-            let syntax = arena.source(source)?.syntax();
-            let mut children = Vec::new();
-            for_each_child(&syntax.arena, &record, |child| {
+            let record = arena.node(parent_node)?;
+            children.clear();
+            for_each_child(&syntax.arena, record, |child| {
                 children.push(child);
                 false
             });
-            for child in children {
+            for &child in &children {
                 ownership
                     .parents
                     .entry(child)
@@ -963,8 +967,8 @@ struct DownlevelClassVisitor<'context, 'resolver, 'aliases> {
     resolver: &'resolver dyn EmitResolver,
     target: ScriptTarget,
     mode: PublicFieldMode,
-    nodes: BTreeMap<NodeId, Option<NodeId>>,
-    arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
+    nodes: NodeMemo<Option<NodeId>>,
+    arrays: ArrayMemo<Option<NodeArrayId>>,
     expanded_statements: BTreeMap<NodeId, Vec<NodeId>>,
     generated_bindings: GeneratedBindingScopes,
     generated_binding_frames: Vec<Vec<PlannedTargetBinding>>,
@@ -1002,6 +1006,8 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         class_aliases: &'aliases mut BTreeMap<(u32, u32), ClassBinding>,
         static_emit_environments: &'aliases mut BTreeMap<(u32, u32), Rc<StaticEmitEnvironment>>,
     ) -> Self {
+        let nodes = node_memo(context.arena(), source);
+        let arrays = array_memo(context.arena(), source);
         Self {
             generated_bindings: GeneratedBindingScopes::new(
                 collect_identifier_texts(context.arena(), source),
@@ -1013,8 +1019,8 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             resolver,
             target,
             mode,
-            nodes: BTreeMap::new(),
-            arrays: BTreeMap::new(),
+            nodes,
+            arrays,
             expanded_statements: BTreeMap::new(),
             private_environments: Vec::new(),
             static_binding_frames: StaticBindingFrames::default(),
@@ -1118,6 +1124,45 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             return Ok(*mapped);
         }
         let original = self.node(id);
+        // The payload is cloned only for a node an arm below consumes; every
+        // other node maps its children from a slot snapshot.
+        let specialized = matches!(
+            self.context.arena().node(original)?.data,
+            NodeData::Token
+                | NodeData::ClassDeclaration(_)
+                | NodeData::ClassExpression(_)
+                | NodeData::PropertyAssignment(_)
+                | NodeData::ComputedPropertyName(_)
+                | NodeData::PropertyAccessExpression(_)
+                | NodeData::ElementAccessExpression(_)
+                | NodeData::BinaryExpression(_)
+                | NodeData::CallExpression(_)
+                | NodeData::TaggedTemplateExpression(_)
+                | NodeData::ExpressionStatement(_)
+                | NodeData::ForStatement(_)
+                | NodeData::ForInStatement(_)
+                | NodeData::ForOfStatement(_)
+                | NodeData::WhileStatement(_)
+                | NodeData::DoStatement(_)
+                | NodeData::ParenthesizedExpression(_)
+                | NodeData::CommaListExpression(_)
+                | NodeData::PrefixUnaryExpression(_)
+                | NodeData::PostfixUnaryExpression(_)
+                | NodeData::Parameter(_)
+                | NodeData::FunctionDeclaration(_)
+                | NodeData::FunctionExpression(_)
+                | NodeData::ArrowFunction(_)
+                | NodeData::MethodDeclaration(_)
+                | NodeData::GetAccessor(_)
+                | NodeData::SetAccessor(_)
+                | NodeData::Constructor(_)
+                | NodeData::PrivateIdentifier(_)
+        );
+        if !specialized {
+            let transformed = Some(update_children_lazily(self, original)?.node());
+            self.nodes.insert(id, transformed);
+            return Ok(transformed);
+        }
         let record = self.context.arena().node(original)?.clone();
         let kind = record.kind;
         let transformed = match record.data {
@@ -9653,5 +9698,15 @@ impl NodeDataChildVisitor for DownlevelClassVisitor<'_, '_, '_> {
 
     fn required_child_removed(&mut self, parent: SyntaxKind, field: &'static str) -> Self::Error {
         TransformError::RequiredChildRemoved { parent, field }
+    }
+}
+
+impl LazyChildVisitor for DownlevelClassVisitor<'_, '_, '_> {
+    fn transformation_context(&self) -> &TransformationContext {
+        self.context
+    }
+
+    fn transformation_context_mut(&mut self) -> &mut TransformationContext {
+        self.context
     }
 }

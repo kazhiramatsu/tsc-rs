@@ -2,6 +2,7 @@ use crate::transform::try_visit_transform_children;
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 use std::collections::{BTreeMap, BTreeSet};
+use tsc_syntax::{apply_child_slots, child_slots, map_child_slots, ChildSlots};
 
 use tsc_program::SourceFileId;
 use tsc_syntax::{
@@ -5083,8 +5084,8 @@ struct CommonJsVisitor<'context, 'resolver> {
     target: ScriptTarget,
     info: CommonJsModuleInfo,
     generated_module_bindings: BTreeMap<String, target_bindings::TargetBinding>,
-    nodes: rustc_hash::FxHashMap<NodeId, NodeId>,
-    arrays: rustc_hash::FxHashMap<NodeArrayId, NodeArrayId>,
+    nodes: NodeMemo<NodeId>,
+    arrays: ArrayMemo<NodeArrayId>,
     dynamic_import_ordinal: usize,
     used_names: target_bindings::UsedNames,
     temp_ordinal: usize,
@@ -5102,6 +5103,8 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         rewrite_calls: &'context mut relative_imports::ImportCallRewrites,
     ) -> Self {
         let used_names = system::collect_identifier_texts(context.arena(), source);
+        let nodes = node_memo(context.arena(), source);
+        let arrays = array_memo(context.arena(), source);
         Self {
             visit_phase: CommonJsVisitPhase::Transform,
             preserve_jsx: options.preserve_jsx,
@@ -5119,8 +5122,8 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             target: options.target,
             info,
             generated_module_bindings: BTreeMap::new(),
-            nodes: rustc_hash::FxHashMap::default(),
-            arrays: rustc_hash::FxHashMap::default(),
+            nodes,
+            arrays,
             dynamic_import_ordinal: 0,
             used_names,
             temp_ordinal: 0,
@@ -7558,20 +7561,63 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .arena()
             .node_ref(self.source, id)
             .ok_or_else(|| TransformError::UnknownNode(self.node(id)))?;
-        let record = self.context.arena().node(original)?.clone();
-        let transformed = if self.visit_phase == CommonJsVisitPhase::Substitute
-            && !matches!(
-                &record.data,
+        // The payload is cloned only for a node an arm below consumes; every
+        // other node maps its children from a slot snapshot.
+        let (substitute_generic, identifier, specialized) = {
+            let data = &self.context.arena().node(original)?.data;
+            let substitute_generic = self.visit_phase == CommonJsVisitPhase::Substitute
+                && !matches!(
+                    data,
+                    NodeData::Token
+                        | NodeData::MetaProperty(_)
+                        | NodeData::Identifier(_)
+                        | NodeData::CallExpression(_)
+                        | NodeData::TaggedTemplateExpression(_)
+                        | NodeData::ShorthandPropertyAssignment(_)
+                        | NodeData::BinaryExpression(_)
+                );
+            let specialized = matches!(
+                data,
                 NodeData::Token
                     | NodeData::MetaProperty(_)
-                    | NodeData::Identifier(_)
+                    | NodeData::ExpressionStatement(_)
+                    | NodeData::ParenthesizedExpression(_)
+                    | NodeData::ShorthandPropertyAssignment(_)
+                    | NodeData::PropertyAssignment(_)
+                    | NodeData::BinaryExpression(_)
+                    | NodeData::PrefixUnaryExpression(_)
+                    | NodeData::PostfixUnaryExpression(_)
                     | NodeData::CallExpression(_)
                     | NodeData::TaggedTemplateExpression(_)
-                    | NodeData::ShorthandPropertyAssignment(_)
-                    | NodeData::BinaryExpression(_)
-            ) {
-            self.update_generic(original, record.data)?
+                    | NodeData::FunctionDeclaration(_)
+                    | NodeData::FunctionExpression(_)
+                    | NodeData::ArrowFunction(_)
+                    | NodeData::MethodDeclaration(_)
+                    | NodeData::GetAccessor(_)
+                    | NodeData::SetAccessor(_)
+                    | NodeData::Constructor(_)
+                    | NodeData::ClassStaticBlockDeclaration(_)
+            );
+            (
+                substitute_generic,
+                matches!(data, NodeData::Identifier(_)),
+                specialized,
+            )
+        };
+        let transformed = if substitute_generic {
+            update_children_lazily(self, original)?
+        } else if identifier {
+            if is_non_reference_identifier_node(self.context.arena(), original)? {
+                original
+            } else {
+                self.substitute_identifier(original)?
+            }
+        } else if !specialized {
+            self.with_expression_value_use(CommonJsExpressionValueUse::Required, |visitor| {
+                update_children_lazily(visitor, original)
+            })?
         } else {
+            let record = self.context.arena().node(original)?.clone();
             match record.data {
                 NodeData::Token => original,
                 // tsc-port: onSubstituteNode @6.0.3
@@ -7580,12 +7626,6 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 // emitMetaProperty emits its name with Unspecified. Preserve
                 // that leaf instead of eagerly querying it as a value reference.
                 NodeData::MetaProperty(_) => original,
-                NodeData::Identifier(_)
-                    if !is_non_reference_identifier_node(self.context.arena(), original)? =>
-                {
-                    self.substitute_identifier(original)?
-                }
-                NodeData::Identifier(_) => original,
                 NodeData::ExpressionStatement(data) => {
                     self.visit_expression_statement(original, data)?
                 }
@@ -11177,6 +11217,16 @@ impl NodeDataChildVisitor for CommonJsVisitor<'_, '_> {
     }
 }
 
+impl LazyChildVisitor for CommonJsVisitor<'_, '_> {
+    fn transformation_context(&self) -> &TransformationContext {
+        self.context
+    }
+
+    fn transformation_context_mut(&mut self) -> &mut TransformationContext {
+        self.context
+    }
+}
+
 struct TypeScriptVisitor<'context, 'resolver> {
     context: &'context mut TransformationContext,
     source: TransformSourceId,
@@ -11187,8 +11237,8 @@ struct TypeScriptVisitor<'context, 'resolver> {
     downlevel_iteration: bool,
     promote_class_iife: bool,
     verbatim_module_syntax: bool,
-    nodes: rustc_hash::FxHashMap<NodeId, Option<NodeId>>,
-    arrays: rustc_hash::FxHashMap<NodeArrayId, Option<NodeArrayId>>,
+    nodes: NodeMemo<Option<NodeId>>,
+    arrays: ArrayMemo<Option<NodeArrayId>>,
     class_member_arrays: BTreeMap<NodeArrayId, ClassMemberArrayVisit>,
     expanded_enums: BTreeMap<NodeId, Vec<NodeId>>,
     expanded_modules: BTreeMap<NodeId, Vec<NodeId>>,
@@ -11312,6 +11362,8 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         promote_class_iife: bool,
         verbatim_module_syntax: bool,
     ) -> Self {
+        let nodes = node_memo(context.arena(), source);
+        let arrays = array_memo(context.arena(), source);
         Self {
             context,
             source,
@@ -11322,8 +11374,8 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             downlevel_iteration,
             promote_class_iife,
             verbatim_module_syntax,
-            nodes: rustc_hash::FxHashMap::default(),
-            arrays: rustc_hash::FxHashMap::default(),
+            nodes,
+            arrays,
             class_member_arrays: BTreeMap::new(),
             expanded_enums: BTreeMap::new(),
             expanded_modules: BTreeMap::new(),
@@ -11475,10 +11527,46 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             self.nodes.insert(id, Some(id));
             return Ok(Some(id));
         }
-        let record = self.context.arena().node(original)?.clone();
+        // The payload is cloned only for a node an arm below consumes; every
+        // other node maps its children from a slot snapshot.
+        let specialized = matches!(
+            self.context.arena().node(original)?.data,
+            NodeData::Token
+                | NodeData::AsExpression(_)
+                | NodeData::SatisfiesExpression(_)
+                | NodeData::TypeAssertionExpression(_)
+                | NodeData::NonNullExpression(_)
+                | NodeData::ParenthesizedExpression(_)
+                | NodeData::FunctionDeclaration(_)
+                | NodeData::FunctionExpression(_)
+                | NodeData::ArrowFunction(_)
+                | NodeData::Block(_)
+                | NodeData::Parameter(_)
+                | NodeData::VariableStatement(_)
+                | NodeData::VariableDeclaration(_)
+                | NodeData::ClassDeclaration(_)
+                | NodeData::ClassExpression(_)
+                | NodeData::PropertyDeclaration(_)
+                | NodeData::Constructor(_)
+                | NodeData::MethodDeclaration(_)
+                | NodeData::GetAccessor(_)
+                | NodeData::SetAccessor(_)
+                | NodeData::CallExpression(_)
+                | NodeData::NewExpression(_)
+                | NodeData::TaggedTemplateExpression(_)
+                | NodeData::JsxSelfClosingElement(_)
+                | NodeData::JsxOpeningElement(_)
+                | NodeData::ExpressionWithTypeArguments(_)
+                | NodeData::HeritageClause(_)
+                | NodeData::ImportDeclaration(_)
+                | NodeData::ImportEqualsDeclaration(_)
+                | NodeData::ExportDeclaration(_)
+                | NodeData::ExportAssignment(_)
+        );
 
         let transformed = if kind == SyntaxKind::SourceFile {
-            let NodeData::SourceFile(data) = record.data else {
+            let NodeData::SourceFile(data) = self.context.arena().node(original)?.data.clone()
+            else {
                 unreachable!("source-file kind owns source-file data")
             };
             Some(self.visit_source_file(original, data)?)
@@ -11514,7 +11602,10 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             )
         {
             None
+        } else if !specialized {
+            Some(update_children_lazily(self, original)?.node())
         } else {
+            let record = self.context.arena().node(original)?.clone();
             match record.data {
                 NodeData::Token => Some(id),
                 NodeData::AsExpression(data) => {
@@ -11531,12 +11622,6 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 }
                 NodeData::ParenthesizedExpression(data) => {
                     self.visit_parenthesized_expression(original, data)?
-                }
-                NodeData::PropertyAccessExpression(data) => {
-                    Some(self.update_generic(original, NodeData::PropertyAccessExpression(data))?)
-                }
-                NodeData::ElementAccessExpression(data) => {
-                    Some(self.update_generic(original, NodeData::ElementAccessExpression(data))?)
                 }
                 NodeData::FunctionDeclaration(mut data) => {
                     if self.function_body_is_missing(data.body)?
@@ -16135,7 +16220,9 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 self.visit_class_static_block_children(member)
             }
             SyntaxKind::SemicolonClassElement => {
-                self.nodes.entry(member).or_insert(Some(member));
+                if !self.nodes.contains_key(&member) {
+                    self.nodes.insert(member, Some(member));
+                }
                 Ok(Some(member))
             }
             SyntaxKind::IndexSignature => {
@@ -16249,6 +16336,16 @@ impl NodeDataChildVisitor for TypeScriptVisitor<'_, '_> {
 
     fn required_child_removed(&mut self, parent: SyntaxKind, field: &'static str) -> Self::Error {
         TransformError::RequiredChildRemoved { parent, field }
+    }
+}
+
+impl LazyChildVisitor for TypeScriptVisitor<'_, '_> {
+    fn transformation_context(&self) -> &TransformationContext {
+        self.context
+    }
+
+    fn transformation_context_mut(&mut self) -> &mut TransformationContext {
+        self.context
     }
 }
 
@@ -16369,10 +16466,19 @@ fn flags_after_update(
     original: TransformNode,
     data: &NodeData,
 ) -> Result<TransformFlags, TransformError> {
+    let probe = arena.node(original)?.with_data(data.clone());
+    flags_after_update_probe(arena, original, &probe)
+}
+
+/// `flags_after_update` over a probe record: the original's scalar facts
+/// with the updated payload, or the original record itself when no child
+/// changed.
+fn flags_after_update_probe(
+    arena: &TransformArena,
+    original: TransformNode,
+    probe: &Node,
+) -> Result<TransformFlags, TransformError> {
     let old = arena.transform_flags(original);
-    let record = arena.node(original)?;
-    let mut probe = record.clone();
-    probe.data = data.clone();
     let recomputed = TransformFlags::CONTAINS_TYPE_SCRIPT
         | TransformFlags::CONTAINS_ES_2021
         | TransformFlags::CONTAINS_ES_2020
@@ -16391,10 +16497,160 @@ fn flags_after_update(
         recomputed
     };
     let mut flags = old & !recomputed;
-    flags |= local_transform_flags(&probe)
-        | local_contextual_target_flags(arena, original.source(), &probe)?;
-    flags |= factory_child_transform_flags(arena, original.source(), &probe)? & recomputed;
-    complete_class_transform_flags(arena, original.source(), &probe, flags)
+    flags |= local_transform_flags(probe)
+        | local_contextual_target_flags(arena, original.source(), probe)?;
+    flags |= factory_child_transform_flags(arena, original.source(), probe)? & recomputed;
+    complete_class_transform_flags(arena, original.source(), probe, flags)
+}
+
+/// A pass's memo of visited node or array ids: dense over the ids that
+/// existed when the pass started (the parsed tree and every earlier pass's
+/// nodes), sparse over the ids the pass creates. The `HashMap` surface it
+/// replaces is kept: `get` borrows, `insert` returns the previous value.
+pub(crate) struct DenseMemo<K, T> {
+    base: u32,
+    dense: Vec<Option<T>>,
+    sparse: HashMap<K, T>,
+}
+
+pub(crate) trait DenseMemoKey: Copy + Eq + std::hash::Hash {
+    fn raw(self) -> u32;
+}
+
+impl DenseMemoKey for NodeId {
+    fn raw(self) -> u32 {
+        self.0
+    }
+}
+
+impl DenseMemoKey for NodeArrayId {
+    fn raw(self) -> u32 {
+        self.0
+    }
+}
+
+impl<K: DenseMemoKey, T: Copy> DenseMemo<K, T> {
+    pub(crate) fn with_range(base: u32, len: usize) -> Self {
+        Self {
+            base,
+            dense: vec![None; len],
+            sparse: HashMap::default(),
+        }
+    }
+
+    fn index(&self, key: K) -> Option<usize> {
+        key.raw()
+            .checked_sub(self.base)
+            .map(|index| index as usize)
+            .filter(|index| *index < self.dense.len())
+    }
+
+    pub(crate) fn get(&self, key: &K) -> Option<&T> {
+        match self.index(*key) {
+            Some(index) => self.dense[index].as_ref(),
+            None => self.sparse.get(key),
+        }
+    }
+
+    pub(crate) fn contains_key(&self, key: &K) -> bool {
+        self.get(key).is_some()
+    }
+
+    pub(crate) fn insert(&mut self, key: K, value: T) -> Option<T> {
+        match self.index(key) {
+            Some(index) => self.dense[index].replace(value),
+            None => self.sparse.insert(key, value),
+        }
+    }
+}
+
+/// An empty, all-sparse memo: the substitute phase's per-expression memo,
+/// which must not allocate a dense table per substitution.
+impl<K: DenseMemoKey, T: Copy> Default for DenseMemo<K, T> {
+    fn default() -> Self {
+        Self::with_range(0, 0)
+    }
+}
+
+pub(crate) type NodeMemo<T> = DenseMemo<NodeId, T>;
+pub(crate) type ArrayMemo<T> = DenseMemo<NodeArrayId, T>;
+
+/// A node memo covering `source`'s current node ids.
+pub(crate) fn node_memo<T: Copy>(arena: &TransformArena, source: TransformSourceId) -> NodeMemo<T> {
+    match arena.source(source) {
+        Ok(source) => {
+            let syntax = source.syntax();
+            DenseMemo::with_range(syntax.arena.node_base(), syntax.arena.nodes().len())
+        }
+        Err(_) => DenseMemo::with_range(0, 0),
+    }
+}
+
+/// A node-array memo covering `source`'s current array ids.
+pub(crate) fn array_memo<T: Copy>(
+    arena: &TransformArena,
+    source: TransformSourceId,
+) -> ArrayMemo<T> {
+    match arena.source(source) {
+        Ok(source) => {
+            let syntax = source.syntax();
+            DenseMemo::with_range(syntax.arena.array_base(), syntax.arena.node_arrays().len())
+        }
+        Err(_) => DenseMemo::with_range(0, 0),
+    }
+}
+
+/// A transform visitor whose generic child visit may run without cloning
+/// the payload of an unchanged node.
+pub(crate) trait LazyChildVisitor: NodeDataChildVisitor<Error = TransformError> {
+    fn transformation_context(&self) -> &TransformationContext;
+    fn transformation_context_mut(&mut self) -> &mut TransformationContext;
+}
+
+/// `visitEachChild` + `update` for a node no visitor arm specializes: the
+/// children are mapped from a slot snapshot, and the payload is cloned only
+/// when a child changed. An unchanged node keeps its identity exactly when
+/// `update_node` would have returned it.
+///
+/// tsc-port: visitEachChild @6.0.3
+/// tsc-hash: 77052fb8845fc55cd604db6cb8fe5c3e22bfc7f435b2efc90dc0a57fc2adcc7c
+/// tsc-span: _tsc.js:91318-91324
+pub(crate) fn update_children_lazily<V: LazyChildVisitor>(
+    visitor: &mut V,
+    original: TransformNode,
+) -> Result<TransformNode, TransformError> {
+    let mut slots = {
+        let record = visitor.transformation_context().arena().node(original)?;
+        // try_visit_transform_children: a missing declaration keeps its
+        // reachable decorators unvisited.
+        if matches!(record.data, NodeData::MissingDeclaration(_)) {
+            ChildSlots::new()
+        } else {
+            child_slots(&record.data, visitor)
+        }
+    };
+    if map_child_slots(&mut slots, visitor)? {
+        let mut probe = {
+            let record = visitor.transformation_context().arena().node(original)?;
+            record.with_data(record.data.clone())
+        };
+        apply_child_slots(&mut probe.data, &slots, visitor)?;
+        let flags =
+            flags_after_update_probe(visitor.transformation_context().arena(), original, &probe)?;
+        visitor
+            .transformation_context_mut()
+            .factory()?
+            .update_node(original, probe.data, flags)
+    } else {
+        let flags = {
+            let arena = visitor.transformation_context().arena();
+            flags_after_update_probe(arena, original, arena.node(original)?)?
+        };
+        visitor
+            .transformation_context_mut()
+            .factory()?
+            .update_node_unchanged(original, flags)
+    }
 }
 
 fn initialize_transform_flags(
