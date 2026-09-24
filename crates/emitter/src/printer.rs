@@ -2899,6 +2899,27 @@ impl Printer {
         deferred_source_comments: &mut DeferredExpressionSourceCommentsState,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
+        // An unchanged identifier (the most emitted node) takes the copy
+        // path that the `_ if !changed` arm below would take, before the
+        // record (and its identifier text) is cloned for the arms: its only
+        // arms are guarded by `changed`, and identifiers are not dormant
+        // declaration syntax.
+        {
+            let record = transformation.arena().node(node)?;
+            if matches!(
+                record.data,
+                NodeData::Identifier(_) | NodeData::PrivateIdentifier(_)
+            ) && !NodeFlags::from_bits(record.flags).contains(NodeFlags::SYNTHESIZED)
+                && !self.emission_plan.structured_nodes.contains(&node)
+                && transformation
+                    .arena()
+                    .metadata(node)
+                    .and_then(crate::EmitMetadata::original)
+                    .is_none()
+            {
+                return self.write_original_without_leading_trivia(transformation, node, writer);
+            }
+        }
         let record = transformation.arena().node(node)?.clone();
         let changed = transformation
             .arena()
@@ -19942,13 +19963,18 @@ fn calculate_source_indent(source: &str, start: usize, end: usize) -> usize {
     indent
 }
 
-fn normalize_new_lines(text: &str, new_line: &str) -> String {
+/// The copied source text with tsc's new-line normalization; a slice without
+/// a line break (most identifiers and tokens) is returned as is.
+fn normalize_new_lines<'text>(text: &'text str, new_line: &str) -> std::borrow::Cow<'text, str> {
+    if !text.bytes().any(|byte| byte == b'\r' || byte == b'\n') {
+        return std::borrow::Cow::Borrowed(text);
+    }
     let normalized = text.replace("\r\n", "\n").replace('\r', "\n");
-    if new_line == "\n" {
+    std::borrow::Cow::Owned(if new_line == "\n" {
         normalized
     } else {
         normalized.replace('\n', new_line)
-    }
+    })
 }
 
 fn quote_string_literal(
