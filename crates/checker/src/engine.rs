@@ -25,7 +25,7 @@ use tsc_types::{
 use tsc_syntax::NodeId;
 
 use crate::evaluate::EvalValue;
-use crate::relate::{EnumRelationError, EnumRelationOutcome, RelationKind};
+use crate::relate::{EnumRelationError, EnumRelationOutcome, RelationKey, RelationKind};
 use crate::state::{CheckResult, CheckerState};
 use tsc_types::perf::{self, PerfCounter};
 
@@ -1155,8 +1155,8 @@ fn variance_error_info_selection<'s>(
 pub(crate) struct RelationChecker<'r, 'a> {
     pub(crate) st: &'r mut CheckerState<'a>,
     pub(crate) relation: RelationKind,
-    pub(crate) maybe_keys: Vec<String>,
-    pub(crate) maybe_keys_set: HashSet<String>,
+    pub(crate) maybe_keys: Vec<RelationKey>,
+    pub(crate) maybe_keys_set: HashSet<RelationKey>,
     pub(crate) source_stack: Vec<TypeId>,
     pub(crate) target_stack: Vec<TypeId>,
     pub(crate) maybe_count: usize,
@@ -1187,8 +1187,8 @@ pub(crate) struct RelationChecker<'r, 'a> {
 /// argument.
 pub(crate) struct RelationFrame {
     pub(crate) relation: RelationKind,
-    pub(crate) maybe_keys: Vec<String>,
-    pub(crate) maybe_keys_set: HashSet<String>,
+    pub(crate) maybe_keys: Vec<RelationKey>,
+    pub(crate) maybe_keys_set: HashSet<RelationKey>,
     pub(crate) source_stack: Vec<TypeId>,
     pub(crate) target_stack: Vec<TypeId>,
     pub(crate) maybe_count: usize,
@@ -3496,7 +3496,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if self.maybe_keys_set.contains(&id) {
                 return Ok(Ternary::MAYBE);
             }
-            if id.starts_with('*') {
+            if id.has_constraint_marker() {
                 let broadest = self.st.get_relation_key(
                     source,
                     target,
