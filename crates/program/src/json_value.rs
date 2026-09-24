@@ -293,6 +293,20 @@ impl From<i32> for JsonValue {
 /// lone surrogates become JSON escapes, preserving their original code units
 /// on parse. This is serialization, never a key or a compiler string value.
 pub fn append_json_quoted(value: JsStr<'_>, result: &mut String) {
+    // Well-formed text without a character to escape (a source map's
+    // mappings string, most paths) is copied whole: every scalar below
+    // would be pushed unchanged.
+    if let Some(text) = value.as_str() {
+        if !text
+            .bytes()
+            .any(|byte| byte < 0x20 || byte == b'"' || byte == b'\\')
+        {
+            result.push('"');
+            result.push_str(text);
+            result.push('"');
+            return;
+        }
+    }
     result.push('"');
     for scalar in char::decode_utf16(value.code_units()) {
         match scalar {
