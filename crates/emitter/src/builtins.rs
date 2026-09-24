@@ -8627,6 +8627,9 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         };
         let mut expression = self.update_generic(original, NodeData::BinaryExpression(data))?;
         for export in exports {
+            // substituteBinaryExpression's noSubstitution mark: the wrapped
+            // assignment is not wrapped again when it prints.
+            self.mark_no_substitution(expression)?;
             let target = self.create_export_access_from_module_name(&export)?;
             expression = self.create_assignment(target, expression)?;
             // createExportExpression ranges the new wrapper without copying

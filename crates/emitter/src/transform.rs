@@ -664,7 +664,14 @@ impl TransformationContext {
     pub(crate) fn allocate_generated_binding_id(
         &mut self,
     ) -> Result<GeneratedBindingId, TransformError> {
-        self.require_before_completed("allocate a generated binding identity")?;
+        // A print-time substitution may allocate a binding for a reference it
+        // creates (tsc's getGeneratedNameForNode names it while printing);
+        // the printer names such a binding as it first prints it.
+        if self.substitution_depth > 0 {
+            self.require_before_disposed("allocate a generated binding identity")?;
+        } else {
+            self.require_before_completed("allocate a generated binding identity")?;
+        }
         Ok(self.arena.allocate_generated_binding_id())
     }
 
