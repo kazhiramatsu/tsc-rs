@@ -1424,6 +1424,18 @@ fn emit_javascript_unit(
         *parsed_emit_metadata = Some(transformation.arena().snapshot_parsed_emit_metadata(host)?);
     }
     transformation.dispose();
+    // Dropping a large source's emit copy (its nodes, their identifier texts,
+    // the transforms' additions) takes milliseconds on the tail of the run;
+    // the disposed arena is released on a detached thread instead. A refused
+    // thread simply drops it here.
+    let arena = transformation.into_arena();
+    if arena.node_count() >= 32 * 1024 {
+        let _ = std::thread::Builder::new()
+            .name("tsc-rs-release".to_owned())
+            .spawn(move || drop(arena));
+    } else {
+        drop(arena);
+    }
     if recording_enabled {
         let map_path = javascript_map_path;
         let mut generator = fallback_source_map

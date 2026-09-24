@@ -540,6 +540,31 @@ impl TransformArena {
         Ok(&self.source(source)?.parsed_identifier_names)
     }
 
+    /// Take `id`'s source out of an arena that was used only to prepare it
+    /// (see [`crate::prepare_emit_source`]): the arena's other tables are
+    /// empty, so the source alone is the whole emit copy.
+    pub fn into_prepared_source(mut self, id: TransformSourceId) -> PreparedEmitSource {
+        PreparedEmitSource(self.sources.swap_remove(id.0 as usize))
+    }
+
+    /// Mount a source prepared ahead of this emit, in place of `add_source`
+    /// followed by the first transform-flag classification.
+    pub fn add_prepared_source(&mut self, prepared: PreparedEmitSource) -> TransformSourceId {
+        let id = TransformSourceId(
+            u32::try_from(self.sources.len()).expect("transform source count exceeds u32"),
+        );
+        self.sources.push(prepared.0);
+        id
+    }
+
+    /// The number of nodes over every mounted source (parsed and appended).
+    pub fn node_count(&self) -> usize {
+        self.sources
+            .iter()
+            .map(|source| source.source.arena.nodes().len())
+            .sum()
+    }
+
     pub fn source(&self, id: TransformSourceId) -> Result<&TransformSource, TransformError> {
         self.sources
             .get(id.0 as usize)
