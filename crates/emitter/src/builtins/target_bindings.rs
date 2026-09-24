@@ -61,59 +61,67 @@ enum OrdinaryTempNamePolicy {
 
 /// A set of used identifier spellings shared between the name allocators of
 /// an emit unit: each starts from the arena's census
-/// ([`TransformArena::identifier_texts`] or the parsed census below) and
-/// copies the set only when it records a generated name, so the source is
-/// scanned once per unit instead of once per transformer. Reads go through
-/// `Deref`; `insert` and `extend` are the set's, copy-on-write. The set is
-/// hashed: every reader asks for membership only, and a census of a large
+/// ([`TransformArena::identifier_texts`] or the parsed census below), which
+/// it never copies, and records the generated names it adds beside it, so the
+/// source is scanned once per unit instead of once per transformer. The set
+/// is hashed: every reader asks for membership only, and a census of a large
 /// source (tens of thousands of distinct spellings) is built and queried
 /// without ordered string comparisons.
 #[derive(Clone, Debug, Default)]
-pub(super) struct UsedNames(Arc<FxHashSet<String>>);
+pub(super) struct UsedNames {
+    /// The census this set started from, shared with the source's cell and
+    /// every other allocator that started from it; never written.
+    shared: Arc<FxHashSet<String>>,
+    /// The names inserted since. Keeping them apart means the first generated
+    /// name of a pass no longer copies the whole census (tens of thousands
+    /// of spellings for a large source) to add one entry.
+    added: FxHashSet<String>,
+}
 
 impl UsedNames {
-    /// Set insertion: false, and no copy, when the name is used already.
+    /// Set insertion: false when the name is used already.
     pub(super) fn insert(&mut self, name: String) -> bool {
-        if self.0.contains(&name) {
+        if self.shared.contains(&name) {
             return false;
         }
-        Arc::make_mut(&mut self.0).insert(name)
+        self.added.insert(name)
     }
 
     pub(super) fn extend(&mut self, names: impl IntoIterator<Item = String>) {
-        Arc::make_mut(&mut self.0).extend(names);
+        for name in names {
+            self.insert(name);
+        }
     }
-}
 
-impl std::ops::Deref for UsedNames {
-    type Target = FxHashSet<String>;
-
-    fn deref(&self) -> &FxHashSet<String> {
-        &self.0
+    pub(super) fn contains(&self, name: &str) -> bool {
+        self.shared.contains(name) || self.added.contains(name)
     }
 }
 
 impl From<Arc<FxHashSet<String>>> for UsedNames {
     fn from(names: Arc<FxHashSet<String>>) -> Self {
-        Self(names)
+        Self {
+            shared: names,
+            added: FxHashSet::default(),
+        }
     }
 }
 
 impl From<BTreeSet<String>> for UsedNames {
     fn from(names: BTreeSet<String>) -> Self {
-        Self(Arc::new(names.into_iter().collect()))
+        Self::from(names.into_iter().collect::<FxHashSet<String>>())
     }
 }
 
 impl From<FxHashSet<String>> for UsedNames {
     fn from(names: FxHashSet<String>) -> Self {
-        Self(Arc::new(names))
+        Self::from(Arc::new(names))
     }
 }
 
 impl FromIterator<String> for UsedNames {
     fn from_iter<I: IntoIterator<Item = String>>(names: I) -> Self {
-        Self(Arc::new(names.into_iter().collect()))
+        Self::from(names.into_iter().collect::<FxHashSet<String>>())
     }
 }
 
@@ -1325,7 +1333,7 @@ fn allocate_numbered_name_with_global_oracle(
 /// tsc-hash: 09d871cc98ba62a6f9f3b687589b870b665327fab35d0c71e21d6766062faf68
 /// tsc-span: _tsc.js:120638-120666
 fn file_level_unique_name(
-    reserved: &FxHashSet<String>,
+    reserved: &UsedNames,
     preferred: &str,
     planned: String,
     global_name_oracle: Option<&dyn GlobalNameOracle>,

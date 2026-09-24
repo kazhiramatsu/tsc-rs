@@ -2703,6 +2703,12 @@ impl Transformer for CommonJsModuleTransformer<'_> {
             .syntax()
             .external_module_indicator
             .is_some();
+        // The walk gates on the module transform flags (dynamic import,
+        // destructuring assignment, identifier update), and the dynamic-import
+        // scan below reads the root's flag word first: classify whatever the
+        // earlier passes appended (or everything, when this is the first
+        // pass) so both read exact flags.
+        initialize_transform_flags(context.arena_mut()?, source)?;
         let current_root = context.arena().root(source)?;
         // isEffectiveExternalModule: binder CommonJS indicators are produced
         // only in JavaScript files, and are consumed only by CJS/Node formats.
@@ -2716,8 +2722,6 @@ impl Transformer for CommonJsModuleTransformer<'_> {
                         .require_parse_tree_resolver_node(current_root)?,
                 )?;
         let has_dynamic_import = source_contains_dynamic_import(context.arena(), current_root)?;
-        let has_import_reference_substitution =
-            source_contains_import_reference_substitution(context.arena(), current_root)?;
         // transformModule also enters the AMD outFile branch for JSON even
         // though JSON has no external-module indicator (_tsc.js:110131).
         // hasJsonModuleEmitEnabled excludes System/UMD/None; those JSON roots
@@ -2733,7 +2737,12 @@ impl Transformer for CommonJsModuleTransformer<'_> {
             });
         let requires_module_rewrite =
             is_effective_external || has_dynamic_import || json_amd_bundle;
-        if !requires_module_rewrite && !has_import_reference_substitution {
+        // A script (nothing to rewrite) still takes the transform when one of
+        // its references carries an import declaration to substitute; only
+        // that case scans for one (a module is rewritten regardless).
+        if !requires_module_rewrite
+            && !source_contains_import_reference_substitution(context.arena(), current_root)?
+        {
             return Ok(TransformRoot::SourceFile(source));
         }
         if requires_module_rewrite
@@ -2747,11 +2756,6 @@ impl Transformer for CommonJsModuleTransformer<'_> {
             context.arena_mut()?.replace_root(source, strict_root)?;
         }
 
-        // The walk gates on the module transform flags (dynamic import,
-        // destructuring assignment, identifier update); classify whatever
-        // the earlier passes appended (or everything, when this is the first
-        // pass) so the gate reads exact flags.
-        initialize_transform_flags(context.arena_mut()?, source)?;
         let current_root = context.arena().root(source)?;
         let mut info = CommonJsModuleInfo::collect(
             context.arena(),
@@ -3447,6 +3451,9 @@ struct CommonJsModuleInfo {
     exported_names: Vec<ModuleExportName>,
     hoisted_function_exports: Vec<HoistedDeclarationExports>,
     direct_exported_variable_names: BTreeSet<Box<str>>,
+    /// The identifier spellings a substitution can rewrite at all
+    /// ([`collect_module_reference_candidates`]).
+    module_reference_candidates: HashSet<String>,
 }
 
 impl CommonJsModuleInfo {
@@ -3591,6 +3598,7 @@ impl CommonJsModuleInfo {
             exported_names: Vec::new(),
             hoisted_function_exports: Vec::new(),
             direct_exported_variable_names: BTreeSet::new(),
+            module_reference_candidates: collect_module_reference_candidates(arena, source, root)?,
         };
         // tsc keeps export-name uniqueness and default-declaration ownership
         // separate from exportedNames (the list that receives `void 0`
@@ -4393,10 +4401,248 @@ fn node_array_nodes(
         .collect()
 }
 
+/// The identifier spellings a module substitution can rewrite: the local
+/// names of the module's imports and of its exported declarations, read from
+/// the parsed statements.
+///
+/// `substituteExpressionIdentifier` and `getExports` rewrite a reference only
+/// when the checker resolves it to an import alias declared by this module or
+/// to a member of this module's export table, and the checker finds that
+/// symbol under the reference's own spelling. Every other identifier keeps
+/// its text, so the resolver is not asked about it. The parsed statements are
+/// read rather than the transformed ones because a `declare`d export the
+/// TypeScript pass erased still prefixes its references (`exports.x`), and an
+/// exported import-equals alias still publishes under its name. Statement
+/// bodies are walked too: the binder declares an `export`ed declaration
+/// embedded in an `if` body or a block (a grammar error the emit still
+/// serves, microsoft/TypeScript#59373) as a module member, while nothing
+/// inside a function, class or namespace body is one.
+fn collect_module_reference_candidates(
+    arena: &TransformArena,
+    source: TransformSourceId,
+    root: TransformNode,
+) -> Result<HashSet<String>, TransformError> {
+    let mut names = HashSet::default();
+    let parsed_root = arena.get_original_node(root);
+    let NodeData::SourceFile(data) = &arena.node(parsed_root)?.data else {
+        return Ok(names);
+    };
+    let mut pending = node_array_nodes(arena, source, data.statements)?;
+    let child = |id: Option<NodeId>| id.and_then(|id| arena.node_ref(source, id));
+    while let Some(statement) = pending.pop() {
+        match &arena.node(statement)?.data {
+            NodeData::ImportDeclaration(import) => {
+                let Some(clause) = child(import.import_clause) else {
+                    continue;
+                };
+                let NodeData::ImportClause(clause_data) = &arena.node(clause)?.data else {
+                    continue;
+                };
+                push_identifier_text(arena, source, clause_data.name, &mut names)?;
+                let Some(bindings) = child(clause_data.named_bindings) else {
+                    continue;
+                };
+                match &arena.node(bindings)?.data {
+                    NodeData::NamespaceImport(namespace) => {
+                        push_identifier_text(arena, source, namespace.name, &mut names)?;
+                    }
+                    NodeData::NamedImports(named) => {
+                        for specifier in node_array_nodes(arena, source, named.elements)? {
+                            if let NodeData::ImportSpecifier(specifier) =
+                                &arena.node(specifier)?.data
+                            {
+                                push_identifier_text(arena, source, specifier.name, &mut names)?;
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            NodeData::ImportEqualsDeclaration(import) => {
+                push_identifier_text(arena, source, import.name, &mut names)?;
+            }
+            NodeData::NamespaceExportDeclaration(export) => {
+                push_identifier_text(arena, source, export.name, &mut names)?;
+            }
+            NodeData::ExportDeclaration(export) => {
+                let Some(clause) = child(export.export_clause) else {
+                    continue;
+                };
+                let NodeData::NamedExports(named) = &arena.node(clause)?.data else {
+                    continue;
+                };
+                for specifier in node_array_nodes(arena, source, named.elements)? {
+                    if let NodeData::ExportSpecifier(specifier) = &arena.node(specifier)?.data {
+                        // `export { local as name }`: the local spelling.
+                        push_identifier_text(
+                            arena,
+                            source,
+                            specifier.property_name.or(specifier.name),
+                            &mut names,
+                        )?;
+                    }
+                }
+            }
+            NodeData::VariableStatement(variable) => {
+                if !has_modifier(arena, source, variable.modifiers, SyntaxKind::ExportKeyword)? {
+                    continue;
+                }
+                let Some(list) = child(variable.declaration_list) else {
+                    continue;
+                };
+                let NodeData::VariableDeclarationList(list) = &arena.node(list)?.data else {
+                    continue;
+                };
+                for declaration in node_array_nodes(arena, source, list.declarations)? {
+                    if let NodeData::VariableDeclaration(declaration) =
+                        &arena.node(declaration)?.data
+                    {
+                        push_binding_name_texts(arena, source, declaration.name, &mut names)?;
+                    }
+                }
+            }
+            NodeData::FunctionDeclaration(declaration) => {
+                if has_modifier(
+                    arena,
+                    source,
+                    declaration.modifiers,
+                    SyntaxKind::ExportKeyword,
+                )? {
+                    push_identifier_text(arena, source, declaration.name, &mut names)?;
+                }
+            }
+            NodeData::ClassDeclaration(declaration) => {
+                if has_modifier(
+                    arena,
+                    source,
+                    declaration.modifiers,
+                    SyntaxKind::ExportKeyword,
+                )? {
+                    push_identifier_text(arena, source, declaration.name, &mut names)?;
+                }
+            }
+            NodeData::EnumDeclaration(declaration) => {
+                if has_modifier(
+                    arena,
+                    source,
+                    declaration.modifiers,
+                    SyntaxKind::ExportKeyword,
+                )? {
+                    push_identifier_text(arena, source, declaration.name, &mut names)?;
+                }
+            }
+            NodeData::ModuleDeclaration(declaration) => {
+                if has_modifier(
+                    arena,
+                    source,
+                    declaration.modifiers,
+                    SyntaxKind::ExportKeyword,
+                )? {
+                    push_identifier_text(arena, source, declaration.name, &mut names)?;
+                }
+            }
+            // Statement bodies: the declarations they embed are the module's.
+            NodeData::Block(block) => {
+                pending.extend(node_array_nodes(arena, source, block.statements)?);
+            }
+            NodeData::IfStatement(statement) => {
+                pending.extend(child(statement.then_statement));
+                pending.extend(child(statement.else_statement));
+            }
+            NodeData::DoStatement(statement) => pending.extend(child(statement.statement)),
+            NodeData::WhileStatement(statement) => pending.extend(child(statement.statement)),
+            NodeData::ForStatement(statement) => pending.extend(child(statement.statement)),
+            NodeData::ForInStatement(statement) => pending.extend(child(statement.statement)),
+            NodeData::ForOfStatement(statement) => pending.extend(child(statement.statement)),
+            NodeData::LabeledStatement(statement) => pending.extend(child(statement.statement)),
+            NodeData::WithStatement(statement) => pending.extend(child(statement.statement)),
+            NodeData::TryStatement(statement) => {
+                pending.extend(child(statement.try_block));
+                pending.extend(child(statement.catch_clause));
+                pending.extend(child(statement.finally_block));
+            }
+            NodeData::CatchClause(clause) => pending.extend(child(clause.block)),
+            NodeData::SwitchStatement(statement) => pending.extend(child(statement.case_block)),
+            NodeData::CaseBlock(block) => {
+                pending.extend(node_array_nodes(arena, source, block.clauses)?);
+            }
+            NodeData::CaseClause(clause) => {
+                pending.extend(node_array_nodes(arena, source, clause.statements)?);
+            }
+            NodeData::DefaultClause(clause) => {
+                pending.extend(node_array_nodes(arena, source, clause.statements)?);
+            }
+            _ => {}
+        }
+    }
+    Ok(names)
+}
+
+fn push_identifier_text(
+    arena: &TransformArena,
+    source: TransformSourceId,
+    name: Option<NodeId>,
+    names: &mut HashSet<String>,
+) -> Result<(), TransformError> {
+    let Some(name) = name.and_then(|id| arena.node_ref(source, id)) else {
+        return Ok(());
+    };
+    if let NodeData::Identifier(data) = &arena.node(name)?.data {
+        if !names.contains(data.text.as_str()) {
+            names.insert(data.text.clone());
+        }
+    }
+    Ok(())
+}
+
+/// Every identifier a binding name declares (a pattern's elements included).
+fn push_binding_name_texts(
+    arena: &TransformArena,
+    source: TransformSourceId,
+    name: Option<NodeId>,
+    names: &mut HashSet<String>,
+) -> Result<(), TransformError> {
+    let Some(name) = name.and_then(|id| arena.node_ref(source, id)) else {
+        return Ok(());
+    };
+    match &arena.node(name)?.data {
+        NodeData::Identifier(_) => push_identifier_text(arena, source, Some(name.node()), names),
+        NodeData::ObjectBindingPattern(pattern) => {
+            for element in node_array_nodes(arena, source, pattern.elements)? {
+                if let NodeData::BindingElement(element) = &arena.node(element)?.data {
+                    push_binding_name_texts(arena, source, element.name, names)?;
+                }
+            }
+            Ok(())
+        }
+        NodeData::ArrayBindingPattern(pattern) => {
+            for element in node_array_nodes(arena, source, pattern.elements)? {
+                if let NodeData::BindingElement(element) = &arena.node(element)?.data {
+                    push_binding_name_texts(arena, source, element.name, names)?;
+                }
+            }
+            Ok(())
+        }
+        _ => Ok(()),
+    }
+}
+
 fn source_contains_dynamic_import(
     arena: &TransformArena,
     root: TransformNode,
 ) -> Result<bool, TransformError> {
+    // Both the factory and the classifier stamp ContainsDynamicImport on an
+    // `import(...)` call, and a complete root's flag word describes its
+    // whole subtree: a root without the bit has no dynamic import. A root
+    // with it is walked, because the walk also skips MissingDeclaration
+    // subtrees and answers exactly.
+    if arena.transform_flags_complete(root)
+        && !arena
+            .transform_flags(root)
+            .contains(TransformFlags::CONTAINS_DYNAMIC_IMPORT)
+    {
+        return Ok(false);
+    }
     let mut stack = vec![root.node()];
     while let Some(id) = stack.pop() {
         let node = arena
@@ -8837,6 +9083,9 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     }));
             }
         }
+        if !self.is_module_reference_candidate(identifier)? {
+            return Ok(None);
+        }
         let original = self.context.arena().get_original_node(identifier);
         if self.context.arena().node(original)?.pos == u32::MAX {
             return Ok(None);
@@ -10330,6 +10579,19 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let Some(binding) = self.import_binding_for_reference(original)? else {
             return Ok(original);
         };
+        // substituteExpressionIdentifier rewrites an import clause's default
+        // and an import specifier only: a namespace import or an import-equals
+        // is the local binding itself, so its reference stays the node it is
+        // (and a shorthand property keeps its shorthand). A binding renamed
+        // for an elided import still takes the new spelling.
+        if binding.property.is_none()
+            && matches!(
+                &self.context.arena().node(original)?.data,
+                NodeData::Identifier(data) if data.text.as_str() == &*binding.generated_name
+            )
+        {
+            return Ok(original);
+        }
         let target = self.create_identifier(&binding.generated_name)?;
         let transformed =
             create_import_binding_access(self.context, self.source, target, &binding)?;
@@ -10347,6 +10609,9 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .metadata(original)
             .is_some_and(|metadata| metadata.flags().contains(EmitFlags::NO_SUBSTITUTION))
         {
+            return Ok(original);
+        }
+        if !self.is_module_reference_candidate(original)? {
             return Ok(original);
         }
         if !self.is_local_name(original) {
@@ -10387,6 +10652,29 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .arena()
             .metadata(node)
             .is_some_and(|metadata| metadata.flags().contains(EmitFlags::LOCAL_NAME))
+    }
+
+    /// Whether a substitution can rewrite this identifier at all: a reference
+    /// the transforms tied to an import declaration, or a spelling the module
+    /// imports or exports ([`collect_module_reference_candidates`]). Every
+    /// other identifier is a local of the module and keeps its text; the
+    /// resolver is not asked about it.
+    fn is_module_reference_candidate(&self, node: TransformNode) -> Result<bool, TransformError> {
+        let arena = self.context.arena();
+        if arena
+            .metadata(node)
+            .is_some_and(|metadata| metadata.referenced_import_declaration().is_some())
+        {
+            return Ok(true);
+        }
+        let NodeData::Identifier(data) = &arena.node(node)?.data else {
+            return Ok(true);
+        };
+        Ok(self
+            .state
+            .info
+            .module_reference_candidates
+            .contains(data.text.as_str()))
     }
 
     /// Resolve the runtime owner of a parsed import alias which survived only
@@ -11600,15 +11888,9 @@ impl NodeDataChildVisitor for CommonJsVisitor<'_, '_> {
             return Ok(Some(*mapped));
         }
         let original = self.array(id);
-        let nodes = self.context.arena().node_array(original)?.nodes.clone();
-        let mut visited = Vec::with_capacity(nodes.len());
-        for node in nodes {
-            visited.push(self.visit(node)?);
-        }
-        let updated = self
-            .context
-            .factory()?
-            .update_node_array(original, visited)?;
+        let updated = update_node_array_lazily(self, original, |visitor, node| {
+            Ok(ArrayElementVisit::One(visitor.visit(node)?))
+        })?;
         self.arrays.insert(id, updated.array());
         Ok(Some(updated.array()))
     }
@@ -11794,7 +12076,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
 
     /// The parsed identifier texts of the source (tsc `sourceFile.identifiers`),
     /// collected on first use.
-    fn source_identifier_names(&self) -> &rustc_hash::FxHashSet<String> {
+    fn source_identifier_names(&self) -> &target_bindings::UsedNames {
         self.source_identifier_names
             .get_or_init(|| system::collect_identifier_texts(self.context.arena(), self.source))
     }
@@ -16702,34 +16984,26 @@ impl NodeDataChildVisitor for TypeScriptVisitor<'_, '_> {
             return Ok(*mapped);
         }
         let original = self.array(id);
-        let nodes = self.context.arena().node_array(original)?.nodes.clone();
-        // An unchanged empty NodeArray is itself observable: it owns the
-        // trivia between delimiters. Retain its exact identity and boundary
-        // positions instead of routing it through an unnecessary update.
-        if nodes.is_empty() {
-            self.arrays.insert(id, Some(id));
-            return Ok(Some(id));
-        }
-        let mut visited = Vec::with_capacity(nodes.len());
-        for node in nodes {
-            match self.context.arena().node(self.node(node))?.kind {
-                SyntaxKind::EnumDeclaration => {
-                    visited.extend(self.visit_enum_declaration(node)?);
-                }
-                SyntaxKind::ModuleDeclaration => {
-                    visited.extend(self.visit_module_declaration(node)?);
-                }
-                _ => {
-                    if let Some(node) = self.visit(node)? {
-                        visited.push(self.node(node));
+        // An unchanged array (an empty one included: it owns the trivia
+        // between its delimiters) keeps its exact identity and boundary
+        // positions; an id list is built only from the first element that
+        // maps elsewhere.
+        let updated = update_node_array_lazily(self, original, |visitor, node| {
+            Ok(
+                match visitor.context.arena().node(visitor.node(node))?.kind {
+                    SyntaxKind::EnumDeclaration => {
+                        ArrayElementVisit::Many(visitor.visit_enum_declaration(node)?)
                     }
-                }
-            }
-        }
-        let updated = self
-            .context
-            .factory()?
-            .update_node_array(original, visited)?;
+                    SyntaxKind::ModuleDeclaration => {
+                        ArrayElementVisit::Many(visitor.visit_module_declaration(node)?)
+                    }
+                    _ => match visitor.visit(node)? {
+                        Some(node) => ArrayElementVisit::One(visitor.node(node)),
+                        None => ArrayElementVisit::Removed,
+                    },
+                },
+            )
+        })?;
         let mapped = Some(updated.array());
         self.arrays.insert(id, mapped);
         Ok(mapped)
@@ -17087,6 +17361,86 @@ pub(crate) fn update_children_lazily<V: LazyChildVisitor>(
     }
 }
 
+/// How one element of a visited node array mapped.
+pub(crate) enum ArrayElementVisit {
+    /// The element maps to one node (itself when that node is the element).
+    One(TransformNode),
+    /// The element is removed.
+    Removed,
+    /// The element expands to these nodes.
+    Many(Vec<TransformNode>),
+}
+
+/// `visitNodes` + `update` for a transform visitor: the elements of the
+/// original array are visited in place, and an id list is built only from the
+/// first element that maps to something other than itself. An unchanged array
+/// keeps its identity without cloning its id list, collecting an equal one and
+/// comparing the two, as the previous per-visitor loops did for every array.
+///
+/// tsc-port: visitNodes @6.0.3
+/// tsc-hash: 77052fb8845fc55cd604db6cb8fe5c3e22bfc7f435b2efc90dc0a57fc2adcc7c
+/// tsc-span: _tsc.js:91242-91290
+pub(crate) fn update_node_array_lazily<V, F>(
+    visitor: &mut V,
+    original: TransformNodeArray,
+    mut visit_element: F,
+) -> Result<TransformNodeArray, TransformError>
+where
+    V: LazyChildVisitor,
+    F: FnMut(&mut V, NodeId) -> Result<ArrayElementVisit, TransformError>,
+{
+    let len = visitor
+        .transformation_context()
+        .arena()
+        .node_array(original)?
+        .nodes
+        .len();
+    let mut changed: Option<Vec<TransformNode>> = None;
+    for index in 0..len {
+        let element = visitor
+            .transformation_context()
+            .arena()
+            .node_array(original)?
+            .nodes[index];
+        let mapped = visit_element(visitor, element)?;
+        if let ArrayElementVisit::One(node) = &mapped {
+            if node.source() == original.source() && node.node() == element {
+                if let Some(nodes) = changed.as_mut() {
+                    nodes.push(*node);
+                }
+                continue;
+            }
+        }
+        if changed.is_none() {
+            // The elements before this one mapped to themselves.
+            let prefix = visitor
+                .transformation_context()
+                .arena()
+                .node_array(original)?
+                .nodes[..index]
+                .iter()
+                .map(|id| TransformNode::new(original.source(), *id))
+                .collect::<Vec<_>>();
+            changed = Some(prefix);
+        }
+        let nodes = changed
+            .as_mut()
+            .expect("the mapped id list is initialized above");
+        match mapped {
+            ArrayElementVisit::One(node) => nodes.push(node),
+            ArrayElementVisit::Removed => {}
+            ArrayElementVisit::Many(expanded) => nodes.extend(expanded),
+        }
+    }
+    match changed {
+        None => Ok(original),
+        Some(nodes) => visitor
+            .transformation_context_mut()
+            .factory()?
+            .update_node_array(original, nodes),
+    }
+}
+
 /// The statement kinds whose `update_node` normalizes an embedded statement
 /// body (the kinds `update_node_unchanged` always routes through it).
 pub(crate) fn normalizes_embedded_statements(data: &NodeData) -> bool {
@@ -17110,6 +17464,20 @@ pub(crate) fn classify_prepared_source(
     source: TransformSourceId,
 ) -> Result<(), TransformError> {
     initialize_transform_flags(arena, source)
+}
+
+/// The parsed-identifier censuses of a freshly mounted source (tsc's
+/// `SourceFile.identifiers`, and the file-level projection of it), filled
+/// ahead of the emit by [`crate::prepare_emit_source`] so the first pass that
+/// asks for them reads the cells instead of scanning the source on the emit
+/// thread. Both depend on the parsed nodes only.
+pub(crate) fn collect_prepared_source_censuses(
+    arena: &TransformArena,
+    source: TransformSourceId,
+) -> Result<(), TransformError> {
+    let _ = arena.identifier_texts(source);
+    target_bindings::ParsedSourceIdentifierNames::collect(arena, source)?;
+    Ok(())
 }
 
 fn initialize_transform_flags(

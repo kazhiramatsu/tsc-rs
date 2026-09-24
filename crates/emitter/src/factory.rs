@@ -5821,23 +5821,33 @@ impl<'arena> NodeFactory<'arena> {
         original: TransformNodeArray,
         nodes: Vec<TransformNode>,
     ) -> Result<TransformNodeArray, TransformError> {
-        let original_record = self.arena.node_array(original)?.clone();
-        if original_record.nodes.len() == nodes.len()
-            && original_record
-                .nodes
-                .iter()
-                .zip(&nodes)
-                .all(|(left, right)| right.source == original.source && *left == right.node)
-        {
-            return Ok(original);
-        }
+        // Compared against the record in place: the unchanged case (most
+        // arrays a pass visits) neither clones the record nor its id list.
+        let (pos, end, has_trailing_comma, is_missing_list) = {
+            let original_record = self.arena.node_array(original)?;
+            if original_record.nodes.len() == nodes.len()
+                && original_record
+                    .nodes
+                    .iter()
+                    .zip(&nodes)
+                    .all(|(left, right)| right.source == original.source && *left == right.node)
+            {
+                return Ok(original);
+            }
+            (
+                original_record.pos,
+                original_record.end,
+                original_record.has_trailing_comma,
+                original_record.is_missing_list,
+            )
+        };
         let updated = self.create_node_array(original.source, nodes)?;
         let syntax = &mut self.arena.source_mut(original.source)?.source;
         let record = syntax.arena.node_array_mut(updated.array);
-        record.pos = original_record.pos;
-        record.end = original_record.end;
-        record.has_trailing_comma = original_record.has_trailing_comma;
-        record.is_missing_list = original_record.is_missing_list;
+        record.pos = pos;
+        record.end = end;
+        record.has_trailing_comma = has_trailing_comma;
+        record.is_missing_list = is_missing_list;
         Ok(updated)
     }
 
