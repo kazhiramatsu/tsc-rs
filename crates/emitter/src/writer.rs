@@ -215,6 +215,16 @@ impl TextWriter {
         }
     }
 
+    /// Record a mapping for a byte offset of the current print source's
+    /// text (the comment lane).
+    pub(crate) fn record_source_map_byte_position(&mut self, source: &str, byte: usize) {
+        let generated_line = self.line();
+        let generated_character = self.column();
+        if let Some(recording) = self.recording.as_mut() {
+            recording.record_current_byte(source, byte, generated_line, generated_character);
+        }
+    }
+
     /// Record a mapping against an explicit (possibly foreign) source.
     pub(crate) fn record_source_map_position_for(
         &mut self,

@@ -2116,7 +2116,7 @@ impl Printer {
     ) -> Result<(), PrinterError> {
         if let Some(recording) = writer.recording_mut() {
             let source = transformation.arena().source(source_id)?.syntax();
-            recording.set_current_source(source_id, source.file_name.as_js(), source.text());
+            recording.set_current_source(source_id, source.file_name.as_js(), source.snapshot());
         }
         Ok(())
     }
@@ -19828,54 +19828,6 @@ fn emit_pinned_leading_comments(trivia: SourceTrivia<'_>, writer: &mut TextWrite
 /// always record against the CURRENT print source (upstream
 /// `forEachLeadingCommentRange`/`forEachTrailingCommentRange` walk
 /// `currentSourceFile.text`), so the text at hand is authoritative.
-fn source_comment_utf16_location(source: &str, byte: usize) -> (u32, u32) {
-    // UTF-16 line and character of a byte offset through a per-source line
-    // table. Recomputing the line starts of the prefix for every comment made
-    // a source-map emit quadratic in the file (TypeScript's checker.ts:
-    // 16 s).
-    let index = source_line_index(source);
-    let location = index
-        .line_and_character_byte(u32::try_from(byte).expect("comment position exceeds u32"))
-        .expect("comment position is within its source");
-    (location.line, location.character)
-}
-
-thread_local! {
-    /// The line tables of the sources this thread is printing comments
-    /// from: the text's address and length plus a head/tail fingerprint
-    /// identify it (program source texts stay alive and at one address for
-    /// the whole emit). A few entries cover the sources one unit's comments
-    /// come from.
-    static SOURCE_LINE_INDEXES: std::cell::RefCell<
-        Vec<(usize, usize, [u8; 32], std::rc::Rc<tsc_diagnostics::PositionIndex>)>,
-    > = const { std::cell::RefCell::new(Vec::new()) };
-}
-
-fn source_line_index(source: &str) -> std::rc::Rc<tsc_diagnostics::PositionIndex> {
-    let key = (source.as_ptr() as usize, source.len());
-    let bytes = source.as_bytes();
-    let mut fingerprint = [0u8; 32];
-    let head = &bytes[..bytes.len().min(16)];
-    let tail = &bytes[bytes.len().saturating_sub(16)..];
-    fingerprint[..head.len()].copy_from_slice(head);
-    fingerprint[16..16 + tail.len()].copy_from_slice(tail);
-    SOURCE_LINE_INDEXES.with(|cell| {
-        let mut entries = cell.borrow_mut();
-        if let Some(entry) = entries
-            .iter()
-            .find(|(pointer, length, print, _)| (*pointer, *length) == key && *print == fingerprint)
-        {
-            return std::rc::Rc::clone(&entry.3);
-        }
-        let index = std::rc::Rc::new(tsc_diagnostics::PositionIndex::new_static(source));
-        if entries.len() >= 4 {
-            entries.remove(0);
-        }
-        entries.push((key.0, key.1, fingerprint, std::rc::Rc::clone(&index)));
-        index
-    })
-}
-
 /// tsc-port: emitComment @6.0.3
 /// tsc-hash: de39b3978e8dba172c826b342b82c229fa28a6dfac8d407647aae6f2736857a6
 /// tsc-span: _tsc.js:121268-121273
@@ -19898,15 +19850,12 @@ fn write_source_comment(
     debug_assert!(source.is_char_boundary(comment_start));
     debug_assert!(source.is_char_boundary(comment_end));
 
-    if writer.has_source_map_recording() {
-        let (line, character) = source_comment_utf16_location(source, comment_start);
-        writer.record_source_map_position(line, character);
-    }
+    // emitPos(commentPos) / emitPos(commentEnd): located through the current
+    // print source's line table (recomputing the prefix's line starts per
+    // comment made a source-map emit quadratic in the file).
+    writer.record_source_map_byte_position(source, comment_start);
     write_source_comment_text(source, comment_start, comment_end, writer);
-    if writer.has_source_map_recording() {
-        let (line, character) = source_comment_utf16_location(source, comment_end);
-        writer.record_source_map_position(line, character);
-    }
+    writer.record_source_map_byte_position(source, comment_end);
 }
 
 fn write_source_comment_text(
