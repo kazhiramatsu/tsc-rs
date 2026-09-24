@@ -3310,15 +3310,36 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             }
         })
         .collect::<Vec<_>>();
-    // The deterministic node-count partition is the default: a run's
-    // shard-local type order then repeats run to run, as tsgo's does. The
-    // shared queue (`TSRS_SHARD_QUEUE=shared`) balances mixed cores better
-    // but lets the files a shard checks — and every ordering that follows
-    // type ids — vary between runs.
+    // The deterministic partition is the default (least load by node count
+    // with a directory preference): a run's shard-local type order then
+    // repeats run to run, as tsgo's does. The shared queue
+    // (`TSRS_SHARD_QUEUE=shared`) balances mixed cores better but lets the
+    // files a shard checks — and every ordering that follows type ids —
+    // vary between runs.
+    let checker_count = checkers.checkers();
+    // Each file's directory, interned, for the directory-preferring
+    // partition (files of one directory share their imports).
+    let mut directory_ids: rustc_hash::FxHashMap<&[u8], u32> = Default::default();
+    let directories = snapshot
+        .documents()
+        .iter()
+        .map(|document| {
+            let name = document.source().file_name.as_js();
+            let bytes = name.as_bytes();
+            let end = bytes.iter().rposition(|&byte| byte == b'/').unwrap_or(0);
+            let next = directory_ids.len() as u32;
+            *directory_ids.entry(&bytes[..end]).or_insert(next)
+        })
+        .collect::<Vec<u32>>();
     let queue = if shard::shared_queue_requested() {
-        shard::ShardFileQueue::shared(lib_count, &weights, checkers.checkers())
+        shard::ShardFileQueue::shared(lib_count, &weights, checker_count)
     } else {
-        shard::ShardFileQueue::partitioned(lib_count, &weights, checkers.checkers())
+        shard::ShardFileQueue::partitioned_with_directories(
+            lib_count,
+            &weights,
+            &directories,
+            checker_count,
+        )
     };
     let shard_count = queue.shard_count();
 
