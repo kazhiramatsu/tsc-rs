@@ -1896,6 +1896,21 @@ impl ProgramSession {
         // A shared (stateless filesystem) sink lets each worker write its
         // unit's artifacts as soon as they are printed.
         let eager_sink = sink.shared();
+        // Per-shard eager emit (tsgo's shape: every checker emits the files it
+        // checked as soon as it has checked them). With noEmitOnError off the
+        // gate admits every shard, so a shard emits its own units on its
+        // thread right after its check, overlapping the shards still
+        // checking; the coordinator's emit step then collects those units
+        // and emits only what no shard emitted. A stash entry carries the
+        // files it was computed for so a serial replay (fresh sessions,
+        // another assignment) cannot consume a discarded run's products.
+        let eager_emit_enabled = prepared.compiler_options().no_emit_on_error != Some(true);
+        type EagerShardEmission = (
+            Vec<usize>,
+            Result<(Vec<tsc_emitter::UnitEmission>, H2ActivityCounters), UnitEmitError>,
+        );
+        let eager_emissions: std::sync::Mutex<Vec<Option<EagerShardEmission>>> =
+            std::sync::Mutex::new(Vec::new());
         let (checked, emissions) = {
             let mut gate = |snapshot: &ProgramSnapshot,
                             checked: &CheckResult,
@@ -2018,10 +2033,28 @@ impl ProgramSession {
                         units_by_shard[shard].push(unit);
                     }
                 }
+                // Shards that already emitted their units eagerly, for this
+                // very assignment (a serial replay presents another one).
+                let mut stashed = std::mem::take(
+                    &mut *eager_emissions
+                        .lock()
+                        .expect("eager shard emissions are never poisoned"),
+                );
+                stashed.resize_with(sessions.len().max(stashed.len()), || None);
+                for (shard, entry) in stashed.iter_mut().enumerate() {
+                    if entry
+                        .as_ref()
+                        .is_some_and(|(files, _)| files_by_shard.get(shard) != Some(files))
+                    {
+                        *entry = None;
+                    }
+                }
                 let jobs = units_by_shard
                     .into_iter()
                     .enumerate()
-                    .filter(|(_, units)| !units.is_empty())
+                    .filter(|(shard, units)| {
+                        !units.is_empty() && stashed.get(*shard).is_none_or(Option::is_none)
+                    })
                     .collect::<Vec<_>>();
                 let weight = |(_, units): &(usize, Vec<usize>)| {
                     units
@@ -2061,7 +2094,14 @@ impl ProgramSession {
                 }
                 let mut units = Vec::with_capacity(results.len());
                 let mut first_error: Option<UnitEmitError> = None;
-                for (result, counters) in results {
+                let eager_results = stashed
+                    .into_iter()
+                    .flatten()
+                    .map(|(_, result)| match result {
+                        Ok((units, counters)) => (Ok(units), counters),
+                        Err(error) => (Err(error), H2ActivityCounters::default()),
+                    });
+                for (result, counters) in eager_results.chain(results) {
                     activity.absorb(counters);
                     match result {
                         Ok(emitted) => units.extend(emitted),
@@ -2075,6 +2115,8 @@ impl ProgramSession {
                         }
                     }
                 }
+                // finish_emit_files orders the products by plan unit,
+                // whichever thread emitted them.
                 if let Some(error) = first_error {
                     return Err(error);
                 }
@@ -2087,11 +2129,69 @@ impl ProgramSession {
                         .fold(0u32, u32::saturating_add),
                 }])
             };
+            let eager = |shard: usize,
+                         snapshot: &ProgramSnapshot,
+                         session: &CheckerSession<'_>,
+                         files: &[usize]| {
+                let owned = files
+                    .iter()
+                    .map(|&file| snapshot.document(file).source().file_name.as_js())
+                    .collect::<std::collections::HashSet<_>>();
+                let units = unit_names
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, name)| {
+                        name.as_ref()
+                            .is_some_and(|name| owned.contains(&name.as_js()))
+                    })
+                    .map(|(unit, _)| unit)
+                    .collect::<Vec<_>>();
+                if units.is_empty() {
+                    return;
+                }
+                let emit_started = std::time::Instant::now();
+                let checked_host = CheckedEmitHost {
+                    prepared: &emit_host,
+                    snapshot,
+                };
+                let mut activity = H2ActivityCanary::h2_7e_profile();
+                let mut eager_unit_sink = eager_sink.map(tsc_emitter::EagerUnitSink);
+                let result = session.with_emit_resolver(|resolver| {
+                    emit_planned_units(
+                        resolver,
+                        &checked_host,
+                        &preflight,
+                        &units,
+                        eager_unit_sink
+                            .as_mut()
+                            .map(|sink| sink as &mut dyn tsc_emitter::OutputSink),
+                        &mut activity,
+                    )
+                });
+                if tsc_types::trace::enabled() {
+                    tsc_types::trace::mark(
+                        &format!("shard {shard}: emit (eager, {} units)", units.len()),
+                        emit_started,
+                    );
+                }
+                let mut stash = eager_emissions
+                    .lock()
+                    .expect("eager shard emissions are never poisoned");
+                if stash.len() <= shard {
+                    stash.resize_with(shard + 1, || None);
+                }
+                stash[shard] = Some((
+                    files.to_vec(),
+                    result.map(|units| (units, activity.counters())),
+                ));
+            };
+            let eager: &(dyn Fn(usize, &ProgramSnapshot, &CheckerSession<'_>, &[usize]) + Sync) =
+                &eager;
             let mut sharded_emit = ShardedEmit {
                 gate: &mut gate,
                 emit: &emit,
                 emissions: None,
-                eager: None,
+                eager: eager_emit_enabled.then_some(eager),
             };
             let checked = check_program_with_authoritative_modules_at_for_emit_with_checkers(
                 &inputs.libs,
