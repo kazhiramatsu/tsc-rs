@@ -16,6 +16,67 @@ use tsc_types::CompilerOptions;
 #[path = "support/witness_libraries.rs"]
 mod witness_libraries;
 
+fn javascript_output(source_text: &str, target: i32) -> String {
+    let mut builder = MemoryCompilerHost::builder("/project")
+        .case_sensitive(true)
+        .file(PathBuf::from("/project/a.ts"), source_text.as_bytes());
+    for (path, bytes) in witness_libraries::files() {
+        builder = builder.file(path.as_str(), bytes.as_slice());
+    }
+    let host = builder.build().expect("memory host");
+    let options = CompilerOptions {
+        target: Some(target),
+        module: Some(6),
+        out_dir: Some("/project/out".into()),
+        ..CompilerOptions::default()
+    };
+    let prepared = load_emitting_program(
+        &host,
+        &[PathBuf::from("/project/a.ts")],
+        options,
+        ProgramOptions::default(),
+        &LibraryCatalog::typescript_6_0_3("/lib"),
+        ProgramLoadLimits::new(256, 2048, 64, 16 * 1024 * 1024, 128 * 1024 * 1024),
+    )
+    .expect("emitting program");
+    let mut sink = MemoryOutputSink::new();
+    ProgramSession::new(prepared)
+        .emit(&mut sink)
+        .expect("javascript emit");
+    let artifact = sink
+        .writes()
+        .iter()
+        .find(|artifact| artifact.kind() == EmitArtifactKind::JavaScript)
+        .expect("one javascript file");
+    String::from_utf8(artifact.materialized_bytes().into_owned()).expect("utf-8 javascript")
+}
+
+#[test]
+fn a_lowered_optional_chain_operand_keeps_its_line_break() {
+    // emitBinaryExpression reads getLinesBetweenNodes over the operands with
+    // synthesized parentheses skipped: the ES2020 lowering's conditional
+    // keeps the chain's range, so `a ||\n  b?.d` breaks after `||` under
+    // target ES2018 exactly as tsc 6.0.3 prints it.
+    assert_eq!(
+        javascript_output(
+            "declare const a: boolean;
+             declare const b: { c?: () => number; d?: number } | undefined;
+             export const x1 = a ||
+               b?.d;
+             export const x2 = a ||
+               b?.c?.();
+",
+            /* ES2018 */ 5,
+        ),
+        "var _a;
+         export const x1 = a ||
+             (b === null || b === void 0 ? void 0 : b.d);
+         export const x2 = a ||
+             ((_a = b === null || b === void 0 ? void 0 : b.c) === null || _a === void 0 ? void 0 : _a.call(b));
+"
+    );
+}
+
 fn declaration_output(source_text: &str) -> String {
     let mut builder = MemoryCompilerHost::builder("/project")
         .case_sensitive(true)
@@ -50,6 +111,28 @@ fn declaration_output(source_text: &str) -> String {
         .find(|artifact| artifact.kind() == EmitArtifactKind::Declaration)
         .expect("one declaration file");
     String::from_utf8(artifact.materialized_bytes().into_owned()).expect("utf-8 declaration")
+}
+
+#[test]
+fn a_typescript_script_with_a_require_call_keeps_its_global_declarations() {
+    // bindWorker binds a `require()` call as a CommonJS module indicator only
+    // in a JavaScript file; a TypeScript script stays a global script, so
+    // its top-level declarations are visible in the declaration output
+    // (playwright-core's bootstrap.ts).
+    assert_eq!(
+        declaration_output(
+            "const minimumMajorNodeVersion = 20
+             const currentNodeVersion: string = \"1\"
+             if (currentNodeVersion) {
+               const Module = require(\"module\")
+               console.log(Module, minimumMajorNodeVersion)
+             }
+",
+        ),
+        "declare const minimumMajorNodeVersion = 20;
+         declare const currentNodeVersion: string;
+"
+    );
 }
 
 #[test]

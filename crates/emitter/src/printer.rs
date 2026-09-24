@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
 
-use tsc_diagnostics::{compute_line_starts, PositionIndex};
+use tsc_diagnostics::PositionIndex;
 use tsc_syntax::{
     for_each_child, is_js_whitespace, is_line_break, is_whitespace_like, skip_trivia, NodeData,
     NodeId, SyntaxKind,
@@ -8038,30 +8038,23 @@ impl Printer {
                 let right_node = data
                     .right
                     .and_then(|id| transformation.arena().node_ref(node.source(), id));
-                let line_before_operator = match (left_node, operator_node) {
-                    (Some(left), Some(operator)) => !self
-                        .source_node_end_and_node_start_are_on_same_line(
-                            transformation,
-                            left,
-                            operator,
-                        )?,
-                    _ => false,
-                };
-                let line_after_operator = match (operator_node, right_node) {
-                    (Some(operator), Some(right)) => {
-                        transformation
-                            .arena()
-                            .metadata(right)
-                            .and_then(|metadata| metadata.starts_on_new_line())
-                            == Some(true)
-                            || !self.source_node_end_and_node_start_are_on_same_line(
-                                transformation,
-                                operator,
-                                right,
-                            )?
-                    }
-                    _ => false,
-                };
+                // emitBinaryExpression reads getLinesBetweenNodes(node, left,
+                // operatorToken) and (node, operatorToken, right): synthesized
+                // parentheses are skipped, so a lowered optional chain
+                // (`a ||\n b?.c` → `a ||\n (b === null ... )`) keeps its
+                // operand's line break through the ranged conditional.
+                let line_before_operator = self.lines_between_optional_nodes(
+                    transformation,
+                    node,
+                    left_node,
+                    operator_node,
+                )? > 0;
+                let line_after_operator = self.lines_between_optional_nodes(
+                    transformation,
+                    node,
+                    operator_node,
+                    right_node,
+                )? > 0;
                 let operator_kind = operator_node
                     .map(|operator| transformation.arena().node(operator))
                     .transpose()?
@@ -9109,52 +9102,6 @@ impl Printer {
         ))
     }
 
-    fn source_node_end_and_node_start_are_on_same_line(
-        &self,
-        transformation: &TransformationResult<'_>,
-        left: TransformNode,
-        right: TransformNode,
-    ) -> Result<bool, PrinterError> {
-        Ok(self
-            .source_node_end_and_node_start_same_line_comparable(transformation, left, right)?
-            .unwrap_or(true))
-    }
-
-    /// `siblingNodePositionsAreComparable` + the text scan: `None` when the
-    /// sibling positions are not comparable (synthesized, cross-source, or
-    /// out of order) — the caller supplies tsc's per-list fallback
-    /// (`format & MultiLine ? line : none`).
-    fn source_node_end_and_node_start_same_line_comparable(
-        &self,
-        transformation: &TransformationResult<'_>,
-        left: TransformNode,
-        right: TransformNode,
-    ) -> Result<Option<bool>, PrinterError> {
-        let left = transformation.arena().get_original_node(left);
-        let right = transformation.arena().get_original_node(right);
-        if left.source() != right.source() {
-            return Ok(None);
-        }
-        let source = transformation.arena().source(left.source())?.syntax();
-        let left_record = transformation.arena().node(left)?;
-        let right_record = transformation.arena().node(right)?;
-        let (SourceRange::Original(left_range), SourceRange::Original(right_range)) = (
-            SourceRange::from_raw(left_record.pos, left_record.end, source.positions())?,
-            SourceRange::from_raw(right_record.pos, right_record.end, source.positions())?,
-        ) else {
-            return Ok(None);
-        };
-        let left_end = left_range.end().value() as usize;
-        let right_start = skip_trivia(source.text(), right_range.start().value() as usize);
-        if left_end > right_start || right_start > source.text().len() {
-            return Ok(None);
-        }
-        Ok(Some(Self::source_positions_are_on_same_line(
-            source.positions(),
-            left_end,
-            right_start,
-        )))
-    }
 
     /// tsc-port: createPrinter.getSeparatingLineTerminatorCount @6.0.3
     /// tsc-hash: 78d63da04f114ae40f8ad9f012131e94a83000cf268d393c5608372aab734539
@@ -19883,16 +19830,51 @@ fn emit_pinned_leading_comments(trivia: SourceTrivia<'_>, writer: &mut TextWrite
 /// `forEachLeadingCommentRange`/`forEachTrailingCommentRange` walk
 /// `currentSourceFile.text`), so the text at hand is authoritative.
 fn source_comment_utf16_location(source: &str, byte: usize) -> (u32, u32) {
-    let prefix = &source[..byte];
-    let starts = compute_line_starts(prefix);
-    let line = u32::try_from(starts.len().saturating_sub(1)).expect("comment line exceeds u32");
-    // compute_line_starts returns UTF-16 offsets, not byte offsets. Keep
-    // both operands in that domain after non-ASCII text on an earlier line.
-    let line_start = starts.last().copied().unwrap_or(0);
-    let character = u32::try_from(prefix.encode_utf16().count())
-        .expect("comment position exceeds u32")
-        - line_start;
-    (line, character)
+    // UTF-16 line and character of a byte offset through a per-source line
+    // table. Recomputing the line starts of the prefix for every comment made
+    // a source-map emit quadratic in the file (TypeScript's checker.ts:
+    // 16 s).
+    let index = source_line_index(source);
+    let location = index
+        .line_and_character_byte(u32::try_from(byte).expect("comment position exceeds u32"))
+        .expect("comment position is within its source");
+    (location.line, location.character)
+}
+
+thread_local! {
+    /// The line tables of the sources this thread is printing comments
+    /// from: the text's address and length plus a head/tail fingerprint
+    /// identify it (program source texts stay alive and at one address for
+    /// the whole emit). A few entries cover the sources one unit's comments
+    /// come from.
+    static SOURCE_LINE_INDEXES: std::cell::RefCell<
+        Vec<(usize, usize, [u8; 32], std::rc::Rc<tsc_diagnostics::PositionIndex>)>,
+    > = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+fn source_line_index(source: &str) -> std::rc::Rc<tsc_diagnostics::PositionIndex> {
+    let key = (source.as_ptr() as usize, source.len());
+    let bytes = source.as_bytes();
+    let mut fingerprint = [0u8; 32];
+    let head = &bytes[..bytes.len().min(16)];
+    let tail = &bytes[bytes.len().saturating_sub(16)..];
+    fingerprint[..head.len()].copy_from_slice(head);
+    fingerprint[16..16 + tail.len()].copy_from_slice(tail);
+    SOURCE_LINE_INDEXES.with(|cell| {
+        let mut entries = cell.borrow_mut();
+        if let Some(entry) = entries
+            .iter()
+            .find(|(pointer, length, print, _)| (*pointer, *length) == key && *print == fingerprint)
+        {
+            return std::rc::Rc::clone(&entry.3);
+        }
+        let index = std::rc::Rc::new(tsc_diagnostics::PositionIndex::new_static(source));
+        if entries.len() >= 4 {
+            entries.remove(0);
+        }
+        entries.push((key.0, key.1, fingerprint, std::rc::Rc::clone(&index)));
+        index
+    })
 }
 
 /// tsc-port: emitComment @6.0.3
