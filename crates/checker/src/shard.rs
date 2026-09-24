@@ -502,7 +502,14 @@ pub(crate) const DEFAULT_SHARED_CHUNK: usize = 32;
 /// byte-identical across runs.
 pub(crate) const SHARED_QUEUE_MIN_FIXTURES: usize = 4096;
 
-/// Whether an exhausted partition lane steals from the others (default).
+/// From this many fixtures an exhausted partition lane steals from the
+/// others: zod (2,364 fixtures) checked in 723 ms with stealing against
+/// 983 ms without at one binary, while a small program keeps its static
+/// shares and therefore its run-to-run type order.
+pub(crate) const STEAL_MIN_FIXTURES: usize = 256;
+
+/// Whether an exhausted partition lane may steal from the others (default;
+/// `TSRS_SHARD_STEAL=0` keeps the static shares at every size).
 pub(crate) fn stealing_enabled() -> bool {
     static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *ENABLED.get_or_init(|| {
