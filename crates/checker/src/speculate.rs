@@ -340,10 +340,14 @@ impl CheckerState<'_> {
     /// `commit_speculation` / `rollback_speculation`; prefer the
     /// `speculate` wrapper, which also owns the Err boundary ordering.
     pub fn begin_speculation(&mut self) -> SpeculationCheckpoint {
-        debug_assert!(
-            self.exhaustive_switch_computing.is_empty(),
-            "exhaustive-switch computation may not straddle a speculation boundary (7.0t inventory)"
-        );
+        // `exhaustive_switch_computing` is a category-A transient: the
+        // checkpoint clones it, commit requires it balanced and rollback
+        // restores it. The 7.0t inventory assumed it empty at every
+        // boundary, but computeExhaustiveSwitchStatement checks the switch
+        // expression (checkExpressionCached, _tsc.js:78946) and the clause
+        // expressions, which resolve calls and open candidate trials
+        // (VS Code `src` witness: `switch (f(x))` reached from an implicit-
+        // return query while its function's return type is inferred).
         if self.speculation_depth == 0 {
             debug_assert!(
                 self.tsc_eager_diagnostics.is_empty()
@@ -540,9 +544,9 @@ impl CheckerState<'_> {
                 self.reduce_label_overrides, checkpoint.reduce_label_overrides,
                 "speculative region committed with unbalanced ReduceLabel overrides"
             );
-            assert!(
-                self.exhaustive_switch_computing.is_empty(),
-                "speculative region committed inside an exhaustive-switch computation"
+            assert_eq!(
+                self.exhaustive_switch_computing, checkpoint.exhaustive_switch_computing,
+                "speculative region committed with unbalanced exhaustive-switch computations"
             );
         }
     }

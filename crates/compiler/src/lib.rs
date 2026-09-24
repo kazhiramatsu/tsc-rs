@@ -180,6 +180,7 @@ fn sharded_emit_supported(options: &CompilerOptions) -> bool {
 /// source name, as the emit pool matches its units), each session's sources
 /// in one resolver borrow on the worker budget, so no two workers contend
 /// for one session. Sorted and deduplicated like the serial getter's result.
+#[allow(clippy::too_many_arguments)]
 fn sharded_declaration_diagnostics(
     checked_host: &CheckedEmitHost<'_, '_>,
     emit_host: &PreparedEmitHost<'_>,
@@ -319,6 +320,7 @@ fn no_emit_report_is_clean(prepared: &PreparedProgram, checked: &CheckResult) ->
 /// the worker budget, and nothing is emitted. The declaration request is
 /// validated here, once the command's gate admits the getter, exactly as
 /// the explicit getter session validates it.
+#[allow(clippy::too_many_arguments)]
 fn no_emit_declaration_diagnostics(
     prepared: &PreparedProgram,
     emit_route: EmitRouteKind,

@@ -23,7 +23,10 @@ use tsc_binder::{node_util, SymbolId};
 use tsc_diagnostics::{
     gen as diagnostics, Diagnostic, DiagnosticCategory, DiagnosticMessage, JsString,
 };
-use tsc_syntax::nodes::{ImportTypeData, JSDocFunctionTypeData, JSDocTypeLiteralData};
+use tsc_syntax::nodes::{
+    ImportTypeData, JSDocFunctionTypeData, JSDocMemberNameData, JSDocTypeLiteralData,
+    QualifiedNameData,
+};
 use tsc_syntax::{for_each_child, NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsc_types::{
     CheckFlags, ElementFlags, ModifierFlags, NodeCheckFlags, ObjectFlags, SymbolFlags, TypeData,
@@ -2263,13 +2266,18 @@ impl<'a> CheckerState<'a> {
 
         let (left, right) = match self.data_of(name) {
             NodeData::Identifier(data) => (container, data.escaped_text.clone()),
-            NodeData::JSDocMemberName(data) => {
-                let left = match data.left {
+            // 87523-87524: `name.left` / `name.right` of a QualifiedName as of
+            // a JSDocMemberName. `{@link Class.member}` fails the entity-name
+            // pass above (a class is no namespace), and this resolution of
+            // the left identifier is what marks an imported alias referenced
+            // (VS Code's `import type` members documented through @link).
+            NodeData::JSDocMemberName(JSDocMemberNameData { left, right })
+            | NodeData::QualifiedName(QualifiedNameData { left, right }) => {
+                let left = match *left {
                     Some(left) => self.resolve_jsdoc_member_name(left, ignore_errors, container)?,
                     None => None,
                 };
-                let right = data
-                    .right
+                let right = right
                     .and_then(|right| self.identifier_text_of(right))
                     .unwrap_or_default()
                     .to_owned();

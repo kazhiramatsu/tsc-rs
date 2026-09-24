@@ -347,7 +347,12 @@ impl<'a> CheckerState<'a> {
             };
             if needs_assignment {
                 if parameter.is_none() {
-                    let created = self.create_symbol_without_type(context_this);
+                    // 78386: createSymbolWithType(context.thisParameter,
+                    // undefined) copies the contextual parameter's
+                    // declarations, so getExplicitThisType later finds an
+                    // explicitly annotated `this` and a never-returning
+                    // `this.skip()` ends its branch (VS Code's mocha hooks).
+                    let created = self.create_symbol_with_type(context_this, None);
                     self.signatures[signature.0 as usize].this_parameter = Some(created);
                 }
                 let this_type = self.get_type_of_symbol(context_this)?;
@@ -603,21 +608,6 @@ impl<'a> CheckerState<'a> {
             }
         }
         Ok(())
-    }
-
-    /// createSymbolWithType's no-type face (78368-78373 half): clone
-    /// flags/name/READONLY check-flag, leave the links type vacant for
-    /// assignParameterType's once-write.
-    fn create_symbol_without_type(&mut self, source: SymbolId) -> SymbolId {
-        let source_flags = self.symbol_flags(source);
-        let name = self.binder.symbol(source).escaped_name.clone();
-        let symbol = self.binder.create_symbol(source_flags, name);
-        let readonly = tsc_types::CheckFlags::from_bits(
-            self.get_check_flags(source).bits() & tsc_types::CheckFlags::READONLY.bits(),
-        );
-        self.links
-            .set_symbol_check_flags(self.speculation_depth, symbol, readonly);
-        symbol
     }
 
     // ---- getReturnTypeFromBody + aggregators ----

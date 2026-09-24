@@ -2218,3 +2218,38 @@ module.exports = function MC() {
         );
     });
 }
+
+#[test]
+fn jsdoc_links_to_class_members_mark_the_imported_class_as_referenced() {
+    // resolveJSDocMemberName (87523): `{@link Class.member}` fails the
+    // entity-name pass (a class is no namespace) and resolves its left as a
+    // member name; that resolution marks the import referenced. VS Code's
+    // `src` documents members this way from `import type` roots.
+    let rows = unused_rows_for_files(
+        &[
+            (
+                "dep.ts",
+                "export class EditorWorker { computeDiff(): number { return 1; } }\n\
+                 export type AutomationEntry = { id: string };\n",
+            ),
+            (
+                "member.ts",
+                "import type { EditorWorker } from './dep';\n\
+                 import type { AutomationEntry } from './dep';\n\
+                 export interface IEditorWorkerService {\n\
+                 \t/** Implementation in {@link EditorWorker.computeDiff} */\n\
+                 \tcomputeDiff(): number;\n\
+                 }\n\
+                 /**\n\
+                 \x20* Linked {@link AutomationEntry.id} in the definition.\n\
+                 \x20*/\n\
+                 export const marker = 1;\n",
+            ),
+        ],
+        &CompilerOptions {
+            no_unused_locals: Some(true),
+            ..CompilerOptions::default()
+        },
+    );
+    assert!(rows.is_empty(), "{rows:?}");
+}

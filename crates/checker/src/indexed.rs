@@ -335,19 +335,14 @@ impl<'a> CheckerState<'a> {
         include: TypeFlags,
         include_non_public: bool,
     ) -> CheckResult<TypeId> {
+        // 61984: getDeclarationModifierFlagsFromSymbol reads the GETTER's
+        // modifiers for an accessor pair (a public `get` beside a private
+        // `set` keeps the key public, as VS Code's ChatWidget.viewModel);
+        // the value declaration alone would report the first accessor.
         let non_public = !include_non_public
             && self
-                .binder
-                .symbol(property)
-                .value_declaration
-                .is_some_and(|declaration| {
-                    let source = self.binder.source_of_node(declaration);
-                    tsc_binder::node_util::has_syntactic_modifier(
-                        source,
-                        declaration,
-                        tsc_types::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER,
-                    )
-                });
+                .get_declaration_modifier_flags_from_symbol(property)
+                .intersects(tsc_types::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER);
         if non_public {
             return Ok(self.tables.intrinsics.never);
         }
