@@ -1607,7 +1607,7 @@ pub struct PreparedProgramBuilder {
     library_files: Vec<SourceFileId>,
     auxiliary_files: BTreeMap<CanonicalPath, PreparedAuxiliaryFile>,
     packages: BTreeMap<CanonicalPath, PackageMetadata>,
-    text_by_canonical: BTreeMap<CanonicalPath, String>,
+    text_by_canonical: rustc_hash::FxHashMap<CanonicalPath, Arc<str>>,
     resolutions: ResolutionTable,
     dependency_symlink_resolutions: Vec<(ProgramPath, ProgramPath)>,
     diagnostics: PreparationDiagnostics,
@@ -1648,7 +1648,7 @@ impl PreparedProgramBuilder {
             library_files: Vec::new(),
             auxiliary_files: BTreeMap::new(),
             packages: BTreeMap::new(),
-            text_by_canonical: BTreeMap::new(),
+            text_by_canonical: rustc_hash::FxHashMap::default(),
             resolutions: ResolutionTable::default(),
             dependency_symlink_resolutions: Vec::new(),
             diagnostics: PreparationDiagnostics::default(),
@@ -1681,14 +1681,14 @@ impl PreparedProgramBuilder {
         let package_redirect_paths = source.package_redirect_paths().to_vec();
         self.register_text_owner(
             &canonical,
-            source.text(),
+            source.snapshot().shared_text(),
             source.path().display(),
             PreparationOperation::AddSourceFile,
         )?;
         if let Some(real_path) = source.real_path() {
             self.register_text_owner(
                 real_path.canonical(),
-                source.text(),
+                source.snapshot().shared_text(),
                 real_path.display(),
                 PreparationOperation::AddSourceFile,
             )?;
@@ -1936,7 +1936,7 @@ impl PreparedProgramBuilder {
         let canonical = file.path().canonical().clone();
         self.register_text_owner(
             &canonical,
-            file.text(),
+            file.snapshot().shared_text(),
             file.path().display(),
             PreparationOperation::AddAuxiliaryFile,
         )?;
@@ -1975,7 +1975,7 @@ impl PreparedProgramBuilder {
         let canonical = package.package_json().canonical().clone();
         self.register_text_owner(
             &canonical,
-            package.text(),
+            package.snapshot().shared_text(),
             package.package_json().display(),
             PreparationOperation::AddPackageMetadata,
         )?;
@@ -2169,15 +2169,18 @@ impl PreparedProgramBuilder {
         }
     }
 
+    /// The decoded text is shared with the snapshot that owns it (one
+    /// reference count per file) rather than copied: VS Code src's 110 MB of
+    /// sources were duplicated here before.
     fn register_text_owner(
         &mut self,
         canonical: &CanonicalPath,
-        text: &str,
+        text: Arc<str>,
         display: JsStr<'_>,
         operation: PreparationOperation,
     ) -> Result<(), PreparationError> {
         if let Some(existing) = self.text_by_canonical.get(canonical) {
-            if existing == text {
+            if Arc::ptr_eq(existing, &text) || **existing == *text {
                 return Ok(());
             }
             return Err(PreparationError::new_js(
@@ -2190,8 +2193,7 @@ impl PreparedProgramBuilder {
                 ),
             ));
         }
-        self.text_by_canonical
-            .insert(canonical.clone(), text.to_owned());
+        self.text_by_canonical.insert(canonical.clone(), text);
         Ok(())
     }
 
