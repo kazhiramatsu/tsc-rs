@@ -327,7 +327,15 @@ impl<'a> BinderWorker<'a> {
                 AssignmentDeclarationKind::ObjectDefinePrototypeProperty => {
                     self.bind_object_define_prototype_property(node)
                 }
-                AssignmentDeclarationKind::None => self.bind_call_expression(node),
+                // bindWorker: `if (isInJSFile(node)) bindCallExpression(node)`
+                // — only a JavaScript file's `require()` call makes it a
+                // CommonJS module; a TypeScript script keeps its global scope
+                // (and its declaration emit).
+                AssignmentDeclarationKind::None => {
+                    if self.is_in_js_file() {
+                        self.bind_call_expression(node)
+                    }
+                }
                 _ => debug_assert!(false, "Unknown call expression assignment declaration kind"),
             },
             SyntaxKind::ClassExpression | SyntaxKind::ClassDeclaration => {
