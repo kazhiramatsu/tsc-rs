@@ -982,6 +982,9 @@ pub struct ProgramBinder<'a> {
     /// interval start and the owning file's arena slice, so a hinted lookup
     /// reaches the record with one range check and one index.
     node_routes: Vec<NodeRoute<'a>>,
+    /// Per owner interval of `symbol_owners`, the file's symbol slice; empty
+    /// when a legacy (borrowed-binder) entry is present.
+    symbol_routes: Vec<SymbolRoute<'a>>,
     /// Checker-side symbols (tsc createSymbol 47652 adds Transient).
     transient: SymbolArena,
 }
@@ -992,6 +995,14 @@ pub struct ProgramBinder<'a> {
 struct NodeRoute<'a> {
     start: u32,
     nodes: &'a [tsc_syntax::Node],
+}
+
+/// One file's persistent symbol slice, indexed by `id - start` (see
+/// [`ProgramBinder::symbol`]); built only when every program entry is an
+/// owned document, whose symbols live for the program lifetime.
+struct SymbolRoute<'a> {
+    start: u32,
+    symbols: &'a [Symbol],
 }
 
 /// Page-table routing over sorted, disjoint owner intervals: `id >>
@@ -1270,6 +1281,27 @@ impl<'a> ProgramBinder<'a> {
                 nodes: file_entries[owner.file].source().arena.nodes(),
             })
             .collect::<Vec<_>>();
+        let symbol_routes = if file_entries
+            .iter()
+            .all(|entry| matches!(entry, ProgramEntry::Owned(_)))
+        {
+            symbol_owners
+                .iter()
+                .map(|owner| {
+                    let ProgramEntry::Owned(document) = &file_entries[owner.file] else {
+                        unreachable!("every entry is an owned document here")
+                    };
+                    let document: &'a Arc<BoundDocument> = document;
+                    debug_assert_eq!(owner.start, document.data.symbols.base());
+                    SymbolRoute {
+                        start: owner.start,
+                        symbols: document.data.symbols.symbols(),
+                    }
+                })
+                .collect::<Vec<_>>()
+        } else {
+            Vec::new()
+        };
         Ok(Self {
             file_entries,
             sources,
@@ -1283,6 +1315,7 @@ impl<'a> ProgramBinder<'a> {
             node_files,
             symbol_files,
             node_routes,
+            symbol_routes,
             transient: SymbolArena::with_base(TRANSIENT_SYMBOL_BIT),
         })
     }
@@ -1483,6 +1516,26 @@ impl<'a> ProgramBinder<'a> {
     /// checker-owned transient arena; tsc carries object references.
     #[inline]
     pub fn symbol(&self, id: SymbolId) -> &Symbol {
+        if id.0 & TRANSIENT_SYMBOL_BIT != 0 {
+            return self.transient.symbol(id);
+        }
+        // The hinted route answers a run of lookups inside one file's
+        // symbols with one range check and one index (as `node_record`).
+        let hint = self.symbol_owner_hint.load(Ordering::Relaxed);
+        if let Some(route) = self.symbol_routes.get(hint) {
+            if let Some(record) =
+                id.0.checked_sub(route.start)
+                    .and_then(|offset| route.symbols.get(offset as usize))
+            {
+                return record;
+            }
+        }
+        self.symbol_routed(id)
+    }
+
+    #[cold]
+    fn symbol_routed(&self, id: SymbolId) -> &Symbol {
+        // `owner_of_symbol` stores the owner index as the next hint.
         match self.owner_of_symbol(id) {
             Ok(file) => match &self.file_entries[file] {
                 ProgramEntry::Legacy(entry) => entry.binder.symbols.symbol(id),
