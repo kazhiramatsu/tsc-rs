@@ -245,8 +245,74 @@ pub(crate) fn partition_files_by_directory(
     shards: usize,
     slack_percent: u64,
 ) -> Vec<Vec<usize>> {
+    partition_files_by_directory_with_cost(
+        weights,
+        &[],
+        directories,
+        shards,
+        slack_percent,
+        CostModel::NodesLog,
+    )
+}
+
+/// The static check-cost estimate of a file for the directory-preferring
+/// partition. The default is the plain node count: measured at one binary
+/// with eight checkers, it took VS Code `src` from 5.03 to 4.84 s (the
+/// slowest shard 4.10 → 3.61 s), Playwright from 558 to 486 ms and the
+/// Next.js root from 790 to 774 ms against the node count scaled by its
+/// logarithm (`packages/next` 930 → 969 ms), and a symbol-count term did no
+/// better on any of them. `TSRS_SHARD_COST` selects another for
+/// measurement: `nlog` ([`cost_weight`]), or `symbols:K` (node count plus K
+/// times the binder's symbol count).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum CostModel {
+    NodesLog,
+    Nodes,
+    NodesSymbols(u64),
+}
+
+pub(crate) fn cost_model_requested() -> CostModel {
+    static MODEL: std::sync::OnceLock<CostModel> = std::sync::OnceLock::new();
+    *MODEL.get_or_init(|| {
+        let value = std::env::var("TSRS_SHARD_COST").unwrap_or_default();
+        if value == "nlog" {
+            CostModel::NodesLog
+        } else if let Some(rest) = value.strip_prefix("symbols") {
+            CostModel::NodesSymbols(
+                rest.strip_prefix(':')
+                    .and_then(|k| k.parse::<u64>().ok())
+                    .unwrap_or(8),
+            )
+        } else {
+            CostModel::Nodes
+        }
+    })
+}
+
+fn cost_of(model: CostModel, nodes: usize, symbols: usize) -> u64 {
+    match model {
+        CostModel::NodesLog => cost_weight(nodes),
+        CostModel::Nodes => nodes.max(1) as u64,
+        CostModel::NodesSymbols(k) => nodes.max(1) as u64 + k * symbols as u64,
+    }
+}
+
+/// [`partition_files_by_directory`] with the file cost chosen by `model`
+/// (`symbols`, index = Program file, may be empty).
+pub(crate) fn partition_files_by_directory_with_cost(
+    weights: &[usize],
+    symbols: &[usize],
+    directories: &[u32],
+    shards: usize,
+    slack_percent: u64,
+    model: CostModel,
+) -> Vec<Vec<usize>> {
     let shards = shards.clamp(1, weights.len().max(1));
-    let costs: Vec<u64> = weights.iter().map(|&nodes| cost_weight(nodes)).collect();
+    let costs: Vec<u64> = weights
+        .iter()
+        .enumerate()
+        .map(|(file, &nodes)| cost_of(model, nodes, symbols.get(file).copied().unwrap_or(0)))
+        .collect();
     let total: u64 = costs.iter().sum();
     let slack = total / shards as u64 * slack_percent / 100;
     let mut order: Vec<usize> = (0..weights.len()).collect();
@@ -541,6 +607,7 @@ impl ShardFileQueue {
     pub(crate) fn partitioned_with_directories(
         lib_count: usize,
         weights: &[usize],
+        symbols: &[usize],
         directories: &[u32],
         shards: usize,
     ) -> Self {
@@ -549,7 +616,14 @@ impl ShardFileQueue {
             PartitionMode::Contiguous => partition_files_contiguous(weights, shards),
             PartitionMode::Blocks(per_shard) => partition_files_blocks(weights, shards, per_shard),
             PartitionMode::Directory(slack) if !directories.is_empty() => {
-                partition_files_by_directory(weights, directories, shards, slack)
+                partition_files_by_directory_with_cost(
+                    weights,
+                    symbols,
+                    directories,
+                    shards,
+                    slack,
+                    cost_model_requested(),
+                )
             }
             PartitionMode::Directory(_) | PartitionMode::LeastLoad => {
                 partition_files(weights, shards)
@@ -839,7 +913,7 @@ mod tests {
     fn partitioned_queue_serves_each_shard_its_own_share_in_program_order() {
         // File 0 is the (heavy) library; the fixtures are light.
         let weights = [5, 1, 1, 1, 1, 1, 1];
-        let queue = ShardFileQueue::partitioned_with_directories(1, &weights, &[], 2);
+        let queue = ShardFileQueue::partitioned_with_directories(1, &weights, &[], &[], 2);
         let expected = partition_files(&weights, 2);
         assert_eq!(queue.shard_count(), expected.len());
         for (shard, share) in expected.iter().enumerate() {
@@ -862,7 +936,7 @@ mod tests {
         // A shard index beyond the partition serves nothing.
         assert_eq!(queue.next_fixture(expected.len()), None);
         assert_eq!(queue.reserved_nodes(expected.len()), 0);
-        let empty = ShardFileQueue::partitioned_with_directories(0, &[], &[], 4);
+        let empty = ShardFileQueue::partitioned_with_directories(0, &[], &[], &[], 4);
         assert_eq!(empty.shard_count(), 1);
         assert_eq!(empty.next_fixture(0), None);
     }

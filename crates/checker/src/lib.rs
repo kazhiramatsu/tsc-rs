@@ -2934,6 +2934,9 @@ fn run_checker_shard<'a>(
     // becomes free; both passes run in increasing Program order within the
     // shard, as the serial completion pass checks them.
     let mut files = Vec::new();
+    // `TSRS_FILE_TRACE=1` prints one line per checked file with the static
+    // sizes a partition cost model can use and the measured check time.
+    let file_trace = std::env::var_os("TSRS_FILE_TRACE").is_some();
     while let Some(file) = queue.next_fixture(shard_index) {
         // Shared-AST invariant: the shard's binder borrows the snapshot's
         // documents (pointer-identical sources); it never copies a tree.
@@ -2941,7 +2944,19 @@ fn run_checker_shard<'a>(
             state.binder.source(file),
             snapshot.document(file).source()
         ));
+        let file_started = file_trace.then(std::time::Instant::now);
         check_program_file(&mut state, program_file_id(file), &mut globals_by_file);
+        if let Some(started) = file_started {
+            let document = snapshot.document(file);
+            eprintln!(
+                "[file] shard={shard_index} file={file} nodes={} symbols={} flow={} ms={:.3} {}",
+                document.source().arena.len(),
+                document.data.symbols.len(),
+                document.data.flow.len(),
+                started.elapsed().as_secs_f64() * 1e3,
+                document.source().file_name.as_js().to_string_lossy()
+            );
+        }
         files.push(file);
         if state.order_guard.reasons() != 0 && replay_on_order {
             // The replay is certain: release the other shards' remaining
@@ -3339,12 +3354,18 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             *directory_ids.entry(&bytes[..end]).or_insert(next)
         })
         .collect::<Vec<u32>>();
+    let symbols = snapshot
+        .documents()
+        .iter()
+        .map(|document| document.data.symbols.len())
+        .collect::<Vec<usize>>();
     let queue = if shard::shared_queue_requested() {
         shard::ShardFileQueue::shared(lib_count, &weights, checker_count)
     } else {
         shard::ShardFileQueue::partitioned_with_directories(
             lib_count,
             &weights,
+            &symbols,
             &directories,
             checker_count,
         )
