@@ -12,7 +12,10 @@ use tsc_syntax::{
     child_slots, map_child_slots, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind,
 };
 
-use super::{array_memo, node_memo, ArrayMemo, NodeMemo};
+use super::{
+    array_memo, node_memo, update_node_array_lazily, ArrayElementVisit, ArrayMemo,
+    LazyChildVisitor, NodeMemo,
+};
 use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget};
 
 use crate::{
@@ -2494,17 +2497,12 @@ impl NodeDataChildVisitor for EsNextVisitor<'_> {
             return Ok(*mapped);
         }
         let original = self.array(id);
-        let nodes = self.context.arena().node_array(original)?.nodes.clone();
-        let mut visited = Vec::with_capacity(nodes.len());
-        for node in nodes {
-            if let Some(node) = self.visit(node)? {
-                visited.push(self.node(node));
-            }
-        }
-        let updated = self
-            .context
-            .factory()?
-            .update_node_array(original, visited)?;
+        let updated = update_node_array_lazily(self, original, |visitor, node| {
+            Ok(match visitor.visit(node)? {
+                Some(node) => ArrayElementVisit::One(visitor.node(node)),
+                None => ArrayElementVisit::Removed,
+            })
+        })?;
         let mapped = Some(updated.array());
         self.arrays.insert(id, mapped);
         Ok(mapped)
@@ -2512,5 +2510,15 @@ impl NodeDataChildVisitor for EsNextVisitor<'_> {
 
     fn required_child_removed(&mut self, parent: SyntaxKind, field: &'static str) -> Self::Error {
         TransformError::RequiredChildRemoved { parent, field }
+    }
+}
+
+impl LazyChildVisitor for EsNextVisitor<'_> {
+    fn transformation_context(&self) -> &TransformationContext {
+        self.context
+    }
+
+    fn transformation_context_mut(&mut self) -> &mut TransformationContext {
+        self.context
     }
 }

@@ -23,6 +23,7 @@ use super::{
     is_prologue_statement,
     system::collect_identifier_texts,
     target_bindings::{TargetBinding, UsedNames},
+    update_node_array_lazily, ArrayElementVisit, LazyChildVisitor,
 };
 
 const DECORATE_HELPER_TEXT: &str = r#"var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
@@ -4545,6 +4546,16 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
     }
 }
 
+impl LazyChildVisitor for LegacyDecoratorVisitor<'_, '_> {
+    fn transformation_context(&self) -> &TransformationContext {
+        self.context
+    }
+
+    fn transformation_context_mut(&mut self) -> &mut TransformationContext {
+        self.context
+    }
+}
+
 impl NodeDataChildVisitor for LegacyDecoratorVisitor<'_, '_> {
     type Error = TransformError;
 
@@ -4565,19 +4576,19 @@ impl NodeDataChildVisitor for LegacyDecoratorVisitor<'_, '_> {
             return Ok(*mapped);
         }
         let original = self.array(id);
-        let nodes = self.context.arena().node_array(original)?.nodes.clone();
-        let mut visited = Vec::with_capacity(nodes.len());
-        for node in nodes {
-            if self.context.arena().node(self.node(node))?.kind == SyntaxKind::ClassDeclaration {
-                visited.extend(self.visit_class_declaration(node)?);
-            } else if let Some(node) = self.visit(node)? {
-                visited.push(self.node(node));
+        let updated = update_node_array_lazily(self, original, |visitor, node| {
+            if visitor.context.arena().node(visitor.node(node))?.kind
+                == SyntaxKind::ClassDeclaration
+            {
+                return Ok(ArrayElementVisit::Many(
+                    visitor.visit_class_declaration(node)?,
+                ));
             }
-        }
-        let updated = self
-            .context
-            .factory()?
-            .update_node_array(original, visited)?;
+            Ok(match visitor.visit(node)? {
+                Some(node) => ArrayElementVisit::One(visitor.node(node)),
+                None => ArrayElementVisit::Removed,
+            })
+        })?;
         let mapped = Some(updated.array());
         self.arrays.insert(id, mapped);
         Ok(mapped)

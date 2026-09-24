@@ -1766,6 +1766,16 @@ impl<'context> JsxVisitor<'context> {
     }
 }
 
+impl super::LazyChildVisitor for JsxVisitor<'_> {
+    fn transformation_context(&self) -> &TransformationContext {
+        self.context
+    }
+
+    fn transformation_context_mut(&mut self) -> &mut TransformationContext {
+        self.context
+    }
+}
+
 impl NodeDataChildVisitor for JsxVisitor<'_> {
     type Error = TransformError;
 
@@ -1786,17 +1796,12 @@ impl NodeDataChildVisitor for JsxVisitor<'_> {
             return Ok(*mapped);
         }
         let original = self.array(id);
-        let ids = self.context.arena().node_array(original)?.nodes.clone();
-        let mut visited = Vec::with_capacity(ids.len());
-        for id in ids {
-            if let Some(id) = self.visit(id)? {
-                visited.push(self.node(id));
-            }
-        }
-        let updated = self
-            .context
-            .factory()?
-            .update_node_array(original, visited)?;
+        let updated = super::update_node_array_lazily(self, original, |visitor, id| {
+            Ok(match visitor.visit(id)? {
+                Some(id) => super::ArrayElementVisit::One(visitor.node(id)),
+                None => super::ArrayElementVisit::Removed,
+            })
+        })?;
         let mapped = Some(updated.array());
         self.arrays.insert(id, mapped);
         Ok(mapped)

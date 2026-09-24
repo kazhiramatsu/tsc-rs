@@ -5,11 +5,12 @@
 //! walk and gives private storage and static-super aliases one ownership point.
 
 use super::super::{
-    array_memo, node_memo, update_children_lazily, ArrayMemo, LazyChildVisitor, NodeMemo,
+    array_memo, node_memo, update_children_lazily, update_node_array_lazily, ArrayElementVisit,
+    ArrayMemo, LazyChildVisitor, NodeMemo,
 };
 use crate::transform::try_visit_transform_children;
 use std::{
-    cell::RefCell,
+    cell::{OnceCell, RefCell},
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
@@ -948,14 +949,13 @@ pub(super) fn transform_source(
     } else {
         PublicFieldMode::Assignment
     };
-    let tree_ownership = OriginalTreeOwnership::collect(context.arena(), source, root.node())?;
     let mut visitor = DownlevelClassVisitor::new(
         context,
         source,
         resolver,
         target,
         mode,
-        tree_ownership,
+        root.node(),
         class_aliases,
         static_emit_environments,
     );
@@ -1006,7 +1006,10 @@ struct DownlevelClassVisitor<'context, 'resolver, 'aliases> {
     generated_private_temp_backings: BTreeMap<NodeId, &'static str>,
     generated_auto_accessor_pairs: BTreeMap<NodeId, NodeId>,
     assigned_class_names: BTreeMap<NodeId, AssignedClassName>,
-    tree_ownership: OriginalTreeOwnership,
+    /// The root this pass started from, and the parent table of its tree,
+    /// collected on first use (see [`Self::tree_ownership`]).
+    root: NodeId,
+    tree_ownership: OnceCell<OriginalTreeOwnership>,
     class_aliases: &'aliases mut BTreeMap<(u32, u32), ClassBinding>,
     /// Environments of the classes currently being lowered (parallel to
     /// `private_environments`), innermost last.
@@ -1026,7 +1029,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         resolver: &'resolver dyn EmitResolver,
         target: ScriptTarget,
         mode: PublicFieldMode,
-        tree_ownership: OriginalTreeOwnership,
+        root: NodeId,
         class_aliases: &'aliases mut BTreeMap<(u32, u32), ClassBinding>,
         static_emit_environments: &'aliases mut BTreeMap<(u32, u32), Rc<StaticEmitEnvironment>>,
     ) -> Self {
@@ -1054,7 +1057,8 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             generated_private_temp_backings: BTreeMap::new(),
             generated_auto_accessor_pairs: BTreeMap::new(),
             assigned_class_names: BTreeMap::new(),
-            tree_ownership,
+            root,
+            tree_ownership: OnceCell::new(),
             class_aliases,
             emit_environments: Vec::new(),
             static_emit_environments,
@@ -1129,6 +1133,20 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             Rc::clone(emit_environment),
         );
         Ok(())
+    }
+
+    /// The parent table of the tree this pass started from, collected the
+    /// first time a class, private name or computed key consults it: a
+    /// source without one never walks its tree for the table. The nodes the
+    /// pass appends are unreachable from that root, so a later collection
+    /// reads exactly the table an eager one did.
+    fn tree_ownership(&self) -> Result<&OriginalTreeOwnership, TransformError> {
+        if let Some(ownership) = self.tree_ownership.get() {
+            return Ok(ownership);
+        }
+        let ownership =
+            OriginalTreeOwnership::collect(self.context.arena(), self.source, self.root)?;
+        Ok(self.tree_ownership.get_or_init(|| ownership))
     }
 
     fn visit(&mut self, id: NodeId) -> Result<Option<NodeId>, TransformError> {
@@ -2825,7 +2843,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             return Ok(Some(AssignedClassName::Literal("default".into())));
         }
         let mut current = class.node();
-        while let Some(parent) = self.tree_ownership.unique_parent(current) {
+        while let Some(parent) = self.tree_ownership()?.unique_parent(current) {
             let parent = self
                 .context
                 .arena()
@@ -3024,7 +3042,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
     ) -> Result<Option<StatementExpansionOwner>, TransformError> {
         let mut current = class.node();
         loop {
-            let Some(parent) = self.tree_ownership.unique_parent(current) else {
+            let Some(parent) = self.tree_ownership()?.unique_parent(current) else {
                 return Ok(None);
             };
             let parent_node = self
@@ -3064,7 +3082,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             if data.initializer != Some(current) {
                 return Ok(None);
             }
-            let Some(list) = self.tree_ownership.unique_parent(parent) else {
+            let Some(list) = self.tree_ownership()?.unique_parent(parent) else {
                 return Ok(None);
             };
             let list_node = self
@@ -3075,7 +3093,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             if self.context.arena().node(list_node)?.kind != SyntaxKind::VariableDeclarationList {
                 return Ok(None);
             }
-            let Some(statement) = self.tree_ownership.unique_parent(list) else {
+            let Some(statement) = self.tree_ownership()?.unique_parent(list) else {
                 return Ok(None);
             };
             let statement_node = self
@@ -3106,7 +3124,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         };
         let mut current = class.node();
         let mut initializer_receiver = None;
-        while let Some(parent) = self.tree_ownership.unique_parent(current) {
+        while let Some(parent) = self.tree_ownership()?.unique_parent(current) {
             let parent_node = self
                 .context
                 .arena()
@@ -3198,7 +3216,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         original: TransformNode,
     ) -> Result<InlineSequencePlacement, TransformError> {
         let mut current = original.node();
-        while let Some(parent) = self.tree_ownership.unique_parent(current) {
+        while let Some(parent) = self.tree_ownership()?.unique_parent(current) {
             let parent_node = self
                 .context
                 .arena()
@@ -4465,7 +4483,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             return Ok(original.node());
         }
         let parent_is_statement = self
-            .tree_ownership
+            .tree_ownership()?
             .unique_parent(original.node())
             .and_then(|parent| self.context.arena().node_ref(self.source, parent))
             .map(|parent| self.context.arena().node(parent).map(|node| node.kind))
@@ -7162,7 +7180,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         mut data: tsc_syntax::nodes::ComputedPropertyNameData,
     ) -> Result<NodeId, TransformError> {
         let is_class_element_name = self
-            .tree_ownership
+            .tree_ownership()?
             .unique_parent(original.node())
             .and_then(|parent| self.context.arena().node_ref(self.source, parent))
             .and_then(|parent| self.context.arena().node(parent).ok())
@@ -9713,25 +9731,25 @@ impl NodeDataChildVisitor for DownlevelClassVisitor<'_, '_, '_> {
             return Ok(*mapped);
         }
         let original = self.array(id);
-        let nodes = self.context.arena().node_array(original)?.nodes.clone();
-        let mut visited = Vec::with_capacity(nodes.len());
-        for original_node in nodes {
-            if let Some(node) = self.visit(original_node)? {
-                visited.push(self.node(node));
-                let expanded = self
-                    .expanded_statements
-                    .get(&node)
-                    .or_else(|| self.expanded_statements.get(&original_node))
-                    .cloned();
-                if let Some(expanded) = expanded {
-                    visited.extend(expanded.into_iter().map(|node| self.node(node)));
+        let updated = update_node_array_lazily(self, original, |visitor, original_node| {
+            let Some(node) = visitor.visit(original_node)? else {
+                return Ok(ArrayElementVisit::Removed);
+            };
+            let expanded = visitor
+                .expanded_statements
+                .get(&node)
+                .or_else(|| visitor.expanded_statements.get(&original_node))
+                .cloned();
+            Ok(match expanded {
+                Some(expanded) => {
+                    let mut nodes = Vec::with_capacity(expanded.len() + 1);
+                    nodes.push(visitor.node(node));
+                    nodes.extend(expanded.into_iter().map(|node| visitor.node(node)));
+                    ArrayElementVisit::Many(nodes)
                 }
-            }
-        }
-        let updated = self
-            .context
-            .factory()?
-            .update_node_array(original, visited)?;
+                None => ArrayElementVisit::One(visitor.node(node)),
+            })
+        })?;
         let mapped = Some(updated.array());
         self.arrays.insert(id, mapped);
         Ok(mapped)

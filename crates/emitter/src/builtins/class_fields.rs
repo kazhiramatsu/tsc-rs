@@ -19,6 +19,7 @@ use super::{
     initialize_transform_flags,
     system::collect_identifier_texts,
     target_bindings::{finalize_generated_binding_names, TargetBinding},
+    update_node_array_lazily, ArrayElementVisit, LazyChildVisitor,
 };
 
 mod downlevel;
@@ -4224,23 +4225,26 @@ impl NodeDataChildVisitor for ClassFieldsVisitor<'_, '_, '_> {
 
     fn visit_nodes(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, Self::Error> {
         let original = self.array(id);
-        let nodes = self.context.arena().node_array(original)?.nodes.clone();
-        let mut visited = Vec::with_capacity(nodes.len());
-        for node in nodes {
-            match self.visit_outcome(self.node(node))? {
-                RetainedVisitOutcome::One(node) => visited.push(node),
-                RetainedVisitOutcome::Many(nodes) => visited.extend(nodes),
-            }
-        }
-        Ok(Some(
-            self.context
-                .factory()?
-                .update_node_array(original, visited)?
-                .array(),
-        ))
+        let updated = update_node_array_lazily(self, original, |visitor, node| {
+            Ok(match visitor.visit_outcome(visitor.node(node))? {
+                RetainedVisitOutcome::One(node) => ArrayElementVisit::One(node),
+                RetainedVisitOutcome::Many(nodes) => ArrayElementVisit::Many(nodes),
+            })
+        })?;
+        Ok(Some(updated.array()))
     }
 
     fn required_child_removed(&mut self, parent: SyntaxKind, field: &'static str) -> Self::Error {
         TransformError::RequiredChildRemoved { parent, field }
+    }
+}
+
+impl LazyChildVisitor for ClassFieldsVisitor<'_, '_, '_> {
+    fn transformation_context(&self) -> &TransformationContext {
+        self.context
+    }
+
+    fn transformation_context_mut(&mut self) -> &mut TransformationContext {
+        self.context
     }
 }

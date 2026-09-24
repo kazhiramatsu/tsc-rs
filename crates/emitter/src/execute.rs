@@ -771,6 +771,7 @@ pub fn prepare_emit_source(
     let mut arena = TransformArena::new();
     let id = arena.add_source(source, program_source);
     crate::builtins::classify_prepared_source(&mut arena, id)?;
+    crate::builtins::collect_prepared_source_censuses(&arena, id)?;
     Ok(arena.into_prepared_source(id))
 }
 

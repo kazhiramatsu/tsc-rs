@@ -6,7 +6,10 @@
 //! synthetic-reference, access-stabilization, and lexical-scope plans rather
 //! than mirroring TypeScript's nested closures or synthetic internal nodes.
 
-use super::{array_memo, node_memo, update_children_lazily, ArrayMemo, LazyChildVisitor, NodeMemo};
+use super::{
+    array_memo, node_memo, update_children_lazily, update_node_array_lazily, ArrayElementVisit,
+    ArrayMemo, LazyChildVisitor, NodeMemo,
+};
 use crate::transform::try_visit_transform_children;
 
 use tsc_syntax::{for_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind};
@@ -2530,17 +2533,12 @@ impl<'context> TargetVisitor<'context> {
             return Ok(*mapped);
         }
         let original = self.array(id);
-        let nodes = self.context.arena().node_array(original)?.nodes.clone();
-        let mut visited = Vec::with_capacity(nodes.len());
-        for node in nodes {
-            if let Some(node) = self.visit(node)? {
-                visited.push(self.node(node));
-            }
-        }
-        let updated = self
-            .context
-            .factory()?
-            .update_node_array(original, visited)?;
+        let updated = update_node_array_lazily(self, original, |visitor, node| {
+            Ok(match visitor.visit(node)? {
+                Some(node) => ArrayElementVisit::One(visitor.node(node)),
+                None => ArrayElementVisit::Removed,
+            })
+        })?;
         let mapped = Some(updated.array());
         self.arrays.insert(id, mapped);
         Ok(mapped)

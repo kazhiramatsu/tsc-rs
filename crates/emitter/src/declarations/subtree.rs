@@ -1005,6 +1005,16 @@ struct DeclarationChildVisitor<'a, 't> {
     source: crate::TransformSourceId,
 }
 
+impl crate::builtins::LazyChildVisitor for DeclarationChildVisitor<'_, '_> {
+    fn transformation_context(&self) -> &TransformationContext {
+        self.cx
+    }
+
+    fn transformation_context_mut(&mut self) -> &mut TransformationContext {
+        self.cx
+    }
+}
+
 impl NodeDataChildVisitor for DeclarationChildVisitor<'_, '_> {
     type Error = TransformError;
 
@@ -1030,23 +1040,22 @@ impl NodeDataChildVisitor for DeclarationChildVisitor<'_, '_> {
 
     fn visit_nodes(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, Self::Error> {
         let original = TransformNodeArray::new(self.source, id);
-        let mut output = Vec::new();
-        for &node in &self.cx.arena().node_array(original)?.nodes.clone() {
-            match self
-                .transformer
-                .visit_declaration_subtree(self.cx, TransformNode::new(self.source, node))?
-            {
-                VisitResult::None => {}
-                VisitResult::Node(node) => output.push(node),
-                VisitResult::Nodes(nodes) => output.extend(nodes),
-            }
-        }
-        Ok(Some(
-            self.cx
-                .factory()?
-                .update_node_array(original, output)?
-                .array(),
-        ))
+        let updated =
+            crate::builtins::update_node_array_lazily(self, original, |visitor, node| {
+                Ok(
+                    match visitor.transformer.visit_declaration_subtree(
+                        visitor.cx,
+                        TransformNode::new(visitor.source, node),
+                    )? {
+                        VisitResult::None => crate::builtins::ArrayElementVisit::Removed,
+                        VisitResult::Node(node) => crate::builtins::ArrayElementVisit::One(node),
+                        VisitResult::Nodes(nodes) => {
+                            crate::builtins::ArrayElementVisit::Many(nodes)
+                        }
+                    },
+                )
+            })?;
+        Ok(Some(updated.array()))
     }
 
     fn required_child_removed(&mut self, parent: SyntaxKind, field: &'static str) -> Self::Error {
