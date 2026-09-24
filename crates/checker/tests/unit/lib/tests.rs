@@ -7587,3 +7587,32 @@ fn links_record_sizes_probe() {
         size_of::<tsc_diagnostics::Diagnostic>(),
     );
 }
+
+#[test]
+fn declaration_output_keeps_the_static_shard_assignment() {
+    // `.d.ts` output prints types in shard-local type-id order, so a run
+    // that writes declaration files never balances its shards by stealing.
+    let options = CompilerOptions::default();
+    assert!(!declaration_output_requested(&options));
+    let declaration = CompilerOptions {
+        declaration: Some(true),
+        ..CompilerOptions::default()
+    };
+    assert!(declaration_output_requested(&declaration));
+    let composite = CompilerOptions {
+        composite: Some(true),
+        ..CompilerOptions::default()
+    };
+    assert!(declaration_output_requested(&composite));
+    let declaration_only = CompilerOptions {
+        emit_declaration_only: Some(true),
+        ..CompilerOptions::default()
+    };
+    assert!(declaration_output_requested(&declaration_only));
+    let no_emit = CompilerOptions {
+        declaration: Some(false),
+        no_emit: Some(true),
+        ..CompilerOptions::default()
+    };
+    assert!(!declaration_output_requested(&no_emit));
+}
