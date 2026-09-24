@@ -174,7 +174,7 @@ pub(crate) fn emit_declaration_unit(
     let mut arena = TransformArena::new();
     // Other program sources are mounted on first use
     // (`TransformArena::mount_parse_tree_transform_node`).
-    let transform_root = crate::execute::mount_emit_root(&mut arena, host, &root)?;
+    let transform_root = crate::execute::mount_emit_root(&mut arena, host, &root, false)?;
     if let Some(metadata) = parsed_emit_metadata {
         arena.restore_parsed_emit_metadata(metadata, host)?;
     }

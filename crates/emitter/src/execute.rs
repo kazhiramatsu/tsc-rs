@@ -1,7 +1,9 @@
 use crate::artifact::EmitCallbackText;
+use crate::PreparedEmitSource;
 use tsc_diagnostics::{gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList, MessageChain};
 use tsc_diagnostics::{JsStr, JsString};
 use tsc_program::SourceFileId;
+use tsc_syntax::SourceFile;
 use tsc_types::{CompilerOptions, ScriptTarget};
 
 use crate::builtins::{
@@ -756,10 +758,27 @@ impl crate::GlobalNameOracle for ResolverGlobalNameOracle<'_> {
 
 /// Mount the exact ordered members of one planned root. Cross-file declaration
 /// lookup mounts the remaining Program sources separately without widening it.
+/// Prepare `source`'s emit copy ahead of its emit: the detached clone with
+/// its parse-time transform flags classified, as the JavaScript emit would
+/// build it first thing. A driver runs this on a spare thread while the
+/// checkers work and hands the copy back through
+/// [`EmitHost::take_prepared_source`]; the copy depends on the parsed syntax
+/// only, never on a checker.
+pub fn prepare_emit_source(
+    source: &SourceFile,
+    program_source: Option<SourceFileId>,
+) -> Result<PreparedEmitSource, TransformError> {
+    let mut arena = TransformArena::new();
+    let id = arena.add_source(source, program_source);
+    crate::builtins::classify_prepared_source(&mut arena, id)?;
+    Ok(arena.into_prepared_source(id))
+}
+
 pub(crate) fn mount_emit_root(
     arena: &mut TransformArena,
     host: &dyn EmitHost,
     root: &EmitRoot,
+    take_prepared: bool,
 ) -> Result<TransformRoot, EmitFailure> {
     let mut sources = Vec::with_capacity(root.source_files().len());
     for &source in root.source_files() {
@@ -770,7 +789,16 @@ pub(crate) fn mount_emit_root(
             EmitContractViolation::CheckedSyntaxUnavailable(source),
         ))?;
         let node_count = syntax.arena.nodes().len();
-        sources.push(arena.add_source(syntax, Some(source)));
+        // A copy prepared while the checkers ran replaces the clone and the
+        // first classification; it must have come from this very syntax.
+        let prepared = take_prepared
+            .then(|| host.take_prepared_source(source))
+            .flatten()
+            .filter(|prepared| prepared.matches(syntax));
+        sources.push(match prepared {
+            Some(prepared) => arena.add_prepared_source(prepared),
+            None => arena.add_source(syntax, Some(source)),
+        });
         // The transforms attach metadata (original links, emit flags) to a
         // sizeable share of a source's nodes; one reservation replaces the
         // map's repeated rehashing (2% of the emit profile).
@@ -1047,6 +1075,12 @@ fn javascript_map_options_enabled(options: &CompilerOptions) -> bool {
 /// emitDeclarationFileOrBundle when a sink is supplied.
 /// tsrs-native: the per-resolver body of the whole-Program emit; a checker
 /// shard runs it for the units of its own files.
+/// Whether `TSRS_FILE_TRACE` is set: the per-unit development trace.
+fn file_trace_enabled() -> bool {
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var_os("TSRS_FILE_TRACE").is_some())
+}
+
 pub fn emit_planned_units(
     resolver: &dyn EmitResolver,
     host: &dyn EmitHost,
@@ -1077,9 +1111,18 @@ pub fn emit_planned_units(
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
     let javascript_map_options_enabled = javascript_map_options_enabled(options);
+    // `TSRS_FILE_TRACE=1` prints one line per emitted unit with its wall
+    // time and timeline position (the checker prints the checked files).
+    let unit_trace = file_trace_enabled();
     for &unit_index in units {
         let unit = &preflight.plan().units()[unit_index];
         let attach = attach(unit_index);
+        let unit_started = unit_trace.then(|| {
+            (
+                std::time::Instant::now(),
+                tsc_types::trace::since_epoch_ms(),
+            )
+        });
         let mut emission = UnitEmission {
             unit: unit_index,
             artifacts: Vec::with_capacity(2),
@@ -1203,6 +1246,19 @@ pub fn emit_planned_units(
         emission.javascript_map_path = javascript_map_path.filter(|_| javascript_printed);
         emission.declaration_path = declaration_path;
         emission.declaration_map_path = printed_declaration_map_path;
+        if let Some((started, at)) = unit_started {
+            let path = host
+                .source_file(source_id)
+                .map(|source| source.path().to_string_lossy().into_owned())
+                .unwrap_or_default();
+            eprintln!(
+                "[unit] ms={:.3} at={:.1} js={} decl={} {path}",
+                started.elapsed().as_secs_f64() * 1e3,
+                at,
+                emission.javascript_path.is_some(),
+                emission.declaration_path.is_some(),
+            );
+        }
         emissions.push(emission);
     }
     Ok(emissions)
@@ -1232,7 +1288,7 @@ fn emit_javascript_unit(
 ) -> Result<(), EmitFailure> {
     let _ = preflight;
     let mut arena = TransformArena::new();
-    let transform_root = mount_emit_root(&mut arena, host, unit.root())?;
+    let transform_root = mount_emit_root(&mut arena, host, unit.root(), true)?;
     // tsc-port: emitJsFileOrBundle @6.0.3 (_tsc.js:116594-116598)
     // Unchecked sources (noCheck, or a file excluded by
     // canIncludeBindAndCheckDiagnostics) have their alias
@@ -1264,6 +1320,17 @@ fn emit_javascript_unit(
     }
     activity.construct_transform_context();
     let mut transformation = transform_nodes(arena, vec![transform_root], transformers, false)?;
+    if file_trace_enabled() {
+        if let Some(TransformRoot::SourceFile(source)) = transformation.roots().first() {
+            let source = transformation.arena().source(*source)?;
+            eprintln!(
+                "[unit-nodes] parsed={} total={} {}",
+                source.parsed_node_count(),
+                source.syntax().arena.nodes().len(),
+                source.syntax().file_name.to_string_lossy()
+            );
+        }
+    }
     let transformed_root = match transformation.roots() {
         [root] => root.clone(),
         _ => {
@@ -1357,6 +1424,18 @@ fn emit_javascript_unit(
         *parsed_emit_metadata = Some(transformation.arena().snapshot_parsed_emit_metadata(host)?);
     }
     transformation.dispose();
+    // Dropping a large source's emit copy (its nodes, their identifier texts,
+    // the transforms' additions) takes milliseconds on the tail of the run;
+    // the disposed arena is released on a detached thread instead. A refused
+    // thread simply drops it here.
+    let arena = transformation.into_arena();
+    if arena.node_count() >= 32 * 1024 {
+        let _ = std::thread::Builder::new()
+            .name("tsc-rs-release".to_owned())
+            .spawn(move || drop(arena));
+    } else {
+        drop(arena);
+    }
     if recording_enabled {
         let map_path = javascript_map_path;
         let mut generator = fallback_source_map

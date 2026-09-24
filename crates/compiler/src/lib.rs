@@ -337,6 +337,7 @@ fn no_emit_declaration_diagnostics(
     let checked_host = CheckedEmitHost {
         prepared: &emit_host,
         snapshot,
+        prepared_sources: None,
     };
     let paths = tsc_emitter::PlanDeclarationPaths::for_declaration_diagnostics(&checked_host)
         .map_err(DriverError::Emit)?;
@@ -658,14 +659,36 @@ impl EmitHost for PreparedEmitHost<'_> {
     }
 }
 
+/// A source's emit copy prepared beside the checkers (the `ShardedEmit`
+/// prelude): pending until prepared, taken once by the source's JavaScript
+/// emit. A slot taken while pending tells the prelude to drop its result.
+enum PreludeSlot {
+    Pending,
+    Ready(Box<tsc_emitter::PreparedEmitSource>),
+    Taken,
+}
+
+type PreludeSlots = [std::sync::Mutex<PreludeSlot>];
+
 struct CheckedEmitHost<'host, 'snapshot> {
     prepared: &'host PreparedEmitHost<'host>,
     snapshot: &'snapshot ProgramSnapshot,
+    /// Prepared emit copies by source index, when a prelude ran.
+    prepared_sources: Option<&'host PreludeSlots>,
 }
 
 impl EmitHost for CheckedEmitHost<'_, '_> {
     fn compiler_options(&self) -> &CompilerOptions {
         self.prepared.compiler_options()
+    }
+
+    fn take_prepared_source(&self, id: SourceFileId) -> Option<tsc_emitter::PreparedEmitSource> {
+        let slot = self.prepared_sources?.get(id.index())?;
+        let mut slot = slot.lock().ok()?;
+        match std::mem::replace(&mut *slot, PreludeSlot::Taken) {
+            PreludeSlot::Ready(prepared) => Some(*prepared),
+            PreludeSlot::Pending | PreludeSlot::Taken => None,
+        }
     }
 
     fn source_file_by_canonical_path(&self, canonical: JsStr<'_>) -> Option<SourceFileId> {
@@ -1284,6 +1307,7 @@ impl ProgramSession {
                 let checked_host = CheckedEmitHost {
                     prepared: &emit_host,
                     snapshot,
+                    prepared_sources: None,
                 };
                 diagnostic_result = Some((|| {
                     let mut diagnostics =
@@ -1553,6 +1577,7 @@ impl ProgramSession {
                 let checked_host = CheckedEmitHost {
                     prepared: &emit_host,
                     snapshot,
+                    prepared_sources: None,
                 };
                 operation_result = Some(checker.with_emit_resolver(|resolver| {
                     pending_operation
@@ -1625,6 +1650,7 @@ impl ProgramSession {
                 let checked_host = CheckedEmitHost {
                     prepared: &emit_host,
                     snapshot,
+                    prepared_sources: None,
                 };
                 print_result = Some(checker.with_emit_resolver(|resolver| {
                     print_script_units_with_recording_for_harness(
@@ -1740,6 +1766,7 @@ impl ProgramSession {
                 let checked_host = CheckedEmitHost {
                     prepared: &emit_host,
                     snapshot,
+                    prepared_sources: None,
                 };
                 let preflight = pending_preflight.take();
                 let preflight_diagnostics = preflight
@@ -1916,6 +1943,103 @@ impl ProgramSession {
         );
         let eager_emissions: std::sync::Mutex<Vec<Option<EagerShardEmission>>> =
             std::sync::Mutex::new(Vec::new());
+        // The emit copies of the largest JavaScript-emitting sources are
+        // prepared beside the checkers (clone + parse-time transform flags,
+        // syntax only) so the unit that decides the tail starts its
+        // transforms at once. Largest first, bounded so the copies waiting
+        // for their emit stay a small share of the run's memory.
+        let mut prelude_candidates: Vec<(SourceFileId, usize)> = preflight
+            .plan()
+            .units()
+            .iter()
+            .filter(|unit| unit.paths().javascript_path().is_some())
+            .filter_map(|unit| unit.root().source_files().first().copied())
+            .filter_map(|id| {
+                let size = emit_host.prepared.source_file(id)?.text().len();
+                (size >= 256 * 1024).then_some((id, size))
+            })
+            .collect();
+        prelude_candidates.sort_by_key(|&(_, size)| std::cmp::Reverse(size));
+        let mut candidate_bytes = 0usize;
+        prelude_candidates.retain(|&(_, size)| {
+            candidate_bytes += size;
+            candidate_bytes <= 16 * 1024 * 1024
+        });
+        if worker_budget.max_workers() < 4 {
+            prelude_candidates.clear();
+        }
+        let prepared_bytes: usize = prelude_candidates.iter().map(|&(_, size)| size).sum();
+        let prelude_slots: Vec<std::sync::Mutex<PreludeSlot>> = {
+            let slots = prelude_candidates
+                .iter()
+                .map(|(id, _)| id.index() + 1)
+                .max()
+                .unwrap_or(0);
+            (0..slots)
+                .map(|_| std::sync::Mutex::new(PreludeSlot::Pending))
+                .collect()
+        };
+        let prelude = |snapshot: &ProgramSnapshot| {
+            let started = std::time::Instant::now();
+            let next = std::sync::atomic::AtomicUsize::new(0);
+            let prepare_next = || {
+                while let Some(&(id, _)) =
+                    prelude_candidates.get(next.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+                {
+                    let Some(expected_name) = emit_host.expected_source_name(id) else {
+                        continue;
+                    };
+                    let document = snapshot
+                        .documents()
+                        .get(id.index())
+                        .filter(|document| {
+                            document.source().file_name.as_js() == expected_name.as_js()
+                        })
+                        .or_else(|| {
+                            snapshot.documents().iter().find(|document| {
+                                document.source().file_name.as_js() == expected_name.as_js()
+                            })
+                        });
+                    let Some(document) = document else {
+                        continue;
+                    };
+                    if let Ok(prepared) =
+                        tsc_emitter::prepare_emit_source(document.source(), Some(id))
+                    {
+                        if let Ok(mut slot) = prelude_slots[id.index()].lock() {
+                            if matches!(*slot, PreludeSlot::Pending) {
+                                *slot = PreludeSlot::Ready(Box::new(prepared));
+                            }
+                        }
+                    }
+                }
+            };
+            // Two preparers: the largest source alone takes most of the time.
+            std::thread::scope(|scope| {
+                if prelude_candidates.len() > 1 {
+                    let _ = std::thread::Builder::new()
+                        .name("tsc-rs-emit-prelude".to_owned())
+                        .stack_size(tsc_program::WORKER_STACK_BYTES)
+                        .spawn_scoped(scope, || {
+                            tsc_program::run_thread_start_hook();
+                            prepare_next();
+                        });
+                }
+                prepare_next();
+            });
+            if tsc_types::trace::enabled() {
+                tsc_types::trace::mark(
+                    &format!(
+                        "emit: prelude ({} sources, {} bytes)",
+                        prelude_candidates.len(),
+                        prepared_bytes
+                    ),
+                    started,
+                );
+            }
+        };
+        let prelude: Option<tsc_checker::ShardPreludeClosure<'_>> =
+            (!prelude_candidates.is_empty()).then_some(&prelude);
         let (checked, emissions) = {
             let mut gate = |snapshot: &ProgramSnapshot,
                             checked: &CheckResult,
@@ -1945,6 +2069,7 @@ impl ProgramSession {
                 let checked_host = CheckedEmitHost {
                     prepared: &emit_host,
                     snapshot,
+                    prepared_sources: None,
                 };
                 tsc_types::trace::mark("emit: gate diagnostics", gate_started);
                 if diagnostic_gate.wants_declaration_diagnostics(
@@ -2016,6 +2141,7 @@ impl ProgramSession {
                 let checked_host = CheckedEmitHost {
                     prepared: &emit_host,
                     snapshot,
+                    prepared_sources: Some(&prelude_slots),
                 };
                 // Each planned unit belongs to the shard that checked its
                 // source; every session then emits its own units in one
@@ -2158,45 +2284,101 @@ impl ProgramSession {
                         .fold(0u32, u32::saturating_add),
                 }])
             };
+            // The tail protocol of the eager emit: the last shard to finish
+            // checking claims the tail (`tail_claimed`) and emits its
+            // heaviest remaining unit at once; every other shard keeps
+            // emitting its own units in plan order until the tail owner
+            // opens the pool (`pool_open`), which then balances whatever is
+            // left across every worker.
+            let tail_claimed = std::sync::atomic::AtomicBool::new(false);
+            let pool_open = std::sync::atomic::AtomicBool::new(false);
             let eager = |shard: usize,
                          snapshot: &ProgramSnapshot,
                          session: &CheckerSession<'_>,
                          files: &[usize],
                          checking: &std::sync::atomic::AtomicUsize| {
+                use std::sync::atomic::Ordering;
                 let owned = files
                     .iter()
-                    .map(|&file| snapshot.document(file).source().file_name.as_js())
-                    .collect::<std::collections::HashSet<_>>();
+                    .map(|&file| {
+                        let source = snapshot.document(file).source();
+                        (source.file_name.as_js(), source.text().len())
+                    })
+                    .collect::<std::collections::HashMap<_, _>>();
+                // The shard's units in plan order, each with its source size
+                // (the pool's job weight).
                 let units = unit_names
                     .iter()
                     .enumerate()
-                    .filter(|(_, name)| {
+                    .filter_map(|(unit, name)| {
                         name.as_ref()
-                            .is_some_and(|name| owned.contains(&name.as_js()))
+                            .and_then(|name| owned.get(&name.as_js()))
+                            .map(|&size| (unit, size))
                     })
-                    .map(|(unit, _)| unit)
                     .collect::<Vec<_>>();
                 if units.is_empty() {
+                    // A last shard without units of its own opens the pool
+                    // for the units the other shards leave behind.
+                    if checking.load(Ordering::Acquire) == 0 {
+                        pool_open.store(true, Ordering::Release);
+                    }
                     return;
                 }
                 let emit_started = std::time::Instant::now();
                 let checked_host = CheckedEmitHost {
                     prepared: &emit_host,
                     snapshot,
+                    prepared_sources: Some(&prelude_slots),
                 };
                 let mut activity = H2ActivityCanary::h2_7e_profile();
                 let mut eager_unit_sink = eager_sink.map(tsc_emitter::EagerUnitSink);
-                // A shard emits its own units while another shard is still
-                // checking: that work overlaps the check. Once it is the last
-                // shard checking, its remaining units go to the coordinator's
-                // pool, where every worker takes part, instead of one thread
-                // finishing them alone after every check is done.
-                let (emitted, failure) = session.with_emit_resolver(|resolver| {
+                // A shard emits its own units in plan order while another
+                // shard is still checking: that work overlaps the check. Once
+                // it is the last shard checking, the coordinator's pool takes
+                // the remaining units so that every worker shares them. The
+                // pool only starts after every shard thread has joined,
+                // though, and another shard may still be inside an eager
+                // unit; the heaviest remaining unit of the last shard (the
+                // one that decides the tail) therefore starts here at once
+                // instead of waiting for that join. With declaration output a
+                // shard's units are one ordered pool job anyway, so the last
+                // shard simply finishes them in order.
+                let (emitted, failure, owns_tail) = session.with_emit_resolver(|resolver| {
                     let mut emitted = Vec::new();
-                    for &unit in &units {
-                        if checking.load(std::sync::atomic::Ordering::Acquire) == 0 {
-                            break;
+                    let mut remaining = units.clone();
+                    // The shard that finds every check finished before it
+                    // has emitted anything is the last one checking (the
+                    // count drops before this closure runs).
+                    let mut owns_tail = false;
+                    let mut first = true;
+                    while !remaining.is_empty() {
+                        if checking.load(Ordering::Acquire) == 0 && !owns_tail {
+                            if first
+                                && tail_claimed
+                                    .compare_exchange(
+                                        false,
+                                        true,
+                                        Ordering::AcqRel,
+                                        Ordering::Acquire,
+                                    )
+                                    .is_ok()
+                            {
+                                owns_tail = true;
+                            } else if pool_open.load(Ordering::Acquire) {
+                                break;
+                            }
                         }
+                        first = false;
+                        let index = if owns_tail && !declaration_output {
+                            remaining
+                                .iter()
+                                .enumerate()
+                                .max_by_key(|(_, (_, size))| *size)
+                                .map_or(0, |(index, _)| index)
+                        } else {
+                            0
+                        };
+                        let (unit, _) = remaining.remove(index);
                         match emit_planned_units(
                             resolver,
                             &checked_host,
@@ -2208,17 +2390,24 @@ impl ProgramSession {
                             &mut activity,
                         ) {
                             Ok(units) => emitted.extend(units),
-                            Err(error) => return (emitted, Some(error)),
+                            Err(error) => return (emitted, Some(error), owns_tail),
+                        }
+                        if owns_tail && !declaration_output {
+                            break;
                         }
                     }
-                    (emitted, None)
+                    (emitted, None, owns_tail)
                 });
+                if owns_tail {
+                    pool_open.store(true, Ordering::Release);
+                }
                 if tsc_types::trace::enabled() {
                     tsc_types::trace::mark(
                         &format!(
-                            "shard {shard}: emit (eager, {} of {} units)",
+                            "shard {shard}: emit (eager, {} of {} units{})",
                             emitted.len(),
-                            units.len()
+                            units.len(),
+                            if owns_tail { ", tail owner" } else { "" }
                         ),
                         emit_started,
                     );
@@ -2247,6 +2436,7 @@ impl ProgramSession {
                 emit: &emit,
                 emissions: None,
                 eager: eager_emit_enabled.then_some(eager),
+                prelude: if eager_emit_enabled { prelude } else { None },
             };
             let checked = check_program_with_authoritative_modules_at_for_emit_with_checkers(
                 &inputs.libs,
@@ -2542,6 +2732,7 @@ impl ProgramSession {
                 emit: &emit,
                 emissions: None,
                 eager: Some(&eager),
+                prelude: None,
             };
             check_program_with_authoritative_modules_at_for_emit_with_checkers(
                 &inputs.libs,

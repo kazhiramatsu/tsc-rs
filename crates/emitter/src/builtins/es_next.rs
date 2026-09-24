@@ -273,8 +273,10 @@ struct EsNextVisitor<'context> {
     source: TransformSourceId,
     nodes: NodeMemo<Option<NodeId>>,
     arrays: ArrayMemo<Option<NodeArrayId>>,
-    used_names: UsedNames,
-    parsed_source_identifier_names: ParsedSourceIdentifierNames,
+    /// The censuses a generated name is allocated against, collected on the
+    /// first allocation: a source without `using` declarations never scans.
+    used_names: Option<UsedNames>,
+    parsed_source_identifier_names: Option<ParsedSourceIdentifierNames>,
     generated_ordinals: BTreeMap<String, usize>,
     disposal_scopes: BTreeMap<NodeId, DisposalScope>,
     function_body_blocks: BTreeSet<NodeId>,
@@ -296,11 +298,8 @@ impl<'context> EsNextVisitor<'context> {
         let nodes = node_memo(context.arena(), source);
         let arrays = array_memo(context.arena(), source);
         Ok(Self {
-            used_names: collect_identifier_texts(context.arena(), source),
-            parsed_source_identifier_names: ParsedSourceIdentifierNames::collect(
-                context.arena(),
-                source,
-            )?,
+            used_names: None,
+            parsed_source_identifier_names: None,
             context,
             source,
             nodes,
@@ -360,6 +359,19 @@ impl<'context> EsNextVisitor<'context> {
         is_scope_root: bool,
         nested_scopes: &mut Vec<TransformNode>,
     ) -> Result<(), TransformError> {
+        // Only a `using` declaration allocates a binding, and it flags every
+        // ancestor: a complete subtree without the ESNext flag plans nothing
+        // (its function bodies are never visited either, so their
+        // registration is not needed).
+        if self.context.arena().transform_flags_complete(node)
+            && !self
+                .context
+                .arena()
+                .transform_flags(node)
+                .contains(TransformFlags::CONTAINS_ES_NEXT)
+        {
+            return Ok(());
+        }
         let (kind, body, statements) = {
             let record = self.context.arena().node(node)?;
             let statements = match &record.data {
@@ -1773,15 +1785,41 @@ impl<'context> EsNextVisitor<'context> {
         Ok(count)
     }
 
-    fn allocate_generated_name(&mut self, base: &str) -> String {
-        let ordinal = self.generated_ordinals.entry(base.to_owned()).or_insert(1);
-        loop {
-            let candidate = format!("{base}_{}", *ordinal);
-            *ordinal += 1;
-            if self.used_names.insert(candidate.clone()) {
-                return candidate;
-            }
+    fn used_names(&mut self) -> &mut UsedNames {
+        if self.used_names.is_none() {
+            self.used_names = Some(collect_identifier_texts(self.context.arena(), self.source));
         }
+        self.used_names
+            .as_mut()
+            .expect("the identifier census was just collected")
+    }
+
+    fn parsed_source_identifier_names(
+        &mut self,
+    ) -> Result<&ParsedSourceIdentifierNames, TransformError> {
+        if self.parsed_source_identifier_names.is_none() {
+            self.parsed_source_identifier_names = Some(ParsedSourceIdentifierNames::collect(
+                self.context.arena(),
+                self.source,
+            )?);
+        }
+        Ok(self
+            .parsed_source_identifier_names
+            .as_ref()
+            .expect("the parsed identifier census was just collected"))
+    }
+
+    fn allocate_generated_name(&mut self, base: &str) -> String {
+        let mut ordinal = *self.generated_ordinals.get(base).unwrap_or(&1);
+        let candidate = loop {
+            let candidate = format!("{base}_{ordinal}");
+            ordinal += 1;
+            if self.used_names().insert(candidate.clone()) {
+                break candidate;
+            }
+        };
+        self.generated_ordinals.insert(base.to_owned(), ordinal);
+        candidate
     }
 
     fn allocate_generated_binding(&mut self, base: &str) -> Result<TargetBinding, TransformError> {
@@ -1791,13 +1829,13 @@ impl<'context> EsNextVisitor<'context> {
 
     fn allocate_default_export_binding(&mut self) -> Result<TargetBinding, TransformError> {
         let provisional_name = self
-            .parsed_source_identifier_names
+            .parsed_source_identifier_names()?
             .optimistic_candidate("_default");
         // A peer FileLevel binding deliberately ignores this reservation and
         // consults the immutable parsed-source snapshot again. Ordinary eager
         // generated names still avoid the spelling, matching
         // ReservedInNestedScopes in TypeScript's printer.
-        self.used_names.insert(provisional_name.clone());
+        self.used_names().insert(provisional_name.clone());
         TargetBinding::allocate_file_level_optimistic_reserved_in_nested_scopes(
             self.context,
             "_default".to_owned(),

@@ -119,6 +119,13 @@ pub trait EmitHost {
     fn use_case_sensitive_file_names(&self) -> bool;
     fn source_file_ids(&self) -> &[SourceFileId];
     fn source_file(&self, id: SourceFileId) -> Option<EmitSource<'_>>;
+    /// Hand over `id`'s emit copy prepared ahead of this emit
+    /// ([`crate::prepare_emit_source`]), if the driver prepared one and it
+    /// has not been taken; the JavaScript emit of the source takes it once.
+    /// The default prepares nothing.
+    fn take_prepared_source(&self, _id: SourceFileId) -> Option<crate::PreparedEmitSource> {
+        None
+    }
     /// The Program source whose canonical path is `canonical`, if any: the
     /// module-specifier host's `fileExists`/`readFile` probes ask this for
     /// every candidate path, so an implementation indexes its sources once

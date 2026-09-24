@@ -54,6 +54,7 @@ pub use error::{
     EmitContractViolation, EmitFailure, EmitIoError, EmitIoOperation, EmitStage,
     UnsupportedEmitFeature,
 };
+pub use execute::prepare_emit_source;
 pub use execute::{
     base64_encode, begin_emit_files, declaration_diagnostics_for_sources, emit_files,
     emit_files_with_activity, emit_forced_declarations_with_activity, emit_planned_units,
@@ -64,6 +65,7 @@ pub use execute::{
     validate_forced_declaration_request, EmitDiagnosticGate, EmitFilesSession, EmitFilesStart,
     MapLaneInputs, UnitEmission, UnitEmitError,
 };
+pub use factory::PreparedEmitSource;
 pub use factory::{
     GeneratedIdentifierFlags, NodeFactory, ParsedEmitMetadata, TransformArena, TransformNode,
     TransformNodeArray, TransformSource, TransformSourceId, TypeParenthesizer,

@@ -1,5 +1,5 @@
 use std::cell::{OnceCell, RefCell};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -166,7 +166,7 @@ pub struct TransformSource {
     /// The parsed identifiers only (tsc's `SourceFile.identifiers`), filled
     /// once by their collector (see
     /// [`TransformArena::parsed_identifier_names_cell`]).
-    parsed_identifier_names: OnceCell<Arc<BTreeSet<String>>>,
+    parsed_identifier_names: OnceCell<Arc<FxHashSet<String>>>,
     /// Whether the source text contains an `\u{` escape anywhere (see
     /// [`TransformArena::source_text_has_extended_unicode_escape`]).
     text_has_extended_unicode_escape: OnceCell<bool>,
@@ -177,6 +177,9 @@ pub struct TransformSource {
     /// classifier has run (zero before the first classification); the next
     /// pass classifies only the ids appended since.
     classified_transform_flags: (u32, u32),
+    /// Whether generated-binding metadata was ever merged onto a parsed
+    /// node (see [`TransformArena::parsed_nodes_carry_no_generated_binding`]).
+    generated_binding_on_parsed_node: bool,
 }
 
 /// Structural equality covers the emit copy and its provenance; the two
@@ -196,7 +199,7 @@ impl PartialEq for TransformSource {
 /// shared with every name allocator that started from them.
 #[derive(Clone, Debug, Default)]
 struct IdentifierCensus {
-    names: Arc<BTreeSet<String>>,
+    names: Arc<FxHashSet<String>>,
     scanned: usize,
 }
 
@@ -227,6 +230,29 @@ impl TransformSource {
 
     pub const fn contains_parsed_node(&self, node: NodeId) -> bool {
         node.0 >= self.parsed_node_base && node.0 < self.parsed_node_end
+    }
+
+    /// The number of parsed nodes the emit copy started from.
+    pub fn parsed_node_count(&self) -> usize {
+        (self.parsed_node_end - self.parsed_node_base) as usize
+    }
+}
+
+/// A source's emit copy prepared ahead of its emit: the detached clone of
+/// the parsed syntax with its parse-time transform flags classified, exactly
+/// what `add_source` followed by the first classification produces. A driver
+/// prepares the large sources while the checkers run and hands them to the
+/// emit through [`crate::EmitHost::take_prepared_source`].
+#[derive(Debug)]
+pub struct PreparedEmitSource(TransformSource);
+
+impl PreparedEmitSource {
+    /// Whether this copy was prepared from exactly `syntax` (the same parsed
+    /// arena: same identity range and file name).
+    pub fn matches(&self, syntax: &SourceFile) -> bool {
+        self.0.parsed_node_base == syntax.arena.node_base()
+            && self.0.parsed_node_end == syntax.arena.node_end()
+            && self.0.source.file_name == syntax.file_name
     }
 }
 
@@ -411,8 +437,25 @@ impl TransformArena {
             text_has_extended_unicode_escape: OnceCell::new(),
             complete_synthesized: FxHashSet::default(),
             classified_transform_flags: (0, 0),
+            generated_binding_on_parsed_node: false,
         });
         id
+    }
+
+    /// Whether no parsed node of `source` carries a generated binding. A
+    /// generated identifier is created synthesized, and every ancestor of a
+    /// synthesized node is synthesized too (an update creates new nodes up
+    /// to the root), so while this holds a parsed subtree contains no
+    /// generated binding at all and a name walk may skip it whole. The one
+    /// way a parsed node can acquire one is a metadata merge in
+    /// `set_original_node`, which records it here.
+    pub(crate) fn parsed_nodes_carry_no_generated_binding(
+        &self,
+        source: TransformSourceId,
+    ) -> bool {
+        self.sources
+            .get(source.0 as usize)
+            .is_some_and(|source| !source.generated_binding_on_parsed_node)
     }
 
     /// Whether `node`'s transform flags describe its whole subtree, so a
@@ -466,7 +509,7 @@ impl TransformArena {
     /// every caller receives exactly the set it would have collected itself
     /// without rescanning the source per transformer. Generated names go
     /// into a caller's copy-on-write handle, never into the census.
-    pub(crate) fn identifier_texts(&self, source: TransformSourceId) -> Arc<BTreeSet<String>> {
+    pub(crate) fn identifier_texts(&self, source: TransformSourceId) -> Arc<FxHashSet<String>> {
         let Ok(source) = self.source(source) else {
             return Arc::default();
         };
@@ -493,8 +536,33 @@ impl TransformArena {
     pub(crate) fn parsed_identifier_names_cell(
         &self,
         source: TransformSourceId,
-    ) -> Result<&OnceCell<Arc<BTreeSet<String>>>, TransformError> {
+    ) -> Result<&OnceCell<Arc<FxHashSet<String>>>, TransformError> {
         Ok(&self.source(source)?.parsed_identifier_names)
+    }
+
+    /// Take `id`'s source out of an arena that was used only to prepare it
+    /// (see [`crate::prepare_emit_source`]): the arena's other tables are
+    /// empty, so the source alone is the whole emit copy.
+    pub fn into_prepared_source(mut self, id: TransformSourceId) -> PreparedEmitSource {
+        PreparedEmitSource(self.sources.swap_remove(id.0 as usize))
+    }
+
+    /// Mount a source prepared ahead of this emit, in place of `add_source`
+    /// followed by the first transform-flag classification.
+    pub fn add_prepared_source(&mut self, prepared: PreparedEmitSource) -> TransformSourceId {
+        let id = TransformSourceId(
+            u32::try_from(self.sources.len()).expect("transform source count exceeds u32"),
+        );
+        self.sources.push(prepared.0);
+        id
+    }
+
+    /// The number of nodes over every mounted source (parsed and appended).
+    pub fn node_count(&self) -> usize {
+        self.sources
+            .iter()
+            .map(|source| source.source.arena.nodes().len())
+            .sum()
     }
 
     pub fn source(&self, id: TransformSourceId) -> Result<&TransformSource, TransformError> {
@@ -1081,12 +1149,21 @@ impl TransformArena {
         let metadata = self.metadata.entry(node).or_default();
         metadata.original = original;
         metadata.original_is_semantic = false;
+        let mut carries_generated_binding = false;
         if let Some(source_metadata) = source_metadata {
             let generated_binding_before = metadata.generated_binding_id;
             metadata.merge_from(&source_metadata);
             metadata.original = original;
             if !node_is_member_name && generated_binding_before.is_none() {
                 metadata.clear_generated_binding();
+            }
+            carries_generated_binding = metadata.generated_binding_id.is_some();
+        }
+        if carries_generated_binding {
+            if let Some(source) = self.sources.get_mut(node.source.0 as usize) {
+                if source.contains_parsed_node(node.node) {
+                    source.generated_binding_on_parsed_node = true;
+                }
             }
         }
         Ok(())
@@ -6000,17 +6077,8 @@ impl<'arena> NodeFactory<'arena> {
     ) -> Result<TransformNode, TransformError> {
         let data = {
             let record = self.arena.node(original)?;
-            let normalizes_embedded_statements = matches!(
-                record.data,
-                NodeData::IfStatement(_)
-                    | NodeData::DoStatement(_)
-                    | NodeData::WhileStatement(_)
-                    | NodeData::ForStatement(_)
-                    | NodeData::ForInStatement(_)
-                    | NodeData::ForOfStatement(_)
-                    | NodeData::WithStatement(_)
-                    | NodeData::LabeledStatement(_)
-            );
+            let normalizes_embedded_statements =
+                crate::builtins::normalizes_embedded_statements(&record.data);
             let flags = transform_flags
                 | private_identifier_expression_flags(self.arena, original.source, &record.data)?;
             if !normalizes_embedded_statements && self.arena.transform_flags(original) == flags {

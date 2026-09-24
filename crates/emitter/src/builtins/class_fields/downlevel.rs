@@ -839,7 +839,10 @@ enum ParentOwnership {
 /// keeping contextual decisions independent from mutable parser parent links.
 #[derive(Debug, Default)]
 struct OriginalTreeOwnership {
-    parents: rustc_hash::FxHashMap<NodeId, ParentOwnership>,
+    /// Ownership by arena offset (`id - node_base`): the arena's ids are
+    /// dense, so the table is a vector rather than a hash map.
+    node_base: u32,
+    parents: Vec<Option<ParentOwnership>>,
 }
 
 impl OriginalTreeOwnership {
@@ -848,34 +851,54 @@ impl OriginalTreeOwnership {
         source: TransformSourceId,
         root: NodeId,
     ) -> Result<Self, TransformError> {
-        let mut ownership = Self::default();
-        let mut pending = vec![root];
-        let mut visited = rustc_hash::FxHashSet::default();
         let syntax = arena.source(source)?.syntax();
+        let node_base = syntax.arena.node_base();
+        let node_count = syntax.arena.nodes().len();
+        let mut ownership = Self {
+            node_base,
+            parents: vec![None; node_count],
+        };
+        let mut visited = vec![false; node_count];
+        let mut pending = vec![root];
         let mut children = Vec::new();
         while let Some(parent) = pending.pop() {
-            if !visited.insert(parent) {
+            let Some(parent_index) = parent
+                .0
+                .checked_sub(node_base)
+                .map(|index| index as usize)
+                .filter(|index| *index < node_count)
+            else {
+                return Err(TransformError::UnknownNode(TransformNode::new(
+                    source, parent,
+                )));
+            };
+            if std::mem::replace(&mut visited[parent_index], true) {
                 continue;
             }
-            let parent_node = arena
-                .node_ref(source, parent)
-                .ok_or_else(|| TransformError::UnknownNode(TransformNode::new(source, parent)))?;
-            let record = arena.node(parent_node)?;
+            let record = arena.node(TransformNode::new(source, parent))?;
             children.clear();
             for_each_child(&syntax.arena, record, |child| {
                 children.push(child);
                 false
             });
             for &child in &children {
-                ownership
-                    .parents
-                    .entry(child)
-                    .and_modify(|owner| {
-                        if *owner != ParentOwnership::Unique(parent) {
-                            *owner = ParentOwnership::Shared;
-                        }
-                    })
-                    .or_insert(ParentOwnership::Unique(parent));
+                let Some(child_index) = child
+                    .0
+                    .checked_sub(node_base)
+                    .map(|index| index as usize)
+                    .filter(|index| *index < node_count)
+                else {
+                    return Err(TransformError::UnknownNode(TransformNode::new(
+                        source, child,
+                    )));
+                };
+                ownership.parents[child_index] = Some(match ownership.parents[child_index] {
+                    None => ParentOwnership::Unique(parent),
+                    Some(ParentOwnership::Unique(owner)) if owner == parent => {
+                        ParentOwnership::Unique(parent)
+                    }
+                    Some(_) => ParentOwnership::Shared,
+                });
                 pending.push(child);
             }
         }
@@ -883,7 +906,8 @@ impl OriginalTreeOwnership {
     }
 
     fn unique_parent(&self, node: NodeId) -> Option<NodeId> {
-        match self.parents.get(&node) {
+        let index = node.0.checked_sub(self.node_base)? as usize;
+        match self.parents.get(index)? {
             Some(ParentOwnership::Unique(parent)) => Some(*parent),
             Some(ParentOwnership::Shared) | None => None,
         }
@@ -1124,6 +1148,23 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             return Ok(*mapped);
         }
         let original = self.node(id);
+        // tsc-port: transformClassFields visitor @6.0.3
+        // A subtree with neither class fields nor a lexical `this`/`super`
+        // maps to itself; the flags of a parsed or update-derived node
+        // describe its whole subtree.
+        {
+            let arena = self.context.arena();
+            if arena.transform_flags_complete(original)
+                && arena.transform_flags(original)
+                    & (TransformFlags::CONTAINS_CLASS_FIELDS
+                        | TransformFlags::CONTAINS_LEXICAL_THIS
+                        | TransformFlags::CONTAINS_LEXICAL_SUPER)
+                    == TransformFlags::NONE
+            {
+                self.nodes.insert(id, Some(id));
+                return Ok(Some(id));
+            }
+        }
         // The payload is cloned only for a node an arm below consumes; every
         // other node maps its children from a slot snapshot.
         let specialized = matches!(

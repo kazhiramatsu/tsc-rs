@@ -60,10 +60,19 @@ pub enum PositionIndexKind {
 struct DensePositionIndex {
     byte_len: u32,
     utf16_len: u32,
+    /// The byte (and UTF-16) length of the text's leading ASCII run: below
+    /// it both domains coincide and every position is a scalar boundary,
+    /// so the hot conversions answer without consulting `wide`.
+    ascii_prefix_end: u32,
     /// Every non-ASCII character, in text order.
     wide: Vec<WideCharacter>,
     line_starts_byte: Vec<u32>,
     line_starts_utf16: Vec<u32>,
+    /// The line of the last UTF-16 line/character lookup: consecutive
+    /// lookups (a printer mapping every node boundary of a source) mostly
+    /// stay on one line, which is then answered without a binary search. A
+    /// stale hint only costs the search.
+    line_hint: std::sync::atomic::AtomicU32,
 }
 
 /// One non-ASCII character: where it ends in both domains, and its widths.
@@ -101,12 +110,17 @@ impl DensePositionIndex {
             position = byte_end;
         }
         let utf16_len = utf16_position + (bytes.len() - position) as u32;
+        let ascii_prefix_end = wide
+            .first()
+            .map_or(byte_len, |first| first.byte_end - u32::from(first.byte_len));
         let mut index = Self {
             byte_len,
             utf16_len,
+            ascii_prefix_end,
             wide,
             line_starts_byte: Vec::new(),
             line_starts_utf16: Vec::new(),
+            line_hint: std::sync::atomic::AtomicU32::new(0),
         };
         index.line_starts_byte = compute_line_starts_byte(text);
         index.line_starts_utf16 = index
@@ -125,7 +139,35 @@ impl DensePositionIndex {
         self.utf16_len
     }
 
+    /// The line containing UTF-16 `position` (already bounds-checked) and
+    /// the offset within it: the hinted line when the position lies on it,
+    /// otherwise the greatest line start at or before the position.
+    fn line_and_character_utf16(&self, position: u32) -> Option<LineAndCharacter> {
+        let starts = &self.line_starts_utf16;
+        let hint = self.line_hint.load(std::sync::atomic::Ordering::Relaxed) as usize;
+        let line = if hint < starts.len()
+            && starts[hint] <= position
+            && starts.get(hint + 1).is_none_or(|&next| position < next)
+        {
+            hint
+        } else {
+            let line = starts
+                .partition_point(|&start| start <= position)
+                .checked_sub(1)?;
+            self.line_hint
+                .store(line as u32, std::sync::atomic::Ordering::Relaxed);
+            line
+        };
+        Some(LineAndCharacter {
+            line: line as u32,
+            character: position - starts[line],
+        })
+    }
+
     fn byte_to_utf16(&self, position: u32) -> Option<u32> {
+        if position <= self.ascii_prefix_end {
+            return Some(position);
+        }
         if position > self.byte_len {
             return None;
         }
@@ -148,6 +190,9 @@ impl DensePositionIndex {
     }
 
     fn utf16_to_byte(&self, position: u32) -> Option<u32> {
+        if position <= self.ascii_prefix_end {
+            return Some(position);
+        }
         if position > self.utf16_len {
             return None;
         }
@@ -677,6 +722,9 @@ impl PositionIndex {
     pub fn line_and_character_utf16(&self, position: u32) -> Option<LineAndCharacter> {
         if position > self.utf16_len() {
             return None;
+        }
+        if let Some(dense) = self.dense() {
+            return dense.line_and_character_utf16(position);
         }
         let line = greatest_line_start(self.line_count(), position, |line| {
             self.line_start_utf16(line)

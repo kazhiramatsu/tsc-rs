@@ -697,8 +697,8 @@ struct StandardDecoratorVisitor<'context> {
     context: &'context mut TransformationContext,
     source: TransformSourceId,
     target: ScriptTarget,
-    nodes: rustc_hash::FxHashMap<NodeId, Option<NodeId>>,
-    arrays: rustc_hash::FxHashMap<NodeArrayId, Option<NodeArrayId>>,
+    nodes: super::NodeMemo<Option<NodeId>>,
+    arrays: super::ArrayMemo<Option<NodeArrayId>>,
     inferred_class_names: BTreeMap<NodeId, JsString>,
     inferred_class_name_sources: BTreeMap<NodeId, TransformNode>,
     /// Named evaluation through a non-literal computed property name: the
@@ -810,12 +810,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
             .map(ParsedSourceIdentifierNames::into_names)
             .unwrap_or_else(|_| collect_identifier_texts(context.arena(), source));
         let used_names = file_level_names.clone();
+        let nodes = super::node_memo(context.arena(), source);
+        let arrays = super::array_memo(context.arena(), source);
         Self {
             context,
             source,
             target,
-            nodes: rustc_hash::FxHashMap::default(),
-            arrays: rustc_hash::FxHashMap::default(),
+            nodes,
+            arrays,
             inferred_class_names: BTreeMap::new(),
             inferred_class_name_sources: BTreeMap::new(),
             inferred_class_name_references: BTreeMap::new(),
