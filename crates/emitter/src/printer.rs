@@ -12489,6 +12489,7 @@ impl Printer {
     /// tsc-port: emitList @6.0.3
     /// tsc-hash: 8a0512c2af9ba16a7481b372c31ae88611a0f3f8b4daaf5919a7278927262b5c
     /// tsc-span: _tsc.js:120015-120025
+    #[allow(clippy::too_many_arguments)]
     fn emit_separated_declaration_list(
         &mut self,
         transformation: &mut TransformationResult<'_>,
