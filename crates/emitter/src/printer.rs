@@ -1895,7 +1895,7 @@ impl Printer {
             }
             return self.print_json_source_file(transformation, source_id, root);
         }
-        let (text, language_variant, statement_array, statements) = {
+        let (language_variant, statement_array, statements) = {
             let source = transformation.arena().source(source_id)?.syntax();
             let root_record = source.arena.node(root.node());
             let statement_array = match &root_record.data {
@@ -1906,7 +1906,6 @@ impl Printer {
                 .map(|array| source.arena.node_array(array).nodes.clone())
                 .unwrap_or_default();
             (
-                source.text().to_owned(),
                 source.language_variant,
                 statement_array.map(|array| TransformNodeArray::new(source_id, array)),
                 statements,
@@ -1939,6 +1938,14 @@ impl Printer {
                 UnsupportedEmitFeature::JavaScriptMap,
             ));
         }
+        // Only this original-text path reads the source text as a whole; the
+        // canonical print above never copied it.
+        let text = transformation
+            .arena()
+            .source(source_id)?
+            .syntax()
+            .text()
+            .to_owned();
 
         let substituted_root = transformation.substitute_node(EmitHint::SourceFile, root)?;
         transformation.before_emit_node(EmitHint::SourceFile, root)?;

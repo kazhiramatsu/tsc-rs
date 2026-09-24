@@ -777,12 +777,16 @@ impl TransformationContext {
     pub fn is_substitution_enabled(&self, node: TransformNode) -> Result<bool, TransformError> {
         self.require_before_disposed("query substitution")?;
         let kind = self.arena.node(node)?.kind;
+        // The kind's bit first: a node's metadata can only withhold a
+        // substitution, so most printed nodes never look theirs up.
+        if self.enabled_syntax_features[kind as usize] & 1 == 0 {
+            return Ok(false);
+        }
         let emit_flags = self
             .arena
             .metadata(node)
             .map_or(EmitFlags::NONE, |metadata| metadata.flags());
-        Ok(self.enabled_syntax_features[kind as usize] & 1 != 0
-            && !emit_flags.intersects(EmitFlags::NO_SUBSTITUTION))
+        Ok(!emit_flags.intersects(EmitFlags::NO_SUBSTITUTION))
     }
 
     pub fn is_emit_notification_enabled(
@@ -791,12 +795,14 @@ impl TransformationContext {
     ) -> Result<bool, TransformError> {
         self.require_before_disposed("query emit notification")?;
         let kind = self.arena.node(node)?.kind;
+        if self.enabled_syntax_features[kind as usize] & 2 != 0 {
+            return Ok(true);
+        }
         let emit_flags = self
             .arena
             .metadata(node)
             .map_or(EmitFlags::NONE, |metadata| metadata.flags());
-        Ok(self.enabled_syntax_features[kind as usize] & 2 != 0
-            || emit_flags.intersects(EmitFlags::ADVISE_ON_EMIT_NODE))
+        Ok(emit_flags.intersects(EmitFlags::ADVISE_ON_EMIT_NODE))
     }
 
     pub fn start_lexical_environment(&mut self) -> Result<(), TransformError> {
