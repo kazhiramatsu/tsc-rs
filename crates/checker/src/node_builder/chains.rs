@@ -409,23 +409,30 @@ impl EmitTrackerAccess for CheckerTrackerAccess<'_, '_> {
 }
 
 #[derive(Clone)]
-struct BasicModuleSpecifierHost {
+/// The checker's own module-specifier host view: every Program source and
+/// host input by normalized path, with each file's default resolution
+/// mode. Built once per checker state (see
+/// [`CheckerState::basic_module_specifier_host`]): building it walked every
+/// file, normalized its path and copied its text on every specifier lookup
+/// of a declaration emit.
+pub(crate) struct BasicModuleSpecifierHost {
     current_directory: JsString,
-    files: HashMap<JsString, Option<String>>,
+    files: HashMap<JsString, Option<std::sync::Arc<tsc_diagnostics::TextSnapshot>>>,
     modes: HashMap<u32, EmitResolutionMode>,
 }
 
 impl BasicModuleSpecifierHost {
-    fn new(checker: &CheckerState<'_>) -> Self {
+    pub(crate) fn new(checker: &CheckerState<'_>) -> Self {
         let current_directory = checker.host_current_directory.clone();
-        let mut files = HashMap::default();
+        let mut files =
+            HashMap::with_capacity_and_hasher(checker.binder.file_count(), Default::default());
         let mut modes =
             HashMap::with_capacity_and_hasher(checker.binder.file_count(), Default::default());
         for index in 0..checker.binder.file_count() {
             let source = checker.binder.source(index);
             let normalized =
                 CheckerState::normalize_js_program_path(&source.file_name, &current_directory);
-            files.insert(normalized, Some(source.text().to_owned()));
+            files.insert(normalized, Some(source.snapshot().clone()));
             modes.insert(
                 program_source_id(checker, index).raw(),
                 default_resolution_mode_for_checker_file(checker, source.root),
@@ -445,7 +452,7 @@ impl BasicModuleSpecifierHost {
         host_inputs.sort_unstable_by(|(left, _), (right, _)| left.cmp_utf16(right.as_js()));
         for (path, snapshot) in host_inputs {
             let normalized = CheckerState::normalize_js_program_path(path, &current_directory);
-            files.insert(normalized, Some(snapshot.text().to_owned()));
+            files.insert(normalized, Some(snapshot.clone()));
         }
 
         Self {
@@ -555,7 +562,7 @@ impl EmitModuleSpecifierHost for BasicModuleSpecifierHost {
     fn read_file(&self, file_name: JsStr<'_>) -> Option<String> {
         self.files
             .get(&self.normalized(file_name))
-            .and_then(Clone::clone)
+            .and_then(|snapshot| snapshot.as_ref().map(|snapshot| snapshot.text().to_owned()))
     }
 
     fn get_common_source_directory(&self) -> JsString {
@@ -1241,12 +1248,17 @@ pub(crate) fn specifier_for_module_symbol(
         )
         .map_err(|abort| checker_abort_error(checker, context, abort));
     }
-    let fallback = BasicModuleSpecifierHost::new(checker);
+    let fallback = match &checker.basic_module_specifier_host {
+        Some(host) => host.clone(),
+        None => {
+            let host = std::sync::Arc::new(BasicModuleSpecifierHost::new(checker));
+            checker.basic_module_specifier_host = Some(host.clone());
+            host
+        }
+    };
+    let fallback: &BasicModuleSpecifierHost = &fallback;
     if let Some(primary) = context.tracker.caller_module_resolver_host() {
-        let host = ModuleSpecifierHostWithFallback {
-            primary,
-            fallback: &fallback,
-        };
+        let host = ModuleSpecifierHostWithFallback { primary, fallback };
         return get_specifier_for_module_symbol(
             checker,
             symbol,
@@ -1261,7 +1273,7 @@ pub(crate) fn specifier_for_module_symbol(
     get_specifier_for_module_symbol(
         checker,
         symbol,
-        Some(&fallback),
+        Some(fallback),
         enclosing_file,
         enclosing_declaration,
         bundled,

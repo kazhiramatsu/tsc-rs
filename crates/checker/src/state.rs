@@ -920,6 +920,11 @@ pub struct CheckerState<'a> {
     /// Do not reconstruct a readFile result from parsed JSON or source membership.
     pub(crate) host_input_snapshots:
         rustc_hash::FxHashMap<tsc_types::JsString, std::sync::Arc<tsc_diagnostics::TextSnapshot>>,
+    /// The checker's module-specifier host view over its files, built on
+    /// the first declaration-emit specifier lookup and shared by the rest
+    /// (the file set and host inputs are fixed once the state is set up).
+    pub(crate) basic_module_specifier_host:
+        Option<std::sync::Arc<crate::node_builder::chains::BasicModuleSpecifierHost>>,
     /// tsrs-native: the harness ProgramJson `cwd` (tsc
     /// host.getCurrentDirectory). The oracle host absolutizes every
     /// program fileName against it (program-host.mjs
@@ -1387,6 +1392,7 @@ impl<'a> CheckerState<'a> {
             authoritative_module_failure: std::cell::OnceCell::new(),
             host_file_paths: rustc_hash::FxHashSet::default(),
             host_input_snapshots: rustc_hash::FxHashMap::default(),
+            basic_module_specifier_host: None,
             host_current_directory: "/".into(),
             host_package_json_module_types: rustc_hash::FxHashMap::default(),
             host_package_json_values: rustc_hash::FxHashMap::default(),

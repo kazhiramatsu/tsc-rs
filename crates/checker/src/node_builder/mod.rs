@@ -1,6 +1,6 @@
 #![allow(dead_code, unused_imports)]
 
-mod chains;
+pub(crate) mod chains;
 mod context;
 mod serialize;
 mod signatures;
