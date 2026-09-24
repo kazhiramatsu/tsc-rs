@@ -173,6 +173,10 @@ pub struct TransformSource {
     /// Synthesized nodes whose transform flags aggregate their whole
     /// subtree (see [`TransformArena::transform_flags_complete`]).
     complete_synthesized: FxHashSet<NodeId>,
+    /// The node and node-array id ends up to which the transform-flag
+    /// classifier has run (zero before the first classification); the next
+    /// pass classifies only the ids appended since.
+    classified_transform_flags: (u32, u32),
 }
 
 /// Structural equality covers the emit copy and its provenance; the two
@@ -197,6 +201,16 @@ struct IdentifierCensus {
 }
 
 impl TransformSource {
+    /// The node and node-array id ends the transform-flag classifier has
+    /// covered (zero before the first classification).
+    pub(crate) fn classified_transform_flags(&self) -> (u32, u32) {
+        self.classified_transform_flags
+    }
+
+    pub(crate) fn set_classified_transform_flags(&mut self, nodes: u32, arrays: u32) {
+        self.classified_transform_flags = (nodes, arrays);
+    }
+
     pub const fn program_source(&self) -> Option<SourceFileId> {
         self.program_source
     }
@@ -396,6 +410,7 @@ impl TransformArena {
             parsed_identifier_names: OnceCell::new(),
             text_has_extended_unicode_escape: OnceCell::new(),
             complete_synthesized: FxHashSet::default(),
+            classified_transform_flags: (0, 0),
         });
         id
     }
