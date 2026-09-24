@@ -911,10 +911,13 @@ fn load_program_worker(
     if tsc_types::trace::enabled() {
         // The sources whose read-ahead resolutions the walk never took: read
         // ahead in vain, so worth knowing about.
-        let mut unvisited: BTreeMap<&CanonicalPath, usize> = BTreeMap::new();
-        for key in graph.pre_resolved.keys() {
-            *unvisited.entry(key.source()).or_default() += 1;
-        }
+        let unvisited = graph.pre_resolved.keys().fold(
+            BTreeMap::<&CanonicalPath, usize>::new(),
+            |mut unvisited, key| {
+                *unvisited.entry(key.source()).or_default() += 1;
+                unvisited
+            },
+        );
         for (source, requests) in unvisited.iter().take(8) {
             eprintln!(
                 "[phase] load: read ahead in vain: {:?} ({requests} requests)",
@@ -1410,7 +1413,7 @@ struct StagedSource {
     type_reference_directives: Vec<PlannedTypeReferenceDirective>,
     lib_reference_directives: Vec<PlannedLibReferenceDirective>,
     module_requests: Vec<(ResolutionKey, bool)>,
-    module_request_spans: BTreeMap<ResolutionKey, (u32, u32)>,
+    module_request_spans: rustc_hash::FxHashMap<ResolutionKey, (u32, u32)>,
     found_searching_node_modules: bool,
     modules_with_elided_imports: bool,
     processing_references: bool,
@@ -1540,6 +1543,10 @@ enum ReadAheadOutcome {
 struct ReadAheadQueue {
     pending: VecDeque<ReadAheadTask>,
     closed: bool,
+    /// Workers blocked in `take`: a push signals only while one waits, so a
+    /// burst of tasks into busy workers costs no wake-up system calls (VS
+    /// Code: 57k pushes, and the signals were 8% of the loading thread).
+    waiting: usize,
 }
 
 struct ReadAheadPipeline {
@@ -1549,12 +1556,16 @@ struct ReadAheadPipeline {
 
 impl ReadAheadPipeline {
     fn push(&self, task: ReadAheadTask) {
-        self.queue
+        let mut queue = self
+            .queue
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .pending
-            .push_back(task);
-        self.ready.notify_one();
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        queue.pending.push_back(task);
+        let waiting = queue.waiting > 0;
+        drop(queue);
+        if waiting {
+            self.ready.notify_one();
+        }
     }
 
     /// The next task, waiting for one; `None` once the queue is closed and
@@ -1571,10 +1582,12 @@ impl ReadAheadPipeline {
             if queue.closed {
                 return None;
             }
+            queue.waiting += 1;
             queue = self
                 .ready
                 .wait(queue)
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
+            queue.waiting -= 1;
         }
     }
 
@@ -1737,7 +1750,7 @@ struct StagedGraph<'host, 'options, 'resolver> {
     source_edges: Vec<Vec<(usize, bool)>>,
     postorder: Vec<usize>,
     roots: Vec<StagedRoot>,
-    module_resolution_by_key: BTreeMap<ResolutionKey, usize>,
+    module_resolution_by_key: rustc_hash::FxHashMap<ResolutionKey, usize>,
     module_resolutions: Vec<StagedModuleResolution>,
     type_resolution_by_key: BTreeMap<TypeReferenceResolutionKey, usize>,
     type_resolutions: Vec<StagedTypeResolution>,
@@ -1759,7 +1772,10 @@ struct StagedGraph<'host, 'options, 'resolver> {
     /// Module resolutions computed by the dependency read-ahead
     /// (`prefetch_dependencies`) that the walk has not reached yet; the walk
     /// takes each one at the request that would have computed it.
-    pre_resolved: BTreeMap<ResolutionKey, HostModuleResolution>,
+    /// Hashed, never iterated except for the trace summary: the walk takes
+    /// one entry per request (VS Code: 112k) and an ordered map compared the
+    /// key's path strings at every step.
+    pre_resolved: rustc_hash::FxHashMap<ResolutionKey, HostModuleResolution>,
     pre_resolved_hits: usize,
     /// Type-reference resolutions computed by the read-ahead that the walk
     /// has not reached yet, taken like `pre_resolved`.
@@ -1810,7 +1826,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             source_edges: Vec::new(),
             postorder: Vec::new(),
             roots: Vec::new(),
-            module_resolution_by_key: BTreeMap::new(),
+            module_resolution_by_key: rustc_hash::FxHashMap::default(),
             module_resolutions: Vec::new(),
             type_resolution_by_key: BTreeMap::new(),
             type_resolutions: Vec::new(),
@@ -1821,7 +1837,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             total_source_bytes: 0,
             prefetched: FxHashMap::default(),
             prefetch_order: Vec::new(),
-            pre_resolved: BTreeMap::new(),
+            pre_resolved: rustc_hash::FxHashMap::default(),
             pre_resolved_hits: 0,
             pre_resolved_types: BTreeMap::new(),
             directory_resolutions: rustc_hash::FxHashMap::default(),
@@ -2329,6 +2345,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             queue: std::sync::Mutex::new(ReadAheadQueue {
                 pending: VecDeque::new(),
                 closed: false,
+                waiting: 0,
             }),
             ready: std::sync::Condvar::new(),
         };
@@ -3972,15 +3989,17 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 .map(|(key, loads_source)| (key.clone(), loads_source))
                 .collect::<Vec<_>>()
         });
-        let module_request_spans = plan.as_ref().map_or_else(BTreeMap::new, |plan| {
-            plan.module_requests()
-                .iter()
-                .filter_map(|key| {
-                    plan.module_request_span(key)
-                        .map(|span| (key.clone(), span))
-                })
-                .collect::<BTreeMap<_, _>>()
-        });
+        let module_request_spans =
+            plan.as_ref()
+                .map_or_else(rustc_hash::FxHashMap::default, |plan| {
+                    plan.module_requests()
+                        .iter()
+                        .filter_map(|key| {
+                            plan.module_request_span(key)
+                                .map(|span| (key.clone(), span))
+                        })
+                        .collect::<rustc_hash::FxHashMap<_, _>>()
+                });
         self.enforce_limit(
             ProgramLoadOperation::PlanSourceRequests,
             ProgramLoadLimit::RequestEdges,

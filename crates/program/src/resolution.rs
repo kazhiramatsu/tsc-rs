@@ -28,7 +28,7 @@ pub enum ResolutionMode {
 /// the containing source's canonical path only. JavaScript code units remain
 /// lossless through lookup and path/package mapping. Derived ordering is byte
 /// order for the authoritative table, not TypeScript's string comparer.
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ResolutionKey {
     source: CanonicalPath,
     specifier: JsString,

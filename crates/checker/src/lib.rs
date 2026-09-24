@@ -2870,9 +2870,17 @@ const _: () = {
 fn reserve_type_tables(state: &mut state::CheckerState<'_>, node_count: usize) {
     const MIN_RESERVED_TYPES: usize = 1 << 12;
     const MAX_RESERVED_TYPES: usize = 1 << 20;
+    // Transient symbols (instantiated members, contextual parameters) come at
+    // a smaller fraction of the nodes; the doubling copies of the 176-byte
+    // records were a third of a VS Code shard's memmove.
+    const MIN_RESERVED_SYMBOLS: usize = 1 << 11;
+    const MAX_RESERVED_SYMBOLS: usize = 1 << 19;
     state
         .tables
         .reserve_types((node_count / 2).clamp(MIN_RESERVED_TYPES, MAX_RESERVED_TYPES));
+    state.binder.reserve_transient_symbols(
+        (node_count / 8).clamp(MIN_RESERVED_SYMBOLS, MAX_RESERVED_SYMBOLS),
+    );
 }
 
 fn snapshot_node_count(snapshot: &ProgramSnapshot) -> usize {
@@ -2926,6 +2934,9 @@ fn run_checker_shard<'a>(
     // becomes free; both passes run in increasing Program order within the
     // shard, as the serial completion pass checks them.
     let mut files = Vec::new();
+    // `TSRS_FILE_TRACE=1` prints one line per checked file with the static
+    // sizes a partition cost model can use and the measured check time.
+    let file_trace = std::env::var_os("TSRS_FILE_TRACE").is_some();
     while let Some(file) = queue.next_fixture(shard_index) {
         // Shared-AST invariant: the shard's binder borrows the snapshot's
         // documents (pointer-identical sources); it never copies a tree.
@@ -2933,7 +2944,19 @@ fn run_checker_shard<'a>(
             state.binder.source(file),
             snapshot.document(file).source()
         ));
+        let file_started = file_trace.then(std::time::Instant::now);
         check_program_file(&mut state, program_file_id(file), &mut globals_by_file);
+        if let Some(started) = file_started {
+            let document = snapshot.document(file);
+            eprintln!(
+                "[file] shard={shard_index} file={file} nodes={} symbols={} flow={} ms={:.3} {}",
+                document.source().arena.len(),
+                document.data.symbols.len(),
+                document.data.flow.len(),
+                started.elapsed().as_secs_f64() * 1e3,
+                document.source().file_name.as_js().to_string_lossy()
+            );
+        }
         files.push(file);
         if state.order_guard.reasons() != 0 && replay_on_order {
             // The replay is certain: release the other shards' remaining
@@ -3310,12 +3333,14 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             }
         })
         .collect::<Vec<_>>();
-    // The deterministic partition is the default (least load by node count
-    // with a directory preference): a run's shard-local type order then
-    // repeats run to run, as tsgo's does. The shared queue
-    // (`TSRS_SHARD_QUEUE=shared`) balances mixed cores better but lets the
-    // files a shard checks — and every ordering that follows type ids —
-    // vary between runs.
+    // A large --noEmit check pulls from the shared queue in chunks: the
+    // split between shards then follows the measured check times (mixed
+    // cores, cost the node count does not predict) while a chunk keeps a
+    // directory's files together. Otherwise the deterministic partition
+    // (least load by node count with a directory preference): a run's
+    // shard-local type order then repeats run to run, as tsgo's does, and
+    // the emit phases run each file on the checker that checked it.
+    // `TSRS_SHARD_QUEUE` overrides the choice.
     let checker_count = checkers.checkers();
     // Each file's directory, interned, for the directory-preferring
     // partition (files of one directory share their imports).
@@ -3331,12 +3356,25 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             *directory_ids.entry(&bytes[..end]).or_insert(next)
         })
         .collect::<Vec<u32>>();
-    let queue = if shard::shared_queue_requested() {
-        shard::ShardFileQueue::shared(lib_count, &weights, checker_count)
+    let symbols = snapshot
+        .documents()
+        .iter()
+        .map(|document| document.data.symbols.len())
+        .collect::<Vec<usize>>();
+    let fixtures = weights.len().saturating_sub(lib_count);
+    let shared_chunk = match shard::queue_mode_requested() {
+        Some(shard::QueueMode::Shared(chunk)) => Some(chunk),
+        Some(shard::QueueMode::Partition) => None,
+        None => (sharded_emit.is_none() && fixtures >= shard::SHARED_QUEUE_MIN_FIXTURES)
+            .then_some(shard::DEFAULT_SHARED_CHUNK),
+    };
+    let queue = if let Some(chunk) = shared_chunk {
+        shard::ShardFileQueue::shared_chunked(lib_count, &weights, checker_count, chunk)
     } else {
         shard::ShardFileQueue::partitioned_with_directories(
             lib_count,
             &weights,
+            &symbols,
             &directories,
             checker_count,
         )
