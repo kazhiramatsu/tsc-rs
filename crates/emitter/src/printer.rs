@@ -1160,6 +1160,60 @@ struct EmissionPlan {
     block_helpers: BTreeMap<TransformNode, Vec<EmitHelper>>,
 }
 
+/// The emission-plan walk's memo: dense over the root source's node ids
+/// (every node of a source-file root), hashed for the nodes of any other
+/// source a bundle root reaches.
+struct EmissionPlanMemo {
+    source: TransformSourceId,
+    base: u32,
+    /// 0 = unvisited, 1 = visited without structured emit, 2 = structured.
+    dense: Vec<u8>,
+    sparse: rustc_hash::FxHashMap<TransformNode, bool>,
+}
+
+impl EmissionPlanMemo {
+    fn for_root(
+        transformation: &TransformationResult<'_>,
+        root: TransformNode,
+    ) -> Result<Self, PrinterError> {
+        let syntax = transformation.arena().source(root.source())?.syntax();
+        Ok(Self {
+            source: root.source(),
+            base: syntax.arena.node_base(),
+            dense: vec![0; syntax.arena.nodes().len()],
+            sparse: rustc_hash::FxHashMap::default(),
+        })
+    }
+
+    fn dense_index(&self, node: TransformNode) -> Option<usize> {
+        if node.source() != self.source {
+            return None;
+        }
+        let index = node.node().0.checked_sub(self.base)? as usize;
+        (index < self.dense.len()).then_some(index)
+    }
+
+    fn get(&self, node: TransformNode) -> Option<bool> {
+        match self.dense_index(node) {
+            Some(index) => match self.dense[index] {
+                0 => None,
+                1 => Some(false),
+                _ => Some(true),
+            },
+            None => self.sparse.get(&node).copied(),
+        }
+    }
+
+    fn insert(&mut self, node: TransformNode, requires_structured_emit: bool) {
+        match self.dense_index(node) {
+            Some(index) => self.dense[index] = if requires_structured_emit { 2 } else { 1 },
+            None => {
+                self.sparse.insert(node, requires_structured_emit);
+            }
+        }
+    }
+}
+
 /// tsc-port: createPrinter @6.0.3
 /// tsc-hash: b227b66a85178f81faf58d6de65ed31fe2a87de1448ec6ec61e535fd36194697
 /// tsc-span: _tsc.js:116912-121378
@@ -1515,7 +1569,7 @@ impl Printer {
     ) -> Result<(), PrinterError> {
         let mut structured_nodes = rustc_hash::FxHashSet::default();
         let mut function_body_blocks = rustc_hash::FxHashSet::default();
-        let mut memo = rustc_hash::FxHashMap::default();
+        let mut memo = EmissionPlanMemo::for_root(transformation, root)?;
         let mut children = Vec::new();
         Self::collect_emission_plan(
             transformation,
@@ -1538,15 +1592,15 @@ impl Printer {
         transformation: &TransformationResult<'_>,
         node: TransformNode,
         target: Option<ScriptTarget>,
-        memo: &mut rustc_hash::FxHashMap<TransformNode, bool>,
+        memo: &mut EmissionPlanMemo,
         structured_nodes: &mut rustc_hash::FxHashSet<TransformNode>,
         function_body_blocks: &mut rustc_hash::FxHashSet<TransformNode>,
         // One child buffer for the whole walk: a node's children occupy the
         // tail while it recurses through them and are released afterwards.
         children: &mut Vec<NodeId>,
     ) -> Result<bool, PrinterError> {
-        if let Some(requires_structured_emit) = memo.get(&node) {
-            return Ok(*requires_structured_emit);
+        if let Some(requires_structured_emit) = memo.get(node) {
+            return Ok(requires_structured_emit);
         }
 
         let record = transformation.arena().node(node)?;

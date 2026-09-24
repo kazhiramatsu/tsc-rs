@@ -287,7 +287,55 @@ impl TextWriter {
 
     fn append_and_measure(&mut self, text: &str) {
         self.output.push_str(text);
-        self.measure_chunk(text.encode_utf16());
+        if text.is_ascii() {
+            self.measure_ascii_chunk(text.as_bytes());
+        } else {
+            self.measure_chunk(text.encode_utf16());
+        }
+    }
+
+    /// `measure_chunk` for ASCII text: one UTF-16 unit per byte, and the
+    /// only line breaks are CR and LF (most emitted chunks are short tokens
+    /// without any).
+    fn measure_ascii_chunk(&mut self, bytes: &[u8]) {
+        let start = self.text_position;
+        let length = u32::try_from(bytes.len())
+            .expect("emitted text length exceeds the UTF-16 position domain");
+        self.text_position = start
+            .checked_add(length)
+            .expect("emitted text position overflowed");
+        if !bytes.iter().any(|&byte| byte == b'\n' || byte == b'\r') {
+            self.line_start = false;
+            return;
+        }
+        let mut added_lines = 0u32;
+        let mut last_start = 0u32;
+        let mut index = 0usize;
+        while index < bytes.len() {
+            match bytes[index] {
+                b'\r' => {
+                    if bytes.get(index + 1) == Some(&b'\n') {
+                        index += 1;
+                    }
+                    added_lines += 1;
+                    last_start = (index + 1) as u32;
+                }
+                b'\n' => {
+                    added_lines += 1;
+                    last_start = (index + 1) as u32;
+                }
+                _ => {}
+            }
+            index += 1;
+        }
+        self.line_count = self
+            .line_count
+            .checked_add(added_lines)
+            .expect("emitted line count overflowed");
+        self.line_position = start
+            .checked_add(last_start)
+            .expect("emitted line position overflowed");
+        self.line_start = self.line_position == self.text_position;
     }
 
     fn append_and_measure_utf16(&mut self, units: &[u16]) {
