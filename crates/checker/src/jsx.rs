@@ -60,7 +60,15 @@ fn leading_jsx_pragmas(text: &str) -> JsxPragmaSettings {
             let tail = &line[at + 1..];
             let name_end = tail.find(char::is_whitespace).unwrap_or(tail.len());
             let name = tail[..name_end].to_ascii_lowercase();
-            let value = tail[name_end..].trim().to_owned();
+            // getNamedPragmaArguments: `text.trim().split(/\s+/)` and the
+            // pragma's single argument is the first token, so a closing
+            // `**/` on the pragma line (`/** @jsxImportSource . **/`) is
+            // never part of the value.
+            let value = tail[name_end..]
+                .split_whitespace()
+                .next()
+                .unwrap_or("")
+                .to_owned();
             if !value.is_empty() {
                 match name.as_str() {
                     "jsx" if settings.factory.is_none() => settings.factory = Some(value),

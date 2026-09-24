@@ -269,6 +269,20 @@ fn jsx_pragma_collection_matches_multiline_and_precedence_rules() {
 }
 
 #[test]
+fn jsx_pragma_argument_is_the_first_token_before_the_closing_delimiter() {
+    // getNamedPragmaArguments splits the argument text on whitespace and
+    // keeps the first token, so `**/` closing the pragma line is not part
+    // of the import source (hono's `/** @jsxImportSource . **/`).
+    let pragmas = leading_jsx_pragmas(
+        "/** @jsxRuntime automatic **/\n\
+         /** @jsxImportSource . **/\n\
+         const value = 1;\n",
+    );
+    assert_eq!(pragmas.import_source.as_deref(), Some("."));
+    assert_eq!(pragmas.runtime.as_deref(), Some("automatic"));
+}
+
+#[test]
 fn jsx_factory_option_selects_its_namespace() {
     let rows = checked_rows_with(
         "declare namespace Preact { namespace JSX { interface Element {} interface IntrinsicElements { div: { id: string } } } function h(): any; }\n\
