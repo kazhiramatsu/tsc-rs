@@ -6,6 +6,7 @@
 //! lets independent lowering passes compose without guessing which earlier
 //! pass has already occupied `_a`, `_b`, and the remaining generated slots.
 
+use rustc_hash::FxHashSet;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
@@ -63,12 +64,15 @@ enum OrdinaryTempNamePolicy {
 /// ([`TransformArena::identifier_texts`] or the parsed census below) and
 /// copies the set only when it records a generated name, so the source is
 /// scanned once per unit instead of once per transformer. Reads go through
-/// `Deref`; `insert` and `extend` are `BTreeSet`'s, copy-on-write.
+/// `Deref`; `insert` and `extend` are the set's, copy-on-write. The set is
+/// hashed: every reader asks for membership only, and a census of a large
+/// source (tens of thousands of distinct spellings) is built and queried
+/// without ordered string comparisons.
 #[derive(Clone, Debug, Default)]
-pub(super) struct UsedNames(Arc<BTreeSet<String>>);
+pub(super) struct UsedNames(Arc<FxHashSet<String>>);
 
 impl UsedNames {
-    /// `BTreeSet::insert`: false, and no copy, when the name is used already.
+    /// Set insertion: false, and no copy, when the name is used already.
     pub(super) fn insert(&mut self, name: String) -> bool {
         if self.0.contains(&name) {
             return false;
@@ -82,21 +86,27 @@ impl UsedNames {
 }
 
 impl std::ops::Deref for UsedNames {
-    type Target = BTreeSet<String>;
+    type Target = FxHashSet<String>;
 
-    fn deref(&self) -> &BTreeSet<String> {
+    fn deref(&self) -> &FxHashSet<String> {
         &self.0
     }
 }
 
-impl From<Arc<BTreeSet<String>>> for UsedNames {
-    fn from(names: Arc<BTreeSet<String>>) -> Self {
+impl From<Arc<FxHashSet<String>>> for UsedNames {
+    fn from(names: Arc<FxHashSet<String>>) -> Self {
         Self(names)
     }
 }
 
 impl From<BTreeSet<String>> for UsedNames {
     fn from(names: BTreeSet<String>) -> Self {
+        Self(Arc::new(names.into_iter().collect()))
+    }
+}
+
+impl From<FxHashSet<String>> for UsedNames {
+    fn from(names: FxHashSet<String>) -> Self {
         Self(Arc::new(names))
     }
 }
@@ -131,16 +141,14 @@ impl ParsedSourceIdentifierNames {
         }
         let syntax = arena.source(source)?.syntax();
         let node_base = syntax.arena.node_base();
-        let mut names = BTreeSet::new();
-        // Most identifier texts repeat many times per file; a hashed
-        // first-sight filter keeps the ordered set's string comparisons
-        // and clones to the distinct names only.
-        let mut seen: rustc_hash::FxHashSet<&str> = rustc_hash::FxHashSet::default();
+        let mut names = FxHashSet::default();
+        // Most identifier texts repeat many times per file; a name already
+        // in the census is skipped before its parse ownership is checked.
         for (offset, record) in syntax.arena.nodes().iter().enumerate() {
             let NodeData::Identifier(identifier) = &record.data else {
                 continue;
             };
-            if !seen.insert(identifier.text.as_str()) {
+            if names.contains(identifier.text.as_str()) {
                 continue;
             }
             let offset = u32::try_from(offset).expect("transform node count exceeds u32");
@@ -150,10 +158,9 @@ impl ParsedSourceIdentifierNames {
                     .expect("transform node identity overflow"),
             );
             let node = TransformNode::new(source, id);
+            // A synthesized spelling does not reserve the name; a later
+            // parsed node with the same text still must.
             if !arena.is_parsed_node(node)? {
-                // A synthesized spelling does not reserve the name; a later
-                // parsed node with the same text still must.
-                seen.remove(identifier.text.as_str());
                 continue;
             }
             names.insert(identifier.text.clone());
@@ -630,9 +637,9 @@ pub(super) fn collect_untagged_identifier_texts(
     arena: &TransformArena,
     source: TransformSourceId,
     root: TransformNode,
-) -> Result<BTreeSet<String>, TransformError> {
+) -> Result<FxHashSet<String>, TransformError> {
     let syntax = arena.source(source)?.syntax();
-    let mut names = BTreeSet::new();
+    let mut names = FxHashSet::default();
     let mut stack = vec![root.node()];
     // Visited marks, dense over the arena's id range (a node may be reached
     // through several parents once transforms share subtrees).
@@ -1318,7 +1325,7 @@ fn allocate_numbered_name_with_global_oracle(
 /// tsc-hash: 09d871cc98ba62a6f9f3b687589b870b665327fab35d0c71e21d6766062faf68
 /// tsc-span: _tsc.js:120638-120666
 fn file_level_unique_name(
-    reserved: &BTreeSet<String>,
+    reserved: &FxHashSet<String>,
     preferred: &str,
     planned: String,
     global_name_oracle: Option<&dyn GlobalNameOracle>,

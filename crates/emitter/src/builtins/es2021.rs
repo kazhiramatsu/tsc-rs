@@ -309,9 +309,22 @@ impl<'context> TargetVisitor<'context> {
     ) -> Result<Self, TransformError> {
         let nodes = node_memo(context.arena(), source);
         let arrays = array_memo(context.arena(), source);
+        // A root without the pass's feature maps to itself at once (`visit`
+        // gates on the same flag), so no binding is ever allocated against
+        // the census: the source is not scanned for it.
+        let reserved = if context.arena().transform_flags_complete(root)
+            && !context
+                .arena()
+                .transform_flags(root)
+                .contains(pass.feature_flag())
+        {
+            Default::default()
+        } else {
+            collect_untagged_identifier_texts(context.arena(), source, root)?.into()
+        };
         Ok(Self {
             generated_bindings: GeneratedBindingScopes::new(
-                collect_untagged_identifier_texts(context.arena(), source, root)?.into(),
+                reserved,
                 AncestorBindingPolicy::AllowShadow,
             ),
             context,

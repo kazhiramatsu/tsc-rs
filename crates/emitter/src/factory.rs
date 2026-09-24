@@ -1,5 +1,5 @@
 use std::cell::{OnceCell, RefCell};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -166,7 +166,7 @@ pub struct TransformSource {
     /// The parsed identifiers only (tsc's `SourceFile.identifiers`), filled
     /// once by their collector (see
     /// [`TransformArena::parsed_identifier_names_cell`]).
-    parsed_identifier_names: OnceCell<Arc<BTreeSet<String>>>,
+    parsed_identifier_names: OnceCell<Arc<FxHashSet<String>>>,
     /// Whether the source text contains an `\u{` escape anywhere (see
     /// [`TransformArena::source_text_has_extended_unicode_escape`]).
     text_has_extended_unicode_escape: OnceCell<bool>,
@@ -196,7 +196,7 @@ impl PartialEq for TransformSource {
 /// shared with every name allocator that started from them.
 #[derive(Clone, Debug, Default)]
 struct IdentifierCensus {
-    names: Arc<BTreeSet<String>>,
+    names: Arc<FxHashSet<String>>,
     scanned: usize,
 }
 
@@ -471,7 +471,7 @@ impl TransformArena {
     /// every caller receives exactly the set it would have collected itself
     /// without rescanning the source per transformer. Generated names go
     /// into a caller's copy-on-write handle, never into the census.
-    pub(crate) fn identifier_texts(&self, source: TransformSourceId) -> Arc<BTreeSet<String>> {
+    pub(crate) fn identifier_texts(&self, source: TransformSourceId) -> Arc<FxHashSet<String>> {
         let Ok(source) = self.source(source) else {
             return Arc::default();
         };
@@ -498,7 +498,7 @@ impl TransformArena {
     pub(crate) fn parsed_identifier_names_cell(
         &self,
         source: TransformSourceId,
-    ) -> Result<&OnceCell<Arc<BTreeSet<String>>>, TransformError> {
+    ) -> Result<&OnceCell<Arc<FxHashSet<String>>>, TransformError> {
         Ok(&self.source(source)?.parsed_identifier_names)
     }
 

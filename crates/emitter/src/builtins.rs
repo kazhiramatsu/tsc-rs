@@ -11393,7 +11393,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
 
     /// The parsed identifier texts of the source (tsc `sourceFile.identifiers`),
     /// collected on first use.
-    fn source_identifier_names(&self) -> &BTreeSet<String> {
+    fn source_identifier_names(&self) -> &rustc_hash::FxHashSet<String> {
         self.source_identifier_names
             .get_or_init(|| system::collect_identifier_texts(self.context.arena(), self.source))
     }
