@@ -2340,6 +2340,12 @@ impl PreparedProgramBuilder {
 
     fn validate_canonical_case(&self, path: &CanonicalPath) -> Result<(), PreparationError> {
         let text = path.as_js();
+        // An ASCII path without upper-case letters is its own fold; the full
+        // fold ran for every file of the program before (VS Code: 7% of the
+        // loading thread's early samples).
+        if text.as_bytes().is_ascii() && !text.as_bytes().iter().any(u8::is_ascii_uppercase) {
+            return Ok(());
+        }
         let folded = to_file_name_lower_case_js(text);
         if folded.as_js() == text {
             return Ok(());
