@@ -19,8 +19,11 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 ///
 /// A provisional resource cap (tsgo caps at min(files, 256)): every shard
 /// duplicates the checker's initialization and any shared dependency it
-/// resolves, and the queue below has not been measured beyond this width. Revisit from the W measurements.
-pub const MAX_CHECKERS: usize = 8;
+/// resolves. Sixteen admits every hardware thread of the machines measured
+/// so far (a pinned `TSRS_CHECKERS=10` was silently eight before); the
+/// automatic budget stays at [`AUTOMATIC_CHECKERS_CAP`]: on VS Code `src`
+/// ten shards cost 7% more CPU than eight for no reliable wall gain.
+pub const MAX_CHECKERS: usize = 16;
 
 /// The number of checker states (including the calling thread's) one program
 /// check may construct.
@@ -181,6 +184,229 @@ fn cost_weight(nodes: usize) -> u64 {
     nodes * (u64::from(nodes.ilog2()) + 1)
 }
 
+/// How the deterministic partition deals files to shards. The default is
+/// [`partition_files_by_directory`] with a load slack of
+/// [`DEFAULT_DIRECTORY_SLACK_PERCENT`]; `TSRS_SHARD_PARTITION` selects
+/// another for measurement: `leastload` ([`partition_files`]), `contiguous`
+/// ([`partition_files_contiguous`]), `blocks` or `blocks:N`
+/// ([`partition_files_blocks`], N blocks per shard, default 4), `directory:P`
+/// (slack of P percent of a share).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum PartitionMode {
+    LeastLoad,
+    Contiguous,
+    Blocks(usize),
+    Directory(u64),
+}
+
+/// The directory-preferring partition's load slack, in percent of an equal
+/// share: measured against the plain least-load spread with eight checkers,
+/// 10% took VS Code `src` from 5.26 to 5.05 s (5% to 4.95 s), Playwright
+/// from 635 to 549 ms (5%: 572 ms) and the Next.js root from 788 to 757 ms
+/// (5%: 801 ms), TypeScript `src/compiler` unchanged; CPU fell 5–30%.
+const DEFAULT_DIRECTORY_SLACK_PERCENT: u64 = 10;
+
+pub(crate) fn partition_mode_requested() -> PartitionMode {
+    static MODE: std::sync::OnceLock<PartitionMode> = std::sync::OnceLock::new();
+    *MODE.get_or_init(|| {
+        let value = std::env::var("TSRS_SHARD_PARTITION").unwrap_or_default();
+        let argument = |rest: &str, default: u64| {
+            rest.strip_prefix(':')
+                .and_then(|n| n.parse::<u64>().ok())
+                .unwrap_or(default)
+        };
+        if value == "leastload" {
+            PartitionMode::LeastLoad
+        } else if value == "contiguous" {
+            PartitionMode::Contiguous
+        } else if let Some(rest) = value.strip_prefix("blocks") {
+            PartitionMode::Blocks(argument(rest, 4).max(1) as usize)
+        } else if let Some(rest) = value.strip_prefix("directory") {
+            PartitionMode::Directory(argument(rest, DEFAULT_DIRECTORY_SLACK_PERCENT))
+        } else {
+            PartitionMode::Directory(DEFAULT_DIRECTORY_SLACK_PERCENT)
+        }
+    })
+}
+
+/// Assign program files (by index) to at most `shards` checkers by least
+/// load with a directory preference: among the shards whose load is within
+/// `slack_percent` of a share above the lightest, the one already holding
+/// the most files of the file's directory takes it (ties: lighter load,
+/// then lower index). Files of one directory import each other and the
+/// same modules, so a shard resolves fewer foreign declarations than under
+/// the plain least-load spread while every load stays within the slack of
+/// the lightest. A directory of two equal shares of the files or more gets
+/// no preference (nothing to contain; the slack would only skew the load).
+/// Files are dealt heaviest first like [`partition_files`]. Deterministic.
+pub(crate) fn partition_files_by_directory(
+    weights: &[usize],
+    directories: &[u32],
+    shards: usize,
+    slack_percent: u64,
+) -> Vec<Vec<usize>> {
+    let shards = shards.clamp(1, weights.len().max(1));
+    let costs: Vec<u64> = weights.iter().map(|&nodes| cost_weight(nodes)).collect();
+    let total: u64 = costs.iter().sum();
+    let slack = total / shards as u64 * slack_percent / 100;
+    let mut order: Vec<usize> = (0..weights.len()).collect();
+    order.sort_by_key(|&file| (std::cmp::Reverse(costs[file]), file));
+    // A directory holding two equal shares of the files or more gains
+    // nothing from the preference (its files land everywhere anyway) and
+    // would pay the slack as imbalance: TypeScript's src/compiler keeps
+    // its 248 files in one directory. Such files take the lightest shard.
+    let mut directory_sizes: rustc_hash::FxHashMap<u32, usize> = Default::default();
+    for &directory in directories {
+        *directory_sizes.entry(directory).or_insert(0) += 1;
+    }
+    let preferred = |directory: u32| {
+        directory_sizes
+            .get(&directory)
+            .is_some_and(|&size| size * shards < weights.len() * 2)
+    };
+    let mut assignment: Vec<Vec<usize>> = vec![Vec::new(); shards];
+    let mut load = vec![0u64; shards];
+    let mut affinity: Vec<rustc_hash::FxHashMap<u32, u32>> = vec![Default::default(); shards];
+    for file in order {
+        let directory = directories.get(file).copied().unwrap_or(u32::MAX);
+        let lightest = load.iter().copied().min().unwrap_or(0);
+        let limit = if preferred(directory) {
+            lightest.saturating_add(slack)
+        } else {
+            lightest
+        };
+        let target = (0..shards)
+            .filter(|&shard| load[shard] <= limit)
+            .max_by_key(|&shard| {
+                (
+                    affinity[shard].get(&directory).copied().unwrap_or(0),
+                    std::cmp::Reverse(load[shard]),
+                    std::cmp::Reverse(shard),
+                )
+            })
+            .expect("the lightest shard is within the limit");
+        assignment[target].push(file);
+        load[target] += costs[file];
+        *affinity[target].entry(directory).or_insert(0) += 1;
+    }
+    for files in &mut assignment {
+        files.sort_unstable();
+    }
+    assignment.retain(|files| !files.is_empty());
+    assignment
+}
+
+/// Split program order into `blocks` contiguous ranges of about equal cost
+/// (the closing rule of [`partition_files_contiguous`]).
+fn contiguous_ranges(costs: &[i64], blocks: usize) -> Vec<Vec<usize>> {
+    let blocks = blocks.clamp(1, costs.len().max(1));
+    let mut remaining_total: i64 = costs.iter().sum();
+    let mut ranges: Vec<Vec<usize>> = Vec::with_capacity(blocks);
+    let mut current: Vec<usize> = Vec::new();
+    let mut current_cost: i64 = 0;
+    for (file, &cost) in costs.iter().enumerate() {
+        let remaining_blocks = (blocks - ranges.len()) as i64;
+        if remaining_blocks > 1 && !current.is_empty() {
+            let share = remaining_total / remaining_blocks;
+            let overshoot = current_cost + cost - share;
+            let shortfall = share - current_cost;
+            if overshoot > 0 && overshoot > shortfall {
+                ranges.push(std::mem::take(&mut current));
+                current_cost = 0;
+            }
+        }
+        current.push(file);
+        current_cost += cost;
+        remaining_total -= cost;
+    }
+    if !current.is_empty() {
+        ranges.push(current);
+    }
+    ranges
+}
+
+/// Assign program files to at most `shards` checkers as contiguous
+/// Program-order blocks, `blocks_per_shard` of them per shard, dealt to the
+/// shards heaviest first by least load like [`partition_files`] deals files.
+///
+/// A block's files share their imports (Program order lists a file's
+/// imports before it), so a shard resolves the declarations of a few regions
+/// of the import graph instead of a scattered sample of the whole program,
+/// while dealing several blocks per shard evens out the check cost that the
+/// node count does not predict (one whole-program range per shard checked
+/// three times slower than another on VS Code). Deterministic.
+pub(crate) fn partition_files_blocks(
+    weights: &[usize],
+    shards: usize,
+    blocks_per_shard: usize,
+) -> Vec<Vec<usize>> {
+    let shards = shards.clamp(1, weights.len().max(1));
+    let costs: Vec<i64> = weights
+        .iter()
+        .map(|&nodes| i64::try_from(cost_weight(nodes)).unwrap_or(i64::MAX / 4))
+        .collect();
+    let blocks = contiguous_ranges(&costs, shards * blocks_per_shard.max(1));
+    let block_cost = |block: &Vec<usize>| -> i64 { block.iter().map(|&file| costs[file]).sum() };
+    let mut order: Vec<usize> = (0..blocks.len()).collect();
+    order.sort_by_key(|&block| (std::cmp::Reverse(block_cost(&blocks[block])), block));
+    let mut assignment: Vec<Vec<usize>> = vec![Vec::new(); shards];
+    let mut load = vec![0i64; shards];
+    for block in order {
+        let target = (0..shards)
+            .min_by_key(|&shard| (load[shard], shard))
+            .expect("at least one shard");
+        load[target] += block_cost(&blocks[block]);
+        assignment[target].extend_from_slice(&blocks[block]);
+    }
+    for files in &mut assignment {
+        files.sort_unstable();
+    }
+    assignment.retain(|files| !files.is_empty());
+    assignment
+}
+
+/// Assign program files (by index) to at most `shards` checkers as
+/// contiguous Program-order ranges of about equal cost.
+///
+/// Program order lists a file's imports before it, so the files of one
+/// range share their imports: each shard then resolves the declarations of
+/// one region of the import graph, where the least-load partition's
+/// heaviest-first spread has every shard resolve most of the program. A
+/// range closes when the next file would overshoot the remaining equal
+/// share by more than it would fall short; the last range takes the rest,
+/// so a file heavier than a share is a range of its own. Deterministic like
+/// [`partition_files`].
+pub(crate) fn partition_files_contiguous(weights: &[usize], shards: usize) -> Vec<Vec<usize>> {
+    let shards = shards.clamp(1, weights.len().max(1));
+    let costs: Vec<i64> = weights
+        .iter()
+        .map(|&nodes| i64::try_from(cost_weight(nodes)).unwrap_or(i64::MAX / 4))
+        .collect();
+    let mut remaining_total: i64 = costs.iter().sum();
+    let mut assignment: Vec<Vec<usize>> = Vec::with_capacity(shards);
+    let mut current: Vec<usize> = Vec::new();
+    let mut current_cost: i64 = 0;
+    for (file, &cost) in costs.iter().enumerate() {
+        let remaining_shards = (shards - assignment.len()) as i64;
+        if remaining_shards > 1 && !current.is_empty() {
+            let share = remaining_total / remaining_shards;
+            let overshoot = current_cost + cost - share;
+            let shortfall = share - current_cost;
+            if overshoot > 0 && overshoot > shortfall {
+                assignment.push(std::mem::take(&mut current));
+                current_cost = 0;
+            }
+        }
+        current.push(file);
+        current_cost += cost;
+        remaining_total -= cost;
+    }
+    if !current.is_empty() {
+        assignment.push(current);
+    }
+    assignment
+}
+
 /// `TSRS_SHARD_QUEUE=shared` selects the shared Program-order queue (see
 /// [`ShardFileQueue`]); the default is the deterministic partition.
 pub(crate) fn shared_queue_requested() -> bool {
@@ -307,9 +533,29 @@ impl ShardFileQueue {
 
     /// One lane per non-empty share of the deterministic node-count
     /// partition of `weights` into at most `shards` shares.
-    pub(crate) fn partitioned(lib_count: usize, weights: &[usize], shards: usize) -> Self {
+    /// One lane per non-empty share of the deterministic partition of
+    /// `weights` (node counts; index = Program file) into at most `shards`
+    /// shares, by the mode of [`partition_mode_requested`]; `directories`
+    /// gives each file's interned directory for the directory-preferring
+    /// default (an empty slice falls back to the plain least-load spread).
+    pub(crate) fn partitioned_with_directories(
+        lib_count: usize,
+        weights: &[usize],
+        directories: &[u32],
+        shards: usize,
+    ) -> Self {
         debug_assert!(lib_count <= weights.len());
-        let lanes = partition_files(weights, shards)
+        let files = match partition_mode_requested() {
+            PartitionMode::Contiguous => partition_files_contiguous(weights, shards),
+            PartitionMode::Blocks(per_shard) => partition_files_blocks(weights, shards, per_shard),
+            PartitionMode::Directory(slack) if !directories.is_empty() => {
+                partition_files_by_directory(weights, directories, shards, slack)
+            }
+            PartitionMode::Directory(_) | PartitionMode::LeastLoad => {
+                partition_files(weights, shards)
+            }
+        };
+        let lanes = files
             .into_iter()
             .map(|files| Lane {
                 weight: files.iter().map(|&file| weights[file]).sum(),
@@ -593,7 +839,7 @@ mod tests {
     fn partitioned_queue_serves_each_shard_its_own_share_in_program_order() {
         // File 0 is the (heavy) library; the fixtures are light.
         let weights = [5, 1, 1, 1, 1, 1, 1];
-        let queue = ShardFileQueue::partitioned(1, &weights, 2);
+        let queue = ShardFileQueue::partitioned_with_directories(1, &weights, &[], 2);
         let expected = partition_files(&weights, 2);
         assert_eq!(queue.shard_count(), expected.len());
         for (shard, share) in expected.iter().enumerate() {
@@ -616,8 +862,76 @@ mod tests {
         // A shard index beyond the partition serves nothing.
         assert_eq!(queue.next_fixture(expected.len()), None);
         assert_eq!(queue.reserved_nodes(expected.len()), 0);
-        let empty = ShardFileQueue::partitioned(0, &[], 4);
+        let empty = ShardFileQueue::partitioned_with_directories(0, &[], &[], 4);
         assert_eq!(empty.shard_count(), 1);
         assert_eq!(empty.next_fixture(0), None);
+    }
+
+    fn covers_every_file_once(assignment: &[Vec<usize>], files: usize) {
+        let mut seen: Vec<usize> = assignment.iter().flatten().copied().collect();
+        seen.sort_unstable();
+        assert_eq!(seen, (0..files).collect::<Vec<_>>());
+        for share in assignment {
+            assert!(share.windows(2).all(|pair| pair[0] < pair[1]));
+        }
+    }
+
+    #[test]
+    fn directory_partition_clusters_a_directory_within_the_slack() {
+        // Equal weights, two directories of four files: with a whole share
+        // of slack each directory settles on one shard; with no slack the
+        // files alternate like the plain least-load deal.
+        let weights = [1; 8];
+        let directories = [0, 0, 0, 0, 1, 1, 1, 1];
+        let clustered = partition_files_by_directory(&weights, &directories, 2, 100);
+        covers_every_file_once(&clustered, 8);
+        assert_eq!(clustered, [vec![0, 1, 2, 3], vec![4, 5, 6, 7]]);
+        let strict = partition_files_by_directory(&weights, &directories, 2, 0);
+        covers_every_file_once(&strict, 8);
+        assert_eq!(strict, partition_files(&weights, 2));
+        // One directory holding every file gets no preference: the deal is
+        // the plain least-load one whatever the slack.
+        let single = partition_files_by_directory(&weights, &[0; 8], 2, 100);
+        assert_eq!(single, partition_files(&weights, 2));
+    }
+
+    #[test]
+    fn directory_partition_keeps_every_load_within_the_slack_of_the_lightest() {
+        // Uneven weights and directories: whatever the preference chose,
+        // no shard was dealt a file while more than the slack above the
+        // lightest shard.
+        let weights = [9, 1, 8, 2, 7, 3, 6, 4, 5, 5, 1, 1];
+        let directories = [0, 0, 1, 1, 0, 0, 1, 1, 2, 2, 2, 2];
+        let assignment = partition_files_by_directory(&weights, &directories, 3, 10);
+        covers_every_file_once(&assignment, 12);
+        let cost = |file: usize| cost_weight(weights[file]);
+        let total: u64 = (0..12).map(cost).sum();
+        let slack = total / 3 * 10 / 100;
+        let loads: Vec<u64> = assignment
+            .iter()
+            .map(|share| share.iter().map(|&file| cost(file)).sum())
+            .collect();
+        let lightest = *loads.iter().min().unwrap();
+        let heaviest_file = (0..12).map(cost).max().unwrap();
+        assert!(loads
+            .iter()
+            .all(|&load| load <= lightest + slack + heaviest_file));
+    }
+
+    #[test]
+    fn contiguous_and_block_partitions_cover_every_file_in_program_order() {
+        let weights = [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 8];
+        let contiguous = partition_files_contiguous(&weights, 3);
+        covers_every_file_once(&contiguous, 12);
+        assert_eq!(contiguous.len(), 3);
+        for share in &contiguous {
+            assert!(share.windows(2).all(|pair| pair[1] == pair[0] + 1));
+        }
+        let blocks = partition_files_blocks(&weights, 3, 2);
+        covers_every_file_once(&blocks, 12);
+        assert!(blocks.len() <= 3);
+        assert!(partition_files_contiguous(&[], 4).is_empty());
+        assert!(partition_files_blocks(&[], 4, 4).is_empty());
+        assert_eq!(partition_files_by_directory(&[], &[], 4, 10).len(), 0);
     }
 }

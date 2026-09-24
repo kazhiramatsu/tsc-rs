@@ -14,7 +14,7 @@ pub use crate::resolution_error::{ResolutionError, ResolutionErrorKind};
 /// `Unspecified` is not an unsupported state. It is the public spelling of
 /// the vendored compiler's `undefined` key and remains distinct from both
 /// concrete modes.
-#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum ResolutionMode {
     CommonJs,
     EsNext,

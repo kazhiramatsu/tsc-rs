@@ -4611,12 +4611,16 @@ fn derive_file_names<'j0, 'j1>(
         .flatten()
         .collect::<Vec<_>>();
 
+    // 39611-39613: literalFileMap / wildcardFileMap / wildCardJsonFileMap
+    // are Maps keyed by the canonical name, so each candidate costs one
+    // lookup. Scanning the wildcard list instead was quadratic in the
+    // candidate count (VS Code's 9,400 sources: ~90 ms of key compares).
     let literal_keys = literal
         .iter()
         .map(|(key, _)| key.clone())
-        .collect::<BTreeSet<_>>();
-    let mut wildcard = Vec::<(JsString, JsString)>::new();
-    let mut wildcard_json = Vec::<(JsString, JsString)>::new();
+        .collect::<rustc_hash::FxHashSet<_>>();
+    let mut wildcard = OrderedFileMap::default();
+    let mut wildcard_json = OrderedFileMap::default();
     for file in wildcard_candidates {
         if file_extension_is(&file, ".json") {
             if discovery_options.resolve_json_module
@@ -4625,17 +4629,15 @@ fn derive_file_names<'j0, 'j1>(
                     .any(|include| include.matches(&file))
             {
                 let key = file_name_key(file.as_js(), case_sensitive);
-                if !literal_keys.contains(&key)
-                    && !wildcard_json.iter().any(|(existing, _)| existing == &key)
-                {
-                    wildcard_json.push((key, file));
+                if !literal_keys.contains(&key) && !wildcard_json.contains(&key) {
+                    wildcard_json.insert(key, file);
                 }
             }
             continue;
         }
         if has_higher_priority(
             file.as_js(),
-            &literal,
+            &literal_keys,
             &wildcard,
             extension_groups,
             case_sensitive,
@@ -4649,16 +4651,16 @@ fn derive_file_names<'j0, 'j1>(
             case_sensitive,
         );
         let key = file_name_key(file.as_js(), case_sensitive);
-        if !literal_keys.contains(&key) && !wildcard.iter().any(|(existing, _)| existing == &key) {
-            wildcard.push((key, file));
+        if !literal_keys.contains(&key) && !wildcard.contains(&key) {
+            wildcard.insert(key, file);
         }
     }
 
     let file_names = literal
         .into_iter()
-        .chain(wildcard)
-        .chain(wildcard_json)
         .map(|(_, file)| file)
+        .chain(wildcard.into_files())
+        .chain(wildcard_json.into_files())
         .collect::<Vec<_>>();
     report_no_input_files(
         config,
@@ -6592,10 +6594,41 @@ fn substitute_config_dir_typed_string_array<'j0>(
     Ok(changed)
 }
 
+/// tsc's wildcardFileMap (getFileNamesFromConfigSpecs, 39612): insertion
+/// ordered with one lookup per key. A removed key leaves a tombstone so the
+/// positions of the others stay put; the final listing skips it.
+#[derive(Default)]
+struct OrderedFileMap {
+    entries: Vec<Option<(JsString, JsString)>>,
+    index: rustc_hash::FxHashMap<JsString, usize>,
+}
+
+impl OrderedFileMap {
+    fn contains(&self, key: &JsString) -> bool {
+        self.index.contains_key(key)
+    }
+
+    /// Append a key the caller has checked is absent.
+    fn insert(&mut self, key: JsString, file: JsString) {
+        self.index.insert(key.clone(), self.entries.len());
+        self.entries.push(Some((key, file)));
+    }
+
+    fn remove(&mut self, key: &JsString) {
+        if let Some(position) = self.index.remove(key) {
+            self.entries[position] = None;
+        }
+    }
+
+    fn into_files(self) -> impl Iterator<Item = JsString> {
+        self.entries.into_iter().flatten().map(|(_, file)| file)
+    }
+}
+
 fn has_higher_priority(
     file: JsStr<'_>,
-    literal: &[(JsString, JsString)],
-    wildcard: &[(JsString, JsString)],
+    literal: &rustc_hash::FxHashSet<JsString>,
+    wildcard: &OrderedFileMap,
     groups: &[&[&str]],
     case_sensitive: bool,
 ) -> bool {
@@ -6613,9 +6646,7 @@ fn has_higher_priority(
             return false;
         }
         let candidate = file_name_key(change_extension(file, extension).as_js(), case_sensitive);
-        if literal.iter().any(|(key, _)| key == &candidate)
-            || wildcard.iter().any(|(key, _)| key == &candidate)
-        {
+        if literal.contains(&candidate) || wildcard.contains(&candidate) {
             if *extension == ".d.ts"
                 && (file_extension_is(file, ".js") || file_extension_is(file, ".jsx"))
             {
@@ -6629,7 +6660,7 @@ fn has_higher_priority(
 
 fn remove_lower_priority(
     file: JsStr<'_>,
-    wildcard: &mut Vec<(JsString, JsString)>,
+    wildcard: &mut OrderedFileMap,
     groups: &[&[&str]],
     case_sensitive: bool,
 ) {
@@ -6645,7 +6676,7 @@ fn remove_lower_priority(
             return;
         }
         let candidate = file_name_key(change_extension(file, extension).as_js(), case_sensitive);
-        wildcard.retain(|(key, _)| key != &candidate);
+        wildcard.remove(&candidate);
     }
 }
 

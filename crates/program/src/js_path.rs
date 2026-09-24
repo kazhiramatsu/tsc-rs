@@ -102,8 +102,15 @@ pub fn base_file_name<'p>(path: impl Into<JsStr<'p>>) -> JsString {
 /// `getDirectoryPath`: trim one trailing separator, then retain the prefix
 /// through the last component boundary without truncating a disk/URL root.
 pub(crate) fn directory_name(path: JsStr<'_>) -> JsString {
-    let slashed = normalize_slashes(path);
-    let slashed = slashed.as_js();
+    // The loader asks per module request; an already-slashed path (every
+    // canonical path) skips the normalizing copy.
+    let normalized;
+    let slashed = if path.as_bytes().contains(&b'\\') {
+        normalized = normalize_slashes(path);
+        normalized.as_js()
+    } else {
+        path
+    };
     let root_length = root_end_byte(slashed);
     if root_length == slashed.as_bytes().len() {
         return slashed.to_owned();

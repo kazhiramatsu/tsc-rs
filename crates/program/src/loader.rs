@@ -1600,7 +1600,8 @@ struct ReadAheadState {
     queued: BTreeSet<CanonicalPath>,
     /// Requests waiting for the in-flight resolution of their (containing
     /// directory, specifier, mode).
-    waiting: BTreeMap<(JsString, JsString, ResolutionMode), Vec<(ResolutionKey, bool)>>,
+    waiting:
+        rustc_hash::FxHashMap<(JsString, JsString, ResolutionMode), Vec<(ResolutionKey, bool)>>,
     /// Set once a read hit the load budget or failed: nothing more is read
     /// ahead (the walk reads and reports as before).
     stopped: bool,
@@ -1768,7 +1769,10 @@ struct StagedGraph<'host, 'options, 'resolver> {
     /// perDirectoryResolutionCache. A module resolution depends on the
     /// containing file only through its directory (and the package scope
     /// that directory selects), so every file of a directory shares it.
-    directory_resolutions: BTreeMap<(JsString, JsString, ResolutionMode), HostModuleResolution>,
+    /// Hashed, never iterated: an ordered map compared the directory strings
+    /// of every lookup (VS Code: 112k lookups of 60-byte paths).
+    directory_resolutions:
+        rustc_hash::FxHashMap<(JsString, JsString, ResolutionMode), HostModuleResolution>,
     directory_resolution_hits: usize,
 }
 
@@ -1820,7 +1824,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             pre_resolved: BTreeMap::new(),
             pre_resolved_hits: 0,
             pre_resolved_types: BTreeMap::new(),
-            directory_resolutions: BTreeMap::new(),
+            directory_resolutions: rustc_hash::FxHashMap::default(),
             directory_resolution_hits: 0,
             reserved_sources: 0,
             reserved_bytes: 0,
@@ -2452,12 +2456,19 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         state: &mut ReadAheadState,
     ) {
         let (requests, targets) = self.read_ahead_edges(canonical);
+        // The requests of one source share its directory: derive it once
+        // per containing file instead of per request (VS Code: 57k requests).
+        let mut last_directory: Option<(JsString, JsString)> = None;
         for (containing_file, key, loads_source) in requests {
-            let directory_key = (
-                crate::js_path::directory_name(containing_file.as_js()),
-                key.specifier().to_owned(),
-                key.mode(),
-            );
+            let directory = match &last_directory {
+                Some((file, directory)) if *file == containing_file => directory.clone(),
+                _ => {
+                    let directory = crate::js_path::directory_name(containing_file.as_js());
+                    last_directory = Some((containing_file.clone(), directory.clone()));
+                    directory
+                }
+            };
+            let directory_key = (directory, key.specifier().to_owned(), key.mode());
             if let Some(host) = self.directory_resolutions.get(&directory_key) {
                 self.directory_resolution_hits += 1;
                 state.directory_reuses += 1;
@@ -2466,12 +2477,12 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 continue;
             }
             match state.waiting.entry(directory_key) {
-                std::collections::btree_map::Entry::Occupied(mut waiting) => {
+                std::collections::hash_map::Entry::Occupied(mut waiting) => {
                     self.directory_resolution_hits += 1;
                     state.directory_reuses += 1;
                     waiting.get_mut().push((key, loads_source));
                 }
-                std::collections::btree_map::Entry::Vacant(waiting) => {
+                std::collections::hash_map::Entry::Vacant(waiting) => {
                     waiting.insert(Vec::new());
                     state.outstanding += 1;
                     state.resolutions += 1;

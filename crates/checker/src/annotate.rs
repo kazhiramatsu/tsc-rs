@@ -6892,6 +6892,10 @@ impl<'a> CheckerState<'a> {
         mapping_this_only: bool,
     ) -> CheckResult<tsc_binder::SymbolTable> {
         let mut result = tsc_binder::SymbolTable::default();
+        // One table per instantiated object type: sized once instead of
+        // rehashed while the members are inserted (VS Code: 1% of the
+        // checker's self time was hashbrown growth).
+        result.reserve(symbols.len());
         for &symbol in symbols {
             let value = if mapping_this_only && self.is_thisless(symbol) {
                 symbol
