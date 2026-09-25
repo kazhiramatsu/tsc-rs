@@ -5,8 +5,10 @@ TypeScript to JavaScript, with support for source maps and declaration files.
 Its compatibility target is **TypeScript 6.0.3**.
 
 See the [current limitations](#current-limitations) before adopting it for
-an existing project. See [Run CI](#run-ci) for the checks used to validate
-the compiler, how to reproduce them, and recorded results.
+an existing project. See [Performance](#performance) for measured compile
+times against `tsc` and `tsgo` on real projects, and [Run CI](#run-ci) for
+the checks used to validate the compiler, how to reproduce them, and
+recorded results.
 
 ## Build
 
@@ -88,10 +90,11 @@ update the build and type-check entries:
 }
 ```
 
-If your project uses `rootDir` or `declaration`, the type-check command
-needs a separate configuration that satisfies the
-[type-check restrictions](#configuration-for-type-checks). Point its `-p`
-argument at that file.
+The type-check command reads the same configuration file as the build,
+including `rootDir` and `declaration`. Keep `target`, `module` and other
+emit settings in `tsconfig.json`: they cannot be passed as command-line
+flags together with `--noEmit` (see the
+[type-check restrictions](#configuration-for-type-checks)).
 
 Run them from your TypeScript project's directory:
 
@@ -266,14 +269,18 @@ Remove the added line from `main.ts` before continuing with the examples.
 
 ### Configuration for type checks
 
-The `--noEmit` project command currently rejects some output settings,
-including `rootDir` and `declaration`. It also rejects `--target` and
-`--module` command-line overrides; put those settings in `tsconfig.json`.
+The `--noEmit` project command reads the same configuration file as a
+build, including output settings such as `outDir`, `rootDir`, `sourceMap`
+and `declaration`. As with `tsc --noEmit`, declaration settings still
+produce declaration diagnostics; no files are written.
 
-The example keeps sources beside `tsconfig.json` and adds declaration
-settings in a [separate configuration](#declaration-files), so its base
-configuration works for both compilation and type checks. Use
-`tsc-rs --noEmit -p .` to check it, including after adding source maps.
+Emit settings cannot be overridden on the command line together with
+`--noEmit -p`: flags such as `--target`, `--module`, `--newLine`,
+`--emitBOM`, `--listEmittedFiles` and `--noEmitOnError` are rejected with
+an error on that route. Put those settings in `tsconfig.json`. The example
+project can be checked at any point with `tsc-rs --noEmit -p .`, including
+after adding the source map and [declaration](#declaration-files) settings
+below.
 
 ## Type-check from Rust (experimental)
 
@@ -296,8 +303,7 @@ The arguments are the configuration file and the directory containing
 TypeScript's `lib.*.d.ts` files. This API requires the library directory to
 be available at runtime; the checked-in `vendor/typescript-6.0.3/lib` supplies
 the matching declarations. Replace the first argument with your project's
-configuration file to check it instead. The same
-[configuration restrictions](#configuration-for-type-checks) apply.
+configuration file to check it instead.
 
 The included `main.ts` deliberately assigns `"three"` to a `number`, so the
 example exits with status `1` and reports the following (the absolute file
@@ -437,8 +443,8 @@ export declare function greet(name: string): string;
 
 `emitDeclarationOnly` generates declarations without writing JavaScript.
 To produce JavaScript and declarations together, omit that option or set it
-to `false`. For type checks, use `tsc-rs --noEmit -p .`, following the
-[configuration restrictions](#configuration-for-type-checks).
+to `false`. `tsc-rs --noEmit -p tsconfig.types.json` reports the
+declaration diagnostics of this configuration without writing any files.
 
 ## Common command-line options
 
@@ -469,6 +475,138 @@ Compiler settings such as `strict`, `outDir`, `sourceMap`, and `declaration`
 belong in `tsconfig.json`; they are not currently accepted as CLI flags.
 For `--noEmit`, see [configuration for type checks](#configuration-for-type-checks).
 
+## Performance
+
+tsc-rs is a native executable that parses, binds and checks a program on
+several threads (up to eight checker threads by default) and writes its
+output files in parallel. The standard library declarations are embedded,
+so a run has no JavaScript runtime start-up. The measurements below compare
+it with TypeScript 6.0.3 (`tsc`, running on Node.js) and with the native
+TypeScript 7 preview compiler (`tsgo`) on real projects.
+
+### Measured projects
+
+Each project was checked out at the commit shown, with its dependencies
+installed, and compiled with its own configuration file (`tsconfig.json`
+of the directory shown, or the file named). Derived configurations switch
+only the output mode (`noEmit`; JavaScript; JavaScript and declaration
+files; JavaScript and source maps; all outputs with `declaration`,
+`declarationMap` and `sourceMap`) and turn off `composite` and
+`incremental`. VS Code was measured with `--noEmit` only.
+
+| Project | Commit | Program files | Source lines |
+| --- | --- | ---: | ---: |
+| [hono](https://github.com/honojs/hono) (`tsconfig.build.json`) | `8dcd52b` | 362 | 25,947 |
+| [zod](https://github.com/colinhacks/zod) | `2bf7b06` | 2,364 | 117,060 |
+| [Playwright](https://github.com/microsoft/playwright) | `ec31a7b` | 1,505 | 154,645 |
+| [TypeScript](https://github.com/microsoft/TypeScript) 6.0.3, `src/compiler` | `050880ce5` | 249 | 194,701 |
+| [Next.js](https://github.com/vercel/next.js), `packages/next` | `1edced6f` | 2,866 | 314,268 |
+| [VS Code](https://github.com/microsoft/vscode), `src` | `29b68000` | 10,272 | 3,048,452 |
+
+Program files count every file in the program as listed by
+`tsc --listFiles`, including standard library and `node_modules`
+declaration files. Source lines count the program's non-declaration
+TypeScript files. zod, Playwright, Next.js and VS Code report type errors
+at these commits with the configurations used; all compilers report them.
+
+### Results
+
+Median wall-clock time in milliseconds on an Apple M5 (10 cores, 32 GiB,
+macOS 26.5.1) with a warm file cache, measured on September 25, 2026.
+tsc-rs and tsgo ran in seven interleaved rounds per configuration, tsc in
+three (two for VS Code), each after one warm-up run. All three compilers
+received the same command line: `--pretty false -p <config>`, with
+`--noEmit` added for VS Code. Compilers:
+
+- tsc-rs built from commit
+  [`1be415931`](https://github.com/kazhiramatsu/tsc-rs/commit/1be415931f7ed456cba6703250b461581ecb4e30)
+  with `cargo build --release --locked` (Rust 1.93.0).
+- tsgo 7.1.0-dev, an unmodified build of
+  [TypeScript commit `1f70213d`](https://github.com/microsoft/TypeScript/commit/1f70213d4922b434345f639b441681e470c7cfc1)
+  (September 4, 2026) with Go 1.26.0, using its default checker count.
+- tsc 6.0.3 on Node.js 25.2.1 with `--max-old-space-size=8192`.
+
+Type check only (`--noEmit`):
+
+| Project | tsc-rs | tsgo | tsc | tsc-rs ÷ tsgo | tsc ÷ tsc-rs |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| hono | 157 | 182 | 1,110 | 0.86 | 7.1 |
+| zod | 754 | 1,001 | 5,468 | 0.75 | 7.3 |
+| Playwright | 558 | 609 | 4,166 | 0.92 | 7.5 |
+| TypeScript `src/compiler` | 365 | 360 | 2,729 | 1.01 | 7.5 |
+| Next.js `packages/next` | 945 | 1,352 | 7,864 | 0.70 | 8.3 |
+| VS Code `src` | 4,524 | 4,775 | 42,606 | 0.95 | 9.4 |
+
+Compilation with output files:
+
+| Project | Output | tsc-rs | tsgo | tsc | tsc-rs ÷ tsgo | tsc ÷ tsc-rs |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| hono | JavaScript | 168 | 188 | 1,168 | 0.89 | 7.0 |
+| hono | JavaScript + declarations | 167 | 184 | 1,127 | 0.91 | 6.7 |
+| hono | JavaScript + source maps | 157 | 176 | 1,078 | 0.89 | 6.9 |
+| hono | All outputs | 179 | 207 | 1,218 | 0.87 | 6.8 |
+| zod | JavaScript | 799 | 1,030 | 5,779 | 0.78 | 7.2 |
+| zod | JavaScript + declarations | 885 | 1,214 | 6,375 | 0.73 | 7.2 |
+| zod | JavaScript + source maps | 811 | 1,087 | 5,923 | 0.75 | 7.3 |
+| zod | All outputs | 979 | 1,178 | 6,103 | 0.83 | 6.2 |
+| Playwright | JavaScript | 617 | 671 | 4,574 | 0.92 | 7.4 |
+| Playwright | JavaScript + declarations | 636 | 751 | 4,795 | 0.85 | 7.5 |
+| Playwright | JavaScript + source maps | 656 | 699 | 4,742 | 0.94 | 7.2 |
+| Playwright | All outputs | 690 | 838 | 5,108 | 0.82 | 7.4 |
+| TypeScript `src/compiler` | JavaScript | 510 | 560 | 3,332 | 0.91 | 6.5 |
+| TypeScript `src/compiler` | JavaScript + declarations | 515 | 608 | 3,433 | 0.85 | 6.7 |
+| TypeScript `src/compiler` | JavaScript + source maps | 520 | 601 | 3,512 | 0.87 | 6.8 |
+| TypeScript `src/compiler` | All outputs | 552 | 666 | 3,741 | 0.83 | 6.8 |
+| Next.js `packages/next` | JavaScript | 1,041 | 1,459 | 8,657 | 0.71 | 8.3 |
+| Next.js `packages/next` | JavaScript + declarations | 1,155 | 1,638 | 9,114 | 0.70 | 7.9 |
+| Next.js `packages/next` | JavaScript + source maps | 1,064 | 1,539 | 9,001 | 0.69 | 8.5 |
+| Next.js `packages/next` | All outputs | 1,210 | 1,704 | 9,544 | 0.71 | 7.9 |
+
+A value below 1 in the `tsc-rs ÷ tsgo` column means tsc-rs finished
+first; the last column is the speed-up over tsc. tsc-rs was faster than
+tsgo on 25 of the 26 configurations and 6 to 9 times faster than tsc. On
+the type check of the TypeScript compiler, whose critical path is the check
+of one 53,000-line file, the two native compilers were within 2 % of each
+other. Differences of a few percent are within the run-to-run variation
+observed on this machine.
+
+### Output comparison
+
+Before timing, every configuration was compiled once with tsc and once with
+tsc-rs, and the diagnostics and emitted file trees were compared byte for
+byte.
+
+| Project | Diagnostics | JavaScript | JavaScript + declarations | JavaScript + source maps | All outputs |
+| --- | --- | --- | --- | --- | --- |
+| hono | identical | identical | 1 of 374 files | identical | 7 of 748 files |
+| zod | identical | 1 of 471 files | 7 of 942 files | 2 of 942 files | 14 of 1884 files |
+| Playwright | identical | 1 of 706 files | 41 of 1409 files | 2 of 1410 files | 48 of 2816 files |
+| TypeScript `src/compiler` | identical | 4 of 78 files | 9 of 156 files | 8 of 156 files | 18 of 312 files |
+| Next.js `packages/next` | 1 extra error | 20 of 1665 files | 39 of 3330 files | 45 of 3330 files | 80 of 6660 files |
+| VS Code `src` | identical | not measured | not measured | not measured | not measured |
+
+Diagnostics were identical on every configuration except Next.js, where
+tsc-rs reports one additional error, a `TS2589` excessively deep type
+instantiation in a `node_modules` declaration file. In the JavaScript
+files, every difference is the placement of a comment: leading comments on
+JSX attributes, and trailing comments after `{` or `,`. Declaration files
+differ in the module specifier chosen for an imported type when the emit
+host has not read that package's `package.json`, in trailing comments on
+enum members, and in the order of union members, which follows the
+parallel checking order. Source maps and declaration maps differ where
+their generated file differs; in a few files per configuration (at most
+13) some mappings differ although the generated file is identical. These
+are tracked as known differences.
+
+### Reproducing
+
+The comparison above is a quick interleaved measurement on one machine, not
+the project's formal protocol. For repeatable measurements with recorded
+provenance, exact output verification before timing, several sessions and
+confidence intervals, see [docs/benchmarking.md](docs/benchmarking.md) and
+`scripts/benchmark-cli.py`. Watch mode and incremental builds are not
+supported, and cold-cache, Linux and Windows timings were not measured.
+
 ## Run CI
 
 The compiler is checked against TypeScript 6.0.3 reference results and
@@ -484,10 +622,12 @@ GitHub Actions logs.
 | **Rust checks** (local only) | Checks formatting, runs Clippy, and executes the workspace's unit and integration tests and other Cargo test targets. The hosted workflows do not run these three workspace-wide commands. |
 
 For a recorded full run on commit
-[`eb1442459`](https://github.com/kazhiramatsu/tsc-rs/commit/eb1442459311f383467f95de2413349de7aa58b6),
-see the successful [acceptance run](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35677992322)
-and [witness run](https://github.com/kazhiramatsu/tsc-rs/actions/runs/35677992320)
-from September 22, 2026: all 22 test jobs and both aggregate checks passed.
+[`120d91465`](https://github.com/kazhiramatsu/tsc-rs/commit/120d91465b6d641974ca664eda46d9e16c693f72),
+the head of the pull request merged into `main` as
+[`1be415931`](https://github.com/kazhiramatsu/tsc-rs/commit/1be415931f7ed456cba6703250b461581ecb4e30),
+see the successful [acceptance run](https://github.com/kazhiramatsu/tsc-rs/actions/runs/36075010585)
+and [witness run](https://github.com/kazhiramatsu/tsc-rs/actions/runs/36075010620)
+from September 24, 2026: all 22 test jobs and both aggregate checks passed.
 
 These results demonstrate the behavior covered by those tests. Some cases
 have explicitly recorded differences or unsupported outcomes; a passing
@@ -599,7 +739,9 @@ commit; push fixes to the pull request branch to validate the updated code.
   and return an error.
 - The command runs one compilation at a time. Watch mode, `--build`, and
   project-reference builds are not supported.
-- Project type checks have [configuration restrictions](#configuration-for-type-checks).
+- `--noEmit -p` does not accept command-line emit overrides such as
+  `--target` or `--module`; see the
+  [configuration for type checks](#configuration-for-type-checks).
 - `--help`, `--init`, and `--showConfig` are not currently implemented.
   Create the configuration file using the examples above.
 - The compiler command does not provide a language server or editor service.
