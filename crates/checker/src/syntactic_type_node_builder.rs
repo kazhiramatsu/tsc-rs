@@ -364,6 +364,30 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
             })
     }
 
+    /// `factory.createNodeArray(updated, nodes.hasTrailingComma)`: visitNodes
+    /// (_tsc.js:91098-91112) and visitNodesWithoutCopyingPositions
+    /// (_tsc.js:133665-133676) carry the visited array's trailing comma, which
+    /// the printer needs for binding patterns (`{ a, b, }`).
+    fn create_visited_node_array(
+        &mut self,
+        source: TransformSourceId,
+        original: TransformNodeArray,
+        nodes: Vec<TransformNode>,
+    ) -> Result<TransformNodeArray, EmitResolverError> {
+        let has_trailing_comma = self
+            .arena
+            .node_array(original)
+            .map_err(|error| self.factory_error(error))?
+            .has_trailing_comma;
+        self.arena
+            .factory()
+            .create_node_array_with_trailing_comma(source, nodes, has_trailing_comma)
+            .map_err(|error| EmitResolverError::Factory {
+                method: self.method,
+                error: Box::new(error),
+            })
+    }
+
     fn node_in_source(
         &mut self,
         source: TransformSourceId,
@@ -1403,7 +1427,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
                 .iter()
                 .filter_map(|&node| self.arena.node_ref(source, node))
                 .collect();
-            self.create_node_array(source, nodes)?
+            self.create_visited_node_array(source, original, nodes)?
         } else {
             visited
         };
@@ -3642,22 +3666,42 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         if !source.contains_parsed_node(node.node()) {
             return Ok(false);
         }
-        fn scan(source: &tsc_syntax::SourceFile, node: NodeId, root: NodeId) -> bool {
-            let kind = source.arena.node(node).kind;
-            if kind == SyntaxKind::ReturnStatement {
-                return true;
+        // tsc-port: forEachReturnStatement @6.0.3
+        // tsc-span: _tsc.js:14275-14299
+        // `traverse` visits ReturnStatement and descends only into the listed
+        // statement kinds; a nested FunctionDeclaration, ClassDeclaration,
+        // VariableStatement or ExpressionStatement is never entered, so a
+        // helper function declared next to `return function (...) {}` does
+        // not disqualify the single-return candidate.
+        fn scan(source: &tsc_syntax::SourceFile, node: NodeId) -> bool {
+            match source.arena.node(node).kind {
+                SyntaxKind::ReturnStatement => true,
+                SyntaxKind::CaseBlock
+                | SyntaxKind::Block
+                | SyntaxKind::IfStatement
+                | SyntaxKind::DoStatement
+                | SyntaxKind::WhileStatement
+                | SyntaxKind::ForStatement
+                | SyntaxKind::ForInStatement
+                | SyntaxKind::ForOfStatement
+                | SyntaxKind::WithStatement
+                | SyntaxKind::SwitchStatement
+                | SyntaxKind::CaseClause
+                | SyntaxKind::DefaultClause
+                | SyntaxKind::LabeledStatement
+                | SyntaxKind::TryStatement
+                | SyntaxKind::CatchClause => {
+                    let mut children = Vec::new();
+                    tsc_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
+                        children.push(child);
+                        false
+                    });
+                    children.into_iter().any(|child| scan(source, child))
+                }
+                _ => false,
             }
-            if node != root && node_util::is_function_like_kind(kind) {
-                return false;
-            }
-            let mut children = Vec::new();
-            tsc_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
-                children.push(child);
-                false
-            });
-            children.into_iter().any(|child| scan(source, child, root))
         }
-        Ok(scan(source.syntax(), node.node(), node.node()))
+        Ok(scan(source.syntax(), node.node()))
     }
 
     fn required_child_error(&self, parent: SyntaxKind, field: &'static str) -> EmitResolverError {
@@ -4149,7 +4193,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
             }
         }
         let mut result = if changed {
-            self.create_node_array(source, nodes)?
+            self.create_visited_node_array(source, original, nodes)?
         } else {
             original
         };

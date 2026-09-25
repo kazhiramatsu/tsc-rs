@@ -1821,7 +1821,11 @@ fn type_to_type_node_worker(
                         }
                         None => None,
                     };
-                    if is_reserved_member_name(&checker.symbol_display_name(alias))
+                    // isReservedMemberName(type.aliasSymbol.escapedName)
+                    // (_tsc.js:51472, 50142-50144) tests the escaped name: a
+                    // user-written `__Foo` is stored as `___Foo` and is not
+                    // reserved; only internal `__type`-style names are.
+                    if is_reserved_member_name(&checker.binder.symbol(alias).escaped_name)
                         && !checker.symbol_flags(alias).intersects(SymbolFlags::CLASS)
                     {
                         let empty = create_identifier(arena, target, "")?;

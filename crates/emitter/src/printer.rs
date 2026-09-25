@@ -10553,6 +10553,12 @@ impl Printer {
             writer.write_space(" ");
             writer.write_keyword("extends");
             writer.write_space(" ");
+            self.emit_type_child_leading_comments(
+                transformation,
+                node.source(),
+                Some(constraint),
+                writer,
+            )?;
             self.emit_node_id_with_context(
                 transformation,
                 node.source(),
@@ -10565,6 +10571,12 @@ impl Printer {
             writer.write_space(" ");
             writer.write_operator("=");
             writer.write_space(" ");
+            self.emit_type_child_leading_comments(
+                transformation,
+                node.source(),
+                Some(default),
+                writer,
+            )?;
             self.emit_node_id_with_context(
                 transformation,
                 node.source(),
@@ -10946,6 +10958,7 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         writer.write_space(" ");
+        self.emit_type_child_leading_comments(transformation, node.source(), r#type, writer)?;
         self.emit_required_node_with_context(
             transformation,
             node.source(),
@@ -11045,6 +11058,12 @@ impl Printer {
         self.require_declaration_syntax(node, SyntaxKind::TypeQuery)?;
         writer.write_keyword("typeof");
         writer.write_space(" ");
+        self.emit_type_child_leading_comments(
+            transformation,
+            node.source(),
+            data.expr_name,
+            writer,
+        )?;
         self.emit_required_node_with_context(
             transformation,
             node.source(),
@@ -11357,6 +11376,12 @@ impl Printer {
         writer.write_space(" ");
         writer.write_keyword("extends");
         writer.write_space(" ");
+        self.emit_type_child_leading_comments(
+            transformation,
+            node.source(),
+            data.extends_type,
+            writer,
+        )?;
         self.emit_node_id_with_context(
             transformation,
             node.source(),
@@ -11365,6 +11390,12 @@ impl Printer {
             writer,
         )?;
         writer.write(" ? ");
+        self.emit_type_child_leading_comments(
+            transformation,
+            node.source(),
+            data.true_type,
+            writer,
+        )?;
         self.emit_node_id_with_context(
             transformation,
             node.source(),
@@ -11373,6 +11404,12 @@ impl Printer {
             writer,
         )?;
         writer.write(" : ");
+        self.emit_type_child_leading_comments(
+            transformation,
+            node.source(),
+            data.false_type,
+            writer,
+        )?;
         self.emit_node_id_with_context(
             transformation,
             node.source(),
@@ -11420,6 +11457,7 @@ impl Printer {
     ) -> Result<(), PrinterError> {
         self.require_declaration_syntax(node, SyntaxKind::ParenthesizedType)?;
         writer.write_punctuation("(");
+        self.emit_type_child_leading_comments(transformation, node.source(), data.r#type, writer)?;
         self.emit_required_node_with_context(
             transformation,
             node.source(),
@@ -11453,6 +11491,7 @@ impl Printer {
         )?;
         writer.write_keyword(keyword);
         writer.write_space(" ");
+        self.emit_type_child_leading_comments(transformation, node.source(), data.r#type, writer)?;
         self.emit_required_node_with_context(
             transformation,
             node.source(),
@@ -11584,6 +11623,12 @@ impl Printer {
         // (`{ [K in keyof T] }`) prints `: ;` — the emit of `undefined` is a
         // no-op, never a refusal (h2-7b-m-2 fence amendment #4e).
         if let Some(r#type) = data.r#type {
+            self.emit_type_child_leading_comments(
+                transformation,
+                node.source(),
+                Some(r#type),
+                writer,
+            )?;
             self.emit_node_id_with_context(
                 transformation,
                 node.source(),
@@ -11659,6 +11704,12 @@ impl Printer {
         writer.write_space(" ");
         writer.write_keyword("in");
         writer.write_space(" ");
+        self.emit_type_child_leading_comments(
+            transformation,
+            parent.source(),
+            data.constraint,
+            writer,
+        )?;
         self.emit_required_node_with_context(
             transformation,
             parent.source(),
@@ -11774,6 +11825,12 @@ impl Printer {
         }
         writer.write_keyword("import");
         writer.write_punctuation("(");
+        self.emit_type_child_leading_comments(
+            transformation,
+            node.source(),
+            data.argument,
+            writer,
+        )?;
         self.emit_required_node_with_context(
             transformation,
             node.source(),
@@ -11967,15 +12024,34 @@ impl Printer {
             writer,
         )?;
         writer.write(" = ");
-        self.emit_required_node_with_context(
+        let type_id = data.r#type.ok_or(PrinterError::MissingTransformedChild {
+            parent: SyntaxKind::TypeAliasDeclaration,
+            field: "type",
+        })?;
+        let type_node = transformation
+            .arena()
+            .node_ref(node.source(), type_id)
+            .ok_or(PrinterError::UnknownStatement(type_id.0))?;
+        // `emit(node.type)` (_tsc.js:119125) runs pipelineEmitWithComments
+        // (_tsc.js:120978-120986): the type's own leading trivia — a JSDoc on
+        // the line after `=`, including one before a leading `|`/`&` — and
+        // its same-line trailing comments, gated by the alias's containerEnd.
+        self.emit_leading_comments_for_node(transformation, type_node, writer)?;
+        self.emit_node_id_with_context(
             transformation,
             node.source(),
-            data.r#type,
-            SyntaxKind::TypeAliasDeclaration,
-            "type",
+            type_id,
             expression_context.for_child(ExpressionSyntaxContext::NORMAL),
             writer,
         )?;
+        if self.child_trailing_comments_escape_active_container(
+            transformation,
+            node,
+            type_node,
+            expression_context.comments(),
+        )? {
+            self.emit_trailing_comments_for_node(transformation, type_node, writer)?;
+        }
         writer.write_trailing_semicolon(";");
         Ok(())
     }
@@ -12319,6 +12395,24 @@ impl Printer {
         Ok(())
     }
 
+    /// pipelineEmitWithComments for a type child (_tsc.js:120978-121032):
+    /// the child's own leading trivia — a JSDoc on the line after the parent's
+    /// `:`, `extends`, `=`, `?`, `(`, `keyof`, `in`, `=>` or `import(` — which
+    /// the parent's emitter otherwise never visits. Declaration output keeps
+    /// only JSDoc-style comments there (onlyPrintJsDocStyle).
+    fn emit_type_child_leading_comments(
+        &self,
+        transformation: &TransformationResult<'_>,
+        source: TransformSourceId,
+        child: Option<NodeId>,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        if let Some(child) = child.and_then(|id| transformation.arena().node_ref(source, id)) {
+            self.emit_leading_comments_for_node(transformation, child, writer)?;
+        }
+        Ok(())
+    }
+
     /// tsc-port: emitTypeParameters @6.0.3
     /// tsc-hash: 67edb593d7741ab6b3273370e553eda19470127765c51d0346e8c30c93e71bf6
     /// tsc-span: _tsc.js:119970-119975
@@ -12599,7 +12693,15 @@ impl Printer {
                 .node_ref(source, id)
                 .ok_or(PrinterError::UnknownStatement(id.0))?;
             if index == 0 {
-                self.emit_leading_comments_for_delimited_list_start(transformation, child, writer)?;
+                // tsc's `pos === containerPos` guard (_tsc.js:121220): a
+                // constituent that starts where the union/intersection starts
+                // must not replay the comment the parent's phase wrote.
+                self.emit_leading_comments_for_delimited_list_start_in_container(
+                    transformation,
+                    child,
+                    expression_context.comments(),
+                    writer,
+                )?;
             } else {
                 writer.write(separator);
                 self.emit_separated_declaration_list_item_comments(transformation, child, writer)?;
@@ -12665,23 +12767,57 @@ impl Printer {
                 .expect("comment range has a source start")
                 .value() as usize;
             if start < code_start {
-                let before = writer.text().len();
-                emit_same_line_trailing_block_comments(
-                    SourceTrivia::new(source.text(), start, code_start),
-                    writer,
-                );
-                if writer.text().len() != before && !writer.has_trailing_whitespace() {
-                    writer.write_space(" ");
+                // Single-line delimited lists (TypeParameters, Parameters,
+                // UnionTypeConstituents, SingleLineTupleTypeElements) keep
+                // shouldEmitInterveningComments set, so emitNodeListItems
+                // (_tsc.js:120119-120122) runs emitTrailingCommentsOfPosition(pos)
+                // → emitTrailingCommentOfPosition (_tsc.js:121208-121218): every
+                // same-line comment after the delimiter is written without the
+                // onlyPrintJsDocStyle filter; one followed by a line break ends
+                // the line, otherwise a single space follows it.
+                if !self.comments_disabled() {
+                    emit_source_intervening_comments_of_position(source.text(), start, writer);
                 }
             }
         }
         self.emit_leading_comments_for_node_after_sibling(transformation, child, writer)
     }
 
+    /// tsc-port: emitTrailingCommentsOfPosition @6.0.3
+    /// tsc-span: _tsc.js:121191-121198
+    /// tsc-port: emitTrailingCommentOfPositionNoNewline @6.0.3
+    /// tsc-span: _tsc.js:121199-121207
+    fn emit_list_intervening_comments_no_newline(
+        &self,
+        transformation: &TransformationResult<'_>,
+        child: TransformNode,
+        writer: &mut TextWriter,
+    ) -> Result<BTreeSet<(usize, usize)>, PrinterError> {
+        // `!positionIsSynthesized(child.pos)` (_tsc.js:120103) tests the
+        // node's own pos.
+        if self.comments_disabled() || transformation.arena().node(child)?.pos == u32::MAX {
+            return Ok(BTreeSet::new());
+        }
+        let owner = self.expression_comment_phase_owner_for_node(transformation, child)?;
+        let Some(start) = owner.range.range().start() else {
+            return Ok(BTreeSet::new());
+        };
+        let source = transformation
+            .arena()
+            .source(owner.range.source())?
+            .syntax();
+        Ok(emit_source_jsx_trailing_comments_of_position(
+            source.text(),
+            start.value() as usize,
+            writer,
+        ))
+    }
+
     fn emit_multiline_declaration_list_item_comments(
         &self,
         transformation: &TransformationResult<'_>,
         child: TransformNode,
+        excluded: &BTreeSet<(usize, usize)>,
         writer: &mut TextWriter,
     ) -> Result<bool, PrinterError> {
         let owner = self.expression_comment_phase_owner_for_node(transformation, child)?;
@@ -12706,6 +12842,13 @@ impl Printer {
             comments.sort_by_key(|comment| (comment.start, comment.end));
             comments.dedup_by_key(|comment| (comment.start, comment.end));
             for comment in comments {
+                // Same-line comments already written by the list's intervening
+                // phase; tsc's leading walk never sees them (iterateCommentRanges
+                // collects only after the first line break).
+                if excluded.contains(&(comment.start, comment.end)) {
+                    previous_end = comment.end;
+                    continue;
+                }
                 if self.comments_disabled()
                     || (self.options.only_print_js_doc_style
                         && !should_write_js_doc_style_comment(source.text(), comment.start))
@@ -12765,8 +12908,12 @@ impl Printer {
         if !force_line_after_comments {
             writer.write_line(false);
         }
-        let source_line_break =
-            self.emit_multiline_declaration_list_item_comments(transformation, first, writer)?;
+        let source_line_break = self.emit_multiline_declaration_list_item_comments(
+            transformation,
+            first,
+            &BTreeSet::new(),
+            writer,
+        )?;
         if force_line_after_comments || source_line_break {
             writer.write_line(false);
         } else if !writer.is_at_start_of_line() && !writer.has_trailing_whitespace() {
@@ -12792,12 +12939,25 @@ impl Printer {
                     .arena()
                     .node_ref(parent.source(), ids[index + 1])
                     .ok_or(PrinterError::UnknownStatement(ids[index + 1].0))?;
+                let mut intervening = BTreeSet::new();
                 if !force_line_after_comments {
+                    // EnumMembers (145) has no SpaceBetweenSiblings bit, so
+                    // emitNodeListItems (_tsc.js:120103-120110) runs
+                    // emitTrailingCommentsOfPosition(pos, false, /*forceNoNewline*/ true)
+                    // → emitTrailingCommentOfPositionNoNewline (_tsc.js:121199-121207)
+                    // before writeLine: unfiltered, no prefix space, a `//`
+                    // comment ends the line.
+                    intervening = self.emit_list_intervening_comments_no_newline(
+                        transformation,
+                        next,
+                        writer,
+                    )?;
                     writer.write_line(false);
                 }
                 let source_line_break = self.emit_multiline_declaration_list_item_comments(
                     transformation,
                     next,
+                    &intervening,
                     writer,
                 )?;
                 if force_line_after_comments || source_line_break {
@@ -12979,6 +13139,7 @@ impl Printer {
         if let Some(r#type) = r#type {
             writer.write_punctuation(":");
             writer.write_space(" ");
+            self.emit_type_child_leading_comments(transformation, source, Some(r#type), writer)?;
             self.emit_node_id_with_context(
                 transformation,
                 source,
