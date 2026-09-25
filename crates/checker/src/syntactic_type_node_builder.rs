@@ -3,8 +3,8 @@
 use tsc_binder::node_util;
 use tsc_emitter::{
     CommentRange, EmitFlags, EmitNodeBuilderFlags, EmitResolverError, EmitResolverMethod,
-    SourceRange, TransformArena, TransformError, TransformFlags, TransformNode, TransformNodeArray,
-    TransformSourceId,
+    SourceMapRange, SourceRange, TransformArena, TransformError, TransformFlags, TransformNode,
+    TransformNodeArray, TransformSourceId,
 };
 use tsc_syntax::nodes::{
     ArrayTypeData, ConstructorTypeData, FunctionTypeData, IdentifierData, IndexSignatureData,
@@ -1394,12 +1394,101 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         &mut self,
         node: TransformNode,
     ) -> Result<Option<TransformNode>, EmitResolverError> {
-        let mut data = self.node(node)?.data.clone();
+        let original = self.node(node)?.data.clone();
+        let mut data = original.clone();
         self.visit_sources.push(node.source());
         let result = try_visit_each_child(&mut data, self);
         self.visit_sources.pop();
         result?;
+        self.restore_passthrough_tokens(node, &original, &mut data)?;
         self.update_node(node, data).map(Some)
+    }
+
+    /// visitEachChild2 (_tsc.js:133655-133664) passes no `tokenVisitor`, so
+    /// visitEachChild (_tsc.js:91318-91324) keeps these token children as the
+    /// ORIGINAL nodes (`tokenVisitor ? nodeVisitor(...) : node.questionToken`:
+    /// Parameter 91349-91359, PropertySignature 91367-91375,
+    /// PropertyDeclaration 91376-91386, MethodSignature 91387-91397,
+    /// MethodDeclaration 91398-91410, NamedTupleMember 91584-91592, MappedType
+    /// 91612-91622, BindingElement 91656-91665). They are never cloned or
+    /// range-stripped, so a token reused from another file keeps THAT file's
+    /// pos/end and the printer maps it through the current file's line map
+    /// (emitSourcePos, _tsc.js:121283-121332). The generic
+    /// `try_visit_each_child` visits them; put the pre-visit child back and,
+    /// for a cross-source clone, carry the original token's range.
+    fn restore_passthrough_tokens(
+        &mut self,
+        node: TransformNode,
+        original: &NodeData,
+        data: &mut NodeData,
+    ) -> Result<(), EmitResolverError> {
+        let slots: Vec<(Option<NodeId>, &mut Option<NodeId>)> = match (original, data) {
+            (NodeData::Parameter(o), NodeData::Parameter(d)) => vec![
+                (o.dot_dot_dot_token, &mut d.dot_dot_dot_token),
+                (o.question_token, &mut d.question_token),
+            ],
+            (NodeData::PropertySignature(o), NodeData::PropertySignature(d)) => {
+                vec![(o.question_token, &mut d.question_token)]
+            }
+            (NodeData::PropertyDeclaration(o), NodeData::PropertyDeclaration(d)) => vec![
+                (o.question_token, &mut d.question_token),
+                (o.exclamation_token, &mut d.exclamation_token),
+            ],
+            (NodeData::MethodSignature(o), NodeData::MethodSignature(d)) => {
+                vec![(o.question_token, &mut d.question_token)]
+            }
+            (NodeData::MethodDeclaration(o), NodeData::MethodDeclaration(d)) => vec![
+                (o.asterisk_token, &mut d.asterisk_token),
+                (o.question_token, &mut d.question_token),
+            ],
+            (NodeData::NamedTupleMember(o), NodeData::NamedTupleMember(d)) => vec![
+                (o.dot_dot_dot_token, &mut d.dot_dot_dot_token),
+                (o.question_token, &mut d.question_token),
+            ],
+            (NodeData::MappedType(o), NodeData::MappedType(d)) => vec![
+                (o.readonly_token, &mut d.readonly_token),
+                (o.question_token, &mut d.question_token),
+            ],
+            (NodeData::BindingElement(o), NodeData::BindingElement(d)) => {
+                vec![(o.dot_dot_dot_token, &mut d.dot_dot_dot_token)]
+            }
+            _ => return Ok(()),
+        };
+        for (token, slot) in slots {
+            let Some(token) = token else { continue };
+            *slot = Some(token);
+            let token = TransformNode::new(node.source(), token);
+            let positioned = self.arena.get_original_node(token);
+            if positioned == token {
+                // A same-file parse token: its own range already maps.
+                continue;
+            }
+            // A cross-source clone (`node_in_source`) is position-free with
+            // its original in the other file. Carry that range as the token's
+            // map range; the printer maps a non-current source through the
+            // current line map.
+            let record = self.node(positioned)?;
+            if record.pos == u32::MAX || record.end == u32::MAX {
+                continue;
+            }
+            let positions = self
+                .arena
+                .source(positioned.source())
+                .map_err(|error| self.factory_error(error))?
+                .syntax()
+                .positions();
+            let range =
+                SourceRange::from_raw(record.pos, record.end, positions).map_err(|error| {
+                    self.factory_error(TransformError::InvalidSourceRange {
+                        node: positioned,
+                        error,
+                    })
+                })?;
+            self.arena
+                .metadata_mut(token)
+                .set_source_map_range(SourceMapRange::new(positioned.source(), range));
+        }
+        Ok(())
     }
 
     /// tsc-port: visitNodesWithoutCopyingPositions @6.0.3

@@ -19320,6 +19320,23 @@ impl Printer {
         };
         let arena = transformation.arena();
         let mapped_source = arena.source(range.source())?.syntax();
+        if !writer.recording_is_current_source(range.source()) {
+            // emitSourcePos(sourceMapRange.source || sourceMapSource, …)
+            // (_tsc.js:121283-121301): a parse range carries no `source`
+            // (createSourceMapSource has no caller in 6.0.3), so a node reused
+            // from another file is mapped with ITS OWN UTF-16 offset through
+            // the CURRENT file's text (skipTrivia) and line starts.
+            let raw = match boundary {
+                MapBoundary::Before => range_value.start().value(),
+                MapBoundary::After => range_value.end().value(),
+            };
+            let Some(offset) = mapped_source.positions().byte_to_utf16(raw) else {
+                return Ok(());
+            };
+            writer
+                .record_source_map_utf16_offset_in_current(offset, boundary == MapBoundary::Before);
+            return Ok(());
+        }
         let raw = match boundary {
             MapBoundary::Before => {
                 self.token_start(mapped_source.text(), range_value.start().value())

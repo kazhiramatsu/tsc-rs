@@ -1943,9 +1943,15 @@ fn type_to_type_node_worker(
             && flags.intersects(TypeFlags::TYPE_PARAMETER)
         {
             let name = type_parameter_to_name(checker, arena, target, r#type, context)?;
-            let text = identifier_text(arena, name).unwrap_or("?");
-            add_approximate_length(context, js_len(text));
-            return create_type_reference_node(arena, target, name, None).map(Some);
+            let text = identifier_text(arena, name).unwrap_or("?").to_owned();
+            add_approximate_length(context, js_len(&text));
+            // factory.createIdentifier(idText(name2)) (_tsc.js:51513-51520): a
+            // fresh, position-free identifier. typeParameterToName ranged
+            // `name` to the `<T ...>` declaration name (setTextRange2,
+            // _tsc.js:53286-53289); that range must not reach a synthesized
+            // reference, or the declaration map gains segments tsc lacks.
+            let fresh = create_identifier(arena, target, &text)?;
+            return create_type_reference_node(arena, target, fresh, None).map(Some);
         }
         if object_flags.intersects(ObjectFlags::CLASS_OR_INTERFACE)
             && should_expand_type(checker, r#type, context, false)
