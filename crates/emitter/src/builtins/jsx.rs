@@ -8,9 +8,10 @@ use tsc_syntax::{
 use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget};
 
 use crate::{
-    factory::EmitHelperName, EmitResolver, EmitResolverNode, TransformError, TransformFlags,
-    TransformNode, TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext,
-    Transformer,
+    factory::EmitHelperName,
+    position::{SourceByteRange, SourceRange},
+    EmitResolver, EmitResolverNode, TransformError, TransformFlags, TransformNode,
+    TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext, Transformer,
 };
 
 /// tsc-port: transformJsx @6.0.3
@@ -1111,9 +1112,9 @@ impl<'context> JsxVisitor<'context> {
             }),
             TransformFlags::NONE,
         )?;
-        // Automatic JSX calls retain location without the parsed JSX
-        // element's semantic parent identity (tsc uses setTextRange only).
-        self.context.factory()?.set_text_range(call, original)?;
+        // Automatic JSX calls retain tsc's trimmed `location` without the
+        // parsed JSX element's semantic parent identity (setTextRange only).
+        self.set_jsx_call_location(call, original)?;
         if is_child {
             self.context
                 .arena_mut()?
@@ -1266,7 +1267,10 @@ impl<'context> JsxVisitor<'context> {
         if formatting.multi_line {
             self.context.factory()?.set_multi_line(call, true)?;
         }
-        self.set_original_and_range(call, original)?;
+        self.set_jsx_call_location(call, original)?;
+        self.context
+            .arena_mut()?
+            .set_original_node(call, Some(original))?;
         if formatting.is_child {
             self.context
                 .arena_mut()?
@@ -1747,6 +1751,32 @@ impl<'context> JsxVisitor<'context> {
             .arena_mut()?
             .set_original_node(node, Some(original))?;
         Ok(node)
+    }
+
+    /// tsc's `location` for a generated JSX call:
+    /// `createRange(skipTrivia(currentSourceFile.text, node.pos), node.end)`
+    /// (_tsc.js:104066-104096, 104152-104158, 27245). The call starts at the
+    /// `<` token, so the element's leading trivia is not its comment range.
+    fn set_jsx_call_location(
+        &mut self,
+        call: TransformNode,
+        original: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let record = self.context.arena().node(original)?.clone();
+        if record.pos == u32::MAX || record.end == u32::MAX {
+            return self.context.factory()?.set_text_range(call, original);
+        }
+        let syntax = self.context.arena().source(self.source)?.syntax();
+        let start = u32::try_from(skip_trivia(syntax.text(), record.pos as usize))
+            .expect("source position fits u32")
+            .min(record.end);
+        let range = SourceByteRange::new(start, record.end, syntax.positions())
+            .map_err(|error| TransformError::InvalidSourceRange { node: call, error })?;
+        self.context.factory()?.set_text_range_from_source_range(
+            call,
+            self.source,
+            SourceRange::Original(range),
+        )
     }
 
     fn array_nodes(&self, array: Option<NodeArrayId>) -> Result<Vec<NodeId>, TransformError> {
