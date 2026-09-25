@@ -71,50 +71,62 @@ substitute the absolute path to the executable built above.
 
 ### Use it in place of `tsc`
 
-First [install the command](#install-the-command) using the steps above.
-The installed executable is named `tsc-rs`; installing it does not change
-an existing `tsc` command. Check the [supported options](#common-command-line-options),
-[type-check configuration restrictions](#configuration-for-type-checks), and
-[current limitations](#current-limitations) before switching an existing
-project. Watch mode and project-reference builds are not supported.
+`tsc-rs` reads the same `tsconfig.json` as `tsc`, and the project commands
+are the same: `tsc-rs -p .` compiles a project and `tsc-rs --noEmit -p .`
+type-checks it. Two differences matter when you switch:
 
-For a project using npm, replace `tsc` with `tsc-rs` in the relevant
-`package.json` scripts. Move output settings such as `--outDir dist` from
-command-line flags into `compilerOptions` in `tsconfig.json`. For example,
-update the build and type-check entries:
+- Compiler settings such as `outDir`, `strict`, `sourceMap` and
+  `declaration` are read from `tsconfig.json` only. `tsc-rs` rejects them
+  as command-line flags, so move any such flags from your scripts into
+  `compilerOptions`. The accepted flags are listed under
+  [common command-line options](#common-command-line-options).
+- `--noEmit` cannot be combined with the emit flags `--target`, `--module`,
+  `--newLine`, `--emitBOM`, `--listEmittedFiles` and `--noEmitOnError`;
+  keep those settings in `tsconfig.json` as well. The type check reads the
+  whole file, including `rootDir` and `declaration`, and writes nothing.
 
-```json
-{
-  "scripts": {
-    "build": "tsc-rs -p .",
-    "typecheck": "tsc-rs --noEmit -p ."
-  }
-}
-```
+Watch mode, `--build` and project references are not supported; see the
+[current limitations](#current-limitations).
 
-The type-check command reads the same configuration file as the build,
-including `rootDir` and `declaration`. Keep `target`, `module` and other
-emit settings in `tsconfig.json`: they cannot be passed as command-line
-flags together with `--noEmit` (see the
-[type-check restrictions](#configuration-for-type-checks)).
+To switch an npm project:
 
-Run them from your TypeScript project's directory:
+1. [Install the command](#install-the-command) on every developer machine
+   and CI runner that runs the project's scripts, and make sure `tsc-rs` is
+   on `PATH` there. Installing it does not change an existing `tsc`.
+2. Replace `tsc` with `tsc-rs` in the `package.json` scripts, for example:
 
-```sh
-npm run build
-npm run typecheck
-```
+   ```json
+   {
+     "scripts": {
+       "build": "tsc-rs -p .",
+       "typecheck": "tsc-rs --noEmit -p ."
+     }
+   }
+   ```
 
-Install `tsc-rs` and make it available on `PATH` on each developer machine
-and CI runner that uses these scripts. Keep the `typescript` dependency if
-your editor or other tools use it: `tsc-rs` provides a compiler executable
-and a [Rust compiler API](#compiler-api-for-rust-projects-experimental),
-but does not provide TypeScript's JavaScript API or language server.
+3. Run the scripts as before from the project directory:
 
-If you also want to use the name `tsc` directly in a macOS or Linux shell,
-create or update a symlink in a dedicated directory, then put that directory
-first on `PATH`. Run these commands after confirming that `tsc-rs --version`
-works:
+   ```sh
+   npm run build
+   npm run typecheck
+   ```
+
+Write `tsc-rs` in the scripts, not `tsc` or `npx tsc`:
+[npm scripts](https://docs.npmjs.com/cli/v11/commands/npm-run/) run with
+the project's `node_modules/.bin` first on `PATH`, so `tsc` there is always
+the compiler of the installed `typescript` package, and `npx tsc`
+[resolves that package](https://docs.npmjs.com/cli/v11/commands/npm-exec/)
+as well. Keep the `typescript` dependency if your editor or other tools use
+it: `tsc-rs` replaces the compiler command and offers a
+[Rust compiler API](#compiler-api-for-rust-projects-experimental), but it
+does not provide TypeScript's JavaScript API or language server.
+
+### Use the name `tsc` in your shell
+
+This step is optional. It affects only the commands you type in a macOS or
+Linux shell; npm scripts keep resolving `tsc` as described above. After
+confirming that `tsc-rs --version` works, create a symlink named `tsc` in a
+dedicated directory and put that directory first on `PATH`:
 
 ```sh
 mkdir -p "$HOME/.local/tsc-rs/bin"
@@ -130,13 +142,6 @@ original TypeScript executable is left in place. Add the `export PATH=...`
 line to your shell startup file, such as `~/.zshrc` or `~/.bashrc`, to keep
 the setting in new terminals. To switch back, remove that line and open a
 new terminal.
-
-[npm scripts](https://docs.npmjs.com/cli/v11/commands/npm-run/)
-put `node_modules/.bin` before your shell's `PATH`, so a script that still
-invokes `tsc` can run the project's original TypeScript compiler. Use the
-explicit `tsc-rs` script entries above for npm projects. Likewise, call
-`tsc-rs` directly instead of `npx tsc`, which
-[resolves npm package executables](https://docs.npmjs.com/cli/v11/commands/npm-exec/).
 
 ## Compile a project
 
