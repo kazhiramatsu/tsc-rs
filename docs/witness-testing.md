@@ -510,6 +510,29 @@ T1 produced18 exact complete commands and15 exact packet probes.
 records the final-head local checks, full hosted logs, bounded architecture
 requalification and remaining printer-owned five rows.
 
+## README output-comparison fidelity fixtures (2026-09-25)
+
+`emit-fidelity` registers 34 complete commands minted from the fixtures that
+reproduced every fixable difference of the README output comparison: JavaScript
+comment placement (JSX attribute names, parenthesized JSX, `switch` braces,
+folded const-enum members before `:`/`,`, comment-only modules), declaration
+comments and nodes (enum members, single-line type-parameter lists, JSDoc before
+a leading `|`/`&` constituent, reused parameters of a returned function
+expression, binding-pattern trailing commas, `__`-prefixed alias names),
+declaration module specifiers (same-package `paths`, ambient `export =`
+containers, nested re-export containers), source maps (template spans, reused
+type predicates) and the `@sinclair/typebox` `TOmit` control that must not
+report TS2589. pnpm-style symlinked packages cannot be expressed by the hermetic
+observer and stay covered by the loader tests.
+
+```sh
+python3 scripts/witness.py emit-fidelity --all --dry-run
+python3 scripts/witness.py emit-fidelity --all
+```
+
+The suite is a compiler-direct member of the `controls` job and uses pinned
+Node for its observer. Its dedicated inputs select only this suite.
+
 ## Emitter final CI budget
 
 The [integration-side budget work](design/greenfield/slices/witness-coverage/emitter-final-ci-budget/README.md)
