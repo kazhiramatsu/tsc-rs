@@ -663,25 +663,21 @@ byte.
 
 | Project | Diagnostics | JavaScript | JavaScript + declarations | JavaScript + source maps | All outputs |
 | --- | --- | --- | --- | --- | --- |
-| hono | identical | identical | 1 of 374 files | identical | 7 of 748 files |
-| zod | identical | 1 of 471 files | 7 of 942 files | 2 of 942 files | 14 of 1884 files |
-| Playwright | identical | 1 of 706 files | 41 of 1409 files | 2 of 1410 files | 48 of 2816 files |
-| TypeScript `src/compiler` | identical | 4 of 78 files | 9 of 156 files | 8 of 156 files | 18 of 312 files |
-| Next.js `packages/next` | 1 extra error | 20 of 1665 files | 39 of 3330 files | 45 of 3330 files | 80 of 6660 files |
+| hono | identical | identical | identical | identical | identical |
+| zod | identical | identical | 3 of 942 files | identical | 3 of 1884 files |
+| Playwright | identical | identical | 9 of 1409 files | identical | 9 of 2816 files |
+| TypeScript `src/compiler` | identical | identical | identical | identical | identical |
+| Next.js `packages/next` | identical | identical | 12 of 3330 files | identical | 13 of 6660 files |
 | VS Code `src` | identical | not measured | not measured | not measured | not measured |
 
-Diagnostics were identical on every configuration except Next.js, where
-tsc-rs reports one additional error, a `TS2589` excessively deep type
-instantiation in a `node_modules` declaration file. In the JavaScript
-files, every difference is the placement of a comment: leading comments on
-JSX attributes, and trailing comments after `{` or `,`. Declaration files
-differ in the module specifier chosen for an imported type when the emit
-host has not read that package's `package.json`, in trailing comments on
-enum members, and in the order of union members, which follows the
-parallel checking order. Source maps and declaration maps differ where
-their generated file differs; in a few files per configuration (at most
-13) some mappings differ although the generated file is identical. These
-are tracked as known differences.
+Diagnostics, JavaScript files and JavaScript source maps were identical on
+every configuration. The declaration files that differ contain exactly the
+same declarations: only the order of union constituents and of the properties
+of inferred object types differs, because tsc-rs derives that order from the
+type identities of its parallel checkers. The order is stable for a given
+machine and checker count, and `TSRS_CHECKERS=1` (a single checker, the exact
+serial mode) reproduces tsc's order at the cost of the parallel speed-up.
+Declaration maps differ only for a declaration file that itself differs.
 
 ### Reproducing
 
@@ -830,6 +826,11 @@ commit; push fixes to the pull request branch to validate the updated code.
 - `--help`, `--init`, and `--showConfig` are not currently implemented.
   Create the configuration file using the examples above.
 - The compiler command does not provide a language server or editor service.
+- In emitted declaration files, the order of union constituents and of the
+  properties of inferred object types follows the parallel checkers rather
+  than `tsc`. The declarations themselves are the same; set
+  `TSRS_CHECKERS=1` when a byte-identical `.d.ts` matters more than the
+  parallel speed-up.
 
 If a command reports an unsupported option, first check whether the option
 belongs in `tsconfig.json`.
