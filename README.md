@@ -657,9 +657,12 @@ observed on this machine.
 
 ### Output comparison
 
-Before timing, every configuration was compiled once with tsc and once with
-tsc-rs, and the diagnostics and emitted file trees were compared byte for
-byte.
+Every configuration was compiled once with tsc and once with tsc-rs, and the
+diagnostics and emitted file trees were compared byte for byte. The table
+below is a rerun of that comparison on commit
+[`fa0ea185a`](https://github.com/kazhiramatsu/tsc-rs/commit/fa0ea185a49e2edf8f1abb46f3f6a4c531019625),
+which carries output fixes made after the measurements above; those timings
+were not repeated.
 
 | Project | Diagnostics | JavaScript | JavaScript + declarations | JavaScript + source maps | All outputs |
 | --- | --- | --- | --- | --- | --- |
@@ -703,12 +706,12 @@ GitHub Actions logs.
 | **Rust checks** (local only) | Checks formatting, runs Clippy, and executes the workspace's unit and integration tests and other Cargo test targets. The hosted workflows do not run these three workspace-wide commands. |
 
 For a recorded full run on commit
-[`120d91465`](https://github.com/kazhiramatsu/tsc-rs/commit/120d91465b6d641974ca664eda46d9e16c693f72),
+[`fa0ea185a`](https://github.com/kazhiramatsu/tsc-rs/commit/fa0ea185a49e2edf8f1abb46f3f6a4c531019625),
 the head of the pull request merged into `main` as
-[`1be415931`](https://github.com/kazhiramatsu/tsc-rs/commit/1be415931f7ed456cba6703250b461581ecb4e30),
-see the successful [acceptance run](https://github.com/kazhiramatsu/tsc-rs/actions/runs/36075010585)
-and [witness run](https://github.com/kazhiramatsu/tsc-rs/actions/runs/36075010620)
-from September 24, 2026: all 22 test jobs and both aggregate checks passed.
+[`a5a98aa8b`](https://github.com/kazhiramatsu/tsc-rs/commit/a5a98aa8ba0b788a6ba0f0ac38250a1fb4885fd8),
+see the successful [acceptance run](https://github.com/kazhiramatsu/tsc-rs/actions/runs/36109871561)
+and [witness run](https://github.com/kazhiramatsu/tsc-rs/actions/runs/36109871574)
+from September 25, 2026: all 22 test jobs and both aggregate checks passed.
 
 These results demonstrate the behavior covered by those tests. Some cases
 have explicitly recorded differences or unsupported outcomes; a passing
