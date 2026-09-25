@@ -427,6 +427,7 @@ pub struct SourceMapRecording {
     generator: SourceMapGenerator,
     registered: HashMap<crate::TransformSourceId, RegisteredSource>,
     current: Option<RegisteredSource>,
+    current_source: Option<crate::TransformSourceId>,
     /// The current print source's text snapshot: its line table locates the
     /// comments the printer records against the current source (upstream
     /// `emitPos(commentPos)` reads `currentSourceFile`'s line map) without
@@ -449,6 +450,7 @@ impl SourceMapRecording {
             registered: HashMap::default(),
             current: None,
             current_snapshot: None,
+            current_source: None,
             suppressed_depth: 0,
             inline_sources: inputs.inline_sources,
         }
@@ -508,7 +510,57 @@ impl SourceMapRecording {
     ) {
         let registered = self.register(source, file_name, Some(snapshot.text()));
         self.current = Some(registered);
+        self.current_source = Some(source);
         self.current_snapshot = Some(std::sync::Arc::clone(snapshot));
+    }
+
+    pub(crate) fn is_current_source(&self, source: crate::TransformSourceId) -> bool {
+        self.current_source == Some(source)
+    }
+
+    /// getLineAndCharacterOfPosition on the CURRENT source for a UTF-16 offset
+    /// that may come from another file (_tsc.js:8328-8330 → 8303-8315,
+    /// binarySearch 612-637): the greatest line start <= offset; past the last
+    /// line start that is the last line, character = offset - lineStarts[line],
+    /// never clamped to the line length.
+    pub(crate) fn record_current_utf16_offset(
+        &mut self,
+        offset: u32,
+        skip_trivia: bool,
+        generated_line: u32,
+        generated_character: u32,
+    ) {
+        if self.suppressed_depth > 0 || !matches!(self.current, Some(RegisteredSource::Indexed(_)))
+        {
+            return;
+        }
+        let Some(snapshot) = self.current_snapshot.clone() else {
+            return;
+        };
+        let positions = snapshot.positions();
+        let mut offset = offset;
+        if skip_trivia {
+            // skipSourceTrivia(source, pos) (_tsc.js:121304-121306, skipTrivia
+            // 8355-8442) scans the CURRENT text; beyond its end (`charCodeAt`
+            // is NaN) or inside a surrogate pair it returns pos unchanged.
+            if let Some(byte) = positions.utf16_to_byte(offset) {
+                let skipped =
+                    u32::try_from(tsc_syntax::skip_trivia(snapshot.text(), byte as usize))
+                        .expect("source position exceeds u32");
+                offset = positions.byte_to_utf16(skipped).unwrap_or(offset);
+            }
+        }
+        let (line, character) = match positions.line_and_character_utf16(offset) {
+            Some(location) => (location.line, location.character),
+            None => {
+                let last = positions.line_count().saturating_sub(1);
+                (
+                    last,
+                    offset.saturating_sub(positions.line_start_utf16(last).unwrap_or(0)),
+                )
+            }
+        };
+        self.record_current(line, character, generated_line, generated_character);
     }
 
     /// `record_current` for a byte offset of the current source's text: the

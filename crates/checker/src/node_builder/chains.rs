@@ -418,6 +418,12 @@ impl EmitTrackerAccess for CheckerTrackerAccess<'_, '_> {
 pub(crate) struct BasicModuleSpecifierHost {
     current_directory: JsString,
     files: HashMap<JsString, Option<std::sync::Arc<tsc_diagnostics::TextSnapshot>>>,
+    /// `files` keys under toFileNameLowerCase, for a wrapping host whose file
+    /// names are case-insensitive: getLocalModuleSpecifier probes
+    /// `getDirectoryPath(toPath(moduleFileName))/package.json`, a canonical
+    /// (lower-cased) spelling that tsc's real file system answers
+    /// (_tsc.js:45621-45631, 123503-123508).
+    folded_files: HashMap<JsString, JsString>,
     modes: HashMap<u32, EmitResolutionMode>,
 }
 
@@ -455,15 +461,44 @@ impl BasicModuleSpecifierHost {
             files.insert(normalized, Some(snapshot.clone()));
         }
 
+        let folded_files = files
+            .keys()
+            .map(|key| {
+                (
+                    tsc_program::to_file_name_lower_case_js(key.as_js()),
+                    key.clone(),
+                )
+            })
+            .collect();
         Self {
             current_directory,
             files,
+            folded_files,
             modes,
         }
     }
 
     fn normalized(&self, path: JsStr<'_>) -> JsString {
         CheckerState::normalize_js_program_path(path, &self.current_directory)
+    }
+
+    /// The host entry for `file_name` under the given case policy.
+    fn entry(
+        &self,
+        file_name: JsStr<'_>,
+        case_sensitive: bool,
+    ) -> Option<&Option<std::sync::Arc<tsc_diagnostics::TextSnapshot>>> {
+        let normalized = self.normalized(file_name);
+        if let Some(entry) = self.files.get(&normalized) {
+            return Some(entry);
+        }
+        if case_sensitive {
+            return None;
+        }
+        let key = self
+            .folded_files
+            .get(&tsc_program::to_file_name_lower_case_js(normalized.as_js()))?;
+        self.files.get(key)
     }
 }
 
@@ -556,13 +591,13 @@ impl EmitModuleSpecifierHost for BasicModuleSpecifierHost {
     }
 
     fn file_exists(&self, file_name: JsStr<'_>) -> bool {
-        self.files.contains_key(&self.normalized(file_name))
+        self.entry(file_name, true).is_some()
     }
 
     fn read_file(&self, file_name: JsStr<'_>) -> Option<String> {
-        self.files
-            .get(&self.normalized(file_name))
-            .and_then(|snapshot| snapshot.as_ref().map(|snapshot| snapshot.text().to_owned()))
+        self.entry(file_name, true)?
+            .as_ref()
+            .map(|snapshot| snapshot.text().to_owned())
     }
 
     fn get_common_source_directory(&self) -> JsString {
@@ -596,7 +631,7 @@ impl EmitModuleSpecifierHost for BasicModuleSpecifierHost {
 /// `readFile`.
 struct ModuleSpecifierHostWithFallback<'a> {
     primary: &'a dyn EmitModuleSpecifierHost,
-    fallback: &'a dyn EmitModuleSpecifierHost,
+    fallback: &'a BasicModuleSpecifierHost,
 }
 
 impl EmitModuleSpecifierHost for ModuleSpecifierHostWithFallback<'_> {
@@ -609,13 +644,20 @@ impl EmitModuleSpecifierHost for ModuleSpecifierHostWithFallback<'_> {
     }
 
     fn file_exists(&self, file_name: JsStr<'_>) -> bool {
-        self.primary.file_exists(file_name) || self.fallback.file_exists(file_name)
+        self.primary.file_exists(file_name)
+            || self
+                .fallback
+                .entry(file_name, self.primary.use_case_sensitive_file_names())
+                .is_some()
     }
 
     fn read_file(&self, file_name: JsStr<'_>) -> Option<String> {
-        self.primary
-            .read_file(file_name)
-            .or_else(|| self.fallback.read_file(file_name))
+        self.primary.read_file(file_name).or_else(|| {
+            self.fallback
+                .entry(file_name, self.primary.use_case_sensitive_file_names())?
+                .as_ref()
+                .map(|snapshot| snapshot.text().to_owned())
+        })
     }
 
     fn get_common_source_directory(&self) -> JsString {
@@ -855,21 +897,182 @@ pub(super) fn lookup_symbol_chain_worker(
         if is_shadowed_global && !global_this_is_shadowed {
             return Ok(vec![checker.global_this_symbol, symbol]);
         }
-        let chain = checker
-            .symbol_chain_slice(
-                symbol,
-                symbol_flags_for_meaning(meaning),
-                true,
-                yield_module_symbol,
-                context.enclosing_declaration,
-            )
-            .map(|chain| chain.expect("endOfChain always yields a symbol chain"))
-            .map_err(|abort| checker_abort_error(checker, context, abort))?;
-        return prefer_alternative_containing_module_chain(
-            checker, context, symbol, meaning, chain,
-        );
+        return symbol_chain_with_reexport_containers(
+            checker,
+            context,
+            symbol,
+            symbol_flags_for_meaning(meaning),
+            true,
+            yield_module_symbol,
+        )
+        .map(|chain| chain.expect("endOfChain always yields a symbol chain"));
     }
     Ok(vec![symbol])
+}
+
+/// tsc-port: getSymbolChain @6.0.3 (NodeBuilder channel)
+/// tsc-hash: 8ccb0f4b99b34c677210c369edfdf15d1f0cc32eed7f57b6b153783b4808d291
+/// tsc-span: _tsc.js:52958-53016
+/// tsc-port: sortByBestName @6.0.3
+/// tsc-hash: 5254873e77fc56b5bacdcd29064b22dbc40c38236f549a6c0af509851523b662
+/// tsc-span: _tsc.js:53001-53015
+///
+/// `CheckerState::symbol_chain_slice` keeps getContainersOfSymbol's
+/// no-enclosing view (no reexportContainers) and ranks module parents by a
+/// host-rooted separator count because its display callers have no
+/// module-specifier host. The declaration emitter does: this channel appends
+/// the enclosing file's re-export containers (getAlternativeContainingModules,
+/// _tsc.js:50023-50047) at EVERY level of the recursion — a namespace's
+/// module parent as much as the leaf's — and sorts the parents with
+/// sortByBestName over the specifiers tsc would print, so `JSX.Element`
+/// declared in `../base` prints through the shortest re-exporting module.
+fn symbol_chain_with_reexport_containers(
+    checker: &mut CheckerState<'_>,
+    context: &NodeBuilderContext<'_>,
+    symbol: SymbolId,
+    meaning: SymbolFlags,
+    end_of_chain: bool,
+    yield_module_symbol: bool,
+) -> BuildResult<Option<Vec<SymbolId>>> {
+    let enclosing = context.enclosing_declaration;
+    let mut accessible = checker
+        .accessible_symbol_chain_at_slice(symbol, meaning, enclosing)
+        .map_err(|abort| checker_abort_error(checker, context, abort))?;
+    let needs_walk = match &accessible {
+        None => true,
+        Some(chain) => {
+            let link_meaning = if chain.len() == 1 {
+                meaning
+            } else {
+                CheckerState::qualified_left_meaning(meaning)
+            };
+            checker
+                .needs_qualification_slice(chain[0], link_meaning, enclosing)
+                .map_err(|abort| checker_abort_error(checker, context, abort))?
+        }
+    };
+    if needs_walk {
+        let walk_from = accessible.as_ref().map_or(symbol, |chain| chain[0]);
+        let mut parents = checker
+            .containers_of_symbol_slice(walk_from, enclosing, meaning)
+            .map_err(|abort| checker_abort_error(checker, context, abort))?;
+        // getWithAlternativeContainers appends reexportContainers after the
+        // ordinary container(s) (_tsc.js:50035, 50046); a symbol without any
+        // container yields no parents at all (50011-50013).
+        if !parents.is_empty() {
+            for chain in alternative_containing_module_chains(checker, context, walk_from)? {
+                if let Some(&module) = chain.first() {
+                    if !parents.contains(&module) {
+                        parents.push(module);
+                    }
+                }
+            }
+        }
+        if !parents.is_empty() {
+            let mut specifiers: Vec<Option<tsc_types::JsString>> =
+                Vec::with_capacity(parents.len());
+            for &parent in &parents {
+                if checker.symbol_has_external_module_declaration(parent) {
+                    match specifier_for_module_symbol(checker, context, parent, None) {
+                        Ok(specifier) => specifiers.push(Some(specifier)),
+                        // tsc always produces a specifier; a curtained one can
+                        // only misorder a MULTI-parent sort.
+                        Err(error) => {
+                            if parents.len() > 1 {
+                                return Err(error);
+                            }
+                            specifiers.push(None);
+                        }
+                    }
+                } else {
+                    specifiers.push(None);
+                }
+            }
+            let mut order: Vec<usize> = (0..parents.len()).collect();
+            order.sort_by(|&a, &b| match (&specifiers[a], &specifiers[b]) {
+                (Some(specifier_a), Some(specifier_b)) => {
+                    let relative_a = module_specifier_is_relative(specifier_a);
+                    let relative_b = module_specifier_is_relative(specifier_b);
+                    if relative_a == relative_b {
+                        super::specifier::count_path_components(specifier_a.as_js()).cmp(
+                            &super::specifier::count_path_components(specifier_b.as_js()),
+                        )
+                    } else if relative_b {
+                        std::cmp::Ordering::Less
+                    } else {
+                        std::cmp::Ordering::Greater
+                    }
+                }
+                // sortByBestName returns 0 unless both parents have a
+                // specifier (53014).
+                _ => std::cmp::Ordering::Equal,
+            });
+            for index in order {
+                let parent = parents[index];
+                let Some(parent_chain) = symbol_chain_with_reexport_containers(
+                    checker,
+                    context,
+                    parent,
+                    CheckerState::qualified_left_meaning(meaning),
+                    false,
+                    yield_module_symbol,
+                )?
+                else {
+                    continue;
+                };
+                // 52978-52981: an export= parent whose target IS the symbol
+                // renders as the bare parent chain.
+                let export_equals = checker
+                    .binder
+                    .symbol(parent)
+                    .exports
+                    .get(tsc_types::InternalSymbolName::EXPORT_EQUALS)
+                    .copied();
+                if let Some(export_equals) = export_equals {
+                    if checker
+                        .symbol_if_same_reference_slice(export_equals, symbol)
+                        .map_err(|abort| checker_abort_error(checker, context, abort))?
+                    {
+                        accessible = Some(parent_chain);
+                        break;
+                    }
+                }
+                // 52982: parentChain.concat(accessibleSymbolChain ||
+                // [getAliasForSymbolInContainer(parent, symbol) || symbol]).
+                let mut chain = parent_chain;
+                match accessible.take() {
+                    Some(tail) => chain.extend(tail),
+                    None => {
+                        let alias = checker
+                            .alias_for_symbol_in_container_slice(parent, symbol)
+                            .map_err(|abort| checker_abort_error(checker, context, abort))?;
+                        chain.push(alias.unwrap_or(symbol));
+                    }
+                }
+                accessible = Some(chain);
+                break;
+            }
+        }
+    }
+    if accessible.is_some() {
+        return Ok(accessible);
+    }
+    if end_of_chain
+        || !checker
+            .symbol_flags(symbol)
+            .intersects(SymbolFlags::TYPE_LITERAL | SymbolFlags::OBJECT_LITERAL)
+    {
+        // 52996-52998: a module PARENT dies on the falsy-yieldModuleSymbol
+        // paths — `x`, never `"./mod".x`.
+        if !end_of_chain
+            && !yield_module_symbol
+            && checker.symbol_has_external_module_declaration(symbol)
+        {
+            return Ok(None);
+        }
+        return Ok(Some(vec![symbol]));
+    }
+    Ok(None)
 }
 
 pub(super) fn symbol_is_shadowed_in_synthetic_scope(
@@ -926,25 +1129,43 @@ fn alternative_containing_module_chains(
     let (imports, _) = module_name_literals(checker, file_index);
     let mut results = Vec::new();
     for import_ref in imports {
-        // resolveExternalModuleName(enclosingDeclaration, importRef) reads
-        // the mode from the enclosing declaration — no import syntax around
-        // it, so getDefaultResolutionModeForFile — while the program
-        // recorded the import under its usage mode; host.getResolvedModule
-        // answers only recorded resolutions, so the two modes must agree for
-        // the import to contribute a container (they always do while import
-        // syntax does not affect resolution; under bundler resolution a
-        // `.ts` file without a package `type` has no default mode).
-        if checker.import_syntax_affects_module_resolution()
-            && checker.default_resolution_mode_for_file(enclosing)
-                != checker.resolution_mode_for_usage(import_ref)
+        // resolveExternalModuleName → resolveExternalModule answers an ambient
+        // module by name before any mode-keyed host lookup
+        // (_tsc.js:49480-49487 precede 49489-49492): `declare module 'x'`
+        // reached through any import syntax is a container regardless of the
+        // usage/default resolution-mode mismatch gated below.
+        let ambient_name = match checker.data_of(import_ref) {
+            NodeData::StringLiteral(data) => Some(data.text.clone()),
+            NodeData::NoSubstitutionTemplateLiteral(data) => Some(data.text.clone()),
+            _ => None,
+        };
+        let module = match ambient_name
+            .and_then(|name| checker.try_find_ambient_module(name.as_js(), true))
         {
-            continue;
-        }
-        let Some(module) = checker
-            .resolve_external_module_name(enclosing, import_ref, true)
-            .map_err(|abort| checker_abort_error(checker, context, abort))?
-        else {
-            continue;
+            Some(ambient) => ambient,
+            None => {
+                // resolveExternalModuleName(enclosingDeclaration, importRef) reads
+                // the mode from the enclosing declaration — no import syntax around
+                // it, so getDefaultResolutionModeForFile — while the program
+                // recorded the import under its usage mode; host.getResolvedModule
+                // answers only recorded resolutions, so the two modes must agree for
+                // the import to contribute a container (they always do while import
+                // syntax does not affect resolution; under bundler resolution a
+                // `.ts` file without a package `type` has no default mode).
+                if checker.import_syntax_affects_module_resolution()
+                    && checker.default_resolution_mode_for_file(enclosing)
+                        != checker.resolution_mode_for_usage(import_ref)
+                {
+                    continue;
+                }
+                let Some(module) = checker
+                    .resolve_external_module_name(enclosing, import_ref, true)
+                    .map_err(|abort| checker_abort_error(checker, context, abort))?
+                else {
+                    continue;
+                };
+                module
+            }
         };
         let alias = alias_for_symbol_in_module(checker, context, module, symbol)?;
         let Some(alias) = alias else {
@@ -1059,58 +1280,6 @@ fn module_specifier_is_relative(specifier: &tsc_types::JsString) -> bool {
         || specifier == ".."
         || specifier.starts_with("./")
         || specifier.starts_with("../")
-}
-
-/// Apply getSymbolChain's `sortByBestName` to the ordinary container chain
-/// and the enclosing file's re-export containers. A bare package candidate
-/// therefore wins over a relative `/node_modules/` spelling, while equal
-/// shapes preserve discovery order.
-fn prefer_alternative_containing_module_chain(
-    checker: &mut CheckerState<'_>,
-    context: &NodeBuilderContext<'_>,
-    symbol: SymbolId,
-    _meaning: EmitSymbolMeaning,
-    chain: Vec<SymbolId>,
-) -> BuildResult<Vec<SymbolId>> {
-    if checker.symbol_has_external_module_declaration(symbol)
-        || !chain
-            .first()
-            .is_some_and(|&root| checker.symbol_has_external_module_declaration(root))
-    {
-        return Ok(chain);
-    }
-    let alternatives = alternative_containing_module_chains(checker, context, symbol)?;
-    if alternatives.is_empty() {
-        return Ok(chain);
-    }
-    let mut candidates = Vec::with_capacity(alternatives.len() + 1);
-    candidates.push(chain);
-    candidates.extend(alternatives);
-    let mut ranked = Vec::with_capacity(candidates.len());
-    for candidate in candidates {
-        let specifier = specifier_for_module_symbol(checker, context, candidate[0], None)?;
-        ranked.push((candidate, specifier));
-    }
-    ranked.sort_by(|(_, specifier_a), (_, specifier_b)| {
-        let relative_a = module_specifier_is_relative(specifier_a);
-        let relative_b = module_specifier_is_relative(specifier_b);
-        if relative_a == relative_b {
-            // moduleSpecifiers.countPathComponents skips a leading `./`, so
-            // `./jsx-dev-runtime` (0) beats `../base` (1) on hono's .d.ts.
-            super::specifier::count_path_components(specifier_a.as_js()).cmp(
-                &super::specifier::count_path_components(specifier_b.as_js()),
-            )
-        } else if relative_b {
-            std::cmp::Ordering::Less
-        } else {
-            std::cmp::Ordering::Greater
-        }
-    });
-    Ok(ranked
-        .into_iter()
-        .next()
-        .expect("ordinary module container is always ranked")
-        .0)
 }
 
 /// tsc-port: typeParametersToTypeParameterDeclarations @6.0.3

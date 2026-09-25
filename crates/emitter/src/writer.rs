@@ -211,6 +211,33 @@ impl TextWriter {
         }
     }
 
+    /// Whether the recording's current print source is `source`.
+    pub(crate) fn recording_is_current_source(&self, source: crate::TransformSourceId) -> bool {
+        self.recording
+            .as_ref()
+            .is_some_and(|recording| recording.is_current_source(source))
+    }
+
+    /// Record a mapping against the CURRENT print source for a UTF-16 offset
+    /// that belongs to another file's text (emitSourcePos with the parse
+    /// range of a node reused from that file, _tsc.js:121283-121332).
+    pub(crate) fn record_source_map_utf16_offset_in_current(
+        &mut self,
+        offset: u32,
+        skip_trivia: bool,
+    ) {
+        let generated_line = self.line();
+        let generated_character = self.column();
+        if let Some(recording) = self.recording.as_mut() {
+            recording.record_current_utf16_offset(
+                offset,
+                skip_trivia,
+                generated_line,
+                generated_character,
+            );
+        }
+    }
+
     /// Record a mapping against an explicit (possibly foreign) source.
     pub(crate) fn record_source_map_position_for(
         &mut self,

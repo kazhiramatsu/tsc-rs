@@ -1850,10 +1850,20 @@ impl ProductionSyntacticBuilderResolver<'_, '_> {
             // resolver can conservatively return that parameter in Rust;
             // recover the outer symbol that upstream resolved before it
             // installed the fake scope so the reference-mismatch arm fires.
+            // Only a JSDoc-hosted reference is rejected upstream
+            // (resolveNameHelper _tsc.js:19558, 19563-19568: `lastLocation`
+            // is the JSDoc node). A reference in the parameter list or the
+            // return type annotation (`(name: unknown): name is string`,
+            // `typeof name`) keeps the parameter (`lastLocation.kind ===
+            // Parameter || lastLocation === location.type`), so
+            // trackExistingEntityName (_tsc.js:53555-53614) resolves the same
+            // symbol at both sites regardless of a same-named outer binding
+            // (DOM global `name`, an outer `const v`).
             if let (Some(original), Some(fake), Some(enclosing)) =
                 (symbol, fake_scope_symbol, context.enclosing_declaration)
             {
                 if original == fake
+                    && self.checker.node_flags(leftmost) & tsc_types::NodeFlags::JS_DOC.bits() != 0
                     && self
                         .checker
                         .symbol_flags(fake)
@@ -1887,17 +1897,18 @@ impl ProductionSyntacticBuilderResolver<'_, '_> {
                 fake_scope_symbol,
             ) {
                 (_, Some(symbol)) => Some(symbol),
-                (true, None) => match context.enclosing_declaration.and_then(|enclosing| {
-                    matches!(
-                        self.checker.kind_of(enclosing),
-                        SyntaxKind::SourceFile | SyntaxKind::ModuleBlock
-                    )
-                    .then_some(enclosing)
-                    .or_else(|| self.checker.parent_of(enclosing))
-                }) {
-                    Some(parent) => self
+                // Upstream resolves from the fake scope Block whose parent is
+                // the enclosing declaration (enterNewScope _tsc.js:52728-52730),
+                // so after the fake locals (handled by `fake_scope_symbol`
+                // above) the first real location is the enclosing declaration
+                // ITSELF (resolveNameHelper _tsc.js:19553-19556: a namespace's
+                // locals, a function's parameters). Hopping to its parent
+                // skipped that scope (spurious mismatch + TS9039 for namespace
+                // members and outer parameters).
+                (true, None) => match context.enclosing_declaration {
+                    Some(enclosing) => self
                         .checker
-                        .resolve_entity_name_ex(leftmost, flags, true, Some(parent), true)
+                        .resolve_entity_name_ex(leftmost, flags, true, Some(enclosing), true)
                         .map_err(|abort| checker_abort_error(self.checker, context, abort))?,
                     None => None,
                 },

@@ -5800,7 +5800,7 @@ impl<'arena> NodeFactory<'arena> {
     /// comma even for a final omitted expression. That distinction is needed
     /// for recovery trees such as the AMD lowering of `import()`, whose
     /// one-hole dependency list must print as `[,]` rather than `[]`.
-    pub(crate) fn create_node_array_with_trailing_comma(
+    pub fn create_node_array_with_trailing_comma(
         &mut self,
         source: TransformSourceId,
         nodes: Vec<TransformNode>,

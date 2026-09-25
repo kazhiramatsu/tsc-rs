@@ -1,0 +1,525 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "case_id": "emit-fidelity/r1-jsx-attr-comment",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": true,\n    \"declarationMap\": true,\n    \"jsx\": \"react-jsx\",\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.tsx\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/a.tsx",
+          "text": "declare const x: string;\ndeclare function _jsxstub(): void;\nexport const a = (href: string) => <link rel=\"stylesheet\" href={href}\n  // @ts-ignore\n  precedence=\"next\" />;\nexport const b = <div onClick={() => x}\n  // Needs onMouseMove\n  onMouseMove={() => {}} data-x=\"1\">{x}</div>;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/r2-jsx-paren-comment",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": true,\n    \"declarationMap\": true,\n    \"jsx\": \"react-jsx\",\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.tsx\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/a.tsx",
+          "text": "declare const x: string;\nexport function A() {\n  return (\n    // TODO: why is this called a toast\n    <div id=\"t\">{x}</div>\n  );\n}\nexport const B = () => (\n  // Offset the header.\n  <span>{x}</span>\n);\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/r3-switch-brace-comment",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": true,\n    \"declarationMap\": true,\n    \"jsx\": \"react-jsx\",\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export function f(text: string, pos: number): number {\n  switch (text.slice(pos, pos + 2)) { // TODO: don't use slice\n    case \"--\": return 1;\n    default: return 0;\n  }\n}\nexport function g(o: { a: number }): number {\n  const r = { // trailing after brace\n    a: o.a,\n  };\n  return r.a;\n}\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/r4b-comment-only-module",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": true,\n    \"declarationMap\": true,\n    \"jsx\": \"react-jsx\",\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"moduleDetection\": \"force\",\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/extend.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/extend.ts",
+          "text": "// import * as z from \"zod/v4\";\n\n// const Type1 = z.object({});\n// let test1: z.infer<typeof Type1>;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/r5c-whentrue-trailing-comment",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": true,\n    \"declarationMap\": true,\n    \"jsx\": \"react-jsx\",\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export const enum SymbolFlags { Alias = 1 << 21, Property = 4, ExportValue = 1 << 20, ValueModule = 512 }\ndeclare function isAlias(node: object): boolean;\nexport function bindConstEnum(node: object): number {\n  const flags = isAlias(node)\n    ? SymbolFlags.Alias // An export= with an EntityNameExpression exports all meanings\n    : SymbolFlags.Property | SymbolFlags.ExportValue | SymbolFlags.ValueModule;\n  return flags;\n}\nexport function bindPlain(node: object, a: number, b: number): number {\n  const flags = isAlias(node)\n    ? a // trailing on whenTrue, plain identifier\n    : b | 4;\n  return flags;\n}\nexport function nested(node: object, s: { p?: { v: object } }): number | undefined {\n  const flags = !isAlias(node)\n    ? s.p?.v && typeof s.p.v === \"object\"\n      ? 2 // exports are immutable in es6\n      : undefined\n    : 8;\n  return flags;\n}\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/r6-enum-member-comments",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": true,\n    \"declarationMap\": true,\n    \"jsx\": \"react-jsx\",\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export enum EmitFlags {\n  None = 0,\n  Js = 1,// emit js file\n  JsMap = 2,// emit js.map file\n  JsInlineMap = 4, // emit inline source map in js file\n  DtsErrors = 8,// emit dts errors\n}\nexport const enum Kind {\n  A = 1, // first\n  B = 2,\n}\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/r7-type-param-comment",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": true,\n    \"declarationMap\": true,\n    \"jsx\": \"react-jsx\",\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export type Params<T, U, K extends string> = { t: T; u: U; k: K };\nexport type CheckParams<T extends { def: object } = { def: object }, // & { _issc: never },\n  AlsoOmit extends Exclude<keyof T[\"def\"], \"check\" | \"error\"> = never> = Params<T, NonNullable<T[\"def\"]>, \"check\" | \"error\" | AlsoOmit>;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/r8b-minimatch-real",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": true,\n    \"declarationMap\": true,\n    \"jsx\": \"react-jsx\",\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/utilsBundle.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/utilsBundle.ts",
+          "text": "import { minimatch as minimatchLibrary } from './minimatch/index.js';\nexport const minimatch = minimatchLibrary;\n"
+        },
+        {
+          "path": "/project/minimatch/assert-valid-pattern.d.ts",
+          "text": "export declare const assertValidPattern: (pattern: unknown) => void;\n//# sourceMappingURL=assert-valid-pattern.d.ts.map"
+        },
+        {
+          "path": "/project/minimatch/ast.d.ts",
+          "text": "import type { MinimatchOptions, MMRegExp } from './index.js';\nexport type ExtglobType = '!' | '?' | '+' | '*' | '@';\nexport declare class AST {\n    #private;\n    type: ExtglobType | null;\n    id: number;\n    get depth(): number;\n    constructor(type: ExtglobType | null, parent?: AST, options?: MinimatchOptions);\n    get hasMagic(): boolean | undefined;\n    toString(): string;\n    push(...parts: (string | AST)[]): void;\n    toJSON(): unknown[];\n    isStart(): boolean;\n    isEnd(): boolean;\n    copyIn(part: AST | string): void;\n    clone(parent: AST): AST;\n    static fromGlob(pattern: string, options?: MinimatchOptions): AST;\n    toMMPattern(): MMRegExp | string;\n    get options(): MinimatchOptions;\n    toRegExpSource(allowDot?: boolean): [re: string, body: string, hasMagic: boolean, uflag: boolean];\n}\n//# sourceMappingURL=ast.d.ts.map"
+        },
+        {
+          "path": "/project/minimatch/brace-expressions.d.ts",
+          "text": "export type ParseClassResult = [\n    src: string,\n    uFlag: boolean,\n    consumed: number,\n    hasMagic: boolean\n];\nexport declare const parseClass: (glob: string, position: number) => ParseClassResult;\n//# sourceMappingURL=brace-expressions.d.ts.map"
+        },
+        {
+          "path": "/project/minimatch/escape.d.ts",
+          "text": "import type { MinimatchOptions } from './index.js';\n/**\n * Escape all magic characters in a glob pattern.\n *\n * If the {@link MinimatchOptions.windowsPathsNoEscape}\n * option is used, then characters are escaped by wrapping in `[]`, because\n * a magic character wrapped in a character class can only be satisfied by\n * that exact character.  In this mode, `\\` is _not_ escaped, because it is\n * not interpreted as a magic character, but instead as a path separator.\n *\n * If the {@link MinimatchOptions.magicalBraces} option is used,\n * then braces (`{` and `}`) will be escaped.\n */\nexport declare const escape: (s: string, { windowsPathsNoEscape, magicalBraces, }?: Pick<MinimatchOptions, \"windowsPathsNoEscape\" | \"magicalBraces\">) => string;\n//# sourceMappingURL=escape.d.ts.map"
+        },
+        {
+          "path": "/project/minimatch/index.d.ts",
+          "text": "import { AST } from './ast.js';\nexport type Platform = 'aix' | 'android' | 'darwin' | 'freebsd' | 'haiku' | 'linux' | 'openbsd' | 'sunos' | 'win32' | 'cygwin' | 'netbsd';\nexport interface MinimatchOptions {\n    /** do not expand `{x,y}` style braces */\n    nobrace?: boolean;\n    /** do not treat patterns starting with `#` as a comment */\n    nocomment?: boolean;\n    /** do not treat patterns starting with `!` as a negation */\n    nonegate?: boolean;\n    /** print LOTS of debugging output */\n    debug?: boolean;\n    /** treat `**` the same as `*` */\n    noglobstar?: boolean;\n    /** do not expand extglobs like `+(a|b)` */\n    noext?: boolean;\n    /** return the pattern if nothing matches */\n    nonull?: boolean;\n    /** treat `\\\\` as a path separator, not an escape character */\n    windowsPathsNoEscape?: boolean;\n    /**\n     * inverse of {@link MinimatchOptions.windowsPathsNoEscape}\n     * @deprecated\n     */\n    allowWindowsEscape?: boolean;\n    /**\n     * Compare a partial path to a pattern. As long as the parts\n     * of the path that are present are not contradicted by the\n     * pattern, it will be treated as a match. This is useful in\n     * applications where you're walking through a folder structure,\n     * and don't yet have the full path, but want to ensure that you\n     * do not walk down paths that can never be a match.\n     */\n    partial?: boolean;\n    /** allow matches that start with `.` even if the pattern does not */\n    dot?: boolean;\n    /** ignore case */\n    nocase?: boolean;\n    /** ignore case only in wildcard patterns */\n    nocaseMagicOnly?: boolean;\n    /** consider braces to be \"magic\" for the purpose of `hasMagic` */\n    magicalBraces?: boolean;\n    /**\n     * If set, then patterns without slashes will be matched\n     * against the basename of the path if it contains slashes.\n     * For example, `a?b` would match the path `/xyz/123/acb`, but\n     * not `/xyz/acb/123`.\n     */\n    matchBase?: boolean;\n    /** invert the results of negated matches */\n    flipNegate?: boolean;\n    /** do not collapse multiple `/` into a single `/` */\n    preserveMultipleSlashes?: boolean;\n    /**\n     * A number indicating the level of optimization that should be done\n     * to the pattern prior to parsing and using it for matches.\n     */\n    optimizationLevel?: number;\n    /** operating system platform */\n    platform?: Platform;\n    /**\n     * When a pattern starts with a UNC path or drive letter, and in\n     * `nocase:true` mode, do not convert the root portions of the\n     * pattern into a case-insensitive regular expression, and instead\n     * leave them as strings.\n     *\n     * This is the default when the platform is `win32` and\n     * `nocase:true` is set.\n     */\n    windowsNoMagicRoot?: boolean;\n    /**\n     * max number of `{...}` patterns to expand. Default 100_000.\n     */\n    braceExpandMax?: number;\n    /**\n     * Max number of non-adjacent `**` patterns to recursively walk down.\n     *\n     * The default of 200 is almost certainly high enough for most purposes,\n     * and can handle absurdly excessive patterns.\n     */\n    maxGlobstarRecursion?: number;\n    /**\n     * Max depth to traverse for nested extglobs like `*(a|b|c)`\n     *\n     * Default is 2, which is quite low, but any higher value\n     * swiftly results in punishing performance impacts. Note\n     * that this is *not*  relevant when the globstar types can\n     * be safely coalesced into a single set.\n     *\n     * For example, `*(a|@(b|c)|d)` would be flattened into\n     * `*(a|b|c|d)`. Thus, many common extglobs will retain good\n     * performance and  never hit this limit, even if they are\n     * excessively deep and complicated.\n     *\n     * If the limit is hit, then the extglob characters are simply\n     * not parsed, and the pattern effectively switches into\n     * `noextglob: true` mode for the contents of that nested\n     * sub-pattern. This will typically _not_ result in a match,\n     * but is considered a valid trade-off for security and\n     * performance.\n     */\n    maxExtglobRecursion?: number;\n}\nexport declare const minimatch: {\n    (p: string, pattern: string, options?: MinimatchOptions): boolean;\n    sep: Sep;\n    GLOBSTAR: typeof GLOBSTAR;\n    filter: (pattern: string, options?: MinimatchOptions) => (p: string) => boolean;\n    defaults: (def: MinimatchOptions) => typeof minimatch;\n    braceExpand: (pattern: string, options?: MinimatchOptions) => string[];\n    makeRe: (pattern: string, options?: MinimatchOptions) => false | MMRegExp;\n    match: (list: string[], pattern: string, options?: MinimatchOptions) => string[];\n    AST: typeof AST;\n    Minimatch: typeof Minimatch;\n    escape: (s: string, { windowsPathsNoEscape, magicalBraces, }?: Pick<MinimatchOptions, \"windowsPathsNoEscape\" | \"magicalBraces\">) => string;\n    unescape: (s: string, { windowsPathsNoEscape, magicalBraces, }?: Pick<MinimatchOptions, \"windowsPathsNoEscape\" | \"magicalBraces\">) => string;\n};\nexport type Sep = '\\\\' | '/';\nexport declare const sep: Sep;\nexport declare const GLOBSTAR: unique symbol;\nexport declare const filter: (pattern: string, options?: MinimatchOptions) => (p: string) => boolean;\nexport declare const defaults: (def: MinimatchOptions) => typeof minimatch;\nexport declare const braceExpand: (pattern: string, options?: MinimatchOptions) => string[];\nexport declare const makeRe: (pattern: string, options?: MinimatchOptions) => false | MMRegExp;\nexport declare const match: (list: string[], pattern: string, options?: MinimatchOptions) => string[];\nexport type MMRegExp = RegExp & {\n    _src?: string;\n    _glob?: string;\n};\nexport type ParseReturnFiltered = string | MMRegExp | typeof GLOBSTAR;\nexport type ParseReturn = ParseReturnFiltered | false;\nexport declare class Minimatch {\n    #private;\n    options: MinimatchOptions;\n    set: ParseReturnFiltered[][];\n    pattern: string;\n    windowsPathsNoEscape: boolean;\n    nonegate: boolean;\n    negate: boolean;\n    comment: boolean;\n    empty: boolean;\n    preserveMultipleSlashes: boolean;\n    partial: boolean;\n    globSet: string[];\n    globParts: string[][];\n    nocase: boolean;\n    isWindows: boolean;\n    platform: Platform;\n    windowsNoMagicRoot: boolean;\n    maxGlobstarRecursion: number;\n    regexp: false | null | MMRegExp;\n    constructor(pattern: string, options?: MinimatchOptions);\n    hasMagic(): boolean;\n    debug(..._: unknown[]): void;\n    make(): void;\n    preprocess(globParts: string[][]): string[][];\n    adjascentGlobstarOptimize(globParts: string[][]): string[][];\n    levelOneOptimize(globParts: string[][]): string[][];\n    levelTwoFileOptimize(parts: string | string[]): string[];\n    firstPhasePreProcess(globParts: string[][]): string[][];\n    secondPhasePreProcess(globParts: string[][]): string[][];\n    partsMatch(a: string[], b: string[], emptyGSMatch?: boolean): false | string[];\n    parseNegate(): void;\n    matchOne(file: string[], pattern: ParseReturn[], partial?: boolean): boolean;\n    braceExpand(): string[];\n    parse(pattern: string): ParseReturn;\n    makeRe(): false | MMRegExp;\n    slashSplit(p: string): string[];\n    match(f: string, partial?: boolean): boolean;\n    static defaults(def: MinimatchOptions): typeof Minimatch;\n}\nexport { AST } from './ast.js';\nexport { escape } from './escape.js';\nexport { unescape } from './unescape.js';\n//# sourceMappingURL=index.d.ts.map"
+        },
+        {
+          "path": "/project/minimatch/unescape.d.ts",
+          "text": "import type { MinimatchOptions } from './index.js';\n/**\n * Un-escape a string that has been escaped with {@link escape}.\n *\n * If the {@link MinimatchOptions.windowsPathsNoEscape} option is used, then\n * square-bracket escapes are removed, but not backslash escapes.\n *\n * For example, it will turn the string `'[*]'` into `*`, but it will not\n * turn `'\\\\*'` into `'*'`, because `\\` is a path separator in\n * `windowsPathsNoEscape` mode.\n *\n * When `windowsPathsNoEscape` is not set, then both square-bracket escapes and\n * backslash escapes are removed.\n *\n * Slashes (and backslashes in `windowsPathsNoEscape` mode) cannot be escaped\n * or unescaped.\n *\n * When `magicalBraces` is not set, escapes of braces (`{` and `}`) will not be\n * unescaped.\n */\nexport declare const unescape: (s: string, { windowsPathsNoEscape, magicalBraces, }?: Pick<MinimatchOptions, \"windowsPathsNoEscape\" | \"magicalBraces\">) => string;\n//# sourceMappingURL=unescape.d.ts.map"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/r9-underscore-import-type",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": true,\n    \"declarationMap\": true,\n    \"jsx\": \"react-jsx\",\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/lib/router-utils/filesystem.ts\",\n    \"/project/api-utils/index.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/lib/router-utils/filesystem.ts",
+          "text": "import type { __ApiPreviewProps, PlainProps } from '../../api-utils';\nexport async function setupFsCheck(opts: { dev: boolean }) {\n  let buildId = 'development';\n  let previewProps: __ApiPreviewProps;\n  let plain: PlainProps;\n  if (opts.dev) {\n    previewProps = { previewModeId: 'a', previewModeEncryptionKey: 'b' };\n    plain = { id: 'x' };\n  } else {\n    previewProps = JSON.parse('{}');\n    plain = JSON.parse('{}');\n  }\n  return { buildId, previewProps, plain };\n}\n"
+        },
+        {
+          "path": "/project/api-utils/index.ts",
+          "text": "export type __ApiPreviewProps = { previewModeId: string; previewModeEncryptionKey: string };\nexport type PlainProps = { id: string };\nexport function other(): void {}\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/r10a-paths-same-package",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": false,\n    \"declarationMap\": false,\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"paths\": {\n      \"pkg/lib/*\": [\n        \"./packages/pkg/src/*\"\n      ]\n    },\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/packages/pkg/src/tools.ts\",\n    \"/project/packages/pkg/src/backend/common.ts\",\n    \"/project/packages/pkg/src/backend/tool.ts\",\n    \"/project/packages/pkg/src/client/helper.ts\",\n    \"/project/packages/pkg/src/client/locator.ts\",\n    \"/project/packages/pkg/src/client/page.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/packages/pkg/package.json",
+          "text": "{ \"name\": \"pkg\", \"version\": \"1.0.0\", \"exports\": { \".\": \"./index.js\" } }\n"
+        },
+        {
+          "path": "/project/packages/pkg/src/tools.ts",
+          "text": "export type { Tool } from './backend/tool';\n"
+        },
+        {
+          "path": "/project/packages/pkg/src/backend/common.ts",
+          "text": "import { defineTool } from './tool';\nexport default [defineTool({ name: 'a', schema: { x: 1 } })];\n"
+        },
+        {
+          "path": "/project/packages/pkg/src/backend/tool.ts",
+          "text": "export interface Tool<T> { name: string; schema: T }\nexport function defineTool<T>(t: Tool<T>): Tool<T> { return t; }\n"
+        },
+        {
+          "path": "/project/packages/pkg/src/client/helper.ts",
+          "text": "import { getPage, type Page } from './page';\nexport function mk(): Page { return getPage(); }\n"
+        },
+        {
+          "path": "/project/packages/pkg/src/client/locator.ts",
+          "text": "import { mk } from './helper';\nexport class Locator {\n  page() { return mk(); }\n}\n"
+        },
+        {
+          "path": "/project/packages/pkg/src/client/page.ts",
+          "text": "export class Page { url(): string { return 'x'; } }\nexport function getPage(): Page { return new Page(); }\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/r10c-ambient-export-equals",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": false,\n    \"declarationMap\": false,\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/tracer.ts\",\n    \"/project/types/compiled.d.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/tracer.ts",
+          "text": "import type { TextMapSetter } from 'otel'\nlet api: typeof import('next/dist/compiled/otel')\napi = require('next/dist/compiled/otel')\nconst { SpanStatusCode } = api\nexport { SpanStatusCode }\nexport const setter: TextMapSetter = { set() {} }\n"
+        },
+        {
+          "path": "/project/types/compiled.d.ts",
+          "text": "declare module 'next/dist/compiled/otel' {\n  import * as m from 'otel'\n  export = m\n}\n"
+        },
+        {
+          "path": "/project/node_modules/otel/package.json",
+          "text": "{ \"name\": \"otel\", \"version\": \"1.0.0\", \"main\": \"build/src/index.js\", \"types\": \"build/src/index.d.ts\", \"exports\": { \".\": { \"types\": \"./build/src/index.d.ts\", \"default\": \"./build/src/index.js\" } } }\n"
+        },
+        {
+          "path": "/project/node_modules/otel/build/src/index.d.ts",
+          "text": "export { SpanStatusCode } from './trace/status';\nexport interface TextMapSetter { set(k: string): void }\n"
+        },
+        {
+          "path": "/project/node_modules/otel/build/src/trace/status.d.ts",
+          "text": "export declare enum SpanStatusCode { UNSET = 0, OK = 1, ERROR = 2 }\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/r10g-hono-jsx-namespace",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"ES2020\",\n    \"moduleResolution\": \"Bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": false,\n    \"declarationMap\": false,\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/src/jsx/base.ts\",\n    \"/project/src/jsx/hooks.ts\",\n    \"/project/src/jsx/index.ts\",\n    \"/project/src/jsx/dom/index.ts\",\n    \"/project/src/jsx/dom/jsx-dev-runtime.ts\",\n    \"/project/src/jsx/dom/jsx-runtime.ts\",\n    \"/project/src/jsx/dom/server.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/src/jsx/base.ts",
+          "text": "export namespace JSX {\n  export interface Element { tag: string }\n}\nexport interface JSXNode { tag: string }\nexport type Props = Record<string, unknown>\nexport type Child = string | JSXNode\nexport function renderChildren(): void {}\n"
+        },
+        {
+          "path": "/project/src/jsx/hooks.ts",
+          "text": "import type { JSX } from './base'\nexport const forwardRef = <T, P = {}>(Component: (props: P, ref?: T | null) => JSX.Element): ((props: P & { ref?: T }) => JSX.Element) => {\n  return (props) => Component(props, props.ref)\n}\n"
+        },
+        {
+          "path": "/project/src/jsx/index.ts",
+          "text": "export type { JSX } from './base'\nexport const x = 1\n"
+        },
+        {
+          "path": "/project/src/jsx/dom/index.ts",
+          "text": "import { forwardRef } from '../hooks'\nimport type { JSX, JSXNode, Props } from '../base'\nconst cloneElement = <T extends JSXNode | JSX.Element>(element: T, props: Props): T => element\nexport default { forwardRef, cloneElement }\n"
+        },
+        {
+          "path": "/project/src/jsx/dom/jsx-dev-runtime.ts",
+          "text": "export type { JSX } from '../base'\nexport const jsxDEV = (): number => 1\n"
+        },
+        {
+          "path": "/project/src/jsx/dom/jsx-runtime.ts",
+          "text": "export type { JSX } from '../base'\nexport const jsx = (): number => 1\n"
+        },
+        {
+          "path": "/project/src/jsx/dom/server.ts",
+          "text": "import { renderChildren } from '../base'\nimport type { Child } from '../base'\nimport version from './index'\nexport const use = (c: Child): void => renderChildren()\nexport { version }\nexport default { version }\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/r11-template-span-map",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": true,\n    \"declarationMap\": true,\n    \"jsx\": \"react-jsx\",\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "declare function req(s: string): { toString(): string };\nexport function gen(content: { locals?: object }): string {\n  return `\n    var isEqualLocals = ${\n      // eslint-disable-next-line -- Not a module.\n      req('./runtime/isEqualLocals').toString()\n    };\n    var x = ${content.locals ? 1 : 0};\n    var y = ${\n      content.locals\n    };`;\n}\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/r11p1-sameline-block",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": true,\n    \"declarationMap\": true,\n    \"jsx\": \"react-jsx\",\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "declare function req(s: string): string;\nexport function gen(): string {\n  return `\n    var a = ${/* c */ req(\"x\")};`;\n}\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/r11p3-trailing-line",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": true,\n    \"declarationMap\": true,\n    \"jsx\": \"react-jsx\",\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "declare function req(s: string): string;\nexport function gen(): string {\n  return `\n    var a = ${ // c\n      req(\"x\")\n    };`;\n}\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/r12-dts-map-reused-nodes",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": true,\n    \"declarationMap\": true,\n    \"jsx\": \"react-jsx\",\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "const validTagNameCache = new Set<string>();\nexport const isValidTagName = (name: unknown): name is string => {\n  if (validTagNameCache.has(name as string)) return true;\n  return typeof name === 'string';\n};\nexport const Jwt = { sign: (a: string) => a, verify: (t: string, k?: { alg: string }) => t.length + (k ? 1 : 0) };\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/r13c-ts2589-minimal",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"skipLibCheck\": false,\n    \"outDir\": \"/project/out\",\n    \"types\": [],\n    \"rootDir\": \"/project\"\n  },\n  \"files\": [\n    \"/project/typebox.d.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/typebox.d.ts",
+          "text": "export declare const Hint: unique symbol;\nexport type Assert<T, E> = T extends E ? T : never;\nexport type Evaluate<T> = T extends infer O ? {\n    [K in keyof O]: O[K];\n} : never;\nexport interface TSchema {\n    params: unknown[];\n    static: unknown;\n}\nexport interface TComposite<T extends TObject[] = TObject[]> extends TObject {\n    [Hint]: 'Composite';\n}\nexport type PropertiesReduce<T extends TProperties, P extends unknown[]> = {\n    [K in keyof T]: T[K]['static'];\n};\nexport type TProperties = Record<keyof any, TSchema>;\nexport interface TObject<T extends TProperties = TProperties> extends TSchema {\n    static: PropertiesReduce<T, this['params']>;\n    properties: T;\n}\nexport type TOmitArray<T extends TSchema[], K extends keyof any> = Assert<{\n    [K2 in keyof T]: TOmit<Assert<T[K2], TSchema>, K>;\n}, TSchema[]>;\nexport type TOmit<T extends TSchema, K extends keyof any> = T extends TComposite<infer S> ? TComposite<TOmitArray<S, K>> : T extends TObject<infer S> ? TObject<Evaluate<Omit<S, K>>> : T;\n\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/r14-union-first-member-jsdoc",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": false,\n    \"declarationMap\": false,\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export type Status = 'ok' | 'bad';\n/**\n * Doc of the alias.\n */\nexport type IndicatorDisplay =\n  /**\n   * A status pill (or the bare logo when `None`); no cache badge.\n   */\n  | { status: Status; cacheBadge: null }\n  /**\n   * A persistent cache badge; no status pill.\n   */\n  | { status: null; cacheBadge: 'cold' }\ntype FastRefreshState =\n  /** No refresh in progress. */\n  | { type: 'idle' }\n  /** Pending. */\n  | { type: 'pending'; errors: readonly string[] }\nexport declare const s: FastRefreshState;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/r15b-value-processor-real",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": false,\n    \"declarationMap\": false,\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/value-processor.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/value-processor.ts",
+          "text": "/*\nThe MIT License (MIT)\n\nCopyright (c) 2016 Ben Holloway\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n*/\n\ndeclare const loaderUtils: any\ndeclare const path: { dirname(s: string): string; join(...p: string[]): string; isAbsolute(s: string): boolean; relative(a: string, b: string): string; sep: string }\n\nfunction valueProcessor(filename: any, options: any) {\n  const URL_STATEMENT_REGEX =\n    /(url\\s*\\()\\s*(?:(['\"])((?:(?!\\2).)*)(\\2)|([^'\"](?:(?!\\)).)*[^'\"]))\\s*(\\))/g\n  const directory = path.dirname(filename)\n  const join = options.join(filename, options)\n\n  /**\n   * Process the given CSS declaration value.\n   *\n   */\n  return function transformValue(\n    /** A declaration value that may or may not contain a url() statement */\n    value: string,\n    /** An absolute path that may be the correct base or an Iterator thereof */\n    candidate: any\n  ) {\n    // allow multiple url() values in the declaration\n    //  split by url statements and process the content\n    //  additional capture groups are needed to match quotations correctly\n    //  escaped quotations are not considered\n    return value\n      .split(URL_STATEMENT_REGEX)\n      .map((token: any, i: any, arr: any) => {\n        // we can get groups as undefined under certain match circumstances\n        const initialised = token || ''\n\n        // the content of the url() statement is either in group 3 or group 5\n        const mod = i % 7\n        if (mod === 3 || mod === 5) {\n          // detect quoted url and unescape backslashes\n          const before = arr[i - 1],\n            after = arr[i + 1],\n            isQuoted = before === after && (before === \"'\" || before === '\"'),\n            unescaped = isQuoted\n              ? initialised.replace(/\\\\{2}/g, '\\\\')\n              : initialised\n\n          // split into uri and query/hash and then find the absolute path to the uri\n          const split = unescaped.split(/([?#])/g),\n            uri = split[0],\n            absolute =\n              (testIsRelative(uri) && join(uri, candidate)) ||\n              (testIsAbsolute(uri) && join(uri)),\n            query = options.keepQuery ? split.slice(1).join('') : ''\n\n          // use the absolute path in absolute mode or else relative path (or default to initialised)\n          // #6 - backslashes are not legal in URI\n          if (!absolute) {\n            return initialised\n          } else if (options.absolute) {\n            return absolute.replace(/\\\\/g, '/') + query\n          } else {\n            return loaderUtils.urlToRequest(\n              path.relative(directory, absolute).replace(/\\\\/g, '/') + query\n            )\n          }\n        }\n        // everything else, including parentheses and quotation (where present) and media statements\n        else {\n          return initialised\n        }\n      })\n      .join('')\n  }\n\n  /**\n   * The loaderUtils.isUrlRequest() doesn't support windows absolute paths on principle. We do not subscribe to that\n   * dogma so we add path.isAbsolute() check to allow them.\n   *\n   * We also eliminate module relative (~) paths.\n   *\n   * Returns true for relative uri\n   */\n  function testIsRelative(\n    /** A uri string possibly empty or undefined */\n    uri?: string\n  ): boolean {\n    return (\n      !!uri &&\n      loaderUtils.isUrlRequest(uri, false) &&\n      !path.isAbsolute(uri) &&\n      uri.indexOf('~') !== 0\n    )\n  }\n\n  /**\n   * The loaderUtils.isUrlRequest() doesn't support windows absolute paths on principle. We do not subscribe to that\n   * dogma so we add path.isAbsolute() check to allow them.\n   *\n   * Returns true for absolute uri\n   */\n  function testIsAbsolute(\n    /** A uri string possibly empty or undefined */\n    uri?: string\n  ) {\n    return (\n      !!uri &&\n      typeof options.root === 'string' &&\n      loaderUtils.isUrlRequest(uri, options.root) &&\n      (/^\\//.test(uri) || path.isAbsolute(uri))\n    )\n  }\n}\n\nexport default valueProcessor\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/c2-minimal",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": false,\n    \"declaration\": true,\n    \"sourceMap\": false,\n    \"declarationMap\": false,\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "function f() {\n  return function (/** doc */ x: string) { return x; };\n  function helper() { return 1; }\n}\nexport default f;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/x1-jsx-attr-sameline",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": true,\n    \"declarationMap\": true,\n    \"jsx\": \"react-jsx\",\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.tsx\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/a.tsx",
+          "text": "declare const x: string;\nexport const a = (href: string) => <link rel=\"stylesheet\" href={href} /* same-line block */ precedence=\"next\" />;\nexport const b = <div id=\"1\"\n  /* own-line block */ title=\"t\"\n  // line one\n  // line two\n  lang=\"en\">{x}</div>;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/x2-jsx-paren-sameline",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": true,\n    \"declarationMap\": true,\n    \"jsx\": \"react-jsx\",\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.tsx\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/a.tsx",
+          "text": "declare const x: string;\nexport function A() {\n  return ( // same-line after paren\n    <div id=\"t\">{x}</div>\n  );\n}\nexport const B = () => ( /* block after paren */\n  // own line\n  <span>{x}</span>\n);\nexport const C = /* before jsx */ <span>{x}</span>;\nexport const D = // line before jsx\n  <span>{x}</span>;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/x3-switch-block-comment",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": true,\n    \"declarationMap\": true,\n    \"jsx\": \"react-jsx\",\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export function f(x: number): number {\n  switch (x) { /* block after brace */\n    case 1: return 1;\n    default: return 0;\n  }\n}\nexport function g(x: number): number {\n  switch (x) { /* a */ /* b */ // c\n    case 1: return 1;\n    default: return 0;\n  }\n}\nexport function h(x: number): number {\n  switch (x) // before brace\n  {\n    default: return 0;\n  }\n}\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/x4-const-enum-other-positions",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": true,\n    \"declarationMap\": true,\n    \"jsx\": \"react-jsx\",\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export const enum E { A = 1, B = 2 }\ndeclare function f(...a: number[]): number;\nexport function t3(): number[] { return [E.A /* elem trailing */, E.B]; }\nexport function t4(x: number): number {\n  if (x === E.A /* cond trailing */) { return 1; }\n  return E.B; // stmt trailing\n}\nexport function t5(x: boolean): number {\n  const v = x ? E.A : E.B // after whenFalse\n  ;\n  return v;\n}\nexport function t6(x: boolean): number {\n  return E.A // after whenTrue-like return\n  ;\n}\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/x5-jsdoc-only-module",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": true,\n    \"declarationMap\": true,\n    \"jsx\": \"react-jsx\",\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"moduleDetection\": \"force\",\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.ts\",\n    \"/project/b.ts\",\n    \"/project/c.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "/** module doc */\n\n/** second doc */\n// plain\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "/*! pinned */\n// first block line 2\n// no blank line before EOF\n"
+        },
+        {
+          "path": "/project/c.ts",
+          "text": "// only one comment then blank line\n\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/x6-jsdoc-only-script",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": true,\n    \"declarationMap\": true,\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.ts\",\n    \"/project/b.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "/** a */\n\n/** b */\n// c\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "// only\n\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/p1-js-list-comments",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": true,\n    \"declarationMap\": true,\n    \"jsx\": \"react-jsx\",\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export const arr = [1, // one\n  2, /* two */ 3];\nexport function call(a: number, b: number, c: number) { return a + b + c; }\nexport const r = call(1, // first\n  2, /* second */ 3);\nexport function params(a: number, // pa\n  b: number /* pb */, c: number) { return a + b + c; }\nexport const obj = { a: 1, // oa\n  b: 2, /* ob */ c: 3 };\nexport type TL = { a: string, // ta\n  b: number; /* tb */ c: boolean };\nexport type Tup = [string, // t0\n  number, /* t1 */ boolean];\nexport type TP<A, // pa\n  B, /* pb */ C> = [A, B, C];\nexport type TPJ<A, /** ja */ B> = [A, B];\nexport type TPS<A, /* sa */ B> = [A, B];\nexport enum E { A = 1, /** ja */ B = 2, /* ba */ C = 3, // ca\n  D = 4 }\nexport enum F {\n  A = 1, /** fa */\n  B = 2, // fb\n  /** lead */ C = 3,\n}\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/p2-bp-variants",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": true,\n    \"declarationMap\": true,\n    \"jsx\": \"react-jsx\",\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "import { viaTypeLiteral, viaConst, viaFn, viaAlias, arrayPat } from './lib';\nexport const x1 = viaTypeLiteral;\nexport const x2 = viaConst;\nexport const x3 = viaFn;\nexport const x4 = viaAlias;\nexport const x5 = { viaTypeLiteral };\nexport const x6 = arrayPat;\nexport const local: { esc: (s: string, { a, b, }?: { a?: number; b?: number }) => string } = null!;\nexport const y = local;\nexport function fnLocal(s: string, { a, b, }: { a?: number; b?: number } = {}) { return s; }\n"
+        },
+        {
+          "path": "/project/lib.d.ts",
+          "text": "export interface O { a?: number; b?: number }\nexport declare const viaTypeLiteral: { esc: (s: string, { a, b, }?: Pick<O, \"a\" | \"b\">) => string };\nexport declare const viaConst: (s: string, { a, b, }?: Pick<O, \"a\" | \"b\">) => string;\nexport declare function viaFn(s: string, { a, b, }?: O): string;\nexport type ViaAlias = (s: string, { a, b, }?: O) => string;\nexport declare const viaAlias: ViaAlias;\nexport declare const arrayPat: (s: string, [a, b,]?: [number, number]) => string;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/p3-underscore-variants",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": true,\n    \"declarationMap\": true,\n    \"jsx\": \"react-jsx\",\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/lib/a.ts\",\n    \"/project/api-utils/index.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/lib/a.ts",
+          "text": "import type { __Two, _One, ___Three, Plain, __IFace } from '../api-utils';\nimport { __Klass, __val } from '../api-utils';\nexport function f() {\n  let two: __Two = { t: '' }; let one: _One = { o: '' }; let three: ___Three = { h: '' }; let plain: Plain = { p: '' };\n  let iface: __IFace = { i: '' }; let klass = new __Klass(); let val = __val;\n  return { two, one, three, plain, iface, klass, val };\n}\nexport type __Local = { l: string };\nexport function g() { let l: __Local = { l: '' }; return { l }; }\nexport function h(): __Two { return { t: '' }; }\nexport const __localConst = { v: 1 };\nexport function k() { return { c: __localConst }; }\n"
+        },
+        {
+          "path": "/project/api-utils/index.ts",
+          "text": "export type __Two = { t: string };\nexport type _One = { o: string };\nexport type ___Three = { h: string };\nexport type Plain = { p: string };\nexport interface __IFace { i: string }\nexport class __Klass { k = 1 }\nexport const __val = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/c1b-no-leading-bar",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": false,\n    \"declarationMap\": false,\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export type B =\n  /** doc b */\n  { a: 1 } | { b: 2 };\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/c1c-intersection-leading-amp",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": false,\n    \"declarationMap\": false,\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export type C =\n  /** doc c */\n  & { a: 1 }\n  /** doc c2 */\n  & { b: 2 };\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/c1k-trailing",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": false,\n    \"declarationMap\": false,\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export type T1 = string /** t1 */;\nexport type T2 = string; /** t2 */\nexport type T3 = { a: 1 } /** t3 */ | { b: 2 };\nexport declare const v1: string /** v1 */;\nexport type T4 =\n  /** lead */\n  string /** trail */;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/w1-rename-for-of-export",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es5\",\n    \"module\": \"commonjs\",\n    \"noCheck\": true,\n    \"removeComments\": false,\n    \"strict\": false,\n    \"skipDefaultLibCheck\": true,\n    \"noErrorTruncation\": true,\n    \"sourceMap\": true,\n    \"declaration\": true,\n    \"declarationMap\": true,\n    \"ignoreDeprecations\": \"6.0\",\n    \"outDir\": \"/project/out\",\n    \"types\": [],\n    \"rootDir\": \"/project\"\n  },\n  \"files\": [\n    \"/project/main.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "let x = 1; export { x }; for (let x /*a*/ of [1]) { (() => x)(); }\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/w2-switch-case-internal-comments",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2015\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "// @target: es2015\n/*-1*/ foo /*0*/ : /*1*/ switch /*2*/ ( /*3*/ false /*4*/ ) /*5*/ {\n    /*6*/ case /*7*/ false /*8*/ : /*9*/\n        /*10*/ break /*11*/ foo /*12*/;\n    /*13*/ default /*14*/ : /*15*/\n    /*16*/ case /*17*/ false /*18*/ : /*19*/ { /*20*/\n    /*21*/ } /*22*/\n}"
+        }
+      ]
+    }
+  ]
+}

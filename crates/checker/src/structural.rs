@@ -1274,13 +1274,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         target_data.check_type,
                         RecursionFlags::BOTH,
                         /*report_errors*/ false,
-                        intersection_state,
+                        IntersectionState::NONE,
                     )?) || !is_false(self.is_related_to(
                         target_data.check_type,
                         source_data.check_type,
                         RecursionFlags::BOTH,
                         /*report_errors*/ false,
-                        intersection_state,
+                        IntersectionState::NONE,
                     )?);
                     if checks_overlap {
                         let source_true = self.st.get_true_type_from_conditional_type(source)?;
@@ -1291,7 +1291,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             target_true,
                             RecursionFlags::BOTH,
                             report_errors,
-                            intersection_state,
+                            IntersectionState::NONE,
                         )?;
                         if !is_false(result) {
                             let source_false =
@@ -1305,7 +1305,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                                     target_false,
                                     RecursionFlags::BOTH,
                                     report_errors,
-                                    intersection_state,
+                                    IntersectionState::NONE,
                                 )?,
                             );
                             if !is_false(result) {
@@ -1315,13 +1315,21 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     }
                 }
             }
+            // isRelatedTo(defaultConstraint, target, RecursionFlags.Source,
+            // reportErrors) and every other relation of this conditional-
+            // source arm run with the DEFAULT intersectionState
+            // (_tsc.js:66379-66399 omit the argument; 65147 defaults it to
+            // None). Forwarding the caller's IntersectionState.Source made
+            // typeRelatedToIndexInfo skip membersRelatedToIndexer and drove a
+            // this-bound intersection into a 100-deep instantiation (TS2589
+            // on @sinclair/typebox's TOmit, which tsc accepts).
             let default_constraint = self.st.get_default_constraint_of_conditional_type(source)?;
             let result = self.is_related_to(
                 default_constraint,
                 target,
                 RecursionFlags::SOURCE,
                 report_errors,
-                intersection_state,
+                IntersectionState::NONE,
             )?;
             if !is_false(result) {
                 return Ok(result);
@@ -1342,7 +1350,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         target,
                         RecursionFlags::SOURCE,
                         report_errors,
-                        intersection_state,
+                        IntersectionState::NONE,
                     )?;
                     if !is_false(result) {
                         return Ok(result);

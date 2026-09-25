@@ -325,6 +325,18 @@ COMPILER_DIRECT = {
         # The reused observer serves other owners too; its path keeps the
         # planner's conservative shared-input rule, rather than owning it here.
     },
+    # README output-comparison fidelity fixtures (2026-09-25): JavaScript comment
+    # placement, declaration comments/nodes/specifiers, source maps and the
+    # typebox TS2589 control as 34 complete commands (one test).
+    "emit-fidelity": {
+        "target": "emit_fidelity",
+        "test": "emit_fidelity_cases_match_complete_commands",
+        "tests": 1,
+        "filtered_tests": 8,
+        "fixtures": (("crates/compiler/tests/fixtures/emit-fidelity.json", 34, "case_id"),),
+        "observers": (("scripts/observe-emit-fidelity.mjs", "emit-fidelity"),),
+        "inputs": ("crates/compiler/tests/fixtures/emit-fidelity-inputs.json",),
+    },
     "jsdoc-return": {
         "target": "h2_8a_jsdoc_return",
         "test": "jsdoc_return_controls_match_complete_commands_twice",

@@ -1082,6 +1082,7 @@ class WitnessTests(unittest.TestCase):
             "literal-update": 1396, "literal-update-pipeline": 22, "require-rewrite": 74,
             "decorator-binding": 156, "decorator-binding-pipeline": 768,
             "declaration-specifiers": 30, "declaration-comments": 41, "jsdoc-return": 58,
+            "emit-fidelity": 34,
             "literal-parent-provenance": 128, "literal-value-provenance": 540,
             "string-literal-identifier-source": 72, "utf16-literal-escaping": 296,
             "class-header-token-metadata": 32, "comma-argument-factory": 519,
