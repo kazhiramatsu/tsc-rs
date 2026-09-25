@@ -377,7 +377,7 @@
       "files": [
         {
           "path": "/project/a.ts",
-          "text": "export const enum E { A = 1, B = 2 }\ndeclare function f(...a: number[]): number;\nexport function t1(x: number): number {\n  switch (x) {\n    case E.A /* after case expr */: return 1;\n    default: return 0;\n  }\n}\nexport function t2(): number { return f(E.A /* arg trailing */, E.B); }\nexport function t3(): number[] { return [E.A /* elem trailing */, E.B]; }\nexport function t4(x: number): number {\n  if (x === E.A /* cond trailing */) { return 1; }\n  return E.B; // stmt trailing\n}\nexport function t5(x: boolean): number {\n  const v = x ? E.A : E.B // after whenFalse\n  ;\n  return v;\n}\nexport function t6(x: boolean): number {\n  return E.A // after whenTrue-like return\n  ;\n}\n"
+          "text": "export const enum E { A = 1, B = 2 }\ndeclare function f(...a: number[]): number;\nexport function t3(): number[] { return [E.A /* elem trailing */, E.B]; }\nexport function t4(x: number): number {\n  if (x === E.A /* cond trailing */) { return 1; }\n  return E.B; // stmt trailing\n}\nexport function t5(x: boolean): number {\n  const v = x ? E.A : E.B // after whenFalse\n  ;\n  return v;\n}\nexport function t6(x: boolean): number {\n  return E.A // after whenTrue-like return\n  ;\n}\n"
         }
       ]
     },
@@ -486,30 +486,6 @@
       ]
     },
     {
-      "case_id": "emit-fidelity/c1f-single-type-literal",
-      "options": {},
-      "config_path": "/project/tsconfig.json",
-      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": false,\n    \"declarationMap\": false,\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.ts\"\n  ]\n}\n",
-      "files": [
-        {
-          "path": "/project/a.ts",
-          "text": "export type F =\n  /** doc f */\n  { a: 1 };\nexport type F2 =\n  /** doc f2 */\n  string;\n"
-        }
-      ]
-    },
-    {
-      "case_id": "emit-fidelity/c1i-annotation-no-leading-bar",
-      "options": {},
-      "config_path": "/project/tsconfig.json",
-      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": false,\n    \"declarationMap\": false,\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.ts\"\n  ]\n}\n",
-      "files": [
-        {
-          "path": "/project/a.ts",
-          "text": "export declare const g2:\n  /** doc g2 */\n  { a: 1 } | { b: 2 };\nexport declare const g3:\n  /** doc g3 */\n  { a: 1 };\nexport declare function h2():\n  /** doc h2 */\n  { a: 1 } | { b: 2 };\n"
-        }
-      ]
-    },
-    {
       "case_id": "emit-fidelity/c1k-trailing",
       "options": {},
       "config_path": "/project/tsconfig.json",
@@ -518,6 +494,30 @@
         {
           "path": "/project/a.ts",
           "text": "export type T1 = string /** t1 */;\nexport type T2 = string; /** t2 */\nexport type T3 = { a: 1 } /** t3 */ | { b: 2 };\nexport declare const v1: string /** v1 */;\nexport type T4 =\n  /** lead */\n  string /** trail */;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/w1-rename-for-of-export",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es5\",\n    \"module\": \"commonjs\",\n    \"noCheck\": true,\n    \"removeComments\": false,\n    \"strict\": false,\n    \"skipDefaultLibCheck\": true,\n    \"noErrorTruncation\": true,\n    \"sourceMap\": true,\n    \"declaration\": true,\n    \"declarationMap\": true,\n    \"ignoreDeprecations\": \"6.0\",\n    \"outDir\": \"/project/out\",\n    \"types\": [],\n    \"rootDir\": \"/project\"\n  },\n  \"files\": [\n    \"/project/main.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "let x = 1; export { x }; for (let x /*a*/ of [1]) { (() => x)(); }\n"
+        }
+      ]
+    },
+    {
+      "case_id": "emit-fidelity/w2-switch-case-internal-comments",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2015\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "// @target: es2015\n/*-1*/ foo /*0*/ : /*1*/ switch /*2*/ ( /*3*/ false /*4*/ ) /*5*/ {\n    /*6*/ case /*7*/ false /*8*/ : /*9*/\n        /*10*/ break /*11*/ foo /*12*/;\n    /*13*/ default /*14*/ : /*15*/\n    /*16*/ case /*17*/ false /*18*/ : /*19*/ { /*20*/\n    /*21*/ } /*22*/\n}"
         }
       ]
     }

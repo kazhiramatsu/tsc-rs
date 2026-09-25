@@ -1108,13 +1108,6 @@ pub struct Printer {
     /// `detachedCommentsInfo` on its stack until the first node at that
     /// position, at any depth, resumes from the detached end.
     carried_source_detached: std::cell::Cell<Option<CommentResume>>,
-    /// The node most recently emitted through a range-less substitute (a
-    /// folded const-enum member, _tsc.js:95827-95839). tsc's trailing
-    /// comments phase runs on the substitute (pipelineEmitWithSubstitution,
-    /// 117712-117718), so the source's same-line comments after the original
-    /// end are never written; list phases that key on the list child's own
-    /// end consult this to stay silent too.
-    last_rangeless_substitution: std::cell::Cell<Option<TransformNode>>,
     /// The names generated so far by the print in progress: at the root
     /// declaration pass and at each generated identifier's emission. A
     /// failure promotes them into `carried_generated_names`.
@@ -1243,7 +1236,6 @@ pub fn create_printer(options: PrinterOptions) -> Printer {
         bundled_helpers: BTreeSet::new(),
         carried_generated_names: None,
         carried_source_detached: std::cell::Cell::new(None),
-        last_rangeless_substitution: std::cell::Cell::new(None),
         generated_names_this_print: GeneratedNamesThisPrint::default(),
         token_start_memo: std::cell::Cell::new((0, u32::MAX, 0)),
     }
@@ -7125,12 +7117,7 @@ impl Printer {
                         writer,
                     )?;
                 }
-                // emitCaseOrDefaultClauseRest's colon is an
-                // emitTokenWithComment token (_tsc.js:119203): its leading
-                // scan (121007-121032, 8491-8519) never collects same-line
-                // trivia, which belongs to the expression's own trailing phase
-                // (dropped for a range-less const-enum substitute).
-                let colon = self.emit_token_with_source_leading_comments(
+                let colon = self.emit_token_with_comments(
                     transformation,
                     node,
                     FixedToken::punctuation(SyntaxKind::ColonToken),
@@ -15533,12 +15520,6 @@ impl Printer {
     ) -> Result<ExpressionSourceCommentsOutcome, PrinterError> {
         let substituted = transformation.substitute_node(hint, node)?;
         let was_substituted = substituted != node;
-        self.last_rangeless_substitution.set(
-            (was_substituted
-                && transformation.arena().node(substituted)?.end == u32::MAX
-                && transformation.arena().node(node)?.end != u32::MAX)
-                .then_some(node),
-        );
         let grammar = expression_context.grammar();
         // pipelineEmit 117173-117211 applies the parenthesizer to
         // a substitution before entering the comments phase. The
@@ -19146,15 +19127,10 @@ impl Printer {
             return Ok(());
         };
         let position = range.end().value() as usize;
-        // A range-less substitute (folded const-enum member) ran its trailing
-        // phase without a source end, so tsc never wrote these comments.
-        let substituted_without_range = self.last_rangeless_substitution.get() == Some(node);
-        if !substituted_without_range
-            && !ambient_scope.retains_end(Self::comment_container_position(
-                transformation,
-                CommentCursor::new(node.source(), range.end()),
-            )?)
-        {
+        if !ambient_scope.retains_end(Self::comment_container_position(
+            transformation,
+            CommentCursor::new(node.source(), range.end()),
+        )?) {
             emit_same_line_trailing_comments(
                 SourceTrivia::from_start(source.text(), position),
                 self.options.only_print_js_doc_style,

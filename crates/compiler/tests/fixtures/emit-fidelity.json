@@ -7,7 +7,7 @@
   "observer_sha256": "ca5e59e07f535955913f2a2674cad2df75c2321f3ae272b9599b6a21cfe93372",
   "inputs": {
     "path": "crates/compiler/tests/fixtures/emit-fidelity-inputs.json",
-    "sha256": "4bffc8ed10abe3d0172927593f9558c01648c7234acf7e3583046b4dc1ce617a"
+    "sha256": "c7facee4ec5c6e01569b41b3a81bb09a8e6916a9c8d93401e94027ffb8e70af6"
   },
   "repetitions": 2,
   "program_attempts": 68,
@@ -6047,7 +6047,7 @@
       "files": [
         {
           "path": "/project/a.ts",
-          "text": "export const enum E { A = 1, B = 2 }\ndeclare function f(...a: number[]): number;\nexport function t1(x: number): number {\n  switch (x) {\n    case E.A /* after case expr */: return 1;\n    default: return 0;\n  }\n}\nexport function t2(): number { return f(E.A /* arg trailing */, E.B); }\nexport function t3(): number[] { return [E.A /* elem trailing */, E.B]; }\nexport function t4(x: number): number {\n  if (x === E.A /* cond trailing */) { return 1; }\n  return E.B; // stmt trailing\n}\nexport function t5(x: boolean): number {\n  const v = x ? E.A : E.B // after whenFalse\n  ;\n  return v;\n}\nexport function t6(x: boolean): number {\n  return E.A // after whenTrue-like return\n  ;\n}\n"
+          "text": "export const enum E { A = 1, B = 2 }\ndeclare function f(...a: number[]): number;\nexport function t3(): number[] { return [E.A /* elem trailing */, E.B]; }\nexport function t4(x: number): number {\n  if (x === E.A /* cond trailing */) { return 1; }\n  return E.B; // stmt trailing\n}\nexport function t5(x: boolean): number {\n  const v = x ? E.A : E.B // after whenFalse\n  ;\n  return v;\n}\nexport function t6(x: boolean): number {\n  return E.A // after whenTrue-like return\n  ;\n}\n"
         }
       ],
       "typescript_observation": {
@@ -6192,11 +6192,11 @@
             "index": 0,
             "path": "/project/out/a.js.map",
             "kind": "source-map",
-            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL2EudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBRUEsTUFBTSxVQUFVLEVBQUUsQ0FBQyxDQUFTO0lBQzFCLFFBQVEsQ0FBQyxFQUFFLENBQUM7UUFDVixnQkFBOEIsQ0FBQyxDQUFDLE9BQU8sQ0FBQyxDQUFDO1FBQ3pDLE9BQU8sQ0FBQyxDQUFDLE9BQU8sQ0FBQyxDQUFDO0lBQ3BCLENBQUM7QUFDSCxDQUFDO0FBQ0QsTUFBTSxVQUFVLEVBQUUsS0FBYSxPQUFPLENBQUMsMEJBQTZCLENBQUMsQ0FBQyxDQUFDO0FBQ3ZFLE1BQU0sVUFBVSxFQUFFLEtBQWUsT0FBTywwQkFBOEIsQ0FBQyxDQUFDLENBQUM7QUFDekUsTUFBTSxVQUFVLEVBQUUsQ0FBQyxDQUFTO0lBQzFCLElBQUksQ0FBQyxnQkFBUSxDQUFDLG1CQUFtQixFQUFFLENBQUM7UUFBQyxPQUFPLENBQUMsQ0FBQztJQUFDLENBQUM7SUFDaEQsbUJBQVcsQ0FBQyxnQkFBZ0I7QUFDOUIsQ0FBQztBQUNELE1BQU0sVUFBVSxFQUFFLENBQUMsQ0FBVTtJQUMzQixNQUFNLENBQUMsR0FBRyxDQUFDLENBQUMsQ0FBQyxhQUFLLENBQUMsWUFBSSxDQUFDLGtCQUFrQjtLQUN6QztJQUNELE9BQU8sQ0FBQyxDQUFDO0FBQ1gsQ0FBQztBQUNELE1BQU0sVUFBVSxFQUFFLENBQUMsQ0FBVTtJQUMzQixtQkFDQztBQUNILENBQUMifQ==",
-            "callback_utf8_bytes": 670,
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL2EudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBRUEsTUFBTSxVQUFVLEVBQUUsS0FBZSxPQUFPLDBCQUE4QixDQUFDLENBQUMsQ0FBQztBQUN6RSxNQUFNLFVBQVUsRUFBRSxDQUFDLENBQVM7SUFDMUIsSUFBSSxDQUFDLGdCQUFRLENBQUMsbUJBQW1CLEVBQUUsQ0FBQztRQUFDLE9BQU8sQ0FBQyxDQUFDO0lBQUMsQ0FBQztJQUNoRCxtQkFBVyxDQUFDLGdCQUFnQjtBQUM5QixDQUFDO0FBQ0QsTUFBTSxVQUFVLEVBQUUsQ0FBQyxDQUFVO0lBQzNCLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyxDQUFDLGFBQUssQ0FBQyxZQUFJLENBQUMsa0JBQWtCO0tBQ3pDO0lBQ0QsT0FBTyxDQUFDLENBQUM7QUFDWCxDQUFDO0FBQ0QsTUFBTSxVQUFVLEVBQUUsQ0FBQyxDQUFVO0lBQzNCLG1CQUNDO0FBQ0gsQ0FBQyJ9",
+            "callback_utf8_bytes": 462,
             "write_byte_order_mark": false,
-            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL2EudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBRUEsTUFBTSxVQUFVLEVBQUUsQ0FBQyxDQUFTO0lBQzFCLFFBQVEsQ0FBQyxFQUFFLENBQUM7UUFDVixnQkFBOEIsQ0FBQyxDQUFDLE9BQU8sQ0FBQyxDQUFDO1FBQ3pDLE9BQU8sQ0FBQyxDQUFDLE9BQU8sQ0FBQyxDQUFDO0lBQ3BCLENBQUM7QUFDSCxDQUFDO0FBQ0QsTUFBTSxVQUFVLEVBQUUsS0FBYSxPQUFPLENBQUMsMEJBQTZCLENBQUMsQ0FBQyxDQUFDO0FBQ3ZFLE1BQU0sVUFBVSxFQUFFLEtBQWUsT0FBTywwQkFBOEIsQ0FBQyxDQUFDLENBQUM7QUFDekUsTUFBTSxVQUFVLEVBQUUsQ0FBQyxDQUFTO0lBQzFCLElBQUksQ0FBQyxnQkFBUSxDQUFDLG1CQUFtQixFQUFFLENBQUM7UUFBQyxPQUFPLENBQUMsQ0FBQztJQUFDLENBQUM7SUFDaEQsbUJBQVcsQ0FBQyxnQkFBZ0I7QUFDOUIsQ0FBQztBQUNELE1BQU0sVUFBVSxFQUFFLENBQUMsQ0FBVTtJQUMzQixNQUFNLENBQUMsR0FBRyxDQUFDLENBQUMsQ0FBQyxhQUFLLENBQUMsWUFBSSxDQUFDLGtCQUFrQjtLQUN6QztJQUNELE9BQU8sQ0FBQyxDQUFDO0FBQ1gsQ0FBQztBQUNELE1BQU0sVUFBVSxFQUFFLENBQUMsQ0FBVTtJQUMzQixtQkFDQztBQUNILENBQUMifQ==",
-            "materialized_utf8_bytes": 670,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL2EudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBRUEsTUFBTSxVQUFVLEVBQUUsS0FBZSxPQUFPLDBCQUE4QixDQUFDLENBQUMsQ0FBQztBQUN6RSxNQUFNLFVBQVUsRUFBRSxDQUFDLENBQVM7SUFDMUIsSUFBSSxDQUFDLGdCQUFRLENBQUMsbUJBQW1CLEVBQUUsQ0FBQztRQUFDLE9BQU8sQ0FBQyxDQUFDO0lBQUMsQ0FBQztJQUNoRCxtQkFBVyxDQUFDLGdCQUFnQjtBQUM5QixDQUFDO0FBQ0QsTUFBTSxVQUFVLEVBQUUsQ0FBQyxDQUFVO0lBQzNCLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyxDQUFDLGFBQUssQ0FBQyxZQUFJLENBQUMsa0JBQWtCO0tBQ3pDO0lBQ0QsT0FBTyxDQUFDLENBQUM7QUFDWCxDQUFDO0FBQ0QsTUFBTSxVQUFVLEVBQUUsQ0FBQyxDQUFVO0lBQzNCLG1CQUNDO0FBQ0gsQ0FBQyJ9",
+            "materialized_utf8_bytes": 462,
             "on_error_callback_present": true,
             "source_files": [
               "/project/a.ts"
@@ -6209,28 +6209,28 @@
             "index": 1,
             "path": "/project/out/a.js",
             "kind": "javascript",
-            "callback_utf8_base64": "ZXhwb3J0IGZ1bmN0aW9uIHQxKHgpIHsKICAgIHN3aXRjaCAoeCkgewogICAgICAgIGNhc2UgMSAvKiBFLkEgKi86IHJldHVybiAxOwogICAgICAgIGRlZmF1bHQ6IHJldHVybiAwOwogICAgfQp9CmV4cG9ydCBmdW5jdGlvbiB0MigpIHsgcmV0dXJuIGYoMSAvKiBFLkEgKi8sIDIgLyogRS5CICovKTsgfQpleHBvcnQgZnVuY3Rpb24gdDMoKSB7IHJldHVybiBbMSAvKiBFLkEgKi8sIDIgLyogRS5CICovXTsgfQpleHBvcnQgZnVuY3Rpb24gdDQoeCkgewogICAgaWYgKHggPT09IDEgLyogRS5BICovIC8qIGNvbmQgdHJhaWxpbmcgKi8pIHsKICAgICAgICByZXR1cm4gMTsKICAgIH0KICAgIHJldHVybiAyIC8qIEUuQiAqLzsgLy8gc3RtdCB0cmFpbGluZwp9CmV4cG9ydCBmdW5jdGlvbiB0NSh4KSB7CiAgICBjb25zdCB2ID0geCA/IDEgLyogRS5BICovIDogMiAvKiBFLkIgKi8gLy8gYWZ0ZXIgd2hlbkZhbHNlCiAgICA7CiAgICByZXR1cm4gdjsKfQpleHBvcnQgZnVuY3Rpb24gdDYoeCkgewogICAgcmV0dXJuIDEgLyogRS5BICovOwp9Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWEuanMubWFw",
-            "callback_utf8_bytes": 561,
+            "callback_utf8_base64": "ZXhwb3J0IGZ1bmN0aW9uIHQzKCkgeyByZXR1cm4gWzEgLyogRS5BICovLCAyIC8qIEUuQiAqL107IH0KZXhwb3J0IGZ1bmN0aW9uIHQ0KHgpIHsKICAgIGlmICh4ID09PSAxIC8qIEUuQSAqLyAvKiBjb25kIHRyYWlsaW5nICovKSB7CiAgICAgICAgcmV0dXJuIDE7CiAgICB9CiAgICByZXR1cm4gMiAvKiBFLkIgKi87IC8vIHN0bXQgdHJhaWxpbmcKfQpleHBvcnQgZnVuY3Rpb24gdDUoeCkgewogICAgY29uc3QgdiA9IHggPyAxIC8qIEUuQSAqLyA6IDIgLyogRS5CICovIC8vIGFmdGVyIHdoZW5GYWxzZQogICAgOwogICAgcmV0dXJuIHY7Cn0KZXhwb3J0IGZ1bmN0aW9uIHQ2KHgpIHsKICAgIHJldHVybiAxIC8qIEUuQSAqLzsKfQovLyMgc291cmNlTWFwcGluZ1VSTD1hLmpzLm1hcA==",
+            "callback_utf8_bytes": 388,
             "write_byte_order_mark": false,
-            "materialized_utf8_base64": "ZXhwb3J0IGZ1bmN0aW9uIHQxKHgpIHsKICAgIHN3aXRjaCAoeCkgewogICAgICAgIGNhc2UgMSAvKiBFLkEgKi86IHJldHVybiAxOwogICAgICAgIGRlZmF1bHQ6IHJldHVybiAwOwogICAgfQp9CmV4cG9ydCBmdW5jdGlvbiB0MigpIHsgcmV0dXJuIGYoMSAvKiBFLkEgKi8sIDIgLyogRS5CICovKTsgfQpleHBvcnQgZnVuY3Rpb24gdDMoKSB7IHJldHVybiBbMSAvKiBFLkEgKi8sIDIgLyogRS5CICovXTsgfQpleHBvcnQgZnVuY3Rpb24gdDQoeCkgewogICAgaWYgKHggPT09IDEgLyogRS5BICovIC8qIGNvbmQgdHJhaWxpbmcgKi8pIHsKICAgICAgICByZXR1cm4gMTsKICAgIH0KICAgIHJldHVybiAyIC8qIEUuQiAqLzsgLy8gc3RtdCB0cmFpbGluZwp9CmV4cG9ydCBmdW5jdGlvbiB0NSh4KSB7CiAgICBjb25zdCB2ID0geCA/IDEgLyogRS5BICovIDogMiAvKiBFLkIgKi8gLy8gYWZ0ZXIgd2hlbkZhbHNlCiAgICA7CiAgICByZXR1cm4gdjsKfQpleHBvcnQgZnVuY3Rpb24gdDYoeCkgewogICAgcmV0dXJuIDEgLyogRS5BICovOwp9Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWEuanMubWFw",
-            "materialized_utf8_bytes": 561,
+            "materialized_utf8_base64": "ZXhwb3J0IGZ1bmN0aW9uIHQzKCkgeyByZXR1cm4gWzEgLyogRS5BICovLCAyIC8qIEUuQiAqL107IH0KZXhwb3J0IGZ1bmN0aW9uIHQ0KHgpIHsKICAgIGlmICh4ID09PSAxIC8qIEUuQSAqLyAvKiBjb25kIHRyYWlsaW5nICovKSB7CiAgICAgICAgcmV0dXJuIDE7CiAgICB9CiAgICByZXR1cm4gMiAvKiBFLkIgKi87IC8vIHN0bXQgdHJhaWxpbmcKfQpleHBvcnQgZnVuY3Rpb24gdDUoeCkgewogICAgY29uc3QgdiA9IHggPyAxIC8qIEUuQSAqLyA6IDIgLyogRS5CICovIC8vIGFmdGVyIHdoZW5GYWxzZQogICAgOwogICAgcmV0dXJuIHY7Cn0KZXhwb3J0IGZ1bmN0aW9uIHQ2KHgpIHsKICAgIHJldHVybiAxIC8qIEUuQSAqLzsKfQovLyMgc291cmNlTWFwcGluZ1VSTD1hLmpzLm1hcA==",
+            "materialized_utf8_bytes": 388,
             "on_error_callback_present": true,
             "source_files": [
               "/project/a.ts"
             ],
             "data_present": true,
-            "data_source_map_url_pos": 532,
+            "data_source_map_url_pos": 359,
             "data_diagnostics": []
           },
           {
             "index": 2,
             "path": "/project/out/a.d.ts.map",
             "kind": "declaration-map",
-            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vYS50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSwwQkFBa0IsQ0FBQztJQUFHLENBQUMsSUFBSTtJQUFFLENBQUMsSUFBSTtDQUFFO0FBRXBDLHdCQUFnQixFQUFFLENBQUMsQ0FBQyxFQUFFLE1BQU0sR0FBRyxNQUFNLENBS3BDO0FBQ0Qsd0JBQWdCLEVBQUUsSUFBSSxNQUFNLENBQTJDO0FBQ3ZFLHdCQUFnQixFQUFFLElBQUksTUFBTSxFQUFFLENBQTJDO0FBQ3pFLHdCQUFnQixFQUFFLENBQUMsQ0FBQyxFQUFFLE1BQU0sR0FBRyxNQUFNLENBR3BDO0FBQ0Qsd0JBQWdCLEVBQUUsQ0FBQyxDQUFDLEVBQUUsT0FBTyxHQUFHLE1BQU0sQ0FJckM7QUFDRCx3QkFBZ0IsRUFBRSxDQUFDLENBQUMsRUFBRSxPQUFPLEdBQUcsTUFBTSxDQUdyQyJ9",
-            "callback_utf8_bytes": 429,
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vYS50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSwwQkFBa0IsQ0FBQztJQUFHLENBQUMsSUFBSTtJQUFFLENBQUMsSUFBSTtDQUFFO0FBRXBDLHdCQUFnQixFQUFFLElBQUksTUFBTSxFQUFFLENBQTJDO0FBQ3pFLHdCQUFnQixFQUFFLENBQUMsQ0FBQyxFQUFFLE1BQU0sR0FBRyxNQUFNLENBR3BDO0FBQ0Qsd0JBQWdCLEVBQUUsQ0FBQyxDQUFDLEVBQUUsT0FBTyxHQUFHLE1BQU0sQ0FJckM7QUFDRCx3QkFBZ0IsRUFBRSxDQUFDLENBQUMsRUFBRSxPQUFPLEdBQUcsTUFBTSxDQUdyQyJ9",
+            "callback_utf8_bytes": 342,
             "write_byte_order_mark": false,
-            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vYS50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSwwQkFBa0IsQ0FBQztJQUFHLENBQUMsSUFBSTtJQUFFLENBQUMsSUFBSTtDQUFFO0FBRXBDLHdCQUFnQixFQUFFLENBQUMsQ0FBQyxFQUFFLE1BQU0sR0FBRyxNQUFNLENBS3BDO0FBQ0Qsd0JBQWdCLEVBQUUsSUFBSSxNQUFNLENBQTJDO0FBQ3ZFLHdCQUFnQixFQUFFLElBQUksTUFBTSxFQUFFLENBQTJDO0FBQ3pFLHdCQUFnQixFQUFFLENBQUMsQ0FBQyxFQUFFLE1BQU0sR0FBRyxNQUFNLENBR3BDO0FBQ0Qsd0JBQWdCLEVBQUUsQ0FBQyxDQUFDLEVBQUUsT0FBTyxHQUFHLE1BQU0sQ0FJckM7QUFDRCx3QkFBZ0IsRUFBRSxDQUFDLENBQUMsRUFBRSxPQUFPLEdBQUcsTUFBTSxDQUdyQyJ9",
-            "materialized_utf8_bytes": 429,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vYS50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSwwQkFBa0IsQ0FBQztJQUFHLENBQUMsSUFBSTtJQUFFLENBQUMsSUFBSTtDQUFFO0FBRXBDLHdCQUFnQixFQUFFLElBQUksTUFBTSxFQUFFLENBQTJDO0FBQ3pFLHdCQUFnQixFQUFFLENBQUMsQ0FBQyxFQUFFLE1BQU0sR0FBRyxNQUFNLENBR3BDO0FBQ0Qsd0JBQWdCLEVBQUUsQ0FBQyxDQUFDLEVBQUUsT0FBTyxHQUFHLE1BQU0sQ0FJckM7QUFDRCx3QkFBZ0IsRUFBRSxDQUFDLENBQUMsRUFBRSxPQUFPLEdBQUcsTUFBTSxDQUdyQyJ9",
+            "materialized_utf8_bytes": 342,
             "on_error_callback_present": true,
             "source_files": [
               "/project/a.ts"
@@ -6243,17 +6243,17 @@
             "index": 3,
             "path": "/project/out/a.d.ts",
             "kind": "declaration",
-            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgZW51bSBFIHsKICAgIEEgPSAxLAogICAgQiA9IDIKfQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiB0MSh4OiBudW1iZXIpOiBudW1iZXI7CmV4cG9ydCBkZWNsYXJlIGZ1bmN0aW9uIHQyKCk6IG51bWJlcjsKZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gdDMoKTogbnVtYmVyW107CmV4cG9ydCBkZWNsYXJlIGZ1bmN0aW9uIHQ0KHg6IG51bWJlcik6IG51bWJlcjsKZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gdDUoeDogYm9vbGVhbik6IG51bWJlcjsKZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gdDYoeDogYm9vbGVhbik6IG51bWJlcjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9YS5kLnRzLm1hcA==",
-            "callback_utf8_bytes": 352,
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgZW51bSBFIHsKICAgIEEgPSAxLAogICAgQiA9IDIKfQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiB0MygpOiBudW1iZXJbXTsKZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gdDQoeDogbnVtYmVyKTogbnVtYmVyOwpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiB0NSh4OiBib29sZWFuKTogbnVtYmVyOwpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiB0Nih4OiBib29sZWFuKTogbnVtYmVyOwovLyMgc291cmNlTWFwcGluZ1VSTD1hLmQudHMubWFw",
+            "callback_utf8_bytes": 267,
             "write_byte_order_mark": false,
-            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgZW51bSBFIHsKICAgIEEgPSAxLAogICAgQiA9IDIKfQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiB0MSh4OiBudW1iZXIpOiBudW1iZXI7CmV4cG9ydCBkZWNsYXJlIGZ1bmN0aW9uIHQyKCk6IG51bWJlcjsKZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gdDMoKTogbnVtYmVyW107CmV4cG9ydCBkZWNsYXJlIGZ1bmN0aW9uIHQ0KHg6IG51bWJlcik6IG51bWJlcjsKZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gdDUoeDogYm9vbGVhbik6IG51bWJlcjsKZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gdDYoeDogYm9vbGVhbik6IG51bWJlcjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9YS5kLnRzLm1hcA==",
-            "materialized_utf8_bytes": 352,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgZW51bSBFIHsKICAgIEEgPSAxLAogICAgQiA9IDIKfQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiB0MygpOiBudW1iZXJbXTsKZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gdDQoeDogbnVtYmVyKTogbnVtYmVyOwpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiB0NSh4OiBib29sZWFuKTogbnVtYmVyOwpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiB0Nih4OiBib29sZWFuKTogbnVtYmVyOwovLyMgc291cmNlTWFwcGluZ1VSTD1hLmQudHMubWFw",
+            "materialized_utf8_bytes": 267,
             "on_error_callback_present": true,
             "source_files": [
               "/project/a.ts"
             ],
             "data_present": true,
-            "data_source_map_url_pos": 321,
+            "data_source_map_url_pos": 236,
             "data_diagnostics": []
           }
         ],
@@ -6268,13 +6268,13 @@
               "input_source_file_names": [
                 "/project/a.ts"
               ],
-              "source_map_json": "{\"version\":3,\"file\":\"a.js\",\"sourceRoot\":\"\",\"sources\":[\"../a.ts\"],\"names\":[],\"mappings\":\"AAEA,MAAM,UAAU,EAAE,CAAC,CAAS;IAC1B,QAAQ,CAAC,EAAE,CAAC;QACV,gBAA8B,CAAC,CAAC,OAAO,CAAC,CAAC;QACzC,OAAO,CAAC,CAAC,OAAO,CAAC,CAAC;IACpB,CAAC;AACH,CAAC;AACD,MAAM,UAAU,EAAE,KAAa,OAAO,CAAC,0BAA6B,CAAC,CAAC,CAAC;AACvE,MAAM,UAAU,EAAE,KAAe,OAAO,0BAA8B,CAAC,CAAC,CAAC;AACzE,MAAM,UAAU,EAAE,CAAC,CAAS;IAC1B,IAAI,CAAC,gBAAQ,CAAC,mBAAmB,EAAE,CAAC;QAAC,OAAO,CAAC,CAAC;IAAC,CAAC;IAChD,mBAAW,CAAC,gBAAgB;AAC9B,CAAC;AACD,MAAM,UAAU,EAAE,CAAC,CAAU;IAC3B,MAAM,CAAC,GAAG,CAAC,CAAC,CAAC,aAAK,CAAC,YAAI,CAAC,kBAAkB;KACzC;IACD,OAAO,CAAC,CAAC;AACX,CAAC;AACD,MAAM,UAAU,EAAE,CAAC,CAAU;IAC3B,mBACC;AACH,CAAC\"}"
+              "source_map_json": "{\"version\":3,\"file\":\"a.js\",\"sourceRoot\":\"\",\"sources\":[\"../a.ts\"],\"names\":[],\"mappings\":\"AAEA,MAAM,UAAU,EAAE,KAAe,OAAO,0BAA8B,CAAC,CAAC,CAAC;AACzE,MAAM,UAAU,EAAE,CAAC,CAAS;IAC1B,IAAI,CAAC,gBAAQ,CAAC,mBAAmB,EAAE,CAAC;QAAC,OAAO,CAAC,CAAC;IAAC,CAAC;IAChD,mBAAW,CAAC,gBAAgB;AAC9B,CAAC;AACD,MAAM,UAAU,EAAE,CAAC,CAAU;IAC3B,MAAM,CAAC,GAAG,CAAC,CAAC,CAAC,aAAK,CAAC,YAAI,CAAC,kBAAkB;KACzC;IACD,OAAO,CAAC,CAAC;AACX,CAAC;AACD,MAAM,UAAU,EAAE,CAAC,CAAU;IAC3B,mBACC;AACH,CAAC\"}"
             },
             {
               "input_source_file_names": [
                 "/project/a.ts"
               ],
-              "source_map_json": "{\"version\":3,\"file\":\"a.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../a.ts\"],\"names\":[],\"mappings\":\"AAAA,0BAAkB,CAAC;IAAG,CAAC,IAAI;IAAE,CAAC,IAAI;CAAE;AAEpC,wBAAgB,EAAE,CAAC,CAAC,EAAE,MAAM,GAAG,MAAM,CAKpC;AACD,wBAAgB,EAAE,IAAI,MAAM,CAA2C;AACvE,wBAAgB,EAAE,IAAI,MAAM,EAAE,CAA2C;AACzE,wBAAgB,EAAE,CAAC,CAAC,EAAE,MAAM,GAAG,MAAM,CAGpC;AACD,wBAAgB,EAAE,CAAC,CAAC,EAAE,OAAO,GAAG,MAAM,CAIrC;AACD,wBAAgB,EAAE,CAAC,CAAC,EAAE,OAAO,GAAG,MAAM,CAGrC\"}"
+              "source_map_json": "{\"version\":3,\"file\":\"a.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../a.ts\"],\"names\":[],\"mappings\":\"AAAA,0BAAkB,CAAC;IAAG,CAAC,IAAI;IAAE,CAAC,IAAI;CAAE;AAEpC,wBAAgB,EAAE,IAAI,MAAM,EAAE,CAA2C;AACzE,wBAAgB,EAAE,CAAC,CAAC,EAAE,MAAM,GAAG,MAAM,CAGpC;AACD,wBAAgB,EAAE,CAAC,CAAC,EAAE,OAAO,GAAG,MAAM,CAIrC;AACD,wBAAgB,EAAE,CAAC,CAAC,EAAE,OAAO,GAAG,MAAM,CAGrC\"}"
             }
           ]
         },
@@ -8239,398 +8239,6 @@
       }
     },
     {
-      "case_id": "emit-fidelity/c1f-single-type-literal",
-      "options": {},
-      "config_path": "/project/tsconfig.json",
-      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": false,\n    \"declarationMap\": false,\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.ts\"\n  ]\n}\n",
-      "files": [
-        {
-          "path": "/project/a.ts",
-          "text": "export type F =\n  /** doc f */\n  { a: 1 };\nexport type F2 =\n  /** doc f2 */\n  string;\n"
-        }
-      ],
-      "typescript_observation": {
-        "program_facts": {
-          "source_files": [
-            "/lib/lib.es5.d.ts",
-            "/lib/lib.es2015.d.ts",
-            "/lib/lib.es2016.d.ts",
-            "/lib/lib.es2017.d.ts",
-            "/lib/lib.es2018.d.ts",
-            "/lib/lib.es2019.d.ts",
-            "/lib/lib.es2020.d.ts",
-            "/lib/lib.es2021.d.ts",
-            "/lib/lib.es2022.d.ts",
-            "/lib/lib.dom.d.ts",
-            "/lib/lib.dom.iterable.d.ts",
-            "/lib/lib.dom.asynciterable.d.ts",
-            "/lib/lib.webworker.importscripts.d.ts",
-            "/lib/lib.scripthost.d.ts",
-            "/lib/lib.es2015.core.d.ts",
-            "/lib/lib.es2015.collection.d.ts",
-            "/lib/lib.es2015.generator.d.ts",
-            "/lib/lib.es2015.iterable.d.ts",
-            "/lib/lib.es2015.promise.d.ts",
-            "/lib/lib.es2015.proxy.d.ts",
-            "/lib/lib.es2015.reflect.d.ts",
-            "/lib/lib.es2015.symbol.d.ts",
-            "/lib/lib.es2015.symbol.wellknown.d.ts",
-            "/lib/lib.es2016.array.include.d.ts",
-            "/lib/lib.es2016.intl.d.ts",
-            "/lib/lib.es2017.arraybuffer.d.ts",
-            "/lib/lib.es2017.date.d.ts",
-            "/lib/lib.es2017.object.d.ts",
-            "/lib/lib.es2017.sharedmemory.d.ts",
-            "/lib/lib.es2017.string.d.ts",
-            "/lib/lib.es2017.intl.d.ts",
-            "/lib/lib.es2017.typedarrays.d.ts",
-            "/lib/lib.es2018.asyncgenerator.d.ts",
-            "/lib/lib.es2018.asynciterable.d.ts",
-            "/lib/lib.es2018.intl.d.ts",
-            "/lib/lib.es2018.promise.d.ts",
-            "/lib/lib.es2018.regexp.d.ts",
-            "/lib/lib.es2019.array.d.ts",
-            "/lib/lib.es2019.object.d.ts",
-            "/lib/lib.es2019.string.d.ts",
-            "/lib/lib.es2019.symbol.d.ts",
-            "/lib/lib.es2019.intl.d.ts",
-            "/lib/lib.es2020.bigint.d.ts",
-            "/lib/lib.es2020.date.d.ts",
-            "/lib/lib.es2020.promise.d.ts",
-            "/lib/lib.es2020.sharedmemory.d.ts",
-            "/lib/lib.es2020.string.d.ts",
-            "/lib/lib.es2020.symbol.wellknown.d.ts",
-            "/lib/lib.es2020.intl.d.ts",
-            "/lib/lib.es2020.number.d.ts",
-            "/lib/lib.es2021.promise.d.ts",
-            "/lib/lib.es2021.string.d.ts",
-            "/lib/lib.es2021.weakref.d.ts",
-            "/lib/lib.es2021.intl.d.ts",
-            "/lib/lib.es2022.array.d.ts",
-            "/lib/lib.es2022.error.d.ts",
-            "/lib/lib.es2022.intl.d.ts",
-            "/lib/lib.es2022.object.d.ts",
-            "/lib/lib.es2022.string.d.ts",
-            "/lib/lib.es2022.regexp.d.ts",
-            "/lib/lib.decorators.d.ts",
-            "/lib/lib.decorators.legacy.d.ts",
-            "/lib/lib.es2022.full.d.ts",
-            "/project/a.ts"
-          ],
-          "library_files": [
-            "/lib/lib.es5.d.ts",
-            "/lib/lib.es2015.d.ts",
-            "/lib/lib.es2016.d.ts",
-            "/lib/lib.es2017.d.ts",
-            "/lib/lib.es2018.d.ts",
-            "/lib/lib.es2019.d.ts",
-            "/lib/lib.es2020.d.ts",
-            "/lib/lib.es2021.d.ts",
-            "/lib/lib.es2022.d.ts",
-            "/lib/lib.dom.d.ts",
-            "/lib/lib.dom.iterable.d.ts",
-            "/lib/lib.dom.asynciterable.d.ts",
-            "/lib/lib.webworker.importscripts.d.ts",
-            "/lib/lib.scripthost.d.ts",
-            "/lib/lib.es2015.core.d.ts",
-            "/lib/lib.es2015.collection.d.ts",
-            "/lib/lib.es2015.generator.d.ts",
-            "/lib/lib.es2015.iterable.d.ts",
-            "/lib/lib.es2015.promise.d.ts",
-            "/lib/lib.es2015.proxy.d.ts",
-            "/lib/lib.es2015.reflect.d.ts",
-            "/lib/lib.es2015.symbol.d.ts",
-            "/lib/lib.es2015.symbol.wellknown.d.ts",
-            "/lib/lib.es2016.array.include.d.ts",
-            "/lib/lib.es2016.intl.d.ts",
-            "/lib/lib.es2017.arraybuffer.d.ts",
-            "/lib/lib.es2017.date.d.ts",
-            "/lib/lib.es2017.object.d.ts",
-            "/lib/lib.es2017.sharedmemory.d.ts",
-            "/lib/lib.es2017.string.d.ts",
-            "/lib/lib.es2017.intl.d.ts",
-            "/lib/lib.es2017.typedarrays.d.ts",
-            "/lib/lib.es2018.asyncgenerator.d.ts",
-            "/lib/lib.es2018.asynciterable.d.ts",
-            "/lib/lib.es2018.intl.d.ts",
-            "/lib/lib.es2018.promise.d.ts",
-            "/lib/lib.es2018.regexp.d.ts",
-            "/lib/lib.es2019.array.d.ts",
-            "/lib/lib.es2019.object.d.ts",
-            "/lib/lib.es2019.string.d.ts",
-            "/lib/lib.es2019.symbol.d.ts",
-            "/lib/lib.es2019.intl.d.ts",
-            "/lib/lib.es2020.bigint.d.ts",
-            "/lib/lib.es2020.date.d.ts",
-            "/lib/lib.es2020.promise.d.ts",
-            "/lib/lib.es2020.sharedmemory.d.ts",
-            "/lib/lib.es2020.string.d.ts",
-            "/lib/lib.es2020.symbol.wellknown.d.ts",
-            "/lib/lib.es2020.intl.d.ts",
-            "/lib/lib.es2020.number.d.ts",
-            "/lib/lib.es2021.promise.d.ts",
-            "/lib/lib.es2021.string.d.ts",
-            "/lib/lib.es2021.weakref.d.ts",
-            "/lib/lib.es2021.intl.d.ts",
-            "/lib/lib.es2022.array.d.ts",
-            "/lib/lib.es2022.error.d.ts",
-            "/lib/lib.es2022.intl.d.ts",
-            "/lib/lib.es2022.object.d.ts",
-            "/lib/lib.es2022.string.d.ts",
-            "/lib/lib.es2022.regexp.d.ts",
-            "/lib/lib.decorators.d.ts",
-            "/lib/lib.decorators.legacy.d.ts",
-            "/lib/lib.es2022.full.d.ts"
-          ],
-          "root_names": [
-            "/project/a.ts"
-          ]
-        },
-        "writes": [
-          {
-            "index": 0,
-            "path": "/project/out/a.js",
-            "kind": "javascript",
-            "callback_utf8_base64": "ZXhwb3J0IHt9Owo=",
-            "callback_utf8_bytes": 11,
-            "write_byte_order_mark": false,
-            "materialized_utf8_base64": "ZXhwb3J0IHt9Owo=",
-            "materialized_utf8_bytes": 11,
-            "on_error_callback_present": true,
-            "source_files": [
-              "/project/a.ts"
-            ],
-            "data_present": true,
-            "data_source_map_url_pos": null,
-            "data_diagnostics": []
-          },
-          {
-            "index": 1,
-            "path": "/project/out/a.d.ts",
-            "kind": "declaration",
-            "callback_utf8_base64": "ZXhwb3J0IHR5cGUgRiA9IAovKiogZG9jIGYgKi8KewogICAgYTogMTsKfTsKZXhwb3J0IHR5cGUgRjIgPSAKLyoqIGRvYyBmMiAqLwpzdHJpbmc7Cg==",
-            "callback_utf8_bytes": 85,
-            "write_byte_order_mark": false,
-            "materialized_utf8_base64": "ZXhwb3J0IHR5cGUgRiA9IAovKiogZG9jIGYgKi8KewogICAgYTogMTsKfTsKZXhwb3J0IHR5cGUgRjIgPSAKLyoqIGRvYyBmMiAqLwpzdHJpbmc7Cg==",
-            "materialized_utf8_bytes": 85,
-            "on_error_callback_present": true,
-            "source_files": [
-              "/project/a.ts"
-            ],
-            "data_present": true,
-            "data_source_map_url_pos": null,
-            "data_diagnostics": []
-          }
-        ],
-        "reported_diagnostics": [],
-        "emit_refused": false,
-        "emit_result": {
-          "emit_skipped": false,
-          "diagnostics": [],
-          "emitted_files": null,
-          "source_maps": null
-        },
-        "status_writes": [],
-        "exit_code": 0
-      }
-    },
-    {
-      "case_id": "emit-fidelity/c1i-annotation-no-leading-bar",
-      "options": {},
-      "config_path": "/project/tsconfig.json",
-      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2022\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"strict\": true,\n    \"declaration\": true,\n    \"sourceMap\": false,\n    \"declarationMap\": false,\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.ts\"\n  ]\n}\n",
-      "files": [
-        {
-          "path": "/project/a.ts",
-          "text": "export declare const g2:\n  /** doc g2 */\n  { a: 1 } | { b: 2 };\nexport declare const g3:\n  /** doc g3 */\n  { a: 1 };\nexport declare function h2():\n  /** doc h2 */\n  { a: 1 } | { b: 2 };\n"
-        }
-      ],
-      "typescript_observation": {
-        "program_facts": {
-          "source_files": [
-            "/lib/lib.es5.d.ts",
-            "/lib/lib.es2015.d.ts",
-            "/lib/lib.es2016.d.ts",
-            "/lib/lib.es2017.d.ts",
-            "/lib/lib.es2018.d.ts",
-            "/lib/lib.es2019.d.ts",
-            "/lib/lib.es2020.d.ts",
-            "/lib/lib.es2021.d.ts",
-            "/lib/lib.es2022.d.ts",
-            "/lib/lib.dom.d.ts",
-            "/lib/lib.dom.iterable.d.ts",
-            "/lib/lib.dom.asynciterable.d.ts",
-            "/lib/lib.webworker.importscripts.d.ts",
-            "/lib/lib.scripthost.d.ts",
-            "/lib/lib.es2015.core.d.ts",
-            "/lib/lib.es2015.collection.d.ts",
-            "/lib/lib.es2015.generator.d.ts",
-            "/lib/lib.es2015.iterable.d.ts",
-            "/lib/lib.es2015.promise.d.ts",
-            "/lib/lib.es2015.proxy.d.ts",
-            "/lib/lib.es2015.reflect.d.ts",
-            "/lib/lib.es2015.symbol.d.ts",
-            "/lib/lib.es2015.symbol.wellknown.d.ts",
-            "/lib/lib.es2016.array.include.d.ts",
-            "/lib/lib.es2016.intl.d.ts",
-            "/lib/lib.es2017.arraybuffer.d.ts",
-            "/lib/lib.es2017.date.d.ts",
-            "/lib/lib.es2017.object.d.ts",
-            "/lib/lib.es2017.sharedmemory.d.ts",
-            "/lib/lib.es2017.string.d.ts",
-            "/lib/lib.es2017.intl.d.ts",
-            "/lib/lib.es2017.typedarrays.d.ts",
-            "/lib/lib.es2018.asyncgenerator.d.ts",
-            "/lib/lib.es2018.asynciterable.d.ts",
-            "/lib/lib.es2018.intl.d.ts",
-            "/lib/lib.es2018.promise.d.ts",
-            "/lib/lib.es2018.regexp.d.ts",
-            "/lib/lib.es2019.array.d.ts",
-            "/lib/lib.es2019.object.d.ts",
-            "/lib/lib.es2019.string.d.ts",
-            "/lib/lib.es2019.symbol.d.ts",
-            "/lib/lib.es2019.intl.d.ts",
-            "/lib/lib.es2020.bigint.d.ts",
-            "/lib/lib.es2020.date.d.ts",
-            "/lib/lib.es2020.promise.d.ts",
-            "/lib/lib.es2020.sharedmemory.d.ts",
-            "/lib/lib.es2020.string.d.ts",
-            "/lib/lib.es2020.symbol.wellknown.d.ts",
-            "/lib/lib.es2020.intl.d.ts",
-            "/lib/lib.es2020.number.d.ts",
-            "/lib/lib.es2021.promise.d.ts",
-            "/lib/lib.es2021.string.d.ts",
-            "/lib/lib.es2021.weakref.d.ts",
-            "/lib/lib.es2021.intl.d.ts",
-            "/lib/lib.es2022.array.d.ts",
-            "/lib/lib.es2022.error.d.ts",
-            "/lib/lib.es2022.intl.d.ts",
-            "/lib/lib.es2022.object.d.ts",
-            "/lib/lib.es2022.string.d.ts",
-            "/lib/lib.es2022.regexp.d.ts",
-            "/lib/lib.decorators.d.ts",
-            "/lib/lib.decorators.legacy.d.ts",
-            "/lib/lib.es2022.full.d.ts",
-            "/project/a.ts"
-          ],
-          "library_files": [
-            "/lib/lib.es5.d.ts",
-            "/lib/lib.es2015.d.ts",
-            "/lib/lib.es2016.d.ts",
-            "/lib/lib.es2017.d.ts",
-            "/lib/lib.es2018.d.ts",
-            "/lib/lib.es2019.d.ts",
-            "/lib/lib.es2020.d.ts",
-            "/lib/lib.es2021.d.ts",
-            "/lib/lib.es2022.d.ts",
-            "/lib/lib.dom.d.ts",
-            "/lib/lib.dom.iterable.d.ts",
-            "/lib/lib.dom.asynciterable.d.ts",
-            "/lib/lib.webworker.importscripts.d.ts",
-            "/lib/lib.scripthost.d.ts",
-            "/lib/lib.es2015.core.d.ts",
-            "/lib/lib.es2015.collection.d.ts",
-            "/lib/lib.es2015.generator.d.ts",
-            "/lib/lib.es2015.iterable.d.ts",
-            "/lib/lib.es2015.promise.d.ts",
-            "/lib/lib.es2015.proxy.d.ts",
-            "/lib/lib.es2015.reflect.d.ts",
-            "/lib/lib.es2015.symbol.d.ts",
-            "/lib/lib.es2015.symbol.wellknown.d.ts",
-            "/lib/lib.es2016.array.include.d.ts",
-            "/lib/lib.es2016.intl.d.ts",
-            "/lib/lib.es2017.arraybuffer.d.ts",
-            "/lib/lib.es2017.date.d.ts",
-            "/lib/lib.es2017.object.d.ts",
-            "/lib/lib.es2017.sharedmemory.d.ts",
-            "/lib/lib.es2017.string.d.ts",
-            "/lib/lib.es2017.intl.d.ts",
-            "/lib/lib.es2017.typedarrays.d.ts",
-            "/lib/lib.es2018.asyncgenerator.d.ts",
-            "/lib/lib.es2018.asynciterable.d.ts",
-            "/lib/lib.es2018.intl.d.ts",
-            "/lib/lib.es2018.promise.d.ts",
-            "/lib/lib.es2018.regexp.d.ts",
-            "/lib/lib.es2019.array.d.ts",
-            "/lib/lib.es2019.object.d.ts",
-            "/lib/lib.es2019.string.d.ts",
-            "/lib/lib.es2019.symbol.d.ts",
-            "/lib/lib.es2019.intl.d.ts",
-            "/lib/lib.es2020.bigint.d.ts",
-            "/lib/lib.es2020.date.d.ts",
-            "/lib/lib.es2020.promise.d.ts",
-            "/lib/lib.es2020.sharedmemory.d.ts",
-            "/lib/lib.es2020.string.d.ts",
-            "/lib/lib.es2020.symbol.wellknown.d.ts",
-            "/lib/lib.es2020.intl.d.ts",
-            "/lib/lib.es2020.number.d.ts",
-            "/lib/lib.es2021.promise.d.ts",
-            "/lib/lib.es2021.string.d.ts",
-            "/lib/lib.es2021.weakref.d.ts",
-            "/lib/lib.es2021.intl.d.ts",
-            "/lib/lib.es2022.array.d.ts",
-            "/lib/lib.es2022.error.d.ts",
-            "/lib/lib.es2022.intl.d.ts",
-            "/lib/lib.es2022.object.d.ts",
-            "/lib/lib.es2022.string.d.ts",
-            "/lib/lib.es2022.regexp.d.ts",
-            "/lib/lib.decorators.d.ts",
-            "/lib/lib.decorators.legacy.d.ts",
-            "/lib/lib.es2022.full.d.ts"
-          ],
-          "root_names": [
-            "/project/a.ts"
-          ]
-        },
-        "writes": [
-          {
-            "index": 0,
-            "path": "/project/out/a.js",
-            "kind": "javascript",
-            "callback_utf8_base64": "ZXhwb3J0IHt9Owo=",
-            "callback_utf8_bytes": 11,
-            "write_byte_order_mark": false,
-            "materialized_utf8_base64": "ZXhwb3J0IHt9Owo=",
-            "materialized_utf8_bytes": 11,
-            "on_error_callback_present": true,
-            "source_files": [
-              "/project/a.ts"
-            ],
-            "data_present": true,
-            "data_source_map_url_pos": null,
-            "data_diagnostics": []
-          },
-          {
-            "index": 1,
-            "path": "/project/out/a.d.ts",
-            "kind": "declaration",
-            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgZzI6IAovKiogZG9jIGcyICovCnsKICAgIGE6IDE7Cn0gfCB7CiAgICBiOiAyOwp9OwpleHBvcnQgZGVjbGFyZSBjb25zdCBnMzogCi8qKiBkb2MgZzMgKi8KewogICAgYTogMTsKfTsKZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gaDIoKTogCi8qKiBkb2MgaDIgKi8KewogICAgYTogMTsKfSB8IHsKICAgIGI6IDI7Cn07Cg==",
-            "callback_utf8_bytes": 202,
-            "write_byte_order_mark": false,
-            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgZzI6IAovKiogZG9jIGcyICovCnsKICAgIGE6IDE7Cn0gfCB7CiAgICBiOiAyOwp9OwpleHBvcnQgZGVjbGFyZSBjb25zdCBnMzogCi8qKiBkb2MgZzMgKi8KewogICAgYTogMTsKfTsKZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gaDIoKTogCi8qKiBkb2MgaDIgKi8KewogICAgYTogMTsKfSB8IHsKICAgIGI6IDI7Cn07Cg==",
-            "materialized_utf8_bytes": 202,
-            "on_error_callback_present": true,
-            "source_files": [
-              "/project/a.ts"
-            ],
-            "data_present": true,
-            "data_source_map_url_pos": null,
-            "data_diagnostics": []
-          }
-        ],
-        "reported_diagnostics": [],
-        "emit_refused": false,
-        "emit_result": {
-          "emit_skipped": false,
-          "diagnostics": [],
-          "emitted_files": null,
-          "source_maps": null
-        },
-        "status_writes": [],
-        "exit_code": 0
-      }
-    },
-    {
       "case_id": "emit-fidelity/c1k-trailing",
       "options": {},
       "config_path": "/project/tsconfig.json",
@@ -8805,6 +8413,250 @@
             "write_byte_order_mark": false,
             "materialized_utf8_base64": "ZXhwb3J0IHR5cGUgVDEgPSBzdHJpbmcgLyoqIHQxICovOwpleHBvcnQgdHlwZSBUMiA9IHN0cmluZzsgLyoqIHQyICovCmV4cG9ydCB0eXBlIFQzID0gewogICAgYTogMTsKfSAvKiogdDMgKi8gfCB7CiAgICBiOiAyOwp9OwpleHBvcnQgZGVjbGFyZSBjb25zdCB2MTogc3RyaW5nIC8qKiB2MSAqLzsKZXhwb3J0IHR5cGUgVDQgPSAKLyoqIGxlYWQgKi8Kc3RyaW5nIC8qKiB0cmFpbCAqLzsK",
             "materialized_utf8_bytes": 222,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "emit-fidelity/w1-rename-for-of-export",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es5\",\n    \"module\": \"commonjs\",\n    \"noCheck\": true,\n    \"removeComments\": false,\n    \"strict\": false,\n    \"skipDefaultLibCheck\": true,\n    \"noErrorTruncation\": true,\n    \"sourceMap\": true,\n    \"declaration\": true,\n    \"declarationMap\": true,\n    \"ignoreDeprecations\": \"6.0\",\n    \"outDir\": \"/project/out\",\n    \"types\": [],\n    \"rootDir\": \"/project\"\n  },\n  \"files\": [\n    \"/project/main.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "let x = 1; export { x }; for (let x /*a*/ of [1]) { (() => x)(); }\n"
+        }
+      ],
+      "typescript_observation": {
+        "program_facts": {
+          "source_files": [
+            "/lib/lib.d.ts",
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.es2015.d.ts",
+            "/lib/lib.dom.d.ts",
+            "/lib/lib.webworker.importscripts.d.ts",
+            "/lib/lib.scripthost.d.ts",
+            "/lib/lib.es2015.core.d.ts",
+            "/lib/lib.es2015.collection.d.ts",
+            "/lib/lib.es2015.generator.d.ts",
+            "/lib/lib.es2015.iterable.d.ts",
+            "/lib/lib.es2015.promise.d.ts",
+            "/lib/lib.es2015.proxy.d.ts",
+            "/lib/lib.es2015.reflect.d.ts",
+            "/lib/lib.es2015.symbol.d.ts",
+            "/lib/lib.es2015.symbol.wellknown.d.ts",
+            "/lib/lib.es2018.asynciterable.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts",
+            "/project/main.ts"
+          ],
+          "library_files": [
+            "/lib/lib.d.ts",
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.es2015.d.ts",
+            "/lib/lib.dom.d.ts",
+            "/lib/lib.webworker.importscripts.d.ts",
+            "/lib/lib.scripthost.d.ts",
+            "/lib/lib.es2015.core.d.ts",
+            "/lib/lib.es2015.collection.d.ts",
+            "/lib/lib.es2015.generator.d.ts",
+            "/lib/lib.es2015.iterable.d.ts",
+            "/lib/lib.es2015.promise.d.ts",
+            "/lib/lib.es2015.proxy.d.ts",
+            "/lib/lib.es2015.reflect.d.ts",
+            "/lib/lib.es2015.symbol.d.ts",
+            "/lib/lib.es2015.symbol.wellknown.d.ts",
+            "/lib/lib.es2018.asynciterable.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts"
+          ],
+          "root_names": [
+            "/project/main.ts"
+          ]
+        },
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUEsSUFBSSxDQUFDLEdBQUcsQ0FBQyxDQUFDO0FBQVUsY0FBQzt3QkFBYSxHQUFDLENBQUMsS0FBSztJQUFXLENBQUMsY0FBTSxPQUFBLEdBQUMsRUFBRCxDQUFDLENBQUMsRUFBRSxDQUFDOztBQUF2QyxLQUFvQixVQUFHLEVBQUgsTUFBQyxDQUFDLENBQUMsRUFBSCxjQUFHLEVBQUgsSUFBRztJQUFsQixJQUFJLEdBQUMsU0FBQSxDQUFDLEtBQUs7SUFBckIsWUFBYyxHQUFDLENBQUMsS0FBSyxDQUFwQjtZQUFhLEdBQUMsQ0FBQyxLQUFLO0NBQXlCIn0=",
+            "callback_utf8_bytes": 356,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUEsSUFBSSxDQUFDLEdBQUcsQ0FBQyxDQUFDO0FBQVUsY0FBQzt3QkFBYSxHQUFDLENBQUMsS0FBSztJQUFXLENBQUMsY0FBTSxPQUFBLEdBQUMsRUFBRCxDQUFDLENBQUMsRUFBRSxDQUFDOztBQUF2QyxLQUFvQixVQUFHLEVBQUgsTUFBQyxDQUFDLENBQUMsRUFBSCxjQUFHLEVBQUgsSUFBRztJQUFsQixJQUFJLEdBQUMsU0FBQSxDQUFDLEtBQUs7SUFBckIsWUFBYyxHQUFDLENBQUMsS0FBSyxDQUFwQjtZQUFhLEdBQUMsQ0FBQyxLQUFLO0NBQXlCIn0=",
+            "materialized_utf8_bytes": 356,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnggPSB2b2lkIDA7CnZhciB4ID0gMTsKZXhwb3J0cy54ID0geDsKdmFyIF9sb29wXzEgPSBmdW5jdGlvbiAoeF8xIC8qYSovKSB7CiAgICAoZnVuY3Rpb24gKCkgeyByZXR1cm4geF8xOyB9KSgpOwp9Owpmb3IgKHZhciBfaSA9IDAsIF9hID0gWzFdOyBfaSA8IF9hLmxlbmd0aDsgX2krKykgewogICAgdmFyIHhfMSA9IF9hW19pXSAvKmEqLzsKICAgIGV4cG9ydHMueCA9IHhfMSAvKmEqLzsKICAgIF9sb29wXzEoeF8xIC8qYSovKTsKfQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 364,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnggPSB2b2lkIDA7CnZhciB4ID0gMTsKZXhwb3J0cy54ID0geDsKdmFyIF9sb29wXzEgPSBmdW5jdGlvbiAoeF8xIC8qYSovKSB7CiAgICAoZnVuY3Rpb24gKCkgeyByZXR1cm4geF8xOyB9KSgpOwp9Owpmb3IgKHZhciBfaSA9IDAsIF9hID0gWzFdOyBfaSA8IF9hLmxlbmd0aDsgX2krKykgewogICAgdmFyIHhfMSA9IF9hW19pXSAvKmEqLzsKICAgIGV4cG9ydHMueCA9IHhfMSAvKmEqLzsKICAgIF9sb29wXzEoeF8xIC8qYSovKTsKfQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 364,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 332,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxRQUFBLElBQUksQ0FBQyxRQUFJLENBQUM7QUFBQyxPQUFPLEVBQUUsQ0FBQyxFQUFFLENBQUMifQ==",
+            "callback_utf8_bytes": 157,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxRQUFBLElBQUksQ0FBQyxRQUFJLENBQUM7QUFBQyxPQUFPLEVBQUUsQ0FBQyxFQUFFLENBQUMifQ==",
+            "materialized_utf8_bytes": 157,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBsZXQgeDogbnVtYmVyOwpleHBvcnQgeyB4IH07Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "callback_utf8_bytes": 71,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBsZXQgeDogbnVtYmVyOwpleHBvcnQgeyB4IH07Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "materialized_utf8_bytes": 71,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 37,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AAAA,IAAI,CAAC,GAAG,CAAC,CAAC;AAAU,cAAC;wBAAa,GAAC,CAAC,KAAK;IAAW,CAAC,cAAM,OAAA,GAAC,EAAD,CAAC,CAAC,EAAE,CAAC;;AAAvC,KAAoB,UAAG,EAAH,MAAC,CAAC,CAAC,EAAH,cAAG,EAAH,IAAG;IAAlB,IAAI,GAAC,SAAA,CAAC,KAAK;IAArB,YAAc,GAAC,CAAC,KAAK,CAApB;YAAa,GAAC,CAAC,KAAK;CAAyB\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAA,QAAA,IAAI,CAAC,QAAI,CAAC;AAAC,OAAO,EAAE,CAAC,EAAE,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "emit-fidelity/w2-switch-case-internal-comments",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2015\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"outDir\": \"/project/out\",\n    \"rootDir\": \"/project\",\n    \"skipLibCheck\": true,\n    \"types\": []\n  },\n  \"files\": [\n    \"/project/a.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "// @target: es2015\n/*-1*/ foo /*0*/ : /*1*/ switch /*2*/ ( /*3*/ false /*4*/ ) /*5*/ {\n    /*6*/ case /*7*/ false /*8*/ : /*9*/\n        /*10*/ break /*11*/ foo /*12*/;\n    /*13*/ default /*14*/ : /*15*/\n    /*16*/ case /*17*/ false /*18*/ : /*19*/ { /*20*/\n    /*21*/ } /*22*/\n}"
+        }
+      ],
+      "typescript_observation": {
+        "program_facts": {
+          "source_files": [
+            "/lib/lib.es6.d.ts",
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.es2015.d.ts",
+            "/lib/lib.dom.d.ts",
+            "/lib/lib.dom.iterable.d.ts",
+            "/lib/lib.webworker.importscripts.d.ts",
+            "/lib/lib.scripthost.d.ts",
+            "/lib/lib.es2015.core.d.ts",
+            "/lib/lib.es2015.collection.d.ts",
+            "/lib/lib.es2015.generator.d.ts",
+            "/lib/lib.es2015.iterable.d.ts",
+            "/lib/lib.es2015.promise.d.ts",
+            "/lib/lib.es2015.proxy.d.ts",
+            "/lib/lib.es2015.reflect.d.ts",
+            "/lib/lib.es2015.symbol.d.ts",
+            "/lib/lib.es2015.symbol.wellknown.d.ts",
+            "/lib/lib.es2018.asynciterable.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts",
+            "/project/a.ts"
+          ],
+          "library_files": [
+            "/lib/lib.es6.d.ts",
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.es2015.d.ts",
+            "/lib/lib.dom.d.ts",
+            "/lib/lib.dom.iterable.d.ts",
+            "/lib/lib.webworker.importscripts.d.ts",
+            "/lib/lib.scripthost.d.ts",
+            "/lib/lib.es2015.core.d.ts",
+            "/lib/lib.es2015.collection.d.ts",
+            "/lib/lib.es2015.generator.d.ts",
+            "/lib/lib.es2015.iterable.d.ts",
+            "/lib/lib.es2015.promise.d.ts",
+            "/lib/lib.es2015.proxy.d.ts",
+            "/lib/lib.es2015.reflect.d.ts",
+            "/lib/lib.es2015.symbol.d.ts",
+            "/lib/lib.es2015.symbol.wellknown.d.ts",
+            "/lib/lib.es2018.asynciterable.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts"
+          ],
+          "root_names": [
+            "/project/a.ts"
+          ]
+        },
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwovLyBAdGFyZ2V0OiBlczIwMTUKLyotMSovIGZvbyAvKjAqLzogLyoxKi8gc3dpdGNoIC8qMiovICggLyozKi9mYWxzZSAvKjQqLykgLyo1Ki8gewogICAgLyo2Ki8gY2FzZSAvKjcqLyBmYWxzZSAvKjgqLzogLyo5Ki8KICAgICAgICAvKjEwKi8gYnJlYWsgLyoxMSovIGZvbyAvKjEyKi87CiAgICAvKjEzKi8gZGVmYXVsdCAvKjE0Ki86IC8qMTUqLwogICAgLyoxNiovIGNhc2UgLyoxNyovIGZhbHNlIC8qMTgqLzogLyoxOSovIHsgLyoyMCovCiAgICAgICAgLyoyMSovIH0gLyoyMiovCn0K",
+            "callback_utf8_bytes": 291,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwovLyBAdGFyZ2V0OiBlczIwMTUKLyotMSovIGZvbyAvKjAqLzogLyoxKi8gc3dpdGNoIC8qMiovICggLyozKi9mYWxzZSAvKjQqLykgLyo1Ki8gewogICAgLyo2Ki8gY2FzZSAvKjcqLyBmYWxzZSAvKjgqLzogLyo5Ki8KICAgICAgICAvKjEwKi8gYnJlYWsgLyoxMSovIGZvbyAvKjEyKi87CiAgICAvKjEzKi8gZGVmYXVsdCAvKjE0Ki86IC8qMTUqLwogICAgLyoxNiovIGNhc2UgLyoxNyovIGZhbHNlIC8qMTgqLzogLyoxOSovIHsgLyoyMCovCiAgICAgICAgLyoyMSovIH0gLyoyMiovCn0K",
+            "materialized_utf8_bytes": 291,
             "on_error_callback_present": true,
             "source_files": [
               "/project/a.ts"
