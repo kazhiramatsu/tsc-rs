@@ -20,7 +20,7 @@ impl SourceBytePosition {
                 length: positions.byte_len(),
             });
         }
-        if positions.byte_to_utf16(value).is_none() {
+        if !positions.is_scalar_boundary(value) {
             return Err(SourcePositionError::NotUnicodeScalarBoundary { position: value });
         }
         Ok(Self(value))
