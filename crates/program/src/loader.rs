@@ -950,6 +950,31 @@ fn load_program_worker(
             .entry(package.package_json().canonical().clone())
             .or_insert_with(|| package.clone());
     }
+    // tsc's module-specifier host reads package.json through the real file
+    // system (_tsc.js:46119-46120, 123503-123508), so every manifest a
+    // resolution went through must be in the table under the spelling it was
+    // read at. Read-ahead resolutions run on worker resolvers whose package
+    // caches are dropped; their results still carry the governing manifest —
+    // for a pnpm package that is `node_modules/<pkg>/package.json`, while the
+    // realpath'd source's own scope records the `.pnpm/...` spelling.
+    for resolution in &staged.module_resolutions {
+        if let ResolutionOutcome::Resolved(module) = resolution.host.outcome() {
+            if let Some(package) = module.package_metadata() {
+                packages_by_path
+                    .entry(package.package_json().canonical().clone())
+                    .or_insert_with(|| package.clone());
+            }
+        }
+    }
+    for resolution in &staged.type_resolutions {
+        if let ResolutionOutcome::Resolved(directive) = &resolution.host {
+            if let Some(package) = directive.package_metadata() {
+                packages_by_path
+                    .entry(package.package_json().canonical().clone())
+                    .or_insert_with(|| package.clone());
+            }
+        }
+    }
     let packages = packages_by_path.into_values().collect::<Vec<_>>();
     drop(resolver);
     drop(library_resolver);

@@ -8110,7 +8110,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getQualifiedLeftMeaning @6.0.3
     /// tsc-hash: c3a93b2efde3a16cc56ac39c4a7d91e7bd2297ad3c569c10077e18e1f20f63f9
     /// tsc-span: _tsc.js:50291-50293
-    fn qualified_left_meaning(meaning: tsc_types::SymbolFlags) -> tsc_types::SymbolFlags {
+    pub(crate) fn qualified_left_meaning(
+        meaning: tsc_types::SymbolFlags,
+    ) -> tsc_types::SymbolFlags {
         if meaning == tsc_types::SymbolFlags::VALUE {
             tsc_types::SymbolFlags::VALUE
         } else {
@@ -8129,7 +8131,7 @@ impl<'a> CheckerState<'a> {
     /// this face's module/namespace/variable declaration lists, and
     /// the accessibleChainCache is a recomputation-only economy the
     /// slice skips.
-    fn accessible_symbol_chain_at_slice(
+    pub(crate) fn accessible_symbol_chain_at_slice(
         &mut self,
         symbol: SymbolId,
         meaning: tsc_types::SymbolFlags,
@@ -8462,7 +8464,7 @@ impl<'a> CheckerState<'a> {
     /// walked past. getSymbolFlags' transitive-alias union collapses
     /// to the resolved symbol's flags — resolveAlias resolves chains
     /// to their non-alias tail.
-    fn needs_qualification_slice(
+    pub(crate) fn needs_qualification_slice(
         &mut self,
         symbol: SymbolId,
         meaning: tsc_types::SymbolFlags,
@@ -8540,7 +8542,7 @@ impl<'a> CheckerState<'a> {
         self.get_resolved_symbol(receiver)
     }
 
-    fn containers_of_symbol_slice(
+    pub(crate) fn containers_of_symbol_slice(
         &mut self,
         symbol: SymbolId,
         enclosing: Option<NodeId>,
@@ -8794,7 +8796,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getAliasForSymbolInContainer @6.0.3
     /// tsc-hash: 33333377bf20d625fbd2b1ed3577e8e1ff93b9385d89c1fd0818cf487e348c63
     /// tsc-span: _tsc.js:50065-50083
-    fn alias_for_symbol_in_container_slice(
+    pub(crate) fn alias_for_symbol_in_container_slice(
         &mut self,
         container: SymbolId,
         symbol: SymbolId,
@@ -8834,7 +8836,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getSymbolIfSameReference @6.0.3 (predicate face)
     /// tsc-hash: 908084bf7d1f72b02a8256627f01987eb8cd0a6897b9c7027f0cac3f156f5d3d
     /// tsc-span: _tsc.js:50084-50088
-    fn symbol_if_same_reference_slice(&mut self, s1: SymbolId, s2: SymbolId) -> CheckResult<bool> {
+    pub(crate) fn symbol_if_same_reference_slice(
+        &mut self,
+        s1: SymbolId,
+        s2: SymbolId,
+    ) -> CheckResult<bool> {
         let merged1 = self.get_merged_symbol(s1);
         let resolved1 = self
             .resolve_symbol_ex(Some(merged1), false)?
