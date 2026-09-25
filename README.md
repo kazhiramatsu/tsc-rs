@@ -2,7 +2,9 @@
 
 tsc-rs is a TypeScript compiler written in Rust. It checks types and compiles
 TypeScript to JavaScript, with support for source maps and declaration files.
-Its compatibility target is **TypeScript 6.0.3**.
+Its compatibility target is **TypeScript 6.0.3**. The same compiler is
+available to Rust programs as a library; see the
+[compiler API](#compiler-api-for-rust-projects-experimental).
 
 See the [current limitations](#current-limitations) before adopting it for
 an existing project. See [Performance](#performance) for measured compile
@@ -105,7 +107,8 @@ npm run typecheck
 
 Install `tsc-rs` and make it available on `PATH` on each developer machine
 and CI runner that uses these scripts. Keep the `typescript` dependency if
-your editor or other tools use it: `tsc-rs` provides a compiler executable,
+your editor or other tools use it: `tsc-rs` provides a compiler executable
+and a [Rust compiler API](#compiler-api-for-rust-projects-experimental),
 but does not provide TypeScript's JavaScript API or language server.
 
 If you also want to use the name `tsc` directly in a macOS or Linux shell,
@@ -282,17 +285,53 @@ project can be checked at any point with `tsc-rs --noEmit -p .`, including
 after adding the source map and [declaration](#declaration-files) settings
 below.
 
-## Type-check from Rust (experimental)
+## Compiler API for Rust projects (experimental)
 
 **The Rust API is experimental and still under development. Its interfaces
 may change incompatibly.**
 
-The [complete Rust example](crates/compiler/examples/type_check.rs) reads a
-`tsconfig.json`, forces `noEmit`, and returns diagnostics as JSON without
-writing JavaScript or declaration files. It calls the Rust API directly and
-does not require Node.js.
+tsc-rs is a set of Rust crates, and the `tsc-rs` command is built on them.
+A Rust project can depend on the same crates to load a TypeScript project,
+check it, and produce JavaScript, declaration files and source maps inside
+its own process, with no Node.js and no separate compiler executable.
 
-From the repository root, run it against the included TypeScript example:
+The API has four parts:
+
+- `tsc-rs-host` (`tsc_host`): the read-only `CompilerHost` trait.
+  `FsCompilerHost` implements it over the real filesystem and
+  `MemoryCompilerHost` over files supplied in memory.
+- `tsc-rs-program` (`tsc_program`): `parse_config_root_plan` parses a
+  `tsconfig.json`, including `extends` chains. `load_config_program`,
+  `load_config_program_with_no_emit_override` and
+  `load_emitting_config_program` turn the plan into a `PreparedProgram`,
+  the owned program with every source text and module resolution;
+  `load_program` and `load_emitting_program` do the same for explicit root
+  files without a configuration file. `LibraryCatalog` locates the standard
+  library declarations and `ProgramLoadLimits` bounds the program size.
+- `tsc-rs-compiler` (`tsc_compiler`): `ProgramSession` owns one prepared
+  program and runs it once. `run` and `run_no_emit_command` type-check it
+  and return the diagnostics, the latter including the declaration
+  diagnostics that `tsc --noEmit` reports. `emit` type-checks and compiles
+  it, delivering every output file to an `OutputSink`: `MemoryOutputSink`
+  collects the files in memory, and `FsOutputSink` writes them through an
+  `EmitFileSystem` implementation. `CheckerBudget` and `WorkerBudget` set
+  the parallelism; the API defaults are serial, and the command uses
+  `CheckerBudget::automatic()` and `WorkerBudget::automatic()`.
+- `tsc-rs-diagnostics` (`tsc_diagnostics`): `Diagnostic`, with its code,
+  category, message chain and UTF-16 location, and `TextSnapshot` for line
+  and column lookup.
+
+The API reads the standard library declarations from the directory given to
+`LibraryCatalog::typescript_6_0_3`; the checked-in
+`vendor/typescript-6.0.3/lib` supplies the matching files. The copy embedded
+in the `tsc-rs` executable is not exposed through the API.
+
+### Check a project
+
+The [complete example](crates/compiler/examples/type_check.rs) reads a
+`tsconfig.json`, forces `noEmit`, and returns diagnostics as JSON without
+writing JavaScript or declaration files. From the repository root, run it
+against the included TypeScript example:
 
 ```sh
 cargo run --locked --manifest-path crates/compiler/Cargo.toml --example type_check -- \
@@ -300,10 +339,9 @@ cargo run --locked --manifest-path crates/compiler/Cargo.toml --example type_che
 ```
 
 The arguments are the configuration file and the directory containing
-TypeScript's `lib.*.d.ts` files. This API requires the library directory to
-be available at runtime; the checked-in `vendor/typescript-6.0.3/lib` supplies
-the matching declarations. Replace the first argument with your project's
-configuration file to check it instead.
+TypeScript's `lib.*.d.ts` files. Replace the first argument with your
+project's configuration file to check it instead. Output settings such as
+`declaration` and `rootDir` are read from the file, and nothing is written.
 
 The included `main.ts` deliberately assigns `"three"` to a `number`, so the
 example exits with status `1` and reports the following (the absolute file
@@ -339,10 +377,52 @@ exit status `1`. If an unsupported project feature, I/O error, or compiler
 execution failure prevents checking, the example writes the reason to
 stderr and exits with status `2`.
 
-### Use the example in your application
+### Compile a project
+
+To produce output files instead, load the program through the emitting
+route and pass an output sink to `emit`. This fragment reuses the `host`,
+`plan`, `libraries` and `limits` values built in the example and collects
+the outputs in memory:
+
+```rust
+use tsc_compiler::{MemoryOutputSink, ProgramSession};
+use tsc_program::load_emitting_config_program;
+
+// This route requires a configuration that does not set noEmit.
+let prepared = load_emitting_config_program(&host, &plan, &libraries, limits)?;
+let mut sink = MemoryOutputSink::new();
+let outcome = ProgramSession::new(prepared).emit(&mut sink)?;
+
+for diagnostic in outcome.diagnostics() {
+    eprintln!("TS{}: {}", diagnostic.code(), diagnostic.message.text.to_string_lossy());
+}
+for artifact in sink.writes() {
+    println!(
+        "{:?} {} ({} bytes)",
+        artifact.kind(),
+        artifact.path().to_string_lossy(),
+        artifact.materialized_bytes().len()
+    );
+}
+```
+
+For the example project with `outDir`, `declaration` and `sourceMap` set,
+this prints a `JavaScript`, a `JavaScriptMap` and a `Declaration` artifact
+under `dist`, and nothing is written to disk. Each `EmitArtifact` carries
+its output path, its kind and its bytes. To write the files, implement the
+three methods of `EmitFileSystem` (`write_file`, `create_directory` and
+`directory_exists`) for your filesystem and wrap it in `FsOutputSink`.
+
+`emit` returns the emitter's outcome: its own diagnostics and, when
+`listEmittedFiles` is set, the list of emitted files. The type errors found
+while compiling are not part of this value; to report them, run a no-emit
+session as in the example. The combined report printed by the `tsc-rs`
+command comes from an internal entry that is not yet a public API.
+
+### Add the crates to your application
 
 For a Rust application located alongside the `tsc-rs` checkout, add these
-dependencies to its `Cargo.toml`:
+path dependencies to its `Cargo.toml`:
 
 ```toml
 [dependencies]
@@ -365,8 +445,8 @@ function. It returns `Diagnostic` values and the source snapshots used for
 location lookup. Read `diagnostic.code()`, `diagnostic.category()`,
 `diagnostic.message`, `diagnostic.file_name`, `diagnostic.start`, and
 `diagnostic.length` directly, or adapt `diagnostic_json` to your output
-format. TypeScript errors are returned as diagnostics; the function's
-`Err` indicates that the check could not complete.
+format. TypeScript errors are returned as diagnostics; the function's `Err`
+indicates that the check could not complete.
 
 ## Compile individual files
 
