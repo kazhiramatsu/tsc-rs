@@ -905,8 +905,10 @@ fn generated_eof_close_brace_keeps_token_suppression_and_override_precedence() {
     assert!(source_positions(&segments).is_empty());
 }
 
+/// A token range from another file keeps its UTF-16 offsets (5..6 in b.ts,
+/// past the emoji) and is located in a.ts: beyond its end, on the last line.
 #[test]
-fn generated_eof_close_brace_respects_a_foreign_token_range() {
+fn generated_eof_close_brace_locates_a_foreign_token_range_in_the_printed_source() {
     let foreign = parse_source_file("/b.ts", "//😀\nx", Default::default(), None);
     let (sources, segments) = print_recorded("x;\n", |arena, source, _| {
         let second = arena.add_source(&foreign, Some(SourceFileId::from_raw(1)));
@@ -918,8 +920,8 @@ fn generated_eof_close_brace_respects_a_foreign_token_range() {
             SourceMapRange::new(second, range),
         );
     });
-    assert_eq!(sources, ["a.ts", "b.ts"]);
-    assert_eq!(source_positions(&segments), [(1, 1, 0), (1, 1, 1)]);
+    assert_eq!(sources, ["a.ts"]);
+    assert_eq!(source_positions(&segments), [(0, 1, 2), (0, 1, 3)]);
 }
 
 #[test]
@@ -1104,12 +1106,14 @@ fn no_token_source_maps_gates_the_token_lane_only() {
     assert!(gated.contains(&(0, 2, 4)));
 }
 
-/// §8.4: a `source_map_range` naming a second source registers it in
-/// the generator and records the node's boundaries against it, while
-/// unrelated records stay on the printed source (the source-switch
-/// control; the full multi-source lane stays H2.6b).
+/// §8.4: a `source_map_range` from a second source records the node's
+/// boundaries through the PRINTED source. `emitSourcePos(sourceMapRange.source
+/// || sourceMapSource, …)` (_tsc.js:121283-121301) switches only for a range
+/// that carries a source, and 6.0.3 never creates one (createSourceMapSource
+/// has no caller), so a reused node keeps its own offsets and the second
+/// source is never registered.
 #[test]
-fn a_source_map_range_naming_a_second_source_registers_and_records_against_it() {
+fn a_source_map_range_from_a_second_source_records_through_the_printed_source() {
     let switch_target = parse_source_file("/b.ts", "var beta = 2;\n", Default::default(), None);
     let (sources, segments) = print_recorded("var alpha = 1_0 + 2;\n", |arena, _, statements| {
         let second = arena.add_source(&switch_target, Some(SourceFileId::from_raw(1)));
@@ -1168,12 +1172,12 @@ fn a_source_map_range_naming_a_second_source_registers_and_records_against_it() 
             .metadata_mut(left)
             .set_source_map_range(SourceMapRange::new(second, positions_range));
     });
-    assert_eq!(sources, ["a.ts", "b.ts"]);
+    assert_eq!(sources, ["a.ts"]);
     let positions = source_positions(&segments);
-    // The switched node's boundaries record against source index 1.
-    assert!(positions.contains(&(1, 0, 0)));
-    assert!(positions.contains(&(1, 0, 13)));
-    // Unrelated records stay on the printed source.
+    // The switched node's After is b.ts's offset 13 located in a.ts, a
+    // column no a.ts token starts or ends at.
+    assert!(positions.contains(&(0, 0, 13)));
+    // Unrelated records stay where they were.
     assert!(positions.contains(&(0, 0, 4)));
     assert!(positions.contains(&(0, 0, 0)));
 }
