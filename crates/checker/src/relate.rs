@@ -198,7 +198,7 @@ impl<'a> CheckerState<'a> {
             .intersects(ObjectFlags::REFERENCE)
             && self
                 .links
-                .read_ty(ty, |links| links.deferred_node)
+                .read_ty(ty, |links| links.cold().deferred_node)
                 .is_none()
     }
 

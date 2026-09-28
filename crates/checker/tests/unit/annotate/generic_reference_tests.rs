@@ -231,7 +231,7 @@ fn alias_hosted_generic_references_defer_and_resolve_lazily() {
                     ..
                 }
             ));
-            assert!(state.links.ty(deferred).deferred_node.is_some());
+            assert!(state.links.ty(deferred).cold().deferred_node.is_some());
             assert!(state.tables.type_of(deferred).alias_symbol.is_some());
             // Forcing reads the node lazily.
             let arguments = state.get_type_arguments(deferred).expect("forcible");
@@ -270,7 +270,7 @@ fn alias_hosted_array_nodes_defer_over_the_global_array_target() {
         |state| {
             let v = annotation_of(state, "v");
             let deferred = state.get_type_from_type_node(v).expect("array RHS defers");
-            assert!(state.links.ty(deferred).deferred_node.is_some());
+            assert!(state.links.ty(deferred).cold().deferred_node.is_some());
             let target = state.tables.reference_target(deferred);
             assert!(matches!(
                 state.tables.type_of(target).data,
@@ -296,7 +296,7 @@ fn plain_array_annotations_resolve_eagerly_against_the_array_global() {
             let reference = state.get_type_from_type_node(v).expect("arrays construct");
             // No alias host, no alias-resolvable elements: the
             // eager arm builds a plain resolved reference.
-            assert!(state.links.ty(reference).deferred_node.is_none());
+            assert!(state.links.ty(reference).cold().deferred_node.is_none());
             assert_eq!(
                 state.tables.type_arguments(reference),
                 [state.tables.intrinsics.number]
@@ -407,7 +407,7 @@ fn deferred_reference_members_force_arguments_lazily() {
         |state| {
             let v = annotation_of(state, "v");
             let deferred = state.get_type_from_type_node(v).expect("alias RHS defers");
-            assert!(state.links.ty(deferred).deferred_node.is_some());
+            assert!(state.links.ty(deferred).cold().deferred_node.is_some());
             let value = state
                 .get_property_of_type_full(deferred, "value")
                 .expect("deferred members resolve")
@@ -874,8 +874,8 @@ fn deferred_references_instantiate_through_the_canonical_node_cache() {
                 .expect("alias instantiation over a deferred RHS");
             // getObjectTypeInstantiation minted a fresh deferred
             // reference carrying the U->string mapper.
-            assert!(state.links.ty(instance).deferred_node.is_some());
-            assert!(state.links.ty(instance).deferred_mapper.is_some());
+            assert!(state.links.ty(instance).cold().deferred_node.is_some());
+            assert!(state.links.ty(instance).cold().deferred_mapper.is_some());
             let arguments = state.get_type_arguments(instance).expect("forcible");
             assert_eq!(arguments, [state.tables.intrinsics.string]);
             // The canonical node reference hosts the instantiations
@@ -902,7 +902,7 @@ fn variadic_expansion_pre_forces_deferred_tuple_elements() {
             // spread forces B's (deferred) arguments through the
             // pre-force wrapper.
             let resolved = state.get_type_from_type_node(v).expect("variadic expands");
-            assert!(state.links.ty(resolved).deferred_node.is_none());
+            assert!(state.links.ty(resolved).cold().deferred_node.is_none());
             assert_eq!(
                 state.tables.type_arguments(resolved),
                 [

@@ -826,6 +826,7 @@ fn setter_name_serialization_queries_the_write_type_only_when_emitting_it() {
             assert!(checker
                 .links
                 .symbol(property)
+                .cold()
                 .write_type
                 .resolved()
                 .is_none());
@@ -834,6 +835,7 @@ fn setter_name_serialization_queries_the_write_type_only_when_emitting_it() {
             assert!(checker
                 .links
                 .symbol(property)
+                .cold()
                 .write_type
                 .resolved()
                 .is_none());
@@ -868,6 +870,7 @@ fn setter_name_serialization_queries_the_write_type_only_when_emitting_it() {
                         checker
                             .links
                             .symbol(property)
+                            .cold()
                             .write_type
                             .resolved()
                             .is_none(),

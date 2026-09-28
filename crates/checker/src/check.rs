@@ -3432,7 +3432,7 @@ impl<'a> CheckerState<'a> {
         {
             if let Some(type_parameters) = self
                 .links
-                .read_symbol(symbol, |links| links.type_parameters.clone())
+                .read_symbol(symbol, |links| links.cold().type_parameters.clone())
             {
                 return Ok(Some(type_parameters));
             }
@@ -5733,7 +5733,7 @@ impl<'a> CheckerState<'a> {
         }
         if self
             .links
-            .read_symbol(symbol, |links| links.late_symbol)
+            .read_symbol(symbol, |links| links.cold().late_symbol)
             .is_none()
             && data
                 .declarations
@@ -5761,7 +5761,7 @@ impl<'a> CheckerState<'a> {
         }
         Ok(self
             .links
-            .read_symbol(symbol, |links| links.late_symbol)
+            .read_symbol(symbol, |links| links.cold().late_symbol)
             .unwrap_or(symbol))
     }
 
@@ -6254,7 +6254,7 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
 
-        let Some(node) = self.links.read_ty(ty, |links| links.deferred_node) else {
+        let Some(node) = self.links.read_ty(ty, |links| links.cold().deferred_node) else {
             return Ok(true);
         };
         let NodeData::TypeReference(data) = self.data_of(node) else {
@@ -7397,7 +7397,7 @@ impl<'a> CheckerState<'a> {
             .object_flags_of(ty)
             .intersects(ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
         {
-            if let Some(existing) = self.links.read_ty(ty, |links| links.deferred_node) {
+            if let Some(existing) = self.links.read_ty(ty, |links| links.cold().deferred_node) {
                 if self.kind_of(existing) == SyntaxKind::TypeQuery
                     && self.get_type_from_type_node(existing)? == ty
                 {
@@ -9392,7 +9392,6 @@ impl<'a> CheckerState<'a> {
             return false;
         }
         let mapped_type = links
-            .cold()
             .mapped_type
             .expect("reverse-mapped properties carry mappedType");
         let mapped_symbol = self.tables.type_of(mapped_type).symbol;
@@ -9403,7 +9402,7 @@ impl<'a> CheckerState<'a> {
             .all(|&stacked| {
                 let mapped = self
                     .links
-                    .read_symbol(stacked, |links| links.cold().mapped_type)
+                    .read_symbol(stacked, |links| links.mapped_type)
                     .expect("reverse-mapped properties carry mappedType");
                 self.tables.type_of(mapped).symbol == mapped_symbol
             })

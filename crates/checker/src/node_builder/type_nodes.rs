@@ -1871,7 +1871,7 @@ fn type_to_type_node_worker(
             return create_anonymous_type_node(checker, arena, target, r#type, context, true, true)
                 .map(Some);
         }
-        let has_node = checker.links.ty(r#type).deferred_node.is_some();
+        let has_node = checker.links.ty(r#type).cold().deferred_node.is_some();
         return if has_node {
             visit_and_transform_type(
                 checker,
@@ -2788,7 +2788,7 @@ fn create_anonymous_type_node(
         .object_flags
         .intersects(ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
     {
-        if let Some(existing) = checker.links.ty(r#type).deferred_node {
+        if let Some(existing) = checker.links.ty(r#type).cold().deferred_node {
             if checker.kind_of(existing) == SyntaxKind::TypeQuery
                 && checker
                     .get_type_from_type_node(existing)
@@ -3630,14 +3630,18 @@ fn type_reference_to_type_node(
         .into_iter()
         .any(|protocol| checker.is_reference_to_type(r#type, protocol));
         if is_iterable_protocol {
-            let written_argument_count = checker.links.ty(r#type).deferred_node.and_then(|node| {
-                match checker.data_of(node) {
-                    NodeData::TypeReference(data) => {
-                        Some(checker.nodes_of(data.type_arguments).len())
-                    }
-                    _ => None,
-                }
-            });
+            let written_argument_count =
+                checker
+                    .links
+                    .ty(r#type)
+                    .cold()
+                    .deferred_node
+                    .and_then(|node| match checker.data_of(node) {
+                        NodeData::TypeReference(data) => {
+                            Some(checker.nodes_of(data.type_arguments).len())
+                        }
+                        _ => None,
+                    });
             if written_argument_count.is_none_or(|count| count < type_parameter_count) {
                 while type_parameter_count > 0 {
                     let argument = arguments[type_parameter_count - 1];
@@ -4176,14 +4180,12 @@ fn is_deeply_nested_reverse_mapped_type_property(
     let property_mapped_symbol = checker
         .links
         .symbol(property)
-        .cold()
         .mapped_type
         .and_then(|ty| checker.tables.type_of(ty).symbol);
     stack.iter().rev().take(DEPTH).all(|entry| {
         checker
             .links
             .symbol(*entry)
-            .cold()
             .mapped_type
             .and_then(|ty| checker.tables.type_of(ty).symbol)
             == property_mapped_symbol

@@ -598,7 +598,7 @@ impl<'a> CheckerState<'a> {
                 // writeType before the fast path applies.
                 if let Some(write_type) = self
                     .links
-                    .read_symbol(symbol, |links| links.write_type.resolved())
+                    .read_symbol(symbol, |links| links.cold().write_type.resolved())
                 {
                     if !self.could_contain_type_variables(write_type) {
                         return symbol;
@@ -670,7 +670,7 @@ impl<'a> CheckerState<'a> {
         let declaration = if is_reference {
             // 63464: deferred references carry their node.
             self.links
-                .read_ty(ty, |links| links.deferred_node)
+                .read_ty(ty, |links| links.cold().deferred_node)
                 .expect("References here are deferred (worker !node gate)")
         } else if object_flags.intersects(ObjectFlags::INSTANTIATION_EXPRESSION_TYPE) {
             // 63464 second arm: instantiation-expression types carry
@@ -678,7 +678,7 @@ impl<'a> CheckerState<'a> {
             // (stamped at creation, 77999, and propagated to
             // Instantiated copies, 63649-63651).
             self.links
-                .read_ty(ty, |links| links.deferred_node)
+                .read_ty(ty, |links| links.cold().deferred_node)
                 .expect("InstantiationExpressionType types stamp their node at creation")
         } else {
             let symbol = self
@@ -811,7 +811,7 @@ impl<'a> CheckerState<'a> {
         // `type.mapper` (63485): the deferred-reference mapper for
         // references, the instantiation mapper for anonymous shells.
         let type_mapper = if is_reference {
-            self.links.read_ty(ty, |links| links.deferred_mapper)
+            self.links.read_ty(ty, |links| links.cold().deferred_mapper)
         } else if let TypeData::Mapped(mapped) = &self.tables.type_of(ty).data {
             mapped.mapper
         } else {
@@ -1191,7 +1191,7 @@ impl<'a> CheckerState<'a> {
             // key for getObjectTypeInstantiation (63464).
             let node = self
                 .links
-                .read_ty(ty, |links| links.deferred_node)
+                .read_ty(ty, |links| links.cold().deferred_node)
                 .expect("InstantiationExpressionType types stamp their node at creation");
             self.links
                 .set_fresh_type_deferred_reference_links(result, node, None);
@@ -1608,7 +1608,7 @@ impl<'a> CheckerState<'a> {
                 if object_flags.intersects(ObjectFlags::REFERENCE)
                     && self
                         .links
-                        .read_ty(ty, |links| links.deferred_node)
+                        .read_ty(ty, |links| links.cold().deferred_node)
                         .is_none()
                 {
                     // The !type.node fast path (63725-63729); deferred
@@ -1995,7 +1995,7 @@ impl<'a> CheckerState<'a> {
                     // (68336): node-carrying references short-circuit
                     // true without forcing their arguments.
                     self.links
-                        .read_ty(ty, |links| links.deferred_node)
+                        .read_ty(ty, |links| links.cold().deferred_node)
                         .is_some()
                         || {
                             let arguments: Vec<TypeId> = self.tables.type_arguments(ty).to_vec();

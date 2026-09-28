@@ -518,7 +518,7 @@ impl<'a> CheckerState<'a> {
             {
                 if self
                     .links
-                    .read_ty(ty, |links| links.deferred_node)
+                    .read_ty(ty, |links| links.cold().deferred_node)
                     .is_some()
                 {
                     let target = self.tables.reference_target(ty);
@@ -4170,7 +4170,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Option<EscapedName>> {
         if let Some(cached) = self
             .links
-            .read_ty(union, |links| links.union_key_property.resolved())
+            .read_ty(union, |links| links.cold().union_key_property.resolved())
         {
             return Ok(cached.name);
         }
@@ -4561,7 +4561,7 @@ impl<'a> CheckerState<'a> {
         let unknown = self.tables.intrinsics.unknown;
         let result = self
             .links
-            .read_ty(union, |links| links.union_key_property.resolved())
+            .read_ty(union, |links| links.cold().union_key_property.resolved())
             .and_then(|cached| {
                 cached
                     .constituent_map
@@ -4687,7 +4687,7 @@ impl<'a> CheckerState<'a> {
                 .object_flags_of(ty)
                 .intersects(ObjectFlags::REFERENCE)
             {
-                if let Some(node) = self.links.read_ty(ty, |links| links.deferred_node) {
+                if let Some(node) = self.links.read_ty(ty, |links| links.cold().deferred_node) {
                     return RecursionIdentity::Node(node);
                 }
             }

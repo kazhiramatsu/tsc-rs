@@ -1938,20 +1938,20 @@ impl<'a> CheckerState<'a> {
                     unreachable!("ResolvedBaseTypes resolution targets are types");
                 };
                 // `!!type.baseTypesResolved` (55772).
-                self.links.read_ty(ty, |links| links.base_types_resolved)
+                self.links.read_ty(ty, |links| links.cold().base_types_resolved)
             }
             TypeSystemPropertyName::RESOLVED_BASE_CONSTRUCTOR_TYPE => {
                 let ResolutionTarget::Type(ty) = target else {
                     unreachable!("ResolvedBaseConstructorType resolution targets are types");
                 };
-                self.links.read_ty(ty, |links| links.resolved_base_constructor_type.resolved())
+                self.links.read_ty(ty, |links| links.cold().resolved_base_constructor_type.resolved())
                     .is_some()
             }
             TypeSystemPropertyName::WRITE_TYPE => {
                 let ResolutionTarget::Symbol(symbol) = target else {
                     unreachable!("WriteType resolution targets are symbols");
                 };
-                self.links.read_symbol(symbol, |links| links.write_type.resolved()).is_some()
+                self.links.read_symbol(symbol, |links| links.cold().write_type.resolved()).is_some()
             }
             TypeSystemPropertyName::PARAMETER_INITIALIZER_CONTAINS_UNDEFINED => {
                 let ResolutionTarget::Node(node) = target else {
