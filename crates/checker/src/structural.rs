@@ -8447,6 +8447,32 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// The first test of inferFromLiteralPartsToTemplateLiteral (68587): the
+    /// source starts with the target's first text and ends with its last,
+    /// and a single source text is long enough for both. It borrows the
+    /// parts: union reduction tries every string literal against every
+    /// template literal, and nearly every pair fails here.
+    fn literal_parts_fit_template_ends(
+        &self,
+        source_texts: &[TemplateText],
+        target: TypeId,
+    ) -> bool {
+        let TypeData::TemplateLiteral {
+            texts: target_texts,
+            ..
+        } = &self.tables.type_of(target).data
+        else {
+            unreachable!("template flag implies template data");
+        };
+        let source_start = source_texts[0].units();
+        let source_end = source_texts[source_texts.len() - 1].units();
+        let target_start = target_texts[0].units();
+        let target_end = target_texts[target_texts.len() - 1].units();
+        !(source_texts.len() == 1 && source_start.len() < target_start.len() + target_end.len())
+            && source_start.starts_with(target_start)
+            && source_end.ends_with(target_end)
+    }
+
     /// tsc-port: isValidNumberString @6.0.3
     /// tsc-hash: 5cbe83a72d3b47092e151525fda47b46e119b9ca7bfeecc73fa877eb2e451e69
     /// tsc-span: _tsc.js:68524-68528
@@ -8553,10 +8579,15 @@ impl<'a> CheckerState<'a> {
         if source_flags.intersects(TypeFlags::STRING_LITERAL) {
             let TypeData::Literal {
                 value: tsc_types::LiteralValue::String(value),
-            } = self.tables.type_of(source).data.clone()
+            } = &self.tables.type_of(source).data
             else {
                 unreachable!("string literal data");
             };
+            // Test the ends before copying the literal.
+            if !self.literal_parts_fit_template_ends(std::slice::from_ref(value), target) {
+                return Ok(None);
+            }
+            let value = value.clone();
             return self.infer_from_literal_parts_to_template_literal(&[value], &[], target);
         }
         if source_flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
@@ -8710,6 +8741,9 @@ impl<'a> CheckerState<'a> {
         source_types: &[TypeId],
         target: TypeId,
     ) -> CheckResult<Option<Vec<TypeId>>> {
+        if !self.literal_parts_fit_template_ends(source_texts, target) {
+            return Ok(None);
+        }
         let source_units: Vec<Vec<u16>> = source_texts
             .iter()
             .map(|text| text.units().to_vec())
@@ -8721,19 +8755,6 @@ impl<'a> CheckerState<'a> {
             .map(|text| text.units().to_vec())
             .collect();
         let last_target_index = target_units.len() - 1;
-        {
-            let source_start = &source_units[0];
-            let source_end = &source_units[last_source_index];
-            let target_start = &target_units[0];
-            let target_end = &target_units[last_target_index];
-            if (last_source_index == 0
-                && source_start.len() < target_start.len() + target_end.len())
-                || !source_start.starts_with(target_start)
-                || !source_end.ends_with(target_end)
-            {
-                return Ok(None);
-            }
-        }
         let remaining_end_units: Vec<u16> = {
             let source_end = &source_units[last_source_index];
             source_end[..source_end.len() - target_units[last_target_index].len()].to_vec()
