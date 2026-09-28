@@ -915,11 +915,12 @@ pub struct CheckerState<'a> {
     /// including files the program layer drops (.json bodies, .js
     /// without allowJs) — the resolver's suppression probes read this
     /// set to decide whether a miss is tsc-undecidable (FP=0 rule).
-    pub host_file_paths: rustc_hash::FxHashSet<tsc_types::JsString>,
+    pub host_file_paths: std::sync::Arc<rustc_hash::FxHashSet<tsc_types::JsString>>,
     /// Exact input text for host reads, including host-only package manifests.
     /// Do not reconstruct a readFile result from parsed JSON or source membership.
-    pub(crate) host_input_snapshots:
+    pub(crate) host_input_snapshots: std::sync::Arc<
         rustc_hash::FxHashMap<tsc_types::JsString, std::sync::Arc<tsc_diagnostics::TextSnapshot>>,
+    >,
     /// The checker's module-specifier host view over its files, built on
     /// the first declaration-emit specifier lookup and shared by the rest
     /// (the file set and host inputs are fixed once the state is set up).
@@ -942,17 +943,18 @@ pub struct CheckerState<'a> {
     /// createModeMismatchDetails distinguishes a missing value from
     /// any explicit value.
     pub(crate) host_package_json_module_types:
-        rustc_hash::FxHashMap<tsc_types::JsString, PackageJsonModuleType>,
+        std::sync::Arc<rustc_hash::FxHashMap<tsc_types::JsString, PackageJsonModuleType>>,
     /// Normalized package.json path → parsed host JSON. The
     /// resolver seam reads `exports`/`imports` targets and must retain
     /// object insertion order because Node condition objects are
     /// first-match, not unordered maps.
     pub(crate) host_package_json_values:
-        rustc_hash::FxHashMap<tsc_types::JsString, tsc_program::JsonValue>,
+        std::sync::Arc<rustc_hash::FxHashMap<tsc_types::JsString, tsc_program::JsonValue>>,
     /// Normalized package.json path → its non-empty `"name"` field.
     /// Bare self-name imports are undecidable only inside a matching
     /// package scope; an unrelated package.json must not hide 2307.
-    pub host_package_json_names: rustc_hash::FxHashMap<tsc_types::JsString, tsc_types::JsString>,
+    pub host_package_json_names:
+        std::sync::Arc<rustc_hash::FxHashMap<tsc_types::JsString, tsc_types::JsString>>,
     /// checkExternalEmitHelpers' per-source resolveHelpersModule memo.
     /// `None` is a cached missing or provenance-suppressed `tslib`;
     /// the first definite miss has already emitted 2354.
@@ -1390,13 +1392,13 @@ impl<'a> CheckerState<'a> {
             authoritative_implied_node_formats: Vec::new(),
             authoritative_implied_node_formats_for_emit: Vec::new(),
             authoritative_module_failure: std::cell::OnceCell::new(),
-            host_file_paths: rustc_hash::FxHashSet::default(),
-            host_input_snapshots: rustc_hash::FxHashMap::default(),
+            host_file_paths: Default::default(),
+            host_input_snapshots: Default::default(),
             basic_module_specifier_host: None,
             host_current_directory: "/".into(),
-            host_package_json_module_types: rustc_hash::FxHashMap::default(),
-            host_package_json_values: rustc_hash::FxHashMap::default(),
-            host_package_json_names: rustc_hash::FxHashMap::default(),
+            host_package_json_module_types: Default::default(),
+            host_package_json_values: Default::default(),
+            host_package_json_names: Default::default(),
             external_helpers_modules: rustc_hash::FxHashMap::default(),
             requested_external_emit_helpers: rustc_hash::FxHashMap::default(),
             jsx_implicit_import_containers: rustc_hash::FxHashMap::default(),

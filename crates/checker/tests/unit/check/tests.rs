@@ -8679,7 +8679,8 @@ fn json_declaration_twin_precedes_the_json_resolution() {
         let names: Vec<String> = files.iter().map(|(name, _)| (*name).to_owned()).collect();
         with_program_state(files, options, |state| {
             // The unit harness has no ProgramJson host.
-            state.host_file_paths = names.iter().cloned().map(Into::into).collect();
+            state.host_file_paths =
+                std::sync::Arc::new(names.iter().cloned().map(Into::into).collect());
             state.check_source_file(0);
             diag_rows(state)
         })

@@ -2193,21 +2193,23 @@ fn validate_authoritative_metadata(
     Ok(())
 }
 
-/// Host facts projected once from the input list: owned data with no
+/// Host facts projected once from the input list: immutable data with no
 /// checker identity. The serial driver moves them into its one checker state;
 /// a sharded driver (W2) clones them once per additional shard, so that a
 /// shard constructs its state from the shared immutable snapshot plus this
-/// value alone. The source ASTs themselves are never copied: every state
-/// shares the snapshot's `Arc<BoundDocument>` handles.
+/// value alone. The tables are shared, not copied (eight copies of Next.js's
+/// parsed package manifests were 5 ms of the coordinator's setup), and so
+/// are the source ASTs: every state shares the snapshot's
+/// `Arc<BoundDocument>` handles.
 /// tsrs-native: the resolver's host view; tsc reads its host lazily.
 #[derive(Clone)]
 struct HostFacts {
     current_directory: JsString,
-    file_paths: rustc_hash::FxHashSet<JsString>,
-    input_snapshots: rustc_hash::FxHashMap<JsString, Arc<TextSnapshot>>,
-    package_json_module_types: rustc_hash::FxHashMap<JsString, state::PackageJsonModuleType>,
-    package_json_values: rustc_hash::FxHashMap<JsString, tsc_program::JsonValue>,
-    package_json_names: rustc_hash::FxHashMap<JsString, JsString>,
+    file_paths: Arc<rustc_hash::FxHashSet<JsString>>,
+    input_snapshots: Arc<rustc_hash::FxHashMap<JsString, Arc<TextSnapshot>>>,
+    package_json_module_types: Arc<rustc_hash::FxHashMap<JsString, state::PackageJsonModuleType>>,
+    package_json_values: Arc<rustc_hash::FxHashMap<JsString, tsc_program::JsonValue>>,
+    package_json_names: Arc<rustc_hash::FxHashMap<JsString, JsString>>,
 }
 
 /// Stage-1 output of the check driver: parsed (or adopted) fixture sources
@@ -2269,13 +2271,9 @@ fn parse_program_inputs(
     work_counters: &mut CheckWorkCounters,
     workers: WorkerBudget,
 ) -> ParsedProgramInputs {
-    // getImpliedNodeFormatForFileWorker's package-scope input. Build it
-    // before parsing because getSetExternalModuleIndicator's Auto mode
-    // consults the implied format while SourceFiles are created.
-    let host_package_json_module_types: rustc_hash::FxHashMap<
-        tsc_types::JsString,
-        state::PackageJsonModuleType,
-    > = files
+    // Every host package.json, parsed once (a later input with the same
+    // path replaces an earlier one).
+    let package_json_values: rustc_hash::FxHashMap<JsString, tsc_program::JsonValue> = files
         .iter()
         .filter(|file| {
             file.name
@@ -2286,8 +2284,22 @@ fn parse_program_inputs(
                 .is_some_and(|name| name == "package.json")
         })
         .map(|file| {
-            let value = parse_host_package_json(file);
-            let module_type = tsc_program::package_json_property(&value, "type")
+            (
+                state::CheckerState::normalize_program_path(&file.name, ""),
+                parse_host_package_json(file),
+            )
+        })
+        .collect();
+    // getImpliedNodeFormatForFileWorker's package-scope input. Build it
+    // before parsing because getSetExternalModuleIndicator's Auto mode
+    // consults the implied format while SourceFiles are created.
+    let host_package_json_module_types: rustc_hash::FxHashMap<
+        tsc_types::JsString,
+        state::PackageJsonModuleType,
+    > = package_json_values
+        .iter()
+        .map(|(path, value)| {
+            let module_type = tsc_program::package_json_property(value, "type")
                 .and_then(tsc_program::JsonValue::as_js)
                 .map(|value| match value.as_str() {
                     Some("module") => state::PackageJsonModuleType::Module,
@@ -2295,10 +2307,7 @@ fn parse_program_inputs(
                     _ => state::PackageJsonModuleType::Other,
                 })
                 .unwrap_or(state::PackageJsonModuleType::Missing);
-            (
-                state::CheckerState::normalize_js_program_path(&file.name, ""),
-                module_type,
-            )
+            (path.clone(), module_type)
         })
         .collect();
     // Fixture-file shadowing (unchanged from the libless world): a
@@ -2521,26 +2530,6 @@ fn parse_program_inputs(
             )
         })
         .collect();
-    let package_json_values: rustc_hash::FxHashMap<JsString, tsc_program::JsonValue> = files
-        .iter()
-        .filter_map(|file| {
-            let file_name = file
-                .name
-                .as_js()
-                .split_ascii(b'/')
-                .next_back()?
-                .split_ascii(b'\\')
-                .next_back()?;
-            if file_name != "package.json" {
-                return None;
-            }
-            let value = parse_host_package_json(file);
-            Some((
-                state::CheckerState::normalize_program_path(&file.name, ""),
-                value,
-            ))
-        })
-        .collect();
     let package_json_names = package_json_values
         .iter()
         .filter_map(|(path, value)| {
@@ -2559,11 +2548,11 @@ fn parse_program_inputs(
         program_diagnostics,
         host: HostFacts {
             current_directory: host_current_directory,
-            file_paths,
-            input_snapshots,
-            package_json_module_types: host_package_json_module_types,
-            package_json_values,
-            package_json_names,
+            file_paths: Arc::new(file_paths),
+            input_snapshots: Arc::new(input_snapshots),
+            package_json_module_types: Arc::new(host_package_json_module_types),
+            package_json_values: Arc::new(package_json_values),
+            package_json_names: Arc::new(package_json_names),
         },
     }
 }
