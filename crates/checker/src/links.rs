@@ -1108,21 +1108,25 @@ impl LinksTables {
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
-    /// links-field access; no standalone tsc function.
-    pub fn node(&self, id: NodeId) -> NodeLinks {
-        self.node.get(id).cloned().unwrap_or_default()
+    /// links-field access; no standalone tsc function. The record by
+    /// reference (the default record when none was written): readers copy
+    /// the fields they need rather than the whole record and its cold box.
+    pub fn node(&self, id: NodeId) -> &NodeLinks {
+        self.node.get(id).unwrap_or(&self.absent_node)
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
-    /// links-field access; no standalone tsc function.
-    pub fn symbol(&self, id: SymbolId) -> SymbolLinks {
-        self.symbol.get(id).cloned().unwrap_or_default()
+    /// links-field access; no standalone tsc function. By reference, as
+    /// [`LinksTables::node`].
+    pub fn symbol(&self, id: SymbolId) -> &SymbolLinks {
+        self.symbol.get(id).unwrap_or(&self.absent_symbol)
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
-    /// links-field access; no standalone tsc function.
-    pub fn ty(&self, id: TypeId) -> TypeLinks {
-        self.ty.get(id).cloned().unwrap_or_default()
+    /// links-field access; no standalone tsc function. By reference, as
+    /// [`LinksTables::node`].
+    pub fn ty(&self, id: TypeId) -> &TypeLinks {
+        self.ty.get(id).unwrap_or(&self.absent_ty)
     }
 
     /// tsrs-native: read the immutable-root conditional instantiation cache.
