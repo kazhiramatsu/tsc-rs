@@ -157,6 +157,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if is_true(result)
                 && !intersection_state.intersects(IntersectionState::TARGET)
                 && self.flags(target).intersects(TypeFlags::INTERSECTION)
+                && !self.st.is_generic_object_type_state(target)?
                 && self.flags(source).intersects(TypeFlags::from_bits(
                     TypeFlags::OBJECT.bits() | TypeFlags::INTERSECTION.bits(),
                 ))
