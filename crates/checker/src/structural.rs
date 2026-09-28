@@ -6262,7 +6262,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 854d0bdd7888a4d1c0d177652aa9715c0f7f9c92a2dabd703825f16449fa6adf
     /// tsc-span: _tsc.js:57868-57886
     pub(crate) fn clone_signature(&mut self, signature: SignatureId) -> SignatureId {
-        let source = self.signature_of(signature).clone();
+        let source = self.signature_of(signature).without_caches();
         let result = crate::state::Signature {
             declaration: source.declaration,
             flags: tsc_types::SignatureFlags::from_bits(
@@ -6934,8 +6934,8 @@ impl<'a> CheckerState<'a> {
         left: SignatureId,
         right: SignatureId,
     ) -> CheckResult<SignatureId> {
-        let left_data = self.signature_of(left).clone();
-        let right_data = self.signature_of(right).clone();
+        let left_data = self.signature_of(left).without_caches();
+        let right_data = self.signature_of(right).without_caches();
         let type_params = left_data
             .type_parameters
             .clone()
@@ -7262,7 +7262,7 @@ impl<'a> CheckerState<'a> {
         if signatures.len() != 1 {
             return Ok(false);
         }
-        let s = self.signature_of(signatures[0]).clone();
+        let s = self.signature_of(signatures[0]).without_caches();
         if s.type_parameters.is_none()
             && s.parameters.len() == 1
             && s.flags
@@ -7547,7 +7547,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:64479-64486
     ///
     pub fn is_top_signature(&mut self, signature: SignatureId) -> CheckResult<bool> {
-        let signature_data = self.signature_of(signature).clone();
+        let signature_data = self.signature_of(signature).without_caches();
         let this_is_any = match signature_data.this_parameter {
             None => true,
             Some(this_parameter) => {

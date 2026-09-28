@@ -521,7 +521,7 @@ impl<'a> CheckerState<'a> {
         mapper: MapperId,
         erase_type_parameters: bool,
     ) -> CheckResult<SignatureId> {
-        let source = self.signature_of(signature).clone();
+        let source = self.signature_of(signature).without_caches();
         let mut mapper = mapper;
         let mut fresh_type_parameters: Option<Vec<TypeId>> = None;
         if let Some(type_parameters) = &source.type_parameters {

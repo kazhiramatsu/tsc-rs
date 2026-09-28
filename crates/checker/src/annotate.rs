@@ -9691,7 +9691,7 @@ impl<'a> CheckerState<'a> {
         signature: SignatureId,
         class_type: TypeId,
     ) -> SignatureId {
-        let source = self.signature_of(signature).clone();
+        let source = self.signature_of(signature).without_caches();
         self.alloc_signature(crate::state::Signature {
             declaration: source.declaration,
             flags: SignatureFlags::from_bits(

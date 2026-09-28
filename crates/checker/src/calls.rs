@@ -5048,7 +5048,7 @@ impl<'a> CheckerState<'a> {
         }
         let return_type =
             self.get_intersection_type(&return_types, tsc_types::IntersectionFlags::NONE)?;
-        let first = self.signature_of(candidates[0]).clone();
+        let first = self.signature_of(candidates[0]).without_caches();
         Ok(self.alloc_signature(Signature {
             declaration: first.declaration,
             flags,

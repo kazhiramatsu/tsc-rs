@@ -189,6 +189,38 @@ pub struct Signature {
     pub isolated_signature_type: Option<TypeId>,
 }
 
+impl Signature {
+    /// A copy of the signature without its lazily filled caches (the
+    /// resolved return type and the instantiation, erased, canonical, base,
+    /// optional-call and isolated-type memos): what a clone, an instantiation
+    /// or a combination reads from its source. A whole `clone` also copied
+    /// the instantiation cache, which grows with every instantiation of a
+    /// generic signature.
+    pub(crate) fn without_caches(&self) -> Signature {
+        Signature {
+            declaration: self.declaration,
+            flags: self.flags,
+            type_parameters: self.type_parameters.clone(),
+            parameters: self.parameters.clone(),
+            this_parameter: self.this_parameter,
+            min_argument_count: self.min_argument_count,
+            resolved_return_type: LinkSlot::Vacant,
+            from_method: self.from_method,
+            target: self.target,
+            mapper: self.mapper,
+            instantiations: rustc_hash::FxHashMap::default(),
+            erased_signature_cache: None,
+            canonical_signature_cache: None,
+            base_signature_cache: None,
+            composite_kind: self.composite_kind,
+            composite_signatures: self.composite_signatures.clone(),
+            optional_call_signature_cache: (None, None),
+            isolated_signature_kind: self.isolated_signature_kind,
+            isolated_signature_type: None,
+        }
+    }
+}
+
 /// tsc IndexInfo (createIndexInfo 59989).
 #[derive(Clone, Debug)]
 pub struct IndexInfo {
