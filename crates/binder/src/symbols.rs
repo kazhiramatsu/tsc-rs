@@ -17,10 +17,13 @@ pub use tsc_types::InternalSymbolName;
 pub use tsc_types::SymbolId;
 
 /// tsc SymbolTable: ORDERED name → symbol map. Iteration order is
-/// observable (member synthesis and display order downstream), so this
-/// is an IndexMap, never a HashMap. Keys are stored PRE-escaped.
+/// observable (member synthesis and display order downstream), so it is
+/// insertion order, never hash order. Keys are stored PRE-escaped.
 mod table;
 pub use table::{EscapedNameSet, SymbolTable};
+
+mod declarations;
+pub use declarations::Declarations;
 
 /// core-interfaces §2 (tsc Symbol, D6533). tsc creates `members`/
 /// `exports` lazily on first insertion; here an empty table means
@@ -34,7 +37,7 @@ pub struct Symbol {
     /// are inserted verbatim, which is exactly why user `__call`
     /// escapes to `___call` and cannot collide.
     pub escaped_name: EscapedName,
-    pub declarations: Vec<NodeId>,
+    pub declarations: Declarations,
     /// addDeclarationToSymbol: FIRST value declaration wins.
     pub value_declaration: Option<NodeId>,
     /// Shared with every checker that resolves this symbol's members: the
@@ -61,7 +64,7 @@ impl Symbol {
         Self {
             flags,
             escaped_name,
-            declarations: Vec::new(),
+            declarations: Declarations::new(),
             value_declaration: None,
             members: empty_symbol_table(),
             exports: empty_symbol_table(),

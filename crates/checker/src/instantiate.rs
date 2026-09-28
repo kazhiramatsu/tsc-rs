@@ -790,7 +790,7 @@ impl<'a> CheckerState<'a> {
                         .type_of(ty)
                         .symbol
                         .expect("anonymous type instantiation requires a symbol");
-                    self.binder.symbol(symbol).declarations.clone()
+                    self.binder.symbol(symbol).declarations.to_vec()
                 };
                 let filtered = if filter_applies {
                     let mut kept: Vec<TypeId> = Vec::new();

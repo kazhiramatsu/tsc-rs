@@ -5486,7 +5486,7 @@ impl<'a> CheckerState<'a> {
         };
         {
             let symbol = self.binder.symbol_mut(result);
-            symbol.declarations = declarations;
+            symbol.declarations = declarations.into();
             if !has_non_uniform_value_declaration {
                 symbol.value_declaration = first_value_declaration;
                 if parent.is_some() {
@@ -5600,7 +5600,7 @@ impl<'a> CheckerState<'a> {
                 return false;
             }
             match &mut common {
-                None => common = Some(declarations.clone()),
+                None => common = Some(declarations.to_vec()),
                 Some(common) => {
                     common.retain(|declaration| declarations.contains(declaration));
                     if common.is_empty() {
