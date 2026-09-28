@@ -297,13 +297,7 @@ impl<'a> JsStr<'a> {
     /// Split on a Unicode-scalar separator. Its UTF-8 bytes can only match
     /// whole code points in canonical WTF-8, so both views stay canonical.
     pub fn split_once(self, separator: &str) -> Option<(Self, Self)> {
-        let index = if separator.is_empty() {
-            0
-        } else {
-            self.bytes
-                .windows(separator.len())
-                .position(|part| part == separator.as_bytes())?
-        };
+        let index = memchr::memmem::find(self.bytes, separator.as_bytes())?;
         Some((
             Self {
                 bytes: &self.bytes[..index],
@@ -317,13 +311,7 @@ impl<'a> JsStr<'a> {
     /// Split at the last Unicode-scalar separator. Both borrowed results
     /// retain canonical WTF-8; this never projects a path to scalar text.
     pub fn rsplit_once(self, separator: &str) -> Option<(Self, Self)> {
-        let index = if separator.is_empty() {
-            self.bytes.len()
-        } else {
-            self.bytes
-                .windows(separator.len())
-                .rposition(|part| part == separator.as_bytes())?
-        };
+        let index = memchr::memmem::rfind(self.bytes, separator.as_bytes())?;
         Some((
             Self {
                 bytes: &self.bytes[..index],
