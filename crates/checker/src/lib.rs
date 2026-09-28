@@ -955,7 +955,6 @@ fn is_plain_js_file(
 ///
 fn preceding_comment_directive_line(
     text: &str,
-    byte_line_starts: &[usize],
     directive_lines: &rustc_hash::FxHashSet<usize>,
     positions: &tsc_diagnostics::PositionIndex,
     diagnostic_start: u32,
@@ -967,11 +966,10 @@ fn preceding_comment_directive_line(
         if directive_lines.contains(&line) {
             return Some(line);
         }
-        let start = byte_line_starts[line];
-        let end = byte_line_starts
-            .get(line + 1)
-            .copied()
-            .unwrap_or(text.len());
+        let start = positions.line_start_byte(line as u32)? as usize;
+        let end = positions
+            .line_start_byte(line as u32 + 1)
+            .map_or(text.len(), |end| end as usize);
         let trimmed = text[start..end].trim_matches(tsc_syntax::is_js_whitespace);
         if !trimmed.is_empty() && !trimmed.starts_with("//") {
             break;
@@ -991,21 +989,7 @@ fn filter_by_comment_directives_and_mark_used(
         return diagnostics.collect();
     }
     let text = source.text();
-    // LineMap.line_starts are UTF-16 offsets; build BYTE line starts
-    // with the same break set (\r\n, \r, \n, U+2028, U+2029) for text
-    // slicing and for placing the byte-offset directive ranges.
-    let byte_line_starts = compute_byte_line_starts(text);
-    let line_of_byte = |offset: usize| -> usize {
-        match byte_line_starts.binary_search(&offset) {
-            Ok(line) => line,
-            Err(insert) => insert.saturating_sub(1),
-        }
-    };
-    let directive_lines: rustc_hash::FxHashSet<usize> = source
-        .comment_directives
-        .iter()
-        .map(|directive| line_of_byte(directive.end as usize))
-        .collect();
+    let directive_lines = comment_directive_lines(source);
     let mut result = Vec::new();
     for diagnostic in diagnostics {
         // Suggestion diagnostics come from getSuggestionDiagnostics,
@@ -1020,13 +1004,9 @@ fn filter_by_comment_directives_and_mark_used(
             result.push(diagnostic);
             continue;
         };
-        if let Some(line) = preceding_comment_directive_line(
-            text,
-            &byte_line_starts,
-            &directive_lines,
-            source.positions(),
-            start,
-        ) {
+        if let Some(line) =
+            preceding_comment_directive_line(text, &directive_lines, source.positions(), start)
+        {
             if let Some(used) = used_directive_lines.as_deref_mut() {
                 used.insert(line);
             }
@@ -1053,19 +1033,7 @@ fn mark_comment_directives_for_partial_ranges(
         return;
     }
     let text = source.text();
-    let byte_line_starts = compute_byte_line_starts(text);
-    let line_of_byte = |offset: usize| -> usize {
-        match byte_line_starts.binary_search(&offset) {
-            Ok(line) => line,
-            Err(insert) => insert.saturating_sub(1),
-        }
-    };
-    let directive_lines: rustc_hash::FxHashSet<usize> = source
-        .comment_directives
-        .iter()
-        .map(|directive| line_of_byte(directive.end as usize))
-        .collect();
-
+    let directive_lines = comment_directive_lines(source);
     for &(start, _) in partial_ranges {
         let start = tsc_syntax::skip_trivia(text, start as usize);
         let start_utf16 = source
@@ -1074,7 +1042,6 @@ fn mark_comment_directives_for_partial_ranges(
             .unwrap_or(start as u32);
         if let Some(line) = preceding_comment_directive_line(
             text,
-            &byte_line_starts,
             &directive_lines,
             source.positions(),
             start_utf16,
@@ -1093,18 +1060,11 @@ fn unused_expect_error_diagnostics(
     if source.comment_directives.is_empty() {
         return Vec::new();
     }
-    let byte_line_starts = compute_byte_line_starts(source.text());
-    let line_of_byte = |offset: usize| -> usize {
-        match byte_line_starts.binary_search(&offset) {
-            Ok(line) => line,
-            Err(insert) => insert.saturating_sub(1),
-        }
-    };
     // createCommentDirectivesMap uses Map construction, so the last
     // directive ending on a line replaces earlier directives there.
     let mut directives_by_line = std::collections::BTreeMap::new();
     for directive in &source.comment_directives {
-        directives_by_line.insert(line_of_byte(directive.end as usize), *directive);
+        directives_by_line.insert(comment_directive_line(source, directive), *directive);
     }
     directives_by_line
         .into_iter()
@@ -1156,27 +1116,24 @@ fn filter_semantic_diagnostics(
     }
 }
 
-/// Byte-offset line starts with tsc's line-break set (\r\n, \r, \n,
-/// U+2028, U+2029) — index-compatible with LineMap.line_starts.
-fn compute_byte_line_starts(text: &str) -> Vec<usize> {
-    let mut starts = vec![0usize];
-    let mut chars = text.char_indices().peekable();
-    while let Some((byte, ch)) = chars.next() {
-        match ch {
-            '\r' => {
-                let mut next_start = byte + 1;
-                if let Some(&(next_byte, '\n')) = chars.peek() {
-                    chars.next();
-                    next_start = next_byte + 1;
-                }
-                starts.push(next_start);
-            }
-            '\n' => starts.push(byte + 1),
-            '\u{2028}' | '\u{2029}' => starts.push(byte + ch.len_utf8()),
-            _ => {}
-        }
-    }
-    starts
+/// The line a comment directive ends on (its line in tsc's
+/// createCommentDirectivesMap), from the source's own line starts.
+fn comment_directive_line(
+    source: &tsc_syntax::SourceFile,
+    directive: &tsc_syntax::CommentDirective,
+) -> usize {
+    source
+        .positions()
+        .line_of_byte(directive.end)
+        .expect("a comment directive ends inside its source") as usize
+}
+
+fn comment_directive_lines(source: &tsc_syntax::SourceFile) -> rustc_hash::FxHashSet<usize> {
+    source
+        .comment_directives
+        .iter()
+        .map(|directive| comment_directive_line(source, directive))
+        .collect()
 }
 
 /// tsrs-native: public single-lib-list adapter around the checker
