@@ -184,12 +184,12 @@ fn compile_on_save_is_admitted_for_a_no_emit_check() {
 }
 
 #[test]
-fn language_service_plugins_are_admitted_for_a_no_emit_check() {
+fn language_service_plugins_are_admitted_for_every_command() {
     // tsc declares `plugins` under Editor Support ("A list of plugins to load
     // in the language service") and no code path outside the service reads
-    // options.plugins, so a --noEmit check of a project that lists service
-    // plugins (VS Code's tsec) loads and reports exactly what tsc reports.
-    // The emitting driver keeps its projected-option inventory closed.
+    // options.plugins, so a --noEmit check or an emit of a project that lists
+    // service plugins (VS Code's tsec, Effect's language service) loads and
+    // reports exactly what tsc reports.
     let host = host();
     let catalog = LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib");
     let plan = parse_config_root_plan(
@@ -210,9 +210,8 @@ fn language_service_plugins_are_admitted_for_a_no_emit_check() {
         ),
     )
     .expect("plugins remain a partial plan");
-    let error = load_emitting_config_program(&host, &emitting, &catalog, LIMITS)
-        .expect_err("the emitting driver keeps its projected-option inventory closed");
-    assert!(error.to_string().contains("plugins"));
+    load_emitting_config_program(&host, &emitting, &catalog, LIMITS)
+        .expect("language service plugins are inert for an emitting command");
 }
 
 #[test]
@@ -238,6 +237,26 @@ fn emit_decorator_metadata_is_admitted_for_a_no_emit_check() {
         prepared.compiler_options().emit_decorator_metadata,
         Some(true)
     );
+}
+
+#[test]
+fn erasable_syntax_only_is_admitted_for_a_no_emit_check() {
+    // erasableSyntaxOnly selects only the checker's TS1294 rows, which the
+    // checker implements, so a --noEmit check of a project that sets it
+    // (Effect's base tsconfig) loads and reports exactly what tsc reports.
+    let host = host();
+    let catalog = LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib");
+    let plan = parse_config_root_plan(
+        &ConfigHostAdapter::new(&host),
+        request(
+            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"erasableSyntaxOnly":true},"files":["main.ts"]}"#,
+        ),
+    )
+    .expect("erasableSyntaxOnly remains a partial plan");
+    let prepared = load_config_program_with_no_emit_override(&host, &plan, &catalog, LIMITS)
+        .expect("erasableSyntaxOnly is admitted for a no-emit check");
+    assert_eq!(prepared.compiler_options().no_emit, Some(true));
+    assert_eq!(prepared.compiler_options().erasable_syntax_only, Some(true));
 }
 
 struct TempTree {
