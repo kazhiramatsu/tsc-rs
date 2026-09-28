@@ -93,9 +93,10 @@ pub enum TypeMapper {
     /// tsc-span: _tsc.js:63362-63364
     ///
     /// `targets: None` is the type-eraser form (targets → anyType).
+    /// Boxed slices: a program holds millions of mappers.
     Array {
-        sources: Vec<TypeId>,
-        targets: Option<Vec<TypeId>>,
+        sources: Box<[TypeId]>,
+        targets: Option<Box<[TypeId]>>,
     },
     Deferred(DeferredMapperTargets),
     Function(FunctionMapper),
@@ -229,7 +230,10 @@ impl<'a> CheckerState<'a> {
         sources: Vec<TypeId>,
         targets: Option<Vec<TypeId>>,
     ) -> MapperId {
-        self.alloc_mapper(TypeMapper::Array { sources, targets })
+        self.alloc_mapper(TypeMapper::Array {
+            sources: sources.into_boxed_slice(),
+            targets: targets.map(Vec::into_boxed_slice),
+        })
     }
 
     fn make_composite_type_mapper(
@@ -276,18 +280,27 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:63327-63358
     pub fn get_mapped_type(&mut self, ty: TypeId, mapper: MapperId) -> CheckResult<TypeId> {
         self.profile_ops[crate::line_profile::OP_MAPPED] += 1;
-        match self.mapper(mapper).clone() {
-            TypeMapper::Simple { source, target } => Ok(if ty == source { target } else { ty }),
+        // The two lookup mappers answer through a borrow: this runs for every
+        // type a mapper touches, and a clone would copy an array mapper's
+        // source and target lists each time.
+        match self.mapper(mapper) {
+            TypeMapper::Simple { source, target } => {
+                return Ok(if ty == *source { *target } else { ty });
+            }
             TypeMapper::Array { sources, targets } => {
-                for (i, &source) in sources.iter().enumerate() {
-                    if ty == source {
-                        return Ok(match &targets {
-                            Some(targets) => targets[i],
-                            None => self.tables.intrinsics.any,
-                        });
-                    }
-                }
-                Ok(ty)
+                let Some(index) = sources.iter().position(|&source| source == ty) else {
+                    return Ok(ty);
+                };
+                return Ok(match targets {
+                    Some(targets) => targets[index],
+                    None => self.tables.intrinsics.any,
+                });
+            }
+            _ => {}
+        }
+        match self.mapper(mapper).clone() {
+            TypeMapper::Simple { .. } | TypeMapper::Array { .. } => {
+                unreachable!("lookup mappers are answered above")
             }
             // 63341-63350: linear source scan, thunk on match,
             // identity otherwise. The scan reads the mapper pair's
