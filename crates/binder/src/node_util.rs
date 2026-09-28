@@ -670,8 +670,16 @@ pub fn get_jsdoc_modifier_flags_no_cache(source: &SourceFile, id: NodeId) -> Mod
     flags
 }
 
+/// tsc getEffectiveModifierFlags (getModifierFlagsWorker with includeJSDoc,
+/// _tsc.js 16964-16985): JSDoc modifiers, `@deprecated` included, count in
+/// JavaScript files only.
 pub fn get_effective_modifier_flags(source: &SourceFile, id: NodeId) -> ModifierFlags {
-    get_syntactic_modifier_flags(source, id) | get_jsdoc_modifier_flags_no_cache(source, id)
+    let syntactic = get_syntactic_modifier_flags(source, id);
+    if node_flags(source, source.root).intersects(NodeFlags::JAVA_SCRIPT_FILE) {
+        syntactic | get_jsdoc_modifier_flags_no_cache(source, id)
+    } else {
+        syntactic
+    }
 }
 
 /// tsc getCombinedModifierFlags via getEffectiveModifierFlags.
