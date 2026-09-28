@@ -6931,6 +6931,10 @@ impl<'a> CheckerState<'a> {
         symbols: &mut tsc_binder::SymbolTable,
         base_symbols: &[SymbolId],
     ) -> CheckResult<()> {
+        // Room for every inherited member at once (a few are overridden and
+        // skipped): an instance table would otherwise regrow while it copies
+        // its base's members.
+        symbols.reserve(base_symbols.len());
         for &base in base_symbols {
             if self.is_static_private_identifier_property(base) {
                 continue;

@@ -1949,8 +1949,10 @@ impl<'a> CheckerState<'a> {
     fn push_active_mapper(&mut self, mapper: MapperId) {
         perf::bump(PerfCounter::MapperScopePushes);
         self.active_type_mappers.push(mapper);
-        self.active_type_mappers_caches
-            .push(rustc_hash::FxHashMap::default());
+        // Inference pushes and pops a mapper around every instantiation; a
+        // reused cache keeps its capacity instead of rehashing up again.
+        let cache = self.spare_active_mapper_caches.pop().unwrap_or_default();
+        self.active_type_mappers_caches.push(cache);
     }
 
     /// tsc-port: popActiveMapper @6.0.3
@@ -1958,7 +1960,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:73611-73615
     fn pop_active_mapper(&mut self) {
         self.active_type_mappers.pop();
-        self.active_type_mappers_caches.pop();
+        if let Some(mut cache) = self.active_type_mappers_caches.pop() {
+            cache.clear();
+            self.spare_active_mapper_caches.push(cache);
+        }
     }
 
     /// tsc-port: findActiveMapper @6.0.3

@@ -511,6 +511,8 @@ pub struct CheckerState<'a> {
     /// (47412-47414): the instantiation cache stack.
     pub(crate) active_type_mappers: Vec<crate::instantiate::MapperId>,
     pub(crate) active_type_mappers_caches: Vec<rustc_hash::FxHashMap<MapperCacheKey, TypeId>>,
+    /// Popped instantiation caches, cleared and kept for the next push.
+    pub(crate) spare_active_mapper_caches: Vec<rustc_hash::FxHashMap<MapperCacheKey, TypeId>>,
     /// tsc instantiationDepth/instantiationCount (46451-46452); the
     /// count resets at tsc's three entry points — checkExpression,
     /// checkSourceElement, checkDeferredNode (wired at 5.4/5.5).
@@ -1326,6 +1328,7 @@ impl<'a> CheckerState<'a> {
             variance_handler_stack: Vec::new(),
             active_type_mappers: Vec::new(),
             active_type_mappers_caches: Vec::new(),
+            spare_active_mapper_caches: Vec::new(),
             instantiation_depth: 0,
             instantiation_count: 0,
             total_instantiation_count: 0,
