@@ -615,6 +615,68 @@ pub struct UnionKeyProperty {
     pub constituent_map: Option<rustc_hash::FxHashMap<TypeId, TypeId>>,
 }
 
+/// One speculation journal: for each link a transaction wrote, the value
+/// it held before that transaction's first write, in write order.
+///
+/// Commit and rollback pop entries back to the transaction's mark. A link
+/// is journaled once per transaction depth; `journaled` answers that test
+/// without scanning the open transactions' entries, a scan that made an
+/// overload candidate resolving thousands of lazy links quadratic (6 % of a
+/// serial playwright check).
+#[derive(Debug)]
+struct SpeculativeJournal<K, V> {
+    entries: Vec<(u32, K, V)>,
+    /// `(depth, link)` to the index of its entry in `entries`.
+    journaled: FxHashMap<(u32, K), usize>,
+}
+
+impl<K, V> Default for SpeculativeJournal<K, V> {
+    fn default() -> Self {
+        Self {
+            entries: Vec::new(),
+            journaled: FxHashMap::default(),
+        }
+    }
+}
+
+impl<K: Copy + Eq + std::hash::Hash, V> SpeculativeJournal<K, V> {
+    /// The position a transaction's commit or rollback restores.
+    fn mark(&self) -> usize {
+        self.entries.len()
+    }
+
+    fn contains(&self, depth: u32, key: K) -> bool {
+        self.journaled.contains_key(&(depth, key))
+    }
+
+    /// The entry the transaction at `depth` already journaled for `key`.
+    fn entry_mut(&mut self, depth: u32, key: K) -> Option<&mut V> {
+        let index = *self.journaled.get(&(depth, key))?;
+        Some(&mut self.entries[index].2)
+    }
+
+    /// Journal `key`'s value before the first write of the transaction at
+    /// `depth`; callers check [`Self::contains`] first.
+    fn push(&mut self, depth: u32, key: K, previous: V) {
+        let replaced = self.journaled.insert((depth, key), self.entries.len());
+        debug_assert!(
+            replaced.is_none(),
+            "a link is journaled once per transaction"
+        );
+        self.entries.push((depth, key, previous));
+    }
+
+    /// Remove the newest entry above `mark`.
+    fn pop_above(&mut self, mark: usize) -> Option<(K, V)> {
+        if self.entries.len() <= mark {
+            return None;
+        }
+        let (depth, key, previous) = self.entries.pop()?;
+        self.journaled.remove(&(depth, key));
+        Some((key, previous))
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum SpeculativeTypeInstantiationKind {
     UniqueLiteralFilled,
@@ -651,8 +713,6 @@ enum SpeculativeSymbolTypeDisposition {
 
 #[derive(Clone, Debug)]
 struct SpeculativeSymbolTypeWrite {
-    depth: u32,
-    symbol: SymbolId,
     previous: LinkSlot<TypeId>,
     disposition: SpeculativeSymbolTypeDisposition,
 }
@@ -890,7 +950,7 @@ pub struct LinksTables {
     /// Trial-local value-type publications for symbols first forced by
     /// candidate checking. The disposition distinguishes reproducible
     /// cache state from completed contextual parameter and accessor types.
-    speculative_symbol_type_writes: Vec<SpeculativeSymbolTypeWrite>,
+    speculative_symbol_type_writes: SpeculativeJournal<SymbolId, SpeculativeSymbolTypeWrite>,
     /// Trial-local accessor/instantiated-property write-type caches.
     speculative_symbol_write_type_writes: Vec<(u32, SymbolId, LinkSlot<TypeId>)>,
     /// Trial-local unique-symbol type publications.
@@ -926,7 +986,7 @@ pub struct LinksTables {
     /// Trial-local lazy structured-member publications. Fresh semantic
     /// types use `set_fresh_type_members` and are intentionally not
     /// journaled.
-    speculative_type_member_writes: Vec<(u32, TypeId, LinkSlot<crate::state::MembersId>)>,
+    speculative_type_member_writes: SpeculativeJournal<TypeId, LinkSlot<crate::state::MembersId>>,
     /// Trial-local indexed-access simplification protocols. Both the
     /// circular sentinel and the completed simplification must remain
     /// visible for the duration of a candidate.
@@ -1317,8 +1377,7 @@ impl LinksTables {
         }
         if let Some(existing) = self
             .speculative_symbol_type_writes
-            .iter_mut()
-            .find(|write| write.depth == speculation_depth && write.symbol == id)
+            .entry_mut(speculation_depth, id)
         {
             if disposition == SpeculativeSymbolTypeDisposition::CompletedOnceResult {
                 existing.disposition = disposition;
@@ -1330,13 +1389,14 @@ impl LinksTables {
             .get(id)
             .map(|links| links.type_of_symbol.clone())
             .unwrap_or_default();
-        self.speculative_symbol_type_writes
-            .push(SpeculativeSymbolTypeWrite {
-                depth: speculation_depth,
-                symbol: id,
+        self.speculative_symbol_type_writes.push(
+            speculation_depth,
+            id,
+            SpeculativeSymbolTypeWrite {
                 previous,
                 disposition,
-            });
+            },
+        );
     }
 
     fn journal_symbol_write_type(&mut self, speculation_depth: u32, id: SymbolId) {
@@ -1841,7 +1901,7 @@ impl LinksTables {
 
     /// tsrs-native: capture the symbol-value-type journal position.
     pub fn speculative_symbol_type_mark(&self) -> usize {
-        self.speculative_symbol_type_writes.len()
+        self.speculative_symbol_type_writes.mark()
     }
 
     /// tsrs-native: capture the symbol-write-type journal position.
@@ -1901,7 +1961,7 @@ impl LinksTables {
     /// tsrs-native: capture the structured-member journal position at
     /// a speculation boundary.
     pub fn speculative_type_members_mark(&self) -> usize {
-        self.speculative_type_member_writes.len()
+        self.speculative_type_member_writes.mark()
     }
 
     /// tsrs-native: capture the indexed-access simplification journal.
@@ -2084,12 +2144,8 @@ impl LinksTables {
     /// tsrs-native: speculation-transaction unwind for symbol
     /// value-type caches.
     pub fn restore_speculative_symbol_types(&mut self, mark: usize) {
-        while self.speculative_symbol_type_writes.len() > mark {
-            let write = self
-                .speculative_symbol_type_writes
-                .pop()
-                .expect("length checked");
-            let slot = &mut self.symbol.slot(write.symbol).type_of_symbol;
+        while let Some((symbol, write)) = self.speculative_symbol_type_writes.pop_above(mark) {
+            let slot = &mut self.symbol.slot(symbol).type_of_symbol;
             if slot.is_resolving() {
                 perf::bump(PerfCounter::LinksSymbolTypeRollbacks);
             }
@@ -2251,11 +2307,7 @@ impl LinksTables {
     /// tsrs-native: speculation-transaction unwind for lazy member
     /// caches.
     pub fn restore_speculative_type_members(&mut self, mark: usize) {
-        while self.speculative_type_member_writes.len() > mark {
-            let (_, ty, previous) = self
-                .speculative_type_member_writes
-                .pop()
-                .expect("length checked");
+        while let Some((ty, previous)) = self.speculative_type_member_writes.pop_above(mark) {
             let slot = &mut self.ty.slot(ty).resolved_members;
             if slot.is_resolving() {
                 *slot = previous;
@@ -4533,8 +4585,7 @@ impl LinksTables {
         if speculation_depth != 0
             && !self
                 .speculative_type_member_writes
-                .iter()
-                .any(|(depth, ty, _)| *depth == speculation_depth && *ty == id)
+                .contains(speculation_depth, id)
         {
             let previous = self
                 .ty
@@ -4542,7 +4593,7 @@ impl LinksTables {
                 .map(|links| links.resolved_members.clone())
                 .unwrap_or_default();
             self.speculative_type_member_writes
-                .push((speculation_depth, id, previous));
+                .push(speculation_depth, id, previous);
         }
         let links = self.ty.slot(id);
         if speculation_depth == 0 {
