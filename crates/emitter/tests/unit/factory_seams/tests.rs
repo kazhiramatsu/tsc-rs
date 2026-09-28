@@ -561,6 +561,71 @@ fn typed_updates_reuse_identity_or_preserve_original_provenance() {
     assert_eq!(factory.arena.get_original_node(updated), reference);
 }
 
+/// updateUnionTypeNode rebuilds through createUnionTypeNode only when its
+/// constituents change: a flags-only update keeps the parsed `A & B | C`,
+/// while a changed list parenthesizes the intersection, as declaration emit
+/// prints `(A & B) | undefined`.
+#[test]
+fn a_union_parenthesizes_an_intersection_constituent_only_when_rebuilt() {
+    fn members(arena: &TransformArena, union: TransformNode) -> Vec<NodeId> {
+        let NodeData::UnionType(data) = &arena.node(union).unwrap().data else {
+            panic!("union type")
+        };
+        let types = arena
+            .node_array_ref(union.source(), data.types.unwrap())
+            .unwrap();
+        arena.node_array(types).unwrap().nodes.clone()
+    }
+
+    let source_file = parsed("types.ts", "type T = A & B | C;");
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&source_file, None);
+    let root = arena.root(source).unwrap();
+    let NodeData::SourceFile(file) = &arena.node(root).unwrap().data else {
+        panic!("source file root")
+    };
+    let statements = arena
+        .node_array_ref(source, file.statements.unwrap())
+        .unwrap();
+    let alias = arena.node_array(statements).unwrap().nodes[0];
+    let NodeData::TypeAliasDeclaration(alias) = &arena
+        .node(arena.node_ref(source, alias).unwrap())
+        .unwrap()
+        .data
+    else {
+        panic!("type alias")
+    };
+    let union = arena.node_ref(source, alias.r#type.unwrap()).unwrap();
+    let parsed_members = members(&arena, union);
+    let intersection = arena.node_ref(source, parsed_members[0]).unwrap();
+    let flags = arena.transform_flags(union) | TransformFlags::CONTAINS_ES_2015;
+
+    let mut factory = arena.factory();
+    let data = factory.arena.node(union).unwrap().data.clone();
+    let reflagged = factory.update_node(union, data, flags).unwrap();
+    assert_eq!(members(factory.arena, reflagged), parsed_members);
+
+    let undefined = factory
+        .create_keyword_type_node(source, SyntaxKind::UndefinedKeyword)
+        .unwrap();
+    let types = factory
+        .create_node_array(source, vec![intersection, undefined])
+        .unwrap();
+    let rebuilt = factory
+        .update_node(
+            union,
+            NodeData::UnionType(UnionTypeData {
+                types: Some(types.array()),
+            }),
+            flags,
+        )
+        .unwrap();
+    let rebuilt_members = members(factory.arena, rebuilt);
+    let first = factory.arena.node_ref(source, rebuilt_members[0]).unwrap();
+    assert_parenthesized(&factory, first, intersection);
+    assert_eq!(rebuilt_members[1], undefined.node());
+}
+
 #[test]
 fn unique_names_allocate_arena_owned_generated_binding_identities() {
     let (mut arena, source) = synthetic_arena();

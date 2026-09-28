@@ -1891,11 +1891,14 @@ fn unsupported_config_scope(
                 || H0_NO_EMIT_NEUTRAL_CONFIG_OPTIONS
                     .iter()
                     .chain(H0_NO_EMIT_DECLARATION_CONFIG_OPTIONS)
-                    .chain(H0_NO_EMIT_SERVICE_CONFIG_OPTIONS)
                     .chain(H0_NO_EMIT_CHECKER_CONFIG_OPTIONS)
                     .any(|candidate| option.name == *candidate));
+        let service_option = LANGUAGE_SERVICE_CONFIG_OPTIONS
+            .iter()
+            .any(|candidate| option.name == *candidate);
         if !(config_option_is_supported_by_h0(&option.name)
             || no_emit_projection
+            || service_option
             || emitting && config_option_is_projected_for_h1_emit(&option.name))
             && config_value_requests_feature(&option.value)
         {
@@ -2234,13 +2237,13 @@ const H0_NO_EMIT_DECLARATION_CONFIG_OPTIONS: &[&str] = &[
     "rootDir",
 ];
 
-/// Language-service options a no-emit command retains: tsc declares
-/// `plugins` under Editor Support ("A list of plugins to load in the language
+/// Language-service options every command retains: tsc declares `plugins`
+/// under Editor Support ("A list of plugins to load in the language
 /// service", _tsc.js:37896) and no tsc code path outside the service reads
-/// `options.plugins`, so a `--noEmit` check of a project that lists service
-/// plugins (VS Code's tsec) reports exactly what tsc reports. An emitting
-/// command keeps its projected-option inventory closed.
-const H0_NO_EMIT_SERVICE_CONFIG_OPTIONS: &[&str] = &["plugins"];
+/// `options.plugins`, so a check or an emit of a project that lists service
+/// plugins (VS Code's tsec, Effect's language service) reports and writes
+/// exactly what tsc does.
+const LANGUAGE_SERVICE_CONFIG_OPTIONS: &[&str] = &["plugins"];
 
 /// Checker-selecting emit options a no-emit command admits because the
 /// checker implements their diagnostics: `emitDecoratorMetadata` marks the
@@ -2248,8 +2251,11 @@ const H0_NO_EMIT_SERVICE_CONFIG_OPTIONS: &[&str] = &["plugins"];
 /// so `import type` aliases used only in decorated signatures count as
 /// referenced) and the loader reports its experimentalDecorators
 /// requirement, so a `--noEmit` check of a project that sets it (zod's base
-/// tsconfig) reports exactly what tsc reports.
-const H0_NO_EMIT_CHECKER_CONFIG_OPTIONS: &[&str] = &["emitDecoratorMetadata"];
+/// tsconfig) reports exactly what tsc reports. `erasableSyntaxOnly` only
+/// selects the checker's TS1294 rows (enums, instantiated namespaces,
+/// parameter properties, `import =`/`export =`, angle-bracket assertions),
+/// which a `--noEmit` check of Effect's base tsconfig reports like tsc.
+const H0_NO_EMIT_CHECKER_CONFIG_OPTIONS: &[&str] = &["emitDecoratorMetadata", "erasableSyntaxOnly"];
 
 /// Root config scopes tsc parses for editors only: `compileOnSave` reaches
 /// ParsedCommandLine.compileOnSave (convertCompileOnSaveOptionFromJson,

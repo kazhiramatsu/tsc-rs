@@ -1896,7 +1896,7 @@ impl<'a> CheckerState<'a> {
         {
             let params = self
                 .links
-                .read_symbol(managed_sym, |links| links.type_parameters.clone());
+                .read_symbol(managed_sym, |links| links.cold().type_parameters.clone());
             if params.as_ref().map_or(0, Vec::len) >= type_arguments.len() {
                 let args = self
                     .fill_missing_type_arguments(

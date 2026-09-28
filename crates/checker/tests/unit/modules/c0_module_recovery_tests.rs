@@ -76,7 +76,7 @@ fn common_js_flow_recovery_values_leave_the_ordinary_flow_query_live() {
         SymbolFlags::PROPERTY,
         tsc_types::EscapedName::from_escaped_value(("x".to_owned()).into()),
     );
-    state.binder.symbol_mut(non_exports).declarations = vec![obj_access];
+    state.binder.symbol_mut(non_exports).declarations = vec![obj_access].into();
     assert_eq!(
         state
             .get_flow_type_from_common_js_export(non_exports)
@@ -88,7 +88,7 @@ fn common_js_flow_recovery_values_leave_the_ordinary_flow_query_live() {
         SymbolFlags::PROPERTY,
         tsc_types::EscapedName::from_escaped_value(("x".to_owned()).into()),
     );
-    state.binder.symbol_mut(ordinary).declarations = exports_accesses;
+    state.binder.symbol_mut(ordinary).declarations = exports_accesses.into();
     let invocations = state.flow_invocation_count;
     let result = state
         .get_flow_type_from_common_js_export(ordinary)
@@ -119,7 +119,7 @@ fn missing_common_js_end_flow_returns_auto_without_starting_a_flow_walk() {
         SymbolFlags::PROPERTY,
         tsc_types::EscapedName::from_escaped_value(("x".to_owned()).into()),
     );
-    state.binder.symbol_mut(symbol).declarations = vec![access];
+    state.binder.symbol_mut(symbol).declarations = vec![access].into();
     let invocations = state.flow_invocation_count;
     assert_eq!(
         state
@@ -177,7 +177,7 @@ fn malformed_alias_declarations_have_no_target_and_keep_resolved_value_fallback(
                 SymbolFlags::ALIAS,
                 tsc_types::EscapedName::from_escaped_value(("Recovered".to_owned()).into()),
             );
-            state.binder.symbol_mut(recovered).declarations = vec![root];
+            state.binder.symbol_mut(recovered).declarations = vec![root].into();
             state
                 .links
                 .set_fresh_symbol_alias_target(recovered, LinkSlot::Resolved(target));
@@ -209,7 +209,7 @@ fn declarationless_recovery_alias_uses_stable_miss_sentinels() {
         state.unknown_symbol
     );
     assert_eq!(
-        state.links.symbol(recovered).alias_target,
+        state.links.symbol(recovered).cold().alias_target,
         LinkSlot::Resolved(state.unknown_symbol)
     );
     assert_eq!(
@@ -226,5 +226,5 @@ fn declarationless_recovery_alias_uses_stable_miss_sentinels() {
     state
         .mark_alias_symbol_as_referenced(recovered)
         .expect("declarationless alias can still be marked referenced");
-    assert!(state.links.symbol(recovered).alias_referenced);
+    assert!(state.links.symbol(recovered).cold().alias_referenced);
 }

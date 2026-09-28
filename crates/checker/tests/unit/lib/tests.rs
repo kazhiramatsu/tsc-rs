@@ -7616,3 +7616,38 @@ fn declaration_output_keeps_the_static_shard_assignment() {
     };
     assert!(!declaration_output_requested(&no_emit));
 }
+
+#[test]
+fn a_generic_object_intersection_target_skips_the_combined_property_check() {
+    // tsc structuredTypeRelatedTo re-relates an intersection target's
+    // properties as one object only when the target is not a generic object
+    // type (_tsc.js:65891). A NoExcessProperties constraint whose Record keys
+    // stay generic is then satisfied by the argument that inferred it
+    // (Effect's LanguageModel.generateObject calling generateContent).
+    let source = r#"
+type Readonly<T> = { readonly [P in keyof T]: T[P] };
+type Record<K extends keyof any, T> = { [P in K]: T };
+type Exclude<T, U> = T extends U ? never : T;
+type NoExcessProperties<T, U> = T & Readonly<Record<Exclude<keyof U, keyof T>, never>>;
+interface Base<Tools> { readonly prompt: string; readonly toolkit?: Tools | undefined }
+interface WithSchema<Tools, Schema> extends Base<Tools> {
+  readonly objectName?: string | undefined;
+  readonly schema: Schema;
+}
+declare const generateContent: <Options extends NoExcessProperties<Base<any>, Options>, Tools = {}>(
+  options: Options & Base<Tools>
+) => void;
+export function generateObject<Schema, Options extends NoExcessProperties<WithSchema<any, Schema>, Options>, Tools>(
+  options: Options & WithSchema<Tools, Schema>
+) {
+  generateContent(options);
+  const combined: Base<any> & Readonly<Record<"objectName" | "schema" | Exclude<keyof Options, keyof Base<any>>, never>> = options;
+  return combined;
+}
+"#;
+    let options = CompilerOptions {
+        strict: Some(true),
+        ..CompilerOptions::default()
+    };
+    assert_eq!(codes_of_with_options(source, &options), Vec::<u32>::new());
+}

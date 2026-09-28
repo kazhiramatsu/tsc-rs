@@ -48,7 +48,10 @@ fn internal_import_reference_state(tail: &str, options: &CompilerOptions) -> (bo
             .get_symbol_of_declaration(declaration)
             .expect("internal import symbol");
         let links = state.links.symbol(symbol);
-        (links.alias_referenced, !links.is_referenced.is_empty())
+        (
+            links.cold().alias_referenced,
+            !links.is_referenced.is_empty(),
+        )
     })
 }
 
@@ -102,7 +105,7 @@ fn exported_import_equals_marks_alias_accessibility_without_a_use() {
             .get_symbol_of_declaration(declaration)
             .expect("exported import symbol");
         let links = state.links.symbol(symbol);
-        assert!(links.alias_referenced);
+        assert!(links.cold().alias_referenced);
         assert!(links.is_referenced.is_empty());
     });
 }

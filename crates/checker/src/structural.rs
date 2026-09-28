@@ -157,6 +157,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if is_true(result)
                 && !intersection_state.intersects(IntersectionState::TARGET)
                 && self.flags(target).intersects(TypeFlags::INTERSECTION)
+                && !self.st.is_generic_object_type_state(target)?
                 && self.flags(source).intersects(TypeFlags::from_bits(
                     TypeFlags::OBJECT.bits() | TypeFlags::INTERSECTION.bits(),
                 ))
@@ -537,10 +538,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                                 .alias_type_arguments
                                 .clone()
                                 .expect("same-alias pairs both carry alias arguments");
-                            let params = self
-                                .st
-                                .links
-                                .read_symbol(alias_symbol, |links| links.type_parameters.clone());
+                            let params = self.st.links.read_symbol(alias_symbol, |links| {
+                                links.cold().type_parameters.clone()
+                            });
                             let min_arguments =
                                 self.st.get_min_type_argument_count(params.as_deref());
                             let source_types = self
@@ -4678,7 +4678,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Vec<SymbolId>> {
         if let Some(cached) = self
             .links
-            .read_ty(ty, |links| links.resolved_properties.resolved())
+            .read_ty(ty, |links| links.cold().resolved_properties.resolved())
         {
             return Ok(cached.to_vec());
         }
@@ -4995,7 +4995,7 @@ impl<'a> CheckerState<'a> {
         {
             if let Some(cached) = self
                 .links
-                .read_ty(ty, |links| links.resolved_reduced_type.resolved())
+                .read_ty(ty, |links| links.cold().resolved_reduced_type.resolved())
             {
                 return Ok(cached);
             }
@@ -5061,7 +5061,9 @@ impl<'a> CheckerState<'a> {
         if self.tables.flags_of(reduced).intersects(TypeFlags::UNION)
             && self
                 .links
-                .read_ty(reduced, |links| links.resolved_reduced_type.resolved())
+                .read_ty(reduced, |links| {
+                    links.cold().resolved_reduced_type.resolved()
+                })
                 .is_none()
         {
             self.links
@@ -5484,7 +5486,7 @@ impl<'a> CheckerState<'a> {
         };
         {
             let symbol = self.binder.symbol_mut(result);
-            symbol.declarations = declarations;
+            symbol.declarations = declarations.into();
             if !has_non_uniform_value_declaration {
                 symbol.value_declaration = first_value_declaration;
                 if parent.is_some() {
@@ -5598,7 +5600,7 @@ impl<'a> CheckerState<'a> {
                 return false;
             }
             match &mut common {
-                None => common = Some(declarations.clone()),
+                None => common = Some(declarations.to_vec()),
                 Some(common) => {
                     common.retain(|declaration| declarations.contains(declaration));
                     if common.is_empty() {
@@ -6146,7 +6148,7 @@ impl<'a> CheckerState<'a> {
             return 0;
         };
         self.links
-            .read_symbol(symbol, |links| links.type_parameters.clone())
+            .read_symbol(symbol, |links| links.cold().type_parameters.clone())
             .as_deref()
             .map_or(0, <[TypeId]>::len)
     }
@@ -6167,7 +6169,7 @@ impl<'a> CheckerState<'a> {
         if self.get_check_flags(prop).intersects(CheckFlags::SYNTHETIC) {
             let containing = self
                 .links
-                .read_symbol(prop, |links| links.cold().containing_type)
+                .read_symbol(prop, |links| links.containing_type)
                 .expect("synthetic properties carry their containing type");
             let name = self.binder.symbol(prop).escaped_name.clone();
             let types = match &self.tables.type_of(containing).data {
@@ -6262,7 +6264,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 854d0bdd7888a4d1c0d177652aa9715c0f7f9c92a2dabd703825f16449fa6adf
     /// tsc-span: _tsc.js:57868-57886
     pub(crate) fn clone_signature(&mut self, signature: SignatureId) -> SignatureId {
-        let source = self.signature_of(signature).clone();
+        let source = self.signature_of(signature).without_caches();
         let result = crate::state::Signature {
             declaration: source.declaration,
             flags: tsc_types::SignatureFlags::from_bits(
@@ -6934,8 +6936,8 @@ impl<'a> CheckerState<'a> {
         left: SignatureId,
         right: SignatureId,
     ) -> CheckResult<SignatureId> {
-        let left_data = self.signature_of(left).clone();
-        let right_data = self.signature_of(right).clone();
+        let left_data = self.signature_of(left).without_caches();
+        let right_data = self.signature_of(right).without_caches();
         let type_params = left_data
             .type_parameters
             .clone()
@@ -7262,7 +7264,7 @@ impl<'a> CheckerState<'a> {
         if signatures.len() != 1 {
             return Ok(false);
         }
-        let s = self.signature_of(signatures[0]).clone();
+        let s = self.signature_of(signatures[0]).without_caches();
         if s.type_parameters.is_none()
             && s.parameters.len() == 1
             && s.flags
@@ -7421,10 +7423,9 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(result);
         }
-        if let Some(cached) = self
-            .links
-            .read_ty(ty, |links| links.array_fallback_signatures.resolved())
-        {
+        if let Some(cached) = self.links.read_ty(ty, |links| {
+            links.cold().array_fallback_signatures.resolved()
+        }) {
             return Ok(cached.into_vec());
         }
 
@@ -7547,7 +7548,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:64479-64486
     ///
     pub fn is_top_signature(&mut self, signature: SignatureId) -> CheckResult<bool> {
-        let signature_data = self.signature_of(signature).clone();
+        let signature_data = self.signature_of(signature).without_caches();
         let this_is_any = match signature_data.this_parameter {
             None => true,
             Some(this_parameter) => {
@@ -7698,10 +7699,10 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         }
         let target = self.tables.reference_target(rest_type);
-        let TypeData::TupleTarget(data) = self.tables.type_of(target).data.clone() else {
+        let TypeData::TupleTarget(data) = &self.tables.type_of(target).data else {
             unreachable!("tuple type targets a tuple target");
         };
-        Ok(Some((rest_type, data)))
+        Ok(Some((rest_type, (**data).clone())))
     }
 
     // ---- arity helpers (78233-78341) ----
@@ -8447,6 +8448,32 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// The first test of inferFromLiteralPartsToTemplateLiteral (68587): the
+    /// source starts with the target's first text and ends with its last,
+    /// and a single source text is long enough for both. It borrows the
+    /// parts: union reduction tries every string literal against every
+    /// template literal, and nearly every pair fails here.
+    fn literal_parts_fit_template_ends(
+        &self,
+        source_texts: &[TemplateText],
+        target: TypeId,
+    ) -> bool {
+        let TypeData::TemplateLiteral {
+            texts: target_texts,
+            ..
+        } = &self.tables.type_of(target).data
+        else {
+            unreachable!("template flag implies template data");
+        };
+        let source_start = source_texts[0].units();
+        let source_end = source_texts[source_texts.len() - 1].units();
+        let target_start = target_texts[0].units();
+        let target_end = target_texts[target_texts.len() - 1].units();
+        !(source_texts.len() == 1 && source_start.len() < target_start.len() + target_end.len())
+            && source_start.starts_with(target_start)
+            && source_end.ends_with(target_end)
+    }
+
     /// tsc-port: isValidNumberString @6.0.3
     /// tsc-hash: 5cbe83a72d3b47092e151525fda47b46e119b9ca7bfeecc73fa877eb2e451e69
     /// tsc-span: _tsc.js:68524-68528
@@ -8553,10 +8580,15 @@ impl<'a> CheckerState<'a> {
         if source_flags.intersects(TypeFlags::STRING_LITERAL) {
             let TypeData::Literal {
                 value: tsc_types::LiteralValue::String(value),
-            } = self.tables.type_of(source).data.clone()
+            } = &self.tables.type_of(source).data
             else {
                 unreachable!("string literal data");
             };
+            // Test the ends before copying the literal.
+            if !self.literal_parts_fit_template_ends(std::slice::from_ref(value), target) {
+                return Ok(None);
+            }
+            let value = value.clone();
             return self.infer_from_literal_parts_to_template_literal(&[value], &[], target);
         }
         if source_flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
@@ -8710,6 +8742,9 @@ impl<'a> CheckerState<'a> {
         source_types: &[TypeId],
         target: TypeId,
     ) -> CheckResult<Option<Vec<TypeId>>> {
+        if !self.literal_parts_fit_template_ends(source_texts, target) {
+            return Ok(None);
+        }
         let source_units: Vec<Vec<u16>> = source_texts
             .iter()
             .map(|text| text.units().to_vec())
@@ -8721,19 +8756,6 @@ impl<'a> CheckerState<'a> {
             .map(|text| text.units().to_vec())
             .collect();
         let last_target_index = target_units.len() - 1;
-        {
-            let source_start = &source_units[0];
-            let source_end = &source_units[last_source_index];
-            let target_start = &target_units[0];
-            let target_end = &target_units[last_target_index];
-            if (last_source_index == 0
-                && source_start.len() < target_start.len() + target_end.len())
-                || !source_start.starts_with(target_start)
-                || !source_end.ends_with(target_end)
-            {
-                return Ok(None);
-            }
-        }
         let remaining_end_units: Vec<u16> = {
             let source_end = &source_units[last_source_index];
             source_end[..source_end.len() - target_units[last_target_index].len()].to_vec()

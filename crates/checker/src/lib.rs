@@ -955,7 +955,6 @@ fn is_plain_js_file(
 ///
 fn preceding_comment_directive_line(
     text: &str,
-    byte_line_starts: &[usize],
     directive_lines: &rustc_hash::FxHashSet<usize>,
     positions: &tsc_diagnostics::PositionIndex,
     diagnostic_start: u32,
@@ -967,11 +966,10 @@ fn preceding_comment_directive_line(
         if directive_lines.contains(&line) {
             return Some(line);
         }
-        let start = byte_line_starts[line];
-        let end = byte_line_starts
-            .get(line + 1)
-            .copied()
-            .unwrap_or(text.len());
+        let start = positions.line_start_byte(line as u32)? as usize;
+        let end = positions
+            .line_start_byte(line as u32 + 1)
+            .map_or(text.len(), |end| end as usize);
         let trimmed = text[start..end].trim_matches(tsc_syntax::is_js_whitespace);
         if !trimmed.is_empty() && !trimmed.starts_with("//") {
             break;
@@ -991,21 +989,7 @@ fn filter_by_comment_directives_and_mark_used(
         return diagnostics.collect();
     }
     let text = source.text();
-    // LineMap.line_starts are UTF-16 offsets; build BYTE line starts
-    // with the same break set (\r\n, \r, \n, U+2028, U+2029) for text
-    // slicing and for placing the byte-offset directive ranges.
-    let byte_line_starts = compute_byte_line_starts(text);
-    let line_of_byte = |offset: usize| -> usize {
-        match byte_line_starts.binary_search(&offset) {
-            Ok(line) => line,
-            Err(insert) => insert.saturating_sub(1),
-        }
-    };
-    let directive_lines: rustc_hash::FxHashSet<usize> = source
-        .comment_directives
-        .iter()
-        .map(|directive| line_of_byte(directive.end as usize))
-        .collect();
+    let directive_lines = comment_directive_lines(source);
     let mut result = Vec::new();
     for diagnostic in diagnostics {
         // Suggestion diagnostics come from getSuggestionDiagnostics,
@@ -1020,13 +1004,9 @@ fn filter_by_comment_directives_and_mark_used(
             result.push(diagnostic);
             continue;
         };
-        if let Some(line) = preceding_comment_directive_line(
-            text,
-            &byte_line_starts,
-            &directive_lines,
-            source.positions(),
-            start,
-        ) {
+        if let Some(line) =
+            preceding_comment_directive_line(text, &directive_lines, source.positions(), start)
+        {
             if let Some(used) = used_directive_lines.as_deref_mut() {
                 used.insert(line);
             }
@@ -1053,19 +1033,7 @@ fn mark_comment_directives_for_partial_ranges(
         return;
     }
     let text = source.text();
-    let byte_line_starts = compute_byte_line_starts(text);
-    let line_of_byte = |offset: usize| -> usize {
-        match byte_line_starts.binary_search(&offset) {
-            Ok(line) => line,
-            Err(insert) => insert.saturating_sub(1),
-        }
-    };
-    let directive_lines: rustc_hash::FxHashSet<usize> = source
-        .comment_directives
-        .iter()
-        .map(|directive| line_of_byte(directive.end as usize))
-        .collect();
-
+    let directive_lines = comment_directive_lines(source);
     for &(start, _) in partial_ranges {
         let start = tsc_syntax::skip_trivia(text, start as usize);
         let start_utf16 = source
@@ -1074,7 +1042,6 @@ fn mark_comment_directives_for_partial_ranges(
             .unwrap_or(start as u32);
         if let Some(line) = preceding_comment_directive_line(
             text,
-            &byte_line_starts,
             &directive_lines,
             source.positions(),
             start_utf16,
@@ -1093,18 +1060,11 @@ fn unused_expect_error_diagnostics(
     if source.comment_directives.is_empty() {
         return Vec::new();
     }
-    let byte_line_starts = compute_byte_line_starts(source.text());
-    let line_of_byte = |offset: usize| -> usize {
-        match byte_line_starts.binary_search(&offset) {
-            Ok(line) => line,
-            Err(insert) => insert.saturating_sub(1),
-        }
-    };
     // createCommentDirectivesMap uses Map construction, so the last
     // directive ending on a line replaces earlier directives there.
     let mut directives_by_line = std::collections::BTreeMap::new();
     for directive in &source.comment_directives {
-        directives_by_line.insert(line_of_byte(directive.end as usize), *directive);
+        directives_by_line.insert(comment_directive_line(source, directive), *directive);
     }
     directives_by_line
         .into_iter()
@@ -1156,27 +1116,24 @@ fn filter_semantic_diagnostics(
     }
 }
 
-/// Byte-offset line starts with tsc's line-break set (\r\n, \r, \n,
-/// U+2028, U+2029) — index-compatible with LineMap.line_starts.
-fn compute_byte_line_starts(text: &str) -> Vec<usize> {
-    let mut starts = vec![0usize];
-    let mut chars = text.char_indices().peekable();
-    while let Some((byte, ch)) = chars.next() {
-        match ch {
-            '\r' => {
-                let mut next_start = byte + 1;
-                if let Some(&(next_byte, '\n')) = chars.peek() {
-                    chars.next();
-                    next_start = next_byte + 1;
-                }
-                starts.push(next_start);
-            }
-            '\n' => starts.push(byte + 1),
-            '\u{2028}' | '\u{2029}' => starts.push(byte + ch.len_utf8()),
-            _ => {}
-        }
-    }
-    starts
+/// The line a comment directive ends on (its line in tsc's
+/// createCommentDirectivesMap), from the source's own line starts.
+fn comment_directive_line(
+    source: &tsc_syntax::SourceFile,
+    directive: &tsc_syntax::CommentDirective,
+) -> usize {
+    source
+        .positions()
+        .line_of_byte(directive.end)
+        .expect("a comment directive ends inside its source") as usize
+}
+
+fn comment_directive_lines(source: &tsc_syntax::SourceFile) -> rustc_hash::FxHashSet<usize> {
+    source
+        .comment_directives
+        .iter()
+        .map(|directive| comment_directive_line(source, directive))
+        .collect()
 }
 
 /// tsrs-native: public single-lib-list adapter around the checker
@@ -2236,21 +2193,23 @@ fn validate_authoritative_metadata(
     Ok(())
 }
 
-/// Host facts projected once from the input list: owned data with no
+/// Host facts projected once from the input list: immutable data with no
 /// checker identity. The serial driver moves them into its one checker state;
 /// a sharded driver (W2) clones them once per additional shard, so that a
 /// shard constructs its state from the shared immutable snapshot plus this
-/// value alone. The source ASTs themselves are never copied: every state
-/// shares the snapshot's `Arc<BoundDocument>` handles.
+/// value alone. The tables are shared, not copied (eight copies of Next.js's
+/// parsed package manifests were 5 ms of the coordinator's setup), and so
+/// are the source ASTs: every state shares the snapshot's
+/// `Arc<BoundDocument>` handles.
 /// tsrs-native: the resolver's host view; tsc reads its host lazily.
 #[derive(Clone)]
 struct HostFacts {
     current_directory: JsString,
-    file_paths: rustc_hash::FxHashSet<JsString>,
-    input_snapshots: rustc_hash::FxHashMap<JsString, Arc<TextSnapshot>>,
-    package_json_module_types: rustc_hash::FxHashMap<JsString, state::PackageJsonModuleType>,
-    package_json_values: rustc_hash::FxHashMap<JsString, tsc_program::JsonValue>,
-    package_json_names: rustc_hash::FxHashMap<JsString, JsString>,
+    file_paths: Arc<rustc_hash::FxHashSet<JsString>>,
+    input_snapshots: Arc<rustc_hash::FxHashMap<JsString, Arc<TextSnapshot>>>,
+    package_json_module_types: Arc<rustc_hash::FxHashMap<JsString, state::PackageJsonModuleType>>,
+    package_json_values: Arc<rustc_hash::FxHashMap<JsString, tsc_program::JsonValue>>,
+    package_json_names: Arc<rustc_hash::FxHashMap<JsString, JsString>>,
 }
 
 /// Stage-1 output of the check driver: parsed (or adopted) fixture sources
@@ -2312,13 +2271,9 @@ fn parse_program_inputs(
     work_counters: &mut CheckWorkCounters,
     workers: WorkerBudget,
 ) -> ParsedProgramInputs {
-    // getImpliedNodeFormatForFileWorker's package-scope input. Build it
-    // before parsing because getSetExternalModuleIndicator's Auto mode
-    // consults the implied format while SourceFiles are created.
-    let host_package_json_module_types: rustc_hash::FxHashMap<
-        tsc_types::JsString,
-        state::PackageJsonModuleType,
-    > = files
+    // Every host package.json, parsed once (a later input with the same
+    // path replaces an earlier one).
+    let package_json_values: rustc_hash::FxHashMap<JsString, tsc_program::JsonValue> = files
         .iter()
         .filter(|file| {
             file.name
@@ -2329,8 +2284,22 @@ fn parse_program_inputs(
                 .is_some_and(|name| name == "package.json")
         })
         .map(|file| {
-            let value = parse_host_package_json(file);
-            let module_type = tsc_program::package_json_property(&value, "type")
+            (
+                state::CheckerState::normalize_program_path(&file.name, ""),
+                parse_host_package_json(file),
+            )
+        })
+        .collect();
+    // getImpliedNodeFormatForFileWorker's package-scope input. Build it
+    // before parsing because getSetExternalModuleIndicator's Auto mode
+    // consults the implied format while SourceFiles are created.
+    let host_package_json_module_types: rustc_hash::FxHashMap<
+        tsc_types::JsString,
+        state::PackageJsonModuleType,
+    > = package_json_values
+        .iter()
+        .map(|(path, value)| {
+            let module_type = tsc_program::package_json_property(value, "type")
                 .and_then(tsc_program::JsonValue::as_js)
                 .map(|value| match value.as_str() {
                     Some("module") => state::PackageJsonModuleType::Module,
@@ -2338,10 +2307,7 @@ fn parse_program_inputs(
                     _ => state::PackageJsonModuleType::Other,
                 })
                 .unwrap_or(state::PackageJsonModuleType::Missing);
-            (
-                state::CheckerState::normalize_js_program_path(&file.name, ""),
-                module_type,
-            )
+            (path.clone(), module_type)
         })
         .collect();
     // Fixture-file shadowing (unchanged from the libless world): a
@@ -2564,26 +2530,6 @@ fn parse_program_inputs(
             )
         })
         .collect();
-    let package_json_values: rustc_hash::FxHashMap<JsString, tsc_program::JsonValue> = files
-        .iter()
-        .filter_map(|file| {
-            let file_name = file
-                .name
-                .as_js()
-                .split_ascii(b'/')
-                .next_back()?
-                .split_ascii(b'\\')
-                .next_back()?;
-            if file_name != "package.json" {
-                return None;
-            }
-            let value = parse_host_package_json(file);
-            Some((
-                state::CheckerState::normalize_program_path(&file.name, ""),
-                value,
-            ))
-        })
-        .collect();
     let package_json_names = package_json_values
         .iter()
         .filter_map(|(path, value)| {
@@ -2602,11 +2548,11 @@ fn parse_program_inputs(
         program_diagnostics,
         host: HostFacts {
             current_directory: host_current_directory,
-            file_paths,
-            input_snapshots,
-            package_json_module_types: host_package_json_module_types,
-            package_json_values,
-            package_json_names,
+            file_paths: Arc::new(file_paths),
+            input_snapshots: Arc::new(input_snapshots),
+            package_json_module_types: Arc::new(host_package_json_module_types),
+            package_json_values: Arc::new(package_json_values),
+            package_json_names: Arc::new(package_json_names),
         },
     }
 }
@@ -2878,25 +2824,25 @@ const _: () = {
     assert_send::<ShardEmission>();
 };
 
-/// Size a checker's type arena from the syntax it will check. Types are
-/// created at a fraction of the node count (about one per two nodes for
-/// declaration-heavy sources, far fewer elsewhere), so one reservation
-/// replaces the doubling copies of a growing arena; the unused capacity is
-/// never touched. Purely an allocation hint: no type identity depends on it.
+/// Size a checker's arenas from the syntax it will check, so one reservation
+/// replaces the doubling copies of a growing arena. The unused capacity is
+/// never touched, so it costs address space, not memory. Purely an allocation
+/// hint: no identity depends on it.
+///
+/// The fractions cover the largest shard of the benchmark programs (per node
+/// of the reserved count): types up to 0.8 (hono 1.9), transient symbols up
+/// to 1.8 (hono 2.8), mappers up to 1.2 (hono 1.5), resolved members up to
+/// 0.3 and signatures up to 0.2.
 fn reserve_type_tables(state: &mut state::CheckerState<'_>, node_count: usize) {
-    const MIN_RESERVED_TYPES: usize = 1 << 12;
-    const MAX_RESERVED_TYPES: usize = 1 << 20;
-    // Transient symbols (instantiated members, contextual parameters) come at
-    // a smaller fraction of the nodes; the doubling copies of the 176-byte
-    // records were a third of a VS Code shard's memmove.
-    const MIN_RESERVED_SYMBOLS: usize = 1 << 11;
-    const MAX_RESERVED_SYMBOLS: usize = 1 << 19;
-    state
-        .tables
-        .reserve_types((node_count / 2).clamp(MIN_RESERVED_TYPES, MAX_RESERVED_TYPES));
-    state.binder.reserve_transient_symbols(
-        (node_count / 8).clamp(MIN_RESERVED_SYMBOLS, MAX_RESERVED_SYMBOLS),
-    );
+    const MIN_RESERVED: usize = 1 << 12;
+    const MAX_RESERVED: usize = 1 << 20;
+    let reserve =
+        |per_node: f64| ((node_count as f64 * per_node) as usize).clamp(MIN_RESERVED, MAX_RESERVED);
+    state.tables.reserve_types(reserve(1.0));
+    state.binder.reserve_transient_symbols(reserve(2.0));
+    state.mappers.reserve(reserve(1.5));
+    state.members.reserve(reserve(0.5));
+    state.signatures.reserve(reserve(0.25));
 }
 
 fn snapshot_node_count(snapshot: &ProgramSnapshot) -> usize {
@@ -3463,21 +3409,44 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     let queue = if let Some(chunk) = shared_chunk {
         shard::ShardFileQueue::shared_chunked(lib_count, &weights, checker_count, chunk)
     } else {
+        // A large program balances its shares by stealing; a small one
+        // keeps the static shares, so its run-to-run type order (the
+        // relaxed sharded mode's determinism) does not depend on timing.
+        // Declaration output prints types in type-id order, so a run
+        // that writes `.d.ts` files keeps the static shares at any size:
+        // its output then repeats run to run, as tsgo's does.
+        let steal = shard::stealing_enabled()
+            && fixtures >= shard::STEAL_MIN_FIXTURES
+            && !static_declaration_partition;
+        // The declaration files a stealing lane checks first.
+        let checked_declarations = if steal {
+            snapshot
+                .documents()
+                .iter()
+                .enumerate()
+                .map(|(index, document)| {
+                    let source = document.source();
+                    source.is_declaration_file
+                        && !should_skip_type_checking_file(
+                            source,
+                            snapshot.file_facts(ProgramFileId::from_raw(
+                                u32::try_from(index).expect("program file index"),
+                            )),
+                            options,
+                        )
+                })
+                .collect::<Vec<bool>>()
+        } else {
+            Vec::new()
+        };
         shard::ShardFileQueue::partitioned_with_directories(
             lib_count,
             &weights,
             &symbols,
             &directories,
             checker_count,
-            // A large program balances its shares by stealing; a small one
-            // keeps the static shares, so its run-to-run type order (the
-            // relaxed sharded mode's determinism) does not depend on timing.
-            // Declaration output prints types in type-id order, so a run
-            // that writes `.d.ts` files keeps the static shares at any size:
-            // its output then repeats run to run, as tsgo's does.
-            shard::stealing_enabled()
-                && fixtures >= shard::STEAL_MIN_FIXTURES
-                && !static_declaration_partition,
+            steal,
+            &checked_declarations,
         )
     };
     let shard_count = queue.shard_count();

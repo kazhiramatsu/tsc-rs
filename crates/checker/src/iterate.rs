@@ -484,11 +484,11 @@ impl<'a> CheckerState<'a> {
     ) -> Option<IterationTypesResult> {
         let links = self.links.ty(ty);
         match key {
-            IterationCacheKey::Iterable => links.iteration_types_of_iterable,
-            IterationCacheKey::AsyncIterable => links.iteration_types_of_async_iterable,
-            IterationCacheKey::Iterator => links.iteration_types_of_iterator,
-            IterationCacheKey::AsyncIterator => links.iteration_types_of_async_iterator,
-            IterationCacheKey::IteratorResult => links.iteration_types_of_iterator_result,
+            IterationCacheKey::Iterable => links.cold().iteration_types_of_iterable,
+            IterationCacheKey::AsyncIterable => links.cold().iteration_types_of_async_iterable,
+            IterationCacheKey::Iterator => links.cold().iteration_types_of_iterator,
+            IterationCacheKey::AsyncIterator => links.cold().iteration_types_of_async_iterator,
+            IterationCacheKey::IteratorResult => links.cold().iteration_types_of_iterator_result,
         }
     }
 

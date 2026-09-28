@@ -1857,7 +1857,7 @@ impl InferTypesWalker<'_, '_> {
                     let params = self
                         .st
                         .links
-                        .read_symbol(alias, |links| links.type_parameters.clone());
+                        .read_symbol(alias, |links| links.cold().type_parameters.clone());
                     let min_params = self.st.get_min_type_argument_count(params.as_deref());
                     let in_js = self
                         .st
@@ -2155,12 +2155,12 @@ impl InferTypesWalker<'_, '_> {
             && !(self
                 .st
                 .links
-                .read_ty(source, |links| links.deferred_node)
+                .read_ty(source, |links| links.cold().deferred_node)
                 .is_some()
                 && self
                     .st
                     .links
-                    .read_ty(target, |links| links.deferred_node)
+                    .read_ty(target, |links| links.cold().deferred_node)
                     .is_some());
         if matching_references {
             // 68770-68771: matching references infer pairwise under the

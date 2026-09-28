@@ -986,13 +986,13 @@ impl<'a> CheckerState<'a> {
         };
         if self
             .links
-            .read_symbol(symbol, |links| links.alias_referenced)
+            .read_symbol(symbol, |links| links.cold().alias_referenced)
         {
             return Ok(true);
         }
         let Some(target) = self
             .links
-            .read_symbol(symbol, |links| links.alias_target.resolved())
+            .read_symbol(symbol, |links| links.cold().alias_target.resolved())
         else {
             return Ok(false);
         };
@@ -1054,7 +1054,7 @@ impl<'a> CheckerState<'a> {
         // resolver queries independently of the option.
         if self
             .links
-            .read_symbol(symbol, |links| links.alias_referenced)
+            .read_symbol(symbol, |links| links.cold().alias_referenced)
         {
             return Ok(());
         }
@@ -1631,7 +1631,7 @@ impl<'a> CheckerState<'a> {
         );
         match self
             .links
-            .read_symbol(symbol, |links| links.alias_target.clone())
+            .read_symbol(symbol, |links| links.cold().alias_target.clone())
         {
             LinkSlot::Resolved(target) => return Ok(target),
             LinkSlot::Resolving => {
@@ -1671,7 +1671,7 @@ impl<'a> CheckerState<'a> {
         };
         if self
             .links
-            .read_symbol(symbol, |links| links.alias_target.is_resolving())
+            .read_symbol(symbol, |links| links.cold().alias_target.is_resolving())
         {
             let resolved = target.unwrap_or(self.unknown_symbol);
             self.links.set_symbol_alias_target(
@@ -1691,7 +1691,7 @@ impl<'a> CheckerState<'a> {
         }
         match self
             .links
-            .read_symbol(symbol, |links| links.alias_target.clone())
+            .read_symbol(symbol, |links| links.cold().alias_target.clone())
         {
             LinkSlot::Resolved(resolved) => Ok(resolved),
             _ => unreachable!("resolveAlias tail leaves the slot Resolved"),
@@ -1704,7 +1704,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn try_resolve_alias(&mut self, symbol: SymbolId) -> CheckResult<Option<SymbolId>> {
         if self
             .links
-            .read_symbol(symbol, |links| links.alias_target.is_resolving())
+            .read_symbol(symbol, |links| links.cold().alias_target.is_resolving())
         {
             return Ok(None);
         }
@@ -3520,7 +3520,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<bool> {
         let existing = self
             .links
-            .read_symbol(source_symbol, |links| links.type_only_declaration);
+            .read_symbol(source_symbol, |links| links.cold().type_only_declaration);
         if let Some(target) = target {
             if existing.is_none() || (overwrite_empty && existing == Some(None)) {
                 let export_symbol = self
@@ -3543,7 +3543,7 @@ impl<'a> CheckerState<'a> {
                     Some(declaration) => Some(declaration),
                     None => self
                         .links
-                        .read_symbol(export_symbol, |links| links.type_only_declaration)
+                        .read_symbol(export_symbol, |links| links.cold().type_only_declaration)
                         .flatten(),
                 };
                 self.links.set_symbol_type_only_declaration(
@@ -3555,7 +3555,7 @@ impl<'a> CheckerState<'a> {
         }
         Ok(self
             .links
-            .read_symbol(source_symbol, |links| links.type_only_declaration)
+            .read_symbol(source_symbol, |links| links.cold().type_only_declaration)
             .flatten()
             .is_some())
     }
@@ -3592,7 +3592,7 @@ impl<'a> CheckerState<'a> {
         }
         if self
             .links
-            .read_symbol(symbol, |links| links.type_only_declaration)
+            .read_symbol(symbol, |links| links.cold().type_only_declaration)
             .is_none()
         {
             self.links
@@ -3614,7 +3614,7 @@ impl<'a> CheckerState<'a> {
         }
         let type_only_declaration = self
             .links
-            .read_symbol(symbol, |links| links.type_only_declaration)
+            .read_symbol(symbol, |links| links.cold().type_only_declaration)
             .flatten();
         let Some(include) = include else {
             return Ok(type_only_declaration);
@@ -7975,7 +7975,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Arc<SymbolTable>> {
         if let LinkSlot::Resolved(exports) = self
             .links
-            .read_symbol(module_symbol, |links| links.resolved_exports.clone())
+            .read_symbol(module_symbol, |links| links.cold().resolved_exports.clone())
         {
             return Ok(exports);
         }

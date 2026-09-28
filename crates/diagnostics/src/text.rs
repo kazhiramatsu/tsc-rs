@@ -785,6 +785,17 @@ impl PositionIndex {
         }
     }
 
+    /// The line containing the byte `position`, which need not be a Unicode
+    /// scalar boundary.
+    pub fn line_of_byte(&self, position: u32) -> Option<u32> {
+        if position > self.byte_len {
+            return None;
+        }
+        greatest_line_start(self.line_count(), position, |line| {
+            self.line_start_byte(line)
+        })
+    }
+
     pub fn line_and_character_utf16(&self, position: u32) -> Option<LineAndCharacter> {
         if position > self.utf16_len() {
             return None;

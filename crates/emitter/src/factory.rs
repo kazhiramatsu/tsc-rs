@@ -5688,6 +5688,7 @@ impl<'arena> NodeFactory<'arena> {
         }
         self.normalize_embedded_statements(source, &mut data)?;
         self.apply_parenthesizer_rules(source, &mut data)?;
+        self.parenthesize_type_node_children(source, &mut data)?;
         transform_flags |= private_identifier_expression_flags(self.arena, source, &data)?;
         let syntax = &mut self.arena.source_mut(source)?.source;
         let id = syntax.arena.alloc_node(
@@ -6054,6 +6055,9 @@ impl<'arena> NodeFactory<'arena> {
         if !same_data || !matches!(data, NodeData::ExpressionWithTypeArguments(_)) {
             self.apply_parenthesizer_rules(original.source, &mut data)?;
         }
+        if !same_data {
+            self.parenthesize_type_node_children(original.source, &mut data)?;
+        }
         let is_literal = matches!(
             original_kind,
             SyntaxKind::StringLiteral
@@ -6356,6 +6360,126 @@ impl<'arena> NodeFactory<'arena> {
         self.parenthesize_computed_property_name_expression(source, data)?;
         self.parenthesize_export_assignment_expression(source, data)?;
         self.parenthesize_updated_arrow_concise_body(source, data)
+    }
+
+    /// tsc's type-node factories parenthesize their children
+    /// (createUnionTypeNode, createArrayTypeNode, createTypeOperatorNode, ...,
+    /// _tsc.js:22146-22374) and `factory.updateX` rebuilds a node through them
+    /// only when a child changed, so a declaration emit that rebuilds
+    /// `A & B | undefined` prints `(A & B) | undefined`.
+    fn parenthesize_type_node_children(
+        &mut self,
+        source: TransformSourceId,
+        data: &mut NodeData,
+    ) -> Result<(), TransformError> {
+        match data {
+            NodeData::UnionType(data) => self.parenthesize_type_list(
+                source,
+                &mut data.types,
+                TypeParenthesizer::parenthesize_constituent_types_of_union_type,
+            ),
+            NodeData::IntersectionType(data) => self.parenthesize_type_list(
+                source,
+                &mut data.types,
+                TypeParenthesizer::parenthesize_constituent_types_of_intersection_type,
+            ),
+            NodeData::TupleType(data) => self.parenthesize_type_list(
+                source,
+                &mut data.elements,
+                TypeParenthesizer::parenthesize_element_types_of_tuple_type,
+            ),
+            NodeData::ArrayType(data) => self.parenthesize_type_child(
+                source,
+                &mut data.element_type,
+                TypeParenthesizer::parenthesize_non_array_type_of_postfix_type,
+            ),
+            NodeData::IndexedAccessType(data) => self.parenthesize_type_child(
+                source,
+                &mut data.object_type,
+                TypeParenthesizer::parenthesize_non_array_type_of_postfix_type,
+            ),
+            NodeData::OptionalType(data) => self.parenthesize_type_child(
+                source,
+                &mut data.r#type,
+                TypeParenthesizer::parenthesize_type_of_optional_type,
+            ),
+            NodeData::TypeOperator(data) => {
+                let rule = if data.operator == SyntaxKind::ReadonlyKeyword {
+                    TypeParenthesizer::parenthesize_operand_of_readonly_type_operator
+                } else {
+                    TypeParenthesizer::parenthesize_operand_of_type_operator
+                };
+                self.parenthesize_type_child(source, &mut data.r#type, rule)
+            }
+            NodeData::ConditionalType(data) => {
+                self.parenthesize_type_child(
+                    source,
+                    &mut data.check_type,
+                    TypeParenthesizer::parenthesize_check_type_of_conditional_type,
+                )?;
+                self.parenthesize_type_child(
+                    source,
+                    &mut data.extends_type,
+                    TypeParenthesizer::parenthesize_extends_type_of_conditional_type,
+                )
+            }
+            NodeData::TypeReference(data) => {
+                self.parenthesize_type_argument_list(source, &mut data.type_arguments)
+            }
+            NodeData::TypeQuery(data) => {
+                self.parenthesize_type_argument_list(source, &mut data.type_arguments)
+            }
+            NodeData::ImportType(data) => {
+                self.parenthesize_type_argument_list(source, &mut data.type_arguments)
+            }
+            _ => Ok(()),
+        }
+    }
+
+    fn parenthesize_type_child(
+        &mut self,
+        source: TransformSourceId,
+        child: &mut Option<NodeId>,
+        rule: fn(&mut NodeFactory<'_>, TransformNode) -> Result<TransformNode, TransformError>,
+    ) -> Result<(), TransformError> {
+        let Some(id) = *child else {
+            return Ok(());
+        };
+        let node = self
+            .arena
+            .node_ref(source, id)
+            .ok_or(TransformError::UnknownNode(TransformNode::new(source, id)))?;
+        let parenthesized = rule(self, node)?;
+        *child = Some(self.node_id(source, parenthesized)?);
+        Ok(())
+    }
+
+    fn parenthesize_type_list(
+        &mut self,
+        source: TransformSourceId,
+        list: &mut Option<NodeArrayId>,
+        rule: fn(
+            &mut NodeFactory<'_>,
+            TransformNodeArray,
+        ) -> Result<TransformNodeArray, TransformError>,
+    ) -> Result<(), TransformError> {
+        let Some(array) = *list else {
+            return Ok(());
+        };
+        let parenthesized = rule(self, TransformNodeArray::new(source, array))?;
+        *list = Some(self.array_id(source, parenthesized)?);
+        Ok(())
+    }
+
+    fn parenthesize_type_argument_list(
+        &mut self,
+        source: TransformSourceId,
+        list: &mut Option<NodeArrayId>,
+    ) -> Result<(), TransformError> {
+        let arguments = list.map(|array| TransformNodeArray::new(source, array));
+        let parenthesized = TypeParenthesizer::parenthesize_type_arguments(self, arguments)?;
+        *list = self.optional_array_id(source, parenthesized)?;
+        Ok(())
     }
 
     /// tsc-port: createNodeFactory.createExpressionWithTypeArguments @6.0.3

@@ -151,6 +151,18 @@ impl<'a> CheckerState<'a> {
         if source == target {
             return Ok(true);
         }
+        // Two value literals (string, number or bigint literal types, enum
+        // members included) with different values relate in no direction
+        // under any relation: every isSimpleTypeRelatedTo arm that relates
+        // two of them needs equal values, and literals are neither objects
+        // nor structured. Narrowing by equality asks this of every member
+        // of a union (a SyntaxKind comparison: hundreds of enum members).
+        if self.is_value_literal(source)
+            && self.is_value_literal(target)
+            && !self.literal_values_equal(source, target)
+        {
+            return Ok(false);
+        }
         if relation != RelationKind::Identity {
             if (relation == RelationKind::Comparable
                 && !self.tables.flags_of(target).intersects(TypeFlags::NEVER)
@@ -425,6 +437,16 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// A string, number or bigint literal type (an enum member included)
+    /// with no other flag: not a union, not a computed enum type.
+    fn is_value_literal(&self, ty: TypeId) -> bool {
+        const VALUE_LITERAL: i32 = TypeFlags::STRING_LITERAL.bits()
+            | TypeFlags::NUMBER_LITERAL.bits()
+            | TypeFlags::BIG_INT_LITERAL.bits();
+        let flags = self.tables.flags_of(ty).bits();
+        flags & VALUE_LITERAL != 0 && flags & !(VALUE_LITERAL | TypeFlags::ENUM_LITERAL.bits()) == 0
+    }
+
     /// tsc-port: isUnknownLikeUnionType @6.0.3
     /// tsc-hash: db66676e0affd408e748429ddd64881c82c0a42b92b120e2c54f6726f6e3fed4
     /// tsc-span: _tsc.js:64653-64662
@@ -496,7 +518,7 @@ impl<'a> CheckerState<'a> {
             {
                 if self
                     .links
-                    .read_ty(ty, |links| links.deferred_node)
+                    .read_ty(ty, |links| links.cold().deferred_node)
                     .is_some()
                 {
                     let target = self.tables.reference_target(ty);
@@ -4148,7 +4170,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Option<EscapedName>> {
         if let Some(cached) = self
             .links
-            .read_ty(union, |links| links.union_key_property.resolved())
+            .read_ty(union, |links| links.cold().union_key_property.resolved())
         {
             return Ok(cached.name);
         }
@@ -4539,7 +4561,7 @@ impl<'a> CheckerState<'a> {
         let unknown = self.tables.intrinsics.unknown;
         let result = self
             .links
-            .read_ty(union, |links| links.union_key_property.resolved())
+            .read_ty(union, |links| links.cold().union_key_property.resolved())
             .and_then(|cached| {
                 cached
                     .constituent_map
@@ -4665,7 +4687,7 @@ impl<'a> CheckerState<'a> {
                 .object_flags_of(ty)
                 .intersects(ObjectFlags::REFERENCE)
             {
-                if let Some(node) = self.links.read_ty(ty, |links| links.deferred_node) {
+                if let Some(node) = self.links.read_ty(ty, |links| links.cold().deferred_node) {
                     return RecursionIdentity::Node(node);
                 }
             }

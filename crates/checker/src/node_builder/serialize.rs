@@ -2352,13 +2352,7 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
                 Ok(flags.intersects(SymbolFlags::PROPERTY)
                     && flags.intersects(SymbolFlags::OPTIONAL)
                     && self.checker.is_optional_declaration(declaration)
-                    && self
-                        .checker
-                        .links
-                        .symbol(symbol)
-                        .cold()
-                        .mapped_type
-                        .is_some()
+                    && self.checker.links.symbol(symbol).mapped_type.is_some()
                     && contains_non_missing_undefined(self.checker, r#type))
             }
             SyntaxKind::Parameter | SyntaxKind::JSDocParameterTag => self

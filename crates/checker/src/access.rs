@@ -771,7 +771,7 @@ impl<'a> CheckerState<'a> {
         {
             let containing = self
                 .links
-                .read_symbol(prop, |links| links.cold().containing_type)
+                .read_symbol(prop, |links| links.containing_type)
                 .expect("Synthetic check flag implies containing type");
             let name = self.binder.symbol(prop).escaped_name.clone();
             let constituents: Vec<TypeId> = match &self.tables.type_of(containing).data {
@@ -2390,7 +2390,7 @@ impl<'a> CheckerState<'a> {
             }
             if let crate::links::LinkSlot::Resolved(write_type) = self
                 .links
-                .read_symbol(symbol, |links| links.write_type.clone())
+                .read_symbol(symbol, |links| links.cold().write_type.clone())
             {
                 return Ok(write_type);
             }
@@ -2408,7 +2408,7 @@ impl<'a> CheckerState<'a> {
                 // the mapper — first write wins on a recursive fill.
                 if let crate::links::LinkSlot::Resolved(write_type) = self
                     .links
-                    .read_symbol(symbol, |links| links.write_type.clone())
+                    .read_symbol(symbol, |links| links.cold().write_type.clone())
                 {
                     return Ok(write_type);
                 }
@@ -2421,7 +2421,7 @@ impl<'a> CheckerState<'a> {
                 let instantiated = self.instantiate_type(target_write, mapper)?;
                 if let crate::links::LinkSlot::Resolved(already) = self
                     .links
-                    .read_symbol(symbol, |links| links.write_type.clone())
+                    .read_symbol(symbol, |links| links.cold().write_type.clone())
                 {
                     return Ok(already);
                 }
@@ -2442,7 +2442,7 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
     ) -> CheckResult<Option<TypeId>> {
         let links = self.links.symbol(symbol);
-        if let crate::links::LinkSlot::Resolved(ty) = links.write_type {
+        if let crate::links::LinkSlot::Resolved(ty) = links.cold().write_type {
             return Ok(Some(ty));
         }
         let Some(constituents) = links.cold().deferral_write_constituents.clone() else {
@@ -3688,7 +3688,7 @@ impl<'a> CheckerState<'a> {
         }
         if let Some(cached) = self
             .links
-            .read_ty(ty, |links| links.promised_type_of_promise)
+            .read_ty(ty, |links| links.cold().promised_type_of_promise)
         {
             return Ok((Some(cached), None));
         }

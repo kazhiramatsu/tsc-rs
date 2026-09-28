@@ -13,6 +13,7 @@ name = "tsc_binder"
 path = "src/lib.rs"
 
 [dependencies]
+hashbrown = { version = "0.16", default-features = false, features = ["inline-more"] }
 indexmap = "2"
 rustc-hash.workspace = true
 tsc-diagnostics.workspace = true

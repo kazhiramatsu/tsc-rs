@@ -93,9 +93,10 @@ pub enum TypeMapper {
     /// tsc-span: _tsc.js:63362-63364
     ///
     /// `targets: None` is the type-eraser form (targets → anyType).
+    /// Boxed slices: a program holds millions of mappers.
     Array {
-        sources: Vec<TypeId>,
-        targets: Option<Vec<TypeId>>,
+        sources: Box<[TypeId]>,
+        targets: Option<Box<[TypeId]>>,
     },
     Deferred(DeferredMapperTargets),
     Function(FunctionMapper),
@@ -229,7 +230,10 @@ impl<'a> CheckerState<'a> {
         sources: Vec<TypeId>,
         targets: Option<Vec<TypeId>>,
     ) -> MapperId {
-        self.alloc_mapper(TypeMapper::Array { sources, targets })
+        self.alloc_mapper(TypeMapper::Array {
+            sources: sources.into_boxed_slice(),
+            targets: targets.map(Vec::into_boxed_slice),
+        })
     }
 
     fn make_composite_type_mapper(
@@ -276,18 +280,27 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:63327-63358
     pub fn get_mapped_type(&mut self, ty: TypeId, mapper: MapperId) -> CheckResult<TypeId> {
         self.profile_ops[crate::line_profile::OP_MAPPED] += 1;
-        match self.mapper(mapper).clone() {
-            TypeMapper::Simple { source, target } => Ok(if ty == source { target } else { ty }),
+        // The two lookup mappers answer through a borrow: this runs for every
+        // type a mapper touches, and a clone would copy an array mapper's
+        // source and target lists each time.
+        match self.mapper(mapper) {
+            TypeMapper::Simple { source, target } => {
+                return Ok(if ty == *source { *target } else { ty });
+            }
             TypeMapper::Array { sources, targets } => {
-                for (i, &source) in sources.iter().enumerate() {
-                    if ty == source {
-                        return Ok(match &targets {
-                            Some(targets) => targets[i],
-                            None => self.tables.intrinsics.any,
-                        });
-                    }
-                }
-                Ok(ty)
+                let Some(index) = sources.iter().position(|&source| source == ty) else {
+                    return Ok(ty);
+                };
+                return Ok(match targets {
+                    Some(targets) => targets[index],
+                    None => self.tables.intrinsics.any,
+                });
+            }
+            _ => {}
+        }
+        match self.mapper(mapper).clone() {
+            TypeMapper::Simple { .. } | TypeMapper::Array { .. } => {
+                unreachable!("lookup mappers are answered above")
             }
             // 63341-63350: linear source scan, thunk on match,
             // identity otherwise. The scan reads the mapper pair's
@@ -521,7 +534,7 @@ impl<'a> CheckerState<'a> {
         mapper: MapperId,
         erase_type_parameters: bool,
     ) -> CheckResult<SignatureId> {
-        let source = self.signature_of(signature).clone();
+        let source = self.signature_of(signature).without_caches();
         let mut mapper = mapper;
         let mut fresh_type_parameters: Option<Vec<TypeId>> = None;
         if let Some(type_parameters) = &source.type_parameters {
@@ -598,7 +611,7 @@ impl<'a> CheckerState<'a> {
                 // writeType before the fast path applies.
                 if let Some(write_type) = self
                     .links
-                    .read_symbol(symbol, |links| links.write_type.resolved())
+                    .read_symbol(symbol, |links| links.cold().write_type.resolved())
                 {
                     if !self.could_contain_type_variables(write_type) {
                         return symbol;
@@ -670,7 +683,7 @@ impl<'a> CheckerState<'a> {
         let declaration = if is_reference {
             // 63464: deferred references carry their node.
             self.links
-                .read_ty(ty, |links| links.deferred_node)
+                .read_ty(ty, |links| links.cold().deferred_node)
                 .expect("References here are deferred (worker !node gate)")
         } else if object_flags.intersects(ObjectFlags::INSTANTIATION_EXPRESSION_TYPE) {
             // 63464 second arm: instantiation-expression types carry
@@ -678,7 +691,7 @@ impl<'a> CheckerState<'a> {
             // (stamped at creation, 77999, and propagated to
             // Instantiated copies, 63649-63651).
             self.links
-                .read_ty(ty, |links| links.deferred_node)
+                .read_ty(ty, |links| links.cold().deferred_node)
                 .expect("InstantiationExpressionType types stamp their node at creation")
         } else {
             let symbol = self
@@ -777,7 +790,7 @@ impl<'a> CheckerState<'a> {
                         .type_of(ty)
                         .symbol
                         .expect("anonymous type instantiation requires a symbol");
-                    self.binder.symbol(symbol).declarations.clone()
+                    self.binder.symbol(symbol).declarations.to_vec()
                 };
                 let filtered = if filter_applies {
                     let mut kept: Vec<TypeId> = Vec::new();
@@ -811,7 +824,7 @@ impl<'a> CheckerState<'a> {
         // `type.mapper` (63485): the deferred-reference mapper for
         // references, the instantiation mapper for anonymous shells.
         let type_mapper = if is_reference {
-            self.links.read_ty(ty, |links| links.deferred_mapper)
+            self.links.read_ty(ty, |links| links.cold().deferred_mapper)
         } else if let TypeData::Mapped(mapped) = &self.tables.type_of(ty).data {
             mapped.mapper
         } else {
@@ -1191,7 +1204,7 @@ impl<'a> CheckerState<'a> {
             // key for getObjectTypeInstantiation (63464).
             let node = self
                 .links
-                .read_ty(ty, |links| links.deferred_node)
+                .read_ty(ty, |links| links.cold().deferred_node)
                 .expect("InstantiationExpressionType types stamp their node at creation");
             self.links
                 .set_fresh_type_deferred_reference_links(result, node, None);
@@ -1608,7 +1621,7 @@ impl<'a> CheckerState<'a> {
                 if object_flags.intersects(ObjectFlags::REFERENCE)
                     && self
                         .links
-                        .read_ty(ty, |links| links.deferred_node)
+                        .read_ty(ty, |links| links.cold().deferred_node)
                         .is_none()
                 {
                     // The !type.node fast path (63725-63729); deferred
@@ -1936,8 +1949,10 @@ impl<'a> CheckerState<'a> {
     fn push_active_mapper(&mut self, mapper: MapperId) {
         perf::bump(PerfCounter::MapperScopePushes);
         self.active_type_mappers.push(mapper);
-        self.active_type_mappers_caches
-            .push(rustc_hash::FxHashMap::default());
+        // Inference pushes and pops a mapper around every instantiation; a
+        // reused cache keeps its capacity instead of rehashing up again.
+        let cache = self.spare_active_mapper_caches.pop().unwrap_or_default();
+        self.active_type_mappers_caches.push(cache);
     }
 
     /// tsc-port: popActiveMapper @6.0.3
@@ -1945,7 +1960,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:73611-73615
     fn pop_active_mapper(&mut self) {
         self.active_type_mappers.pop();
-        self.active_type_mappers_caches.pop();
+        if let Some(mut cache) = self.active_type_mappers_caches.pop() {
+            cache.clear();
+            self.spare_active_mapper_caches.push(cache);
+        }
     }
 
     /// tsc-port: findActiveMapper @6.0.3
@@ -1995,7 +2013,7 @@ impl<'a> CheckerState<'a> {
                     // (68336): node-carrying references short-circuit
                     // true without forcing their arguments.
                     self.links
-                        .read_ty(ty, |links| links.deferred_node)
+                        .read_ty(ty, |links| links.cold().deferred_node)
                         .is_some()
                         || {
                             let arguments: Vec<TypeId> = self.tables.type_arguments(ty).to_vec();

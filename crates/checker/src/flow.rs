@@ -4039,14 +4039,14 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn is_symbol_assigned_definitely(&mut self, symbol: SymbolId) -> CheckResult<bool> {
         if let Some(pos) = self
             .links
-            .read_symbol(symbol, |links| links.last_assignment_pos)
+            .read_symbol(symbol, |links| links.cold().last_assignment_pos)
         {
             return Ok(pos < 0);
         }
         Ok(self.is_symbol_assigned(symbol)?
             && self
                 .links
-                .read_symbol(symbol, |links| links.last_assignment_pos)
+                .read_symbol(symbol, |links| links.cold().last_assignment_pos)
                 .is_some_and(|pos| pos < 0))
     }
 
@@ -4108,7 +4108,7 @@ impl<'a> CheckerState<'a> {
         }
         let pos = self
             .links
-            .read_symbol(symbol, |links| links.last_assignment_pos);
+            .read_symbol(symbol, |links| links.cold().last_assignment_pos);
         Ok(match pos {
             None | Some(0) => true,
             Some(pos) => location.is_some_and(|location| {
@@ -4226,7 +4226,7 @@ impl<'a> CheckerState<'a> {
                         };
                         let previous = self
                             .links
-                            .read_symbol(symbol, |links| links.last_assignment_pos);
+                            .read_symbol(symbol, |links| links.cold().last_assignment_pos);
                         let has_definite_assignment = assignment_target
                             == crate::expr::AssignmentKind::Definite
                             || previous.is_some_and(|pos| pos < 0);
@@ -4271,7 +4271,7 @@ impl<'a> CheckerState<'a> {
                             if has_definite_assignment {
                                 let current = self
                                     .links
-                                    .read_symbol(symbol, |links| links.last_assignment_pos);
+                                    .read_symbol(symbol, |links| links.cold().last_assignment_pos);
                                 if let Some(pos) = current {
                                     if pos > 0 {
                                         self.links.set_symbol_last_assignment_pos(
@@ -4349,7 +4349,7 @@ impl<'a> CheckerState<'a> {
         if self.is_parameter_or_mutable_local_variable(symbol) {
             let sign = if self
                 .links
-                .read_symbol(symbol, |links| links.last_assignment_pos)
+                .read_symbol(symbol, |links| links.cold().last_assignment_pos)
                 .is_some_and(|pos| pos < 0)
             {
                 -1

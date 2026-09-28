@@ -2008,7 +2008,7 @@ impl<'a> CheckerState<'a> {
         }
         let node = self
             .links
-            .read_ty(ty, |links| links.deferred_node)
+            .read_ty(ty, |links| links.cold().deferred_node)
             .expect("unresolved references are deferred (node-carrying)");
         let computed = (|state: &mut Self| -> CheckResult<Vec<TypeId>> {
             match state.data_of(node) {
@@ -2060,7 +2060,7 @@ impl<'a> CheckerState<'a> {
             // `??=` short-circuits: a slot filled during the recursive
             // resolution skips the mapper application entirely (60211).
             if self.tables.try_type_arguments(ty).is_none() {
-                let resolved = match self.links.read_ty(ty, |links| links.deferred_mapper) {
+                let resolved = match self.links.read_ty(ty, |links| links.cold().deferred_mapper) {
                     // An Err below unwinds with the slot still vacant —
                     // nothing cached, re-queryable.
                     Some(mapper) => self.instantiate_types(&type_arguments, mapper)?,
@@ -3194,7 +3194,7 @@ impl<'a> CheckerState<'a> {
         let ty = self.get_declared_type_of_type_alias(symbol)?;
         let type_parameters = self
             .links
-            .read_symbol(symbol, |links| links.type_parameters.clone());
+            .read_symbol(symbol, |links| links.cold().type_parameters.clone());
         if let Some(type_parameters) = type_parameters {
             let node_type_arguments = match self.data_of(node) {
                 NodeData::TypeReference(data) => self.nodes_of(data.type_arguments),
@@ -3317,7 +3317,7 @@ impl<'a> CheckerState<'a> {
         }
         let type_parameters = self
             .links
-            .read_symbol(symbol, |links| links.type_parameters.clone())
+            .read_symbol(symbol, |links| links.cold().type_parameters.clone())
             .expect("getTypeAliasInstantiation callers gate on typeParameters");
         let id_key = format!(
             "{}{}",
@@ -4435,7 +4435,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn resolve_declared_members(&mut self, target: TypeId) -> CheckResult<MembersId> {
         if let Some(declared) = self
             .links
-            .read_ty(target, |links| links.declared_members.resolved())
+            .read_ty(target, |links| links.cold().declared_members.resolved())
         {
             return Ok(declared);
         }
@@ -4514,7 +4514,7 @@ impl<'a> CheckerState<'a> {
             // second declared-members slot transition.
             if let Some(existing) = self
                 .links
-                .read_ty(target, |links| links.declared_members.resolved())
+                .read_ty(target, |links| links.cold().declared_members.resolved())
             {
                 return Ok(existing);
             }
@@ -4550,7 +4550,7 @@ impl<'a> CheckerState<'a> {
         // it in place.
         if let Some(existing) = self
             .links
-            .read_ty(target, |links| links.declared_members.resolved())
+            .read_ty(target, |links| links.cold().declared_members.resolved())
         {
             return Ok(existing);
         }
@@ -4797,10 +4797,10 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Arc<tsc_binder::SymbolTable>> {
         let cached = if is_static {
             self.links
-                .read_symbol(symbol, |links| links.resolved_exports.resolved())
+                .read_symbol(symbol, |links| links.cold().resolved_exports.resolved())
         } else {
             self.links
-                .read_symbol(symbol, |links| links.resolved_members.resolved())
+                .read_symbol(symbol, |links| links.cold().resolved_members.resolved())
         };
         if let Some(resolved) = cached {
             return Ok(resolved);
@@ -4952,11 +4952,11 @@ impl<'a> CheckerState<'a> {
                     let table = if is_static {
                         state
                             .links
-                            .read_symbol(original, |links| links.resolved_exports.resolved())
+                            .read_symbol(original, |links| links.cold().resolved_exports.resolved())
                     } else {
                         state
                             .links
-                            .read_symbol(original, |links| links.resolved_members.resolved())
+                            .read_symbol(original, |links| links.cold().resolved_members.resolved())
                     };
                     if let Some(table) = table {
                         for (name, &member) in table.iter() {
@@ -5458,9 +5458,14 @@ impl<'a> CheckerState<'a> {
             return Ok(Vec::new());
         }
         let speculative_cold = self.speculation_depth != 0
-            && !self.links.read_ty(ty, |links| links.base_types_resolved);
+            && !self
+                .links
+                .read_ty(ty, |links| links.cold().base_types_resolved);
         let mut owns_resolution = false;
-        if !self.links.read_ty(ty, |links| links.base_types_resolved) {
+        if !self
+            .links
+            .read_ty(ty, |links| links.cold().base_types_resolved)
+        {
             if self.push_type_resolution(
                 crate::state::ResolutionTarget::Type(ty),
                 tsc_types::TypeSystemPropertyName::RESOLVED_BASE_TYPES,
@@ -5525,7 +5530,7 @@ impl<'a> CheckerState<'a> {
         }
         let result = self
             .links
-            .read_ty(ty, |links| links.resolved_base_types.clone())
+            .read_ty(ty, |links| links.cold().resolved_base_types.clone())
             .unwrap_or_default();
         if speculative_cold && owns_resolution {
             self.links.clear_speculative_type_base_types(ty);
@@ -5565,7 +5570,7 @@ impl<'a> CheckerState<'a> {
     fn resolve_base_types_of_interface(&mut self, ty: TypeId, symbol: SymbolId) -> CheckResult<()> {
         let mut resolved = self
             .links
-            .read_ty(ty, |links| links.resolved_base_types.clone())
+            .read_ty(ty, |links| links.cold().resolved_base_types.clone())
             .unwrap_or_default();
         self.links
             .set_type_resolved_base_types(self.speculation_depth, ty, resolved.clone());
@@ -5806,10 +5811,9 @@ impl<'a> CheckerState<'a> {
     /// slice (report-only containment) and always continues with
     /// errorType like tsc.
     pub(crate) fn get_base_constructor_type_of_class(&mut self, ty: TypeId) -> CheckResult<TypeId> {
-        if let Some(resolved) = self
-            .links
-            .read_ty(ty, |links| links.resolved_base_constructor_type.resolved())
-        {
+        if let Some(resolved) = self.links.read_ty(ty, |links| {
+            links.cold().resolved_base_constructor_type.resolved()
+        }) {
             return Ok(resolved);
         }
         let declaration = self
@@ -5881,7 +5885,9 @@ impl<'a> CheckerState<'a> {
             let error = self.tables.intrinsics.error;
             if self
                 .links
-                .read_ty(ty, |links| links.resolved_base_constructor_type.resolved())
+                .read_ty(ty, |links| {
+                    links.cold().resolved_base_constructor_type.resolved()
+                })
                 .is_none()
             {
                 self.links.set_type_resolved_base_constructor_type(
@@ -5892,7 +5898,9 @@ impl<'a> CheckerState<'a> {
             }
             return Ok(self
                 .links
-                .read_ty(ty, |links| links.resolved_base_constructor_type.resolved())
+                .read_ty(ty, |links| {
+                    links.cold().resolved_base_constructor_type.resolved()
+                })
                 .expect("just filled"));
         }
         // 57169: the comparison is against nullWideningType — distinct
@@ -5975,7 +5983,9 @@ impl<'a> CheckerState<'a> {
             let error = self.tables.intrinsics.error;
             if self
                 .links
-                .read_ty(ty, |links| links.resolved_base_constructor_type.resolved())
+                .read_ty(ty, |links| {
+                    links.cold().resolved_base_constructor_type.resolved()
+                })
                 .is_none()
             {
                 self.links.set_type_resolved_base_constructor_type(
@@ -5986,12 +5996,16 @@ impl<'a> CheckerState<'a> {
             }
             return Ok(self
                 .links
-                .read_ty(ty, |links| links.resolved_base_constructor_type.resolved())
+                .read_ty(ty, |links| {
+                    links.cold().resolved_base_constructor_type.resolved()
+                })
                 .expect("just filled"));
         }
         if self
             .links
-            .read_ty(ty, |links| links.resolved_base_constructor_type.resolved())
+            .read_ty(ty, |links| {
+                links.cold().resolved_base_constructor_type.resolved()
+            })
             .is_none()
         {
             self.links.set_type_resolved_base_constructor_type(
@@ -6002,7 +6016,9 @@ impl<'a> CheckerState<'a> {
         }
         Ok(self
             .links
-            .read_ty(ty, |links| links.resolved_base_constructor_type.resolved())
+            .read_ty(ty, |links| {
+                links.cold().resolved_base_constructor_type.resolved()
+            })
             .expect("just filled"))
     }
 
@@ -6777,7 +6793,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_write_type_of_accessors(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
         if let Some(cached) = self
             .links
-            .read_symbol(symbol, |links| links.write_type.resolved())
+            .read_symbol(symbol, |links| links.cold().write_type.resolved())
         {
             return Ok(cached);
         }
@@ -6831,7 +6847,7 @@ impl<'a> CheckerState<'a> {
         };
         if self
             .links
-            .read_symbol(symbol, |links| links.write_type.resolved())
+            .read_symbol(symbol, |links| links.cold().write_type.resolved())
             .is_none()
         {
             self.links
@@ -6839,7 +6855,7 @@ impl<'a> CheckerState<'a> {
         }
         Ok(self
             .links
-            .read_symbol(symbol, |links| links.write_type.resolved())
+            .read_symbol(symbol, |links| links.cold().write_type.resolved())
             .expect("just filled"))
     }
 
@@ -6915,6 +6931,10 @@ impl<'a> CheckerState<'a> {
         symbols: &mut tsc_binder::SymbolTable,
         base_symbols: &[SymbolId],
     ) -> CheckResult<()> {
+        // Room for every inherited member at once (a few are overridden and
+        // skipped): an instance table would otherwise regrow while it copies
+        // its base's members.
+        symbols.reserve(base_symbols.len());
         for &base in base_symbols {
             if self.is_static_private_identifier_property(base) {
                 continue;
@@ -7812,7 +7832,6 @@ impl<'a> CheckerState<'a> {
                     .property_type
                     .expect("reverse mapped symbol carries propertyType"),
                 links
-                    .cold()
                     .mapped_type
                     .expect("reverse mapped symbol carries mappedType"),
                 links
@@ -9691,7 +9710,7 @@ impl<'a> CheckerState<'a> {
         signature: SignatureId,
         class_type: TypeId,
     ) -> SignatureId {
-        let source = self.signature_of(signature).clone();
+        let source = self.signature_of(signature).without_caches();
         self.alloc_signature(crate::state::Signature {
             declaration: source.declaration,
             flags: SignatureFlags::from_bits(

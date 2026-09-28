@@ -189,6 +189,38 @@ pub struct Signature {
     pub isolated_signature_type: Option<TypeId>,
 }
 
+impl Signature {
+    /// A copy of the signature without its lazily filled caches (the
+    /// resolved return type and the instantiation, erased, canonical, base,
+    /// optional-call and isolated-type memos): what a clone, an instantiation
+    /// or a combination reads from its source. A whole `clone` also copied
+    /// the instantiation cache, which grows with every instantiation of a
+    /// generic signature.
+    pub(crate) fn without_caches(&self) -> Signature {
+        Signature {
+            declaration: self.declaration,
+            flags: self.flags,
+            type_parameters: self.type_parameters.clone(),
+            parameters: self.parameters.clone(),
+            this_parameter: self.this_parameter,
+            min_argument_count: self.min_argument_count,
+            resolved_return_type: LinkSlot::Vacant,
+            from_method: self.from_method,
+            target: self.target,
+            mapper: self.mapper,
+            instantiations: rustc_hash::FxHashMap::default(),
+            erased_signature_cache: None,
+            canonical_signature_cache: None,
+            base_signature_cache: None,
+            composite_kind: self.composite_kind,
+            composite_signatures: self.composite_signatures.clone(),
+            optional_call_signature_cache: (None, None),
+            isolated_signature_kind: self.isolated_signature_kind,
+            isolated_signature_type: None,
+        }
+    }
+}
+
 /// tsc IndexInfo (createIndexInfo 59989).
 #[derive(Clone, Debug)]
 pub struct IndexInfo {
@@ -479,6 +511,8 @@ pub struct CheckerState<'a> {
     /// (47412-47414): the instantiation cache stack.
     pub(crate) active_type_mappers: Vec<crate::instantiate::MapperId>,
     pub(crate) active_type_mappers_caches: Vec<rustc_hash::FxHashMap<MapperCacheKey, TypeId>>,
+    /// Popped instantiation caches, cleared and kept for the next push.
+    pub(crate) spare_active_mapper_caches: Vec<rustc_hash::FxHashMap<MapperCacheKey, TypeId>>,
     /// tsc instantiationDepth/instantiationCount (46451-46452); the
     /// count resets at tsc's three entry points — checkExpression,
     /// checkSourceElement, checkDeferredNode (wired at 5.4/5.5).
@@ -915,11 +949,12 @@ pub struct CheckerState<'a> {
     /// including files the program layer drops (.json bodies, .js
     /// without allowJs) — the resolver's suppression probes read this
     /// set to decide whether a miss is tsc-undecidable (FP=0 rule).
-    pub host_file_paths: rustc_hash::FxHashSet<tsc_types::JsString>,
+    pub host_file_paths: std::sync::Arc<rustc_hash::FxHashSet<tsc_types::JsString>>,
     /// Exact input text for host reads, including host-only package manifests.
     /// Do not reconstruct a readFile result from parsed JSON or source membership.
-    pub(crate) host_input_snapshots:
+    pub(crate) host_input_snapshots: std::sync::Arc<
         rustc_hash::FxHashMap<tsc_types::JsString, std::sync::Arc<tsc_diagnostics::TextSnapshot>>,
+    >,
     /// The checker's module-specifier host view over its files, built on
     /// the first declaration-emit specifier lookup and shared by the rest
     /// (the file set and host inputs are fixed once the state is set up).
@@ -942,17 +977,18 @@ pub struct CheckerState<'a> {
     /// createModeMismatchDetails distinguishes a missing value from
     /// any explicit value.
     pub(crate) host_package_json_module_types:
-        rustc_hash::FxHashMap<tsc_types::JsString, PackageJsonModuleType>,
+        std::sync::Arc<rustc_hash::FxHashMap<tsc_types::JsString, PackageJsonModuleType>>,
     /// Normalized package.json path → parsed host JSON. The
     /// resolver seam reads `exports`/`imports` targets and must retain
     /// object insertion order because Node condition objects are
     /// first-match, not unordered maps.
     pub(crate) host_package_json_values:
-        rustc_hash::FxHashMap<tsc_types::JsString, tsc_program::JsonValue>,
+        std::sync::Arc<rustc_hash::FxHashMap<tsc_types::JsString, tsc_program::JsonValue>>,
     /// Normalized package.json path → its non-empty `"name"` field.
     /// Bare self-name imports are undecidable only inside a matching
     /// package scope; an unrelated package.json must not hide 2307.
-    pub host_package_json_names: rustc_hash::FxHashMap<tsc_types::JsString, tsc_types::JsString>,
+    pub host_package_json_names:
+        std::sync::Arc<rustc_hash::FxHashMap<tsc_types::JsString, tsc_types::JsString>>,
     /// checkExternalEmitHelpers' per-source resolveHelpersModule memo.
     /// `None` is a cached missing or provenance-suppressed `tslib`;
     /// the first definite miss has already emitted 2354.
@@ -1292,6 +1328,7 @@ impl<'a> CheckerState<'a> {
             variance_handler_stack: Vec::new(),
             active_type_mappers: Vec::new(),
             active_type_mappers_caches: Vec::new(),
+            spare_active_mapper_caches: Vec::new(),
             instantiation_depth: 0,
             instantiation_count: 0,
             total_instantiation_count: 0,
@@ -1390,13 +1427,13 @@ impl<'a> CheckerState<'a> {
             authoritative_implied_node_formats: Vec::new(),
             authoritative_implied_node_formats_for_emit: Vec::new(),
             authoritative_module_failure: std::cell::OnceCell::new(),
-            host_file_paths: rustc_hash::FxHashSet::default(),
-            host_input_snapshots: rustc_hash::FxHashMap::default(),
+            host_file_paths: Default::default(),
+            host_input_snapshots: Default::default(),
             basic_module_specifier_host: None,
             host_current_directory: "/".into(),
-            host_package_json_module_types: rustc_hash::FxHashMap::default(),
-            host_package_json_values: rustc_hash::FxHashMap::default(),
-            host_package_json_names: rustc_hash::FxHashMap::default(),
+            host_package_json_module_types: Default::default(),
+            host_package_json_values: Default::default(),
+            host_package_json_names: Default::default(),
             external_helpers_modules: rustc_hash::FxHashMap::default(),
             requested_external_emit_helpers: rustc_hash::FxHashMap::default(),
             jsx_implicit_import_containers: rustc_hash::FxHashMap::default(),
@@ -1904,20 +1941,20 @@ impl<'a> CheckerState<'a> {
                     unreachable!("ResolvedBaseTypes resolution targets are types");
                 };
                 // `!!type.baseTypesResolved` (55772).
-                self.links.read_ty(ty, |links| links.base_types_resolved)
+                self.links.read_ty(ty, |links| links.cold().base_types_resolved)
             }
             TypeSystemPropertyName::RESOLVED_BASE_CONSTRUCTOR_TYPE => {
                 let ResolutionTarget::Type(ty) = target else {
                     unreachable!("ResolvedBaseConstructorType resolution targets are types");
                 };
-                self.links.read_ty(ty, |links| links.resolved_base_constructor_type.resolved())
+                self.links.read_ty(ty, |links| links.cold().resolved_base_constructor_type.resolved())
                     .is_some()
             }
             TypeSystemPropertyName::WRITE_TYPE => {
                 let ResolutionTarget::Symbol(symbol) = target else {
                     unreachable!("WriteType resolution targets are symbols");
                 };
-                self.links.read_symbol(symbol, |links| links.write_type.resolved()).is_some()
+                self.links.read_symbol(symbol, |links| links.cold().write_type.resolved()).is_some()
             }
             TypeSystemPropertyName::PARAMETER_INITIALIZER_CONTAINS_UNDEFINED => {
                 let ResolutionTarget::Node(node) = target else {

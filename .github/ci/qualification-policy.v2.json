@@ -53,7 +53,7 @@
       ".github/workflows/ci.yml": "de915626e641960446a9d08a62203069d27e43819b6429ac1a5154c182f2759e",
       ".github/workflows/witness.yml": "8129be519010f24cda84669491b747ca410cb04c9f72118beb61743c20686614",
       ".github/ci/replay.py": "79d1d9a5386321a2c341a43a91eb1bbc5851707389e3baa9555c4965897d0a6e",
-      "scripts/witness.py": "da5935e27b0517a02c5077083da5181cb5a4d2286dccb2186f65996ec49b0154",
+      "scripts/witness.py": "ff0d1a8ba1d7055c979277693c7f10725bf2f0e5a3fceef52fc46052ed6672ba",
       "crates/xtask/src/acceptance_plan.rs": "b8d6d492420bff1814eb81ff08fa2725f75070d746c1fd959f8f6a9eea5a97e6",
       "crates/xtask/src/acceptance_slices.rs": "93a4eefa18ebe006ecc75a472c678322954bb99a69b7c096b1f75b509287c7fa",
       ".github/ci/test_replay.py": "e966675788bb006842e3047b3782e8f1a1f4dcf5464f006e79422203986b1c74",

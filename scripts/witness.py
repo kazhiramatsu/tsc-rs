@@ -837,8 +837,14 @@ def run_emitter_direct(suites):
     for suite in suites:
         print(f"{suite}: {len(case_ids(suite))} fixture rows (each compared twice)", flush=True)
     started = time.monotonic()
+    # The literal-update transform observer keeps one checked Program per
+    # case shape and needs about 3 GB of heap; Node's default on a 7 GB
+    # hosted runner is a quarter of the machine.
+    observer_env = dict(os.environ)
+    observer_env["NODE_OPTIONS"] = " ".join(
+        filter(None, (observer_env.get("NODE_OPTIONS"), "--max-old-space-size=4096")))
     for observer in direct_observers(EMITTER_DIRECT, suites):
-        subprocess.run(list(observer), cwd=ROOT, check=True)
+        subprocess.run(list(observer), cwd=ROOT, env=observer_env, check=True)
     oracle_seconds = time.monotonic() - started
     _, env = invocation(suites[0], [])
     started = time.monotonic()

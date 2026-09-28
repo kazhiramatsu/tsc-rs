@@ -4723,7 +4723,10 @@ impl<'a> CheckerState<'a> {
         if self.is_awaited_type_instantiation(ty)? {
             return Ok(Some(ty));
         }
-        if let Some(cached) = self.links.read_ty(ty, |links| links.awaited_type_of_type) {
+        if let Some(cached) = self
+            .links
+            .read_ty(ty, |links| links.cold().awaited_type_of_type)
+        {
             return Ok(Some(cached));
         }
         if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {

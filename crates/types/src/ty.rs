@@ -329,7 +329,8 @@ pub enum TypeData {
         resolved_type_arguments: Option<Box<[TypeId]>>,
     },
     /// The synthesized generic tuple TARGET (objectFlags Tuple|Reference).
-    TupleTarget(TupleTargetData),
+    /// Boxed: one per tuple shape, and inline it would size every type.
+    TupleTarget(Box<TupleTargetData>),
     /// Synthesized type parameters (tuple targets, thisType). Real
     /// declared type parameters are M4.
     TypeParameter {
