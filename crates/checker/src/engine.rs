@@ -151,6 +151,18 @@ impl<'a> CheckerState<'a> {
         if source == target {
             return Ok(true);
         }
+        // Two value literals (string, number or bigint literal types, enum
+        // members included) with different values relate in no direction
+        // under any relation: every isSimpleTypeRelatedTo arm that relates
+        // two of them needs equal values, and literals are neither objects
+        // nor structured. Narrowing by equality asks this of every member
+        // of a union (a SyntaxKind comparison: hundreds of enum members).
+        if self.is_value_literal(source)
+            && self.is_value_literal(target)
+            && !self.literal_values_equal(source, target)
+        {
+            return Ok(false);
+        }
         if relation != RelationKind::Identity {
             if (relation == RelationKind::Comparable
                 && !self.tables.flags_of(target).intersects(TypeFlags::NEVER)
@@ -423,6 +435,16 @@ impl<'a> CheckerState<'a> {
             }
             _ => false,
         }
+    }
+
+    /// A string, number or bigint literal type (an enum member included)
+    /// with no other flag: not a union, not a computed enum type.
+    fn is_value_literal(&self, ty: TypeId) -> bool {
+        const VALUE_LITERAL: i32 = TypeFlags::STRING_LITERAL.bits()
+            | TypeFlags::NUMBER_LITERAL.bits()
+            | TypeFlags::BIG_INT_LITERAL.bits();
+        let flags = self.tables.flags_of(ty).bits();
+        flags & VALUE_LITERAL != 0 && flags & !(VALUE_LITERAL | TypeFlags::ENUM_LITERAL.bits()) == 0
     }
 
     /// tsc-port: isUnknownLikeUnionType @6.0.3
