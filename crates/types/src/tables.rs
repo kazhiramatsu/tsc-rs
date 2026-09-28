@@ -2140,7 +2140,7 @@ impl TypeTables {
         };
         let target = self.create_type(
             TypeFlags::OBJECT,
-            TypeData::TupleTarget(TupleTargetData {
+            TypeData::TupleTarget(Box::new(TupleTargetData {
                 type_parameters: type_parameters.clone().into_boxed_slice(),
                 // Patched right below, after the target id exists —
                 // tsc allocates thisType after the object (61194).
@@ -2154,7 +2154,7 @@ impl TypeTables {
                 readonly,
                 labeled_element_declarations: named_member_declarations
                     .map(|declarations| declarations.to_vec().into_boxed_slice()),
-            }),
+            })),
         );
         self.type_mut(target).object_flags =
             ObjectFlags::from_bits(ObjectFlags::TUPLE.bits() | ObjectFlags::REFERENCE.bits());

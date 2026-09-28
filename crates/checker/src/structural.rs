@@ -7699,10 +7699,10 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         }
         let target = self.tables.reference_target(rest_type);
-        let TypeData::TupleTarget(data) = self.tables.type_of(target).data.clone() else {
+        let TypeData::TupleTarget(data) = &self.tables.type_of(target).data else {
             unreachable!("tuple type targets a tuple target");
         };
-        Ok(Some((rest_type, data)))
+        Ok(Some((rest_type, (**data).clone())))
     }
 
     // ---- arity helpers (78233-78341) ----
