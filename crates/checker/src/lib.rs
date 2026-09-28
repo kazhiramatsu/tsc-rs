@@ -3463,21 +3463,44 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     let queue = if let Some(chunk) = shared_chunk {
         shard::ShardFileQueue::shared_chunked(lib_count, &weights, checker_count, chunk)
     } else {
+        // A large program balances its shares by stealing; a small one
+        // keeps the static shares, so its run-to-run type order (the
+        // relaxed sharded mode's determinism) does not depend on timing.
+        // Declaration output prints types in type-id order, so a run
+        // that writes `.d.ts` files keeps the static shares at any size:
+        // its output then repeats run to run, as tsgo's does.
+        let steal = shard::stealing_enabled()
+            && fixtures >= shard::STEAL_MIN_FIXTURES
+            && !static_declaration_partition;
+        // The declaration files a stealing lane checks first.
+        let checked_declarations = if steal {
+            snapshot
+                .documents()
+                .iter()
+                .enumerate()
+                .map(|(index, document)| {
+                    let source = document.source();
+                    source.is_declaration_file
+                        && !should_skip_type_checking_file(
+                            source,
+                            snapshot.file_facts(ProgramFileId::from_raw(
+                                u32::try_from(index).expect("program file index"),
+                            )),
+                            options,
+                        )
+                })
+                .collect::<Vec<bool>>()
+        } else {
+            Vec::new()
+        };
         shard::ShardFileQueue::partitioned_with_directories(
             lib_count,
             &weights,
             &symbols,
             &directories,
             checker_count,
-            // A large program balances its shares by stealing; a small one
-            // keeps the static shares, so its run-to-run type order (the
-            // relaxed sharded mode's determinism) does not depend on timing.
-            // Declaration output prints types in type-id order, so a run
-            // that writes `.d.ts` files keeps the static shares at any size:
-            // its output then repeats run to run, as tsgo's does.
-            shard::stealing_enabled()
-                && fixtures >= shard::STEAL_MIN_FIXTURES
-                && !static_declaration_partition,
+            steal,
+            &checked_declarations,
         )
     };
     let shard_count = queue.shard_count();

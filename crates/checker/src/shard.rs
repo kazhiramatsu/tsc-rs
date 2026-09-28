@@ -740,15 +740,25 @@ impl ShardFileQueue {
         }
     }
 
-    /// One lane per non-empty share of the deterministic node-count
-    /// partition of `weights` into at most `shards` shares.
     /// One lane per non-empty share of the deterministic partition of
     /// `weights` (node counts; index = Program file) into at most `shards`
     /// shares, by the mode of [`partition_mode_requested`]; `directories`
     /// gives each file's interned directory for the directory-preferring
     /// default (an empty slice falls back to the plain least-load spread).
+    /// A lane hands out its fixtures in Program order.
+    ///
     /// With `steal`, a shard whose share is exhausted takes files from the
-    /// share with the most still waiting (see [`Self::steal_fixture`]).
+    /// share with the most still waiting (see [`Self::steal_fixture`]), and
+    /// each lane hands out the checked declaration files among its fixtures
+    /// (`declarations`, index = Program file) first, heaviest first, then
+    /// the rest in Program order. A declaration file's check resolves every
+    /// type it declares, so its size predicts its cost, and a heavy one
+    /// checked late decides when its shard finishes: Next.js's largest check
+    /// (the Model Context Protocol SDK's `types.d.ts`, half a second) started
+    /// after a sixth of a second of other files and ended the check alone.
+    /// A source file's cost depends on which shared types it resolves first,
+    /// not on its size; ordering Playwright's sources by size unbalanced the
+    /// shards.
     pub(crate) fn partitioned_with_directories(
         lib_count: usize,
         weights: &[usize],
@@ -756,6 +766,7 @@ impl ShardFileQueue {
         directories: &[u32],
         shards: usize,
         steal: bool,
+        declarations: &[bool],
     ) -> Self {
         debug_assert!(lib_count <= weights.len());
         let files = match partition_mode_requested() {
@@ -777,20 +788,33 @@ impl ShardFileQueue {
         };
         let lanes = files
             .into_iter()
-            .map(|files| Lane {
-                weight: files.iter().map(|&file| weights[file]).sum(),
-                fixtures: files
+            .map(|files| {
+                let mut fixtures: Vec<usize> = files
                     .iter()
                     .copied()
                     .filter(|&file| file >= lib_count)
-                    .collect(),
-                libraries: files
-                    .iter()
-                    .copied()
-                    .filter(|&file| file < lib_count)
-                    .collect(),
-                next_fixture: AtomicUsize::new(0),
-                next_library: AtomicUsize::new(0),
+                    .collect();
+                if steal {
+                    // A stable sort: the remaining files keep Program order.
+                    fixtures.sort_by_key(|&file| {
+                        let leads = declarations.get(file).copied().unwrap_or(false);
+                        (
+                            !leads,
+                            std::cmp::Reverse(if leads { weights[file] } else { 0 }),
+                        )
+                    });
+                }
+                Lane {
+                    weight: files.iter().map(|&file| weights[file]).sum(),
+                    fixtures,
+                    libraries: files
+                        .iter()
+                        .copied()
+                        .filter(|&file| file < lib_count)
+                        .collect(),
+                    next_fixture: AtomicUsize::new(0),
+                    next_library: AtomicUsize::new(0),
+                }
             })
             .collect();
         Self {
@@ -1161,7 +1185,8 @@ mod tests {
     fn partitioned_queue_serves_each_shard_its_own_share_in_program_order() {
         // File 0 is the (heavy) library; the fixtures are light.
         let weights = [5, 1, 1, 1, 1, 1, 1];
-        let queue = ShardFileQueue::partitioned_with_directories(1, &weights, &[], &[], 2, false);
+        let queue =
+            ShardFileQueue::partitioned_with_directories(1, &weights, &[], &[], 2, false, &[]);
         let expected = partition_files(&weights, 2);
         assert_eq!(queue.shard_count(), expected.len());
         for (shard, share) in expected.iter().enumerate() {
@@ -1184,7 +1209,7 @@ mod tests {
         // A shard index beyond the partition serves nothing.
         assert_eq!(queue.next_fixture(expected.len()), None);
         assert_eq!(queue.reserved_nodes(expected.len()), 0);
-        let empty = ShardFileQueue::partitioned_with_directories(0, &[], &[], &[], 4, false);
+        let empty = ShardFileQueue::partitioned_with_directories(0, &[], &[], &[], 4, false, &[]);
         assert_eq!(empty.shard_count(), 1);
         assert_eq!(empty.next_fixture(0), None);
     }
@@ -1194,7 +1219,8 @@ mod tests {
         // File 0 is the library; seven equal weights alternate between the
         // two shares, so the fixtures split into [2, 4, 6] and [1, 3, 5].
         let weights = [1; 7];
-        let queue = ShardFileQueue::partitioned_with_directories(1, &weights, &[], &[], 2, true);
+        let queue =
+            ShardFileQueue::partitioned_with_directories(1, &weights, &[], &[], 2, true, &[]);
         assert_eq!(
             partition_files(&weights, 2),
             vec![vec![0, 2, 4, 6], vec![1, 3, 5]]
@@ -1214,6 +1240,38 @@ mod tests {
         assert_eq!(queue.next_library(1), None);
         assert_eq!(queue.next_library(0), Some(0));
         assert_eq!(queue.next_library(0), None);
+    }
+
+    #[test]
+    fn a_stealing_lane_hands_out_its_checked_declaration_files_first() {
+        // File 0 is the library. Files 2 and 4 are checked declaration
+        // files: a stealing lane starts with them, heaviest first, and keeps
+        // Program order for the source files whatever their weights; a
+        // static lane keeps Program order.
+        let weights = [1, 5, 2, 9, 3];
+        let declarations = [false, false, true, false, true];
+        let stealing = ShardFileQueue::partitioned_with_directories(
+            1,
+            &weights,
+            &[],
+            &[],
+            1,
+            true,
+            &declarations,
+        );
+        let pulled: Vec<usize> = std::iter::from_fn(|| stealing.next_fixture(0)).collect();
+        assert_eq!(pulled, [4, 2, 1, 3]);
+        let static_lane = ShardFileQueue::partitioned_with_directories(
+            1,
+            &weights,
+            &[],
+            &[],
+            1,
+            false,
+            &declarations,
+        );
+        let pulled: Vec<usize> = std::iter::from_fn(|| static_lane.next_fixture(0)).collect();
+        assert_eq!(pulled, [1, 2, 3, 4]);
     }
 
     fn covers_every_file_once(assignment: &[Vec<usize>], files: usize) {
