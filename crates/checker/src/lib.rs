@@ -2824,25 +2824,25 @@ const _: () = {
     assert_send::<ShardEmission>();
 };
 
-/// Size a checker's type arena from the syntax it will check. Types are
-/// created at a fraction of the node count (about one per two nodes for
-/// declaration-heavy sources, far fewer elsewhere), so one reservation
-/// replaces the doubling copies of a growing arena; the unused capacity is
-/// never touched. Purely an allocation hint: no type identity depends on it.
+/// Size a checker's arenas from the syntax it will check, so one reservation
+/// replaces the doubling copies of a growing arena. The unused capacity is
+/// never touched, so it costs address space, not memory. Purely an allocation
+/// hint: no identity depends on it.
+///
+/// The fractions cover the largest shard of the benchmark programs (per node
+/// of the reserved count): types up to 0.8 (hono 1.9), transient symbols up
+/// to 1.8 (hono 2.8), mappers up to 1.2 (hono 1.5), resolved members up to
+/// 0.3 and signatures up to 0.2.
 fn reserve_type_tables(state: &mut state::CheckerState<'_>, node_count: usize) {
-    const MIN_RESERVED_TYPES: usize = 1 << 12;
-    const MAX_RESERVED_TYPES: usize = 1 << 20;
-    // Transient symbols (instantiated members, contextual parameters) come at
-    // a smaller fraction of the nodes; the doubling copies of the 176-byte
-    // records were a third of a VS Code shard's memmove.
-    const MIN_RESERVED_SYMBOLS: usize = 1 << 11;
-    const MAX_RESERVED_SYMBOLS: usize = 1 << 19;
-    state
-        .tables
-        .reserve_types((node_count / 2).clamp(MIN_RESERVED_TYPES, MAX_RESERVED_TYPES));
-    state.binder.reserve_transient_symbols(
-        (node_count / 8).clamp(MIN_RESERVED_SYMBOLS, MAX_RESERVED_SYMBOLS),
-    );
+    const MIN_RESERVED: usize = 1 << 12;
+    const MAX_RESERVED: usize = 1 << 20;
+    let reserve =
+        |per_node: f64| ((node_count as f64 * per_node) as usize).clamp(MIN_RESERVED, MAX_RESERVED);
+    state.tables.reserve_types(reserve(1.0));
+    state.binder.reserve_transient_symbols(reserve(2.0));
+    state.mappers.reserve(reserve(1.5));
+    state.members.reserve(reserve(0.5));
+    state.signatures.reserve(reserve(0.25));
 }
 
 fn snapshot_node_count(snapshot: &ProgramSnapshot) -> usize {
