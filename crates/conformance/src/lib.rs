@@ -31,6 +31,7 @@ pub mod ratchet;
 mod rendered;
 mod scope;
 mod shadow_diff;
+pub mod ts71;
 
 pub use families::{
     check as families_check, report as families_report,
