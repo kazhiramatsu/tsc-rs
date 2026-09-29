@@ -1,6 +1,6 @@
 # TypeScript 7.1のテスト構成に合わせたconformance
 
-状態：**design**、2026-09-29のユーザー決定を記録。runnerの実装とprofileの移行はまだ行っていない。
+状態：**P1 runner 実装済み**（2026-09-29、[P1の結果](#p1の結果2026-09-29)）。挙動の移行（P2）とprofileの移行はまだ行っていない。
 親計画：[TS7の方向](../../typescript-7-direction.md)、[7.1追従設計](../../typescript-7-upstream-sync.md)、
 [移行基盤batch](../post-emitter-foundation-batch/README.md)のA2（test inventory）とA4（MAP/PIN）。
 調査記録：[SURVEY.md](SURVEY.md)（上流harnessと現行runnerの比較、数値の根拠）。
@@ -120,6 +120,83 @@ READMEの「tsc 6.0.3と診断が一致」という記述も、移行時に「7.
 | P3 置換 | lane Bを6.0.3の新成果物へ移し、旧conformance runnerを引退させる。checker unit test（`check_program*`の約280箇所）をtsc_programの解決へ移し、旧in-memory module解決を削除する | 旧runnerなしでlane A/Bがratchetで守られる。`authoritative_module_provider`がNoneの経路が消える |
 
 P1だけで先にhosted CIへ入れるかは、実行時間を測ってから決める（共有CIの変更は統合担当の手順に従う）。
+
+## P1の結果（2026-09-29）
+
+挙動の変更は含めていない。tsc-rsのchecker・program・libは6.0.3のままで、差は下記の「P2の入力」として残した。
+
+### 実装
+
+- **取込み**：`vendor/typescript-native/7.1.0-dev-19dadef8/`（20,187 file）。`manifest.json`がcommit、setごとのtree id
+  またはblob一覧、baseline全45,533名を固定する。`scripts/vendor_typescript_native.py --profile <name> --check`と
+  harnessの`native_vendored_inputs_match_the_manifest`で検算する。
+- **展開**：`crates/harness/src/upstream_suites/native.rs`にGoの`GetFileBasedTestConfigurations`（72 option、`*`と除外指定、
+  25を超える組合せは致命的）、`skippedTests`（42件）、`SkipUnsupported`を移植した。
+  `native_expansion_reproduces_the_reference_baseline_configurations`が7.1のbaseline名との一致を確かめる。
+  12,748 caseのうち実行されるconfigurationは13,467で、baselineのある13,422件と出力のない45件（`noTypesAndSymbols`）に分かれる。
+- **実行**：`load_native_compiler_program`と`ProgramSession::run_for_native_harness`。Goの`CompileFilesEx`と`compileFilesWithHost`に合わせて次を行う。
+  - optionはすべて設定どおりに使い、`noEmit`を足さない。harnessの既定（CRLF、`skipDefaultLibCheck`、`noErrorTruncation`）を入れ、
+    `rootDir`・`declarationDir`・`tsBuildInfoFile`を絶対pathにする。
+  - 同じpathのunitは後のもので置き換える。root fileが`/.lib/`を含むときは`tests/lib`を`/.lib`にmountする。
+  - config・options・出力pathの検査（TS5055など。`@suppressOutputPathCheck`では行わない）・syntactic・semantic・global・
+    declaration（declarationを出す設定のとき）・suggestion（`@captureSuggestions`のとき）の診断を、CLIのgateなしで集める。
+  - lib bundleはconfigurationごとに作る。process寿命のbundle cacheは数千configurationでworkerのmemoryを使い切るので使わない。
+    lib catalogは6.0.3のまま（ES2026のlibはP2）。
+- **比較**（`crates/conformance/src/ts71.rs`）：`.errors.txt`の要約行を、T0（file・行・UTF-16列・code）、T1（category）、
+  T2（1行目の文言）の順に比べる。T3は、Goの`GetErrorBaseline`を移植した描画（`ts71/errors_baseline.rs`）との
+  `.errors.txt`全体のbyte一致とする。T3はGoのtestそのものの合格条件で、span（squiggle）・chain・related情報・順序を含む。
+  `@pretty`の14 caseはT3の対象外。
+- **実行器**：`scripts/conformance_ts71.py`が`conformance-ts71 --worker`を4 processで動かす。stack overflow・120秒の無進捗・
+  3 GiB超のconfigurationはharness errorとして記録し、次のconfigurationから再開する。binaryの`--dump <dir>`は、
+  一致しないconfigurationについてtsc-rs側の`.errors.txt`を書き出す。
+- **ratchet**：`ratchets/ts71/7.1.0-dev-19dadef8.tsv`。T0以上に達したlane Aのconfigurationと、その最深tierを並べる。
+  `--check`は後退を検出し、`--update`は下げずに記録する。tierを下げるのはreviewした編集だけにする。
+
+### 初回値
+
+`python3 scripts/conformance_ts71.py --workers 4 --update`で測った（release build、`taskpolicy -b nice -n 20`で862秒。
+開発機を低優先で使った参考時間で、性能計測ではない）。
+
+| 区分 | configuration |
+| --- | ---: |
+| lane A | 13,444 |
+| 　T3：`.errors.txt`が完全一致 | 12,467（92.7%） |
+| 　T2まで一致（1行目の文言まで） | 124 |
+| 　T1まで一致（categoryまで） | 100 |
+| 　T0まで一致（位置とcodeまで） | 0 |
+| 　不一致 | 696 |
+| 　harness error | 57 |
+| lane B（6.0で非推奨のoption） | 1,742 |
+| skip list（Goも実行しない） | 42 |
+
+- **検算**：lane Aの13,444件と、lane Bの`downlevelIteration`の23件（7.1は実行してTS5102を出す）の和13,467は、
+  展開が予測した実行configuration数と一致する。lane Bの内訳は`target: es5` 1,315、`module` 215、
+  `moduleResolution` 82、`alwaysStrict: false` 52、`baseUrl` 31、`esModuleInterop: false` 24、`downlevelIteration` 23。
+- **T3の描画**：chain・related情報・libのmaskを含む`arrayAssignmentTest1`、`abstractPropertyInConstructor`などで、
+  Goの出力とbyte一致した。T2までの224件にT3で残る差は、実際の挙動の差だった（下記）。
+
+### P2の入力
+
+- **harness error（57件）**
+  - stack overflow 16、120秒の無進捗 6、memory上限 1（`templateLiteralTypeExcessiveLength`）。6.0.3も同じように失敗し、
+    7.xで直ったcase（`circularDestructuring`、`unreachableFlowAfterThrowingFor*`、`excessivelyDeepConditionalTypes`など）。
+  - ES2026のtarget 2とlib 10。
+  - 7.xで加わったoption：`runExternalCode`（content mapper）15、`deduplicatePackages` 2。
+  - declaration診断の経路が`tsBuildInfoFile`を受け付けない 2、`stripInternal`で未対応のcontract 1。
+  - panic 2（`decoratorRestNoCrash1`、`dependentDestructuringCrossFilePosition`）。
+- **T1・T2に留まる224件**：union・propertyの表示順だけの差 54、chainの差 51（7.1は多重定義の失敗を
+  「The last overload gave the following error」で報告する）、文言の差 70（6.0.3のTS1344にある先頭の`'`などの修正）、
+  要約行は同じでrelated情報の位置やspanだけが違うもの 49。
+- **不一致（696件）**：最初に食い違う診断のcodeは、7.1にだけあるものがTS2741 51、TS2683 37（JSの`this`）、
+  TS2339 29、TS2300 29、TS6196 26（未使用の型引数）、TS2307 17（module解決）、TS1005 16（parser）、TS6504 14。
+  tsc-rsにだけあるものがTS2345 44（7.1は引数の不一致をTS2741などで直接報告する）、TS6133 39、TS2344 14、
+  TS2857 10（import attributes）など。
+
+### P1で残したもの
+
+- lane Bの比較は、旧runner（`cargo xtask conformance`と6.0.3のgolden）が引き続き担う。新runnerはlane Bを分類するだけ。
+- T3は`@pretty`の14 caseを対象外にしている。`stableTypeOrdering`（2 case）はtsc-rsに安定順序の経路がないので無視している。
+- hosted CIへの組込みは、P3で旧runnerを引退させるときに合わせる。
 
 ## 未決事項とリスク
 
