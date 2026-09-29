@@ -339,7 +339,7 @@ const NODE_FLAGS_BLOCK_SCOPED: i32 = 7;
 
 impl<'a> FixtureBinder<'a> {
     fn record(&self, id: NodeId) -> &'a tsc_syntax::Node {
-        &self.nodes[(id.0 - self.node_base) as usize]
+        &self.nodes[(id.index() - self.node_base) as usize]
     }
 
     fn kind(&self, id: NodeId) -> SyntaxKind {
@@ -556,7 +556,7 @@ fn build_fixture_resolver(arena: &TransformArena, source: TransformSourceId) -> 
         nodes: syntax.arena.nodes(),
         node_base,
     };
-    let id_at = |offset: usize| NodeId(node_base + offset as u32);
+    let id_at = |offset: usize| NodeId::new(node_base + offset as u32);
 
     // -- collect identifiers + catch clauses (B-3 arm) + declarations -----
     let mut identifiers: BTreeMap<NodeId, (String, u32)> = BTreeMap::new();
@@ -567,44 +567,45 @@ fn build_fixture_resolver(arena: &TransformArena, source: TransformSourceId) -> 
     // pattern), yielding (nameNode, valueDeclaration) pairs. For a plain
     // identifier name the valueDeclaration is `declaration`; for pattern
     // elements it is the BindingElement (getSymbolOfDeclaration analog).
-    let collect_binding_names =
-        |start_name: NodeId, declaration: NodeId, out: &mut Vec<(String, NodeId)>| {
-            let mut stack = vec![(start_name, declaration)];
-            while let Some((name, value_declaration)) = stack.pop() {
-                let record = binder.record(name);
-                match &record.data {
-                    NodeData::Identifier(data) => out.push((data.text.clone(), value_declaration)),
-                    NodeData::ObjectBindingPattern(pattern) => {
-                        if let Some(elements) = pattern.elements {
-                            for element in &syntax.arena.node_array(elements).nodes {
+    let collect_binding_names = |start_name: NodeId,
+                                 declaration: NodeId,
+                                 out: &mut Vec<(String, NodeId)>| {
+        let mut stack = vec![(start_name, declaration)];
+        while let Some((name, value_declaration)) = stack.pop() {
+            let record = binder.record(name);
+            match &record.data {
+                NodeData::Identifier(data) => out.push((data.text().to_owned(), value_declaration)),
+                NodeData::ObjectBindingPattern(pattern) => {
+                    if let Some(elements) = pattern.elements {
+                        for element in &syntax.arena.node_array(elements).nodes {
+                            stack.push((*element, *element));
+                        }
+                    }
+                }
+                NodeData::ArrayBindingPattern(pattern) => {
+                    if let Some(elements) = pattern.elements {
+                        for element in &syntax.arena.node_array(elements).nodes {
+                            if binder.kind(*element) != SyntaxKind::OmittedExpression {
                                 stack.push((*element, *element));
                             }
                         }
                     }
-                    NodeData::ArrayBindingPattern(pattern) => {
-                        if let Some(elements) = pattern.elements {
-                            for element in &syntax.arena.node_array(elements).nodes {
-                                if binder.kind(*element) != SyntaxKind::OmittedExpression {
-                                    stack.push((*element, *element));
-                                }
-                            }
-                        }
-                    }
-                    NodeData::BindingElement(element) => {
-                        if let Some(inner) = element.name {
-                            stack.push((inner, name));
-                        }
-                    }
-                    _ => {}
                 }
+                NodeData::BindingElement(element) => {
+                    if let Some(inner) = element.name {
+                        stack.push((inner, name));
+                    }
+                }
+                _ => {}
             }
-        };
+        }
+    };
 
     for (offset, record) in syntax.arena.nodes().iter().enumerate() {
         let id = id_at(offset);
         match &record.data {
             NodeData::Identifier(data) => {
-                identifiers.insert(id, (data.text.clone(), record.pos));
+                identifiers.insert(id, (data.text().to_owned(), record.pos));
             }
             NodeData::CatchClause(data) => {
                 let (Some(declaration), Some(block)) = (data.variable_declaration, data.block)
@@ -620,13 +621,13 @@ fn build_fixture_resolver(arena: &TransformArena, source: TransformSourceId) -> 
                     NodeData::Identifier(name_data) => {
                         let block_record = binder.record(block);
                         catches.push((
-                            name_data.text.clone(),
+                            name_data.text().to_owned(),
                             block_record.pos,
                             block_record.end,
                             declaration,
                         ));
                         declarations.push(FixtureDecl {
-                            name: name_data.text.clone(),
+                            name: name_data.text().to_owned(),
                             declaration,
                             scope: id,
                             kind: DeclKind::CatchVariable,
@@ -702,7 +703,7 @@ fn build_fixture_resolver(arena: &TransformArena, source: TransformSourceId) -> 
                     if let NodeData::Identifier(data) = &binder.record(name).data {
                         let scope = nearest_function_scope(&binder, id);
                         declarations.push(FixtureDecl {
-                            name: data.text.clone(),
+                            name: data.text().to_owned(),
                             declaration: id,
                             scope,
                             kind: DeclKind::Value,
@@ -717,7 +718,7 @@ fn build_fixture_resolver(arena: &TransformArena, source: TransformSourceId) -> 
                             .enclosing_block_scope_container(id)
                             .expect("class declaration has a container");
                         declarations.push(FixtureDecl {
-                            name: data.text.clone(),
+                            name: data.text().to_owned(),
                             declaration: id,
                             scope,
                             kind: DeclKind::BlockScoped,
@@ -729,7 +730,7 @@ fn build_fixture_resolver(arena: &TransformArena, source: TransformSourceId) -> 
                 if let Some(name) = class.name {
                     if let NodeData::Identifier(data) = &binder.record(name).data {
                         declarations.push(FixtureDecl {
-                            name: data.text.clone(),
+                            name: data.text().to_owned(),
                             declaration: id,
                             scope: id, // visible within the class expression only
                             kind: DeclKind::ClassExpression,
@@ -4011,7 +4012,7 @@ fn type_script_class_wrapper_surgery_flattens_the_wrapped_class() {
                 .nodes()
                 .iter()
                 .enumerate()
-                .map(|(offset, record)| (NodeId(node_base + offset as u32), record.kind))
+                .map(|(offset, record)| (NodeId::new(node_base + offset as u32), record.kind))
                 .collect()
         };
         let outer_call = syntax_nodes

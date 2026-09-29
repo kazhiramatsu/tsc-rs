@@ -857,7 +857,7 @@ fn with_anchor<R>(
 pub(crate) fn text_of_node(source: &SourceFile, node: NodeId) -> tsc_types::JsString {
     let node = source.arena.node(node);
     if let NodeData::Identifier(identifier) = &node.data {
-        return identifier.text.clone().into();
+        return identifier.text().to_owned().into();
     }
     let start = tsc_syntax::skip_trivia(source.text(), node.pos as usize);
     source

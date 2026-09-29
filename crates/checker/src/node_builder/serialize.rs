@@ -1449,7 +1449,7 @@ impl EmitTrackerAccess for ProductionSyntacticBuilderResolver<'_, '_> {
         Ok(self
             .checker
             .parent_of(node)
-            .map(|parent| EmitTrackerNode(u64::from(parent.0))))
+            .map(|parent| EmitTrackerNode(u64::from(parent.index()))))
     }
 
     fn is_symbol_accessible(

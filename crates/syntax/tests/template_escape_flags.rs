@@ -17,7 +17,7 @@ fn template_cooked_is_invalid(raw: &str) -> bool {
         .iter()
         .find(|node| node.kind == SyntaxKind::NoSubstitutionTemplateLiteral)
         .unwrap();
-    let flags = TokenFlags::from_bits(fragment.template_flags);
+    let flags = TokenFlags::from_bits(i32::from(fragment.template_flags));
     let invalid = flags.intersects(TokenFlags::IS_INVALID);
     assert_eq!(
         invalid,

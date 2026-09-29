@@ -99,7 +99,7 @@ fn detached_arena_preserves_ids_without_extending_published_leases() {
         usize::MAX,
         tsc_types::NodeFlags::SYNTHESIZED,
     );
-    assert_eq!(synthetic.0, original_node_end);
+    assert_eq!(synthetic.index(), original_node_end);
     assert!(!source.arena.contains_node(synthetic));
     assert_eq!(source.arena.node_end(), original_node_end);
     assert!(source.arena.has_identity_leases());

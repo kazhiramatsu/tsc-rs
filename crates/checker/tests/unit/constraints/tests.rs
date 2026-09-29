@@ -196,7 +196,7 @@ fn circular_constraint_reports_the_independent_driver_origin() {
             .find(|&node| {
                 matches!(
                     &source.arena.node(node).data,
-                    tsc_syntax::NodeData::Identifier(data) if data.text == "origin"
+                    tsc_syntax::NodeData::Identifier(data) if data.text() == "origin"
                 )
             })
             .expect("origin identifier");

@@ -4288,7 +4288,7 @@ fn config_property_name(source: &SourceFile, name: NodeId) -> Option<JsString> {
         SyntaxKind::Identifier => node
             .data
             .as_identifier()
-            .map(|identifier| identifier.text.clone().into()),
+            .map(|identifier| identifier.text().to_owned().into()),
         SyntaxKind::NumericLiteral => node
             .data
             .as_numeric_literal()

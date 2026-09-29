@@ -256,7 +256,7 @@ impl EmitTrackerAccess for CheckerTrackerAccess<'_, '_> {
         Ok(self
             .checker
             .parent_of(node)
-            .map(|parent| EmitTrackerNode(u64::from(parent.0))))
+            .map(|parent| EmitTrackerNode(u64::from(parent.index()))))
     }
 
     fn is_symbol_accessible(
@@ -1740,7 +1740,7 @@ fn create_entity_name_from_parse_node(
 ) -> BuildResult<TransformNode> {
     match checker.data_of(node) {
         NodeData::Identifier(data) => {
-            let identifier = create_identifier(arena, target, &data.text)?;
+            let identifier = create_identifier(arena, target, data.text())?;
             Ok(set_no_ascii_escaping(arena, identifier))
         }
         NodeData::QualifiedName(data) => {
@@ -2203,7 +2203,7 @@ fn type_parameter_shadows_other_type_parameter_in_scope<'n>(
 
 fn identifier_text(arena: &TransformArena, node: TransformNode) -> BuildResult<Option<String>> {
     Ok(match &arena.node(node).map_err(factory_error)?.data {
-        NodeData::Identifier(data) => Some(data.text.clone()),
+        NodeData::Identifier(data) => Some(data.text().to_owned()),
         _ => None,
     })
 }

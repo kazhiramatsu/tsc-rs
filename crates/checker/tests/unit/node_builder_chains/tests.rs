@@ -164,7 +164,7 @@ fn declaration_symbol(
 
 fn declaration_name_text(checker: &CheckerState<'_>, name: NodeId) -> Option<String> {
     match checker.data_of(name) {
-        NodeData::Identifier(data) => Some(data.text.clone()),
+        NodeData::Identifier(data) => Some(data.text().to_owned()),
         NodeData::StringLiteral(data) => Some(
             (data.text.clone())
                 .as_str()

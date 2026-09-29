@@ -727,7 +727,6 @@ fn create_identifier(
         source,
         NodeData::Identifier(IdentifierData {
             escaped_text: text.to_owned(),
-            text: text.to_owned(),
         }),
         TransformFlags::NONE,
     )

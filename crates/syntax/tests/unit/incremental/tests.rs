@@ -9,8 +9,8 @@ use tsc_types::{IdentityDomain, IdentitySpace};
 struct CanonicalNode {
     kind: SyntaxKind,
     flags: i32,
-    numeric_literal_flags: i32,
-    template_flags: i32,
+    numeric_literal_flags: u16,
+    template_flags: u16,
     multi_line: Option<bool>,
     pos: u32,
     end: u32,
@@ -31,7 +31,7 @@ fn canonical_tree(source: &SourceFile) -> CanonicalTree {
     let mut array_map = HashMap::new();
     let mut nodes = vec![source.root];
     let mut arrays = Vec::new();
-    node_map.insert(source.root, NodeId(0));
+    node_map.insert(source.root, NodeId::new(0));
 
     let mut node_index = 0usize;
     let mut array_index = 0usize;
@@ -46,14 +46,14 @@ fn canonical_tree(source: &SourceFile) -> CanonicalTree {
             }
             for child in child_nodes {
                 if let std::collections::hash_map::Entry::Vacant(entry) = node_map.entry(child) {
-                    let canonical = NodeId(nodes.len() as u32);
+                    let canonical = NodeId::new(nodes.len() as u32);
                     entry.insert(canonical);
                     nodes.push(child);
                 }
             }
             for child in child_arrays {
                 if let std::collections::hash_map::Entry::Vacant(entry) = array_map.entry(child) {
-                    let canonical = crate::NodeArrayId(arrays.len() as u32);
+                    let canonical = crate::NodeArrayId::new(arrays.len() as u32);
                     entry.insert(canonical);
                     arrays.push(child);
                 }
@@ -64,7 +64,7 @@ fn canonical_tree(source: &SourceFile) -> CanonicalTree {
             let array = source.arena.node_array(arrays[array_index]);
             for child in &array.nodes {
                 if let std::collections::hash_map::Entry::Vacant(entry) = node_map.entry(*child) {
-                    let canonical = NodeId(nodes.len() as u32);
+                    let canonical = NodeId::new(nodes.len() as u32);
                     entry.insert(canonical);
                     nodes.push(*child);
                 }

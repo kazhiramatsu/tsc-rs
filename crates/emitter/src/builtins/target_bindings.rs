@@ -156,11 +156,11 @@ impl ParsedSourceIdentifierNames {
             let NodeData::Identifier(identifier) = &record.data else {
                 continue;
             };
-            if names.contains(identifier.text.as_str()) {
+            if names.contains(identifier.text()) {
                 continue;
             }
             let offset = u32::try_from(offset).expect("transform node count exceeds u32");
-            let id = NodeId(
+            let id = NodeId::new(
                 node_base
                     .checked_add(offset)
                     .expect("transform node identity overflow"),
@@ -171,7 +171,7 @@ impl ParsedSourceIdentifierNames {
             if !arena.is_parsed_node(node)? {
                 continue;
             }
-            names.insert(identifier.text.clone());
+            names.insert(identifier.text().to_owned());
         }
         let names = Arc::new(names);
         // A concurrent first collector of the same source (none exists: an
@@ -654,7 +654,7 @@ pub(super) fn collect_untagged_identifier_texts(
     let node_base = syntax.arena.node_base();
     let mut seen = vec![false; syntax.arena.nodes().len()];
     while let Some(id) = stack.pop() {
-        let index = id.0.wrapping_sub(node_base) as usize;
+        let index = id.index().wrapping_sub(node_base) as usize;
         match seen.get_mut(index) {
             Some(mark) if *mark => continue,
             Some(mark) => *mark = true,
@@ -663,13 +663,13 @@ pub(super) fn collect_untagged_identifier_texts(
         let node = TransformNode::new(source, id);
         let record = arena.node(node)?;
         if let NodeData::Identifier(data) = &record.data {
-            if !names.contains(data.text.as_str())
+            if !names.contains(data.text())
                 && arena
                     .metadata(node)
                     .and_then(|metadata| metadata.generated_binding_id())
                     .is_none()
             {
-                names.insert(data.text.clone());
+                names.insert(data.text().to_owned());
             }
         }
         for_each_child(&syntax.arena, record, |child| {
@@ -1735,7 +1735,7 @@ fn collect_binding_name_events(
             .metadata(node)
             .is_some_and(|metadata| metadata.generated_binding_reserved_in_nested_scopes());
         let planned_name = match &record.data {
-            NodeData::Identifier(data) => data.text.clone(),
+            NodeData::Identifier(data) => data.text().to_owned(),
             _ => {
                 return Err(TransformError::RequiredChildRemoved {
                     parent: record.kind,

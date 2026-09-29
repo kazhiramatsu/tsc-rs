@@ -26,7 +26,7 @@ fn conditional_and_substitution_models_are_constructible_and_renderable() {
             };
             let root = state.tables.conditional_root(data.root);
             assert!(root.is_distributive);
-            assert_eq!(root.node, annotation.0);
+            assert_eq!(root.node, annotation.index());
             assert_eq!(
                 root.outer_type_parameters
                     .as_ref()

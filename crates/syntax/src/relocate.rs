@@ -5586,7 +5586,7 @@ where
             left.token == right.token && optional_array_equal(left.types, right.types, &mut array)
         }
         (NodeData::Identifier(left), NodeData::Identifier(right)) => {
-            left.escaped_text == right.escaped_text && left.text == right.text
+            left.escaped_text == right.escaped_text
         }
         (NodeData::IfStatement(left), NodeData::IfStatement(right)) => {
             optional_node_equal(left.expression, right.expression, &mut node)
@@ -6126,7 +6126,7 @@ where
                 && optional_node_equal(left.operand, right.operand, &mut node)
         }
         (NodeData::PrivateIdentifier(left), NodeData::PrivateIdentifier(right)) => {
-            left.escaped_text == right.escaped_text && left.text == right.text
+            left.escaped_text == right.escaped_text
         }
         (NodeData::PropertyAccessExpression(left), NodeData::PropertyAccessExpression(right)) => {
             optional_node_equal(left.name, right.name, &mut node)

@@ -119,11 +119,11 @@ impl NodeDataChildVisitor for Mapper<'_> {
     }
 
     fn visit_node(&mut self, id: NodeId) -> Result<Option<NodeId>, Self::Error> {
-        Ok((!self.remove).then_some(NodeId(id.0 ^ 1)))
+        Ok((!self.remove).then_some(NodeId::new(id.index() ^ 1)))
     }
 
     fn visit_nodes(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, Self::Error> {
-        Ok((!self.remove).then_some(NodeArrayId(id.0 ^ 1)))
+        Ok((!self.remove).then_some(NodeArrayId::new(id.index() ^ 1)))
     }
 
     fn required_child_removed(&mut self, parent: SyntaxKind, field: &'static str) -> Self::Error {

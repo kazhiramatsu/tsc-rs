@@ -52,7 +52,7 @@ fn token_comment_phase_printer_metadata_matches_typescript() {
                                     && i64::from(node.end)
                                         == case["selected_byte_range"]["end"].as_i64().unwrap()))
                     })
-                    .map(|(index, _)| NodeId(u32::try_from(index).unwrap()))
+                    .map(|(index, _)| NodeId::new(u32::try_from(index).unwrap()))
                     .collect::<Vec<_>>();
                 assert_eq!(classes.len(), 1);
                 let bits = u32::try_from(case["emit_flags"].as_u64().unwrap()).unwrap();

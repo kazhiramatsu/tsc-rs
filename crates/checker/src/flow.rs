@@ -1220,9 +1220,10 @@ impl<'a> CheckerState<'a> {
         // this-rooted chain keys from the ThisKeyword arm's base
         // (69414 "0|…") — the container node's own kind never keys.
         let base_key = if query.synthetic_this_root {
-            let container_id = query
-                .flow_container
-                .map_or_else(|| "-1".to_owned(), |container| container.0.to_string());
+            let container_id = query.flow_container.map_or_else(
+                || "-1".to_owned(),
+                |container| container.index().to_string(),
+            );
             Some(JsString::from(format!(
                 "0|{container_id}|{}|{}",
                 query.declared_type.0, query.initial_type.0
@@ -1267,7 +1268,8 @@ impl<'a> CheckerState<'a> {
         initial_type: TypeId,
         flow_container: Option<NodeId>,
     ) -> CheckResult<Option<JsString>> {
-        let container_id = flow_container.map_or_else(|| "-1".to_owned(), |c| c.0.to_string());
+        let container_id =
+            flow_container.map_or_else(|| "-1".to_owned(), |c| c.index().to_string());
         match self.kind_of(node) {
             SyntaxKind::Identifier if !self.is_this_in_type_query(node) => {
                 Ok(self.get_resolved_symbol(node)?.map(|symbol| {
@@ -1394,7 +1396,8 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::ArrowFunction
             | SyntaxKind::MethodDeclaration => Ok(Some(JsString::from(format!(
                 "{}#{}",
-                node.0, declared_type.0
+                node.index(),
+                declared_type.0
             )))),
             _ => Ok(None),
         }

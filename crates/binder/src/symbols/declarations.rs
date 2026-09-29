@@ -30,7 +30,7 @@ impl Declarations {
     pub const fn new() -> Self {
         Self(Repr::Inline {
             len: 0,
-            nodes: [NodeId(0); INLINE],
+            nodes: [NodeId::new(0); INLINE],
         })
     }
 

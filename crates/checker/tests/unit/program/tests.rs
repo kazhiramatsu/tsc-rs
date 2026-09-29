@@ -87,14 +87,14 @@ fn routes_parse_order_arenas_without_changing_program_order() {
     }
 
     for raw in dependency.arena.array_base()..dependency.arena.array_end() {
-        let id = NodeArrayId(raw);
+        let id = NodeArrayId::new(raw);
         assert!(std::ptr::eq(
             program.node_array(id),
             dependency.arena.node_array(id)
         ));
     }
     for raw in root.arena.array_base()..root.arena.array_end() {
-        let id = NodeArrayId(raw);
+        let id = NodeArrayId::new(raw);
         assert!(std::ptr::eq(
             program.node_array(id),
             root.arena.node_array(id)

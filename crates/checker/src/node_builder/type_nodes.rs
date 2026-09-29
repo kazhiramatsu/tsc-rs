@@ -118,10 +118,10 @@ pub(crate) fn create_factory_node(
     }
 
     let result = match data {
-        NodeData::Identifier(data) => arena.factory().create_identifier(target, data.text),
-        NodeData::PrivateIdentifier(data) => {
-            arena.factory().create_private_identifier(target, data.text)
-        }
+        NodeData::Identifier(data) => arena.factory().create_identifier(target, data.text()),
+        NodeData::PrivateIdentifier(data) => arena
+            .factory()
+            .create_private_identifier(target, data.text()),
         NodeData::StringLiteral(data) => arena
             .factory()
             .create_string_literal(target, data.text, false),
@@ -937,7 +937,6 @@ pub(super) fn create_identifier(
         target,
         NodeData::Identifier(IdentifierData {
             escaped_text: tsc_syntax::escape_leading_underscores(text),
-            text: text.to_owned(),
         }),
     )
 }
@@ -2201,7 +2200,7 @@ fn identifier_text(arena: &TransformArena, node: TransformNode) -> Option<&str> 
     let NodeData::Identifier(data) = &arena.node(node).ok()?.data else {
         return None;
     };
-    Some(&data.text)
+    Some(data.text())
 }
 
 fn create_synthetic_type_parameter(checker: &mut CheckerState<'_>, name: &str) -> TypeId {
@@ -2290,7 +2289,7 @@ fn conditional_type_to_type_node(
         let Some(extends) = extends? else {
             return Ok(None);
         };
-        let NodeData::ConditionalType(root_node) = checker.data_of(NodeId(root.node)).clone()
+        let NodeData::ConditionalType(root_node) = checker.data_of(NodeId::new(root.node)).clone()
         else {
             context.encountered_error = true;
             return Ok(None);
@@ -3396,7 +3395,7 @@ fn type_reference_to_type_node(
                     .flatten();
                 *node = if let Some(label) = label {
                     let name = checker
-                        .tuple_element_label(NodeId(label))
+                        .tuple_element_label(NodeId::new(label))
                         .map_err(|abort| checker_abort_error(checker, context, abort))?;
                     let name = create_identifier(arena, target, &name)?;
                     let dot = if flags.intersects(ElementFlags::VARIABLE) {
@@ -4023,7 +4022,7 @@ fn create_type_nodes_from_resolved_type(
                         if let NodeData::PrivateIdentifier(data) = checker.data_of(name) {
                             context.tracker.report_private_in_base_of_class_expression(
                                 &mut context.reported_diagnostic,
-                                &data.text,
+                                data.text(),
                             );
                         }
                     }
@@ -4821,7 +4820,7 @@ pub(crate) fn map_to_type_nodes(
                             .data
                         {
                             seen_names
-                                .entry(identifier.text.clone())
+                                .entry(identifier.text().to_owned())
                                 .or_default()
                                 .push((r#type, result.len()));
                         }

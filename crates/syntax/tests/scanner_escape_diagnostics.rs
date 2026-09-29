@@ -37,8 +37,8 @@ fn scanner_escape_diagnostics_follow_typescript() {
         while let Some(id) = stack.pop() {
             let node = parsed.arena.node(id);
             let text = match &node.data {
-                NodeData::Identifier(identifier) => Some(identifier.text.as_str()),
-                NodeData::PrivateIdentifier(identifier) => Some(identifier.text.as_str()),
+                NodeData::Identifier(identifier) => Some(identifier.text()),
+                NodeData::PrivateIdentifier(identifier) => Some(identifier.text()),
                 _ => None,
             };
             if let Some(text) = text {

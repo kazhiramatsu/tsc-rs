@@ -1078,7 +1078,7 @@ fn collect_static_module_reference_statements(
                 }
                 let name_text = match &name_node.data {
                     NodeData::StringLiteral(literal) => literal.text.as_js(),
-                    NodeData::Identifier(identifier) => JsStr::from_str(&identifier.text),
+                    NodeData::Identifier(identifier) => JsStr::from_str(identifier.text()),
                     _ => JsStr::from_str(""),
                 };
                 let is_augmentation = parsed.external_module_indicator.is_some()

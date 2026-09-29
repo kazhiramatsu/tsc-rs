@@ -6887,7 +6887,7 @@ impl<'a> CheckerState<'a> {
                     .as_ref()
                     .and_then(|declarations| declarations.get(index).copied())
                     .flatten()
-                    .map(NodeId);
+                    .map(NodeId::new);
                 let element_flags = tuple
                     .element_flags
                     .get(index)
@@ -7897,7 +7897,7 @@ impl<'a> CheckerState<'a> {
             let declaration = self.binder.symbol(parameters[pos]).value_declaration;
             return Ok(declaration
                 .filter(|&declaration| self.is_valid_declaration_for_tuple_label(declaration))
-                .map(|declaration| declaration.0));
+                .map(|declaration| declaration.index()));
         }
         // tsc falls back to unknownSymbol when the rest slot is out of
         // range — no value declaration either way.
@@ -7919,7 +7919,7 @@ impl<'a> CheckerState<'a> {
         let declaration = self.binder.symbol(rest_parameter).value_declaration;
         Ok(declaration
             .filter(|&declaration| self.is_valid_declaration_for_tuple_label(declaration))
-            .map(|declaration| declaration.0))
+            .map(|declaration| declaration.index()))
     }
 
     /// tsc-port: isValidDeclarationForTupleLabel @6.0.3

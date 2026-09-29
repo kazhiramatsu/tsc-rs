@@ -34,7 +34,6 @@ impl UnfinalizedGeneratedNameTransformer {
             source,
             NodeData::Identifier(syntax_nodes::IdentifierData {
                 escaped_text: tsc_syntax::escape_leading_underscores(text),
-                text: text.to_owned(),
             }),
             TransformFlags::NONE,
         )

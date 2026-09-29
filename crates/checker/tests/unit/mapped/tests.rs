@@ -28,8 +28,10 @@ fn parameter_annotation_type(state: &mut CheckerState, name: &str) -> TypeId {
         let source = state.binder.source(0);
         (0..source.arena.len())
             .find_map(|index| {
-                let NodeData::Parameter(parameter) =
-                    &source.arena.node(tsc_syntax::NodeId(index as u32)).data
+                let NodeData::Parameter(parameter) = &source
+                    .arena
+                    .node(tsc_syntax::NodeId::new(index as u32))
+                    .data
                 else {
                     return None;
                 };
@@ -38,7 +40,7 @@ fn parameter_annotation_type(state: &mut CheckerState, name: &str) -> TypeId {
                 else {
                     return None;
                 };
-                (identifier.text == name)
+                (identifier.text() == name)
                     .then_some(parameter.r#type)
                     .flatten()
             })

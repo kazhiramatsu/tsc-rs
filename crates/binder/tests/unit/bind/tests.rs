@@ -95,7 +95,7 @@ fn jsdoc_reference_contexts_match_expression_classification() {
 
 fn find_nodes(source: &SourceFile, kind: SyntaxKind) -> Vec<NodeId> {
     (0..source.arena.len() as u32)
-        .map(NodeId)
+        .map(NodeId::new)
         .filter(|&id| source.arena.node(id).kind == kind)
         .collect()
 }

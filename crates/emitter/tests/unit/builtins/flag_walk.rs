@@ -93,12 +93,12 @@ fn all_flags(arena: &TransformArena, source: TransformSourceId) -> Vec<(u32, i32
     let syntax = arena.source(source).unwrap().syntax();
     let mut rows = Vec::new();
     for id in syntax.arena.node_base()..syntax.arena.node_end() {
-        let node = arena.node_ref(source, NodeId(id)).unwrap();
+        let node = arena.node_ref(source, NodeId::new(id)).unwrap();
         rows.push((id, arena.transform_flags(node).bits(), false));
     }
     for id in syntax.arena.array_base()..syntax.arena.array_end() {
         let array = arena
-            .node_array_ref(source, tsc_syntax::NodeArrayId(id))
+            .node_array_ref(source, tsc_syntax::NodeArrayId::new(id))
             .unwrap();
         rows.push((id, arena.array_transform_flags(array).bits(), true));
     }

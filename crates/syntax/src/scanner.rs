@@ -735,15 +735,17 @@ impl<'text> Scanner<'text> {
         text
     }
 
-    /// tsc scanner.getNumericLiteralFlags.
-    pub(crate) fn numeric_literal_flags(&self) -> i32 {
-        (self.token_flags.0 & TokenFlags::NUMERIC_LITERAL_FLAGS.0) as i32
+    /// tsc scanner.getNumericLiteralFlags; every such bit lies below bit 16.
+    pub(crate) fn numeric_literal_flags(&self) -> u16 {
+        (self.token_flags.0 & TokenFlags::NUMERIC_LITERAL_FLAGS.0) as u16
     }
 
-    /// tsc parseLiteralLikeNode: scanner flags masked with TemplateLiteralLikeFlags.
+    /// tsc parseLiteralLikeNode: scanner flags masked with TemplateLiteralLikeFlags,
+    /// every one of which lies below bit 16.
     /// Keep valid escape bits too; the factory uses any nonzero bit for ES2018.
-    pub(crate) fn template_literal_flags(&self) -> i32 {
-        self.token_flags.0 as i32 & tsc_types::TokenFlags::TEMPLATE_LITERAL_LIKE_FLAGS.bits()
+    pub(crate) fn template_literal_flags(&self) -> u16 {
+        (self.token_flags.0 as i32 & tsc_types::TokenFlags::TEMPLATE_LITERAL_LIKE_FLAGS.bits())
+            as u16
     }
 
     /// tsc getTokenText: the raw source slice of the current token.

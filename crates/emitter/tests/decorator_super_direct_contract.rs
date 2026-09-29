@@ -211,7 +211,7 @@ impl Site<'_> {
             .iter()
             .position(|id| match self.data(*id) {
                 NodeData::ClassDeclaration(data) => data.name.is_some_and(|name| {
-                    matches!(self.data(name), NodeData::Identifier(identifier) if identifier.text == "Derived")
+                    matches!(self.data(name), NodeData::Identifier(identifier) if identifier.text() == "Derived")
                 }),
                 _ => false,
             })

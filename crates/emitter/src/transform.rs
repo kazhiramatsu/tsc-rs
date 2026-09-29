@@ -1472,13 +1472,13 @@ impl fmt::Display for TransformError {
                 formatter,
                 "unknown transform node {}:{}",
                 node.source().raw(),
-                node.node().0
+                node.node().index()
             ),
             Self::UnknownNodeArray(array) => write!(
                 formatter,
                 "unknown transform node array {}:{}",
                 array.source().raw(),
-                array.array().0
+                array.array().index()
             ),
             Self::CrossSourceNode { expected, actual } => write!(
                 formatter,
@@ -1516,7 +1516,7 @@ impl fmt::Display for TransformError {
                 formatter,
                 "{consumer} requires {producer} {handoff} for transform node {}:{}",
                 node.source().raw(),
-                node.node().0
+                node.node().index()
             ),
             Self::UnexpectedChildKind {
                 parent,
@@ -1535,11 +1535,11 @@ impl fmt::Display for TransformError {
                 formatter,
                 "{context} array {}:{} is owned by {}:{}, not attempted parent {}:{}",
                 array.source().raw(),
-                array.array().0,
+                array.array().index(),
                 existing_parent.source().raw(),
-                existing_parent.node().0,
+                existing_parent.node().index(),
                 attempted_parent.source().raw(),
-                attempted_parent.node().0
+                attempted_parent.node().index()
             ),
             Self::ContextualNodeArrayAlreadyVisited {
                 context,
@@ -1549,9 +1549,9 @@ impl fmt::Display for TransformError {
                 formatter,
                 "{context} array {}:{} for parent {}:{} was already visited",
                 array.source().raw(),
-                array.array().0,
+                array.array().index(),
                 parent.source().raw(),
-                parent.node().0
+                parent.node().index()
             ),
             Self::ReentrantContextualNodeArrayVisit {
                 context,
@@ -1561,9 +1561,9 @@ impl fmt::Display for TransformError {
                 formatter,
                 "{context} array {}:{} for parent {}:{} was visited reentrantly",
                 array.source().raw(),
-                array.array().0,
+                array.array().index(),
                 parent.source().raw(),
-                parent.node().0
+                parent.node().index()
             ),
             Self::ContextualNodeArrayWrongVisitor {
                 context,
@@ -1573,27 +1573,27 @@ impl fmt::Display for TransformError {
                 formatter,
                 "{context} array {}:{} for parent {}:{} reached the ordinary array visitor",
                 array.source().raw(),
-                array.array().0,
+                array.array().index(),
                 parent.source().raw(),
-                parent.node().0
+                parent.node().index()
             ),
             Self::MissingProgramSource(node) => write!(
                 formatter,
                 "transform node {}:{} has no Program source for an emit-resolver query",
                 node.source().raw(),
-                node.node().0
+                node.node().index()
             ),
             Self::ResolverNodeNotInParseTree(node) => write!(
                 formatter,
                 "transform node {}:{} has no parse-tree identity for an emit-resolver query",
                 node.source().raw(),
-                node.node().0
+                node.node().index()
             ),
             Self::InvalidSourceRange { node, error } => write!(
                 formatter,
                 "transform node {}:{} has an invalid source range: {error}",
                 node.source().raw(),
-                node.node().0
+                node.node().index()
             ),
             Self::MissingProgramSourceForModuleFormat(source) => write!(
                 formatter,
@@ -1622,7 +1622,7 @@ impl fmt::Display for TransformError {
                 "unsupported {} syntax at transform node {}:{}",
                 feature.name(),
                 node.source().raw(),
-                node.node().0
+                node.node().index()
             ),
             Self::Resolver(error) => error.fmt(formatter),
             Self::InvalidLifecycle { operation, state } => {

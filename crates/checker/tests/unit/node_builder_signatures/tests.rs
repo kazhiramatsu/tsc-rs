@@ -299,7 +299,7 @@ fn index_parameter_names_are_synthesized_from_declaration_text() {
             let NodeData::Identifier(data) = &name.data else {
                 panic!("identifier")
             };
-            assert_eq!(data.text, r"\u0073lot");
+            assert_eq!(data.text(), r"\u0073lot");
             assert_eq!((name.pos, name.end), (u32::MAX, u32::MAX));
             Ok(())
         },
@@ -429,7 +429,7 @@ fn signature_declaration_expands_tuple_typed_rest_parameters() {
                 else {
                     panic!("identifier expected")
                 };
-                assert_eq!(name.text, expected_name);
+                assert_eq!(name.text(), expected_name);
                 assert!(parameter.dot_dot_dot_token.is_none());
                 assert_eq!(parameter.question_token.is_some(), index == 1);
             }

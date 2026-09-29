@@ -821,7 +821,7 @@ pub(crate) trait DenseKey: Copy {
 impl DenseKey for NodeId {
     #[inline]
     fn dense_index(self) -> usize {
-        self.0 as usize
+        self.index() as usize
     }
 }
 

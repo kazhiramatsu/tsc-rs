@@ -672,8 +672,7 @@
       "kindName": "Identifier",
       "dataName": "IdentifierData",
       "fields": [
-        {"name": "escapedText", "rustName": "escaped_text", "type": "String", "optional": false, "child": false},
-        {"name": "text", "rustName": "text", "type": "String", "optional": false, "child": false}
+        {"name": "escapedText", "rustName": "escaped_text", "type": "String", "optional": false, "child": false}
       ],
       "children": [
       ]
@@ -1911,8 +1910,7 @@
       "kindName": "PrivateIdentifier",
       "dataName": "PrivateIdentifierData",
       "fields": [
-        {"name": "escapedText", "rustName": "escaped_text", "type": "String", "optional": false, "child": false},
-        {"name": "text", "rustName": "text", "type": "String", "optional": false, "child": false}
+        {"name": "escapedText", "rustName": "escaped_text", "type": "String", "optional": false, "child": false}
       ],
       "children": [
       ]

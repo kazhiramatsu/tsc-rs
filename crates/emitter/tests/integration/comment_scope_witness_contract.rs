@@ -204,7 +204,7 @@ fn call_statement_name(
     let NodeData::Identifier(identifier) = &context.arena().node(callee).ok()?.data else {
         return None;
     };
-    Some(identifier.text.clone())
+    Some(identifier.text().to_owned())
 }
 
 fn is_x_statement(context: &TransformationContext, statement: TransformNode) -> bool {
@@ -222,7 +222,7 @@ fn is_x_statement(context: &TransformationContext, statement: TransformNode) -> 
     };
     matches!(
         &context.arena().node(expression).expect("expression").data,
-        NodeData::Identifier(identifier) if identifier.text == "x"
+        NodeData::Identifier(identifier) if identifier.text() == "x"
     )
 }
 
@@ -238,7 +238,6 @@ fn create_identifier(
             source,
             NodeData::Identifier(IdentifierData {
                 escaped_text: escape_leading_underscores(text),
-                text: text.to_owned(),
             }),
             TransformFlags::NONE,
         )
@@ -522,7 +521,7 @@ fn shrink_range_for(parsed: &tsc_syntax::SourceFile) -> Option<SourceRange> {
         let NodeData::Identifier(identifier) = &parsed.arena.node(callee).data else {
             continue;
         };
-        if identifier.text == "shrinkMe" {
+        if identifier.text() == "shrinkMe" {
             let pos = record.pos;
             let range = tsc_emitter::SourceByteRange::new(pos, pos, parsed.positions())
                 .expect("zero-width shrink range");

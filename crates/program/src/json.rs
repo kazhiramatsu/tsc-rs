@@ -938,7 +938,7 @@ fn jsonc_property_name(
         SyntaxKind::Identifier if allow_recovery => node
             .data
             .as_identifier()
-            .map(|identifier| identifier.text.clone().into()),
+            .map(|identifier| identifier.text().to_owned().into()),
         SyntaxKind::NumericLiteral if allow_recovery => node
             .data
             .as_numeric_literal()

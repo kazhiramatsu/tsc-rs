@@ -390,7 +390,6 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
             source,
             NodeData::Identifier(IdentifierData {
                 escaped_text: tsc_syntax::escape_leading_underscores(&text),
-                text,
             }),
             TransformFlags::NONE,
         )

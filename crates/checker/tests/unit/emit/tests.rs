@@ -275,8 +275,10 @@ fn scoped_emit_resolver_reads_live_alias_and_constant_links_and_fails_closed_els
             })
         ));
         assert!(matches!(
-            resolver
-                .is_value_alias_declaration(EmitResolverNode::from_raw_source(1, NodeId(u32::MAX))),
+            resolver.is_value_alias_declaration(EmitResolverNode::from_raw_source(
+                1,
+                NodeId::new(u32::MAX - 1)
+            )),
             Err(EmitResolverError::UnknownNode {
                 method: EmitResolverMethod::IsValueAliasDeclaration,
                 ..
@@ -2205,7 +2207,7 @@ fn common_js_esmodule_marker_resolver_reads_the_exact_binder_fact() {
                 actual_program_index: 1
             })
         );
-        let node = EmitResolverNode::from_raw_source(0, NodeId(u32::MAX));
+        let node = EmitResolverNode::from_raw_source(0, NodeId::new(u32::MAX - 1));
         assert_eq!(
             resolver.is_common_js_module(node),
             Err(EmitResolverError::UnknownNode { method, node })

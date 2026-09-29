@@ -110,10 +110,10 @@ fn declaration_names_precede_uses_in_source_module_and_function_scopes() {
             let node = TransformNode::new(self.source, id);
             let mut data = self.arena.node(node)?.data.clone();
             if let NodeData::Identifier(data) = &data {
-                if data.text == "firstBinding" {
+                if data.text() == "firstBinding" {
                     return Ok(Some(self.first.node()));
                 }
-                if data.text == "secondBinding" {
+                if data.text() == "secondBinding" {
                     return Ok(Some(self.second.node()));
                 }
             }

@@ -589,7 +589,8 @@ impl UsingCommonJsSourceIdentityResolver {
                         let NodeData::Identifier(identifier) = &source.arena.node(name).data else {
                             continue;
                         };
-                        declarations_by_name.insert(identifier.text.clone(), (*declaration, name));
+                        declarations_by_name
+                            .insert(identifier.text().to_owned(), (*declaration, name));
                         declarations_by_reference.insert(name, *declaration);
                         if directly_exported {
                             direct_export_references.insert(name);
@@ -603,7 +604,7 @@ impl UsingCommonJsSourceIdentityResolver {
                     let NodeData::Identifier(identifier) = &source.arena.node(name).data else {
                         continue;
                     };
-                    declarations_by_name.insert(identifier.text.clone(), (*statement, name));
+                    declarations_by_name.insert(identifier.text().to_owned(), (*statement, name));
                     declarations_by_reference.insert(name, *statement);
                 }
                 _ => {}
@@ -637,7 +638,7 @@ impl UsingCommonJsSourceIdentityResolver {
                 let NodeData::Identifier(identifier) = &source.arena.node(local).data else {
                     continue;
                 };
-                if let Some((declaration, _)) = declarations_by_name.get(&identifier.text) {
+                if let Some((declaration, _)) = declarations_by_name.get(identifier.text()) {
                     declarations_by_reference.insert(local, *declaration);
                 }
             }
@@ -790,7 +791,7 @@ fn observe_using_es_next_identifier_roles(
         let record = arena.node(node).expect("transformed node");
         if matches!(
             &record.data,
-            NodeData::Identifier(identifier) if identifier.text == observed_name
+            NodeData::Identifier(identifier) if identifier.text() == observed_name
         ) {
             roles.push(
                 arena
@@ -2528,7 +2529,7 @@ impl AsyncArgumentsResolver {
             if let Some(is_arrow) = function_is_arrow {
                 containers.push((node, is_arrow));
             }
-            if matches!(&record.data, NodeData::Identifier(identifier) if identifier.text == "arguments")
+            if matches!(&record.data, NodeData::Identifier(identifier) if identifier.text() == "arguments")
             {
                 argument_references.insert(node);
                 if let Some(mut index) = containers.len().checked_sub(1) {
@@ -2696,7 +2697,7 @@ fn enum_member_substitution_respects_property_access_identifier_names() {
         match &record.data {
             NodeData::EnumDeclaration(_) => enum_declaration = Some(node),
             NodeData::Identifier(identifier)
-                if matches!(identifier.text.as_str(), "a" | "b" | "x" | "y") =>
+                if matches!(identifier.text(), "a" | "b" | "x" | "y") =>
             {
                 enum_member_references.insert(node);
             }
@@ -2782,7 +2783,7 @@ fn access_with_property_name(parsed: &tsc_syntax::SourceFile, expected: &str) ->
             if data.name.is_some_and(|name| {
                 matches!(
                     &parsed.arena.node(name).data,
-                    NodeData::Identifier(identifier) if identifier.text == expected
+                    NodeData::Identifier(identifier) if identifier.text() == expected
                 )
             }) {
                 return node;
@@ -2867,7 +2868,7 @@ fn const_enum_negative_access_comment_stays_inside_access_parentheses() {
             let is_a = data.name.is_some_and(|name| {
                 matches!(
                     &parsed.arena.node(name).data,
-                    NodeData::Identifier(identifier) if identifier.text == "A"
+                    NodeData::Identifier(identifier) if identifier.text() == "A"
                 )
             });
             if is_a {
@@ -2950,7 +2951,7 @@ fn commentless_const_enum_integer_access_keeps_the_property_dot_boundary() {
             let is_a = data.name.is_some_and(|name| {
                 matches!(
                     &parsed.arena.node(name).data,
-                    NodeData::Identifier(identifier) if identifier.text == "A"
+                    NodeData::Identifier(identifier) if identifier.text() == "A"
                 )
             });
             if is_a {
@@ -3334,7 +3335,7 @@ impl DecoratedClassNamespaceMergeResolver {
                     if let Some(name) = data.name.filter(|name| {
                         matches!(
                             &source.arena.node(*name).data,
-                            NodeData::Identifier(data) if data.text == expected_name
+                            NodeData::Identifier(data) if data.text() == expected_name
                         )
                     }) {
                         class = Some((node, name));
@@ -3344,7 +3345,7 @@ impl DecoratedClassNamespaceMergeResolver {
                     if let Some(name) = data.name.filter(|name| {
                         matches!(
                             &source.arena.node(*name).data,
-                            NodeData::Identifier(data) if data.text == expected_name
+                            NodeData::Identifier(data) if data.text() == expected_name
                         )
                     }) {
                         namespace = Some((node, name));
@@ -6573,7 +6574,7 @@ fn observe_standard_decorated_class_name(
         panic!("decorated-class name must be an identifier");
     };
     StandardDecoratedClassNameObservation {
-        text: identifier.text.clone(),
+        text: identifier.text().to_owned(),
         original: arena.get_original_node(name).node(),
         range: (record.pos, record.end),
         flags: arena
@@ -7652,7 +7653,7 @@ impl DecoratedClassReferenceResolver {
                 if data.name.is_some_and(|name| {
                     matches!(
                         &source.arena.node(name).data,
-                        NodeData::Identifier(data) if data.text == class_name
+                        NodeData::Identifier(data) if data.text() == class_name
                     )
                 }) {
                     declaration = Some(node);
@@ -7676,7 +7677,7 @@ impl DecoratedClassReferenceResolver {
             if Some(node) != declaration_name
                 && matches!(
                     &record.data,
-                    NodeData::Identifier(data) if data.text == class_name
+                    NodeData::Identifier(data) if data.text() == class_name
                 )
             {
                 constructor_references.insert(node);
@@ -14057,7 +14058,7 @@ impl NestedDecoratedClassReferenceResolver {
                     if data.name.is_some_and(|name| {
                         matches!(
                             &source.arena.node(name).data,
-                            NodeData::Identifier(data) if data.text == class_name
+                            NodeData::Identifier(data) if data.text() == class_name
                         )
                     }) =>
                 {
@@ -14070,7 +14071,7 @@ impl NestedDecoratedClassReferenceResolver {
             if declaration_name != Some(node)
                 && matches!(
                     &record.data,
-                    NodeData::Identifier(data) if data.text == class_name
+                    NodeData::Identifier(data) if data.text() == class_name
                 )
             {
                 if let Some(declaration) = enclosing {

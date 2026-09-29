@@ -224,7 +224,7 @@ fn mark_fresh_probe_source(state: &mut CheckerState, ty: TypeId) -> TypeId {
 /// counterpart.
 pub(crate) fn find_probe_annotation(source: &SourceFile, name: &str) -> Option<NodeId> {
     for index in 0..source.arena.len() {
-        let node = source.arena.node(NodeId(index as u32));
+        let node = source.arena.node(NodeId::new(index as u32));
         let NodeData::VariableDeclaration(data) = &node.data else {
             continue;
         };
@@ -234,7 +234,7 @@ pub(crate) fn find_probe_annotation(source: &SourceFile, name: &str) -> Option<N
         let NodeData::Identifier(identifier) = &source.arena.node(declared_name).data else {
             continue;
         };
-        if identifier.text == name {
+        if identifier.text() == name {
             return data.r#type;
         }
     }

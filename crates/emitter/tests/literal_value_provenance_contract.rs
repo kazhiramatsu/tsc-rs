@@ -97,7 +97,7 @@ fn state(
                 let NodeData::Identifier(data) = &arena.node(node).unwrap().data else {
                     panic!("identifier text source")
                 };
-                data.text.clone()
+                data.text().to_owned()
             });
             state["single_quote"] = json!(properties.string_literal_single_quote().unwrap());
             state["text_source"] = json!(text_source);

@@ -2881,14 +2881,9 @@ fn report_program_memory(snapshot: &ProgramSnapshot) {
         syntax.array_item_bytes,
     );
     row(
-        "syntax: identifier strings (2/node)",
+        "syntax: identifier strings",
         syntax.identifiers,
         syntax.identifier_text_bytes,
-    );
-    row(
-        "syntax: identifiers escaped == text",
-        syntax.identifiers_same_text,
-        0,
     );
     row(
         "syntax: other literal strings",

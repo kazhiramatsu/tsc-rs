@@ -331,7 +331,6 @@ impl SyntacticBuilderResolver for TestResolver {
                 target,
                 NodeData::Identifier(IdentifierData {
                     escaped_text: "arg".to_owned(),
-                    text: "arg".to_owned(),
                 }),
                 TransformFlags::NONE,
             )
@@ -566,7 +565,7 @@ fn find_identifier(
         .find(|&node| {
             matches!(
                 &source.arena.node(node).data,
-                NodeData::Identifier(data) if data.text == text
+                NodeData::Identifier(data) if data.text() == text
             )
         })
         .expect("requested identifier");

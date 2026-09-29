@@ -1032,7 +1032,7 @@ fn current_source_is_js(
 
 fn identifier_text(cx: &TransformationContext, node: TransformNode) -> Option<String> {
     match &cx.arena().node(node).ok()?.data {
-        NodeData::Identifier(data) => Some(data.text.clone()),
+        NodeData::Identifier(data) => Some(data.text().to_owned()),
         _ => None,
     }
 }

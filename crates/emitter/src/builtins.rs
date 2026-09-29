@@ -649,7 +649,6 @@ impl TypeScriptTransformer<'_> {
                             source,
                             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
                                 escaped_text: "NaN".to_owned(),
-                                text: "NaN".to_owned(),
                             }),
                             TransformFlags::NONE,
                         )?
@@ -658,7 +657,6 @@ impl TypeScriptTransformer<'_> {
                             source,
                             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
                                 escaped_text: "Infinity".to_owned(),
-                                text: "Infinity".to_owned(),
                             }),
                             TransformFlags::NONE,
                         )?;
@@ -785,8 +783,7 @@ impl TypeScriptTransformer<'_> {
             let container = factory.create_node(
                 source,
                 NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                    escaped_text: container_name.to_string(),
-                    text: container_name.to_string(),
+                    escaped_text: tsc_syntax::escape_leading_underscores(&container_name),
                 }),
                 TransformFlags::NONE,
             )?;
@@ -1232,7 +1229,10 @@ impl Transformer for EcmaScriptModuleTransformer<'_> {
             return Ok(node);
         };
         if let NodeData::Identifier(identifier) = &context.arena().node(node)?.data {
-            if let Some(alias) = self.helper_aliases.get(&(source, identifier.text.clone())) {
+            if let Some(alias) = self
+                .helper_aliases
+                .get(&(source, identifier.text().to_owned()))
+            {
                 return Ok(*alias);
             }
         }
@@ -1742,8 +1742,7 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
         self.context.factory()?.create_node(
             self.source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                escaped_text: text.to_owned(),
-                text: text.to_owned(),
+                escaped_text: tsc_syntax::escape_leading_underscores(text),
             }),
             TransformFlags::NONE,
         )
@@ -2044,8 +2043,7 @@ fn insert_external_helpers_import_declaration(
         let identifier = context.factory()?.create_node(
             source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                escaped_text: name.to_owned(),
-                text: name.to_owned(),
+                escaped_text: tsc_syntax::escape_leading_underscores(name),
             }),
             TransformFlags::NONE,
         )?;
@@ -4445,8 +4443,8 @@ fn push_identifier_text(
         return Ok(());
     };
     if let NodeData::Identifier(data) = &arena.node(name)?.data {
-        if !names.contains(data.text.as_str()) {
-            names.insert(data.text.clone());
+        if !names.contains(data.text()) {
+            names.insert(data.text().to_owned());
         }
     }
     Ok(())
@@ -4638,7 +4636,7 @@ fn identifier_text_owned(
     node: TransformNode,
 ) -> Result<String, TransformError> {
     match &arena.node(node)?.data {
-        NodeData::Identifier(data) => Ok(data.text.clone()),
+        NodeData::Identifier(data) => Ok(data.text().to_owned()),
         _ => Err(TransformError::RequiredChildRemoved {
             parent: arena.node(node)?.kind,
             field: "identifier text",
@@ -4651,7 +4649,7 @@ fn identifier_or_literal_text(
     node: TransformNode,
 ) -> Result<JsString, TransformError> {
     match &arena.node(node)?.data {
-        NodeData::Identifier(data) => Ok(data.text.clone().into()),
+        NodeData::Identifier(data) => Ok(data.text().to_owned().into()),
         NodeData::StringLiteral(data) => Ok(data.text.clone()),
         _ => Err(TransformError::RequiredChildRemoved {
             parent: arena.node(node)?.kind,
@@ -8833,7 +8831,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     .file_level_generated_binding_exports
                     .get_for_identifier(self.context.arena(), identifier)
                     .map(|exports| ExportAssignmentPlan {
-                        local_name: data.text.clone(),
+                        local_name: data.text().to_owned(),
                         exports: exports.to_vec(),
                         direct_export_storage: false,
                     }));
@@ -8859,16 +8857,14 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 .exported_bindings
                 .get(&import.node())
                 .map(|exports| ExportAssignmentPlan {
-                    local_name: data.text.clone(),
+                    local_name: data.text().to_owned(),
                     exports: exports.clone(),
                     direct_export_storage: self
                         .state
                         .info
                         .direct_exported_variable_names
-                        .contains(data.text.as_str())
-                        && exports
-                            .iter()
-                            .any(|export| export.as_js() == data.text.as_str()),
+                        .contains(data.text())
+                        && exports.iter().any(|export| export.as_js() == data.text()),
                 }));
         }
         let declarations = self
@@ -8888,7 +8884,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         if exports.is_empty() {
             return Ok(None);
         }
-        let local_name = data.text.clone();
+        let local_name = data.text().to_owned();
         let direct_export_storage = self
             .state
             .info
@@ -9030,7 +9026,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let mut expressions = Vec::new();
         let force_fresh_right = match &self.context.arena().node(right)?.data {
             NodeData::Identifier(identifier) => {
-                self.module_pattern_assigns_to_identifier(pattern, &identifier.text)?
+                self.module_pattern_assigns_to_identifier(pattern, identifier.text())?
             }
             _ => false,
         } || self
@@ -9652,7 +9648,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         identifier: &str,
     ) -> Result<bool, TransformError> {
         if let NodeData::Identifier(data) = &self.context.arena().node(pattern)?.data {
-            return Ok(data.text == identifier);
+            return Ok(data.text() == identifier);
         }
         let elements = match &self.context.arena().node(pattern)?.data {
             NodeData::ObjectLiteralExpression(data) => {
@@ -10263,18 +10259,18 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
     ) -> Result<TransformNode, TransformError> {
         let head = self.context.factory()?.create_node(
             self.source,
-            NodeData::TemplateHead(tsc_syntax::nodes::TemplateHeadData {
+            NodeData::TemplateHead(Box::new(tsc_syntax::nodes::TemplateHeadData {
                 text: JsString::new(),
                 raw_text: Some(String::new()),
-            }),
+            })),
             TransformFlags::NONE,
         )?;
         let tail = self.context.factory()?.create_node(
             self.source,
-            NodeData::TemplateTail(tsc_syntax::nodes::TemplateTailData {
+            NodeData::TemplateTail(Box::new(tsc_syntax::nodes::TemplateTailData {
                 text: JsString::new(),
                 raw_text: Some(String::new()),
-            }),
+            })),
             TransformFlags::NONE,
         )?;
         let span = self.context.factory()?.create_node(
@@ -10343,7 +10339,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         if binding.property.is_none()
             && matches!(
                 &self.context.arena().node(original)?.data,
-                NodeData::Identifier(data) if data.text.as_str() == &*binding.generated_name
+                NodeData::Identifier(data) if data.text() == &*binding.generated_name
             )
         {
             return Ok(original);
@@ -10430,7 +10426,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .state
             .info
             .module_reference_candidates
-            .contains(data.text.as_str()))
+            .contains(data.text()))
     }
 
     /// Resolve the runtime owner of a parsed import alias which survived only
@@ -10717,8 +10713,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let identifier = self.context.factory()?.create_node(
             self.source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                escaped_text: text.to_owned(),
-                text: text.to_owned(),
+                escaped_text: tsc_syntax::escape_leading_underscores(text),
             }),
             TransformFlags::NONE,
         )?;
@@ -10799,7 +10794,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         };
         Some(target_bindings::TargetBinding::from_existing(
             id,
-            identifier.text.clone(),
+            identifier.text().to_owned(),
             metadata.generated_binding_base().map(str::to_owned),
             metadata
                 .generated_binding_preferred_base()
@@ -12669,7 +12664,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             TransformFlags::CONTAINS_LEXICAL_THIS,
         )?;
         self.context.factory()?.set_text_range(access, name_node)?;
-        let local_name = self.create_identifier_with_original(&identifier.text, name_node)?;
+        let local_name = self.create_identifier_with_original(identifier.text(), name_node)?;
         self.context
             .factory()?
             .set_text_range(local_name, name_node)?;
@@ -13470,7 +13465,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         )?;
         let force_fresh_value = match &self.context.arena().node(value)?.data {
             NodeData::Identifier(identifier) => {
-                self.namespace_pattern_assigns_to_identifier(pattern, &identifier.text)?
+                self.namespace_pattern_assigns_to_identifier(pattern, identifier.text())?
             }
             _ => false,
         } || self
@@ -13503,7 +13498,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             }
             NodeData::Identifier(identifier) => {
                 plan.push(
-                    NamespaceDestructuringTarget::Export(identifier.text.into()),
+                    NamespaceDestructuringTarget::Export(identifier.text().into()),
                     value,
                     original,
                 );
@@ -13892,7 +13887,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         identifier: &str,
     ) -> Result<bool, TransformError> {
         if let NodeData::Identifier(data) = &self.context.arena().node(pattern)?.data {
-            return Ok(data.text == identifier);
+            return Ok(data.text() == identifier);
         }
         let elements = match &self.context.arena().node(pattern)?.data {
             NodeData::ObjectBindingPattern(data) => {
@@ -14296,7 +14291,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
     fn enum_member_name_expression(&mut self, id: NodeId) -> Result<TransformNode, TransformError> {
         let original = self.node(id);
         match self.context.arena().node(original)?.data.clone() {
-            NodeData::Identifier(data) => self.create_string_literal(&data.text),
+            NodeData::Identifier(data) => self.create_string_literal(data.text()),
             // getExpressionForPropertyName copies the owned JavaScript text.
             NodeData::StringLiteral(data) => self.create_string_literal(data.text.as_js()),
             NodeData::NumericLiteral(data) => self.create_numeric_literal(&data.text),
@@ -14609,7 +14604,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
 
     fn identifier_text(&self, id: NodeId) -> Result<&str, TransformError> {
         match &self.context.arena().node(self.node(id))?.data {
-            NodeData::Identifier(data) => Ok(&data.text),
+            NodeData::Identifier(data) => Ok(data.text()),
             _ => Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::EnumDeclaration,
                 field: "identifier name",
@@ -14621,8 +14616,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         let identifier = self.context.factory()?.create_node(
             self.source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                escaped_text: text.to_owned(),
-                text: text.to_owned(),
+                escaped_text: tsc_syntax::escape_leading_underscores(text),
             }),
             TransformFlags::NONE,
         )?;
@@ -15878,7 +15872,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
     fn binding_name_contains(&self, name: NodeId, expected: &str) -> Result<bool, TransformError> {
         let name = self.node(name);
         match self.context.arena().node(name)?.data.clone() {
-            NodeData::Identifier(data) => Ok(data.text == expected),
+            NodeData::Identifier(data) => Ok(data.text() == expected),
             NodeData::BindingElement(data) => data
                 .name
                 .map(|name| self.binding_name_contains(name, expected))
@@ -16954,13 +16948,13 @@ pub(crate) trait DenseMemoKey: Copy + Eq + std::hash::Hash {
 
 impl DenseMemoKey for NodeId {
     fn raw(self) -> u32 {
-        self.0
+        self.index()
     }
 }
 
 impl DenseMemoKey for NodeArrayId {
     fn raw(self) -> u32 {
-        self.0
+        self.index()
     }
 }
 
@@ -17302,10 +17296,11 @@ fn reachable_nodes(
     let mut reachable = vec![false; node_count];
     let mut stack = vec![root];
     while let Some(id) = stack.pop() {
-        let Some(index) =
-            id.0.checked_sub(node_base)
-                .map(|index| index as usize)
-                .filter(|index| *index < node_count)
+        let Some(index) = id
+            .index()
+            .checked_sub(node_base)
+            .map(|index| index as usize)
+            .filter(|index| *index < node_count)
         else {
             return Err(TransformError::UnknownNode(TransformNode::new(source, id)));
         };
@@ -17353,7 +17348,7 @@ fn compute_transform_flags_incremental(
     };
     let mut array_scratch: Vec<NodeArrayId> = Vec::new();
     for index in start..node_count {
-        let id = NodeId(node_base + index as u32);
+        let id = NodeId::new(node_base + index as u32);
         let node = TransformNode::new(source, id);
         array_scratch.clear();
         {
@@ -17361,7 +17356,7 @@ fn compute_transform_flags_incremental(
             let record = &syntax.arena.nodes()[index];
             let mut ordered = true;
             for_each_child(&syntax.arena, record, |child| {
-                ordered &= child.0 < id.0;
+                ordered &= child.index() < id.index();
                 false
             });
             for_each_child_array(record, |array| {
@@ -17371,7 +17366,7 @@ fn compute_transform_flags_incremental(
                         .node_array(array)
                         .nodes
                         .iter()
-                        .all(|element| element.0 < id.0);
+                        .all(|element| element.index() < id.index());
                     array_scratch.push(array);
                 }
                 false
@@ -17482,7 +17477,12 @@ fn snapshot_transform_flags(
         .map(|node| node.transform_flags)
         .collect();
     let arrays = (syntax.arena.array_base()..syntax.arena.array_end())
-        .map(|array| syntax.arena.node_array(NodeArrayId(array)).transform_flags)
+        .map(|array| {
+            syntax
+                .arena
+                .node_array(NodeArrayId::new(array))
+                .transform_flags
+        })
         .collect();
     Ok((nodes, arrays))
 }
@@ -17504,7 +17504,8 @@ fn compute_transform_flags_linear(
         (syntax.arena.node_base(), syntax.arena.nodes().len())
     };
     let index_of = |id: NodeId| -> Option<usize> {
-        id.0.checked_sub(node_base)
+        id.index()
+            .checked_sub(node_base)
             .map(|index| index as usize)
             .filter(|index| *index < node_count)
     };
@@ -17574,7 +17575,7 @@ fn compute_transform_flags_linear(
         if !reachable[index] {
             continue;
         }
-        let id = NodeId(node_base + index as u32);
+        let id = NodeId::new(node_base + index as u32);
         let node = TransformNode::new(source, id);
         // Array aggregates first (their owner's classification reads them),
         // then the node's own flags — the walk's exit step.
@@ -17655,7 +17656,8 @@ fn compute_transform_flags_walk(
     };
     let mut states = vec![FlagWalkState::Unvisited; node_count as usize];
     let index_of = |id: NodeId| -> Result<usize, TransformError> {
-        id.0.checked_sub(node_base)
+        id.index()
+            .checked_sub(node_base)
             .filter(|index| *index < node_count)
             .map(|index| index as usize)
             .ok_or_else(|| TransformError::UnknownNode(TransformNode::new(source, id)))

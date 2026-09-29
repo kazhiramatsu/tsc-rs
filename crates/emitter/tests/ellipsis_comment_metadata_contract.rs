@@ -45,7 +45,7 @@ fn ellipsis_comment_printer_metadata_matches_typescript() {
                     .filter(|(_, node)| {
                         format!("{:?}", node.kind) == case["selection_kind"].as_str().unwrap()
                     })
-                    .map(|(index, _)| NodeId(u32::try_from(index).unwrap()))
+                    .map(|(index, _)| NodeId::new(u32::try_from(index).unwrap()))
                     .collect::<Vec<_>>();
                 assert_eq!(selected.len(), 1);
                 let bits = u32::try_from(case["emit_flags"].as_u64().unwrap()).unwrap();

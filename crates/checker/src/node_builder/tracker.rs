@@ -476,20 +476,20 @@ fn tracker_symbol(symbol: SymbolId) -> EmitTrackerSymbol {
 }
 
 fn tracker_node(node: NodeId) -> EmitTrackerNode {
-    EmitTrackerNode(u64::from(node.0))
+    EmitTrackerNode(u64::from(node.index()))
 }
 
 const SYNTHETIC_SCOPE_BIT: u64 = 1 << 63;
 
 fn tracker_enclosing_node(node: NodeId, synthetic: bool) -> EmitTrackerNode {
-    EmitTrackerNode(u64::from(node.0) | if synthetic { SYNTHETIC_SCOPE_BIT } else { 0 })
+    EmitTrackerNode(u64::from(node.index()) | if synthetic { SYNTHETIC_SCOPE_BIT } else { 0 })
 }
 
 /// tsrs-native: Rust-structural helper for the h2-7a-m-3 foundation.
 pub(crate) fn tracker_node_id(node: EmitTrackerNode) -> Option<NodeId> {
     u32::try_from(node.0 & !SYNTHETIC_SCOPE_BIT)
         .ok()
-        .map(NodeId)
+        .map(NodeId::new)
 }
 
 /// tsrs-native: Rust-structural helper for the h2-7a-m-3 foundation.

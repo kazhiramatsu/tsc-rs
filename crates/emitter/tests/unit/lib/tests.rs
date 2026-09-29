@@ -71,7 +71,7 @@ fn declaration_emit_resolver_surface_preserves_pinned_values_and_names() {
     }
 
     let resolver = UnavailableEmitResolver;
-    let node = EmitResolverNode::from_raw_source(0, tsc_syntax::NodeId(0));
+    let node = EmitResolverNode::from_raw_source(0, tsc_syntax::NodeId::new(0));
     let symbol = EmitResolverSymbol {
         session_token: 1,
         symbol_index: 0,
@@ -346,7 +346,6 @@ fn factory_private_expression_flags_distinguish_declarations_property_access_and
                 source,
                 NodeData::PrivateIdentifier(tsc_syntax::nodes::PrivateIdentifierData {
                     escaped_text: "#field".to_owned(),
-                    text: "#field".to_owned(),
                 }),
                 TransformFlags::NONE,
             )
@@ -441,7 +440,6 @@ fn create_test_identifier(
             source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
                 escaped_text: tsc_syntax::escape_leading_underscores(text),
-                text: text.to_owned(),
             }),
             TransformFlags::NONE,
         )

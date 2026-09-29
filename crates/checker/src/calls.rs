@@ -2152,7 +2152,7 @@ impl<'a> CheckerState<'a> {
                             .as_ref()
                             .and_then(|names| names.get(i).copied())
                             .flatten()
-                            .map(NodeId);
+                            .map(NodeId::new);
                         effective_args.push(EffectiveArg::Synthetic {
                             pos: raw.0,
                             end: raw.1,
@@ -2621,7 +2621,7 @@ impl<'a> CheckerState<'a> {
                 ..
             } = arg
             {
-                names.push(Some(name.0));
+                names.push(Some(name.index()));
             } else {
                 names.push(None);
             }

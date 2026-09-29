@@ -69,7 +69,7 @@ fn literal_parent_provenance_matches_typescript() {
                 // source. NodeData child edges and all raw ranges stay intact.
                 if !case["parents"].as_bool().unwrap() {
                     for id in parsed.arena.node_base()..parsed.arena.node_end() {
-                        parsed.arena.node_mut(NodeId(id)).parent = None;
+                        parsed.arena.node_mut(NodeId::new(id)).parent = None;
                     }
                 }
                 let operation = case["operation"].as_str().unwrap();

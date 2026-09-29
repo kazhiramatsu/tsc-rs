@@ -1371,7 +1371,7 @@ impl<'a> ProgramBinder<'a> {
     #[inline]
     pub fn file_index_of_node(&self, node: NodeId) -> usize {
         self.try_file_index_of_node(node)
-            .unwrap_or_else(|| panic!("NodeId {} is outside every program arena", node.0))
+            .unwrap_or_else(|| panic!("NodeId {} is outside every program arena", node.index()))
     }
 
     /// Fallible counterpart used at external identity boundaries such as the
@@ -1380,7 +1380,7 @@ impl<'a> ProgramBinder<'a> {
     /// tsrs-native: validation for Rust's source-token/node-id pair.
     #[inline]
     pub(crate) fn try_file_index_of_node(&self, node: NodeId) -> Option<usize> {
-        self.node_owner_index(node.0)
+        self.node_owner_index(node.index())
             .map(|index| self.node_owners[index].file)
     }
 
@@ -1413,7 +1413,7 @@ impl<'a> ProgramBinder<'a> {
         let hint = self.node_owner_hint.load(Ordering::Relaxed);
         if let Some(route) = self.node_routes.get(hint) {
             if let Some(record) = node
-                .0
+                .index()
                 .checked_sub(route.start)
                 .and_then(|offset| route.nodes.get(offset as usize))
             {
@@ -1426,10 +1426,10 @@ impl<'a> ProgramBinder<'a> {
     #[cold]
     fn node_record_routed(&self, node: NodeId) -> &'a tsc_syntax::Node {
         let index = self
-            .node_owner_index(node.0)
-            .unwrap_or_else(|| panic!("NodeId {} is outside every program arena", node.0));
+            .node_owner_index(node.index())
+            .unwrap_or_else(|| panic!("NodeId {} is outside every program arena", node.index()));
         let route = &self.node_routes[index];
-        &route.nodes[(node.0 - route.start) as usize]
+        &route.nodes[(node.index() - route.start) as usize]
     }
 
     /// tsrs-native: multi-file arena routing for a numeric NodeId; tsc
@@ -1449,8 +1449,8 @@ impl<'a> ProgramBinder<'a> {
     /// NodeArrayId.
     pub fn node_array(&self, id: NodeArrayId) -> &'a NodeArray {
         let index =
-            Self::try_owner_file_with_hint(&self.array_owners, id.0, &self.array_owner_hint)
-                .unwrap_or_else(|| Self::owner_file(&self.array_owners, id.0, "NodeArrayId"));
+            Self::try_owner_file_with_hint(&self.array_owners, id.index(), &self.array_owner_hint)
+                .unwrap_or_else(|| Self::owner_file(&self.array_owners, id.index(), "NodeArrayId"));
         self.sources[index].arena.node_array(id)
     }
 

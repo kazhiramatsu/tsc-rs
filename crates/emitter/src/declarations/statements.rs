@@ -560,7 +560,7 @@ pub(crate) fn transform_top_level_declaration(
                             .and_then(|name| context.arena().node(name).ok())
                             .map(|record| &record.data)
                         {
-                            Some(NodeData::Identifier(data)) => data.text.clone(),
+                            Some(NodeData::Identifier(data)) => data.text().to_owned(),
                             _ => "default".to_owned(),
                         };
                         let generated = context.factory()?.create_unique_name(

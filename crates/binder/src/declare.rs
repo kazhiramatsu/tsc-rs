@@ -292,7 +292,7 @@ impl BindData {
     }
 
     pub fn flags_of(&self, node: NodeId, node_base: u32) -> tsc_types::NodeFlags {
-        let index = (node.0 - node_base) as usize;
+        let index = (node.index() - node_base) as usize;
         tsc_types::NodeFlags::from_bits(self.node_flags_mut[index])
     }
 }
@@ -390,12 +390,12 @@ impl<'a> BinderWorker<'a> {
     /// indexed by the file-local node index (program binds parse each
     /// file with a NodeId base — see ParseOptions::node_id_base).
     pub fn flags_of(&self, node: NodeId) -> tsc_types::NodeFlags {
-        let index = (node.0 - self.source.arena.node_base()) as usize;
+        let index = (node.index() - self.source.arena.node_base()) as usize;
         tsc_types::NodeFlags::from_bits(self.node_flags_mut[index])
     }
 
     pub fn set_flags_of(&mut self, node: NodeId, flags: tsc_types::NodeFlags) {
-        let index = (node.0 - self.source.arena.node_base()) as usize;
+        let index = (node.index() - self.source.arena.node_base()) as usize;
         self.node_flags_mut[index] = flags.bits();
     }
 
@@ -1622,7 +1622,9 @@ impl<V: Copy> DenseNodeMap<V> {
     }
 
     fn slot(&self, node: &NodeId) -> Option<usize> {
-        node.0.checked_sub(self.base).map(|offset| offset as usize)
+        node.index()
+            .checked_sub(self.base)
+            .map(|offset| offset as usize)
     }
 
     pub fn get(&self, node: &NodeId) -> Option<&V> {
@@ -1657,7 +1659,7 @@ impl<V: Copy> DenseNodeMap<V> {
             .iter()
             .enumerate()
             .filter_map(move |(index, slot)| {
-                slot.map(|value| (NodeId(self.base + index as u32), value))
+                slot.map(|value| (NodeId::new(self.base + index as u32), value))
             })
     }
 }

@@ -3,6 +3,7 @@
 pub mod arena;
 mod chars;
 pub mod for_each_child;
+mod ids;
 mod incremental;
 mod keywords;
 pub mod kind;
@@ -509,6 +510,22 @@ pub fn escape_leading_underscores(name: &str) -> String {
         format!("_{name}")
     } else {
         name.to_owned()
+    }
+}
+
+impl nodes::IdentifierData {
+    /// tsc `idText`: the identifier's text, which is its escaped text
+    /// without the underscore escapeLeadingUnderscores adds to
+    /// `__`-prefixed names.
+    pub fn text(&self) -> &str {
+        unescape_leading_underscores(&self.escaped_text)
+    }
+}
+
+impl nodes::PrivateIdentifierData {
+    /// tsc `idText`; see [`nodes::IdentifierData::text`].
+    pub fn text(&self) -> &str {
+        unescape_leading_underscores(&self.escaped_text)
     }
 }
 

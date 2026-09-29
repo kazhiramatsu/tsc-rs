@@ -431,7 +431,7 @@ impl<'a> CheckerState<'a> {
             if is_class_element {
                 if let Some(name) = get_name_of_declaration(source, declaration) {
                     if let NodeData::PrivateIdentifier(data) = &source.arena.node(name).data {
-                        return JsString::from(data.text.as_str());
+                        return JsString::from(data.text());
                     }
                 }
             }
