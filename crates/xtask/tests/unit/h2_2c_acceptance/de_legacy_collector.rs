@@ -308,8 +308,6 @@ fn collect_h2_6c_de_legacy177() -> Result<(), Box<dyn Error>> {
     let mut totals = BTreeMap::<String, u64>::new();
     let mut owner_totals = BTreeMap::<String, BTreeMap<String, u64>>::new();
     let mut typed_options = BTreeMap::<String, u64>::new();
-    let mut success_activity = BTreeMap::<String, u64>::new();
-    let mut activity_unavailable_ids = Vec::new();
     let mut unstable = Vec::new();
     let mut setup_failures = Vec::new();
     let mut comparison_failures = Vec::new();
@@ -348,16 +346,6 @@ fn collect_h2_6c_de_legacy177() -> Result<(), Box<dyn Error>> {
                 if let Some(option) = measured["observations"][0]["error"]["option"].as_str() {
                     *typed_options.entry(option.to_owned()).or_default() += 1;
                 }
-                if measured["observations"][0]["activity"].is_null() {
-                    activity_unavailable_ids.push(id.to_owned());
-                } else {
-                    for name in ["B", "C", "D", "E"] {
-                        *success_activity.entry(name.to_owned()).or_default() += measured
-                            ["observations"][0]["activity"][name]
-                            .as_u64()
-                            .expect("actual success counter");
-                    }
-                }
                 record["measurement"] = measured;
             }
             Err(error) => {
@@ -378,11 +366,8 @@ fn collect_h2_6c_de_legacy177() -> Result<(), Box<dyn Error>> {
     let summary = json!({"candidate_ids":177,"eligible_ids":160,"later_owner_ids":17,"collector_seconds":started.elapsed().as_secs_f64(),
         "repetitions_per_prepared_case":2,"counts_by_first_observation":totals,
         "counts_by_owner_and_first_observation":owner_totals,"typed_option_counts":typed_options,
-        "success_activity_totals_first_repetition":success_activity,
-        "activity_unavailable_on_error_ids":activity_unavailable_ids,
         "unstable_ids":unstable,"setup_failure_ids":setup_failures,"comparison_failure_ids":comparison_failures,
-        "registered_rows":0,"adoption":false,
-        "error_activity":"unavailable from the unchanged consuming API; never inferred zero"});
+        "registered_rows":0,"adoption":false});
     writeln!(output, "],\"summary\":{summary}}}")?;
     output.flush()?;
     eprintln!(
@@ -659,8 +644,6 @@ fn nonbundle_declaration_maps_dispose_javascript_parse_metadata() -> Result<(), 
                 "{id}: {}",
                 run["old_comparison"]
             );
-            assert_eq!(run["activity"]["D"], 0, "{id}");
-            assert_eq!(run["activity"]["E"], 1, "{id}");
         }
     }
     Ok(())

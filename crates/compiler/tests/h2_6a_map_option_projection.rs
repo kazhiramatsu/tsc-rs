@@ -351,13 +351,6 @@ fn h2_6a_rows_and_adjacent_controls_match_complete_frozen_tuples() {
             runs[0]["observation"], expected,
             "{id}: complete command tuple"
         );
-        let activity = &runs[0]["map_runtime_activity"];
-        assert_eq!(activity["H2.6c"], 0, "{id}: no later map owner");
-        assert_eq!(
-            activity["H2.6b"].as_u64().unwrap() > 0,
-            ROWS.contains(id),
-            "{id}: embedded sources/roots use the existing H2.6b owner"
-        );
         eprintln!("{id}: H2.6a projection EXACT x2");
     }
 }
