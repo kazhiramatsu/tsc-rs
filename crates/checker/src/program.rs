@@ -1672,7 +1672,7 @@ impl<'a> ProgramBinder<'a> {
         let file = self.file_index_of_node(node);
         self.file_entries[file]
             .data()
-            .flags_of(node, self.sources[file].arena.node_base())
+            .flags_of(node, &self.sources[file].arena)
     }
 
     /// tsc isExternalOrCommonJsModule for the file owning `node`.
