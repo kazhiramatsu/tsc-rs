@@ -34,7 +34,6 @@ struct GeneratedBindingScope {
     bindings: Vec<String>,
     next_temp_ordinal: usize,
     // Consumed by allocate_loop_variable (B-4 loop conversion).
-    #[allow(dead_code)]
     loop_temp_taken: bool,
     private_names: Vec<String>,
     private_names_reserved_in_descendants: Vec<String>,
@@ -73,9 +72,6 @@ pub(super) struct GeneratedBindingScopes {
     ancestor_policy: AncestorBindingPolicy,
     scopes: Vec<GeneratedBindingScope>,
     current: GeneratedBindingScopeId,
-    // Consumed by allocate_source_numbered_for_node (B-4/B-5 owners).
-    #[allow(dead_code)]
-    node_names: BTreeMap<(u64, u64), String>,
 }
 
 impl GeneratedBindingScopes {
@@ -101,7 +97,6 @@ impl GeneratedBindingScopes {
                 private_temp_ordinals: BTreeMap::new(),
             }],
             current: GeneratedBindingScopeId(0),
-            node_names: BTreeMap::new(),
         }
     }
 
@@ -296,7 +291,6 @@ impl GeneratedBindingScopes {
     /// occupied `_i` leaves the bit unset, exactly like tsc), and every
     /// other request falls through to the ordinary temp sequence, whose
     /// candidate list already skips the `_i`/`_n` ordinals.
-    #[allow(dead_code)] // callers arrive with B-4 loop conversion
     pub(super) fn allocate_loop_variable(&mut self, reserve_in_nested_scopes: bool) -> String {
         let owner = self.counter_owner(self.current);
         if !self.scopes[owner.0].loop_temp_taken
@@ -306,30 +300,6 @@ impl GeneratedBindingScopes {
             return "_i".to_owned();
         }
         self.allocate_temp_with_policy(reserve_in_nested_scopes)
-    }
-
-    /// tsc-port: generateNameCached @6.0.3
-    /// tsc-hash: 47bae5357b7899375328dd535b32ca3ccd449ad5f8383d46b93963fc81849abc
-    /// tsc-span: _tsc.js:120633-120637
-    ///
-    /// Eager equivalent of the per-node generated-name cache behind
-    /// `getGeneratedNameForNode`/`getLocalName`/`getInternalName`: the
-    /// first request for a node key allocates the source-derived numbered
-    /// form (tsc's non-optimistic `makeUniqueName` starts at `name_1`),
-    /// and every later request returns the recorded spelling unchanged.
-    /// The key is the caller's stable (source, node) identity projection.
-    #[allow(dead_code)] // callers arrive with the B-4/B-5 owners
-    pub(super) fn allocate_source_numbered_for_node(
-        &mut self,
-        key: (u64, u64),
-        source_name: &str,
-    ) -> String {
-        if let Some(existing) = self.node_names.get(&key) {
-            return existing.clone();
-        }
-        let name = self.allocate_numbered(source_name);
-        self.node_names.insert(key, name.clone());
-        name
     }
 
     /// Allocates the generated private name used for a source-named role such

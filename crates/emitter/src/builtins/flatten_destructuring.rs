@@ -1,14 +1,10 @@
-//! H2.5h-b B-2: the shared destructuring flattener.
+//! The shared destructuring flattener.
 //!
 //! Function-per-function port of tsc's `destructuring.ts` family as bundled
-//! at `_tsc.js:93251-93697` (the 18-function `destructuring-flattener`
-//! shared module frozen in `ratchets/h2-5h-a-owner-graph.v1.json`), with
-//! both `FlattenLevel` arms. The module is reached from `transformES2015`
-//! only (owner-graph edge `destructuring-shared-module`); until the B-4/B-5
-//! owners land, the only callers are the focused projection suite below.
-//! The active ObjectRestSpread production path stays the independent
-//! plan-based lowering in `es2018.rs` (packet
-//! `docs/design/greenfield/slices/h2-5h-b-b-2.md` §12.3).
+//! at `_tsc.js:93251-93697`, with both `FlattenLevel` arms. The ES2015 and
+//! System transforms call it with `FlattenLevel::All`. Object rest/spread
+//! lowering stays the independent plan-based lowering in `es2018.rs`, so the
+//! `ObjectRest` arm is exercised only by the unit tests.
 
 use tsc_syntax::{NodeData, SyntaxKind};
 
@@ -23,9 +19,9 @@ use super::{generated_bindings::GeneratedBindingScopes, helpers, target_bindings
 /// `1 /* ObjectRest */`; the family compares `level >= 1` at
 /// `_tsc.js:93499/:93556` and `level < 1` at `:93534/:93548`).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[allow(dead_code)] // constructed by the B-4/B-5 owners and the focused suite
 pub(super) enum FlattenLevel {
     All,
+    #[allow(dead_code)] // built only by the unit tests; see the module docs
     ObjectRest,
 }
 
@@ -180,7 +176,6 @@ impl FlattenContext {
 /// tsc-port: flattenDestructuringAssignment @6.0.3
 /// tsc-hash: 8303d862131f74b895085ac8968b52d5d0267330e000e0e91546757aaf278ee0
 /// tsc-span: _tsc.js:93251-93328
-#[allow(dead_code)] // production consumers arrive with the B-4/B-5 owners
 pub(super) fn flatten_destructuring_assignment<H: FlattenHost>(
     host: &mut H,
     node: TransformNode,
@@ -266,7 +261,6 @@ pub(super) fn flatten_destructuring_assignment<H: FlattenHost>(
 /// tsc-port: flattenDestructuringBinding @6.0.3
 /// tsc-hash: ab53debce805e94e3a0f018f2bdf6d7724e4439fdd1ee40898b06059b8d6681e
 /// tsc-span: _tsc.js:93358-93448
-#[allow(dead_code)] // production consumers arrive with the B-4/B-5 owners
 pub(super) fn flatten_destructuring_binding<H: FlattenHost>(
     host: &mut H,
     node: TransformNode,

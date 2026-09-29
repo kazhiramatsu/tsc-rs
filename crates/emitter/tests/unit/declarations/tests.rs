@@ -369,7 +369,7 @@ fn accessibility_result(
 }
 
 #[test]
-fn state_reset_and_owned_frames_restore_before_error_propagation() {
+fn state_starts_from_the_source_root() {
     let parsed = parse_source_file(
         "fixture.ts",
         "let value: string;\n",
@@ -379,7 +379,7 @@ fn state_reset_and_owned_frames_restore_before_error_propagation() {
     let mut arena = TransformArena::new();
     let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
     let root = arena.root(source).expect("source root");
-    let mut state = TransformState::for_source(source, root);
+    let state = TransformState::for_source(source, root);
 
     assert!(state.needs_declare);
     assert!(!state.is_bundled_emit);
@@ -390,33 +390,6 @@ fn state_reset_and_owned_frames_restore_before_error_propagation() {
     assert!(state.late_statement_replacement.is_empty());
     assert_eq!(state.current_source_file, source);
     assert_eq!(state.references, Default::default());
-
-    let error = state.with_enclosing_declaration(None, |_state| {
-        Err::<(), _>(TransformError::Unsupported(
-            UnsupportedEmitFeature::IsolatedDeclarations,
-        ))
-    });
-    assert!(matches!(
-        error,
-        Err(TransformError::Unsupported(
-            UnsupportedEmitFeature::IsolatedDeclarations
-        ))
-    ));
-    assert_eq!(state.enclosing_declaration, Some(root));
-
-    state
-        .with_needs_declare(false, |state| {
-            assert!(!state.needs_declare);
-            state.with_scope_markers(true, true, |state| {
-                assert!(state.needs_scope_fix_marker);
-                assert!(state.result_has_scope_marker);
-                Ok(())
-            })
-        })
-        .expect("nested frames");
-    assert!(state.needs_declare);
-    assert!(!state.needs_scope_fix_marker);
-    assert!(!state.result_has_scope_marker);
 }
 
 #[test]

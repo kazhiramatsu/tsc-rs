@@ -1,7 +1,5 @@
 //! Dormant TypeScript declaration-transform foundation.
 
-#![allow(dead_code)]
-
 mod bundle;
 mod diagnostics;
 mod ensure;

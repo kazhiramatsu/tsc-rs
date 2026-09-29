@@ -17426,18 +17426,6 @@ enum FlagWalkState {
     Complete,
 }
 
-/// Compute the transform flags of `root`'s subtree in the exact postorder of
-/// the former recursive walk (ordinary children first, then each child array
-/// in order), storing per-node flags and per-array aggregates in the arena.
-///
-/// The walk is an explicit stack: deep parse trees never recurse on the
-/// native stack, the per-node state lives in one dense table indexed by
-/// arena ordinal instead of two ordered sets, no `Node` record is cloned and
-/// no per-node child vector is allocated. The observable results are those
-/// of the recursion: a node reached again while still on the walk path (a
-/// cycle) contributes `NONE` to its parent's array aggregate, a node already
-/// completed through another path contributes its final flags, and every
-/// array aggregate is stored before its owner's own flags are classified.
 /// `TSC_RS_VERIFY_TRANSFORM_FLAGS`: classify every source both ways and
 /// compare (a development check of the linear pass against the walk).
 fn verify_linear_transform_flags() -> bool {
@@ -17637,6 +17625,18 @@ fn compute_transform_flags_linear(
     Ok(true)
 }
 
+/// Compute the transform flags of `root`'s subtree in the exact postorder of
+/// the former recursive walk (ordinary children first, then each child array
+/// in order), storing per-node flags and per-array aggregates in the arena.
+///
+/// The walk is an explicit stack: deep parse trees never recurse on the
+/// native stack, the per-node state lives in one dense table indexed by
+/// arena ordinal instead of two ordered sets, no `Node` record is cloned and
+/// no per-node child vector is allocated. The observable results are those
+/// of the recursion: a node reached again while still on the walk path (a
+/// cycle) contributes `NONE` to its parent's array aggregate, a node already
+/// completed through another path contributes its final flags, and every
+/// array aggregate is stored before its owner's own flags are classified.
 fn compute_transform_flags_walk(
     arena: &mut TransformArena,
     source: TransformSourceId,
