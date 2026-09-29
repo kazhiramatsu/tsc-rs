@@ -8,9 +8,9 @@ available to Rust programs as a library; see the
 
 See the [current limitations](#current-limitations) before adopting it for
 an existing project. See [Performance](#performance) for measured compile
-times against `tsc` and `tsgo` on real projects, and [Run CI](#run-ci) for
-the checks used to validate the compiler, how to reproduce them, and
-recorded results.
+times and memory use against `tsc` and `tsgo` on real projects, and
+[Run CI](#run-ci) for the checks used to validate the compiler, how to
+reproduce them, and recorded results.
 
 ## Build
 
@@ -563,21 +563,27 @@ For `--noEmit`, see [configuration for type checks](#configuration-for-type-chec
 ## Performance
 
 tsc-rs is a native executable that parses, binds and checks a program on
-several threads (up to eight checker threads by default) and writes its
-output files in parallel. The standard library declarations are embedded,
-so a run has no JavaScript runtime start-up. The measurements below compare
-it with TypeScript 6.0.3 (`tsc`, running on Node.js) and with the native
-TypeScript 7 preview compiler (`tsgo`) on real projects.
+several threads and writes its output files in parallel. By default it runs
+one checker thread per hardware thread, up to eight, and one and a half
+times as many when it writes declaration files. The standard library
+declarations are embedded, so a run has no JavaScript runtime start-up. The
+measurements below compare its compile time and memory use with TypeScript
+6.0.3 (`tsc`, running on Node.js) and with the native TypeScript 7 preview
+compiler (`tsgo`) on real projects.
 
 ### Measured projects
 
 Each project was checked out at the commit shown, with its dependencies
 installed, and compiled with its own configuration file (`tsconfig.json`
-of the directory shown, or the file named). Derived configurations switch
-only the output mode (`noEmit`; JavaScript; JavaScript and declaration
-files; JavaScript and source maps; all outputs with `declaration`,
-`declarationMap` and `sourceMap`) and turn off `composite` and
-`incremental`. VS Code was measured with `--noEmit` only.
+of the directory shown, or the file named). Derived configurations change
+only the output: the output mode (`noEmit`; JavaScript; JavaScript and
+declaration files; JavaScript and source maps; all outputs with
+`declaration`, `declarationMap` and `sourceMap`), a separate output
+directory for each mode that is kept out of the program's inputs (with
+`rootDir` where needed), and `composite` and `incremental` turned off. The
+TypeScript compiler's configurations also turn off `emitDeclarationOnly`
+and `isolatedDeclarations`, which the project sets for its
+declaration-only build. VS Code was measured with `--noEmit` only.
 
 | Project | Commit | Program files | Source lines |
 | --- | --- | ---: | ---: |
@@ -594,75 +600,129 @@ declaration files. Source lines count the program's non-declaration
 TypeScript files. zod, Playwright, Next.js and VS Code report type errors
 at these commits with the configurations used; all compilers report them.
 
-### Results
+### Method
 
-Median wall-clock time in milliseconds on an Apple M5 (10 cores, 32 GiB,
-macOS 26.5.1) with a warm file cache, measured on September 25, 2026.
-tsc-rs and tsgo ran in seven interleaved rounds per configuration, tsc in
-three (two for VS Code), each after one warm-up run. All three compilers
-received the same command line: `--pretty false -p <config>`, with
-`--noEmit` added for VS Code. Compilers:
+The measurements were taken on September 29, 2026 on an Apple M5 (10
+cores, 32 GiB, macOS 26.5.1) running on AC power, with a warm file cache.
+After one warm-up run of every configuration, tsc-rs and tsgo ran in seven
+interleaved rounds per configuration and tsc in three (two for VS Code).
+The same rounds also ran tsc-rs with four checkers, described under
+[peak memory](#peak-memory). All compilers received the same command
+line, `--pretty false -p <config>` with `--noEmit` added for VS Code, at
+the same scheduling priority (`nice -n 20`). The tables show medians:
+wall-clock time in milliseconds, and peak memory as the maximum resident
+set size of the compiler process reported by `getrusage`, in MiB.
+Compilers:
 
 - tsc-rs built from commit
-  [`1be415931`](https://github.com/kazhiramatsu/tsc-rs/commit/1be415931f7ed456cba6703250b461581ecb4e30)
+  [`112924652`](https://github.com/kazhiramatsu/tsc-rs/commit/1129246526e2f2985a579796b84f3c0f215d0f27)
   with `cargo build --release --locked` (Rust 1.93.0).
 - tsgo 7.1.0-dev, an unmodified build of
   [TypeScript commit `1f70213d`](https://github.com/microsoft/TypeScript/commit/1f70213d4922b434345f639b441681e470c7cfc1)
-  (September 4, 2026) with Go 1.26.0, using its default checker count.
+  (September 4, 2026) with Go 1.26.0, using its default of four checkers.
 - tsc 6.0.3 on Node.js 25.2.1 with `--max-old-space-size=8192`.
+
+### Compile time
 
 Type check only (`--noEmit`):
 
 | Project | tsc-rs | tsgo | tsc | tsc-rs ÷ tsgo | tsc ÷ tsc-rs |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| hono | 157 | 182 | 1,110 | 0.86 | 7.1 |
-| zod | 754 | 1,001 | 5,468 | 0.75 | 7.3 |
-| Playwright | 558 | 609 | 4,166 | 0.92 | 7.5 |
-| TypeScript `src/compiler` | 365 | 360 | 2,729 | 1.01 | 7.5 |
-| Next.js `packages/next` | 945 | 1,352 | 7,864 | 0.70 | 8.3 |
-| VS Code `src` | 4,524 | 4,775 | 42,606 | 0.95 | 9.4 |
+| hono | 129 | 165 | 942 | 0.78 | 7.3 |
+| zod | 557 | 920 | 5,449 | 0.60 | 9.8 |
+| Playwright | 374 | 592 | 4,125 | 0.63 | 11.0 |
+| TypeScript `src/compiler` | 320 | 357 | 2,808 | 0.90 | 8.8 |
+| Next.js `packages/next` | 779 | 1,371 | 7,981 | 0.57 | 10.2 |
+| VS Code `src` | 3,727 | 4,673 | 42,052 | 0.80 | 11.3 |
 
 Compilation with output files:
 
 | Project | Output | tsc-rs | tsgo | tsc | tsc-rs ÷ tsgo | tsc ÷ tsc-rs |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| hono | JavaScript | 168 | 188 | 1,168 | 0.89 | 7.0 |
-| hono | JavaScript + declarations | 167 | 184 | 1,127 | 0.91 | 6.7 |
-| hono | JavaScript + source maps | 157 | 176 | 1,078 | 0.89 | 6.9 |
-| hono | All outputs | 179 | 207 | 1,218 | 0.87 | 6.8 |
-| zod | JavaScript | 799 | 1,030 | 5,779 | 0.78 | 7.2 |
-| zod | JavaScript + declarations | 885 | 1,214 | 6,375 | 0.73 | 7.2 |
-| zod | JavaScript + source maps | 811 | 1,087 | 5,923 | 0.75 | 7.3 |
-| zod | All outputs | 979 | 1,178 | 6,103 | 0.83 | 6.2 |
-| Playwright | JavaScript | 617 | 671 | 4,574 | 0.92 | 7.4 |
-| Playwright | JavaScript + declarations | 636 | 751 | 4,795 | 0.85 | 7.5 |
-| Playwright | JavaScript + source maps | 656 | 699 | 4,742 | 0.94 | 7.2 |
-| Playwright | All outputs | 690 | 838 | 5,108 | 0.82 | 7.4 |
-| TypeScript `src/compiler` | JavaScript | 510 | 560 | 3,332 | 0.91 | 6.5 |
-| TypeScript `src/compiler` | JavaScript + declarations | 515 | 608 | 3,433 | 0.85 | 6.7 |
-| TypeScript `src/compiler` | JavaScript + source maps | 520 | 601 | 3,512 | 0.87 | 6.8 |
-| TypeScript `src/compiler` | All outputs | 552 | 666 | 3,741 | 0.83 | 6.8 |
-| Next.js `packages/next` | JavaScript | 1,041 | 1,459 | 8,657 | 0.71 | 8.3 |
-| Next.js `packages/next` | JavaScript + declarations | 1,155 | 1,638 | 9,114 | 0.70 | 7.9 |
-| Next.js `packages/next` | JavaScript + source maps | 1,064 | 1,539 | 9,001 | 0.69 | 8.5 |
-| Next.js `packages/next` | All outputs | 1,210 | 1,704 | 9,544 | 0.71 | 7.9 |
+| hono | JavaScript | 136 | 172 | 1,051 | 0.79 | 7.7 |
+| hono | JavaScript + declarations | 147 | 189 | 1,119 | 0.78 | 7.6 |
+| hono | JavaScript + source maps | 136 | 179 | 1,067 | 0.76 | 7.8 |
+| hono | All outputs | 153 | 203 | 1,218 | 0.75 | 8.0 |
+| zod | JavaScript | 586 | 933 | 5,760 | 0.63 | 9.8 |
+| zod | JavaScript + declarations | 645 | 1,000 | 5,895 | 0.64 | 9.1 |
+| zod | JavaScript + source maps | 611 | 965 | 5,973 | 0.63 | 9.8 |
+| zod | All outputs | 667 | 1,052 | 6,137 | 0.63 | 9.2 |
+| Playwright | JavaScript | 431 | 619 | 4,617 | 0.70 | 10.7 |
+| Playwright | JavaScript + declarations | 495 | 737 | 4,881 | 0.67 | 9.9 |
+| Playwright | JavaScript + source maps | 459 | 670 | 4,847 | 0.68 | 10.6 |
+| Playwright | All outputs | 530 | 795 | 5,218 | 0.67 | 9.9 |
+| TypeScript `src/compiler` | JavaScript | 449 | 541 | 3,372 | 0.83 | 7.5 |
+| TypeScript `src/compiler` | JavaScript + declarations | 470 | 598 | 3,484 | 0.78 | 7.4 |
+| TypeScript `src/compiler` | JavaScript + source maps | 461 | 589 | 3,683 | 0.78 | 8.0 |
+| TypeScript `src/compiler` | All outputs | 477 | 642 | 3,768 | 0.74 | 7.9 |
+| Next.js `packages/next` | JavaScript | 846 | 1,427 | 8,849 | 0.59 | 10.5 |
+| Next.js `packages/next` | JavaScript + declarations | 1,010 | 1,616 | 9,325 | 0.62 | 9.2 |
+| Next.js `packages/next` | JavaScript + source maps | 872 | 1,513 | 9,138 | 0.58 | 10.5 |
+| Next.js `packages/next` | All outputs | 1,068 | 1,726 | 9,987 | 0.62 | 9.4 |
 
 A value below 1 in the `tsc-rs ÷ tsgo` column means tsc-rs finished
 first; the last column is the speed-up over tsc. tsc-rs was faster than
-tsgo on 25 of the 26 configurations and 6 to 9 times faster than tsc. On
-the type check of the TypeScript compiler, whose critical path is the check
-of one 53,000-line file, the two native compilers were within 2 % of each
-other. Differences of a few percent are within the run-to-run variation
-observed on this machine.
+tsgo on all 26 configurations, taking 0.57 to 0.90 of tsgo's time, and 7
+to 11 times faster than tsc. The type check of the TypeScript compiler is
+the closest case: its critical path is the check of one 54,000-line file.
+Differences of a few percent are within the run-to-run variation observed
+on this machine.
+
+### Peak memory
+
+Type check only (`--noEmit`), in MiB:
+
+| Project | tsc-rs | tsgo | tsc | tsc-rs ÷ tsgo | tsc-rs ÷ tsc |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| hono | 505 | 330 | 520 | 1.53 | 0.97 |
+| zod | 2,484 | 1,786 | 2,080 | 1.39 | 1.19 |
+| Playwright | 1,476 | 1,030 | 1,278 | 1.43 | 1.15 |
+| TypeScript `src/compiler` | 537 | 402 | 708 | 1.34 | 0.76 |
+| Next.js `packages/next` | 2,401 | 1,699 | 2,368 | 1.41 | 1.01 |
+| VS Code `src` | 10,853 | 6,820 | 7,732 | 1.59 | 1.40 |
+
+Compilation with output files, in MiB:
+
+| Project | Output | tsc-rs | tsgo | tsc | tsc-rs ÷ tsgo | tsc-rs ÷ tsc |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| hono | JavaScript | 512 | 341 | 534 | 1.50 | 0.96 |
+| hono | JavaScript + declarations | 571 | 362 | 551 | 1.58 | 1.04 |
+| hono | JavaScript + source maps | 498 | 352 | 542 | 1.42 | 0.92 |
+| hono | All outputs | 563 | 380 | 554 | 1.48 | 1.02 |
+| zod | JavaScript | 2,529 | 1,869 | 2,110 | 1.35 | 1.20 |
+| zod | JavaScript + declarations | 2,724 | 1,857 | 2,129 | 1.47 | 1.28 |
+| zod | JavaScript + source maps | 2,545 | 1,808 | 2,119 | 1.41 | 1.20 |
+| zod | All outputs | 2,740 | 1,898 | 2,143 | 1.44 | 1.28 |
+| Playwright | JavaScript | 1,530 | 1,156 | 1,344 | 1.32 | 1.14 |
+| Playwright | JavaScript + declarations | 1,695 | 1,318 | 1,365 | 1.29 | 1.24 |
+| Playwright | JavaScript + source maps | 1,552 | 1,195 | 1,350 | 1.30 | 1.15 |
+| Playwright | All outputs | 1,705 | 1,375 | 1,365 | 1.24 | 1.25 |
+| TypeScript `src/compiler` | JavaScript | 767 | 562 | 759 | 1.37 | 1.01 |
+| TypeScript `src/compiler` | JavaScript + declarations | 806 | 619 | 774 | 1.30 | 1.04 |
+| TypeScript `src/compiler` | JavaScript + source maps | 778 | 594 | 773 | 1.31 | 1.01 |
+| TypeScript `src/compiler` | All outputs | 821 | 670 | 781 | 1.22 | 1.05 |
+| Next.js `packages/next` | JavaScript | 2,433 | 1,782 | 2,493 | 1.37 | 0.98 |
+| Next.js `packages/next` | JavaScript + declarations | 2,635 | 1,995 | 2,536 | 1.32 | 1.04 |
+| Next.js `packages/next` | JavaScript + source maps | 2,454 | 1,839 | 2,509 | 1.33 | 0.98 |
+| Next.js `packages/next` | All outputs | 2,658 | 2,062 | 2,547 | 1.29 | 1.04 |
+
+A value above 1 in the ratio columns means tsc-rs used more memory. tsc-rs
+used 1.2 to 1.6 times as much memory as tsgo, and 0.76 to 1.40 times as
+much as tsc, more than tsc on 20 of the 26 configurations. Each checker
+thread keeps its own type tables, so the peak grows with the number of
+checkers: tsgo runs four by default, while tsc-rs ran eight here (twelve
+when writing declaration files), except for the TypeScript compiler, where
+one file dominates the check and fewer checkers are used. With
+`TSRS_CHECKERS=4` in the environment, tsc-rs used 0.95 to 1.43 times
+tsgo's memory and still finished first on every configuration, in 0.65 to
+0.97 of tsgo's time. Where memory matters more than speed, set
+`TSRS_CHECKERS` to a lower count.
 
 ### Output comparison
 
-Every configuration was compiled once with tsc and once with tsc-rs, and the
-diagnostics and emitted file trees were compared byte for byte. The table
-below is a rerun of that comparison on commit
-[`fa0ea185a`](https://github.com/kazhiramatsu/tsc-rs/commit/fa0ea185a49e2edf8f1abb46f3f6a4c531019625),
-which carries output fixes made after the measurements above; those timings
-were not repeated.
+Before the timing runs, every configuration was compiled once with tsc and
+once with the measured tsc-rs build, and the diagnostics, exit statuses and
+emitted file trees were compared byte for byte.
 
 | Project | Diagnostics | JavaScript | JavaScript + declarations | JavaScript + source maps | All outputs |
 | --- | --- | --- | --- | --- | --- |
@@ -684,8 +744,8 @@ Declaration maps differ only for a declaration file that itself differs.
 
 ### Reproducing
 
-The comparison above is a quick interleaved measurement on one machine, not
-the project's formal protocol. For repeatable measurements with recorded
+The measurements above are a quick interleaved run on one machine, not the
+project's formal protocol. For repeatable measurements with recorded
 provenance, exact output verification before timing, several sessions and
 confidence intervals, see [docs/benchmarking.md](docs/benchmarking.md) and
 `scripts/benchmark-cli.py`. Watch mode and incremental builds are not
@@ -706,12 +766,14 @@ GitHub Actions logs.
 | **Rust checks** (local only) | Checks formatting, runs Clippy, and executes the workspace's unit and integration tests and other Cargo test targets. The hosted workflows do not run these three workspace-wide commands. |
 
 For a recorded full run on commit
-[`fa0ea185a`](https://github.com/kazhiramatsu/tsc-rs/commit/fa0ea185a49e2edf8f1abb46f3f6a4c531019625),
+[`d8e0b2f56`](https://github.com/kazhiramatsu/tsc-rs/commit/d8e0b2f5667f881ab06b0aaae29a6016a421d7d1),
 the head of the pull request merged into `main` as
-[`a5a98aa8b`](https://github.com/kazhiramatsu/tsc-rs/commit/a5a98aa8ba0b788a6ba0f0ac38250a1fb4885fd8),
-see the successful [acceptance run](https://github.com/kazhiramatsu/tsc-rs/actions/runs/36109871561)
-and [witness run](https://github.com/kazhiramatsu/tsc-rs/actions/runs/36109871574)
-from September 25, 2026: all 22 test jobs and both aggregate checks passed.
+[`112924652`](https://github.com/kazhiramatsu/tsc-rs/commit/1129246526e2f2985a579796b84f3c0f215d0f27)
+with the same source tree, see the successful
+[acceptance run](https://github.com/kazhiramatsu/tsc-rs/actions/runs/36494313517)
+and [witness run](https://github.com/kazhiramatsu/tsc-rs/actions/runs/36494313524)
+from September 28, 2026 (UTC): all 22 test jobs and both aggregate checks
+passed.
 
 These results demonstrate the behavior covered by those tests. Some cases
 have explicitly recorded differences or unsupported outcomes; a passing
@@ -829,6 +891,9 @@ commit; push fixes to the pull request branch to validate the updated code.
 - `--help`, `--init`, and `--showConfig` are not currently implemented.
   Create the configuration file using the examples above.
 - The compiler command does not provide a language server or editor service.
+- Peak memory is higher than tsgo's and, on most of the measured projects,
+  higher than tsc's; see [peak memory](#peak-memory). A lower
+  `TSRS_CHECKERS` count reduces it at some cost in speed.
 - In emitted declaration files, the order of union constituents and of the
   properties of inferred object types follows the parallel checkers rather
   than `tsc`. The declarations themselves are the same; set
