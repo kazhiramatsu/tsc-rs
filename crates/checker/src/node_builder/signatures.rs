@@ -240,7 +240,7 @@ fn get_expanded_parameters(
         Some(declarations) => {
             let mut names = Vec::with_capacity(count);
             for index in 0..count {
-                let declaration = declarations.get(index).copied().flatten().map(NodeId);
+                let declaration = declarations.get(index).copied().flatten().map(NodeId::new);
                 names.push(expanded_tuple_element_label(
                     checker,
                     declaration,
@@ -791,7 +791,7 @@ pub(crate) fn signature_to_signature_declaration_helper(
                     method: tsc_emitter::EmitResolverMethod::CreateTypeOfDeclaration,
                     node: tsc_emitter::EmitResolverNode::from_raw_source(
                         0,
-                        context.enclosing_declaration.unwrap_or(NodeId(0)),
+                        context.enclosing_declaration.unwrap_or(NodeId::new(0)),
                     ),
                     reason: "unsupported signature declaration kind",
                 });

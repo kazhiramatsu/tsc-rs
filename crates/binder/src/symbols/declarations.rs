@@ -19,10 +19,18 @@ enum Repr {
 const _: () = assert!(std::mem::size_of::<Declarations>() == std::mem::size_of::<Vec<NodeId>>());
 
 impl Declarations {
+    /// Bytes these declarations own on the heap, for memory accounting.
+    pub fn heap_bytes(&self) -> usize {
+        match &self.0 {
+            Repr::Inline { .. } => 0,
+            Repr::Heap(nodes) => nodes.capacity() * std::mem::size_of::<NodeId>(),
+        }
+    }
+
     pub const fn new() -> Self {
         Self(Repr::Inline {
             len: 0,
-            nodes: [NodeId(0); INLINE],
+            nodes: [NodeId::new(0); INLINE],
         })
     }
 

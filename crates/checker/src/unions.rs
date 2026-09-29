@@ -93,11 +93,11 @@ impl<'a> CheckerState<'a> {
                 UnionReduction::Subtype => "S",
                 UnionReduction::Literal => "L",
             };
-            let index = usize::from(types[0].0 >= types[1].0);
+            let index = usize::from(types[0].index() >= types[1].index());
             let key = format!(
                 "{}{infix}{}{}",
-                types[index].0,
-                types[1 - index].0,
+                types[index].index(),
+                types[1 - index].index(),
                 self.tables.get_alias_id(alias_symbol, alias_type_arguments)
             );
             if let Some(id) = self.tables.union_of_union_types_get(&key) {

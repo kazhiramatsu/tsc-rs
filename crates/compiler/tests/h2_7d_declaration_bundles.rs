@@ -142,7 +142,7 @@ fn type_reference(reference: &TypeReferenceDirective) -> Value {
 
 fn node_name(arena: &TransformArena, node: Option<TransformNode>) -> Option<String> {
     match &arena.node(node?).ok()?.data {
-        NodeData::Identifier(data) => Some(data.text.clone()),
+        NodeData::Identifier(data) => Some(data.text().to_owned()),
         NodeData::StringLiteral(data) => Some(
             data.text
                 .as_str()
@@ -956,7 +956,7 @@ fn compare_bundle_recording(
                     for (offset, record) in parsed.arena.nodes().iter().enumerate() {
                         let node = TransformNode::new(
                             source,
-                            tsc_syntax::NodeId(parsed.arena.node_base() + offset as u32),
+                            tsc_syntax::NodeId::new(parsed.arena.node_base() + offset as u32),
                         );
                         let Some(metadata) = result.arena().metadata(node) else {
                             continue;
@@ -987,7 +987,7 @@ fn compare_bundle_recording(
                 for (offset, record) in parsed.arena.nodes().iter().enumerate() {
                     let node = TransformNode::new(
                         source,
-                        tsc_syntax::NodeId(parsed.arena.node_base() + offset as u32),
+                        tsc_syntax::NodeId::new(parsed.arena.node_base() + offset as u32),
                     );
                     let Some(value) = result
                         .arena()

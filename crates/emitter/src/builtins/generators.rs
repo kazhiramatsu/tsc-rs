@@ -336,7 +336,7 @@ impl GeneratorsTransformer<'_> {
             return Ok(node);
         }
         let text = match &context.arena().node(node)?.data {
-            NodeData::Identifier(data) => data.text.clone(),
+            NodeData::Identifier(data) => data.text().to_owned(),
             _ => return Ok(node),
         };
         if !self.renames.renamed_catch_variables.contains_key(&text) {
@@ -5057,7 +5057,7 @@ impl GeneratorsVisitor<'_, '_> {
             NodeData::Identifier(data) => {
                 // `createStringLiteralFromNode` — the literal renders with
                 // the identifier as its text source.
-                let literal = self.create_string_literal(&data.text)?;
+                let literal = self.create_string_literal(data.text())?;
                 self.context
                     .arena_mut()?
                     .literal_properties_mut(literal)?
@@ -5180,7 +5180,6 @@ impl GeneratorsVisitor<'_, '_> {
             source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
                 escaped_text: tsc_syntax::escape_leading_underscores(text),
-                text: text.to_owned(),
             }),
             TransformFlags::NONE,
         )
@@ -5926,7 +5925,7 @@ impl GeneratorsVisitor<'_, '_> {
 
     fn identifier_text(&self, node: TransformNode) -> Result<String, TransformError> {
         match &self.context.arena().node(node)?.data {
-            NodeData::Identifier(data) => Ok(data.text.clone()),
+            NodeData::Identifier(data) => Ok(data.text().to_owned()),
             _ => Err(TransformError::RequiredChildRemoved {
                 parent: self.context.arena().node(node)?.kind,
                 field: "identifier",
@@ -6252,7 +6251,6 @@ fn create_identifier_raw(
         source,
         NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
             escaped_text: tsc_syntax::escape_leading_underscores(text),
-            text: text.to_owned(),
         }),
         TransformFlags::NONE,
     )

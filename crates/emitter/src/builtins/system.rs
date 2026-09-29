@@ -460,8 +460,8 @@ fn collect_binding_names(
     };
     match &arena.node(name)?.data {
         NodeData::Identifier(data) => {
-            if data.text != "default" && !output.iter().any(|name| name.as_ref() == data.text) {
-                output.push(data.text.clone().into_boxed_str());
+            if data.text() != "default" && !output.iter().any(|name| name.as_ref() == data.text()) {
+                output.push(data.text().to_owned().into_boxed_str());
             }
         }
         NodeData::ObjectBindingPattern(data) => {
@@ -990,7 +990,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         Some(
             TargetBinding::from_existing(
                 id,
-                identifier.text.clone(),
+                identifier.text().to_owned(),
                 metadata.generated_binding_base().map(str::to_owned),
                 metadata
                     .generated_binding_preferred_base()
@@ -2685,7 +2685,6 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         let name = self.context.factory()?.create_node(
             self.source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                text: text.to_owned(),
                 escaped_text: tsc_syntax::escape_leading_underscores(text),
             }),
             TransformFlags::NONE,
@@ -4021,8 +4020,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         let identifier = self.context.factory()?.create_node(
             self.source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                escaped_text: text.to_owned(),
-                text: text.to_owned(),
+                escaped_text: tsc_syntax::escape_leading_underscores(text),
             }),
             TransformFlags::NONE,
         )?;

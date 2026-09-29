@@ -488,8 +488,8 @@ fn identity_trace(arena: &TransformArena, source: TransformSourceId) -> Value {
         if let NodeData::Identifier(identifier) = &record.data {
             if let Some(binding) = arena.generated_binding_identity(node) {
                 rows.entry(binding).or_default().push(json!({
-                    "node": id.0,
-                    "text": identifier.text,
+                    "node": id.index(),
+                    "text": identifier.text(),
                     "role": if declares { "declaration" } else { "reference" },
                 }));
             }

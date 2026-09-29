@@ -132,13 +132,13 @@ fn exported_namespace_import_alias_reference_reports_its_namespace_container() {
                 NodeData::ModuleDeclaration(data)
                     if data.name.is_some_and(|name| {
                         matches!(&source.arena.node(name).data,
-                            NodeData::Identifier(identifier) if identifier.text == "m2")
+                            NodeData::Identifier(identifier) if identifier.text() == "m2")
                     }) =>
                 {
                     namespace = Some(id);
                 }
                 NodeData::Identifier(identifier)
-                    if identifier.text == "exports"
+                    if identifier.text() == "exports"
                         && state.parent_of(id).is_some_and(|parent| {
                             matches!(&source.arena.node(parent).data,
                                 NodeData::NewExpression(data) if data.expression == Some(id))
@@ -246,7 +246,7 @@ fn ambient_export_reference_reports_its_source_container_after_property_recovery
                 reference = data.expression.filter(|expression| {
                     matches!(
                         &source.arena.node(*expression).data,
-                        NodeData::Identifier(identifier) if identifier.text == "a"
+                        NodeData::Identifier(identifier) if identifier.text() == "a"
                     )
                 });
             }
@@ -294,10 +294,10 @@ fn export_container_mode_distinguishes_ordinary_merged_locals_from_export_names(
             if let NodeData::ModuleDeclaration(data) = &record.data {
                 if let Some(name) = data.name {
                     match &source.arena.node(name).data {
-                        NodeData::Identifier(identifier) if identifier.text == "Foo" => {
+                        NodeData::Identifier(identifier) if identifier.text() == "Foo" => {
                             foo = Some(name);
                         }
-                        NodeData::Identifier(identifier) if identifier.text == "Local" => {
+                        NodeData::Identifier(identifier) if identifier.text() == "Local" => {
                             local = Some(name);
                         }
                         _ => {}
@@ -308,7 +308,7 @@ fn export_container_mode_distinguishes_ordinary_merged_locals_from_export_names(
                 if let Some(name) = data.name.filter(|name| {
                     matches!(
                         &source.arena.node(*name).data,
-                        NodeData::Identifier(identifier) if identifier.text == "Bar"
+                        NodeData::Identifier(identifier) if identifier.text() == "Bar"
                     )
                 }) {
                     bar = Some(name);

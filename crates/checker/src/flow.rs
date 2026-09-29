@@ -1220,12 +1220,14 @@ impl<'a> CheckerState<'a> {
         // this-rooted chain keys from the ThisKeyword arm's base
         // (69414 "0|…") — the container node's own kind never keys.
         let base_key = if query.synthetic_this_root {
-            let container_id = query
-                .flow_container
-                .map_or_else(|| "-1".to_owned(), |container| container.0.to_string());
+            let container_id = query.flow_container.map_or_else(
+                || "-1".to_owned(),
+                |container| container.index().to_string(),
+            );
             Some(JsString::from(format!(
                 "0|{container_id}|{}|{}",
-                query.declared_type.0, query.initial_type.0
+                query.declared_type.index(),
+                query.initial_type.index()
             )))
         } else {
             self.get_flow_cache_key(
@@ -1267,13 +1269,16 @@ impl<'a> CheckerState<'a> {
         initial_type: TypeId,
         flow_container: Option<NodeId>,
     ) -> CheckResult<Option<JsString>> {
-        let container_id = flow_container.map_or_else(|| "-1".to_owned(), |c| c.0.to_string());
+        let container_id =
+            flow_container.map_or_else(|| "-1".to_owned(), |c| c.index().to_string());
         match self.kind_of(node) {
             SyntaxKind::Identifier if !self.is_this_in_type_query(node) => {
                 Ok(self.get_resolved_symbol(node)?.map(|symbol| {
                     JsString::from(format!(
                         "{container_id}|{}|{}|{}",
-                        declared_type.0, initial_type.0, symbol.0
+                        declared_type.index(),
+                        initial_type.index(),
+                        symbol.index()
                     ))
                 }))
             }
@@ -1281,7 +1286,8 @@ impl<'a> CheckerState<'a> {
             // ThisKeyword arm, exactly as tsc's switch does.
             SyntaxKind::Identifier | SyntaxKind::ThisKeyword => Ok(Some(JsString::from(format!(
                 "0|{container_id}|{}|{}",
-                declared_type.0, initial_type.0
+                declared_type.index(),
+                initial_type.index()
             )))),
             SyntaxKind::NonNullExpression => {
                 let NodeData::NonNullExpression(data) = self.data_of(node) else {
@@ -1378,7 +1384,7 @@ impl<'a> CheckerState<'a> {
                                     };
                                     let mut key = key;
                                     key.push_str(".@");
-                                    key.push_str(&symbol.0.to_string());
+                                    key.push_str(&symbol.index().to_string());
                                     return Ok(Some(key));
                                 }
                             }
@@ -1394,7 +1400,8 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::ArrowFunction
             | SyntaxKind::MethodDeclaration => Ok(Some(JsString::from(format!(
                 "{}#{}",
-                node.0, declared_type.0
+                node.index(),
+                declared_type.index()
             )))),
             _ => Ok(None),
         }
@@ -2191,7 +2198,7 @@ impl<'a> CheckerState<'a> {
         if self.tables.flags_of(assigned).intersects(TypeFlags::NEVER) {
             return Ok(assigned);
         }
-        let key = format!("A{},{}", declared.0, assigned.0);
+        let key = format!("A{},{}", declared.index(), assigned.index());
         if let Some(cached) = self.get_cached_type(&key) {
             return Ok(cached);
         }

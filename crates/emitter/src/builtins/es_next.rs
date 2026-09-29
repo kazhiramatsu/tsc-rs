@@ -1530,7 +1530,7 @@ impl<'context> EsNextVisitor<'context> {
         };
         Some(TargetBinding::from_existing(
             id,
-            identifier.text.clone(),
+            identifier.text().to_owned(),
             metadata.generated_binding_base().map(str::to_owned),
             metadata
                 .generated_binding_preferred_base()
@@ -1590,7 +1590,7 @@ impl<'context> EsNextVisitor<'context> {
         let NodeData::Identifier(binding_data) = &self.context.arena().node(binding)?.data else {
             return Ok(initializer);
         };
-        let assigned_name_text = binding_data.text.clone();
+        let assigned_name_text = binding_data.text().to_owned();
         Ok(self
             .apply_named_evaluation(initializer, &assigned_name_text)?
             .expression)
@@ -1890,7 +1890,6 @@ impl<'context> EsNextVisitor<'context> {
             self.source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
                 escaped_text: tsc_syntax::escape_leading_underscores(text),
-                text: text.to_owned(),
             }),
             TransformFlags::NONE,
         )
@@ -2392,7 +2391,7 @@ impl<'context> EsNextVisitor<'context> {
 
     fn identifier_text(&self, node: TransformNode) -> Option<&str> {
         match &self.context.arena().node(node).ok()?.data {
-            NodeData::Identifier(data) => Some(&data.text),
+            NodeData::Identifier(data) => Some(data.text()),
             _ => None,
         }
     }

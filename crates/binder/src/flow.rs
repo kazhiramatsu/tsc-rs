@@ -11,8 +11,7 @@
 use tsc_syntax::NodeId;
 use tsc_types::FlowFlags;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct FlowId(pub u32);
+tsc_types::id_type!(FlowId);
 
 /// tsc stores the payload in FlowNode.node: an AST node for most
 /// kinds, `{switchStatement, clauseStart, clauseEnd}` for SwitchClause
@@ -46,6 +45,21 @@ pub struct FlowArena {
 }
 
 impl FlowArena {
+    /// Flow node count and the bytes the arena and its antecedent lists
+    /// own on the heap, for memory accounting.
+    pub fn memory_usage(&self) -> (usize, usize, usize) {
+        let antecedents = self
+            .nodes
+            .iter()
+            .map(|node| node.antecedent.capacity() * std::mem::size_of::<FlowId>())
+            .sum();
+        (
+            self.nodes.len(),
+            self.nodes.capacity() * std::mem::size_of::<FlowNode>(),
+            antecedents,
+        )
+    }
+
     /// tsc-port: createFlowNode @6.0.3
     /// tsc-hash: 50f4e5850330909e853e82825ef01ab9cb1bcd9bdd13b31469b77b8127094539
     /// tsc-span: _tsc.js:42404-42406
@@ -55,7 +69,7 @@ impl FlowArena {
         payload: FlowPayload,
         antecedent: Option<FlowId>,
     ) -> FlowId {
-        let id = FlowId(self.nodes.len() as u32);
+        let id = FlowId::new(self.nodes.len() as u32);
         self.nodes.push(FlowNode {
             flags,
             payload,
@@ -65,11 +79,11 @@ impl FlowArena {
     }
 
     pub fn flow(&self, id: FlowId) -> &FlowNode {
-        &self.nodes[id.0 as usize]
+        &self.nodes[id.index() as usize]
     }
 
     pub fn flow_mut(&mut self, id: FlowId) -> &mut FlowNode {
-        &mut self.nodes[id.0 as usize]
+        &mut self.nodes[id.index() as usize]
     }
 
     pub fn len(&self) -> usize {

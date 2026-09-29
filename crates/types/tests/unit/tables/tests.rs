@@ -8,7 +8,7 @@ fn tables() -> TypeTables {
 fn intrinsics_are_allocated_in_tsc_order() {
     let t = tables();
     // anyType is the first allocation, like tsc typeCount order.
-    assert_eq!(t.intrinsics.any, TypeId(0));
+    assert_eq!(t.intrinsics.any, TypeId::new(0));
     assert!(t.intrinsics.unknown < t.intrinsics.undefined);
     assert!(t.intrinsics.false_regular < t.intrinsics.true_fresh);
     // strictNullChecks aliases the widening variants (47033/47050).
@@ -271,7 +271,7 @@ fn named_union_members_denormalize_into_origin() {
     let two = t.get_number_literal_type(2.0);
     let named = t.get_union_type(&[one, two], UnionReduction::Literal);
     // Synthesize an alias (M4 machinery) to make the union "named".
-    t.type_mut(named).alias_symbol = Some(crate::ty::SymbolId(0));
+    t.type_mut(named).alias_symbol = Some(crate::ty::SymbolId::new(0));
     // A union containing ONLY the named union returns it unchanged.
     let string = t.intrinsics.string;
     let widened = t.get_union_type(&[named, string], UnionReduction::Literal);
@@ -298,10 +298,15 @@ fn named_union_members_denormalize_into_origin() {
 fn get_type_list_id_compresses_consecutive_ids() {
     let t = tables();
     assert_eq!(
-        t.get_type_list_id(&[TypeId(5), TypeId(6), TypeId(7), TypeId(9)]),
+        t.get_type_list_id(&[
+            TypeId::new(5),
+            TypeId::new(6),
+            TypeId::new(7),
+            TypeId::new(9)
+        ]),
         "5:3,9"
     );
-    assert_eq!(t.get_type_list_id(&[TypeId(3)]), "3");
+    assert_eq!(t.get_type_list_id(&[TypeId::new(3)]), "3");
     assert_eq!(t.get_type_list_id(&[]), "");
 }
 
@@ -471,7 +476,7 @@ fn template_literal_types_fold_and_intern() {
 #[test]
 fn mapped_types_carry_root_and_instantiation_identity() {
     let mut t = tables();
-    let symbol = SymbolId(7);
+    let symbol = SymbolId::new(7);
     let root = t.create_mapped_type(42, None, None, Some(symbol));
     assert_eq!(t.flags_of(root), TypeFlags::OBJECT);
     assert_eq!(t.object_flags_of(root), ObjectFlags::MAPPED);
@@ -483,7 +488,7 @@ fn mapped_types_carry_root_and_instantiation_identity() {
     assert_eq!(root_data.target, None);
     assert_eq!(root_data.mapper, None);
 
-    let mapper = MapperId(3);
+    let mapper = MapperId::new(3);
     let instance = t.create_mapped_type(42, Some(root), Some(mapper), Some(symbol));
     assert_eq!(
         t.object_flags_of(instance),
@@ -528,7 +533,7 @@ fn conditional_type_model_constructibility() {
         is_distributive: true,
         infer_type_parameters: Box::new([]),
         outer_type_parameters: Some(Box::new([check])),
-        alias_symbol: Some(SymbolId(7)),
+        alias_symbol: Some(SymbolId::new(7)),
         alias_type_arguments: Some(Box::new([check])),
     });
     let conditional = t.create_conditional_type(
@@ -539,7 +544,7 @@ fn conditional_type_model_constructibility() {
             mapper: None,
             combined_mapper: None,
         },
-        Some(SymbolId(7)),
+        Some(SymbolId::new(7)),
         Some(&[check]),
     );
     assert_eq!(t.flags_of(conditional), TypeFlags::CONDITIONAL);

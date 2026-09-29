@@ -34,8 +34,8 @@ fn serialization_members_fail_closed_by_default() {
     let resolver = DefaultResolver;
     let mut tracker = NoopTracker;
     let (mut arena, source, _) = arena_with_source();
-    let node = EmitResolverNode::from_raw_source(7, NodeId(1));
-    let enclosing = EmitResolverNode::from_raw_source(7, NodeId(0));
+    let node = EmitResolverNode::from_raw_source(7, NodeId::new(1));
+    let enclosing = EmitResolverNode::from_raw_source(7, NodeId::new(0));
 
     let unavailable = |method: EmitResolverMethod, error: EmitResolverError| {
         assert_eq!(error, EmitResolverError::Unavailable { method, node });
@@ -194,7 +194,7 @@ fn declaration_emit_flag_words_match_the_vendored_constants() {
 #[test]
 fn parse_tree_transform_node_round_trips_and_rejects_foreign_ids() {
     let (arena, source, node_end) = arena_with_source();
-    let parsed = EmitResolverNode::from_raw_source(7, NodeId(1));
+    let parsed = EmitResolverNode::from_raw_source(7, NodeId::new(1));
     let projected = arena
         .parse_tree_transform_node(parsed)
         .expect("projection")
@@ -209,13 +209,16 @@ fn parse_tree_transform_node_round_trips_and_rejects_foreign_ids() {
     // Unknown Program file: absent, not an error.
     assert_eq!(
         arena
-            .parse_tree_transform_node(EmitResolverNode::from_raw_source(99, NodeId(1)))
+            .parse_tree_transform_node(EmitResolverNode::from_raw_source(99, NodeId::new(1)))
             .expect("projection"),
         None,
     );
     // A node id outside the mounted parse lease is a hard error.
     assert!(arena
-        .parse_tree_transform_node(EmitResolverNode::from_raw_source(7, NodeId(node_end + 10)))
+        .parse_tree_transform_node(EmitResolverNode::from_raw_source(
+            7,
+            NodeId::new(node_end + 10)
+        ))
         .is_err());
 }
 

@@ -691,7 +691,6 @@ impl Transformer for SyntheticArrowTokenOriginalTransformer {
             source,
             NodeData::Identifier(IdentifierData {
                 escaped_text: "value".to_owned(),
-                text: "value".to_owned(),
             }),
             TransformFlags::NONE,
         )?;
@@ -1203,7 +1202,6 @@ impl SyntheticExportAssignmentTransformer {
                     source,
                     NodeData::Identifier(IdentifierData {
                         escaped_text: text.to_owned(),
-                        text: text.to_owned(),
                     }),
                     TransformFlags::NONE,
                 )
@@ -1315,7 +1313,6 @@ impl Transformer for SyntheticThrowRecoveryTransformer {
             source,
             NodeData::Identifier(IdentifierData {
                 escaped_text: String::new(),
-                text: String::new(),
             }),
             TransformFlags::NONE,
         )?;
@@ -1394,7 +1391,6 @@ impl Transformer for ResolverProjectionTransformer {
             source,
             NodeData::Identifier(IdentifierData {
                 escaped_text: "synthetic".to_owned(),
-                text: "synthetic".to_owned(),
             }),
             TransformFlags::NONE,
         )?;
@@ -1402,7 +1398,6 @@ impl Transformer for ResolverProjectionTransformer {
             source,
             NodeData::Identifier(IdentifierData {
                 escaped_text: "ranged".to_owned(),
-                text: "ranged".to_owned(),
             }),
             TransformFlags::NONE,
         )?;
@@ -1414,7 +1409,6 @@ impl Transformer for ResolverProjectionTransformer {
             source,
             NodeData::Identifier(IdentifierData {
                 escaped_text: "terminal".to_owned(),
-                text: "terminal".to_owned(),
             }),
             TransformFlags::NONE,
         )?;
@@ -1475,7 +1469,7 @@ fn resolver_projection_rejects_synthetic_ids_that_alias_the_next_program_source(
         .node_ref(source, parsed.root)
         .expect("mounted parsed root");
 
-    assert_eq!(nodes.synthetic.node().0, next.arena.node_base());
+    assert_eq!(nodes.synthetic.node().index(), next.arena.node_base());
     assert_eq!(
         result
             .arena()

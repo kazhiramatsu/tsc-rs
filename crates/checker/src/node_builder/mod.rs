@@ -704,7 +704,7 @@ impl StandaloneTrackerAccess<'_, '_> {
     fn node(&self, node: tsc_emitter::EmitTrackerNode) -> Option<tsc_syntax::NodeId> {
         u32::try_from(node.0)
             .ok()
-            .map(tsc_syntax::NodeId)
+            .map(tsc_syntax::NodeId::new)
             .filter(|&node| self.checker.binder.try_file_index_of_node(node).is_some())
     }
 
@@ -757,7 +757,7 @@ impl tsc_emitter::EmitTrackerAccess for StandaloneTrackerAccess<'_, '_> {
         Ok(self
             .checker
             .parent_of(node)
-            .map(|parent| tsc_emitter::EmitTrackerNode(u64::from(parent.0))))
+            .map(|parent| tsc_emitter::EmitTrackerNode(u64::from(parent.index()))))
     }
 
     fn is_symbol_accessible(
@@ -769,7 +769,7 @@ impl tsc_emitter::EmitTrackerAccess for StandaloneTrackerAccess<'_, '_> {
     ) -> Result<tsc_emitter::EmitSymbolAccessibilityResult, tsc_emitter::EmitResolverError> {
         let symbol = u32::try_from(symbol.0)
             .ok()
-            .map(tsc_binder::SymbolId)
+            .map(tsc_binder::SymbolId::new)
             .filter(|&symbol| self.checker.binder.try_symbol(symbol).is_some())
             .ok_or_else(|| self.invalid_token())?;
         let enclosing = enclosing_declaration
@@ -818,7 +818,7 @@ impl tsc_emitter::EmitTrackerAccess for StandaloneTrackerAccess<'_, '_> {
     ) -> tsc_emitter::EmitTrackerSymbolDescription {
         let Some(symbol) = u32::try_from(symbol.0)
             .ok()
-            .map(tsc_binder::SymbolId)
+            .map(tsc_binder::SymbolId::new)
             .filter(|&symbol| self.checker.binder.try_symbol(symbol).is_some())
         else {
             return tsc_emitter::EmitTrackerSymbolDescription::default();
@@ -1007,10 +1007,10 @@ pub(crate) fn late_bound_index_signatures(
                             if let Some(resolved) = resolved {
                                 let mut access = StandaloneTrackerAccess { checker, method };
                                 let symbol_token =
-                                    tsc_emitter::EmitTrackerSymbol(u64::from(resolved.0));
+                                    tsc_emitter::EmitTrackerSymbol(u64::from(resolved.index()));
                                 let symbol_flags = access.checker.symbol_flags(resolved);
                                 let enclosing_token = tsc_emitter::EmitTrackerNode(u64::from(
-                                    enclosing_declaration.0,
+                                    enclosing_declaration.index(),
                                 ));
                                 tracker.track_symbol(
                                     &mut access,

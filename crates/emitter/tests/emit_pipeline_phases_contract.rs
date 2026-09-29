@@ -108,7 +108,7 @@ fn emit_pipeline_phases_matches_typescript() {
                 // that owned input before the immutable emit source is mounted.
                 if route == "json" {
                     for id in parsed.arena.node_base()..parsed.arena.node_end() {
-                        parsed.arena.node_mut(tsc_syntax::NodeId(id)).parent = None;
+                        parsed.arena.node_mut(tsc_syntax::NodeId::new(id)).parent = None;
                     }
                 }
                 let mut arena = TransformArena::new();

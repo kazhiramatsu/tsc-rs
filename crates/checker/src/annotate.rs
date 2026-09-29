@@ -1085,7 +1085,10 @@ impl<'a> CheckerState<'a> {
         // are NodeId-free).
         let named: Vec<Option<u32>> = elements
             .iter()
-            .map(|&element| self.is_named_tuple_member(element).then_some(element.0))
+            .map(|&element| {
+                self.is_named_tuple_member(element)
+                    .then_some(element.index())
+            })
             .collect();
         let flags = TupleTargetFlags::new(&element_flags)
             .expect("single-rest tuple nodes resolve through the Array target");
@@ -1364,7 +1367,7 @@ impl<'a> CheckerState<'a> {
                 }
                 let mut escaped_text = tsc_types::JsString::from("__@");
                 escaped_text.push_js(self.binder.symbol(symbol).escaped_name.as_js());
-                escaped_text.push_str(&format!("@{}", symbol.0));
+                escaped_text.push_str(&format!("@{}", symbol.index()));
                 let escaped_name = tsc_types::EscapedName::from_escaped_value(escaped_text);
                 let ty = self
                     .tables
@@ -2721,7 +2724,7 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: typed projection from the syntax-free raw NodeId in
     /// MappedTypeData back into the checker syntax domain.
     pub(crate) fn mapped_type_declaration(&self, ty: TypeId) -> NodeId {
-        NodeId(self.mapped_type_data(ty).declaration)
+        NodeId::new(self.mapped_type_data(ty).declaration)
     }
 
     /// tsc-port: getTypeParameterFromMappedType @6.0.3
@@ -2797,7 +2800,7 @@ impl<'a> CheckerState<'a> {
             return Ok(cached);
         }
         let mapped = self.mapped_type_data(ty);
-        let declaration = NodeId(mapped.declaration);
+        let declaration = NodeId::new(mapped.declaration);
         let NodeData::MappedType(data) = self.data_of(declaration) else {
             unreachable!("mapped payload declaration has MappedType syntax kind");
         };
@@ -2851,7 +2854,7 @@ impl<'a> CheckerState<'a> {
             return Ok(cached);
         }
         let mapped = self.mapped_type_data(ty);
-        let declaration = NodeId(mapped.declaration);
+        let declaration = NodeId::new(mapped.declaration);
         let NodeData::MappedType(data) = self.data_of(declaration) else {
             unreachable!("mapped payload declaration has MappedType syntax kind");
         };
@@ -2921,7 +2924,9 @@ impl<'a> CheckerState<'a> {
         let symbol = self
             .node_symbol(node)
             .map(|symbol| self.get_merged_symbol(symbol));
-        let mapped = self.tables.create_mapped_type(node.0, None, None, symbol);
+        let mapped = self
+            .tables
+            .create_mapped_type(node.index(), None, None, symbol);
         let alias_symbol = self.get_alias_symbol_for_type_node(node);
         let alias_type_arguments = self.get_type_arguments_for_alias_symbol(alias_symbol);
         let type_object = self.tables.type_mut(mapped);
@@ -3046,7 +3051,7 @@ impl<'a> CheckerState<'a> {
         let extends_type = self.get_type_from_type_node(extends_node)?;
         let infer_type_parameters = self.get_infer_type_parameters(node);
         let root = self.tables.create_conditional_root(ConditionalRootData {
-            node: node.0,
+            node: node.index(),
             check_type,
             extends_type,
             is_distributive: self
@@ -4476,7 +4481,7 @@ impl<'a> CheckerState<'a> {
                         self.links.set_symbol_tuple_label_declaration(
                             self.speculation_depth,
                             property,
-                            NodeId(label),
+                            NodeId::new(label),
                         );
                     }
                     self.links

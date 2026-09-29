@@ -487,7 +487,7 @@ impl AmbientFunctionExportResolver {
                 if let Some(NodeData::Identifier(identifier)) =
                     data.name.map(|name| &source.arena.node(name).data)
                 {
-                    declarations_by_name.insert(identifier.text.clone(), node);
+                    declarations_by_name.insert(identifier.text().to_owned(), node);
                 }
             }
             for_each_child(&source.arena, source.arena.node(node), |child| {
@@ -499,7 +499,7 @@ impl AmbientFunctionExportResolver {
         let mut stack = vec![source.root];
         while let Some(node) = stack.pop() {
             if let NodeData::Identifier(identifier) = &source.arena.node(node).data {
-                if let Some(declaration) = declarations_by_name.get(&identifier.text) {
+                if let Some(declaration) = declarations_by_name.get(identifier.text()) {
                     declaration_by_reference.insert(node, *declaration);
                 }
             }
@@ -576,7 +576,7 @@ impl ConstructorReferenceResolver {
                     if data.name.is_some_and(|name| {
                         matches!(
                             &source.arena.node(name).data,
-                            NodeData::Identifier(identifier) if identifier.text == "C"
+                            NodeData::Identifier(identifier) if identifier.text() == "C"
                         )
                     }) =>
                 {
@@ -589,7 +589,7 @@ impl ConstructorReferenceResolver {
                 {
                     private_method = Some(id);
                 }
-                NodeData::Identifier(identifier) if identifier.text == "C" => {
+                NodeData::Identifier(identifier) if identifier.text() == "C" => {
                     constructor_references.insert(id);
                 }
                 _ => {}
@@ -638,7 +638,7 @@ fn collect_binding_declarations(
 ) {
     match &source.arena.node(name).data {
         NodeData::Identifier(identifier) => {
-            declarations.push((identifier.text.clone(), declaration));
+            declarations.push((identifier.text().to_owned(), declaration));
         }
         NodeData::ObjectBindingPattern(pattern) => {
             for element in pattern
@@ -728,9 +728,9 @@ impl ExportedVariableResolver {
         let mut stack = vec![source.root];
         while let Some(node) = stack.pop() {
             if let NodeData::Identifier(identifier) = &source.arena.node(node).data {
-                if let Some(declaration) = declarations_by_name.get(&identifier.text) {
+                if let Some(declaration) = declarations_by_name.get(identifier.text()) {
                     declaration_by_reference.insert(node, *declaration);
-                    if direct_exports.contains_key(&identifier.text) {
+                    if direct_exports.contains_key(identifier.text()) {
                         direct_export_references.insert(node, source.root);
                     }
                 }
@@ -871,7 +871,7 @@ impl SourceExportContainerResolver {
         while let Some(node) = stack.pop() {
             if matches!(
                 &source.arena.node(node).data,
-                NodeData::Identifier(identifier) if exported_names.contains(&identifier.text)
+                NodeData::Identifier(identifier) if exported_names.contains(identifier.text())
             ) {
                 containers_by_reference.insert(node, source.root);
             }
@@ -942,7 +942,7 @@ impl SourceNamedExportContainerResolver {
         while let Some(node) = stack.pop() {
             if matches!(
                 &source.arena.node(node).data,
-                NodeData::Identifier(identifier) if identifier.text == exported_name
+                NodeData::Identifier(identifier) if identifier.text() == exported_name
             ) {
                 containers_by_reference.insert(node, source.root);
             }
@@ -1020,7 +1020,7 @@ impl ImportEqualsCallResolver {
                 if let Some(name) = data.name {
                     if let NodeData::Identifier(identifier) = &source.arena.node(name).data {
                         declaration = Some(node);
-                        local_name = Some(identifier.text.clone());
+                        local_name = Some(identifier.text().to_owned());
                     }
                 }
             }
@@ -1036,7 +1036,7 @@ impl ImportEqualsCallResolver {
         while let Some(node) = stack.pop() {
             if matches!(
                 &source.arena.node(node).data,
-                NodeData::Identifier(identifier) if identifier.text == local_name
+                NodeData::Identifier(identifier) if identifier.text() == local_name
             ) {
                 declaration_by_reference.insert(node, declaration);
             }
@@ -1110,7 +1110,7 @@ impl DefaultImportCallResolver {
                 if let Some(name) = data.name {
                     if let NodeData::Identifier(identifier) = &source.arena.node(name).data {
                         declaration = Some(node);
-                        local_name = Some(identifier.text.clone());
+                        local_name = Some(identifier.text().to_owned());
                     }
                 }
             }
@@ -1126,7 +1126,7 @@ impl DefaultImportCallResolver {
         while let Some(node) = stack.pop() {
             if matches!(
                 &source.arena.node(node).data,
-                NodeData::Identifier(identifier) if identifier.text == local_name
+                NodeData::Identifier(identifier) if identifier.text() == local_name
             ) {
                 declaration_by_reference.insert(node, declaration);
             }
@@ -1388,13 +1388,13 @@ impl NamespaceAliasResolver {
                 NodeData::ModuleDeclaration(data)
                     if data.name.is_some_and(|name| {
                         matches!(&source.arena.node(name).data,
-                            NodeData::Identifier(identifier) if identifier.text == "published")
+                            NodeData::Identifier(identifier) if identifier.text() == "published")
                     }) =>
                 {
                     namespace = Some(id);
                 }
                 NodeData::Identifier(identifier)
-                    if identifier.text == "exports"
+                    if identifier.text() == "exports"
                         && node.parent.is_some_and(|parent| {
                             matches!(&source.arena.node(parent).data,
                                 NodeData::NewExpression(data) if data.expression == Some(id))
@@ -3364,7 +3364,7 @@ fn common_js_file_level_generated_export_map_rejects_ordinary_generated_ids() {
                 let NodeData::Identifier(identifier) = &record.data else {
                     panic!("file-level generated binding must be an identifier");
                 };
-                printable_texts.insert(identifier.text.clone());
+                printable_texts.insert(identifier.text().to_owned());
             } else if metadata.generated_binding_id().is_some() {
                 non_file_generated_identifier.get_or_insert(node);
             }
@@ -4499,7 +4499,7 @@ fn standard_decorator_class_references_preserve_parsed_and_generated_identity() 
         let record = arena.node(node).expect("transformed node");
         if let NodeData::Identifier(identifier) = &record.data {
             let metadata = arena.metadata(node);
-            if identifier.text == "E"
+            if identifier.text() == "E"
                 && metadata.is_some_and(|metadata| metadata.flags().contains(required_parsed_flags))
             {
                 parsed_references += 1;
@@ -4621,7 +4621,7 @@ fn using_anonymous_default_decorator_handoff_keeps_owner_and_binding_domains() {
                                 .generated_binding_id()
                                 .expect("ordinary default projection owns an ID"),
                         );
-                        assert_eq!(identifier.text, "default_1", "{case}");
+                        assert_eq!(identifier.text(), "default_1", "{case}");
                         assert_eq!((record.pos, record.end), (u32::MAX, u32::MAX), "{case}");
                         assert_eq!(arena.get_original_node(node).node(), parsed_class, "{case}");
                         assert!(
@@ -4643,7 +4643,7 @@ fn using_anonymous_default_decorator_handoff_keeps_owner_and_binding_domains() {
                         && metadata.generated_binding_preferred_base() == Some("_default")
                     {
                         file_level_identifier.get_or_insert(node);
-                        assert_eq!(identifier.text, "_default", "{case}");
+                        assert_eq!(identifier.text(), "_default", "{case}");
                         assert_eq!(
                             metadata.generated_binding_preferred_base(),
                             Some("_default"),
@@ -5592,7 +5592,7 @@ impl MergedNamespaceResolver {
                     if data.name.is_some_and(|name| {
                         matches!(
                             &source.arena.node(name).data,
-                            NodeData::Identifier(identifier) if identifier.text == "Observable"
+                            NodeData::Identifier(identifier) if identifier.text() == "Observable"
                         )
                     }) =>
                 {
@@ -5602,13 +5602,13 @@ impl MergedNamespaceResolver {
                     if data.name.is_some_and(|name| {
                         matches!(
                             &source.arena.node(name).data,
-                            NodeData::Identifier(identifier) if identifier.text == "Observable"
+                            NodeData::Identifier(identifier) if identifier.text() == "Observable"
                         )
                     }) =>
                 {
                     namespace_declaration = Some(node);
                 }
-                NodeData::Identifier(identifier) if identifier.text == "Observable" => {
+                NodeData::Identifier(identifier) if identifier.text() == "Observable" => {
                     references.insert(node);
                 }
                 _ => {}
@@ -6475,8 +6475,8 @@ fn meta_property_token_maps_internal_invariants_match_typescript() {
                         let NodeData::Identifier(name) = &self.arena.node(name)?.data else {
                             panic!("MetaProperty name must be an identifier");
                         };
-                        let text = name.text.clone();
-                        let name = self.arena.factory().create_identifier(self.source, &text)?;
+                        let text = name.text().to_owned();
+                        let name = self.arena.factory().create_identifier(self.source, text)?;
                         return self
                             .arena
                             .factory()
@@ -6736,7 +6736,7 @@ fn meta_property_token_maps_module_name_context_is_not_a_value_reference() {
             match &record.data {
                 NodeData::MetaProperty(data) => meta_name = data.name,
                 NodeData::ImportSpecifier(_) => import = Some(node),
-                NodeData::Identifier(data) if data.text == "meta" || data.text == "target" => {
+                NodeData::Identifier(data) if data.text() == "meta" || data.text() == "target" => {
                     identifiers.push(node)
                 }
                 _ => {}

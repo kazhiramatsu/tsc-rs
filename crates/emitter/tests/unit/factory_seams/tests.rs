@@ -1012,7 +1012,7 @@ fn cross_source_missing_declaration_clone_preserves_reachable_decorators() {
     let NodeData::Identifier(data) = &arena.node(expression).unwrap().data else {
         panic!("cross-source cloning must remap the decorator expression");
     };
-    assert_eq!(data.text, "g");
+    assert_eq!(data.text(), "g");
 }
 
 #[test]

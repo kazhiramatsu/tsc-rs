@@ -5429,7 +5429,7 @@ impl<'a> CheckerState<'a> {
             NodeData::Identifier(data) => {
                 Ok(tsc_syntax::unescape_leading_underscores(&data.escaped_text).to_owned().into())
             }
-            NodeData::PrivateIdentifier(data) => Ok(data.text.into()),
+            NodeData::PrivateIdentifier(data) => Ok(data.text().into()),
             NodeData::StringLiteral(data) => string_literal_name(&data.text, false).map(JsString::from),
             NodeData::NumericLiteral(data) => Ok(data.text.into()),
             NodeData::BigIntLiteral(data) => Ok(data.text.into()),
@@ -6821,7 +6821,7 @@ impl<'a> CheckerState<'a> {
                         // member type itself never parenthesizes
                         // (factory 22247-22256 applies no rule).
                         Some(label) => {
-                            let name = self.tuple_element_label(NodeId(label))?;
+                            let name = self.tuple_element_label(NodeId::new(label))?;
                             let dot_dot_dot = if flags.intersects(ElementFlags::VARIABLE) {
                                 "..."
                             } else {
@@ -9879,7 +9879,7 @@ impl<'a> CheckerState<'a> {
                 .and_then(|labels| labels.get(i).copied())
                 .flatten();
             names.push(self.tuple_element_label_display(
-                label.map(NodeId),
+                label.map(NodeId::new),
                 i,
                 data.element_flags[i],
                 Some(rest_symbol),
@@ -12965,7 +12965,7 @@ impl<'a> CheckerState<'a> {
                     .to_owned()
                     .into())
             }
-            NodeData::PrivateIdentifier(data) => Ok(data.text.into()),
+            NodeData::PrivateIdentifier(data) => Ok(data.text().into()),
             NodeData::QualifiedName(data) => {
                 let left =
                     self.entity_name_text(data.left.expect("QualifiedName carries its left side"))?;
@@ -13380,7 +13380,7 @@ impl<'a> CheckerState<'a> {
                     .to_owned()
                     .into())
             }
-            NodeData::PrivateIdentifier(data) => Ok(data.text.into()),
+            NodeData::PrivateIdentifier(data) => Ok(data.text().into()),
             NodeData::StringLiteral(data) => {
                 string_literal_name(&data.text, false).map(JsString::from)
             }
@@ -13612,7 +13612,7 @@ impl<'a> CheckerState<'a> {
                     // getClonedHashPrivateName (55445-55449): private
                     // property names are cloned before nameType/raw-name
                     // processing and retain their `#` face.
-                    return Ok(data.text.clone().into());
+                    return Ok(data.text().to_owned().into());
                 }
             }
         }

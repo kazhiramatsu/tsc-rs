@@ -63,10 +63,10 @@ fn build_fixture_resolver(arena: &TransformArena, source: TransformSourceId) -> 
     let mut catches = Vec::new();
     let mut identifiers = std::collections::BTreeMap::new();
     for (offset, record) in syntax.arena.nodes().iter().enumerate() {
-        let id = NodeId(node_base + u32::try_from(offset).expect("node count fits u32"));
+        let id = NodeId::new(node_base + u32::try_from(offset).expect("node count fits u32"));
         match &record.data {
             NodeData::Identifier(data) => {
-                identifiers.insert(id, (data.text.clone(), record.pos));
+                identifiers.insert(id, (data.text().to_owned(), record.pos));
             }
             NodeData::CatchClause(data) => {
                 let (Some(declaration), Some(block)) = (data.variable_declaration, data.block)
@@ -74,18 +74,18 @@ fn build_fixture_resolver(arena: &TransformArena, source: TransformSourceId) -> 
                     continue;
                 };
                 let declaration_record =
-                    &syntax.arena.nodes()[(declaration.0 - node_base) as usize];
+                    &syntax.arena.nodes()[(declaration.index() - node_base) as usize];
                 let NodeData::VariableDeclaration(variable) = &declaration_record.data else {
                     continue;
                 };
                 let Some(name) = variable.name else { continue };
-                let name_record = &syntax.arena.nodes()[(name.0 - node_base) as usize];
+                let name_record = &syntax.arena.nodes()[(name.index() - node_base) as usize];
                 let NodeData::Identifier(name_data) = &name_record.data else {
                     continue;
                 };
-                let block_record = &syntax.arena.nodes()[(block.0 - node_base) as usize];
+                let block_record = &syntax.arena.nodes()[(block.index() - node_base) as usize];
                 catches.push((
-                    name_data.text.clone(),
+                    name_data.text().to_owned(),
                     block_record.pos,
                     block_record.end,
                     declaration,

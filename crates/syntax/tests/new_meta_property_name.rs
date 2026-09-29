@@ -57,7 +57,7 @@ fn new_meta_property_names_follow_parse_identifier_name() {
                 meta_properties.push(json!({
                     "pos": utf16(node.pos), "end": utf16(node.end),
                     "name_pos": utf16(name.pos), "name_end": utf16(name.end),
-                    "name_utf16": identifier.text.encode_utf16().collect::<Vec<u16>>(),
+                    "name_utf16": identifier.text().encode_utf16().collect::<Vec<u16>>(),
                     "name_missing": name.pos == name.end,
                 }));
             }

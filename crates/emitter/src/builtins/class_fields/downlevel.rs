@@ -864,7 +864,7 @@ impl OriginalTreeOwnership {
         let mut children = Vec::new();
         while let Some(parent) = pending.pop() {
             let Some(parent_index) = parent
-                .0
+                .index()
                 .checked_sub(node_base)
                 .map(|index| index as usize)
                 .filter(|index| *index < node_count)
@@ -884,7 +884,7 @@ impl OriginalTreeOwnership {
             });
             for &child in &children {
                 let Some(child_index) = child
-                    .0
+                    .index()
                     .checked_sub(node_base)
                     .map(|index| index as usize)
                     .filter(|index| *index < node_count)
@@ -907,7 +907,7 @@ impl OriginalTreeOwnership {
     }
 
     fn unique_parent(&self, node: NodeId) -> Option<NodeId> {
-        let index = node.0.checked_sub(self.node_base)? as usize;
+        let index = node.index().checked_sub(self.node_base)? as usize;
         match self.parents.get(index)? {
             Some(ParentOwnership::Unique(parent)) => Some(*parent),
             Some(ParentOwnership::Shared) | None => None,
@@ -1129,7 +1129,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         }
         let key = self.context.arena().get_emit_original_node(original);
         self.static_emit_environments.insert(
-            (key.source().raw(), key.node().0),
+            (key.source().raw(), key.node().index()),
             Rc::clone(emit_environment),
         );
         Ok(())
@@ -2760,7 +2760,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .arena()
             .require_parse_tree_resolver_node(declaration)?;
         self.class_aliases.insert(
-            (declaration.source().raw(), declaration.node().0),
+            (declaration.source().raw(), declaration.node().index()),
             alias.clone(),
         );
         Ok(())
@@ -2947,7 +2947,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
     fn assignment_target_name(&self, target: NodeId) -> Option<AssignedClassName> {
         match &self.context.arena().node(self.node(target)).ok()?.data {
             NodeData::Identifier(data) => {
-                Some(AssignedClassName::Literal(data.text.clone().into()))
+                Some(AssignedClassName::Literal(data.text().to_owned().into()))
             }
             _ => None,
         }
@@ -2963,10 +2963,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
     fn literal_assigned_name(&self, name: NodeId) -> Option<AssignedClassName> {
         match &self.context.arena().node(self.node(name)).ok()?.data {
             NodeData::Identifier(data) => {
-                Some(AssignedClassName::Literal(data.text.clone().into()))
+                Some(AssignedClassName::Literal(data.text().to_owned().into()))
             }
             NodeData::PrivateIdentifier(data) => {
-                Some(AssignedClassName::Literal(data.text.clone().into()))
+                Some(AssignedClassName::Literal(data.text().to_owned().into()))
             }
             NodeData::StringLiteral(data) => Some(AssignedClassName::Literal(data.text.clone())),
             NodeData::NoSubstitutionTemplateLiteral(data) => {
@@ -2990,7 +2990,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             return false;
         };
         match &name.data {
-            NodeData::Identifier(data) => data.text == "__proto__",
+            NodeData::Identifier(data) => data.text() == "__proto__",
             NodeData::StringLiteral(data) => data.text == "__proto__",
             _ => false,
         }
@@ -3290,7 +3290,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 continue;
             };
             if let NodeData::PrivateIdentifier(data) = &self.context.arena().node(name)?.data {
-                used_private_names.insert(data.text.trim_start_matches('#').to_owned());
+                used_private_names.insert(data.text().trim_start_matches('#').to_owned());
             }
         }
 
@@ -3315,7 +3315,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                     NodeData::Identifier(data) => (
                         self.generated_bindings
                             .allocate_private_preferred_with_role_suffix(
-                                data.text.trim_start_matches('#'),
+                                data.text().trim_start_matches('#'),
                                 "_accessor_storage",
                                 &used_private_names,
                             ),
@@ -3324,7 +3324,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                     NodeData::PrivateIdentifier(data) => (
                         self.generated_bindings
                             .allocate_private_preferred_with_role_suffix(
-                                data.text.trim_start_matches('#'),
+                                data.text().trim_start_matches('#'),
                                 "_accessor_storage",
                                 &used_private_names,
                             ),
@@ -3799,7 +3799,6 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             self.source,
             NodeData::PrivateIdentifier(tsc_syntax::nodes::PrivateIdentifierData {
                 escaped_text: text.to_owned(),
-                text: text.to_owned(),
             }),
             TransformFlags::NONE,
         )
@@ -4504,7 +4503,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
 
     fn private_name_text(&self, name: TransformNode) -> Option<&str> {
         match &self.context.arena().node(name).ok()?.data {
-            NodeData::PrivateIdentifier(data) => Some(data.text.trim_start_matches('#')),
+            NodeData::PrivateIdentifier(data) => Some(data.text().trim_start_matches('#')),
             _ => None,
         }
     }
@@ -5340,7 +5339,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 else {
                     return Ok(None);
                 };
-                Some((Some(name.text), None))
+                Some((Some(name.text().to_owned()), None))
             }
             NodeData::ElementAccessExpression(data)
                 if self.property_receiver_is_super(data.expression)? =>
@@ -5376,7 +5375,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             return Ok(None);
         };
         let key = match property_name {
-            Some(property_name) => self.create_string_literal(&property_name)?,
+            Some(property_name) => self.create_string_literal(property_name.as_str())?,
             None => self.visit_required(
                 argument_expression,
                 SyntaxKind::ElementAccessExpression,
@@ -8057,9 +8056,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
     fn property_key_expression(&mut self, name: NodeId) -> Result<TransformNode, TransformError> {
         let name = self.node(name);
         match self.context.arena().node(name)?.data.clone() {
-            NodeData::Identifier(data) => self.create_string_literal(&data.text),
+            NodeData::Identifier(data) => self.create_string_literal(data.text()),
             NodeData::PrivateIdentifier(data) => {
-                self.create_string_literal(data.text.trim_start_matches('#'))
+                self.create_string_literal(data.text().trim_start_matches('#'))
             }
             NodeData::StringLiteral(_) | NodeData::NumericLiteral(_) => Ok(name),
             NodeData::ComputedPropertyName(data) => data
@@ -9144,7 +9143,6 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             self.source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
                 escaped_text: tsc_syntax::escape_leading_underscores(text),
-                text: text.to_owned(),
             }),
             TransformFlags::NONE,
         )
@@ -9681,7 +9679,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
 
     fn identifier_text(&self, node: TransformNode) -> Option<&str> {
         match &self.context.arena().node(node).ok()?.data {
-            NodeData::Identifier(data) => Some(&data.text),
+            NodeData::Identifier(data) => Some(data.text()),
             _ => None,
         }
     }

@@ -1272,11 +1272,9 @@ fn validate_resolver_symbol(
     if symbol.session_token != session_token {
         return Err(EmitResolverError::ForeignSymbol { method, symbol });
     }
-    let symbol_id = SymbolId(symbol.symbol_index);
-    if state.binder.try_symbol(symbol_id).is_none() {
-        return Err(EmitResolverError::UnknownSymbol { method, symbol });
-    }
-    Ok(symbol_id)
+    SymbolId::checked_new(symbol.symbol_index)
+        .filter(|&symbol_id| state.binder.try_symbol(symbol_id).is_some())
+        .ok_or(EmitResolverError::UnknownSymbol { method, symbol })
 }
 
 #[cfg(test)]

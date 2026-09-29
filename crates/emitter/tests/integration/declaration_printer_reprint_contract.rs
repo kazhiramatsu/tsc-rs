@@ -550,31 +550,33 @@ impl Transformer for SyntheticPrinterNodeTransformer {
         let template_data = [
             (
                 SyntaxKind::NoSubstitutionTemplateLiteral,
-                NodeData::NoSubstitutionTemplateLiteral(NoSubstitutionTemplateLiteralData {
-                    text: tsc_types::JsString::new(),
-                    raw_text: None,
-                }),
+                NodeData::NoSubstitutionTemplateLiteral(Box::new(
+                    NoSubstitutionTemplateLiteralData {
+                        text: tsc_types::JsString::new(),
+                        raw_text: None,
+                    },
+                )),
             ),
             (
                 SyntaxKind::TemplateHead,
-                NodeData::TemplateHead(TemplateHeadData {
+                NodeData::TemplateHead(Box::new(TemplateHeadData {
                     text: tsc_types::JsString::new(),
                     raw_text: None,
-                }),
+                })),
             ),
             (
                 SyntaxKind::TemplateMiddle,
-                NodeData::TemplateMiddle(TemplateMiddleData {
+                NodeData::TemplateMiddle(Box::new(TemplateMiddleData {
                     text: tsc_types::JsString::new(),
                     raw_text: None,
-                }),
+                })),
             ),
             (
                 SyntaxKind::TemplateTail,
-                NodeData::TemplateTail(TemplateTailData {
+                NodeData::TemplateTail(Box::new(TemplateTailData {
                     text: tsc_types::JsString::new(),
                     raw_text: None,
-                }),
+                })),
             ),
         ];
         let mut templates = Vec::with_capacity(template_data.len());
@@ -593,7 +595,6 @@ impl Transformer for SyntheticPrinterNodeTransformer {
             source,
             NodeData::Identifier(IdentifierData {
                 escaped_text: "x".to_owned(),
-                text: "x".to_owned(),
             }),
             TransformFlags::NONE,
         )?;

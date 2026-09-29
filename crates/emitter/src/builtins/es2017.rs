@@ -859,7 +859,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         };
         Some(TargetBinding::from_existing(
             id,
-            identifier.text.clone(),
+            identifier.text().to_owned(),
             metadata.generated_binding_base().map(str::to_owned),
             metadata
                 .generated_binding_preferred_base()
@@ -889,7 +889,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                     .arena()
                     .metadata(name)
                     .and_then(|metadata| metadata.generated_binding_base())
-                    .unwrap_or(&identifier.text);
+                    .unwrap_or(identifier.text());
                 Ok(names.contains(collision_name))
             }
             NodeData::ObjectBindingPattern(data) => {
@@ -1101,7 +1101,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             return self.create_generated_identifier(&binding);
         }
         match self.context.arena().node(name)?.data.clone() {
-            NodeData::Identifier(identifier) => self.create_identifier(&identifier.text),
+            NodeData::Identifier(identifier) => self.create_identifier(identifier.text()),
             // Binding-pattern conversion is structural. Keeping it here makes
             // the collision plan explicit and leaves object-rest flattening to
             // the already-closed ES2018 pass.
@@ -1730,7 +1730,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                 },
             )?;
             let identifier_text = match &self.context.arena().node(name)?.data {
-                NodeData::Identifier(identifier) => Some(identifier.text.clone()),
+                NodeData::Identifier(identifier) => Some(identifier.text().to_owned()),
                 _ => None,
             };
             let binding = if let Some(identifier_text) = identifier_text {
@@ -1842,7 +1842,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
     ) -> Result<(), TransformError> {
         match &self.context.arena().node(name)?.data {
             NodeData::Identifier(identifier) => {
-                names.insert(identifier.text.clone());
+                names.insert(identifier.text().to_owned());
             }
             NodeData::ObjectBindingPattern(data) => {
                 for element in self.array_nodes(data.elements)? {
@@ -2622,7 +2622,6 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             self.source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
                 escaped_text: tsc_syntax::escape_leading_underscores(text),
-                text: text.to_owned(),
             }),
             TransformFlags::NONE,
         )
@@ -3097,7 +3096,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
 
     fn identifier_text(&self, node: TransformNode) -> Result<&str, TransformError> {
         match &self.context.arena().node(node)?.data {
-            NodeData::Identifier(identifier) => Ok(&identifier.text),
+            NodeData::Identifier(identifier) => Ok(identifier.text()),
             _ => Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::PropertyAccessExpression,
                 field: "identifier name",

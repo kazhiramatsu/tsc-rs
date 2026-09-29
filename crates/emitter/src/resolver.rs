@@ -655,7 +655,7 @@ impl fmt::Display for EmitResolverError {
                 "emit resolver method {} is unavailable for source {} node {}",
                 method.name(),
                 node.source().raw(),
-                node.node().0
+                node.node().index()
             ),
             Self::UnknownSymbol { method, symbol } => write!(
                 formatter,
@@ -676,13 +676,13 @@ impl fmt::Display for EmitResolverError {
                 "emit resolver method {} received unknown source {} for node {}",
                 method.name(),
                 node.source().raw(),
-                node.node().0
+                node.node().index()
             ),
             Self::UnknownNode { method, node } => write!(
                 formatter,
                 "emit resolver method {} received unknown node {} for source {}",
                 method.name(),
-                node.node().0,
+                node.node().index(),
                 node.source().raw()
             ),
             Self::SourceNodeMismatch {
@@ -694,7 +694,7 @@ impl fmt::Display for EmitResolverError {
                 "emit resolver method {} received source {} for node {}, but the node belongs to Program index {}",
                 method.name(),
                 node.source().raw(),
-                node.node().0,
+                node.node().index(),
                 actual_program_index
             ),
             Self::CheckerAborted {
@@ -706,7 +706,7 @@ impl fmt::Display for EmitResolverError {
                 "emit resolver method {} aborted for source {} node {}: {}",
                 method.name(),
                 node.source().raw(),
-                node.node().0,
+                node.node().index(),
                 reason
             ),
             Self::UnavailableForSymbol { method, symbol } => write!(

@@ -289,7 +289,7 @@ impl OrderGuard {
     /// branching on the armed state themselves.
     #[inline]
     pub fn is_post_init(&self, ty: TypeId) -> bool {
-        self.armed && ty.0 >= self.init_boundary
+        self.armed && ty.index() >= self.init_boundary
     }
 
     /// Whether at least two of `types` are shard-local (false when disarmed).
@@ -403,9 +403,12 @@ mod tests {
     #[test]
     fn disarmed_guard_records_nothing() {
         let mut guard = OrderGuard::default();
-        guard.note(OrderReason::REPRESENTATIVE, [TypeId(5), TypeId(6)]);
+        guard.note(
+            OrderReason::REPRESENTATIVE,
+            [TypeId::new(5), TypeId::new(6)],
+        );
         guard.note_always(OrderReason::CIRCULARITY);
-        guard.mark_display_text(&"A | B".to_owned().into(), [TypeId(5), TypeId(6)]);
+        guard.mark_display_text(&"A | B".to_owned().into(), [TypeId::new(5), TypeId::new(6)]);
         guard.mark_chain(
             &chain(2322, "x", Vec::new()),
             OrderReason::FIRST_FAILURE.bits(),
@@ -413,7 +416,7 @@ mod tests {
         assert_eq!(guard.reasons(), 0);
         assert!(guard.marks().is_empty());
         assert!(
-            !guard.is_post_init(TypeId(0)),
+            !guard.is_post_init(TypeId::new(0)),
             "disarmed: nothing is shard-local"
         );
     }
@@ -422,13 +425,19 @@ mod tests {
     fn armed_guard_needs_two_post_init_types() {
         let mut guard = OrderGuard::default();
         guard.arm(10);
-        guard.note(OrderReason::REPRESENTATIVE, [TypeId(1), TypeId(2)]);
+        guard.note(
+            OrderReason::REPRESENTATIVE,
+            [TypeId::new(1), TypeId::new(2)],
+        );
         assert_eq!(guard.reasons(), 0, "two init types");
-        guard.note(OrderReason::REPRESENTATIVE, [TypeId(1), TypeId(10)]);
+        guard.note(
+            OrderReason::REPRESENTATIVE,
+            [TypeId::new(1), TypeId::new(10)],
+        );
         assert_eq!(guard.reasons(), 0, "one post-init type");
         guard.note(
             OrderReason::REPRESENTATIVE,
-            [TypeId(10), TypeId(3), TypeId(11)],
+            [TypeId::new(10), TypeId::new(3), TypeId::new(11)],
         );
         assert_eq!(guard.reasons(), OrderReason::REPRESENTATIVE.bits());
         guard.note_always(OrderReason::CIRCULARITY);
@@ -442,8 +451,14 @@ mod tests {
     fn display_marks_match_published_text_and_nested_or_related_chains() {
         let mut guard = OrderGuard::default();
         guard.arm(10);
-        guard.mark_display_text(&"Beta | Alpha".to_owned().into(), [TypeId(10), TypeId(11)]);
-        guard.mark_display_text(&"C | D".to_owned().into(), [TypeId(1), TypeId(11)]);
+        guard.mark_display_text(
+            &"Beta | Alpha".to_owned().into(),
+            [TypeId::new(10), TypeId::new(11)],
+        );
+        guard.mark_display_text(
+            &"C | D".to_owned().into(),
+            [TypeId::new(1), TypeId::new(11)],
+        );
         let elaboration = chain(
             2322,
             "Type 'Beta' is not assignable to type 'number'.",

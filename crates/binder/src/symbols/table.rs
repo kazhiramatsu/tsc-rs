@@ -185,6 +185,20 @@ impl IntoIterator for EscapedNameSet {
 }
 
 impl SymbolTable {
+    /// Bytes this table owns on the heap, for memory accounting.
+    pub fn heap_bytes(&self) -> usize {
+        self.0.as_ref().map_or(0, |map| {
+            std::mem::size_of::<SymbolMap>()
+                + map.entries.capacity() * std::mem::size_of::<(EscapedName, SymbolId)>()
+                + map
+                    .entries
+                    .iter()
+                    .map(|(name, _)| name.heap_bytes())
+                    .sum::<usize>()
+                + map.positions.capacity() * (std::mem::size_of::<u32>() + 1)
+        })
+    }
+
     pub fn new() -> Self {
         Self::default()
     }

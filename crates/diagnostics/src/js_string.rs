@@ -55,6 +55,15 @@ impl JsStringByteLength {
 }
 
 impl JsString {
+    /// Bytes this string owns on the heap (zero while inline), for memory
+    /// accounting.
+    pub fn heap_bytes(&self) -> usize {
+        match &self.0 {
+            Storage::Heap(bytes) => bytes.capacity(),
+            Storage::Inline { .. } => 0,
+        }
+    }
+
     pub const fn new() -> Self {
         Self(Storage::new())
     }

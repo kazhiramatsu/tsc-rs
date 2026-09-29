@@ -2920,7 +2920,7 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(TypeFlags::OBJECT) {
             let members_id = self.resolve_structured_type_members(ty)?;
             let (call_signatures, construct_signatures, members, properties, index_infos) = {
-                let resolved = &self.members[members_id.0 as usize];
+                let resolved = &self.members[members_id.index() as usize];
                 (
                     resolved.call_signatures.clone(),
                     resolved.construct_signatures.clone(),
@@ -3042,7 +3042,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Vec<crate::state::SignatureId>> {
         let mut applicable = Vec::new();
         for &signature in signatures {
-            if self.signatures[signature.0 as usize]
+            if self.signatures[signature.index() as usize]
                 .type_parameters
                 .is_none()
             {

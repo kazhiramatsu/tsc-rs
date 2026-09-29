@@ -4,7 +4,7 @@ use crate::CompilerOptions;
 
 #[test]
 fn flow_type_accessors() {
-    let ty = tsc_types::TypeId(7);
+    let ty = tsc_types::TypeId::new(7);
     assert_eq!(FlowType::Type(ty).get_type(), ty);
     assert_eq!(FlowType::Incomplete(ty).get_type(), ty);
     assert!(!FlowType::Type(ty).is_incomplete());

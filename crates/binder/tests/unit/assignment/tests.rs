@@ -22,7 +22,7 @@ fn kinds(text: &str, javascript_file: bool) -> Vec<AssignmentDeclarationKind> {
                 SyntaxKind::BinaryExpression | SyntaxKind::CallExpression
             )
         })
-        .map(|(index, _)| get_assignment_declaration_kind(&source, NodeId(index as u32)))
+        .map(|(index, _)| get_assignment_declaration_kind(&source, NodeId::new(index as u32)))
         .filter(|kind| *kind != AssignmentDeclarationKind::None)
         .collect()
 }

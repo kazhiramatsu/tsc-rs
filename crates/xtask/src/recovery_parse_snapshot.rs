@@ -305,7 +305,7 @@ fn extra_fields(node: &tsc_syntax::nodes::Node, mut cb: impl FnMut(&'static str,
     }
     match &node.data {
         NodeData::HeritageClause(d) => kind!(d.token, "token"),
-        NodeData::Identifier(d) => cb("text", json!(["string", d.text])),
+        NodeData::Identifier(d) => cb("text", json!(["string", d.text()])),
         NodeData::ImportAttributes(d) => kind!(d.token, "token"),
         NodeData::ImportClause(d) => {
             if let Some(kind) = d.phase_modifier {
@@ -315,7 +315,7 @@ fn extra_fields(node: &tsc_syntax::nodes::Node, mut cb: impl FnMut(&'static str,
         NodeData::MetaProperty(d) => kind!(d.keyword_token, "keywordToken"),
         NodeData::PostfixUnaryExpression(d) => kind!(d.operator, "operator"),
         NodeData::PrefixUnaryExpression(d) => kind!(d.operator, "operator"),
-        NodeData::PrivateIdentifier(d) => cb("text", json!(["string", d.text])),
+        NodeData::PrivateIdentifier(d) => cb("text", json!(["string", d.text()])),
         NodeData::TypeOperator(d) => kind!(d.operator, "operator"),
         _ => {}
     }
@@ -424,15 +424,15 @@ mod tests {
                             // The initial `import type` lookahead leaves an
                             // unattached speculative identifier in the arena.
                             // Mutate the reachable class name, not that orphan.
-                            NodeData::Identifier(data) => data.text == "C",
+                            NodeData::Identifier(data) => data.text() == "C",
                             _ => true,
                         }
                 })
                 .unwrap();
-            match &mut changed.arena.node_mut(NodeId(index as u32)).data {
+            match &mut changed.arena.node_mut(NodeId::new(index as u32)).data {
                 NodeData::ImportClause(d) => d.is_type_only = !d.is_type_only,
                 NodeData::HeritageClause(d) => d.token = SyntaxKind::ImplementsKeyword,
-                NodeData::Identifier(d) => d.text.push_str("changed"),
+                NodeData::Identifier(d) => d.escaped_text.push_str("changed"),
                 _ => unreachable!(),
             }
             assert_ne!(

@@ -1153,6 +1153,15 @@ fn validate_identity_domains(entries: &[ProgramEntry<'_>]) -> Result<(), Program
 }
 
 impl<'a> ProgramBinder<'a> {
+    /// The checker-created symbols (memory accounting); see
+    /// [`SymbolArena::memory_usage`].
+    pub(crate) fn transient_memory_usage(
+        &self,
+        tables: &mut rustc_hash::FxHashMap<*const SymbolTable, usize>,
+    ) -> (usize, usize, usize) {
+        self.transient.memory_usage(tables)
+    }
+
     /// tsrs-native: constructs the multi-file arena routing tables; tsc
     /// nodes and symbols are direct JavaScript references.
     pub fn new(file_binders: Vec<&'a Binder<'a>>) -> Self {
@@ -1246,7 +1255,7 @@ impl<'a> ProgramBinder<'a> {
             .filter_map(|(file, entry)| {
                 let data = entry.data();
                 let start = data.symbols.base();
-                let end = data.symbols.next_id().0;
+                let end = data.symbols.next_id().index();
                 (start != end).then_some(ArenaOwner { start, end, file })
             })
             .collect();
@@ -1362,7 +1371,7 @@ impl<'a> ProgramBinder<'a> {
     #[inline]
     pub fn file_index_of_node(&self, node: NodeId) -> usize {
         self.try_file_index_of_node(node)
-            .unwrap_or_else(|| panic!("NodeId {} is outside every program arena", node.0))
+            .unwrap_or_else(|| panic!("NodeId {} is outside every program arena", node.index()))
     }
 
     /// Fallible counterpart used at external identity boundaries such as the
@@ -1371,7 +1380,7 @@ impl<'a> ProgramBinder<'a> {
     /// tsrs-native: validation for Rust's source-token/node-id pair.
     #[inline]
     pub(crate) fn try_file_index_of_node(&self, node: NodeId) -> Option<usize> {
-        self.node_owner_index(node.0)
+        self.node_owner_index(node.index())
             .map(|index| self.node_owners[index].file)
     }
 
@@ -1404,7 +1413,7 @@ impl<'a> ProgramBinder<'a> {
         let hint = self.node_owner_hint.load(Ordering::Relaxed);
         if let Some(route) = self.node_routes.get(hint) {
             if let Some(record) = node
-                .0
+                .index()
                 .checked_sub(route.start)
                 .and_then(|offset| route.nodes.get(offset as usize))
             {
@@ -1417,10 +1426,10 @@ impl<'a> ProgramBinder<'a> {
     #[cold]
     fn node_record_routed(&self, node: NodeId) -> &'a tsc_syntax::Node {
         let index = self
-            .node_owner_index(node.0)
-            .unwrap_or_else(|| panic!("NodeId {} is outside every program arena", node.0));
+            .node_owner_index(node.index())
+            .unwrap_or_else(|| panic!("NodeId {} is outside every program arena", node.index()));
         let route = &self.node_routes[index];
-        &route.nodes[(node.0 - route.start) as usize]
+        &route.nodes[(node.index() - route.start) as usize]
     }
 
     /// tsrs-native: multi-file arena routing for a numeric NodeId; tsc
@@ -1440,8 +1449,8 @@ impl<'a> ProgramBinder<'a> {
     /// NodeArrayId.
     pub fn node_array(&self, id: NodeArrayId) -> &'a NodeArray {
         let index =
-            Self::try_owner_file_with_hint(&self.array_owners, id.0, &self.array_owner_hint)
-                .unwrap_or_else(|| Self::owner_file(&self.array_owners, id.0, "NodeArrayId"));
+            Self::try_owner_file_with_hint(&self.array_owners, id.index(), &self.array_owner_hint)
+                .unwrap_or_else(|| Self::owner_file(&self.array_owners, id.index(), "NodeArrayId"));
         self.sources[index].arena.node_array(id)
     }
 
@@ -1488,24 +1497,24 @@ impl<'a> ProgramBinder<'a> {
 
     #[inline]
     fn owner_of_symbol(&self, id: SymbolId) -> Result<usize, ()> {
-        if id.0 & TRANSIENT_SYMBOL_BIT != 0 {
+        if id.index() & TRANSIENT_SYMBOL_BIT != 0 {
             return Err(());
         }
         let hint = self.symbol_owner_hint.load(Ordering::Relaxed);
         if let Some(owner) = self.symbol_owners.get(hint) {
-            if owner.start <= id.0 && id.0 < owner.end {
+            if owner.start <= id.index() && id.index() < owner.end {
                 return Ok(owner.file);
             }
         }
         let index = if self.symbol_files.is_empty() {
-            Self::try_owner_index(&self.symbol_owners, id.0)
+            Self::try_owner_index(&self.symbol_owners, id.index())
         } else {
-            self.symbol_files.lookup_index(id.0)
+            self.symbol_files.lookup_index(id.index())
         }
         .unwrap_or_else(|| {
             panic!(
                 "persistent SymbolId {} is outside every program arena",
-                id.0
+                id.index()
             )
         });
         self.symbol_owner_hint.store(index, Ordering::Relaxed);
@@ -1516,16 +1525,17 @@ impl<'a> ProgramBinder<'a> {
     /// checker-owned transient arena; tsc carries object references.
     #[inline]
     pub fn symbol(&self, id: SymbolId) -> &Symbol {
-        if id.0 & TRANSIENT_SYMBOL_BIT != 0 {
+        if id.index() & TRANSIENT_SYMBOL_BIT != 0 {
             return self.transient.symbol(id);
         }
         // The hinted route answers a run of lookups inside one file's
         // symbols with one range check and one index (as `node_record`).
         let hint = self.symbol_owner_hint.load(Ordering::Relaxed);
         if let Some(route) = self.symbol_routes.get(hint) {
-            if let Some(record) =
-                id.0.checked_sub(route.start)
-                    .and_then(|offset| route.symbols.get(offset as usize))
+            if let Some(record) = id
+                .index()
+                .checked_sub(route.start)
+                .and_then(|offset| route.symbols.get(offset as usize))
             {
                 return record;
             }
@@ -1551,13 +1561,13 @@ impl<'a> ProgramBinder<'a> {
     /// tsrs-native: fallible symbol lookup for the emit-resolver
     /// symbol-token validation boundary (h2-7a-m-2 §4).
     pub(crate) fn try_symbol(&self, id: SymbolId) -> Option<&Symbol> {
-        if id.0 & TRANSIENT_SYMBOL_BIT != 0 {
+        if id.index() & TRANSIENT_SYMBOL_BIT != 0 {
             return self
                 .transient
                 .contains(id)
                 .then(|| self.transient.symbol(id));
         }
-        let file = Self::try_owner_file(&self.symbol_owners, id.0)?;
+        let file = Self::try_owner_file(&self.symbol_owners, id.index())?;
         Some(match &self.file_entries[file] {
             ProgramEntry::Legacy(entry) => entry.binder.symbols.symbol(id),
             ProgramEntry::Owned(document) => document.data.symbols.symbol(id),
@@ -1662,7 +1672,7 @@ impl<'a> ProgramBinder<'a> {
         let file = self.file_index_of_node(node);
         self.file_entries[file]
             .data()
-            .flags_of(node, self.sources[file].arena.node_base())
+            .flags_of(node, &self.sources[file].arena)
     }
 
     /// tsc isExternalOrCommonJsModule for the file owning `node`.

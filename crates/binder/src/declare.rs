@@ -23,10 +23,11 @@ use tsc_diagnostics::{
     gen as diagnostics, Diagnostic, DiagnosticArgument, DiagnosticList, DiagnosticMessage,
     MessageChain, RelatedInfo,
 };
-use tsc_syntax::{NodeData, NodeId, SourceFile, SyntaxKind};
+use tsc_syntax::{NodeArena, NodeData, NodeId, SourceFile, SyntaxKind};
 use tsc_types::{
     EscapedName, IdentityAllocationPolicy, IdentityDomain, IdentityError, IdentityLease,
-    IdentityRange, IdentitySpace, JsString, ModifierFlags, SymbolFlags, TRANSIENT_SYMBOL_BIT,
+    IdentityRange, IdentitySpace, JsString, ModifierFlags, NodeFlags, SymbolFlags,
+    TRANSIENT_SYMBOL_BIT,
 };
 
 /// Which symbol table a declaration lands in. tsc passes the table
@@ -81,9 +82,9 @@ pub struct BinderWorker<'a> {
     pub next_container: FxHashMap<NodeId, NodeId>,
     /// tsc mutates node.flags during binding (HasImplicitReturn,
     /// ContainsThis, ExportContext, Unreachable, emit flags); this is
-    /// the binder's mutable view, seeded from the parse-time flags.
+    /// the binder's mutable view over the parse-time flags.
     /// Parse-time-only readers (node_util) keep reading the arena.
-    pub node_flags_mut: Vec<i32>,
+    pub node_flags_mut: BinderNodeFlags,
     /// tsc file.patternAmbientModules (bindModuleDeclaration).
     pub pattern_ambient_modules: Vec<(JsString, JsString, SymbolId)>,
 
@@ -157,7 +158,7 @@ pub struct BindData {
     pub next_symbol_id: u32,
     pub private_name_serial_lease: Option<IdentityLease>,
     pub next_container: FxHashMap<NodeId, NodeId>,
-    pub node_flags_mut: Vec<i32>,
+    pub node_flags_mut: BinderNodeFlags,
     pub pattern_ambient_modules: Vec<(JsString, JsString, SymbolId)>,
     pub flow: crate::flow::FlowArena,
     pub unreachable_flow: crate::flow::FlowId,
@@ -175,6 +176,62 @@ pub struct BindData {
 /// publication code should name the worker explicitly as `BinderWorker` and
 /// retain only `BindData` in an owned document.
 pub type Binder<'a> = BinderWorker<'a>;
+
+/// What bind results allocate, by structure (memory accounting).
+#[derive(Clone, Debug, Default)]
+pub struct BinderMemory {
+    pub symbols: usize,
+    pub symbol_bytes: usize,
+    /// Heap bytes of symbol names, declaration lists and assignment members.
+    pub symbol_owned_bytes: usize,
+    /// Each distinct member/export table (shared between symbols) and its bytes.
+    pub tables: FxHashMap<*const SymbolTable, usize>,
+    pub locals: usize,
+    pub local_bytes: usize,
+    pub node_symbol_bytes: usize,
+    pub node_flow_bytes: usize,
+    pub node_flags_bytes: usize,
+    pub flow_nodes: usize,
+    pub flow_bytes: usize,
+    pub flow_antecedent_bytes: usize,
+    pub map_bytes: usize,
+}
+
+impl BindData {
+    /// Add this file's bind results to `usage`.
+    pub fn add_memory_usage(&self, usage: &mut BinderMemory) {
+        fn map_bytes<K, V>(map: &FxHashMap<K, V>) -> usize {
+            map.capacity() * (std::mem::size_of::<(K, V)>() + 1) * 8 / 7
+        }
+        let (symbols, symbol_bytes, owned) = self.symbols.memory_usage(&mut usage.tables);
+        usage.symbols += symbols;
+        usage.symbol_bytes += symbol_bytes;
+        usage.symbol_owned_bytes += owned;
+        usage.locals += self.locals.len();
+        usage.local_bytes += map_bytes(&self.locals)
+            + self
+                .locals
+                .values()
+                .map(SymbolTable::heap_bytes)
+                .sum::<usize>();
+        usage.node_symbol_bytes += self.node_symbol.heap_bytes();
+        usage.node_flow_bytes += self.node_flow.heap_bytes();
+        usage.node_flags_bytes += self.node_flags_mut.heap_bytes();
+        let (flow_nodes, flow_bytes, antecedent_bytes) = self.flow.memory_usage();
+        usage.flow_nodes += flow_nodes;
+        usage.flow_bytes += flow_bytes;
+        usage.flow_antecedent_bytes += antecedent_bytes;
+        usage.map_bytes += map_bytes(&self.node_local_symbol)
+            + map_bytes(&self.assigned_symbol_ids)
+            + map_bytes(&self.next_container)
+            + map_bytes(&self.node_end_flow)
+            + map_bytes(&self.node_return_flow)
+            + map_bytes(&self.node_flow_when_true)
+            + map_bytes(&self.node_flow_when_false)
+            + map_bytes(&self.possibly_exhaustive)
+            + map_bytes(&self.node_fallthrough_flow);
+    }
+}
 
 impl BindData {
     /// Clone only the completed result for a compatibility adapter. The
@@ -235,9 +292,11 @@ impl BindData {
         self.next_symbol_id
     }
 
-    pub fn flags_of(&self, node: NodeId, node_base: u32) -> tsc_types::NodeFlags {
-        let index = (node.0 - node_base) as usize;
-        tsc_types::NodeFlags::from_bits(self.node_flags_mut[index])
+    /// The binder's view of tsc node.flags for `node` of `arena`, this
+    /// document's syntax.
+    pub fn flags_of(&self, node: NodeId, arena: &NodeArena) -> NodeFlags {
+        let index = (node.index() - arena.node_base()) as usize;
+        self.node_flags_mut.get(index, arena.nodes()[index].flags)
     }
 }
 
@@ -297,7 +356,7 @@ impl<'a> BinderWorker<'a> {
             block_scope_container: None,
             last_container: None,
             next_container: FxHashMap::default(),
-            node_flags_mut: source.arena.nodes().iter().map(|node| node.flags).collect(),
+            node_flags_mut: BinderNodeFlags::new(&source.arena),
             pattern_ambient_modules: Vec::new(),
             flow,
             unreachable_flow,
@@ -333,14 +392,20 @@ impl<'a> BinderWorker<'a> {
     /// The binder's mutable view of tsc node.flags. `node_flags_mut` is
     /// indexed by the file-local node index (program binds parse each
     /// file with a NodeId base — see ParseOptions::node_id_base).
-    pub fn flags_of(&self, node: NodeId) -> tsc_types::NodeFlags {
-        let index = (node.0 - self.source.arena.node_base()) as usize;
-        tsc_types::NodeFlags::from_bits(self.node_flags_mut[index])
+    pub fn flags_of(&self, node: NodeId) -> NodeFlags {
+        let index = (node.index() - self.source.arena.node_base()) as usize;
+        self.node_flags_mut
+            .get(index, self.source.arena.nodes()[index].flags)
     }
 
-    pub fn set_flags_of(&mut self, node: NodeId, flags: tsc_types::NodeFlags) {
-        let index = (node.0 - self.source.arena.node_base()) as usize;
-        self.node_flags_mut[index] = flags.bits();
+    pub fn set_flags_of(&mut self, node: NodeId, flags: NodeFlags) {
+        let index = (node.index() - self.source.arena.node_base()) as usize;
+        debug_assert_eq!(
+            flags.bits() & !BINDER_NODE_FLAG_MASK,
+            self.source.arena.nodes()[index].flags & !BINDER_NODE_FLAG_MASK,
+            "the binder changes only the node flags it owns"
+        );
+        self.node_flags_mut.set(index, flags);
     }
 
     pub fn next_symbol_id(&self) -> u32 {
@@ -1532,6 +1597,77 @@ impl BinderWorker<'_> {
 #[path = "../tests/unit/declare/tests.rs"]
 mod tests;
 
+/// The node flags the binder owns: tsc sets and clears them on node.flags
+/// while binding (reachability, `this` use, export context, async emit);
+/// every other bit keeps its parse-time value.
+const BINDER_NODE_FLAGS: [NodeFlags; 6] = [
+    NodeFlags::EXPORT_CONTEXT,
+    NodeFlags::CONTAINS_THIS,
+    NodeFlags::HAS_IMPLICIT_RETURN,
+    NodeFlags::HAS_EXPLICIT_RETURN,
+    NodeFlags::HAS_ASYNC_FUNCTIONS,
+    NodeFlags::UNREACHABLE,
+];
+
+const BINDER_NODE_FLAG_MASK: i32 = unpack_binder_node_flags(u8::MAX);
+
+/// The binder's view of tsc node.flags for one source: the parse-time flags
+/// in the arena with the binder-owned bits overlaid, one byte per node (bit
+/// `i` stands for `BINDER_NODE_FLAGS[i]`) instead of a copy of every
+/// node's flags.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct BinderNodeFlags(Vec<u8>);
+
+impl BinderNodeFlags {
+    fn new(arena: &NodeArena) -> Self {
+        Self(
+            arena
+                .nodes()
+                .iter()
+                .map(|node| pack_binder_node_flags(node.flags))
+                .collect(),
+        )
+    }
+
+    /// Bytes this overlay owns on the heap, for memory accounting.
+    pub fn heap_bytes(&self) -> usize {
+        self.0.capacity()
+    }
+
+    /// The flags of the node at `index`, whose parse-time flags are `parsed`.
+    fn get(&self, index: usize, parsed: i32) -> NodeFlags {
+        NodeFlags::from_bits(
+            parsed & !BINDER_NODE_FLAG_MASK | unpack_binder_node_flags(self.0[index]),
+        )
+    }
+
+    fn set(&mut self, index: usize, flags: NodeFlags) {
+        self.0[index] = pack_binder_node_flags(flags.bits());
+    }
+}
+
+fn pack_binder_node_flags(flags: i32) -> u8 {
+    let mut bits = 0;
+    for (bit, flag) in BINDER_NODE_FLAGS.iter().enumerate() {
+        if flags & flag.bits() != 0 {
+            bits |= 1 << bit;
+        }
+    }
+    bits
+}
+
+const fn unpack_binder_node_flags(bits: u8) -> i32 {
+    let mut flags = 0;
+    let mut bit = 0;
+    while bit < BINDER_NODE_FLAGS.len() {
+        if bits & (1 << bit) != 0 {
+            flags |= BINDER_NODE_FLAGS[bit].bits();
+        }
+        bit += 1;
+    }
+    flags
+}
+
 /// tsc node.symbol for one source: one slot per node of the file, indexed by
 /// the node's offset from the arena base, instead of a hash map keyed by
 /// NodeId. About one node in eight declares a symbol, so the table is small,
@@ -1553,6 +1689,11 @@ pub type NodeSymbolMap = DenseNodeMap<SymbolId>;
 pub type NodeFlowMap = DenseNodeMap<crate::flow::FlowId>;
 
 impl<V: Copy> DenseNodeMap<V> {
+    /// Bytes this map owns on the heap, for memory accounting.
+    pub fn heap_bytes(&self) -> usize {
+        self.slots.capacity() * std::mem::size_of::<Option<V>>()
+    }
+
     pub fn with_len(base: u32, len: usize) -> Self {
         Self {
             base,
@@ -1561,7 +1702,9 @@ impl<V: Copy> DenseNodeMap<V> {
     }
 
     fn slot(&self, node: &NodeId) -> Option<usize> {
-        node.0.checked_sub(self.base).map(|offset| offset as usize)
+        node.index()
+            .checked_sub(self.base)
+            .map(|offset| offset as usize)
     }
 
     pub fn get(&self, node: &NodeId) -> Option<&V> {
@@ -1596,7 +1739,7 @@ impl<V: Copy> DenseNodeMap<V> {
             .iter()
             .enumerate()
             .filter_map(move |(index, slot)| {
-                slot.map(|value| (NodeId(self.base + index as u32), value))
+                slot.map(|value| (NodeId::new(self.base + index as u32), value))
             })
     }
 }

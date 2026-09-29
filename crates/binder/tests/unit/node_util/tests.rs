@@ -13,11 +13,11 @@ fn assigned_expression_names_include_static_property_and_element_accesses() {
         None,
     );
     let function = (0..source.arena.len() as u32)
-        .map(NodeId)
+        .map(NodeId::new)
         .find(|&node| kind_of(&source, node) == SyntaxKind::FunctionExpression)
         .expect("function expression");
     let class = (0..source.arena.len() as u32)
-        .map(NodeId)
+        .map(NodeId::new)
         .find(|&node| kind_of(&source, node) == SyntaxKind::ClassExpression)
         .expect("class expression");
 

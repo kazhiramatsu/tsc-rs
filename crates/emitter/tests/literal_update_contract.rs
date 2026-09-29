@@ -149,16 +149,20 @@ fn find_kind(arena: &TransformArena, source: TransformSourceId, kind: SyntaxKind
 fn template_payload(kind: SyntaxKind, text: JsString, raw_text: Option<String>) -> NodeData {
     match kind {
         SyntaxKind::NoSubstitutionTemplateLiteral => {
-            NodeData::NoSubstitutionTemplateLiteral(NoSubstitutionTemplateLiteralData {
+            NodeData::NoSubstitutionTemplateLiteral(Box::new(NoSubstitutionTemplateLiteralData {
                 text,
                 raw_text,
-            })
+            }))
         }
-        SyntaxKind::TemplateHead => NodeData::TemplateHead(TemplateHeadData { text, raw_text }),
+        SyntaxKind::TemplateHead => {
+            NodeData::TemplateHead(Box::new(TemplateHeadData { text, raw_text }))
+        }
         SyntaxKind::TemplateMiddle => {
-            NodeData::TemplateMiddle(TemplateMiddleData { text, raw_text })
+            NodeData::TemplateMiddle(Box::new(TemplateMiddleData { text, raw_text }))
         }
-        SyntaxKind::TemplateTail => NodeData::TemplateTail(TemplateTailData { text, raw_text }),
+        SyntaxKind::TemplateTail => {
+            NodeData::TemplateTail(Box::new(TemplateTailData { text, raw_text }))
+        }
         other => panic!("not a template kind: {other:?}"),
     }
 }
@@ -337,7 +341,7 @@ fn apply_typed(
             Some(owned) => Some(owned.code_units().to_vec()),
             None => projection.map(|raw| raw.encode_utf16().collect()),
         };
-    let flags = record.template_flags & TokenFlags::TEMPLATE_LITERAL_LIKE_FLAGS.bits();
+    let flags = i32::from(record.template_flags) & TokenFlags::TEMPLATE_LITERAL_LIKE_FLAGS.bits();
     let empty: &[u16] = &[];
     let (text, raw, flags): (&[u16], Option<&[u16]>, i32) = match operation {
         "same" => (&current_text, current_raw.as_deref(), flags),

@@ -214,7 +214,7 @@ pub(super) fn flatten_destructuring_assignment<H: FlattenHost>(
         let mut visited = host.visit_expression(raw)?;
         let collides = match &host.context_ref().arena().node(visited)?.data {
             NodeData::Identifier(data) => {
-                let text = data.text.clone();
+                let text = data.text().to_owned();
                 binding_or_assignment_element_assigns_to_name(host, node, &text)?
             }
             _ => false,
@@ -284,7 +284,7 @@ pub(super) fn flatten_destructuring_binding<H: FlattenHost>(
         if let Some(initializer) = get_initializer_of_binding_or_assignment_element(host, node)? {
             let collides = match &host.context_ref().arena().node(initializer)?.data {
                 NodeData::Identifier(data) => {
-                    let text = data.text.clone();
+                    let text = data.text().to_owned();
                     binding_or_assignment_element_assigns_to_name(host, node, &text)?
                 }
                 _ => false,
@@ -799,7 +799,7 @@ fn binding_or_assignment_element_assigns_to_name<H: FlattenHost>(
         return binding_or_assignment_pattern_assigns_to_name(host, target, name);
     }
     match &host.context_ref().arena().node(target)?.data {
-        NodeData::Identifier(data) => Ok(data.text == name),
+        NodeData::Identifier(data) => Ok(data.text() == name),
         _ => Ok(false),
     }
 }
@@ -2115,7 +2115,6 @@ fn create_identifier<H: FlattenHost>(
         source,
         NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
             escaped_text: tsc_syntax::escape_leading_underscores(text),
-            text: text.to_owned(),
         }),
         TransformFlags::NONE,
     )
@@ -2126,7 +2125,7 @@ fn identifier_text<H: FlattenHost>(
     node: TransformNode,
 ) -> Result<String, TransformError> {
     match &host.context_ref().arena().node(node)?.data {
-        NodeData::Identifier(data) => Ok(data.text.clone()),
+        NodeData::Identifier(data) => Ok(data.text().to_owned()),
         _ => Err(TransformError::RequiredChildRemoved {
             parent: host.context_ref().arena().node(node)?.kind,
             field: "identifier property name",
@@ -2153,7 +2152,7 @@ fn create_string_literal_from_property_name<H: FlattenHost>(
     property_name: TransformNode,
 ) -> Result<TransformNode, TransformError> {
     let text = match &host.context_ref().arena().node(property_name)?.data {
-        NodeData::Identifier(data) => tsc_diagnostics::JsString::from(&data.text),
+        NodeData::Identifier(data) => tsc_diagnostics::JsString::from(data.text()),
         NodeData::StringLiteral(data) => data.text.clone(),
         NodeData::NumericLiteral(data) => data.text.clone().into(),
         NodeData::BigIntLiteral(data) => data.text.clone().into(),

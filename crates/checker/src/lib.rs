@@ -2845,6 +2845,119 @@ fn reserve_type_tables(state: &mut state::CheckerState<'_>, node_count: usize) {
     state.signatures.reserve(reserve(0.25));
 }
 
+/// With `TSRS_MEMORY_REPORT` set, print what the parsed and bound documents
+/// of `snapshot` allocate, by structure, to stderr.
+fn report_program_memory(snapshot: &ProgramSnapshot) {
+    if std::env::var_os("TSRS_MEMORY_REPORT").is_none() {
+        return;
+    }
+    let mut syntax = tsc_syntax::SyntaxMemory::default();
+    let mut binder = tsc_binder::BinderMemory::default();
+    let mut text_bytes = 0usize;
+    for document in snapshot.documents() {
+        let source = document.source();
+        text_bytes += source.text().len();
+        source.arena.add_memory_usage(&mut syntax);
+        document.data.add_memory_usage(&mut binder);
+    }
+    let mib = |bytes: usize| bytes as f64 / (1024.0 * 1024.0);
+    let row = |name: &str, count: usize, bytes: usize| {
+        eprintln!("[memory] {name:<34} {count:>11} {:>10.1} MiB", mib(bytes));
+    };
+    eprintln!(
+        "[memory] {} documents, source text {:.1} MiB",
+        snapshot.documents().len(),
+        mib(text_bytes)
+    );
+    row("syntax: nodes (Node)", syntax.nodes, syntax.node_bytes);
+    row(
+        "syntax: node arrays (NodeArray)",
+        syntax.arrays,
+        syntax.array_bytes,
+    );
+    row(
+        "syntax: node array items",
+        syntax.array_items,
+        syntax.array_item_bytes,
+    );
+    row(
+        "syntax: identifier strings",
+        syntax.identifiers,
+        syntax.identifier_text_bytes,
+    );
+    row(
+        "syntax: other literal strings",
+        syntax.string_nodes,
+        syntax.string_bytes,
+    );
+    let syntax_total = syntax.node_bytes
+        + syntax.array_bytes
+        + syntax.array_item_bytes
+        + syntax.identifier_text_bytes
+        + syntax.string_bytes;
+    row("syntax: total", syntax.nodes, syntax_total);
+    let table_bytes: usize = binder.tables.values().sum();
+    row(
+        "binder: symbols (Symbol)",
+        binder.symbols,
+        binder.symbol_bytes,
+    );
+    row(
+        "binder: symbol names/declarations",
+        binder.symbols,
+        binder.symbol_owned_bytes,
+    );
+    row(
+        "binder: member/export tables",
+        binder.tables.len(),
+        table_bytes,
+    );
+    row("binder: locals tables", binder.locals, binder.local_bytes);
+    row(
+        "binder: node_symbol (per node)",
+        syntax.nodes,
+        binder.node_symbol_bytes,
+    );
+    row(
+        "binder: node_flow (per node)",
+        syntax.nodes,
+        binder.node_flow_bytes,
+    );
+    row(
+        "binder: node_flags_mut (per node)",
+        syntax.nodes,
+        binder.node_flags_bytes,
+    );
+    row(
+        "binder: flow nodes (FlowNode)",
+        binder.flow_nodes,
+        binder.flow_bytes,
+    );
+    row(
+        "binder: flow antecedent lists",
+        binder.flow_nodes,
+        binder.flow_antecedent_bytes,
+    );
+    row("binder: node-keyed hash maps", 0, binder.map_bytes);
+    let binder_total = binder.symbol_bytes
+        + binder.symbol_owned_bytes
+        + table_bytes
+        + binder.local_bytes
+        + binder.node_symbol_bytes
+        + binder.node_flow_bytes
+        + binder.node_flags_bytes
+        + binder.flow_bytes
+        + binder.flow_antecedent_bytes
+        + binder.map_bytes;
+    row("binder: total", binder.symbols, binder_total);
+    let mut kinds: Vec<_> = syntax.kinds.iter().collect();
+    kinds.sort_by(|a, b| b.1.cmp(a.1));
+    for (kind, count) in kinds.into_iter().take(12) {
+        let name = format!("{kind:?}");
+        eprintln!("[memory]   kind {name:<30} {count:>11}");
+    }
+}
+
 fn snapshot_node_count(snapshot: &ProgramSnapshot) -> usize {
     snapshot
         .documents()
@@ -2977,6 +3090,7 @@ fn run_checker_shard<'a>(
             shard_started,
         );
     }
+    state.report_memory(&format!("shard {shard_index}"));
     state.line_profile.flush();
     let mut output = ShardOutput {
         fixture,
@@ -3285,6 +3399,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     let snapshot = document_store
         .into_snapshot_with_file_facts(file_facts)
         .expect("program snapshot identity allocation failed");
+    report_program_memory(&snapshot);
     let file_diagnostics = syntactic_file_rows(&snapshot, lib_count, options);
     let mut metadata = run.lib_metadata.clone();
     metadata.extend(authoritative_program_metadata.iter().cloned());
@@ -3763,11 +3878,24 @@ fn check_snapshot_serially(
     };
     let program_file_ids = state.binder.file_ids().skip(lib_count).collect::<Vec<_>>();
     let mut global_checker_diagnostics_by_file = vec![Vec::new(); state.binder.file_count()];
+    let check_started = std::time::Instant::now();
     check_files_in_order(
         &mut state,
         &program_file_ids,
         &mut global_checker_diagnostics_by_file,
     );
+    if tsc_types::trace::enabled() {
+        tsc_types::trace::mark(
+            &format!(
+                "serial: check ({} types, {} symbol links, {} files)",
+                state.tables.len(),
+                state.links.symbol_len(),
+                program_file_ids.len()
+            ),
+            check_started,
+        );
+    }
+    state.report_memory("serial");
     for &file in &program_file_ids {
         if state.skip_type_checking_file(file) {
             continue;
@@ -3953,6 +4081,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         let snapshot = document_store
             .into_snapshot_with_file_facts(file_facts)
             .expect("program snapshot identity allocation failed");
+        report_program_memory(&snapshot);
         file_diagnostics = syntactic_file_rows(&snapshot, lib_count, options);
         let authoritative_metadata = authoritative_run.map(|run| {
             let mut metadata = run.lib_metadata.clone();

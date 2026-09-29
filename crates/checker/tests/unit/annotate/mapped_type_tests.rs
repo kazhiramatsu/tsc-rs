@@ -37,7 +37,7 @@ fn mapped_type_model_constructibility() {
             let TypeData::Mapped(data) = &state.tables.type_of(mapped).data else {
                 panic!("mapped object flags require semantic mapped payload");
             };
-            assert_eq!(data.declaration, declaration.0);
+            assert_eq!(data.declaration, declaration.index());
             assert_eq!(data.target, None);
             assert_eq!(data.mapper, None);
             assert_eq!(

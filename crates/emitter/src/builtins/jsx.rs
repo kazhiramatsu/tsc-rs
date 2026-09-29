@@ -528,8 +528,8 @@ impl<'context> JsxVisitor<'context> {
     fn transform_tag_name(&mut self, id: NodeId) -> Result<TransformNode, TransformError> {
         let node = self.node(id);
         match self.context.arena().node(node)?.data.clone() {
-            NodeData::Identifier(data) if is_intrinsic_jsx_name(&data.text) => {
-                self.create_string_literal(data.text.encode_utf16().collect(), false)
+            NodeData::Identifier(data) if is_intrinsic_jsx_name(data.text()) => {
+                self.create_string_literal(data.text().encode_utf16().collect(), false)
             }
             NodeData::JsxNamespacedName(data) => {
                 let namespace =
@@ -615,7 +615,7 @@ impl<'context> JsxVisitor<'context> {
             };
             if matches!(
                 &self.context.arena().node(self.node(name))?.data,
-                NodeData::Identifier(data) if data.text == "key"
+                NodeData::Identifier(data) if data.text() == "key"
             ) {
                 return Ok(Some(id));
             }
@@ -661,7 +661,7 @@ impl<'context> JsxVisitor<'context> {
                     let is_key = attribute.name.is_some_and(|name| {
                         matches!(
                             self.context.arena().node(self.node(name)),
-                            Ok(record) if matches!(&record.data, NodeData::Identifier(data) if data.text == "key")
+                            Ok(record) if matches!(&record.data, NodeData::Identifier(data) if data.text() == "key")
                         )
                     });
                     if is_key {
@@ -696,17 +696,17 @@ impl<'context> JsxVisitor<'context> {
         })?;
         let name_node = self.node(name_id);
         let name = match self.context.arena().node(name_node)?.data.clone() {
-            NodeData::Identifier(data) if is_identifier_attribute_name(&data.text) => {
+            NodeData::Identifier(data) if is_identifier_attribute_name(data.text()) => {
                 // getAttributeName returns the ORIGINAL identifier for
                 // identifier-safe attribute names, so the printed property
                 // name maps to the source attribute name (start and end
                 // boundaries). The clone carries the range plus the
                 // original link (parse-tree identity).
-                let identifier = self.create_identifier(&data.text)?;
+                let identifier = self.create_identifier(data.text())?;
                 self.set_original_and_range(identifier, name_node)?
             }
             NodeData::Identifier(data) => {
-                self.create_string_literal(data.text.encode_utf16().collect(), false)?
+                self.create_string_literal(data.text().encode_utf16().collect(), false)?
             }
             NodeData::JsxNamespacedName(data) => {
                 let namespace =
@@ -828,7 +828,7 @@ impl<'context> JsxVisitor<'context> {
                 continue;
             };
             match &self.context.arena().node(self.node(name))?.data {
-                NodeData::Identifier(data) if data.text == "__proto__" => return Ok(true),
+                NodeData::Identifier(data) if data.text() == "__proto__" => return Ok(true),
                 NodeData::StringLiteral(data) if data.text == "__proto__" => return Ok(true),
                 _ => {}
             }
@@ -1667,8 +1667,7 @@ impl<'context> JsxVisitor<'context> {
         self.context.factory()?.create_node(
             self.source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                escaped_text: text.to_owned(),
-                text: text.to_owned(),
+                escaped_text: tsc_syntax::escape_leading_underscores(text),
             }),
             TransformFlags::NONE,
         )
@@ -1802,7 +1801,7 @@ impl<'context> JsxVisitor<'context> {
                 field: "name",
             });
         };
-        Ok(data.text.clone())
+        Ok(data.text().to_owned())
     }
 
     fn original_string_is_single_quoted(

@@ -173,7 +173,7 @@ impl<'a> CheckerState<'a> {
             let operand_type = self.get_type_from_type_node(operand)?;
             self.instantiate_type(operand_type, mapped.mapper)?
         } else {
-            let declared = self.get_type_from_type_node(NodeId(mapped.declaration))?;
+            let declared = self.get_type_from_type_node(NodeId::new(mapped.declaration))?;
             let constraint = self.get_constraint_type_from_mapped_type(declared)?;
             let extended_constraint = if self
                 .tables

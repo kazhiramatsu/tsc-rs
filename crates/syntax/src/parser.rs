@@ -4031,7 +4031,6 @@ impl<'text> Parser<'text> {
             let id = self.arena.alloc_node(
                 NodeData::Identifier(IdentifierData {
                     escaped_text: String::new(),
-                    text: String::new(),
                 }),
                 pos,
                 pos,
@@ -4348,7 +4347,6 @@ impl<'text> Parser<'text> {
         let id = self.arena.alloc_node(
             NodeData::Identifier(IdentifierData {
                 escaped_text: crate::escape_leading_underscores(&text),
-                text,
             }),
             pos,
             end,
@@ -4366,7 +4364,6 @@ impl<'text> Parser<'text> {
         let id = self.arena.alloc_node(
             NodeData::PrivateIdentifier(PrivateIdentifierData {
                 escaped_text: crate::escape_leading_underscores(&text),
-                text,
             }),
             pos,
             end,
@@ -5395,7 +5392,6 @@ impl<'text> Parser<'text> {
                     let empty_identifier = self.arena.alloc_node(
                         NodeData::Identifier(IdentifierData {
                             escaped_text: String::new(),
-                            text: String::new(),
                         }),
                         end,
                         end,
@@ -7301,11 +7297,15 @@ impl<'text> Parser<'text> {
         let text = self.scanner.token_value().to_owned();
         let raw_text = Some(self.template_literal_raw_text(kind));
         let data = match kind {
-            SyntaxKind::TemplateHead => NodeData::TemplateHead(TemplateHeadData { text, raw_text }),
-            SyntaxKind::TemplateMiddle => {
-                NodeData::TemplateMiddle(TemplateMiddleData { text, raw_text })
+            SyntaxKind::TemplateHead => {
+                NodeData::TemplateHead(Box::new(TemplateHeadData { text, raw_text }))
             }
-            SyntaxKind::TemplateTail => NodeData::TemplateTail(TemplateTailData { text, raw_text }),
+            SyntaxKind::TemplateMiddle => {
+                NodeData::TemplateMiddle(Box::new(TemplateMiddleData { text, raw_text }))
+            }
+            SyntaxKind::TemplateTail => {
+                NodeData::TemplateTail(Box::new(TemplateTailData { text, raw_text }))
+            }
             _ => unreachable!("template fragment kind"),
         };
         let id = self.arena.alloc_node(data, pos, end, NodeFlags::NONE);
@@ -7390,10 +7390,10 @@ impl<'text> Parser<'text> {
         let text = self.scanner.token_value().to_owned();
         let raw_text = self.template_literal_raw_text(SyntaxKind::NoSubstitutionTemplateLiteral);
         let id = self.arena.alloc_node(
-            NodeData::NoSubstitutionTemplateLiteral(NoSubstitutionTemplateLiteralData {
+            NodeData::NoSubstitutionTemplateLiteral(Box::new(NoSubstitutionTemplateLiteralData {
                 text,
                 raw_text: Some(raw_text),
-            }),
+            })),
             pos,
             end,
             NodeFlags::NONE,
@@ -8943,7 +8943,7 @@ impl<'text> Parser<'text> {
             return;
         }
         let expression_text = match &self.arena.node(node).data {
-            NodeData::Identifier(data) => Some(data.text.clone()),
+            NodeData::Identifier(data) => Some(data.text().to_owned()),
             _ => None,
         };
         let Some(expression_text) = expression_text
@@ -9907,7 +9907,7 @@ impl<'text> Parser<'text> {
         stack.push(end_of_file_token);
         let mut seen = vec![false; self.arena.len()];
         while let Some(node) = stack.pop() {
-            let index = (node.0 - self.arena.node_base()) as usize;
+            let index = (node.index() - self.arena.node_base()) as usize;
             if seen[index] {
                 continue;
             }
@@ -9942,7 +9942,7 @@ impl<'text> Parser<'text> {
         if filter_reparsed_nodes {
             let reachable = self.reachable_node_mask_before_root(statements, end_of_file_token);
             hosts.retain(|host| {
-                let index = (host.0 - self.arena.node_base()) as usize;
+                let index = (host.index() - self.arena.node_base()) as usize;
                 reachable.get(index).copied().unwrap_or(false)
             });
         }
@@ -10280,7 +10280,7 @@ pub fn parse_entity_name_components(
     }
     fn collect(arena: &NodeArena, node: NodeId, parts: &mut Vec<String>) -> Option<()> {
         match &arena.node(node).data {
-            NodeData::Identifier(data) => parts.push(data.text.clone()),
+            NodeData::Identifier(data) => parts.push(data.text().to_owned()),
             NodeData::QualifiedName(data) => {
                 collect(arena, data.left?, parts)?;
                 collect(arena, data.right?, parts)?;

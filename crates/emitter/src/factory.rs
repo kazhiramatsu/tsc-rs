@@ -243,7 +243,7 @@ impl TransformSource {
     }
 
     pub const fn contains_parsed_node(&self, node: NodeId) -> bool {
-        node.0 >= self.parsed_node_base && node.0 < self.parsed_node_end
+        node.index() >= self.parsed_node_base && node.index() < self.parsed_node_end
     }
 
     /// The number of parsed nodes the emit copy started from.
@@ -535,8 +535,8 @@ impl TransformArena {
             let names = Arc::make_mut(&mut census.names);
             for node in &nodes[scanned..] {
                 if let NodeData::Identifier(data) = &node.data {
-                    if !names.contains(data.text.as_str()) {
-                        names.insert(data.text.clone());
+                    if !names.contains(data.text()) {
+                        names.insert(data.text().to_owned());
                     }
                 }
             }
@@ -694,8 +694,6 @@ impl TransformArena {
             });
         };
         data.escaped_text = tsc_syntax::escape_leading_underscores(text);
-        data.text.clear();
-        data.text.push_str(text);
         Ok(())
     }
 
@@ -751,8 +749,8 @@ impl TransformArena {
 
     pub fn node_array(&self, array: TransformNodeArray) -> Result<&NodeArray, TransformError> {
         let source = self.source(array.source)?;
-        if array.array.0 < source.source.arena.array_base()
-            || array.array.0 >= source.source.arena.array_end()
+        if array.array.index() < source.source.arena.array_base()
+            || array.array.index() >= source.source.arena.array_end()
         {
             return Err(TransformError::UnknownNodeArray(array));
         }
@@ -774,8 +772,8 @@ impl TransformArena {
         self.source(source)
             .ok()
             .filter(|source| {
-                array.0 >= source.source.arena.array_base()
-                    && array.0 < source.source.arena.array_end()
+                array.index() >= source.source.arena.array_base()
+                    && array.index() < source.source.arena.array_end()
             })
             .map(|_| TransformNodeArray { source, array })
     }
@@ -1902,7 +1900,6 @@ impl<'arena> NodeFactory<'arena> {
             source,
             NodeData::Identifier(IdentifierData {
                 escaped_text: tsc_syntax::escape_leading_underscores(&text),
-                text,
             }),
             flags,
         )
@@ -1945,7 +1942,6 @@ impl<'arena> NodeFactory<'arena> {
             source,
             NodeData::PrivateIdentifier(PrivateIdentifierData {
                 escaped_text: tsc_syntax::escape_leading_underscores(&text),
-                text,
             }),
             TransformFlags::CONTAINS_CLASS_FIELDS,
         )
@@ -2078,17 +2074,18 @@ impl<'arena> NodeFactory<'arena> {
         let text = JsString::from_code_units(units);
         let raw_text = raw.map(String::from_utf16_lossy);
         let data = match kind {
-            SyntaxKind::NoSubstitutionTemplateLiteral => {
-                NodeData::NoSubstitutionTemplateLiteral(NoSubstitutionTemplateLiteralData {
-                    text,
-                    raw_text,
-                })
+            SyntaxKind::NoSubstitutionTemplateLiteral => NodeData::NoSubstitutionTemplateLiteral(
+                Box::new(NoSubstitutionTemplateLiteralData { text, raw_text }),
+            ),
+            SyntaxKind::TemplateHead => {
+                NodeData::TemplateHead(Box::new(TemplateHeadData { text, raw_text }))
             }
-            SyntaxKind::TemplateHead => NodeData::TemplateHead(TemplateHeadData { text, raw_text }),
             SyntaxKind::TemplateMiddle => {
-                NodeData::TemplateMiddle(TemplateMiddleData { text, raw_text })
+                NodeData::TemplateMiddle(Box::new(TemplateMiddleData { text, raw_text }))
             }
-            SyntaxKind::TemplateTail => NodeData::TemplateTail(TemplateTailData { text, raw_text }),
+            SyntaxKind::TemplateTail => {
+                NodeData::TemplateTail(Box::new(TemplateTailData { text, raw_text }))
+            }
             _ => return Err(TransformError::FactoryTokenKindExpected(kind)),
         };
         let literal = self.create_node(source, data, TransformFlags::CONTAINS_ES_2015)?;
@@ -2123,7 +2120,7 @@ impl<'arena> NodeFactory<'arena> {
                 .source
                 .arena
                 .node_mut(literal.node)
-                .template_flags = template_flags.bits();
+                .template_flags = template_flags.bits() as u16;
             let flags = self.arena.transform_flags(literal) | TransformFlags::CONTAINS_ES_2018;
             self.arena.set_transform_flags(literal, flags);
         }
@@ -2173,7 +2170,7 @@ impl<'arena> NodeFactory<'arena> {
         };
         if current_text.to_utf16() == text
             && current_raw.as_deref() == raw
-            && record.template_flags & mask == requested_flags
+            && i32::from(record.template_flags) & mask == requested_flags
         {
             return Ok(original);
         }
@@ -2276,10 +2273,10 @@ impl<'arena> NodeFactory<'arena> {
     ) -> Result<TransformNode, TransformError> {
         self.create_node(
             source,
-            NodeData::TemplateHead(TemplateHeadData {
+            NodeData::TemplateHead(Box::new(TemplateHeadData {
                 text: text.into(),
                 raw_text,
-            }),
+            })),
             TransformFlags::CONTAINS_ES_2015,
         )
     }
@@ -5284,7 +5281,6 @@ impl<'arena> NodeFactory<'arena> {
             source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
                 escaped_text: tsc_syntax::escape_leading_underscores(text),
-                text: text.to_owned(),
             }),
             TransformFlags::NONE,
         )?;
@@ -6994,9 +6990,9 @@ impl<'arena> NodeFactory<'arena> {
         // generated@NodeId spelling even when their text happens to look like
         // an identifier.
         let base = match &record.data {
-            NodeData::Identifier(data) => data.text.clone(),
-            NodeData::PrivateIdentifier(data) => data.text.clone(),
-            _ => format!("generated@{}", node.node.0),
+            NodeData::Identifier(data) => data.text().to_owned(),
+            NodeData::PrivateIdentifier(data) => data.text().to_owned(),
+            _ => format!("generated@{}", node.node.index()),
         };
         let mut text = String::new();
         if let Some(prefix) = prefix {

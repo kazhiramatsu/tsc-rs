@@ -153,6 +153,36 @@ impl EnumRelationOutcome {
 }
 
 impl RelationCaches {
+    /// Entries and bytes of the five relation caches and the enum-relation
+    /// cache (memory accounting).
+    pub(crate) fn memory_usage(&self) -> (usize, usize) {
+        let mut entries = self.enum_relation.len();
+        let mut bytes = self.enum_relation.capacity()
+            * (std::mem::size_of::<(String, RelationComparisonResult)>() + 1)
+            * 8
+            / 7
+            + self
+                .enum_relation
+                .keys()
+                .map(String::capacity)
+                .sum::<usize>();
+        for cache in &self.per_relation {
+            entries += cache.len();
+            bytes += cache.capacity()
+                * (std::mem::size_of::<(RelationKey, RelationComparisonResult)>() + 1)
+                * 8
+                / 7;
+            bytes += cache
+                .keys()
+                .map(|key| match key {
+                    RelationKey::Generic(text) => text.len(),
+                    RelationKey::Pair { .. } => 0,
+                })
+                .sum::<usize>();
+        }
+        (entries, bytes)
+    }
+
     /// tsrs-native: Rust fixed-array accessor for tsc's separate
     /// relation cache objects.
     pub fn cache(&self, relation: RelationKind) -> &RelationCache {
@@ -257,7 +287,7 @@ impl<'a> CheckerState<'a> {
         type_parameters: &mut Vec<TypeId>,
         constraint_marker: &mut &'static str,
     ) -> CheckResult<String> {
-        let mut result = self.tables.reference_target(ty).0.to_string();
+        let mut result = self.tables.reference_target(ty).index().to_string();
         let arguments = self.tables.type_arguments(ty).to_vec();
         for t in arguments {
             if self
@@ -291,7 +321,7 @@ impl<'a> CheckerState<'a> {
                 continue;
             }
             result.push('-');
-            result.push_str(&t.0.to_string());
+            result.push_str(&t.index().to_string());
         }
         Ok(result)
     }
@@ -311,11 +341,12 @@ impl<'a> CheckerState<'a> {
         relation: RelationKind,
         ignore_constraints: bool,
     ) -> CheckResult<RelationKey> {
-        let (source, target) = if relation == RelationKind::Identity && source.0 > target.0 {
-            (target, source)
-        } else {
-            (source, target)
-        };
+        let (source, target) =
+            if relation == RelationKind::Identity && source.index() > target.index() {
+                (target, source)
+            } else {
+                (source, target)
+            };
         if self.is_type_reference_with_generic_arguments(source)
             && self.is_type_reference_with_generic_arguments(target)
         {
@@ -332,8 +363,8 @@ impl<'a> CheckerState<'a> {
             );
         }
         Ok(RelationKey::Pair {
-            source: source.0,
-            target: target.0,
+            source: source.index(),
+            target: target.index(),
             intersection: intersection_state.bits(),
         })
     }
@@ -400,7 +431,7 @@ impl<'a> CheckerState<'a> {
                 return Ok(EnumRelationOutcome::Unrelated(None));
             }
         }
-        let id = format!("{},{}", source_symbol.0, target_symbol.0);
+        let id = format!("{},{}", source_symbol.index(), target_symbol.index());
         if let Some(&entry) = self.relations.enum_relation.get(&id) {
             if !(collect_error && entry.intersects(RelationComparisonResult::FAILED)) {
                 return Ok(if entry.intersects(RelationComparisonResult::SUCCEEDED) {

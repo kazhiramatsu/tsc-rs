@@ -39,7 +39,7 @@ fn class_header_printer_metadata_matches_typescript() {
                             SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
                         )
                     })
-                    .map(|(index, _)| NodeId(u32::try_from(index).unwrap()))
+                    .map(|(index, _)| NodeId::new(u32::try_from(index).unwrap()))
                     .collect::<Vec<_>>();
                 assert_eq!(classes.len(), 1);
                 let bits = u32::try_from(case["emit_flags"].as_u64().unwrap()).unwrap();

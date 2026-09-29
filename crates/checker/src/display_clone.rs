@@ -195,7 +195,7 @@ impl DisplayClonePrinter<'_, '_> {
         let NodeData::PrivateIdentifier(data) = self.state.data_of(node) else {
             return Ok(None);
         };
-        Ok(Some(data.text.clone().into()))
+        Ok(Some(data.text().to_owned().into()))
     }
 
     fn numeric_literal(&self, node: NodeId) -> CheckResult<Option<JsString>> {
@@ -1766,7 +1766,7 @@ impl DisplayClonePrinter<'_, '_> {
             NodeData::Identifier(data) => Some(JsString::from(
                 tsc_syntax::unescape_leading_underscores(&data.escaped_text),
             )),
-            NodeData::PrivateIdentifier(data) => Some(data.text.clone().into()),
+            NodeData::PrivateIdentifier(data) => Some(data.text().to_owned().into()),
             _ => None,
         }
     }

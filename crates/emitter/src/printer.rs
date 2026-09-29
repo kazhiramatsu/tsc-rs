@@ -1192,7 +1192,7 @@ impl EmissionPlanMemo {
         if node.source() != self.source {
             return None;
         }
-        let index = node.node().0.checked_sub(self.base)? as usize;
+        let index = node.node().index().checked_sub(self.base)? as usize;
         (index < self.dense.len()).then_some(index)
     }
 
@@ -1632,7 +1632,7 @@ impl Printer {
         }
         let requires_literal_rewrite = match &record.data {
             NodeData::NumericLiteral(_) => {
-                let flags = TokenFlags::from_bits(record.numeric_literal_flags);
+                let flags = TokenFlags::from_bits(i32::from(record.numeric_literal_flags));
                 flags.intersects(TokenFlags::IS_INVALID)
                     || flags.contains(TokenFlags::CONTAINS_SEPARATOR)
                         && target.is_none_or(|target| target < ScriptTarget::ES2021)
@@ -1656,7 +1656,7 @@ impl Printer {
             let child = match transformation.arena().node_ref(node.source(), child) {
                 Some(child) => child,
                 None => {
-                    result = Err(PrinterError::UnknownStatement(child.0));
+                    result = Err(PrinterError::UnknownStatement(child.index()));
                     break;
                 }
             };
@@ -1951,7 +1951,7 @@ impl Printer {
                 let statement = transformation
                     .arena()
                     .node_ref(source_id, raw_statement)
-                    .ok_or(PrinterError::UnknownStatement(raw_statement.0))?;
+                    .ok_or(PrinterError::UnknownStatement(raw_statement.index()))?;
                 let emitted = transformation.substitute_node(EmitHint::Unspecified, statement)?;
                 transformation.before_emit_node(EmitHint::Unspecified, statement)?;
                 if emitted != statement {
@@ -2036,7 +2036,7 @@ impl Printer {
                 let statement = transformation
                     .arena()
                     .node_ref(source_id, statement_id)
-                    .ok_or(PrinterError::UnknownStatement(statement_id.0))?;
+                    .ok_or(PrinterError::UnknownStatement(statement_id.index()))?;
                 let expression = match &transformation.arena().node(statement)?.data {
                     NodeData::ExpressionStatement(data) => {
                         data.expression
@@ -2257,7 +2257,7 @@ impl Printer {
     ) -> Result<(), PrinterError> {
         for identifier in transformation.root_declaration_generated_identifiers(root)? {
             let text = match &transformation.arena().node(identifier)?.data {
-                NodeData::Identifier(data) => data.text.clone(),
+                NodeData::Identifier(data) => data.text().to_owned(),
                 _ => continue,
             };
             self.note_generated_identifier(transformation.arena(), identifier, &text);
@@ -2468,7 +2468,7 @@ impl Printer {
             let statement = transformation
                 .arena()
                 .node_ref(source_id, raw_statement)
-                .ok_or(PrinterError::UnknownStatement(raw_statement.0))?;
+                .ok_or(PrinterError::UnknownStatement(raw_statement.index()))?;
             if statement_index >= helper_offset {
                 self.record_list_element_position(transformation, statement)?;
             }
@@ -2801,8 +2801,8 @@ impl Printer {
         };
         let expression = arena.node(arena.node_ref(source, data.expression?)?).ok()?;
         let name = arena.node(arena.node_ref(source, data.name?)?).ok()?;
-        (matches!(&expression.data, NodeData::Identifier(data) if data.text == "System")
-            && matches!(&name.data, NodeData::Identifier(data) if data.text == "register"))
+        (matches!(&expression.data, NodeData::Identifier(data) if data.text() == "System")
+            && matches!(&name.data, NodeData::Identifier(data) if data.text() == "register"))
         .then_some(body)
     }
 
@@ -3086,7 +3086,7 @@ impl Printer {
                 }
             }
             NodeData::Identifier(data) if changed => {
-                self.note_generated_identifier(transformation.arena(), node, &data.text);
+                self.note_generated_identifier(transformation.arena(), node, data.text());
                 if let Some(text) = transformation
                     .arena()
                     .metadata(node)
@@ -3098,11 +3098,11 @@ impl Printer {
                 if let Some(spelling) = self.transformed_identifier_source_spelling_node(
                     transformation,
                     node,
-                    &data.text,
+                    data.text(),
                 )? {
                     self.write_original_without_leading_trivia(transformation, spelling, writer)
                 } else {
-                    writer.write_symbol(&data.text);
+                    writer.write_symbol(data.text());
                     Ok(())
                 }
             }
@@ -3110,11 +3110,11 @@ impl Printer {
                 if let Some(spelling) = self.transformed_identifier_source_spelling_node(
                     transformation,
                     node,
-                    &data.text,
+                    data.text(),
                 )? {
                     self.write_original_without_leading_trivia(transformation, spelling, writer)
                 } else {
-                    writer.write_symbol(&data.text);
+                    writer.write_symbol(data.text());
                     Ok(())
                 }
             }
@@ -3505,10 +3505,8 @@ impl Printer {
                     {
                         let source_record = transformation.arena().node(text_source)?;
                         let name_text = match &source_record.data {
-                            NodeData::Identifier(identifier) => Some(identifier.text.as_str()),
-                            NodeData::PrivateIdentifier(identifier) => {
-                                Some(identifier.text.as_str())
-                            }
+                            NodeData::Identifier(identifier) => Some(identifier.text()),
+                            NodeData::PrivateIdentifier(identifier) => Some(identifier.text()),
                             _ => None,
                         };
                         if let Some(name_text) = name_text {
@@ -4077,7 +4075,7 @@ impl Printer {
                     let clause = transformation
                         .arena()
                         .node_ref(node.source(), clause_id)
-                        .ok_or(PrinterError::UnknownStatement(clause_id.0))?;
+                        .ok_or(PrinterError::UnknownStatement(clause_id.index()))?;
                     writer.write_space(" ");
                     // After TypeScript erases import modifiers, the keyword's
                     // arithmetic source end no longer abuts the clause. tsc
@@ -4134,7 +4132,7 @@ impl Printer {
                 let module = transformation
                     .arena()
                     .node_ref(node.source(), module_id)
-                    .ok_or(PrinterError::UnknownStatement(module_id.0))?;
+                    .ok_or(PrinterError::UnknownStatement(module_id.index()))?;
                 let prefix =
                     self.token_owned_child_prefix(transformation, module_prefix, Some(module))?;
                 self.emit_leading_comments_for_node_worker(
@@ -4156,7 +4154,7 @@ impl Printer {
                     let attributes = transformation
                         .arena()
                         .node_ref(node.source(), attributes_id)
-                        .ok_or(PrinterError::UnknownStatement(attributes_id.0))?;
+                        .ok_or(PrinterError::UnknownStatement(attributes_id.index()))?;
                     writer.write_space(" ");
                     self.emit_leading_comments_for_node(transformation, attributes, writer)?;
                     self.emit_node_id_with_context(
@@ -4217,7 +4215,7 @@ impl Printer {
                     let name = transformation
                         .arena()
                         .node_ref(node.source(), name_id)
-                        .ok_or(PrinterError::UnknownStatement(name_id.0))?;
+                        .ok_or(PrinterError::UnknownStatement(name_id.index()))?;
                     if let Some(phase) = phase {
                         let prefix =
                             self.token_owned_child_prefix(transformation, phase, Some(name))?;
@@ -4250,7 +4248,7 @@ impl Printer {
                             let bindings = transformation
                                 .arena()
                                 .node_ref(node.source(), bindings_id)
-                                .ok_or(PrinterError::UnknownStatement(bindings_id.0))?;
+                                .ok_or(PrinterError::UnknownStatement(bindings_id.index()))?;
                             let prefix = self.token_owned_child_prefix(
                                 transformation,
                                 comma,
@@ -4269,7 +4267,7 @@ impl Printer {
                     let bindings = transformation
                         .arena()
                         .node_ref(node.source(), bindings_id)
-                        .ok_or(PrinterError::UnknownStatement(bindings_id.0))?;
+                        .ok_or(PrinterError::UnknownStatement(bindings_id.index()))?;
                     let prefix =
                         self.token_owned_child_prefix(transformation, phase, Some(bindings))?;
                     self.emit_leading_comments_for_node_worker(
@@ -4291,7 +4289,7 @@ impl Printer {
                     let bindings = transformation
                         .arena()
                         .node_ref(node.source(), bindings)
-                        .ok_or(PrinterError::UnknownStatement(bindings.0))?;
+                        .ok_or(PrinterError::UnknownStatement(bindings.index()))?;
                     self.emit_trailing_comments_for_node_in_container(
                         transformation,
                         bindings,
@@ -4425,7 +4423,7 @@ impl Printer {
                     let clause = transformation
                         .arena()
                         .node_ref(node.source(), clause_id)
-                        .ok_or(PrinterError::UnknownStatement(clause_id.0))?;
+                        .ok_or(PrinterError::UnknownStatement(clause_id.index()))?;
                     // emit(exportClause) starts its own comment phase. A
                     // recovered export keyword can end before that owner.
                     let clause_owner =
@@ -4485,7 +4483,7 @@ impl Printer {
                     let module = transformation
                         .arena()
                         .node_ref(node.source(), module_id)
-                        .ok_or(PrinterError::UnknownStatement(module_id.0))?;
+                        .ok_or(PrinterError::UnknownStatement(module_id.index()))?;
                     let prefix =
                         self.token_owned_child_prefix(transformation, from_keyword, Some(module))?;
                     self.emit_leading_comments_for_node_worker(
@@ -4508,7 +4506,7 @@ impl Printer {
                     let attributes = transformation
                         .arena()
                         .node_ref(node.source(), attributes_id)
-                        .ok_or(PrinterError::UnknownStatement(attributes_id.0))?;
+                        .ok_or(PrinterError::UnknownStatement(attributes_id.index()))?;
                     writer.write_space(" ");
                     self.emit_leading_comments_for_node(transformation, attributes, writer)?;
                     self.emit_node_id_with_context(
@@ -4705,7 +4703,7 @@ impl Printer {
                     let expression = transformation
                         .arena()
                         .node_ref(node.source(), expression_id)
-                        .ok_or(PrinterError::UnknownStatement(expression_id.0))?;
+                        .ok_or(PrinterError::UnknownStatement(expression_id.index()))?;
                     let child_syntax = if data.is_export_equals == Some(true) {
                         ExpressionSyntaxContext::ASSIGNMENT_RIGHT_SIDE
                     } else {
@@ -4826,7 +4824,7 @@ impl Printer {
                     let declaration = transformation
                         .arena()
                         .node_ref(node.source(), declaration)
-                        .ok_or(PrinterError::UnknownStatement(declaration.0))?;
+                        .ok_or(PrinterError::UnknownStatement(declaration.index()))?;
                     // `var`/`let`/`const` is a textual list head in tsc, not
                     // a token-cursor anchor. The list item therefore owns the
                     // intervening comment boundary (including same-line
@@ -5059,7 +5057,7 @@ impl Printer {
                     let initializer_node = transformation
                         .arena()
                         .node_ref(node.source(), initializer)
-                        .ok_or(PrinterError::UnknownStatement(initializer.0))?;
+                        .ok_or(PrinterError::UnknownStatement(initializer.index()))?;
                     // emitInitializer always uses emitExpression, including
                     // calls and other non-Identifier initializer nodes.
                     let deferred = DeferredExpressionSourceComments::leading_only(
@@ -5601,7 +5599,7 @@ impl Printer {
                 let initializer_node = transformation
                     .arena()
                     .node_ref(node.source(), initializer)
-                    .ok_or(PrinterError::UnknownStatement(initializer.0))?;
+                    .ok_or(PrinterError::UnknownStatement(initializer.index()))?;
                 let skipped_prefix_bytes = self.emit_intervening_comments_before_node(
                     transformation,
                     initializer_node,
@@ -6034,7 +6032,7 @@ impl Printer {
                 let body_node = transformation
                     .arena()
                     .node_ref(node.source(), body)
-                    .ok_or(PrinterError::UnknownStatement(body.0))?;
+                    .ok_or(PrinterError::UnknownStatement(body.index()))?;
                 let concise = transformation.arena().node(body_node)?.kind != SyntaxKind::Block;
                 if concise {
                     self.emit_child_after_token_with_complete_source_comments(
@@ -6331,7 +6329,7 @@ impl Printer {
                     let initializer = transformation
                         .arena()
                         .node_ref(node.source(), initializer)
-                        .ok_or(PrinterError::UnknownStatement(initializer.0))?;
+                        .ok_or(PrinterError::UnknownStatement(initializer.index()))?;
                     self.emit_child_after_token_with_complete_source_comments(
                         transformation,
                         node,
@@ -7463,7 +7461,7 @@ impl Printer {
                 let statement_node = transformation
                     .arena()
                     .node_ref(node.source(), statement)
-                    .ok_or(PrinterError::UnknownStatement(statement.0))?;
+                    .ok_or(PrinterError::UnknownStatement(statement.index()))?;
                 let statement_is_block =
                     transformation.arena().node(statement_node)?.kind == SyntaxKind::Block;
                 let do_keyword = self.emit_token_with_comments(
@@ -7535,7 +7533,7 @@ impl Printer {
                 let try_block = transformation
                     .arena()
                     .node_ref(node.source(), try_block)
-                    .ok_or(PrinterError::UnknownStatement(try_block.0))?;
+                    .ok_or(PrinterError::UnknownStatement(try_block.index()))?;
                 let mut preceding_clause = try_block;
                 if let Some(catch_clause) = data.catch_clause {
                     // The block's trailing phase owns same-line comments;
@@ -7547,7 +7545,7 @@ impl Printer {
                     let catch_clause = transformation
                         .arena()
                         .node_ref(node.source(), catch_clause)
-                        .ok_or(PrinterError::UnknownStatement(catch_clause.0))?;
+                        .ok_or(PrinterError::UnknownStatement(catch_clause.index()))?;
                     self.emit_leading_comments_for_node_after_sibling(
                         transformation,
                         catch_clause,
@@ -7606,7 +7604,7 @@ impl Printer {
                     let variable_node = transformation
                         .arena()
                         .node_ref(node.source(), variable)
-                        .ok_or(PrinterError::UnknownStatement(variable.0))?;
+                        .ok_or(PrinterError::UnknownStatement(variable.index()))?;
                     let open = self.emit_token_with_comments(
                         transformation,
                         node,
@@ -7914,11 +7912,11 @@ impl Printer {
                 let expression = transformation
                     .arena()
                     .node_ref(node.source(), expression_id)
-                    .ok_or(PrinterError::UnknownStatement(expression_id.0))?;
+                    .ok_or(PrinterError::UnknownStatement(expression_id.index()))?;
                 let name = transformation
                     .arena()
                     .node_ref(node.source(), name_id)
-                    .ok_or(PrinterError::UnknownStatement(name_id.0))?;
+                    .ok_or(PrinterError::UnknownStatement(name_id.index()))?;
                 let expression_outcome = self.emit_expression_child_with_source_comments(
                     transformation,
                     node.source(),
@@ -7944,7 +7942,7 @@ impl Printer {
                     let token = transformation
                         .arena()
                         .node_ref(node.source(), question_dot)
-                        .ok_or(PrinterError::UnknownStatement(question_dot.0))?;
+                        .ok_or(PrinterError::UnknownStatement(question_dot.index()))?;
                     self.node_has_source_text_range(transformation, node)?
                         && self.node_has_source_text_range(transformation, expression)?
                         && self.node_has_source_text_range(transformation, token)?
@@ -8472,7 +8470,7 @@ impl Printer {
                         let statement = transformation
                             .arena()
                             .node_ref(node.source(), *statement)
-                            .ok_or(PrinterError::UnknownStatement(statement.0))?;
+                            .ok_or(PrinterError::UnknownStatement(statement.index()))?;
                         let record = transformation.arena().node(statement)?;
                         if (record.pos == u32::MAX || record.end == u32::MAX)
                             && transformation
@@ -8572,7 +8570,7 @@ impl Printer {
                             let statement_node = transformation
                                 .arena()
                                 .node_ref(node.source(), statement)
-                                .ok_or(PrinterError::UnknownStatement(statement.0))?;
+                                .ok_or(PrinterError::UnknownStatement(statement.index()))?;
                             let starts_on_new_line = transformation
                                 .arena()
                                 .metadata(statement_node)
@@ -8640,7 +8638,7 @@ impl Printer {
                             let statement = transformation
                                 .arena()
                                 .node_ref(node.source(), statement)
-                                .ok_or(PrinterError::UnknownStatement(statement.0))?;
+                                .ok_or(PrinterError::UnknownStatement(statement.index()))?;
                             in_function_prologue = in_function_prologue
                                 && self.is_prologue_statement(transformation, statement);
                             if !in_function_prologue {
@@ -8851,7 +8849,7 @@ impl Printer {
             let name = transformation
                 .arena()
                 .node_ref(node.source(), name)
-                .ok_or(PrinterError::UnknownStatement(name.0))?;
+                .ok_or(PrinterError::UnknownStatement(name.index()))?;
             self.emit_node_with_hint(
                 transformation,
                 name,
@@ -8966,7 +8964,7 @@ impl Printer {
                 let clause = transformation
                     .arena()
                     .node_ref(source, clause)
-                    .ok_or(PrinterError::UnknownStatement(clause.0))?;
+                    .ok_or(PrinterError::UnknownStatement(clause.index()))?;
                 if index == 0 {
                     self.emit_leading_comments_for_node(transformation, clause, writer)?;
                 } else {
@@ -9041,7 +9039,7 @@ impl Printer {
             return Ok(false);
         }
         let Some(first) = transformation.arena().node_ref(source, statements[0]) else {
-            return Err(PrinterError::UnknownStatement(statements[0].0));
+            return Err(PrinterError::UnknownStatement(statements[0].index()));
         };
         self.source_nodes_start_on_same_line(transformation, clause, first)
     }
@@ -9072,7 +9070,7 @@ impl Printer {
         if statements.is_empty() {
             return Ok(());
         }
-        let first = first.ok_or(PrinterError::UnknownStatement(statements[0].0))?;
+        let first = first.ok_or(PrinterError::UnknownStatement(statements[0].index()))?;
         if single_line {
             writer.write_space(" ");
             self.emit_leading_comments_for_node_worker(
@@ -9105,7 +9103,7 @@ impl Printer {
             let statement = transformation
                 .arena()
                 .node_ref(source, statement)
-                .ok_or(PrinterError::UnknownStatement(statement.0))?;
+                .ok_or(PrinterError::UnknownStatement(statement.index()))?;
             if index == 0 {
                 self.emit_leading_comments_for_node_worker(
                     transformation,
@@ -9297,10 +9295,10 @@ impl Printer {
         let arena = transformation.arena();
         let previous = arena
             .node_ref(source, previous)
-            .ok_or(PrinterError::UnknownStatement(previous.0))?;
+            .ok_or(PrinterError::UnknownStatement(previous.index()))?;
         let next = arena
             .node_ref(source, next)
-            .ok_or(PrinterError::UnknownStatement(next.0))?;
+            .ok_or(PrinterError::UnknownStatement(next.index()))?;
         let previous_record = arena.node(previous)?;
         let next_record = arena.node(next)?;
         if next_record.kind == SyntaxKind::JsxText {
@@ -9386,7 +9384,7 @@ impl Printer {
             let parent_matches = if let Some(child_parent) = child_record.parent {
                 let child_parent = arena
                     .node_ref(child.source(), child_parent)
-                    .ok_or(PrinterError::UnknownStatement(child_parent.0))?;
+                    .ok_or(PrinterError::UnknownStatement(child_parent.index()))?;
                 match boundary {
                     DelimitedListBoundary::Leading => {
                         arena.get_original_node(child_parent) == arena.get_original_node(parent)
@@ -9645,7 +9643,7 @@ impl Printer {
                 let child = transformation
                     .arena()
                     .node_ref(source, id)
-                    .ok_or(PrinterError::UnknownStatement(id.0))?;
+                    .ok_or(PrinterError::UnknownStatement(id.index()))?;
                 let separate_line = if let Some(previous) = previous {
                     if format.delimiter == ListDelimiter::Comma {
                         self.emit_comma_element_end_comments(
@@ -9893,7 +9891,7 @@ impl Printer {
         let first = transformation
             .arena()
             .node_ref(parent.source(), ids[0])
-            .ok_or(PrinterError::UnknownStatement(ids[0].0))?;
+            .ok_or(PrinterError::UnknownStatement(ids[0].index()))?;
         let leading_line = prefer_new_line
             || self.json_node_start_line(transformation, parent)?
                 != self.json_node_start_line(transformation, first)?;
@@ -9908,7 +9906,7 @@ impl Printer {
             let child = transformation
                 .arena()
                 .node_ref(parent.source(), id)
-                .ok_or(PrinterError::UnknownStatement(id.0))?;
+                .ok_or(PrinterError::UnknownStatement(id.index()))?;
             if index == 0 {
                 self.emit_leading_comments_for_node(transformation, child, writer)?;
             } else {
@@ -10133,7 +10131,7 @@ impl Printer {
         let statement_node = transformation
             .arena()
             .node_ref(parent.source(), statement)
-            .ok_or(PrinterError::UnknownStatement(statement.0))?;
+            .ok_or(PrinterError::UnknownStatement(statement.index()))?;
         let parent_is_single_line = transformation
             .arena()
             .metadata(parent)
@@ -10264,7 +10262,7 @@ impl Printer {
             let name = transformation
                 .arena()
                 .node_ref(source, name)
-                .ok_or(PrinterError::UnknownStatement(name.0))?;
+                .ok_or(PrinterError::UnknownStatement(name.index()))?;
             // `emitIdentifierName` participates in tsc's ordinary comment
             // phase. Keep the name's end boundary explicit here so comments
             // in an erased heritage slot (for example
@@ -10328,7 +10326,7 @@ impl Printer {
                     let member_node = transformation
                         .arena()
                         .node_ref(source, member)
-                        .ok_or(PrinterError::UnknownStatement(member.0))?;
+                        .ok_or(PrinterError::UnknownStatement(member.index()))?;
                     if index == 0
                         && !self.first_list_item_follows_elided_source_item(
                             transformation,
@@ -10394,7 +10392,7 @@ impl Printer {
             if let Some(last) = modifiers.nodes.last() {
                 let last = arena
                     .node_ref(source, *last)
-                    .ok_or(PrinterError::UnknownStatement(last.0))?;
+                    .ok_or(PrinterError::UnknownStatement(last.index()))?;
                 let last = arena.node(last)?;
                 if last.end != u32::MAX {
                     position = last.end;
@@ -10402,7 +10400,7 @@ impl Printer {
                     for modifier in modifiers.nodes.iter().rev() {
                         let modifier = arena
                             .node_ref(source, *modifier)
-                            .ok_or(PrinterError::UnknownStatement(modifier.0))?;
+                            .ok_or(PrinterError::UnknownStatement(modifier.index()))?;
                         let modifier = arena.node(modifier)?;
                         if modifier.kind == SyntaxKind::Decorator {
                             if modifier.end != u32::MAX {
@@ -10744,7 +10742,7 @@ impl Printer {
             let last = transformation
                 .arena()
                 .node_ref(node.source(), last)
-                .ok_or(PrinterError::UnknownStatement(last.0))?;
+                .ok_or(PrinterError::UnknownStatement(last.index()))?;
             self.emit_trailing_comments_for_node(transformation, last, writer)?;
         }
         writer.write_trailing_semicolon(";");
@@ -11656,7 +11654,7 @@ impl Printer {
             let readonly_node = transformation
                 .arena()
                 .node_ref(node.source(), readonly)
-                .ok_or(PrinterError::UnknownStatement(readonly.0))?;
+                .ok_or(PrinterError::UnknownStatement(readonly.index()))?;
             let readonly_kind = transformation.arena().node(readonly_node)?.kind;
             self.emit_node_id_with_context(
                 transformation,
@@ -11695,7 +11693,7 @@ impl Printer {
             let question_node = transformation
                 .arena()
                 .node_ref(node.source(), question)
-                .ok_or(PrinterError::UnknownStatement(question.0))?;
+                .ok_or(PrinterError::UnknownStatement(question.index()))?;
             let question_kind = transformation.arena().node(question_node)?.kind;
             self.emit_node_id_with_context(
                 transformation,
@@ -11775,7 +11773,7 @@ impl Printer {
         let parameter = transformation
             .arena()
             .node_ref(parent.source(), type_parameter)
-            .ok_or(PrinterError::UnknownStatement(type_parameter.0))?;
+            .ok_or(PrinterError::UnknownStatement(type_parameter.index()))?;
         let NodeData::TypeParameter(data) = transformation.arena().node(parameter)?.data.clone()
         else {
             return Err(PrinterError::UnsupportedTransformedSyntax {
@@ -12122,7 +12120,7 @@ impl Printer {
         let type_node = transformation
             .arena()
             .node_ref(node.source(), type_id)
-            .ok_or(PrinterError::UnknownStatement(type_id.0))?;
+            .ok_or(PrinterError::UnknownStatement(type_id.index()))?;
         // `emit(node.type)` (_tsc.js:119125) runs pipelineEmitWithComments
         // (_tsc.js:120978-120986): the type's own leading trivia — a JSDoc on
         // the line after `=`, including one before a leading `|`/`&` — and
@@ -12275,7 +12273,7 @@ impl Printer {
             let body = transformation
                 .arena()
                 .node_ref(node.source(), body_id)
-                .ok_or(PrinterError::UnknownStatement(body_id.0))?;
+                .ok_or(PrinterError::UnknownStatement(body_id.index()))?;
             let record = transformation.arena().node(body)?.clone();
             let NodeData::ModuleDeclaration(nested) = record.data else {
                 writer.write_space(" ");
@@ -12473,7 +12471,7 @@ impl Printer {
             let type_node = transformation
                 .arena()
                 .node_ref(parent.source(), r#type)
-                .ok_or(PrinterError::UnknownStatement(r#type.0))?;
+                .ok_or(PrinterError::UnknownStatement(r#type.index()))?;
             self.emit_leading_comments_for_node(transformation, type_node, writer)?;
             self.emit_node_id_with_context(
                 transformation,
@@ -12564,7 +12562,7 @@ impl Printer {
             let child = transformation
                 .arena()
                 .node_ref(parent.source(), id)
-                .ok_or(PrinterError::UnknownStatement(id.0))?;
+                .ok_or(PrinterError::UnknownStatement(id.index()))?;
             let separate_line = previous.is_some()
                 && transformation
                     .arena()
@@ -12782,7 +12780,7 @@ impl Printer {
             let child = transformation
                 .arena()
                 .node_ref(source, id)
-                .ok_or(PrinterError::UnknownStatement(id.0))?;
+                .ok_or(PrinterError::UnknownStatement(id.index()))?;
             if index == 0 {
                 // tsc's `pos === containerPos` guard (_tsc.js:121220): a
                 // constituent that starts where the union/intersection starts
@@ -12995,7 +12993,7 @@ impl Printer {
         let first = transformation
             .arena()
             .node_ref(parent.source(), ids[0])
-            .ok_or(PrinterError::UnknownStatement(ids[0].0))?;
+            .ok_or(PrinterError::UnknownStatement(ids[0].index()))?;
         if !force_line_after_comments {
             writer.write_line(false);
         }
@@ -13014,7 +13012,7 @@ impl Printer {
             let child = transformation
                 .arena()
                 .node_ref(parent.source(), id)
-                .ok_or(PrinterError::UnknownStatement(id.0))?;
+                .ok_or(PrinterError::UnknownStatement(id.index()))?;
             self.record_list_element_position(transformation, child)?;
             self.emit_node_id_with_context(
                 transformation,
@@ -13029,7 +13027,7 @@ impl Printer {
                 let next = transformation
                     .arena()
                     .node_ref(parent.source(), ids[index + 1])
-                    .ok_or(PrinterError::UnknownStatement(ids[index + 1].0))?;
+                    .ok_or(PrinterError::UnknownStatement(ids[index + 1].index()))?;
                 let mut intervening = BTreeSet::new();
                 if !force_line_after_comments {
                     // EnumMembers (145) has no SpaceBetweenSiblings bit, so
@@ -13113,7 +13111,7 @@ impl Printer {
             let member = transformation
                 .arena()
                 .node_ref(parent.source(), id)
-                .ok_or(PrinterError::UnknownStatement(id.0))?;
+                .ok_or(PrinterError::UnknownStatement(id.index()))?;
             if index == 0 {
                 self.emit_leading_comments_for_node(transformation, member, writer)?;
             } else {
@@ -13169,7 +13167,7 @@ impl Printer {
             let child = transformation
                 .arena()
                 .node_ref(source, id)
-                .ok_or(PrinterError::UnknownStatement(id.0))?;
+                .ok_or(PrinterError::UnknownStatement(id.index()))?;
             if index == 0 {
                 self.emit_leading_comments_for_delimited_list_start(transformation, child, writer)?;
             } else {
@@ -13324,7 +13322,7 @@ impl Printer {
                 let parameter = transformation
                     .arena()
                     .node_ref(source, id)
-                    .ok_or(PrinterError::UnknownStatement(id.0))?;
+                    .ok_or(PrinterError::UnknownStatement(id.index()))?;
                 if index == 0 {
                     // `emitParametersForArrow` removes only the Parenthesis
                     // format bit. Its list-start intervening-comment phase is
@@ -13400,11 +13398,11 @@ impl Printer {
         let left = transformation
             .arena()
             .node_ref(source, left)
-            .ok_or(PrinterError::UnknownStatement(left.0))?;
+            .ok_or(PrinterError::UnknownStatement(left.index()))?;
         let right = transformation
             .arena()
             .node_ref(source, right)
-            .ok_or(PrinterError::UnknownStatement(right.0))?;
+            .ok_or(PrinterError::UnknownStatement(right.index()))?;
         let left = transformation.arena().get_original_node(left);
         let right = transformation.arena().get_original_node(right);
         let syntax = transformation.arena().source(source)?.syntax();
@@ -13452,7 +13450,7 @@ impl Printer {
         let node = transformation
             .arena()
             .node_ref(source, node)
-            .ok_or(PrinterError::UnknownStatement(node.0))?;
+            .ok_or(PrinterError::UnknownStatement(node.index()))?;
         let node = transformation.arena().get_original_node(node);
         let syntax = transformation.arena().source(node.source())?.syntax();
         let record = transformation.arena().node(node)?;
@@ -13499,7 +13497,7 @@ impl Printer {
         let parameter = transformation
             .arena()
             .node_ref(arrow.source(), parameter_id)
-            .ok_or(PrinterError::UnknownStatement(parameter_id.0))?;
+            .ok_or(PrinterError::UnknownStatement(parameter_id.index()))?;
         let NodeData::Parameter(parameter_data) = &transformation.arena().node(parameter)?.data
         else {
             return Ok(false);
@@ -13747,7 +13745,7 @@ impl Printer {
         let expression = self.skip_partially_emitted_expressions(transformation, expression)?;
         let record = transformation.arena().node(expression)?;
         if let NodeData::NumericLiteral(data) = &record.data {
-            if TokenFlags::from_bits(record.numeric_literal_flags)
+            if TokenFlags::from_bits(i32::from(record.numeric_literal_flags))
                 .intersects(TokenFlags::WITH_SPECIFIER)
             {
                 return Ok(false);
@@ -13849,7 +13847,7 @@ impl Printer {
             expression = transformation
                 .arena()
                 .node_ref(expression.source(), next)
-                .ok_or(PrinterError::UnknownStatement(next.0))?;
+                .ok_or(PrinterError::UnknownStatement(next.index()))?;
         }
     }
 
@@ -13871,7 +13869,7 @@ impl Printer {
         let body = transformation
             .arena()
             .node_ref(source, body)
-            .ok_or(PrinterError::UnknownStatement(body.0))?;
+            .ok_or(PrinterError::UnknownStatement(body.index()))?;
         let body_record = transformation.arena().node(body)?;
         if body_record.kind == SyntaxKind::Block {
             return Ok(false);
@@ -13917,7 +13915,7 @@ impl Printer {
             let child = transformation
                 .arena()
                 .node_ref(source, id)
-                .ok_or(PrinterError::UnknownStatement(id.0))?;
+                .ok_or(PrinterError::UnknownStatement(id.index()))?;
             if index == 0 {
                 self.emit_leading_comments_for_delimited_list_start(transformation, child, writer)?;
             } else if synthesized {
@@ -13991,7 +13989,7 @@ impl Printer {
             let property = transformation
                 .arena()
                 .node_ref(source, property_id)
-                .ok_or(PrinterError::UnknownStatement(property_id.0))?;
+                .ok_or(PrinterError::UnknownStatement(property_id.index()))?;
             self.emit_identifier_name_with_context(
                 transformation,
                 source,
@@ -14340,7 +14338,7 @@ impl Printer {
             let child = transformation
                 .arena()
                 .node_ref(source, id)
-                .ok_or(PrinterError::UnknownStatement(id.0))?;
+                .ok_or(PrinterError::UnknownStatement(id.index()))?;
             let jsx_text = matches!(
                 transformation.arena().node(child)?.kind,
                 SyntaxKind::JsxText | SyntaxKind::JsxTextAllWhiteSpaces
@@ -14381,7 +14379,7 @@ impl Printer {
             let attribute = transformation
                 .arena()
                 .node_ref(source, id)
-                .ok_or(PrinterError::UnknownStatement(id.0))?;
+                .ok_or(PrinterError::UnknownStatement(id.index()))?;
             if index != 0 && !writer.is_at_start_of_line() {
                 writer.write_space(" ");
             }
@@ -14767,7 +14765,7 @@ impl Printer {
         let child = transformation
             .arena()
             .node_ref(node.source(), expression)
-            .ok_or(PrinterError::UnknownStatement(expression.0))?;
+            .ok_or(PrinterError::UnknownStatement(expression.index()))?;
         self.emit_child_after_token_with_complete_source_comments(
             transformation,
             node,
@@ -14988,7 +14986,7 @@ impl Printer {
         let child = transformation
             .arena()
             .node_ref(parent.source(), id)
-            .ok_or(PrinterError::UnknownStatement(id.0))?;
+            .ok_or(PrinterError::UnknownStatement(id.index()))?;
         if expression_context.nested_comments_suppressed() {
             return self.emit_node_with_hint(
                 transformation,
@@ -15052,7 +15050,7 @@ impl Printer {
         let token = transformation
             .arena()
             .node_ref(parent.source(), id)
-            .ok_or(PrinterError::UnknownStatement(id.0))?;
+            .ok_or(PrinterError::UnknownStatement(id.index()))?;
         let cursor = self.node_end_cursor(transformation, token)?;
         // Ordinary token emission has no operand parenthesizer. Retain the
         // comment scope, but do not inherit the enclosing expression's grammar.
@@ -15388,7 +15386,7 @@ impl Printer {
         let node = transformation
             .arena()
             .node_ref(source, id)
-            .ok_or(PrinterError::UnknownStatement(id.0))?;
+            .ok_or(PrinterError::UnknownStatement(id.index()))?;
         let hint = if transformation.arena().node(node)?.kind == SyntaxKind::Identifier {
             EmitHint::Expression
         } else {
@@ -15409,7 +15407,7 @@ impl Printer {
         let node = transformation
             .arena()
             .node_ref(source, id)
-            .ok_or(PrinterError::UnknownStatement(id.0))?;
+            .ok_or(PrinterError::UnknownStatement(id.index()))?;
         let hint = if transformation.arena().node(node)?.kind == SyntaxKind::Identifier {
             EmitHint::Expression
         } else {
@@ -15436,7 +15434,7 @@ impl Printer {
         let node = transformation
             .arena()
             .node_ref(source, id)
-            .ok_or(PrinterError::UnknownStatement(id.0))?;
+            .ok_or(PrinterError::UnknownStatement(id.index()))?;
         let hint = if transformation.arena().node(node)?.kind == SyntaxKind::Identifier {
             EmitHint::IdentifierName
         } else {
@@ -16105,8 +16103,8 @@ impl Printer {
         let record = transformation.arena().node(node)?;
         let original_record = transformation.arena().node(original)?;
         let original_text = match &original_record.data {
-            NodeData::Identifier(identifier) => &identifier.text,
-            NodeData::PrivateIdentifier(identifier) => &identifier.text,
+            NodeData::Identifier(identifier) => identifier.text(),
+            NodeData::PrivateIdentifier(identifier) => identifier.text(),
             _ => return Ok(None),
         };
         if original_text != text {
@@ -18821,7 +18819,7 @@ impl Printer {
         let parent = transformation
             .arena()
             .node_ref(original.source(), parent)
-            .ok_or(PrinterError::UnknownStatement(parent.0))?;
+            .ok_or(PrinterError::UnknownStatement(parent.index()))?;
         Ok(matches!(
             transformation.arena().node(parent)?.kind,
             SyntaxKind::FunctionDeclaration
@@ -20641,7 +20639,7 @@ impl fmt::Display for PrinterError {
                 formatter,
                 "transform root {}:{} is not a SourceFile",
                 node.source().raw(),
-                node.node().0
+                node.node().index()
             ),
             Self::UnknownStatement(node) => {
                 write!(formatter, "source-file statement node {node} is unknown")
@@ -20650,19 +20648,19 @@ impl fmt::Display for PrinterError {
                 formatter,
                 "synthetic node {}:{} cannot be printed on this path",
                 node.source().raw(),
-                node.node().0
+                node.node().index()
             ),
             Self::TransformedNodeWorkerUnavailable(node) => write!(
                 formatter,
                 "transformed node {}:{} cannot be printed on this path",
                 node.source().raw(),
-                node.node().0
+                node.node().index()
             ),
             Self::UnsupportedTransformedSyntax { node, kind } => write!(
                 formatter,
                 "transformed {kind:?} node {}:{} has no active H1 printer worker",
                 node.source().raw(),
-                node.node().0
+                node.node().index()
             ),
             Self::MissingTransformedChild { parent, field } => {
                 write!(formatter, "transformed {parent:?} is missing child {field}")
@@ -20723,7 +20721,7 @@ impl fmt::Display for PrinterError {
                 formatter,
                 "retained arrow token {}:{} cannot use the arrow comment adapter with emit pipeline hooks (substitution={substitution}, notification={notification})",
                 token.source().raw(),
-                token.node().0,
+                token.node().index(),
             ),
             Self::EmitHelperTextUnavailable(helper) => {
                 write!(formatter, "emit helper {helper} has no printable text")

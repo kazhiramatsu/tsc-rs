@@ -49,8 +49,8 @@ fn arena_allocates_sequential_ids() {
     let mut arena = SymbolArena::default();
     let first = arena.alloc(SymbolFlags::NONE, crate::escape_leading_underscores("a"));
     let second = arena.alloc(SymbolFlags::NONE, crate::escape_leading_underscores("b"));
-    assert_eq!(first, SymbolId(0));
-    assert_eq!(second, SymbolId(1));
+    assert_eq!(first, SymbolId::new(0));
+    assert_eq!(second, SymbolId::new(1));
     assert_eq!(arena.symbol(second).escaped_name, "b");
     assert_eq!(arena.len(), 2);
 }
@@ -62,7 +62,7 @@ fn persistent_and_transient_partitions_fail_with_typed_exhaustion() {
         persistent
             .try_alloc(SymbolFlags::NONE, crate::escape_leading_underscores("last"))
             .unwrap(),
-        SymbolId(tsc_types::TRANSIENT_SYMBOL_BIT - 1)
+        SymbolId::new(tsc_types::TRANSIENT_SYMBOL_BIT - 1)
     );
     let error = persistent
         .try_alloc(
@@ -81,7 +81,7 @@ fn persistent_and_transient_partitions_fail_with_typed_exhaustion() {
                 crate::escape_leading_underscores("last")
             )
             .unwrap(),
-        SymbolId(u32::MAX - 1)
+        SymbolId::new(u32::MAX - 1)
     );
     let error = transient
         .try_alloc(

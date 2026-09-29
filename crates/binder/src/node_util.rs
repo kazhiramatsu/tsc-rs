@@ -1045,8 +1045,8 @@ pub fn literal_text_of(source: &SourceFile, id: NodeId) -> Option<JsStr<'_>> {
         NodeData::NumericLiteral(data) => Some(JsStr::from_str(&data.text)),
         NodeData::BigIntLiteral(data) => Some(JsStr::from_str(&data.text)),
         NodeData::NoSubstitutionTemplateLiteral(data) => Some(data.text.as_js()),
-        NodeData::Identifier(data) => Some(JsStr::from_str(&data.text)),
-        NodeData::PrivateIdentifier(data) => Some(JsStr::from_str(&data.text)),
+        NodeData::Identifier(data) => Some(JsStr::from_str(data.text())),
+        NodeData::PrivateIdentifier(data) => Some(JsStr::from_str(data.text())),
         _ => None,
     }
 }

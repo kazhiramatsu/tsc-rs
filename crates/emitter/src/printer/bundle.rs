@@ -150,7 +150,7 @@ impl Printer {
                     let statement = transformation
                         .arena()
                         .node_ref(source.source_id, raw_statement)
-                        .ok_or(PrinterError::UnknownStatement(raw_statement.0))?;
+                        .ok_or(PrinterError::UnknownStatement(raw_statement.index()))?;
                     let Some(value) = self.bundle_prologue_value(transformation, statement)? else {
                         break;
                     };

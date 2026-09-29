@@ -1225,7 +1225,7 @@ impl<'state, 'program> ProductionSyntacticBuilderResolver<'state, 'program> {
     fn symbol(&self, symbol: EmitTrackerSymbol) -> Option<SymbolId> {
         u32::try_from(symbol.0)
             .ok()
-            .map(SymbolId)
+            .map(SymbolId::new)
             .filter(|&symbol| self.checker.binder.try_symbol(symbol).is_some())
     }
 
@@ -1449,7 +1449,7 @@ impl EmitTrackerAccess for ProductionSyntacticBuilderResolver<'_, '_> {
         Ok(self
             .checker
             .parent_of(node)
-            .map(|parent| EmitTrackerNode(u64::from(parent.0))))
+            .map(|parent| EmitTrackerNode(u64::from(parent.index()))))
     }
 
     fn is_symbol_accessible(

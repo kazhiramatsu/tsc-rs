@@ -747,6 +747,52 @@ pub(crate) struct SpeculativeLinksMarks {
     non_existent_props: usize,
 }
 
+impl<K, T> PagedTable<K, T> {
+    /// Record count and the bytes the table owns, plus `cold(record)` for
+    /// each record's own heap (memory accounting).
+    fn memory_usage(&self, cold: impl Fn(&T) -> usize) -> (usize, usize) {
+        let pages = self.index.iter().filter(|page| page.is_some()).count() + self.far.len();
+        let mut bytes = self.index.capacity() * std::mem::size_of::<Option<Box<[u32; PAGE_IDS]>>>()
+            + pages * PAGE_IDS * std::mem::size_of::<u32>()
+            + self.chunks.capacity() * std::mem::size_of::<Vec<T>>();
+        for chunk in &self.chunks {
+            bytes += chunk.capacity() * std::mem::size_of::<T>();
+            bytes += chunk.iter().map(&cold).sum::<usize>();
+        }
+        (self.len, bytes)
+    }
+}
+
+impl LinksTables {
+    /// The node, symbol and type link tables by records and bytes, cold
+    /// records included (memory accounting).
+    pub(crate) fn memory_usage(&self) -> [(&'static str, usize, usize); 3] {
+        let node = self.node.memory_usage(|links| {
+            links
+                .cold
+                .as_ref()
+                .map_or(0, |_| std::mem::size_of::<NodeLinksCold>())
+        });
+        let symbol = self.symbol.memory_usage(|links| {
+            links
+                .cold
+                .as_ref()
+                .map_or(0, |_| std::mem::size_of::<SymbolLinksCold>())
+        });
+        let ty = self.ty.memory_usage(|links| {
+            links
+                .cold
+                .as_ref()
+                .map_or(0, |_| std::mem::size_of::<TypeLinksCold>())
+        });
+        [
+            ("links: node (NodeLinks)", node.0, node.1),
+            ("links: symbol (SymbolLinks)", symbol.0, symbol.1),
+            ("links: type (TypeLinks)", ty.0, ty.1),
+        ]
+    }
+}
+
 impl LinksTables {
     /// Pre-size the three ID-keyed tables from the Program's node and
     /// persistent-symbol counts, bounded so that no input can make the
@@ -775,7 +821,7 @@ pub(crate) trait DenseKey: Copy {
 impl DenseKey for NodeId {
     #[inline]
     fn dense_index(self) -> usize {
-        self.0 as usize
+        self.index() as usize
     }
 }
 
@@ -786,7 +832,7 @@ impl DenseKey for SymbolId {
     /// bit address page 2^21.
     #[inline]
     fn dense_index(self) -> usize {
-        let raw = self.0;
+        let raw = self.index();
         if raw & tsc_types::TRANSIENT_SYMBOL_BIT != 0 {
             ((raw & !tsc_types::TRANSIENT_SYMBOL_BIT) as usize) * 2 + 1
         } else {
@@ -798,7 +844,7 @@ impl DenseKey for SymbolId {
 impl DenseKey for TypeId {
     #[inline]
     fn dense_index(self) -> usize {
-        self.0 as usize
+        self.index() as usize
     }
 }
 

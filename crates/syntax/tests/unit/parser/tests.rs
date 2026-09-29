@@ -2,7 +2,7 @@ use super::*;
 
 fn nodes_of_kind(source: &crate::SourceFile, kind: SyntaxKind) -> Vec<NodeId> {
     (0..source.arena.len() as u32)
-        .map(NodeId)
+        .map(NodeId::new)
         .filter(|&id| source.arena.node(id).kind == kind)
         .collect()
 }
@@ -152,7 +152,7 @@ fn throw_line_break_recovery_ends_at_the_keyword_boundary() {
     let NodeData::Identifier(identifier) = &expression.data else {
         unreachable!()
     };
-    assert!(identifier.text.is_empty());
+    assert!(identifier.text().is_empty());
     assert_eq!((expression.pos, expression.end), (5, 5));
     assert_eq!((throw_statement.pos, throw_statement.end), (0, 5));
 
@@ -204,7 +204,7 @@ fn invalid_identifier_rescan_preserves_target_rejected_property_name() {
                 .node(node)
                 .data
                 .as_identifier()
-                .is_some_and(|data| data.text == "\u{08a1}")
+                .is_some_and(|data| data.text() == "\u{08a1}")
         })
         .expect("ESNext retry preserves the property identifier");
     let recovered = source.arena.node(recovered);
@@ -501,7 +501,7 @@ fn source_flags_stamp_the_source_file_root() {
         NodeFlags::from_bits(js.arena.node(js.root).flags).intersects(NodeFlags::JAVA_SCRIPT_FILE)
     );
     let statement = (0..js.arena.len() as u32)
-        .map(NodeId)
+        .map(NodeId::new)
         .find(|&id| js.arena.node(id).kind == SyntaxKind::VariableStatement)
         .expect("statement");
     assert!(NodeFlags::from_bits(js.arena.node(statement).flags)

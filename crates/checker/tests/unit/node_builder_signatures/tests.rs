@@ -299,7 +299,7 @@ fn index_parameter_names_are_synthesized_from_declaration_text() {
             let NodeData::Identifier(data) = &name.data else {
                 panic!("identifier")
             };
-            assert_eq!(data.text, r"\u0073lot");
+            assert_eq!(data.text(), r"\u0073lot");
             assert_eq!((name.pos, name.end), (u32::MAX, u32::MAX));
             Ok(())
         },
@@ -429,7 +429,7 @@ fn signature_declaration_expands_tuple_typed_rest_parameters() {
                 else {
                     panic!("identifier expected")
                 };
-                assert_eq!(name.text, expected_name);
+                assert_eq!(name.text(), expected_name);
                 assert!(parameter.dot_dot_dot_token.is_none());
                 assert_eq!(parameter.question_token.is_some(), index == 1);
             }
@@ -511,39 +511,40 @@ fn scope_restores_owned_context_state() {
         EmitNodeBuilderFlags::NONE,
         |_checker, arena, target, context| {
             let original_name = create_identifier(arena, target, "T")?;
-            context.mapper = Some(MapperId(7));
+            context.mapper = Some(MapperId::new(7));
             context.must_create_type_parameter_symbol_list = false;
-            context.type_parameter_symbol_list = Some(HashSet::from_iter([SymbolId(11)]));
+            context.type_parameter_symbol_list = Some(HashSet::from_iter([SymbolId::new(11)]));
             context.must_create_type_parameters_names_lookups = false;
-            context.type_parameter_names = Some(HashMap::from_iter([(TypeId(12), original_name)]));
+            context.type_parameter_names =
+                Some(HashMap::from_iter([(TypeId::new(12), original_name)]));
             context.type_parameter_names_by_text = Some(HashSet::from_iter(["T".to_owned()]));
             context.type_parameter_names_by_text_next_name_count =
                 Some(HashMap::from_iter([("T".to_owned(), 2)]));
-            let restore = enter_new_scope(context, None, None, None, None, Some(MapperId(8)));
-            assert_eq!(context.mapper, Some(MapperId(8)));
+            let restore = enter_new_scope(context, None, None, None, None, Some(MapperId::new(8)));
+            assert_eq!(context.mapper, Some(MapperId::new(8)));
             // Copy-on-write (:52692+): entering a scope arms the
             // mustCreate flags but leaves the tables live; the next
             // write under an armed flag clones.
             assert!(context.must_create_type_parameter_symbol_list);
             assert_eq!(
                 context.type_parameter_symbol_list.as_ref(),
-                Some(&HashSet::from_iter([SymbolId(11)]))
+                Some(&HashSet::from_iter([SymbolId::new(11)]))
             );
             assert!(context.must_create_type_parameters_names_lookups);
             assert!(context.type_parameter_names.is_some());
             exit_new_scope(context, restore);
-            assert_eq!(context.mapper, Some(MapperId(7)));
+            assert_eq!(context.mapper, Some(MapperId::new(7)));
             assert!(!context.must_create_type_parameter_symbol_list);
             assert_eq!(
                 context.type_parameter_symbol_list.as_ref(),
-                Some(&HashSet::from_iter([SymbolId(11)]))
+                Some(&HashSet::from_iter([SymbolId::new(11)]))
             );
             assert!(!context.must_create_type_parameters_names_lookups);
             assert_eq!(
                 context
                     .type_parameter_names
                     .as_ref()
-                    .and_then(|names| names.get(&TypeId(12))),
+                    .and_then(|names| names.get(&TypeId::new(12))),
                 Some(&original_name)
             );
 

@@ -43,7 +43,6 @@ fn jsdoc_child_order_and_comment_union_follow_tsc() {
         arena.alloc_node(
             NodeData::Identifier(IdentifierData {
                 escaped_text: text.to_owned(),
-                text: text.to_owned(),
             }),
             pos,
             pos + text.len(),
@@ -76,14 +75,14 @@ fn jsdoc_child_order_and_comment_union_follow_tsc() {
         (false, vec![tag_name, type_expression, name, comment_text]),
     ] {
         let parameter = arena.alloc_node(
-            NodeData::JSDocParameterTag(JSDocParameterTagData {
+            NodeData::JSDocParameterTag(Box::new(JSDocParameterTagData {
                 tag_name: Some(tag_name),
                 comment: Some(JSDocComment::Nodes(comments)),
                 name: Some(name),
                 type_expression: Some(type_expression),
                 is_name_first,
                 is_bracketed: false,
-            }),
+            })),
             0,
             28,
             NodeFlags::JS_DOC,
@@ -98,13 +97,13 @@ fn jsdoc_child_order_and_comment_union_follow_tsc() {
 
     let full_name = identifier(&mut arena, "Alias", 29);
     let typedef = arena.alloc_node(
-        NodeData::JSDocTypedefTag(JSDocTypedefTagData {
+        NodeData::JSDocTypedefTag(Box::new(JSDocTypedefTagData {
             tag_name: Some(tag_name),
             comment: Some(JSDocComment::Text("plain".to_owned())),
             name: Some(full_name),
             full_name: Some(full_name),
             type_expression: Some(type_expression),
-        }),
+        })),
         29,
         40,
         NodeFlags::JS_DOC,
@@ -127,13 +126,13 @@ fn jsdoc_child_order_and_comment_union_follow_tsc() {
         NodeFlags::JS_DOC,
     );
     let typedef = arena.alloc_node(
-        NodeData::JSDocTypedefTag(JSDocTypedefTagData {
+        NodeData::JSDocTypedefTag(Box::new(JSDocTypedefTagData {
             tag_name: Some(tag_name),
             comment: None,
             name: Some(full_name),
             full_name: Some(full_name),
             type_expression: Some(type_literal),
-        }),
+        })),
         41,
         42,
         NodeFlags::JS_DOC,

@@ -3363,7 +3363,7 @@ impl<'a> CheckerState<'a> {
         containing_type: TypeId,
         is_unchecked_js: bool,
     ) -> CheckResult<()> {
-        let cache_key = format!("{}|{}", containing_type.0, is_unchecked_js);
+        let cache_key = format!("{}|{}", containing_type.index(), is_unchecked_js);
         if !self.links.insert_node_non_existent_prop_key(
             self.speculation_depth,
             prop_node,

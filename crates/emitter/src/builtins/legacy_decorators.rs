@@ -2238,7 +2238,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         };
         data.name.is_some_and(|name| {
             self.context.arena().node(self.node(name)).is_ok_and(
-                |name| matches!(&name.data, NodeData::Identifier(data) if data.text == "this"),
+                |name| matches!(&name.data, NodeData::Identifier(data) if data.text() == "this"),
             )
         })
     }
@@ -3253,7 +3253,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         }
         let name = self.node(name);
         match self.context.arena().node(name)?.data.clone() {
-            NodeData::Identifier(data) => self.create_string_literal(&data.text),
+            NodeData::Identifier(data) => self.create_string_literal(data.text()),
             NodeData::StringLiteral(_)
             | NodeData::NumericLiteral(_)
             | NodeData::BigIntLiteral(_)
@@ -3769,8 +3769,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         self.context.factory()?.create_node(
             self.source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                escaped_text: text.to_owned(),
-                text: text.to_owned(),
+                escaped_text: tsc_syntax::escape_leading_underscores(text),
             }),
             TransformFlags::NONE,
         )
@@ -4474,7 +4473,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
 
     fn identifier_text(&self, id: NodeId) -> Result<&str, TransformError> {
         match &self.context.arena().node(self.node(id))?.data {
-            NodeData::Identifier(data) => Ok(&data.text),
+            NodeData::Identifier(data) => Ok(data.text()),
             _ => Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::ClassDeclaration,
                 field: "identifier name",

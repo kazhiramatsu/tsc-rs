@@ -69,8 +69,8 @@ impl SubtreeCopier {
             generation: 0,
             node_marks: vec![0; old.nodes.len()],
             array_marks: vec![0; old.arrays.len()],
-            node_map: vec![NodeId(0); old.nodes.len()],
-            array_map: vec![NodeArrayId(0); old.arrays.len()],
+            node_map: vec![NodeId::new(0); old.nodes.len()],
+            array_map: vec![NodeArrayId::new(0); old.arrays.len()],
             pending_nodes: Vec::new(),
             pending_arrays: Vec::new(),
             old_nodes: Vec::new(),
@@ -89,9 +89,10 @@ impl SubtreeCopier {
     }
 
     fn node_index(&self, id: NodeId) -> usize {
-        let index =
-            id.0.checked_sub(self.old_node_base)
-                .expect("copied NodeId is below the old arena base") as usize;
+        let index = id
+            .index()
+            .checked_sub(self.old_node_base)
+            .expect("copied NodeId is below the old arena base") as usize;
         assert!(
             index < self.node_marks.len(),
             "copied NodeId is outside the old arena"
@@ -100,9 +101,10 @@ impl SubtreeCopier {
     }
 
     fn array_index(&self, id: NodeArrayId) -> usize {
-        let index =
-            id.0.checked_sub(self.old_array_base)
-                .expect("copied NodeArrayId is below the old arena base") as usize;
+        let index = id
+            .index()
+            .checked_sub(self.old_array_base)
+            .expect("copied NodeArrayId is below the old arena base") as usize;
         assert!(
             index < self.array_marks.len(),
             "copied NodeArrayId is outside the old arena"
@@ -212,12 +214,12 @@ impl SubtreeCopier {
             remap_node_data_ids(
                 &mut node.data,
                 |id| {
-                    let index = (id.0 - self.old_node_base) as usize;
+                    let index = (id.index() - self.old_node_base) as usize;
                     debug_assert_eq!(self.node_marks[index], self.generation);
                     self.node_map[index]
                 },
                 |id| {
-                    let index = (id.0 - self.old_array_base) as usize;
+                    let index = (id.index() - self.old_array_base) as usize;
                     debug_assert_eq!(self.array_marks[index], self.generation);
                     self.array_map[index]
                 },
@@ -235,7 +237,7 @@ impl SubtreeCopier {
             let new_id = self.array_map[old_index];
             let destination_index = destination.array_index(new_id);
             for node in &mut destination.arrays[destination_index].nodes {
-                let index = (node.0 - self.old_node_base) as usize;
+                let index = (node.index() - self.old_node_base) as usize;
                 debug_assert_eq!(self.node_marks[index], self.generation);
                 *node = self.node_map[index];
             }
@@ -248,30 +250,33 @@ impl SubtreeCopier {
 
 impl SyntaxIdentityRelocation {
     pub(crate) fn node(&self, id: &mut NodeId) -> Result<(), IdentityError> {
-        relocate_raw(
-            &mut id.0,
+        *id = NodeId::new(relocate_raw(
+            id.index(),
             IdentitySpace::Node,
             self.old_nodes,
             self.new_nodes,
-        )
+        )?);
+        Ok(())
     }
 
     pub(crate) fn node_array(&self, id: &mut NodeArrayId) -> Result<(), IdentityError> {
-        relocate_raw(
-            &mut id.0,
+        *id = NodeArrayId::new(relocate_raw(
+            id.index(),
             IdentitySpace::NodeArray,
             self.old_arrays,
             self.new_arrays,
-        )
+        )?);
+        Ok(())
     }
 }
 
+/// The index `value` names once its range `old` moves to `new`.
 fn relocate_raw(
-    value: &mut u32,
+    value: u32,
     space: IdentitySpace,
     old: IdentityRange,
     new: IdentityRange,
-) -> Result<(), IdentityError> {
+) -> Result<u32, IdentityError> {
     if old.len() != new.len() {
         return Err(IdentityError::InvalidLease {
             space,
@@ -285,17 +290,76 @@ fn relocate_raw(
             space,
             detail: "relocated id is outside its source arena",
         })?;
-    *value = new
-        .start()
+    new.start()
         .checked_add(offset)
         .ok_or(IdentityError::InvalidLease {
             space,
             detail: "relocated id overflowed",
-        })?;
-    Ok(())
+        })
+}
+
+/// What a set of parsed trees allocates, by structure (memory accounting).
+#[derive(Clone, Debug, Default)]
+pub struct SyntaxMemory {
+    pub nodes: usize,
+    pub node_bytes: usize,
+    pub arrays: usize,
+    pub array_bytes: usize,
+    pub array_items: usize,
+    pub array_item_bytes: usize,
+    pub identifiers: usize,
+    pub identifier_text_bytes: usize,
+    pub string_nodes: usize,
+    pub string_bytes: usize,
+    /// Node counts by kind.
+    pub kinds: std::collections::HashMap<SyntaxKind, usize>,
 }
 
 impl NodeArena {
+    /// Add this arena's allocations to `usage`.
+    pub fn add_memory_usage(&self, usage: &mut SyntaxMemory) {
+        usage.nodes += self.nodes.len();
+        usage.node_bytes += self.nodes.capacity() * std::mem::size_of::<Node>();
+        usage.arrays += self.arrays.len();
+        usage.array_bytes += self.arrays.capacity() * std::mem::size_of::<NodeArray>();
+        for array in &self.arrays {
+            usage.array_items += array.nodes.len();
+            usage.array_item_bytes += array.nodes.capacity() * std::mem::size_of::<NodeId>();
+        }
+        for node in &self.nodes {
+            *usage.kinds.entry(node.kind).or_default() += 1;
+            let mut string = |bytes: usize| {
+                usage.string_nodes += 1;
+                usage.string_bytes += bytes;
+            };
+            match &node.data {
+                NodeData::Identifier(data) => {
+                    usage.identifiers += 1;
+                    usage.identifier_text_bytes += data.escaped_text.capacity();
+                }
+                NodeData::PrivateIdentifier(data) => string(data.escaped_text.capacity()),
+                NodeData::StringLiteral(data) => string(data.text.heap_bytes()),
+                NodeData::NumericLiteral(data) => string(data.text.capacity()),
+                NodeData::BigIntLiteral(data) => string(data.text.capacity()),
+                NodeData::RegularExpressionLiteral(data) => string(data.text.capacity()),
+                NodeData::JsxText(data) => string(data.text.capacity()),
+                NodeData::JSDocText(data) => string(data.text.capacity()),
+                NodeData::NoSubstitutionTemplateLiteral(data) => string(
+                    data.text.heap_bytes() + data.raw_text.as_ref().map_or(0, String::capacity),
+                ),
+                NodeData::TemplateHead(data) => string(
+                    data.text.heap_bytes() + data.raw_text.as_ref().map_or(0, String::capacity),
+                ),
+                NodeData::TemplateMiddle(data) => string(
+                    data.text.heap_bytes() + data.raw_text.as_ref().map_or(0, String::capacity),
+                ),
+                NodeData::TemplateTail(data) => string(
+                    data.text.heap_bytes() + data.raw_text.as_ref().map_or(0, String::capacity),
+                ),
+                _ => {}
+            }
+        }
+    }
     pub fn new() -> Self {
         Self::default()
     }
@@ -375,16 +439,16 @@ impl NodeArena {
     }
 
     pub fn contains_node(&self, id: NodeId) -> bool {
-        id.0 >= self.node_base && id.0 < self.node_end()
+        id.index() >= self.node_base && id.index() < self.node_end()
     }
 
     pub fn contains_array(&self, id: NodeArrayId) -> bool {
-        id.0 >= self.array_base && id.0 < self.array_end()
+        id.index() >= self.array_base && id.index() < self.array_end()
     }
 
     /// All NodeIds of this arena, in allocation order.
     pub fn node_ids(&self) -> impl Iterator<Item = NodeId> + '_ {
-        (self.node_base..self.node_end()).map(NodeId)
+        (self.node_base..self.node_end()).map(NodeId::new)
     }
 
     pub fn alloc_node(
@@ -422,7 +486,7 @@ impl NodeArena {
         has_trailing_comma: bool,
     ) -> NodeArrayId {
         let offset = u32::try_from(self.arrays.len()).expect("node-array arena length exceeds u32");
-        let id = NodeArrayId(
+        let id = NodeArrayId::new(
             self.array_base
                 .checked_add(offset)
                 .expect("node-array identity space exhausted"),
@@ -705,7 +769,7 @@ impl NodeArena {
         flags: NodeFlags,
     ) -> NodeId {
         let offset = u32::try_from(self.nodes.len()).expect("node arena length exceeds u32");
-        let id = NodeId(
+        let id = NodeId::new(
             self.node_base
                 .checked_add(offset)
                 .expect("node identity space exhausted"),
@@ -824,11 +888,11 @@ impl NodeArena {
     #[inline]
     fn node_index(&self, id: NodeId) -> usize {
         assert!(
-            id.0 >= self.node_base,
+            id.index() >= self.node_base,
             "NodeId below arena base: {id:?} (base {})",
             self.node_base
         );
-        let index = (id.0 - self.node_base) as usize;
+        let index = (id.index() - self.node_base) as usize;
         assert!(index < self.nodes.len(), "invalid NodeId: {id:?}");
         index
     }
@@ -836,11 +900,11 @@ impl NodeArena {
     #[inline]
     fn array_index(&self, id: NodeArrayId) -> usize {
         assert!(
-            id.0 >= self.array_base,
+            id.index() >= self.array_base,
             "NodeArrayId below arena base: {id:?} (base {})",
             self.array_base
         );
-        let index = (id.0 - self.array_base) as usize;
+        let index = (id.index() - self.array_base) as usize;
         assert!(index < self.arrays.len(), "invalid NodeArrayId: {id:?}");
         index
     }

@@ -331,7 +331,6 @@ impl SyntacticBuilderResolver for TestResolver {
                 target,
                 NodeData::Identifier(IdentifierData {
                     escaped_text: "arg".to_owned(),
-                    text: "arg".to_owned(),
                 }),
                 TransformFlags::NONE,
             )
@@ -566,7 +565,7 @@ fn find_identifier(
         .find(|&node| {
             matches!(
                 &source.arena.node(node).data,
-                NodeData::Identifier(data) if data.text == text
+                NodeData::Identifier(data) if data.text() == text
             )
         })
         .expect("requested identifier");
@@ -614,7 +613,7 @@ fn syntactic_annotation_reuse_round_trips_parse_provenance_and_length() {
                     context,
                     declaration,
                     Some(SyntacticSymbol {
-                        id: SymbolId(0),
+                        id: SymbolId::new(0),
                         declaration_count: 1,
                         variable_declaration_count: 1,
                     }),

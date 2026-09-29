@@ -3,6 +3,7 @@
 pub mod arena;
 mod chars;
 pub mod for_each_child;
+mod ids;
 mod incremental;
 mod keywords;
 pub mod kind;
@@ -24,7 +25,7 @@ use tsc_types::{
     ScriptTarget,
 };
 
-pub use arena::NodeArena;
+pub use arena::{NodeArena, SyntaxMemory};
 pub use for_each_child::{
     apply_child_slots, child_slots, for_each_child, for_each_child_array, map_child_slots,
     try_visit_each_child, ChildSlot, ChildSlots, NodeDataChildVisitor, NodeLookup, MAX_CHILD_SLOTS,
@@ -509,6 +510,22 @@ pub fn escape_leading_underscores(name: &str) -> String {
         format!("_{name}")
     } else {
         name.to_owned()
+    }
+}
+
+impl nodes::IdentifierData {
+    /// tsc `idText`: the identifier's text, which is its escaped text
+    /// without the underscore escapeLeadingUnderscores adds to
+    /// `__`-prefixed names.
+    pub fn text(&self) -> &str {
+        unescape_leading_underscores(&self.escaped_text)
+    }
+}
+
+impl nodes::PrivateIdentifierData {
+    /// tsc `idText`; see [`nodes::IdentifierData::text`].
+    pub fn text(&self) -> &str {
+        unescape_leading_underscores(&self.escaped_text)
     }
 }
 

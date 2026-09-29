@@ -1327,7 +1327,7 @@ impl<'context> Es2018Visitor<'context> {
         let non_user_code = self.allocate_local_temp_binding()?;
 
         let iterator_base = match &self.context.arena().node(expression)?.data {
-            NodeData::Identifier(data) => Some(data.text.clone()),
+            NodeData::Identifier(data) => Some(data.text().to_owned()),
             _ => None,
         };
         let iterator = if let Some(iterator_base) = iterator_base {
@@ -2598,10 +2598,10 @@ impl<'context> Es2018Visitor<'context> {
                 if let NodeData::Identifier(identifier) = &self.context.arena().node(name)?.data {
                     let provisional = self
                         .generated_bindings
-                        .allocate_local_numbered(&identifier.text);
+                        .allocate_local_numbered(identifier.text());
                     TargetBinding::allocate_numbered_reserved_in_nested_scopes(
                         self.context,
-                        identifier.text.clone(),
+                        identifier.text().to_owned(),
                         provisional,
                     )?
                 } else {
@@ -3246,7 +3246,7 @@ impl<'context> Es2018Visitor<'context> {
         identifier: &str,
     ) -> Result<bool, TransformError> {
         if let NodeData::Identifier(data) = &self.context.arena().node(pattern)?.data {
-            return Ok(data.text == identifier);
+            return Ok(data.text() == identifier);
         }
         let elements = match &self.context.arena().node(pattern)?.data {
             NodeData::ObjectBindingPattern(data) => self.array_nodes(data.elements)?,
@@ -3461,7 +3461,7 @@ impl<'context> Es2018Visitor<'context> {
         //  bindingOrAssignmentElementContainsNonLiteralComputedName` arm.
         let force_fresh_value = match &self.context.arena().node(right)?.data {
             NodeData::Identifier(data) => {
-                self.pattern_assigns_to_identifier(pattern, &data.text)?
+                self.pattern_assigns_to_identifier(pattern, data.text())?
             }
             _ => false,
         } || self.pattern_contains_nonliteral_computed_name(pattern)?;
@@ -3534,7 +3534,7 @@ impl<'context> Es2018Visitor<'context> {
             let assigns_initializer = match initializer_original {
                 Some(initializer) => match &self.context.arena().node(initializer)?.data {
                     NodeData::Identifier(data) => {
-                        self.pattern_assigns_to_identifier(pattern, &data.text)?
+                        self.pattern_assigns_to_identifier(pattern, data.text())?
                     }
                     _ => false,
                 },
@@ -4322,7 +4322,7 @@ impl<'context> Es2018Visitor<'context> {
 
     fn property_name_text(&self, name: TransformNode) -> Result<JsStr<'_>, TransformError> {
         match &self.context.arena().node(name)?.data {
-            NodeData::Identifier(data) => Ok((&data.text).into()),
+            NodeData::Identifier(data) => Ok(data.text().into()),
             NodeData::StringLiteral(data) => Ok(data.text.as_js()),
             NodeData::NumericLiteral(data) => Ok((&data.text).into()),
             NodeData::BigIntLiteral(data) => Ok((&data.text).into()),
@@ -4356,7 +4356,6 @@ impl<'context> Es2018Visitor<'context> {
             self.source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
                 escaped_text: tsc_syntax::escape_leading_underscores(text),
-                text: text.to_owned(),
             }),
             TransformFlags::NONE,
         )
@@ -5445,7 +5444,7 @@ impl<'context> Es2018Visitor<'context> {
 
     fn identifier_text(&self, node: TransformNode) -> Result<&str, TransformError> {
         match &self.context.arena().node(node)?.data {
-            NodeData::Identifier(data) => Ok(&data.text),
+            NodeData::Identifier(data) => Ok(data.text()),
             _ => Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::FunctionDeclaration,
                 field: "function identifier",

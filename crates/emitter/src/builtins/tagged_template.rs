@@ -237,7 +237,7 @@ fn create_template_cooked(
     host: &mut impl TaggedTemplateHost,
     template: TransformNode,
 ) -> Result<TransformNode, TransformError> {
-    if host.arena_node(template)?.template_flags & TokenFlags::IS_INVALID.bits() != 0 {
+    if i32::from(host.arena_node(template)?.template_flags) & TokenFlags::IS_INVALID.bits() != 0 {
         host.create_void_zero()
     } else {
         let (text, _) = template_fragment_texts(host, template)?;
@@ -374,14 +374,14 @@ fn has_invalid_escape(
     let record = host.arena_node(template)?;
     match &record.data {
         NodeData::NoSubstitutionTemplateLiteral(_) => {
-            Ok(record.template_flags & TokenFlags::CONTAINS_INVALID_ESCAPE.bits() != 0)
+            Ok(i32::from(record.template_flags) & TokenFlags::CONTAINS_INVALID_ESCAPE.bits() != 0)
         }
         NodeData::TemplateExpression(data) => {
             let head = data.head.ok_or(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::TemplateExpression,
                 field: "head",
             })?;
-            if host.arena_node(host.node(head))?.template_flags
+            if i32::from(host.arena_node(host.node(head))?.template_flags)
                 & TokenFlags::CONTAINS_INVALID_ESCAPE.bits()
                 != 0
             {
@@ -400,7 +400,7 @@ fn has_invalid_escape(
                         parent: SyntaxKind::TemplateSpan,
                         field: "literal",
                     })?;
-                if host.arena_node(host.node(literal))?.template_flags
+                if i32::from(host.arena_node(host.node(literal))?.template_flags)
                     & TokenFlags::CONTAINS_INVALID_ESCAPE.bits()
                     != 0
                 {

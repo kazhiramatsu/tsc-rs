@@ -73,8 +73,8 @@ fn negative_literal_annotations_reserve_the_positive_operand_identities() {
         let negative = annotation_type(state, "value");
         let positive = state.tables.get_number_literal_type(7.0);
         let positive_fresh = state.tables.get_fresh_type_of_literal_type(positive);
-        assert!(positive.0 < negative.0);
-        assert!(positive_fresh.0 < negative.0);
+        assert!(positive.index() < negative.index());
+        assert!(positive_fresh.index() < negative.index());
     });
 }
 

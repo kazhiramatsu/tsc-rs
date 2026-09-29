@@ -81,10 +81,10 @@ impl IncrementalParseStats {
         for lineage in &mut self.lineage {
             let offset = lineage
                 .new_node
-                .0
+                .index()
                 .checked_sub(old_base)
                 .expect("incremental lineage belongs to the local result arena");
-            lineage.new_node = NodeId(
+            lineage.new_node = NodeId::new(
                 new_base
                     .checked_add(offset)
                     .expect("relocated incremental lineage overflows"),
@@ -102,14 +102,16 @@ struct ReachableIdentityGraph {
 
 impl ReachableIdentityGraph {
     fn contains_node(&self, id: NodeId) -> bool {
-        id.0.checked_sub(self.node_base)
+        id.index()
+            .checked_sub(self.node_base)
             .and_then(|index| self.nodes.get(index as usize))
             .copied()
             .unwrap_or(false)
     }
 
     fn contains_array(&self, id: NodeArrayId) -> bool {
-        id.0.checked_sub(self.array_base)
+        id.index()
+            .checked_sub(self.array_base)
             .and_then(|index| self.arrays.get(index as usize))
             .copied()
             .unwrap_or(false)
@@ -125,7 +127,7 @@ fn reachable_identity_graph(source: &SourceFile) -> ReachableIdentityGraph {
     let mut pending_arrays = Vec::new();
     while !pending_nodes.is_empty() || !pending_arrays.is_empty() {
         if let Some(id) = pending_nodes.pop() {
-            let index = (id.0 - node_base) as usize;
+            let index = (id.index() - node_base) as usize;
             if nodes[index] {
                 continue;
             }
@@ -140,7 +142,7 @@ fn reachable_identity_graph(source: &SourceFile) -> ReachableIdentityGraph {
         let id = pending_arrays
             .pop()
             .expect("a non-empty reachability work list has an element");
-        let index = (id.0 - array_base) as usize;
+        let index = (id.index() - array_base) as usize;
         if !arrays[index] {
             arrays[index] = true;
             pending_nodes.extend(source.arena.node_array(id).nodes.iter().copied());
@@ -174,7 +176,7 @@ fn syntax_graphs_equal(left: &SourceFile, right: &SourceFile) -> bool {
     while !pending_nodes.is_empty() || !pending_arrays.is_empty() {
         if let Some((left_id, right_id)) = pending_nodes.pop() {
             let Some(left_index) = left_id
-                .0
+                .index()
                 .checked_sub(left.arena.node_base())
                 .map(|index| index as usize)
                 .filter(|index| *index < left_nodes.len())
@@ -182,7 +184,7 @@ fn syntax_graphs_equal(left: &SourceFile, right: &SourceFile) -> bool {
                 return false;
             };
             let Some(right_index) = right_id
-                .0
+                .index()
                 .checked_sub(right.arena.node_base())
                 .map(|index| index as usize)
                 .filter(|index| *index < right_nodes.len())
@@ -246,7 +248,7 @@ fn syntax_graphs_equal(left: &SourceFile, right: &SourceFile) -> bool {
             .pop()
             .expect("a non-empty structural-comparison work list has an element");
         let Some(left_index) = left_id
-            .0
+            .index()
             .checked_sub(left.arena.array_base())
             .map(|index| index as usize)
             .filter(|index| *index < left_arrays.len())
@@ -254,7 +256,7 @@ fn syntax_graphs_equal(left: &SourceFile, right: &SourceFile) -> bool {
             return false;
         };
         let Some(right_index) = right_id
-            .0
+            .index()
             .checked_sub(right.arena.array_base())
             .map(|index| index as usize)
             .filter(|index| *index < right_arrays.len())

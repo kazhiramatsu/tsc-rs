@@ -228,7 +228,7 @@ fn parsed_constants_preserve_number_bits_and_string_code_units() {
 fn parsed_sibling(host: &Host, index: usize, root: TransformNode) -> TransformNode {
     let arena = &host.sources[index].arena;
     (arena.node_base()..arena.node_end())
-        .map(|id| TransformNode::new(root.source(), NodeId(id)))
+        .map(|id| TransformNode::new(root.source(), NodeId::new(id)))
         .find(|&node| node != root)
         .expect("a parsed source holds more than its root")
 }

@@ -222,7 +222,7 @@ fn new_declaration_resolver_members_fail_closed_when_unavailable() {
     ));
     assert!(matches!(
         resolver.collect_linked_aliases(
-            EmitResolverNode::new(source(7), tsc_syntax::NodeId(3)),
+            EmitResolverNode::new(source(7), tsc_syntax::NodeId::new(3)),
             true,
         ),
         Err(EmitResolverError::Unavailable {

@@ -131,12 +131,12 @@ impl EmitSymbolTracker for RecordingTracker {
     ) {
         let primary = primary_declaration
             .and_then(|description| description.parse)
-            .map(|node| node.node().0)
+            .map(|node| node.node().index())
             .unwrap_or(u32::MAX);
         let augmenting = augmenting_declarations
             .into_iter()
             .filter_map(|description| description.parse)
-            .map(|node| node.node().0.to_string())
+            .map(|node| node.node().index().to_string())
             .collect::<Vec<_>>()
             .join(",");
         self.log
@@ -158,7 +158,7 @@ impl EmitSymbolTracker for RecordingTracker {
     fn push_error_fallback_node(&mut self, node: Option<EmitTrackerNodeDescription>) {
         self.log.borrow_mut().fallback_stack_events.push(
             node.and_then(|description| description.parse)
-                .map(|node| u64::from(node.node().0)),
+                .map(|node| u64::from(node.node().index())),
         );
     }
 
@@ -181,7 +181,7 @@ impl MockTrackerAccess {
         if self.fail {
             Err(EmitResolverError::Unavailable {
                 method,
-                node: EmitResolverNode::from_raw_source(0, NodeId(node.0 as u32)),
+                node: EmitResolverNode::from_raw_source(0, NodeId::new(node.0 as u32)),
             })
         } else {
             Ok(value)
@@ -508,8 +508,8 @@ fn node_builder_tracker_forwards_gates_and_records_only_non_type_parameters() {
     let options = CompilerOptions::default();
     with_test_context(&options, Some(&mut tracker), |_checker, context| {
         let mut access = MockTrackerAccess { fail: false };
-        let property = SymbolId(11);
-        let enclosing = Some(NodeId(22));
+        let property = SymbolId::new(11);
+        let enclosing = Some(NodeId::new(22));
         assert!(!context
             .tracker
             .track_symbol(
@@ -539,7 +539,7 @@ fn node_builder_tracker_forwards_gates_and_records_only_non_type_parameters() {
                 &mut context.tracked_symbols,
                 &mut context.recovery_tracked_symbols,
                 &mut access,
-                SymbolId(12),
+                SymbolId::new(12),
                 SymbolFlags::PROPERTY,
                 enclosing,
                 false,
@@ -558,7 +558,7 @@ fn node_builder_tracker_forwards_gates_and_records_only_non_type_parameters() {
                 &mut context.tracked_symbols,
                 &mut context.recovery_tracked_symbols,
                 &mut access,
-                SymbolId(13),
+                SymbolId::new(13),
                 SymbolFlags::TYPE_PARAMETER,
                 enclosing,
                 false,
@@ -576,7 +576,7 @@ fn node_builder_tracker_forwards_gates_and_records_only_non_type_parameters() {
                 &mut context.tracked_symbols,
                 &mut context.recovery_tracked_symbols,
                 &mut access,
-                SymbolId(14),
+                SymbolId::new(14),
                 SymbolFlags::PROPERTY,
                 enclosing,
                 false,
@@ -594,7 +594,7 @@ fn node_builder_tracker_forwards_gates_and_records_only_non_type_parameters() {
                 &mut context.reported_diagnostic,
                 context.suppress_report_inference_fallback,
                 &mut access,
-                NodeId(30),
+                NodeId::new(30),
             )
             .expect("suppressed inference fallback");
         assert!(!context.reported_diagnostic);
@@ -607,7 +607,7 @@ fn node_builder_tracker_forwards_gates_and_records_only_non_type_parameters() {
                 &mut context.reported_diagnostic,
                 context.suppress_report_inference_fallback,
                 &mut access,
-                NodeId(31),
+                NodeId::new(31),
             )
             .expect("forwarded inference fallback");
         assert!(context.reported_diagnostic);
@@ -616,7 +616,7 @@ fn node_builder_tracker_forwards_gates_and_records_only_non_type_parameters() {
         context
             .tracker
             .push_error_fallback_node(Some(EmitTrackerNodeDescription {
-                parse: Some(EmitResolverNode::from_raw_source(0, NodeId(40))),
+                parse: Some(EmitResolverNode::from_raw_source(0, NodeId::new(40))),
                 original: None,
             }));
         context.tracker.pop_error_fallback_node();
@@ -654,11 +654,11 @@ fn node_builder_tracker_forwards_gates_and_records_only_non_type_parameters() {
         context.tracker.report_nonlocal_augmentation(
             &mut context.reported_diagnostic,
             Some(EmitTrackerNodeDescription {
-                parse: Some(EmitResolverNode::from_raw_source(0, NodeId(41))),
+                parse: Some(EmitResolverNode::from_raw_source(0, NodeId::new(41))),
                 original: None,
             }),
             vec![EmitTrackerNodeDescription {
-                parse: Some(EmitResolverNode::from_raw_source(1, NodeId(43))),
+                parse: Some(EmitResolverNode::from_raw_source(1, NodeId::new(43))),
                 original: None,
             }],
         );
@@ -706,9 +706,9 @@ fn node_builder_tracker_propagates_fallible_access_errors_fail_closed() {
             &mut context.tracked_symbols,
             &mut context.recovery_tracked_symbols,
             &mut access,
-            SymbolId(1),
+            SymbolId::new(1),
             SymbolFlags::PROPERTY,
-            Some(NodeId(2)),
+            Some(NodeId::new(2)),
             false,
             EmitSymbolMeaning::TYPE,
             false,
@@ -727,7 +727,7 @@ fn node_builder_tracker_propagates_fallible_access_errors_fail_closed() {
             &mut context.reported_diagnostic,
             false,
             &mut access,
-            NodeId(3),
+            NodeId::new(3),
         );
         assert!(matches!(
             inference_error,
@@ -744,8 +744,8 @@ fn node_builder_tracker_propagates_fallible_access_errors_fail_closed() {
 fn node_builder_save_restore_and_expansion_helpers_restore_all_owned_state() {
     let options = CompilerOptions::default();
     with_test_context(&options, None, |checker, context| {
-        let symbol = SymbolId(70);
-        let absent_symbol = SymbolId(71);
+        let symbol = SymbolId::new(70);
+        let absent_symbol = SymbolId::new(71);
         let old_type = checker.tables.intrinsics.any;
         let new_type = checker.tables.intrinsics.string;
         context.enclosing_symbol_types.insert(symbol, old_type);

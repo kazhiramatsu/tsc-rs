@@ -2038,7 +2038,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         contextual_type: TypeId,
     ) -> CheckResult<TypeId> {
-        let key = format!("D{},{}", node.0, contextual_type.0);
+        let key = format!("D{},{}", node.index(), contextual_type.index());
         if let Some(cached) = self.get_cached_type(&key) {
             return Ok(cached);
         }
@@ -2129,7 +2129,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         contextual_type: TypeId,
     ) -> CheckResult<TypeId> {
-        let key = format!("D{},{}", node.0, contextual_type.0);
+        let key = format!("D{},{}", node.index(), contextual_type.index());
         if let Some(cached) = self.get_cached_type(&key) {
             return Ok(cached);
         }

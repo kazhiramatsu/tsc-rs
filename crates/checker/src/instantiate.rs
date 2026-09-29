@@ -204,13 +204,13 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: arena accessor for TypeMapper values; tsc stores
     /// mapper objects by reference.
     pub(crate) fn mapper(&self, id: MapperId) -> &TypeMapper {
-        &self.mappers[id.0 as usize]
+        &self.mappers[id.index() as usize]
     }
 
     /// tsrs-native: arena allocation for a TypeMapper object; tsc uses
     /// ordinary JavaScript object allocation.
     pub(crate) fn alloc_mapper(&mut self, mapper: TypeMapper) -> MapperId {
-        let id = MapperId(self.mappers.len() as u32);
+        let id = MapperId::new(self.mappers.len() as u32);
         self.mappers.push(mapper);
         id
     }
@@ -2513,7 +2513,7 @@ impl<'a> CheckerState<'a> {
             return Ok(existing);
         }
         let instantiation = self.create_signature_instantiation(signature, type_arguments)?;
-        self.signatures[signature.0 as usize]
+        self.signatures[signature.index() as usize]
             .instantiations
             .insert(key, instantiation);
         Ok(instantiation)
@@ -2644,7 +2644,7 @@ impl<'a> CheckerState<'a> {
             return Ok(cached);
         }
         let erased = self.create_erased_signature(signature)?;
-        self.signatures[signature.0 as usize].erased_signature_cache = Some(erased);
+        self.signatures[signature.index() as usize].erased_signature_cache = Some(erased);
         Ok(erased)
     }
 
@@ -2662,7 +2662,7 @@ impl<'a> CheckerState<'a> {
             return Ok(cached);
         }
         let canonical = self.create_canonical_signature(signature)?;
-        self.signatures[signature.0 as usize].canonical_signature_cache = Some(canonical);
+        self.signatures[signature.index() as usize].canonical_signature_cache = Some(canonical);
         Ok(canonical)
     }
 
@@ -2736,7 +2736,7 @@ impl<'a> CheckerState<'a> {
             final_mapper,
             /*erase_type_parameters*/ true,
         )?;
-        self.signatures[signature.0 as usize].base_signature_cache = Some(base);
+        self.signatures[signature.index() as usize].base_signature_cache = Some(base);
         Ok(base)
     }
 

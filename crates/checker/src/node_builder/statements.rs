@@ -732,7 +732,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
 
     fn identifier_text(&self, node: TransformNode) -> BuildResult<Option<&str>> {
         Ok(match &self.arena.node(node).map_err(factory_error)?.data {
-            NodeData::Identifier(data) => Some(data.text.as_str()),
+            NodeData::Identifier(data) => Some(data.text()),
             _ => None,
         })
     }
@@ -3512,7 +3512,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
     fn parse_declaration_name_text(&self, declaration: NodeId) -> Option<JsString> {
         let name = declaration_name(self.checker, declaration)?;
         match self.checker.data_of(name) {
-            NodeData::Identifier(data) => Some(data.text.clone().into()),
+            NodeData::Identifier(data) => Some(data.text().to_owned().into()),
             NodeData::StringLiteral(data) => Some(data.text.clone()),
             NodeData::NumericLiteral(data) => Some(data.text.clone().into()),
             _ => None,
@@ -3569,7 +3569,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
 
     fn parse_name_text(&self, name: NodeId) -> Option<JsString> {
         match self.checker.data_of(name) {
-            NodeData::Identifier(data) => Some(data.text.clone().into()),
+            NodeData::Identifier(data) => Some(data.text().to_owned().into()),
             NodeData::StringLiteral(data) => Some(data.text.clone()),
             NodeData::NumericLiteral(data) => Some(data.text.clone().into()),
             _ => None,
@@ -4769,7 +4769,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                         };
                         self.checker.nodes_of(descriptor.properties).into_iter().find(|&property| {
                             declaration_name(self.checker, property).is_some_and(|name| {
-                                matches!(self.checker.data_of(name), NodeData::Identifier(data) if data.text == "set")
+                                matches!(self.checker.data_of(name), NodeData::Identifier(data) if data.text() == "set")
                             })
                         })
                     })

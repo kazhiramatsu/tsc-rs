@@ -827,8 +827,7 @@ fn substitution_identifier_clone(
         factory.create_node(
             node.source(),
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                escaped_text: text.clone(),
-                text,
+                escaped_text: tsc_syntax::escape_leading_underscores(&text),
             }),
             TransformFlags::NONE,
         )?
@@ -1102,7 +1101,7 @@ impl<'context, 'resolver, 'state> Es2015Visitor<'context, 'resolver, 'state> {
 
     fn identifier_text(&self, node: TransformNode) -> Result<String, TransformError> {
         match &self.context.arena().node(node)?.data {
-            NodeData::Identifier(data) => Ok(data.text.clone()),
+            NodeData::Identifier(data) => Ok(data.text().to_owned()),
             _ => Err(TransformError::RequiredChildRemoved {
                 parent: self.context.arena().node(node)?.kind,
                 field: "identifier",
@@ -1218,7 +1217,7 @@ impl<'context, 'resolver, 'state> Es2015Visitor<'context, 'resolver, 'state> {
         };
         Some(TargetBinding::from_existing(
             id,
-            identifier.text.clone(),
+            identifier.text().to_owned(),
             metadata.generated_binding_base().map(str::to_owned),
             metadata
                 .generated_binding_preferred_base()
@@ -1283,21 +1282,21 @@ impl<'context, 'resolver, 'state> Es2015Visitor<'context, 'resolver, 'state> {
         // "default"; everything else (pattern parameters, computed names)
         // → the temp family.
         let name_text = match &self.context.arena().node(node)?.data {
-            NodeData::Identifier(data) => Some(data.text.clone()),
+            NodeData::Identifier(data) => Some(data.text().to_owned()),
             _ => None,
         };
         let kind_base = match &self.context.arena().node(node)?.data {
             NodeData::ClassExpression(_) => Some("class".to_owned()),
             NodeData::ClassDeclaration(data) => match data.name {
                 Some(name) => match &self.context.arena().node(self.node(name))?.data {
-                    NodeData::Identifier(identifier) => Some(identifier.text.clone()),
+                    NodeData::Identifier(identifier) => Some(identifier.text().to_owned()),
                     _ => Some("default".to_owned()),
                 },
                 None => Some("default".to_owned()),
             },
             NodeData::FunctionDeclaration(data) => match data.name {
                 Some(name) => match &self.context.arena().node(self.node(name))?.data {
-                    NodeData::Identifier(identifier) => Some(identifier.text.clone()),
+                    NodeData::Identifier(identifier) => Some(identifier.text().to_owned()),
                     _ => Some("default".to_owned()),
                 },
                 None => Some("default".to_owned()),
@@ -1344,7 +1343,8 @@ impl<'context, 'resolver, 'state> Es2015Visitor<'context, 'resolver, 'state> {
                     _ => None,
                 };
                 let Some(name) = name else { continue };
-                let id = NodeId(node_base + u32::try_from(offset).expect("node count fits u32"));
+                let id =
+                    NodeId::new(node_base + u32::try_from(offset).expect("node count fits u32"));
                 let declaration = self.node(id);
                 let name = self.node(name);
                 if !matches!(arena.node(name)?.data, NodeData::Identifier(_)) {
@@ -1385,8 +1385,7 @@ impl Es2015Visitor<'_, '_, '_> {
         self.context.factory()?.create_node(
             source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                escaped_text: text.to_owned(),
-                text: text.to_owned(),
+                escaped_text: tsc_syntax::escape_leading_underscores(text),
             }),
             TransformFlags::NONE,
         )
@@ -7057,7 +7056,7 @@ impl Es2015Visitor<'_, '_, '_> {
     ) -> Result<TransformNode, TransformError> {
         match &self.context.arena().node(member_name)?.data {
             NodeData::Identifier(data) => {
-                let text = data.text.clone();
+                let text = data.text().to_owned();
                 self.create_string_literal(&text)
             }
             NodeData::ComputedPropertyName(data) => {
@@ -9393,7 +9392,7 @@ impl Es2015Visitor<'_, '_, '_> {
             return Ok(true);
         }
         match &self.context.arena().node(node)?.data {
-            NodeData::Identifier(data) => Ok(data.text == "_this"),
+            NodeData::Identifier(data) => Ok(data.text() == "_this"),
             _ => Ok(false),
         }
     }
@@ -9424,7 +9423,7 @@ impl Es2015Visitor<'_, '_, '_> {
             return Ok(true);
         }
         match &self.context.arena().node(node)?.data {
-            NodeData::Identifier(data) => Ok(data.text == "_super"),
+            NodeData::Identifier(data) => Ok(data.text() == "_super"),
             _ => Ok(false),
         }
     }
@@ -9511,7 +9510,7 @@ impl Es2015Visitor<'_, '_, '_> {
         }
         let method_name = match access.name {
             Some(name) => match &self.context.arena().node(self.node(name))?.data {
-                NodeData::Identifier(data) => data.text.clone(),
+                NodeData::Identifier(data) => data.text().to_owned(),
                 _ => return Ok(false),
             },
             None => return Ok(false),
@@ -9620,7 +9619,7 @@ impl Es2015Visitor<'_, '_, '_> {
         };
         match access.name {
             Some(name) => match &self.context.arena().node(self.node(name))?.data {
-                NodeData::Identifier(data) => Ok(data.text == "apply"),
+                NodeData::Identifier(data) => Ok(data.text() == "apply"),
                 _ => Ok(false),
             },
             None => Ok(false),
@@ -10153,7 +10152,7 @@ impl Es2015Visitor<'_, '_, '_> {
             };
             let second_is_arguments = arguments.len() == 2
                 && match &self.context.arena().node(arguments[1])?.data {
-                    NodeData::Identifier(data) => data.text == "arguments",
+                    NodeData::Identifier(data) => data.text() == "arguments",
                     _ => false,
                 };
             if second_is_arguments {

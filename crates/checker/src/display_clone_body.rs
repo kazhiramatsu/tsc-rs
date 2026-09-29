@@ -2056,7 +2056,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
             NodeData::Identifier(data) => Some(JsString::from(
                 tsc_syntax::unescape_leading_underscores(&data.escaped_text),
             )),
-            NodeData::PrivateIdentifier(data) => Some(data.text.clone().into()),
+            NodeData::PrivateIdentifier(data) => Some(data.text().to_owned().into()),
             _ => None,
         }
     }

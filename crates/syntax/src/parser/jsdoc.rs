@@ -213,7 +213,6 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         let id = self.finish(
             NodeData::Identifier(IdentifierData {
                 escaped_text: crate::escape_leading_underscores(&text),
-                text,
             }),
             pos,
             end,
@@ -224,7 +223,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
 
     fn identifier_text(&self, id: NodeId) -> Option<&str> {
         match &self.parser.arena.node(id).data {
-            NodeData::Identifier(data) => Some(&data.text),
+            NodeData::Identifier(data) => Some(data.text()),
             _ => None,
         }
     }
@@ -1006,23 +1005,23 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             is_name_first = true;
         }
         let data = if target == TARGET_PROPERTY {
-            NodeData::JSDocPropertyTag(JSDocPropertyTagData {
+            NodeData::JSDocPropertyTag(Box::new(JSDocPropertyTagData {
                 tag_name: Some(tag_name),
                 comment,
                 name: Some(name),
                 type_expression,
                 is_name_first,
                 is_bracketed,
-            })
+            }))
         } else {
-            NodeData::JSDocParameterTag(JSDocParameterTagData {
+            NodeData::JSDocParameterTag(Box::new(JSDocParameterTagData {
                 tag_name: Some(tag_name),
                 comment,
                 name: Some(name),
                 type_expression,
                 is_name_first,
                 is_bracketed,
-            })
+            }))
         };
         self.finish_current(data, start)
     }
@@ -1708,13 +1707,13 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             comment = self.parse_trailing_tag_comments(start, end, indent, indent_text);
         }
         self.finish(
-            NodeData::JSDocTypedefTag(JSDocTypedefTagData {
+            NodeData::JSDocTypedefTag(Box::new(JSDocTypedefTagData {
                 tag_name: Some(tag_name),
                 comment,
                 name,
                 full_name,
                 type_expression,
-            }),
+            })),
             start,
             end,
         )
@@ -1787,13 +1786,13 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             self.parser.arena.node(type_expression).end as usize
         };
         self.finish(
-            NodeData::JSDocCallbackTag(JSDocCallbackTagData {
+            NodeData::JSDocCallbackTag(Box::new(JSDocCallbackTagData {
                 tag_name: Some(tag_name),
                 comment,
                 name,
                 full_name,
                 type_expression: Some(type_expression),
-            }),
+            })),
             start,
             end,
         )
@@ -1892,12 +1891,12 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         let type_parameters = self.alloc_array(type_parameters, parameters_pos, self.node_pos());
         let comment = self.parse_trailing_tag_comments(start, self.node_pos(), indent, indent_text);
         self.finish_current(
-            NodeData::JSDocTemplateTag(JSDocTemplateTagData {
+            NodeData::JSDocTemplateTag(Box::new(JSDocTemplateTagData {
                 tag_name: Some(tag_name),
                 comment,
                 constraint,
                 type_parameters: Some(type_parameters),
-            }),
+            })),
             start,
         )
     }
@@ -1925,13 +1924,13 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         let attributes = self.parser.try_parse_import_attributes();
         let comment = self.parse_trailing_tag_comments(start, self.node_pos(), margin, indent_text);
         self.finish_current(
-            NodeData::JSDocImportTag(JSDocImportTagData {
+            NodeData::JSDocImportTag(Box::new(JSDocImportTagData {
                 tag_name: Some(tag_name),
                 comment,
                 import_clause,
                 module_specifier: Some(module_specifier),
                 attributes,
-            }),
+            })),
             start,
         )
     }

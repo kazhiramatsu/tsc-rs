@@ -192,7 +192,7 @@ impl Transformer for ClassFieldsTransformer<'_> {
             .and_then(|metadata| metadata.class_constructor_reference);
         let alias_key = if let Some(owner) = generated_owner {
             let owner = context.arena().require_parse_tree_resolver_node(owner)?;
-            (owner.source().raw(), owner.node().0)
+            (owner.source().raw(), owner.node().index())
         } else {
             let Some(resolver_node) = context.arena().parse_tree_resolver_node(node)? else {
                 return Ok(node);
@@ -209,7 +209,7 @@ impl Transformer for ClassFieldsTransformer<'_> {
             else {
                 return Ok(node);
             };
-            (declaration.source().raw(), declaration.node().0)
+            (declaration.source().raw(), declaration.node().index())
         };
         let Some(alias) = self.class_aliases.get(&alias_key).cloned() else {
             return Ok(node);
@@ -221,7 +221,6 @@ impl Transformer for ClassFieldsTransformer<'_> {
                 node.source(),
                 NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
                     escaped_text: tsc_syntax::escape_leading_underscores(&alias_text),
-                    text: alias_text,
                 }),
                 TransformFlags::NONE,
             )?;
@@ -255,7 +254,7 @@ impl Transformer for ClassFieldsTransformer<'_> {
         let original = arena.get_emit_original_node(node);
         if let Some(environment) = self
             .static_emit_environments
-            .get(&(original.source().raw(), original.node().0))
+            .get(&(original.source().raw(), original.node().index()))
             .cloned()
         {
             let original_record = arena.node(original)?;
@@ -428,7 +427,6 @@ impl ClassFieldsTransformer<'_> {
                     node.source(),
                     NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
                         escaped_text: tsc_syntax::escape_leading_underscores(&text),
-                        text,
                     }),
                     TransformFlags::NONE,
                 )?;
@@ -522,7 +520,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
                         && node.end != u32::MAX
                         && (node.flags & NodeFlags::SYNTHESIZED.bits()) == 0 =>
                 {
-                    Some(data.text.clone())
+                    Some(data.text().to_owned())
                 }
                 _ => None,
             })
@@ -1093,7 +1091,6 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             self.source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
                 escaped_text: tsc_syntax::escape_leading_underscores(text),
-                text: text.to_owned(),
             }),
             TransformFlags::NONE,
         )
@@ -1104,7 +1101,6 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             self.source,
             NodeData::PrivateIdentifier(tsc_syntax::nodes::PrivateIdentifierData {
                 escaped_text: tsc_syntax::escape_leading_underscores(text),
-                text: text.to_owned(),
             }),
             TransformFlags::NONE,
         )
@@ -1561,7 +1557,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         };
         Some(TargetBinding::from_existing(
             id,
-            identifier.text.clone(),
+            identifier.text().to_owned(),
             metadata.generated_binding_base().map(str::to_owned),
             metadata
                 .generated_binding_preferred_base()
@@ -1741,7 +1737,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             let record = self.context.arena().node(name)?;
             if let NodeData::PrivateIdentifier(data) = &record.data {
                 if record.pos == u32::MAX {
-                    let text = data.text.clone();
+                    let text = data.text().to_owned();
                     if let Some(scope) = self.private_name_scopes.last_mut() {
                         scope.allocated.insert(text);
                     }
@@ -1769,8 +1765,8 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
     fn retained_member_name_text(&self, name: TransformNode) -> Result<String, TransformError> {
         let record = self.context.arena().node(name)?;
         let text = match &record.data {
-            NodeData::Identifier(data) => &data.text,
-            NodeData::PrivateIdentifier(data) => &data.text,
+            NodeData::Identifier(data) => data.text(),
+            NodeData::PrivateIdentifier(data) => data.text(),
             _ => {
                 return Err(TransformError::RequiredChildRemoved {
                     parent: record.kind,
@@ -1788,7 +1784,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             return Ok(generated.to_owned());
         }
         if record.parent.is_none() || record.pos == u32::MAX || record.end == u32::MAX {
-            return Ok(text.clone());
+            return Ok(text.to_owned());
         }
         let syntax = self.context.arena().source(name.source())?.syntax();
         let start = tsc_syntax::skip_trivia(syntax.text(), record.pos as usize);
@@ -2408,7 +2404,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
                 };
                 if let Some(name) = data.name {
                     if matches!(&self.context.arena().node(self.node(name))?.data,
-                        NodeData::Identifier(name) if name.text == "this")
+                        NodeData::Identifier(name) if name.text() == "this")
                     {
                         continue;
                     }
@@ -2508,7 +2504,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
                         .arena()
                         .require_parse_tree_resolver_node(original)?;
                     self.class_aliases.insert(
-                        (resolver_node.source().raw(), resolver_node.node().0),
+                        (resolver_node.source().raw(), resolver_node.node().index()),
                         downlevel::ClassBinding::Generated(binding),
                     );
                 }

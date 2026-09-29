@@ -266,7 +266,7 @@ fn binding_pattern_return_mapper_contextualizes_later_empty_array_argument() {
                                         matches!(
                                             &source.arena.node(name).data,
                                             NodeData::Identifier(identifier)
-                                                if identifier.text == "reduce"
+                                                if identifier.text() == "reduce"
                                         )
                                     })
                             )
@@ -363,7 +363,7 @@ fn rejected_reduce_overloads_keep_tsc_contextual_state_and_failure_return_type()
                                         matches!(
                                             &source.arena.node(name).data,
                                             NodeData::Identifier(identifier)
-                                                if identifier.text == "reduce"
+                                                if identifier.text() == "reduce"
                                         )
                                     })
                             )

@@ -170,8 +170,8 @@ fn array_nodes(
 fn name_text(arena: &TransformArena, parent: TransformNode, name: Option<NodeId>) -> String {
     let name = child(arena, parent, name);
     match &node(arena, name).data {
-        NodeData::Identifier(data) => data.text.clone(),
-        NodeData::PrivateIdentifier(data) => data.text.clone(),
+        NodeData::Identifier(data) => data.text().to_owned(),
+        NodeData::PrivateIdentifier(data) => data.text().to_owned(),
         NodeData::StringLiteral(data) => data
             .text
             .as_str()
@@ -342,7 +342,7 @@ fn assert_property_require_alias_shape(main_text: &str, expected_generated_name:
             else {
                 unreachable!()
             };
-            assert_eq!(generated.text, expected_generated_name);
+            assert_eq!(generated.text(), expected_generated_name);
         },
     );
 }
@@ -1305,7 +1305,7 @@ fn declaration_comment_range_serialized_locations_match_upstream_traces() {
                                     else {
                                         unreachable!()
                                     };
-                                    data.text.clone()
+                                    data.text().to_owned()
                                 })
                                 .collect::<Vec<_>>();
                             assert_eq!(actual_names, expected_names, "{id}: parameter order");

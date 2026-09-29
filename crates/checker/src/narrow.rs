@@ -1468,8 +1468,8 @@ impl<'a> CheckerState<'a> {
         let key = if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             Some(format!(
                 "N{},{},{}",
-                ty.0,
-                candidate.0,
+                ty.index(),
+                candidate.index(),
                 (assume_true as u8) | ((check_derived as u8) << 1)
             ))
         } else {

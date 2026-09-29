@@ -609,7 +609,7 @@ fn compare_packet(
         for (offset, record) in parsed.arena.nodes().iter().enumerate() {
             let node = TransformNode::new(
                 source,
-                tsc_syntax::NodeId(parsed.arena.node_base() + offset as u32),
+                tsc_syntax::NodeId::new(parsed.arena.node_base() + offset as u32),
             );
             let Some(metadata) = arena.metadata(node) else {
                 continue;
