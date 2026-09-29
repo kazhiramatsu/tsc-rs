@@ -1059,8 +1059,8 @@ pub struct CheckerState<'a> {
 }
 
 impl<'a> CheckerState<'a> {
-    /// Single-file construction — the M3 signature, kept for the
-    /// relpin probe and unit tests. `source` must be the binder's file.
+    /// Single-file construction for the relation probe and unit tests.
+    /// `source` must be the binder's file.
     /// tsrs-native: single-file test/probe adapter around the Rust
     /// multi-file CheckerState constructor.
     pub fn new(

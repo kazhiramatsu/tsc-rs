@@ -89,8 +89,7 @@ pub(crate) fn is_true(result: Ternary) -> bool {
 }
 
 impl<'a> CheckerState<'a> {
-    /// The public boolean APIs the relpin probe (and later checker
-    /// call sites) consume.
+    /// The boolean relation entries.
     /// tsc-port: isTypeAssignableTo @6.0.3
     /// tsc-hash: 4835b1b23e62b229e59b4a928dd4aa8d16ec671c0d71f250716bdd464b007c3b
     /// tsc-span: _tsc.js:63919-63921
@@ -4818,34 +4817,6 @@ impl<'a> CheckerState<'a> {
             }
         }
         Ok(ty)
-    }
-
-    /// tsc-port: checkAssertionDeferred @6.0.3
-    /// tsc-hash: f6ba47fa52cafe10b5a25a331f4c920416a684b8b2ca6f9b65a4faea0fcaca32
-    /// tsc-span: _tsc.js:77939-77955
-    ///
-    /// The comparable-pin fixture shape: `s as Target` errors (2352)
-    /// iff NEITHER comparable(target, widened(exprType)) NOR
-    /// comparable(exprType, target) holds, where exprType =
-    /// getRegularTypeOfObjectLiteral(getBaseTypeOfLiteralType(source)).
-    /// getWidenedType is the identity in M3: no constructible type
-    /// carries ObjectFlags::RequiresWidening (widening contexts are
-    /// M6 expression checking).
-    pub fn is_assertion_legal(&mut self, source: TypeId, target: TypeId) -> CheckResult<bool> {
-        let base = self.get_base_type_of_literal_type(source)?;
-        let expr_type = self.get_regular_type_of_object_literal(base)?;
-        let widened = expr_type; // getWidenedType stub (identity in M3)
-        let first = self.is_type_comparable_to(target, widened);
-        if let Ok(true) = first {
-            return Ok(true);
-        }
-        let second = self.is_type_comparable_to(expr_type, target);
-        if let Ok(true) = second {
-            return Ok(true);
-        }
-        first?;
-        second?;
-        Ok(false)
     }
 }
 

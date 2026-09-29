@@ -127,6 +127,7 @@ pub(crate) mod order_guard;
 mod plain_js_errors;
 pub mod program;
 pub mod relate;
+#[doc(hidden)]
 pub mod relpin;
 pub mod resolve;
 pub mod shard;

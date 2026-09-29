@@ -1,12 +1,12 @@
-# Relation pin suite (greenfield M3 stage 4.0).
+# Relation pin suite.
 #
 # Each [[pair]] asks: is `source` related to `target` under `relation`
 # ("assignable" default, or "comparable")? `expect` is ORACLE TRUTH —
-# filled by `cargo xtask relpin gen`, never by hand. The generated
-# fixtures live in pins/fixtures/relations/ (regenerated wholesale by
-# gen; do not edit). `cargo xtask relpin run` asks the engine the same
-# questions; the M3 gate is 0 disagreements. This file grows per
-# milestone — it is never M3-frozen.
+# TypeScript 6.0.3's answer for the fixture in pins/fixtures/relations/
+# (recorded by the former `cargo xtask relpin gen`; never edit by hand).
+# The harness test crates/harness/tests/integration/relation_pins.rs
+# rebuilds every fixture, checks it against the recorded file, and asks
+# the checker the same question.
 #
 # Pin fields: source/target (type annotations), relation, options
 # (emitted as harness // @option: directives; matrix values rejected),
