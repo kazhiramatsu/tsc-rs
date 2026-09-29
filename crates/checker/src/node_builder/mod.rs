@@ -1,5 +1,3 @@
-#![allow(dead_code, unused_imports)]
-
 pub(crate) mod chains;
 mod context;
 mod serialize;
@@ -12,40 +10,34 @@ mod type_nodes;
 pub(crate) use crate::syntactic_type_node_builder::SyntacticTypeNodeBuilder;
 pub(crate) use chains::specifier_for_module_symbol;
 pub(crate) use chains::{
-    chains_get_property_name_node_for_symbol, chains_lookup_symbol_chain,
-    chains_symbol_to_entity_name_node, chains_symbol_to_expression, chains_symbol_to_type_node,
-    clone_node_builder_context,
+    chains_get_property_name_node_for_symbol, chains_symbol_to_entity_name_node,
+    chains_symbol_to_expression, chains_symbol_to_type_node, clone_node_builder_context,
     existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count,
     get_declaration_with_type_annotation, get_enclosing_declaration_ignoring_fake_scope,
     get_module_specifier_override, get_type_from_type_node2, restore_cloned_node_builder_context,
     serialize_inferred_type_for_declaration, set_text_range2, symbol_to_node,
-    type_parameter_to_name, ClonedNodeBuilderContextRestore,
+    type_parameter_to_name,
 };
 pub(crate) use context::{
     add_symbol_type_to_context, can_possibly_expand_type, check_truncation_length,
     check_truncation_length_if_expanding, no_inference_fallback_is_set, restore_flags,
     restore_no_inference_fallback, restore_symbol_type_to_context, save_no_inference_fallback,
     save_restore_flags, should_expand_type, with_context, with_context_in_synthetic_module_scope,
-    FlagsRestore, NodeBuilderContext, RecoveryTrackedSymbol, SymbolTypeRestore,
-    SyntheticModuleScope, TrackedSymbol, DEFAULT_MAXIMUM_TRUNCATION_LENGTH,
-    NO_TRUNCATION_MAXIMUM_TRUNCATION_LENGTH,
+    NodeBuilderContext, RecoveryTrackedSymbol, SyntheticModuleScope, TrackedSymbol,
 };
 pub(crate) use serialize::{
     index_info_to_index_signature_declaration, serialize_return_type_for_signature,
     serialize_return_type_for_signature_seam, serialize_type_for_declaration,
     serialize_type_for_declaration_seam, serialize_type_for_expression,
     syntactic_serialize_name_of_parameter_seam, syntactic_track_existing_entity_name,
-    syntactic_try_reuse_existing_type_node, type_predicate_to_type_predicate_node,
-    type_to_type_node,
+    syntactic_try_reuse_existing_type_node, type_to_type_node,
 };
 pub(crate) use signatures::{
-    create_recovery_boundary, enter_new_scope, index_info_to_index_signature_declaration_helper,
-    prime_type_parameter_names_for_scope, signature_to_signature_declaration_helper,
-    symbol_to_parameter_declaration, type_parameter_to_declaration,
+    enter_new_scope, index_info_to_index_signature_declaration_helper,
+    signature_to_signature_declaration_helper, type_parameter_to_declaration,
     type_predicate_to_type_predicate_node_helper, SignatureDeclarationOptions,
 };
 pub(crate) use statements::{symbol_table_to_declaration_statements, symbol_to_declarations};
-pub(crate) use tracker::NodeBuilderTracker;
 use type_nodes::{
     add_approximate_length, checker_abort_error, clone_parse_node, create_identifier, create_node,
     create_node_array, create_output_identifier, create_token, factory_error, project_parse_node,
@@ -578,14 +570,6 @@ pub(crate) trait SyntacticBuilderResolver: tsc_emitter::EmitTrackerAccess {
         node: tsc_emitter::TransformNode,
     ) -> Result<bool, tsc_emitter::EmitResolverError>;
 
-    fn is_entity_name_visible(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        context: &mut NodeBuilderContext<'_>,
-        entity_name: tsc_emitter::TransformNode,
-        should_compute_aliases_to_make_visible: bool,
-    ) -> Result<tsc_emitter::EmitSymbolAccessibilityResult, tsc_emitter::EmitResolverError>;
-
     fn serialize_existing_type_node(
         &mut self,
         arena: &mut tsc_emitter::TransformArena,
@@ -628,14 +612,6 @@ pub(crate) trait SyntacticBuilderResolver: tsc_emitter::EmitTrackerAccess {
         context: &mut NodeBuilderContext<'_>,
         parameter: tsc_emitter::TransformNode,
     ) -> Result<tsc_emitter::TransformNode, tsc_emitter::EmitResolverError>;
-
-    fn serialize_entity_name(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        target: tsc_emitter::TransformSourceId,
-        context: &mut NodeBuilderContext<'_>,
-        node: tsc_emitter::TransformNode,
-    ) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError>;
 
     fn serialize_type_name(
         &mut self,

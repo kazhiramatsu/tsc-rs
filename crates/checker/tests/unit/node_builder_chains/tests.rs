@@ -1,6 +1,6 @@
 use tsc_emitter::{
-    EmitInternalNodeBuilderFlags, EmitNodeBuilderFlags, EmitSymbolMeaning, SourceFileId,
-    TransformArena, TransformNode, TransformSourceId,
+    EmitInternalNodeBuilderFlags, EmitNodeBuilderFlags, EmitSymbolMeaning, TransformArena,
+    TransformNode, TransformSourceId,
 };
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::CompilerOptions;
@@ -228,18 +228,6 @@ fn nested_namespace_chain_selects_parent_qualification_and_distinct_node_forms()
         EmitInternalNodeBuilderFlags::NONE,
         |checker, arena, target, context| {
             let value = declaration_symbol(checker, 0, SyntaxKind::VariableDeclaration, "value");
-            let chain = chains_lookup_symbol_chain(
-                checker,
-                context,
-                value,
-                EmitSymbolMeaning::VALUE_EXPORT_VALUE,
-            )?;
-            let names = chain
-                .iter()
-                .map(|&symbol| checker.symbol_display_name(symbol))
-                .collect::<Vec<_>>();
-            assert_eq!(names, ["Outer", "Inner", "value"]);
-
             let entity = chains_symbol_to_entity_name_node(checker, arena, target, context, value)?;
             assert_eq!(
                 arena.node(entity).map_err(factory_error)?.kind,

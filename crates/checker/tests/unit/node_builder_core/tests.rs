@@ -10,6 +10,9 @@ use tsc_emitter::{
     SourceFileId, TransformArena,
 };
 use tsc_syntax::NodeId;
+
+use super::context::{DEFAULT_MAXIMUM_TRUNCATION_LENGTH, NO_TRUNCATION_MAXIMUM_TRUNCATION_LENGTH};
+use super::tracker::NodeBuilderTracker;
 use tsc_types::{CompilerOptions, SymbolFlags, TupleTargetFlags};
 
 use crate::state::test_support::with_program_state;
@@ -388,7 +391,6 @@ fn node_builder_context_construction_uses_upstream_defaults_and_bundled_gate() {
                 assert_eq!(context.recovery_boundary_depth, 0);
                 assert!(context.tracker.inner.is_none());
                 assert!(!context.tracker.can_track_symbol);
-                assert!(context.tracker.uses_basic_module_resolver_host);
                 assert!(context.tracker.caller_module_resolver_host().is_none());
                 Ok(17_u32)
             },

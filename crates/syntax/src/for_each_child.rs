@@ -4068,32 +4068,6 @@ fn map_optional_nodes<V: NodeDataChildVisitor>(
     Ok(())
 }
 
-#[allow(dead_code)]
-fn map_required_node<V: NodeDataChildVisitor>(
-    slot: &mut NodeId,
-    parent: SyntaxKind,
-    field: &'static str,
-    visitor: &mut V,
-) -> Result<(), V::Error> {
-    *slot = visitor
-        .visit_node(*slot)?
-        .ok_or_else(|| visitor.required_child_removed(parent, field))?;
-    Ok(())
-}
-
-#[allow(dead_code)]
-fn map_required_nodes<V: NodeDataChildVisitor>(
-    slot: &mut NodeArrayId,
-    parent: SyntaxKind,
-    field: &'static str,
-    visitor: &mut V,
-) -> Result<(), V::Error> {
-    *slot = visitor
-        .visit_nodes(*slot)?
-        .ok_or_else(|| visitor.required_child_removed(parent, field))?;
-    Ok(())
-}
-
 fn map_optional_jsdoc_comment<V: NodeDataChildVisitor>(
     slot: &mut Option<JSDocComment>,
     visitor: &mut V,
@@ -4102,21 +4076,6 @@ fn map_optional_jsdoc_comment<V: NodeDataChildVisitor>(
         return Ok(());
     };
     *slot = visitor.visit_nodes(*id)?.map(JSDocComment::Nodes);
-    Ok(())
-}
-
-#[allow(dead_code)]
-fn map_jsdoc_comment<V: NodeDataChildVisitor>(
-    slot: &mut JSDocComment,
-    parent: SyntaxKind,
-    field: &'static str,
-    visitor: &mut V,
-) -> Result<(), V::Error> {
-    if let JSDocComment::Nodes(id) = slot {
-        *id = visitor
-            .visit_nodes(*id)?
-            .ok_or_else(|| visitor.required_child_removed(parent, field))?;
-    }
     Ok(())
 }
 
@@ -6099,22 +6058,6 @@ fn apply_optional_jsdoc_comment(slot: &mut Option<JSDocComment>, mapped: ChildSl
     if let Some(JSDocComment::Nodes(_)) = slot {
         *slot = mapped.nodes().map(JSDocComment::Nodes);
     }
-}
-
-#[allow(dead_code)]
-fn apply_jsdoc_comment<V: NodeDataChildVisitor>(
-    slot: &mut JSDocComment,
-    mapped: ChildSlot,
-    parent: SyntaxKind,
-    field: &'static str,
-    visitor: &mut V,
-) -> Result<(), V::Error> {
-    if let JSDocComment::Nodes(id) = slot {
-        *id = mapped
-            .nodes()
-            .ok_or_else(|| visitor.required_child_removed(parent, field))?;
-    }
-    Ok(())
 }
 
 /// Map every slot through the visitor. Returns whether any slot changed.

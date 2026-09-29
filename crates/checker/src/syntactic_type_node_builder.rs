@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use tsc_binder::node_util;
 use tsc_emitter::{
     CommentRange, EmitFlags, EmitNodeBuilderFlags, EmitResolverError, EmitResolverMethod,

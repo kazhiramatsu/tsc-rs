@@ -3017,7 +3017,6 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// Consumed by the 4.6 structural arms (structuredTypeRelatedTo's
     /// source-union dispatch); ported with its family per the steps
     /// doc.
-    #[allow(dead_code)]
     /// tsc-port: eachTypeRelatedToSomeType @6.0.3
     /// tsc-hash: b9bb261a94173a03379c5bc2d6e22817708d020d37d3922ecd5556d86b7eda94
     /// tsc-span: _tsc.js:65466-65483

@@ -11144,18 +11144,6 @@ pub(crate) fn is_reserved_member_name<'a>(name: impl Into<JsStr<'a>>) -> bool {
         && bytes.get(2) != Some(&b'#')
 }
 
-#[allow(dead_code)] // retired by the 5.5f isFunctionLike filter
-fn is_m3_signature_declaration_kind(kind: SyntaxKind) -> bool {
-    matches!(
-        kind,
-        SyntaxKind::CallSignature
-            | SyntaxKind::ConstructSignature
-            | SyntaxKind::MethodSignature
-            | SyntaxKind::FunctionType
-            | SyntaxKind::ConstructorType
-    )
-}
-
 /// The scanner already normalized numeric literal text to its value
 /// form (tsc node.text = token value); this parses that value string.
 /// tsrs-native: Rust f64 parsing replaces JavaScript's unary numeric

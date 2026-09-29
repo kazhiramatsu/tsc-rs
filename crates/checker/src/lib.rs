@@ -4375,10 +4375,6 @@ fn assemble_check_result(
 /// inserted into the cache.
 struct LibBundle {
     options: &'static CompilerOptions,
-    /// Compatibility projection for harness tests; these are the same Arc
-    /// source handles retained by `documents`, never cloned ASTs.
-    #[allow(dead_code)]
-    sources: &'static [Arc<tsc_syntax::SourceFile>],
     documents: &'static [Arc<BoundDocument>],
     identity_domain: IdentityDomain,
 }
@@ -4560,12 +4556,10 @@ fn build_lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static 
     let binders = bind_lib_sources(&sources, options, &identity_domain, WorkerBudget::serial());
     let data = binders_into_data(binders);
     let sources = sources.into_iter().map(Arc::new).collect::<Vec<_>>();
-    let documents = publish_bound_documents_from_handles(sources.clone(), data);
-    let sources: &'static [Arc<tsc_syntax::SourceFile>] = Box::leak(sources.into_boxed_slice());
+    let documents = publish_bound_documents_from_handles(sources, data);
     let documents: &'static [Arc<BoundDocument>] = Box::leak(documents.into_boxed_slice());
     Box::leak(Box::new(LibBundle {
         options,
-        sources,
         documents,
         identity_domain,
     }))

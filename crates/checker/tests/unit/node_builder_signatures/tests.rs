@@ -505,7 +505,7 @@ fn type_predicate_helper_covers_identifier_asserts_and_this_shapes() {
 }
 
 #[test]
-fn scope_and_recovery_boundary_restore_owned_context_state() {
+fn scope_restores_owned_context_state() {
     with_builder(
         "export {};",
         EmitNodeBuilderFlags::NONE,
@@ -547,40 +547,6 @@ fn scope_and_recovery_boundary_restore_owned_context_state() {
                 Some(&original_name)
             );
 
-            context.tracked_symbols = Some(vec![(
-                SymbolId(20),
-                context.enclosing_declaration,
-                EmitSymbolMeaning::TYPE,
-            )]);
-            context.encountered_error = false;
-            let mut boundary = create_recovery_boundary(context);
-            context.tracked_symbols.as_mut().expect("buffer").push((
-                SymbolId(21),
-                context.enclosing_declaration,
-                EmitSymbolMeaning::TYPE,
-            ));
-            let recovery_scope = boundary.start_recovery_scope(context);
-            context.tracked_symbols.as_mut().expect("buffer").push((
-                SymbolId(22),
-                context.enclosing_declaration,
-                EmitSymbolMeaning::VALUE_EXPORT_VALUE,
-            ));
-            boundary.mark_error(context);
-            assert!(boundary.had_error());
-            boundary.restore_recovery_scope(context, recovery_scope);
-            assert!(!boundary.had_error());
-            assert_eq!(context.tracked_symbols.as_ref().map(Vec::len), Some(1));
-            assert!(boundary.finalize(context));
-            assert_eq!(context.tracked_symbols.as_ref().map(Vec::len), Some(2));
-            assert!(!context.encountered_error);
-            assert_eq!(context.recovery_boundary_depth, 0);
-
-            let mut failed = create_recovery_boundary(context);
-            failed.mark_error(context);
-            assert!(!failed.finalize(context));
-            assert!(!context.encountered_error);
-            assert_eq!(context.tracked_symbols.as_ref().map(Vec::len), Some(2));
-            assert_eq!(context.recovery_boundary_depth, 0);
             Ok(())
         },
     );

@@ -27,14 +27,13 @@ use crate::state::{CheckerState, IndexInfo, SignatureId};
 use super::type_nodes::{
     add_approximate_length, checker_abort_error, clone_parameter_name_to_source, clone_parse_node,
     create_identifier, create_node, create_node_array, create_token, factory_error,
-    range_synthesized_node_to_parse, set_no_ascii_escaping, set_single_line, update_factory_node,
-    BuildResult,
+    set_no_ascii_escaping, update_factory_node, BuildResult,
 };
 use super::{
     can_possibly_expand_type, restore_flags, save_restore_flags,
     serialize_return_type_for_signature_seam, serialize_type_for_declaration_seam,
     syntactic_serialize_name_of_parameter_seam, syntactic_try_reuse_existing_type_node,
-    type_parameter_to_name, type_to_type_node_helper, NodeBuilderContext, TrackedSymbol,
+    type_parameter_to_name, type_to_type_node_helper, NodeBuilderContext,
 };
 
 const WRITE_TYPE_ARGUMENTS_OF_SIGNATURE: u32 = 32;
@@ -850,106 +849,6 @@ pub(crate) fn signature_to_signature_declaration_helper(
     })();
     exit_new_scope(context, scope);
     result
-}
-
-#[derive(Debug)]
-pub(crate) struct RecoveryBoundary {
-    old_tracked_symbols: Option<Vec<TrackedSymbol>>,
-    old_encountered_error: bool,
-    old_had_error: bool,
-    old_depth: u32,
-    buffered_error_count: usize,
-    had_error: bool,
-    finalized: bool,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct RecoveryScopeRestore {
-    tracked_symbols_top: usize,
-    buffered_error_count_top: usize,
-}
-
-/// tsc-port: createRecoveryBoundary @6.0.3
-/// tsc-hash: fbb249361099c0251b456805c24108c8f8d81e91f71ad6ff1fe97c6c9d4eb6dc
-/// tsc-span: _tsc.js:52612-52691
-pub(crate) fn create_recovery_boundary(context: &mut NodeBuilderContext<'_>) -> RecoveryBoundary {
-    let old_tracked_symbols = context.tracked_symbols.take();
-    let old_encountered_error = context.encountered_error;
-    let old_had_error = context.recovery_boundary_had_error;
-    let old_depth = context.recovery_boundary_depth;
-    context.tracked_symbols = Some(Vec::new());
-    context.recovery_boundary_had_error = false;
-    context.recovery_boundary_depth = old_depth.saturating_add(1);
-    RecoveryBoundary {
-        old_tracked_symbols,
-        old_encountered_error,
-        old_had_error,
-        old_depth,
-        buffered_error_count: 0,
-        had_error: false,
-        finalized: false,
-    }
-}
-
-impl RecoveryBoundary {
-    /// tsc-port: createRecoveryBoundary.markError @6.0.3
-    /// tsc-hash: bd5486b0e7dd23b8356c43414a4237b81ee3119e0f360e0833c20c892e8ad54a
-    /// tsc-span: _tsc.js:52655-52660
-    pub(crate) fn mark_error(&mut self, context: &mut NodeBuilderContext<'_>) {
-        self.had_error = true;
-        self.buffered_error_count += 1;
-        context.recovery_boundary_had_error = true;
-    }
-
-    /// tsc-port: createRecoveryBoundary.startRecoveryScope @6.0.3
-    /// tsc-hash: daaa0fd955cf6c6d10cd66a2f1a10bba53545727369cd3eab77eb2caff3199ec
-    /// tsc-span: _tsc.js:52661-52673
-    pub(crate) fn start_recovery_scope(
-        &self,
-        context: &NodeBuilderContext<'_>,
-    ) -> RecoveryScopeRestore {
-        RecoveryScopeRestore {
-            tracked_symbols_top: context.tracked_symbols.as_ref().map_or(0, Vec::len),
-            buffered_error_count_top: self.buffered_error_count,
-        }
-    }
-
-    /// tsrs-native: recovery-scope rollback (upstream closure capture).
-    pub(crate) fn restore_recovery_scope(
-        &mut self,
-        context: &mut NodeBuilderContext<'_>,
-        restore: RecoveryScopeRestore,
-    ) {
-        if let Some(tracked) = context.tracked_symbols.as_mut() {
-            tracked.truncate(restore.tracked_symbols_top);
-        }
-        self.buffered_error_count = restore.buffered_error_count_top;
-        self.had_error = false;
-        context.recovery_boundary_had_error = false;
-    }
-
-    /// tsc-port: createRecoveryBoundary.finalizeBoundary @6.0.3
-    /// tsc-hash: c40a193e20b01c3372656c37cd6a6474b2f771e61678c769093361bd505be91b
-    /// tsc-span: _tsc.js:52674-52690
-    pub(crate) fn finalize(mut self, context: &mut NodeBuilderContext<'_>) -> bool {
-        let buffered = context.tracked_symbols.take().unwrap_or_default();
-        let success = !self.had_error;
-        let mut restored = self.old_tracked_symbols.take();
-        if success && !buffered.is_empty() {
-            restored.get_or_insert_with(Vec::new).extend(buffered);
-        }
-        context.tracked_symbols = restored;
-        context.encountered_error = self.old_encountered_error;
-        context.recovery_boundary_had_error = self.old_had_error;
-        context.recovery_boundary_depth = self.old_depth;
-        self.finalized = true;
-        success
-    }
-
-    /// tsrs-native: recovery-boundary error probe (upstream closure capture).
-    pub(crate) const fn had_error(&self) -> bool {
-        self.had_error
-    }
 }
 
 pub(crate) struct ScopeRestore {

@@ -13,9 +13,8 @@ use tsc_emitter::{
 use tsc_syntax::nodes::{
     ComputedPropertyNameData, ElementAccessExpressionData, ImportAttributeData,
     ImportAttributesData, ImportTypeData, IndexedAccessTypeData, LiteralTypeData,
-    NumericLiteralData, ParenthesizedTypeData, PrefixUnaryExpressionData,
-    PropertyAccessExpressionData, QualifiedNameData, StringLiteralData, TypeQueryData,
-    TypeReferenceData,
+    ParenthesizedTypeData, PrefixUnaryExpressionData, PropertyAccessExpressionData,
+    QualifiedNameData, StringLiteralData, TypeQueryData, TypeReferenceData,
 };
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{
@@ -37,7 +36,6 @@ use super::type_nodes::{
 use super::NodeBuilderContext;
 
 const USE_FULLY_QUALIFIED_TYPE: u32 = 64;
-const USE_ONLY_EXTERNAL_ALIASING: u32 = 128;
 const WRITE_TYPE_PARAMETERS_IN_QUALIFIED_NAME: u32 = 512;
 const USE_ALIAS_DEFINED_OUTSIDE_CURRENT_SCOPE: u32 = 16_384;
 const ALLOW_QUALIFIED_NAME_IN_PLACE_OF_IDENTIFIER: u32 = 65_536;
@@ -704,18 +702,6 @@ impl EmitModuleSpecifierHost for ModuleSpecifierHostWithFallback<'_> {
     fn module_resolution_cache_available(&self) -> bool {
         self.primary.module_resolution_cache_available()
     }
-}
-
-/// tsc-port: lookupSymbolChain @6.0.3
-/// tsc-hash: 5c2dedc6ecdf455ed0945fd4d0da73e87a6ad323f14a02e80433c988609c9826
-/// tsc-span: _tsc.js:52939-52942
-pub(crate) fn chains_lookup_symbol_chain(
-    checker: &mut CheckerState<'_>,
-    context: &mut NodeBuilderContext<'_>,
-    symbol: SymbolId,
-    meaning: EmitSymbolMeaning,
-) -> BuildResult<Vec<SymbolId>> {
-    lookup_symbol_chain(checker, None, None, context, symbol, meaning, false)
 }
 
 fn lookup_symbol_chain(

@@ -946,7 +946,10 @@ fn lib_bundle_key_projects_to_bind_observables() {
     let libs = [&lib];
     let base = CompilerOptions::default();
     let shared = lib_bundle(&libs, &base);
-    assert_eq!(shared.sources[0].language_version, ScriptTarget::ES2025);
+    assert_eq!(
+        shared.documents[0].source().language_version,
+        ScriptTarget::ES2025
+    );
 
     // Bind-inert options reuse the bundle: the checker consumes
     // them per program, never through the cached prefix.
@@ -974,7 +977,10 @@ fn lib_bundle_key_projects_to_bind_observables() {
     };
     let es5_bundle = lib_bundle(&libs, &es5);
     assert!(!std::ptr::eq(shared, es5_bundle));
-    assert_eq!(es5_bundle.sources[0].language_version, ScriptTarget::ES5);
+    assert_eq!(
+        es5_bundle.documents[0].source().language_version,
+        ScriptTarget::ES5
+    );
     let loose = CompilerOptions {
         always_strict: Some(false),
         ..base.clone()
@@ -1009,8 +1015,8 @@ fn lib_bundle_forced_fingerprint_collision_requires_exact_text() {
 
     assert!(!std::ptr::eq(first_bundle, second_bundle));
     assert!(std::ptr::eq(first_bundle, first_again));
-    assert_eq!(first_bundle.sources[0].text(), first.text());
-    assert_eq!(second_bundle.sources[0].text(), second.text());
+    assert_eq!(first_bundle.documents[0].source().text(), first.text());
+    assert_eq!(second_bundle.documents[0].source().text(), second.text());
 }
 
 #[test]

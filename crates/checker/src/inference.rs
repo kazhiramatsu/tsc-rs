@@ -388,7 +388,6 @@ impl<'a> CheckerState<'a> {
     /// wired at 7.4); drained inside the fixing mapper before
     /// is_fixed is set; cleared without draining by
     /// checkExpressionWithContextualType (80567-80569).
-    #[allow(dead_code)] // consumer: 7.4 object/array-literal/JSX site recording (68286 callers)
     pub(crate) fn add_intra_expression_inference_site(
         &mut self,
         context: InferenceContextId,

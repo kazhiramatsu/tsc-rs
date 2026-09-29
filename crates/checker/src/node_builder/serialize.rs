@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-use std::rc::Rc;
 use tsc_binder::{node_util, SymbolId};
 use tsc_emitter::{
     EmitFunctionProperty, EmitInternalNodeBuilderFlags, EmitNodeBuilderFlags, EmitResolverError,
@@ -12,7 +10,6 @@ use tsc_syntax::nodes::{ImportTypeData, UnionTypeData};
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{ObjectFlags, SymbolFlags, TypeData, TypeFacts, TypeFlags, TypeId};
 
-use crate::narrow::TypePredicate;
 use crate::state::{CheckAbort, CheckerState, IndexInfo, SignatureId};
 
 use super::signatures::{
@@ -25,7 +22,7 @@ use super::type_nodes::{
 };
 use super::{
     add_symbol_type_to_context, can_possibly_expand_type, chains_symbol_to_entity_name_node,
-    chains_symbol_to_expression, chains_symbol_to_type_node,
+    chains_symbol_to_type_node,
     existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count,
     get_declaration_with_type_annotation, get_enclosing_declaration_ignoring_fake_scope,
     get_module_specifier_override, get_type_from_type_node2,
@@ -991,37 +988,6 @@ pub(crate) fn type_to_type_node(
         out,
     )
     .map(Option::flatten)
-}
-
-/// tsc-port: typePredicateToTypePredicateNode @6.0.3 (createNodeBuilder API)
-/// tsc-hash: d9642e57675b431e6f70a1efc27777227e772d3877deb5d0635c21e68034f6fc
-/// tsc-span: _tsc.js:50960-50970
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn type_predicate_to_type_predicate_node(
-    checker: &mut CheckerState<'_>,
-    arena: &mut TransformArena,
-    target: TransformSourceId,
-    predicate: &TypePredicate,
-    enclosing_declaration: Option<NodeId>,
-    flags: Option<EmitNodeBuilderFlags>,
-    internal_flags: Option<EmitInternalNodeBuilderFlags>,
-    tracker: Option<&mut dyn EmitSymbolTracker>,
-) -> BuildResult<Option<TransformNode>> {
-    with_context(
-        checker,
-        arena,
-        target,
-        enclosing_declaration,
-        flags,
-        internal_flags,
-        tracker,
-        None,
-        None,
-        |checker, arena, target, context| {
-            type_predicate_to_type_predicate_node_helper(checker, arena, target, predicate, context)
-        },
-        None,
-    )
 }
 
 /// tsc-port: serializeTypeForDeclaration @6.0.3 (createNodeBuilder API)
@@ -2377,34 +2343,6 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
             .map_err(|abort| callback_abort_error(self.checker, self.method, Some(node), abort))
     }
 
-    fn is_entity_name_visible(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        context: &mut NodeBuilderContext<'_>,
-        entity_name: TransformNode,
-        should_compute_aliases_to_make_visible: bool,
-    ) -> Result<EmitSymbolAccessibilityResult, EmitResolverError> {
-        let entity_name = self.parse_node(arena, entity_name)?;
-        let Some(enclosing) = context.enclosing_declaration else {
-            return Ok(EmitSymbolAccessibilityResult {
-                accessibility: EmitSymbolAccessibility::Accessible,
-                aliases_to_make_visible: None,
-                error_symbol_name: None,
-                error_module_name: None,
-                error_node: None,
-            });
-        };
-        self.checker
-            .emit_is_entity_name_visible(
-                entity_name,
-                enclosing,
-                should_compute_aliases_to_make_visible,
-            )
-            .map_err(|abort| {
-                callback_abort_error(self.checker, self.method, Some(entity_name), abort)
-            })
-    }
-
     /// tsc-port: serializeExistingTypeNode @6.0.3
     /// tsc-hash: 433daa463f78335a63960c6658ccab7a037a667922af31e6eb4320cadafe30ff
     /// tsc-span: _tsc.js:53712-53721
@@ -2617,51 +2555,6 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
             .map_err(factory_error)?
             .node();
         serialize_parameter_name_from_parse(self.checker, arena, target, context, parameter)
-    }
-
-    fn serialize_entity_name(
-        &mut self,
-        arena: &mut TransformArena,
-        target: TransformSourceId,
-        context: &mut NodeBuilderContext<'_>,
-        node: TransformNode,
-    ) -> Result<Option<TransformNode>, EmitResolverError> {
-        let node = arena
-            .require_parse_tree_resolver_node(node)
-            .map_err(factory_error)?
-            .node();
-        let symbol = self
-            .checker
-            .get_resolved_symbol(node)
-            .map_err(|abort| checker_abort_error(self.checker, context, abort))?;
-        let Some(symbol) = symbol else {
-            return Ok(None);
-        };
-        if let Some(enclosing) = context.enclosing_declaration {
-            let accessibility = self.is_symbol_accessible_with_error_names(
-                arena,
-                symbol,
-                enclosing,
-                context.enclosing_declaration_is_synthetic,
-                // isValueSymbolAccessible checks the plain Value face;
-                // Value|ExportValue is only used below to spell the emitted
-                // expression chain.
-                EmitSymbolMeaning(SymbolFlags::VALUE.bits() as u32),
-                false,
-            )?;
-            if accessibility.accessibility != EmitSymbolAccessibility::Accessible {
-                return Ok(None);
-            }
-        }
-        chains_symbol_to_expression(
-            self.checker,
-            arena,
-            target,
-            context,
-            symbol,
-            EmitSymbolMeaning::VALUE_EXPORT_VALUE,
-        )
-        .map(Some)
     }
 
     /// tsc-port: serializeTypeName @6.0.3
