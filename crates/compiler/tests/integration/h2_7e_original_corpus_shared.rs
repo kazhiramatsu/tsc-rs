@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use tsc_compiler::{MemoryOutputSink, ProgramSession};
 use tsc_diagnostics::{Diagnostic, MessageChain};
-use tsc_emitter::{EmitArtifact, EmitArtifactKind, EmitWriteMetadata, H2RuntimeSlice};
+use tsc_emitter::{EmitArtifact, EmitArtifactKind, EmitWriteMetadata};
 use tsc_host::MemoryCompilerHost;
 use tsc_program::{
     load_emitting_program, CompilerOptions, LibraryCatalog, PreparedProgram, ProgramLoadLimits,
@@ -178,21 +178,7 @@ fn assert_program(case: &Value, expected: &Value) {
         .emit_command_for_harness(&mut sink)
         .unwrap();
     let outcome = command.emit();
-    let activity = outcome.h2_activity();
-    assert_eq!(activity.runtime_slice(H2RuntimeSlice::H2_7d), 0);
     assert_eq!(case["effective_options"]["declarationMap"], true);
-    assert_eq!(activity.runtime_slice(H2RuntimeSlice::H2_7e), 1);
-    for slice in H2RuntimeSlice::ALL {
-        if slice == H2RuntimeSlice::H2_7a || slice > H2RuntimeSlice::H2_7e {
-            assert_eq!(
-                activity.runtime_slice(slice),
-                0,
-                "{}: inactive {}",
-                case["case_id"],
-                slice.name(),
-            );
-        }
-    }
     let maps = outcome.source_maps().map(|maps| {
         maps.iter().map(|map| json!({
         "input_source_file_names":map.input_source_files().iter().map(|value| value.as_str().expect("scalar corpus source path")).collect::<Vec<_>>(),"source_map_json":map.canonical_json()

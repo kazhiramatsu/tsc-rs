@@ -1287,7 +1287,7 @@ impl<'a> CheckerState<'a> {
                                 );
                                 return Ok(Some(self.tables.intrinsics.undefined));
                             }
-                            let tuple_display = self.type_to_string_slice(object_type)?;
+                            let tuple_display = self.type_to_string(object_type)?;
                             let target = self.tables.reference_target(object_type);
                             let arity = match &self.tables.type_of(target).data {
                                 TypeData::TupleTarget(data) => data.element_flags.len(),
@@ -1303,7 +1303,7 @@ impl<'a> CheckerState<'a> {
                                 ],
                             );
                         } else {
-                            let object_display = self.type_to_string_slice(object_type)?;
+                            let object_display = self.type_to_string(object_type)?;
                             self.error_at_js(
                                 Some(index_node),
                                 &diagnostics::Property_0_does_not_exist_on_type_1,
@@ -1371,15 +1371,15 @@ impl<'a> CheckerState<'a> {
                 {
                     if let Some(access_expression) = access_expression {
                         if access_flags.intersects(AccessFlags::WRITING) {
-                            let display = self.type_to_string_slice(original_object_type)?;
+                            let display = self.type_to_string(original_object_type)?;
                             self.error_at_js(
                                 Some(access_expression),
                                 &diagnostics::Type_0_is_generic_and_can_only_be_indexed_for_reading,
                                 &[(&display).into()],
                             );
                         } else {
-                            let index_display = self.type_to_string_slice(index_type)?;
-                            let object_display = self.type_to_string_slice(original_object_type)?;
+                            let index_display = self.type_to_string(index_type)?;
+                            let object_display = self.type_to_string(original_object_type)?;
                             self.error_at_js(
                                 Some(access_expression),
                                 &diagnostics::Type_0_cannot_be_used_to_index_type_1,
@@ -1404,7 +1404,7 @@ impl<'a> CheckerState<'a> {
                         } else {
                             self.get_index_node_for_access_expression(node)
                         };
-                        let index_display = self.type_to_string_slice(index_type)?;
+                        let index_display = self.type_to_string(index_type)?;
                         self.error_at_js(
                             Some(index_node),
                             &diagnostics::Type_0_cannot_be_used_as_an_index_type,
@@ -1508,15 +1508,15 @@ impl<'a> CheckerState<'a> {
                 let value = self
                     .index_literal_value_display(index_type)
                     .unwrap_or_default();
-                let object_display = self.type_to_string_slice(object_type)?;
+                let object_display = self.type_to_string(object_type)?;
                 self.error_at_js(
                     Some(index_node),
                     &diagnostics::Property_0_does_not_exist_on_type_1,
                     &[(&value).into(), (&object_display).into()],
                 );
             } else if index_flags.intersects(TypeFlags::STRING | TypeFlags::NUMBER) {
-                let object_display = self.type_to_string_slice(object_type)?;
-                let index_display = self.type_to_string_slice(index_type)?;
+                let object_display = self.type_to_string(object_type)?;
+                let index_display = self.type_to_string(index_type)?;
                 self.error_at_js(
                     Some(index_node),
                     &diagnostics::Type_0_has_no_matching_index_signature_for_type_1,
@@ -1526,7 +1526,7 @@ impl<'a> CheckerState<'a> {
                 let type_string = if self.kind_of(index_node) == SyntaxKind::BigIntLiteral {
                     tsc_types::JsString::from("bigint")
                 } else {
-                    self.type_to_string_slice(index_type)?
+                    self.type_to_string(index_type)?
                 };
                 self.error_at_js(
                     Some(index_node),
@@ -1571,7 +1571,7 @@ impl<'a> CheckerState<'a> {
                 let value = self
                     .index_literal_value_display(index_type)
                     .unwrap_or_default();
-                let object_display = self.type_to_string_slice(object_type)?;
+                let object_display = self.type_to_string(object_type)?;
                 self.error_at_js(
                     Some(access_expression),
                     &diagnostics::Property_0_does_not_exist_on_type_1,
@@ -1610,7 +1610,7 @@ impl<'a> CheckerState<'a> {
         if global_this_block_scoped {
             let display =
                 tsc_binder::unescape_leading_underscores(property_name.expect("checked above"));
-            let object_display = self.type_to_string_slice(object_type)?;
+            let object_display = self.type_to_string(object_type)?;
             self.error_at_js(
                 Some(access_expression),
                 &diagnostics::Property_0_does_not_exist_on_type_1,
@@ -1625,7 +1625,7 @@ impl<'a> CheckerState<'a> {
             };
             if static_property {
                 let name = property_name.expect("checked above");
-                let type_name = self.type_to_string_slice(object_type)?;
+                let type_name = self.type_to_string(object_type)?;
                 let argument = match self.data_of(access_expression) {
                     NodeData::ElementAccessExpression(data) => data.argument_expression,
                     _ => None,
@@ -1674,7 +1674,7 @@ impl<'a> CheckerState<'a> {
                         // NO related 2728 on the element-access flavor
                         // (oracle-pinned asymmetry).
                         let name = property_name.expect("suggestion implies name");
-                        let object_display = self.type_to_string_slice(object_type)?;
+                        let object_display = self.type_to_string(object_type)?;
                         self.error_at_js(
                             argument.or(Some(access_expression)),
                             &diagnostics::Property_0_does_not_exist_on_type_1_Did_you_mean_2,
@@ -1688,7 +1688,7 @@ impl<'a> CheckerState<'a> {
                                 index_type,
                             )?;
                         if let Some(index_suggestion) = index_suggestion {
-                            let object_display = self.type_to_string_slice(object_type)?;
+                            let object_display = self.type_to_string(object_type)?;
                             self.error_at_js(
                                 Some(access_expression),
                                 &diagnostics::Element_implicitly_has_an_any_type_because_type_0_has_no_index_signature_Did_you_mean_to_call_1,
@@ -1697,8 +1697,8 @@ impl<'a> CheckerState<'a> {
                         } else {
                             let mut tail: Vec<tsc_diagnostics::MessageChain> = Vec::new();
                             if index_flags.intersects(TypeFlags::ENUM_LITERAL) {
-                                let index_display = self.type_to_string_slice(index_type)?;
-                                let object_display = self.type_to_string_slice(object_type)?;
+                                let index_display = self.type_to_string(index_type)?;
+                                let object_display = self.type_to_string(object_type)?;
                                 tail.push(tsc_diagnostics::MessageChain::new_js(
                                     &diagnostics::Property_0_does_not_exist_on_type_1,
                                     &[
@@ -1718,7 +1718,7 @@ impl<'a> CheckerState<'a> {
                                     .symbol
                                     .expect("unique symbol types carry their symbol");
                                 let symbol_name = self.get_fully_qualified_name(symbol);
-                                let object_display = self.type_to_string_slice(object_type)?;
+                                let object_display = self.type_to_string(object_type)?;
                                 tail.push(tsc_diagnostics::MessageChain::new_js(
                                     &diagnostics::Property_0_does_not_exist_on_type_1,
                                     &[
@@ -1732,22 +1732,22 @@ impl<'a> CheckerState<'a> {
                                 let value = self
                                     .index_literal_value_display(index_type)
                                     .unwrap_or_default();
-                                let object_display = self.type_to_string_slice(object_type)?;
+                                let object_display = self.type_to_string(object_type)?;
                                 tail.push(tsc_diagnostics::MessageChain::new_js(
                                     &diagnostics::Property_0_does_not_exist_on_type_1,
                                     &[value, object_display],
                                 ));
                             } else if index_flags.intersects(TypeFlags::NUMBER | TypeFlags::STRING)
                             {
-                                let index_display = self.type_to_string_slice(index_type)?;
-                                let object_display = self.type_to_string_slice(object_type)?;
+                                let index_display = self.type_to_string(index_type)?;
+                                let object_display = self.type_to_string(object_type)?;
                                 tail.push(tsc_diagnostics::MessageChain::new_js(
                                     &diagnostics::No_index_signature_with_a_parameter_of_type_0_was_found_on_type_1,
                                     &[(index_display), (object_display)],
                                 ));
                             }
-                            let full_display = self.type_to_string_slice(full_index_type)?;
-                            let object_display = self.type_to_string_slice(object_type)?;
+                            let full_display = self.type_to_string(full_index_type)?;
+                            let object_display = self.type_to_string(object_type)?;
                             let head = tsc_diagnostics::MessageChain::new_js(
                                 &diagnostics::Element_implicitly_has_an_any_type_because_expression_of_type_0_can_t_be_used_to_index_type_1,
                                 &[(full_display), (object_display)],
@@ -1801,7 +1801,7 @@ impl<'a> CheckerState<'a> {
         if tsc_binder::node_util::is_assignment_target(source, access_expression)
             || self.is_delete_target(access_expression)
         {
-            let object_display = self.type_to_string_slice(object_type)?;
+            let object_display = self.type_to_string(object_type)?;
             self.error_at_js(
                 Some(access_expression),
                 &diagnostics::Index_signature_in_type_0_only_permits_reading,

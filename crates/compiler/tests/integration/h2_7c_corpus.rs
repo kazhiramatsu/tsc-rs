@@ -164,33 +164,11 @@ pub(super) fn assert_corpus(artifact: &Value) {
                         tsc_emitter::EmitFailure::UnsupportedCompilerOption{option: actual}) if actual == option));
                     assert!(sink.writes().is_empty());
                 } else {
-                    let activity = super::h2_7b_w4a_controls::assert_exact_observation(
+                    super::h2_7b_w4a_controls::assert_exact_observation(
                         case_id,
                         prepared,
                         &case["typescript_observation"],
                     );
-                    // This unchanged original also belongs to the older H2.6c
-                    // exact band. TS2322 stops its legacy diagnostic gate before
-                    // the newly admitted declaration getter is reached.
-                    let legacy_early_gate =
-                        case_id == "typescript-6.0.3/compiler/noEmitOnError.ts#default";
-                    assert_eq!(
-                        activity.runtime_slice(tsc_emitter::H2RuntimeSlice::H2_7c),
-                        u64::from(!legacy_early_gate),
-                        "{case_id}: new declaration request or legacy early gate"
-                    );
-                    for slice in tsc_emitter::H2RuntimeSlice::ALL {
-                        if slice == tsc_emitter::H2RuntimeSlice::H2_7a
-                            || slice > tsc_emitter::H2RuntimeSlice::H2_7c
-                        {
-                            assert_eq!(
-                                activity.runtime_slice(slice),
-                                0,
-                                "{case_id}: inactive {}",
-                                slice.name()
-                            );
-                        }
-                    }
                 }
             }
         });

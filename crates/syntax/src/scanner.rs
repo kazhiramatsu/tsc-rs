@@ -162,7 +162,6 @@ impl TokenFlags {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-#[allow(dead_code)]
 pub(crate) struct ScannerState {
     end: usize,
     pos: usize,
@@ -496,7 +495,6 @@ impl<'text> Scanner<'text> {
         }
     }
 
-    #[allow(dead_code)]
     pub(crate) fn save(&self) -> ScannerState {
         ScannerState {
             end: self.end,
@@ -510,7 +508,6 @@ impl<'text> Scanner<'text> {
         }
     }
 
-    #[allow(dead_code)]
     pub(crate) fn restore(&mut self, state: ScannerState) {
         self.end = state.end;
         self.pos = state.pos;
@@ -687,7 +684,6 @@ impl<'text> Scanner<'text> {
         self.token
     }
 
-    #[allow(dead_code)]
     fn speculation_helper<R: Truthy>(
         &mut self,
         callback: impl FnOnce(&mut Self) -> R,
@@ -701,12 +697,11 @@ impl<'text> Scanner<'text> {
         result
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     fn look_ahead<R: Truthy>(&mut self, callback: impl FnOnce(&mut Self) -> R) -> R {
         self.speculation_helper(callback, true)
     }
 
-    #[allow(dead_code)]
     fn try_scan<R: Truthy>(&mut self, callback: impl FnOnce(&mut Self) -> R) -> R {
         self.speculation_helper(callback, false)
     }
@@ -1445,14 +1440,12 @@ impl<'text> Scanner<'text> {
         self.token
     }
 
-    #[allow(dead_code)]
     pub(crate) fn re_scan_template_token(&mut self, is_tagged_template: bool) -> SyntaxKind {
         self.pos = self.token_start;
         self.token = self.scan_template_and_set_token_value(!is_tagged_template);
         self.token
     }
 
-    #[allow(dead_code)]
     pub(crate) fn re_scan_greater_token(&mut self) -> SyntaxKind {
         if self.token == SyntaxKind::GreaterThanToken {
             if self.byte_at(self.pos) == Some(b'>') {
@@ -1516,7 +1509,6 @@ impl<'text> Scanner<'text> {
         self.try_scan(|scanner| scanner.re_scan_invalid_identifier()) == SyntaxKind::Identifier
     }
 
-    #[allow(dead_code)]
     pub(crate) fn re_scan_slash_token(&mut self, _report_errors: bool) -> SyntaxKind {
         if !matches!(
             self.token,
@@ -1627,7 +1619,6 @@ impl<'text> Scanner<'text> {
         pos
     }
 
-    #[allow(dead_code)]
     /// tsc resetTokenState: reposition for a fresh scan (reparse paths).
     pub(crate) fn reset_token_state(&mut self, pos: usize) {
         self.pos = pos;
@@ -1797,13 +1788,6 @@ impl<'text> Scanner<'text> {
         self.error_at(self.pos, 0, &gen::Unterminated_string_literal);
         self.token = SyntaxKind::StringLiteral;
         self.token
-    }
-
-    #[allow(dead_code)]
-    fn re_scan_jsx_attribute_value(&mut self) -> SyntaxKind {
-        self.pos = self.full_start_pos;
-        self.token_start = self.full_start_pos;
-        self.scan_jsx_attribute_value()
     }
 
     fn scan_number_literal(&mut self) -> SyntaxKind {

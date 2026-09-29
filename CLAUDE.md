@@ -1,16 +1,26 @@
 # tsc-rs
 
-A Rust port of the TypeScript compiler (tsc 6.0.3). Active development uses
-the Oxc-style virtual Cargo workspace at the repository root: `Cargo.toml`
-owns members under `crates/`, each member has its own `src/`, and no
-top-level `src/` exists. The paused v1 codebase was removed from the working
-tree and is preserved at tag `v1-final`
-(check out that tag to resume it; `scripts/bootstrap.sh` there rebuilds
-its corpus/oracle). Start active work at `docs/design/README.md`, which defines
-document roles and precedence. Post-H1 emitter work then follows the current
-emitter architecture, the post-H1 schedule, and the selected slice packet in
-that order. The retained greenfield M-stage guides are historical lineage, not
-current H2 implementation maps.
+A Rust port of the TypeScript compiler (tsc 6.0.3). The Oxc-style virtual
+Cargo workspace at the repository root is the only codebase: `Cargo.toml`
+owns the members under `crates/`, each member has its own `src/`, and no
+top-level `src/` exists. The paused v1 codebase is preserved at tag
+`v1-final` (check out that tag to resume it; `scripts/bootstrap.sh` there
+rebuilds its corpus/oracle).
+
+The emitter was completed in
+[PR #561](https://github.com/kazhiramatsu/tsc-rs/pull/561) (2026-09-21).
+Performance work in PRs #570–#589 and #594 (2026-09-22 to 2026-09-28) made
+the parallel compile pipeline faster and reduced its memory use, and PR #593
+aligned the emitted output with tsc apart from declaration-file ordering. The
+root [README](README.md) describes the command, its options and limitations,
+and the current measurements.
+[docs/design/README.md](docs/design/README.md) indexes the design documents:
+the [emitter architecture](docs/design/greenfield/emitter-architecture.md)
+describes the validated emitter, and the
+[post-emitter roadmap](docs/design/greenfield/post-emitter-roadmap.md) owns
+the planned follow-on work and links its packets. The completed H1/H2 slice
+packets and the M-stage guides are historical records of how the port was
+qualified, not instructions for new work.
 
 Repository-owned verification artifacts belong under `ratchets/`, with M8
 files in `ratchets/m8/`; see [the location guide](ratchets/README.md). Keep new
@@ -20,15 +30,12 @@ authorize regenerating or requalifying those records.
 
 ## Current verification policy
 
-The user retired the former full local CI and reference-hash chain walk on
-2026-09-09. The 2026-09-15 hosted policy and 2026-09-16 batching instruction
-continue that workflow; the user reconfirmed it on 2026-09-21.
-The [post-H1 schedule](docs/design/greenfield/post-h1-completion-slices.md)
-and [witness guide](docs/witness-testing.md) record the current execution policy,
-implemented in [PR #524](https://github.com/kazhiramatsu/tsc-rs/pull/524)
-(merge `bb2d51c89`).
-This section supersedes the older walk/full-local merge requirements that
-previously appeared here and remain in historical packets.
+The full local CI (`cargo xtask ci`) and the reference-hash chain walk were
+retired on 2026-09-09. Hosted acceptance and witness jobs replaced them in
+[PR #524](https://github.com/kazhiramatsu/tsc-rs/pull/524) (merge
+`bb2d51c89`), and the [witness guide](docs/witness-testing.md) owns the
+current commands, groups and timings. These rules supersede the
+walk/full-local merge requirements recorded in older packets.
 
 - During implementation, use fresh complete TypeScript observations for the
   changed behavior, focused native comparisons, adjacent regression tests,
@@ -60,10 +67,10 @@ previously appeared here and remain in historical packets.
 `main` is the trunk and must satisfy the current focused/hosted merge criteria.
 
 1. **Before implementing**, use a short-lived branch from `main`, named for
-   the slice, such as `fix/<topic>` or `docs/<topic>`. Continue an existing
+   the change, such as `fix/<topic>` or `docs/<topic>`. Continue an existing
    authorized integration branch when batching related work.
 2. Commit coherent changes with focused validation in their commit or PR
-   record. Small follow-ups and related slice rungs belong on the same train,
+   record. Small follow-ups and related changes belong on the same branch,
    not separate PRs and repeated full replay cycles. Finish compatible ready
    implementation before starting hosted validation.
 3. **Merge criteria:** relevant focused local checks pass for the final
@@ -108,6 +115,11 @@ previously appeared here and remain in historical packets.
    replace or reduce this coverage, or run the full acceptance command
    locally just because the command remains available. Stress and performance
    measurements are separate explicitly scoped work.
+9. **Pinned sources:** `.github/ci/qualification-policy.v2.json` pins the
+   SHA-256 of the acceptance Rust sources (`rust_source_sha256`) and of the CI
+   execution sources (`execution_source_sha256`). A change to a pinned file
+   also updates its pin; `node .github/ci/qualification.mjs check-policy`
+   reports a stale pin, and the hosted `plan` job fails on one.
 
 ## Isolation and work during waits
 
@@ -126,9 +138,10 @@ ritual.
 ## Collaboration and ownership
 
 When independent lanes are used, the integrator is the single writer of
-shared integration files: `plan.rs`, `execute.rs`, profiles, transitions,
-`ratchets/`, `crates/oracle/*.mjs`, `h2_2c_acceptance.rs`, pin surfaces,
-`contracts.rs` registrations and integration documentation.
+shared integration files: `plan.rs`, `execute.rs`, `ratchets/`,
+`crates/oracle/*.mjs`, `h2_2c_acceptance.rs`, pin surfaces (including
+`.github/ci/qualification-policy.v2.json`), `contracts.rs` registrations and
+integration documentation.
 
 Each lane's ticket fixes its base SHA, case IDs, permitted non-overlapping
 paths, expected results, focused tests, and stop conditions. Verify changed
@@ -156,86 +169,52 @@ independent task, not merely an available agent slot.
   Wall-clock performance measurements need a separately recorded, unloaded,
   consistent priority setting; demoted development timings are not benchmark
   results. Never raise a performance ceiling to compensate for interference.
-- The legacy tools listed below remain available for explicitly requested,
+- The historical tools listed below remain available for explicitly requested,
   scoped investigation. This list is not a merge checklist and does not
   authorize a full local gate, corpus sweep or hash-chain regeneration.
   If a legacy walk is explicitly requested, use its maintained driver rather
   than a handwritten loop, and keep interrupted runs unqualified.
 
-## Optional legacy diagnostics and historical tooling
+## Historical tooling
 
-- H1 owner inventory: `node crates/oracle/h1-owner-inventory.mjs --check`
-  regenerates in memory and byte-compares the report-only H1.0a active-root
-  graph, declaration/body/ledger hashes, unresolved calls, and dormant seams.
-- H2 transition inventory: `node crates/oracle/h2-transition.mjs --check`
-  regenerates in memory and byte-compares the H2 owner/Rust-converse graph,
-  all 15,642 compiler/conformance/project/transpile dispositions, and the
-  39-row pre-runtime profile transition while pinning every H1 input hash and
-  selecting H2.1a next.
-- H2 pre-runtime baseline: `node crates/oracle/h2-baseline.mjs --check`
-  validates the same-runner alternating H2.0a/candidate evidence for three H0
-  no-emit workloads, the exact H1 emit case, L1 fresh/incremental edit,
-  binaries/startup, two sink faults, positive H1 controls, and zero activity
-  across all 37 unadmitted H2 runtime slices. Only the approved macOS arm64
-  profile may mint it with `--compare`. The older H1 no-emit/emit performance
-  artifacts are immutable historical lineage; their generators remain syntax
-  checked but do not validate a later runtime tree.
-- Conformance single band: `cargo xtask conformance [--band 2xxx]`
-  (every gating run also enforces the A1 accepted-set ratchet;
-  partial `--files`/`--limit` runs gate the executed-fixture
-  projection instead of the integer counts)
-- Completion report: `cargo xtask completion` writes all eleven
-  definition-of-done rows to `target/completion/report.json` and
-  succeeds while rows remain pending during M8/M9.
-  `cargo xtask completion --require-done` is the post-M9 release gate
-  and fails with every pending row named.
-- Tier before/after report: run conformance twice with distinct
-  `--out-json` paths, then `cargo xtask conformance-diff <before.json>
-  <after.json>` (optional `--out-json <path>`; default
-  `target/conformance/shadow-diff.json`). This is exact T1/T2/T3 review
-  evidence: shadow/report-only before formal activation and supplemental
-  slice evidence afterwards. It does not itself update or enforce a ratchet.
-- Terminal-slice evidence: before editing, run `cargo xtask
-  slice-evidence snapshot --slice <name> --targets <csv> --band
-  <all|2xxx|syntactic> --out-dir </tmp/new-before-dir>`; after the
-  implementation, run `cargo xtask slice-evidence verify --before-dir
-  </tmp/before-dir> --out-dir </tmp/new-after-dir> --baseline
-  origin/main`. Both directories must be new and outside the Git
-  worktree. The report-only command hashes inputs/snapshots/logs,
-  rejects FP, tier losses, universe drift, or stale before evidence,
-  and runs the read-only repository evidence gates.
-- Accepted-set state: `cargo xtask ratchet check [--baseline
-  origin/main]` verifies `ratchets/` artifacts + lineage;
-  `cargo xtask ratchet update` re-measures and adds identities only
-  (never run it to "fix" a regression — fix the regression)
-- Exact scope (A2): `cargo xtask scope audit [--baseline origin/main]`
-  verifies `ratchets/m8/m8-scope.json` schema-2 identities against goldens, the
-  duplicate-bucket canaries (68/65), the Node/Rust canonical-encoder
-  cross-check (`crates/oracle/identity.mjs`), band-pin/global-freeze
-  anchors, and tombstone standing proofs
-- H0 host owner registry: `cargo xtask host-resolution check [--baseline
-  origin/main]` verifies all 241 frozen identities, exact vendored owner
-  spans/hashes and resolution-request chains, positive canaries plus reviewed
-  typed controls, bounded pre-H0 reference profiles, and trusted-base
-  open/closed/lapsed transitions, including historical T0--T4 evidence for
-  every row carrying closure provenance
-- Family map (A5): `cargo xtask families check [--baseline
-  origin/main]` verifies `ratchets/diag-families.json` — every corpus-exercised
-  non-2XXX (code, pass) row mapped exactly once, canary existence,
-  freeze/universe-extension anchors, trusted-base compare;
-  `cargo xtask families report` writes the per-family supported
-  rollup (`target/families/report.json`) from one full gating
-  band=all run (`--verify` re-checks a stored report's input
-  fingerprints)
-- Escape expiry audit: `cargo xtask escapes --stale $(cat ratchets/STAGE)`
-  (also verifies `ratchets/escapes.toml`; after adding/retiring an escape run
-  `cargo xtask escapes --write-manifest` — the manifest diff is the
-  review surface)
-- Symbol audit vs oracle (full corpus): `cargo xtask symbol-diff
-  --sample 5908 --expected symbol-diff-known.txt` gates
-  unknown-diff-zero against the known stage-3.4c expando allowlist;
-  regenerate with `--write-expected` (manifest diff = review
-  surface). Retire the allowlist at 9.8.
-- Oracle probe for pins: see scratchpad `probe.sh` pattern
-  (`cargo xtask expand <fixture> --out-dir ...` + `node
-  crates/oracle/driver.mjs`)
+These commands were built for the M8, H0–H2 and L0/L1 qualification
+milestones. They are not maintained against the current tree, so a failure
+may mean a stale tool rather than a regression; an old result is not current
+evidence.
+
+- Frozen H1/H2 evidence: `node crates/oracle/h1-owner-inventory.mjs --check`,
+  `node crates/oracle/h2-transition.mjs --check` and
+  `node crates/oracle/h2-baseline.mjs --check` compare their inventories or
+  evidence with the recorded artifacts under `ratchets/`. The H2 baseline can
+  no longer be minted: its `--compare` mode ran a qualification example that
+  reported the removed runtime-activity counters. The H1 no-emit/emit
+  performance artifacts are immutable lineage as well.
+- Conformance: `cargo xtask conformance [--band all|2xxx|syntactic]` runs
+  the upstream diagnostic corpus and enforces the accepted-set ratchet
+  (partial `--files`/`--limit` runs gate only the executed fixtures).
+  `cargo xtask conformance-diff <before.json> <after.json>` compares two
+  `--out-json` reports; it does not update or enforce a ratchet.
+- Accepted-set and registry audits: `cargo xtask ratchet check [--baseline
+  origin/main]` verifies the `ratchets/` artifacts and their lineage, and
+  `cargo xtask ratchet update` re-measures and only adds identities (never
+  run it to hide a regression). `cargo xtask scope audit`, `cargo xtask
+  host-resolution check`, `cargo xtask families check|report` and
+  `cargo xtask escapes --stale $(cat ratchets/STAGE)` audit
+  `ratchets/m8/m8-scope.json`, the H0 host-owner registry,
+  `ratchets/diag-families.json` and `ratchets/escapes.toml`; after adding or
+  retiring an escape, `cargo xtask escapes --write-manifest` regenerates the
+  manifest for review.
+- Slice evidence: before a change, `cargo xtask slice-evidence snapshot
+  --slice <name> --targets <csv> --band <all|2xxx|syntactic> --out-dir
+  <new-before-dir>`; after it, `cargo xtask slice-evidence verify --before-dir
+  <before-dir> --out-dir <new-after-dir> --baseline origin/main`. The
+  report-only verify rejects false positives, tier losses, universe drift and
+  stale before evidence. Both directories must be new and outside the Git
+  worktree.
+- Completion report: `cargo xtask completion` writes the definition-of-done
+  rows to `target/completion/report.json`; `--require-done` fails while any
+  row is pending.
+- One-fixture TypeScript diagnostics: `cargo xtask expand <fixture> --out-dir
+  <dir>` writes the fixture's program JSON, and `node crates/oracle/driver.mjs`
+  reads `{"id":…,"programJsonPath":…}` lines on stdin and prints the vendored
+  TypeScript diagnostics for each.

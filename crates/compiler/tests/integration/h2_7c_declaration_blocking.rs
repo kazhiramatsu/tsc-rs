@@ -282,10 +282,7 @@ pub(super) fn assert_cases_with_command_inspection<F>(
                     );
                     continue;
                 }
-                let blocked = prepared.compiler_options().no_emit == Some(true)
-                    || prepared.compiler_options().no_emit_on_error == Some(true)
-                        && case["typescript_observation"]["emit_result"]["emit_skipped"] == true;
-                let activity = if command_reporting {
+                if command_reporting {
                     super::h2_7b_w4a_controls::assert_command_observation_with_options(
                         case_id,
                         prepared,
@@ -294,28 +291,6 @@ pub(super) fn assert_cases_with_command_inspection<F>(
                     )
                 } else {
                     assert_exact_observation(case_id, prepared, &case["typescript_observation"])
-                };
-                if blocked {
-                    assert_eq!(
-                        activity.script_transformer_list_constructions(),
-                        0,
-                        "{case_id}: no JS transform"
-                    );
-                    assert_eq!(
-                        activity.printer_constructions(),
-                        0,
-                        "{case_id}: no printing"
-                    );
-                    assert_eq!(
-                        activity.javascript_artifact_creations(),
-                        0,
-                        "{case_id}: no JS artifact"
-                    );
-                    assert_eq!(
-                        activity.output_sink_write_attempts(),
-                        0,
-                        "{case_id}: no writes"
-                    );
                 }
             }
         });

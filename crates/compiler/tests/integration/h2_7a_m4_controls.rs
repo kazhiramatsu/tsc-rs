@@ -1,97 +1,12 @@
-//! Declaration activation, output-plan boundary, and production-root controls.
-//! H2.7d admits bundle roots; the dormant harness bridge remains unavailable.
+//! Declaration bundle-transform boundary control.
 
-use std::collections::{BTreeMap, BTreeSet};
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use tsc_checker::CompilerOptions;
 use tsc_emitter::{
-    transform_nodes, DeclarationPathResolver, DeclarationTransformer, EmitBundle, EmitFailure,
-    EmitHost, EmitMode, EmitOutputPaths, EmitOutputPlan, EmitOutputUnit, EmitRoot, SourceFileId,
-    TransformArena, TransformBundle, TransformError, TransformRoot, UnsupportedEmitFeature,
+    transform_nodes, DeclarationPathResolver, DeclarationTransformer, EmitHost, SourceFileId,
+    TransformArena, TransformBundle, TransformError, TransformRoot,
 };
-
-fn workspace() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .canonicalize()
-        .expect("workspace root")
-}
-
-fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
-    for entry in fs::read_dir(dir).expect("readable directory") {
-        let entry = entry.expect("directory entry");
-        let path = entry.path();
-        if path.is_dir() {
-            collect_rs_files(&path, out);
-        } else if path.extension().is_some_and(|extension| extension == "rs") {
-            out.push(path);
-        }
-    }
-}
-
-#[test]
-fn declaration_transformer_production_call_sites_are_exactly_allowlisted() {
-    let workspace = workspace();
-    let mut files = Vec::new();
-    collect_rs_files(&workspace.join("crates"), &mut files);
-    let symbols = [
-        (
-            "DeclarationTransformer::new(",
-            "fn new(",
-            BTreeSet::from(["crates/emitter/src/declarations/selection.rs".to_owned()]),
-        ),
-        (
-            "get_declaration_transformers(",
-            "fn get_declaration_transformers(",
-            BTreeSet::from(["crates/emitter/src/declarations/orchestration.rs".to_owned()]),
-        ),
-        (
-            "transform_declaration_unit_for_harness(",
-            "fn transform_declaration_unit_for_harness(",
-            BTreeSet::new(),
-        ),
-    ];
-    let mut actual = symbols
-        .iter()
-        .map(|(symbol, _, _)| ((*symbol).to_owned(), BTreeSet::new()))
-        .collect::<BTreeMap<_, _>>();
-
-    for path in files {
-        let relative = path
-            .strip_prefix(&workspace)
-            .expect("inside workspace")
-            .to_string_lossy()
-            .replace('\\', "/");
-        if relative.contains("/tests/") {
-            continue;
-        }
-        let source = fs::read_to_string(&path).expect("readable Rust source");
-        for line in source.lines() {
-            let trimmed = line.trim_start();
-            if trimmed.starts_with("//") || trimmed.starts_with("/*") || trimmed.starts_with('*') {
-                continue;
-            }
-            for (symbol, definition, _) in &symbols {
-                if line.contains(symbol) && !line.contains(definition) {
-                    actual
-                        .get_mut(*symbol)
-                        .expect("symbol row exists")
-                        .insert(relative.clone());
-                }
-            }
-        }
-    }
-
-    for (symbol, _, expected) in symbols {
-        assert_eq!(
-            actual.remove(symbol).expect("symbol was scanned"),
-            expected,
-            "production callers of {symbol} changed"
-        );
-    }
-}
 
 struct ControlHost {
     options: CompilerOptions,
@@ -169,55 +84,4 @@ fn declaration_bundle_transform_requires_a_bundle_output_path() {
             detail: "bundle declaration output path is required",
         })
     ));
-}
-
-#[test]
-fn declaration_plan_admits_nonempty_bundles_and_retains_boundary_refusals() {
-    let source = SourceFileId::from_raw(0);
-    let bundle = EmitOutputPlan::whole_program(vec![EmitOutputUnit::new(
-        EmitRoot::Bundle(EmitBundle::new(vec![source])),
-        EmitOutputPaths::javascript("/control/out.js"),
-        EmitMode::Script,
-    )]);
-    assert_eq!(bundle.validate_bootstrap_shape(), Ok(()));
-    let empty_bundle = EmitOutputPlan::whole_program(vec![EmitOutputUnit::new(
-        EmitRoot::Bundle(EmitBundle::new(Vec::new())),
-        EmitOutputPaths::javascript("/control/out.js"),
-        EmitMode::Script,
-    )]);
-    assert_eq!(
-        empty_bundle.validate_bootstrap_shape(),
-        Err(EmitFailure::Unsupported(UnsupportedEmitFeature::BundleRoot))
-    );
-
-    let declaration = EmitOutputPlan::whole_program(vec![EmitOutputUnit::new(
-        EmitRoot::SourceFile(source),
-        EmitOutputPaths::javascript("/control/out.js").with_declaration("/control/out.d.ts"),
-        EmitMode::Script,
-    )]);
-    assert_eq!(declaration.validate_bootstrap_shape(), Ok(()));
-
-    let printer = include_str!("../../../emitter/src/printer.rs");
-    assert!(
-        printer.contains(
-            "PrintRequest::Declaration(source) => self.print_declaration_with_recording("
-        ),
-        "PrintRequest::Declaration must route through the activated declaration entry"
-    );
-    let execute = include_str!("../../../emitter/src/execute.rs");
-    assert!(
-        !execute.contains("transform_declaration_unit_for_harness"),
-        "the dormant declaration seam must not be activated from execute"
-    );
-}
-
-#[test]
-fn production_declaration_transform_requires_exactly_one_source_or_bundle_root() {
-    let orchestration = include_str!("../../../emitter/src/declarations/orchestration.rs");
-    assert!(orchestration.contains("if result.roots().len() != 1 {"));
-    assert!(
-        orchestration.contains("detail: \"declaration transform must produce exactly one root\"")
-    );
-    assert!(orchestration.contains("TransformRoot::SourceFile(_) =>"));
-    assert!(orchestration.contains("TransformRoot::Bundle(_) =>"));
 }

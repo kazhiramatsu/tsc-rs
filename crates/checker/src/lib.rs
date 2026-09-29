@@ -127,6 +127,7 @@ pub(crate) mod order_guard;
 mod plain_js_errors;
 pub mod program;
 pub mod relate;
+#[doc(hidden)]
 pub mod relpin;
 pub mod resolve;
 pub mod shard;
@@ -2747,7 +2748,6 @@ const _: () = {
 /// Produced on the shard's thread by the caller's emit closure.
 pub struct ShardEmission {
     pub units: Vec<tsc_emitter::UnitEmission>,
-    pub counters: tsc_emitter::H2ActivityCounters,
     /// H2.8c evidence: source files whose checkSourceFileWorker body ran in
     /// this shard by the end of its emit.
     pub checked_source_files: u32,
@@ -2879,10 +2879,14 @@ fn run_checker_shard<'a>(
     let shard_started = std::time::Instant::now();
     let mut state = init_checker_state(snapshot, options, Some((provider, metadata)), host);
     reserve_type_tables(&mut state, reserved_nodes);
-    // W2c: every type created from here on is shard-local; the guard records
-    // order-consuming operations over two or more of them.
+    // W2c: every type created from here on is shard-local. In the exact mode
+    // the guard records order-consuming operations over two or more of them
+    // so the driver can replay the check serially; the default mode keeps
+    // the sharded result and records nothing.
     let init_boundary = state.tables.len();
-    state.order_guard.arm(init_boundary);
+    if replay_on_order {
+        state.order_guard.arm(init_boundary);
+    }
     if tsc_types::trace::enabled() {
         tsc_types::trace::mark(
             &format!("shard {shard_index}: init ({init_boundary} types)"),
@@ -2981,7 +2985,7 @@ fn run_checker_shard<'a>(
         partial_check_records: std::mem::take(&mut state.partial_check_records),
         failure,
         order_reasons: state.order_guard.reasons(),
-        init_boundary: state.order_guard.init_boundary(),
+        init_boundary: u32::try_from(init_boundary).expect("type count fits u32"),
         display_marks: state.order_guard.marks().clone(),
         thread: std::thread::current().id(),
         files,
@@ -4177,9 +4181,6 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         }
     }
 
-    debug_assert!(tsc_binder::is_scaffolded());
-    debug_assert!(tsc_types::is_scaffolded());
-
     CheckExecution {
         result: assemble_check_result(
             &file_diagnostics,
@@ -4372,10 +4373,6 @@ fn assemble_check_result(
 /// inserted into the cache.
 struct LibBundle {
     options: &'static CompilerOptions,
-    /// Compatibility projection for harness tests; these are the same Arc
-    /// source handles retained by `documents`, never cloned ASTs.
-    #[allow(dead_code)]
-    sources: &'static [Arc<tsc_syntax::SourceFile>],
     documents: &'static [Arc<BoundDocument>],
     identity_domain: IdentityDomain,
 }
@@ -4557,12 +4554,10 @@ fn build_lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static 
     let binders = bind_lib_sources(&sources, options, &identity_domain, WorkerBudget::serial());
     let data = binders_into_data(binders);
     let sources = sources.into_iter().map(Arc::new).collect::<Vec<_>>();
-    let documents = publish_bound_documents_from_handles(sources.clone(), data);
-    let sources: &'static [Arc<tsc_syntax::SourceFile>] = Box::leak(sources.into_boxed_slice());
+    let documents = publish_bound_documents_from_handles(sources, data);
     let documents: &'static [Arc<BoundDocument>] = Box::leak(documents.into_boxed_slice());
     Box::leak(Box::new(LibBundle {
         options,
-        sources,
         documents,
         identity_domain,
     }))

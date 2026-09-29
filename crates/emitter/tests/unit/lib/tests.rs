@@ -168,7 +168,7 @@ fn outcome_retains_optional_presence_and_independent_emitted_file_order() {
         vec![JsString::from("/project/input.ts")],
         "{\"version\":3}".into(),
     );
-    let absent = EmitOutcome::new(Vec::new(), true, None, None, Default::default());
+    let absent = EmitOutcome::new(Vec::new(), true, None, None);
     let present = EmitOutcome::new(
         Vec::new(),
         false,
@@ -177,7 +177,6 @@ fn outcome_retains_optional_presence_and_independent_emitted_file_order() {
             JsString::from("/project/out.js.map"),
         ]),
         Some(vec![source_map]),
-        Default::default(),
     );
 
     assert!(absent.emit_skipped());

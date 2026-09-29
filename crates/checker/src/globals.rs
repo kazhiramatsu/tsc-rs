@@ -405,7 +405,7 @@ impl<'a> CheckerState<'a> {
     /// getDeclaredTypeOfSymbol for globals: the full
     /// tryGetDeclaredTypeOfSymbol dispatch (annotate.rs slice).
     fn get_declared_type_of_symbol_for_global(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
-        self.get_declared_type_of_symbol_slice(symbol)
+        self.get_declared_type_of_symbol(symbol)
     }
 
     /// tsc-port: getGlobalType @6.0.3
@@ -737,7 +737,7 @@ impl<'a> CheckerState<'a> {
         };
         // Resolve the alias before we check its type parameters (the
         // links.typeParameters fill).
-        self.get_declared_type_of_symbol_slice(symbol)?;
+        self.get_declared_type_of_symbol(symbol)?;
         let type_parameter_count = self
             .links
             .read_symbol(symbol, |links| links.cold().type_parameters.clone())

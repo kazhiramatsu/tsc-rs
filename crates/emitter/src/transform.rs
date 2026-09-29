@@ -324,24 +324,14 @@ pub enum EmitHint {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum UnsupportedTransformFeature {
     Decorators,
-    ExportEquals,
-    ImportEquals,
     Jsx,
-    ParameterProperties,
-    RuntimeEnums,
-    RuntimeNamespaces,
 }
 
 impl UnsupportedTransformFeature {
     pub const fn name(self) -> &'static str {
         match self {
             Self::Decorators => "decorators",
-            Self::ExportEquals => "export-equals",
-            Self::ImportEquals => "import-equals",
             Self::Jsx => "JSX",
-            Self::ParameterProperties => "parameter properties",
-            Self::RuntimeEnums => "runtime enums",
-            Self::RuntimeNamespaces => "runtime namespaces",
         }
     }
 }
@@ -1426,10 +1416,6 @@ pub enum TransformError {
     },
     MissingProgramSourceForModuleFormat(TransformSourceId),
     EmitHostRequiredForImpliedModuleFormat,
-    DeferredModuleFormat {
-        format: i32,
-        owner_slice: &'static str,
-    },
     ParseDiagnosticsDeferred {
         count: usize,
         /// Committed recovery events, including silent missing nodes and
@@ -1439,12 +1425,6 @@ pub enum TransformError {
     },
     AstDepthDeferred {
         limit: usize,
-        owner_slice: &'static str,
-    },
-    ImportAttributesDeferred {
-        owner_slice: &'static str,
-    },
-    AdvancedCommentPlacementDeferred {
         owner_slice: &'static str,
     },
     UnsupportedCompilerOption {
@@ -1622,13 +1602,6 @@ impl fmt::Display for TransformError {
             ),
             Self::EmitHostRequiredForImpliedModuleFormat => formatter
                 .write_str("implied module-format transformation requires a Program emit host"),
-            Self::DeferredModuleFormat {
-                format,
-                owner_slice,
-            } => write!(
-                formatter,
-                "emitted module format {format} is deferred to {owner_slice}"
-            ),
             Self::ParseDiagnosticsDeferred {
                 count,
                 recovery_events,
@@ -1640,14 +1613,6 @@ impl fmt::Display for TransformError {
             Self::AstDepthDeferred { limit, owner_slice } => write!(
                 formatter,
                 "emit transform AST depth above {limit} is deferred to {owner_slice}"
-            ),
-            Self::ImportAttributesDeferred { owner_slice } => write!(
-                formatter,
-                "import attributes during emit are deferred to {owner_slice}"
-            ),
-            Self::AdvancedCommentPlacementDeferred { owner_slice } => write!(
-                formatter,
-                "advanced comment placement during emit is deferred to {owner_slice}"
             ),
             Self::UnsupportedCompilerOption { option, detail } => {
                 write!(formatter, "unsupported transform option {option}: {detail}")

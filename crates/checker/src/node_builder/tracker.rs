@@ -20,10 +20,6 @@ pub(crate) struct NodeBuilderTracker<'tracker> {
     pub(crate) inner: Option<&'tracker mut dyn EmitSymbolTracker>,
     pub(crate) disable_track_symbol: bool,
     pub(crate) can_track_symbol: bool,
-    /// Records that the caller supplied no module resolver host. The builder
-    /// still always has the checker-backed basic host in this case; this bit
-    /// is observational only and does not represent host absence.
-    pub(crate) uses_basic_module_resolver_host: bool,
     /// `symbolTableToDeclarationStatements` replaces the caller's tracker
     /// with a wrapper that consumes accessible symbols as private declaration
     /// dependencies and forwards only inaccessible symbols. The serializer
@@ -155,16 +151,11 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
         let can_track_symbol = inner
             .as_deref()
             .is_some_and(EmitSymbolTracker::can_track_symbol);
-        let uses_basic_module_resolver_host = inner
-            .as_deref()
-            .and_then(EmitSymbolTracker::module_specifier_host)
-            .is_none();
         Self {
             recovery_frames: Vec::new(),
             inner,
             disable_track_symbol: false,
             can_track_symbol,
-            uses_basic_module_resolver_host,
             statement_symbols: None,
         }
     }

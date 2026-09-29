@@ -417,7 +417,7 @@ impl<'a> CheckerState<'a> {
                     symbol = Some(self.get_unresolved_symbol_for_entity_name(node));
                 }
                 if let Some(symbol) = symbol.filter(|&symbol| symbol != self.unknown_symbol) {
-                    self.get_declared_type_of_symbol_slice(symbol)
+                    self.get_declared_type_of_symbol(symbol)
                 } else {
                     Ok(self.tables.intrinsics.error)
                 }
@@ -2162,7 +2162,7 @@ impl<'a> CheckerState<'a> {
             // the declaration-backed written name. This is observable for
             // the internal `__global` symbol, whose declaration is the
             // `global` keyword in a global augmentation.
-            let mut display = self.symbol_name_as_written_slice(symbol);
+            let mut display = self.symbol_name_as_written(symbol);
             if data.parent.is_none()
                 && data
                     .declarations
@@ -2454,7 +2454,7 @@ impl<'a> CheckerState<'a> {
             // tryGetDeclaredTypeOfSymbol's Alias arm
             // (getDeclaredTypeOfAlias) — same checkNoTypeArguments +
             // regular-literal tail as the other declared-type arms.
-            let declared = self.get_declared_type_of_symbol_slice(symbol)?;
+            let declared = self.get_declared_type_of_symbol(symbol)?;
             return Ok(if !self.check_no_type_arguments(node, Some(symbol)) {
                 self.tables.intrinsics.error
             } else {
@@ -2752,8 +2752,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(cached);
         }
-        self.links
-            .set_mapped_type_parameter(self.speculation_depth, ty, resolved);
+        self.links.set_mapped_type_parameter(ty, resolved);
         Ok(resolved)
     }
 
@@ -2780,8 +2779,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(cached);
         }
-        self.links
-            .set_mapped_constraint_type(self.speculation_depth, ty, resolved);
+        self.links.set_mapped_constraint_type(ty, resolved);
         Ok(resolved)
     }
 
@@ -2817,8 +2815,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(cached);
         }
-        self.links
-            .set_mapped_name_type(self.speculation_depth, ty, resolved);
+        self.links.set_mapped_name_type(ty, resolved);
         Ok(resolved)
     }
 
@@ -2880,8 +2877,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(cached);
         }
-        self.links
-            .set_mapped_template_type(self.speculation_depth, ty, resolved);
+        self.links.set_mapped_template_type(ty, resolved);
         Ok(resolved)
     }
 
@@ -4518,8 +4514,7 @@ impl<'a> CheckerState<'a> {
             {
                 return Ok(existing);
             }
-            self.links
-                .set_type_declared_members(self.speculation_depth, target, id);
+            self.links.set_type_declared_members(target, id);
             return Ok(id);
         }
         let symbol = self
@@ -4554,8 +4549,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(existing);
         }
-        self.links
-            .set_type_declared_members(self.speculation_depth, target, id);
+        self.links.set_type_declared_members(target, id);
         let filled = (|state: &mut Self| -> CheckResult<()> {
             let call_signatures = state.get_signatures_of_symbol(call_symbol)?;
             state.members_mut(id).call_signatures = call_signatures;
@@ -5931,7 +5925,7 @@ impl<'a> CheckerState<'a> {
             // the range the directive accounting fabricates 2578
             // (9.3b5 review r1; DR-F6 start-face rule).
             let report = (|state: &mut Self| -> CheckResult<()> {
-                let text = state.type_to_string_slice(base_constructor_type)?;
+                let text = state.type_to_string(base_constructor_type)?;
                 let mut related = Vec::new();
                 if state
                     .tables
@@ -5960,7 +5954,7 @@ impl<'a> CheckerState<'a> {
                         .expect("type parameters carry their symbol");
                     if let Some(&declaration) = state.binder.symbol(symbol).declarations.first() {
                         let symbol_text = state.symbol_display_name(symbol);
-                        let return_text = state.type_to_string_slice(ctor_return)?;
+                        let return_text = state.type_to_string(ctor_return)?;
                         related.push(state.related_info_for_node_js(
                             declaration,
                             &diagnostics::Did_you_mean_for_0_to_be_constrained_to_type_new_args_any_1,
@@ -6077,7 +6071,7 @@ impl<'a> CheckerState<'a> {
             "parser invariant: heritage ExpressionWithTypeArguments expression always parsed",
         );
         let original_base_type = match self.tables.type_of(base_constructor_type).symbol {
-            Some(symbol) => Some(self.get_declared_type_of_symbol_slice(symbol)?),
+            Some(symbol) => Some(self.get_declared_type_of_symbol(symbol)?),
             None => None,
         };
         let base_type;
@@ -6136,7 +6130,7 @@ impl<'a> CheckerState<'a> {
             // unused (9.3b5 review r1; DR-F6 start-face rule).
             let report = (|state: &mut Self| -> CheckResult<()> {
                 let elaboration = state.elaborate_never_intersection_row(base_type)?;
-                let text = state.type_to_string_slice(reduced_base_type)?;
+                let text = state.type_to_string(reduced_base_type)?;
                 let head = tsc_diagnostics::MessageChain::new_js(
                     &diagnostics::Base_constructor_return_type_0_is_not_an_object_type_or_intersection_of_object_types_with_statically_known_members,
                     &[(text)],
@@ -6196,10 +6190,7 @@ impl<'a> CheckerState<'a> {
     /// position — is errorType, not a failure. The Alias arm
     /// (getDeclaredTypeOfAlias, 57498-57501) recurses through
     /// resolveAlias with the declaredType memo.
-    pub(crate) fn get_declared_type_of_symbol_slice(
-        &mut self,
-        symbol: SymbolId,
-    ) -> CheckResult<TypeId> {
+    pub(crate) fn get_declared_type_of_symbol(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
         perf::bump(PerfCounter::DeclaredTypeQueries);
         let flags = self.symbol_flags(symbol);
         if flags.intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE) {
@@ -6228,7 +6219,7 @@ impl<'a> CheckerState<'a> {
                 return Ok(declared);
             }
             let target = self.resolve_alias(symbol)?;
-            let declared = self.get_declared_type_of_symbol_slice(target)?;
+            let declared = self.get_declared_type_of_symbol(target)?;
             if let Some(already) = self
                 .links
                 .read_symbol(symbol, |links| links.declared_type.resolved())
@@ -8327,7 +8318,7 @@ impl<'a> CheckerState<'a> {
         let parent = self
             .get_parent_of_symbol(prototype)
             .expect("binder invariant: prototype symbols carry their class parent");
-        let class_type = self.get_declared_type_of_symbol_slice(parent)?;
+        let class_type = self.get_declared_type_of_symbol(parent)?;
         let type_parameter_count = match &self.tables.type_of(class_type).data {
             TypeData::GenericType {
                 type_parameters, ..
@@ -8385,7 +8376,7 @@ impl<'a> CheckerState<'a> {
         // reportCircularityError passes the symbol through
         // symbolToString, whose default symbolToNode route preserves
         // the declaration spelling (`#x`, `["#x"]`, ...).
-        let name = self.symbol_name_as_written_slice(symbol);
+        let name = self.symbol_name_as_written(symbol);
         if annotation.is_some() {
             self.error_at_js(
                 Some(declaration),
@@ -11148,18 +11139,6 @@ pub(crate) fn is_reserved_member_name<'a>(name: impl Into<JsStr<'a>>) -> bool {
         && bytes.get(2) != Some(&b'_')
         && bytes.get(2) != Some(&b'@')
         && bytes.get(2) != Some(&b'#')
-}
-
-#[allow(dead_code)] // retired by the 5.5f isFunctionLike filter
-fn is_m3_signature_declaration_kind(kind: SyntaxKind) -> bool {
-    matches!(
-        kind,
-        SyntaxKind::CallSignature
-            | SyntaxKind::ConstructSignature
-            | SyntaxKind::MethodSignature
-            | SyntaxKind::FunctionType
-            | SyntaxKind::ConstructorType
-    )
 }
 
 /// The scanner already normalized numeric literal text to its value

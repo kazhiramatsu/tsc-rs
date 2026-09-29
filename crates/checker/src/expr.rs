@@ -1226,7 +1226,7 @@ impl<'a> CheckerState<'a> {
                     .strict_option_value(self.options.no_implicit_any);
                 if no_implicit_any {
                     let display = self.symbol_display_name(symbol);
-                    let type_display = self.type_to_string_slice(flow_type)?;
+                    let type_display = self.type_to_string(flow_type)?;
                     let source = self.binder.source_of_node(declaration);
                     let name = node_util::get_name_of_declaration(source, declaration)
                         .unwrap_or(declaration);
@@ -1247,7 +1247,7 @@ impl<'a> CheckerState<'a> {
             && !self.contains_undefined_type(ty)
             && self.contains_undefined_type(flow_type)
         {
-            let display = self.symbol_name_as_written_slice(symbol);
+            let display = self.symbol_name_as_written(symbol);
             self.error_at_js(
                 Some(node),
                 &diagnostics::Variable_0_is_used_before_being_assigned,
@@ -1452,11 +1452,7 @@ impl<'a> CheckerState<'a> {
                                 part,
                                 NodeCheckFlags::CONTAINS_CAPTURED_BLOCK_SCOPE_BINDING,
                             );
-                            self.links.push_captured_block_scope_binding(
-                                self.speculation_depth,
-                                part,
-                                symbol,
-                            );
+                            self.links.push_captured_block_scope_binding(part, symbol);
                             let initializer = match self.data_of(container) {
                                 NodeData::ForStatement(data) => data.initializer,
                                 _ => None,
@@ -4392,11 +4388,8 @@ impl<'a> CheckerState<'a> {
             .read_node(node, |links| links.context_free_type.resolved())
             .is_none()
         {
-            self.links.set_node_context_free_type(
-                self.speculation_depth,
-                node,
-                crate::links::LinkSlot::Resolved(ty),
-            );
+            self.links
+                .set_node_context_free_type(node, crate::links::LinkSlot::Resolved(ty));
         }
         Ok(ty)
     }

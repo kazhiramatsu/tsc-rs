@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use tsc_binder::node_util;
 use tsc_emitter::{
     CommentRange, EmitFlags, EmitNodeBuilderFlags, EmitResolverError, EmitResolverMethod,
@@ -105,7 +103,7 @@ impl SyntacticTypeNodeBuilder {
         session.try_reuse_existing_type_node(existing)
     }
 
-    /// tsrs-native: syntactic front-door wrapper (probe-observable boundary, h2-7a-m-3 §6.2).
+    /// tsrs-native: syntactic front-door wrapper.
     pub(crate) fn serialize_type_of_declaration(
         &self,
         resolver: &mut dyn SyntacticBuilderResolver,
@@ -115,8 +113,7 @@ impl SyntacticTypeNodeBuilder {
         node: TransformNode,
         symbol: Option<SyntacticSymbol>,
     ) -> Result<Option<TransformNode>, EmitResolverError> {
-        crate::node_builder::replay_sink::enter_syntactic_frame();
-        let result = SyntacticBuildSession::new(
+        SyntacticBuildSession::new(
             self,
             resolver,
             arena,
@@ -124,19 +121,10 @@ impl SyntacticTypeNodeBuilder {
             context,
             EmitResolverMethod::CreateTypeOfDeclaration,
         )
-        .serialize_type_of_declaration(node, symbol);
-        let produced = match &result {
-            Ok(Some(node)) => crate::node_builder::transform_node_class(arena, *node),
-            Ok(None) | Err(_) => crate::node_builder::replay_sink::ProducedClass::Absent,
-        };
-        crate::node_builder::replay_sink::exit_syntactic_frame(
-            "syntactic.serializeTypeOfDeclaration",
-            produced,
-        );
-        result
+        .serialize_type_of_declaration(node, symbol)
     }
 
-    /// tsrs-native: syntactic front-door wrapper (probe-observable boundary, h2-7a-m-3 §6.2).
+    /// tsrs-native: syntactic front-door wrapper.
     pub(crate) fn serialize_return_type_for_signature(
         &self,
         resolver: &mut dyn SyntacticBuilderResolver,
@@ -146,8 +134,7 @@ impl SyntacticTypeNodeBuilder {
         node: TransformNode,
         symbol: Option<SyntacticSymbol>,
     ) -> Result<Option<TransformNode>, EmitResolverError> {
-        crate::node_builder::replay_sink::enter_syntactic_frame();
-        let result = SyntacticBuildSession::new(
+        SyntacticBuildSession::new(
             self,
             resolver,
             arena,
@@ -155,16 +142,7 @@ impl SyntacticTypeNodeBuilder {
             context,
             EmitResolverMethod::CreateReturnTypeOfSignatureDeclaration,
         )
-        .serialize_return_type_for_signature(node, symbol);
-        let produced = match &result {
-            Ok(Some(node)) => crate::node_builder::transform_node_class(arena, *node),
-            Ok(None) | Err(_) => crate::node_builder::replay_sink::ProducedClass::Absent,
-        };
-        crate::node_builder::replay_sink::exit_syntactic_frame(
-            "syntactic.serializeReturnTypeForSignature",
-            produced,
-        );
-        result
+        .serialize_return_type_for_signature(node, symbol)
     }
 
     /// tsrs-native: syntactic front-door wrapper (session dispatch).
@@ -2136,10 +2114,6 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         symbol: Option<SyntacticSymbol>,
         report_fallback: bool,
     ) -> Result<Option<TransformNode>, EmitResolverError> {
-        crate::node_builder::replay_sink::mark_syntactic_fallback(
-            "syntactic.serializeTypeOfDeclaration",
-            report_fallback,
-        );
         if report_fallback {
             self.report_inference_fallback(node)?;
         }
@@ -2194,10 +2168,6 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         symbol: Option<SyntacticSymbol>,
         report_fallback: bool,
     ) -> Result<TransformNode, EmitResolverError> {
-        crate::node_builder::replay_sink::mark_syntactic_fallback(
-            "syntactic.serializeReturnTypeForSignature",
-            report_fallback,
-        );
         if report_fallback {
             self.report_inference_fallback(node)?;
         }

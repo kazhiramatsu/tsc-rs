@@ -15,11 +15,11 @@ use crate::transform::GeneratedBindingId;
 use crate::{
     factory::{private_identifier_expression_flags, EmitHelperName},
     CommentRange, EmitConstantValue, EmitExportContainerMode, EmitFlags, EmitHint, EmitHost,
-    EmitResolver, EmitResolverError, EmitResolverMethod, EmitResolverNode, H2ActivityCanary,
-    H2RuntimeSlice, InternalEmitFlags, LexicalEnvironment, LexicalEnvironmentFlags, SourceMapRange,
-    SourceRange, SyntheticComment, SyntheticCommentKind, TransformArena, TransformError,
-    TransformFlags, TransformNode, TransformNodeArray, TransformRoot, TransformSourceId,
-    TransformationContext, Transformer, UnsupportedTransformFeature,
+    EmitResolver, EmitResolverError, EmitResolverMethod, EmitResolverNode, InternalEmitFlags,
+    LexicalEnvironment, LexicalEnvironmentFlags, SourceMapRange, SourceRange, SyntheticComment,
+    SyntheticCommentKind, TransformArena, TransformError, TransformFlags, TransformNode,
+    TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext, Transformer,
+    UnsupportedTransformFeature,
 };
 
 const MODULE_NONE: i32 = 0;
@@ -110,8 +110,7 @@ pub fn get_script_transformers<'resolver>(
     options: &CompilerOptions,
     resolver: &'resolver dyn EmitResolver,
 ) -> Result<Vec<Box<dyn Transformer + 'resolver>>, TransformError> {
-    let mut activity = H2ActivityCanary::h2_7e_profile();
-    get_script_transformers_with_optional_host(options, resolver, None, &mut activity)
+    get_script_transformers_with_optional_host(options, resolver, None)
 }
 
 /// Select the script transforms for one Program-owned source.
@@ -125,23 +124,7 @@ pub fn get_script_transformers_for_source<'transformers>(
     host: &'transformers dyn EmitHost,
     source: SourceFileId,
 ) -> Result<Vec<Box<dyn Transformer + 'transformers>>, TransformError> {
-    let mut activity = H2ActivityCanary::h2_7e_profile();
-    get_script_transformers_with_optional_host(
-        options,
-        resolver,
-        Some((host, source)),
-        &mut activity,
-    )
-}
-
-pub(crate) fn get_script_transformers_with_activity<'transformers>(
-    options: &CompilerOptions,
-    resolver: &'transformers dyn EmitResolver,
-    host: &'transformers dyn EmitHost,
-    source: SourceFileId,
-    activity: &mut H2ActivityCanary,
-) -> Result<Vec<Box<dyn Transformer + 'transformers>>, TransformError> {
-    get_script_transformers_with_optional_host(options, resolver, Some((host, source)), activity)
+    get_script_transformers_with_optional_host(options, resolver, Some((host, source)))
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -167,99 +150,10 @@ fn get_module_transformer_kind(module_kind: i32) -> ModuleTransformerKind {
     }
 }
 
-// Native activity follows the selected module delegate. Direct transformModule
-// uses the compiler module kind; only the implied composite asks the host.
-fn observe_module_delegate_activity(format: Option<i32>, activity: &mut H2ActivityCanary) {
-    if format.is_some_and(|format| format < 5) {
-        activity.observe_runtime_slice(H2RuntimeSlice::H2_1b);
-    }
-    if format.is_some_and(|format| matches!(format, MODULE_AMD | MODULE_UMD)) {
-        activity.observe_runtime_slice(H2RuntimeSlice::H2_1c);
-    }
-}
-
-// The transformer list is shared by a Bundle, while these predicates inspect
-// a particular source. Option-wide owners retain one event per list.
-fn observe_script_source_routing(
-    options: &CompilerOptions,
-    host: &dyn EmitHost,
-    source: SourceFileId,
-    first_source: bool,
-    activity: &mut H2ActivityCanary,
-) {
-    let source_record = host.source_file(source);
-    let source_name = source_record
-        .map(|record| record.path().to_string_lossy().to_ascii_lowercase())
-        .unwrap_or_default();
-    // One walk answers every syntactic fact below; a source without syntax
-    // (none is mounted) reports none of them, as the former per-fact walks
-    // did.
-    let facts = source_record
-        .and_then(crate::EmitSource::syntax)
-        .map(source_routing_facts)
-        .unwrap_or_default();
-    let owns_node_format_option = matches!(
-        options.emit_module_kind(),
-        MODULE_NODE16 | MODULE_NODE18 | MODULE_NODE20 | MODULE_NODE_NEXT
-    ) || options.rewrite_relative_import_extensions == Some(true);
-    let owns_node_format = (first_source && owns_node_format_option)
-        || (!owns_node_format_option
-            && (source_name.ends_with(".mts")
-                || source_name.ends_with(".cts")
-                || facts.import_attributes));
-    if owns_node_format {
-        activity.observe_runtime_slice(H2RuntimeSlice::H2_1e);
-    }
-    if facts.runtime_enum {
-        activity.observe_runtime_slice(H2RuntimeSlice::H2_2a);
-    }
-    if facts.runtime_namespace {
-        activity.observe_runtime_slice(H2RuntimeSlice::H2_2b);
-    }
-    if facts.parameter_property {
-        activity.observe_runtime_slice(H2RuntimeSlice::H2_2c);
-    }
-    if facts.import_or_export_equals {
-        activity.observe_runtime_slice(H2RuntimeSlice::H2_2d);
-    }
-    if options.experimental_decorators && facts.decorator {
-        activity.observe_runtime_slice(H2RuntimeSlice::H2_4a);
-    }
-    if (first_source && !options.use_define_for_class_fields_effective())
-        || (options.use_define_for_class_fields_effective()
-            && !options.experimental_decorators
-            && facts.decorator)
-    {
-        activity.observe_runtime_slice(H2RuntimeSlice::H2_4b);
-    }
-}
-
-/// Observe a later actual Bundle member without constructing another list.
-/// Call only after the first source has selected the list and only for sources
-/// in the JavaScript output root (not every mounted Program source).
-pub(crate) fn observe_additional_bundle_source_activity(
-    options: &CompilerOptions,
-    host: &dyn EmitHost,
-    source: SourceFileId,
-    activity: &mut H2ActivityCanary,
-) {
-    observe_script_source_routing(options, host, source, false, activity);
-    match get_module_transformer_kind(options.emit_module_kind()) {
-        ModuleTransformerKind::Module => {
-            observe_module_delegate_activity(Some(options.emit_module_kind()), activity);
-        }
-        ModuleTransformerKind::ImpliedNodeFormat => {
-            observe_module_delegate_activity(host.get_emit_module_format_of_file(source), activity);
-        }
-        ModuleTransformerKind::EcmaScript | ModuleTransformerKind::System => {}
-    }
-}
-
 fn get_script_transformers_with_optional_host<'transformers>(
     options: &CompilerOptions,
     resolver: &'transformers dyn EmitResolver,
     host: Option<(&'transformers dyn EmitHost, SourceFileId)>,
-    activity: &mut H2ActivityCanary,
 ) -> Result<Vec<Box<dyn Transformer + 'transformers>>, TransformError> {
     let target = options.emit_script_target();
     if host.is_none()
@@ -301,36 +195,6 @@ fn get_script_transformers_with_optional_host<'transformers>(
             detail: "the current transformer list requires None, Preserve, ES2015, ES2020, ES2022, ESNext, CommonJS, AMD, UMD, System, Node16, Node18, Node20, or NodeNext",
         });
     }
-    if let Some((host, source)) = host {
-        observe_script_source_routing(options, host, source, true, activity);
-        if target < ScriptTarget::ES_NEXT {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_5a);
-        }
-        if target < ScriptTarget::ES2021 {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_5b);
-        }
-        if target < ScriptTarget::ES2020 {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_5c);
-        }
-        if target < ScriptTarget::ES2019 {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_5d);
-        }
-        if target < ScriptTarget::ES2018 {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_5e);
-        }
-        if target < ScriptTarget::ES2017 {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_5f);
-        }
-        if target < ScriptTarget::ES2016 {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_5g);
-        }
-        if target < ScriptTarget::ES2015 {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_5h);
-        }
-    }
-
-    activity.construct_script_transformer_list();
-    activity.construct_transform_typescript();
     let transform_typescript = transform_type_script(options, resolver);
     let transform_legacy_decorators = options
         .experimental_decorators
@@ -342,7 +206,6 @@ fn get_script_transformers_with_optional_host<'transformers>(
     let transform_standard_decorators = (!options.experimental_decorators
         && (target < ScriptTarget::ES_NEXT || !options.use_define_for_class_fields_effective()))
     .then(|| standard_decorators::transform_standard_decorators(options));
-    activity.construct_transform_class_fields();
     let transform_class_fields = transform_class_fields(options, resolver);
     let transform_es2021 =
         (target < ScriptTarget::ES2021).then(|| es2021::transform_es2021(options));
@@ -362,22 +225,16 @@ fn get_script_transformers_with_optional_host<'transformers>(
         (target < ScriptTarget::ES2015).then(|| generators::transform_generators(target, resolver));
     let module_transformer = match get_module_transformer_kind(options.emit_module_kind()) {
         ModuleTransformerKind::EcmaScript => {
-            activity.construct_transform_ecmascript_module();
             transform_ecmascript_module_with_host(options, host.map(|(host, _)| host))
         }
         ModuleTransformerKind::System => {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_1d);
             system::transform_system_module(options, resolver, host.map(|(host, _)| host))
         }
         ModuleTransformerKind::ImpliedNodeFormat => {
-            let (host, source) =
-                host.ok_or(TransformError::EmitHostRequiredForImpliedModuleFormat)?;
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_1a);
-            observe_module_delegate_activity(host.get_emit_module_format_of_file(source), activity);
-            transform_implied_node_format_dependent_module(options, resolver, host, activity)
+            let (host, _) = host.ok_or(TransformError::EmitHostRequiredForImpliedModuleFormat)?;
+            transform_implied_node_format_dependent_module(options, resolver, host)
         }
         ModuleTransformerKind::Module => {
-            observe_module_delegate_activity(Some(options.emit_module_kind()), activity);
             transform_module_with_optional_host(options, resolver, host.map(|(host, _)| host))
         }
     };
@@ -512,9 +369,7 @@ fn transform_implied_node_format_dependent_module<'dependencies>(
     options: &CompilerOptions,
     resolver: &'dependencies dyn EmitResolver,
     host: &'dependencies dyn EmitHost,
-    activity: &mut H2ActivityCanary,
 ) -> Box<dyn Transformer + 'dependencies> {
-    activity.construct_transform_ecmascript_module();
     let esm = transform_ecmascript_module_with_host(options, Some(host));
     let cjs = transform_module_with_host(options, resolver, host);
     Box::new(ImpliedNodeFormatDependentModuleTransformer { host, esm, cjs })
@@ -4717,107 +4572,6 @@ fn source_contains_import_reference_substitution(
         );
     }
     Ok(false)
-}
-
-/// The per-source facts `observe_script_source_routing` reports, gathered in
-/// one walk from the root that skips MissingDeclaration subtrees (they retain
-/// syntax for binding but emit nothing). Each fact is exactly the answer its
-/// former dedicated walk gave — some reachable node matches — so a source
-/// without any of the constructs is walked once instead of once per fact.
-#[derive(Clone, Copy, Debug, Default)]
-struct SourceRoutingFacts {
-    import_attributes: bool,
-    runtime_enum: bool,
-    runtime_namespace: bool,
-    parameter_property: bool,
-    import_or_export_equals: bool,
-    decorator: bool,
-}
-
-impl SourceRoutingFacts {
-    fn complete(self) -> bool {
-        self.import_attributes
-            && self.runtime_enum
-            && self.runtime_namespace
-            && self.parameter_property
-            && self.import_or_export_equals
-            && self.decorator
-    }
-}
-
-fn source_routing_facts(source: &tsc_syntax::SourceFile) -> SourceRoutingFacts {
-    let mut facts = SourceRoutingFacts::default();
-    let mut stack = vec![source.root];
-    while let Some(id) = stack.pop() {
-        let record = source.arena.node(id);
-        if record.kind == SyntaxKind::MissingDeclaration {
-            continue;
-        }
-        facts.import_attributes |= node_has_import_attributes(source, record);
-        facts.runtime_enum |= record.kind == SyntaxKind::EnumDeclaration;
-        facts.runtime_namespace |= node_is_runtime_namespace(source, record);
-        facts.parameter_property |= parameter_has_property_modifier(source, record);
-        facts.import_or_export_equals |= record.kind == SyntaxKind::ImportEqualsDeclaration
-            || matches!(
-                &record.data,
-                NodeData::ExportAssignment(data) if data.is_export_equals == Some(true)
-            );
-        facts.decorator |= record.kind == SyntaxKind::Decorator;
-        if facts.complete() {
-            break;
-        }
-        for_each_child(&source.arena, record, |child| {
-            stack.push(child);
-            false
-        });
-    }
-    facts
-}
-
-fn node_has_import_attributes(source: &tsc_syntax::SourceFile, record: &Node) -> bool {
-    let static_attributes = matches!(
-        &record.data,
-        NodeData::ImportDeclaration(data) if data.attributes.is_some()
-    ) || matches!(
-        &record.data,
-        NodeData::ExportDeclaration(data) if data.attributes.is_some()
-    );
-    let dynamic_attributes = match &record.data {
-        NodeData::CallExpression(data) => {
-            let is_dynamic_import = data.expression.is_some_and(|expression| {
-                source.arena.node(expression).kind == SyntaxKind::ImportKeyword
-            });
-            let argument_count = data
-                .arguments
-                .map(|arguments| source.arena.node_array(arguments).nodes.len())
-                .unwrap_or(0);
-            is_dynamic_import && argument_count > 1
-        }
-        _ => false,
-    };
-    static_attributes || dynamic_attributes
-}
-
-fn node_is_runtime_namespace(source: &tsc_syntax::SourceFile, record: &Node) -> bool {
-    let NodeData::ModuleDeclaration(data) = &record.data else {
-        return false;
-    };
-    let flags = NodeFlags::from_bits(record.flags);
-    let declared = data.modifiers.is_some_and(|modifiers| {
-        source
-            .arena
-            .node_array(modifiers)
-            .nodes
-            .iter()
-            .any(|modifier| source.arena.node(*modifier).kind == SyntaxKind::DeclareKeyword)
-    });
-    let identifier_named = data
-        .name
-        .is_some_and(|name| source.arena.node(name).kind == SyntaxKind::Identifier);
-    identifier_named
-        && !declared
-        && !flags.contains(NodeFlags::AMBIENT)
-        && !flags.contains(NodeFlags::GLOBAL_AUGMENTATION)
 }
 
 fn string_literal_text(
@@ -17107,30 +16861,6 @@ fn preflight_source(
     Ok(())
 }
 
-fn parameter_has_property_modifier(source: &tsc_syntax::SourceFile, node: &Node) -> bool {
-    let NodeData::Parameter(data) = &node.data else {
-        return false;
-    };
-    let Some(modifiers) = data.modifiers else {
-        return false;
-    };
-    source
-        .arena
-        .node_array(modifiers)
-        .nodes
-        .iter()
-        .any(|modifier| {
-            matches!(
-                source.arena.node(*modifier).kind,
-                SyntaxKind::PublicKeyword
-                    | SyntaxKind::PrivateKeyword
-                    | SyntaxKind::ProtectedKeyword
-                    | SyntaxKind::ReadonlyKeyword
-                    | SyntaxKind::OverrideKeyword
-            )
-        })
-}
-
 const fn is_jsx_kind(kind: SyntaxKind) -> bool {
     matches!(
         kind,
@@ -17696,18 +17426,6 @@ enum FlagWalkState {
     Complete,
 }
 
-/// Compute the transform flags of `root`'s subtree in the exact postorder of
-/// the former recursive walk (ordinary children first, then each child array
-/// in order), storing per-node flags and per-array aggregates in the arena.
-///
-/// The walk is an explicit stack: deep parse trees never recurse on the
-/// native stack, the per-node state lives in one dense table indexed by
-/// arena ordinal instead of two ordered sets, no `Node` record is cloned and
-/// no per-node child vector is allocated. The observable results are those
-/// of the recursion: a node reached again while still on the walk path (a
-/// cycle) contributes `NONE` to its parent's array aggregate, a node already
-/// completed through another path contributes its final flags, and every
-/// array aggregate is stored before its owner's own flags are classified.
 /// `TSC_RS_VERIFY_TRANSFORM_FLAGS`: classify every source both ways and
 /// compare (a development check of the linear pass against the walk).
 fn verify_linear_transform_flags() -> bool {
@@ -17907,6 +17625,18 @@ fn compute_transform_flags_linear(
     Ok(true)
 }
 
+/// Compute the transform flags of `root`'s subtree in the exact postorder of
+/// the former recursive walk (ordinary children first, then each child array
+/// in order), storing per-node flags and per-array aggregates in the arena.
+///
+/// The walk is an explicit stack: deep parse trees never recurse on the
+/// native stack, the per-node state lives in one dense table indexed by
+/// arena ordinal instead of two ordered sets, no `Node` record is cloned and
+/// no per-node child vector is allocated. The observable results are those
+/// of the recursion: a node reached again while still on the walk path (a
+/// cycle) contributes `NONE` to its parent's array aggregate, a node already
+/// completed through another path contributes its final flags, and every
+/// array aggregate is stored before its owner's own flags are classified.
 fn compute_transform_flags_walk(
     arena: &mut TransformArena,
     source: TransformSourceId,

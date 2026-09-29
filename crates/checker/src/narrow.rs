@@ -22,19 +22,6 @@ use crate::state::{CheckResult, CheckerState, SignatureId};
 use tsc_types::perf::{self, PerfCounter};
 
 impl<'a> CheckerState<'a> {
-    /// The narrow-family caches (switch types, exhaustiveness,
-    /// effects signatures, resolved type predicates) are state-side
-    /// stand-ins for tsc links/signature fields and follow the links
-    /// write discipline (greenfield §4.3, links.rs assert_writable):
-    /// stable verdicts only, never written during speculation. Inert
-    /// while speculation_depth is constant 0 — the M6 speculation
-    /// transaction must trip HERE, not silently memoize a
-    /// speculative value.
-    fn narrow_cache_writable(&self) -> bool {
-        // tsc keeps these caches from a candidate trial as well.
-        true
-    }
-
     /// tsc-port: narrowType @6.0.3
     /// tsc-hash: 27ad08800fadb3f5234051fdb384cffe54850849b9ba6eca2c94f97e7979a821
     /// tsc-span: _tsc.js:71400-71439
@@ -1228,7 +1215,7 @@ impl<'a> CheckerState<'a> {
         let target_type = if is_static {
             self.get_type_of_symbol(class_symbol)?
         } else {
-            self.get_declared_type_of_symbol_slice(class_symbol)?
+            self.get_declared_type_of_symbol(class_symbol)?
         };
         self.get_narrowed_type(ty, target_type, assume_true, /*check_derived*/ true)
     }
@@ -1924,10 +1911,8 @@ impl<'a> CheckerState<'a> {
         for clause in clauses {
             types.push(self.get_type_of_switch_clause(clause)?);
         }
-        if self.narrow_cache_writable() {
-            self.switch_types_cache
-                .insert(switch_statement, types.clone());
-        }
+        self.switch_types_cache
+            .insert(switch_statement, types.clone());
         Ok(types)
     }
 
@@ -2338,24 +2323,20 @@ impl<'a> CheckerState<'a> {
             return Ok(cached);
         }
         if self.exhaustive_switch_computing.contains(&switch_statement) {
-            if self.narrow_cache_writable() {
-                self.exhaustive_switch_cache.insert(switch_statement, false);
-            }
+            self.exhaustive_switch_cache.insert(switch_statement, false);
             return Ok(false);
         }
         self.exhaustive_switch_computing.insert(switch_statement);
         let computed = self.compute_exhaustive_switch_statement(switch_statement);
         self.exhaustive_switch_computing.remove(&switch_statement);
         let computed = computed?;
-        if self.narrow_cache_writable() {
-            let result = *self
-                .exhaustive_switch_cache
-                .entry(switch_statement)
-                .or_insert(computed);
-            Ok(result)
-        } else {
-            Ok(computed)
-        }
+        // The narrow-family caches (switch types, exhaustiveness, effects
+        // signatures, resolved type predicates) stand in for tsc's links and
+        // signature fields; tsc keeps them from a candidate trial as well.
+        Ok(*self
+            .exhaustive_switch_cache
+            .entry(switch_statement)
+            .or_insert(computed))
     }
 
     /// tsc-port: computeExhaustiveSwitchStatement @6.0.3
@@ -2838,9 +2819,7 @@ impl<'a> CheckerState<'a> {
                 result = Some(candidate);
             }
         }
-        if self.narrow_cache_writable() {
-            self.effects_signature_cache.insert(node, result);
-        }
+        self.effects_signature_cache.insert(node, result);
         Ok(result)
     }
 
@@ -3120,7 +3099,7 @@ impl<'a> CheckerState<'a> {
                 if self.is_static_element(container) {
                     return self.get_type_of_symbol(symbol).map(Some);
                 }
-                let declared = self.get_declared_type_of_symbol_slice(symbol)?;
+                let declared = self.get_declared_type_of_symbol(symbol)?;
                 return Ok(self.this_type_of_interface(declared));
             }
         }
@@ -3174,10 +3153,8 @@ impl<'a> CheckerState<'a> {
             return Ok(cached.clone());
         }
         let result = self.compute_type_predicate_of_signature(signature)?;
-        if self.narrow_cache_writable() {
-            self.resolved_type_predicates
-                .insert(signature, result.clone());
-        }
+        self.resolved_type_predicates
+            .insert(signature, result.clone());
         Ok(result)
     }
 
@@ -3260,9 +3237,7 @@ impl<'a> CheckerState<'a> {
         // body's own calls close the loop); the pre-seeded memo
         // answers "no predicate" instead of recursing. The outer
         // get_type_predicate_of_signature overwrites with the result.
-        if self.narrow_cache_writable() {
-            self.resolved_type_predicates.insert(signature, None);
-        }
+        self.resolved_type_predicates.insert(signature, None);
         self.get_type_predicate_from_body(declaration)
     }
 

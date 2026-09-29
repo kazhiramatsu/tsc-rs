@@ -156,14 +156,6 @@ fn execute_owner_observation(workspace: &Path, case_id: &str, case: &Value, obse
         &sink,
     )
     .unwrap_or_else(|error| panic!("{case_id}: {error}"));
-    let reached = observation["writes"].as_array().map_or(0, Vec::len) as u64;
-    assert_eq!(
-        outcome
-            .h2_activity()
-            .runtime_slice(tsc_compiler::H2RuntimeSlice::H2_1e),
-        reached,
-        "{case_id}: H2.1e activity"
-    );
 }
 
 #[test]

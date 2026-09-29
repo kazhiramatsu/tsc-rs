@@ -1,7 +1,5 @@
 //! Dormant TypeScript declaration-transform foundation.
 
-#![allow(dead_code)]
-
 mod bundle;
 mod diagnostics;
 mod ensure;
@@ -22,20 +20,17 @@ use tsc_syntax::SyntaxKind;
 use tsc_types::CompilerOptions;
 
 use crate::{
-    EmitHost, EmitResolver, TransformError, TransformFlags, TransformNode, TransformRoot,
-    TransformationContext, Transformer,
+    EmitHost, EmitResolver, TransformError, TransformNode, TransformRoot, TransformationContext,
+    Transformer,
 };
 
 pub(crate) use self::orchestration::emit_declaration_unit;
 pub use self::orchestration::get_declaration_diagnostics;
 pub use self::orchestration::{
-    transform_declaration_unit_for_harness, transform_declaration_unit_with_observer_for_harness,
-    DeclBlockedInputs, DeclarationTransformOutcome,
+    transform_declaration_unit_for_harness, DeclBlockedInputs, DeclarationTransformOutcome,
 };
 pub use self::paths::PlanDeclarationPaths;
-pub(crate) use self::selection::{
-    get_declaration_transformers, get_declaration_transformers_with_observer,
-};
+pub(crate) use self::selection::get_declaration_transformers;
 use self::state::{TransformState, VisitResult};
 use self::tracker::DeclarationSymbolTracker;
 
@@ -76,17 +71,6 @@ impl DeclarationCustomTransformers {
     }
 }
 
-/// One declaration visitor boundary observation. `output_ref == None` is the
-/// empty-output sentinel; array results produce one event per output node.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct BoundaryEvent {
-    pub is_top_level: bool,
-    pub input_ref: TransformNode,
-    pub output_ref: Option<TransformNode>,
-    pub has_original: bool,
-    pub transform_flags: TransformFlags,
-}
-
 /// Declaration-emission transformer owner. It remains production-dormant until
 /// the H2.7b selection/orchestration rung.
 pub struct DeclarationTransformer<'t> {
@@ -96,7 +80,6 @@ pub struct DeclarationTransformer<'t> {
     paths: &'t dyn DeclarationPathResolver,
     state: Option<TransformState>,
     tracker: DeclarationSymbolTracker<'t>,
-    boundary_observer: Option<&'t mut dyn FnMut(BoundaryEvent)>,
 }
 
 impl<'t> DeclarationTransformer<'t> {
@@ -116,15 +99,7 @@ impl<'t> DeclarationTransformer<'t> {
             paths,
             state: None,
             tracker: DeclarationSymbolTracker::new(options, host),
-            boundary_observer: None,
         }
-    }
-
-    /// tsrs-native: harness-only L1 boundary observation injection.
-    #[doc(hidden)]
-    pub fn with_boundary_observer(mut self, observer: &'t mut dyn FnMut(BoundaryEvent)) -> Self {
-        self.boundary_observer = Some(observer);
-        self
     }
 
     fn state(&self) -> Result<&TransformState, TransformError> {
@@ -184,47 +159,6 @@ impl<'t> DeclarationTransformer<'t> {
             },
         )?;
         self.required_resolver_node(cx, enclosing)
-    }
-
-    fn observe_boundary(
-        &mut self,
-        cx: &TransformationContext,
-        is_top_level: bool,
-        input: TransformNode,
-        result: &VisitResult,
-    ) {
-        let Some(observer) = self.boundary_observer.as_deref_mut() else {
-            return;
-        };
-        let outputs: &[TransformNode] = match result {
-            VisitResult::Node(output) if *output == input => return,
-            VisitResult::Node(output) => std::slice::from_ref(output),
-            VisitResult::Nodes(outputs) => outputs,
-            VisitResult::None => &[],
-        };
-        if outputs.is_empty() {
-            observer(BoundaryEvent {
-                is_top_level,
-                input_ref: input,
-                output_ref: None,
-                has_original: false,
-                transform_flags: TransformFlags::NONE,
-            });
-            return;
-        }
-        for &output in outputs {
-            observer(BoundaryEvent {
-                is_top_level,
-                input_ref: input,
-                output_ref: Some(output),
-                has_original: cx
-                    .arena()
-                    .metadata(output)
-                    .and_then(crate::EmitMetadata::original)
-                    .is_some(),
-                transform_flags: cx.arena().transform_flags(output),
-            });
-        }
     }
 
     fn contract(detail: &'static str) -> TransformError {

@@ -514,7 +514,7 @@ impl<'a> CheckerState<'a> {
                 if let Some(error_node) = error_node {
                     let prop_name = self.symbol_display_name(prop);
                     let class_name = match self.get_declaring_class(prop)? {
-                        Some(class) => self.type_to_string_slice(class)?,
+                        Some(class) => self.type_to_string(class)?,
                         // PROBED (m4-end-sweep §implement-5.9c): the
                         // vendored tsc renders typeToString(undefined)
                         // as "any" here — TS2513 with class 'any',
@@ -542,7 +542,7 @@ impl<'a> CheckerState<'a> {
                     // 74895: symbolToString(prop) — the declaration-backed
                     // written face (a JS `this['x']` declaration prints its
                     // quoted literal), not the bare symbol name.
-                    let prop_name = self.symbol_name_as_written_slice(prop);
+                    let prop_name = self.symbol_name_as_written(prop);
                     self.error_at_js(
                         Some(error_node),
                         &tsc_diagnostics::gen::Class_field_0_defined_by_the_parent_class_is_not_accessible_in_the_child_class_via_super,
@@ -575,8 +575,8 @@ impl<'a> CheckerState<'a> {
                         // 74904: symbolToString(prop), symbolToString(parentSymbol)
                         // — the written faces (an anonymous class expression
                         // assigned to `const Foo` prints `Foo`, not `__class`).
-                        let prop_name = self.symbol_name_as_written_slice(prop);
-                        let class_name = self.symbol_name_as_written_slice(parent_symbol);
+                        let prop_name = self.symbol_name_as_written(prop);
+                        let class_name = self.symbol_name_as_written(parent_symbol);
                         self.error_at_js(
                             Some(error_node),
                             &tsc_diagnostics::gen::Abstract_property_0_in_class_1_cannot_be_accessed_in_the_constructor,
@@ -598,7 +598,7 @@ impl<'a> CheckerState<'a> {
                 if let Some(error_node) = error_node {
                     let prop_name = self.symbol_display_name(prop);
                     let class_name = match self.get_declaring_class(prop)? {
-                        Some(class) => self.type_to_string_slice(class)?,
+                        Some(class) => self.type_to_string(class)?,
                         None => unreachable!(
                             "accessibility mask: PRIVATE implies a class parent \
                              (revisit if Contains* propagation is ported)"
@@ -643,7 +643,7 @@ impl<'a> CheckerState<'a> {
                         Some(class) => class,
                         None => containing_type,
                     };
-                    let class_name = self.type_to_string_slice(class)?;
+                    let class_name = self.type_to_string(class)?;
                     self.error_at_js(
                         Some(error_node),
                         &tsc_diagnostics::gen::Property_0_is_protected_and_only_accessible_within_class_1_and_its_subclasses,
@@ -685,9 +685,9 @@ impl<'a> CheckerState<'a> {
         if !has_base {
             if let Some(error_node) = error_node {
                 let prop_name = self.symbol_display_name(prop);
-                let enclosing_name = self.type_to_string_slice(enclosing_class)?;
+                let enclosing_name = self.type_to_string(enclosing_class)?;
                 let containing_name = match containing_type {
-                    Some(containing) => self.type_to_string_slice(containing)?,
+                    Some(containing) => self.type_to_string(containing)?,
                     None => unreachable!(
                         "protected props are only found through resolved base constraints"
                     ),
@@ -1422,7 +1422,7 @@ impl<'a> CheckerState<'a> {
                     })
                     .is_some();
                 if shadowed {
-                    let left_name = self.type_to_string_slice(left_type)?;
+                    let left_name = self.type_to_string(left_type)?;
                     let shadowing_related = self.related_info_for_node_js(
                         lexical_value_decl,
                         &tsc_diagnostics::gen::The_shadowing_declaration_of_0_is_defined_here,
@@ -1770,7 +1770,7 @@ impl<'a> CheckerState<'a> {
         let deprecated_entity = self
             .invoked_expression_of(node)
             .and_then(|expression| self.property_access_or_identifier_to_string(expression));
-        let signature_string = self.signature_to_string_slice_for_overload_error(signature)?;
+        let signature_string = self.signature_to_string_for_overload_error(signature)?;
         self.add_deprecated_suggestion_with_signature(
             suggestion_node,
             declaration,
@@ -2260,7 +2260,7 @@ impl<'a> CheckerState<'a> {
                         {
                             let display =
                                 tsc_syntax::unescape_leading_underscores(&right_text).to_owned();
-                            let type_name = self.type_to_string_slice(left_type)?;
+                            let type_name = self.type_to_string(left_type)?;
                             self.error_at_js(
                                 Some(right),
                                 &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1,
@@ -2271,7 +2271,7 @@ impl<'a> CheckerState<'a> {
                         .options
                         .strict_option_value(self.options.no_implicit_any)
                     {
-                        let type_name = self.type_to_string_slice(left_type)?;
+                        let type_name = self.type_to_string(left_type)?;
                         self.error_at_js(
                             Some(right),
                             &tsc_diagnostics::gen::Element_implicitly_has_an_any_type_because_type_0_has_no_index_signature,
@@ -2315,7 +2315,7 @@ impl<'a> CheckerState<'a> {
             if index_info.is_readonly
                 && (node_util::is_assignment_target(source, node) || self.is_delete_target(node))
             {
-                let type_name = self.type_to_string_slice(apparent_type)?;
+                let type_name = self.type_to_string(apparent_type)?;
                 self.error_at_js(
                     Some(node),
                     &tsc_diagnostics::gen::Index_signature_in_type_0_only_permits_reading,
@@ -2606,7 +2606,7 @@ impl<'a> CheckerState<'a> {
                 // tsc passes this argument through symbolToString;
                 // declaration-backed private/computed names must not
                 // expose their escaped symbol-table key.
-                Some(prop) => self.symbol_name_as_written_slice(prop),
+                Some(prop) => self.symbol_name_as_written(prop),
                 None => JsString::new(),
             };
             self.error_at_js(
@@ -3395,7 +3395,7 @@ impl<'a> CheckerState<'a> {
                         .get_applicable_index_info_for_name_info(subtype, &prop_name_raw)?
                         .is_some();
                 if !has_index {
-                    let subtype_name = self.type_to_string_slice(subtype)?;
+                    let subtype_name = self.type_to_string(subtype)?;
                     chain_tail.push(tsc_diagnostics::MessageChain::new_js(
                         &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1,
                         &[missing_property.clone(), subtype_name],
@@ -3407,7 +3407,7 @@ impl<'a> CheckerState<'a> {
         let mut related: Option<tsc_diagnostics::RelatedInfo> = None;
         let head: tsc_diagnostics::MessageChain;
         if self.type_has_static_property(&prop_name_raw, containing_type)? {
-            let type_name = self.type_to_string_slice(containing_type)?;
+            let type_name = self.type_to_string(containing_type)?;
             let mut suggestion = type_name.clone();
             suggestion.push('.');
             suggestion.push_js(missing_property.as_js());
@@ -3424,7 +3424,7 @@ impl<'a> CheckerState<'a> {
                 None => false,
             };
             if promised_has_prop {
-                let type_name = self.type_to_string_slice(containing_type)?;
+                let type_name = self.type_to_string(containing_type)?;
                 head = tsc_diagnostics::MessageChain::new_js(
                     &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1,
                     &[missing_property.clone(), type_name],
@@ -3457,7 +3457,7 @@ impl<'a> CheckerState<'a> {
                     // concerns separate: reducing the report target
                     // itself would lose the diagnostic-chain reason.
                     let display_type = self.get_reduced_type(containing_type)?;
-                    self.type_to_string_slice(display_type)?
+                    self.type_to_string(display_type)?
                 };
                 let lib_suggestion = self.get_suggested_lib_for_non_existent_property(
                     &missing_property,
@@ -3702,8 +3702,7 @@ impl<'a> CheckerState<'a> {
             if is_reference {
                 let arguments = self.get_type_arguments(ty)?;
                 if let Some(&first) = arguments.first() {
-                    self.links
-                        .set_type_promised_type_of_promise(self.speculation_depth, ty, first);
+                    self.links.set_type_promised_type_of_promise(ty, first);
                     return Ok((Some(first), None));
                 }
             }
@@ -3756,8 +3755,8 @@ impl<'a> CheckerState<'a> {
             let this_type =
                 this_type_for_error.expect("no candidates implies a this-type rejection");
             if let Some(error_node) = error_node {
-                let type_text = self.type_to_string_slice(ty)?;
-                let this_text = self.type_to_string_slice(this_type)?;
+                let type_text = self.type_to_string(ty)?;
+                let this_text = self.type_to_string(this_type)?;
                 self.error_at_js(
                     Some(error_node),
                     &tsc_diagnostics::gen::The_this_context_of_type_0_is_not_assignable_to_method_s_this_of_type_1,
@@ -3792,8 +3791,7 @@ impl<'a> CheckerState<'a> {
             value_types.push(self.get_type_of_first_parameter_of_signature(signature)?);
         }
         let promised = self.get_union_type_ex(&value_types, UnionReduction::Subtype)?;
-        self.links
-            .set_type_promised_type_of_promise(self.speculation_depth, ty, promised);
+        self.links.set_type_promised_type_of_promise(ty, promised);
         Ok((Some(promised), None))
     }
 
@@ -4112,7 +4110,7 @@ impl<'a> CheckerState<'a> {
                     .get_mapped_type_modifiers(object_type)
                     .intersects(MappedTypeModifiers::INCLUDE_READONLY)
             {
-                let display = self.type_to_string_slice(object_type)?;
+                let display = self.type_to_string(object_type)?;
                 self.error_at_js(
                     Some(access_node),
                     &tsc_diagnostics::gen::Index_signature_in_type_0_only_permits_reading,
@@ -4148,8 +4146,8 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        let index_display = self.type_to_string_slice(index_type)?;
-        let object_display = self.type_to_string_slice(object_type)?;
+        let index_display = self.type_to_string(index_type)?;
+        let object_display = self.type_to_string(object_type)?;
         self.error_at_js(
             Some(access_node),
             &tsc_diagnostics::gen::Type_0_cannot_be_used_to_index_type_1,
@@ -4383,7 +4381,7 @@ impl<'a> CheckerState<'a> {
             return Ok(true);
         }
         if flags.intersects(SymbolFlags::TYPE) {
-            let ty = self.get_declared_type_of_symbol_slice(symbol)?;
+            let ty = self.get_declared_type_of_symbol(symbol)?;
             return Ok(self
                 .get_applicable_index_info_for_name_info(ty, property_name)?
                 .is_some());

@@ -811,7 +811,6 @@ impl<'a> CheckerState<'a> {
                     outer
                 };
                 self.links.set_node_outer_type_parameters(
-                    self.speculation_depth,
                     declaration,
                     filtered.clone().into_boxed_slice(),
                 );
@@ -2883,8 +2882,7 @@ impl<'a> CheckerState<'a> {
         }
         if self.type_parameter_defaults_in_progress.contains(&tp) {
             let circular = self.circular_constraint_type;
-            self.links
-                .set_type_parameter_default(self.speculation_depth, tp, circular);
+            self.links.set_type_parameter_default(tp, circular);
             return Ok(circular);
         }
         if let Some(target) = self.links.read_ty(tp, |links| links.type_parameter_target) {
@@ -2893,8 +2891,7 @@ impl<'a> CheckerState<'a> {
             // type variables, so this is the identity for them.
             let mapper = self.links.read_ty(tp, |links| links.type_parameter_mapper);
             let default = self.instantiate_type(target_default, mapper)?;
-            self.links
-                .set_type_parameter_default(self.speculation_depth, tp, default);
+            self.links.set_type_parameter_default(tp, default);
             return Ok(default);
         }
         self.type_parameter_defaults_in_progress.push(tp);
@@ -2927,8 +2924,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(stamped);
         }
-        self.links
-            .set_type_parameter_default(self.speculation_depth, tp, default_type);
+        self.links.set_type_parameter_default(tp, default_type);
         Ok(default_type)
     }
 

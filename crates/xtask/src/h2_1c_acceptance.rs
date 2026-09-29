@@ -9,8 +9,8 @@ use base64::Engine;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use tsc_compiler::{
-    EmitArtifact, EmitFailure, EmitIoError, EmitWriteDisposition, H2RuntimeSlice, MemoryOutputSink,
-    OutputSink, ProgramSession,
+    EmitArtifact, EmitFailure, EmitIoError, EmitWriteDisposition, MemoryOutputSink, OutputSink,
+    ProgramSession,
 };
 use tsc_diagnostics::{Diagnostic, DiagnosticCategory, MessageChain};
 use tsc_harness::upstream_suites::execution::load_qualified_compiler_emit;
@@ -298,45 +298,6 @@ fn execute_observed(workspace: &Path, case: &Value) -> Result<(usize, usize), Bo
         )));
     }
     assert_exact_writes(case_id, array(expected, "writes")?, &first_sink)?;
-    let activity = first.h2_activity();
-    let reached_sources = case["files"]
-        .as_array()
-        .map(|files| {
-            files
-                .iter()
-                .filter(|file| file["emit_eligible"] == true)
-                .count() as u64
-        })
-        .unwrap_or(0);
-    // AMD/UMD select transformModule directly. They do not construct the
-    // implied-node-format composite counted by H2.1a.
-    if activity.runtime_slice(H2RuntimeSlice::H2_1a) != 0 {
-        return Err(failure(format!(
-            "{case_id}: direct AMD/UMD dispatch reached the H2.1a implied-format composite"
-        )));
-    }
-    if activity.runtime_slice(H2RuntimeSlice::H2_1b) != reached_sources {
-        return Err(failure(format!(
-            "{case_id}: H2.1b activity does not match {reached_sources} reached sources"
-        )));
-    }
-    if activity.runtime_slice(H2RuntimeSlice::H2_1c) != reached_sources {
-        return Err(failure(format!(
-            "{case_id}: H2.1c activity does not match {reached_sources} reached sources"
-        )));
-    }
-    for slice in H2RuntimeSlice::ALL {
-        if !matches!(
-            slice,
-            H2RuntimeSlice::H2_1a | H2RuntimeSlice::H2_1b | H2RuntimeSlice::H2_1c
-        ) && activity.runtime_slice(slice) != 0
-        {
-            return Err(failure(format!(
-                "{case_id}: unadmitted {} activity",
-                slice.name()
-            )));
-        }
-    }
     Ok((first_sink.writes().len(), first_reported.len()))
 }
 

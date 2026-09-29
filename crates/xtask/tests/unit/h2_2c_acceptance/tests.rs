@@ -132,36 +132,6 @@ fn h2_6c_no_emit_on_error_early_diagnostics_retain_legacy_activity() {
     };
     assert!(!result.deferred);
     assert!(result.divergence.is_exact());
-    assert_eq!(result.h2_7b_activity, 0);
-}
-
-#[test]
-fn h2_5g_transform_activity_uses_complete_unique_write_provenance() {
-    let multi_output = serde_json::json!({
-        "writes": [
-            { "source_files": ["/.src/a.ts"] },
-            { "source_files": ["/.src/a.ts"] },
-            { "source_files": ["/.src/a.ts", "/.src/b.ts"] }
-        ]
-    });
-    assert_eq!(
-        super::transform_source_paths(&multi_output)
-            .expect("complete write provenance")
-            .into_iter()
-            .collect::<Vec<_>>(),
-        ["/.src/a.ts", "/.src/b.ts"],
-    );
-
-    let no_writes = serde_json::json!({ "writes": [] });
-    assert!(super::transform_source_paths(&no_writes)
-        .expect("noEmit/noEmitOnError has complete empty provenance")
-        .is_empty());
-
-    let missing_provenance = serde_json::json!({ "writes": [{}] });
-    assert!(
-        super::transform_source_paths(&missing_provenance).is_err(),
-        "a write without source_files must not broaden transformer activity"
-    );
 }
 
 #[test]
@@ -299,90 +269,6 @@ fn h2_5g_duplicate_output_block_routes_sources_without_transforming_them() {
             .unwrap_or_else(|error| panic!("{CASE_ID}: {error}")),
         (0, 1),
     );
-}
-
-#[test]
-fn h2_5g_activity_projection_uses_prepared_typed_sources_and_global_module_route() {
-    let workspace = workspace();
-    let artifact: serde_json::Value = serde_json::from_slice(
-        &fs::read(workspace.join(super::H2_5G_QUALIFICATION_RELATIVE_PATH))
-            .expect("read H2.5g qualification"),
-    )
-    .expect("parse H2.5g qualification");
-    let cases = artifact["cases"].as_array().expect("H2.5g cases");
-    let inputs = super::H2_5gExecutionInputs::load(&workspace).expect("load H2.5g inputs");
-
-    for (index, expected_routed_sources, expected_jsx_sources, expected_automatic_jsx_sources) in [
-        (2691, 1, 1, 1),
-        (2693, 1, 1, 1),
-        (2703, 5, 4, 2),
-        (2704, 5, 4, 2),
-        (2705, 5, 4, 2),
-        (2706, 5, 4, 2),
-    ] {
-        let case = &cases[index];
-        let case_id = super::string(case, "case_id").expect("case id");
-        let observation =
-            super::compact_typescript_observation(case).expect("compact TypeScript observation");
-        let transform_sources =
-            super::transform_source_paths(observation).expect("transform source provenance");
-        let program = inputs
-            .prepare(&workspace, case)
-            .unwrap_or_else(|error| panic!("{case_id}: prepare failed: {error}"));
-        let activity = super::expected_typed_activity(&program, &transform_sources);
-        assert_eq!(
-            activity.automatic_jsx_sources, expected_automatic_jsx_sources,
-            "{case_id}"
-        );
-        assert_eq!(
-            activity.routed_sources, expected_routed_sources,
-            "{case_id}"
-        );
-        assert_eq!(activity.jsx_sources, expected_jsx_sources, "{case_id}");
-        assert_eq!(activity.javascript_sources, 0, "{case_id}");
-        assert_eq!(activity.json_sources, 0, "{case_id}");
-    }
-
-    let decorator_case = &cases[5167];
-    let decorator_observation = super::compact_typescript_observation(decorator_case)
-        .expect("decorator TypeScript observation");
-    let decorator_transform_sources = super::transform_source_paths(decorator_observation)
-        .expect("decorator transform source provenance");
-    let decorator_program = inputs
-        .prepare(&workspace, decorator_case)
-        .expect("prepare decorator recovery case");
-    let decorator_activity =
-        super::expected_typed_activity(&decorator_program, &decorator_transform_sources);
-    assert_eq!(decorator_activity.decorator_sources, 1);
-    assert_eq!(decorator_activity.h2_4a_sources, 1);
-    assert_eq!(decorator_activity.h2_4b_sources, 1);
-    assert!(decorator_case["files"]
-        .as_array()
-        .expect("decorator files")
-        .iter()
-        .all(|file| file["feature_roots"]
-            .as_array()
-            .is_none_or(|roots| { roots.iter().all(|root| root["feature"] != "decorators") })));
-
-    for index in [7323, 7325] {
-        let case = &cases[index];
-        let case_id = super::string(case, "case_id").expect("case id");
-        let observation =
-            super::compact_typescript_observation(case).expect("compact TypeScript observation");
-        let transform_sources =
-            super::transform_source_paths(observation).expect("transform source provenance");
-        let program = inputs
-            .prepare(&workspace, case)
-            .unwrap_or_else(|error| panic!("{case_id}: prepare failed: {error}"));
-        let activity = super::expected_typed_activity(&program, &transform_sources);
-        assert_eq!(activity.transformed_sources, 3, "{case_id}");
-        assert_eq!(activity.preserve_sources, 3, "{case_id}");
-        assert_eq!(activity.node_format_sources, 2, "{case_id}");
-        assert_eq!(activity.h2_1a_sources, 0, "{case_id}");
-        assert_eq!(activity.h2_1b_sources, 0, "{case_id}");
-        assert_eq!(activity.h2_1c_sources, 0, "{case_id}");
-        assert_eq!(activity.h2_1d_sources, 0, "{case_id}");
-    }
 }
 
 #[test]

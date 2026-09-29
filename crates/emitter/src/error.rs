@@ -6,7 +6,7 @@ use tsc_program::SourceFileId;
 
 use crate::{PrinterError, TransformError};
 
-/// Dormant request axis that the bounded H1 bootstrap cannot execute.
+/// An emit request axis that this emitter does not implement.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum UnsupportedEmitFeature {
     TargetedSelection,
@@ -18,10 +18,7 @@ pub enum UnsupportedEmitFeature {
     DeclarationMap,
     BuildInfo,
     DeclarationOnlyMode,
-    BuilderSignatureMode,
-    BuildInfoOnlyMode,
     StandaloneNodePrinting,
-    NodeListPrinting,
 }
 
 impl UnsupportedEmitFeature {
@@ -36,30 +33,7 @@ impl UnsupportedEmitFeature {
             Self::DeclarationMap => "declaration map",
             Self::BuildInfo => "build info",
             Self::DeclarationOnlyMode => "declaration-only mode",
-            Self::BuilderSignatureMode => "builder-signature mode",
-            Self::BuildInfoOnlyMode => "build-info-only mode",
             Self::StandaloneNodePrinting => "standalone-node printing",
-            Self::NodeListPrinting => "node-list printing",
-        }
-    }
-}
-
-/// Named orchestration stage retained for future requests that reach an
-/// unconnected pipeline axis. The H1.4 bootstrap path itself reaches
-/// transform/print and output planning.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum EmitStage {
-    TransformAndPrint,
-    OutputPlanning,
-    FilesystemSink,
-}
-
-impl EmitStage {
-    pub const fn name(self) -> &'static str {
-        match self {
-            Self::TransformAndPrint => "transform and print",
-            Self::OutputPlanning => "output planning",
-            Self::FilesystemSink => "filesystem sink",
         }
     }
 }
@@ -89,7 +63,6 @@ pub enum EmitFailure {
     UnsupportedCompilerOption { option: &'static str },
     UnsupportedSourceExtension { path: JsString },
     MalformedSourceMapUrl { path: JsString },
-    StageUnavailable(EmitStage),
     Contract(EmitContractViolation),
     Transform(Box<TransformError>),
     Printer(Box<PrinterError>),
@@ -110,13 +83,6 @@ impl fmt::Display for EmitFailure {
                 path.to_string_lossy()
             ),
             Self::MalformedSourceMapUrl { .. } => formatter.write_str("URI malformed"),
-            Self::StageUnavailable(stage) => {
-                write!(
-                    formatter,
-                    "emit stage is not implemented yet: {}",
-                    stage.name()
-                )
-            }
             Self::Contract(EmitContractViolation::ScriptOutputMissingJavaScriptPath) => {
                 formatter.write_str("invalid emit plan: script output has no JavaScript path")
             }

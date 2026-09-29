@@ -2717,7 +2717,6 @@ impl<'a> BinderWorker<'a> {
     // ---- the walk spine ----
 
     /// tsc bindEach (42834). Consumed by the stage-3.5 flow binders.
-    #[allow(dead_code)]
     fn bind_each(&mut self, nodes: Option<NodeArrayId>) {
         let Some(nodes) = nodes else { return };
         let nodes = self.source.arena.node_array(nodes).nodes.clone();

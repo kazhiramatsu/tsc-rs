@@ -19,7 +19,6 @@ pub(crate) enum DiagnosticContext {
     ForNodeName(TransformNode),
     JsFile(TransformSourceId),
     DefaultExport(TransformNode),
-    ClassExtends { class: TransformNode },
 }
 
 #[derive(Clone, Copy)]
@@ -113,19 +112,6 @@ impl DiagnosticContext {
                 error_node: TrackerAnchor::Transform(node),
                 type_name: None,
             })),
-            Self::ClassExtends { class } => {
-                let source = arena.source(class.source())?.syntax();
-                let name = name_of_declaration(source, class.node());
-                Ok(DiagnosticContextPlan::Template(DiagnosticTemplate {
-                    message: MessageChoice::Fixed(
-                        &d::extends_clause_of_exported_class_0_has_or_is_using_private_name_1,
-                    ),
-                    error_node: TrackerAnchor::Transform(class),
-                    type_name: name.map(|name| {
-                        TrackerAnchor::Transform(TransformNode::new(class.source(), name))
-                    }),
-                }))
-            }
         }
     }
 }

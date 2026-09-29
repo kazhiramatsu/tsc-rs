@@ -1189,7 +1189,7 @@ impl<'a> CheckerState<'a> {
             &tsc_diagnostics::gen::Type_0_is_not_assignable_to_type_1,
         )? && self.has_empty_object_intersection(right_type)?
         {
-            let display = self.type_to_string_slice(right_type)?;
+            let display = self.type_to_string(right_type)?;
             self.error_at_js(
                 Some(right),
                 &tsc_diagnostics::gen::Type_0_may_represent_a_primitive_value_which_is_not_permitted_as_the_right_operand_of_the_in_operator,
@@ -1974,8 +1974,8 @@ impl<'a> CheckerState<'a> {
         left: TypeId,
         right: TypeId,
     ) -> CheckResult<(tsc_types::JsString, tsc_types::JsString)> {
-        let left_str = self.type_to_string_slice_with_error_enclosing(left)?;
-        let right_str = self.type_to_string_slice_with_error_enclosing(right)?;
+        let left_str = self.type_to_string_with_error_enclosing(left)?;
+        let right_str = self.type_to_string_with_error_enclosing(right)?;
         if left_str == right_str {
             return Ok((
                 self.get_type_name_for_error_display(left)?,
@@ -2866,7 +2866,7 @@ impl<'a> CheckerState<'a> {
             Some(expr_type)
         };
         if let Some(error_type) = error_type {
-            let display = self.type_to_string_slice(error_type)?;
+            let display = self.type_to_string(error_type)?;
             self.error_at_node_array_range(
                 node,
                 type_arguments,
@@ -3583,7 +3583,7 @@ impl<'a> CheckerState<'a> {
                         TypeFlags::BIG_INT_LIKE,
                     )? {
                         let base = self.get_base_type_of_literal_type(operand_type)?;
-                        let display = self.type_to_string_slice(base)?;
+                        let display = self.type_to_string(base)?;
                         self.error_at_js(
                             Some(operand),
                             &tsc_diagnostics::gen::Operator_0_cannot_be_applied_to_type_1,
@@ -4749,14 +4749,12 @@ impl<'a> CheckerState<'a> {
             self.awaited_type_stack.pop();
             let mapped = mapped?;
             if let Some(mapped) = mapped {
-                self.links
-                    .set_type_awaited_type_of_type(self.speculation_depth, ty, mapped);
+                self.links.set_type_awaited_type_of_type(ty, mapped);
             }
             return Ok(mapped);
         }
         if self.is_awaited_type_needed(ty)? {
-            self.links
-                .set_type_awaited_type_of_type(self.speculation_depth, ty, ty);
+            self.links.set_type_awaited_type_of_type(ty, ty);
             return Ok(Some(ty));
         }
         let (promised, this_type_for_error) =
@@ -4779,8 +4777,7 @@ impl<'a> CheckerState<'a> {
             let Some(awaited) = awaited else {
                 return Ok(None);
             };
-            self.links
-                .set_type_awaited_type_of_type(self.speculation_depth, ty, awaited);
+            self.links.set_type_awaited_type_of_type(ty, awaited);
             return Ok(Some(awaited));
         }
         if self.is_thenable_type(ty)? {
@@ -4790,8 +4787,8 @@ impl<'a> CheckerState<'a> {
                 // 2684 detail, then prepends the caller's head.
                 let detail = match this_type_for_error {
                     Some(this_type) => {
-                        let type_text = self.type_to_string_slice(ty)?;
-                        let this_text = self.type_to_string_slice(this_type)?;
+                        let type_text = self.type_to_string(ty)?;
+                        let this_text = self.type_to_string(this_type)?;
                         vec![tsc_diagnostics::MessageChain::new_js(
                             &tsc_diagnostics::gen::The_this_context_of_type_0_is_not_assignable_to_method_s_this_of_type_1,
                             &[(type_text), (this_text)],
@@ -4806,8 +4803,7 @@ impl<'a> CheckerState<'a> {
             }
             return Ok(None);
         }
-        self.links
-            .set_type_awaited_type_of_type(self.speculation_depth, ty, ty);
+        self.links.set_type_awaited_type_of_type(ty, ty);
         Ok(Some(ty))
     }
 

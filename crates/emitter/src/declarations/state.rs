@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::mem;
 
 use tsc_syntax::{FileReference, NodeId, TypeReferenceDirective};
 
@@ -50,47 +49,6 @@ impl TransformState {
             current_source_file: source,
             references: RawFileReferences::default(),
         }
-    }
-
-    /// tsrs-native: owned enclosingDeclaration frame; restoration precedes
-    /// Result propagation and never relies on Drop.
-    pub(crate) fn with_enclosing_declaration<R>(
-        &mut self,
-        value: Option<TransformNode>,
-        body: impl FnOnce(&mut Self) -> Result<R, TransformError>,
-    ) -> Result<R, TransformError> {
-        let saved = mem::replace(&mut self.enclosing_declaration, value);
-        let result = body(self);
-        self.enclosing_declaration = saved;
-        result
-    }
-
-    /// tsrs-native: owned needsDeclare frame; restoration precedes Result
-    /// propagation and never relies on Drop.
-    pub(crate) fn with_needs_declare<R>(
-        &mut self,
-        value: bool,
-        body: impl FnOnce(&mut Self) -> Result<R, TransformError>,
-    ) -> Result<R, TransformError> {
-        let saved = mem::replace(&mut self.needs_declare, value);
-        let result = body(self);
-        self.needs_declare = saved;
-        result
-    }
-
-    /// tsrs-native: owned ModuleBlock scope-marker frame.
-    pub(crate) fn with_scope_markers<R>(
-        &mut self,
-        needs_scope_fix_marker: bool,
-        result_has_scope_marker: bool,
-        body: impl FnOnce(&mut Self) -> Result<R, TransformError>,
-    ) -> Result<R, TransformError> {
-        let saved_needs = mem::replace(&mut self.needs_scope_fix_marker, needs_scope_fix_marker);
-        let saved_result = mem::replace(&mut self.result_has_scope_marker, result_has_scope_marker);
-        let result = body(self);
-        self.needs_scope_fix_marker = saved_needs;
-        self.result_has_scope_marker = saved_result;
-        result
     }
 }
 

@@ -252,22 +252,6 @@ impl SyntacticBuilderResolver for TestResolver {
         Ok(false)
     }
 
-    fn is_entity_name_visible(
-        &mut self,
-        _arena: &mut tsc_emitter::TransformArena,
-        _context: &mut NodeBuilderContext<'_>,
-        _entity_name: TransformNode,
-        _should_compute_aliases_to_make_visible: bool,
-    ) -> Result<EmitSymbolAccessibilityResult, EmitResolverError> {
-        Ok(EmitSymbolAccessibilityResult {
-            accessibility: EmitSymbolAccessibility::Accessible,
-            aliases_to_make_visible: None,
-            error_symbol_name: None,
-            error_module_name: None,
-            error_node: None,
-        })
-    }
-
     fn serialize_existing_type_node(
         &mut self,
         arena: &mut TransformArena,
@@ -355,16 +339,6 @@ impl SyntacticBuilderResolver for TestResolver {
                 method: EmitResolverMethod::CreateTypeOfDeclaration,
                 error: Box::new(error),
             })
-    }
-
-    fn serialize_entity_name(
-        &mut self,
-        _arena: &mut TransformArena,
-        _target: TransformSourceId,
-        _context: &mut NodeBuilderContext<'_>,
-        node: TransformNode,
-    ) -> Result<Option<TransformNode>, EmitResolverError> {
-        Ok(Some(node))
     }
 
     fn serialize_type_name(

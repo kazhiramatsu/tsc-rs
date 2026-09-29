@@ -450,7 +450,7 @@ impl<'a> CheckerState<'a> {
     /// computed names (`__@...`) deliberately keep the declaration's
     /// written `[expression]` face. Quoted and non-canonical numeric
     /// declaration names likewise retain their exact source spelling.
-    pub(crate) fn symbol_name_as_written_slice(&self, symbol: SymbolId) -> JsString {
+    pub(crate) fn symbol_name_as_written(&self, symbol: SymbolId) -> JsString {
         for &declaration in &self.binder.symbol(symbol).declarations {
             let source = self.binder.source_of_node(declaration);
             let Some(name_node) = get_name_of_declaration(source, declaration) else {
@@ -507,7 +507,7 @@ impl<'a> CheckerState<'a> {
         // getNameOfSymbolAsWritten (_tsc.js:55586-55588): a symbol without a
         // named declaration (a mapped-type or otherwise synthesized property)
         // renders its nameType face before falling back to symbolName.
-        if let Some(name) = self.symbol_name_from_name_type_slice(symbol, false, false, None) {
+        if let Some(name) = self.symbol_name_from_name_type(symbol, false, false, None) {
             return name;
         }
         self.symbol_name(symbol)
@@ -567,7 +567,7 @@ impl<'a> CheckerState<'a> {
         // declaration-backed symbols. In particular, a late-bound
         // computed class member that collides with the synthetic
         // `prototype` export keeps its written `[expr]` spelling.
-        let symbol_name = self.symbol_name_as_written_slice(source);
+        let symbol_name = self.symbol_name_as_written(source);
         match (source_file, target_file) {
             // 47764: the defer arm requires the amalgamated map to be
             // LIVE — after the post-augmentation flush it is None and

@@ -351,7 +351,7 @@ fn h2_7d_bundle_module_filter_requires_authoritative_source_syntax() {
         .ids
         .iter()
         .copied()
-        .filter(|&id| source_file_may_be_emitted_for_host(host.source_file(id).unwrap(), &host))
+        .filter(|&id| source_file_may_be_emitted(host.source_file(id).unwrap(), &host))
         .collect::<Vec<_>>();
     assert_eq!(eligible, expected);
     assert_eq!(
@@ -394,7 +394,7 @@ fn h2_7d_common_directory_eligibility_includes_excluded_modules_without_syntax()
         .ids
         .iter()
         .copied()
-        .filter(|&id| source_file_may_be_emitted_for_host(host.source_file(id).unwrap(), &host))
+        .filter(|&id| source_file_may_be_emitted(host.source_file(id).unwrap(), &host))
         .collect::<Vec<_>>();
     assert_eq!(eligible.len(), 3);
     assert!(eligible
@@ -432,49 +432,9 @@ fn h2_7d_retained_module_facts_plan_without_borrowing_checked_syntax() {
 }
 
 #[test]
-fn bundle_shape_is_valid_but_older_profiles_still_reject_emit_requests() {
+fn bundle_plan_has_a_supported_shape() {
     let cases = cases();
     let host = Host::from_case(&cases[0]);
     let preflight = preflight_emit(&host, EmitSelection::WholeProgram).unwrap();
-    assert_eq!(preflight.plan().validate_bootstrap_shape(), Ok(()));
-    let mut sink = crate::MemoryOutputSink::new();
-    let mut activity = crate::H2ActivityCanary::h2_7c_profile();
-    let before = activity.counters();
-    let denied = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        crate::emit_files_with_activity(
-            &crate::UnavailableEmitResolver,
-            &host,
-            preflight,
-            EmitSelection::WholeProgram,
-            &crate::EmitDiagnosticGate::default(),
-            &mut sink,
-            &mut activity,
-        )
-    }))
-    .expect_err("ordinary Bundle request needs H2.7d admission");
-    assert!(denied
-        .downcast_ref::<String>()
-        .unwrap()
-        .contains("unadmitted H2 runtime activity: H2.7d"));
-    assert!(sink.writes().is_empty());
-    assert_eq!(activity.counters(), before);
-    let denied = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        crate::emit_forced_declarations_with_activity(
-            &crate::UnavailableEmitResolver,
-            &host,
-            EmitSelection::WholeProgram,
-            &mut sink,
-            &mut activity,
-        )
-    }))
-    .expect_err("forced Bundle request needs H2.7d admission");
-    assert!(denied
-        .downcast_ref::<String>()
-        .unwrap()
-        .contains("unadmitted H2 runtime activity: H2.7d"));
-    assert!(sink.writes().is_empty());
-    // The forced API first admits its C request, then rejects the D boundary.
-    let mut expected = crate::H2ActivityCanary::h2_7c_profile();
-    expected.observe_runtime_slice(crate::H2RuntimeSlice::H2_7c);
-    assert_eq!(activity.counters(), expected.counters());
+    assert_eq!(preflight.plan().validate_supported_shape(), Ok(()));
 }

@@ -1165,8 +1165,6 @@ impl LinksTables {
                 cache_key.clone(),
                 previous,
             ));
-        } else if speculation_depth == 0 {
-            Self::assert_writable(speculation_depth);
         }
         self.alias_instantiations.insert(cache_key, value);
     }
@@ -1193,8 +1191,6 @@ impl LinksTables {
                 cache_key.clone(),
                 previous,
             ));
-        } else if speculation_depth == 0 {
-            Self::assert_writable(speculation_depth);
         }
         self.conditional_instantiations.insert(cache_key, value);
     }
@@ -1209,36 +1205,6 @@ impl LinksTables {
         value: TypeId,
     ) {
         self.conditional_instantiations.insert((root, key), value);
-    }
-
-    /// `TSC_RS_SPECULATION_WRITES=warn` turns the guard into one stderr
-    /// line per writer site (a development aid for classifying the sites a
-    /// real program reaches in one run); the default stays fail-closed.
-    #[track_caller]
-    fn assert_writable(speculation_depth: u32) {
-        if speculation_depth == 0 {
-            return;
-        }
-        static WARN: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-        if *WARN.get_or_init(|| {
-            std::env::var_os("TSC_RS_SPECULATION_WRITES").is_some_and(|v| v == "warn")
-        }) {
-            static SEEN: std::sync::Mutex<Vec<(&'static str, u32)>> =
-                std::sync::Mutex::new(Vec::new());
-            let caller = std::panic::Location::caller();
-            let site = (caller.file(), caller.line());
-            let mut seen = SEEN.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-            if !seen.contains(&site) {
-                seen.push(site);
-                eprintln!(
-                    "tsc-rs: links write during speculation (depth {speculation_depth}) at {}:{}",
-                    site.0, site.1
-                );
-            }
-        }
-        // A candidate trial's completed writes persist (tsc keeps every
-        // link a candidate resolved); the journals below unwind only the
-        // sentinels a trial left in progress.
     }
 
     fn write_slot<T: Clone + std::fmt::Debug>(slot: &mut LinkSlot<T>, next: LinkSlot<T>) {
@@ -1276,7 +1242,6 @@ impl LinksTables {
 
     fn journal_node_resolution(&mut self, speculation_depth: u32, id: NodeId) {
         if speculation_depth == 0 {
-            Self::assert_writable(speculation_depth);
             return;
         }
         if self
@@ -1313,7 +1278,6 @@ impl LinksTables {
         kind: SpeculativeTypeInstantiationKind,
     ) {
         if speculation_depth == 0 {
-            Self::assert_writable(speculation_depth);
             return;
         }
         if self
@@ -1348,7 +1312,6 @@ impl LinksTables {
 
     fn journal_conditional_cache(&mut self, speculation_depth: u32, id: TypeId) {
         if speculation_depth == 0 {
-            Self::assert_writable(speculation_depth);
             return;
         }
         if self
@@ -1383,7 +1346,6 @@ impl LinksTables {
         disposition: SpeculativeSymbolTypeDisposition,
     ) {
         if speculation_depth == 0 {
-            Self::assert_writable(speculation_depth);
             return;
         }
         if let Some(existing) = self
@@ -1412,7 +1374,6 @@ impl LinksTables {
 
     fn journal_symbol_write_type(&mut self, speculation_depth: u32, id: SymbolId) {
         if speculation_depth == 0 {
-            Self::assert_writable(speculation_depth);
             return;
         }
         if self
@@ -1433,7 +1394,6 @@ impl LinksTables {
 
     fn journal_alias_target(&mut self, speculation_depth: u32, id: SymbolId) {
         if speculation_depth == 0 {
-            Self::assert_writable(speculation_depth);
             return;
         }
         if self
@@ -1454,7 +1414,6 @@ impl LinksTables {
 
     fn journal_type_only_alias(&mut self, speculation_depth: u32, id: SymbolId) {
         if speculation_depth == 0 {
-            Self::assert_writable(speculation_depth);
             return;
         }
         if self
@@ -1608,16 +1567,10 @@ impl LinksTables {
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
-    pub fn set_node_context_free_type(
-        &mut self,
-        speculation_depth: u32,
-        id: NodeId,
-        value: LinkSlot<TypeId>,
-    ) {
+    pub fn set_node_context_free_type(&mut self, id: NodeId, value: LinkSlot<TypeId>) {
         // A context-free expression type is a reproducible lazy memo.
         // Its callers retain and return the computed type, so rejected
         // candidates need not publish it to the shared node.
-        Self::assert_writable(speculation_depth);
         Self::write_slot(&mut self.node.slot(id).context_free_type, value);
     }
 
@@ -1625,18 +1578,12 @@ impl LinksTables {
     /// `links.parameterInitializerContainsUndefined ??= ...` (71615) —
     /// a compute-once ?? write (the caller checks is_none first, like
     /// tsc's ??=).
-    pub fn set_node_parameter_initializer_contains_undefined(
-        &mut self,
-        speculation_depth: u32,
-        id: NodeId,
-        value: bool,
-    ) {
+    pub fn set_node_parameter_initializer_contains_undefined(&mut self, id: NodeId, value: bool) {
         // The value is derived from checking the initializer and therefore
         // belongs to the candidate transaction when overload resolution is
         // speculative.  Do not publish it from that path; the caller keeps
         // the computed result for the current check and the committed path
         // will populate the cache if it is still needed.
-        Self::assert_writable(speculation_depth);
         self.node.slot(id).parameter_initializer_contains_undefined = Some(value);
     }
 
@@ -1645,13 +1592,7 @@ impl LinksTables {
     /// meaningful values).
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
-    pub fn set_node_spread_indices(
-        &mut self,
-        speculation_depth: u32,
-        id: NodeId,
-        value: (Option<u32>, Option<u32>),
-    ) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_node_spread_indices(&mut self, id: NodeId, value: (Option<u32>, Option<u32>)) {
         let links = self.node.slot(id).cold_mut();
         if links.spread_indices.is_none() {
             links.spread_indices = Some(value);
@@ -1662,13 +1603,7 @@ impl LinksTables {
     /// accumulating flags word; re-entry ORs the same bits.
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
-    pub fn add_node_jsx_flags(
-        &mut self,
-        speculation_depth: u32,
-        id: NodeId,
-        value: tsc_types::JsxFlags,
-    ) {
-        Self::assert_writable(speculation_depth);
+    pub fn add_node_jsx_flags(&mut self, id: NodeId, value: tsc_types::JsxFlags) {
         self.node.slot(id).jsx_flags |= value;
     }
 
@@ -1676,13 +1611,7 @@ impl LinksTables {
     /// compute-once; a rewrite is a protocol bug.
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
-    pub fn set_node_resolved_jsx_element_attributes_type(
-        &mut self,
-        speculation_depth: u32,
-        id: NodeId,
-        value: TypeId,
-    ) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_node_resolved_jsx_element_attributes_type(&mut self, id: NodeId, value: TypeId) {
         let slot = &mut self
             .node
             .slot(id)
@@ -1737,8 +1666,6 @@ impl LinksTables {
                 .unwrap_or_default();
             self.speculative_declaration_signature_writes
                 .push((speculation_depth, id, previous));
-        } else if speculation_depth == 0 {
-            Self::assert_writable(speculation_depth);
         }
         Self::write_slot(&mut self.node.slot(id).resolved_signature, value);
     }
@@ -1780,8 +1707,6 @@ impl LinksTables {
                 .unwrap_or_default();
             self.speculative_resolved_signature_writes
                 .push((speculation_depth, id, previous));
-        } else if speculation_depth == 0 {
-            Self::assert_writable(speculation_depth);
         }
         let slot = &mut self.node.slot(id).resolved_signature;
         match (&*slot, &value) {
@@ -2368,8 +2293,6 @@ impl LinksTables {
                 .unwrap_or_default();
             self.speculative_symbol_variance_writes
                 .push((speculation_depth, id, previous));
-        } else if speculation_depth == 0 {
-            Self::assert_writable(speculation_depth);
         }
         Self::write_slot(&mut self.symbol.slot(id).cold_mut().variances, value);
     }
@@ -2424,9 +2347,6 @@ impl LinksTables {
         {
             return;
         }
-        if speculation_depth == 0 {
-            Self::assert_writable(speculation_depth);
-        }
         let links = self.node.slot(id);
         links.check_flags =
             tsc_types::NodeCheckFlags::from_bits(links.check_flags.bits() | bits.bits());
@@ -2465,13 +2385,7 @@ impl LinksTables {
     /// and only the authoritative pass publishes.
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
-    pub fn push_captured_block_scope_binding(
-        &mut self,
-        speculation_depth: u32,
-        id: NodeId,
-        symbol: SymbolId,
-    ) {
-        Self::assert_writable(speculation_depth);
+    pub fn push_captured_block_scope_binding(&mut self, id: NodeId, symbol: SymbolId) {
         let bindings = &mut self.node.slot(id).cold_mut().captured_block_scope_bindings;
         if !bindings.contains(&symbol) {
             bindings.push(symbol);
@@ -2519,12 +2433,7 @@ impl LinksTables {
     /// set only when the grammar error actually emitted.
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
-    pub fn set_node_has_reported_statement_in_ambient_context(
-        &mut self,
-        speculation_depth: u32,
-        id: NodeId,
-    ) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_node_has_reported_statement_in_ambient_context(&mut self, id: NodeId) {
         self.node.slot(id).has_reported_statement_in_ambient_context = true;
     }
 
@@ -2565,8 +2474,6 @@ impl LinksTables {
                 .and_then(|links| links.cold()?.decorator_signature);
             self.speculative_decorator_signature_writes
                 .push((speculation_depth, id, previous));
-        } else if speculation_depth == 0 {
-            Self::assert_writable(speculation_depth);
         }
         self.node.slot(id).cold_mut().decorator_signature = value;
     }
@@ -2603,8 +2510,6 @@ impl LinksTables {
                 .is_some_and(|links| links.enum_values_computed);
             self.speculative_enum_values_computed_writes
                 .push((speculation_depth, id, previous));
-        } else if speculation_depth == 0 {
-            Self::assert_writable(speculation_depth);
         }
         self.node.slot(id).enum_values_computed = true;
     }
@@ -2628,8 +2533,7 @@ impl LinksTables {
     /// checkTypeParameterListsIdentical's once-latch (84877). Like
     /// tsc, set BEFORE the identity walk runs — re-entry through the
     /// declared-type forcing sees the latch and skips.
-    pub fn set_symbol_type_parameters_checked(&mut self, speculation_depth: u32, id: SymbolId) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_symbol_type_parameters_checked(&mut self, id: SymbolId) {
         self.symbol.slot(id).cold_mut().type_parameters_checked = true;
     }
 
@@ -2654,8 +2558,6 @@ impl LinksTables {
                 .unwrap_or_default();
             self.speculative_symbol_declared_type_writes
                 .push((speculation_depth, id, previous));
-        } else if speculation_depth == 0 {
-            Self::assert_writable(speculation_depth);
         }
         Self::write_slot(&mut self.symbol.slot(id).declared_type, value);
     }
@@ -2829,13 +2731,7 @@ impl LinksTables {
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
-    pub fn set_symbol_is_discriminant(
-        &mut self,
-        speculation_depth: u32,
-        id: SymbolId,
-        value: bool,
-    ) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_symbol_is_discriminant(&mut self, id: SymbolId, value: bool) {
         self.symbol.slot(id).cold_mut().is_discriminant_property = Some(value);
     }
 
@@ -2844,13 +2740,7 @@ impl LinksTables {
     /// (isSymbolOfDeclarationWithCollidingName 87936/87949/87951). The
     /// verdict reads bound names and published check flags; the emit
     /// resolver computes it outside any speculative context.
-    pub fn set_symbol_is_declaration_with_colliding_name(
-        &mut self,
-        speculation_depth: u32,
-        id: SymbolId,
-        value: bool,
-    ) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_symbol_is_declaration_with_colliding_name(&mut self, id: SymbolId, value: bool) {
         self.symbol
             .slot(id)
             .cold_mut()
@@ -2894,13 +2784,7 @@ impl LinksTables {
     /// tsrs-native: getUnionOrIntersectionProperty's propertyCache
     /// write (59252) — under the speculation assert since m4-review
     /// B10 (the payload symbol's links writes already were).
-    pub fn set_union_property(
-        &mut self,
-        speculation_depth: u32,
-        key: (TypeId, EscapedName, bool),
-        value: SymbolId,
-    ) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_union_property(&mut self, key: (TypeId, EscapedName, bool), value: SymbolId) {
         self.union_property_cache.insert(key, value);
     }
 
@@ -2926,8 +2810,6 @@ impl LinksTables {
                 .and_then(|links| links.cold().unique_es_symbol_type);
             self.speculative_unique_es_symbol_type_writes
                 .push((speculation_depth, id, previous));
-        } else if speculation_depth == 0 {
-            Self::assert_writable(speculation_depth);
         }
         self.symbol.slot(id).cold_mut().unique_es_symbol_type = Some(ty);
     }
@@ -3058,12 +2940,10 @@ impl LinksTables {
     /// (58537-58538).
     pub fn update_symbol_mapped_name_and_key(
         &mut self,
-        speculation_depth: u32,
         id: SymbolId,
         name_type: TypeId,
         key_type: TypeId,
     ) {
-        Self::assert_writable(speculation_depth);
         let links = self.symbol.slot(id);
         assert!(
             links.mapped_type.is_some(),
@@ -3137,8 +3017,7 @@ impl LinksTables {
     /// 74039) — once-per-reference like the tsc field write.
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
-    pub fn set_type_literal_type(&mut self, speculation_depth: u32, id: TypeId, literal: TypeId) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_type_literal_type(&mut self, id: TypeId, literal: TypeId) {
         let links = self.ty.slot(id);
         assert!(links.cold().literal_type.is_none(), "literalType rewritten");
         links.cold_mut().literal_type = Some(literal);
@@ -3146,13 +3025,7 @@ impl LinksTables {
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
-    pub fn set_type_promised_type_of_promise(
-        &mut self,
-        speculation_depth: u32,
-        id: TypeId,
-        promised: TypeId,
-    ) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_type_promised_type_of_promise(&mut self, id: TypeId, promised: TypeId) {
         let links = self.ty.slot(id).cold_mut();
         assert!(
             links.promised_type_of_promise.is_none(),
@@ -3163,13 +3036,7 @@ impl LinksTables {
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
-    pub fn set_type_awaited_type_of_type(
-        &mut self,
-        speculation_depth: u32,
-        id: TypeId,
-        awaited: TypeId,
-    ) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_type_awaited_type_of_type(&mut self, id: TypeId, awaited: TypeId) {
         let links = self.ty.slot(id).cold_mut();
         assert!(
             links.awaited_type_of_type.is_none(),
@@ -3252,7 +3119,6 @@ impl LinksTables {
         key: String,
     ) -> bool {
         if speculation_depth == 0 {
-            Self::assert_writable(speculation_depth);
             return self
                 .node
                 .slot(id)
@@ -3287,13 +3153,7 @@ impl LinksTables {
     /// write-twice site (see overwrite_type_reference_resolution).
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
-    pub fn set_type_resolved_properties(
-        &mut self,
-        speculation_depth: u32,
-        id: TypeId,
-        value: Box<[SymbolId]>,
-    ) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_type_resolved_properties(&mut self, id: TypeId, value: Box<[SymbolId]>) {
         let slot = &mut self.ty.slot(id).cold_mut().resolved_properties;
         if matches!(slot, LinkSlot::Resolved(_)) {
             *slot = LinkSlot::Resolved(value);
@@ -3307,13 +3167,7 @@ impl LinksTables {
     ///
     /// getSignaturesOfType's Array/ReadonlyArray union-member fallback
     /// cache (59397-59413).
-    pub fn set_type_array_fallback_signatures(
-        &mut self,
-        speculation_depth: u32,
-        id: TypeId,
-        value: Box<[SignatureId]>,
-    ) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_type_array_fallback_signatures(&mut self, id: TypeId, value: Box<[SignatureId]>) {
         Self::write_slot(
             &mut self.ty.slot(id).cold_mut().array_fallback_signatures,
             LinkSlot::Resolved(value),
@@ -3322,13 +3176,7 @@ impl LinksTables {
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
-    pub fn set_type_resolved_reduced_type(
-        &mut self,
-        speculation_depth: u32,
-        id: TypeId,
-        value: TypeId,
-    ) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_type_resolved_reduced_type(&mut self, id: TypeId, value: TypeId) {
         Self::write_slot(
             &mut self.ty.slot(id).cold_mut().resolved_reduced_type,
             LinkSlot::Resolved(value),
@@ -3337,13 +3185,7 @@ impl LinksTables {
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
-    pub fn set_type_union_key_property(
-        &mut self,
-        speculation_depth: u32,
-        id: TypeId,
-        value: UnionKeyProperty,
-    ) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_type_union_key_property(&mut self, id: TypeId, value: UnionKeyProperty) {
         Self::write_slot(
             &mut self.ty.slot(id).cold_mut().union_key_property,
             LinkSlot::Resolved(value),
@@ -3365,8 +3207,7 @@ impl LinksTables {
     /// resolvedSymbol precedent from 5.5e).
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
-    pub fn set_type_widened(&mut self, speculation_depth: u32, id: TypeId, widened: TypeId) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_type_widened(&mut self, id: TypeId, widened: TypeId) {
         let links = self.ty.slot(id).cold_mut();
         assert!(
             links.widened.is_none() || links.widened == Some(widened),
@@ -3385,7 +3226,6 @@ impl LinksTables {
     /// under the SAME async key, worker 84139-84174).
     pub fn set_type_iteration_types(
         &mut self,
-        speculation_depth: u32,
         id: TypeId,
         key: crate::iterate::IterationCacheKey,
         value: crate::iterate::IterationTypesResult,
@@ -3393,7 +3233,6 @@ impl LinksTables {
         // This is a pure, reproducible memo. Candidate-local callers
         // already carry `value`, so publishing it is unnecessary and
         // would let a rejected overload warm shared type state.
-        Self::assert_writable(speculation_depth);
         let links = self.ty.slot(id).cold_mut();
         let slot = match key {
             crate::iterate::IterationCacheKey::Iterable => &mut links.iteration_types_of_iterable,
@@ -3413,16 +3252,10 @@ impl LinksTables {
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
-    pub fn set_type_parameter_constraint(
-        &mut self,
-        speculation_depth: u32,
-        id: TypeId,
-        value: TypeId,
-    ) {
+    pub fn set_type_parameter_constraint(&mut self, id: TypeId, value: TypeId) {
         // A declared or targeted type parameter's constraint is a cold,
         // reproducible cache. Candidate checking must not publish it beyond
         // the speculation boundary.
-        Self::assert_writable(speculation_depth);
         Self::write_slot(
             &mut self.ty.slot(id).type_parameter_constraint,
             LinkSlot::Resolved(value),
@@ -3443,8 +3276,7 @@ impl LinksTables {
 
     /// tsrs-native: one-write TypeLinks setter for tsc
     /// MappedType.typeParameter.
-    pub fn set_mapped_type_parameter(&mut self, speculation_depth: u32, id: TypeId, value: TypeId) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_mapped_type_parameter(&mut self, id: TypeId, value: TypeId) {
         Self::write_slot(
             &mut self.ty.slot(id).cold_mut().mapped_type_parameter,
             LinkSlot::Resolved(value),
@@ -3462,13 +3294,7 @@ impl LinksTables {
 
     /// tsrs-native: one-write TypeLinks setter for tsc
     /// MappedType.constraintType.
-    pub fn set_mapped_constraint_type(
-        &mut self,
-        speculation_depth: u32,
-        id: TypeId,
-        value: TypeId,
-    ) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_mapped_constraint_type(&mut self, id: TypeId, value: TypeId) {
         Self::write_slot(
             &mut self.ty.slot(id).cold_mut().mapped_constraint_type,
             LinkSlot::Resolved(value),
@@ -3477,13 +3303,7 @@ impl LinksTables {
 
     /// tsrs-native: one-write TypeLinks setter for tsc
     /// MappedType.nameType; None is a resolved absence.
-    pub fn set_mapped_name_type(
-        &mut self,
-        speculation_depth: u32,
-        id: TypeId,
-        value: Option<TypeId>,
-    ) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_mapped_name_type(&mut self, id: TypeId, value: Option<TypeId>) {
         Self::write_slot(
             &mut self.ty.slot(id).cold_mut().mapped_name_type,
             LinkSlot::Resolved(value),
@@ -3492,8 +3312,7 @@ impl LinksTables {
 
     /// tsrs-native: one-write TypeLinks setter for tsc
     /// MappedType.templateType.
-    pub fn set_mapped_template_type(&mut self, speculation_depth: u32, id: TypeId, value: TypeId) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_mapped_template_type(&mut self, id: TypeId, value: TypeId) {
         Self::write_slot(
             &mut self.ty.slot(id).cold_mut().mapped_template_type,
             LinkSlot::Resolved(value),
@@ -3502,8 +3321,7 @@ impl LinksTables {
 
     /// tsrs-native: one-write TypeLinks setter for tsc
     /// MappedType.modifiersType.
-    pub fn set_mapped_modifiers_type(&mut self, speculation_depth: u32, id: TypeId, value: TypeId) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_mapped_modifiers_type(&mut self, id: TypeId, value: TypeId) {
         Self::write_slot(
             &mut self.ty.slot(id).cold_mut().mapped_modifiers_type,
             LinkSlot::Resolved(value),
@@ -3513,15 +3331,13 @@ impl LinksTables {
     /// tsrs-native: LinksTables setter for tsc
     /// `mappedType.containsError = true` on a mapped-property type
     /// resolution cycle (58581).
-    pub fn set_mapped_contains_error(&mut self, speculation_depth: u32, id: TypeId) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_mapped_contains_error(&mut self, id: TypeId) {
         self.ty.slot(id).cold_mut().mapped_contains_error = true;
     }
 
     /// tsrs-native: one-write TypeLinks setter for tsc
     /// MappedType.resolvedApparentType.
-    pub fn set_mapped_apparent_type(&mut self, speculation_depth: u32, id: TypeId, value: TypeId) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_mapped_apparent_type(&mut self, id: TypeId, value: TypeId) {
         Self::write_slot(
             &mut self.ty.slot(id).cold_mut().mapped_apparent_type,
             LinkSlot::Resolved(value),
@@ -3612,13 +3428,7 @@ impl LinksTables {
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
-    pub fn set_type_resolved_base_constraint(
-        &mut self,
-        speculation_depth: u32,
-        id: TypeId,
-        value: TypeId,
-    ) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_type_resolved_base_constraint(&mut self, id: TypeId, value: TypeId) {
         Self::write_slot(
             &mut self.ty.slot(id).resolved_base_constraint,
             LinkSlot::Resolved(value),
@@ -3627,13 +3437,7 @@ impl LinksTables {
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
-    pub fn set_type_immediate_base_constraint(
-        &mut self,
-        speculation_depth: u32,
-        id: TypeId,
-        value: TypeId,
-    ) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_type_immediate_base_constraint(&mut self, id: TypeId, value: TypeId) {
         Self::write_slot(
             &mut self.ty.slot(id).immediate_base_constraint,
             LinkSlot::Resolved(value),
@@ -3676,8 +3480,6 @@ impl LinksTables {
                 writing,
                 previous,
             ));
-        } else if speculation_depth == 0 {
-            Self::assert_writable(speculation_depth);
         }
         let links = self.ty.slot(id);
         let slot = if writing {
@@ -3823,13 +3625,7 @@ impl LinksTables {
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
-    pub fn set_node_outer_type_parameters(
-        &mut self,
-        speculation_depth: u32,
-        id: NodeId,
-        value: Box<[TypeId]>,
-    ) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_node_outer_type_parameters(&mut self, id: NodeId, value: Box<[TypeId]>) {
         Self::write_slot(
             &mut self.node.slot(id).cold_mut().outer_type_parameters,
             LinkSlot::Resolved(value),
@@ -3881,8 +3677,7 @@ impl LinksTables {
     /// makes this write-once.
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
-    pub fn set_type_synthetic_type(&mut self, speculation_depth: u32, id: TypeId, value: TypeId) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_type_synthetic_type(&mut self, id: TypeId, value: TypeId) {
         let links = self.ty.slot(id);
         assert!(
             links.cold().synthetic_type.is_none(),
@@ -3892,13 +3687,7 @@ impl LinksTables {
     }
 
     /// tsrs-native: links-table setter for tsc's type.defaultOnlyType write.
-    pub fn set_type_default_only_type(
-        &mut self,
-        speculation_depth: u32,
-        id: TypeId,
-        value: TypeId,
-    ) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_type_default_only_type(&mut self, id: TypeId, value: TypeId) {
         let links = self.ty.slot(id);
         assert!(
             links.cold().default_only_type.is_none(),
@@ -3960,11 +3749,9 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn set_symbol_resolved_members(
         &mut self,
-        speculation_depth: u32,
         id: SymbolId,
         value: Arc<tsc_binder::SymbolTable>,
     ) {
-        Self::assert_writable(speculation_depth);
         Self::write_slot(
             &mut self.symbol.slot(id).cold_mut().resolved_members,
             LinkSlot::Resolved(value),
@@ -4098,7 +3885,6 @@ impl LinksTables {
     /// accepted; a DIFFERENT table is a protocol bug.
     pub fn set_symbol_module_exports(
         &mut self,
-        speculation_depth: u32,
         id: SymbolId,
         exports: Arc<tsc_binder::SymbolTable>,
         type_only_export_star_map: Option<rustc_hash::FxHashMap<EscapedName, NodeId>>,
@@ -4106,7 +3892,6 @@ impl LinksTables {
         // The worker owns its cycle guard and returns the completed
         // table directly. A candidate may consume that table without
         // publishing it to the shared module-symbol memo.
-        Self::assert_writable(speculation_depth);
         let links = self.symbol.slot(id).cold_mut();
         match &links.resolved_exports {
             LinkSlot::Vacant | LinkSlot::Resolving => {
@@ -4124,22 +3909,15 @@ impl LinksTables {
 
     /// tsrs-native: links accessor — links.exportsChecked once-latch
     /// (checkExternalModuleExports 86445); monotone.
-    pub fn set_symbol_exports_checked(&mut self, speculation_depth: u32, id: SymbolId) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_symbol_exports_checked(&mut self, id: SymbolId) {
         self.symbol.slot(id).cold_mut().exports_checked = true;
     }
 
     /// tsrs-native: links accessor — links.immediateTarget
     /// (getImmediateAliasedSymbol 50097); compute-once.
-    pub fn set_symbol_immediate_target(
-        &mut self,
-        speculation_depth: u32,
-        id: SymbolId,
-        value: Option<SymbolId>,
-    ) {
+    pub fn set_symbol_immediate_target(&mut self, id: SymbolId, value: Option<SymbolId>) {
         // A speculative alias query may consume the freshly computed
         // immediate target, but must not publish that memo globally.
-        Self::assert_writable(speculation_depth);
         let slot = &mut self.symbol.slot(id).cold_mut().immediate_target;
         match slot {
             None => *slot = Some(value),
@@ -4150,13 +3928,7 @@ impl LinksTables {
 
     /// tsrs-native: links accessor — links.cjsExportMerged (49697);
     /// compute-once, the same merged symbol may be re-stamped.
-    pub fn set_symbol_cjs_export_merged(
-        &mut self,
-        speculation_depth: u32,
-        id: SymbolId,
-        value: SymbolId,
-    ) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_symbol_cjs_export_merged(&mut self, id: SymbolId, value: SymbolId) {
         let slot = &mut self.symbol.slot(id).cold_mut().cjs_export_merged;
         match slot {
             None => *slot = Some(value),
@@ -4208,8 +3980,6 @@ impl LinksTables {
                 .and_then(|links| links.cold().late_symbol);
             self.speculative_late_symbol_writes
                 .push((speculation_depth, id, previous));
-        } else if speculation_depth == 0 {
-            Self::assert_writable(speculation_depth);
         }
         self.symbol.slot(id).cold_mut().late_symbol = Some(late);
     }
@@ -4218,13 +3988,7 @@ impl LinksTables {
     /// written once per class/interface/tuple target.
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
-    pub fn set_type_declared_members(
-        &mut self,
-        speculation_depth: u32,
-        id: TypeId,
-        value: crate::state::MembersId,
-    ) {
-        Self::assert_writable(speculation_depth);
+    pub fn set_type_declared_members(&mut self, id: TypeId, value: crate::state::MembersId) {
         Self::write_slot(
             &mut self.ty.slot(id).cold_mut().declared_members,
             LinkSlot::Resolved(value),
@@ -4287,11 +4051,9 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn set_symbol_resolved_exports(
         &mut self,
-        speculation_depth: u32,
         id: SymbolId,
         value: Arc<tsc_binder::SymbolTable>,
     ) {
-        Self::assert_writable(speculation_depth);
         Self::write_slot(
             &mut self.symbol.slot(id).cold_mut().resolved_exports,
             LinkSlot::Resolved(value),
@@ -4342,13 +4104,7 @@ impl LinksTables {
     /// stamp (67713), guarded by IdenticalBaseTypeCalculated.
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
-    pub fn ty_mut_cached_equivalent_base_type(
-        &mut self,
-        speculation_depth: u32,
-        id: TypeId,
-        value: TypeId,
-    ) {
-        Self::assert_writable(speculation_depth);
+    pub fn ty_mut_cached_equivalent_base_type(&mut self, id: TypeId, value: TypeId) {
         let links = self.ty.slot(id);
         assert!(
             links.cold().cached_equivalent_base_type.is_none(),
@@ -4425,15 +4181,9 @@ impl LinksTables {
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
-    pub fn set_type_parameter_default(
-        &mut self,
-        speculation_depth: u32,
-        id: TypeId,
-        value: TypeId,
-    ) {
+    pub fn set_type_parameter_default(&mut self, id: TypeId, value: TypeId) {
         // Defaults are lazily derived from declarations (or a targeted
         // parameter) and can be recomputed after candidate speculation.
-        Self::assert_writable(speculation_depth);
         Self::write_slot(
             &mut self.ty.slot(id).type_parameter_default,
             LinkSlot::Resolved(value),
@@ -4610,9 +4360,6 @@ impl LinksTables {
                 .push(speculation_depth, id, previous);
         }
         let links = self.ty.slot(id);
-        if speculation_depth == 0 {
-            Self::assert_writable(speculation_depth);
-        }
         let slot = &mut links.resolved_members;
         // setStructuredTypeMembers writes an empty table first as a
         // re-entrancy guard, then the real one (58333/58339) — allow

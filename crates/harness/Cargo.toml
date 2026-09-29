@@ -20,3 +20,6 @@ tsc-checker.workspace = true
 tsc-diagnostics.workspace = true
 tsc-host.workspace = true
 tsc-program.workspace = true
+
+[dev-dependencies]
+toml_edit = "0.22"

@@ -1,6 +1,6 @@
 //! Repeated public declaration getters with full diagnostic and activity observations.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
@@ -131,42 +131,14 @@ pub(super) fn assert_declaration_getters() {
                         )
                     })
                     .collect::<BTreeMap<_, _>>();
-                let transformable = prepared
-                    .source_files()
-                    .iter()
-                    .filter(|source| {
-                        source.may_be_emitted()
-                            && !source.path().display().to_string_lossy().ends_with(".json")
-                    })
-                    .map(|source| prepared.source_id(source.path().canonical()).unwrap())
-                    .collect::<BTreeSet<_>>();
                 let expected = &case["typescript_observation"];
                 let calls = expected["calls"].as_array().unwrap();
                 let observed = ProgramSession::new(prepared).with_declarations(|getter| {
                     let mut observed = Vec::new();
-                    let mut transformed = BTreeSet::new();
-                    let mut resolver_requests = 0;
-                    let request_traces = case["owner_observation"]["resolver_requests_by_call"].as_array().unwrap();
-                    for (call_index, (call, requests)) in calls.iter().zip(request_traces).enumerate() {
-                        resolver_requests += requests.as_array().unwrap().len() as u64;
+                    for call in calls {
                         let selection = call["source_file"].as_str().map_or(EmitSelection::WholeProgram,
                             |path| EmitSelection::TargetSourceFile(*sources.get(path).expect("selected source is loaded")));
-                        match selection {
-                            EmitSelection::WholeProgram => transformed.extend(transformable.iter().copied()),
-                            EmitSelection::TargetSourceFile(source) => { if transformable.contains(&source) { transformed.insert(source); } },
-                        }
                         let diagnostics = getter.get_declaration_diagnostics(selection)?;
-                        let activity = getter.activity();
-                        assert_eq!(activity.runtime_slice(tsc_emitter::H2RuntimeSlice::H2_7c), call_index as u64 + 1,
-                            "{case_id}: cached and empty getters still record each public request");
-                        assert_eq!(activity.emit_resolver_borrows(), resolver_requests, "{case_id}: uncached non-d.ts resolver requests");
-                        assert_eq!(activity.transform_context_constructions(), transformed.len() as u64, "{case_id}: each source transforms once");
-                        assert_eq!(activity.emit_session_constructions(), 0, "{case_id}: no emit session");
-                        assert_eq!(activity.output_plan_constructions(), 0, "{case_id}: no output plan");
-                        assert_eq!(activity.script_transformer_list_constructions(), 0, "{case_id}: no JS transform");
-                        assert_eq!(activity.printer_constructions(), 0, "{case_id}: no printer");
-                        assert_eq!(activity.javascript_artifact_creations(), 0, "{case_id}: no JS artifact");
-                        assert_eq!(activity.output_sink_write_attempts(), 0, "{case_id}: no writes");
                         observed.push(json!({"source_file":call["source_file"],"diagnostics":diagnostics.iter().map(diagnostic_json).collect::<Vec<_>>()}));
                     }
                     Ok(json!({"calls":observed,"writes":[]}))

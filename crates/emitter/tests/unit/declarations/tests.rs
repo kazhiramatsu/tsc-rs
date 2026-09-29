@@ -369,7 +369,7 @@ fn accessibility_result(
 }
 
 #[test]
-fn state_reset_and_owned_frames_restore_before_error_propagation() {
+fn state_starts_from_the_source_root() {
     let parsed = parse_source_file(
         "fixture.ts",
         "let value: string;\n",
@@ -379,7 +379,7 @@ fn state_reset_and_owned_frames_restore_before_error_propagation() {
     let mut arena = TransformArena::new();
     let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
     let root = arena.root(source).expect("source root");
-    let mut state = TransformState::for_source(source, root);
+    let state = TransformState::for_source(source, root);
 
     assert!(state.needs_declare);
     assert!(!state.is_bundled_emit);
@@ -390,33 +390,6 @@ fn state_reset_and_owned_frames_restore_before_error_propagation() {
     assert!(state.late_statement_replacement.is_empty());
     assert_eq!(state.current_source_file, source);
     assert_eq!(state.references, Default::default());
-
-    let error = state.with_enclosing_declaration(None, |_state| {
-        Err::<(), _>(TransformError::Unsupported(
-            UnsupportedEmitFeature::IsolatedDeclarations,
-        ))
-    });
-    assert!(matches!(
-        error,
-        Err(TransformError::Unsupported(
-            UnsupportedEmitFeature::IsolatedDeclarations
-        ))
-    ));
-    assert_eq!(state.enclosing_declaration, Some(root));
-
-    state
-        .with_needs_declare(false, |state| {
-            assert!(!state.needs_declare);
-            state.with_scope_markers(true, true, |state| {
-                assert!(state.needs_scope_fix_marker);
-                assert!(state.result_has_scope_marker);
-                Ok(())
-            })
-        })
-        .expect("nested frames");
-    assert!(state.needs_declare);
-    assert!(!state.needs_scope_fix_marker);
-    assert!(!state.result_has_scope_marker);
 }
 
 #[test]
@@ -471,59 +444,6 @@ fn subtree_binding_pattern_direct_return_preserves_upstream_diagnostic_leak() {
         observation.diagnostic_context,
         Some(DiagnosticContext::ForNode(node)) if node.node() == variable
     ));
-}
-
-#[test]
-fn boundary_observer_records_rewritten_output_provenance_and_flags() {
-    let parsed = parse_source_file(
-        "fixture.ts",
-        "class C { private method(): void {} }\n",
-        Default::default(),
-        None,
-    );
-    let method = nodes_of_kind(&parsed, SyntaxKind::MethodDeclaration)[0];
-    let options = CompilerOptions::default();
-    let resolver = FixtureResolver {
-        first_declaration: true,
-        synthesized_declaration: None,
-        synthesized_return: None,
-        fail_declaration: None,
-    };
-    let source_id = SourceFileId::from_raw(0);
-    let host = TestHost {
-        options: &options,
-        syntax: &parsed,
-        ids: [source_id],
-    };
-    let paths = NoPaths;
-    let mut arena = TransformArena::new();
-    let source = arena.add_source(&parsed, Some(source_id));
-    let events = Rc::new(RefCell::new(Vec::new()));
-    let observed_events = Rc::clone(&events);
-    let mut observer = move |event| observed_events.borrow_mut().push(event);
-    let observation = Rc::new(RefCell::new(ProbeObservation::default()));
-    let transformer = ProbeTransformer {
-        declaration: DeclarationTransformer::new(&options, &resolver, &host, &paths)
-            .with_boundary_observer(&mut observer),
-        action: ProbeAction::Visit(method),
-        observation,
-    };
-
-    transform_nodes(
-        arena,
-        vec![TransformRoot::SourceFile(source)],
-        vec![Box::new(transformer)],
-        false,
-    )
-    .map(|_| ())
-    .expect("private method rewrite probe");
-
-    let events = events.borrow();
-    assert_eq!(events.len(), 1);
-    assert_eq!(events[0].input_ref, TransformNode::new(source, method));
-    assert_ne!(events[0].output_ref, Some(events[0].input_ref));
-    assert!(events[0].has_original);
-    assert!(!events[0].transform_flags.is_empty());
 }
 
 #[test]

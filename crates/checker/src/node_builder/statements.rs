@@ -4,10 +4,9 @@ use rustc_hash::FxHashSet as HashSet;
 use tsc_binder::assignment::{get_assignment_declaration_kind, AssignmentDeclarationKind};
 use tsc_binder::{node_util, SymbolId, SymbolTable};
 use tsc_emitter::{
-    EmitFlags, EmitInternalNodeBuilderFlags, EmitNodeBuilderFlags, EmitResolverError,
-    EmitSymbolAccessibility, EmitSymbolExpansionOut, EmitSymbolMeaning, GeneratedIdentifierFlags,
-    SyntheticComment, SyntheticCommentKind, TransformArena, TransformNode, TransformNodeArray,
-    TransformSourceId,
+    EmitInternalNodeBuilderFlags, EmitNodeBuilderFlags, EmitSymbolAccessibility,
+    EmitSymbolExpansionOut, EmitSymbolMeaning, GeneratedIdentifierFlags, SyntheticComment,
+    SyntheticCommentKind, TransformArena, TransformNode, TransformNodeArray, TransformSourceId,
 };
 use tsc_syntax::nodes::{
     ClassDeclarationData, ConstructorData, EmptyStatementData, EnumDeclarationData, EnumMemberData,
@@ -22,11 +21,11 @@ use tsc_syntax::nodes::{
 use tsc_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsc_types::{
     EscapedName, IntersectionFlags, JsStr, JsString, ModifierFlags, NodeFlags, ObjectFlags,
-    SymbolFlags, TypeData, TypeFlags, TypeId,
+    SymbolFlags, TypeData, TypeId,
 };
 
 use crate::evaluate::EvalValue;
-use crate::state::{CheckerState, IndexInfo, SignatureId, SignatureKind};
+use crate::state::{CheckerState, SignatureId, SignatureKind};
 
 use super::signatures::{
     get_effective_parameter_declaration, parameter_to_parameter_declaration_name,
@@ -214,32 +213,6 @@ fn can_have_modifiers(data: &NodeData) -> bool {
             | NodeData::PropertyDeclaration(_)
             | NodeData::PropertySignature(_)
     )
-}
-
-fn with_modifiers(mut data: NodeData, modifiers: Option<NodeArrayId>) -> NodeData {
-    match &mut data {
-        NodeData::ClassDeclaration(data) => data.modifiers = modifiers,
-        NodeData::EnumDeclaration(data) => data.modifiers = modifiers,
-        NodeData::ExportAssignment(data) => data.modifiers = modifiers,
-        NodeData::ExportDeclaration(data) => data.modifiers = modifiers,
-        NodeData::FunctionDeclaration(data) => data.modifiers = modifiers,
-        NodeData::ImportDeclaration(data) => data.modifiers = modifiers,
-        NodeData::ImportEqualsDeclaration(data) => data.modifiers = modifiers,
-        NodeData::InterfaceDeclaration(data) => data.modifiers = modifiers,
-        NodeData::ModuleDeclaration(data) => data.modifiers = modifiers,
-        NodeData::NamespaceExportDeclaration(data) => data.modifiers = modifiers,
-        NodeData::TypeAliasDeclaration(data) => data.modifiers = modifiers,
-        NodeData::VariableStatement(data) => data.modifiers = modifiers,
-        NodeData::Constructor(data) => data.modifiers = modifiers,
-        NodeData::GetAccessor(data) => data.modifiers = modifiers,
-        NodeData::SetAccessor(data) => data.modifiers = modifiers,
-        NodeData::MethodDeclaration(data) => data.modifiers = modifiers,
-        NodeData::MethodSignature(data) => data.modifiers = modifiers,
-        NodeData::PropertyDeclaration(data) => data.modifiers = modifiers,
-        NodeData::PropertySignature(data) => data.modifiers = modifiers,
-        _ => {}
-    }
-    data
 }
 
 fn replace_modifiers(
@@ -625,7 +598,7 @@ fn symbol_to_declarations_worker(
     context: &mut NodeBuilderContext<'_>,
 ) -> BuildResult<Vec<TransformNode>> {
     let r#type = checker
-        .get_declared_type_of_symbol_slice(symbol)
+        .get_declared_type_of_symbol(symbol)
         .map_err(|abort| checker_abort_error(checker, context, abort))?;
     context.type_stack.push(Some(r#type));
     context.type_stack.push(None);
@@ -5156,17 +5129,6 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         Ok(Vec::new())
     }
 
-    /// tsc-port: serializePropertySymbolForInterface @6.0.3
-    /// tsc-hash: ed19b1ad9f7021cc8ccb32cdf599de799312d7f41457ac230e55bb49a160d5c9
-    /// tsc-span: _tsc.js:55249-55256
-    fn serialize_property_symbol_for_interface(
-        &mut self,
-        property: SymbolId,
-        base_type: Option<TypeId>,
-    ) -> BuildResult<Vec<TransformNode>> {
-        self.make_serialize_property_symbol(property, false, base_type, false, false)
-    }
-
     /// tsc-port: serializeSignatures @6.0.3
     /// tsc-hash: dc119e27712576259c6658a582ec1005c0ffac7c9227bc08ee5403a4893e3246
     /// tsc-span: _tsc.js:55257-55318
@@ -5410,13 +5372,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         if let Some(enclosing) = self.enclosing_declaration {
             let accessible = self
                 .checker
-                .emit_is_symbol_accessible_with_enclosing_kind(
-                    symbol,
-                    enclosing,
-                    self.context.enclosing_declaration_is_synthetic,
-                    meaning,
-                    false,
-                )
+                .emit_is_symbol_accessible(symbol, enclosing, meaning, false)
                 .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?
                 .accessibility
                 == EmitSymbolAccessibility::Accessible;
@@ -5563,7 +5519,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         ) {
             let restore = save_restore_flags(self.context);
             self.context.flags.0 |= IN_INITIAL_ENTITY_NAME;
-            let candidate = self.checker.entity_symbol_name_as_written_slice(
+            let candidate = self.checker.entity_symbol_name_as_written(
                 symbol,
                 true,
                 true,
@@ -5684,26 +5640,6 @@ fn is_hash_private(checker: &CheckerState<'_>, symbol: SymbolId) -> bool {
         .value_declaration
         .and_then(|declaration| declaration_name(checker, declaration))
         .is_some_and(|name| checker.kind_of(name) == SyntaxKind::PrivateIdentifier)
-}
-
-/// tsc-port: getClonedHashPrivateName @6.0.3
-/// tsc-hash: 890a0488f64c6dde886514350454bcb9fb08bce747e18b653a62ec09a6b13e87
-/// tsc-span: _tsc.js:55445-55450
-fn get_cloned_hash_private_name(
-    checker: &CheckerState<'_>,
-    arena: &mut TransformArena,
-    symbol: SymbolId,
-) -> BuildResult<Option<TransformNode>> {
-    let Some(name) = checker
-        .binder
-        .symbol(symbol)
-        .value_declaration
-        .and_then(|declaration| declaration_name(checker, declaration))
-        .filter(|&name| checker.kind_of(name) == SyntaxKind::PrivateIdentifier)
-    else {
-        return Ok(None);
-    };
-    clone_parse_node(checker, arena, name)
 }
 
 #[cfg(test)]

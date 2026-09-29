@@ -1,5 +1,3 @@
-#![allow(dead_code, unused_imports)]
-
 pub(crate) mod chains;
 mod context;
 mod serialize;
@@ -12,41 +10,34 @@ mod type_nodes;
 pub(crate) use crate::syntactic_type_node_builder::SyntacticTypeNodeBuilder;
 pub(crate) use chains::specifier_for_module_symbol;
 pub(crate) use chains::{
-    chains_get_property_name_node_for_symbol, chains_lookup_symbol_chain,
-    chains_symbol_to_entity_name_node, chains_symbol_to_expression, chains_symbol_to_type_node,
-    clone_node_builder_context,
+    chains_get_property_name_node_for_symbol, chains_symbol_to_entity_name_node,
+    chains_symbol_to_expression, chains_symbol_to_type_node, clone_node_builder_context,
     existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count,
     get_declaration_with_type_annotation, get_enclosing_declaration_ignoring_fake_scope,
     get_module_specifier_override, get_type_from_type_node2, restore_cloned_node_builder_context,
     serialize_inferred_type_for_declaration, set_text_range2, symbol_to_node,
-    type_parameter_to_name, ClonedNodeBuilderContextRestore,
+    type_parameter_to_name,
 };
-pub(crate) use context::transform_node_class;
 pub(crate) use context::{
     add_symbol_type_to_context, can_possibly_expand_type, check_truncation_length,
     check_truncation_length_if_expanding, no_inference_fallback_is_set, restore_flags,
     restore_no_inference_fallback, restore_symbol_type_to_context, save_no_inference_fallback,
     save_restore_flags, should_expand_type, with_context, with_context_in_synthetic_module_scope,
-    FlagsRestore, NodeBuilderContext, RecoveryTrackedSymbol, SymbolTypeRestore,
-    SyntheticModuleScope, TrackedSymbol, DEFAULT_MAXIMUM_TRUNCATION_LENGTH,
-    NO_TRUNCATION_MAXIMUM_TRUNCATION_LENGTH,
+    NodeBuilderContext, RecoveryTrackedSymbol, SyntheticModuleScope, TrackedSymbol,
 };
 pub(crate) use serialize::{
     index_info_to_index_signature_declaration, serialize_return_type_for_signature,
     serialize_return_type_for_signature_seam, serialize_type_for_declaration,
     serialize_type_for_declaration_seam, serialize_type_for_expression,
     syntactic_serialize_name_of_parameter_seam, syntactic_track_existing_entity_name,
-    syntactic_try_reuse_existing_type_node, type_predicate_to_type_predicate_node,
-    type_to_type_node,
+    syntactic_try_reuse_existing_type_node, type_to_type_node,
 };
 pub(crate) use signatures::{
-    create_recovery_boundary, enter_new_scope, index_info_to_index_signature_declaration_helper,
-    prime_type_parameter_names_for_scope, signature_to_signature_declaration_helper,
-    symbol_to_parameter_declaration, type_parameter_to_declaration,
+    enter_new_scope, index_info_to_index_signature_declaration_helper,
+    signature_to_signature_declaration_helper, type_parameter_to_declaration,
     type_predicate_to_type_predicate_node_helper, SignatureDeclarationOptions,
 };
 pub(crate) use statements::{symbol_table_to_declaration_statements, symbol_to_declarations};
-pub(crate) use tracker::NodeBuilderTracker;
 use type_nodes::{
     add_approximate_length, checker_abort_error, clone_parse_node, create_identifier, create_node,
     create_node_array, create_output_identifier, create_token, factory_error, project_parse_node,
@@ -579,14 +570,6 @@ pub(crate) trait SyntacticBuilderResolver: tsc_emitter::EmitTrackerAccess {
         node: tsc_emitter::TransformNode,
     ) -> Result<bool, tsc_emitter::EmitResolverError>;
 
-    fn is_entity_name_visible(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        context: &mut NodeBuilderContext<'_>,
-        entity_name: tsc_emitter::TransformNode,
-        should_compute_aliases_to_make_visible: bool,
-    ) -> Result<tsc_emitter::EmitSymbolAccessibilityResult, tsc_emitter::EmitResolverError>;
-
     fn serialize_existing_type_node(
         &mut self,
         arena: &mut tsc_emitter::TransformArena,
@@ -629,14 +612,6 @@ pub(crate) trait SyntacticBuilderResolver: tsc_emitter::EmitTrackerAccess {
         context: &mut NodeBuilderContext<'_>,
         parameter: tsc_emitter::TransformNode,
     ) -> Result<tsc_emitter::TransformNode, tsc_emitter::EmitResolverError>;
-
-    fn serialize_entity_name(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        target: tsc_emitter::TransformSourceId,
-        context: &mut NodeBuilderContext<'_>,
-        node: tsc_emitter::TransformNode,
-    ) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError>;
 
     fn serialize_type_name(
         &mut self,
@@ -797,19 +772,11 @@ impl tsc_emitter::EmitTrackerAccess for StandaloneTrackerAccess<'_, '_> {
             .map(tsc_binder::SymbolId)
             .filter(|&symbol| self.checker.binder.try_symbol(symbol).is_some())
             .ok_or_else(|| self.invalid_token())?;
-        let enclosing_is_synthetic =
-            enclosing_declaration.is_some_and(tracker::tracker_node_is_synthetic);
         let enclosing = enclosing_declaration
             .and_then(|node| self.node(node))
             .ok_or_else(|| self.invalid_token())?;
         self.checker
-            .emit_is_symbol_accessible_with_enclosing_kind(
-                symbol,
-                enclosing,
-                enclosing_is_synthetic,
-                meaning,
-                should_compute_aliases,
-            )
+            .emit_is_symbol_accessible(symbol, enclosing, meaning, should_compute_aliases)
             .map_err(|abort| self.abort(enclosing, abort))
     }
 
@@ -1204,130 +1171,3 @@ fn prepend_static_modifier(
 #[cfg(test)]
 #[path = "../../tests/unit/node_builder_core/tests.rs"]
 mod tests;
-
-/// h2-7a-m-3 P5: the harness-only decision-lane sink. When armed by the
-/// declaration replay observer, the NodeBuilder records the probe-comparable
-/// decision events — withContext exits, syntactic front-door frames, and
-/// tracker callbacks — for the union-domain replay. Production paths never
-/// arm it; an unarmed sink records nothing.
-pub(crate) mod replay_sink {
-    use std::cell::RefCell;
-
-    #[derive(Clone, Debug, PartialEq)]
-    pub(crate) enum DecisionEvent {
-        /// nodebuilder.withContext.result: (status, flags, internal_flags,
-        /// approximate_length, type_stack_len, truncating, out_truncated,
-        /// encountered_error, produced-node class).
-        WithContextResult {
-            status: &'static str,
-            flags: u32,
-            internal_flags: u32,
-            approximate_length: u32,
-            type_stack_len: usize,
-            truncating: bool,
-            out_truncated: bool,
-            encountered_error: bool,
-            produced: ProducedClass,
-        },
-        /// syntactic.serialize*.entry/.result frames.
-        SyntacticFrame {
-            site: &'static str,
-            fallback: bool,
-            produced: ProducedClass,
-        },
-        /// syntactic.*.checkerFallback markers.
-        SyntacticFallback {
-            site: &'static str,
-            report_fallback: bool,
-        },
-        /// tracker.* callback records (payload projected by the recording
-        /// tracker in the harness).
-        Tracker {
-            site: &'static str,
-            payload: tsc_program::JsonValue,
-        },
-    }
-
-    /// The §6.3 node-reference classes projected from a produced value.
-    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-    pub(crate) enum ProducedClass {
-        Absent,
-        ParseOwn { source: u32, node: u32 },
-        OriginalProjected { source: u32, node: u32 },
-        SyntheticWithoutOriginal,
-        Container { length: usize },
-    }
-
-    thread_local! {
-        static SINK: RefCell<Option<Vec<DecisionEvent>>> = const { RefCell::new(None) };
-    }
-
-    /// tsrs-native: harness decision-sink arming (h2-7a-m-3 §6).
-    pub(crate) fn arm() {
-        SINK.with(|sink| *sink.borrow_mut() = Some(Vec::new()));
-    }
-
-    /// tsrs-native: harness decision-sink drain.
-    pub(crate) fn disarm() -> Vec<DecisionEvent> {
-        SINK.with(|sink| sink.borrow_mut().take().unwrap_or_default())
-    }
-
-    /// tsrs-native: harness decision-sink append.
-    pub(crate) fn record(event: impl FnOnce() -> DecisionEvent) {
-        SINK.with(|sink| {
-            if let Some(events) = sink.borrow_mut().as_mut() {
-                events.push(event());
-            }
-        });
-    }
-
-    /// tsrs-native: harness decision-sink state probe.
-    pub(crate) fn armed() -> bool {
-        SINK.with(|sink| sink.borrow().is_some())
-    }
-
-    thread_local! {
-        static SYNTACTIC_FRAMES: RefCell<Vec<bool>> = const { RefCell::new(Vec::new()) };
-    }
-
-    /// Enter a probed syntactic front-door frame (upstream
-    /// __h27aProbeSyntacticCall pushes {fallback:false}).
-    /// tsrs-native: harness syntactic-frame entry (h2-7a-m-3 §6.2).
-    pub(crate) fn enter_syntactic_frame() {
-        if armed() {
-            SYNTACTIC_FRAMES.with(|frames| frames.borrow_mut().push(false));
-        }
-    }
-
-    /// The __h27aMarkSyntacticFallback discipline: every OPEN frame flips to
-    /// fallback, and the marker event records the reportFallback flag.
-    /// tsrs-native: harness checkerFallback marker (probe protocol).
-    pub(crate) fn mark_syntactic_fallback(site: &'static str, report_fallback: bool) {
-        if !armed() {
-            return;
-        }
-        SYNTACTIC_FRAMES.with(|frames| {
-            for frame in frames.borrow_mut().iter_mut() {
-                *frame = true;
-            }
-        });
-        record(|| DecisionEvent::SyntacticFallback {
-            site,
-            report_fallback,
-        });
-    }
-
-    /// Exit the probed frame, recording its fallback verdict + result class.
-    /// tsrs-native: harness syntactic-frame exit record.
-    pub(crate) fn exit_syntactic_frame(site: &'static str, produced: ProducedClass) {
-        if !armed() {
-            return;
-        }
-        let fallback = SYNTACTIC_FRAMES.with(|frames| frames.borrow_mut().pop().unwrap_or(false));
-        record(|| DecisionEvent::SyntacticFrame {
-            site,
-            fallback,
-            produced,
-        });
-    }
-}

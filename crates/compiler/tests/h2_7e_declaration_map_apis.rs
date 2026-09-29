@@ -9,8 +9,7 @@ use tsc_compiler::{DeclarationSession, DriverError, ProgramSession};
 use tsc_diagnostics::{Diagnostic, MessageChain};
 use tsc_emitter::{
     EmitArtifact, EmitContractViolation, EmitFailure, EmitFileSystem, EmitIoError, EmitIoOperation,
-    EmitOutcome, EmitSelection, EmitWriteDisposition, EmitWriteMetadata, FsOutputSink,
-    H2ActivityCounters, H2RuntimeSlice, OutputSink,
+    EmitOutcome, EmitSelection, EmitWriteDisposition, EmitWriteMetadata, FsOutputSink, OutputSink,
 };
 use tsc_host::MemoryCompilerHost;
 use tsc_program::{
@@ -329,20 +328,6 @@ fn h2_7e_preserved_reference_target_families_match_typescript() {
     assert_eq!(counts.get("ordinary-command"), Some(&(3 * 2)));
 }
 
-fn assert_later_activity_is_zero(activity: H2ActivityCounters, id: &str) {
-    for slice in [
-        H2RuntimeSlice::H2_7a,
-        H2RuntimeSlice::H2_8a,
-        H2RuntimeSlice::H2_8b,
-        H2RuntimeSlice::H2_8c,
-        H2RuntimeSlice::H2_8d,
-        H2RuntimeSlice::H2_8e,
-        H2RuntimeSlice::H2_9,
-    ] {
-        assert_eq!(activity.runtime_slice(slice), 0, "{id}: {}", slice.name());
-    }
-}
-
 fn assert_stateful_program_cases(fixture: &Value) -> BTreeMap<String, usize> {
     let mut counts = BTreeMap::<String, usize>::new();
     let mut failures = Vec::new();
@@ -386,13 +371,11 @@ fn assert_stateful_program_cases(fixture: &Value) -> BTreeMap<String, usize> {
                     .collect::<BTreeMap<_, _>>();
                 ProgramSession::new(program)
                     .with_declarations(|session: &mut DeclarationSession<'_, '_>| {
-                        assert_later_activity_is_zero(session.activity(), id);
                         for expected in case["typescript_observation"]["calls"].as_array().unwrap() {
                             let kind = expected["kind"].as_str().unwrap();
                             if kind == "ordinary-command" && case["options"]["noEmit"] == true {
                                 // Keep the original TS call as a later-owner reference.
                                 // A refusal is not counted as successful command equivalence.
-                                let before = session.activity();
                                 let mut sink = Sink::new(case);
                                 let error = session.emit_with_reported_diagnostics(&mut sink)
                                     .err().expect("ordinary noEmit retains its H2.9 boundary");
@@ -401,7 +384,6 @@ fn assert_stateful_program_cases(fixture: &Value) -> BTreeMap<String, usize> {
                                     actual: tsc_program::PreparedProgramMode::NoEmit,
                                 }));
                                 assert!(sink.writes.is_empty());
-                                assert_eq!(session.activity(), before);
                                 *counts.entry("ordinary-noEmit-boundary".to_owned()).or_default() += 1;
                                 continue;
                             }
@@ -410,7 +392,6 @@ fn assert_stateful_program_cases(fixture: &Value) -> BTreeMap<String, usize> {
                                 EmitSelection::WholeProgram,
                                 |path| EmitSelection::TargetSourceFile(*sources.get(path).unwrap()),
                             );
-                            let before = session.activity();
                             let mut sink = Sink::new(case);
                             let mut fields = json!({
                                 "diagnostics": null,
@@ -469,30 +450,6 @@ fn assert_stateful_program_cases(fixture: &Value) -> BTreeMap<String, usize> {
                                     })
                                 }
                             };
-                            let after = session.activity();
-                            // Count each validated public request, including cache hits,
-                            // empty selections, typed Debug Failure, and callback unwind.
-                            // The ordinary noEmit refusal above never enters this boundary.
-                            for (slice, requested) in [
-                                (H2RuntimeSlice::H2_7d, case["options"]["outFile"]
-                                    .as_str().is_some_and(|path| !path.is_empty())),
-                                (H2RuntimeSlice::H2_7e, case["options"]["declarationMap"] == true),
-                            ] {
-                                assert_eq!(
-                                    after.runtime_slice(slice).checked_sub(before.runtime_slice(slice)),
-                                    Some(u64::from(requested)),
-                                    "{id}: {kind} {} request delta", slice.name(),
-                                );
-                            }
-                            assert_later_activity_is_zero(after, id);
-                            let resolver_count = expected["resolver_requests"].as_array().unwrap().len() as u64;
-                            let actual_borrows = after.emit_resolver_borrows()
-                                - before.emit_resolver_borrows();
-                            assert_eq!(
-                                actual_borrows,
-                                if sources.is_empty() { 0 } else { resolver_count },
-                                "{id}: resolver cache activity",
-                            );
                             let materialized = sink.writes.iter()
                                 .filter(|write| write["sink_materialized"] == true)
                                 .map(|write| write["index"].clone())
@@ -515,19 +472,10 @@ fn assert_stateful_program_cases(fixture: &Value) -> BTreeMap<String, usize> {
                             expected.as_object_mut().unwrap().remove("resolver_requests");
                             assert_eq!(
                                 actual, expected,
-                                "{id}: complete {kind} call excluding separately checked resolver trace count",
+                                "{id}: complete {kind} call excluding the resolver trace count",
                             );
                         }
-                        let before = session.activity();
                         let program = session.get_program_diagnostics()?;
-                        let after = session.activity();
-                        for slice in [H2RuntimeSlice::H2_7d, H2RuntimeSlice::H2_7e] {
-                            assert_eq!(
-                                after.runtime_slice(slice), before.runtime_slice(slice),
-                                "{id}: final Program diagnostics adds no {} request", slice.name(),
-                            );
-                        }
-                        assert_later_activity_is_zero(after, id);
                         assert_eq!(json!({
                             "options": diagnostics(program.options()),
                             "syntactic": diagnostics(program.syntactic()),

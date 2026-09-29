@@ -141,10 +141,6 @@ enum CodeBlock {
     },
     With {
         expression: TransformNode,
-        /// Recorded for the upstream record shape; only `end_label` is
-        /// read back (`endWithBlock`).
-        #[allow(dead_code)]
-        start_label: Label,
         end_label: Label,
     },
     Switch {
@@ -2783,7 +2779,6 @@ impl GeneratorsVisitor<'_, '_> {
         self.mark_label(start_label)?;
         self.begin_block(CodeBlock::With {
             expression,
-            start_label,
             end_label,
         });
         Ok(())

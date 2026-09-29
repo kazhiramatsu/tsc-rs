@@ -218,7 +218,6 @@ pub(super) fn assign() -> EmitHelper {
 /// tsc-port: extendsHelper @6.0.3
 /// tsc-hash: 6b5178969d2205e2b7bf428def518fce4fb427d1c56dd9d67a7f98e497e6f8d4
 /// tsc-span: _tsc.js:26224-26246
-#[allow(dead_code)]
 pub(super) fn extends() -> EmitHelper {
     EmitHelper::with_text(
         "typescript:extends",
@@ -249,7 +248,6 @@ pub(super) fn make_template_object() -> EmitHelper {
 /// tsc-port: spreadArrayHelper @6.0.3
 /// tsc-hash: 41436a6b055f8314a4496de97df7d447ebfce78c2ef4b68939ff7ef97e7c0896
 /// tsc-span: _tsc.js:26280-26294
-#[allow(dead_code)]
 pub(super) fn spread_array() -> EmitHelper {
     EmitHelper::with_text(
         "typescript:spreadArray",
@@ -265,7 +263,6 @@ pub(super) fn spread_array() -> EmitHelper {
 /// tsc-port: valuesHelper @6.0.3
 /// tsc-hash: 7f2f157873cc2dfc3c0a2548ade92b93d59e75d6f7b69ffd441c67b5f05a7ad9
 /// tsc-span: _tsc.js:26314-26330
-#[allow(dead_code)]
 pub(super) fn values() -> EmitHelper {
     EmitHelper::with_text(
         "typescript:values",
@@ -281,7 +278,6 @@ pub(super) fn values() -> EmitHelper {
 /// tsc-port: generatorHelper @6.0.3
 /// tsc-hash: 8e304cf0731f40924fc0b2c9e6a4b7f9773ef2d8d317e1d59c172d476cf820d3
 /// tsc-span: _tsc.js:26331-26364
-#[allow(dead_code)]
 pub(super) fn generator() -> EmitHelper {
     EmitHelper::with_text(
         "typescript:generator",

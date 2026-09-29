@@ -50,21 +50,9 @@ impl Records {
             .iter()
             .map(|case| {
                 let id = case["case_id"].as_str().unwrap();
-                let promotion = h2_6c_de_promotions::find(id);
-                let output_promotion = h2_6c_output_promotions::find(id);
                 Ok(h2_6c_refusal_migrations::compared(H2VectorCaseOutcome {
                     case_id: id.to_owned(),
                     deferred: case["disposition"] == "deferred-to-slices",
-                    h2_7b_activity: promotion
-                        .map(|row| row.declaration_members)
-                        .or_else(|| output_promotion.map(|row| row.declaration_members))
-                        .unwrap_or_else(|| {
-                            self.inputs
-                                .h2_7b_expected_members
-                                .get(id)
-                                .copied()
-                                .unwrap_or(0)
-                        }),
                     divergence: H2VectorDivergence::default(),
                 }))
             })
@@ -253,10 +241,6 @@ fn populated_exact_registry_rejects_new_vectors_deferred_and_duplicate_results()
         h2_6c_de_promotions::validate_results(&changed, &listed).is_err(),
         "write mode has no exemption for a changed residual"
     );
-    assert!(!h2_6c_de_promotions::pinned_request(
-        "unknown-exact-original",
-        H2RuntimeSlice::H2_7d
-    ));
 }
 
 #[test]
@@ -281,9 +265,6 @@ fn original_output_registry_rejects_identity_activity_and_result_mutations() {
     assert!(
         h2_6c_output_promotions::validate(&cases, &records.inputs.h2_7b_expected_members).is_err()
     );
-    let mut changed = ordinary.clone();
-    changed[index].as_mut().unwrap().h2_7b_activity += 1;
-    assert!(h2_6c_output_promotions::validate_results(&changed, &listed).is_err());
     let mut changed = ordinary.clone();
     changed[index].as_mut().unwrap().divergence =
         vectorize_refusal(H2MismatchProfile::H2_6c, "outDir");

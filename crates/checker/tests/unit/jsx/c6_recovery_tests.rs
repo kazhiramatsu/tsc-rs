@@ -261,7 +261,7 @@ fn non_generic_interface_element_type_uses_its_declared_type() {
                 .get_symbol_of_declaration(element_type_declaration)
                 .expect("ElementType symbol");
             let declared = state
-                .get_declared_type_of_symbol_slice(symbol)
+                .get_declared_type_of_symbol(symbol)
                 .expect("declared ElementType");
             let recovered = state
                 .instantiate_alias_or_interface_with_defaults(symbol, false, &[])

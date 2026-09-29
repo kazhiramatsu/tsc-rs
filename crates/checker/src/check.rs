@@ -64,12 +64,12 @@ struct UnwindSnapshot {
     awaited_type_stack: usize,
     active_type_mappers: usize,
     active_type_mappers_caches: usize,
-    slice_display_mappers: usize,
-    slice_infer_type_parameters: usize,
-    slice_reuse_had_error: bool,
-    slice_reuse_visit_depth: usize,
-    slice_display_clone_indent: usize,
-    slice_display_clone_at_line_start: bool,
+    display_mappers: usize,
+    display_infer_type_parameters: usize,
+    display_reuse_had_error: bool,
+    display_reuse_visit_depth: usize,
+    display_clone_indent: usize,
+    display_clone_at_line_start: bool,
     variance_handler_stack: usize,
     class_interface_declared_in_progress: usize,
     type_parameter_defaults_in_progress: usize,
@@ -112,12 +112,12 @@ impl<'a> CheckerState<'a> {
             awaited_type_stack: self.awaited_type_stack.len(),
             active_type_mappers: self.active_type_mappers.len(),
             active_type_mappers_caches: self.active_type_mappers_caches.len(),
-            slice_display_mappers: self.slice_display_mappers.len(),
-            slice_infer_type_parameters: self.slice_infer_type_parameters.len(),
-            slice_reuse_had_error: self.slice_reuse_had_error,
-            slice_reuse_visit_depth: self.slice_reuse_visit_depth,
-            slice_display_clone_indent: self.slice_display_clone_indent,
-            slice_display_clone_at_line_start: self.slice_display_clone_at_line_start,
+            display_mappers: self.display_mappers.len(),
+            display_infer_type_parameters: self.display_infer_type_parameters.len(),
+            display_reuse_had_error: self.display_reuse_had_error,
+            display_reuse_visit_depth: self.display_reuse_visit_depth,
+            display_clone_indent: self.display_clone_indent,
+            display_clone_at_line_start: self.display_clone_at_line_start,
             variance_handler_stack: self.variance_handler_stack.len(),
             class_interface_declared_in_progress: self.class_interface_declared_in_progress.len(),
             type_parameter_defaults_in_progress: self.type_parameter_defaults_in_progress.len(),
@@ -284,12 +284,12 @@ impl<'a> CheckerState<'a> {
                 awaited_type_stack: 0,
                 active_type_mappers: 0,
                 active_type_mappers_caches: 0,
-                slice_display_mappers: 0,
-                slice_infer_type_parameters: 0,
-                slice_reuse_had_error: false,
-                slice_reuse_visit_depth: 0,
-                slice_display_clone_indent: 0,
-                slice_display_clone_at_line_start: false,
+                display_mappers: 0,
+                display_infer_type_parameters: 0,
+                display_reuse_had_error: false,
+                display_reuse_visit_depth: 0,
+                display_clone_indent: 0,
+                display_clone_at_line_start: false,
                 variance_handler_stack: 0,
                 class_interface_declared_in_progress: 0,
                 type_parameter_defaults_in_progress: 0,
@@ -1701,10 +1701,7 @@ impl<'a> CheckerState<'a> {
                 &[],
             ) {
                 self.links
-                    .set_node_has_reported_statement_in_ambient_context(
-                        self.speculation_depth,
-                        node,
-                    );
+                    .set_node_has_reported_statement_in_ambient_context(node);
             }
             return;
         }
@@ -1721,10 +1718,7 @@ impl<'a> CheckerState<'a> {
                 &[],
             ) {
                 self.links
-                    .set_node_has_reported_statement_in_ambient_context(
-                        self.speculation_depth,
-                        parent,
-                    );
+                    .set_node_has_reported_statement_in_ambient_context(parent);
             }
         }
     }
@@ -2302,7 +2296,7 @@ impl<'a> CheckerState<'a> {
         let container_type = if let Some(prototype) = prototype {
             self.get_type_of_symbol(prototype)?
         } else {
-            self.get_declared_type_of_symbol_slice(left)?
+            self.get_declared_type_of_symbol(left)?
         };
         self.get_property_of_type_full(container_type, &right)
     }
@@ -2626,7 +2620,7 @@ impl<'a> CheckerState<'a> {
         } else {
             ty
         };
-        let suggestion = self.type_to_string_slice(suggestion_type)?;
+        let suggestion = self.type_to_string(suggestion_type)?;
         self.grammar_error_on_node_js(node, diagnostic, &[token.into(), (&suggestion).into()]);
         Ok(())
     }
@@ -2928,7 +2922,7 @@ impl<'a> CheckerState<'a> {
         let type_parameter = self.get_declared_type_of_type_parameter(symbol);
         self.get_base_constraint_of_type(type_parameter)?;
         if !self.has_non_circular_type_parameter_default(type_parameter)? {
-            let display = self.type_to_string_slice(type_parameter)?;
+            let display = self.type_to_string(type_parameter)?;
             self.error_at_js(
                 default,
                 &diagnostics::Type_parameter_0_has_a_circular_default,
@@ -3113,7 +3107,7 @@ impl<'a> CheckerState<'a> {
             self.get_declaration_of_kind(symbol, SyntaxKind::InterfaceDeclaration);
         if first_interface_declaration == Some(node) {
             if let Some(name) = name {
-                let ty = self.get_declared_type_of_symbol_slice(symbol)?;
+                let ty = self.get_declared_type_of_symbol(symbol)?;
                 let type_with_this = self.get_type_with_this_argument(ty, None, false)?;
                 if self.check_inherited_properties_are_identical(ty, name)? {
                     let this_type = self.this_type_of_class_or_interface(ty);
@@ -3841,8 +3835,7 @@ impl<'a> CheckerState<'a> {
                     .links
                     .read_symbol(symbol, |links| links.cold().type_parameters_checked)
             {
-                self.links
-                    .set_symbol_type_parameters_checked(self.speculation_depth, symbol);
+                self.links.set_symbol_type_parameters_checked(symbol);
                 let declared = self.get_declared_type_of_type_parameter(symbol);
                 let declarations: Vec<NodeId> = self
                     .binder
@@ -4733,8 +4726,8 @@ impl<'a> CheckerState<'a> {
                 return Ok((related, Some(diagnostic)));
             }
         }
-        let mut source_text = self.type_to_string_slice_with_error_enclosing(source)?;
-        let mut target_text = self.type_to_string_slice_with_error_enclosing(target)?;
+        let mut source_text = self.type_to_string_with_error_enclosing(source)?;
+        let mut target_text = self.type_to_string_with_error_enclosing(target)?;
         if source_text == target_text {
             // getTypeNamesForErrorDisplay (50748-50756): equal
             // renders re-render fully qualified (no enclosing).
@@ -4929,8 +4922,8 @@ impl<'a> CheckerState<'a> {
         // reportRelationError computes the display pair once at entry
         // (65066) — the weak-type rows read the same
         // getTypeNamesForErrorDisplay strings, enclosing included.
-        let source_text = self.type_to_string_slice_with_error_enclosing(source)?;
-        let target_text = self.type_to_string_slice_with_error_enclosing(target)?;
+        let source_text = self.type_to_string_with_error_enclosing(source)?;
+        let target_text = self.type_to_string_with_error_enclosing(target)?;
         let mut callable_face = false;
         for kind in [
             crate::state::SignatureKind::Call,
@@ -5223,8 +5216,8 @@ impl<'a> CheckerState<'a> {
             source_display
         };
         let (source_text, target_text) = if unmatched.len() == 1 {
-            let source_text = self.type_to_string_slice_with_error_enclosing(source_display)?;
-            let target_text = self.type_to_string_slice_with_error_enclosing(target)?;
+            let source_text = self.type_to_string_with_error_enclosing(source_display)?;
+            let target_text = self.type_to_string_with_error_enclosing(target)?;
             if source_text == target_text {
                 (
                     self.get_type_name_for_error_display(source_display)?,
@@ -5235,8 +5228,8 @@ impl<'a> CheckerState<'a> {
             }
         } else {
             (
-                self.type_to_string_slice(source_display)?,
-                self.type_to_string_slice(target)?,
+                self.type_to_string(source_display)?,
+                self.type_to_string(target)?,
             )
         };
         if unmatched.len() == 1 {
@@ -5351,7 +5344,7 @@ impl<'a> CheckerState<'a> {
         });
         if let Some(name) = computed_name {
             if write_computed_props {
-                return self.computed_property_name_face_slice(name);
+                return self.computed_property_name_face(name);
             }
             if self
                 .links
@@ -5376,12 +5369,12 @@ impl<'a> CheckerState<'a> {
                         .symbol
                         .expect("enum-literal/unique-symbol name types carry their symbol");
                     let enclosing = self.binder.symbol(name_symbol).value_declaration;
-                    let face = self.symbol_expression_face_slice(name_symbol, enclosing, false)?;
+                    let face = self.symbol_expression_face(name_symbol, enclosing, false)?;
                     return Ok(crate::concat_js(&[&"[", &(face), &"]"]));
                 }
             }
         }
-        Ok(self.symbol_name_as_written_slice(prop))
+        Ok(self.symbol_name_as_written(prop))
     }
 
     /// tsc-port: symbolToNode @6.0.3 (WriteComputedProps name reprint)
@@ -5397,14 +5390,14 @@ impl<'a> CheckerState<'a> {
     /// operator. Other expression shapes (templates, bigints,
     /// element-access names) use the same synthesized-expression
     /// printer leaf below.
-    fn computed_property_name_face_slice(&mut self, name: NodeId) -> CheckResult<JsString> {
+    fn computed_property_name_face(&mut self, name: NodeId) -> CheckResult<JsString> {
         let NodeData::ComputedPropertyName(data) = self.data_of(name) else {
             unreachable!("WriteComputedProps supplies a ComputedPropertyName node");
         };
         let expression = data
             .expression
             .expect("ComputedPropertyName carries its expression");
-        let text = self.expression_text_slice(expression)?;
+        let text = self.expression_text_display(expression)?;
         Ok(crate::concat_js(&[&"[", &(text), &"]"]))
     }
 
@@ -5423,7 +5416,7 @@ impl<'a> CheckerState<'a> {
     /// leaves are included because the factory printer owns their
     /// synthesized spelling even when a recovery tree reaches this
     /// helper.
-    fn expression_text_slice(&mut self, node: NodeId) -> CheckResult<JsString> {
+    fn expression_text_display(&mut self, node: NodeId) -> CheckResult<JsString> {
         match self.kind_of(node) {
             SyntaxKind::TrueKeyword => return Ok("true".into()),
             SyntaxKind::FalseKeyword => return Ok("false".into()),
@@ -5437,7 +5430,7 @@ impl<'a> CheckerState<'a> {
                 Ok(tsc_syntax::unescape_leading_underscores(&data.escaped_text).to_owned().into())
             }
             NodeData::PrivateIdentifier(data) => Ok(data.text.into()),
-            NodeData::StringLiteral(data) => string_literal_name_slice(&data.text, false).map(JsString::from),
+            NodeData::StringLiteral(data) => string_literal_name(&data.text, false).map(JsString::from),
             NodeData::NumericLiteral(data) => Ok(data.text.into()),
             NodeData::BigIntLiteral(data) => Ok(data.text.into()),
             NodeData::NoSubstitutionTemplateLiteral(data) => {
@@ -5450,7 +5443,7 @@ impl<'a> CheckerState<'a> {
             NodeData::PrefixUnaryExpression(data) => {
                 let operator = tsc_syntax::tokens::token_to_string(data.operator)
                     .expect("PrefixUnaryExpression carries a prefix operator");
-                let operand = self.expression_text_slice(
+                let operand = self.expression_text_display(
                     data.operand
                         .expect("PrefixUnaryExpression carries its operand"),
                 )?;
@@ -5461,7 +5454,7 @@ impl<'a> CheckerState<'a> {
                 // AssignmentExpressions. This live bridge preserves
                 // the printer's spaced binary/comma operator face; the
                 // remaining inventory uses the recovery-safe adapter.
-                let left = self.expression_text_slice(
+                let left = self.expression_text_display(
                     data.left.expect("BinaryExpression carries its left operand"),
                 )?;
                 let operator = data
@@ -5469,7 +5462,7 @@ impl<'a> CheckerState<'a> {
                     .map(|token| self.kind_of(token))
                     .and_then(tsc_syntax::tokens::token_to_string)
                     .expect("BinaryExpression carries an operator token");
-                let right = self.expression_text_slice(
+                let right = self.expression_text_display(
                     data.right
                         .expect("BinaryExpression carries its right operand"),
                 )?;
@@ -5479,16 +5472,16 @@ impl<'a> CheckerState<'a> {
                     Ok(crate::concat_js(&[&(left), &" ", &(operator), &" ", &(right)]))
                 }
             }
-            NodeData::ParenthesizedExpression(data) => Ok(crate::concat_js(&[&"(", &(self.expression_text_slice(
+            NodeData::ParenthesizedExpression(data) => Ok(crate::concat_js(&[&"(", &(self.expression_text_display(
                     data.expression
                         .expect("ParenthesizedExpression carries its expression"),
                 )?), &")"])),
             NodeData::PropertyAccessExpression(data) => {
-                let expression = self.expression_text_slice(
+                let expression = self.expression_text_display(
                     data.expression
                         .expect("PropertyAccessExpression carries its expression"),
                 )?;
-                let name = self.entity_name_text_slice(
+                let name = self.entity_name_text(
                     data.name.expect("PropertyAccessExpression carries its name"),
                 )?;
                 let dot = if data.question_dot_token.is_some() {
@@ -5499,11 +5492,11 @@ impl<'a> CheckerState<'a> {
                 Ok(crate::concat_js(&[&(expression), &(dot), &(name)]))
             }
             NodeData::ElementAccessExpression(data) => {
-                let expression = self.expression_text_slice(
+                let expression = self.expression_text_display(
                     data.expression
                         .expect("ElementAccessExpression carries its expression"),
                 )?;
-                let argument = self.expression_text_slice(
+                let argument = self.expression_text_display(
                     data.argument_expression
                         .expect("ElementAccessExpression carries its argument"),
                 )?;
@@ -5525,7 +5518,7 @@ impl<'a> CheckerState<'a> {
                     let NodeData::TemplateSpan(span) = self.data_of(span).clone() else {
                         unreachable!("TemplateExpression spans contain TemplateSpan nodes");
                     };
-                    let expression = self.expression_text_slice(
+                    let expression = self.expression_text_display(
                         span.expression.expect("TemplateSpan carries its expression"),
                     )?;
                     let literal = span.literal.expect("TemplateSpan carries its literal");
@@ -5555,11 +5548,11 @@ impl<'a> CheckerState<'a> {
     /// printer over that complete grammar; `None` is reserved for a
     /// malformed/recovery node and therefore arms the existing
     /// TypeNode recovery boundary.
-    fn reused_initializer_expression_text_slice(&mut self, node: NodeId) -> CheckResult<JsString> {
+    fn reused_initializer_expression_text(&mut self, node: NodeId) -> CheckResult<JsString> {
         match self.display_clone_expression_text_at_line_start(node, false)? {
             Some(text) => Ok(text),
             None => {
-                self.slice_reuse_had_error = true;
+                self.display_reuse_had_error = true;
                 Ok(JsString::new())
             }
         }
@@ -5623,8 +5616,8 @@ impl<'a> CheckerState<'a> {
                     self.push_error_diagnostic(diagnostic);
                     return Ok(related);
                 }
-                let mut source_text = self.type_to_string_slice_with_error_enclosing(source)?;
-                let mut target_text = self.type_to_string_slice_with_error_enclosing(target)?;
+                let mut source_text = self.type_to_string_with_error_enclosing(source)?;
+                let mut target_text = self.type_to_string_with_error_enclosing(target)?;
                 if source_text == target_text {
                     // getTypeNamesForErrorDisplay (50748-50756): equal
                     // renders re-render fully qualified (no enclosing).
@@ -5776,8 +5769,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: typeToString @6.0.3
     /// tsc-hash: 4b587962e2fb137a31ea52c35aeba733ffb4c6d97a8c54c98d5c1f1666e73dda
     /// tsc-span: _tsc.js:50717-50747
-    pub(crate) fn type_to_string_slice(&mut self, ty: TypeId) -> CheckResult<JsString> {
-        self.type_to_string_slice_root(
+    pub(crate) fn type_to_string(&mut self, ty: TypeId) -> CheckResult<JsString> {
+        self.type_to_string_root(
             ty, /*fully_qualified*/ false, /*no_type_reduction*/ false,
         )
     }
@@ -5786,11 +5779,8 @@ impl<'a> CheckerState<'a> {
     /// typeToString(..., NodeBuilderFlags.NoTypeReduction), used by
     /// elaborateNeverIntersection to retain the original intersection
     /// face after getReducedType has cached its collapse to never.
-    pub(crate) fn type_to_string_slice_no_type_reduction(
-        &mut self,
-        ty: TypeId,
-    ) -> CheckResult<JsString> {
-        self.type_to_string_slice_root(
+    pub(crate) fn type_to_string_no_type_reduction(&mut self, ty: TypeId) -> CheckResult<JsString> {
+        self.type_to_string_root(
             ty, /*fully_qualified*/ false, /*no_type_reduction*/ true,
         )
     }
@@ -5804,7 +5794,7 @@ impl<'a> CheckerState<'a> {
     /// nodeBuilder, while structural shapes reuse the ordinary
     /// recursive renderer.
     pub(crate) fn get_type_name_for_error_display(&mut self, ty: TypeId) -> CheckResult<JsString> {
-        self.type_to_string_slice_root(
+        self.type_to_string_root(
             ty, /*fully_qualified*/ true, /*no_type_reduction*/ false,
         )
     }
@@ -5814,44 +5804,40 @@ impl<'a> CheckerState<'a> {
     /// the parked fields below; a root call saves/restores them so a
     /// semantic getter that re-enters typeToString receives a fresh
     /// context just like tsc.
-    fn type_to_string_slice_root(
+    fn type_to_string_root(
         &mut self,
         ty: TypeId,
         fully_qualified: bool,
         no_type_reduction: bool,
     ) -> CheckResult<JsString> {
-        let saved_visited = std::mem::take(&mut self.slice_visited_types);
-        let saved_infer_type_parameters = std::mem::take(&mut self.slice_infer_type_parameters);
-        let saved_approximate_length = std::mem::replace(&mut self.slice_approximate_length, 0);
+        let saved_visited = std::mem::take(&mut self.display_visited_types);
+        let saved_infer_type_parameters = std::mem::take(&mut self.display_infer_type_parameters);
+        let saved_approximate_length = std::mem::replace(&mut self.display_approximate_length, 0);
         let saved_max_truncation_length = std::mem::replace(
-            &mut self.slice_max_truncation_length,
+            &mut self.display_max_truncation_length,
             if self.options.no_error_truncation == Some(true) {
                 1_000_000
             } else {
                 160
             },
         );
-        let saved_truncating = std::mem::replace(&mut self.slice_truncating, false);
-        let saved_reverse_mapped_stack = std::mem::take(&mut self.slice_reverse_mapped_stack);
+        let saved_truncating = std::mem::replace(&mut self.display_truncating, false);
+        let saved_reverse_mapped_stack = std::mem::take(&mut self.display_reverse_mapped_stack);
         let saved_no_type_reduction =
-            std::mem::replace(&mut self.slice_no_type_reduction, no_type_reduction);
-        let result = self.type_to_string_slice_ex(ty, fully_qualified);
-        self.slice_visited_types = saved_visited;
-        self.slice_infer_type_parameters = saved_infer_type_parameters;
-        self.slice_approximate_length = saved_approximate_length;
-        self.slice_max_truncation_length = saved_max_truncation_length;
-        self.slice_truncating = saved_truncating;
-        self.slice_reverse_mapped_stack = saved_reverse_mapped_stack;
-        self.slice_no_type_reduction = saved_no_type_reduction;
+            std::mem::replace(&mut self.display_no_type_reduction, no_type_reduction);
+        let result = self.type_to_string_ex(ty, fully_qualified);
+        self.display_visited_types = saved_visited;
+        self.display_infer_type_parameters = saved_infer_type_parameters;
+        self.display_approximate_length = saved_approximate_length;
+        self.display_max_truncation_length = saved_max_truncation_length;
+        self.display_truncating = saved_truncating;
+        self.display_reverse_mapped_stack = saved_reverse_mapped_stack;
+        self.display_no_type_reduction = saved_no_type_reduction;
         result
     }
 
-    fn type_to_string_slice_ex(
-        &mut self,
-        ty: TypeId,
-        fully_qualified: bool,
-    ) -> CheckResult<JsString> {
-        Ok(self.type_to_string_slice_node(ty, fully_qualified)?.0)
+    fn type_to_string_ex(&mut self, ty: TypeId, fully_qualified: bool) -> CheckResult<JsString> {
+        Ok(self.type_to_string_node(ty, fully_qualified)?.0)
     }
 
     /// tsc-port: checkTruncationLength @6.0.3
@@ -5861,16 +5847,16 @@ impl<'a> CheckerState<'a> {
     /// Once the accumulated
     /// nodeBuilder estimate exceeds the active budget, truncating is
     /// sticky for the rest of this typeToString call.
-    fn slice_check_truncation_length(&mut self) -> bool {
-        if !self.slice_truncating {
-            self.slice_truncating =
-                self.slice_approximate_length > self.slice_max_truncation_length;
+    fn display_check_truncation_length(&mut self) -> bool {
+        if !self.display_truncating {
+            self.display_truncating =
+                self.display_approximate_length > self.display_max_truncation_length;
         }
-        self.slice_truncating
+        self.display_truncating
     }
 
-    fn slice_add_approximate_length(&mut self, length: usize) {
-        self.slice_approximate_length = self.slice_approximate_length.saturating_add(length);
+    fn display_add_approximate_length(&mut self, length: usize) {
+        self.display_approximate_length = self.display_approximate_length.saturating_add(length);
     }
 
     /// JS string `.length`, used by nodeBuilder's estimate counters.
@@ -5881,11 +5867,11 @@ impl<'a> CheckerState<'a> {
     /// createAccessFromSymbolChain on the ordinary one-symbol chain
     /// increments once while selecting the root name and once again
     /// while creating that link (53204-53231).
-    fn slice_add_bare_symbol_length<'n>(&mut self, name: impl Into<tsc_types::JsStr<'n>>) {
-        self.slice_add_approximate_length(2 * (Self::slice_js_length(name) + 1));
+    fn display_add_bare_symbol_length<'n>(&mut self, name: impl Into<tsc_types::JsStr<'n>>) {
+        self.display_add_approximate_length(2 * (Self::slice_js_length(name) + 1));
     }
 
-    fn slice_truncation_type_node(&self) -> (JsString, SliceTypeNodeKind) {
+    fn display_truncation_type_node(&self) -> (JsString, SliceTypeNodeKind) {
         if self.options.no_error_truncation == Some(true) {
             // NoTruncation uses `any` plus a synthetic elision
             // comment; typeToString's remove-comments printer leaves
@@ -5896,7 +5882,7 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    fn slice_types_are_same_reference(&self, left: TypeId, right: TypeId) -> bool {
+    fn display_types_are_same_reference(&self, left: TypeId, right: TypeId) -> bool {
         if left == right {
             return true;
         }
@@ -5914,7 +5900,7 @@ impl<'a> CheckerState<'a> {
     /// truncation probes and the two-unit estimate charged before
     /// every rendered element, plus the fully-qualified
     /// same-written-name collision retry.
-    fn map_to_type_string_nodes_slice(
+    fn map_to_type_string_nodes(
         &mut self,
         types: &[TypeId],
         fully_qualified: bool,
@@ -5923,14 +5909,13 @@ impl<'a> CheckerState<'a> {
         if types.is_empty() {
             return Ok(Vec::new());
         }
-        if self.slice_check_truncation_length() {
+        if self.display_check_truncation_length() {
             if !is_bare_list {
-                return Ok(vec![self.slice_truncation_type_node()]);
+                return Ok(vec![self.display_truncation_type_node()]);
             }
             if types.len() > 2 {
-                let first = self.type_to_string_slice_node(types[0], fully_qualified)?;
-                let last =
-                    self.type_to_string_slice_node(types[types.len() - 1], fully_qualified)?;
+                let first = self.type_to_string_node(types[0], fully_qualified)?;
+                let last = self.type_to_string_node(types[types.len() - 1], fully_qualified)?;
                 return Ok(vec![
                     first,
                     if self.options.no_error_truncation == Some(true) {
@@ -5950,7 +5935,7 @@ impl<'a> CheckerState<'a> {
             std::collections::BTreeMap::new();
         for (index, &ty) in types.iter().enumerate() {
             let ordinal = index + 1;
-            if self.slice_check_truncation_length() && ordinal + 2 < types.len() - 1 {
+            if self.display_check_truncation_length() && ordinal + 2 < types.len() - 1 {
                 rendered.push(if self.options.no_error_truncation == Some(true) {
                     ("any".into(), SliceTypeNodeKind::Keyword)
                 } else {
@@ -5959,12 +5944,11 @@ impl<'a> CheckerState<'a> {
                         SliceTypeNodeKind::Reference,
                     )
                 });
-                rendered
-                    .push(self.type_to_string_slice_node(types[types.len() - 1], fully_qualified)?);
+                rendered.push(self.type_to_string_node(types[types.len() - 1], fully_qualified)?);
                 break;
             }
-            self.slice_add_approximate_length(2);
-            let node = self.type_to_string_slice_node(ty, fully_qualified)?;
+            self.display_add_approximate_length(2);
+            let node = self.type_to_string_node(ty, fully_qualified)?;
             let result_index = rendered.len();
             if !fully_qualified && node.1 == SliceTypeNodeKind::Reference {
                 let value = node.0.as_js();
@@ -5992,13 +5976,13 @@ impl<'a> CheckerState<'a> {
             if collisions
                 .iter()
                 .skip(1)
-                .all(|&(ty, _)| self.slice_types_are_same_reference(first, ty))
+                .all(|&(ty, _)| self.display_types_are_same_reference(first, ty))
             {
                 continue;
             }
             for &(ty, result_index) in collisions {
                 rendered[result_index] =
-                    self.type_to_string_slice_node(ty, /*fully_qualified*/ true)?;
+                    self.type_to_string_node(ty, /*fully_qualified*/ true)?;
             }
         }
         Ok(rendered)
@@ -6007,12 +5991,12 @@ impl<'a> CheckerState<'a> {
     /// symbolToTypeNode's reference head. Qualification/import roots
     /// still belong to symbolToTypeNode; its root spelling is supplied
     /// by getNameOfSymbolAsWritten below.
-    fn type_reference_symbol_name_slice(
+    fn type_reference_symbol_name(
         &mut self,
         symbol: SymbolId,
         fully_qualified: bool,
     ) -> CheckResult<JsString> {
-        Ok(self.symbol_type_face_slice(symbol, fully_qualified)?.0)
+        Ok(self.symbol_type_face(symbol, fully_qualified)?.0)
     }
 
     /// tsc-port: getNameOfSymbolAsWritten @6.0.3
@@ -6025,7 +6009,7 @@ impl<'a> CheckerState<'a> {
     /// declaration name; truly unnamed expressions use tsc's sentinel
     /// instead of leaking `__class`/`__function`.
     /// (h2-7a-m-3 widening: decision-only NodeBuilder reuse anchor.)
-    pub(crate) fn entity_symbol_name_as_written_slice(
+    pub(crate) fn entity_symbol_name_as_written(
         &self,
         symbol: SymbolId,
         in_initial_entity_name: bool,
@@ -6041,8 +6025,8 @@ impl<'a> CheckerState<'a> {
                     declarations
                         .first()
                         .copied()
-                        .and_then(|declaration| self.default_binding_context_slice(declaration))
-                        != self.default_binding_context_slice(enclosing)
+                        .and_then(|declaration| self.default_binding_context(declaration))
+                        != self.default_binding_context(enclosing)
                 }))
         {
             return tsc_types::InternalSymbolName::DEFAULT.into();
@@ -6057,7 +6041,7 @@ impl<'a> CheckerState<'a> {
                 .is_some()
             });
             if named_declaration.is_some() {
-                return self.symbol_name_as_written_slice(symbol);
+                return self.symbol_name_as_written(symbol);
             }
 
             let declaration = declarations[0];
@@ -6077,7 +6061,7 @@ impl<'a> CheckerState<'a> {
                 _ => {}
             }
         }
-        self.symbol_name_from_name_type_slice(
+        self.symbol_name_from_name_type(
             symbol,
             in_initial_entity_name,
             use_alias_defined_outside_current_scope,
@@ -6092,7 +6076,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: createTypeChecker.getNameOfSymbolFromNameType @6.0.3
     /// tsc-hash: f499724c3f5c9e776aaed901cfc7531d0c6d73d9d048a13ea76880cacec9fc3c
     /// tsc-span: _tsc.js:55523-55540
-    pub(crate) fn symbol_name_from_name_type_slice(
+    pub(crate) fn symbol_name_from_name_type(
         &self,
         symbol: SymbolId,
         in_initial_entity_name: bool,
@@ -6134,7 +6118,7 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL) {
             let name_symbol = self.tables.type_of(name_type).symbol?;
-            let name = self.entity_symbol_name_as_written_slice(
+            let name = self.entity_symbol_name_as_written(
                 name_symbol,
                 in_initial_entity_name,
                 use_alias_defined_outside_current_scope,
@@ -6151,7 +6135,7 @@ impl<'a> CheckerState<'a> {
     /// tsc isDefaultBindingContext + findAncestor: source files and
     /// ambient modules delimit where a named default export may use
     /// its declaration spelling.
-    fn default_binding_context_slice(&self, node: NodeId) -> Option<NodeId> {
+    fn default_binding_context(&self, node: NodeId) -> Option<NodeId> {
         let mut current = Some(node);
         while let Some(candidate) = current {
             let source = self.binder.source_of_node(candidate);
@@ -6168,7 +6152,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getParentSymbolOfTypeParameter @6.0.3
     /// tsc-hash: c6c6439ef9269ecc33487047b46a90e24f5781fb5e1ee2548429866d84d7e57e
     /// tsc-span: _tsc.js:60123-60127
-    fn parent_symbol_of_type_parameter_slice(&self, parameter: TypeId) -> Option<SymbolId> {
+    fn parent_symbol_of_type_parameter_display(&self, parameter: TypeId) -> Option<SymbolId> {
         let symbol = self.tables.type_of(parameter).symbol?;
         let declaration = self
             .binder
@@ -6195,7 +6179,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: typeReferenceToTypeNode @6.0.3
     /// tsc-hash: 5c22abc10910aaee0aa11e8f853b69bb6a7437fa209d7fb7194627f7a692775e
     /// tsc-span: _tsc.js:52009-52033
-    fn should_elide_iterable_default_arguments_slice(
+    fn should_elide_iterable_default_arguments(
         &mut self,
         ty: TypeId,
         type_parameter_count: usize,
@@ -6272,7 +6256,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: typeToTypeNodeWorker @6.0.3 (Any arm)
     /// tsc-hash: db8cf9911d836f13e37be9d395a4d61fbfad346e6c3e3c25210441a94d986533
     /// tsc-span: _tsc.js:51338-51347
-    fn type_to_string_slice_node(
+    fn type_to_string_node(
         &mut self,
         ty: TypeId,
         fully_qualified: bool,
@@ -6281,7 +6265,7 @@ impl<'a> CheckerState<'a> {
         // builder flags do not include NoTypeReduction, so every
         // recursive display frame reduces before selecting a node
         // arm. This is observable for never-reduced intersections.
-        let ty = if self.slice_no_type_reduction {
+        let ty = if self.display_no_type_reduction {
             ty
         } else {
             self.get_reduced_type(ty)?
@@ -6337,7 +6321,7 @@ impl<'a> CheckerState<'a> {
                         // it charges only mapToTypeNodes' per-argument
                         // units, never the alias name.
                         let rendered = self
-                            .map_to_type_string_nodes_slice(
+                            .map_to_type_string_nodes(
                                 &arguments,
                                 fully_qualified,
                                 /*is_bare_list*/ false,
@@ -6380,14 +6364,14 @@ impl<'a> CheckerState<'a> {
             // extends type. The surrounding conditional arm installs
             // that root-scoped context and restores it before either
             // result branch is rendered.
-            if self.slice_infer_type_parameters.contains(&ty) {
+            if self.display_infer_type_parameters.contains(&ty) {
                 let symbol = self
                     .tables
                     .type_of(ty)
                     .symbol
                     .expect("infer type parameters carry declaration symbols");
                 let name = self.symbol_display_name(symbol);
-                self.slice_add_approximate_length(Self::slice_js_length(&name) + 6);
+                self.display_add_approximate_length(Self::slice_js_length(&name) + 6);
 
                 let constraint_text = match self.get_constraint_of_type_parameter(ty)? {
                     Some(constraint) => {
@@ -6402,11 +6386,8 @@ impl<'a> CheckerState<'a> {
                         if is_inferred_constraint {
                             None
                         } else {
-                            self.slice_add_approximate_length(9);
-                            Some(
-                                self.type_to_string_slice_node(constraint, fully_qualified)?
-                                    .0,
-                            )
+                            self.display_add_approximate_length(9);
+                            Some(self.type_to_string_node(constraint, fully_qualified)?.0)
                         }
                     }
                     None => None,
@@ -6424,7 +6405,7 @@ impl<'a> CheckerState<'a> {
             }
             return Ok((
                 match self.tables.type_of(ty).symbol {
-                    Some(symbol) => self.symbol_type_face_slice(symbol, fully_qualified)?.0,
+                    Some(symbol) => self.symbol_type_face(symbol, fully_qualified)?.0,
                     None => "?".into(),
                 },
                 SliceTypeNodeKind::Reference,
@@ -6453,7 +6434,7 @@ impl<'a> CheckerState<'a> {
                 .intersects(ObjectFlags::REFERENCE)
         {
             if let Some(symbol) = self.tables.type_of(ty).symbol {
-                return self.symbol_type_face_slice(symbol, fully_qualified);
+                return self.symbol_type_face(symbol, fully_qualified);
             }
         }
         // tsc-port: typeToTypeNodeHelper @6.0.3 (the EnumLike arm)
@@ -6485,9 +6466,8 @@ impl<'a> CheckerState<'a> {
                 let parent = self
                     .get_parent_of_symbol(symbol)
                     .expect("enum members carry their enum parent");
-                let (parent_name, parent_kind) =
-                    self.symbol_type_face_slice(parent, fully_qualified)?;
-                if self.get_declared_type_of_symbol_slice(parent)? == ty {
+                let (parent_name, parent_kind) = self.symbol_type_face(parent, fully_qualified)?;
+                if self.get_declared_type_of_symbol(parent)? == ty {
                     return Ok((parent_name, SliceTypeNodeKind::Reference));
                 }
                 let member_name = self.symbol_display_name(symbol);
@@ -6500,7 +6480,7 @@ impl<'a> CheckerState<'a> {
                         SliceTypeNodeKind::Reference,
                     ));
                 }
-                let member = string_literal_name_slice(&member_name, false)?;
+                let member = string_literal_name(&member_name, false)?;
                 return match parent_kind {
                     SliceTypeNodeKind::ImportType => Ok((
                         crate::concat_js(&[&"typeof ", &(parent_name), &"[", &(member), &"]"]),
@@ -6515,7 +6495,7 @@ impl<'a> CheckerState<'a> {
                     ),
                 };
             }
-            return self.symbol_type_face_slice(symbol, fully_qualified);
+            return self.symbol_type_face(symbol, fully_qualified);
         }
         match self.tables.type_of(ty).data.clone() {
             TypeData::Intrinsic { name, .. } => {
@@ -6529,7 +6509,7 @@ impl<'a> CheckerState<'a> {
                 // marker used by string-mapping declarations keeps
                 // its dedicated IntrinsicKeyword face.
                 let text: &str = if flags.intersects(TypeFlags::ANY) {
-                    self.slice_add_approximate_length(3);
+                    self.display_add_approximate_length(3);
                     if ty == self.tables.intrinsics.intrinsic_marker {
                         "intrinsic"
                     } else {
@@ -6540,28 +6520,28 @@ impl<'a> CheckerState<'a> {
                 } else if flags
                     .intersects(TypeFlags::STRING | TypeFlags::NUMBER | TypeFlags::BIG_INT)
                 {
-                    self.slice_add_approximate_length(6);
+                    self.display_add_approximate_length(6);
                     name
                 } else if flags.intersects(TypeFlags::BOOLEAN) {
-                    self.slice_add_approximate_length(7);
+                    self.display_add_approximate_length(7);
                     name
                 } else if flags.intersects(TypeFlags::BOOLEAN_LITERAL) {
-                    self.slice_add_approximate_length(Self::slice_js_length(name));
+                    self.display_add_approximate_length(Self::slice_js_length(name));
                     name
                 } else if flags.intersects(TypeFlags::VOID) {
-                    self.slice_add_approximate_length(4);
+                    self.display_add_approximate_length(4);
                     name
                 } else if flags.intersects(TypeFlags::UNDEFINED) {
-                    self.slice_add_approximate_length(9);
+                    self.display_add_approximate_length(9);
                     name
                 } else if flags.intersects(TypeFlags::NULL) {
-                    self.slice_add_approximate_length(4);
+                    self.display_add_approximate_length(4);
                     name
                 } else if flags.intersects(TypeFlags::NEVER) {
-                    self.slice_add_approximate_length(5);
+                    self.display_add_approximate_length(5);
                     name
                 } else if flags.intersects(TypeFlags::ES_SYMBOL | TypeFlags::NON_PRIMITIVE) {
-                    self.slice_add_approximate_length(6);
+                    self.display_add_approximate_length(6);
                     name
                 } else {
                     name
@@ -6577,7 +6557,7 @@ impl<'a> CheckerState<'a> {
                     // `"AB\r\nC"` spells its escapes (oracle-pinned).
                     // The JS display value retains lone surrogate units;
                     // only the final output sink may encode/project them.
-                    self.slice_add_approximate_length(text.len() + 2);
+                    self.display_add_approximate_length(text.len() + 2);
                     Ok((
                         crate::concat_js(&[
                             &"\"",
@@ -6589,7 +6569,7 @@ impl<'a> CheckerState<'a> {
                 }
                 tsc_types::LiteralValue::Number(value) => {
                     let text = tsc_types::js_number_to_string(value);
-                    self.slice_add_approximate_length(Self::slice_js_length(&text));
+                    self.display_add_approximate_length(Self::slice_js_length(&text));
                     Ok((text.into(), SliceTypeNodeKind::Literal))
                 }
                 tsc_types::LiteralValue::BigInt(value) => {
@@ -6597,7 +6577,7 @@ impl<'a> CheckerState<'a> {
                     // BigIntLiteral printer's `n` suffix. The pseudo
                     // value is already normalized to signed base-10.
                     let text = crate::concat_js(&[&(value.to_base10_string()), &"n"]);
-                    self.slice_add_approximate_length(Self::slice_js_length(&text));
+                    self.display_add_approximate_length(Self::slice_js_length(&text));
                     Ok((text, SliceTypeNodeKind::Literal))
                 }
             },
@@ -6624,18 +6604,18 @@ impl<'a> CheckerState<'a> {
                         .type_of(ty)
                         .symbol
                         .expect("unique symbols carry their declaration symbol");
-                    self.slice_add_approximate_length(6);
-                    self.symbol_value_face_slice(symbol, true)
+                    self.display_add_approximate_length(6);
+                    self.symbol_value_face(symbol, true)
                 } else {
-                    self.slice_add_approximate_length(13);
+                    self.display_add_approximate_length(13);
                     Ok(("unique symbol".into(), SliceTypeNodeKind::TypeOperator))
                 }
             }
-            _ => self.type_to_string_slice_structured(ty, fully_qualified),
+            _ => self.type_to_string_structured(ty, fully_qualified),
         }
     }
 
-    fn type_to_string_slice_structured(
+    fn type_to_string_structured(
         &mut self,
         ty: TypeId,
         fully_qualified: bool,
@@ -6656,7 +6636,7 @@ impl<'a> CheckerState<'a> {
                     // same ArrayTypeNode sugar as the reference arm;
                     // name-based matching would incorrectly sugar a
                     // shadowing local alias, so retain symbol identity.
-                    let mut rendered_nodes = self.map_to_type_string_nodes_slice(
+                    let mut rendered_nodes = self.map_to_type_string_nodes(
                         &arguments,
                         fully_qualified,
                         /*is_bare_list*/ false,
@@ -6674,9 +6654,7 @@ impl<'a> CheckerState<'a> {
                             SliceTypeNodeKind::Array,
                         ));
                     }
-                    let name = self
-                        .symbol_type_face_slice(alias_symbol, fully_qualified)?
-                        .0;
+                    let name = self.symbol_type_face(alias_symbol, fully_qualified)?.0;
                     let rendered = rendered_nodes
                         .into_iter()
                         .map(|(text, _)| text)
@@ -6691,7 +6669,7 @@ impl<'a> CheckerState<'a> {
                         SliceTypeNodeKind::Reference,
                     ))
                 }
-                _ => self.symbol_type_face_slice(alias_symbol, fully_qualified),
+                _ => self.symbol_type_face(alias_symbol, fully_qualified),
             };
         }
         let flags = self.tables.flags_of(ty);
@@ -6700,7 +6678,7 @@ impl<'a> CheckerState<'a> {
         // (getUnionType's boolean-pair stamp — tables mirror it) and
         // prints as the keyword, never as its members.
         if flags.intersects(TypeFlags::BOOLEAN) && flags.intersects(TypeFlags::UNION) {
-            self.slice_add_approximate_length(7);
+            self.display_add_approximate_length(7);
             return Ok(("boolean".into(), SliceTypeNodeKind::Keyword));
         }
         if flags.intersects(TypeFlags::UNION | TypeFlags::INTERSECTION) {
@@ -6731,7 +6709,7 @@ impl<'a> CheckerState<'a> {
                         _ => unreachable!("union/intersection flag implies composite data"),
                     };
                 } else if origin_flags.intersects(TypeFlags::INDEX) {
-                    return self.index_type_to_string_slice_node(origin, fully_qualified);
+                    return self.index_type_to_string_node(origin, fully_qualified);
                 } else {
                     // typeToTypeNodeHelper substitutes the origin and
                     // ultimately Debug.fail()s for every other kind.
@@ -6752,13 +6730,10 @@ impl<'a> CheckerState<'a> {
             // origin lists) renders the member bare with ITS OWN node
             // kind for the enclosing parenthesizer.
             if types.len() == 1 {
-                return self.type_to_string_slice_node(types[0], fully_qualified);
+                return self.type_to_string_node(types[0], fully_qualified);
             }
-            let rendered_nodes = self.map_to_type_string_nodes_slice(
-                &types,
-                fully_qualified,
-                /*is_bare_list*/ true,
-            )?;
+            let rendered_nodes =
+                self.map_to_type_string_nodes(&types, fully_qualified, /*is_bare_list*/ true)?;
             let mut rendered = Vec::new();
             for (text, kind) in rendered_nodes {
                 let needs_parens = if is_union {
@@ -6791,7 +6766,7 @@ impl<'a> CheckerState<'a> {
             .object_flags_of(ty)
             .intersects(ObjectFlags::MAPPED)
         {
-            return self.type_node_from_object_type_slice(ty, fully_qualified);
+            return self.type_node_from_object_type(ty, fully_qualified);
         }
         if self
             .tables
@@ -6827,7 +6802,7 @@ impl<'a> CheckerState<'a> {
                 // runs under IgnoreErrors ⊇ AllowEmptyTuple (50722),
                 // so the error-display slice prints `[]` there.
                 let argument_count = arguments.len().min(arity);
-                let tuple_nodes = self.map_to_type_string_nodes_slice(
+                let tuple_nodes = self.map_to_type_string_nodes(
                     &arguments[..argument_count],
                     fully_qualified,
                     /*is_bare_list*/ false,
@@ -6950,8 +6925,7 @@ impl<'a> CheckerState<'a> {
                 _ => None,
             };
             if let (Some(readonly), Some(&element_type)) = (array_kind, arguments.first()) {
-                let (element, kind) =
-                    self.type_to_string_slice_node(element_type, fully_qualified)?;
+                let (element, kind) = self.type_to_string_node(element_type, fully_qualified)?;
                 // 51945-51947: ArrayTypeNode (postfix-parenthesized
                 // element) + the readonly TypeOperator for
                 // ReadonlyArray (an array operand never parenthesizes,
@@ -6986,7 +6960,7 @@ impl<'a> CheckerState<'a> {
                 // do not invent a class parent or a non-tsc display
                 // face.
                 let Some(parent) = self
-                    .parent_symbol_of_type_parameter_slice(type_parameters[argument_start])
+                    .parent_symbol_of_type_parameter_display(type_parameters[argument_start])
                     .filter(|_| arguments.len() >= outer_type_parameter_count)
                 else {
                     return Err(CheckAbort::OracleCrash(
@@ -6996,7 +6970,7 @@ impl<'a> CheckerState<'a> {
                 let group_start = argument_start;
                 argument_start += 1;
                 while argument_start < outer_type_parameter_count
-                    && self.parent_symbol_of_type_parameter_slice(type_parameters[argument_start])
+                    && self.parent_symbol_of_type_parameter_display(type_parameters[argument_start])
                         == Some(parent)
                 {
                     argument_start += 1;
@@ -7008,7 +6982,7 @@ impl<'a> CheckerState<'a> {
                     .ne(type_parameters[group_start..argument_start].iter().copied())
                 {
                     let rendered = self
-                        .map_to_type_string_nodes_slice(
+                        .map_to_type_string_nodes(
                             argument_group,
                             fully_qualified,
                             /*is_bare_list*/ false,
@@ -7016,8 +6990,7 @@ impl<'a> CheckerState<'a> {
                         .into_iter()
                         .map(|(text, _)| text)
                         .collect::<Vec<_>>();
-                    let parent_name =
-                        self.type_reference_symbol_name_slice(parent, fully_qualified)?;
+                    let parent_name = self.type_reference_symbol_name(parent, fully_qualified)?;
                     let reference = crate::concat_js(&[
                         &(parent_name),
                         &"<",
@@ -7036,7 +7009,7 @@ impl<'a> CheckerState<'a> {
             // defaults. Stop at the first absent/non-identical default;
             // Generator and every other generic are non-firing
             // siblings even when their parameter defaults are equal.
-            if self.should_elide_iterable_default_arguments_slice(ty, type_parameter_count)? {
+            if self.should_elide_iterable_default_arguments(ty, type_parameter_count)? {
                 while type_parameter_count > outer_type_parameter_count {
                     let argument = arguments[type_parameter_count - 1];
                     let parameter = type_parameters[type_parameter_count - 1];
@@ -7053,7 +7026,7 @@ impl<'a> CheckerState<'a> {
             let argument_end = type_parameter_count.min(arguments.len());
             let argument_start = outer_type_parameter_count.min(argument_end);
             let rendered = self
-                .map_to_type_string_nodes_slice(
+                .map_to_type_string_nodes(
                     &arguments[argument_start..argument_end],
                     fully_qualified,
                     /*is_bare_list*/ false,
@@ -7061,7 +7034,7 @@ impl<'a> CheckerState<'a> {
                 .into_iter()
                 .map(|(text, _)| text)
                 .collect::<Vec<_>>();
-            let name = self.type_reference_symbol_name_slice(symbol, fully_qualified)?;
+            let name = self.type_reference_symbol_name(symbol, fully_qualified)?;
             let reference = if rendered.is_empty() {
                 name
             } else {
@@ -7086,10 +7059,10 @@ impl<'a> CheckerState<'a> {
                 .object_flags_of(ty)
                 .intersects(ObjectFlags::ANONYMOUS)
         {
-            return self.anonymous_object_type_to_string_slice(ty, fully_qualified);
+            return self.anonymous_object_type_to_string(ty, fully_qualified);
         }
         if flags.intersects(TypeFlags::INDEX) {
-            return self.index_type_to_string_slice_node(ty, fully_qualified);
+            return self.index_type_to_string_node(ty, fully_qualified);
         }
         // tsc-port: typeToTypeNodeHelper @6.0.3 (the TemplateLiteral arm)
         // tsc-hash: 6493ff308f2472547a5845eab6a4caf09dac56f0b3916dd3f5029ab1e4fa1ef7
@@ -7109,13 +7082,13 @@ impl<'a> CheckerState<'a> {
             out.push_js((&template_text_utf16_raw(texts[0].units())).into());
             for (i, &span_type) in types.iter().enumerate() {
                 out.push_js(("${").into());
-                let (text, _) = self.type_to_string_slice_node(span_type, fully_qualified)?;
+                let (text, _) = self.type_to_string_node(span_type, fully_qualified)?;
                 out.push_js((&text).into());
                 out.push('}');
                 out.push_js((&template_text_utf16_raw(texts[i + 1].units())).into());
             }
             out.push('`');
-            self.slice_add_approximate_length(2);
+            self.display_add_approximate_length(2);
             return Ok((out, SliceTypeNodeKind::TemplateLiteral));
         }
         // tsc-port: typeToTypeNodeHelper @6.0.3 (the StringMapping arm)
@@ -7140,8 +7113,8 @@ impl<'a> CheckerState<'a> {
                 .type_of(ty)
                 .symbol
                 .expect("string-mapping types carry their intrinsic alias symbol");
-            let (argument, _) = self.type_to_string_slice_node(inner, fully_qualified)?;
-            let name = self.symbol_type_face_slice(symbol, fully_qualified)?.0;
+            let (argument, _) = self.type_to_string_node(inner, fully_qualified)?;
+            let name = self.symbol_type_face(symbol, fully_qualified)?.0;
             return Ok((
                 crate::concat_js(&[&(name), &"<", &(argument), &">"]),
                 SliceTypeNodeKind::Reference,
@@ -7165,14 +7138,14 @@ impl<'a> CheckerState<'a> {
                 _ => unreachable!("INDEXED_ACCESS flag implies IndexedAccess data"),
             };
             let (object_text, object_kind) =
-                self.type_to_string_slice_node(object_type, fully_qualified)?;
+                self.type_to_string_node(object_type, fully_qualified)?;
             let object = if non_array_postfix_operand_needs_parens(object_kind) {
                 crate::concat_js(&[&"(", &(object_text), &")"])
             } else {
                 object_text
             };
-            let (index_text, _) = self.type_to_string_slice_node(index_type, fully_qualified)?;
-            self.slice_add_approximate_length(2);
+            let (index_text, _) = self.type_to_string_node(index_type, fully_qualified)?;
+            self.display_add_approximate_length(2);
             return Ok((
                 crate::concat_js(&[&(object), &"[", &(index_text), &"]"]),
                 SliceTypeNodeKind::IndexedAccess,
@@ -7183,13 +7156,13 @@ impl<'a> CheckerState<'a> {
                 unreachable!("CONDITIONAL flag implies Conditional data");
             };
             let (check_text, check_kind) =
-                self.type_to_string_slice_node(data.check_type, fully_qualified)?;
+                self.type_to_string_node(data.check_type, fully_qualified)?;
             let check = if conditional_check_type_needs_parens(check_kind) {
                 crate::concat_js(&[&"(", &(check_text), &")"])
             } else {
                 check_text
             };
-            self.slice_add_approximate_length(15);
+            self.display_add_approximate_length(15);
             // conditionalTypeToTypeNode 51642-51645: only the
             // extends branch sees this conditional root's infer
             // parameters as declarations. Nested conditional renders
@@ -7199,10 +7172,12 @@ impl<'a> CheckerState<'a> {
                 .conditional_root(data.root)
                 .infer_type_parameters
                 .to_vec();
-            let saved_infer_type_parameters =
-                std::mem::replace(&mut self.slice_infer_type_parameters, infer_type_parameters);
-            let extends_result = self.type_to_string_slice_node(data.extends_type, fully_qualified);
-            self.slice_infer_type_parameters = saved_infer_type_parameters;
+            let saved_infer_type_parameters = std::mem::replace(
+                &mut self.display_infer_type_parameters,
+                infer_type_parameters,
+            );
+            let extends_result = self.type_to_string_node(data.extends_type, fully_qualified);
+            self.display_infer_type_parameters = saved_infer_type_parameters;
             let (extends_text, extends_kind) = extends_result?;
             let extends = if extends_kind == SliceTypeNodeKind::Conditional {
                 crate::concat_js(&[&"(", &(extends_text), &")"])
@@ -7211,8 +7186,8 @@ impl<'a> CheckerState<'a> {
             };
             let true_type = self.get_true_type_from_conditional_type(ty)?;
             let false_type = self.get_false_type_from_conditional_type(ty)?;
-            let (true_text, _) = self.type_to_string_slice_node(true_type, fully_qualified)?;
-            let (false_text, _) = self.type_to_string_slice_node(false_type, fully_qualified)?;
+            let (true_text, _) = self.type_to_string_node(true_type, fully_qualified)?;
+            let (false_text, _) = self.type_to_string_node(false_type, fully_qualified)?;
             return Ok((
                 crate::concat_js(&[
                     &(check),
@@ -7231,17 +7206,16 @@ impl<'a> CheckerState<'a> {
                 unreachable!("SUBSTITUTION flag implies Substitution data");
             };
             if self.tables.is_no_infer_type(ty) {
-                let (argument, _) =
-                    self.type_to_string_slice_node(data.base_type, fully_qualified)?;
+                let (argument, _) = self.type_to_string_node(data.base_type, fully_qualified)?;
                 if let Some(symbol) = self.get_global_type_symbol("NoInfer", false)? {
-                    let name = self.symbol_type_face_slice(symbol, fully_qualified)?.0;
+                    let name = self.symbol_type_face(symbol, fully_qualified)?.0;
                     return Ok((
                         crate::concat_js(&[&(name), &"<", &(argument), &">"]),
                         SliceTypeNodeKind::Reference,
                     ));
                 }
             }
-            return self.type_to_string_slice_node(data.base_type, fully_qualified);
+            return self.type_to_string_node(data.base_type, fully_qualified);
         }
         unreachable!("typeToTypeNodeHelper exhausted every TypeFlags/TypeData arm")
     }
@@ -7254,7 +7228,7 @@ impl<'a> CheckerState<'a> {
     /// for every constructible mapped object. The modifier-preserving
     /// wrapper and non-homomorphic instantiated rewrites remain owned by
     /// 9.5b, which is also the first producer of instantiated payloads.
-    fn mapped_type_to_string_slice_node(
+    fn mapped_type_to_string_node(
         &mut self,
         ty: TypeId,
         fully_qualified: bool,
@@ -7280,10 +7254,10 @@ impl<'a> CheckerState<'a> {
             })
             .unwrap_or_else(|| "?".into());
         let constraint = self.get_constraint_type_from_mapped_type(ty)?;
-        let constraint = self.type_to_string_slice_ex(constraint, fully_qualified)?;
+        let constraint = self.type_to_string_ex(constraint, fully_qualified)?;
         let name_type = if has_name_type {
             match self.get_name_type_from_mapped_type(ty)? {
-                Some(name_type) => Some(self.type_to_string_slice_ex(name_type, fully_qualified)?),
+                Some(name_type) => Some(self.type_to_string_ex(name_type, fully_qualified)?),
                 None => None,
             }
         } else {
@@ -7296,7 +7270,7 @@ impl<'a> CheckerState<'a> {
             template,
             modifiers.intersects(tsc_types::MappedTypeModifiers::INCLUDE_OPTIONAL),
         );
-        let template = self.type_to_string_slice_ex(template, fully_qualified)?;
+        let template = self.type_to_string_ex(template, fully_qualified)?;
 
         let readonly = match readonly_token.map(|token| self.kind_of(token)) {
             None => "",
@@ -7315,7 +7289,7 @@ impl<'a> CheckerState<'a> {
         let name = name_type
             .map(|name_type| crate::concat_js(&[&" as ", &(name_type)]))
             .unwrap_or_default();
-        self.slice_add_approximate_length(10);
+        self.display_add_approximate_length(10);
         Ok((
             crate::concat_js(&[
                 &"{",
@@ -7345,7 +7319,7 @@ impl<'a> CheckerState<'a> {
     /// directly (deferred `keyof T` over a generic operand) and
     /// through the union-origin substitution (51536-51538) — origin
     /// index types share TypeData::Index.
-    fn index_type_to_string_slice_node(
+    fn index_type_to_string_node(
         &mut self,
         ty: TypeId,
         fully_qualified: bool,
@@ -7354,8 +7328,8 @@ impl<'a> CheckerState<'a> {
             TypeData::Index { ty: inner, .. } => inner,
             _ => unreachable!("INDEX flag implies Index data"),
         };
-        self.slice_add_approximate_length(6);
-        let (text, kind) = self.type_to_string_slice_node(inner, fully_qualified)?;
+        self.display_add_approximate_length(6);
+        let (text, kind) = self.type_to_string_node(inner, fully_qualified)?;
         let operand = if type_operator_operand_needs_parens(kind) {
             crate::concat_js(&[&"(", &(text), &")"])
         } else {
@@ -7381,7 +7355,7 @@ impl<'a> CheckerState<'a> {
     /// exact `isJSConstructor` symbol face here. visitedTypes revisits
     /// reuse a type-literal alias when present and otherwise emit
     /// createElidedInformationPlaceholder.
-    fn anonymous_object_type_to_string_slice(
+    fn anonymous_object_type_to_string(
         &mut self,
         ty: TypeId,
         fully_qualified: bool,
@@ -7401,7 +7375,7 @@ impl<'a> CheckerState<'a> {
                 if self.kind_of(existing) == SyntaxKind::TypeQuery
                     && self.get_type_from_type_node(existing)? == ty
                 {
-                    if let Some(text) = self.reusable_annotation_node_text_slice(existing)? {
+                    if let Some(text) = self.reusable_annotation_node_text(existing)? {
                         return Ok((text, SliceTypeNodeKind::TypeQuery));
                     }
                 }
@@ -7421,7 +7395,7 @@ impl<'a> CheckerState<'a> {
                 .value_declaration
                 .is_some_and(|declaration| self.is_js_constructor(declaration))
             {
-                return self.symbol_value_face_slice(symbol, fully_qualified);
+                return self.symbol_value_face(symbol, fully_qualified);
             }
             // 51771-51786 symbol routing. Actual ClassOrInterface
             // shapes took the declared-type symbol head upstream;
@@ -7433,11 +7407,11 @@ impl<'a> CheckerState<'a> {
             // shouldWriteTypeOfFunctionSymbol is what makes self-returning
             // signatures finite without erasing the recursive edge to
             // `any`. The isJSConstructor head is handled immediately above.
-            if self.should_write_type_of_function_symbol_slice(ty, symbol)? {
-                return self.symbol_value_face_slice(symbol, fully_qualified);
+            if self.should_write_type_of_function_symbol_display(ty, symbol)? {
+                return self.symbol_value_face(symbol, fully_qualified);
             }
             let named_class = symbol_flags.intersects(SymbolFlags::CLASS)
-                && self.slice_base_type_variable_of_class(symbol)?.is_none();
+                && self.display_base_type_variable_of_class(symbol)?.is_none();
             if named_class
                 || symbol_flags.intersects(
                     tsc_types::SymbolFlags::REGULAR_ENUM | tsc_types::SymbolFlags::CONST_ENUM,
@@ -7447,15 +7421,15 @@ impl<'a> CheckerState<'a> {
                 // meaning only for a class instance side; enum objects
                 // and ordinary class statics use Value meaning.
                 let class_instance = symbol_flags.intersects(SymbolFlags::CLASS)
-                    && (self.get_declared_type_of_symbol_slice(symbol)? == ty
+                    && (self.get_declared_type_of_symbol(symbol)? == ty
                         || self
                             .tables
                             .object_flags_of(ty)
                             .intersects(ObjectFlags::IS_CLASS_INSTANCE_CLONE));
                 return if class_instance {
-                    self.symbol_type_face_slice(symbol, fully_qualified)
+                    self.symbol_type_face(symbol, fully_qualified)
                 } else {
-                    self.symbol_value_face_slice(symbol, fully_qualified)
+                    self.symbol_value_face(symbol, fully_qualified)
                 };
             }
             // The ValueModule half of the 51779 disjunct:
@@ -7467,7 +7441,7 @@ impl<'a> CheckerState<'a> {
             // requires SymbolFlags::CLASS, which cannot reach here,
             // so the meaning is always Value.
             if symbol_flags.intersects(tsc_types::SymbolFlags::VALUE_MODULE) {
-                return self.symbol_value_face_slice(symbol, fully_qualified);
+                return self.symbol_value_face(symbol, fully_qualified);
             }
             // Every OTHER symbol flavor is tsc's else branch —
             // createAnonymousTypeNode falls through to
@@ -7487,7 +7461,7 @@ impl<'a> CheckerState<'a> {
             // declaration-vs-JSON winner is contained at the RESOLVER
             // instead.)
         }
-        if self.slice_visited_types.contains(&ty) {
+        if self.display_visited_types.contains(&ty) {
             // 51786-51792: a recursive type-literal alias reuses the
             // alias head; every other revisit emits the ordinary
             // elided-information placeholder.
@@ -7509,16 +7483,16 @@ impl<'a> CheckerState<'a> {
                             .filter(|&node| self.kind_of(node) == SyntaxKind::TypeAliasDeclaration)
                         {
                             let alias_symbol = self.get_symbol_of_declaration(alias)?;
-                            return self.symbol_type_face_slice(alias_symbol, fully_qualified);
+                            return self.symbol_type_face(alias_symbol, fully_qualified);
                         }
                     }
                 }
             }
-            return Ok(self.reverse_mapped_elision_placeholder_slice());
+            return Ok(self.reverse_mapped_elision_placeholder());
         }
-        self.slice_visited_types.insert(ty);
-        let result = self.type_node_from_object_type_slice(ty, fully_qualified);
-        self.slice_visited_types.remove(&ty);
+        self.display_visited_types.insert(ty);
+        let result = self.type_node_from_object_type(ty, fully_qualified);
+        self.display_visited_types.remove(&ty);
         result
     }
 
@@ -7531,12 +7505,12 @@ impl<'a> CheckerState<'a> {
     /// arm. Keeping the declaration-shape predicate intact matters: local
     /// function expressions have no stable value name and must retain the
     /// ordinary elision fallback on recursion.
-    fn should_write_type_of_function_symbol_slice(
+    fn should_write_type_of_function_symbol_display(
         &mut self,
         ty: TypeId,
         symbol: SymbolId,
     ) -> CheckResult<bool> {
-        if !self.slice_visited_types.contains(&ty) {
+        if !self.display_visited_types.contains(&ty) {
             return Ok(false);
         }
         let symbol_flags = self.binder.symbol(symbol).flags;
@@ -7574,7 +7548,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// createAnonymousTypeNode must structurally expand the static side
     /// of a mixin class. Ordinary classes keep their symbol face.
-    fn slice_base_type_variable_of_class(
+    fn display_base_type_variable_of_class(
         &mut self,
         symbol: SymbolId,
     ) -> CheckResult<Option<TypeId>> {
@@ -7611,7 +7585,7 @@ impl<'a> CheckerState<'a> {
     /// createAccessFromSymbolChain's parent/indexed-access arms all
     /// collapse to the single-identifier face. The
     /// UseFullyQualifiedType leg runs getSymbolChain
-    /// (symbol_chain_slice below): an external-module ROOT is chain[0]
+    /// (symbol_chain below): an external-module ROOT is chain[0]
     /// for the 53117 gate, so the below-root links ride as the
     /// ImportTypeNode's qualifier (createAccessFromSymbolChain with
     /// stopper 1, export-table naming) and the export= short-circuit's
@@ -7625,20 +7599,20 @@ impl<'a> CheckerState<'a> {
     /// only fire on node_modules fixtures (host-adjudicated band) and
     /// the attributes only change message text under node16 matrices —
     /// recorded T2 residue, row keys unaffected.
-    fn symbol_type_face_slice(
+    fn symbol_type_face(
         &mut self,
         symbol: SymbolId,
         fully_qualified: bool,
     ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
-        self.symbol_to_type_face_slice(symbol, fully_qualified, tsc_types::SymbolFlags::TYPE)
+        self.symbol_to_type_face(symbol, fully_qualified, tsc_types::SymbolFlags::TYPE)
     }
 
-    fn symbol_value_face_slice(
+    fn symbol_value_face(
         &mut self,
         symbol: SymbolId,
         fully_qualified: bool,
     ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
-        self.symbol_to_type_face_slice(symbol, fully_qualified, tsc_types::SymbolFlags::VALUE)
+        self.symbol_to_type_face(symbol, fully_qualified, tsc_types::SymbolFlags::VALUE)
     }
 
     /// serializeTypeName's context-armed symbolToTypeNode face. Unlike
@@ -7646,14 +7620,14 @@ impl<'a> CheckerState<'a> {
     /// active enclosing declaration and therefore selects the shortest
     /// accessible alias/namespace chain, falling back to an import root
     /// only when no lexical chain names the symbol.
-    fn symbol_to_type_face_at_slice(
+    fn symbol_to_type_face_at(
         &mut self,
         symbol: SymbolId,
         meaning: tsc_types::SymbolFlags,
         enclosing: NodeId,
     ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
         let chain = self
-            .symbol_chain_slice(
+            .symbol_chain(
                 symbol,
                 meaning,
                 /*end_of_chain*/ true,
@@ -7661,12 +7635,12 @@ impl<'a> CheckerState<'a> {
                 Some(enclosing),
             )?
             .expect("getSymbolChain with endOfChain always yields (52991-52999)");
-        self.symbol_chain_to_type_face_slice(&chain, meaning, Some(enclosing))
+        self.symbol_chain_to_type_face(&chain, meaning, Some(enclosing))
     }
 
     /// createAccessFromSymbolChain's TypeNode construction over an
     /// already-selected chain (53117-53197).
-    fn symbol_chain_to_type_face_slice(
+    fn symbol_chain_to_type_face(
         &mut self,
         chain: &[SymbolId],
         meaning: tsc_types::SymbolFlags,
@@ -7676,12 +7650,12 @@ impl<'a> CheckerState<'a> {
         let root = chain[0];
         if self.symbol_has_external_module_declaration(root) {
             let specifier = match enclosing {
-                Some(enclosing) => self.specifier_for_module_symbol_at_slice(root, enclosing)?,
-                None => self.specifier_for_module_symbol_slice(root)?,
+                Some(enclosing) => self.specifier_for_module_symbol_at(root, enclosing)?,
+                None => self.specifier_for_module_symbol_display(root)?,
             };
-            let literal = string_literal_name_slice(&specifier, false)?;
+            let literal = string_literal_name(&specifier, false)?;
             let type_of = if is_type_of { "typeof " } else { "" };
-            self.slice_add_approximate_length(Self::slice_js_length(&specifier) + 10);
+            self.display_add_approximate_length(Self::slice_js_length(&specifier) + 10);
             if chain.len() == 1 {
                 return Ok((
                     crate::concat_js(&[&(type_of), &"import(", &(literal), &")"]),
@@ -7690,13 +7664,9 @@ impl<'a> CheckerState<'a> {
             }
             let mut qualifier = Vec::with_capacity(chain.len() - 1);
             for index in 1..chain.len() {
-                let name = self.qualifier_symbol_name_slice(
-                    chain[index - 1],
-                    chain[index],
-                    true,
-                    enclosing,
-                )?;
-                self.slice_add_approximate_length(Self::slice_js_length(&name) + 1);
+                let name =
+                    self.qualifier_symbol_name(chain[index - 1], chain[index], true, enclosing)?;
+                self.display_add_approximate_length(Self::slice_js_length(&name) + 1);
                 qualifier.push(name);
             }
             return Ok((
@@ -7712,13 +7682,13 @@ impl<'a> CheckerState<'a> {
         }
 
         let mut parts = Vec::with_capacity(chain.len());
-        let root_name = self.entity_symbol_name_as_written_slice(root, true, true, enclosing);
-        self.slice_add_bare_symbol_length(&root_name);
+        let root_name = self.entity_symbol_name_as_written(root, true, true, enclosing);
+        self.display_add_bare_symbol_length(&root_name);
         parts.push(root_name);
         for index in 1..chain.len() {
             let name =
-                self.qualifier_symbol_name_slice(chain[index - 1], chain[index], true, enclosing)?;
-            self.slice_add_approximate_length(Self::slice_js_length(&name) + 1);
+                self.qualifier_symbol_name(chain[index - 1], chain[index], true, enclosing)?;
+            self.display_add_approximate_length(Self::slice_js_length(&name) + 1);
             parts.push(name);
         }
         let text = crate::join_js_texts(&parts, ".");
@@ -7732,7 +7702,7 @@ impl<'a> CheckerState<'a> {
         })
     }
 
-    fn symbol_to_type_face_slice(
+    fn symbol_to_type_face(
         &mut self,
         symbol: SymbolId,
         fully_qualified: bool,
@@ -7752,10 +7722,10 @@ impl<'a> CheckerState<'a> {
             // typeParameterNodes undefined — the face is the bare
             // ImportTypeNode, with isTypeOf exactly under Value
             // meaning.
-            let specifier = self.specifier_for_module_symbol_slice(symbol)?;
-            let literal = string_literal_name_slice(&specifier, false)?;
+            let specifier = self.specifier_for_module_symbol_display(symbol)?;
+            let literal = string_literal_name(&specifier, false)?;
             let type_of = if is_type_of { "typeof " } else { "" };
-            self.slice_add_approximate_length(Self::slice_js_length(&specifier) + 10);
+            self.display_add_approximate_length(Self::slice_js_length(&specifier) + 10);
             return Ok((
                 crate::concat_js(&[&(type_of), &"import(", &(literal), &")"]),
                 SliceTypeNodeKind::ImportType,
@@ -7778,14 +7748,14 @@ impl<'a> CheckerState<'a> {
             // (53115): the `typeof import("...")` faces REQUIRE module
             // roots.
             let chain = self
-                .symbol_chain_slice(symbol, meaning, true, true, None)?
+                .symbol_chain(symbol, meaning, true, true, None)?
                 .expect("getSymbolChain with endOfChain always yields (52991-52999)");
             let root = chain[0];
             if self.symbol_has_external_module_declaration(root) {
-                let specifier = self.specifier_for_module_symbol_slice(root)?;
-                let literal = string_literal_name_slice(&specifier, false)?;
+                let specifier = self.specifier_for_module_symbol_display(root)?;
+                let literal = string_literal_name(&specifier, false)?;
                 let type_of = if is_type_of { "typeof " } else { "" };
-                self.slice_add_approximate_length(Self::slice_js_length(&specifier) + 10);
+                self.display_add_approximate_length(Self::slice_js_length(&specifier) + 10);
                 // 53175-53185: the export= short-circuit (52978-52981)
                 // leaves a length-1 chain — the bare ImportTypeNode.
                 if chain.len() == 1 {
@@ -7796,13 +7766,13 @@ impl<'a> CheckerState<'a> {
                 }
                 let mut qualifier = Vec::with_capacity(chain.len() - 1);
                 for index in 1..chain.len() {
-                    let name = self.qualifier_symbol_name_slice(
+                    let name = self.qualifier_symbol_name(
                         chain[index - 1],
                         chain[index],
                         false,
-                        self.slice_display_enclosing,
+                        self.display_enclosing,
                     )?;
-                    self.slice_add_approximate_length(Self::slice_js_length(&name) + 1);
+                    self.display_add_approximate_length(Self::slice_js_length(&name) + 1);
                     qualifier.push(name);
                 }
                 let qualifier = crate::join_js_texts(&qualifier, ".");
@@ -7815,22 +7785,18 @@ impl<'a> CheckerState<'a> {
             // getNameOfSymbolAsWritten at the root, then export-table
             // naming below it.
             let mut parts = Vec::with_capacity(chain.len());
-            let root_name = self.entity_symbol_name_as_written_slice(
-                root,
-                true,
-                false,
-                self.slice_display_enclosing,
-            );
-            self.slice_add_bare_symbol_length(&root_name);
+            let root_name =
+                self.entity_symbol_name_as_written(root, true, false, self.display_enclosing);
+            self.display_add_bare_symbol_length(&root_name);
             parts.push(root_name);
             for index in 1..chain.len() {
-                let name = self.qualifier_symbol_name_slice(
+                let name = self.qualifier_symbol_name(
                     chain[index - 1],
                     chain[index],
                     false,
-                    self.slice_display_enclosing,
+                    self.display_enclosing,
                 )?;
-                self.slice_add_approximate_length(Self::slice_js_length(&name) + 1);
+                self.display_add_approximate_length(Self::slice_js_length(&name) + 1);
                 parts.push(name);
             }
             let text = crate::join_js_texts(&parts, ".");
@@ -7844,13 +7810,13 @@ impl<'a> CheckerState<'a> {
             });
         }
         // 53186-53197 with the [symbol] chain: the bare-name face.
-        let name = self.entity_symbol_name_as_written_slice(
+        let name = self.entity_symbol_name_as_written(
             symbol,
             true,
             !fully_qualified,
-            self.slice_display_enclosing,
+            self.display_enclosing,
         );
-        self.slice_add_bare_symbol_length(&name);
+        self.display_add_bare_symbol_length(&name);
         Ok(if is_type_of {
             (
                 crate::concat_js(&[&"typeof ", &(name)]),
@@ -7875,7 +7841,7 @@ impl<'a> CheckerState<'a> {
     /// follow the same quote stripping and synthesized-literal
     /// escaping as the factory. Link names ride
     /// getNameOfSymbolAsWritten.
-    fn symbol_expression_face_slice(
+    fn symbol_expression_face(
         &mut self,
         symbol: SymbolId,
         enclosing: Option<NodeId>,
@@ -7885,7 +7851,7 @@ impl<'a> CheckerState<'a> {
             // yield_module_symbol FALSE — symbolToExpression passes
             // nothing (53338), including tsc's FQ retry, which still
             // rides this same entry point.
-            self.symbol_chain_slice(
+            self.symbol_chain(
                 symbol,
                 tsc_types::SymbolFlags::VALUE,
                 true,
@@ -7898,19 +7864,14 @@ impl<'a> CheckerState<'a> {
         };
         let mut expression = JsString::new();
         for (index, &link) in chain.iter().enumerate() {
-            let mut name = self.entity_symbol_name_as_written_slice(
-                link,
-                index == 0,
-                !fully_qualified,
-                enclosing,
-            );
+            let mut name =
+                self.entity_symbol_name_as_written(link, index == 0, !fully_qualified, enclosing);
             if index == 0 && self.symbol_has_external_module_declaration(link) {
-                let specifier = self.specifier_for_module_symbol_slice(link)?;
-                expression = string_literal_name_slice(&specifier, false)?.into();
+                let specifier = self.specifier_for_module_symbol_display(link)?;
+                expression = string_literal_name(&specifier, false)?.into();
                 continue;
             }
-            if index == 0 || can_use_property_access_slice(&name, self.options.emit_script_target())
-            {
+            if index == 0 || can_use_property_access(&name, self.options.emit_script_target()) {
                 expression = if index == 0 {
                     name
                 } else {
@@ -7937,8 +7898,8 @@ impl<'a> CheckerState<'a> {
                     .intersects(SymbolFlags::ENUM_MEMBER)
             {
                 let single_quote = first == Some('\'');
-                let literal = strip_symbol_name_quotes_slice(&name);
-                JsString::from(string_literal_name_slice(&literal, single_quote)?)
+                let literal = strip_symbol_name_quotes_display(&name);
+                JsString::from(string_literal_name(&literal, single_quote)?)
             } else {
                 let numeric = crate::evaluate::js_string_to_number(&name);
                 if name == tsc_types::js_number_to_string(numeric).as_str() {
@@ -7980,7 +7941,7 @@ impl<'a> CheckerState<'a> {
     /// flags. getQualifiedLeftMeaning (50291) fixes Value → Value, so
     /// the top-level Value meaning rides the whole recursion.
     /// (h2-7a-m-3 widening: decision-only NodeBuilder reuse anchor.)
-    pub(crate) fn symbol_chain_slice(
+    pub(crate) fn symbol_chain(
         &mut self,
         symbol: SymbolId,
         meaning: tsc_types::SymbolFlags,
@@ -7988,7 +7949,7 @@ impl<'a> CheckerState<'a> {
         yield_module_symbol: bool,
         enclosing: Option<NodeId>,
     ) -> CheckResult<Option<Vec<SymbolId>>> {
-        let mut accessible = self.accessible_symbol_chain_at_slice(symbol, meaning, enclosing)?;
+        let mut accessible = self.accessible_symbol_chain_at(symbol, meaning, enclosing)?;
         let needs_walk = match &accessible {
             None => true,
             Some(chain) => {
@@ -7997,12 +7958,12 @@ impl<'a> CheckerState<'a> {
                 } else {
                     Self::qualified_left_meaning(meaning)
                 };
-                self.needs_qualification_slice(chain[0], link_meaning, enclosing)?
+                self.needs_qualification(chain[0], link_meaning, enclosing)?
             }
         };
         if needs_walk {
             let walk_from = accessible.as_ref().map_or(symbol, |chain| chain[0]);
-            let parents = self.containers_of_symbol_slice(walk_from, enclosing, meaning)?;
+            let parents = self.containers_of_symbol(walk_from, enclosing, meaning)?;
             if !parents.is_empty() {
                 // 52964-52969: parents sort by specifier shape
                 // (sortByBestName) — module parents key their
@@ -8011,7 +7972,7 @@ impl<'a> CheckerState<'a> {
                 let mut specifiers: Vec<Option<JsString>> = Vec::with_capacity(parents.len());
                 for &parent in &parents {
                     if self.symbol_has_external_module_declaration(parent) {
-                        match self.specifier_for_module_symbol_slice(parent) {
+                        match self.specifier_for_module_symbol_display(parent) {
                             Ok(specifier) => specifiers.push(Some(specifier)),
                             // tsc always produces a specifier; a
                             // curtained one can only misorder a
@@ -8045,7 +8006,7 @@ impl<'a> CheckerState<'a> {
                 });
                 for index in order {
                     let parent = parents[index];
-                    let Some(parent_chain) = self.symbol_chain_slice(
+                    let Some(parent_chain) = self.symbol_chain(
                         parent,
                         Self::qualified_left_meaning(meaning),
                         false,
@@ -8064,7 +8025,7 @@ impl<'a> CheckerState<'a> {
                         .get(tsc_types::InternalSymbolName::EXPORT_EQUALS)
                         .copied();
                     if let Some(export_equals) = export_equals {
-                        if self.symbol_if_same_reference_slice(export_equals, symbol)? {
+                        if self.symbol_if_same_reference(export_equals, symbol)? {
                             accessible = Some(parent_chain);
                             break;
                         }
@@ -8076,7 +8037,7 @@ impl<'a> CheckerState<'a> {
                     match accessible.take() {
                         Some(tail) => chain.extend(tail),
                         None => {
-                            let alias = self.alias_for_symbol_in_container_slice(parent, symbol)?;
+                            let alias = self.alias_for_symbol_in_container(parent, symbol)?;
                             chain.push(alias.unwrap_or(symbol));
                         }
                     }
@@ -8124,23 +8085,23 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 86303c2907e872494ac8075b43923ebdd2dda7e3c0de5261e57930f45c0a8346
     /// tsc-span: _tsc.js:50294-50375
     ///
-    /// The scope walk (symbol_tables_in_scope_slice below) consults
+    /// The scope walk (symbol_tables_in_scope below) consults
     /// each table in lexical order and the shared visited list rides
     /// across them like tsc's per-symbol visitedSymbolTables. The
     /// isPropertyOrMethodDeclarationSymbol guard (50295) cannot match
     /// this face's module/namespace/variable declaration lists, and
     /// the accessibleChainCache is a recomputation-only economy the
     /// slice skips.
-    pub(crate) fn accessible_symbol_chain_at_slice(
+    pub(crate) fn accessible_symbol_chain_at(
         &mut self,
         symbol: SymbolId,
         meaning: tsc_types::SymbolFlags,
         enclosing: Option<NodeId>,
     ) -> CheckResult<Option<Vec<SymbolId>>> {
-        let tables = self.symbol_tables_in_scope_slice(enclosing);
+        let tables = self.symbol_tables_in_scope(enclosing);
         let mut visited = Vec::new();
         for (table_key, table, is_local_name_lookup) in tables {
-            if let Some(chain) = self.accessible_chain_from_table_slice(
+            if let Some(chain) = self.accessible_chain_from_table(
                 &table,
                 table_key,
                 symbol,
@@ -8168,7 +8129,7 @@ impl<'a> CheckerState<'a> {
     /// `globals` tail (50284-50289). The class/interface Type-filtered
     /// members table (50260-50283) is omitted because no current reuse
     /// canary enters this helper from a member-only lookup.
-    fn symbol_tables_in_scope_slice(
+    fn symbol_tables_in_scope(
         &mut self,
         enclosing: Option<NodeId>,
     ) -> Vec<(ScopeTableKey, crate::program::ScopeTable<'a>, bool)> {
@@ -8215,7 +8176,7 @@ impl<'a> CheckerState<'a> {
     /// visited guard is table-object identity in tsc — keyed by
     /// provenance here (ScopeTableKey).
     #[allow(clippy::too_many_arguments)]
-    fn accessible_chain_from_table_slice(
+    fn accessible_chain_from_table(
         &mut self,
         table: &tsc_binder::SymbolTable,
         table_key: ScopeTableKey,
@@ -8230,7 +8191,7 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         }
         visited.push(table_key);
-        let result = self.try_symbol_table_slice(
+        let result = self.try_symbol_table(
             table,
             table_key,
             symbol,
@@ -8253,7 +8214,7 @@ impl<'a> CheckerState<'a> {
     /// what makes a shadowed script-global type name serializable as
     /// `globalThis.A`.
     #[allow(clippy::too_many_arguments)]
-    fn try_symbol_table_slice(
+    fn try_symbol_table(
         &mut self,
         table: &tsc_binder::SymbolTable,
         table_key: ScopeTableKey,
@@ -8266,7 +8227,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Option<Vec<SymbolId>>> {
         let escaped = self.binder.symbol(symbol).escaped_name.clone();
         let direct = table.get(&escaped).copied();
-        if self.symbol_chain_is_accessible_slice(
+        if self.symbol_chain_is_accessible(
             symbol,
             direct,
             None,
@@ -8301,7 +8262,7 @@ impl<'a> CheckerState<'a> {
                     || !self.symbol_has_declaration_of_kind(entry, SyntaxKind::ExportSpecifier));
             if alias_leg {
                 let resolved = self.resolve_alias(entry)?;
-                if let Some(chain) = self.candidate_list_for_symbol_slice(
+                if let Some(chain) = self.candidate_list_for_symbol(
                     entry,
                     resolved,
                     symbol,
@@ -8326,7 +8287,7 @@ impl<'a> CheckerState<'a> {
             };
             if let Some(export_symbol) = export_symbol {
                 let merged = self.get_merged_symbol(export_symbol);
-                if self.symbol_chain_is_accessible_slice(
+                if self.symbol_chain_is_accessible(
                     symbol,
                     Some(merged),
                     None,
@@ -8339,7 +8300,7 @@ impl<'a> CheckerState<'a> {
             }
         }
         if table_key == ScopeTableKey::Globals {
-            return self.candidate_list_for_symbol_slice(
+            return self.candidate_list_for_symbol(
                 self.global_this_symbol,
                 self.global_this_symbol,
                 symbol,
@@ -8356,7 +8317,7 @@ impl<'a> CheckerState<'a> {
     /// the alias prepended to a chain found in its target's export
     /// table (qualification ignored inside).
     #[allow(clippy::too_many_arguments)]
-    fn candidate_list_for_symbol_slice(
+    fn candidate_list_for_symbol(
         &mut self,
         entry: SymbolId,
         resolved: SymbolId,
@@ -8366,7 +8327,7 @@ impl<'a> CheckerState<'a> {
         visited: &mut Vec<ScopeTableKey>,
         enclosing: Option<NodeId>,
     ) -> CheckResult<Option<Vec<SymbolId>>> {
-        if self.symbol_chain_is_accessible_slice(
+        if self.symbol_chain_is_accessible(
             symbol,
             Some(entry),
             Some(resolved),
@@ -8377,7 +8338,7 @@ impl<'a> CheckerState<'a> {
             return Ok(Some(vec![entry]));
         }
         let candidate_table = self.get_exports_of_symbol(resolved)?;
-        let inner = self.accessible_chain_from_table_slice(
+        let inner = self.accessible_chain_from_table(
             &candidate_table,
             ScopeTableKey::Exports(resolved),
             symbol,
@@ -8388,11 +8349,7 @@ impl<'a> CheckerState<'a> {
             enclosing,
         )?;
         if let Some(inner) = inner {
-            if self.can_qualify_symbol_slice(
-                entry,
-                Self::qualified_left_meaning(meaning),
-                enclosing,
-            )? {
+            if self.can_qualify_symbol(entry, Self::qualified_left_meaning(meaning), enclosing)? {
                 let mut chain = vec![entry];
                 chain.extend(inner);
                 return Ok(Some(chain));
@@ -8404,7 +8361,7 @@ impl<'a> CheckerState<'a> {
     /// isAccessible (50325-50330): identity (raw or merged) against
     /// the alias-resolved view, the external-module rejection, then
     /// qualifiability.
-    fn symbol_chain_is_accessible_slice(
+    fn symbol_chain_is_accessible(
         &mut self,
         symbol: SymbolId,
         entry: Option<SymbolId>,
@@ -8427,29 +8384,25 @@ impl<'a> CheckerState<'a> {
             return Ok(true);
         }
         let merged_entry = self.get_merged_symbol(entry);
-        self.can_qualify_symbol_slice(merged_entry, meaning, enclosing)
+        self.can_qualify_symbol(merged_entry, meaning, enclosing)
     }
 
     /// canQualifySymbol (50321-50324): no qualification needed, or the
     /// parent chain is itself accessible (from the same enclosing).
-    fn can_qualify_symbol_slice(
+    fn can_qualify_symbol(
         &mut self,
         entry: SymbolId,
         meaning: tsc_types::SymbolFlags,
         enclosing: Option<NodeId>,
     ) -> CheckResult<bool> {
-        if !self.needs_qualification_slice(entry, meaning, enclosing)? {
+        if !self.needs_qualification(entry, meaning, enclosing)? {
             return Ok(true);
         }
         let Some(parent) = self.get_parent_of_symbol(entry) else {
             return Ok(false);
         };
         Ok(self
-            .accessible_symbol_chain_at_slice(
-                parent,
-                Self::qualified_left_meaning(meaning),
-                enclosing,
-            )?
+            .accessible_symbol_chain_at(parent, Self::qualified_left_meaning(meaning), enclosing)?
             .is_some())
     }
 
@@ -8464,14 +8417,14 @@ impl<'a> CheckerState<'a> {
     /// walked past. getSymbolFlags' transitive-alias union collapses
     /// to the resolved symbol's flags — resolveAlias resolves chains
     /// to their non-alias tail.
-    pub(crate) fn needs_qualification_slice(
+    pub(crate) fn needs_qualification(
         &mut self,
         symbol: SymbolId,
         meaning: tsc_types::SymbolFlags,
         enclosing: Option<NodeId>,
     ) -> CheckResult<bool> {
         let escaped = self.binder.symbol(symbol).escaped_name.clone();
-        for (_, table, _) in self.symbol_tables_in_scope_slice(enclosing) {
+        for (_, table, _) in self.symbol_tables_in_scope(enclosing) {
             let Some(&entry) = table.get(&escaped) else {
                 continue;
             };
@@ -8542,14 +8495,14 @@ impl<'a> CheckerState<'a> {
         self.get_resolved_symbol(receiver)
     }
 
-    pub(crate) fn containers_of_symbol_slice(
+    pub(crate) fn containers_of_symbol(
         &mut self,
         symbol: SymbolId,
         enclosing: Option<NodeId>,
         meaning: tsc_types::SymbolFlags,
     ) -> CheckResult<Vec<SymbolId>> {
         if let Some(container) = self.get_parent_of_symbol(symbol) {
-            return self.with_alternative_containers_slice(
+            return self.with_alternative_containers(
                 container,
                 Some(container),
                 enclosing,
@@ -8605,7 +8558,7 @@ impl<'a> CheckerState<'a> {
         let mut containers = Vec::new();
         for candidate in candidates {
             if self
-                .alias_for_symbol_in_container_slice(candidate, symbol)?
+                .alias_for_symbol_in_container(candidate, symbol)?
                 .is_some()
             {
                 containers.push(candidate);
@@ -8619,8 +8572,7 @@ impl<'a> CheckerState<'a> {
         let mut best = Vec::new();
         let mut alternatives = Vec::new();
         for container in containers {
-            let expanded =
-                self.with_alternative_containers_slice(container, None, enclosing, meaning)?;
+            let expanded = self.with_alternative_containers(container, None, enclosing, meaning)?;
             let mut expanded = expanded.into_iter();
             if let Some(first) = expanded.next() {
                 best.push(first);
@@ -8641,7 +8593,7 @@ impl<'a> CheckerState<'a> {
     /// the accessible-container early return, and
     /// objectLiteralContainer follows the ordinary container, matching
     /// upstream's object/type-literal owning-variable alternative.
-    fn with_alternative_containers_slice(
+    fn with_alternative_containers(
         &mut self,
         container: SymbolId,
         parent_container: Option<SymbolId>,
@@ -8652,8 +8604,8 @@ impl<'a> CheckerState<'a> {
         if let Some(parent_container) = parent_container {
             let declarations = self.binder.symbol(container).declarations.clone();
             for declaration in declarations {
-                if let Some(file_symbol) = self
-                    .file_symbol_if_export_equals_container_slice(declaration, parent_container)?
+                if let Some(file_symbol) =
+                    self.file_symbol_if_export_equals_container(declaration, parent_container)?
                 {
                     additional.push(file_symbol);
                 }
@@ -8667,13 +8619,13 @@ impl<'a> CheckerState<'a> {
         let container_flags = self.binder.symbol(container).flags;
         let left_meaning = Self::qualified_left_meaning(meaning);
         let object_literal_container =
-            self.variable_declaration_of_object_literal_slice(container, meaning)?;
+            self.variable_declaration_of_object_literal(container, meaning)?;
         // tsc-port: getWithAlternativeContainers prefers a directly accessible
         // container before export-equals alternatives (_tsc.js:50027-50034).
         if enclosing.is_some()
             && container_flags.intersects(left_meaning)
             && self
-                .accessible_symbol_chain_at_slice(
+                .accessible_symbol_chain_at(
                     container,
                     tsc_types::SymbolFlags::NAMESPACE,
                     enclosing,
@@ -8692,10 +8644,10 @@ impl<'a> CheckerState<'a> {
             && container_flags.intersects(tsc_types::SymbolFlags::TYPE)
             && meaning == tsc_types::SymbolFlags::VALUE
         {
-            let declared = self.get_declared_type_of_symbol_slice(container)?;
+            let declared = self.get_declared_type_of_symbol(container)?;
             if self.tables.flags_of(declared).intersects(TypeFlags::OBJECT) {
                 let mut first = None;
-                'tables: for (_, table, _) in self.symbol_tables_in_scope_slice(enclosing) {
+                'tables: for (_, table, _) in self.symbol_tables_in_scope(enclosing) {
                     for &candidate in table.values() {
                         if self.binder.symbol(candidate).flags.intersects(left_meaning)
                             && self.get_type_of_symbol(candidate)? == declared
@@ -8727,7 +8679,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getVariableDeclarationOfObjectLiteral @6.0.3
     /// tsc-hash: e8b5b69e7074b6f72bab5f009118bd8c86c0f1f7a56eed3cd3c7981d7f621dbc
     /// tsc-span: _tsc.js:50053-50059
-    fn variable_declaration_of_object_literal_slice(
+    fn variable_declaration_of_object_literal(
         &mut self,
         symbol: SymbolId,
         meaning: tsc_types::SymbolFlags,
@@ -8762,7 +8714,7 @@ impl<'a> CheckerState<'a> {
     /// getExternalModuleContainer's findAncestor starts AT the
     /// declaration (a string-named module declaration is its own
     /// container); the export= read is the RAW exports table.
-    fn file_symbol_if_export_equals_container_slice(
+    fn file_symbol_if_export_equals_container(
         &mut self,
         declaration: NodeId,
         container: SymbolId,
@@ -8789,14 +8741,14 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         };
         Ok(self
-            .symbol_if_same_reference_slice(exported, container)?
+            .symbol_if_same_reference(exported, container)?
             .then_some(file_symbol))
     }
 
     /// tsc-port: getAliasForSymbolInContainer @6.0.3
     /// tsc-hash: 33333377bf20d625fbd2b1ed3577e8e1ff93b9385d89c1fd0818cf487e348c63
     /// tsc-span: _tsc.js:50065-50083
-    pub(crate) fn alias_for_symbol_in_container_slice(
+    pub(crate) fn alias_for_symbol_in_container(
         &mut self,
         container: SymbolId,
         symbol: SymbolId,
@@ -8814,19 +8766,19 @@ impl<'a> CheckerState<'a> {
             .get(tsc_types::InternalSymbolName::EXPORT_EQUALS)
             .copied();
         if let Some(export_equals) = export_equals {
-            if self.symbol_if_same_reference_slice(export_equals, symbol)? {
+            if self.symbol_if_same_reference(export_equals, symbol)? {
                 return Ok(Some(container));
             }
         }
         let exports = self.get_exports_of_symbol(container)?;
         let escaped = self.binder.symbol(symbol).escaped_name.clone();
         if let Some(&quick) = exports.get(&escaped) {
-            if self.symbol_if_same_reference_slice(quick, symbol)? {
+            if self.symbol_if_same_reference(quick, symbol)? {
                 return Ok(Some(quick));
             }
         }
         for (_, &exported) in exports.iter() {
-            if self.symbol_if_same_reference_slice(exported, symbol)? {
+            if self.symbol_if_same_reference(exported, symbol)? {
                 return Ok(Some(exported));
             }
         }
@@ -8836,7 +8788,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getSymbolIfSameReference @6.0.3 (predicate face)
     /// tsc-hash: 908084bf7d1f72b02a8256627f01987eb8cd0a6897b9c7027f0cac3f156f5d3d
     /// tsc-span: _tsc.js:50084-50088
-    pub(crate) fn symbol_if_same_reference_slice(
+    pub(crate) fn symbol_if_same_reference(
         &mut self,
         s1: SymbolId,
         s2: SymbolId,
@@ -8869,7 +8821,7 @@ impl<'a> CheckerState<'a> {
     /// getNameOfSymbolAsWritten (the symbol_display_name posture)
     /// closes the misses — including alias parents, whose unresolved
     /// export table is empty (probed: `typeof M.B`).
-    fn qualifier_symbol_name_slice(
+    fn qualifier_symbol_name(
         &mut self,
         parent: SymbolId,
         symbol: SymbolId,
@@ -8878,14 +8830,14 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<JsString> {
         let exports = self.get_exports_of_symbol(parent)?;
         for (name, &exported) in exports.iter() {
-            if self.symbol_if_same_reference_slice(exported, symbol)?
+            if self.symbol_if_same_reference(exported, symbol)?
                 && !name.starts_with("__@")
                 && name != tsc_types::InternalSymbolName::EXPORT_EQUALS
             {
                 return Ok(tsc_binder::unescape_leading_underscores(name).to_owned());
             }
         }
-        Ok(self.entity_symbol_name_as_written_slice(
+        Ok(self.entity_symbol_name_as_written(
             symbol,
             false,
             use_alias_defined_outside_current_scope,
@@ -8964,7 +8916,7 @@ impl<'a> CheckerState<'a> {
     /// fileName against the program cwd (program-host.mjs
     /// absoluteProgramFileName), the same posture as
     /// getFullyQualifiedName's source-file arm.
-    fn specifier_for_module_symbol_slice(&self, symbol: SymbolId) -> CheckResult<JsString> {
+    fn specifier_for_module_symbol_display(&self, symbol: SymbolId) -> CheckResult<JsString> {
         let data = self.binder.symbol(symbol);
         let escaped = data.escaped_name.as_js();
         // ambientModuleSymbolRegex (46291): /^".+"$/.
@@ -9011,7 +8963,7 @@ impl<'a> CheckerState<'a> {
     /// getSpecifierForModuleSymbol with an enclosing file: source-file
     /// module roots use the shortest relative module specifier, while
     /// ambient-module names remain their declared bare spelling.
-    fn specifier_for_module_symbol_at_slice(
+    fn specifier_for_module_symbol_at(
         &self,
         symbol: SymbolId,
         enclosing: NodeId,
@@ -9022,15 +8974,15 @@ impl<'a> CheckerState<'a> {
             .declarations
             .iter()
             .any(|&declaration| self.kind_of(declaration) == SyntaxKind::SourceFile);
-        let specifier = self.specifier_for_module_symbol_slice(symbol)?;
+        let specifier = self.specifier_for_module_symbol_display(symbol)?;
         if !source_file_module {
             return Ok(specifier);
         }
         let importer = &self.binder.source_of_node(enclosing).file_name;
-        Ok(Self::relative_module_specifier_slice(importer, &specifier))
+        Ok(Self::relative_module_specifier(importer, &specifier))
     }
 
-    fn relative_module_specifier_slice(importer: &JsString, target: &JsString) -> JsString {
+    fn relative_module_specifier(importer: &JsString, target: &JsString) -> JsString {
         let importer = Self::normalize_js_program_path(importer, "");
         let target = Self::normalize_js_program_path(target, "");
         let mut from: Vec<_> = importer.as_js().split_ascii(b'/').collect();
@@ -9116,7 +9068,7 @@ impl<'a> CheckerState<'a> {
     /// render behind the `typeof C` face, so mixed shapes chiefly arise
     /// from mapped/instantiation-expression synthesis. The branch
     /// below performs tsc's abstract-signature intersection split.
-    fn type_node_from_object_type_slice(
+    fn type_node_from_object_type(
         &mut self,
         ty: TypeId,
         fully_qualified: bool,
@@ -9130,7 +9082,7 @@ impl<'a> CheckerState<'a> {
                     .links
                     .read_ty(ty, |links| links.cold().mapped_contains_error))
         {
-            return self.mapped_type_to_string_slice_node(ty, fully_qualified);
+            return self.mapped_type_to_string_node(ty, fully_qualified);
         }
         let members = self.resolve_structured_type_members(ty)?;
         let resolved = self.members_of(members);
@@ -9147,7 +9099,7 @@ impl<'a> CheckerState<'a> {
                 // and JSDoc member production was incomplete; those
                 // producers are live in M8, so the local admission
                 // heuristic must not replace tsc's unconditional `{}`.
-                self.slice_add_approximate_length(2);
+                self.display_add_approximate_length(2);
                 return Ok(("{}".into(), SliceTypeNodeKind::TypeLiteral));
             }
             // 51907-51916: the single call/construct signature
@@ -9155,7 +9107,7 @@ impl<'a> CheckerState<'a> {
             // ConstructorType helper kind renders the abstract
             // modifier from the signature flag (52530-52533).
             if call_signatures.len() == 1 && construct_signatures.is_empty() {
-                let text = self.signature_to_string_slice(
+                let text = self.signature_to_string(
                     call_signatures[0],
                     SliceSignatureKind::FunctionType,
                     None,
@@ -9164,7 +9116,7 @@ impl<'a> CheckerState<'a> {
                 return Ok((text, SliceTypeNodeKind::FunctionType));
             }
             if construct_signatures.len() == 1 && call_signatures.is_empty() {
-                let text = self.signature_to_string_slice(
+                let text = self.signature_to_string(
                     construct_signatures[0],
                     SliceSignatureKind::ConstructorType,
                     None,
@@ -9221,7 +9173,7 @@ impl<'a> CheckerState<'a> {
             }
             let intersection =
                 self.get_intersection_type(&types, tsc_types::IntersectionFlags::NONE)?;
-            return self.type_to_string_slice_node(intersection, fully_qualified);
+            return self.type_to_string_node(intersection, fully_qualified);
         }
         // tsc-port: createTypeNodesFromResolvedType @6.0.3
         // tsc-hash: 96050b8c4ac17267f28f5ad848b848455efd24d01d889c9513683ef40b05770e
@@ -9232,8 +9184,8 @@ impl<'a> CheckerState<'a> {
         // sticky truncating context therefore turns the entire object
         // body into the synthetic `...` property; the enclosing
         // TypeLiteral still charges its braces below.
-        if self.slice_check_truncation_length() {
-            self.slice_add_approximate_length(2);
+        if self.display_check_truncation_length() {
+            self.display_add_approximate_length(2);
             return Ok(("{ ...; }".into(), SliceTypeNodeKind::TypeLiteral));
         }
         // createTypeNodesFromResolvedType (52137-52240): call
@@ -9242,10 +9194,10 @@ impl<'a> CheckerState<'a> {
         // has split every abstract-bearing shape), then index
         // signatures, then properties. The leading and per-property
         // checkTruncationLength probes share the exact sticky context
-        // initialized by type_to_string_slice_root.
+        // initialized by type_to_string_root.
         let mut rendered = Vec::new();
         for &signature in &call_signatures {
-            rendered.push(self.signature_to_string_slice(
+            rendered.push(self.signature_to_string(
                 signature,
                 SliceSignatureKind::CallSignature,
                 None,
@@ -9253,7 +9205,7 @@ impl<'a> CheckerState<'a> {
             )?);
         }
         for &signature in &construct_signatures {
-            rendered.push(self.signature_to_string_slice(
+            rendered.push(self.signature_to_string(
                 signature,
                 SliceSignatureKind::ConstructSignature,
                 None,
@@ -9261,11 +9213,11 @@ impl<'a> CheckerState<'a> {
             )?);
         }
         for info in &index_infos {
-            rendered.push(self.index_signature_slice(info, fully_qualified)?);
+            rendered.push(self.index_signature(info, fully_qualified)?);
         }
         for (index, &property) in properties.iter().enumerate() {
             let ordinal = index + 1;
-            if self.slice_check_truncation_length() && ordinal + 2 < properties.len() - 1 {
+            if self.display_check_truncation_length() && ordinal + 2 < properties.len() - 1 {
                 if self.options.no_error_truncation != Some(true) {
                     rendered.push(crate::concat_js(&[
                         &"... ",
@@ -9273,22 +9225,22 @@ impl<'a> CheckerState<'a> {
                         &" more ...",
                     ]));
                 }
-                self.property_signature_slice(
+                self.property_signature(
                     properties[properties.len() - 1],
                     fully_qualified,
                     &mut rendered,
                 )?;
                 break;
             }
-            self.property_signature_slice(property, fully_qualified, &mut rendered)?;
+            self.property_signature(property, fully_qualified, &mut rendered)?;
         }
         if rendered.is_empty() {
             // 52238: every property skipped -> undefined members ->
             // the member-less literal face.
-            self.slice_add_approximate_length(2);
+            self.display_add_approximate_length(2);
             return Ok(("{}".into(), SliceTypeNodeKind::TypeLiteral));
         }
-        self.slice_add_approximate_length(2);
+        self.display_add_approximate_length(2);
         Ok((
             crate::concat_js(&[&"{", &" ", &(crate::join_js_texts(&rendered, "; ")), &"; }"]),
             SliceTypeNodeKind::TypeLiteral,
@@ -9303,7 +9255,7 @@ impl<'a> CheckerState<'a> {
     /// synthesized infos); the AllowEmptyIndexInfoType encounteredError
     /// leg is dead under IgnoreErrors and the port's IndexInfo always
     /// carries a value type.
-    fn index_signature_slice(
+    fn index_signature(
         &mut self,
         info: &crate::state::IndexInfo,
         fully_qualified: bool,
@@ -9331,9 +9283,9 @@ impl<'a> CheckerState<'a> {
             }
             None => "x".into(),
         };
-        let key = self.type_to_string_slice_ex(info.key_type, fully_qualified)?;
-        let value = self.type_to_string_slice_ex(info.value_type, fully_qualified)?;
-        self.slice_add_approximate_length(Self::slice_js_length(&name) + 4);
+        let key = self.type_to_string_ex(info.key_type, fully_qualified)?;
+        let value = self.type_to_string_ex(info.value_type, fully_qualified)?;
+        self.display_add_approximate_length(Self::slice_js_length(&name) + 4);
         let readonly = if info.is_readonly { "readonly " } else { "" };
         Ok(crate::concat_js(&[
             &(readonly),
@@ -9349,8 +9301,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: createElidedInformationPlaceholder @6.0.3
     /// tsc-hash: 9fe24796b9c8dc49e718e88a66c16cac0341b79590fdec1e7b8edc49122e169f
     /// tsc-span: _tsc.js:52212-52222
-    fn reverse_mapped_elision_placeholder_slice(&mut self) -> (JsString, SliceTypeNodeKind) {
-        self.slice_add_approximate_length(3);
+    fn reverse_mapped_elision_placeholder(&mut self) -> (JsString, SliceTypeNodeKind) {
+        self.display_add_approximate_length(3);
         if self.options.no_error_truncation == Some(true) {
             // The printer removes the synthetic `/* elided */`
             // comment from the AnyKeyword node.
@@ -9363,7 +9315,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: shouldUsePlaceholderForProperty @6.0.3
     /// tsc-hash: 6216ae17f4795783d5b0c85fe0c09dd1c1b7fb7ccc3940cd203890b7a4dc7822
     /// tsc-span: _tsc.js:52223-52240
-    fn should_use_reverse_mapped_placeholder_slice(&self, property: SymbolId) -> bool {
+    fn should_use_reverse_mapped_placeholder(&self, property: SymbolId) -> bool {
         let links = self.links.symbol(property);
         if !links
             .check_flags
@@ -9371,10 +9323,10 @@ impl<'a> CheckerState<'a> {
         {
             return false;
         }
-        if self.slice_reverse_mapped_stack.contains(&property) {
+        if self.display_reverse_mapped_stack.contains(&property) {
             return true;
         }
-        if let Some(&last) = self.slice_reverse_mapped_stack.last() {
+        if let Some(&last) = self.display_reverse_mapped_stack.last() {
             let property_type = self
                 .links
                 .read_symbol(last, |links| links.cold().property_type)
@@ -9388,14 +9340,14 @@ impl<'a> CheckerState<'a> {
             }
         }
         const DEPTH: usize = 3;
-        if self.slice_reverse_mapped_stack.len() < DEPTH {
+        if self.display_reverse_mapped_stack.len() < DEPTH {
             return false;
         }
         let mapped_type = links
             .mapped_type
             .expect("reverse-mapped properties carry mappedType");
         let mapped_symbol = self.tables.type_of(mapped_type).symbol;
-        self.slice_reverse_mapped_stack
+        self.display_reverse_mapped_stack
             .iter()
             .rev()
             .take(DEPTH)
@@ -9419,7 +9371,7 @@ impl<'a> CheckerState<'a> {
     /// property whose filtered type has no call signatures and no
     /// question token emits NOTHING (52350's early return past the
     /// emission) — transcribed as the skip arm.
-    fn property_signature_slice(
+    fn property_signature(
         &mut self,
         property: SymbolId,
         fully_qualified: bool,
@@ -9429,16 +9381,15 @@ impl<'a> CheckerState<'a> {
             .links
             .read_symbol(property, |links| links.check_flags)
             .intersects(tsc_types::CheckFlags::REVERSE_MAPPED);
-        let use_reverse_mapped_placeholder =
-            self.should_use_reverse_mapped_placeholder_slice(property);
+        let use_reverse_mapped_placeholder = self.should_use_reverse_mapped_placeholder(property);
         let property_type = if use_reverse_mapped_placeholder {
             self.tables.intrinsics.any
         } else {
             self.get_non_missing_type_of_symbol(property)?
         };
         let symbol_flags = self.binder.symbol(property).flags;
-        let name = self.property_name_slice(property, fully_qualified)?;
-        self.slice_add_approximate_length(Self::slice_js_length(&name) + 1);
+        let name = self.property_name_display(property, fully_qualified)?;
+        self.display_add_approximate_length(Self::slice_js_length(&name) + 1);
         // 52268-52343: accessor properties whose write type diverges
         // (or whose class parent takes the getter/setter arms) print
         // signature faces; the same-type non-class fall-through
@@ -9487,7 +9438,7 @@ impl<'a> CheckerState<'a> {
                         if let Some(mapper) = symbol_mapper {
                             signature = self.instantiate_signature(signature, mapper, false)?;
                         }
-                        rendered.push(self.signature_to_string_slice(
+                        rendered.push(self.signature_to_string(
                             signature,
                             SliceSignatureKind::GetAccessor,
                             Some((name.as_js(), false)),
@@ -9499,7 +9450,7 @@ impl<'a> CheckerState<'a> {
                         if let Some(mapper) = symbol_mapper {
                             signature = self.instantiate_signature(signature, mapper, false)?;
                         }
-                        rendered.push(self.signature_to_string_slice(
+                        rendered.push(self.signature_to_string(
                             signature,
                             SliceSignatureKind::SetAccessor,
                             Some((name.as_js(), false)),
@@ -9517,8 +9468,8 @@ impl<'a> CheckerState<'a> {
                         )
                     })
                 {
-                    let read = self.type_to_string_slice_ex(property_type, fully_qualified)?;
-                    let write = self.type_to_string_slice_ex(write_type, fully_qualified)?;
+                    let read = self.type_to_string_ex(property_type, fully_qualified)?;
+                    let write = self.type_to_string_ex(write_type, fully_qualified)?;
                     rendered.push(crate::concat_js(&[&"get ", &(name), &"(): ", &(read)]));
                     rendered.push(crate::concat_js(&[
                         &"set ",
@@ -9552,7 +9503,7 @@ impl<'a> CheckerState<'a> {
                 // each (`m?(...)`), the filtered type's undefined
                 // never printing.
                 for &signature in &signatures {
-                    rendered.push(self.signature_to_string_slice(
+                    rendered.push(self.signature_to_string(
                         signature,
                         SliceSignatureKind::MethodSignature,
                         Some((name.as_js(), optional)),
@@ -9574,7 +9525,7 @@ impl<'a> CheckerState<'a> {
         if !use_reverse_mapped_placeholder {
             if let Some(declaration) = self.binder.symbol(property).declarations.first().copied() {
                 if let Some(annotation) = self.effective_type_annotation_node(declaration) {
-                    type_text = self.annotation_reuse_text_slice(
+                    type_text = self.annotation_reuse_text(
                         annotation,
                         property_type,
                         /*requires_adding_undefined*/ false,
@@ -9586,23 +9537,21 @@ impl<'a> CheckerState<'a> {
         }
         let type_text = match type_text {
             Some(text) => text,
-            None if use_reverse_mapped_placeholder => {
-                self.reverse_mapped_elision_placeholder_slice().0
-            }
+            None if use_reverse_mapped_placeholder => self.reverse_mapped_elision_placeholder().0,
             None => {
                 if property_is_reverse_mapped {
-                    self.slice_reverse_mapped_stack.push(property);
+                    self.display_reverse_mapped_stack.push(property);
                 }
-                let rendered = self.type_to_string_slice_ex(property_type, fully_qualified);
+                let rendered = self.type_to_string_ex(property_type, fully_qualified);
                 if property_is_reverse_mapped {
-                    let popped = self.slice_reverse_mapped_stack.pop();
+                    let popped = self.display_reverse_mapped_stack.pop();
                     debug_assert_eq!(popped, Some(property));
                 }
                 rendered?
             }
         };
         let readonly = if self.is_readonly_symbol(property)? {
-            self.slice_add_approximate_length(9);
+            self.display_add_approximate_length(9);
             "readonly "
         } else {
             ""
@@ -9620,11 +9569,11 @@ impl<'a> CheckerState<'a> {
 
     /// tsrs-native: call-signature adapter for resolveCall's
     /// signatureToString(c) overload-error row.
-    pub(crate) fn signature_to_string_slice_for_overload_error(
+    pub(crate) fn signature_to_string_for_overload_error(
         &mut self,
         signature: SignatureId,
     ) -> CheckResult<JsString> {
-        self.signature_to_string_slice_for_diagnostic(signature, SliceSignatureKind::CallSignature)
+        self.signature_to_string_for_diagnostic(signature, SliceSignatureKind::CallSignature)
     }
 
     /// tsrs-native: signatureToString's default-flags relation-error
@@ -9634,16 +9583,16 @@ impl<'a> CheckerState<'a> {
     /// WriteArrowStyleSignature flag, so the printer emits `(...): R`
     /// / `new (...): R` rather than the corresponding function-type
     /// arrows.
-    pub(crate) fn signature_to_string_slice_for_relation_error(
+    pub(crate) fn signature_to_string_for_relation_error(
         &mut self,
         signature: SignatureId,
         kind: SignatureKind,
     ) -> CheckResult<JsString> {
-        let slice_kind = match kind {
+        let display_kind = match kind {
             SignatureKind::Call => SliceSignatureKind::CallSignature,
             SignatureKind::Construct => SliceSignatureKind::ConstructSignature,
         };
-        self.signature_to_string_slice_for_diagnostic(signature, slice_kind)
+        self.signature_to_string_for_diagnostic(signature, display_kind)
     }
 
     /// tsrs-native: select the constructor-arrow printer face used by tsc's
@@ -9652,49 +9601,46 @@ impl<'a> CheckerState<'a> {
     /// tsc's single-constructor relation fallback renders both signatures
     /// with `WriteArrowStyleSignature`, even though the surrounding
     /// signaturesRelatedTo diagnostics use declaration-style signatures.
-    pub(crate) fn signature_to_string_slice_for_construct_assignment_error(
+    pub(crate) fn signature_to_string_for_construct_assignment_error(
         &mut self,
         signature: SignatureId,
     ) -> CheckResult<JsString> {
-        self.signature_to_string_slice_for_diagnostic(
-            signature,
-            SliceSignatureKind::ConstructorType,
-        )
+        self.signature_to_string_for_diagnostic(signature, SliceSignatureKind::ConstructorType)
     }
 
     /// Keep every standalone diagnostic render isolated from an
     /// enclosing typeToString slice. This mirrors tsc's fresh
     /// single-line writer per signatureToString call.
-    fn signature_to_string_slice_for_diagnostic(
+    fn signature_to_string_for_diagnostic(
         &mut self,
         signature: SignatureId,
         kind: SliceSignatureKind,
     ) -> CheckResult<JsString> {
-        let saved_visited = std::mem::take(&mut self.slice_visited_types);
-        let saved_infer_type_parameters = std::mem::take(&mut self.slice_infer_type_parameters);
-        let saved_approximate_length = std::mem::replace(&mut self.slice_approximate_length, 0);
+        let saved_visited = std::mem::take(&mut self.display_visited_types);
+        let saved_infer_type_parameters = std::mem::take(&mut self.display_infer_type_parameters);
+        let saved_approximate_length = std::mem::replace(&mut self.display_approximate_length, 0);
         let saved_max_truncation_length = std::mem::replace(
-            &mut self.slice_max_truncation_length,
+            &mut self.display_max_truncation_length,
             if self.options.no_error_truncation == Some(true) {
                 1_000_000
             } else {
                 160
             },
         );
-        let saved_truncating = std::mem::replace(&mut self.slice_truncating, false);
-        let saved_reverse_mapped_stack = std::mem::take(&mut self.slice_reverse_mapped_stack);
-        let saved_no_type_reduction = std::mem::replace(&mut self.slice_no_type_reduction, false);
-        let saved_enclosing = self.slice_display_enclosing.take();
+        let saved_truncating = std::mem::replace(&mut self.display_truncating, false);
+        let saved_reverse_mapped_stack = std::mem::take(&mut self.display_reverse_mapped_stack);
+        let saved_no_type_reduction = std::mem::replace(&mut self.display_no_type_reduction, false);
+        let saved_enclosing = self.display_enclosing.take();
         let result =
-            self.signature_to_string_slice(signature, kind, None, /*fully_qualified*/ false);
-        self.slice_visited_types = saved_visited;
-        self.slice_infer_type_parameters = saved_infer_type_parameters;
-        self.slice_approximate_length = saved_approximate_length;
-        self.slice_max_truncation_length = saved_max_truncation_length;
-        self.slice_truncating = saved_truncating;
-        self.slice_reverse_mapped_stack = saved_reverse_mapped_stack;
-        self.slice_no_type_reduction = saved_no_type_reduction;
-        self.slice_display_enclosing = saved_enclosing;
+            self.signature_to_string(signature, kind, None, /*fully_qualified*/ false);
+        self.display_visited_types = saved_visited;
+        self.display_infer_type_parameters = saved_infer_type_parameters;
+        self.display_approximate_length = saved_approximate_length;
+        self.display_max_truncation_length = saved_max_truncation_length;
+        self.display_truncating = saved_truncating;
+        self.display_reverse_mapped_stack = saved_reverse_mapped_stack;
+        self.display_no_type_reduction = saved_no_type_reduction;
+        self.display_enclosing = saved_enclosing;
         result
     }
 
@@ -9716,7 +9662,7 @@ impl<'a> CheckerState<'a> {
     /// the signature flag. The returnTypeNode ?? empty-reference
     /// fallbacks (52547) are dead — serializeReturnTypeForSignature
     /// always yields under the never-set SuppressAnyReturnType.
-    fn signature_to_string_slice(
+    fn signature_to_string(
         &mut self,
         signature: SignatureId,
         kind: SliceSignatureKind,
@@ -9725,24 +9671,23 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<JsString> {
         let mapper = self.signature_of(signature).mapper;
         if let Some(mapper) = mapper {
-            self.slice_display_mappers.push(mapper);
+            self.display_mappers.push(mapper);
         }
-        let result =
-            self.signature_to_string_slice_worker(signature, kind, member_name, fully_qualified);
+        let result = self.signature_to_string_worker(signature, kind, member_name, fully_qualified);
         if mapper.is_some() {
-            self.slice_display_mappers.pop();
+            self.display_mappers.pop();
         }
         result
     }
 
-    fn signature_to_string_slice_worker(
+    fn signature_to_string_worker(
         &mut self,
         signature: SignatureId,
         kind: SliceSignatureKind,
         member_name: Option<(tsc_types::JsStr<'_>, bool)>,
         fully_qualified: bool,
     ) -> CheckResult<JsString> {
-        let expanded = self.expanded_parameter_faces_slice(signature)?;
+        let expanded = self.expanded_parameter_faces(signature)?;
         let sig = self.signature_of(signature);
         let type_parameters = sig.type_parameters.clone();
         let declared_parameters = sig.parameters.clone();
@@ -9762,7 +9707,7 @@ impl<'a> CheckerState<'a> {
             _ => {
                 let mut faces = Vec::with_capacity(declared_parameters.len());
                 for &parameter in &declared_parameters {
-                    faces.push(self.declared_parameter_face_slice(parameter)?);
+                    faces.push(self.declared_parameter_face(parameter)?);
                 }
                 faces
             }
@@ -9771,8 +9716,8 @@ impl<'a> CheckerState<'a> {
         if let Some(this_parameter) = this_parameter {
             // tryGetThisParameterDeclaration (52802-52805): the
             // declared this parameter unshifts to the front.
-            let face = self.declared_parameter_face_slice(this_parameter)?;
-            parameter_texts.push(self.parameter_face_to_string_slice(&face, fully_qualified)?);
+            let face = self.declared_parameter_face(this_parameter)?;
+            parameter_texts.push(self.parameter_face_to_string(&face, fully_qualified)?);
         } else if let Some(declaration) =
             declaration.filter(|&declaration| self.is_in_js_file(declaration))
         {
@@ -9789,20 +9734,20 @@ impl<'a> CheckerState<'a> {
                             rest: false,
                         };
                         parameter_texts
-                            .push(self.parameter_face_to_string_slice(&face, fully_qualified)?);
+                            .push(self.parameter_face_to_string(&face, fully_qualified)?);
                     }
                 }
             }
         }
         for face in &faces {
-            parameter_texts.push(self.parameter_face_to_string_slice(face, fully_qualified)?);
+            parameter_texts.push(self.parameter_face_to_string(face, fully_qualified)?);
         }
         let type_parameters_text = match &type_parameters {
             Some(parameters) if !parameters.is_empty() => {
                 let mut rendered = Vec::with_capacity(parameters.len());
                 for &parameter in parameters {
                     rendered.push(
-                        self.type_parameter_to_declaration_slice(parameter, fully_qualified)?,
+                        self.type_parameter_to_declaration_display(parameter, fully_qualified)?,
                     );
                 }
                 crate::concat_js(&[&"<", &(crate::join_js_texts(&rendered, ", ")), &">"])
@@ -9810,7 +9755,7 @@ impl<'a> CheckerState<'a> {
             _ => JsString::new(),
         };
         let return_text =
-            self.serialize_return_type_for_signature_slice(signature, fully_qualified)?;
+            self.serialize_return_type_for_signature_display(signature, fully_qualified)?;
         let parameters_text = crate::join_js_texts(&parameter_texts, ", ");
         let type_parameters_text = type_parameters_text.as_js();
         Ok(match kind {
@@ -9892,7 +9837,7 @@ impl<'a> CheckerState<'a> {
     /// the only other consumer of the symbols is enterNewScope's fake
     /// scope, dead without an enclosingDeclaration. None = the
     /// declared parameter list (no tuple-typed rest).
-    fn expanded_parameter_faces_slice(
+    fn expanded_parameter_faces(
         &mut self,
         signature: SignatureId,
     ) -> CheckResult<Option<Vec<SliceParameterFace>>> {
@@ -9933,7 +9878,7 @@ impl<'a> CheckerState<'a> {
                 .as_ref()
                 .and_then(|labels| labels.get(i).copied())
                 .flatten();
-            names.push(self.tuple_element_label_slice(
+            names.push(self.tuple_element_label_display(
                 label.map(NodeId),
                 i,
                 data.element_flags[i],
@@ -9969,7 +9914,7 @@ impl<'a> CheckerState<'a> {
         }
         let mut faces = Vec::with_capacity(prefix.len() + count);
         for &parameter in &prefix {
-            faces.push(self.declared_parameter_face_slice(parameter)?);
+            faces.push(self.declared_parameter_face(parameter)?);
         }
         for (i, name) in names.into_iter().enumerate() {
             let flags = data.element_flags[i];
@@ -9998,7 +9943,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTupleElementLabel @6.0.3 (4-arg synthesis face)
     /// tsc-hash: cfaef41e5163a36e33fb797ca0f1cf2445bcc1cf9453ac75b2f61681f2b472b1
     /// tsc-span: _tsc.js:78150-78157
-    pub(crate) fn tuple_element_label_slice(
+    pub(crate) fn tuple_element_label_display(
         &mut self,
         declaration: Option<NodeId>,
         index: usize,
@@ -10013,7 +9958,7 @@ impl<'a> CheckerState<'a> {
             .filter(|&declaration| matches!(self.data_of(declaration), NodeData::Parameter(_)));
         match rest_parameter {
             Some(parameter) => {
-                self.tuple_element_label_from_binding_element_slice(parameter, index, element_flags)
+                self.tuple_element_label_from_binding_element(parameter, index, element_flags)
             }
             None => {
                 let base = rest_symbol
@@ -10039,7 +9984,7 @@ impl<'a> CheckerState<'a> {
     /// (both carry name + dotDotDotToken); the escapedText reads
     /// unescape at this boundary because the labels land directly in
     /// display text (tsc unescapes at symbolName).
-    fn tuple_element_label_from_binding_element_slice(
+    fn tuple_element_label_from_binding_element(
         &mut self,
         node: NodeId,
         index: usize,
@@ -10082,7 +10027,7 @@ impl<'a> CheckerState<'a> {
                     if index < element_count {
                         let element = elements[index];
                         if matches!(self.data_of(element), NodeData::BindingElement(_)) {
-                            return self.tuple_element_label_from_binding_element_slice(
+                            return self.tuple_element_label_from_binding_element(
                                 element,
                                 index,
                                 element_flags,
@@ -10090,7 +10035,7 @@ impl<'a> CheckerState<'a> {
                         }
                     } else if last_is_rest {
                         let last = *elements.last().expect("last_is_rest implies non-empty");
-                        return self.tuple_element_label_from_binding_element_slice(
+                        return self.tuple_element_label_from_binding_element(
                             last,
                             index - element_count,
                             element_flags,
@@ -10111,10 +10056,7 @@ impl<'a> CheckerState<'a> {
     /// declaration lookup, the type read, and the rest/optional bits
     /// (isRestParameter on the declaration OR the RestParameter check
     /// flag; isOptionalParameter OR the OptionalParameter check flag).
-    fn declared_parameter_face_slice(
-        &mut self,
-        parameter: SymbolId,
-    ) -> CheckResult<SliceParameterFace> {
+    fn declared_parameter_face(&mut self, parameter: SymbolId) -> CheckResult<SliceParameterFace> {
         let parameter_declaration = self
             .binder
             .symbol(parameter)
@@ -10144,7 +10086,7 @@ impl<'a> CheckerState<'a> {
             .is_some_and(|declaration| self.is_rest_parameter_declaration(declaration))
             || check_flags.intersects(tsc_types::CheckFlags::REST_PARAMETER);
         let optional = match declaration {
-            Some(declaration) => self.is_optional_parameter_slice(declaration)?,
+            Some(declaration) => self.is_optional_parameter_display(declaration)?,
             None => false,
         } || check_flags.intersects(tsc_types::CheckFlags::OPTIONAL_PARAMETER);
         Ok(SliceParameterFace {
@@ -10168,13 +10110,13 @@ impl<'a> CheckerState<'a> {
     /// prints raw), the QualifiedName arm is JSDoc-only
     /// (unconstructible under the no-parse policy), and binding
     /// patterns clone with initializers elided.
-    fn parameter_face_to_string_slice(
+    fn parameter_face_to_string(
         &mut self,
         face: &SliceParameterFace,
         fully_qualified: bool,
     ) -> CheckResult<JsString> {
         let requires_undefined = match face.declaration {
-            Some(declaration) => self.requires_adding_implicit_undefined_slice(declaration)?,
+            Some(declaration) => self.requires_adding_implicit_undefined_display(declaration)?,
             None => false,
         };
         // serializeTypeForDeclaration (53487-53509): the
@@ -10198,7 +10140,7 @@ impl<'a> CheckerState<'a> {
                 // tsc-port: serializeExistingTypeNode @6.0.3
                 // tsc-hash: 433daa463f78335a63960c6658ccab7a037a667922af31e6eb4320cadafe30ff
                 // tsc-span: _tsc.js:53712-53721
-                type_text = self.annotation_reuse_text_slice(
+                type_text = self.annotation_reuse_text(
                     annotation,
                     face.ty,
                     requires_undefined,
@@ -10215,7 +10157,7 @@ impl<'a> CheckerState<'a> {
                 } else {
                     face.ty
                 };
-                self.type_to_string_slice_ex(ty, fully_qualified)?
+                self.type_to_string_ex(ty, fully_qualified)?
             }
         };
         let name_text = match &face.name {
@@ -10240,9 +10182,9 @@ impl<'a> CheckerState<'a> {
                             .unwrap_or_default()
                             .into(),
                         NodeData::ObjectBindingPattern(_) | NodeData::ArrayBindingPattern(_) => {
-                            self.binding_pattern_text_slice(name)?
+                            self.binding_pattern_text(name)?
                         }
-                        _ => self.member_name_node_text_slice(name)?,
+                        _ => self.member_name_node_text(name)?,
                     },
                     None => self.symbol_display_name(face.symbol.expect(
                         "parameter faces without declarations or synthesized names carry a symbol",
@@ -10269,7 +10211,7 @@ impl<'a> CheckerState<'a> {
     /// (StrongArityForUntypedJS|VoidIsNonOptional), which reduces to
     /// the min-argument integer without the void-trimming loop
     /// (structural.rs's variant).
-    pub(crate) fn is_optional_parameter_slice(&mut self, node: NodeId) -> CheckResult<bool> {
+    pub(crate) fn is_optional_parameter_display(&mut self, node: NodeId) -> CheckResult<bool> {
         let NodeData::Parameter(data) = self.data_of(node) else {
             return Ok(false);
         };
@@ -10327,7 +10269,7 @@ impl<'a> CheckerState<'a> {
     /// isRequiredInitializedParameter + isOptionalUninitializedParameterProperty
     /// folded in. The parameter-property arms consult the syntactic modifier mask
     /// (accessibility/readonly/override) on the declaration.
-    pub(crate) fn requires_adding_implicit_undefined_slice(
+    pub(crate) fn requires_adding_implicit_undefined_display(
         &mut self,
         parameter: NodeId,
     ) -> CheckResult<bool> {
@@ -10341,7 +10283,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(false);
         }
-        let optional = self.is_optional_parameter_slice(parameter)?;
+        let optional = self.is_optional_parameter_display(parameter)?;
         let source = self.binder.source_of_node(parameter);
         let parameter_property = tsc_binder::node_util::has_syntactic_modifier(
             source,
@@ -10367,7 +10309,7 @@ impl<'a> CheckerState<'a> {
         // type admits undefined already.
         if let Some(annotation) = data.r#type {
             let annotation_type = self.get_type_from_type_node(annotation)?;
-            if self.some_type_is_undefined_slice(annotation_type) {
+            if self.some_type_is_undefined_display(annotation_type) {
                 return Ok(false);
             }
         }
@@ -10376,7 +10318,7 @@ impl<'a> CheckerState<'a> {
 
     /// tsc someType(type, t => !!(t.flags & Undefined)) over the
     /// union-member view (the serializeExistingTypeNode 53714 probe).
-    fn some_type_is_undefined_slice(&mut self, ty: TypeId) -> bool {
+    fn some_type_is_undefined_display(&mut self, ty: TypeId) -> bool {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::UNION) {
             if let TypeData::Union { types, .. } = &self.tables.type_of(ty).data {
@@ -10402,7 +10344,7 @@ impl<'a> CheckerState<'a> {
     /// signature.target/mapper (narrow.rs), and enterNewScope's
     /// context.mapper IS signature.mapper, whose second application
     /// re-maps type parameters the instantiation already replaced.
-    fn serialize_return_type_for_signature_slice(
+    fn serialize_return_type_for_signature_display(
         &mut self,
         signature: SignatureId,
         fully_qualified: bool,
@@ -10417,7 +10359,7 @@ impl<'a> CheckerState<'a> {
             // reuse channel first; typeFromSingleReturnExpression runs only
             // when no annotation node exists.
             if let Some(annotation) = self.effective_return_type_node(declaration) {
-                if let Some(text) = self.annotation_reuse_text_slice(
+                if let Some(text) = self.annotation_reuse_text(
                     annotation,
                     return_type,
                     /*requires_adding_undefined*/ false,
@@ -10427,15 +10369,15 @@ impl<'a> CheckerState<'a> {
                     return Ok(text);
                 }
             } else if let Some(text) =
-                self.syntactic_single_return_type_text_slice(declaration, fully_qualified)?
+                self.syntactic_single_return_type_text(declaration, fully_qualified)?
             {
                 return Ok(text);
             }
         }
         if let Some(predicate) = self.get_type_predicate_of_signature(signature)? {
-            return self.type_predicate_text_slice(&predicate, fully_qualified);
+            return self.type_predicate_text(&predicate, fully_qualified);
         }
-        self.type_to_string_slice_ex(return_type, fully_qualified)
+        self.type_to_string_ex(return_type, fully_qualified)
     }
 
     /// tsc-port: typeFromSingleReturnExpression @6.0.3 (the reusable
@@ -10449,7 +10391,7 @@ impl<'a> CheckerState<'a> {
     /// prints the canonical semantic union `string | number`. The expression-inference
     /// arms preserve the current mapper and recursive display context; other
     /// unsupported syntactic shapes fall through to the semantic serializer.
-    fn syntactic_single_return_type_text_slice(
+    fn syntactic_single_return_type_text(
         &mut self,
         declaration: NodeId,
         fully_qualified: bool,
@@ -10535,7 +10477,7 @@ impl<'a> CheckerState<'a> {
                 return if self.is_const_type_reference_node(type_node) {
                     Ok(None)
                 } else {
-                    self.type_annotation_text_slice(type_node).map(Some)
+                    self.type_annotation_text_display(type_node).map(Some)
                 };
             }
             match self.data_of(expression) {
@@ -10550,7 +10492,7 @@ impl<'a> CheckerState<'a> {
                         return Ok(None);
                     };
                     if !self.is_const_type_reference_node(type_node) {
-                        return self.type_annotation_text_slice(type_node).map(Some);
+                        return self.type_annotation_text_display(type_node).map(Some);
                     }
                     let Some(inner) = data.expression.filter(|_| !contextually_typed) else {
                         return Ok(None);
@@ -10563,7 +10505,7 @@ impl<'a> CheckerState<'a> {
                         return Ok(None);
                     };
                     if !self.is_const_type_reference_node(type_node) {
-                        return self.type_annotation_text_slice(type_node).map(Some);
+                        return self.type_annotation_text_display(type_node).map(Some);
                     }
                     let Some(inner) = data.expression.filter(|_| !contextually_typed) else {
                         return Ok(None);
@@ -10573,7 +10515,7 @@ impl<'a> CheckerState<'a> {
                 }
                 _ if contextually_typed => return Ok(None),
                 _ => {
-                    return self.syntactic_expression_inference_text_slice(
+                    return self.syntactic_expression_inference_text(
                         expression,
                         is_const_context,
                         fully_qualified,
@@ -10602,7 +10544,7 @@ impl<'a> CheckerState<'a> {
     /// expression's type, independently of a circular signature return type.
     /// The syntactically supported object/const-array arms instead return
     /// notImplemented, so those retain the signature's semantic fallback.
-    fn syntactic_expression_inference_text_slice(
+    fn syntactic_expression_inference_text(
         &mut self,
         expression: NodeId,
         is_const_context: bool,
@@ -10619,7 +10561,7 @@ impl<'a> CheckerState<'a> {
                 {
                     return Ok(None);
                 }
-                if self.syntactic_expression_has_declaration_parent_slice(expression) {
+                if self.syntactic_expression_has_declaration_parent(expression) {
                     return Ok(None);
                 }
             }
@@ -10681,9 +10623,7 @@ impl<'a> CheckerState<'a> {
                         }
                     }
                 }
-                if can_get_type
-                    || self.syntactic_expression_has_declaration_parent_slice(expression)
-                {
+                if can_get_type || self.syntactic_expression_has_declaration_parent(expression) {
                     return Ok(None);
                 }
             }
@@ -10695,13 +10635,13 @@ impl<'a> CheckerState<'a> {
         let ty = self.get_type_of_expression(expression)?;
         let regular = self.tables.get_regular_type_of_literal_type(ty);
         let widened = self.get_widened_type(regular)?;
-        let mapper = self.slice_display_mappers.last().copied();
+        let mapper = self.display_mappers.last().copied();
         let instantiated = self.instantiate_type(widened, mapper)?;
-        self.type_to_string_slice_ex(instantiated, fully_qualified)
+        self.type_to_string_ex(instantiated, fully_qualified)
             .map(Some)
     }
 
-    fn syntactic_expression_has_declaration_parent_slice(&self, expression: NodeId) -> bool {
+    fn syntactic_expression_has_declaration_parent(&self, expression: NodeId) -> bool {
         let mut parent = self.parent_of(expression);
         while let Some(node) = parent {
             if self.kind_of(node) != SyntaxKind::ParenthesizedExpression {
@@ -10715,7 +10655,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: typePredicateToTypePredicateNodeHelper @6.0.3
     /// tsc-hash: ef7d04a8094c121ca47028327ba885afcb7a285a28adfe579ddff0335642b7f4
     /// tsc-span: _tsc.js:52840-52846
-    fn type_predicate_text_slice(
+    fn type_predicate_text(
         &mut self,
         predicate: &crate::narrow::TypePredicate,
         fully_qualified: bool,
@@ -10734,7 +10674,7 @@ impl<'a> CheckerState<'a> {
         let asserts = if asserts { "asserts " } else { "" };
         match predicate.ty {
             Some(ty) => {
-                let text = self.type_to_string_slice_ex(ty, fully_qualified)?;
+                let text = self.type_to_string_ex(ty, fully_qualified)?;
                 Ok(crate::concat_js(&[
                     &(asserts),
                     &(parameter),
@@ -10762,7 +10702,7 @@ impl<'a> CheckerState<'a> {
     /// canReuseTypeNode TypeParameter-mapper rejection collapsed into
     /// one probe. Defaults NEVER reuse (52829: typeToTypeNodeHelper
     /// direct — oracle-probed: `= (A)` prints `= string`).
-    fn type_parameter_to_declaration_slice(
+    fn type_parameter_to_declaration_display(
         &mut self,
         type_parameter: TypeId,
         fully_qualified: bool,
@@ -10814,19 +10754,19 @@ impl<'a> CheckerState<'a> {
                 if let Some(declaration) = self.get_constraint_declaration(type_parameter) {
                     let annotation_type = self.get_type_from_type_node(declaration)?;
                     if annotation_type == constraint {
-                        reused = self.reusable_annotation_node_text_slice(declaration)?;
+                        reused = self.reusable_annotation_node_text(declaration)?;
                     }
                 }
                 Some(match reused {
                     Some(text) => text,
-                    None => self.type_to_string_slice_ex(constraint, fully_qualified)?,
+                    None => self.type_to_string_ex(constraint, fully_qualified)?,
                 })
             }
             None => None,
         };
         let default = self.get_default_from_type_parameter(type_parameter)?;
         let default_text = match default {
-            Some(default) => Some(self.type_to_string_slice_ex(default, fully_qualified)?),
+            Some(default) => Some(self.type_to_string_ex(default, fully_qualified)?),
             None => None,
         };
         let name = name
@@ -10858,7 +10798,7 @@ impl<'a> CheckerState<'a> {
     /// sources keep them). An annotation that resolves to the error
     /// type reuses unconditionally (50948-50950 — unresolved names
     /// print as written). Returns None = render structurally.
-    fn annotation_reuse_text_slice(
+    fn annotation_reuse_text(
         &mut self,
         annotation: NodeId,
         symbol_type: TypeId,
@@ -10866,12 +10806,12 @@ impl<'a> CheckerState<'a> {
         question_equivalence: bool,
         is_parameter: bool,
     ) -> CheckResult<Option<JsString>> {
-        if self.slice_display_enclosing.is_none() {
+        if self.display_enclosing.is_none() {
             return Ok(None);
         }
         let annotation_type = self.get_type_from_type_node(annotation)?;
         if self.tables.is_error_type(annotation_type) {
-            return self.reusable_annotation_node_text_slice(annotation);
+            return self.reusable_annotation_node_text(annotation);
         }
         let compared_annotation_type =
             if requires_adding_undefined && self.tables.strict_null_checks {
@@ -10896,12 +10836,12 @@ impl<'a> CheckerState<'a> {
         if !self.reference_annotation_argument_count_compatible(annotation, symbol_type)? {
             return Ok(None);
         }
-        let Some(text) = self.reusable_annotation_node_text_slice(annotation)? else {
+        let Some(text) = self.reusable_annotation_node_text(annotation)? else {
             return Ok(None);
         };
         // serializeExistingTypeNode (53712-53721): the undefined
         // union appends when the annotation itself lacks it.
-        if requires_adding_undefined && !self.some_type_is_undefined_slice(annotation_type) {
+        if requires_adding_undefined && !self.some_type_is_undefined_display(annotation_type) {
             return Ok(Some(crate::concat_js(&[&(text), &" | undefined"])));
         }
         Ok(Some(text))
@@ -10932,7 +10872,7 @@ impl<'a> CheckerState<'a> {
         else {
             return Ok(true);
         };
-        let declared = self.get_declared_type_of_symbol_slice(symbol)?;
+        let declared = self.get_declared_type_of_symbol(symbol)?;
         let target = self.tables.reference_target(ty);
         if declared != target {
             return Ok(true);
@@ -10957,7 +10897,7 @@ impl<'a> CheckerState<'a> {
     /// (oracle-probed: `let g = (x?: number) => {}` displays
     /// `(x?: number) => void` where the declare-let twin prints
     /// `(x?: number | undefined) => void`).
-    pub(crate) fn slice_display_enclosing_for(&mut self, ty: TypeId) -> Option<NodeId> {
+    pub(crate) fn display_enclosing_for(&mut self, ty: TypeId) -> Option<NodeId> {
         let symbol = self.tables.type_of(ty).symbol?;
         let value_declaration = self.binder.symbol(symbol).value_declaration?;
         let source = self.binder.source_of_node(value_declaration);
@@ -10975,14 +10915,14 @@ impl<'a> CheckerState<'a> {
     /// per-side typeToString(type, valueDeclaration) call); the
     /// enclosing restores across the Err unwind (CheckAbort rides
     /// `?` past the reset otherwise).
-    pub(crate) fn type_to_string_slice_with_error_enclosing(
+    pub(crate) fn type_to_string_with_error_enclosing(
         &mut self,
         ty: TypeId,
     ) -> CheckResult<JsString> {
-        let enclosing = self.slice_display_enclosing_for(ty);
-        let saved = std::mem::replace(&mut self.slice_display_enclosing, enclosing);
-        let result = self.type_to_string_slice(ty);
-        self.slice_display_enclosing = saved;
+        let enclosing = self.display_enclosing_for(ty);
+        let saved = std::mem::replace(&mut self.display_enclosing, enclosing);
+        let result = self.type_to_string(ty);
+        self.display_enclosing = saved;
         result
     }
 
@@ -10990,14 +10930,14 @@ impl<'a> CheckerState<'a> {
     /// `typeToString(type, enclosingDeclaration)` calls. The parked
     /// nodeBuilder context is restored on both success and
     /// CheckAbort unwind.
-    pub(crate) fn type_to_string_slice_at(
+    pub(crate) fn type_to_string_at(
         &mut self,
         ty: TypeId,
         enclosing: NodeId,
     ) -> CheckResult<JsString> {
-        let saved = self.slice_display_enclosing.replace(enclosing);
-        let result = self.type_to_string_slice(ty);
-        self.slice_display_enclosing = saved;
+        let saved = self.display_enclosing.replace(enclosing);
+        let result = self.type_to_string(ty);
+        self.display_enclosing = saved;
         result
     }
 
@@ -11017,15 +10957,12 @@ impl<'a> CheckerState<'a> {
     /// removed, and missing declaration annotations become `any`.
     /// The printer below covers every valid TypeNode/JSDoc TypeNode
     /// shape admitted by tryReuseExistingTypeNode.
-    fn reusable_annotation_node_text_slice(
-        &mut self,
-        node: NodeId,
-    ) -> CheckResult<Option<JsString>> {
-        if !self.can_reuse_existing_type_node_slice(node)? {
+    fn reusable_annotation_node_text(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
+        if !self.can_reuse_existing_type_node(node)? {
             return Ok(None);
         }
         Ok(self
-            .reused_type_node_boundary_face_slice(node)?
+            .reused_type_node_boundary_face(node)?
             .map(|face| face.text))
     }
 
@@ -11044,8 +10981,8 @@ impl<'a> CheckerState<'a> {
     /// and variadics become arrays.
     /// tsrs-native: string-face adapter over the exact existing-TypeNode
     /// visitor and standard-printer ledger blocks below.
-    pub(crate) fn type_annotation_text_slice(&mut self, node: NodeId) -> CheckResult<JsString> {
-        Ok(self.type_annotation_face_slice(node)?.text)
+    pub(crate) fn type_annotation_text_display(&mut self, node: NodeId) -> CheckResult<JsString> {
+        Ok(self.type_annotation_face(node)?.text)
     }
 
     /// The actual transformed node produced by
@@ -11053,22 +10990,22 @@ impl<'a> CheckerState<'a> {
     /// its POST-TRANSFORM factory kind. Semantic recovery and
     /// serializeTypeName can change the kind, so this cannot be
     /// reconstructed from the original AST after printing.
-    fn type_annotation_text_and_kind_slice(
+    fn type_annotation_text_and_kind(
         &mut self,
         node: NodeId,
     ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
-        let face = self.type_annotation_face_slice(node)?;
+        let face = self.type_annotation_face(node)?;
         Ok((face.text, face.kind))
     }
 
-    fn type_annotation_face_slice(&mut self, node: NodeId) -> CheckResult<SliceTypeNodeFace> {
-        if self.slice_reuse_visit_depth == 0 {
-            return match self.reused_type_node_boundary_face_slice(node)? {
+    fn type_annotation_face(&mut self, node: NodeId) -> CheckResult<SliceTypeNodeFace> {
+        if self.display_reuse_visit_depth == 0 {
+            return match self.reused_type_node_boundary_face(node)? {
                 Some(face) => Ok(face),
-                None => self.semantic_existing_type_node_face_slice(node),
+                None => self.semantic_existing_type_node_face(node),
             };
         }
-        self.visit_type_annotation_face_slice(node)
+        self.visit_type_annotation_face(node)
     }
 
     /// tsc-port: createRecoveryBoundary @6.0.3
@@ -11082,74 +11019,69 @@ impl<'a> CheckerState<'a> {
     /// Each tryReuseExistingTypeNode owns a fresh boundary. Saving the
     /// parked cell/depth makes semantic serialization re-entry an
     /// independent nested boundary and restores both fields on Err.
-    fn reused_type_node_boundary_face_slice(
+    fn reused_type_node_boundary_face(
         &mut self,
         node: NodeId,
     ) -> CheckResult<Option<SliceTypeNodeFace>> {
-        let saved_had_error = std::mem::replace(&mut self.slice_reuse_had_error, false);
-        let saved_depth = std::mem::replace(&mut self.slice_reuse_visit_depth, 0);
-        let result = self.visit_type_annotation_face_slice(node);
-        let had_error = self.slice_reuse_had_error;
-        self.slice_reuse_had_error = saved_had_error;
-        self.slice_reuse_visit_depth = saved_depth;
+        let saved_had_error = std::mem::replace(&mut self.display_reuse_had_error, false);
+        let saved_depth = std::mem::replace(&mut self.display_reuse_visit_depth, 0);
+        let result = self.visit_type_annotation_face(node);
+        let had_error = self.display_reuse_had_error;
+        self.display_reuse_had_error = saved_had_error;
+        self.display_reuse_visit_depth = saved_depth;
         result.map(|face| (!had_error).then_some(face))
     }
 
-    fn visit_type_annotation_face_slice(&mut self, node: NodeId) -> CheckResult<SliceTypeNodeFace> {
+    fn visit_type_annotation_face(&mut self, node: NodeId) -> CheckResult<SliceTypeNodeFace> {
         // visitExistingNodeTreeSymbols returns the existing node
         // immediately once a sibling armed the shared boundary.
-        if self.slice_reuse_had_error {
+        if self.display_reuse_had_error {
             return Ok(SliceTypeNodeFace::new(
                 JsString::new(),
-                self.type_annotation_node_kind_slice(node),
+                self.type_annotation_node_kind(node),
             ));
         }
-        self.slice_reuse_visit_depth += 1;
-        let result = self.type_annotation_face_worker_slice(node);
-        self.slice_reuse_visit_depth -= 1;
+        self.display_reuse_visit_depth += 1;
+        let result = self.type_annotation_face_worker(node);
+        self.display_reuse_visit_depth -= 1;
         let mut face = result?;
-        if self.slice_reuse_had_error && self.kind_of(node) != SyntaxKind::TypePredicate {
+        if self.display_reuse_had_error && self.kind_of(node) != SyntaxKind::TypePredicate {
             // startRecoveryScope's closure clears the boundary before
             // serializeExistingTypeNode rebuilds the current TypeNode.
-            self.slice_reuse_had_error = false;
-            face = self.semantic_existing_type_node_face_slice(node)?;
+            self.display_reuse_had_error = false;
+            face = self.semantic_existing_type_node_face(node)?;
         }
         Ok(face)
     }
 
-    fn type_annotation_face_worker_slice(
-        &mut self,
-        node: NodeId,
-    ) -> CheckResult<SliceTypeNodeFace> {
-        if self.is_empty_jsdoc_type_reference_slice(node) {
+    fn type_annotation_face_worker(&mut self, node: NodeId) -> CheckResult<SliceTypeNodeFace> {
+        if self.is_empty_jsdoc_type_reference(node) {
             return Ok(SliceTypeNodeFace::new("any", SliceTypeNodeKind::Keyword));
         }
-        if let Some(index) = self.jsdoc_index_signature_text_slice(node)? {
+        if let Some(index) = self.jsdoc_index_signature_text(node)? {
             return Ok(SliceTypeNodeFace::new(
                 index,
                 SliceTypeNodeKind::TypeLiteral,
             ));
         }
-        if self.kind_of(node) == SyntaxKind::ThisType
-            && !self.can_reuse_existing_type_node_slice(node)?
-        {
-            return self.semantic_existing_type_node_face_slice(node);
+        if self.kind_of(node) == SyntaxKind::ThisType && !self.can_reuse_existing_type_node(node)? {
+            return self.semantic_existing_type_node_face(node);
         }
         match self.data_of(node).clone() {
-            NodeData::TypeReference(_) => match self.try_visit_type_reference_face_slice(node)? {
+            NodeData::TypeReference(_) => match self.try_visit_type_reference_face(node)? {
                 Some(face) => Ok(face),
                 None => {
-                    self.slice_reuse_had_error = true;
+                    self.display_reuse_had_error = true;
                     Ok(SliceTypeNodeFace::new(
                         JsString::new(),
                         SliceTypeNodeKind::Reference,
                     ))
                 }
             },
-            NodeData::TypeQuery(_) => match self.try_visit_type_query_face_slice(node)? {
+            NodeData::TypeQuery(_) => match self.try_visit_type_query_face(node)? {
                 Some(face) => Ok(face),
                 None => {
-                    self.slice_reuse_had_error = true;
+                    self.display_reuse_had_error = true;
                     Ok(SliceTypeNodeFace::new(
                         JsString::new(),
                         SliceTypeNodeKind::TypeQuery,
@@ -11157,13 +11089,13 @@ impl<'a> CheckerState<'a> {
                 }
             },
             NodeData::ImportType(data) => {
-                if self.literal_import_type_has_assert_attributes_slice(&data)
-                    || !self.can_reuse_existing_type_node_slice(node)?
+                if self.literal_import_type_has_assert_attributes(&data)
+                    || !self.can_reuse_existing_type_node(node)?
                 {
-                    self.semantic_existing_type_node_face_slice(node)
+                    self.semantic_existing_type_node_face(node)
                 } else {
                     Ok(SliceTypeNodeFace::new(
-                        self.type_annotation_text_slice_raw(node)?,
+                        self.type_annotation_text_raw(node)?,
                         SliceTypeNodeKind::ImportType,
                     ))
                 }
@@ -11173,17 +11105,17 @@ impl<'a> CheckerState<'a> {
                     && data
                         .r#type
                         .is_some_and(|inner| self.kind_of(inner) == SyntaxKind::SymbolKeyword)
-                    && !self.can_reuse_existing_type_node_slice(node)? =>
+                    && !self.can_reuse_existing_type_node(node)? =>
             {
-                self.semantic_existing_type_node_face_slice(node)
+                self.semantic_existing_type_node_face(node)
             }
             _ => {
-                let text = self.type_annotation_text_slice_raw(node)?;
-                let kind = self.type_annotation_node_kind_slice(node);
+                let text = self.type_annotation_text_raw(node)?;
+                let kind = self.type_annotation_node_kind(node);
                 Ok(SliceTypeNodeFace {
                     text,
                     kind,
-                    has_type_parameters: self.generic_function_or_constructor_type_node_slice(node),
+                    has_type_parameters: self.generic_function_or_constructor_type_node(node),
                 })
             }
         }
@@ -11214,23 +11146,23 @@ impl<'a> CheckerState<'a> {
     /// keyof. It also bypasses that child's recovery wrapper: a failed
     /// name serialization therefore recovers the enclosing indexed
     /// access/keyof node as one semantic unit.
-    fn try_visit_simple_type_node_face_slice(
+    fn try_visit_simple_type_node_face(
         &mut self,
         node: NodeId,
     ) -> CheckResult<Option<SliceTypeNodeFace>> {
-        let inner = self.skip_type_parentheses_slice(node);
+        let inner = self.skip_type_parentheses_display(node);
         match self.data_of(inner) {
-            NodeData::TypeReference(_) => self.try_visit_type_reference_face_slice(inner),
-            NodeData::TypeQuery(_) => self.try_visit_type_query_face_slice(inner),
-            NodeData::IndexedAccessType(_) => self.try_visit_indexed_access_face_slice(inner),
+            NodeData::TypeReference(_) => self.try_visit_type_reference_face(inner),
+            NodeData::TypeQuery(_) => self.try_visit_type_query_face(inner),
+            NodeData::IndexedAccessType(_) => self.try_visit_indexed_access_face(inner),
             NodeData::TypeOperator(data) if data.operator == SyntaxKind::KeyOfKeyword => {
-                self.try_visit_keyof_face_slice(inner)
+                self.try_visit_keyof_face(inner)
             }
-            _ => self.visit_type_annotation_face_slice(node).map(Some),
+            _ => self.visit_type_annotation_face(node).map(Some),
         }
     }
 
-    fn skip_type_parentheses_slice(&self, mut node: NodeId) -> NodeId {
+    fn skip_type_parentheses_display(&self, mut node: NodeId) -> NodeId {
         while let NodeData::ParenthesizedType(data) = self.data_of(node) {
             let Some(inner) = data.r#type else {
                 break;
@@ -11240,7 +11172,7 @@ impl<'a> CheckerState<'a> {
         node
     }
 
-    fn try_visit_indexed_access_face_slice(
+    fn try_visit_indexed_access_face(
         &mut self,
         node: NodeId,
     ) -> CheckResult<Option<SliceTypeNodeFace>> {
@@ -11250,13 +11182,13 @@ impl<'a> CheckerState<'a> {
         let object_node = data
             .object_type
             .expect("IndexedAccessType carries its object type");
-        let Some(object_face) = self.try_visit_simple_type_node_face_slice(object_node)? else {
+        let Some(object_face) = self.try_visit_simple_type_node_face(object_node)? else {
             return Ok(None);
         };
         let index_node = data
             .index_type
             .expect("IndexedAccessType carries its index type");
-        let index_face = self.visit_type_annotation_face_slice(index_node)?;
+        let index_face = self.visit_type_annotation_face(index_node)?;
         let object = if non_array_postfix_operand_needs_parens(object_face.kind) {
             crate::concat_js(&[&"(", &(object_face.text), &")"])
         } else {
@@ -11268,16 +11200,13 @@ impl<'a> CheckerState<'a> {
         )))
     }
 
-    fn try_visit_keyof_face_slice(
-        &mut self,
-        node: NodeId,
-    ) -> CheckResult<Option<SliceTypeNodeFace>> {
+    fn try_visit_keyof_face(&mut self, node: NodeId) -> CheckResult<Option<SliceTypeNodeFace>> {
         let NodeData::TypeOperator(data) = self.data_of(node).clone() else {
             unreachable!("tryVisitKeyOf receives TypeOperator");
         };
         debug_assert_eq!(data.operator, SyntaxKind::KeyOfKeyword);
         let operand_node = data.r#type.expect("keyof carries its operand");
-        let Some(operand_face) = self.try_visit_simple_type_node_face_slice(operand_node)? else {
+        let Some(operand_face) = self.try_visit_simple_type_node_face(operand_node)? else {
             return Ok(None);
         };
         let operand = if type_operator_operand_needs_parens(operand_face.kind) {
@@ -11291,7 +11220,7 @@ impl<'a> CheckerState<'a> {
         )))
     }
 
-    fn try_visit_type_query_face_slice(
+    fn try_visit_type_query_face(
         &mut self,
         node: NodeId,
     ) -> CheckResult<Option<SliceTypeNodeFace>> {
@@ -11301,13 +11230,13 @@ impl<'a> CheckerState<'a> {
         let expr_name = data
             .expr_name
             .expect("TypeQuery carries its expression name");
-        if self.reused_entity_name_introduces_error_slice(expr_name, SymbolFlags::VALUE)? {
+        if self.reused_entity_name_introduces_error(expr_name, SymbolFlags::VALUE)? {
             return Ok(self
-                .serialize_reused_type_name_slice(expr_name, SymbolFlags::VALUE, &[])?
+                .serialize_reused_type_name(expr_name, SymbolFlags::VALUE, &[])?
                 .map(|(text, kind)| SliceTypeNodeFace::new(text, kind)));
         }
-        let rendered = self.type_argument_nodes_text_slice(self.nodes_of(data.type_arguments))?;
-        let name = self.entity_name_text_slice(expr_name)?;
+        let rendered = self.type_argument_nodes_text(self.nodes_of(data.type_arguments))?;
+        let name = self.entity_name_text(expr_name)?;
         let text = if rendered.is_empty() {
             crate::concat_js(&[&"typeof ", &(name)])
         } else {
@@ -11325,28 +11254,27 @@ impl<'a> CheckerState<'a> {
         )))
     }
 
-    fn try_visit_type_reference_face_slice(
+    fn try_visit_type_reference_face(
         &mut self,
         node: NodeId,
     ) -> CheckResult<Option<SliceTypeNodeFace>> {
         let NodeData::TypeReference(data) = self.data_of(node).clone() else {
             unreachable!("tryVisitTypeReference receives TypeReference");
         };
-        if !self.can_reuse_existing_type_node_slice(node)? {
+        if !self.can_reuse_existing_type_node(node)? {
             return Ok(None);
         }
         let type_name = data.type_name.expect("TypeReference carries its type name");
-        let meaning = self.type_reference_entity_meaning_slice(type_name);
-        let introduces_error =
-            self.reused_entity_name_introduces_error_slice(type_name, meaning)?;
+        let meaning = self.type_reference_entity_meaning(type_name);
+        let introduces_error = self.reused_entity_name_introduces_error(type_name, meaning)?;
         // tsc visits typeArguments before branching on introducesError.
-        let rendered = self.type_argument_nodes_text_slice(self.nodes_of(data.type_arguments))?;
+        let rendered = self.type_argument_nodes_text(self.nodes_of(data.type_arguments))?;
         if introduces_error {
             return Ok(self
-                .serialize_reused_type_name_slice(type_name, SymbolFlags::TYPE, &rendered)?
+                .serialize_reused_type_name(type_name, SymbolFlags::TYPE, &rendered)?
                 .map(|(text, kind)| SliceTypeNodeFace::new(text, kind)));
         }
-        let name = self.entity_name_text_slice(type_name)?;
+        let name = self.entity_name_text(type_name)?;
         let text = if rendered.is_empty() {
             name
         } else {
@@ -11363,13 +11291,13 @@ impl<'a> CheckerState<'a> {
         )))
     }
 
-    fn type_annotation_text_slice_raw(&mut self, node: NodeId) -> CheckResult<JsString> {
+    fn type_annotation_text_raw(&mut self, node: NodeId) -> CheckResult<JsString> {
         // visitExistingNodeTreeSymbolsWorker's two TypeReference
         // special cases precede the ordinary TypeReference visitor.
-        if self.is_empty_jsdoc_type_reference_slice(node) {
+        if self.is_empty_jsdoc_type_reference(node) {
             return Ok("any".into());
         }
-        if let Some(index) = self.jsdoc_index_signature_text_slice(node)? {
+        if let Some(index) = self.jsdoc_index_signature_text(node)? {
             return Ok(index);
         }
         // canReuseTypeNode rejects JSDoc references with an intended
@@ -11378,7 +11306,7 @@ impl<'a> CheckerState<'a> {
         // while preserving the reusable parent structure.
         if self.is_jsdoc_type_reference(node) {
             if let Some(intended) = self.get_intended_type_from_jsdoc_type_reference(node)? {
-                return self.type_to_string_slice_ex(intended, /*fully_qualified*/ false);
+                return self.type_to_string_ex(intended, /*fully_qualified*/ false);
             }
         }
         // Keyword type nodes are kind-distinguished tokens.
@@ -11403,7 +11331,7 @@ impl<'a> CheckerState<'a> {
             // lowering @6.0.3.
             // tsc-hash: 8b4acd6f23476915bdfabab514bac75c2ea60ed2d25b510088a3f55c78028978
             // tsc-span: _tsc.js:133393-133484
-            NodeData::JSDocTypeExpression(data) => self.type_annotation_text_slice(
+            NodeData::JSDocTypeExpression(data) => self.type_annotation_text_display(
                 data.r#type
                     .expect("JSDocTypeExpression carries its type node"),
             ),
@@ -11411,7 +11339,7 @@ impl<'a> CheckerState<'a> {
             NodeData::JSDocUnknownType(_) => Ok("unknown".into()),
             NodeData::JSDocNullableType(data) => {
                 let inner = data.r#type.expect("JSDocNullableType carries its type");
-                let (inner_text, inner_kind) = self.visited_type_node_text_slice(inner)?;
+                let (inner_text, inner_kind) = self.visited_type_node_text(inner)?;
                 let inner_text = if union_constituent_needs_parens(inner_kind) {
                     crate::concat_js(&[&"(", &(inner_text), &")"])
                 } else {
@@ -11421,7 +11349,7 @@ impl<'a> CheckerState<'a> {
             }
             NodeData::JSDocOptionalType(data) => {
                 let inner = data.r#type.expect("JSDocOptionalType carries its type");
-                let (inner_text, inner_kind) = self.visited_type_node_text_slice(inner)?;
+                let (inner_text, inner_kind) = self.visited_type_node_text(inner)?;
                 let inner_text = if union_constituent_needs_parens(inner_kind) {
                     crate::concat_js(&[&"(", &(inner_text), &")"])
                 } else {
@@ -11429,33 +11357,32 @@ impl<'a> CheckerState<'a> {
                 };
                 Ok(crate::concat_js(&[&(inner_text), &" | undefined"]))
             }
-            NodeData::JSDocNonNullableType(data) => self.type_annotation_text_slice(
+            NodeData::JSDocNonNullableType(data) => self.type_annotation_text_display(
                 data.r#type.expect("JSDocNonNullableType carries its type"),
             ),
             NodeData::JSDocVariadicType(data) => {
                 let inner = data.r#type.expect("JSDocVariadicType carries its type");
-                let (inner_text, inner_kind) = self.visited_type_node_text_slice(inner)?;
+                let (inner_text, inner_kind) = self.visited_type_node_text(inner)?;
                 Ok(array_type_node_text(inner_text, inner_kind))
             }
-            NodeData::JSDocFunctionType(data) => self.with_reused_node_scope_slice(node, |state| {
-                state.jsdoc_function_type_text_slice(node, data)
-            }),
-            NodeData::JSDocTypeLiteral(data) => self.jsdoc_type_literal_text_slice(node, data),
+            NodeData::JSDocFunctionType(data) => self
+                .with_reused_node_scope(node, |state| state.jsdoc_function_type_text(node, data)),
+            NodeData::JSDocTypeLiteral(data) => self.jsdoc_type_literal_text(node, data),
             NodeData::ParenthesizedType(data) => {
                 let inner = data.r#type.expect("ParenthesizedType carries its type");
                 Ok(crate::concat_js(&[
                     &"(",
-                    &(self.type_annotation_text_slice(inner)?),
+                    &(self.type_annotation_text_display(inner)?),
                     &")",
                 ]))
             }
             NodeData::TypeReference(_) => {
-                unreachable!("TypeReference is handled by type_annotation_text_and_kind_slice")
+                unreachable!("TypeReference is handled by type_annotation_text_and_kind")
             }
             NodeData::UnionType(data) => {
                 let mut rendered = Vec::new();
                 for member in self.nodes_of(data.types) {
-                    let (text, kind) = self.visited_type_node_text_slice(member)?;
+                    let (text, kind) = self.visited_type_node_text(member)?;
                     rendered.push(if union_constituent_needs_parens(kind) {
                         crate::concat_js(&[&"(", &(text), &")"])
                     } else {
@@ -11467,7 +11394,7 @@ impl<'a> CheckerState<'a> {
             NodeData::IntersectionType(data) => {
                 let mut rendered = Vec::new();
                 for member in self.nodes_of(data.types) {
-                    let (text, kind) = self.visited_type_node_text_slice(member)?;
+                    let (text, kind) = self.visited_type_node_text(member)?;
                     rendered.push(if intersection_constituent_needs_parens(kind) {
                         crate::concat_js(&[&"(", &(text), &")"])
                     } else {
@@ -11480,13 +11407,13 @@ impl<'a> CheckerState<'a> {
                 let element = data
                     .element_type
                     .expect("ArrayType carries its element type");
-                let (element_text, element_kind) = self.visited_type_node_text_slice(element)?;
+                let (element_text, element_kind) = self.visited_type_node_text(element)?;
                 Ok(array_type_node_text(element_text, element_kind))
             }
             NodeData::TupleType(data) => {
                 let mut rendered = Vec::new();
                 for element in self.nodes_of(data.elements) {
-                    rendered.push(self.type_annotation_text_slice(element)?);
+                    rendered.push(self.type_annotation_text_display(element)?);
                 }
                 Ok(crate::concat_js(&[
                     &"[",
@@ -11500,15 +11427,14 @@ impl<'a> CheckerState<'a> {
                 } else {
                     ""
                 };
-                let name = self.entity_name_text_slice(
-                    data.name.expect("NamedTupleMember carries its name"),
-                )?;
+                let name =
+                    self.entity_name_text(data.name.expect("NamedTupleMember carries its name"))?;
                 let question = if data.question_token.is_some() {
                     "?"
                 } else {
                     ""
                 };
-                let ty = self.type_annotation_text_slice(
+                let ty = self.type_annotation_text_display(
                     data.r#type.expect("NamedTupleMember carries its type"),
                 )?;
                 Ok(crate::concat_js(&[
@@ -11521,7 +11447,7 @@ impl<'a> CheckerState<'a> {
             }
             NodeData::OptionalType(data) => {
                 let inner = data.r#type.expect("OptionalType carries its type");
-                let (text, kind) = self.visited_type_node_text_slice(inner)?;
+                let (text, kind) = self.visited_type_node_text(inner)?;
                 let text = if optional_type_operand_needs_parens(kind) {
                     crate::concat_js(&[&"(", &(text), &")"])
                 } else {
@@ -11533,15 +11459,15 @@ impl<'a> CheckerState<'a> {
                 let inner = data.r#type.expect("RestType carries its type");
                 Ok(crate::concat_js(&[
                     &"...",
-                    &(self.type_annotation_text_slice(inner)?),
+                    &(self.type_annotation_text_display(inner)?),
                 ]))
             }
             NodeData::TypeOperator(data) => {
                 if data.operator == SyntaxKind::KeyOfKeyword {
-                    return match self.try_visit_keyof_face_slice(node)? {
+                    return match self.try_visit_keyof_face(node)? {
                         Some(face) => Ok(face.text),
                         None => {
-                            self.slice_reuse_had_error = true;
+                            self.display_reuse_had_error = true;
                             Ok(JsString::new())
                         }
                     };
@@ -11552,7 +11478,7 @@ impl<'a> CheckerState<'a> {
                     _ => unreachable!("TypeOperator carries keyof/readonly/unique"),
                 };
                 let inner = data.r#type.expect("TypeOperator carries its operand");
-                let (text, kind) = self.visited_type_node_text_slice(inner)?;
+                let (text, kind) = self.visited_type_node_text(inner)?;
                 let needs_parens = if data.operator == SyntaxKind::ReadonlyKeyword {
                     readonly_type_operator_operand_needs_parens(kind)
                 } else {
@@ -11566,20 +11492,18 @@ impl<'a> CheckerState<'a> {
                 Ok(crate::concat_js(&[&(operator), &" ", &(text)]))
             }
             NodeData::TypeQuery(_) => {
-                unreachable!("TypeQuery is handled by type_annotation_text_and_kind_slice")
+                unreachable!("TypeQuery is handled by type_annotation_text_and_kind")
             }
-            NodeData::IndexedAccessType(_) => {
-                match self.try_visit_indexed_access_face_slice(node)? {
-                    Some(face) => Ok(face.text),
-                    None => {
-                        self.slice_reuse_had_error = true;
-                        Ok(JsString::new())
-                    }
+            NodeData::IndexedAccessType(_) => match self.try_visit_indexed_access_face(node)? {
+                Some(face) => Ok(face.text),
+                None => {
+                    self.display_reuse_had_error = true;
+                    Ok(JsString::new())
                 }
+            },
+            NodeData::LiteralType(data) => {
+                self.literal_type_node_text(data.literal.expect("LiteralType carries its literal"))
             }
-            NodeData::LiteralType(data) => self.literal_type_node_text_slice(
-                data.literal.expect("LiteralType carries its literal"),
-            ),
             NodeData::TypePredicate(data) => {
                 let asserts = if data.asserts_modifier.is_some() {
                     "asserts "
@@ -11592,35 +11516,34 @@ impl<'a> CheckerState<'a> {
                 let parameter = if self.kind_of(parameter_name) == SyntaxKind::ThisType {
                     "this".into()
                 } else {
-                    if self.reused_entity_name_introduces_error_slice(
-                        parameter_name,
-                        SymbolFlags::VALUE,
-                    )? {
+                    if self
+                        .reused_entity_name_introduces_error(parameter_name, SymbolFlags::VALUE)?
+                    {
                         // TypePredicate is the one TypeNode that does
                         // not recover its own scope. Its enclosing
                         // FunctionType/JSDocFunctionType consumes this
                         // armed boundary and is rebuilt semantically.
-                        self.slice_reuse_had_error = true;
+                        self.display_reuse_had_error = true;
                     }
-                    self.entity_name_text_slice(parameter_name)?
+                    self.entity_name_text(parameter_name)?
                 };
                 match data.r#type {
                     Some(ty) => Ok(crate::concat_js(&[
                         &(asserts),
                         &(parameter),
                         &" is ",
-                        &(self.type_annotation_text_slice(ty)?),
+                        &(self.type_annotation_text_display(ty)?),
                     ])),
                     None => Ok(crate::concat_js(&[&(asserts), &(parameter)])),
                 }
             }
-            NodeData::FunctionType(data) => self.with_reused_node_scope_slice(node, |state| {
-                let type_parameters =
-                    state.type_parameter_nodes_text_slice(state.nodes_of(data.type_parameters))?;
+            NodeData::FunctionType(data) => self.with_reused_node_scope(node, |state| {
+                let type_parameters = state
+                    .type_parameter_nodes_text_display(state.nodes_of(data.type_parameters))?;
                 let parameters =
-                    state.parameter_nodes_text_slice(state.nodes_of(data.parameters))?;
+                    state.parameter_nodes_text_display(state.nodes_of(data.parameters))?;
                 let ret = match data.r#type {
-                    Some(ret) => state.type_annotation_text_slice(ret)?,
+                    Some(ret) => state.type_annotation_text_display(ret)?,
                     None => "any".into(),
                 };
                 Ok(crate::concat_js(&[
@@ -11631,7 +11554,7 @@ impl<'a> CheckerState<'a> {
                     &(ret),
                 ]))
             }),
-            NodeData::ConstructorType(data) => self.with_reused_node_scope_slice(node, |state| {
+            NodeData::ConstructorType(data) => self.with_reused_node_scope(node, |state| {
                 let is_abstract = {
                     let source = state.binder.source_of_node(node);
                     tsc_binder::node_util::has_syntactic_modifier(
@@ -11641,12 +11564,12 @@ impl<'a> CheckerState<'a> {
                     )
                 };
                 let modifier = if is_abstract { "abstract " } else { "" };
-                let type_parameters =
-                    state.type_parameter_nodes_text_slice(state.nodes_of(data.type_parameters))?;
+                let type_parameters = state
+                    .type_parameter_nodes_text_display(state.nodes_of(data.type_parameters))?;
                 let parameters =
-                    state.parameter_nodes_text_slice(state.nodes_of(data.parameters))?;
+                    state.parameter_nodes_text_display(state.nodes_of(data.parameters))?;
                 let ret = match data.r#type {
-                    Some(ret) => state.type_annotation_text_slice(ret)?,
+                    Some(ret) => state.type_annotation_text_display(ret)?,
                     None => "any".into(),
                 };
                 Ok(crate::concat_js(&[
@@ -11666,8 +11589,8 @@ impl<'a> CheckerState<'a> {
                 }
                 let mut rendered = Vec::with_capacity(members.len());
                 for member_node in members {
-                    if let Some(member) = self.type_literal_member_text_slice(member_node)? {
-                        rendered.push(if self.type_literal_member_has_body_slice(member_node) {
+                    if let Some(member) = self.type_literal_member_text(member_node)? {
+                        rendered.push(if self.type_literal_member_has_body(member_node) {
                             member
                         } else {
                             crate::concat_js(&[&(member), &";"])
@@ -11688,29 +11611,28 @@ impl<'a> CheckerState<'a> {
                 let check_node = data
                     .check_type
                     .expect("ConditionalType carries its check type");
-                let (mut check, check_kind) = self.visited_type_node_text_slice(check_node)?;
+                let (mut check, check_kind) = self.visited_type_node_text(check_node)?;
                 if conditional_check_type_needs_parens(check_kind) {
                     check = crate::concat_js(&[&"(", &(check), &")"]);
                 }
                 // The inferred type parameters enter scope only for
                 // extendsType and trueType; checkType and falseType
                 // remain in the outer nodeBuilder scope.
-                let (extends, when_true) = self.with_reused_node_scope_slice(node, |state| {
+                let (extends, when_true) = self.with_reused_node_scope(node, |state| {
                     let extends_node = data
                         .extends_type
                         .expect("ConditionalType carries its extends type");
-                    let (mut extends, extends_kind) =
-                        state.visited_type_node_text_slice(extends_node)?;
+                    let (mut extends, extends_kind) = state.visited_type_node_text(extends_node)?;
                     if extends_kind == SliceTypeNodeKind::Conditional {
                         extends = crate::concat_js(&[&"(", &(extends), &")"]);
                     }
-                    let when_true = state.type_annotation_text_slice(
+                    let when_true = state.type_annotation_text_display(
                         data.true_type
                             .expect("ConditionalType carries its true type"),
                     )?;
                     Ok((extends, when_true))
                 })?;
-                let when_false = self.type_annotation_text_slice(
+                let when_false = self.type_annotation_text_display(
                     data.false_type
                         .expect("ConditionalType carries its false type"),
                 )?;
@@ -11730,11 +11652,11 @@ impl<'a> CheckerState<'a> {
                     .expect("InferType carries its type parameter");
                 Ok(crate::concat_js(&[
                     &"infer ",
-                    &(self.type_parameter_node_text_slice(parameter)?),
+                    &(self.type_parameter_node_text(parameter)?),
                 ]))
             }
-            NodeData::MappedType(data) => self.with_reused_node_scope_slice(node, |state| {
-                let readonly = mapped_modifier_text_slice(
+            NodeData::MappedType(data) => self.with_reused_node_scope(node, |state| {
+                let readonly = mapped_modifier_text(
                     data.readonly_token.map(|token| state.kind_of(token)),
                     "readonly ",
                 );
@@ -11745,12 +11667,12 @@ impl<'a> CheckerState<'a> {
                 else {
                     unreachable!("MappedType type_parameter is a TypeParameter node");
                 };
-                let name = state.entity_name_text_slice(
+                let name = state.entity_name_text(
                     parameter_data
                         .name
                         .expect("mapped type parameter carries its name"),
                 )?;
-                let constraint = state.type_annotation_text_slice(
+                let constraint = state.type_annotation_text_display(
                     parameter_data
                         .constraint
                         .expect("mapped type parameter carries its in-type"),
@@ -11758,24 +11680,24 @@ impl<'a> CheckerState<'a> {
                 let name_type = match data.name_type {
                     Some(name_type) => crate::concat_js(&[
                         &" as ",
-                        &(state.type_annotation_text_slice(name_type)?),
+                        &(state.type_annotation_text_display(name_type)?),
                     ]),
                     None => JsString::new(),
                 };
-                let question = mapped_modifier_text_slice(
+                let question = mapped_modifier_text(
                     data.question_token.map(|token| state.kind_of(token)),
                     "?",
                 );
                 let value = match data.r#type {
-                    Some(value) => state.type_annotation_text_slice(value)?,
+                    Some(value) => state.type_annotation_text_display(value)?,
                     None => JsString::new(),
                 };
                 let mut members = Vec::new();
                 for member_node in state.nodes_of(data.members) {
-                    if let Some(member) = state.type_literal_member_text_slice(member_node)? {
+                    if let Some(member) = state.type_literal_member_text(member_node)? {
                         members.push((
                             member_node,
-                            if state.type_literal_member_has_body_slice(member_node) {
+                            if state.type_literal_member_has_body(member_node) {
                                 member
                             } else {
                                 crate::concat_js(&[&(member), &";"])
@@ -11845,22 +11767,21 @@ impl<'a> CheckerState<'a> {
                 ]))
             }),
             NodeData::ImportType(data) => {
-                if self.literal_import_type_has_assert_attributes_slice(&data) {
-                    return self.semantic_existing_type_node_text_slice(node);
+                if self.literal_import_type_has_assert_attributes(&data) {
+                    return self.semantic_existing_type_node_text(node);
                 }
-                let argument = self.type_annotation_text_slice(
+                let argument = self.type_annotation_text_display(
                     data.argument.expect("ImportType carries its argument type"),
                 )?;
                 let attributes = match data.attributes {
-                    Some(attributes) => crate::concat_js(&[
-                        &", ",
-                        &(self.import_attributes_text_slice(attributes)?),
-                    ]),
+                    Some(attributes) => {
+                        crate::concat_js(&[&", ", &(self.import_attributes_text(attributes)?)])
+                    }
                     None => JsString::new(),
                 };
                 let qualifier = match data.qualifier {
                     Some(qualifier) => {
-                        crate::concat_js(&[&".", &(self.entity_name_text_slice(qualifier)?)])
+                        crate::concat_js(&[&".", &(self.entity_name_text(qualifier)?)])
                     }
                     None => JsString::new(),
                 };
@@ -11868,7 +11789,7 @@ impl<'a> CheckerState<'a> {
                 let type_arguments = if arguments.is_empty() {
                     JsString::new()
                 } else {
-                    let rendered = self.type_argument_nodes_text_slice(arguments)?;
+                    let rendered = self.type_argument_nodes_text(arguments)?;
                     crate::concat_js(&[&"<", &(crate::join_js_texts(&rendered, ", ")), &">"])
                 };
                 let type_of = if data.is_type_of { "typeof " } else { "" };
@@ -11899,7 +11820,7 @@ impl<'a> CheckerState<'a> {
                             "TemplateLiteralType template_spans contain TemplateLiteralTypeSpan"
                         );
                     };
-                    let ty = self.type_annotation_text_slice(
+                    let ty = self.type_annotation_text_display(
                         span_data
                             .r#type
                             .expect("TemplateLiteralTypeSpan carries its type"),
@@ -11936,7 +11857,7 @@ impl<'a> CheckerState<'a> {
     /// visitExistingNodeTreeSymbolsWorker's historically-JSDoc
     /// empty-name TypeReference rewrite (133428-133430). The branch
     /// itself is deliberately NOT NodeFlags::JSDoc-gated.
-    fn is_empty_jsdoc_type_reference_slice(&self, node: NodeId) -> bool {
+    fn is_empty_jsdoc_type_reference(&self, node: NodeId) -> bool {
         matches!(
             self.data_of(node),
             NodeData::TypeReference(data)
@@ -11953,7 +11874,7 @@ impl<'a> CheckerState<'a> {
     /// `Object<string|number, V>` lowering (133431-133445).
     /// isJSDocIndexSignature is structural and does not require the
     /// TypeReference itself to carry NodeFlags::JSDoc.
-    fn jsdoc_index_signature_text_slice(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
+    fn jsdoc_index_signature_text(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::TypeReference(data) = self.data_of(node).clone() else {
             return Ok(None);
         };
@@ -11972,8 +11893,8 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(None);
         }
-        let key = self.type_annotation_text_slice(arguments[0])?;
-        let value = self.type_annotation_text_slice(arguments[1])?;
+        let key = self.type_annotation_text_display(arguments[0])?;
+        let value = self.type_annotation_text_display(arguments[1])?;
         Ok(Some(crate::concat_js(&[
             &"{",
             &" [x: ",
@@ -11987,27 +11908,24 @@ impl<'a> CheckerState<'a> {
     /// createRecoveryBoundary's TypeNode recovery:
     /// resolver.serializeExistingTypeNode → typeToTypeNodeHelper over
     /// the semantic type, in the SAME nodeBuilder context.
-    fn semantic_existing_type_node_text_and_kind_slice(
+    fn semantic_existing_type_node_text_and_kind(
         &mut self,
         node: NodeId,
     ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
-        let face = self.semantic_existing_type_node_face_slice(node)?;
+        let face = self.semantic_existing_type_node_face(node)?;
         Ok((face.text, face.kind))
     }
 
-    fn semantic_existing_type_node_face_slice(
-        &mut self,
-        node: NodeId,
-    ) -> CheckResult<SliceTypeNodeFace> {
+    fn semantic_existing_type_node_face(&mut self, node: NodeId) -> CheckResult<SliceTypeNodeFace> {
         let ty = self.get_type_from_type_node(node)?;
-        self.semantic_type_node_face_slice(ty)
+        self.semantic_type_node_face(ty)
     }
 
-    fn semantic_type_node_face_slice(&mut self, mut ty: TypeId) -> CheckResult<SliceTypeNodeFace> {
-        if let Some(&mapper) = self.slice_display_mappers.last() {
+    fn semantic_type_node_face(&mut self, mut ty: TypeId) -> CheckResult<SliceTypeNodeFace> {
+        if let Some(&mapper) = self.display_mappers.last() {
             ty = self.instantiate_type(ty, Some(mapper))?;
         }
-        let (text, kind) = self.type_to_string_slice_node(ty, /*fully_qualified*/ false)?;
+        let (text, kind) = self.type_to_string_node(ty, /*fully_qualified*/ false)?;
         let signature_kind = match kind {
             SliceTypeNodeKind::FunctionType => Some(SignatureKind::Call),
             SliceTypeNodeKind::ConstructorType => Some(SignatureKind::Construct),
@@ -12032,24 +11950,22 @@ impl<'a> CheckerState<'a> {
         })
     }
 
-    fn semantic_existing_type_node_text_slice(&mut self, node: NodeId) -> CheckResult<JsString> {
-        Ok(self
-            .semantic_existing_type_node_text_and_kind_slice(node)?
-            .0)
+    fn semantic_existing_type_node_text(&mut self, node: NodeId) -> CheckResult<JsString> {
+        Ok(self.semantic_existing_type_node_text_and_kind(node)?.0)
     }
 
     /// enterNewScope's enclosing-declaration component for reused
     /// signature and mapped nodes. The original AST already owns the
     /// parameter/type-parameter locals, so parking that declaration is
     /// the native equivalent of nodeBuilder's synthesized fake scope.
-    fn with_reused_node_scope_slice<T>(
+    fn with_reused_node_scope<T>(
         &mut self,
         node: NodeId,
         op: impl FnOnce(&mut Self) -> CheckResult<T>,
     ) -> CheckResult<T> {
-        let saved = self.slice_display_enclosing.replace(node);
+        let saved = self.display_enclosing.replace(node);
         let result = op(self);
-        self.slice_display_enclosing = saved;
+        self.display_enclosing = saved;
         result
     }
 
@@ -12062,13 +11978,13 @@ impl<'a> CheckerState<'a> {
     /// original scope, then let the enclosing-aware symbol-chain walk
     /// choose the shortest usable spelling. Already-visited type
     /// arguments remain syntactically reused as the override list.
-    fn serialize_reused_type_name_slice(
+    fn serialize_reused_type_name(
         &mut self,
         name: NodeId,
         meaning: SymbolFlags,
         type_arguments: &[JsString],
     ) -> CheckResult<Option<(JsString, SliceTypeNodeKind)>> {
-        let Some(enclosing) = self.slice_display_enclosing else {
+        let Some(enclosing) = self.display_enclosing else {
             return Ok(None);
         };
         // serializeTypeName does not set dontResolveAlias: the semantic
@@ -12080,7 +11996,7 @@ impl<'a> CheckerState<'a> {
         else {
             return Ok(None);
         };
-        if !self.symbol_is_accessible_with_containers_slice(
+        if !self.symbol_is_accessible_with_containers(
             symbol,
             meaning,
             enclosing,
@@ -12099,7 +12015,7 @@ impl<'a> CheckerState<'a> {
         } else {
             symbol
         };
-        let (mut text, kind) = self.symbol_to_type_face_at_slice(symbol, meaning, enclosing)?;
+        let (mut text, kind) = self.symbol_to_type_face_at(symbol, meaning, enclosing)?;
         if !type_arguments.is_empty() {
             text.push('<');
             text.push_js((&crate::join_js_texts(type_arguments, ", ")).into());
@@ -12116,7 +12032,7 @@ impl<'a> CheckerState<'a> {
     /// LEFTMOST identifier; the cloned node itself retains the full
     /// qualified spelling. A mismatch arms the enclosing TypeNode's
     /// semantic recovery boundary.
-    fn reused_entity_name_introduces_error_slice(
+    fn reused_entity_name_introduces_error(
         &mut self,
         name: NodeId,
         meaning: SymbolFlags,
@@ -12126,7 +12042,7 @@ impl<'a> CheckerState<'a> {
         // expression-form `module.exports`, and type-position
         // `module.exports` are export plumbing rather than reusable
         // lexical entity names.
-        if self.is_in_js_file(name) && self.is_js_exports_entity_name_slice(first) {
+        if self.is_in_js_file(name) && self.is_js_exports_entity_name_display(first) {
             return Ok(true);
         }
         // `this` identifiers bind through their this-container rather
@@ -12139,12 +12055,12 @@ impl<'a> CheckerState<'a> {
             );
             return match container {
                 Some(container) => {
-                    Ok(!self.this_container_is_accessible_slice(container, first, meaning)?)
+                    Ok(!self.this_container_is_accessible(container, first, meaning)?)
                 }
                 None => Ok(false),
             };
         }
-        let Some(enclosing) = self.slice_display_enclosing else {
+        let Some(enclosing) = self.display_enclosing else {
             return Ok(false);
         };
         let original =
@@ -12173,7 +12089,7 @@ impl<'a> CheckerState<'a> {
             (Some(_), None) => return Ok(true),
             (Some(original), Some(at_enclosing)) => {
                 let at_enclosing = self.get_export_symbol_of_value_symbol_if_exported(at_enclosing);
-                if !self.symbol_if_same_reference_slice(at_enclosing, original)? {
+                if !self.symbol_if_same_reference(at_enclosing, original)? {
                     return Ok(true);
                 }
                 Some(at_enclosing)
@@ -12197,8 +12113,8 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         if !symbol_data.flags.intersects(SymbolFlags::TYPE_PARAMETER)
-            && !self.is_reused_declaration_name_slice(name)
-            && !self.symbol_is_accessible_with_containers_slice(
+            && !self.is_reused_declaration_name(name)
+            && !self.symbol_is_accessible_with_containers(
                 symbol,
                 meaning,
                 enclosing,
@@ -12216,7 +12132,7 @@ impl<'a> CheckerState<'a> {
     /// a named accessible class therefore suffices even though the
     /// member itself is not lexical; an anonymous class has no such
     /// container chain and forces semantic recovery.
-    fn this_container_is_accessible_slice(
+    fn this_container_is_accessible(
         &mut self,
         container: NodeId,
         location: NodeId,
@@ -12253,7 +12169,7 @@ impl<'a> CheckerState<'a> {
         let Some(symbol) = self.node_symbol(candidate) else {
             return Ok(false);
         };
-        self.symbol_is_accessible_with_containers_slice(
+        self.symbol_is_accessible_with_containers(
             symbol,
             meaning,
             location,
@@ -12265,7 +12181,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isAnySymbolAccessible @6.0.3 (boolean adapter).
     /// tsc-hash: 196ddf5926730f5e6f16ff4f2a7d59e1abf506c39cfc64d9ff90bd1a065f6cb1
     /// tsc-span: _tsc.js:50450-50498
-    fn symbol_is_accessible_with_containers_slice(
+    fn symbol_is_accessible_with_containers(
         &mut self,
         symbol: SymbolId,
         meaning: SymbolFlags,
@@ -12277,24 +12193,22 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         seen.push(symbol);
-        if let Some(chain) =
-            self.accessible_symbol_chain_at_slice(symbol, meaning, Some(enclosing))?
-        {
-            if self.symbol_has_visible_declarations_slice(chain[0]) {
+        if let Some(chain) = self.accessible_symbol_chain_at(symbol, meaning, Some(enclosing))? {
+            if self.symbol_has_visible_declarations(chain[0]) {
                 return Ok(true);
             }
         }
         if self.symbol_has_external_module_declaration(symbol) {
             return Ok(true);
         }
-        let containers = self.containers_of_symbol_slice(symbol, Some(enclosing), meaning)?;
+        let containers = self.containers_of_symbol(symbol, Some(enclosing), meaning)?;
         let parent_meaning = if symbol == initial_symbol {
             Self::qualified_left_meaning(meaning)
         } else {
             meaning
         };
         for container in containers {
-            if self.symbol_is_accessible_with_containers_slice(
+            if self.symbol_is_accessible_with_containers(
                 container,
                 parent_meaning,
                 enclosing,
@@ -12316,7 +12230,7 @@ impl<'a> CheckerState<'a> {
     /// visible through its import/variable statement; because this caller
     /// passes `false`, the alias-painting side effect is omitted while the
     /// exact acceptance decision is preserved.
-    fn symbol_has_visible_declarations_slice(&self, symbol: SymbolId) -> bool {
+    fn symbol_has_visible_declarations(&self, symbol: SymbolId) -> bool {
         let symbol_flags = self.binder.symbol(symbol).flags;
         self.binder
             .symbol(symbol)
@@ -12324,25 +12238,23 @@ impl<'a> CheckerState<'a> {
             .iter()
             .copied()
             .filter(|&declaration| self.kind_of(declaration) != SyntaxKind::Identifier)
-            .all(|declaration| {
-                self.reused_symbol_declaration_is_visible_slice(symbol_flags, declaration)
-            })
+            .all(|declaration| self.reused_symbol_declaration_is_visible(symbol_flags, declaration))
     }
 
-    fn reused_symbol_declaration_is_visible_slice(
+    fn reused_symbol_declaration_is_visible(
         &self,
         symbol_flags: SymbolFlags,
         declaration: NodeId,
     ) -> bool {
-        if self.reused_declaration_is_visible_slice(declaration) {
+        if self.reused_declaration_is_visible(declaration) {
             return true;
         }
         let source = self.binder.source_of_node(declaration);
-        if let Some(import_syntax) = self.reused_any_import_syntax_slice(declaration) {
+        if let Some(import_syntax) = self.reused_any_import_syntax(declaration) {
             if !node_util::has_syntactic_modifier(source, import_syntax, ModifierFlags::EXPORT)
                 && self
                     .parent_of(import_syntax)
-                    .is_some_and(|parent| self.reused_declaration_is_visible_slice(parent))
+                    .is_some_and(|parent| self.reused_declaration_is_visible(parent))
             {
                 return true;
             }
@@ -12356,16 +12268,16 @@ impl<'a> CheckerState<'a> {
                     && !node_util::has_syntactic_modifier(source, statement, ModifierFlags::EXPORT)
                     && self
                         .parent_of(statement)
-                        .is_some_and(|parent| self.reused_declaration_is_visible_slice(parent))
+                        .is_some_and(|parent| self.reused_declaration_is_visible(parent))
             }) {
                 return true;
             }
         }
-        if self.is_late_visibility_painted_statement_slice(declaration)
+        if self.is_late_visibility_painted_statement_display(declaration)
             && !node_util::has_syntactic_modifier(source, declaration, ModifierFlags::EXPORT)
             && self
                 .parent_of(declaration)
-                .is_some_and(|parent| self.reused_declaration_is_visible_slice(parent))
+                .is_some_and(|parent| self.reused_declaration_is_visible(parent))
         {
             return true;
         }
@@ -12391,7 +12303,7 @@ impl<'a> CheckerState<'a> {
                         )
                         && self
                             .parent_of(statement)
-                            .is_some_and(|parent| self.reused_declaration_is_visible_slice(parent))
+                            .is_some_and(|parent| self.reused_declaration_is_visible(parent))
                 })
             {
                 return true;
@@ -12420,7 +12332,7 @@ impl<'a> CheckerState<'a> {
             }
             return self
                 .parent_of(variable_statement)
-                .is_some_and(|parent| self.reused_declaration_is_visible_slice(parent));
+                .is_some_and(|parent| self.reused_declaration_is_visible(parent));
         }
         false
     }
@@ -12428,7 +12340,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getAnyImportSyntax @6.0.3.
     /// tsc-hash: 4bbd19cf79821054af5d7cde72570b4cead4f046a0487abc67e2dcf9e5dd85df
     /// tsc-span: _tsc.js:48481-48492
-    fn reused_any_import_syntax_slice(&self, declaration: NodeId) -> Option<NodeId> {
+    fn reused_any_import_syntax(&self, declaration: NodeId) -> Option<NodeId> {
         match self.kind_of(declaration) {
             SyntaxKind::ImportEqualsDeclaration => Some(declaration),
             SyntaxKind::ImportClause => self.parent_of(declaration),
@@ -12446,7 +12358,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isLateVisibilityPaintedStatement @6.0.3.
     /// tsc-hash: f287e28aeb22f22f5a56296876740f2c7312d47d6633ef1143e8e8b3effc4dd7
     /// tsc-span: _tsc.js:13819-13834
-    fn is_late_visibility_painted_statement_slice(&self, node: NodeId) -> bool {
+    fn is_late_visibility_painted_statement_display(&self, node: NodeId) -> bool {
         matches!(
             self.kind_of(node),
             SyntaxKind::ImportDeclaration
@@ -12464,7 +12376,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isDeclarationVisible @6.0.3.
     /// tsc-hash: b569e8243cf2db9de0dbec7462f29fa1e70f4b94405adb5a134b6571d4c8fbeb
     /// tsc-span: _tsc.js:55589-55674
-    pub(crate) fn reused_declaration_is_visible_slice(&self, declaration: NodeId) -> bool {
+    pub(crate) fn reused_declaration_is_visible(&self, declaration: NodeId) -> bool {
         match self.kind_of(declaration) {
             SyntaxKind::JSDocCallbackTag
             | SyntaxKind::JSDocTypedefTag
@@ -12476,7 +12388,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::BindingElement => self
                 .parent_of(declaration)
                 .and_then(|parent| self.parent_of(parent))
-                .is_some_and(|parent| self.reused_declaration_is_visible_slice(parent)),
+                .is_some_and(|parent| self.reused_declaration_is_visible(parent)),
             SyntaxKind::VariableDeclaration
             | SyntaxKind::ModuleDeclaration
             | SyntaxKind::ClassDeclaration
@@ -12510,7 +12422,7 @@ impl<'a> CheckerState<'a> {
                 {
                     return true;
                 }
-                let Some(container) = self.reused_declaration_container_slice(declaration) else {
+                let Some(container) = self.reused_declaration_container(declaration) else {
                     return false;
                 };
                 let exported = node_util::get_combined_modifier_flags(source, declaration)
@@ -12525,7 +12437,7 @@ impl<'a> CheckerState<'a> {
                             .binder
                             .is_external_or_common_js_module_of_node(container);
                 }
-                self.reused_declaration_is_visible_slice(container)
+                self.reused_declaration_is_visible(container)
             }
             SyntaxKind::PropertyDeclaration
             | SyntaxKind::PropertySignature
@@ -12540,7 +12452,7 @@ impl<'a> CheckerState<'a> {
                     return false;
                 }
                 self.parent_of(declaration)
-                    .is_some_and(|parent| self.reused_declaration_is_visible_slice(parent))
+                    .is_some_and(|parent| self.reused_declaration_is_visible(parent))
             }
             SyntaxKind::Constructor
             | SyntaxKind::ConstructSignature
@@ -12559,7 +12471,7 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::ParenthesizedType
             | SyntaxKind::NamedTupleMember => self
                 .parent_of(declaration)
-                .is_some_and(|parent| self.reused_declaration_is_visible_slice(parent)),
+                .is_some_and(|parent| self.reused_declaration_is_visible(parent)),
             SyntaxKind::TypeParameter
             | SyntaxKind::SourceFile
             | SyntaxKind::NamespaceExportDeclaration => true,
@@ -12576,7 +12488,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getDeclarationContainer @6.0.3.
     /// tsc-hash: 3d4b993da842ea191877ffad47fb0c8045a3d1086066350235a4992e74413283
     /// tsc-span: _tsc.js:55784-55798
-    fn reused_declaration_container_slice(&self, declaration: NodeId) -> Option<NodeId> {
+    fn reused_declaration_container(&self, declaration: NodeId) -> Option<NodeId> {
         let source = self.binder.source_of_node(declaration);
         let root = node_util::get_root_declaration(source, declaration);
         let mut current = Some(root);
@@ -12594,7 +12506,7 @@ impl<'a> CheckerState<'a> {
         None
     }
 
-    fn is_reused_declaration_name_slice(&self, name: NodeId) -> bool {
+    fn is_reused_declaration_name(&self, name: NodeId) -> bool {
         let Some(parent) = self.parent_of(name) else {
             return false;
         };
@@ -12608,7 +12520,7 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    fn is_js_exports_entity_name_slice(&self, leftmost: NodeId) -> bool {
+    fn is_js_exports_entity_name_display(&self, leftmost: NodeId) -> bool {
         let source = self.binder.source_of_node(leftmost);
         if tsc_binder::assignment::is_exports_identifier(source, leftmost) {
             return true;
@@ -12629,7 +12541,7 @@ impl<'a> CheckerState<'a> {
         )
     }
 
-    fn type_reference_entity_meaning_slice(&self, name: NodeId) -> SymbolFlags {
+    fn type_reference_entity_meaning(&self, name: NodeId) -> SymbolFlags {
         if matches!(
             self.kind_of(name),
             SyntaxKind::QualifiedName | SyntaxKind::PropertyAccessExpression
@@ -12642,7 +12554,7 @@ impl<'a> CheckerState<'a> {
 
     /// isLiteralImportTypeNode + the visitor's AssertKeyword
     /// markError branch (133518-133522).
-    fn literal_import_type_has_assert_attributes_slice(&self, data: &ImportTypeData) -> bool {
+    fn literal_import_type_has_assert_attributes(&self, data: &ImportTypeData) -> bool {
         let literal_argument = data.argument.is_some_and(|argument| {
             matches!(
                 self.data_of(argument),
@@ -12667,7 +12579,7 @@ impl<'a> CheckerState<'a> {
     /// whose required arguments were autofilled by JSDoc resolution,
     /// must be rebuilt from its semantic type instead of cloning the
     /// source ImportTypeNode.
-    fn can_reuse_literal_import_type_slice(
+    fn can_reuse_literal_import_type(
         &mut self,
         node: NodeId,
         data: &ImportTypeData,
@@ -12719,9 +12631,9 @@ impl<'a> CheckerState<'a> {
     /// to the worker branches that tsc actually probes (TypeReference,
     /// literal ImportType, ThisType, and `unique symbol`). Ordinary
     /// child nodes therefore do not pay a semantic type read.
-    fn can_reuse_existing_type_node_slice(&mut self, node: NodeId) -> CheckResult<bool> {
+    fn can_reuse_existing_type_node(&mut self, node: NodeId) -> CheckResult<bool> {
         let mut context_type = None;
-        if let Some(&mapper) = self.slice_display_mappers.last() {
+        if let Some(&mapper) = self.display_mappers.last() {
             let ty = self.get_type_from_type_node(node)?;
             if self.instantiate_type(ty, Some(mapper))? != ty {
                 return Ok(false);
@@ -12730,7 +12642,7 @@ impl<'a> CheckerState<'a> {
         }
         match self.data_of(node).clone() {
             NodeData::ImportType(data) => {
-                return self.can_reuse_literal_import_type_slice(node, &data);
+                return self.can_reuse_literal_import_type(node, &data);
             }
             NodeData::TypeReference(_) => {
                 if self.is_const_type_reference_node(node) {
@@ -12775,7 +12687,7 @@ impl<'a> CheckerState<'a> {
                         .is_some_and(|inner| self.kind_of(inner) == SyntaxKind::SymbolKeyword) =>
             {
                 return Ok(self
-                    .slice_display_enclosing
+                    .display_enclosing
                     .is_some_and(|enclosing| self.is_node_descendant_of(node, enclosing)));
             }
             _ => {}
@@ -12786,11 +12698,11 @@ impl<'a> CheckerState<'a> {
     /// A visited child as the same `(TypeNode text, transformed kind)`
     /// pair the factory parenthesizer observes. Every container join
     /// consumes this pair rather than inferring precedence from text.
-    fn visited_type_node_text_slice(
+    fn visited_type_node_text(
         &mut self,
         node: NodeId,
     ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
-        self.type_annotation_text_and_kind_slice(node)
+        self.type_annotation_text_and_kind(node)
     }
 
     /// Kind carried beside a reused annotation's text for the factory
@@ -12798,7 +12710,7 @@ impl<'a> CheckerState<'a> {
     /// the ordinary TypeNode kind produced by
     /// visitExistingNodeTreeSymbolsWorker, rather than the original
     /// JSDoc wrapper kind.
-    fn type_annotation_node_kind_slice(&self, node: NodeId) -> SliceTypeNodeKind {
+    fn type_annotation_node_kind(&self, node: NodeId) -> SliceTypeNodeKind {
         match self.kind_of(node) {
             SyntaxKind::JSDocTypeExpression | SyntaxKind::JSDocNonNullableType => {
                 let inner = match self.data_of(node) {
@@ -12807,7 +12719,7 @@ impl<'a> CheckerState<'a> {
                     _ => None,
                 };
                 inner
-                    .map(|inner| self.type_annotation_node_kind_slice(inner))
+                    .map(|inner| self.type_annotation_node_kind(inner))
                     .unwrap_or(SliceTypeNodeKind::Keyword)
             }
             SyntaxKind::JSDocAllType
@@ -12852,7 +12764,7 @@ impl<'a> CheckerState<'a> {
     /// syntactic builder (`argN`, `args`, with `this` preserved), and
     /// a leading `new` pseudo-parameter supplies a constructor return
     /// type instead of appearing in the emitted parameter list.
-    fn jsdoc_function_type_text_slice(
+    fn jsdoc_function_type_text(
         &mut self,
         node: NodeId,
         data: JSDocFunctionTypeData,
@@ -12860,7 +12772,7 @@ impl<'a> CheckerState<'a> {
         let construct =
             node_util::is_jsdoc_construct_signature(self.binder.source_of_node(node), node);
         let type_parameters =
-            self.type_parameter_nodes_text_slice(self.nodes_of(data.type_parameters))?;
+            self.type_parameter_nodes_text_display(self.nodes_of(data.type_parameters))?;
         let mut return_from_new = None;
         let mut parameters = Vec::new();
         for (index, parameter) in self.nodes_of(data.parameters).into_iter().enumerate() {
@@ -12895,13 +12807,13 @@ impl<'a> CheckerState<'a> {
             let mut text = crate::concat_js(&[&(dots), &(name), &(question)]);
             if let Some(annotation) = parameter_data.r#type {
                 text.push_js((": ").into());
-                text.push_js((&self.type_annotation_text_slice(annotation)?).into());
+                text.push_js((&self.type_annotation_text_display(annotation)?).into());
             }
             parameters.push(text);
         }
         let return_type = return_from_new.or(data.r#type);
         let return_text = match return_type {
-            Some(return_type) => self.type_annotation_text_slice(return_type)?,
+            Some(return_type) => self.type_annotation_text_display(return_type)?,
             None => "any".into(),
         };
         if construct {
@@ -12931,7 +12843,7 @@ impl<'a> CheckerState<'a> {
     /// The visitor synthesizes an ordinary TypeLiteral of property
     /// signatures. Bracketed tags and optional JSDoc types both set
     /// `?`; a missing annotation becomes `any`.
-    fn jsdoc_type_literal_text_slice(
+    fn jsdoc_type_literal_text(
         &mut self,
         node: NodeId,
         data: JSDocTypeLiteralData,
@@ -12956,7 +12868,7 @@ impl<'a> CheckerState<'a> {
                     .expect("JSDocMemberName carries its right-hand property name"),
                 _ => name_node,
             };
-            let name = self.entity_name_text_slice(name_node)?;
+            let name = self.entity_name_text(name_node)?;
             let annotation = property_data.type_expression.and_then(|expression| {
                 match self.data_of(expression) {
                     NodeData::JSDocTypeExpression(data) => data.r#type,
@@ -12979,14 +12891,14 @@ impl<'a> CheckerState<'a> {
                 (property_type, annotation_type)
             {
                 if property_type != annotation_type {
-                    self.type_to_string_slice(property_type)?
+                    self.type_to_string(property_type)?
                 } else {
-                    self.type_annotation_text_slice(
+                    self.type_annotation_text_display(
                         annotation.expect("matched Some annotation_type"),
                     )?
                 }
             } else if let Some(annotation) = annotation {
-                self.type_annotation_text_slice(annotation)?
+                self.type_annotation_text_display(annotation)?
             } else {
                 "any".into()
             };
@@ -13012,7 +12924,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: emitImportAttribute @6.0.3
     /// tsc-hash: a0edb1f08aefc12e25f1d599c3cf2229a8048fc7d56e28b1e0785d33726c6b6f
     /// tsc-span: _tsc.js:119322-119332
-    fn import_attributes_text_slice(&mut self, node: NodeId) -> CheckResult<JsString> {
+    fn import_attributes_text(&mut self, node: NodeId) -> CheckResult<JsString> {
         let NodeData::ImportAttributes(data) = self.data_of(node).clone() else {
             unreachable!("ImportType attributes is an ImportAttributes node");
         };
@@ -13023,11 +12935,10 @@ impl<'a> CheckerState<'a> {
             let NodeData::ImportAttribute(data) = self.data_of(element).clone() else {
                 unreachable!("ImportAttributes elements contain ImportAttribute nodes");
             };
-            let name = self.member_name_node_text_slice(
-                data.name.expect("ImportAttribute carries its name"),
-            )?;
-            let value =
-                self.expression_text_slice(data.value.expect("ImportAttribute carries its value"))?;
+            let name =
+                self.member_name_node_text(data.name.expect("ImportAttribute carries its name"))?;
+            let value = self
+                .expression_text_display(data.value.expect("ImportAttribute carries its value"))?;
             rendered.push(crate::concat_js(&[&(name), &": ", &(value)]));
         }
         let elements = if rendered.is_empty() {
@@ -13047,7 +12958,7 @@ impl<'a> CheckerState<'a> {
 
     /// Entity names in reused annotations: Identifier / QualifiedName
     /// dots / the property-access spellings type queries carry.
-    fn entity_name_text_slice(&mut self, node: NodeId) -> CheckResult<JsString> {
+    fn entity_name_text(&mut self, node: NodeId) -> CheckResult<JsString> {
         match self.data_of(node).clone() {
             NodeData::Identifier(data) => {
                 Ok(tsc_syntax::unescape_leading_underscores(&data.escaped_text)
@@ -13056,30 +12967,27 @@ impl<'a> CheckerState<'a> {
             }
             NodeData::PrivateIdentifier(data) => Ok(data.text.into()),
             NodeData::QualifiedName(data) => {
-                let left = self.entity_name_text_slice(
-                    data.left.expect("QualifiedName carries its left side"),
-                )?;
-                let right = self.entity_name_text_slice(
-                    data.right.expect("QualifiedName carries its right side"),
-                )?;
+                let left =
+                    self.entity_name_text(data.left.expect("QualifiedName carries its left side"))?;
+                let right = self
+                    .entity_name_text(data.right.expect("QualifiedName carries its right side"))?;
                 Ok(crate::concat_js(&[&(left), &".", &(right)]))
             }
             NodeData::PropertyAccessExpression(data) => {
-                let left = self.entity_name_text_slice(
+                let left = self.entity_name_text(
                     data.expression
                         .expect("PropertyAccessExpression carries its expression"),
                 )?;
-                let right = self.entity_name_text_slice(
+                let right = self.entity_name_text(
                     data.name
                         .expect("PropertyAccessExpression carries its name"),
                 )?;
                 Ok(crate::concat_js(&[&(left), &".", &(right)]))
             }
             NodeData::JSDocMemberName(data) => {
-                let left = self.entity_name_text_slice(
-                    data.left.expect("JSDocMemberName carries its left side"),
-                )?;
-                let right = self.entity_name_text_slice(
+                let left = self
+                    .entity_name_text(data.left.expect("JSDocMemberName carries its left side"))?;
+                let right = self.entity_name_text(
                     data.right.expect("JSDocMemberName carries its right side"),
                 )?;
                 Ok(crate::concat_js(&[&(left), &".", &(right)]))
@@ -13090,7 +12998,7 @@ impl<'a> CheckerState<'a> {
 
     /// LiteralTypeNode literal faces: synthesized clones print cooked
     /// numeric text and double-quoted strings (oracle-probed Q01/Q02).
-    fn literal_type_node_text_slice(&mut self, literal: NodeId) -> CheckResult<JsString> {
+    fn literal_type_node_text(&mut self, literal: NodeId) -> CheckResult<JsString> {
         match self.kind_of(literal) {
             SyntaxKind::TrueKeyword => return Ok("true".into()),
             SyntaxKind::FalseKeyword => return Ok("false".into()),
@@ -13099,7 +13007,7 @@ impl<'a> CheckerState<'a> {
         }
         match self.data_of(literal).clone() {
             NodeData::StringLiteral(data) => {
-                string_literal_name_slice(&data.text, false).map(JsString::from)
+                string_literal_name(&data.text, false).map(JsString::from)
             }
             NodeData::NumericLiteral(data) => Ok(data.text.clone().into()),
             // getLiteralText's BigIntLiteral arm emits the cloned
@@ -13117,7 +13025,7 @@ impl<'a> CheckerState<'a> {
                     .expect("PrefixUnaryExpression carries its literal operand");
                 Ok(crate::concat_js(&[
                     &(operator),
-                    &(self.literal_type_node_text_slice(operand)?),
+                    &(self.literal_type_node_text(operand)?),
                 ]))
             }
             _ => unreachable!("LiteralType carries literal or +/- literal nodes"),
@@ -13129,13 +13037,13 @@ impl<'a> CheckerState<'a> {
     /// function/constructor TypeNode. The visitor-lowered JSDoc
     /// function shape follows the same ordinary-node rule.
     /// tsrs-native: Rust vector adapter over the cloned TypeNode printer.
-    pub(crate) fn type_argument_nodes_text_slice(
+    pub(crate) fn type_argument_nodes_text(
         &mut self,
         nodes: Vec<NodeId>,
     ) -> CheckResult<Vec<JsString>> {
         let mut rendered = Vec::with_capacity(nodes.len());
         for (index, node) in nodes.into_iter().enumerate() {
-            let face = self.type_annotation_face_slice(node)?;
+            let face = self.type_annotation_face(node)?;
             let mut text = face.text;
             if index == 0
                 && matches!(
@@ -13151,14 +13059,14 @@ impl<'a> CheckerState<'a> {
         Ok(rendered)
     }
 
-    fn generic_function_or_constructor_type_node_slice(&self, node: NodeId) -> bool {
+    fn generic_function_or_constructor_type_node(&self, node: NodeId) -> bool {
         match self.data_of(node) {
             NodeData::FunctionType(data) => data.type_parameters.is_some(),
             NodeData::ConstructorType(data) => data.type_parameters.is_some(),
             NodeData::JSDocFunctionType(data) => data.type_parameters.is_some(),
             NodeData::JSDocTypeExpression(data) => data
                 .r#type
-                .is_some_and(|inner| self.generic_function_or_constructor_type_node_slice(inner)),
+                .is_some_and(|inner| self.generic_function_or_constructor_type_node(inner)),
             _ => false,
         }
     }
@@ -13167,7 +13075,7 @@ impl<'a> CheckerState<'a> {
     /// (`(x: <T>(y: T) => T)` shapes): name / constraint / default
     /// print from the AST.
     /// tsrs-native: Rust node-list adapter over the cloned TypeNode printer.
-    pub(crate) fn type_parameter_nodes_text_slice(
+    pub(crate) fn type_parameter_nodes_text_display(
         &mut self,
         nodes: Vec<NodeId>,
     ) -> CheckResult<JsString> {
@@ -13176,7 +13084,7 @@ impl<'a> CheckerState<'a> {
         }
         let mut rendered = Vec::with_capacity(nodes.len());
         for node in nodes {
-            rendered.push(self.type_parameter_node_text_slice(node)?);
+            rendered.push(self.type_parameter_node_text(node)?);
         }
         Ok(crate::concat_js(&[
             &"<",
@@ -13185,7 +13093,7 @@ impl<'a> CheckerState<'a> {
         ]))
     }
 
-    fn type_parameter_node_text_slice(&mut self, node: NodeId) -> CheckResult<JsString> {
+    fn type_parameter_node_text(&mut self, node: NodeId) -> CheckResult<JsString> {
         let NodeData::TypeParameter(data) = self.data_of(node).clone() else {
             unreachable!("type-parameter lists contain TypeParameter nodes");
         };
@@ -13200,7 +13108,7 @@ impl<'a> CheckerState<'a> {
             text.push(' ');
         }
         text.push_js(
-            (&self.entity_name_text_slice(
+            (&self.entity_name_text(
                 data.name
                     .expect("TypeParameter carries its declaration name"),
             )?)
@@ -13208,11 +13116,11 @@ impl<'a> CheckerState<'a> {
         );
         if let Some(constraint) = data.constraint {
             text.push_js((" extends ").into());
-            text.push_js((&self.type_annotation_text_slice(constraint)?).into());
+            text.push_js((&self.type_annotation_text_display(constraint)?).into());
         }
         if let Some(default) = data.r#default {
             text.push_js((" = ").into());
-            text.push_js((&self.type_annotation_text_slice(default)?).into());
+            text.push_js((&self.type_annotation_text_display(default)?).into());
         }
         Ok(text)
     }
@@ -13222,20 +13130,20 @@ impl<'a> CheckerState<'a> {
     /// isFunctionLike/isParameter missing-type branch synthesizes
     /// `any` when no initializer supplies a type-bearing face.
     /// tsrs-native: Rust node-list adapter into the body-printer compartment.
-    pub(crate) fn parameter_nodes_text_slice(
+    pub(crate) fn parameter_nodes_text_display(
         &mut self,
         nodes: Vec<NodeId>,
     ) -> CheckResult<JsString> {
         match self.display_clone_parameter_nodes_text(nodes)? {
             Some(text) => Ok(text),
             None => {
-                self.slice_reuse_had_error = true;
+                self.display_reuse_had_error = true;
                 Ok(JsString::new())
             }
         }
     }
 
-    fn modifier_nodes_text_slice(&self, modifiers: Option<NodeArrayId>) -> JsString {
+    fn modifier_nodes_text(&self, modifiers: Option<NodeArrayId>) -> JsString {
         let mut rendered = Vec::new();
         for modifier in self.nodes_of(modifiers) {
             if matches!(self.data_of(modifier), NodeData::Decorator(_)) {
@@ -13252,7 +13160,7 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    fn type_literal_member_has_body_slice(&self, member: NodeId) -> bool {
+    fn type_literal_member_has_body(&self, member: NodeId) -> bool {
         match self.data_of(member) {
             NodeData::GetAccessor(data) => data.body.is_some(),
             NodeData::SetAccessor(data) => data.body.is_some(),
@@ -13264,7 +13172,7 @@ impl<'a> CheckerState<'a> {
     /// with the single-line `; ` joins (oracle-probed C07:
     /// `{ a: (number) }` renders `{ a: (number); }`).
     /// tsrs-native: one-member string-face adapter over the cloned printer.
-    pub(crate) fn type_literal_member_text_slice(
+    pub(crate) fn type_literal_member_text(
         &mut self,
         member: NodeId,
     ) -> CheckResult<Option<JsString>> {
@@ -13277,17 +13185,14 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::GetAccessor
                 | SyntaxKind::SetAccessor
         ) {
-            return self.with_reused_node_scope_slice(member, |state| {
-                state.type_literal_member_text_slice_worker(member)
+            return self.with_reused_node_scope(member, |state| {
+                state.type_literal_member_text_worker(member)
             });
         }
-        self.type_literal_member_text_slice_worker(member)
+        self.type_literal_member_text_worker(member)
     }
 
-    fn type_literal_member_text_slice_worker(
-        &mut self,
-        member: NodeId,
-    ) -> CheckResult<Option<JsString>> {
+    fn type_literal_member_text_worker(&mut self, member: NodeId) -> CheckResult<Option<JsString>> {
         // 133537-133543: in this error-display context
         // shouldRemoveDeclaration is true for every unresolved dynamic
         // name. Late-bindable computed names survive and are visited.
@@ -13303,8 +13208,8 @@ impl<'a> CheckerState<'a> {
 
         match self.data_of(member).clone() {
             NodeData::PropertySignature(data) => {
-                let modifiers = self.modifier_nodes_text_slice(data.modifiers);
-                let name = self.member_name_node_text_slice(
+                let modifiers = self.modifier_nodes_text(data.modifiers);
+                let name = self.member_name_node_text(
                     data.name.expect("PropertySignature carries its name"),
                 )?;
                 let question = if data.question_token.is_some() {
@@ -13315,25 +13220,25 @@ impl<'a> CheckerState<'a> {
                 let mut text = crate::concat_js(&[&(modifiers), &(name), &(question)]);
                 if let Some(annotation) = data.r#type {
                     text.push_js((": ").into());
-                    text.push_js((&self.type_annotation_text_slice(annotation)?).into());
+                    text.push_js((&self.type_annotation_text_display(annotation)?).into());
                 } else if data.initializer.is_none() {
                     text.push_js((": any").into());
                 }
                 Ok(Some(text))
             }
             NodeData::MethodSignature(data) => {
-                let modifiers = self.modifier_nodes_text_slice(data.modifiers);
-                let name = self.member_name_node_text_slice(
-                    data.name.expect("MethodSignature carries its name"),
-                )?;
+                let modifiers = self.modifier_nodes_text(data.modifiers);
+                let name = self
+                    .member_name_node_text(data.name.expect("MethodSignature carries its name"))?;
                 let question = if data.question_token.is_some() {
                     "?"
                 } else {
                     ""
                 };
                 let type_parameters =
-                    self.type_parameter_nodes_text_slice(self.nodes_of(data.type_parameters))?;
-                let parameters = self.parameter_nodes_text_slice(self.nodes_of(data.parameters))?;
+                    self.type_parameter_nodes_text_display(self.nodes_of(data.type_parameters))?;
+                let parameters =
+                    self.parameter_nodes_text_display(self.nodes_of(data.parameters))?;
                 let mut text = crate::concat_js(&[
                     &(modifiers),
                     &(name),
@@ -13345,7 +13250,7 @@ impl<'a> CheckerState<'a> {
                 ]);
                 if let Some(annotation) = data.r#type {
                     text.push_js((": ").into());
-                    text.push_js((&self.type_annotation_text_slice(annotation)?).into());
+                    text.push_js((&self.type_annotation_text_display(annotation)?).into());
                 } else {
                     text.push_js((": any").into());
                 }
@@ -13353,12 +13258,13 @@ impl<'a> CheckerState<'a> {
             }
             NodeData::CallSignature(data) => {
                 let type_parameters =
-                    self.type_parameter_nodes_text_slice(self.nodes_of(data.type_parameters))?;
-                let parameters = self.parameter_nodes_text_slice(self.nodes_of(data.parameters))?;
+                    self.type_parameter_nodes_text_display(self.nodes_of(data.type_parameters))?;
+                let parameters =
+                    self.parameter_nodes_text_display(self.nodes_of(data.parameters))?;
                 let mut text = crate::concat_js(&[&(type_parameters), &"(", &(parameters), &")"]);
                 if let Some(annotation) = data.r#type {
                     text.push_js((": ").into());
-                    text.push_js((&self.type_annotation_text_slice(annotation)?).into());
+                    text.push_js((&self.type_annotation_text_display(annotation)?).into());
                 } else {
                     text.push_js((": any").into());
                 }
@@ -13366,38 +13272,40 @@ impl<'a> CheckerState<'a> {
             }
             NodeData::ConstructSignature(data) => {
                 let type_parameters =
-                    self.type_parameter_nodes_text_slice(self.nodes_of(data.type_parameters))?;
-                let parameters = self.parameter_nodes_text_slice(self.nodes_of(data.parameters))?;
+                    self.type_parameter_nodes_text_display(self.nodes_of(data.type_parameters))?;
+                let parameters =
+                    self.parameter_nodes_text_display(self.nodes_of(data.parameters))?;
                 let mut text =
                     crate::concat_js(&[&"new ", &(type_parameters), &"(", &(parameters), &")"]);
                 if let Some(annotation) = data.r#type {
                     text.push_js((": ").into());
-                    text.push_js((&self.type_annotation_text_slice(annotation)?).into());
+                    text.push_js((&self.type_annotation_text_display(annotation)?).into());
                 } else {
                     text.push_js((": any").into());
                 }
                 Ok(Some(text))
             }
             NodeData::IndexSignature(data) => {
-                let modifiers = self.modifier_nodes_text_slice(data.modifiers);
-                let parameters = self.parameter_nodes_text_slice(self.nodes_of(data.parameters))?;
+                let modifiers = self.modifier_nodes_text(data.modifiers);
+                let parameters =
+                    self.parameter_nodes_text_display(self.nodes_of(data.parameters))?;
                 let mut text = crate::concat_js(&[&(modifiers), &"[", &(parameters), &"]"]);
                 if let Some(annotation) = data.r#type {
                     text.push_js((": ").into());
-                    text.push_js((&self.type_annotation_text_slice(annotation)?).into());
+                    text.push_js((&self.type_annotation_text_display(annotation)?).into());
                 } else {
                     text.push_js((": any").into());
                 }
                 Ok(Some(text))
             }
             NodeData::GetAccessor(data) => {
-                let modifiers = self.modifier_nodes_text_slice(data.modifiers);
-                let name = self.member_name_node_text_slice(
-                    data.name.expect("GetAccessor carries its name"),
-                )?;
+                let modifiers = self.modifier_nodes_text(data.modifiers);
+                let name =
+                    self.member_name_node_text(data.name.expect("GetAccessor carries its name"))?;
                 let type_parameters =
-                    self.type_parameter_nodes_text_slice(self.nodes_of(data.type_parameters))?;
-                let parameters = self.parameter_nodes_text_slice(self.nodes_of(data.parameters))?;
+                    self.type_parameter_nodes_text_display(self.nodes_of(data.type_parameters))?;
+                let parameters =
+                    self.parameter_nodes_text_display(self.nodes_of(data.parameters))?;
                 let mut text = crate::concat_js(&[
                     &(modifiers),
                     &"get ",
@@ -13409,13 +13317,13 @@ impl<'a> CheckerState<'a> {
                 ]);
                 if let Some(annotation) = data.r#type {
                     text.push_js((": ").into());
-                    text.push_js((&self.type_annotation_text_slice(annotation)?).into());
+                    text.push_js((&self.type_annotation_text_display(annotation)?).into());
                 } else {
                     text.push_js((": any").into());
                 }
                 if let Some(body) = data.body {
                     let Some(body) = self.display_clone_function_body_text(body)? else {
-                        self.slice_reuse_had_error = true;
+                        self.display_reuse_had_error = true;
                         return Ok(None);
                     };
                     text.push(' ');
@@ -13424,15 +13332,15 @@ impl<'a> CheckerState<'a> {
                 Ok(Some(text))
             }
             NodeData::SetAccessor(data) => {
-                let modifiers = self.modifier_nodes_text_slice(data.modifiers);
-                let name = self.member_name_node_text_slice(
-                    data.name.expect("SetAccessor carries its name"),
-                )?;
+                let modifiers = self.modifier_nodes_text(data.modifiers);
+                let name =
+                    self.member_name_node_text(data.name.expect("SetAccessor carries its name"))?;
                 let type_parameters =
-                    self.type_parameter_nodes_text_slice(self.nodes_of(data.type_parameters))?;
-                let parameters = self.parameter_nodes_text_slice(self.nodes_of(data.parameters))?;
+                    self.type_parameter_nodes_text_display(self.nodes_of(data.type_parameters))?;
+                let parameters =
+                    self.parameter_nodes_text_display(self.nodes_of(data.parameters))?;
                 let annotation = match data.r#type {
-                    Some(annotation) => self.type_annotation_text_slice(annotation)?,
+                    Some(annotation) => self.type_annotation_text_display(annotation)?,
                     None => "any".into(),
                 };
                 let mut text = crate::concat_js(&[
@@ -13447,7 +13355,7 @@ impl<'a> CheckerState<'a> {
                 ]);
                 if let Some(body) = data.body {
                     let Some(body) = self.display_clone_function_body_text(body)? else {
-                        self.slice_reuse_had_error = true;
+                        self.display_reuse_had_error = true;
                         return Ok(None);
                     };
                     text.push(' ');
@@ -13465,7 +13373,7 @@ impl<'a> CheckerState<'a> {
     /// computed entity names.
     /// tsrs-native: string-face adapter over the exact property-name
     /// and entity-name ledger blocks.
-    pub(crate) fn member_name_node_text_slice(&mut self, name: NodeId) -> CheckResult<JsString> {
+    pub(crate) fn member_name_node_text(&mut self, name: NodeId) -> CheckResult<JsString> {
         match self.data_of(name).clone() {
             NodeData::Identifier(data) => {
                 Ok(tsc_syntax::unescape_leading_underscores(&data.escaped_text)
@@ -13474,14 +13382,14 @@ impl<'a> CheckerState<'a> {
             }
             NodeData::PrivateIdentifier(data) => Ok(data.text.into()),
             NodeData::StringLiteral(data) => {
-                string_literal_name_slice(&data.text, false).map(JsString::from)
+                string_literal_name(&data.text, false).map(JsString::from)
             }
             NodeData::NumericLiteral(data) => Ok(data.text.clone().into()),
             NodeData::ComputedPropertyName(data) => {
                 let expression = data
                     .expression
                     .expect("ComputedPropertyName carries its expression");
-                self.reused_computed_property_name_text_slice(expression)
+                self.reused_computed_property_name_text(expression)
             }
             _ => unreachable!("property names use identifier/private/literal/computed nodes"),
         }
@@ -13491,14 +13399,11 @@ impl<'a> CheckerState<'a> {
     /// (133564-133599). A name which resolves differently from the
     /// enclosing display scope is replaced by the literal face of its
     /// expression type, or by evaluateEntityNameExpression's value.
-    fn reused_computed_property_name_text_slice(
-        &mut self,
-        expression: NodeId,
-    ) -> CheckResult<JsString> {
+    fn reused_computed_property_name_text(&mut self, expression: NodeId) -> CheckResult<JsString> {
         if !self.is_entity_name_expression(expression)
-            || !self.reused_entity_name_introduces_error_slice(expression, SymbolFlags::VALUE)?
+            || !self.reused_entity_name_introduces_error(expression, SymbolFlags::VALUE)?
         {
-            return self.reused_computed_property_expression_text_slice(expression);
+            return self.reused_computed_property_expression_text(expression);
         }
 
         let expression_type =
@@ -13522,10 +13427,7 @@ impl<'a> CheckerState<'a> {
             TypeData::Literal {
                 value: tsc_types::LiteralValue::Number(value),
             } => Some(EvalValue::Num(*value)),
-            _ => {
-                self.evaluate(expression, self.slice_display_enclosing)?
-                    .value
-            }
+            _ => self.evaluate(expression, self.display_enclosing)?.value,
         };
         match literal {
             Some(EvalValue::Str(value)) => {
@@ -13539,7 +13441,7 @@ impl<'a> CheckerState<'a> {
                 } else {
                     Ok(crate::concat_js(&[
                         &"[",
-                        &(string_literal_name_slice(&value, false)?),
+                        &(string_literal_name(&value, false)?),
                         &"]",
                     ]))
                 }
@@ -13552,18 +13454,18 @@ impl<'a> CheckerState<'a> {
                     Ok(value.into())
                 }
             }
-            None => self.reused_computed_property_expression_text_slice(expression),
+            None => self.reused_computed_property_expression_text(expression),
         }
     }
 
-    fn reused_computed_property_expression_text_slice(
+    fn reused_computed_property_expression_text(
         &mut self,
         expression: NodeId,
     ) -> CheckResult<JsString> {
         match self.display_clone_computed_property_expression_text(expression)? {
             Some(text) => Ok(text),
             None => {
-                self.slice_reuse_had_error = true;
+                self.display_reuse_had_error = true;
                 Ok(JsString::new())
             }
         }
@@ -13578,11 +13480,11 @@ impl<'a> CheckerState<'a> {
     /// but not array patterns (`[a, b]`); omitted elements print
     /// empty (`[, x]`). Computed entity names share the visitor's
     /// tracker/recovery rewrite above.
-    fn binding_pattern_text_slice(&mut self, pattern: NodeId) -> CheckResult<JsString> {
-        self.binding_pattern_text_slice_worker(pattern, false)
+    fn binding_pattern_text(&mut self, pattern: NodeId) -> CheckResult<JsString> {
+        self.binding_pattern_text_worker(pattern, false)
     }
 
-    fn binding_pattern_text_slice_worker(
+    fn binding_pattern_text_worker(
         &mut self,
         pattern: NodeId,
         preserve_initializers: bool,
@@ -13601,7 +13503,7 @@ impl<'a> CheckerState<'a> {
                 }
                 let mut rendered = Vec::with_capacity(elements.len());
                 for element in elements {
-                    rendered.push(self.binding_element_text_slice(element, preserve_initializers)?);
+                    rendered.push(self.binding_element_text(element, preserve_initializers)?);
                 }
                 let mut contents = crate::join_js_texts(&rendered, ", ");
                 if has_trailing_comma {
@@ -13619,7 +13521,7 @@ impl<'a> CheckerState<'a> {
                 };
                 let mut rendered = Vec::with_capacity(elements.len());
                 for element in elements {
-                    rendered.push(self.binding_element_text_slice(element, preserve_initializers)?);
+                    rendered.push(self.binding_element_text(element, preserve_initializers)?);
                 }
                 let mut contents = crate::join_js_texts(&rendered, ", ");
                 if has_trailing_comma {
@@ -13631,7 +13533,7 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    fn binding_element_text_slice(
+    fn binding_element_text(
         &mut self,
         element: NodeId,
         preserve_initializers: bool,
@@ -13645,10 +13547,9 @@ impl<'a> CheckerState<'a> {
                     ""
                 };
                 let property = match data.property_name {
-                    Some(property_name) => crate::concat_js(&[
-                        &(self.member_name_node_text_slice(property_name)?),
-                        &": ",
-                    ]),
+                    Some(property_name) => {
+                        crate::concat_js(&[&(self.member_name_node_text(property_name)?), &": "])
+                    }
                     None => JsString::new(),
                 };
                 let name_node = data.name.expect("BindingElement carries its binding name");
@@ -13657,15 +13558,15 @@ impl<'a> CheckerState<'a> {
                         tsc_syntax::unescape_leading_underscores(&data.escaped_text).into()
                     }
                     NodeData::ObjectBindingPattern(_) | NodeData::ArrayBindingPattern(_) => {
-                        self.binding_pattern_text_slice_worker(name_node, preserve_initializers)?
+                        self.binding_pattern_text_worker(name_node, preserve_initializers)?
                     }
-                    _ => self.member_name_node_text_slice(name_node)?,
+                    _ => self.member_name_node_text(name_node)?,
                 };
                 let initializer = if preserve_initializers {
                     match data.initializer {
                         Some(initializer) => crate::concat_js(&[
                             &" = ",
-                            &(self.reused_initializer_expression_text_slice(initializer)?),
+                            &(self.reused_initializer_expression_text(initializer)?),
                         ]),
                         None => JsString::new(),
                     }
@@ -13696,7 +13597,7 @@ impl<'a> CheckerState<'a> {
     /// nameType's flags instead — identical for the literal-typed keys
     /// late binding produces, and the display walk cannot re-enter
     /// checkExpression (recorded deviation).
-    fn property_name_slice(
+    fn property_name_display(
         &mut self,
         property: SymbolId,
         fully_qualified: bool,
@@ -13755,20 +13656,15 @@ impl<'a> CheckerState<'a> {
                 if !tsc_syntax::is_identifier_text(&name)
                     && (string_named || !crate::evaluate::is_numeric_literal_name(&name))
                 {
-                    return string_literal_name_slice(&name, single_quote).map(JsString::from);
+                    return string_literal_name(&name, single_quote).map(JsString::from);
                 }
                 if crate::evaluate::is_numeric_literal_name(&name) && name.starts_with('-') {
                     // 53434: negative numeric names print as the
                     // computed `[-N]` face (prefix-minus numeric).
                     return Ok(crate::concat_js(&[&"[", &(name), &"]"]));
                 }
-                return identifier_or_literal_name_slice(
-                    &name,
-                    string_named,
-                    single_quote,
-                    is_method,
-                )
-                .map(JsString::from);
+                return identifier_or_literal_name(&name, string_named, single_quote, is_method)
+                    .map(JsString::from);
             }
             if flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL) {
                 // 53439-53441: createComputedPropertyName(
@@ -13792,16 +13688,14 @@ impl<'a> CheckerState<'a> {
                     .symbol(property)
                     .value_declaration
                     .or_else(|| declarations.first().copied());
-                let face =
-                    self.symbol_expression_face_slice(name_symbol, enclosing, fully_qualified)?;
+                let face = self.symbol_expression_face(name_symbol, enclosing, fully_qualified)?;
                 return Ok(crate::concat_js(&[&"[", &(face), &"]"]));
             }
         }
         let raw =
             tsc_binder::unescape_leading_underscores(&self.binder.symbol(property).escaped_name)
                 .to_owned();
-        identifier_or_literal_name_slice(&raw, string_named, single_quote, is_method)
-            .map(JsString::from)
+        identifier_or_literal_name(&raw, string_named, single_quote, is_method).map(JsString::from)
     }
 
     /// tsc-port: isStringNamed @6.0.3 (slice face)
@@ -13824,7 +13718,7 @@ impl<'a> CheckerState<'a> {
             NodeData::StringLiteral(_) => true,
             // checkExpression(name.expression) StringLike in tsc; the
             // slice substitutes the late-bound nameType (see
-            // property_name_slice).
+            // property_name_display).
             NodeData::ComputedPropertyName(_) | NodeData::ElementAccessExpression(_) => {
                 name_type_flags.is_some_and(|flags| flags.intersects(TypeFlags::STRING_LIKE))
             }
@@ -14051,7 +13945,7 @@ struct SliceParameterFace {
 /// tsc factory printer spelling for a mapped-type modifier token. The
 /// parser stores only the leading `+`/`-` token for prefixed modifiers;
 /// the readonly/question keyword is implicit in the MappedType field.
-fn mapped_modifier_text_slice(token: Option<SyntaxKind>, plain: &str) -> String {
+fn mapped_modifier_text(token: Option<SyntaxKind>, plain: &str) -> String {
     match token {
         None => String::new(),
         Some(SyntaxKind::ReadonlyKeyword | SyntaxKind::QuestionToken) => plain.to_owned(),
@@ -14067,7 +13961,7 @@ fn mapped_modifier_text_slice(token: Option<SyntaxKind>, plain: &str) -> String 
 /// surrogate here and therefore requires element access.
 /// (h2-7a-m-3 widening: shared property-access spelling decision.)
 /// tsrs-native: Rust-structural helper for the h2-7a-m-3 foundation.
-pub(crate) fn can_use_property_access_slice<'n>(
+pub(crate) fn can_use_property_access<'n>(
     name: impl Into<tsc_types::JsStr<'n>>,
     language_version: tsc_types::ScriptTarget,
 ) -> bool {
@@ -14098,7 +13992,7 @@ pub(crate) fn can_use_property_access_slice<'n>(
 /// tsc-hash: a1d9b416b5bf0ea54c37c3efe9002c65fa36dba915643ac6cb3477d84438ffd5
 /// tsc-span: _tsc.js:53368-53368
 /// Reference scope: stripQuotes(...).replace(/\\./g) literal; prose 53368-53371 overstated.
-pub(crate) fn strip_symbol_name_quotes_slice<'n>(
+pub(crate) fn strip_symbol_name_quotes_display<'n>(
     name: impl Into<tsc_types::JsStr<'n>>,
 ) -> JsString {
     let name = name.into();
@@ -14342,7 +14236,7 @@ fn array_type_node_text(element: impl Into<JsString>, kind: SliceTypeNodeKind) -
 /// The numeric face prints `(+name).toString()` (factory
 /// createNumericLiteral over the coerced value); the string face is
 /// the printer's quoted literal.
-fn identifier_or_literal_name_slice<'n>(
+fn identifier_or_literal_name<'n>(
     name: impl Into<tsc_types::JsStr<'n>>,
     string_named: bool,
     single_quote: bool,
@@ -14367,7 +14261,7 @@ fn identifier_or_literal_name_slice<'n>(
             crate::evaluate::js_string_to_number(name),
         ));
     }
-    string_literal_name_slice(name, single_quote)
+    string_literal_name(name, single_quote)
 }
 
 /// tsc-port: getLiteralText @6.0.3
@@ -14383,7 +14277,7 @@ fn identifier_or_literal_name_slice<'n>(
 /// `escapeString` and then escapes every non-ASCII UTF-16 code unit.
 /// Iterating code units (rather than Rust scalar values) preserves the
 /// exact surrogate-pair spelling for astral characters.
-pub(crate) fn string_literal_name_slice<'n>(
+pub(crate) fn string_literal_name<'n>(
     name: impl Into<tsc_types::JsStr<'n>>,
     single_quote: bool,
 ) -> CheckResult<String> {
@@ -14439,7 +14333,7 @@ impl crate::declaration_emit::DeclarationEmitAccessibilityPrimitives for Checker
         meaning: SymbolFlags,
         enclosing: Option<NodeId>,
     ) -> CheckResult<Option<Vec<SymbolId>>> {
-        self.accessible_symbol_chain_at_slice(symbol, meaning, enclosing)
+        self.accessible_symbol_chain_at(symbol, meaning, enclosing)
     }
 
     fn declaration_emit_containers_of_symbol(
@@ -14448,7 +14342,7 @@ impl crate::declaration_emit::DeclarationEmitAccessibilityPrimitives for Checker
         enclosing: Option<NodeId>,
         meaning: SymbolFlags,
     ) -> CheckResult<Vec<SymbolId>> {
-        self.containers_of_symbol_slice(symbol, enclosing, meaning)
+        self.containers_of_symbol(symbol, enclosing, meaning)
     }
 }
 

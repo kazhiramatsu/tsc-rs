@@ -292,7 +292,7 @@ pub(super) fn assert_exact_observation(
     case_id: &str,
     prepared: tsc_program::PreparedProgram,
     expected: &Value,
-) -> tsc_emitter::H2ActivityCounters {
+) {
     assert_observation_with_listing(case_id, prepared, expected, true, false, &[])
 }
 
@@ -301,7 +301,7 @@ pub(super) fn assert_command_observation_with_options(
     prepared: tsc_program::PreparedProgram,
     expected: &Value,
     additional_options_diagnostics: &[tsc_diagnostics::Diagnostic],
-) -> tsc_emitter::H2ActivityCounters {
+) {
     assert_observation_with_listing(
         case_id,
         prepared,
@@ -319,7 +319,7 @@ fn assert_observation_with_listing(
     exact_listing: bool,
     command_reporting: bool,
     additional_options_diagnostics: &[tsc_diagnostics::Diagnostic],
-) -> tsc_emitter::H2ActivityCounters {
+) {
     let mut sink = MemoryOutputSink::new();
     let (outcome, reported, command_status) = if command_reporting {
         let command = ProgramSession::new(prepared)
@@ -368,7 +368,7 @@ pub(super) fn assert_completed_observation(
     writes: &[tsc_emitter::EmitArtifact],
     expected: &Value,
     exact_listing: bool,
-) -> tsc_emitter::H2ActivityCounters {
+) {
     assert_eq!(
         actual_diagnostics(reported),
         expected_diagnostics(&expected["reported_diagnostics"]),
@@ -556,7 +556,6 @@ pub(super) fn assert_completed_observation(
             "{case_id}: callback source-map URL position"
         );
     }
-    outcome.h2_activity()
 }
 
 fn assert_related_diagnostics(

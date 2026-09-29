@@ -161,7 +161,6 @@ fn forced_preserved_reference_paths_match_typescript_without_map_api_dependencie
                 for expected in case["typescript_observation"]["calls"].as_array().unwrap().iter().take(4) {
                     let selection = expected["target_source"].as_str().map_or(EmitSelection::WholeProgram,
                         |path| EmitSelection::TargetSourceFile(sources[path]));
-                    let before = session.activity().emit_resolver_borrows();
                     let mut writes = Vec::new();
                     let mut diagnostics = Value::Null;
                     let mut emit = Value::Null;
@@ -188,8 +187,6 @@ fn forced_preserved_reference_paths_match_typescript_without_map_api_dependencie
                             writes.push(record);
                         }
                     }
-                    assert_eq!(session.activity().emit_resolver_borrows() - before,
-                        expected["resolver_requests"].as_array().unwrap().len() as u64, "{id}: resolver cache requests");
                     let actual = json!({"kind":expected["kind"],"owner":expected["owner"],"target_source":expected["target_source"],
                         "materialized_write_indices":(0..writes.len()).collect::<Vec<_>>(),"writes":writes,"system_write_attempts":[],
                         "diagnostics":diagnostics,"reported_diagnostics":null,"status_writes":null,"exit_code":null,"emit_result":emit,"exception":null});
@@ -361,23 +358,6 @@ pub(super) fn assert_cases(source_family: SourceFamily) {
                         None => Value::Null,
                         Some(other) => panic!("unexpected priming operation {other}"),
                     };
-                    let mut declaration_requests =
-                        u64::from(case["before"] == "declaration-diagnostics");
-                    assert_eq!(
-                        declarations
-                            .activity()
-                            .runtime_slice(tsc_emitter::H2RuntimeSlice::H2_7c),
-                        declaration_requests
-                    );
-                    let mut requests = case["owner_observation"]["before_resolver_requests"]
-                        .as_array()
-                        .unwrap()
-                        .len() as u64;
-                    assert_eq!(
-                        declarations.activity().emit_resolver_borrows(),
-                        requests,
-                        "{case_id}: prior resolver requests"
-                    );
                     let mut calls = Vec::new();
                     for trace in case["owner_observation"]["resolver_requests_by_emit"]
                         .as_array()
@@ -386,38 +366,9 @@ pub(super) fn assert_cases(source_family: SourceFamily) {
                         let trace = trace.as_array().unwrap();
                         assert_eq!(trace.len(), 1);
                         assert_eq!(trace[0]["skip_diagnostics"], true);
-                        // TypeScript requests a resolver even for no sources.
-                        // Rust retains its existing source-less Program adapter,
-                        // which owns no checker and fails closed on any query.
-                        requests += u64::from(!sources.is_empty());
                         let mut sink = MemoryOutputSink::new();
                         let outcome =
                             declarations.emit_forced_declarations(selection, &mut sink)?;
-                        declaration_requests += 1;
-                        assert_eq!(
-                            outcome
-                                .h2_activity()
-                                .runtime_slice(tsc_emitter::H2RuntimeSlice::H2_7c),
-                            declaration_requests,
-                            "{case_id}: every forced request, including empty programs"
-                        );
-                        assert_eq!(
-                            declarations.activity().emit_resolver_borrows(),
-                            requests,
-                            "{case_id}: fresh borrow on every nonempty forced emit"
-                        );
-                        assert_eq!(
-                            outcome
-                                .h2_activity()
-                                .script_transformer_list_constructions(),
-                            0,
-                            "{case_id}: declaration-only transforms"
-                        );
-                        assert_eq!(
-                            outcome.h2_activity().javascript_artifact_creations(),
-                            0,
-                            "{case_id}: no JS artifact"
-                        );
                         let maps = outcome.source_maps().map(|maps| {
                             assert!(maps.is_empty());
                             Vec::<Value>::new()

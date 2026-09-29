@@ -6,7 +6,7 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use tsc_compiler::{
     DriverError, EmitArtifact, EmitFailure, EmitFileSystem, EmitIoError, EmitWriteDisposition,
-    FsOutputSink, H2ActivityCounters, H2RuntimeSlice, MemoryOutputSink, OutputSink, ProgramSession,
+    FsOutputSink, MemoryOutputSink, OutputSink, ProgramSession,
 };
 use tsc_program::ResolutionMode;
 use tsc_program::{
@@ -306,18 +306,6 @@ fn empty_emit_program() -> PreparedProgram {
     .expect("empty emit program")
 }
 
-fn assert_h2_runtime_zero(counters: H2ActivityCounters) {
-    assert!(counters.h2_runtime_is_zero());
-    for slice in H2RuntimeSlice::ALL {
-        assert_eq!(
-            counters.runtime_slice(slice),
-            0,
-            "{} activity",
-            slice.name()
-        );
-    }
-}
-
 #[test]
 fn h1_4_emit_entry_runs_the_checked_transform_and_memory_sink_path() {
     let mut sink = MemoryOutputSink::new();
@@ -339,20 +327,6 @@ fn h1_4_emit_entry_runs_the_checked_transform_and_memory_sink_path() {
         "export const value = 1;\n"
     );
     assert!(!sink.writes()[0].write_byte_order_mark());
-    let activity = outcome.h2_activity();
-    assert_eq!(activity.emit_session_constructions(), 1);
-    assert_eq!(activity.output_plan_constructions(), 1);
-    assert_eq!(activity.emit_resolver_borrows(), 1);
-    assert_eq!(activity.script_transformer_list_constructions(), 1);
-    assert_eq!(activity.transform_typescript_constructions(), 1);
-    assert_eq!(activity.transform_class_fields_constructions(), 1);
-    assert_eq!(activity.transform_ecmascript_module_constructions(), 1);
-    assert_eq!(activity.transform_context_constructions(), 1);
-    assert_eq!(activity.printer_constructions(), 1);
-    assert_eq!(activity.javascript_artifact_creations(), 1);
-    assert_eq!(activity.output_sink_write_attempts(), 1);
-    assert_eq!(activity.output_sink_failures(), 0);
-    assert_h2_runtime_zero(activity);
 }
 
 #[test]
@@ -377,15 +351,6 @@ fn h2_1a_omitted_and_explicit_esnext_select_the_exact_esm_path() {
             sink.writes()[0].callback_text(),
             "export const value = 1;\n"
         );
-        assert_eq!(
-            outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_1a),
-            1
-        );
-        for slice in H2RuntimeSlice::ALL {
-            if slice != H2RuntimeSlice::H2_1a {
-                assert_eq!(outcome.h2_activity().runtime_slice(slice), 0);
-            }
-        }
     }
 }
 
@@ -436,19 +401,6 @@ fn h2_1b_explicit_and_implied_commonjs_select_the_exact_path() {
                 "exports.value = 1;\n",
             )
         );
-        assert_eq!(
-            outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_1a),
-            1
-        );
-        assert_eq!(
-            outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_1b),
-            1
-        );
-        for slice in H2RuntimeSlice::ALL {
-            if !matches!(slice, H2RuntimeSlice::H2_1a | H2RuntimeSlice::H2_1b) {
-                assert_eq!(outcome.h2_activity().runtime_slice(slice), 0);
-            }
-        }
     }
 }
 
@@ -528,7 +480,7 @@ fn deprecated_module_none_selects_transform_modules_commonjs_delegate() {
         &[("/project/input.ts", "export const value: number = 1;\n")],
     );
     let mut sink = MemoryOutputSink::new();
-    let (outcome, diagnostics) = ProgramSession::new(prepared)
+    let (_, diagnostics) = ProgramSession::new(prepared)
         .emit_with_reported_diagnostics_for_harness(&mut sink)
         .expect("module=None CommonJS-delegate emit");
 
@@ -548,14 +500,6 @@ fn deprecated_module_none_selects_transform_modules_commonjs_delegate() {
             "exports.value = void 0;\n",
             "exports.value = 1;\n",
         )
-    );
-    assert_eq!(
-        outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_1a),
-        0
-    );
-    assert_eq!(
-        outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_1b),
-        1
     );
 }
 
@@ -845,13 +789,6 @@ fn h2_1c_amd_and_umd_wrappers_match_the_pinned_transform() {
         assert!(outcome.diagnostics().is_empty());
         assert_eq!(sink.writes().len(), 1);
         assert_eq!(sink.writes()[0].callback_text(), expected);
-        assert_eq!(
-            outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_1a),
-            0
-        );
-        for slice in [H2RuntimeSlice::H2_1b, H2RuntimeSlice::H2_1c] {
-            assert_eq!(outcome.h2_activity().runtime_slice(slice), 1);
-        }
     }
 }
 
@@ -970,10 +907,6 @@ fn h2_1d_system_wrapper_matches_the_pinned_transform() {
             "});\n",
         )
     );
-    for slice in H2RuntimeSlice::ALL {
-        let expected = u64::from(slice == H2RuntimeSlice::H2_1d);
-        assert_eq!(outcome.h2_activity().runtime_slice(slice), expected);
-    }
 }
 
 #[test]
@@ -1139,17 +1072,6 @@ fn empty_emit_program_preserves_present_empty_observations_without_a_resolver() 
     assert_eq!(outcome.emitted_files(), Some([].as_slice()));
     assert!(outcome.source_maps().is_none());
     assert!(sink.writes().is_empty());
-    let activity = outcome.h2_activity();
-    assert_eq!(activity.emit_session_constructions(), 1);
-    assert_eq!(activity.output_plan_constructions(), 1);
-    assert_eq!(activity.emit_resolver_borrows(), 0);
-    assert_eq!(activity.script_transformer_list_constructions(), 0);
-    assert_eq!(activity.transform_context_constructions(), 0);
-    assert_eq!(activity.printer_constructions(), 1);
-    assert_eq!(activity.javascript_artifact_creations(), 0);
-    assert_eq!(activity.output_sink_write_attempts(), 0);
-    assert_eq!(activity.output_sink_failures(), 0);
-    assert_h2_runtime_zero(activity);
 }
 
 #[test]
@@ -1208,7 +1130,7 @@ fn unsupported_options_and_unadmitted_extensions_fail_before_the_first_sink_call
     );
 
     let mut sink = MemoryOutputSink::new();
-    let outcome = ProgramSession::new(prepared_with_sources(
+    ProgramSession::new(prepared_with_sources(
         base(),
         &[("/project/module.tsx", "export const value = true;\n")],
     ))
@@ -1222,10 +1144,6 @@ fn unsupported_options_and_unadmitted_extensions_fail_before_the_first_sink_call
     assert_eq!(
         sink.writes()[0].callback_text(),
         "export const value = true;\n"
-    );
-    assert_eq!(
-        outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_3b),
-        1
     );
 }
 
@@ -1277,15 +1195,6 @@ fn h2_3a_allow_js_routes_through_program_and_blocks_only_the_colliding_output() 
         sink.writes()[0].path().scalar_test_path(),
         Path::new("/project/sibling.js")
     );
-    assert_eq!(
-        outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_3a),
-        1
-    );
-    for slice in H2RuntimeSlice::ALL {
-        if slice != H2RuntimeSlice::H2_3a {
-            assert_eq!(outcome.h2_activity().runtime_slice(slice), 0);
-        }
-    }
 }
 
 #[test]
@@ -1317,10 +1226,6 @@ fn h2_3a_check_js_changes_diagnostics_without_changing_source_routing() {
             .map(|diagnostic| diagnostic.code())
             .collect::<Vec<_>>();
         assert_eq!(codes, expected_codes, "checkJs={check_js:?}");
-        assert_eq!(
-            outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_3a),
-            1
-        );
         assert_eq!(sink.writes().len(), 1);
         assert_eq!(
             sink.writes()[0].path().scalar_test_path(),
@@ -1363,10 +1268,6 @@ fn h2_3a_mjs_and_cjs_roots_materialize_the_planned_extension() {
             Path::new(&output)
         );
         assert_eq!(sink.writes()[0].callback_text(), SOURCE);
-        assert_eq!(
-            outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_3a),
-            1
-        );
     }
 }
 
@@ -1489,15 +1390,6 @@ fn h2_3a_javascript_owner_controls_match_pinned_typescript() {
                 expected_sources
             );
         }
-        assert_eq!(
-            outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_3a),
-            sources.len() as u64
-        );
-        for slice in H2RuntimeSlice::ALL {
-            if slice != H2RuntimeSlice::H2_3a {
-                assert_eq!(outcome.h2_activity().runtime_slice(slice), 0);
-            }
-        }
     }
 }
 
@@ -1539,7 +1431,7 @@ fn h2_3b_classic_jsx_factories_fragments_namespaces_and_ranges_match_typescript(
         &[("/project/emoji-😀.tsx", SOURCE)],
     );
     let mut sink = MemoryOutputSink::new();
-    let outcome = ProgramSession::new(prepared)
+    ProgramSession::new(prepared)
         .emit(&mut sink)
         .expect("H2.3b classic JSX emit");
     assert_eq!(sink.writes().len(), 1);
@@ -1548,10 +1440,6 @@ fn h2_3b_classic_jsx_factories_fragments_namespaces_and_ranges_match_typescript(
         Path::new("/project/emoji-😀.js")
     );
     assert_eq!(sink.writes()[0].callback_text(), EXPECTED);
-    assert_eq!(
-        outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_3b),
-        1
-    );
 }
 
 #[test]
@@ -1601,14 +1489,6 @@ fn h2_3b_classic_factory_import_substitution_and_lexical_shadowing_match_typescr
         Path::new("/project/view.js")
     );
     assert_eq!(sink.writes()[0].callback_text(), EXPECTED);
-    assert_eq!(
-        outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_1b),
-        1
-    );
-    assert_eq!(
-        outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_3b),
-        1
-    );
 }
 
 #[test]
@@ -1628,7 +1508,7 @@ fn h2_3b_preserve_and_react_native_reconstruct_jsx_with_exact_extensions() {
             &[("/project/view.tsx", SOURCE)],
         );
         let mut sink = MemoryOutputSink::new();
-        let outcome = ProgramSession::new(prepared)
+        ProgramSession::new(prepared)
             .emit(&mut sink)
             .expect("H2.3b preserved JSX emit");
         assert_eq!(sink.writes().len(), 1);
@@ -1639,10 +1519,6 @@ fn h2_3b_preserve_and_react_native_reconstruct_jsx_with_exact_extensions() {
         assert_eq!(
             sink.writes()[0].callback_text(),
             "const view = <Box value={answer}><span /></Box>;\n"
-        );
-        assert_eq!(
-            outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_3b),
-            1
         );
     }
 }
@@ -1723,7 +1599,7 @@ fn h2_3a_narrow_out_dir_and_source_family_boundary_fails_closed() {
     assert_eq!(sink.writes, 0);
 
     let mut sink = MemoryOutputSink::new();
-    let outcome = ProgramSession::new(prepared_with_sources(
+    ProgramSession::new(prepared_with_sources(
         CompilerOptions {
             allow_js: true,
             no_emit: Some(false),
@@ -1739,14 +1615,6 @@ fn h2_3a_narrow_out_dir_and_source_family_boundary_fails_closed() {
     assert_eq!(
         sink.writes()[0].path().scalar_test_path(),
         Path::new("/project/input.js")
-    );
-    assert_eq!(
-        outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_3a),
-        1
-    );
-    assert_eq!(
-        outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_3b),
-        1
     );
 }
 
@@ -1795,11 +1663,6 @@ fn h2_3d_json_text_paths_bom_newlines_and_module_invariance_match_typescript() {
             "module={module}"
         );
         assert!(!sink.writes()[0].write_byte_order_mark(), "module={module}");
-        assert_eq!(
-            outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_3d),
-            1,
-            "module={module}"
-        );
     }
 
     let prepared = prepared_with_sources(
@@ -1885,10 +1748,6 @@ fn h2_3d_resolve_json_module_option_diagnostics_match_typescript_and_gate_no_emi
             );
             assert_eq!(outcome.emit_skipped(), no_emit_on_error);
             assert_eq!(sink.writes().len(), usize::from(!no_emit_on_error));
-            assert_eq!(
-                outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_3d),
-                1
-            );
         }
     }
 }
@@ -1914,51 +1773,38 @@ fn h2_4b_standard_decorator_source_joins_the_atomic_multi_source_emit() {
         .expect("standard decorators are admitted by H2.4b");
     assert!(!outcome.emit_skipped());
     assert_eq!(sink.writes, 2);
-    assert_eq!(
-        outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_4b),
-        1
-    );
 }
 
 #[test]
 fn filesystem_failure_at_each_write_index_preserves_partial_set_and_continuation() {
-    assert_filesystem_failure_at_each_write_index(200, &[]);
+    assert_filesystem_failure_at_each_write_index(200);
 }
 
 #[test]
-fn h2_1a_filesystem_failure_preserves_partial_set_continuation_and_activity() {
-    assert_filesystem_failure_at_each_write_index(99, &[(H2RuntimeSlice::H2_1a, 2)]);
+fn h2_1a_filesystem_failure_preserves_partial_set_continuation() {
+    assert_filesystem_failure_at_each_write_index(99);
 }
 
 #[test]
-fn h2_1b_commonjs_filesystem_failure_preserves_partial_set_continuation_and_activity() {
-    assert_filesystem_failure_at_each_write_index(
-        1,
-        &[(H2RuntimeSlice::H2_1a, 2), (H2RuntimeSlice::H2_1b, 2)],
-    );
+fn h2_1b_commonjs_filesystem_failure_preserves_partial_set_continuation() {
+    assert_filesystem_failure_at_each_write_index(1);
 }
 
 #[test]
-fn h2_1c_amd_umd_filesystem_failure_preserves_partial_set_continuation_and_activity() {
+fn h2_1c_amd_umd_filesystem_failure_preserves_partial_set_continuation() {
     for module in [2, 3] {
-        assert_filesystem_failure_at_each_write_index(
-            module,
-            &[(H2RuntimeSlice::H2_1b, 2), (H2RuntimeSlice::H2_1c, 2)],
-        );
+        assert_filesystem_failure_at_each_write_index(module);
     }
 }
 
 #[test]
-fn h2_1d_system_filesystem_failure_preserves_partial_set_continuation_and_activity() {
-    assert_filesystem_failure_at_each_write_index(4, &[(H2RuntimeSlice::H2_1d, 2)]);
+fn h2_1d_system_filesystem_failure_preserves_partial_set_continuation() {
+    assert_filesystem_failure_at_each_write_index(4);
 }
 
 #[test]
-fn h2_1e_node_format_filesystem_failure_preserves_partial_set_continuation_and_activity() {
-    assert_filesystem_failure_at_each_write_index(
-        199,
-        &[(H2RuntimeSlice::H2_1a, 2), (H2RuntimeSlice::H2_1e, 2)],
-    );
+fn h2_1e_node_format_filesystem_failure_preserves_partial_set_continuation() {
+    assert_filesystem_failure_at_each_write_index(199);
 }
 
 #[test]
@@ -1980,7 +1826,7 @@ fn h2_1e_dynamic_import_attributes_are_observed_on_the_esnext_path() {
         )],
     );
     let mut sink = MemoryOutputSink::new();
-    let outcome = ProgramSession::new(prepared)
+    ProgramSession::new(prepared)
         .emit(&mut sink)
         .expect("dynamic import attributes emit");
     assert_eq!(sink.writes().len(), 1);
@@ -1990,14 +1836,6 @@ fn h2_1e_dynamic_import_attributes_are_observed_on_the_esnext_path() {
             "const specifier = \"./runtime.cts\";\n",
             "export const loaded = import(specifier, { with: { type: \"javascript\" } });\n",
         )
-    );
-    assert_eq!(
-        outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_1a),
-        1
-    );
-    assert_eq!(
-        outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_1e),
-        1
     );
 }
 
@@ -2071,10 +1909,6 @@ fn h2_2a_runtime_and_const_enum_emit_matches_typescript_shapes() {
         assert!(outcome.diagnostics().is_empty());
         assert_eq!(sink.writes().len(), 1);
         assert_eq!(sink.writes()[0].callback_text(), expected);
-        assert_eq!(
-            outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_2a),
-            1
-        );
     }
 }
 
@@ -2147,10 +1981,6 @@ fn h2_2b_runtime_namespace_emit_matches_typescript_shapes() {
         assert!(outcome.diagnostics().is_empty());
         assert_eq!(sink.writes().len(), 1);
         assert_eq!(sink.writes()[0].callback_text(), expected);
-        assert_eq!(
-            outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_2b),
-            1
-        );
     }
 }
 
@@ -2260,10 +2090,6 @@ fn h2_2c_parameter_property_emit_matches_typescript_shapes() {
         assert!(outcome.diagnostics().is_empty());
         assert_eq!(sink.writes().len(), 1);
         assert_eq!(sink.writes()[0].callback_text(), expected);
-        assert_eq!(
-            outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_2c),
-            1
-        );
     }
 }
 
@@ -2324,15 +2150,11 @@ fn h2_2d_module_format_interactions_match_typescript_shapes() {
             &[("/project/input.ts", "export = 42;\n")],
         );
         let mut sink = MemoryOutputSink::new();
-        let outcome = ProgramSession::new(prepared)
+        ProgramSession::new(prepared)
             .emit(&mut sink)
             .expect("H2.2d export-equals emit");
         assert_eq!(sink.writes().len(), 1);
         assert_eq!(sink.writes()[0].callback_text(), expected);
-        assert_eq!(
-            outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_2d),
-            1
-        );
     }
 
     let prepared = prepared_with_sources(
@@ -2351,16 +2173,12 @@ fn h2_2d_module_format_interactions_match_typescript_shapes() {
         )],
     );
     let mut sink = MemoryOutputSink::new();
-    let outcome = ProgramSession::new(prepared)
+    ProgramSession::new(prepared)
         .emit(&mut sink)
         .expect("H2.2d internal import-equals emit");
     assert_eq!(
         sink.writes()[0].callback_text(),
         concat!("\"use strict\";\n", "var value = Runtime.value;\n")
-    );
-    assert_eq!(
-        outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_2d),
-        1
     );
 
     let prepared = prepared_with_package_import(
@@ -2502,10 +2320,7 @@ fn h2_2d_module_format_interactions_match_typescript_shapes() {
     }
 }
 
-fn assert_filesystem_failure_at_each_write_index(
-    module: i32,
-    expected_runtime_activity: &[(H2RuntimeSlice, u64)],
-) {
+fn assert_filesystem_failure_at_each_write_index(module: i32) {
     let output_paths = [
         PathBuf::from("/project/first.js"),
         PathBuf::from("/project/second.js"),
@@ -2573,33 +2388,6 @@ fn assert_filesystem_failure_at_each_write_index(
             expected_partial,
             "failure index {failed_index} partial output set"
         );
-        let activity = outcome.h2_activity();
-        assert_eq!(activity.emit_session_constructions(), 1);
-        assert_eq!(activity.output_plan_constructions(), 1);
-        assert_eq!(activity.emit_resolver_borrows(), 1);
-        assert_eq!(activity.script_transformer_list_constructions(), 2);
-        assert_eq!(activity.transform_typescript_constructions(), 2);
-        assert_eq!(activity.transform_class_fields_constructions(), 2);
-        assert_eq!(
-            activity.transform_ecmascript_module_constructions(),
-            if matches!(module, 0 | 2 | 3 | 4) {
-                0
-            } else {
-                2
-            }
-        );
-        assert_eq!(activity.transform_context_constructions(), 2);
-        assert_eq!(activity.printer_constructions(), 1);
-        assert_eq!(activity.javascript_artifact_creations(), 2);
-        assert_eq!(activity.output_sink_write_attempts(), 2);
-        assert_eq!(activity.output_sink_failures(), 1);
-        for slice in H2RuntimeSlice::ALL {
-            let expected = expected_runtime_activity
-                .iter()
-                .find_map(|(expected_slice, count)| (*expected_slice == slice).then_some(*count))
-                .unwrap_or(0);
-            assert_eq!(activity.runtime_slice(slice), expected);
-        }
     }
 }
 

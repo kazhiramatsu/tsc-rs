@@ -8,7 +8,7 @@ use tsc_compiler::{DriverError, ProgramSession};
 use tsc_diagnostics::{Diagnostic, MessageChain};
 use tsc_emitter::{
     EmitArtifact, EmitArtifactKind, EmitIoError, EmitIoOperation, EmitOutcome,
-    EmitWriteDisposition, EmitWriteMetadata, H2RuntimeSlice, OutputSink,
+    EmitWriteDisposition, EmitWriteMetadata, OutputSink,
 };
 use tsc_host::MemoryCompilerHost;
 use tsc_program::{
@@ -367,7 +367,6 @@ fn bundle_callback_exceptions_preserve_one_request_per_option() {
         for repetition in 0..2 {
             ProgramSession::new(prepare(case, &libs))
                 .with_declarations(|session| {
-                    let before = session.activity();
                     let mut sink = Sink::new(case);
                     let returned = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         session.emit_with_reported_diagnostics(&mut sink)
@@ -378,17 +377,6 @@ fn bundle_callback_exceptions_preserve_one_request_per_option() {
                     };
                     assert_eq!(exception.downcast_ref::<&str>(),
                         Some(&"H2.7 bundle controlled callback exception"));
-                    let after = session.activity();
-                    for slice in [H2RuntimeSlice::H2_7d, H2RuntimeSlice::H2_7e] {
-                        assert_eq!(after.runtime_slice(slice) - before.runtime_slice(slice), 1,
-                            "{id}: {} after callback unwind, repetition {repetition}", slice.name());
-                    }
-                    for slice in [H2RuntimeSlice::H2_7a, H2RuntimeSlice::H2_8a,
-                        H2RuntimeSlice::H2_8b, H2RuntimeSlice::H2_8c, H2RuntimeSlice::H2_8d,
-                        H2RuntimeSlice::H2_8e, H2RuntimeSlice::H2_9] {
-                        assert_eq!(before.runtime_slice(slice), 0, "{id}: {} before", slice.name());
-                        assert_eq!(after.runtime_slice(slice), 0, "{id}: {} after", slice.name());
-                    }
                     // The same untouched TS command tuple also fixes the exact
                     // partial-write boundary for each of the four callback sites.
                     let indices = sink.writes.iter().filter(|write| write["sink_materialized"] == true)

@@ -501,8 +501,7 @@ impl<'a> CheckerState<'a> {
         key: IterationCacheKey,
         value: IterationTypesResult,
     ) -> IterationTypesResult {
-        self.links
-            .set_type_iteration_types(self.speculation_depth, ty, key, value);
+        self.links.set_type_iteration_types(ty, key, value);
         value
     }
 
@@ -716,7 +715,7 @@ impl<'a> CheckerState<'a> {
                     )?;
                 let suggest_await =
                     maybe_missing_await && self.get_awaited_type_of_promise(array_type)?.is_some();
-                let display = self.type_to_string_slice(array_type)?;
+                let display = self.type_to_string(array_type)?;
                 self.error_and_maybe_suggest_await_at_iteration_target(
                     error_target,
                     suggest_await,
@@ -1357,7 +1356,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        let display = self.type_to_string_slice(ty)?;
+        let display = self.type_to_string(ty)?;
         Ok(self.error_and_maybe_suggest_await_at_iteration_target(
             error_target,
             suggest_await,

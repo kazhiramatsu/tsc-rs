@@ -7,7 +7,6 @@
 //! `tsc-rs-checker`; live checker state implements emitter-owned protocols
 //! without creating a dependency cycle.
 
-mod activity;
 mod artifact;
 mod builtins;
 mod comment_cursor;
@@ -31,7 +30,6 @@ mod token_cursor;
 mod transform;
 mod writer;
 
-pub use activity::{H2ActivityCanary, H2ActivityCounters, H2RuntimeSlice};
 pub use artifact::{
     EmitArtifact, EmitArtifactKind, EmitBuildInfoMetadata, EmitCallbackText, EmitTextMetadata,
     EmitWriteMetadata,
@@ -45,23 +43,19 @@ pub use declaration_map::{
     finish_declaration_bundle_map, finish_declaration_map, DeclarationMapEmit,
 };
 pub use declarations::{
-    get_declaration_diagnostics, transform_declaration_unit_for_harness,
-    transform_declaration_unit_with_observer_for_harness, BoundaryEvent, DeclBlockedInputs,
+    get_declaration_diagnostics, transform_declaration_unit_for_harness, DeclBlockedInputs,
     DeclarationCustomTransformers, DeclarationPathResolver, DeclarationTransformOutcome,
     DeclarationTransformer, PlanDeclarationPaths,
 };
 pub use error::{
-    EmitContractViolation, EmitFailure, EmitIoError, EmitIoOperation, EmitStage,
-    UnsupportedEmitFeature,
+    EmitContractViolation, EmitFailure, EmitIoError, EmitIoOperation, UnsupportedEmitFeature,
 };
 pub use execute::prepare_emit_source;
 pub use execute::{
-    base64_encode, begin_emit_files, declaration_diagnostics_for_sources, emit_files,
-    emit_files_with_activity, emit_forced_declarations_with_activity, emit_planned_units,
-    finish_emit_files, print_script_units_with_recording_for_harness, source_map_directory,
+    base64_encode, begin_emit_files, emit_files, emit_forced_declarations, emit_planned_units,
+    finish_emit_files, print_script_units_with_recording_for_harness,
     source_map_recording_inputs_for, source_mapping_url, source_root_field,
-    validate_bootstrap_emit_options, validate_bootstrap_emit_options_for_route,
-    validate_bootstrap_emit_request, validate_declaration_diagnostics_request,
+    validate_declaration_diagnostics_request, validate_emit_options, validate_emit_request,
     validate_forced_declaration_request, EmitDiagnosticGate, EmitFilesSession, EmitFilesStart,
     MapLaneInputs, UnitEmission, UnitEmitError,
 };
@@ -79,9 +73,8 @@ pub use metadata::{
 pub use outcome::{EmitOutcome, SourceMapObservation};
 pub use plan::{
     for_each_emitted_file, get_output_paths_for, get_source_files_to_emit, preflight_emit,
-    source_file_may_be_emitted, source_file_may_be_emitted_for_host, EmitBundle, EmitMode,
-    EmitOutputPaths, EmitOutputPlan, EmitOutputUnit, EmitPreflight, EmitRoot, EmitSelection,
-    JavascriptOmission,
+    source_file_may_be_emitted, EmitBundle, EmitMode, EmitOutputPaths, EmitOutputPlan,
+    EmitOutputUnit, EmitPreflight, EmitRoot, EmitSelection, JavascriptOmission,
 };
 pub use position::{
     GeneratedUtf16Location, GeneratedUtf16Position, PositionDomain, SourceBytePosition,

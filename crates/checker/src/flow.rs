@@ -2689,11 +2689,7 @@ impl<'a> CheckerState<'a> {
             .is_none()
         {
             self.links
-                .set_node_parameter_initializer_contains_undefined(
-                    self.speculation_depth,
-                    declaration,
-                    contains,
-                );
+                .set_node_parameter_initializer_contains_undefined(declaration, contains);
         }
         Ok(contains)
     }
@@ -2836,7 +2832,7 @@ impl<'a> CheckerState<'a> {
             && (flow_type == self.tables.intrinsics.auto || self.is_auto_array_type(flow_type))
         {
             let display = self.member_implicit_any_display_name(symbol)?;
-            let type_display = self.type_to_string_slice(flow_type)?;
+            let type_display = self.type_to_string(flow_type)?;
             let error_node = self.binder.symbol(symbol).value_declaration;
             self.error_at_js(
                 error_node,
@@ -2870,7 +2866,7 @@ impl<'a> CheckerState<'a> {
                 && (flow_type == self.tables.intrinsics.auto || self.is_auto_array_type(flow_type))
             {
                 let display = self.member_implicit_any_display_name(symbol)?;
-                let type_display = self.type_to_string_slice(flow_type)?;
+                let type_display = self.type_to_string(flow_type)?;
                 let error_node = self.binder.symbol(symbol).value_declaration;
                 self.error_at_js(
                     error_node,

@@ -32,7 +32,3 @@ pub fn bind_source_file<'a>(
     binder.bind_source_file();
     binder
 }
-
-pub fn is_scaffolded() -> bool {
-    true
-}
