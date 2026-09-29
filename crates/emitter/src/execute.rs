@@ -12,10 +12,10 @@ use crate::declarations::{
 };
 use crate::{
     create_printer, transform_nodes, EmitArtifact, EmitContractViolation, EmitFailure, EmitHost,
-    EmitOutcome, EmitPreflight, EmitResolver, EmitResolverError, EmitRoot, EmitRouteKind,
-    EmitSelection, EmitTextMetadata, EmitWriteDisposition, NewLineKind, OutputSink, PrintRequest,
-    PrinterOptions, SourceFileTextMode, SourceMapObservation, SourceMapRecordingInputs,
-    TransformArena, TransformError, TransformRoot,
+    EmitOutcome, EmitPreflight, EmitResolver, EmitResolverError, EmitRoot, EmitSelection,
+    EmitTextMetadata, EmitWriteDisposition, NewLineKind, OutputSink, PrintRequest, PrinterOptions,
+    SourceFileTextMode, SourceMapObservation, SourceMapRecordingInputs, TransformArena,
+    TransformError, TransformRoot,
 };
 
 const MODULE_NONE: i32 = 0;
@@ -100,21 +100,10 @@ impl EmitDiagnosticGate {
     }
 }
 
-/// Reject every effective option outside the frozen JavaScript-only bootstrap
-/// before output planning, checker-to-emitter borrowing, or sink dispatch.
-pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), EmitFailure> {
-    validate_emit_options(options, EmitOperation::Files, EmitRouteKind::Program)
-}
-
-/// Route-aware variant of [`validate_bootstrap_emit_options`]: the H2.8c
-/// research routes admit `noCheck` (and, for the transpile routes, the
-/// forced `isolatedModules` / caller `verbatimModuleSyntax`) while every
-/// other bootstrap refusal is unchanged.
-pub fn validate_bootstrap_emit_options_for_route(
-    options: &CompilerOptions,
-    route: EmitRouteKind,
-) -> Result<(), EmitFailure> {
-    validate_emit_options(options, EmitOperation::Files, route)
+/// Reject a compiler option this emitter does not implement before output
+/// planning, checker-to-emitter borrowing, or sink dispatch.
+pub fn validate_emit_options(options: &CompilerOptions) -> Result<(), EmitFailure> {
+    validate_options(options, EmitOperation::Files)
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -124,10 +113,9 @@ enum EmitOperation {
     ForcedDeclarations,
 }
 
-fn validate_emit_options(
+fn validate_options(
     options: &CompilerOptions,
     operation: EmitOperation,
-    _route: EmitRouteKind,
 ) -> Result<(), EmitFailure> {
     let target = options.emit_script_target();
     // JSON is an internal parser mode, not an unknown future JS target.
@@ -209,24 +197,23 @@ fn validate_emit_options(
     Ok(())
 }
 
-/// Validate the option profile and the admitted TypeScript/JavaScript source
-/// families before
+/// Validate the options and the source families of an emit request before
 /// the checker constructs an emit resolver.
-pub fn validate_bootstrap_emit_request(host: &dyn EmitHost) -> Result<(), EmitFailure> {
-    validate_emit_request(host, EmitOperation::Files)
+pub fn validate_emit_request(host: &dyn EmitHost) -> Result<(), EmitFailure> {
+    validate_request(host, EmitOperation::Files)
 }
 
 pub fn validate_declaration_diagnostics_request(host: &dyn EmitHost) -> Result<(), EmitFailure> {
-    validate_emit_request(host, EmitOperation::DeclarationDiagnostics)
+    validate_request(host, EmitOperation::DeclarationDiagnostics)
 }
 
 pub fn validate_forced_declaration_request(host: &dyn EmitHost) -> Result<(), EmitFailure> {
-    validate_emit_request(host, EmitOperation::ForcedDeclarations)
+    validate_request(host, EmitOperation::ForcedDeclarations)
 }
 
-fn validate_emit_request(host: &dyn EmitHost, operation: EmitOperation) -> Result<(), EmitFailure> {
+fn validate_request(host: &dyn EmitHost, operation: EmitOperation) -> Result<(), EmitFailure> {
     let options = host.compiler_options();
-    validate_emit_options(options, operation, host.emit_route())?;
+    validate_options(options, operation)?;
     for source_id in host.source_file_ids() {
         let source = host.source_file(*source_id).ok_or(EmitFailure::Contract(
             EmitContractViolation::PlannedSourceMissing(*source_id),
@@ -234,7 +221,7 @@ fn validate_emit_request(host: &dyn EmitHost, operation: EmitOperation) -> Resul
         let eligible = if operation == EmitOperation::ForcedDeclarations {
             crate::plan::source_file_may_emit_forced_declaration(source, host)
         } else {
-            crate::plan::source_file_may_be_emitted_for_host(source, host)
+            crate::plan::source_file_may_be_emitted(source, host)
         };
         if !eligible {
             continue;
@@ -487,20 +474,9 @@ fn trim_directory_separators(path: JsStr<'_>) -> JsStr<'_> {
 /// The `sourcesDirectoryPath` three-lane selection (h2-6b.md §4.2):
 /// `sourceRoot` → the common source directory; `mapRoot` → the
 /// normalized root, per-file nested when a source file exists, resolved
-/// against the common source directory when relative; otherwise the js
-/// output directory (the H2.6a floor lane — the only lane reachable in
-/// production until the h2-6b-m-2 refusal lift).
-#[doc(hidden)]
-pub fn source_map_directory(
-    lane: &MapLaneInputs,
-    options: &CompilerOptions,
-    javascript_path: JsStr<'_>,
-    source_path: JsStr<'_>,
-) -> JsString {
-    source_map_directory_for_output(lane, options, javascript_path, Some(source_path))
-}
-
-pub(crate) fn source_map_directory_for_output(
+/// against the common source directory when relative; otherwise the
+/// JavaScript output directory.
+pub(crate) fn source_map_directory(
     lane: &MapLaneInputs,
     options: &CompilerOptions,
     javascript_path: JsStr<'_>,
@@ -569,12 +545,7 @@ pub(crate) fn source_map_recording_inputs_for_output(
     SourceMapRecordingInputs {
         file: basename.into(),
         source_root: source_root_field(options),
-        sources_directory_path: source_map_directory_for_output(
-            lane,
-            options,
-            javascript_path,
-            source_path,
-        ),
+        sources_directory_path: source_map_directory(lane, options, javascript_path, source_path),
         current_directory: lane.current_directory.clone(),
         use_case_sensitive_source_keys: lane.use_case_sensitive_source_keys,
         inline_sources: options.inline_sources == Some(true),
@@ -855,9 +826,9 @@ pub fn begin_emit_files(
     selection: EmitSelection,
     diagnostic_gate: &EmitDiagnosticGate,
 ) -> Result<EmitFilesStart, EmitFailure> {
-    validate_bootstrap_emit_request(host)?;
+    validate_emit_request(host)?;
     let options = host.compiler_options();
-    preflight.plan().validate_bootstrap_shape()?;
+    preflight.plan().validate_supported_shape()?;
     if preflight.plan().selection() != selection {
         return Err(EmitFailure::Unsupported(
             crate::UnsupportedEmitFeature::TargetedSelection,
@@ -915,30 +886,6 @@ pub fn begin_emit_files(
         emitted_files_enabled,
         map_options_enabled,
     }))
-}
-
-/// The declaration diagnostics of `sources` (Program sources selected for
-/// emit) against one resolver: the per-source getter that `begin_emit_files`
-/// runs itself over the single Program resolver, for a coordinator that
-/// gathers the whole-Program noEmitOnError declaration gate from several
-/// checker sessions. The caller sorts and deduplicates the union.
-pub fn declaration_diagnostics_for_sources(
-    resolver: &dyn EmitResolver,
-    host: &dyn EmitHost,
-    preflight: &EmitPreflight,
-    sources: &[SourceFileId],
-) -> Result<Vec<Diagnostic>, EmitFailure> {
-    let declaration_paths: &PlanDeclarationPaths = preflight.declaration_paths(host);
-    let mut diagnostics = Vec::new();
-    for &source in sources {
-        diagnostics.extend(get_declaration_diagnostics(
-            resolver,
-            host,
-            declaration_paths,
-            source,
-        )?);
-    }
-    Ok(diagnostics)
 }
 
 fn new_line_kind(options: &CompilerOptions) -> Result<NewLineKind, EmitFailure> {
@@ -1240,41 +1187,12 @@ fn emit_javascript_unit(
             source_path,
         )
     });
-    let printed_result = printer.print_javascript_with_global_names(
+    let printed = printer.print_javascript_with_global_names(
         &mut transformation,
-        print_request.clone(),
-        recording_inputs.clone(),
+        print_request,
+        recording_inputs,
         &ResolverGlobalNameOracle(resolver),
-    );
-    let (printed, fallback_source_map) = match printed_result {
-        Ok(printed) => (printed, None),
-        Err(crate::PrinterError::Unsupported(crate::UnsupportedEmitFeature::JavaScriptMap))
-            if options.declaration == Some(true)
-                && recording_inputs.is_some()
-                && matches!(transformed_root, TransformRoot::SourceFile(_)) =>
-        {
-            let TransformRoot::SourceFile(transform_source) = transformed_root else {
-                unreachable!()
-            };
-            let printed = printer.print_javascript_with_global_names(
-                &mut transformation,
-                print_request,
-                None,
-                &ResolverGlobalNameOracle(resolver),
-            )?;
-            let syntax = transformation.arena().source(transform_source)?.syntax();
-            let mut recording = crate::source_map::SourceMapRecording::new(
-                recording_inputs.expect("recording input matched above"),
-            );
-            recording.set_current_source(
-                transform_source,
-                syntax.file_name.as_js(),
-                syntax.snapshot(),
-            );
-            (printed, Some(recording.into_generator()))
-        }
-        Err(error) => return Err(error.into()),
-    };
+    )?;
     // TS transformNodes.dispose clears annotated parse nodes for a
     // SourceFile root. A Bundle root has no parse SourceFile and
     // retains its children's metadata for declaration emission.
@@ -1296,11 +1214,9 @@ fn emit_javascript_unit(
     }
     if recording_enabled {
         let map_path = javascript_map_path;
-        let mut generator = fallback_source_map
-            .or_else(|| printed.source_map().cloned())
-            .ok_or(EmitFailure::Contract(
-                EmitContractViolation::SourceMapRecordingUnavailable,
-            ))?;
+        let mut generator = printed.source_map().cloned().ok_or(EmitFailure::Contract(
+            EmitContractViolation::SourceMapRecordingUnavailable,
+        ))?;
         let map_json = generator.to_json_string();
         emission.map_observations.push(SourceMapObservation::new(
             generator.raw_sources().to_vec(),

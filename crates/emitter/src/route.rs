@@ -4,11 +4,7 @@
 //! an ordinary `Program.emit`, `Program.emit` under `noCheck`, and the two
 //! `transpileWorker` routes (`transpileModule` / `transpileDeclaration`,
 //! typescript.js:146022-146133) which force `noCheck`, `isolatedModules`,
-//! `noLib`/`noResolve` and run a single-file Program. The Rust bootstrap
-//! option admission (`validate_bootstrap_emit_options`) refuses `noCheck`,
-//! `isolatedModules` and `verbatimModuleSyntax` for the ordinary Program
-//! route; the research routes below admit them explicitly so the option
-//! decision lives in one typed place instead of string branches in passes.
+//! `noLib`/`noResolve` and run a single-file Program.
 //!
 //! tsrs-native: research plan for the H2.8c prototype; no tsc counterpart.
 

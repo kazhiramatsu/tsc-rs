@@ -72,16 +72,13 @@ fn declaration_family_options_remain_typed_refusals() {
         declaration_map: Some(true),
         ..CompilerOptions::default()
     });
-    assert_eq!(
-        tsc_emitter::validate_bootstrap_emit_request(&declaration_map),
-        Ok(()),
-    );
+    assert_eq!(tsc_emitter::validate_emit_request(&declaration_map), Ok(()),);
     let declaration_only = control_host(CompilerOptions {
         emit_declaration_only: Some(true),
         ..CompilerOptions::default()
     });
     assert_eq!(
-        tsc_emitter::validate_bootstrap_emit_request(&declaration_only),
+        tsc_emitter::validate_emit_request(&declaration_only),
         Ok(())
     );
     let combined = control_host(CompilerOptions {
@@ -89,30 +86,21 @@ fn declaration_family_options_remain_typed_refusals() {
         emit_declaration_only: Some(true),
         ..CompilerOptions::default()
     });
-    assert_eq!(
-        tsc_emitter::validate_bootstrap_emit_request(&combined),
-        Ok(())
-    );
+    assert_eq!(tsc_emitter::validate_emit_request(&combined), Ok(()));
     let strip_internal = control_host(CompilerOptions {
         strip_internal: Some(true),
         ..CompilerOptions::default()
     });
-    assert_eq!(
-        tsc_emitter::validate_bootstrap_emit_request(&strip_internal),
-        Ok(()),
-    );
+    assert_eq!(tsc_emitter::validate_emit_request(&strip_internal), Ok(()),);
     let bundle = control_host(CompilerOptions {
         out_file: Some("/control/bundle.js".to_owned().into()),
         ..CompilerOptions::default()
     });
-    assert_eq!(
-        tsc_emitter::validate_bootstrap_emit_request(&bundle),
-        Ok(())
-    );
+    assert_eq!(tsc_emitter::validate_emit_request(&bundle), Ok(()));
 
     let host = control_host(CompilerOptions {
         declaration: Some(true),
         ..CompilerOptions::default()
     });
-    assert_eq!(tsc_emitter::validate_bootstrap_emit_request(&host), Ok(()));
+    assert_eq!(tsc_emitter::validate_emit_request(&host), Ok(()));
 }

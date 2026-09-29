@@ -1,13 +1,11 @@
-//! Declaration bundle-transform and output-plan boundary controls.
-//! H2.7d admits bundle roots.
+//! Declaration bundle-transform boundary control.
 
 use std::path::Path;
 
 use tsc_checker::CompilerOptions;
 use tsc_emitter::{
-    transform_nodes, DeclarationPathResolver, DeclarationTransformer, EmitBundle, EmitFailure,
-    EmitHost, EmitMode, EmitOutputPaths, EmitOutputPlan, EmitOutputUnit, EmitRoot, SourceFileId,
-    TransformArena, TransformBundle, TransformError, TransformRoot, UnsupportedEmitFeature,
+    transform_nodes, DeclarationPathResolver, DeclarationTransformer, EmitHost, SourceFileId,
+    TransformArena, TransformBundle, TransformError, TransformRoot,
 };
 
 struct ControlHost {
@@ -86,44 +84,4 @@ fn declaration_bundle_transform_requires_a_bundle_output_path() {
             detail: "bundle declaration output path is required",
         })
     ));
-}
-
-#[test]
-fn declaration_plan_admits_nonempty_bundles_and_retains_boundary_refusals() {
-    let source = SourceFileId::from_raw(0);
-    let bundle = EmitOutputPlan::whole_program(vec![EmitOutputUnit::new(
-        EmitRoot::Bundle(EmitBundle::new(vec![source])),
-        EmitOutputPaths::javascript("/control/out.js"),
-        EmitMode::Script,
-    )]);
-    assert_eq!(bundle.validate_bootstrap_shape(), Ok(()));
-    let empty_bundle = EmitOutputPlan::whole_program(vec![EmitOutputUnit::new(
-        EmitRoot::Bundle(EmitBundle::new(Vec::new())),
-        EmitOutputPaths::javascript("/control/out.js"),
-        EmitMode::Script,
-    )]);
-    assert_eq!(
-        empty_bundle.validate_bootstrap_shape(),
-        Err(EmitFailure::Unsupported(UnsupportedEmitFeature::BundleRoot))
-    );
-
-    let declaration = EmitOutputPlan::whole_program(vec![EmitOutputUnit::new(
-        EmitRoot::SourceFile(source),
-        EmitOutputPaths::javascript("/control/out.js").with_declaration("/control/out.d.ts"),
-        EmitMode::Script,
-    )]);
-    assert_eq!(declaration.validate_bootstrap_shape(), Ok(()));
-
-    let printer = include_str!("../../../emitter/src/printer.rs");
-    assert!(
-        printer.contains(
-            "PrintRequest::Declaration(source) => self.print_declaration_with_recording("
-        ),
-        "PrintRequest::Declaration must route through the activated declaration entry"
-    );
-    let execute = include_str!("../../../emitter/src/execute.rs");
-    assert!(
-        !execute.contains("transform_declaration_unit_for_harness"),
-        "the dormant declaration seam must not be activated from execute"
-    );
 }

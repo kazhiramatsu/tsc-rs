@@ -9,10 +9,9 @@ use base64::Engine;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use tsc_compiler::{
-    DriverError, EmitArtifact, EmitArtifactKind, EmitFailure, EmitIoError, EmitIoOperation,
-    EmitWriteDisposition, MemoryOutputSink, OutputSink, ProgramSession,
+    EmitArtifact, EmitArtifactKind, EmitIoError, EmitIoOperation, EmitWriteDisposition,
+    MemoryOutputSink, OutputSink, ProgramSession,
 };
-use tsc_emitter::{TransformError, UnsupportedTransformFeature};
 use tsc_harness::upstream_suites::execution::{
     load_compiler_emit, load_recorded_execution_plans, CompilerExecutionPlan,
     UpstreamExecutionInput,
@@ -45,21 +44,6 @@ interface RegExp {}
 "#;
 
 static NEXT_TEMP_TREE: AtomicU64 = AtomicU64::new(0);
-
-#[derive(Default)]
-struct CountingSink {
-    writes: usize,
-}
-
-impl OutputSink for CountingSink {
-    fn write(
-        &mut self,
-        _artifact: EmitArtifact,
-    ) -> Result<EmitWriteDisposition, tsc_compiler::EmitIoError> {
-        self.writes += 1;
-        Ok(EmitWriteDisposition::Written)
-    }
-}
 
 #[derive(Default)]
 struct DeclarationDispositionSink {
@@ -252,64 +236,6 @@ fn prepared_declaration_collision() -> PreparedProgram {
         .expect("build declaration collision program")
 }
 
-fn assert_control_failure(id: &str, expected: &Value, error: DriverError) {
-    let kind = expected["kind"].as_str().expect("failure kind");
-    match kind {
-        "unsupported-compiler-option" => {
-            let option = expected["option"].as_str().expect("failure option");
-            assert_eq!(
-                error,
-                DriverError::Emit(EmitFailure::UnsupportedCompilerOption {
-                    option: match option {
-                        "jsx" => "jsx",
-                        "sourceMap" => "sourceMap",
-                        "declaration" => "declaration",
-                        _ => panic!("{id}: unknown expected option {option}"),
-                    },
-                }),
-                "{id}: typed option failure",
-            );
-        }
-        "unsupported-source-extension" => match error {
-            DriverError::Emit(EmitFailure::UnsupportedSourceExtension { path }) => {
-                assert_eq!(
-                    path.scalar_test_path()
-                        .extension()
-                        .and_then(|extension| extension.to_str()),
-                    expected["extension"]
-                        .as_str()
-                        .expect("failure extension")
-                        .strip_prefix('.'),
-                    "{id}: rejected extension",
-                );
-            }
-            other => panic!("{id}: expected source-extension failure, got {other:?}"),
-        },
-        "unsupported-transform-feature" => {
-            let feature = match expected["feature"].as_str().expect("failure feature") {
-                "runtime-enum" => UnsupportedTransformFeature::RuntimeEnums,
-                "runtime-namespace" => UnsupportedTransformFeature::RuntimeNamespaces,
-                "parameter-property" => UnsupportedTransformFeature::ParameterProperties,
-                feature => panic!("{id}: unknown expected feature {feature}"),
-            };
-            match error {
-                DriverError::Emit(EmitFailure::Transform(error)) => assert!(
-                    matches!(
-                        error.as_ref(),
-                        TransformError::UnsupportedSyntax {
-                            feature: actual,
-                            ..
-                        } if *actual == feature
-                    ),
-                    "{id}: typed transform failure was {error:?}",
-                ),
-                other => panic!("{id}: expected transform failure, got {other:?}"),
-            }
-        }
-        other => panic!("{id}: unknown expected failure kind {other}"),
-    }
-}
-
 fn candidate_plan(
     plans: &[tsc_harness::upstream_suites::execution::UpstreamExecutionPlan],
 ) -> CompilerExecutionPlan {
@@ -486,7 +412,7 @@ fn expected_cli_stdout(case: &Value) -> String {
 }
 
 #[test]
-fn frozen_adjacent_controls_remain_rejected_or_are_exactly_promoted() {
+fn frozen_adjacent_controls_are_exactly_promoted() {
     let qualification = qualification();
     let oracle = callback_oracle();
     let controls = qualification["adjacent_controls"]
@@ -501,71 +427,49 @@ fn frozen_adjacent_controls_remain_rejected_or_are_exactly_promoted() {
             .find(|case| case["input"]["id"] == id)
             .unwrap_or_else(|| panic!("callback oracle is missing {id}"));
         assert_eq!(case["input"]["classification"], "adjacent-unsupported");
-        if matches!(
-            id,
-            "mts-output-control"
-                | "runtime-enum-control"
-                | "runtime-namespace-control"
-                | "parameter-property-control"
-                | "jsx-control"
-                | "source-map-control"
-                | "declaration-control"
-        ) {
-            let mut sink = MemoryOutputSink::new();
-            ProgramSession::new(prepared_control(
-                case,
-                &oracle["oracle_environment"]["library"],
-            ))
-            .emit(&mut sink)
-            .expect("later H2 slices promote the frozen adjacent control");
-            // The frozen oracle observation is the complete write
-            // expectation: one write for the pre-map promotions, the
-            // map-then-js pair for source-map-control (h2-6a-m-3), and
-            // the JavaScript-then-declaration pair for declaration-control.
-            let expected_writes = case["observation"]["writes"]
-                .as_array()
-                .expect("expected writes");
-            if id == "declaration-control" {
-                assert_eq!(
-                    expected_writes[0]["kind"], "javascript",
-                    "declaration admission emits the frozen JavaScript member"
-                );
-                assert_eq!(
-                    expected_writes[1]["kind"], "declaration",
-                    "declaration admission emits the frozen H2.7 declaration member"
-                );
-            }
-            assert_eq!(
-                sink.writes().len(),
-                expected_writes.len(),
-                "{id}: exact promoted write count"
-            );
-            for (write, expected) in sink.writes().iter().zip(expected_writes) {
-                assert_eq!(
-                    write.path().scalar_test_path(),
-                    Path::new(expected["path"].as_str().expect("expected write path")),
-                    "{id}: exact promoted output path",
-                );
-                assert_eq!(
-                    write.callback_text(),
-                    expected["callback_text"]
-                        .as_str()
-                        .expect("expected write text"),
-                    "{id}: exact promoted output text",
-                );
-            }
-            continue;
-        }
-        let mut sink = CountingSink::default();
-        let error = ProgramSession::new(prepared_control(
+        let mut sink = MemoryOutputSink::new();
+        ProgramSession::new(prepared_control(
             case,
             &oracle["oracle_environment"]["library"],
         ))
         .emit(&mut sink)
-        .unwrap_err();
-        assert_control_failure(id, &control["expected_rust_failure"], error);
-        assert_eq!(sink.writes, 0, "{id}: no partial output");
-        assert_eq!(control["expected_rust_sink_writes"], 0);
+        .expect("later H2 slices promote the frozen adjacent control");
+        // The frozen oracle observation is the complete write
+        // expectation: one write for the pre-map promotions, the
+        // map-then-js pair for source-map-control (h2-6a-m-3), and
+        // the JavaScript-then-declaration pair for declaration-control.
+        let expected_writes = case["observation"]["writes"]
+            .as_array()
+            .expect("expected writes");
+        if id == "declaration-control" {
+            assert_eq!(
+                expected_writes[0]["kind"], "javascript",
+                "declaration admission emits the frozen JavaScript member"
+            );
+            assert_eq!(
+                expected_writes[1]["kind"], "declaration",
+                "declaration admission emits the frozen H2.7 declaration member"
+            );
+        }
+        assert_eq!(
+            sink.writes().len(),
+            expected_writes.len(),
+            "{id}: exact promoted write count"
+        );
+        for (write, expected) in sink.writes().iter().zip(expected_writes) {
+            assert_eq!(
+                write.path().scalar_test_path(),
+                Path::new(expected["path"].as_str().expect("expected write path")),
+                "{id}: exact promoted output path",
+            );
+            assert_eq!(
+                write.callback_text(),
+                expected["callback_text"]
+                    .as_str()
+                    .expect("expected write text"),
+                "{id}: exact promoted output text",
+            );
+        }
     }
 }
 

@@ -220,7 +220,7 @@ impl<'session, 'program> DeclarationSession<'session, 'program> {
                 actual,
             });
         }
-        tsc_emitter::validate_bootstrap_emit_request(self.host).map_err(DriverError::Emit)?;
+        tsc_emitter::validate_emit_request(self.host).map_err(DriverError::Emit)?;
         let selection = EmitSelection::WholeProgram;
         let preflight =
             tsc_emitter::preflight_emit(self.host, selection).map_err(DriverError::Emit)?;

@@ -39,14 +39,14 @@ use tsc_diagnostics::{
 };
 use tsc_emitter::{
     begin_emit_files, emit_files, emit_planned_units, finish_emit_files, preflight_emit,
-    print_script_units_with_recording_for_harness, validate_bootstrap_emit_request,
-    EmitDiagnosticGate, EmitFilesSession, EmitFilesStart, EmitHost, EmitSource, PrintedText,
-    SourceMapRecordingInputs, UnavailableEmitResolver, UnitEmitError,
+    print_script_units_with_recording_for_harness, validate_emit_request, EmitDiagnosticGate,
+    EmitFilesSession, EmitFilesStart, EmitHost, EmitSource, PrintedText, SourceMapRecordingInputs,
+    UnavailableEmitResolver, UnitEmitError,
 };
 pub use tsc_emitter::{
     EmitArtifact, EmitArtifactKind, EmitBuildInfoMetadata, EmitContractViolation, EmitFailure,
     EmitFileSystem, EmitIoError, EmitIoOperation, EmitMode, EmitOutcome, EmitOutputPaths,
-    EmitOutputPlan, EmitOutputUnit, EmitRoot, EmitSelection, EmitStage, EmitTextMetadata,
+    EmitOutputPlan, EmitOutputUnit, EmitRoot, EmitSelection, EmitTextMetadata,
     EmitWriteDisposition, EmitWriteMetadata, FsOutputSink, GeneratedUtf16Position,
     MemoryOutputSink, OutputSink, SourceMapObservation, UnsupportedEmitFeature,
 };
@@ -561,8 +561,9 @@ impl<'program> PreparedEmitHost<'program> {
             .iter()
             .copied()
             .filter_map(|id| match host.source_file(id) {
-                Some(source) => tsc_emitter::source_file_may_be_emitted_for_host(source, &host)
-                    .then_some(Ok(id)),
+                Some(source) => {
+                    tsc_emitter::source_file_may_be_emitted(source, &host).then_some(Ok(id))
+                }
                 None => Some(Err(tsc_emitter::EmitFailure::Contract(
                     tsc_emitter::EmitContractViolation::PlannedSourceMissing(id),
                 ))),
@@ -1700,7 +1701,7 @@ impl ProgramSession {
             tsc_emitter::validate_forced_declaration_request(&emit_host)
                 .map_err(DriverError::Emit)?;
         } else {
-            validate_bootstrap_emit_request(&emit_host).map_err(DriverError::Emit)?;
+            validate_emit_request(&emit_host).map_err(DriverError::Emit)?;
         }
         let selection = EmitSelection::WholeProgram;
         let preflight = if forced_declarations {
@@ -1848,7 +1849,7 @@ impl ProgramSession {
         } = self;
         let setup_started = std::time::Instant::now();
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
-        validate_bootstrap_emit_request(&emit_host).map_err(DriverError::Emit)?;
+        validate_emit_request(&emit_host).map_err(DriverError::Emit)?;
         tsc_types::trace::mark("emit: host and request validation", setup_started);
         let selection = EmitSelection::WholeProgram;
         let preflight_started = std::time::Instant::now();
