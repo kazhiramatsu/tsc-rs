@@ -7,6 +7,11 @@
 今回の変更は文書のみ。以下の継続調査・差分分類・Rust比較・依頼生成の自動化は未実装。
 配置案は、最初の実装スライスで小さな実例に当てて確定する。
 
+2026-09-29追記：ユーザーはconformanceを7.1のテスト構成・baselineへ合わせ、
+非推奨option以外のtsc-rsの挙動も7.1へ移す方針を決めた（非推奨optionは6.0.3の挙動と
+TS5101/TS5107を維持）。決定、上流harnessの調査、runnerの段階計画は
+[TypeScript 7.1のconformance](slices/conformance-ts71/README.md)にある。
+
 前提は[TS7の方向](typescript-7-direction.md)、
 実装済みの入口は[固定参照の実行手順](typescript-7-workflow.md)、
 実行順は[emitter後ロードマップ](post-emitter-roadmap.md)、

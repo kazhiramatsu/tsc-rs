@@ -72,6 +72,17 @@ reference is 7.1, prioritizing missing existing functionality. Consulting Go sou
 may begin now; adopting an observable behavior uses the corresponding pinned
 upstream tests and an explicit version transition.
 
+**2026-09-29 decision.** The user chose to move the accepted profile to 7.1,
+except for the options TypeScript 6.0 deprecated (target ES5, outFile, module
+AMD/UMD/System, moduleResolution node10/classic, baseUrl and the like). For those,
+tsc-rs keeps its implemented support and the 6.0.3 behavior, including the
+TS5101/TS5107 deprecation diagnostics that `ignoreDeprecations: "6.0"` silences.
+Conformance follows the 7.1 test layout and baselines; configurations that use a
+deprecated option are compared with the 6.0.3 oracle instead. The
+[TypeScript 7.1 conformance packet](slices/conformance-ts71/README.md) records the
+decisions, the harness survey and the staged plan. The profile itself moves only
+when that plan's measurements and transition table are in place.
+
 The existing `7.1.0-dev` pin can be the investigation starting point.
 VER1.0-MAP/PIN records the specific 7.1 commit, client/test/lib dependencies,
 release status and incomplete scope before adoption. A fixed 7.0 reference
