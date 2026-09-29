@@ -176,6 +176,62 @@ pub struct BindData {
 /// retain only `BindData` in an owned document.
 pub type Binder<'a> = BinderWorker<'a>;
 
+/// What bind results allocate, by structure (memory accounting).
+#[derive(Clone, Debug, Default)]
+pub struct BinderMemory {
+    pub symbols: usize,
+    pub symbol_bytes: usize,
+    /// Heap bytes of symbol names, declaration lists and assignment members.
+    pub symbol_owned_bytes: usize,
+    /// Each distinct member/export table (shared between symbols) and its bytes.
+    pub tables: FxHashMap<*const SymbolTable, usize>,
+    pub locals: usize,
+    pub local_bytes: usize,
+    pub node_symbol_bytes: usize,
+    pub node_flow_bytes: usize,
+    pub node_flags_bytes: usize,
+    pub flow_nodes: usize,
+    pub flow_bytes: usize,
+    pub flow_antecedent_bytes: usize,
+    pub map_bytes: usize,
+}
+
+impl BindData {
+    /// Add this file's bind results to `usage`.
+    pub fn add_memory_usage(&self, usage: &mut BinderMemory) {
+        fn map_bytes<K, V>(map: &FxHashMap<K, V>) -> usize {
+            map.capacity() * (std::mem::size_of::<(K, V)>() + 1) * 8 / 7
+        }
+        let (symbols, symbol_bytes, owned) = self.symbols.memory_usage(&mut usage.tables);
+        usage.symbols += symbols;
+        usage.symbol_bytes += symbol_bytes;
+        usage.symbol_owned_bytes += owned;
+        usage.locals += self.locals.len();
+        usage.local_bytes += map_bytes(&self.locals)
+            + self
+                .locals
+                .values()
+                .map(SymbolTable::heap_bytes)
+                .sum::<usize>();
+        usage.node_symbol_bytes += self.node_symbol.heap_bytes();
+        usage.node_flow_bytes += self.node_flow.heap_bytes();
+        usage.node_flags_bytes += self.node_flags_mut.capacity() * std::mem::size_of::<i32>();
+        let (flow_nodes, flow_bytes, antecedent_bytes) = self.flow.memory_usage();
+        usage.flow_nodes += flow_nodes;
+        usage.flow_bytes += flow_bytes;
+        usage.flow_antecedent_bytes += antecedent_bytes;
+        usage.map_bytes += map_bytes(&self.node_local_symbol)
+            + map_bytes(&self.assigned_symbol_ids)
+            + map_bytes(&self.next_container)
+            + map_bytes(&self.node_end_flow)
+            + map_bytes(&self.node_return_flow)
+            + map_bytes(&self.node_flow_when_true)
+            + map_bytes(&self.node_flow_when_false)
+            + map_bytes(&self.possibly_exhaustive)
+            + map_bytes(&self.node_fallthrough_flow);
+    }
+}
+
 impl BindData {
     /// Clone only the completed result for a compatibility adapter. The
     /// production snapshot path uses `Binder::into_bind_data` to move these
@@ -1553,6 +1609,11 @@ pub type NodeSymbolMap = DenseNodeMap<SymbolId>;
 pub type NodeFlowMap = DenseNodeMap<crate::flow::FlowId>;
 
 impl<V: Copy> DenseNodeMap<V> {
+    /// Bytes this map owns on the heap, for memory accounting.
+    pub fn heap_bytes(&self) -> usize {
+        self.slots.capacity() * std::mem::size_of::<Option<V>>()
+    }
+
     pub fn with_len(base: u32, len: usize) -> Self {
         Self {
             base,

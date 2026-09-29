@@ -155,6 +155,32 @@ impl std::fmt::Display for SymbolArenaExhausted {
 impl std::error::Error for SymbolArenaExhausted {}
 
 impl SymbolArena {
+    /// Symbol count, the arena's bytes, and the heap bytes of the symbols'
+    /// names and declaration lists; `tables` collects each distinct
+    /// member/export table once (they are shared between symbols).
+    pub fn memory_usage(
+        &self,
+        tables: &mut rustc_hash::FxHashMap<*const SymbolTable, usize>,
+    ) -> (usize, usize, usize) {
+        let mut owned = 0;
+        for symbol in &self.symbols {
+            owned += symbol.escaped_name.heap_bytes() + symbol.declarations.heap_bytes();
+            for table in [&symbol.members, &symbol.exports, &symbol.global_exports] {
+                tables
+                    .entry(std::sync::Arc::as_ptr(table))
+                    .or_insert_with(|| table.heap_bytes());
+            }
+            if let Some(members) = &symbol.assignment_declaration_members {
+                owned += members.capacity() * (2 * std::mem::size_of::<NodeId>() + 16);
+            }
+        }
+        (
+            self.symbols.len(),
+            self.symbols.capacity() * std::mem::size_of::<Symbol>(),
+            owned,
+        )
+    }
+
     pub fn with_base(base: u32) -> Self {
         Self::with_base_and_capacity(base, 0)
     }

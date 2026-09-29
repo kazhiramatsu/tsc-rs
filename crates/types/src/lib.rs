@@ -20,7 +20,7 @@ pub use identity::{
 pub use options::{CompilerOptionNumber, CompilerOptions, ModuleSuffix};
 pub use tables::{
     js_number_to_string, InstantiationKey, IntersectionFlags, Intrinsics, TupleTargetFlags,
-    TypeListId, TypeTables, UnionReduction,
+    TypeListId, TypeTables, TypesMemory, UnionReduction,
 };
 pub use tsc_diagnostics::{JsStr, JsString};
 pub use ty::{

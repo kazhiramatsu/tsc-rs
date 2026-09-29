@@ -153,6 +153,36 @@ impl EnumRelationOutcome {
 }
 
 impl RelationCaches {
+    /// Entries and bytes of the five relation caches and the enum-relation
+    /// cache (memory accounting).
+    pub(crate) fn memory_usage(&self) -> (usize, usize) {
+        let mut entries = self.enum_relation.len();
+        let mut bytes = self.enum_relation.capacity()
+            * (std::mem::size_of::<(String, RelationComparisonResult)>() + 1)
+            * 8
+            / 7
+            + self
+                .enum_relation
+                .keys()
+                .map(String::capacity)
+                .sum::<usize>();
+        for cache in &self.per_relation {
+            entries += cache.len();
+            bytes += cache.capacity()
+                * (std::mem::size_of::<(RelationKey, RelationComparisonResult)>() + 1)
+                * 8
+                / 7;
+            bytes += cache
+                .keys()
+                .map(|key| match key {
+                    RelationKey::Generic(text) => text.len(),
+                    RelationKey::Pair { .. } => 0,
+                })
+                .sum::<usize>();
+        }
+        (entries, bytes)
+    }
+
     /// tsrs-native: Rust fixed-array accessor for tsc's separate
     /// relation cache objects.
     pub fn cache(&self, relation: RelationKind) -> &RelationCache {

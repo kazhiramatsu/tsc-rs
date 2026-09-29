@@ -64,6 +64,11 @@ pub struct TemplateText {
 }
 
 impl TemplateText {
+    /// Bytes this text owns on the heap, for memory accounting.
+    pub fn heap_bytes(&self) -> usize {
+        self.units.capacity() * std::mem::size_of::<u16>()
+    }
+
     pub fn from_utf8(text: &str) -> Self {
         Self {
             units: text.encode_utf16().collect(),

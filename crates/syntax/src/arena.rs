@@ -295,7 +295,74 @@ fn relocate_raw(
     Ok(())
 }
 
+/// What a set of parsed trees allocates, by structure (memory accounting).
+#[derive(Clone, Debug, Default)]
+pub struct SyntaxMemory {
+    pub nodes: usize,
+    pub node_bytes: usize,
+    pub arrays: usize,
+    pub array_bytes: usize,
+    pub array_items: usize,
+    pub array_item_bytes: usize,
+    pub identifiers: usize,
+    /// Identifiers whose escaped text equals their text.
+    pub identifiers_same_text: usize,
+    pub identifier_text_bytes: usize,
+    pub string_nodes: usize,
+    pub string_bytes: usize,
+    /// Node counts by kind.
+    pub kinds: std::collections::HashMap<SyntaxKind, usize>,
+}
+
 impl NodeArena {
+    /// Add this arena's allocations to `usage`.
+    pub fn add_memory_usage(&self, usage: &mut SyntaxMemory) {
+        usage.nodes += self.nodes.len();
+        usage.node_bytes += self.nodes.capacity() * std::mem::size_of::<Node>();
+        usage.arrays += self.arrays.len();
+        usage.array_bytes += self.arrays.capacity() * std::mem::size_of::<NodeArray>();
+        for array in &self.arrays {
+            usage.array_items += array.nodes.len();
+            usage.array_item_bytes += array.nodes.capacity() * std::mem::size_of::<NodeId>();
+        }
+        for node in &self.nodes {
+            *usage.kinds.entry(node.kind).or_default() += 1;
+            let mut string = |bytes: usize| {
+                usage.string_nodes += 1;
+                usage.string_bytes += bytes;
+            };
+            match &node.data {
+                NodeData::Identifier(data) => {
+                    usage.identifiers += 1;
+                    usage.identifiers_same_text += usize::from(data.escaped_text == data.text);
+                    usage.identifier_text_bytes +=
+                        data.escaped_text.capacity() + data.text.capacity();
+                }
+                NodeData::PrivateIdentifier(data) => {
+                    string(data.escaped_text.capacity() + data.text.capacity())
+                }
+                NodeData::StringLiteral(data) => string(data.text.heap_bytes()),
+                NodeData::NumericLiteral(data) => string(data.text.capacity()),
+                NodeData::BigIntLiteral(data) => string(data.text.capacity()),
+                NodeData::RegularExpressionLiteral(data) => string(data.text.capacity()),
+                NodeData::JsxText(data) => string(data.text.capacity()),
+                NodeData::JSDocText(data) => string(data.text.capacity()),
+                NodeData::NoSubstitutionTemplateLiteral(data) => string(
+                    data.text.heap_bytes() + data.raw_text.as_ref().map_or(0, String::capacity),
+                ),
+                NodeData::TemplateHead(data) => string(
+                    data.text.heap_bytes() + data.raw_text.as_ref().map_or(0, String::capacity),
+                ),
+                NodeData::TemplateMiddle(data) => string(
+                    data.text.heap_bytes() + data.raw_text.as_ref().map_or(0, String::capacity),
+                ),
+                NodeData::TemplateTail(data) => string(
+                    data.text.heap_bytes() + data.raw_text.as_ref().map_or(0, String::capacity),
+                ),
+                _ => {}
+            }
+        }
+    }
     pub fn new() -> Self {
         Self::default()
     }

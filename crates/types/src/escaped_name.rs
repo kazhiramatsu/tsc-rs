@@ -14,6 +14,12 @@ use tsc_diagnostics::{JsStr, JsString};
 pub struct EscapedName(JsString);
 
 impl EscapedName {
+    /// Bytes this name owns on the heap (zero while inline), for memory
+    /// accounting.
+    pub fn heap_bytes(&self) -> usize {
+        self.0.heap_bytes()
+    }
+
     /// tsc escapeLeadingUnderscores (_tsc.js:11438).
     pub fn escape(raw: JsStr<'_>) -> Self {
         if raw.starts_with("__") {

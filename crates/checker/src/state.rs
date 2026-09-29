@@ -1059,6 +1059,161 @@ pub struct CheckerState<'a> {
 }
 
 impl<'a> CheckerState<'a> {
+    /// With `TSRS_MEMORY_REPORT` set, print what this checker allocates, by
+    /// structure, to stderr under `label`.
+    pub(crate) fn report_memory(&self, label: &str) {
+        if std::env::var_os("TSRS_MEMORY_REPORT").is_none() {
+            return;
+        }
+        fn map_bytes<K, V>(map: &rustc_hash::FxHashMap<K, V>) -> usize {
+            map.capacity() * (std::mem::size_of::<(K, V)>() + 1) * 8 / 7
+        }
+        let mut rows: Vec<(&str, usize, usize)> = Vec::new();
+        let types = self.tables.memory_usage();
+        rows.push(("types (Type)", types.types, types.type_bytes));
+        rows.push((
+            "type-owned lists and texts",
+            types.types,
+            types.type_heap_bytes,
+        ));
+        rows.push((
+            "string literal maps (2 keys)",
+            types.string_literals,
+            types.string_literal_map_bytes,
+        ));
+        rows.push(("type list map", types.type_lists, types.type_list_map_bytes));
+        rows.push((
+            "list-id string maps",
+            types.string_keyed_entries,
+            types.string_keyed_bytes,
+        ));
+        rows.push((
+            "instantiation/other type maps",
+            types.instantiations,
+            types.other_map_bytes,
+        ));
+        rows.extend(self.links.memory_usage());
+        let mut tables = rustc_hash::FxHashMap::default();
+        let (symbols, symbol_bytes, owned) = self.binder.transient_memory_usage(&mut tables);
+        rows.push(("transient symbols (Symbol)", symbols, symbol_bytes));
+        rows.push((
+            "transient names/decls/tables",
+            symbols,
+            owned + tables.values().sum::<usize>(),
+        ));
+        let signature_heap: usize = self
+            .signatures
+            .iter()
+            .map(|signature| {
+                signature
+                    .type_parameters
+                    .as_ref()
+                    .map_or(0, |list| list.capacity() * 4)
+                    + signature.parameters.capacity() * 4
+                    + map_bytes(&signature.instantiations)
+                    + signature
+                        .instantiations
+                        .keys()
+                        .map(String::capacity)
+                        .sum::<usize>()
+                    + signature
+                        .composite_signatures
+                        .as_ref()
+                        .map_or(0, |list| list.capacity() * 4)
+            })
+            .sum();
+        rows.push((
+            "signatures (Signature)",
+            self.signatures.len(),
+            self.signatures.capacity() * std::mem::size_of::<Signature>() + signature_heap,
+        ));
+        let mut member_tables = rustc_hash::FxHashMap::default();
+        let members_heap: usize = self
+            .members
+            .iter()
+            .map(|members| {
+                member_tables
+                    .entry(std::sync::Arc::as_ptr(&members.members))
+                    .or_insert_with(|| members.members.heap_bytes());
+                members.properties.capacity() * 4
+                    + members.call_signatures.capacity() * 4
+                    + members.construct_signatures.capacity() * 4
+                    + members.index_infos.capacity() * std::mem::size_of::<IndexInfo>()
+            })
+            .sum();
+        rows.push((
+            "resolved members",
+            self.members.len(),
+            self.members.capacity() * std::mem::size_of::<ResolvedMembers>()
+                + members_heap
+                + member_tables.values().sum::<usize>(),
+        ));
+        rows.push((
+            "type mappers",
+            self.mappers.len(),
+            self.mappers.capacity() * std::mem::size_of::<crate::instantiate::TypeMapper>(),
+        ));
+        let (relations, relation_bytes) = self.relations.memory_usage();
+        rows.push(("relation caches", relations, relation_bytes));
+        rows.push((
+            "subtype reduction cache",
+            self.subtype_reduction_cache.len(),
+            map_bytes(&self.subtype_reduction_cache)
+                + self
+                    .subtype_reduction_cache
+                    .iter()
+                    .map(|(key, list)| key.capacity() + list.capacity() * 4)
+                    .sum::<usize>(),
+        ));
+        rows.push((
+            "cached/error types, unresolved",
+            self.cached_types.len() + self.error_types.len() + self.unresolved_symbols.len(),
+            map_bytes(&self.cached_types)
+                + self
+                    .cached_types
+                    .keys()
+                    .map(String::capacity)
+                    .sum::<usize>()
+                + map_bytes(&self.error_types)
+                + self.error_types.keys().map(String::capacity).sum::<usize>()
+                + map_bytes(&self.unresolved_symbols)
+                + self
+                    .unresolved_symbols
+                    .keys()
+                    .map(String::capacity)
+                    .sum::<usize>(),
+        ));
+        rows.push((
+            "flow caches",
+            self.flow_loop_caches.len() + self.flow_node_reachable.len(),
+            map_bytes(&self.flow_loop_caches)
+                + self.flow_loop_caches.values().map(map_bytes).sum::<usize>()
+                + map_bytes(&self.flow_node_reachable)
+                + map_bytes(&self.flow_node_post_super),
+        ));
+        rows.push((
+            "inference arenas",
+            self.inference_context_arena.len() + self.inference_info_arena.len(),
+            self.inference_context_arena.capacity()
+                * std::mem::size_of::<crate::inference::InferenceContext>()
+                + self.inference_info_arena.capacity()
+                    * std::mem::size_of::<crate::inference::InferenceInfo>(),
+        ));
+        let total: usize = rows.iter().map(|row| row.2).sum();
+        for (name, count, bytes) in rows {
+            eprintln!(
+                "[memory] {label} {name:<32} {count:>11} {:>10.1} MiB",
+                bytes as f64 / (1024.0 * 1024.0)
+            );
+        }
+        eprintln!(
+            "[memory] {label} {:<32} {:>11} {:>10.1} MiB",
+            "checker total (accounted)",
+            "",
+            total as f64 / (1024.0 * 1024.0)
+        );
+    }
+
     /// Single-file construction for the relation probe and unit tests.
     /// `source` must be the binder's file.
     /// tsrs-native: single-file test/probe adapter around the Rust

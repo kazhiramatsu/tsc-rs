@@ -46,6 +46,21 @@ pub struct FlowArena {
 }
 
 impl FlowArena {
+    /// Flow node count and the bytes the arena and its antecedent lists
+    /// own on the heap, for memory accounting.
+    pub fn memory_usage(&self) -> (usize, usize, usize) {
+        let antecedents = self
+            .nodes
+            .iter()
+            .map(|node| node.antecedent.capacity() * std::mem::size_of::<FlowId>())
+            .sum();
+        (
+            self.nodes.len(),
+            self.nodes.capacity() * std::mem::size_of::<FlowNode>(),
+            antecedents,
+        )
+    }
+
     /// tsc-port: createFlowNode @6.0.3
     /// tsc-hash: 50f4e5850330909e853e82825ef01ab9cb1bcd9bdd13b31469b77b8127094539
     /// tsc-span: _tsc.js:42404-42406

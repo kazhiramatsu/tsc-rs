@@ -24,6 +24,26 @@ fn prefer_interactive_scheduling() {
     }
 }
 
+/// The process memory `TSRS_PHASE_TRACE` prints, from mimalloc's accounting.
+fn memory_sample() -> tsc_types::trace::MemorySample {
+    let (mut elapsed, mut user, mut system, mut faults) = (0, 0, 0, 0);
+    let mut sample = tsc_types::trace::MemorySample::default();
+    // SAFETY: mi_process_info only writes the eight counters it is given.
+    unsafe {
+        libmimalloc_sys::mi_process_info(
+            &mut elapsed,
+            &mut user,
+            &mut system,
+            &mut sample.resident,
+            &mut sample.peak_resident,
+            &mut sample.committed,
+            &mut sample.peak_committed,
+            &mut faults,
+        );
+    }
+    sample
+}
+
 fn main() {
     // A one-shot compile frees large arenas only at the end; returning their
     // pages to the OS while still running cost ~5 % of the sampled ticks in
@@ -31,6 +51,7 @@ fn main() {
     // SAFETY: mi_option_set only writes a process-global option value and
     // has no other preconditions.
     unsafe { libmimalloc_sys::mi_option_set(MI_OPTION_PURGE_DELAY, -1) };
+    tsc_types::trace::set_memory_probe(memory_sample);
     // Every worker thread and checker shard starts with the same request;
     // the main thread reads, coordinates and runs the first shard itself.
     tsc_program::set_thread_start_hook(prefer_interactive_scheduling);

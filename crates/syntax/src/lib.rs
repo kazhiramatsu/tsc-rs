@@ -24,7 +24,7 @@ use tsc_types::{
     ScriptTarget,
 };
 
-pub use arena::NodeArena;
+pub use arena::{NodeArena, SyntaxMemory};
 pub use for_each_child::{
     apply_child_slots, child_slots, for_each_child, for_each_child_array, map_child_slots,
     try_visit_each_child, ChildSlot, ChildSlots, NodeDataChildVisitor, NodeLookup, MAX_CHILD_SLOTS,

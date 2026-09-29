@@ -1153,6 +1153,15 @@ fn validate_identity_domains(entries: &[ProgramEntry<'_>]) -> Result<(), Program
 }
 
 impl<'a> ProgramBinder<'a> {
+    /// The checker-created symbols (memory accounting); see
+    /// [`SymbolArena::memory_usage`].
+    pub(crate) fn transient_memory_usage(
+        &self,
+        tables: &mut rustc_hash::FxHashMap<*const SymbolTable, usize>,
+    ) -> (usize, usize, usize) {
+        self.transient.memory_usage(tables)
+    }
+
     /// tsrs-native: constructs the multi-file arena routing tables; tsc
     /// nodes and symbols are direct JavaScript references.
     pub fn new(file_binders: Vec<&'a Binder<'a>>) -> Self {

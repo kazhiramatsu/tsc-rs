@@ -220,7 +220,118 @@ pub fn push_decimal(result: &mut String, value: u32) {
     result.push_str(std::str::from_utf8(&digits[index..]).expect("decimal digits are ASCII"));
 }
 
+/// What a checker's type tables allocate, by structure (memory accounting).
+#[derive(Clone, Debug, Default)]
+pub struct TypesMemory {
+    pub types: usize,
+    pub type_bytes: usize,
+    /// Type lists, texts and payloads the type records own on the heap.
+    pub type_heap_bytes: usize,
+    pub string_literals: usize,
+    /// Both string-literal interning maps (UTF-16 and UTF-8 keys).
+    pub string_literal_map_bytes: usize,
+    pub type_lists: usize,
+    pub type_list_map_bytes: usize,
+    /// Union, intersection, tuple, template literal and indexed-access maps
+    /// keyed by list-id strings.
+    pub string_keyed_entries: usize,
+    pub string_keyed_bytes: usize,
+    pub instantiations: usize,
+    pub other_map_bytes: usize,
+}
+
+fn map_bytes<K, V>(map: &HashMap<K, V>) -> usize {
+    map.capacity() * (std::mem::size_of::<(K, V)>() + 1) * 8 / 7
+}
+
+fn list_bytes(list: &[TypeId]) -> usize {
+    std::mem::size_of_val(list)
+}
+
 impl TypeTables {
+    /// This checker's type tables by structure.
+    pub fn memory_usage(&self) -> TypesMemory {
+        let mut usage = TypesMemory {
+            types: self.types.len(),
+            type_bytes: self.types.capacity() * std::mem::size_of::<Type>(),
+            ..TypesMemory::default()
+        };
+        for ty in &self.types {
+            usage.type_heap_bytes += ty.alias_type_arguments.as_deref().map_or(0, list_bytes);
+            usage.type_heap_bytes += match &ty.data {
+                TypeData::Literal {
+                    value: LiteralValue::String(text),
+                } => text.heap_bytes(),
+                TypeData::Literal {
+                    value: LiteralValue::BigInt(value),
+                } => value.base10_value.capacity(),
+                TypeData::UniqueESSymbol { escaped_name } => escaped_name.heap_bytes(),
+                TypeData::Union { types, .. } | TypeData::Intersection { types } => {
+                    list_bytes(types)
+                }
+                TypeData::Reference {
+                    resolved_type_arguments,
+                    ..
+                } => resolved_type_arguments.as_deref().map_or(0, list_bytes),
+                TypeData::TupleTarget(data) => {
+                    std::mem::size_of::<TupleTargetData>()
+                        + list_bytes(&data.type_parameters)
+                        + std::mem::size_of_val(&*data.element_flags)
+                }
+                TypeData::TemplateLiteral { texts, types } => {
+                    texts.iter().map(TemplateText::heap_bytes).sum::<usize>()
+                        + std::mem::size_of_val(&**texts)
+                        + list_bytes(types)
+                }
+                TypeData::GenericType {
+                    type_parameters, ..
+                } => list_bytes(type_parameters),
+                _ => 0,
+            };
+        }
+        usage.string_literals = self.string_literal_types.len();
+        usage.string_literal_map_bytes = map_bytes(&self.string_literal_types)
+            + self
+                .string_literal_types
+                .keys()
+                .map(TemplateText::heap_bytes)
+                .sum::<usize>()
+            + map_bytes(&self.utf8_string_literal_types)
+            + self
+                .utf8_string_literal_types
+                .keys()
+                .map(Vec::capacity)
+                .sum::<usize>();
+        usage.type_lists = self.type_lists.len();
+        usage.type_list_map_bytes = map_bytes(&self.type_lists)
+            + self
+                .type_lists
+                .keys()
+                .map(|list| list_bytes(list))
+                .sum::<usize>();
+        for map in [
+            &self.union_types,
+            &self.union_of_union_types,
+            &self.intersection_types,
+            &self.tuple_types,
+            &self.template_literal_types,
+            &self.indexed_access_types,
+        ] {
+            usage.string_keyed_entries += map.len();
+            usage.string_keyed_bytes +=
+                map_bytes(map) + map.keys().map(String::capacity).sum::<usize>();
+        }
+        usage.instantiations = self.instantiations.len();
+        usage.other_map_bytes = map_bytes(&self.number_literal_types)
+            + map_bytes(&self.bigint_literal_types)
+            + map_bytes(&self.enum_literal_types)
+            + map_bytes(&self.string_mapping_types)
+            + map_bytes(&self.substitution_types)
+            + map_bytes(&self.instantiations)
+            + self.conditional_roots.capacity() * std::mem::size_of::<ConditionalRootData>();
+        usage
+    }
+
     pub fn new(strict_null_checks: bool, exact_optional_property_types: bool) -> Self {
         let mut tables = Self {
             types: Vec::new(),
