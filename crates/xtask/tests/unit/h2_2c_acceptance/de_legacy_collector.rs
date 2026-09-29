@@ -104,21 +104,11 @@ type RawResult = Result<(EmitOutcome, Vec<Diagnostic>), DriverError>;
 
 fn observation(expected: &Value, result: &RawResult, sink: &MemoryOutputSink) -> Value {
     let mut record = json!({"writes":writes(sink),"write_count":sink.writes().len(),
-        "activity":null,"emit_result":null,"reported_diagnostics":null,
+        "emit_result":null,"reported_diagnostics":null,
         "old_comparison":null,"comparison_error":null,"old_command_projection":null});
     match result {
         Ok((outcome, reported)) => {
             record["result_kind"] = json!("success");
-            let counters = outcome.h2_activity();
-            record["activity"] = json!({
-                "B":counters.runtime_slice(H2RuntimeSlice::H2_7b),
-                "C":counters.runtime_slice(H2RuntimeSlice::H2_7c),
-                "D":counters.runtime_slice(H2RuntimeSlice::H2_7d),
-                "E":counters.runtime_slice(H2RuntimeSlice::H2_7e),
-                "all_slices":H2RuntimeSlice::ALL.into_iter().map(|slice|
-                    (slice.name().to_owned(),counters.runtime_slice(slice))).collect::<BTreeMap<_,_>>(),
-                "all_counters_debug":format!("{counters:?}")
-            });
             record["emit_result"] = json!({"emit_skipped":outcome.emit_skipped(),
                 "diagnostics":diagnostics(outcome.diagnostics()),
                 "emitted_files":emitted_files_value(outcome.emitted_files()),

@@ -9,8 +9,8 @@ use base64::Engine;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use tsc_compiler::{
-    EmitArtifact, EmitFailure, EmitIoError, EmitWriteDisposition, H2RuntimeSlice, MemoryOutputSink,
-    OutputSink, ProgramSession,
+    EmitArtifact, EmitFailure, EmitIoError, EmitWriteDisposition, MemoryOutputSink, OutputSink,
+    ProgramSession,
 };
 use tsc_diagnostics::{Diagnostic, DiagnosticCategory, MessageChain};
 use tsc_harness::upstream_suites::execution::load_qualified_compiler_emit;
@@ -77,7 +77,6 @@ struct CurrentExactSourcePromotion {
     case_id: &'static str,
     case_fingerprint_sha256: &'static str,
     required_slice: &'static str,
-    expected_extra_activity: &'static [(H2RuntimeSlice, u64)],
 }
 
 static CURRENT_EXACT_SOURCE_PROMOTIONS: &[CurrentExactSourcePromotion] = &[
@@ -87,19 +86,16 @@ static CURRENT_EXACT_SOURCE_PROMOTIONS: &[CurrentExactSourcePromotion] = &[
         case_id: "typescript-6.0.3/conformance/classes/members/privateNames/privateNameInInExpressionTransform.ts#target%3Desnext",
         case_fingerprint_sha256: "27799d7a310107bd3d668ea19c3e931e76a2455e1c1f1f5762b7a59c0ce45d56",
         required_slice: "H2.9",
-        expected_extra_activity: &[],
     },
     CurrentExactSourcePromotion {
         case_id: "typescript-6.0.3/conformance/scanner/ecmascript5/scannerUnicodeEscapeInKeyword2.ts#default",
         case_fingerprint_sha256: "20387b00aaf32583c354f03d6ff35e5d9007fe037d6db963fd21a525f9cdafc4",
         required_slice: "H2.9",
-        expected_extra_activity: &[],
     },
     CurrentExactSourcePromotion {
         case_id: "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarations.4.ts#default",
         case_fingerprint_sha256: "02a027145440c0a66ef62760ad419c818eda42a4e32a55a4e25c35b2696b1aea",
         required_slice: "H2.9",
-        expected_extra_activity: &[],
     },
     // The text-based comment preflight was removed. These rows must now
     // match their frozen complete observations, including all diagnostics.
@@ -107,19 +103,16 @@ static CURRENT_EXACT_SOURCE_PROMOTIONS: &[CurrentExactSourcePromotion] = &[
         case_id: "typescript-6.0.3/conformance/classes/members/privateNames/privateNameInInExpression.ts#target%3Desnext",
         case_fingerprint_sha256: "ed4b13ea9f6d38a3c9e4bd51cb798eeb002b222e29f52e7eff2b79421930d0fe",
         required_slice: "H2.8a",
-        expected_extra_activity: &[],
     },
     CurrentExactSourcePromotion {
         case_id: "typescript-6.0.3/conformance/expressions/optionalChaining/optionalChainingInTypeAssertions.ts#target%3Desnext",
         case_fingerprint_sha256: "f3f15ca6f7ba664e4cfdd9e21fc4097069883d87690916cace093d7fd9ec950e",
         required_slice: "H2.8a",
-        expected_extra_activity: &[],
     },
     CurrentExactSourcePromotion {
         case_id: "typescript-6.0.3/compiler/commentsAfterSpread.ts#default",
         case_fingerprint_sha256: "3f5e9e8bd16bab126774402dea7896f6391aaa67bb4f1952b48811ac3ca1f879",
         required_slice: "H2.8a",
-        expected_extra_activity: &[],
     },
     // Literal-only recovery now emits this historical H2.9 refusal. Compare
     // its original output and all three TS1125 diagnostics twice.
@@ -127,15 +120,12 @@ static CURRENT_EXACT_SOURCE_PROMOTIONS: &[CurrentExactSourcePromotion] = &[
         case_id: "typescript-6.0.3/conformance/es2018/invalidTaggedTemplateEscapeSequences.ts#target%3Desnext",
         case_fingerprint_sha256: "fb4e084b24b8ab291c29e50a94b555fe1db39d802b301ee58c80a6d740794eb0",
         required_slice: "H2.9",
-        expected_extra_activity: &[],
     },
     // Both parsers attach each decorator to its using VariableStatement.
-    // Class-fields routing therefore records H2.4b once for this source.
     CurrentExactSourcePromotion {
         case_id: "typescript-6.0.3/conformance/decorators/invalid/decoratorOnUsing.ts#default",
         case_fingerprint_sha256: "4437e98b97ba1e53501aaba0efb82063f099d2549da4be233e3edf623031beff",
         required_slice: "H2.9",
-        expected_extra_activity: &[(H2RuntimeSlice::H2_4b, 1)],
     },
 ];
 
@@ -475,7 +465,6 @@ fn execute_observed(
     }
     let expected = &array(case, "typescript_runs")?[0];
     let expected_reported = array(expected, "reported_diagnostics")?;
-    let mut source_promotion = None;
     match diagnostic_expectation {
         DiagnosticExpectation::Exact => {
             if case["diagnostic_disposition"]["state"] != "exact-required" {
@@ -502,9 +491,11 @@ fn execute_observed(
             assert_reported_diagnostics(case_id, expected_reported, &first_reported)?;
         }
         DiagnosticExpectation::CurrentExactSourcePromotion => {
-            source_promotion = Some(current_exact_source_promotion(case)?.ok_or_else(|| {
-                failure(format!("{case_id}: exact source promotion is not recorded"))
-            })?);
+            if current_exact_source_promotion(case)?.is_none() {
+                return Err(failure(format!(
+                    "{case_id}: exact source promotion is not recorded"
+                )));
+            }
             assert_reported_diagnostics(case_id, expected_reported, &first_reported)?;
         }
     }
@@ -534,41 +525,6 @@ fn execute_observed(
         )));
     }
     assert_exact_writes(case_id, array(expected, "writes")?, &first_sink)?;
-    let activity = first.h2_activity();
-    let reached_sources = case["files"]
-        .as_array()
-        .map(|files| {
-            files
-                .iter()
-                .filter(|file| file["emit_eligible"] == true)
-                .count() as u64
-        })
-        .unwrap_or(0);
-    if activity.runtime_slice(H2RuntimeSlice::H2_1a) != reached_sources {
-        return Err(failure(format!(
-            "{case_id}: H2.1a activity does not match {reached_sources} reached sources"
-        )));
-    }
-    for slice in H2RuntimeSlice::ALL {
-        if slice == H2RuntimeSlice::H2_1a {
-            continue;
-        }
-        let expected = source_promotion
-            .and_then(|promotion| {
-                promotion
-                    .expected_extra_activity
-                    .iter()
-                    .find_map(|&(owner, count)| (owner == slice).then_some(count))
-            })
-            .unwrap_or(0);
-        let observed = activity.runtime_slice(slice);
-        if observed != expected {
-            return Err(failure(format!(
-                "{case_id}: {} activity {observed} differs from expected {expected}",
-                slice.name()
-            )));
-        }
-    }
     Ok((
         first_sink.writes().len(),
         usize::from(exact_diagnostics) * first_reported.len(),

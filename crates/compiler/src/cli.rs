@@ -35,11 +35,7 @@ use tsc_program::{
     ProgramOptions, WorkerBudget,
 };
 
-use crate::no_emit_canary::NoEmitCanary;
-use crate::{
-    CheckerBudget, EmitFileSystem, FsOutputSink, H2ActivityCounters, NoEmitActivityCounters,
-    NoEmitWorkCounters, ProgramSession,
-};
+use crate::{CheckerBudget, EmitFileSystem, FsOutputSink, NoEmitWorkCounters, ProgramSession};
 
 mod embedded_libraries {
     include!(concat!(env!("OUT_DIR"), "/typescript_6_0_3_libraries.rs"));
@@ -116,8 +112,6 @@ pub struct CliOutput {
     stderr: String,
     exit_code: i32,
     work_counters: NoEmitWorkCounters,
-    no_emit_activity: NoEmitActivityCounters,
-    h2_activity: H2ActivityCounters,
 }
 
 impl CliOutput {
@@ -139,17 +133,6 @@ impl CliOutput {
     pub const fn work_counters(&self) -> NoEmitWorkCounters {
         self.work_counters
     }
-
-    /// H1 constructor/output-write observations for this CLI execution.
-    pub const fn no_emit_activity(&self) -> NoEmitActivityCounters {
-        self.no_emit_activity
-    }
-
-    /// H1 positive wiring counts plus one zero-until-admitted counter for
-    /// every H2 runtime slice.
-    pub const fn h2_activity(&self) -> H2ActivityCounters {
-        self.h2_activity
-    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -164,7 +147,6 @@ enum CliError {
 
 struct CliRoute<'a> {
     pretty: bool,
-    canary: &'a mut NoEmitCanary,
     output_filesystem: &'a mut dyn EmitFileSystem,
 }
 
@@ -530,9 +512,8 @@ pub fn run_cli(args: &[String]) -> CliOutput {
     // (ParseForTypeErrors, _tsc.js:132784, 132867): TS/TSX comments only
     // when they contain @see or @link, JS/JSX comments always.
     tsc_program::set_default_js_doc_parsing_mode(crate::JSDocParsingMode::ParseForTypeErrors);
-    let mut no_emit_canary = NoEmitCanary::new();
     let execute_started = std::time::Instant::now();
-    let result = execute(args, &mut no_emit_canary);
+    let result = execute(args);
     tsc_types::trace::mark("cli: execute", execute_started);
     // Measurement builds only (`perf-counters` feature): aggregate counters
     // are written to the sidecar file named by TSRS_PERF_COUNTERS (one
@@ -560,13 +541,11 @@ pub fn run_cli(args: &[String]) -> CliOutput {
             stderr: format!("tsc-rs: {error}\n"),
             exit_code: EXIT_FAILURE,
             work_counters: NoEmitWorkCounters::default(),
-            no_emit_activity: NoEmitActivityCounters,
-            h2_activity: H2ActivityCounters::default(),
         },
     }
 }
 
-fn execute(args: &[String], no_emit_canary: &mut NoEmitCanary) -> Result<CliOutput, CliError> {
+fn execute(args: &[String]) -> Result<CliOutput, CliError> {
     let prologue_started = std::time::Instant::now();
     let command_line = parse_arguments(args)?;
     if args.iter().any(|arg| arg == "--version") {
@@ -575,8 +554,6 @@ fn execute(args: &[String], no_emit_canary: &mut NoEmitCanary) -> Result<CliOutp
             stderr: String::new(),
             exit_code: EXIT_SUCCESS,
             work_counters: NoEmitWorkCounters::default(),
-            no_emit_activity: NoEmitActivityCounters,
-            h2_activity: H2ActivityCounters::default(),
         });
     }
 
@@ -585,7 +562,6 @@ fn execute(args: &[String], no_emit_canary: &mut NoEmitCanary) -> Result<CliOutp
     let mut output_filesystem = NativeEmitFileSystem;
     let mut route = CliRoute {
         pretty,
-        canary: no_emit_canary,
         output_filesystem: &mut output_filesystem,
     };
     let current_directory = filesystem.current_directory().map_err(host_error)?;
@@ -1145,12 +1121,7 @@ fn execute_prepared(
         .with_worker_budget(cli_worker_budget())
         .with_checker_budget(cli_checker_budget())
         .with_leaked_program(true)
-        .run_with_no_emit_canary(
-            false,
-            tsc_checker::LibraryPrefixCompletion::Complete,
-            true,
-            route.canary,
-        )
+        .run_no_emit_pass(false, tsc_checker::LibraryPrefixCompletion::Complete, true)
         .map_err(|error| CliError::Driver(error.to_string()))?;
     tsc_types::trace::mark("check session", session_started);
     tsc_checker::line_profile::write_report();
@@ -1179,7 +1150,6 @@ fn execute_prepared(
         diagnostics.extend(outcome.declaration_diagnostics().iter().cloned());
     }
     let work_counters = outcome.work_counters();
-    let no_emit_activity = outcome.no_emit_activity();
     let render_started = std::time::Instant::now();
     let rendered = rendered_diagnostics_with_work(
         current_directory,
@@ -1187,7 +1157,6 @@ fn execute_prepared(
         &diagnostics,
         route.pretty,
         work_counters,
-        no_emit_activity,
     );
     tsc_types::trace::mark("cli: render diagnostics", render_started);
     rendered
@@ -1266,15 +1235,13 @@ fn execute_emitting_prepared(
         &emit,
         &diagnostics,
     );
-    rendered_diagnostics_with_exit_work_status_and_h2(
+    rendered_diagnostics_with_exit_work_and_status(
         current_directory,
         &source_texts,
         &diagnostics,
         route.pretty,
         exit_code,
         work_counters,
-        NoEmitActivityCounters,
-        emit.h2_activity(),
         &status_writes,
     )
 }
@@ -1291,7 +1258,6 @@ fn rendered_diagnostics(
         diagnostics,
         pretty,
         NoEmitWorkCounters::default(),
-        NoEmitActivityCounters,
     )
 }
 
@@ -1301,7 +1267,6 @@ fn rendered_diagnostics_with_work(
     diagnostics: &[Diagnostic],
     pretty: bool,
     work_counters: NoEmitWorkCounters,
-    no_emit_activity: NoEmitActivityCounters,
 ) -> Result<CliOutput, CliError> {
     rendered_diagnostics_with_exit_and_work(
         current_directory,
@@ -1310,7 +1275,6 @@ fn rendered_diagnostics_with_work(
         pretty,
         EXIT_DIAGNOSTIC,
         work_counters,
-        no_emit_activity,
     )
 }
 
@@ -1328,7 +1292,6 @@ fn rendered_diagnostics_with_exit(
         pretty,
         exit_code,
         NoEmitWorkCounters::default(),
-        NoEmitActivityCounters,
     )
 }
 
@@ -1339,7 +1302,6 @@ fn rendered_diagnostics_with_exit_and_work(
     pretty: bool,
     exit_code: i32,
     work_counters: NoEmitWorkCounters,
-    no_emit_activity: NoEmitActivityCounters,
 ) -> Result<CliOutput, CliError> {
     rendered_diagnostics_with_exit_work_and_status(
         current_directory,
@@ -1348,7 +1310,6 @@ fn rendered_diagnostics_with_exit_and_work(
         pretty,
         exit_code,
         work_counters,
-        no_emit_activity,
         &[],
     )
 }
@@ -1361,32 +1322,6 @@ fn rendered_diagnostics_with_exit_work_and_status(
     pretty: bool,
     exit_code: i32,
     work_counters: NoEmitWorkCounters,
-    no_emit_activity: NoEmitActivityCounters,
-    status_writes: &[JsString],
-) -> Result<CliOutput, CliError> {
-    rendered_diagnostics_with_exit_work_status_and_h2(
-        current_directory,
-        source_texts,
-        diagnostics,
-        pretty,
-        exit_code,
-        work_counters,
-        no_emit_activity,
-        H2ActivityCounters::default(),
-        status_writes,
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
-fn rendered_diagnostics_with_exit_work_status_and_h2(
-    current_directory: &Path,
-    source_texts: &DiagnosticSourceMap,
-    diagnostics: &[Diagnostic],
-    pretty: bool,
-    exit_code: i32,
-    work_counters: NoEmitWorkCounters,
-    no_emit_activity: NoEmitActivityCounters,
-    h2_activity: H2ActivityCounters,
     status_writes: &[JsString],
 ) -> Result<CliOutput, CliError> {
     if diagnostics.is_empty() && status_writes.is_empty() {
@@ -1395,8 +1330,6 @@ fn rendered_diagnostics_with_exit_work_status_and_h2(
             stderr: String::new(),
             exit_code: EXIT_SUCCESS,
             work_counters,
-            no_emit_activity,
-            h2_activity,
         });
     }
     if diagnostics.is_empty() {
@@ -1407,8 +1340,6 @@ fn rendered_diagnostics_with_exit_work_status_and_h2(
             stderr: String::new(),
             exit_code: EXIT_SUCCESS,
             work_counters,
-            no_emit_activity,
-            h2_activity,
         });
     }
     let current_directory = current_directory
@@ -1439,8 +1370,6 @@ fn rendered_diagnostics_with_exit_work_status_and_h2(
         stderr: String::new(),
         exit_code,
         work_counters,
-        no_emit_activity,
-        h2_activity,
     })
 }
 

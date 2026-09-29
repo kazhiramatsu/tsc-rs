@@ -2747,7 +2747,6 @@ const _: () = {
 /// Produced on the shard's thread by the caller's emit closure.
 pub struct ShardEmission {
     pub units: Vec<tsc_emitter::UnitEmission>,
-    pub counters: tsc_emitter::H2ActivityCounters,
     /// H2.8c evidence: source files whose checkSourceFileWorker body ran in
     /// this shard by the end of its emit.
     pub checked_source_files: u32,

@@ -8,7 +8,6 @@ pub(super) struct Promotion {
     old_input_sha256: &'static str,
     old_expected_tuple_sha256: &'static str,
     old_refused_option: &'static str,
-    pub declaration_members: u64,
 }
 
 // Completed two-run measurement: 88ae0f0db6329e2f124b2e8244cc166f52533760e06b583f6c40f429c2a947b5
@@ -22,7 +21,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "54abf8ed93154599c1e02f2075cc7ab0d8f1ba64e6f04debd44bdd0d065f8f64",
         old_expected_tuple_sha256: "f81a11b2f6047767ad3f7249f9e4253ab71094aa7f1ae9e6927c355864275b26",
         old_refused_option: "isolatedModules",
-        declaration_members: 0,
     },
     Promotion {
         case_id: "typescript-6.0.3/compiler/commonSourceDirectory.ts#default",
@@ -30,7 +28,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "cd87a48440b4126d558bb0c10eb9d47a94cc3f7a18fa84cf2f8e3b3f35cf4b86",
         old_expected_tuple_sha256: "bac1abce2bc6b3a2c4f17b9318cec46e142c2b66d90f8bad7de99da9869058d5",
         old_refused_option: "outDir",
-        declaration_members: 1,
     },
     Promotion {
         case_id: "typescript-6.0.3/compiler/commonSourceDirectory_dts.ts#default",
@@ -38,7 +35,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "cdb3ad9d69ce016e446e9a1970e882ecb60c958eeead3b02d2a1e140dee48d2b",
         old_expected_tuple_sha256: "8c03b2b7f34628ecdd3a938d7e03ab048cf751c5768deb5c70c1a98e9987caba",
         old_refused_option: "outDir",
-        declaration_members: 1,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -46,7 +42,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "b31bdb2df26ce13ecacb0e32d940da8adbcae28261cc4abbafaa84afa9afb484",
         old_expected_tuple_sha256: "f5cf7ae8a76c881b4fad91615d2e7aff3a596de21ddced6f7b5e03f2967fc845",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -54,7 +49,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "905628e11221a6277b058b3e0c10d8c59d89e3cce2cfe0aa447bdc75b0dba6be",
         old_expected_tuple_sha256: "9ba68a5489db929259761aacf5753577c3a6a301a1f9311c2cfb213f84b5854b",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootAbsolutePathModuleMultifolderSpecifyOutputDirectory.json#module%3Damd",
@@ -62,7 +56,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "1c06adbd24484980ad251d9ea91deb843368ca9650d7fe76f6387f8c93810198",
         old_expected_tuple_sha256: "76165c4e7abbf5df210a9ef7855197ea7f07f15cfc7b9b4d7d755d602e376f73",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootAbsolutePathModuleMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -70,7 +63,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "77bd5d108a14f8a466b27b2b110006445812ccbc5a0d6d57796ce6836ce6bd80",
         old_expected_tuple_sha256: "18a0f601fc08139096d9195d6b39f721ea613b0efb761867ea1caf2829687fe3",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootAbsolutePathModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
@@ -78,7 +70,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "a1d717a04c854e18ae6498d751c0f4ec25595afb602e5acafa077b8bd8984db5",
         old_expected_tuple_sha256: "01f2e3ff6629a1d630387e4383024be1b4e1edce5de98a0648569d072eeeae98",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootAbsolutePathModuleSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -86,7 +77,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "e96a02671e01d85048addf4aef738a083c251c8afdb524444cb00988377042ed",
         old_expected_tuple_sha256: "1a468e44eb6da32ec9acf847307a27a9789462c5f341fab03996a5ff28e302b3",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootAbsolutePathModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -94,7 +84,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "263d612736f8f6326fa6871786f3dbd179a9d416e0eefe36e3772d37142d53c3",
         old_expected_tuple_sha256: "c4f05a9aaa149fb1eac2a35c36a7052f4ea62ce83b031d809dce9cb4cf5696de",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootAbsolutePathModuleSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -102,7 +91,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "33371f9737839c2bb02ad577e066c2def19a5502e88253e90d677b1e8266b018",
         old_expected_tuple_sha256: "a597eb106805e23dd70e5244c7c0511bd825a8f668c72ca7451500f6044a705e",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootAbsolutePathMultifolderSpecifyOutputDirectory.json#module%3Damd",
@@ -110,7 +98,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "b91fa3c5f1d463ab50fc6bdddc8ba62527cd1308a3af98ea82d3442a40db8312",
         old_expected_tuple_sha256: "dea8f57da235a89f916a2812bbb54495ec72f2e6ab5497549a66d2ad4317fac6",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootAbsolutePathMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -118,7 +105,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "12d1a7f54bb65f05e342bf78873d3927e11ebbe86b9a5c396fe4f0e934f99d26",
         old_expected_tuple_sha256: "406404e25ad4ea83dcd6e5390af8873658d6a8f4a0e57f30444ebe969826c8db",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootAbsolutePathSimpleSpecifyOutputDirectory.json#module%3Damd",
@@ -126,7 +112,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "7e7a6719d1a20476046b65b5154bfff9bc395df6f6b7d5396496c6e81fc9bd65",
         old_expected_tuple_sha256: "6dcd7c7264b98e94d4c54df540d8e80c916d63d6fbf7c9e2a175bf98cffd44ba",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootAbsolutePathSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -134,7 +119,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "8b11988155f2b05081fc3140877ecf72cb2566976faa67b204edce072291e829",
         old_expected_tuple_sha256: "32e73ef272256975842a784999d01c68215af53811d3a2ce9a505ff71e510792",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootAbsolutePathSingleFileSpecifyOutputDirectory.json#module%3Damd",
@@ -142,7 +126,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "4582def675a3fe4604b21c2a96d50cb7ce1c4bc24323119e047d469166253af6",
         old_expected_tuple_sha256: "0227d0793857bd0ad7969c0d49b6d9b3f89a7080c5bcf9991bbe564092dbbb73",
         old_refused_option: "outDir",
-        declaration_members: 1,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootAbsolutePathSingleFileSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -150,7 +133,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "28d94a735ede88e29d4ef7137aede38a4aebb684e720001fc3d107e1fef0cb46",
         old_expected_tuple_sha256: "84defc8e6ddb3707f55e388b2f778d715f40c42dc9becfb2088b5881a2e97f83",
         old_refused_option: "outDir",
-        declaration_members: 1,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootAbsolutePathSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -158,7 +140,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "dfdab14cff23a45d41111a2b3bc60a40cbf783e3dd44385e6e726f2d54a06cd4",
         old_expected_tuple_sha256: "f62c5fba9e8048c38c7608f0569f068d905fb0e96e4c8c66150aa588b9ac7d3e",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootAbsolutePathSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -166,7 +147,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "e1efb0fd628e538c242b83e99dab06590b148634d50c658eb463969d0a2d87a0",
         old_expected_tuple_sha256: "c0d543c6652d9dad0d59e64fede549039517ef66f4de10b8a962dcec25f228c3",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootRelativePathMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -174,7 +154,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "0841555e1e219c7a52b18f2126890e04679e52573c1fc6840bdfcc15d72b53dd",
         old_expected_tuple_sha256: "a085f7c8002a437f0e6aa81578ff872e6c230519070e089c200aa6451a5a1103",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootRelativePathMixedSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -182,7 +161,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "12749fb39330e8a80ff7df3800d2580b8b72c16aa91c7a5afeda5c7049311214",
         old_expected_tuple_sha256: "6bb5b6d6f30c8a013f384ee9a4fadb77d5c76859a27dc2c32a1d3b6fc6d30f9c",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootRelativePathModuleMultifolderSpecifyOutputDirectory.json#module%3Damd",
@@ -190,7 +168,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "d7d0c887b0bf1e3f30d01f4a5b2c07bb7f1371f57fb5822d4d1ca531db67470b",
         old_expected_tuple_sha256: "f02009ebae5e3a0b5750af701232af1e30cffaa71ea21034dd5e4beabbf7a046",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootRelativePathModuleMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -198,7 +175,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "a896bc436c3158d6130c1fcf6b959820db076fa71159d0f6fa7673b7836aae57",
         old_expected_tuple_sha256: "e8519e8db52ffb3fb434280153511ab0c7ed87e481d9180c507014eb6e5b4a6d",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootRelativePathModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
@@ -206,7 +182,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "911e9004f0686dedc382976df81a7ea3a7cd010e70ab466b68115b5ef50f1923",
         old_expected_tuple_sha256: "266660e69bdcf69336ff52009a2791f43e2900e33a16f4b4dfa2bf7f62a3f894",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootRelativePathModuleSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -214,7 +189,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "aa4635e2910d6bdd95df255d663b15247de3c2ddbad6ae2fc3691717c0a4c668",
         old_expected_tuple_sha256: "6a1b013de6748c2fa692cee8f1265456b0e94e11975af6ad6a74b2589f62af12",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootRelativePathModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -222,7 +196,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "14f8e06b37c4c6e3a5797db3de91a8107621807be23fd09670c563f3eb7ea185",
         old_expected_tuple_sha256: "4c1f5045e8cb7daa9bd38a3e6c3ebb01be26b15dbe8f07c5100d75e44263c6a0",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootRelativePathModuleSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -230,7 +203,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "7856e4a92e5c37908dc7085f6e7df084f57136e3192848d5536a386bc8cee64f",
         old_expected_tuple_sha256: "83d57a9441a188ca7d8a736688bc4d0b878e00694e34cd4080cd3d9a484df602",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootRelativePathMultifolderSpecifyOutputDirectory.json#module%3Damd",
@@ -238,7 +210,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "cc38476b062f06fdf1e12572a8dee7a4ea1218221ae300f75504ef976fb49eac",
         old_expected_tuple_sha256: "790a0e32a5d515371907b470c8881bbb1667ed14f75f9797dd3c7af039f39188",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootRelativePathMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -246,7 +217,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "56a43cf683dd8f72b9e403bec65711beca712cb9cc2ca3f6494d19bb49adcbea",
         old_expected_tuple_sha256: "055da069e3176306029f7646635c50d984fd0c300f36f7b703ec2c24883ce39a",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootRelativePathSimpleSpecifyOutputDirectory.json#module%3Damd",
@@ -254,7 +224,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "b382277226ab437dddf498e6c5ac910cd386caa9be079762b9105ba4bdf149cd",
         old_expected_tuple_sha256: "fad2f42449d7ae548731f9895c5c2bc11030b3d3701bdd797801172ab7458598",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootRelativePathSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -262,7 +231,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "51edde51b1df076467d8d5886d4f05ad9550e544a8256c470212004d88739b76",
         old_expected_tuple_sha256: "67ed0e73603bc79a74864d034da6347a33282f4debb41c3e0b57d77811dc5f14",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootRelativePathSingleFileSpecifyOutputDirectory.json#module%3Damd",
@@ -270,7 +238,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "7c0f1195c8898a606b8bde1cc9c15a7ba6a62a15ad2557bad01323698bff4018",
         old_expected_tuple_sha256: "d7e4f93fa899291940458756c0461da2c4e30a0281f36857db0ea78efce6df7c",
         old_refused_option: "outDir",
-        declaration_members: 1,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootRelativePathSingleFileSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -278,7 +245,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "4367f352b9df1f738ddadea906a49b0d34fffc8bfce7dff9bbe98965a188844f",
         old_expected_tuple_sha256: "4a6a4f9f4020dfe0a5573f4a8339871f0f2c5d2b35442aa9c6cdd7232ee6ae2e",
         old_refused_option: "outDir",
-        declaration_members: 1,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootRelativePathSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -286,7 +252,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "aef531fc9661516926a9be002519dadba09f969b720ad0395075b3171d1560c5",
         old_expected_tuple_sha256: "ed42db68886fd42e9bd03ee3c0e5da402633da16d03d3fdd287c02f8041863e9",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/mapRootRelativePathSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -294,7 +259,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "009d5d32002f19988eda7948624ad8282bba7aa00692b731c803c8a9f2721724",
         old_expected_tuple_sha256: "aa71eaad8a08286e3278ea0410d0fb7b86748bfb8af795bcca5f40f925a89d25",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -302,7 +266,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "ca4cb71dd1a189a9adeb711b955bcb645f6ad7c875422fc953f5a944b930d645",
         old_expected_tuple_sha256: "84af0e8aeeec8532a6eb86ea5d3193ed742d60721509340e9b2957ae3187cc7f",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlMixedSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -310,7 +273,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "6209ec257e27d3b0a886f327b1aed8b65a39fdadda3036dba0450e669847988f",
         old_expected_tuple_sha256: "5fffdba8b4d1222f5abf1f0ac5e7fe300963013d4b67dab87f02159f0bcfbb59",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlModuleMultifolderSpecifyOutputDirectory.json#module%3Damd",
@@ -318,7 +280,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "13f40d3a499ba4a017d6235ff3151c4c5b67abb8869c32ae93077b2388214d76",
         old_expected_tuple_sha256: "52811f494a0306b87e6730cf7245bb6b1f27bf367eb1eb91d00c10a3117cb8fa",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlModuleMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -326,7 +287,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "85639f4e8261e8240caf22b12ca9e15d8502e7825218e78d84be60fd68ae846a",
         old_expected_tuple_sha256: "4896af975f318eae6bfacb45396a56b8c57e8b5f3f52809e4cf671569c84684e",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
@@ -334,7 +294,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "b1262ce6fb3f1d815b21675114437d4f025e39eee3080a8adb150d7e20523fb9",
         old_expected_tuple_sha256: "20d8040a1b28ce3008611bca0f9a465fe4c2c4d0a7eea895f530c3bdd102bb1b",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlModuleSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -342,7 +301,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "cafe0a9c205cccf1504b92e9c1230d375065647cfe1effe0a0ab9ae12fb60851",
         old_expected_tuple_sha256: "48b8df89572ff105742c70d5953012d2e2da5298b0a00d02aeb722bb7c0d4b16",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -350,7 +308,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "4942697ceef907a120f23876902534b3337090ed3beffe16248bcac2cf477985",
         old_expected_tuple_sha256: "7629db605359a33d144281cb917e9d488ed2bdc26739b7144edd3c7964ca7576",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlModuleSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -358,7 +315,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "b9f6e8bcd7b58467f08fa670c6d9a95d0e42fd39674fb6eb84dca490ba062d69",
         old_expected_tuple_sha256: "6808501fc7c83c754295346236308ce7842582796a92968882fcad109b274ace",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlMultifolderSpecifyOutputDirectory.json#module%3Damd",
@@ -366,7 +322,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "8f466564592d3764e5f8de5e47e81bbeab11c77469d024216778f66c2a434748",
         old_expected_tuple_sha256: "82294c271deef73cff3acbc202790eff270e05390fd8c09f9d102716a773fa28",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -374,7 +329,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "f1c50deff7237e6c7065348f98651639f7285273d715950f9f1090b274203b61",
         old_expected_tuple_sha256: "8322f1746fc95ffc4edb14c1301bf3aa0c8dd4538aa2f3d78cbf2999d96ea81c",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlSimpleSpecifyOutputDirectory.json#module%3Damd",
@@ -382,7 +336,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "43f0e277016e68bc80df1e5e84c0be3492e89a04b53c08e423bbe2961ad56b27",
         old_expected_tuple_sha256: "e82fed993aabc08345ecdfcf15ae510d77b36b2bb139ba38ed95328e6685be87",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -390,7 +343,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "342699e8bf7c879328d4a94b6e54dca544085b021346eb5f6aeecb10b284dbd9",
         old_expected_tuple_sha256: "2173bbb4e32e8b35a3c727df57221fc72faf51c501790ea73900c200ab2ce07e",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlSingleFileSpecifyOutputDirectory.json#module%3Damd",
@@ -398,7 +350,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "bc6c4f7548215ea4cb35db2df9d1265cc13e0c674d914ec22e750455e1d6f711",
         old_expected_tuple_sha256: "f890377b6c3d3fc73638f0f266e6c74405ae8abe051ba7b6dda96305c90734e5",
         old_refused_option: "outDir",
-        declaration_members: 1,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlSingleFileSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -406,7 +357,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "427d287f4f73d56ea8150ae49f08fb2cde89ef93985f26cb1889c72d7a1b69fc",
         old_expected_tuple_sha256: "65ac558c23a1cf8a6e40f5d242f7a3af45f29da059de16597f3a5b50abb03cf4",
         old_refused_option: "outDir",
-        declaration_members: 1,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -414,7 +364,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "14db47c8bc437494ee56b053f9155ede0246e1bb742237d70d6d61a2f90d0f37",
         old_expected_tuple_sha256: "f9bd87953a309610b114108fd19566ce15ec51b23d27a44e1043dca995a167da",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -422,7 +371,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "a918298c889529290532c831da6f10bea94fe2827c7d5657988aaa4f97260af6",
         old_expected_tuple_sha256: "a8837d7fc9bf95bf45a6c244ed44bd61d3d35492958266c95fad339f76166769",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlsourcerootUrlMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -430,7 +378,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "bcc9374fb448f210c4abd2a876dc728c2f7b21f7513ff216db1d7d4fb9f52eb8",
         old_expected_tuple_sha256: "dae0ebaa5b62443a512d62fbe0b120f7df42758f91e2d3c5d4e538c0d542ccd9",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlsourcerootUrlMixedSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -438,7 +385,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "36d99b527352ab0272a59666a5e5ab8e5ca93936f98b191bd0d384e1150ea261",
         old_expected_tuple_sha256: "ef7f1f49257cbb496ad83774e8cce1a0b02565bb4de7cc84d58fffa52499d3df",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleMultifolderSpecifyOutputDirectory.json#module%3Damd",
@@ -446,7 +392,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "e63287a33d4ff59160eac6bec2de862b996c84a2a034dd23e45d348d5c86ec63",
         old_expected_tuple_sha256: "451fb69f8f6423344690631002bb1c63620c259dc51fb737e3ca8c60368f86c1",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -454,7 +399,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "97145b351c6c062bbbc0088d5c55ebecb931e520a7cd9efef960699f90859b82",
         old_expected_tuple_sha256: "3fa0abfd94241edf0c643de447e41260f4a9a311c3aabf7b2b65d5eda73b8dfc",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
@@ -462,7 +406,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "fb2c466bd55ed7ab2af94a105c933347dddd0c27c3f3b56398d610b8ff608193",
         old_expected_tuple_sha256: "501db8caba830de538bc6f22131261b7ddd8e4e8659ddd39ee83d96bd5315b5c",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -470,7 +413,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "8eee102e802515115dfb3bdecb29f19b087f65fea616cd4f46367e94fa7c09d3",
         old_expected_tuple_sha256: "d7008728739afe5d70a5850eb9bbaa7a652cf2a70f5ec20adaf9634bd3b406bc",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -478,7 +420,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "83c2ccc91f4043261d0c706945febdd868e2c4b0c36b8a910702bba20de8da49",
         old_expected_tuple_sha256: "a5eb25f6b7e60559f848865f30c11cb2be9e07c39340619c625e7ec84a58c60d",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -486,7 +427,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "f611a0a95d8edd9088637f729477981f670f89e9f9a9cbc247de66aade475863",
         old_expected_tuple_sha256: "d31aa75d6f2ece6159d3009fb4201303262d44387eddad09ec4a43cabec5e419",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlsourcerootUrlMultifolderSpecifyOutputDirectory.json#module%3Damd",
@@ -494,7 +434,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "332a3e5218085e8f1d7068045108a362f43ba90f2bc740300b283bbfb12adb89",
         old_expected_tuple_sha256: "dd6ef80518fd6e8196aec916db6b2e719c8f50a2d7dd44ff5b2f4387ec222572",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlsourcerootUrlMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -502,7 +441,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "ee08736787379f41bab8600cd4b480873323a7a329f61a221f1cc393cb1c9596",
         old_expected_tuple_sha256: "f67f13c9cf346a401bd897dc63dc61d288ab36dd67cce365e9527c6cafa2d608",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlsourcerootUrlSimpleSpecifyOutputDirectory.json#module%3Damd",
@@ -510,7 +448,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "40db012e1038e934c4421b7216e1eccbef450df8dc054d6303e69fb0984b1fef",
         old_expected_tuple_sha256: "0eade0218fcf8796c47ef77de67e7ca6b113c6bfe6f5acdbced51302ad11978b",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlsourcerootUrlSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -518,7 +455,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "28ea1ca1aa275ed58246dd5c0424a76f6133248eb4e614fa9564417581ea597d",
         old_expected_tuple_sha256: "0149affdfc1a95a94ce240821e96860c3046d649a943724931b2b6a4465f3e12",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlsourcerootUrlSingleFileSpecifyOutputDirectory.json#module%3Damd",
@@ -526,7 +462,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "5b9d13c1ce661f46854b4073a0e3a16eff2eff37d849a5703096b96112ef7b4a",
         old_expected_tuple_sha256: "0a12fa14d808985d310678afd9e7323114f2b5f8a0be3f80a6eee761df3e8238",
         old_refused_option: "outDir",
-        declaration_members: 1,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlsourcerootUrlSingleFileSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -534,7 +469,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "354ba079db0b3c207238699f4221c440f04fd7bdfdcaf901d8cd07b60b521a7a",
         old_expected_tuple_sha256: "8d38da928e41707491606cda8018361fcb5aaa354ec74c365bce62159ba59655",
         old_refused_option: "outDir",
-        declaration_members: 1,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlsourcerootUrlSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -542,7 +476,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "338ab30a91b5463e77090a4a1bfb5e1bf79c9fd728e20c2282f7307ec6d7b7d7",
         old_expected_tuple_sha256: "679d98e8bc60e916971e36efc1f9d480ab845cd83b1e7698d905f1de976ea4b3",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/maprootUrlsourcerootUrlSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -550,7 +483,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "9653136d0f84cd9c5af40c145df43f2021067a5da0f98f1a9c549c3210191c89",
         old_expected_tuple_sha256: "95d983fc3935500325b027a5a89dbbe256c03f495c518e4fed68798bc3fea260",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/rootDirectory.json#module%3Damd",
@@ -558,7 +490,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "62da28efb9179ccfe1ceaab6a45f3dbafb0bf90d26d004652796fde323f0becc",
         old_expected_tuple_sha256: "1b7dd28a00d7fcf3069d8864507271151c16f246b74059bf456254f9386bcdc6",
         old_refused_option: "rootDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/rootDirectory.json#module%3Dcommonjs",
@@ -566,7 +497,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "335486182431c0000323468e68d60fc8e99ba308fffc66cc1ce38f91df468f45",
         old_expected_tuple_sha256: "39ec93891421e4c8d34fd73073e43f81eb2dd0f59cc83101615fb90f442fc2e4",
         old_refused_option: "rootDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/rootDirectoryWithSourceRoot.json#module%3Damd",
@@ -574,7 +504,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "11f9ad1764286862ad45c89d0f8325f9d1030dd5f256b19133a8dcdfdd9da553",
         old_expected_tuple_sha256: "129e301299a72c8dc56b64acd54fe66ee352ebdc6d75b76a43c85c4b6dfe8826",
         old_refused_option: "rootDir",
-        declaration_members: 0,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/rootDirectoryWithSourceRoot.json#module%3Dcommonjs",
@@ -582,7 +511,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "bd82a0a370e4d20b09e1b9fa4c1142803e4014a423bf3eb9f5077c7dd4902d77",
         old_expected_tuple_sha256: "11d7a63f4d95f94e0df7dc753cac48bc0cbd478d5606cd5f594e6ea7143112ae",
         old_refused_option: "rootDir",
-        declaration_members: 0,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -590,7 +518,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "2d7ea7c7fa61efec73f66ec30046bccc4e6495b0a5eea2dbd767b839a224d9ad",
         old_expected_tuple_sha256: "b9b2e652cefeedee7c2bc505f2266cb7c027d0aac2691ae18b43973b2b7dfcb8",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -598,7 +525,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "6d0f152944950df6b8c28624934890f40d127c4b97074f9575ad446f84a13ca5",
         old_expected_tuple_sha256: "464c85735c18be32d71370cc59b7a2857afbdd42a56a8249a1c7f0149c50b89a",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootAbsolutePathModuleMultifolderSpecifyOutputDirectory.json#module%3Damd",
@@ -606,7 +532,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "8a9b73aadccae612dfddaafea0c54d1ff6a4226beec46253748e34b3820ec5af",
         old_expected_tuple_sha256: "71771925cde0418a63d6d1a02e0732bdf39730184598b4c092a59f93c7ecfba8",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootAbsolutePathModuleMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -614,7 +539,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "ce44d1c3d190cd8e327bd5bfeb9d0fa6c489b9cece67d4b6d0b67b9bf7388fa7",
         old_expected_tuple_sha256: "530b9b3579b90b59797b2efe8deda933a5b209a0ab3d452a4ce11a057ef6d333",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootAbsolutePathModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
@@ -622,7 +546,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "5c61f919fb6644c95570166b0908d57fa3cc502dd01328bca030e5f9326c0489",
         old_expected_tuple_sha256: "1d60f0ae5078716bfd963899b30686d7cccf0c09e5e1994818749a861e2a6af9",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootAbsolutePathModuleSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -630,7 +553,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "9b800dcf8b2330ac0fdc450f36f67261e5b7f38686b9b919eeafee53214a0e1f",
         old_expected_tuple_sha256: "d1cda9e8204e02cba9237c7062d58b12bc3da37b6b057deeafc6e9285084e4ea",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootAbsolutePathModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -638,7 +560,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "575a3ac631119c4fa60674f97db965365a2f49482074ccb7e6e1a646f88f1be3",
         old_expected_tuple_sha256: "3ddefa8aafd18a8e18e976da407c1cd83d17e2a3b566bb74a33b53c63eb69813",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootAbsolutePathModuleSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -646,7 +567,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "7fbffd72dcab5a7a9405f62f080849baa608d188942958dd648a4c65f491e968",
         old_expected_tuple_sha256: "a42ff1f67f71ff74a99d1c21265fecedf7c2e8c724b83b9ecf7a36df51c16d77",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootAbsolutePathMultifolderSpecifyOutputDirectory.json#module%3Damd",
@@ -654,7 +574,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "e2e00e64c4d1417f32d0d2d687429eb4df0351ed72e21927de77fa4f0c54e17b",
         old_expected_tuple_sha256: "feb04cb4388ba3775c5125b14ebfb992d63bee3029a0b5a9bed0f8b1aff30291",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootAbsolutePathMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -662,7 +581,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "e2cd32acf7b57ffd21e8eeff6cdd8f3cc082f500138b0426032687989b236781",
         old_expected_tuple_sha256: "9786086164e83c43ad5c9a7e4052a2f57c67a433ad8e5b120b04e1a5dff58b75",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootAbsolutePathSimpleSpecifyOutputDirectory.json#module%3Damd",
@@ -670,7 +588,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "572f26f643f667ad7f2e39d9e00b9e7af498aefd148a4684afb0147451437e8a",
         old_expected_tuple_sha256: "6637f5235b04da7ba6e440c0ac774d4017f0adae070e6d0d5240c8b31313b57f",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootAbsolutePathSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -678,7 +595,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "34a06721f5d29d6f52eeb170850cad224fe9f52232bf3611586474cb81afb41c",
         old_expected_tuple_sha256: "45000534113fd1aebaa5a403e5ab394c78ee9c50fd6767f560c87409ec6bd5c5",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootAbsolutePathSingleFileSpecifyOutputDirectory.json#module%3Damd",
@@ -686,7 +602,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "6af546acd276d2d7b3c40d4acb16ac18c862cc363970b2ce220e09f2e0e5c972",
         old_expected_tuple_sha256: "29b35d9ce019f7d809f253f93d377d67abaa80818f8ec628c0fa8bb0ec4abdc8",
         old_refused_option: "outDir",
-        declaration_members: 1,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootAbsolutePathSingleFileSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -694,7 +609,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "9d016f40991684344daac384423e0b742830a6600b0655ee997e78f6d9883ecb",
         old_expected_tuple_sha256: "d70636c15b7398e8433a716af3b485f0cf3a152f1b33dc63e211108baf38e6b5",
         old_refused_option: "outDir",
-        declaration_members: 1,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootAbsolutePathSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -702,7 +616,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "5c7611e62c1213bca4d84264c3c4acbb0a8f1a5c053f0479f42ee0e6a065f2b5",
         old_expected_tuple_sha256: "c3216aa2bcf495b13bfff44b00ceda8f7b4ad871bc00872078a2b4dbf31aa397",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootAbsolutePathSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -710,7 +623,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "bed9bbfa45ad968c2f83a00d00c99823bbd8de4ee64c81777d9249e535b6801d",
         old_expected_tuple_sha256: "0727597bcc4b110d0cf211d77ffd27d06a1e8a19e25ed065fd26438352d4d17a",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootRelativePathMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -718,7 +630,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "c5c7c44401c59499f881601ff325e1c04c05d7202dbb80e635b5f130b7f235ca",
         old_expected_tuple_sha256: "b208b696cceeda524a480af93ff5af8e60918090b32ff5e2a862e68ce4a03b18",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootRelativePathMixedSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -726,7 +637,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "14d07a292a03f4de70e291a971be20e664164dbad6975162ec002b67bd13ec95",
         old_expected_tuple_sha256: "869c07fcee8cbcb56db0f4146092ef5c3e3fd98ace102fea69ff792be1a53a4f",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootRelativePathModuleMultifolderSpecifyOutputDirectory.json#module%3Damd",
@@ -734,7 +644,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "08911f305341af403f159d2db90a2f86b55afc07ea8264129c74a74eb8ceffeb",
         old_expected_tuple_sha256: "efd698a84c62e57ede04d1978d46982be44c2e62d387adfb010157b5979e0a0b",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootRelativePathModuleMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -742,7 +651,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "747e8f7af7bf608bc1471a6857e10c5f0540962eb832364bb3147e49eae723dd",
         old_expected_tuple_sha256: "50812b8a0cd1a66c3244243237df00d3bdb2fe3a36fdd97397d6d777074a1a20",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootRelativePathModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
@@ -750,7 +658,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "9cad2f06f0ae12350263f16c1a19317e36c5a2e0d27365c4f4ee013d5e3e97c1",
         old_expected_tuple_sha256: "dc085d7967d27dbdbac9116e52db3bf323850de3de21cdb96ee7282fc2b81f50",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootRelativePathModuleSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -758,7 +665,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "4d01c49f1898b92f2b023be85eb3d3433fb0c03d2c7e9e5e95781d9b4057efd3",
         old_expected_tuple_sha256: "bc905d62a646d79785a1fe0180aa7079cd3b5a035a553a47ab70ca534a9dcd97",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootRelativePathModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -766,7 +672,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "379e7576bf46ec695fe5f53a1bdb932ed8e056c00bb53d14f916d7b164a0d7aa",
         old_expected_tuple_sha256: "0a58b4888acae2465d9bc4549c377bf2d510676ff44f05964df3665bad97a6af",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootRelativePathModuleSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -774,7 +679,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "97474cfea0207a6659360eef34e043bdd411fa08a9f6d3acf8151668ad0af89f",
         old_expected_tuple_sha256: "c68a2d79b9d1b3057bd72436be37b3c3465527b865bafb031941aa4e4f23c505",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootRelativePathMultifolderSpecifyOutputDirectory.json#module%3Damd",
@@ -782,7 +686,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "5f9ad405e8aa588097db27dd13c312e51821b73d990ccfd9bc5ea1105b7cab2f",
         old_expected_tuple_sha256: "b864c33c3dd6d09721d03a10b45879f964c732a0cee4f7e05fa457a19337acf5",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootRelativePathMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -790,7 +693,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "c53b8646bf5adb29402aa7ba102e07f29c61b0b64b1c441f0cf12c67dfc6219e",
         old_expected_tuple_sha256: "265318e783ab3d4e595e8a1ea05932ebb60486aa2f9dd5460f6f78885f08dc17",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootRelativePathSimpleSpecifyOutputDirectory.json#module%3Damd",
@@ -798,7 +700,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "22a3ed8b4de72eaf85d6cc745505876c66366ff3fc96e5b36c94d8029f233c38",
         old_expected_tuple_sha256: "908dee707a570a848b63c18b42c3a1bca17241eca85fc80f66695d4abecfb539",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootRelativePathSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -806,7 +707,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "ca3368c360bae2484d91972e188d7731c7eeb86757ca066981260fb24385b745",
         old_expected_tuple_sha256: "aca20afd0b51921f821004d09289548cd94cbe5de9bbeae3d666a37ede2a9ed7",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootRelativePathSingleFileSpecifyOutputDirectory.json#module%3Damd",
@@ -814,7 +714,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "6c5d0e5ed3b9aabeda0affd3695be8cb5b697516f8bbe770a121edfcd680a6f0",
         old_expected_tuple_sha256: "9afd16a727f38427960e83a7684b3bf193bf7d2d363d5b707d9f50db37cf3ef3",
         old_refused_option: "outDir",
-        declaration_members: 1,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootRelativePathSingleFileSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -822,7 +721,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "cbe9ed3a7331041c18a856771f3fdfc44e66aae7516fe9972db2856efa2b7eff",
         old_expected_tuple_sha256: "6a84f6aa48791bf5d4d7dd0ab4f51463500c967c535052ba6d17ffb362e6a34d",
         old_refused_option: "outDir",
-        declaration_members: 1,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootRelativePathSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -830,7 +728,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "8aca2aa056cde4c394ae8b1ee2a10f2443bce4a390278bb284275e0b0854f6bd",
         old_expected_tuple_sha256: "df3e0126d3117d98b3a97158b2214940a1065cbde854f63ddc4fb4c55e4e5d60",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourceRootRelativePathSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -838,7 +735,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "ae25d35dd72172658ad0dda788327d40f7beaf68f2ed27d3885c5b21b636dfae",
         old_expected_tuple_sha256: "238620ce173cfbdd729ec6becc27db76d0a96e6b221d2ccc4b576babd6f5dda8",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcemapMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -846,7 +742,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "840eeb1de267e10395bb1c943abec7ae282f978d1969056ad90f4a7a1d52b461",
         old_expected_tuple_sha256: "db7d63113095c78eb6d5b433be11e3b883610ae36e69476e441cb23ce8918a7f",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcemapMixedSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -854,7 +749,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "19cab1330b709c0e3e2fbf826329d0cb76bd7e1596ea50a0b2b3bf4c8d2194d8",
         old_expected_tuple_sha256: "1a5018260f91849d8352aa8ba3bd815c402a2bf153b8771ee5c69a70acd34267",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcemapModuleMultifolderSpecifyOutputDirectory.json#module%3Damd",
@@ -862,7 +756,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "9f9afd692dc216ca2e911c93b4a86289b058b447ff2259bc19b9c7deac7f8858",
         old_expected_tuple_sha256: "d2e96065b38f7e641bec8a33a3b553a8bd0fed0015cca6be35980a2364ee09fc",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcemapModuleMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -870,7 +763,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "4b5b1caa1a0c7f409cc1ee598b853b55927b38226daebb02d7ab1260b58a86a1",
         old_expected_tuple_sha256: "5ced544a4c3a303adfe57140dff469f9c463f7f460172b6d81bef4d183e4a87f",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcemapModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
@@ -878,7 +770,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "cd7c342214673f57cf987fc4e222bdf0d3fb8114df55e9c28014a829af3eaab5",
         old_expected_tuple_sha256: "f929956b54d87d9436345f7ea85b10df616cf1161d824d300ab17297413e837e",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcemapModuleSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -886,7 +777,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "ad7b07346d19636a4d9900540ec6ef6b027ddd6e4d6fded023e718dcab051c74",
         old_expected_tuple_sha256: "55800a71b8f4ecf204550ff6ee73caf8c6a1805d74a87438d5568cd47f5e4b06",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcemapModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -894,7 +784,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "795b28621c3e1e571e31775f58d137274b6ba8655e60f139369ca66923813e00",
         old_expected_tuple_sha256: "6aa798b586cbcff90e3e3e605594e01823b5071c904b3eab08a39aa1823bce02",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcemapModuleSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -902,7 +791,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "628ed5d5f2fd6bc5a84fb2a5039b2e6fd7a53f546d7943057cfee39682651aaa",
         old_expected_tuple_sha256: "d133106a70fee682464193c900359f5a400d19a96a874788887fd8281b85d0a1",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcemapMultifolderSpecifyOutputDirectory.json#module%3Damd",
@@ -910,7 +798,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "313337c915aff791461e79ae67553ee79253f5d71b47034890224f62a5ad2322",
         old_expected_tuple_sha256: "d7559ba9c929edb2132c5691d42d5db435fd694e326ff3f395a1ebd60d3dcacd",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcemapMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -918,7 +805,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "b5fd1c93361a52dbb4cb0db9a3771070219712e33b8a1593486c1e08236443ac",
         old_expected_tuple_sha256: "478ffdb91df81372174cb5d22e2c053bfb1f96caa4c1075f97285816c9a5b9f2",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcemapSimpleSpecifyOutputDirectory.json#module%3Damd",
@@ -926,7 +812,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "ed711c6c0eb30a966850266b620e2af0203574e0122c355336a010bc095e3be8",
         old_expected_tuple_sha256: "6fbaa4cda950dddf32517d13e38ec4b9df9e836b357676bdd1478c997c25f466",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcemapSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -934,7 +819,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "10231768fa62921cf10f715da634ab87151075cad0307136348b15db9cbf3fca",
         old_expected_tuple_sha256: "b19aeca92e0a91fe192444d8812d30958a40b5edda307a98d75f9f49a9f02e14",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcemapSingleFileSpecifyOutputDirectory.json#module%3Damd",
@@ -942,7 +826,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "a998bd151223470e0c6ed1d373903e572566ec8b813612e9230c212963e528b1",
         old_expected_tuple_sha256: "c8c6d2f28b467b049bb411b525f05a055753d9048be090af85f659f14f89f0be",
         old_refused_option: "outDir",
-        declaration_members: 1,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcemapSingleFileSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -950,7 +833,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "a7384b5141e705ee57bdece5d834ac4c8b91024f1e31e903c6ce114dbd1e309f",
         old_expected_tuple_sha256: "1efbd997b4f70656ad05b4a0a8e25563284a0035562ecf4f0924697f071a9c88",
         old_refused_option: "outDir",
-        declaration_members: 1,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcemapSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -958,7 +840,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "1d3214f4f1569c11a920226799d9e509a29a3239132384ce096119d6835f915c",
         old_expected_tuple_sha256: "199992523834df041a5f5ef68d887a494ef54eeb8e784d30b230f1c15b345c31",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcemapSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -966,7 +847,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "dc7649ec822cf59a84bb06d5bdb0a295731272b1f966d47bae8c5f16caae8745",
         old_expected_tuple_sha256: "6a07ef2321b744b82f3a79bf56bf11238b5c596246f0048f73d49ba0be631998",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcerootUrlMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -974,7 +854,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "7edabe20b6374153c455889d87b8b198165bc34af4e5bccdd801c9c574398f0e",
         old_expected_tuple_sha256: "f8dd1d50fc9b35356cd7939d899ef7127e5013b49b0ee0db3133907af12ffef7",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcerootUrlMixedSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -982,7 +861,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "c497fe2f45ce64fe7b9b84ed65dd4eab4b1d91cceac78c1fc220e7eb0c308d7f",
         old_expected_tuple_sha256: "9d16b9dd7bbf3259ceb2dc64de6bc4552d0ad5d5089e208e36819c97ccf74610",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcerootUrlModuleMultifolderSpecifyOutputDirectory.json#module%3Damd",
@@ -990,7 +868,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "d70b811a6def01ac5c9b50d24598aca3b278f46c11a61d448c208e3121f2b8f1",
         old_expected_tuple_sha256: "72387194516850ca2ce9b3b026404b7667e7fc3fac75d05c5f2619d725a97e41",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcerootUrlModuleMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -998,7 +875,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "0170b8c6db8bfd56641aabccb02eeb98566952caf44acbf1171c6cd42c1bcfd3",
         old_expected_tuple_sha256: "478079faa7956516d7690d9d48f02bd0bc9a4b1328e0dd60e203e60884359b48",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcerootUrlModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
@@ -1006,7 +882,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "399de76665ac7dce175e39bd459a2c215680fa5284f4c567f1f7b80068df0ddb",
         old_expected_tuple_sha256: "43dd47d6a1f7e716ae5b3c8eaf03272fc848d9b05c482c38c6ba463169f700df",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcerootUrlModuleSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -1014,7 +889,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "f3550c38cc0715669cc2c90fe4fbbe9777afb7e0cea1a31a9c6ba09b408c7e81",
         old_expected_tuple_sha256: "4dcb397ed97f5fd632cf4e5a117eeb600a38a1dee457bae48fd5dbd45cb161dd",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcerootUrlModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -1022,7 +896,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "3ae9970241504e156fbfe5f7cbda44ee05fb1f7e9e6583f41f95260dcd878093",
         old_expected_tuple_sha256: "41106c64b3f90b29bbd0367464fe11d133bd75bd45250ae427f07ece0d31dec3",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcerootUrlModuleSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -1030,7 +903,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "a004994fe7ecf5954398ccbf2887c9f29eec69d01ffa81ba69b2adc56e588da8",
         old_expected_tuple_sha256: "9d4ca330cc306817ffb140089083e3a1e8721c095645b587c24d74872223d9e9",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcerootUrlMultifolderSpecifyOutputDirectory.json#module%3Damd",
@@ -1038,7 +910,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "fb03057e1f418e53724ced1d33315650d1ce5c4d401e0d0b1f45c65ee5b9582b",
         old_expected_tuple_sha256: "a63e31773fe8264455140abf976286cf2fa1952c541f97cc00913f5ade1c3452",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcerootUrlMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -1046,7 +917,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "56f39866cc5daef612b2f15ad3b080babd7ddf23008e2e7355e13363ef9eacac",
         old_expected_tuple_sha256: "1f6dfb184a761a4a4c7c8dd761124ea0d6ceaa7bf80a589b673fdb8386470d62",
         old_refused_option: "outDir",
-        declaration_members: 3,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcerootUrlSimpleSpecifyOutputDirectory.json#module%3Damd",
@@ -1054,7 +924,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "c0c8cace13462fbc6a7b855fc41a1ed0286510b073fbab239c7a9a68c008c3d5",
         old_expected_tuple_sha256: "461685585ba082407088a1ebe30ff115c2a34a799bdce90007e3c3ed219b8641",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcerootUrlSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -1062,7 +931,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "38d5aba1b089ee466f6c3d0fddd5dfc9fe631a1059093b47e6284b80485b6dd8",
         old_expected_tuple_sha256: "dba4770d6bf128f981672ab8fbf612306eb58e92377f9318b1063e64ce26cc17",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcerootUrlSingleFileSpecifyOutputDirectory.json#module%3Damd",
@@ -1070,7 +938,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "5d9726c6cfc5418a5c82e45fb8fd4375fc391031952a94baee07429f78c8468f",
         old_expected_tuple_sha256: "e036869047b7f9abaea6ed80ed25bdaa7ad3b4a79413067859cbeb49a8a4679b",
         old_refused_option: "outDir",
-        declaration_members: 1,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcerootUrlSingleFileSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -1078,7 +945,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "d51f22cc869fcfec28295afec75241d4b391e7c4c69e59445465fdb5b306191c",
         old_expected_tuple_sha256: "902bfdf8171810036294e11aa80235606f8284f6f604cc0b43d80734b0cf9f80",
         old_refused_option: "outDir",
-        declaration_members: 1,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcerootUrlSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -1086,7 +952,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "62baec9cab8be991d0937f54e36b9883088ea92a9390fffa04b29b91b32277dc",
         old_expected_tuple_sha256: "4a5536bbcaebc7e2d7995c9d9864bae56031edd861f16fb0f4ec993cc7312dbd",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
     Promotion {
         case_id: "typescript-6.0.3/project/sourcerootUrlSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
@@ -1094,7 +959,6 @@ static CURRENT: &[Promotion] = &[
         old_input_sha256: "67ab13ec53d02fcfc921e249c3704b64a4db001f9c4aef3e381cdecc68cd7dd7",
         old_expected_tuple_sha256: "8647dea8f2eba20e08ae540a0a731001b24833305f3ba2562d9a5b6b4f658ddc",
         old_refused_option: "outDir",
-        declaration_members: 2,
     },
  ];
 
@@ -1130,10 +994,6 @@ pub(super) fn validate(
     Ok(())
 }
 
-pub(super) fn declaration_members_total() -> u64 {
-    CURRENT.iter().map(|row| row.declaration_members).sum()
-}
-
 pub(super) fn promoted_count() -> usize {
     CURRENT.len()
 }
@@ -1167,7 +1027,6 @@ pub(super) fn validate_results(
             || outcome.deferred
             || !outcome.divergence.is_exact()
             || !outcome.divergence.mismatch_vector.is_empty()
-            || outcome.h2_7b_activity != row.declaration_members
         {
             return Err(failure(format!(
                 "{}: original output promotion no longer exact",

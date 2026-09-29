@@ -9,8 +9,8 @@ use base64::Engine;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use tsc_compiler::{
-    EmitArtifact, EmitFailure, EmitIoError, EmitWriteDisposition, H2RuntimeSlice, MemoryOutputSink,
-    OutputSink, ProgramSession,
+    EmitArtifact, EmitFailure, EmitIoError, EmitWriteDisposition, MemoryOutputSink, OutputSink,
+    ProgramSession,
 };
 use tsc_diagnostics::{Diagnostic, DiagnosticCategory, MessageChain};
 use tsc_harness::upstream_suites::execution::load_qualified_compiler_emit;
@@ -299,51 +299,6 @@ fn execute_observed(workspace: &Path, case: &Value) -> Result<(usize, usize), Bo
         )));
     }
     assert_exact_writes(case_id, array(expected, "writes")?, &first_sink)?;
-    let activity = first.h2_activity();
-    let reached_sources = case["files"]
-        .as_array()
-        .map(|files| {
-            files
-                .iter()
-                .filter(|file| file["emit_eligible"] == true)
-                .count() as u64
-        })
-        .unwrap_or(0);
-    let enum_sources = case["files"]
-        .as_array()
-        .map(|files| {
-            files
-                .iter()
-                .filter(|file| {
-                    file["emit_eligible"] == true
-                        && file["feature_roots"].as_array().is_some_and(|roots| {
-                            roots.iter().any(|root| root["feature"] == "runtime-enums")
-                        })
-                })
-                .count() as u64
-        })
-        .unwrap_or(0);
-    if activity.runtime_slice(H2RuntimeSlice::H2_1a) != reached_sources
-        || activity.runtime_slice(H2RuntimeSlice::H2_1b) != 0
-        || activity.runtime_slice(H2RuntimeSlice::H2_1c) != 0
-        || activity.runtime_slice(H2RuntimeSlice::H2_1d) != 0
-        || activity.runtime_slice(H2RuntimeSlice::H2_1e) != 0
-        || activity.runtime_slice(H2RuntimeSlice::H2_2a) != enum_sources
-    {
-        return Err(failure(format!(
-            "{case_id}: H2.1a/H2.2a activity does not match {reached_sources} reached and {enum_sources} enum sources"
-        )));
-    }
-    for slice in H2RuntimeSlice::ALL {
-        if !matches!(slice, H2RuntimeSlice::H2_1a | H2RuntimeSlice::H2_2a)
-            && activity.runtime_slice(slice) != 0
-        {
-            return Err(failure(format!(
-                "{case_id}: unadmitted {} activity",
-                slice.name()
-            )));
-        }
-    }
     Ok((first_sink.writes().len(), first_reported.len()))
 }
 

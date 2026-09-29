@@ -7,8 +7,8 @@ use tsc_syntax::{for_each_child, NodeData, NodeId, SyntaxKind};
 use crate::{
     create_printer, transform_nodes, DeclarationPrintHandlers, EmitArtifact, EmitContractViolation,
     EmitFailure, EmitHost, EmitPreflight, EmitResolver, EmitResolverNode, EmitTextMetadata,
-    H2ActivityCanary, H2RuntimeSlice, NewLineKind, PrinterOptions, SourceFileTextMode,
-    TransformArena, TransformError, TransformRoot, TransformationResult,
+    NewLineKind, PrinterOptions, SourceFileTextMode, TransformArena, TransformError, TransformRoot,
+    TransformationResult,
 };
 
 use super::{
@@ -75,7 +75,6 @@ pub fn get_declaration_diagnostics(
     host: &dyn EmitHost,
     paths: &dyn DeclarationPathResolver,
     source: SourceFileId,
-    activity: &mut H2ActivityCanary,
 ) -> Result<Vec<Diagnostic>, EmitFailure> {
     let emit_source = host.source_file(source).ok_or(EmitFailure::Contract(
         EmitContractViolation::PlannedSourceMissing(source),
@@ -95,8 +94,6 @@ pub fn get_declaration_diagnostics(
         paths,
         &DeclarationCustomTransformers::none(),
     )?;
-    activity.observe_runtime_slice(H2RuntimeSlice::H2_7b);
-    activity.construct_transform_context();
     let mut result = transform_nodes(
         arena,
         vec![TransformRoot::SourceFile(transform_source)],
@@ -120,7 +117,6 @@ pub(crate) fn emit_declaration_unit(
     planned_root: &crate::EmitRoot,
     declaration_path: JsStr<'_>,
     declaration_map_path: Option<JsStr<'_>>,
-    activity: &mut H2ActivityCanary,
     force_dts_emit: bool,
     parsed_emit_metadata: Option<&crate::ParsedEmitMetadata>,
 ) -> Result<DeclarationUnitEmit, EmitFailure> {
@@ -153,7 +149,6 @@ pub(crate) fn emit_declaration_unit(
     };
     let options = host.compiler_options();
     for &source in &files_for_emit {
-        activity.observe_runtime_slice(H2RuntimeSlice::H2_7b);
         // Seed declaration visibility when checking is skipped, including
         // ordinary noCheck Programs whose .ts sources can carry diagnostics.
         if force_dts_emit
@@ -185,7 +180,6 @@ pub(crate) fn emit_declaration_unit(
         paths,
         &DeclarationCustomTransformers::none(),
     )?;
-    activity.construct_transform_context();
     let mut result = transform_nodes(arena, vec![transform_root], transformers, false)?;
     let diagnostics = result.diagnostics().to_vec();
     let diagnostics_blocked = !diagnostics.is_empty();
@@ -233,7 +227,6 @@ pub(crate) fn emit_declaration_unit(
         .with_module_kind(options.emit_module_kind())
         .with_target(options.emit_script_target())
         .with_source_file_text_mode(SourceFileTextMode::Canonical);
-    activity.construct_printer();
     let global_name_oracle = crate::execute::ResolverGlobalNameOracle(resolver);
     let recording_enabled = options.declaration_map == Some(true)
         && !source_path.is_some_and(|path| path.ends_with(".json"));

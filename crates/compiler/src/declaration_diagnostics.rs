@@ -5,7 +5,7 @@ use tsc_checker::AuthoritativeSourceToken;
 use tsc_diagnostics::{sort_and_dedupe_diagnostics, DiagnosticList};
 use tsc_emitter::{
     get_declaration_diagnostics, EmitContractViolation, EmitFailure, EmitHost, EmitSelection,
-    H2ActivityCanary, H2ActivityCounters, H2RuntimeSlice, PlanDeclarationPaths,
+    PlanDeclarationPaths,
 };
 use tsc_program::{PreparedProgram, SourceFileId};
 
@@ -20,7 +20,6 @@ pub struct DeclarationSession<'session, 'program> {
     checker: Option<&'session CheckerSession<'program>>,
     paths: PlanDeclarationPaths,
     cache: BTreeMap<SourceFileId, DiagnosticList>,
-    activity: H2ActivityCanary,
     initial_diagnostics: tsc_checker::CheckResult,
 }
 
@@ -39,7 +38,6 @@ impl<'session, 'program> DeclarationSession<'session, 'program> {
             checker,
             paths,
             cache: BTreeMap::new(),
-            activity: H2ActivityCanary::h2_7e_profile(),
             initial_diagnostics: initial_diagnostics.clone(),
         })
     }
@@ -53,19 +51,6 @@ impl<'session, 'program> DeclarationSession<'session, 'program> {
         &mut self,
         selection: EmitSelection,
     ) -> Result<DiagnosticList, DriverError> {
-        self.activity.observe_runtime_slice(H2RuntimeSlice::H2_7c);
-        let options = self.host.compiler_options();
-        if options
-            .out_file
-            .as_ref()
-            .map(tsc_diagnostics::JsString::as_js)
-            .is_some_and(|path| !path.is_empty())
-        {
-            self.activity.observe_runtime_slice(H2RuntimeSlice::H2_7d);
-        }
-        if options.declaration_map == Some(true) {
-            self.activity.observe_runtime_slice(H2RuntimeSlice::H2_7e);
-        }
         self.declaration_diagnostics(selection)
     }
 
@@ -114,16 +99,9 @@ impl<'session, 'program> DeclarationSession<'session, 'program> {
                             additional_partial_checks: partials.len().saturating_sub(1),
                         });
                     }
-                    self.activity.borrow_emit_resolver();
                     let result = checker
                         .with_emit_resolver(|resolver| {
-                            get_declaration_diagnostics(
-                                resolver,
-                                self.host,
-                                &self.paths,
-                                source,
-                                &mut self.activity,
-                            )
+                            get_declaration_diagnostics(resolver, self.host, &self.paths, source)
                         })
                         .map_err(DriverError::Emit)?;
                     entry.insert(result)
@@ -148,16 +126,9 @@ impl<'session, 'program> DeclarationSession<'session, 'program> {
     ) -> Result<tsc_emitter::EmitOutcome, DriverError> {
         tsc_emitter::validate_forced_declaration_request(self.host).map_err(DriverError::Emit)?;
         if let Some(checker) = self.checker {
-            self.activity.borrow_emit_resolver();
             checker
                 .with_emit_resolver(|resolver| {
-                    tsc_emitter::emit_forced_declarations_with_activity(
-                        resolver,
-                        self.host,
-                        selection,
-                        sink,
-                        &mut self.activity,
-                    )
+                    tsc_emitter::emit_forced_declarations(resolver, self.host, selection, sink)
                 })
                 .map_err(DriverError::Emit)
         } else {
@@ -172,12 +143,11 @@ impl<'session, 'program> DeclarationSession<'session, 'program> {
                     },
                 ));
             }
-            tsc_emitter::emit_forced_declarations_with_activity(
+            tsc_emitter::emit_forced_declarations(
                 &tsc_emitter::UnavailableEmitResolver,
                 self.host,
                 selection,
                 sink,
-                &mut self.activity,
             )
             .map_err(DriverError::Emit)
         }
@@ -251,8 +221,6 @@ impl<'session, 'program> DeclarationSession<'session, 'program> {
             });
         }
         tsc_emitter::validate_bootstrap_emit_request(self.host).map_err(DriverError::Emit)?;
-        self.activity.construct_emit_session();
-        self.activity.construct_output_plan();
         let selection = EmitSelection::WholeProgram;
         let preflight =
             tsc_emitter::preflight_emit(self.host, selection).map_err(DriverError::Emit)?;
@@ -297,29 +265,19 @@ impl<'session, 'program> DeclarationSession<'session, 'program> {
                     additional_partial_checks: partials.len().saturating_sub(1),
                 });
             }
-            self.activity.borrow_emit_resolver();
             checker.with_emit_resolver(|resolver| {
-                tsc_emitter::emit_files_with_activity(
-                    resolver,
-                    self.host,
-                    preflight,
-                    selection,
-                    &gate,
-                    sink,
-                    &mut self.activity,
-                )
+                tsc_emitter::emit_files(resolver, self.host, preflight, selection, &gate, sink)
             })
         } else {
             // Early diagnostic gates and empty Programs cannot query a
             // resolver. In particular, blocked emits must not add a request.
-            tsc_emitter::emit_files_with_activity(
+            tsc_emitter::emit_files(
                 &tsc_emitter::UnavailableEmitResolver,
                 self.host,
                 preflight,
                 selection,
                 &gate,
                 sink,
-                &mut self.activity,
             )
         }
         .map_err(DriverError::Emit)?;
@@ -331,9 +289,5 @@ impl<'session, 'program> DeclarationSession<'session, 'program> {
             ),
             self.host.current_directory(),
         ))
-    }
-
-    pub fn activity(&self) -> H2ActivityCounters {
-        self.activity.counters()
     }
 }

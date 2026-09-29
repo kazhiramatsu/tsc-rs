@@ -1,13 +1,13 @@
 use std::path::{Path, PathBuf};
 
 use tsc_emitter::{
-    emit_files, emit_files_with_activity, get_source_files_to_emit, preflight_emit,
-    validate_bootstrap_emit_options, DeclarationPathResolver, EmitBundle, EmitContractViolation,
-    EmitDiagnosticGate, EmitFailure, EmitHost, EmitIoError, EmitIoOperation, EmitMode,
-    EmitOutputPaths, EmitOutputPlan, EmitOutputUnit, EmitResolver, EmitResolverError,
-    EmitResolverMethod, EmitResolverNode, EmitRoot, EmitSelection, EmitSource,
-    EmitWriteDisposition, H2ActivityCanary, JavascriptOmission, MemoryOutputSink, OutputSink,
-    PlanDeclarationPaths, UnavailableEmitResolver, UnsupportedEmitFeature,
+    emit_files, get_source_files_to_emit, preflight_emit, validate_bootstrap_emit_options,
+    DeclarationPathResolver, EmitBundle, EmitContractViolation, EmitDiagnosticGate, EmitFailure,
+    EmitHost, EmitIoError, EmitIoOperation, EmitMode, EmitOutputPaths, EmitOutputPlan,
+    EmitOutputUnit, EmitResolver, EmitResolverError, EmitResolverMethod, EmitResolverNode,
+    EmitRoot, EmitSelection, EmitSource, EmitWriteDisposition, JavascriptOmission,
+    MemoryOutputSink, OutputSink, PlanDeclarationPaths, UnavailableEmitResolver,
+    UnsupportedEmitFeature,
 };
 use tsc_program::SourceFileId;
 use tsc_syntax::{parse_source_file, SourceFile};
@@ -625,168 +625,6 @@ fn declaration_collision_preflight_covers_overwrite_duplicate_case_and_js_suppre
         .unwrap()
         .diagnostics()
         .is_empty());
-}
-
-#[test]
-fn bundle_requests_require_their_profile_before_transforming_or_writing() {
-    for (options, make_profile, denied, admitted_bundle_requests) in [
-        (
-            CompilerOptions {
-                declaration_map: Some(true),
-                out_file: Some("/project/bundle.js".to_owned().into()),
-                ..CompilerOptions::default()
-            },
-            H2ActivityCanary::h2_7d_profile as fn() -> H2ActivityCanary,
-            tsc_emitter::H2RuntimeSlice::H2_7e,
-            1,
-        ),
-        (
-            CompilerOptions {
-                out_file: Some("/project/bundle.js".to_owned().into()),
-                ..CompilerOptions::default()
-            },
-            H2ActivityCanary::h2_7c_profile as fn() -> H2ActivityCanary,
-            tsc_emitter::H2RuntimeSlice::H2_7d,
-            0,
-        ),
-    ] {
-        let host = TestEmitHost::new(options, "/project", true, &[("/project/value.ts", true)]);
-        let preflight = preflight_emit(&host, EmitSelection::WholeProgram).unwrap();
-        let mut activity = make_profile();
-        let mut sink = MemoryOutputSink::new();
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            emit_files_with_activity(
-                &UnavailableEmitResolver,
-                &host,
-                preflight,
-                EmitSelection::WholeProgram,
-                &EmitDiagnosticGate::default(),
-                &mut sink,
-                &mut activity,
-            )
-        }));
-        let error = result.expect_err("a request needs its new runtime admission");
-        assert!(error.downcast_ref::<String>().unwrap().contains(&format!(
-            "unadmitted H2 runtime activity: {}",
-            denied.name()
-        )));
-        let counters = activity.counters();
-        assert_eq!(
-            counters.runtime_slice(tsc_emitter::H2RuntimeSlice::H2_7d),
-            admitted_bundle_requests
-        );
-        assert_eq!(counters.runtime_slice(denied), 0);
-        assert_eq!(counters.script_transformer_list_constructions(), 0);
-        assert_eq!(counters.transform_context_constructions(), 0);
-        assert_eq!(counters.printer_constructions(), 0);
-        assert_eq!(counters.output_sink_write_attempts(), 0);
-        assert!(sink.writes().is_empty());
-    }
-}
-
-#[test]
-fn h2_7b_rejects_declaration_option_and_forced_requests_before_printing() {
-    let declaration_options = [
-        CompilerOptions {
-            strip_internal: Some(true),
-            ..CompilerOptions::default()
-        },
-        CompilerOptions {
-            isolated_declarations: Some(true),
-            declaration: Some(true),
-            ..CompilerOptions::default()
-        },
-        CompilerOptions {
-            declaration_dir: Some(String::new().into()),
-            ..CompilerOptions::default()
-        },
-        CompilerOptions {
-            declaration: Some(true),
-            no_emit_on_error: Some(true),
-            ..CompilerOptions::default()
-        },
-        CompilerOptions {
-            emit_declaration_only: Some(true),
-            ..CompilerOptions::default()
-        },
-    ];
-    for options in declaration_options {
-        let host = TestEmitHost::new(options, "/project", true, &[]);
-        let preflight = preflight_emit(&host, EmitSelection::WholeProgram).unwrap();
-        let mut activity = H2ActivityCanary::h2_7b_profile();
-        let mut sink = MemoryOutputSink::new();
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            emit_files_with_activity(
-                &UnavailableEmitResolver,
-                &host,
-                preflight,
-                EmitSelection::WholeProgram,
-                &EmitDiagnosticGate::default(),
-                &mut sink,
-                &mut activity,
-            )
-        }));
-        let error = result.expect_err("a declaration option must require H2.7c admission");
-        assert!(error
-            .downcast_ref::<String>()
-            .unwrap()
-            .contains("unadmitted H2 runtime activity: H2.7c"));
-        assert!(activity.counters().all_zero());
-        assert!(sink.writes().is_empty());
-    }
-
-    let host = TestEmitHost::new(CompilerOptions::default(), "/project", true, &[]);
-    let mut activity = H2ActivityCanary::h2_7b_profile();
-    let mut sink = MemoryOutputSink::new();
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        tsc_emitter::emit_forced_declarations_with_activity(
-            &UnavailableEmitResolver,
-            &host,
-            EmitSelection::WholeProgram,
-            &mut sink,
-            &mut activity,
-        )
-    }));
-    let error = result.expect_err("even an empty forced request requires H2.7c admission");
-    assert!(error
-        .downcast_ref::<String>()
-        .unwrap()
-        .contains("unadmitted H2 runtime activity: H2.7c"));
-    assert!(activity.counters().all_zero());
-    assert!(sink.writes().is_empty());
-}
-
-#[test]
-fn legacy_javascript_option_requests_retain_h2_7b() {
-    for isolated_declarations in [false, true] {
-        let options = CompilerOptions {
-            strip_internal: Some(false),
-            isolated_declarations: Some(isolated_declarations),
-            no_emit_on_error: Some(true),
-            ..CompilerOptions::default()
-        };
-        let host = TestEmitHost::new(options, "/project", true, &[]);
-        let preflight = preflight_emit(&host, EmitSelection::WholeProgram).unwrap();
-        let mut activity = H2ActivityCanary::h2_7b_profile();
-        let mut sink = MemoryOutputSink::new();
-        let outcome = emit_files_with_activity(
-            &UnavailableEmitResolver,
-            &host,
-            preflight,
-            EmitSelection::WholeProgram,
-            &EmitDiagnosticGate::default(),
-            &mut sink,
-            &mut activity,
-        )
-        .unwrap();
-        assert_eq!(
-            outcome
-                .h2_activity()
-                .runtime_slice(tsc_emitter::H2RuntimeSlice::H2_7c),
-            0
-        );
-        assert!(sink.writes().is_empty());
-    }
 }
 
 #[test]

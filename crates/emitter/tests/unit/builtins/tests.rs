@@ -6237,7 +6237,7 @@ fn common_js_esmodule_marker_resolver_default_is_typed_unavailable() {
 }
 
 // Complete compiler commands own emitted bytes. These controls independently
-// qualify factory topology and the native host/activity failure boundaries.
+// qualify factory topology and the native host failure boundaries.
 struct ModuleFactoryHost {
     options: CompilerOptions,
     format: Option<i32>,
@@ -6325,87 +6325,6 @@ fn module_transformer_selection_factory_names_match_typescript_twice() {
         mismatches.is_empty(),
         "factory-list differences: {mismatches:?}"
     );
-}
-
-#[test]
-fn module_transformer_selection_host_calls_and_bundle_activity_follow_selected_factory() {
-    use crate::{H2ActivityCanary, H2RuntimeSlice};
-    for module in [0, 1, 2, 3, 4, 5, 6, 7, 99, 100, 101, 102, 199, 200] {
-        for format in [None, Some(0), Some(1), Some(2), Some(3), Some(99)] {
-            let host = ModuleFactoryHost::new(
-                CompilerOptions {
-                    target: Some(99),
-                    module: Some(module),
-                    ..CompilerOptions::default()
-                },
-                format,
-            );
-            let mut activity = H2ActivityCanary::h2_7e_profile();
-            let members = [17, 18, 19].map(SourceFileId::from_raw);
-            let transformers = super::get_script_transformers_with_activity(
-                &host.options,
-                &host,
-                &host,
-                members[0],
-                &mut activity,
-            )
-            .unwrap();
-            for source in &members[1..] {
-                super::observe_additional_bundle_source_activity(
-                    &host.options,
-                    &host,
-                    *source,
-                    &mut activity,
-                );
-            }
-            let activity = activity.counters();
-            let implied = !matches!(module, 0 | 2 | 3 | 4 | 200);
-            assert_eq!(
-                host.format_calls.borrow().as_slice(),
-                if implied { &members[..] } else { &[] },
-                "module {module}, format {format:?}"
-            );
-            assert_eq!(activity.script_transformer_list_constructions(), 1);
-            assert_eq!(activity.transform_typescript_constructions(), 1);
-            assert_eq!(activity.transform_class_fields_constructions(), 1);
-            assert_eq!(
-                activity.transform_ecmascript_module_constructions(),
-                u64::from(implied || module == 200)
-            );
-            assert_eq!(
-                activity.runtime_slice(H2RuntimeSlice::H2_1a),
-                u64::from(implied)
-            );
-            let delegate = if implied {
-                format
-            } else if matches!(module, 0 | 2 | 3) {
-                Some(module)
-            } else {
-                None
-            };
-            assert_eq!(
-                activity.runtime_slice(H2RuntimeSlice::H2_1b),
-                if delegate.is_some_and(|m| m < 5) {
-                    3
-                } else {
-                    0
-                }
-            );
-            assert_eq!(
-                activity.runtime_slice(H2RuntimeSlice::H2_1c),
-                if delegate.is_some_and(|m| matches!(m, 2 | 3)) {
-                    3
-                } else {
-                    0
-                }
-            );
-            assert_eq!(
-                activity.runtime_slice(H2RuntimeSlice::H2_1d),
-                u64::from(module == 4)
-            );
-            drop(transformers);
-        }
-    }
 }
 
 #[test]

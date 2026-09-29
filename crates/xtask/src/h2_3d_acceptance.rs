@@ -7,7 +7,7 @@ use std::path::Path;
 use base64::Engine;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use tsc_compiler::{H2RuntimeSlice, MemoryOutputSink, ProgramSession};
+use tsc_compiler::{MemoryOutputSink, ProgramSession};
 use tsc_diagnostics::{Diagnostic, DiagnosticCategory, MessageChain};
 use tsc_program::{CompilerOptions, PathContext, PreparedProgram, PreparedSourceFile, ProgramPath};
 
@@ -94,49 +94,9 @@ fn owner_options(value: &Value) -> Result<CompilerOptions, Box<dyn Error>> {
     })
 }
 
-fn expected_h2_4a_owner_activity(
-    control: &Value,
-    outcome: &tsc_compiler::EmitOutcome,
-) -> Result<(), Box<dyn Error>> {
-    let input = &control["input"];
-    let module = input["compiler_options"]["module"].as_i64().unwrap_or(200);
-    let output_units = array(&control["observation"], "writes")?.len() as u64;
-    let namespace_sources = if string(control, "control_id")?
-        == "qualified-value-reference-metadata"
-        && output_units != 0
-    {
-        1
-    } else {
-        0
-    };
-    for slice in H2RuntimeSlice::ALL {
-        let expected = match slice {
-            H2RuntimeSlice::H2_1a if module != 4 && module != 200 => output_units,
-            H2RuntimeSlice::H2_1b if matches!(module, 1..=3) => output_units,
-            H2RuntimeSlice::H2_1d if module == 4 => output_units,
-            H2RuntimeSlice::H2_2b => namespace_sources,
-            H2RuntimeSlice::H2_4a => output_units,
-            _ => 0,
-        };
-        if outcome.h2_activity().runtime_slice(slice) != expected {
-            return Err(failure(format!(
-                "{}: {} owner activity expected {expected}, observed {}",
-                string(control, "control_id")?,
-                slice.name(),
-                outcome.h2_activity().runtime_slice(slice),
-            )));
-        }
-    }
-    Ok(())
-}
-
-type OwnerActivityExpectation =
-    fn(&Value, &tsc_compiler::EmitOutcome) -> Result<(), Box<dyn Error>>;
-
 fn execute_h2_owner_control(
     control: &Value,
     phase: &str,
-    expected_activity: OwnerActivityExpectation,
 ) -> Result<(usize, usize), Box<dyn Error>> {
     let id = string(control, "control_id")?;
     let mut first_sink = MemoryOutputSink::new();
@@ -175,366 +135,39 @@ fn execute_h2_owner_control(
         )));
     }
     assert_exact_writes(id, array(expected, "writes")?, &first_sink)?;
-    expected_activity(control, &first)?;
     Ok((first_sink.writes().len(), first_reported.len()))
 }
 
 fn execute_h2_4a_owner_control(control: &Value) -> Result<(usize, usize), Box<dyn Error>> {
-    execute_h2_owner_control(control, "H2.4a", expected_h2_4a_owner_activity)
-}
-
-fn expected_h2_4b_owner_activity(
-    control: &Value,
-    outcome: &tsc_compiler::EmitOutcome,
-) -> Result<(), Box<dyn Error>> {
-    let input = &control["input"];
-    let module = input["compiler_options"]["module"].as_i64().unwrap_or(200);
-    let output_units = array(&control["observation"], "writes")?.len() as u64;
-    let h2_4b_sources = control["runtime_expectation"]["h2_4b_sources"]
-        .as_u64()
-        .ok_or_else(|| failure("H2.4b owner control lacks its runtime expectation"))?;
-    for slice in H2RuntimeSlice::ALL {
-        let expected = match slice {
-            H2RuntimeSlice::H2_1a if module != 4 && module != 200 => output_units,
-            H2RuntimeSlice::H2_1b if matches!(module, 1..=3) => output_units,
-            H2RuntimeSlice::H2_1d if module == 4 => output_units,
-            H2RuntimeSlice::H2_4b => h2_4b_sources,
-            _ => 0,
-        };
-        if outcome.h2_activity().runtime_slice(slice) != expected {
-            return Err(failure(format!(
-                "{}: {} owner activity expected {expected}, observed {}",
-                string(control, "control_id")?,
-                slice.name(),
-                outcome.h2_activity().runtime_slice(slice),
-            )));
-        }
-    }
-    Ok(())
+    execute_h2_owner_control(control, "H2.4a")
 }
 
 fn execute_h2_4b_owner_control(control: &Value) -> Result<(usize, usize), Box<dyn Error>> {
-    execute_h2_owner_control(control, "H2.4b", expected_h2_4b_owner_activity)
-}
-
-fn expected_h2_5a_owner_activity(
-    control: &Value,
-    outcome: &tsc_compiler::EmitOutcome,
-) -> Result<(), Box<dyn Error>> {
-    let input = &control["input"];
-    let module = input["compiler_options"]["module"].as_i64().unwrap_or(200);
-    let output_units = array(&control["observation"], "writes")?.len() as u64;
-    let runtime = &control["runtime_expectation"];
-    let expected_sources = |name: &str| {
-        runtime[name]
-            .as_u64()
-            .ok_or_else(|| failure(format!("H2.5a owner control lacks {name}")))
-    };
-    let h2_2b_sources = expected_sources("h2_2b_sources")?;
-    let h2_2c_sources = expected_sources("h2_2c_sources")?;
-    let h2_4b_sources = expected_sources("h2_4b_sources")?;
-    let h2_5a_sources = expected_sources("h2_5a_sources")?;
-    for slice in H2RuntimeSlice::ALL {
-        let expected = match slice {
-            H2RuntimeSlice::H2_1a if module != 4 && module != 200 => output_units,
-            H2RuntimeSlice::H2_1b if matches!(module, 1..=3) => output_units,
-            H2RuntimeSlice::H2_1d if module == 4 => output_units,
-            H2RuntimeSlice::H2_2b => h2_2b_sources,
-            H2RuntimeSlice::H2_2c => h2_2c_sources,
-            H2RuntimeSlice::H2_4b => h2_4b_sources,
-            H2RuntimeSlice::H2_5a => h2_5a_sources,
-            _ => 0,
-        };
-        if outcome.h2_activity().runtime_slice(slice) != expected {
-            return Err(failure(format!(
-                "{}: {} owner activity expected {expected}, observed {}",
-                string(control, "control_id")?,
-                slice.name(),
-                outcome.h2_activity().runtime_slice(slice),
-            )));
-        }
-    }
-    Ok(())
+    execute_h2_owner_control(control, "H2.4b")
 }
 
 fn execute_h2_5a_owner_control(control: &Value) -> Result<(usize, usize), Box<dyn Error>> {
-    execute_h2_owner_control(control, "H2.5a", expected_h2_5a_owner_activity)
-}
-
-fn expected_h2_5b_owner_activity(
-    control: &Value,
-    outcome: &tsc_compiler::EmitOutcome,
-) -> Result<(), Box<dyn Error>> {
-    let input = &control["input"];
-    let module = input["compiler_options"]["module"].as_i64().unwrap_or(200);
-    let output_units = array(&control["observation"], "writes")?.len() as u64;
-    let runtime = &control["runtime_expectation"];
-    let expected_sources = |name: &str| {
-        runtime[name]
-            .as_u64()
-            .ok_or_else(|| failure(format!("H2.5b owner control lacks {name}")))
-    };
-    for slice in H2RuntimeSlice::ALL {
-        let expected = match slice {
-            H2RuntimeSlice::H2_1a if module != 4 && module != 200 => output_units,
-            H2RuntimeSlice::H2_1b if matches!(module, 1..=3) => output_units,
-            H2RuntimeSlice::H2_1d if module == 4 => output_units,
-            H2RuntimeSlice::H2_2a => expected_sources("h2_2a_sources")?,
-            H2RuntimeSlice::H2_2b => expected_sources("h2_2b_sources")?,
-            H2RuntimeSlice::H2_2c => expected_sources("h2_2c_sources")?,
-            H2RuntimeSlice::H2_4a => expected_sources("h2_4a_sources")?,
-            H2RuntimeSlice::H2_4b => expected_sources("h2_4b_sources")?,
-            H2RuntimeSlice::H2_5a => expected_sources("h2_5a_sources")?,
-            H2RuntimeSlice::H2_5b => expected_sources("h2_5b_sources")?,
-            _ => 0,
-        };
-        if outcome.h2_activity().runtime_slice(slice) != expected {
-            return Err(failure(format!(
-                "{}: {} owner activity expected {expected}, observed {}",
-                string(control, "control_id")?,
-                slice.name(),
-                outcome.h2_activity().runtime_slice(slice),
-            )));
-        }
-    }
-    Ok(())
+    execute_h2_owner_control(control, "H2.5a")
 }
 
 fn execute_h2_5b_owner_control(control: &Value) -> Result<(usize, usize), Box<dyn Error>> {
-    execute_h2_owner_control(control, "H2.5b", expected_h2_5b_owner_activity)
-}
-
-fn expected_h2_5c_owner_activity(
-    control: &Value,
-    outcome: &tsc_compiler::EmitOutcome,
-) -> Result<(), Box<dyn Error>> {
-    let input = &control["input"];
-    let module = input["compiler_options"]["module"].as_i64().unwrap_or(200);
-    let output_units = array(&control["observation"], "writes")?.len() as u64;
-    let runtime = &control["runtime_expectation"];
-    let expected_sources = |name: &str| {
-        runtime[name]
-            .as_u64()
-            .ok_or_else(|| failure(format!("H2.5c owner control lacks {name}")))
-    };
-    for slice in H2RuntimeSlice::ALL {
-        let expected = match slice {
-            H2RuntimeSlice::H2_1a if module != 4 && module != 200 => output_units,
-            H2RuntimeSlice::H2_1b if matches!(module, 1..=3) => output_units,
-            H2RuntimeSlice::H2_1d if module == 4 => output_units,
-            H2RuntimeSlice::H2_2a => expected_sources("h2_2a_sources")?,
-            H2RuntimeSlice::H2_2b => expected_sources("h2_2b_sources")?,
-            H2RuntimeSlice::H2_2c => expected_sources("h2_2c_sources")?,
-            H2RuntimeSlice::H2_4a => expected_sources("h2_4a_sources")?,
-            H2RuntimeSlice::H2_4b => expected_sources("h2_4b_sources")?,
-            H2RuntimeSlice::H2_5a => expected_sources("h2_5a_sources")?,
-            H2RuntimeSlice::H2_5b => expected_sources("h2_5b_sources")?,
-            H2RuntimeSlice::H2_5c => expected_sources("h2_5c_sources")?,
-            _ => 0,
-        };
-        if outcome.h2_activity().runtime_slice(slice) != expected {
-            return Err(failure(format!(
-                "{}: {} owner activity expected {expected}, observed {}",
-                string(control, "control_id")?,
-                slice.name(),
-                outcome.h2_activity().runtime_slice(slice),
-            )));
-        }
-    }
-    Ok(())
+    execute_h2_owner_control(control, "H2.5b")
 }
 
 fn execute_h2_5c_owner_control(control: &Value) -> Result<(usize, usize), Box<dyn Error>> {
-    execute_h2_owner_control(control, "H2.5c", expected_h2_5c_owner_activity)
-}
-
-fn expected_h2_5d_owner_activity(
-    control: &Value,
-    outcome: &tsc_compiler::EmitOutcome,
-) -> Result<(), Box<dyn Error>> {
-    let input = &control["input"];
-    let module = input["compiler_options"]["module"].as_i64().unwrap_or(200);
-    let output_units = array(&control["observation"], "writes")?.len() as u64;
-    let runtime = &control["runtime_expectation"];
-    let expected_sources = |name: &str| {
-        runtime[name]
-            .as_u64()
-            .ok_or_else(|| failure(format!("H2.5d owner control lacks {name}")))
-    };
-    for slice in H2RuntimeSlice::ALL {
-        let expected = match slice {
-            H2RuntimeSlice::H2_1a if module != 4 && module != 200 => output_units,
-            H2RuntimeSlice::H2_1b if matches!(module, 1..=3) => output_units,
-            H2RuntimeSlice::H2_1d if module == 4 => output_units,
-            H2RuntimeSlice::H2_2a => expected_sources("h2_2a_sources")?,
-            H2RuntimeSlice::H2_2b => expected_sources("h2_2b_sources")?,
-            H2RuntimeSlice::H2_2c => expected_sources("h2_2c_sources")?,
-            H2RuntimeSlice::H2_4a => expected_sources("h2_4a_sources")?,
-            H2RuntimeSlice::H2_4b => expected_sources("h2_4b_sources")?,
-            H2RuntimeSlice::H2_5a => expected_sources("h2_5a_sources")?,
-            H2RuntimeSlice::H2_5b => expected_sources("h2_5b_sources")?,
-            H2RuntimeSlice::H2_5c => expected_sources("h2_5c_sources")?,
-            H2RuntimeSlice::H2_5d => expected_sources("h2_5d_sources")?,
-            _ => 0,
-        };
-        if outcome.h2_activity().runtime_slice(slice) != expected {
-            return Err(failure(format!(
-                "{}: {} owner activity expected {expected}, observed {}",
-                string(control, "control_id")?,
-                slice.name(),
-                outcome.h2_activity().runtime_slice(slice),
-            )));
-        }
-    }
-    Ok(())
+    execute_h2_owner_control(control, "H2.5c")
 }
 
 fn execute_h2_5d_owner_control(control: &Value) -> Result<(usize, usize), Box<dyn Error>> {
-    execute_h2_owner_control(control, "H2.5d", expected_h2_5d_owner_activity)
-}
-
-fn expected_h2_5e_owner_activity(
-    control: &Value,
-    outcome: &tsc_compiler::EmitOutcome,
-) -> Result<(), Box<dyn Error>> {
-    let input = &control["input"];
-    let module = input["compiler_options"]["module"].as_i64().unwrap_or(200);
-    let output_units = array(&control["observation"], "writes")?.len() as u64;
-    let runtime = &control["runtime_expectation"];
-    let expected_sources = |name: &str| {
-        runtime[name]
-            .as_u64()
-            .ok_or_else(|| failure(format!("H2.5e owner control lacks {name}")))
-    };
-    for slice in H2RuntimeSlice::ALL {
-        let expected = match slice {
-            H2RuntimeSlice::H2_1a if module != 4 && module != 200 => output_units,
-            H2RuntimeSlice::H2_1b if matches!(module, 1..=3) => output_units,
-            H2RuntimeSlice::H2_1d if module == 4 => output_units,
-            H2RuntimeSlice::H2_2a => expected_sources("h2_2a_sources")?,
-            H2RuntimeSlice::H2_2b => expected_sources("h2_2b_sources")?,
-            H2RuntimeSlice::H2_2c => expected_sources("h2_2c_sources")?,
-            H2RuntimeSlice::H2_4a => expected_sources("h2_4a_sources")?,
-            H2RuntimeSlice::H2_4b => expected_sources("h2_4b_sources")?,
-            H2RuntimeSlice::H2_5a => expected_sources("h2_5a_sources")?,
-            H2RuntimeSlice::H2_5b => expected_sources("h2_5b_sources")?,
-            H2RuntimeSlice::H2_5c => expected_sources("h2_5c_sources")?,
-            H2RuntimeSlice::H2_5d => expected_sources("h2_5d_sources")?,
-            H2RuntimeSlice::H2_5e => expected_sources("h2_5e_sources")?,
-            _ => 0,
-        };
-        if outcome.h2_activity().runtime_slice(slice) != expected {
-            return Err(failure(format!(
-                "{}: {} owner activity expected {expected}, observed {}",
-                string(control, "control_id")?,
-                slice.name(),
-                outcome.h2_activity().runtime_slice(slice),
-            )));
-        }
-    }
-    Ok(())
+    execute_h2_owner_control(control, "H2.5d")
 }
 
 fn execute_h2_5e_owner_control(control: &Value) -> Result<(usize, usize), Box<dyn Error>> {
-    execute_h2_owner_control(control, "H2.5e", expected_h2_5e_owner_activity)
-}
-
-fn expected_h2_5f_owner_activity(
-    control: &Value,
-    outcome: &tsc_compiler::EmitOutcome,
-) -> Result<(), Box<dyn Error>> {
-    let input = &control["input"];
-    let module = input["compiler_options"]["module"].as_i64().unwrap_or(200);
-    let output_units = array(&control["observation"], "writes")?.len() as u64;
-    let runtime = &control["runtime_expectation"];
-    let expected_sources = |name: &str| {
-        runtime[name]
-            .as_u64()
-            .ok_or_else(|| failure(format!("H2.5f owner control lacks {name}")))
-    };
-    for slice in H2RuntimeSlice::ALL {
-        let expected = match slice {
-            H2RuntimeSlice::H2_1a if module != 4 && module != 200 => output_units,
-            H2RuntimeSlice::H2_1b if matches!(module, 1..=3) => output_units,
-            H2RuntimeSlice::H2_1d if module == 4 => output_units,
-            H2RuntimeSlice::H2_2a => expected_sources("h2_2a_sources")?,
-            H2RuntimeSlice::H2_2b => expected_sources("h2_2b_sources")?,
-            H2RuntimeSlice::H2_2c => expected_sources("h2_2c_sources")?,
-            H2RuntimeSlice::H2_4a => expected_sources("h2_4a_sources")?,
-            H2RuntimeSlice::H2_4b => expected_sources("h2_4b_sources")?,
-            H2RuntimeSlice::H2_5a => expected_sources("h2_5a_sources")?,
-            H2RuntimeSlice::H2_5b => expected_sources("h2_5b_sources")?,
-            H2RuntimeSlice::H2_5c => expected_sources("h2_5c_sources")?,
-            H2RuntimeSlice::H2_5d => expected_sources("h2_5d_sources")?,
-            H2RuntimeSlice::H2_5e => expected_sources("h2_5e_sources")?,
-            H2RuntimeSlice::H2_5f => expected_sources("h2_5f_sources")?,
-            _ => 0,
-        };
-        if outcome.h2_activity().runtime_slice(slice) != expected {
-            return Err(failure(format!(
-                "{}: {} owner activity expected {expected}, observed {}",
-                string(control, "control_id")?,
-                slice.name(),
-                outcome.h2_activity().runtime_slice(slice),
-            )));
-        }
-    }
-    Ok(())
+    execute_h2_owner_control(control, "H2.5e")
 }
 
 fn execute_h2_5f_owner_control(control: &Value) -> Result<(usize, usize), Box<dyn Error>> {
-    execute_h2_owner_control(control, "H2.5f", expected_h2_5f_owner_activity)
-}
-
-fn expected_h2_5g_owner_activity_for_slice(
-    control: &Value,
-    slice: H2RuntimeSlice,
-) -> Result<u64, Box<dyn Error>> {
-    let input = &control["input"];
-    let module = input["compiler_options"]["module"].as_i64().unwrap_or(200);
-    let output_units = array(&control["observation"], "writes")?.len() as u64;
-    let runtime = &control["runtime_expectation"];
-    let expected_sources = |name: &str| {
-        runtime[name]
-            .as_u64()
-            .ok_or_else(|| failure(format!("H2.5g owner control lacks {name}")))
-    };
-    Ok(match slice {
-        H2RuntimeSlice::H2_1a if module != 4 && module != 200 => output_units,
-        H2RuntimeSlice::H2_1b if matches!(module, 1..=3) => output_units,
-        H2RuntimeSlice::H2_1d if module == 4 => output_units,
-        H2RuntimeSlice::H2_2a => expected_sources("h2_2a_sources")?,
-        H2RuntimeSlice::H2_2b => expected_sources("h2_2b_sources")?,
-        H2RuntimeSlice::H2_2c => expected_sources("h2_2c_sources")?,
-        H2RuntimeSlice::H2_4a => expected_sources("h2_4a_sources")?,
-        H2RuntimeSlice::H2_4b => expected_sources("h2_4b_sources")?,
-        H2RuntimeSlice::H2_5a => expected_sources("h2_5a_sources")?,
-        H2RuntimeSlice::H2_5b => expected_sources("h2_5b_sources")?,
-        H2RuntimeSlice::H2_5c => expected_sources("h2_5c_sources")?,
-        H2RuntimeSlice::H2_5d => expected_sources("h2_5d_sources")?,
-        H2RuntimeSlice::H2_5e => expected_sources("h2_5e_sources")?,
-        H2RuntimeSlice::H2_5f => expected_sources("h2_5f_sources")?,
-        H2RuntimeSlice::H2_5g => expected_sources("h2_5g_sources")?,
-        _ => 0,
-    })
-}
-
-fn expected_h2_5g_owner_activity(
-    control: &Value,
-    outcome: &tsc_compiler::EmitOutcome,
-) -> Result<(), Box<dyn Error>> {
-    for slice in H2RuntimeSlice::ALL {
-        let expected = expected_h2_5g_owner_activity_for_slice(control, slice)?;
-        if outcome.h2_activity().runtime_slice(slice) != expected {
-            return Err(failure(format!(
-                "{}: {} owner activity expected {expected}, observed {}",
-                string(control, "control_id")?,
-                slice.name(),
-                outcome.h2_activity().runtime_slice(slice),
-            )));
-        }
-    }
-    Ok(())
+    execute_h2_owner_control(control, "H2.5f")
 }
 
 fn validate_h2_5g_owner_control_artifact(artifact: &Value) -> Result<&[Value], Box<dyn Error>> {
@@ -581,7 +214,7 @@ fn validate_h2_5g_owner_control_artifact(artifact: &Value) -> Result<&[Value], B
 }
 
 fn execute_h2_5g_owner_control(control: &Value) -> Result<(usize, usize), Box<dyn Error>> {
-    execute_h2_owner_control(control, "H2.5g", expected_h2_5g_owner_activity)
+    execute_h2_owner_control(control, "H2.5g")
 }
 
 fn owner_input(control: &Value) -> Result<PreparedProgram, Box<dyn Error>> {
@@ -746,51 +379,6 @@ fn assert_reported_diagnostics(
     Ok(())
 }
 
-fn expected_owner_activity(
-    control: &Value,
-    outcome: &tsc_compiler::EmitOutcome,
-) -> Result<(), Box<dyn Error>> {
-    let input = &control["input"];
-    let module = input["compiler_options"]["module"].as_i64().unwrap_or(200);
-    let output_units = array(&control["observation"], "writes")?.len() as u64;
-    let json_sources = array(input, "files")?
-        .iter()
-        .filter(|source| {
-            source["path"]
-                .as_str()
-                .is_some_and(|file_name| file_name.to_ascii_lowercase().ends_with(".json"))
-        })
-        .count() as u64;
-    let eligible_json = if input["compiler_options"]["outDir"].is_string() {
-        json_sources
-    } else {
-        0
-    };
-
-    for slice in H2RuntimeSlice::ALL {
-        let expected = match slice {
-            // Only the implied-format composite constructs this owner. AMD/UMD
-            // use the direct module delegate and retain H2.1b/H2.1c below.
-            H2RuntimeSlice::H2_1a if matches!(module, 1 | 5..=7 | 99..=102 | 199) => output_units,
-            H2RuntimeSlice::H2_1b if matches!(module, 1..=3) => output_units,
-            H2RuntimeSlice::H2_1c if matches!(module, 2 | 3) => output_units,
-            H2RuntimeSlice::H2_1d if module == 4 => output_units,
-            H2RuntimeSlice::H2_1e if (100..=199).contains(&module) => output_units,
-            H2RuntimeSlice::H2_3d => eligible_json,
-            _ => 0,
-        };
-        if outcome.h2_activity().runtime_slice(slice) != expected {
-            return Err(failure(format!(
-                "{}: {} owner activity expected {expected}, observed {}",
-                string(control, "control_id")?,
-                slice.name(),
-                outcome.h2_activity().runtime_slice(slice),
-            )));
-        }
-    }
-    Ok(())
-}
-
 fn execute_owner_control(control: &Value) -> Result<(usize, usize), Box<dyn Error>> {
     let id = string(control, "control_id")?;
     let mut first_sink = MemoryOutputSink::new();
@@ -819,7 +407,6 @@ fn execute_owner_control(control: &Value) -> Result<(usize, usize), Box<dyn Erro
         return Err(failure(format!("{id}: owner emit result differs")));
     }
     assert_exact_writes(id, array(expected, "writes")?, &first_sink)?;
-    expected_owner_activity(control, &first)?;
     Ok((first_sink.writes().len(), first_reported.len()))
 }
 

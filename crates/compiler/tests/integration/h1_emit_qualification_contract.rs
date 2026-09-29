@@ -10,7 +10,7 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use tsc_compiler::{
     DriverError, EmitArtifact, EmitArtifactKind, EmitFailure, EmitIoError, EmitIoOperation,
-    EmitWriteDisposition, H2RuntimeSlice, MemoryOutputSink, OutputSink, ProgramSession,
+    EmitWriteDisposition, MemoryOutputSink, OutputSink, ProgramSession,
 };
 use tsc_emitter::{TransformError, UnsupportedTransformFeature};
 use tsc_harness::upstream_suites::execution::{
@@ -512,7 +512,7 @@ fn frozen_adjacent_controls_remain_rejected_or_are_exactly_promoted() {
                 | "declaration-control"
         ) {
             let mut sink = MemoryOutputSink::new();
-            let outcome = ProgramSession::new(prepared_control(
+            ProgramSession::new(prepared_control(
                 case,
                 &oracle["oracle_environment"]["library"],
             ))
@@ -552,28 +552,6 @@ fn frozen_adjacent_controls_remain_rejected_or_are_exactly_promoted() {
                         .as_str()
                         .expect("expected write text"),
                     "{id}: exact promoted output text",
-                );
-            }
-            let owner = match id {
-                "mts-output-control" => H2RuntimeSlice::H2_1e,
-                "runtime-enum-control" => H2RuntimeSlice::H2_2a,
-                "runtime-namespace-control" => H2RuntimeSlice::H2_2b,
-                "parameter-property-control" => H2RuntimeSlice::H2_2c,
-                "jsx-control" => H2RuntimeSlice::H2_3b,
-                "source-map-control" => H2RuntimeSlice::H2_6a,
-                "declaration-control" => H2RuntimeSlice::H2_6c,
-                _ => unreachable!("promoted adjacent control"),
-            };
-            assert_eq!(
-                outcome.h2_activity().runtime_slice(owner),
-                1,
-                "{id}: later H2 slice owns the promotion",
-            );
-            if id == "declaration-control" {
-                assert_eq!(
-                    outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_7b),
-                    1,
-                    "{id}: H2.7b owns the declaration member",
                 );
             }
             continue;
@@ -698,10 +676,6 @@ fn declaration_collision_blocks_only_the_declaration_member() {
                 .collect::<Vec<_>>())
             .as_deref(),
         Some([PathBuf::from("/project/value.js")].as_slice())
-    );
-    assert_eq!(
-        outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_7b),
-        1
     );
 }
 

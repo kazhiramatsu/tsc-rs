@@ -38,18 +38,17 @@ use tsc_diagnostics::{
     gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList, JsStr, JsString, MessageChain,
 };
 use tsc_emitter::{
-    begin_emit_files, emit_files_with_activity, emit_planned_units, finish_emit_files,
-    preflight_emit, print_script_units_with_recording_for_harness, validate_bootstrap_emit_request,
-    EmitDiagnosticGate, EmitFilesSession, EmitFilesStart, EmitHost, EmitSource, H2ActivityCanary,
-    PrintedText, SourceMapRecordingInputs, UnavailableEmitResolver, UnitEmitError,
+    begin_emit_files, emit_files, emit_planned_units, finish_emit_files, preflight_emit,
+    print_script_units_with_recording_for_harness, validate_bootstrap_emit_request,
+    EmitDiagnosticGate, EmitFilesSession, EmitFilesStart, EmitHost, EmitSource, PrintedText,
+    SourceMapRecordingInputs, UnavailableEmitResolver, UnitEmitError,
 };
 pub use tsc_emitter::{
     EmitArtifact, EmitArtifactKind, EmitBuildInfoMetadata, EmitContractViolation, EmitFailure,
     EmitFileSystem, EmitIoError, EmitIoOperation, EmitMode, EmitOutcome, EmitOutputPaths,
     EmitOutputPlan, EmitOutputUnit, EmitRoot, EmitSelection, EmitStage, EmitTextMetadata,
     EmitWriteDisposition, EmitWriteMetadata, FsOutputSink, GeneratedUtf16Position,
-    H2ActivityCounters, H2RuntimeSlice, MemoryOutputSink, OutputSink, SourceMapObservation,
-    UnsupportedEmitFeature,
+    MemoryOutputSink, OutputSink, SourceMapObservation, UnsupportedEmitFeature,
 };
 pub use tsc_program::PreparedProgramMode;
 pub use tsc_program::WorkerBudget;
@@ -62,12 +61,10 @@ use tsc_program::{
 
 mod cli;
 mod declaration_diagnostics;
-mod no_emit_canary;
 pub mod transpile;
 
 pub use cli::{run_cli, CliOutput};
 pub use declaration_diagnostics::DeclarationSession;
-pub use no_emit_canary::NoEmitActivityCounters;
 pub use tsc_checker::JSDocParsingMode;
 pub use tsc_emitter::EmitRouteKind;
 
@@ -188,7 +185,6 @@ fn sharded_declaration_diagnostics(
     sessions: &[CheckerSession<'_>],
     files_by_shard: &[Vec<usize>],
     worker_budget: WorkerBudget,
-    activity: &mut H2ActivityCanary,
     shard_label_offset: usize,
     partial: bool,
 ) -> Result<Vec<Diagnostic>, EmitFailure> {
@@ -246,7 +242,6 @@ fn sharded_declaration_diagnostics(
     let results = worker_budget.map_ordered(jobs, weight, |(shard, sources)| {
         let started = std::time::Instant::now();
         let source_count = sources.len();
-        let mut activity = H2ActivityCanary::h2_7e_profile();
         let result = sessions[shard].with_emit_resolver(|resolver| {
             let mut diagnostics = Vec::new();
             for source in sources {
@@ -255,7 +250,6 @@ fn sharded_declaration_diagnostics(
                     checked_host,
                     paths,
                     source,
-                    &mut activity,
                 )?);
             }
             Ok::<_, EmitFailure>(diagnostics)
@@ -269,16 +263,10 @@ fn sharded_declaration_diagnostics(
                 started,
             );
         }
-        (result, activity.counters())
+        result
     });
-    // One resolver borrow per checker session, as when each shard ran the
-    // getter over its own files in one borrow.
-    for _ in sessions {
-        activity.borrow_emit_resolver();
-    }
     let mut diagnostics = Vec::new();
-    for (result, counters) in results {
-        activity.absorb(counters);
+    for result in results {
         diagnostics.extend(result?);
     }
     sort_and_dedupe_diagnostics(&mut diagnostics);
@@ -341,7 +329,6 @@ fn no_emit_declaration_diagnostics(
     };
     let paths = tsc_emitter::PlanDeclarationPaths::for_declaration_diagnostics(&checked_host)
         .map_err(DriverError::Emit)?;
-    let mut activity = H2ActivityCanary::h2_7e_profile();
     sharded_declaration_diagnostics(
         &checked_host,
         &emit_host,
@@ -349,7 +336,6 @@ fn no_emit_declaration_diagnostics(
         sessions,
         files_by_shard,
         worker_budget,
-        &mut activity,
         shard_label_offset,
         partial,
     )
@@ -1204,13 +1190,7 @@ impl ProgramSession {
     /// checker never falls back to its legacy heuristic resolver.
     pub fn run(self) -> Result<NoEmitOutcome, DriverError> {
         self.require_mode(PreparedProgramMode::NoEmit)?;
-        let mut no_emit_canary = no_emit_canary::NoEmitCanary::new();
-        self.run_with_no_emit_canary(
-            false,
-            LibraryPrefixCompletion::Complete,
-            false,
-            &mut no_emit_canary,
-        )
+        self.run_no_emit_pass(false, LibraryPrefixCompletion::Complete, false)
     }
 
     /// The --noEmit command's report: the no-emit diagnostic pass of
@@ -1223,13 +1203,7 @@ impl ProgramSession {
     /// nothing is emitted. `run` itself keeps H0's no-emitter contract.
     pub fn run_no_emit_command(self) -> Result<NoEmitOutcome, DriverError> {
         self.require_mode(PreparedProgramMode::NoEmit)?;
-        let mut no_emit_canary = no_emit_canary::NoEmitCanary::new();
-        self.run_with_no_emit_canary(
-            false,
-            LibraryPrefixCompletion::Complete,
-            true,
-            &mut no_emit_canary,
-        )
+        self.run_no_emit_pass(false, LibraryPrefixCompletion::Complete, true)
     }
 
     /// Consume this Program for a declaration-only diagnostic getter.
@@ -1604,8 +1578,8 @@ impl ProgramSession {
     /// h2-6a-m-2 §8-A.1 harness-print bridge: run the production
     /// plan → checker-resolver → transform → print pipeline and return
     /// each script unit's printed text (with an optionally injected
-    /// source-map recording), WITHOUT artifacts, sinks, activity
-    /// accounting, or the emit option preflight. Qualification-only:
+    /// source-map recording), WITHOUT artifacts, sinks, or the emit
+    /// option preflight. Qualification-only:
     /// the replay suite byte-compares the returned units against the
     /// frozen witnesses; production emits keep every refusal lane.
     #[doc(hidden)]
@@ -1691,7 +1665,7 @@ impl ProgramSession {
     /// `program.emit(undefined, undefined, undefined, /*emitOnlyDtsFiles*/ true,
     /// undefined, /*forceDtsEmit*/ true)` (typescript.js:146112-146121):
     /// handleNoEmitOptions is skipped and declaration output is forced.
-    /// tsrs-native: route adapter over emit_forced_declarations_with_activity.
+    /// tsrs-native: route adapter over emit_forced_declarations.
     pub(crate) fn emit_forced_declarations_command_for_transpile(
         self,
         sink: &mut dyn OutputSink,
@@ -1721,8 +1695,6 @@ impl ProgramSession {
             checker_budget: _,
             leak_program: _,
         } = self;
-        let mut h2_activity = H2ActivityCanary::h2_7e_profile();
-        h2_activity.construct_emit_session();
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         if forced_declarations {
             tsc_emitter::validate_forced_declaration_request(&emit_host)
@@ -1731,7 +1703,6 @@ impl ProgramSession {
             validate_bootstrap_emit_request(&emit_host).map_err(DriverError::Emit)?;
         }
         let selection = EmitSelection::WholeProgram;
-        h2_activity.construct_output_plan();
         let preflight = if forced_declarations {
             None
         } else {
@@ -1773,24 +1744,21 @@ impl ProgramSession {
                     .as_ref()
                     .map(|preflight| preflight.diagnostics().to_vec())
                     .unwrap_or_default();
-                h2_activity.borrow_emit_resolver();
                 emit_result = Some(checker.with_emit_resolver(|resolver| {
                     match preflight {
-                        Some(preflight) => emit_files_with_activity(
+                        Some(preflight) => emit_files(
                             resolver,
                             &checked_host,
                             preflight,
                             selection,
                             &diagnostic_gate,
                             sink,
-                            &mut h2_activity,
                         ),
-                        None => tsc_emitter::emit_forced_declarations_with_activity(
+                        None => tsc_emitter::emit_forced_declarations(
                             resolver,
                             &checked_host,
                             selection,
                             sink,
-                            &mut h2_activity,
                         ),
                     }
                     .map(|emit| {
@@ -1842,25 +1810,23 @@ impl ProgramSession {
         let work_counters = check_work_counters(&checked);
         let Some(preflight) = pending_preflight else {
             // Empty forced-declaration Program: no source can reach a resolver.
-            return tsc_emitter::emit_forced_declarations_with_activity(
+            return tsc_emitter::emit_forced_declarations(
                 &UnavailableEmitResolver,
                 &emit_host,
                 selection,
                 sink,
-                &mut h2_activity,
             )
             .map(|emit| diagnostics.with_emit(&[], emit, work_counters))
             .map_err(DriverError::Emit);
         };
         let preflight_diagnostics = preflight.diagnostics().to_vec();
-        emit_files_with_activity(
+        emit_files(
             &UnavailableEmitResolver,
             &emit_host,
             preflight,
             selection,
             &diagnostic_gate,
             sink,
-            &mut h2_activity,
         )
         .map(|emit| diagnostics.with_emit(&preflight_diagnostics, emit, work_counters))
         .map_err(DriverError::Emit)
@@ -1881,13 +1847,10 @@ impl ProgramSession {
             leak_program,
         } = self;
         let setup_started = std::time::Instant::now();
-        let mut h2_activity = H2ActivityCanary::h2_7e_profile();
-        h2_activity.construct_emit_session();
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         validate_bootstrap_emit_request(&emit_host).map_err(DriverError::Emit)?;
         tsc_types::trace::mark("emit: host and request validation", setup_started);
         let selection = EmitSelection::WholeProgram;
-        h2_activity.construct_output_plan();
         let preflight_started = std::time::Instant::now();
         let preflight = preflight_emit(&emit_host, selection).map_err(DriverError::Emit)?;
         let preflight_diagnostics = preflight.diagnostics().to_vec();
@@ -1939,7 +1902,7 @@ impl ProgramSession {
             tsc_checker::declaration_output_requested(prepared.compiler_options());
         type EagerShardEmission = (
             Vec<usize>,
-            Result<(Vec<tsc_emitter::UnitEmission>, H2ActivityCounters), UnitEmitError>,
+            Result<Vec<tsc_emitter::UnitEmission>, UnitEmitError>,
         );
         let eager_emissions: std::sync::Mutex<Vec<Option<EagerShardEmission>>> =
             std::sync::Mutex::new(Vec::new());
@@ -2046,12 +2009,6 @@ impl ProgramSession {
                             sessions: &[CheckerSession<'_>],
                             files_by_shard: &[Vec<usize>]|
              -> bool {
-                // Each evaluation (the sharded run, or its serial replay)
-                // starts the coordinator's recorder afresh so the observed
-                // counts describe exactly the run that is published.
-                h2_activity = H2ActivityCanary::h2_7e_profile();
-                h2_activity.construct_emit_session();
-                h2_activity.construct_output_plan();
                 if let Some(partial) = checked.partial_checks.first() {
                     gate_outcome = Some(GateOutcome::Failed(DriverError::IncompleteCheck {
                         file_name: partial.file_name.clone(),
@@ -2089,7 +2046,6 @@ impl ProgramSession {
                         sessions,
                         files_by_shard,
                         worker_budget,
-                        &mut h2_activity,
                         0,
                         false,
                     ) {
@@ -2108,14 +2064,8 @@ impl ProgramSession {
                     );
                 }
                 let begin_started = std::time::Instant::now();
-                let started = begin_emit_files(
-                    None,
-                    &checked_host,
-                    &preflight,
-                    selection,
-                    &diagnostic_gate,
-                    &mut h2_activity,
-                );
+                let started =
+                    begin_emit_files(None, &checked_host, &preflight, selection, &diagnostic_gate);
                 tsc_types::trace::mark("emit: begin_emit_files", begin_started);
                 match started {
                     Ok(EmitFilesStart::Blocked(outcome)) => {
@@ -2189,7 +2139,7 @@ impl ProgramSession {
                 let mut jobs: Vec<(usize, Vec<usize>)> = Vec::new();
                 for (shard, units) in units_by_shard.into_iter().enumerate() {
                     let remaining: Vec<usize> = match stashed.get(shard) {
-                        Some(Some((_, Ok((emitted, _))))) => {
+                        Some(Some((_, Ok(emitted)))) => {
                             let emitted = emitted
                                 .iter()
                                 .map(|emission| emission.unit())
@@ -2225,9 +2175,8 @@ impl ProgramSession {
                         .sum::<usize>()
                 };
                 let results = worker_budget.map_ordered(jobs, weight, |(shard, units)| {
-                    let mut activity = H2ActivityCanary::h2_7e_profile();
                     let mut eager = eager_sink.map(tsc_emitter::EagerUnitSink);
-                    let result = sessions[shard].with_emit_resolver(|resolver| {
+                    sessions[shard].with_emit_resolver(|resolver| {
                         emit_planned_units(
                             resolver,
                             &checked_host,
@@ -2236,28 +2185,13 @@ impl ProgramSession {
                             eager
                                 .as_mut()
                                 .map(|sink| sink as &mut dyn tsc_emitter::OutputSink),
-                            &mut activity,
                         )
-                    });
-                    (result, activity.counters())
+                    })
                 });
-                let mut activity = H2ActivityCanary::h2_7e_profile();
-                // One resolver borrow per checker session, as when each
-                // shard emitted its own units in one borrow.
-                for _ in sessions {
-                    activity.borrow_emit_resolver();
-                }
                 let mut units = Vec::with_capacity(results.len());
                 let mut first_error: Option<UnitEmitError> = None;
-                let eager_results = stashed
-                    .into_iter()
-                    .flatten()
-                    .map(|(_, result)| match result {
-                        Ok((units, counters)) => (Ok(units), counters),
-                        Err(error) => (Err(error), H2ActivityCounters::default()),
-                    });
-                for (result, counters) in eager_results.chain(results) {
-                    activity.absorb(counters);
+                let eager_results = stashed.into_iter().flatten().map(|(_, result)| result);
+                for result in eager_results.chain(results) {
                     match result {
                         Ok(emitted) => units.extend(emitted),
                         Err(error) => {
@@ -2277,7 +2211,6 @@ impl ProgramSession {
                 }
                 Ok(vec![ShardEmission {
                     units,
-                    counters: activity.counters(),
                     checked_source_files: sessions
                         .iter()
                         .map(CheckerSession::checked_source_files)
@@ -2330,7 +2263,6 @@ impl ProgramSession {
                     snapshot,
                     prepared_sources: Some(&prelude_slots),
                 };
-                let mut activity = H2ActivityCanary::h2_7e_profile();
                 let mut eager_unit_sink = eager_sink.map(tsc_emitter::EagerUnitSink);
                 // A shard emits its own units in plan order while another
                 // shard is still checking: that work overlaps the check. Once
@@ -2387,7 +2319,6 @@ impl ProgramSession {
                             eager_unit_sink
                                 .as_mut()
                                 .map(|sink| sink as &mut dyn tsc_emitter::OutputSink),
-                            &mut activity,
                         ) {
                             Ok(units) => emitted.extend(units),
                             Err(error) => return (emitted, Some(error), owns_tail),
@@ -2426,7 +2357,7 @@ impl ProgramSession {
                     files.to_vec(),
                     match failure {
                         Some(error) => Err(error),
-                        None => Ok((emitted, activity.counters())),
+                        None => Ok(emitted),
                     },
                 ));
             };
@@ -2466,14 +2397,12 @@ impl ProgramSession {
                 let mut units = Vec::new();
                 let mut checked_source_files = 0u32;
                 for shard in emissions {
-                    h2_activity.absorb(shard.counters);
                     checked_source_files =
                         checked_source_files.saturating_add(shard.checked_source_files);
                     units.extend(shard.units);
                 }
                 let finish_started = std::time::Instant::now();
-                let emit = finish_emit_files(session, units, sink, &mut h2_activity)
-                    .map_err(DriverError::Emit)?;
+                let emit = finish_emit_files(session, units, sink).map_err(DriverError::Emit)?;
                 tsc_types::trace::mark("emit: finish_emit_files (assemble, write)", finish_started);
                 let mut outcome =
                     diagnostics.with_emit(&preflight_diagnostics, emit, work_counters);
@@ -2487,14 +2416,13 @@ impl ProgramSession {
                 let diagnostics = emit_session_diagnostics(&prepared, &checked);
                 let diagnostic_gate = diagnostics.gate();
                 let work_counters = check_work_counters(&checked);
-                emit_files_with_activity(
+                emit_files(
                     &UnavailableEmitResolver,
                     &emit_host,
                     preflight,
                     selection,
                     &diagnostic_gate,
                     sink,
-                    &mut h2_activity,
                 )
                 .map(|emit| diagnostics.with_emit(&preflight_diagnostics, emit, work_counters))
                 .map_err(DriverError::Emit)
@@ -2519,13 +2447,7 @@ impl ProgramSession {
     #[doc(hidden)]
     pub fn run_for_harness_with_lib_cache(self) -> Result<NoEmitOutcome, DriverError> {
         self.require_mode(PreparedProgramMode::NoEmit)?;
-        let mut no_emit_canary = no_emit_canary::NoEmitCanary::new();
-        self.run_with_no_emit_canary(
-            true,
-            LibraryPrefixCompletion::Complete,
-            false,
-            &mut no_emit_canary,
-        )
+        self.run_no_emit_pass(true, LibraryPrefixCompletion::Complete, false)
     }
 
     /// Conformance-runner execution: the lib-cache harness path with the
@@ -2544,28 +2466,16 @@ impl ProgramSession {
     #[doc(hidden)]
     pub fn run_for_conformance_harness(self) -> Result<NoEmitOutcome, DriverError> {
         self.require_mode(PreparedProgramMode::NoEmit)?;
-        let mut no_emit_canary = no_emit_canary::NoEmitCanary::new();
-        self.run_with_no_emit_canary(
-            true,
-            LibraryPrefixCompletion::FixtureObservedOnly,
-            false,
-            &mut no_emit_canary,
-        )
+        self.run_no_emit_pass(true, LibraryPrefixCompletion::FixtureObservedOnly, false)
     }
 
-    pub(crate) fn run_with_no_emit_canary(
+    pub(crate) fn run_no_emit_pass(
         self,
         harness_lib_cache: bool,
         library_prefix: LibraryPrefixCompletion,
         declaration_getter: bool,
-        no_emit_canary: &mut no_emit_canary::NoEmitCanary,
     ) -> Result<NoEmitOutcome, DriverError> {
-        self.run_inner(
-            harness_lib_cache,
-            library_prefix,
-            declaration_getter,
-            no_emit_canary,
-        )
+        self.run_inner(harness_lib_cache, library_prefix, declaration_getter)
     }
 
     fn require_mode(&self, expected: PreparedProgramMode) -> Result<(), DriverError> {
@@ -2582,7 +2492,6 @@ impl ProgramSession {
         harness_lib_cache: bool,
         library_prefix: LibraryPrefixCompletion,
         declaration_getter: bool,
-        _no_emit_canary: &mut no_emit_canary::NoEmitCanary,
     ) -> Result<NoEmitOutcome, DriverError> {
         let inputs = project_checker_inputs(&self.prepared, &self.source_api_facts)?;
         let has_roots = !self.prepared.roots().is_empty();
@@ -2916,7 +2825,6 @@ impl ProgramSession {
             declaration_diagnostics,
             conformance_diagnostics,
             work_counters,
-            no_emit_activity: NoEmitActivityCounters,
         })
     }
 }
@@ -2944,9 +2852,6 @@ pub struct NoEmitOutcome {
     // Operational evidence is not part of diagnostic-result equality. Tests
     // and qualification compare it explicitly through work_counters().
     work_counters: NoEmitWorkCounters,
-    // H1.0b proof is zero-sized; successful construction means every guarded
-    // emitter factory and output-sink call remained unreachable.
-    no_emit_activity: NoEmitActivityCounters,
 }
 
 impl PartialEq for NoEmitOutcome {
@@ -3065,11 +2970,6 @@ impl NoEmitOutcome {
     /// Parse/bind/full-text-copy evidence for this consumed session.
     pub const fn work_counters(&self) -> NoEmitWorkCounters {
         self.work_counters
-    }
-
-    /// H1 constructor/output-write observations for this no-emit session.
-    pub const fn no_emit_activity(&self) -> NoEmitActivityCounters {
-        self.no_emit_activity
     }
 
     /// Iterate in the no-emit command's bucket order.

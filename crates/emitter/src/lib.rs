@@ -7,7 +7,6 @@
 //! `tsc-rs-checker`; live checker state implements emitter-owned protocols
 //! without creating a dependency cycle.
 
-mod activity;
 mod artifact;
 mod builtins;
 mod comment_cursor;
@@ -31,7 +30,6 @@ mod token_cursor;
 mod transform;
 mod writer;
 
-pub use activity::{H2ActivityCanary, H2ActivityCounters, H2RuntimeSlice};
 pub use artifact::{
     EmitArtifact, EmitArtifactKind, EmitBuildInfoMetadata, EmitCallbackText, EmitTextMetadata,
     EmitWriteMetadata,
@@ -57,8 +55,8 @@ pub use error::{
 pub use execute::prepare_emit_source;
 pub use execute::{
     base64_encode, begin_emit_files, declaration_diagnostics_for_sources, emit_files,
-    emit_files_with_activity, emit_forced_declarations_with_activity, emit_planned_units,
-    finish_emit_files, print_script_units_with_recording_for_harness, source_map_directory,
+    emit_forced_declarations, emit_planned_units, finish_emit_files,
+    print_script_units_with_recording_for_harness, source_map_directory,
     source_map_recording_inputs_for, source_mapping_url, source_root_field,
     validate_bootstrap_emit_options, validate_bootstrap_emit_options_for_route,
     validate_bootstrap_emit_request, validate_declaration_diagnostics_request,

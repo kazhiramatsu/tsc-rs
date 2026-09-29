@@ -23,16 +23,16 @@ use tsc_checker::{
 };
 use tsc_diagnostics::{Diagnostic, DiagnosticCategory};
 use tsc_emitter::{
-    create_printer, emit_files_with_activity, preflight_emit,
+    create_printer, emit_files, preflight_emit,
     transform_declaration_unit_with_observer_for_harness, BoundaryEvent, EmitArtifactKind,
     EmitConstantValue, EmitDiagnosticGate, EmitEnumMemberValue, EmitExportContainerMode,
     EmitFunctionProperty, EmitHost, EmitInternalNodeBuilderFlags, EmitNodeBuilderFlags,
     EmitPreflight, EmitResolver, EmitResolverError, EmitResolverMethod, EmitResolverNode,
     EmitResolverSymbol, EmitSymbolAccessibilityResult, EmitSymbolExpansionOut, EmitSymbolMeaning,
     EmitSymbolTracker, EmitTypeReferenceSerializationKind, GeneratedIdentifierFlags,
-    H2ActivityCanary, H2RuntimeSlice, MemoryOutputSink, NewLineKind, PlanDeclarationPaths,
-    PrintRequest, PrinterOptions, SourceFileId, SourceFileTextMode, TransformArena, TransformNode,
-    TransformRoot, TransformSourceId, TransformationResult,
+    MemoryOutputSink, NewLineKind, PlanDeclarationPaths, PrintRequest, PrinterOptions,
+    SourceFileId, SourceFileTextMode, TransformArena, TransformNode, TransformRoot,
+    TransformSourceId, TransformationResult,
 };
 use tsc_harness::upstream_suites::execution::{
     load_recorded_execution_plans, UpstreamExecutionCorpus,
@@ -1097,17 +1097,14 @@ fn run_production_path(
             return report;
         }
     };
-    let planned_members = declaration_units(&preflight).len();
-    let mut activity = H2ActivityCanary::h2_7c_profile();
     let mut sink = MemoryOutputSink::new();
-    let outcome = match emit_files_with_activity(
+    let outcome = match emit_files(
         resolver,
         &production_host,
         preflight,
         tsc_emitter::EmitSelection::WholeProgram,
         &EmitDiagnosticGate::default(),
         &mut sink,
-        &mut activity,
     ) {
         Ok(outcome) => outcome,
         Err(error) => {
@@ -1140,16 +1137,14 @@ fn run_production_path(
                 .unwrap_or_else(|error| {
                     panic!("{case_id}: oracle-fault preflight failed: {error}")
                 });
-        let mut fault_activity = H2ActivityCanary::h2_7c_profile();
         let mut fault_sink = MemoryOutputSink::new();
-        let fault_outcome = emit_files_with_activity(
+        let fault_outcome = emit_files(
             &fault_resolver,
             &production_host,
             fault_preflight,
             tsc_emitter::EmitSelection::WholeProgram,
             &EmitDiagnosticGate::default(),
             &mut fault_sink,
-            &mut fault_activity,
         );
         let typed_oracle_failure = matches!(
             &fault_outcome,
@@ -1177,12 +1172,6 @@ fn run_production_path(
         }
     }
 
-    let actual_activity = outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_7b);
-    if actual_activity != planned_members as u64 {
-        report.mismatches.push(format!(
-            "{case_id}: production H2.7b activity expected {planned_members}, actual {actual_activity}"
-        ));
-    }
     let expected_emit_skipped = windows.iter().any(expected_decl_blocked);
     if outcome.emit_skipped() != expected_emit_skipped {
         report.mismatches.push(format!(
