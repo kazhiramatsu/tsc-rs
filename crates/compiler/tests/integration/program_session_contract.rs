@@ -3260,8 +3260,8 @@ fn sharded_checker_budgets_publish_the_serial_no_emit_outcome() {
 /// function types) is replayed serially in the exact mode
 /// (`CheckerBudget::with_order_replay`) and publishes the serial outcome; the
 /// work counters prove the replay happened, and the clean merged-declaration
-/// program above never replays. The default mode keeps the sharded result,
-/// records the consumed order in the same counters and stays deterministic.
+/// program above never replays. The default mode keeps the sharded result
+/// without arming the guard and stays deterministic.
 #[test]
 fn sharded_session_replays_order_sensitive_inference_serially() {
     let padding = (0..80)
@@ -3297,7 +3297,7 @@ fn sharded_session_replays_order_sensitive_inference_serially() {
     let run = |checkers: usize| run_with(checkers, true);
     let relaxed = run_with(2, false);
     assert_eq!(relaxed.work_counters().checker_serial_replay(), 0);
-    assert_ne!(relaxed.work_counters().checker_replay_reasons(), 0);
+    assert_eq!(relaxed.work_counters().checker_replay_reasons(), 0);
     assert_eq!(
         run_with(2, false),
         relaxed,

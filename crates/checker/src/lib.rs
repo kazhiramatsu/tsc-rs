@@ -2878,10 +2878,14 @@ fn run_checker_shard<'a>(
     let shard_started = std::time::Instant::now();
     let mut state = init_checker_state(snapshot, options, Some((provider, metadata)), host);
     reserve_type_tables(&mut state, reserved_nodes);
-    // W2c: every type created from here on is shard-local; the guard records
-    // order-consuming operations over two or more of them.
+    // W2c: every type created from here on is shard-local. In the exact mode
+    // the guard records order-consuming operations over two or more of them
+    // so the driver can replay the check serially; the default mode keeps
+    // the sharded result and records nothing.
     let init_boundary = state.tables.len();
-    state.order_guard.arm(init_boundary);
+    if replay_on_order {
+        state.order_guard.arm(init_boundary);
+    }
     if tsc_types::trace::enabled() {
         tsc_types::trace::mark(
             &format!("shard {shard_index}: init ({init_boundary} types)"),
@@ -2980,7 +2984,7 @@ fn run_checker_shard<'a>(
         partial_check_records: std::mem::take(&mut state.partial_check_records),
         failure,
         order_reasons: state.order_guard.reasons(),
-        init_boundary: state.order_guard.init_boundary(),
+        init_boundary: u32::try_from(init_boundary).expect("type count fits u32"),
         display_marks: state.order_guard.marks().clone(),
         thread: std::thread::current().id(),
         files,

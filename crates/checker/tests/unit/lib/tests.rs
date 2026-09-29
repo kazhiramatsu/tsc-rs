@@ -7176,11 +7176,11 @@ fn order_guard_replays_last_union_member_inference_at_every_width() {
         .expect("authoritative result")
     };
     let run = |checkers: usize| run_with(checkers, true);
-    // The default (relaxed) budget keeps the sharded result, records the
-    // consumed order in its telemetry, and stays deterministic.
+    // The default (relaxed) budget keeps the sharded result without arming
+    // the guard, and stays deterministic.
     let relaxed = run_with(2, false);
     assert_eq!(relaxed.work_counters.checker_serial_replay(), 0);
-    assert_ne!(relaxed.work_counters.checker_replay_reasons(), 0);
+    assert_eq!(relaxed.work_counters.checker_replay_reasons(), 0);
     assert_eq!(run_with(2, false), relaxed);
     let serial = run(1);
     assert_eq!(serial.work_counters.checker_serial_replay(), 0);
