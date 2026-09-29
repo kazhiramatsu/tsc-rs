@@ -201,8 +201,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(cached);
         }
-        self.links
-            .set_mapped_modifiers_type(self.speculation_depth, ty, resolved);
+        self.links.set_mapped_modifiers_type(ty, resolved);
         Ok(resolved)
     }
 
@@ -568,12 +567,8 @@ impl<'a> CheckerState<'a> {
                     .get_union_type_ex(&[existing_name, prop_name_type], UnionReduction::Literal)?;
                 let union_key =
                     self.get_union_type_ex(&[existing_key, key_type], UnionReduction::Literal)?;
-                self.links.update_symbol_mapped_name_and_key(
-                    self.speculation_depth,
-                    existing,
-                    union_name,
-                    union_key,
-                );
+                self.links
+                    .update_symbol_mapped_name_and_key(existing, union_name, union_key);
                 return Ok(());
             }
 
@@ -705,8 +700,7 @@ impl<'a> CheckerState<'a> {
             ResolutionTarget::Symbol(symbol),
             TypeSystemPropertyName::TYPE,
         ) {
-            self.links
-                .set_mapped_contains_error(self.speculation_depth, mapped_type);
+            self.links.set_mapped_contains_error(mapped_type);
             return Ok(self.tables.intrinsics.error);
         }
         let computed = (|state: &mut Self| -> CheckResult<TypeId> {
@@ -742,8 +736,7 @@ impl<'a> CheckerState<'a> {
             }
         };
         if !self.pop_type_resolution() {
-            self.links
-                .set_mapped_contains_error(self.speculation_depth, mapped_type);
+            self.links.set_mapped_contains_error(mapped_type);
             let property_name = self.symbol_name_as_written_slice(symbol);
             let mapped_text = self.type_to_string_slice(mapped_type)?;
             self.error_at_js(
@@ -781,8 +774,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(cached);
         }
-        self.links
-            .set_mapped_apparent_type(self.speculation_depth, ty, resolved);
+        self.links.set_mapped_apparent_type(ty, resolved);
         Ok(resolved)
     }
 

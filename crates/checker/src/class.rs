@@ -1239,8 +1239,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(());
         }
-        self.links
-            .set_symbol_type_parameters_checked(self.speculation_depth, symbol);
+        self.links.set_symbol_type_parameters_checked(symbol);
         let declarations = self.get_class_or_interface_declarations_of_symbol(symbol);
         if declarations.len() <= 1 {
             return Ok(());

@@ -501,8 +501,7 @@ impl<'a> CheckerState<'a> {
         key: IterationCacheKey,
         value: IterationTypesResult,
     ) -> IterationTypesResult {
-        self.links
-            .set_type_iteration_types(self.speculation_depth, ty, key, value);
+        self.links.set_type_iteration_types(ty, key, value);
         value
     }
 

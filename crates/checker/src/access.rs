@@ -3702,8 +3702,7 @@ impl<'a> CheckerState<'a> {
             if is_reference {
                 let arguments = self.get_type_arguments(ty)?;
                 if let Some(&first) = arguments.first() {
-                    self.links
-                        .set_type_promised_type_of_promise(self.speculation_depth, ty, first);
+                    self.links.set_type_promised_type_of_promise(ty, first);
                     return Ok((Some(first), None));
                 }
             }
@@ -3792,8 +3791,7 @@ impl<'a> CheckerState<'a> {
             value_types.push(self.get_type_of_first_parameter_of_signature(signature)?);
         }
         let promised = self.get_union_type_ex(&value_types, UnionReduction::Subtype)?;
-        self.links
-            .set_type_promised_type_of_promise(self.speculation_depth, ty, promised);
+        self.links.set_type_promised_type_of_promise(ty, promised);
         Ok((Some(promised), None))
     }
 

@@ -673,11 +673,8 @@ impl<'a> CheckerState<'a> {
             let with_exists = self.tables.object_flags_of(ty).bits()
                 | ObjectFlags::IDENTICAL_BASE_TYPE_EXISTS.bits();
             self.tables.type_mut(ty).object_flags = ObjectFlags::from_bits(with_exists);
-            self.links.ty_mut_cached_equivalent_base_type(
-                self.speculation_depth,
-                ty,
-                instantiated_base,
-            );
+            self.links
+                .ty_mut_cached_equivalent_base_type(ty, instantiated_base);
         }
         Ok(Some(instantiated_base))
     }
@@ -4215,7 +4212,6 @@ impl<'a> CheckerState<'a> {
             None
         };
         self.links.set_type_union_key_property(
-            self.speculation_depth,
             union,
             crate::links::UnionKeyProperty {
                 name: resolved_name.clone(),

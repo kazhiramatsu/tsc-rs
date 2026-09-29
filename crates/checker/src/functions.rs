@@ -90,11 +90,8 @@ impl<'a> CheckerState<'a> {
                         let object_flags = self.tables.object_flags_of(return_only_type)
                             | ObjectFlags::NON_INFERRABLE_TYPE;
                         self.tables.type_mut(return_only_type).object_flags = object_flags;
-                        self.links.set_node_context_free_type(
-                            self.speculation_depth,
-                            node,
-                            LinkSlot::Resolved(return_only_type),
-                        );
+                        self.links
+                            .set_node_context_free_type(node, LinkSlot::Resolved(return_only_type));
                         return Ok(return_only_type);
                     }
                 }

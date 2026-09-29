@@ -475,8 +475,7 @@ impl<'a> CheckerState<'a> {
         }
         if let Some(result) = result {
             if context.is_none() {
-                self.links
-                    .set_type_widened(self.speculation_depth, ty, result);
+                self.links.set_type_widened(ty, result);
             }
         }
         Ok(result.unwrap_or(ty))

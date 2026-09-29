@@ -1452,11 +1452,7 @@ impl<'a> CheckerState<'a> {
                                 part,
                                 NodeCheckFlags::CONTAINS_CAPTURED_BLOCK_SCOPE_BINDING,
                             );
-                            self.links.push_captured_block_scope_binding(
-                                self.speculation_depth,
-                                part,
-                                symbol,
-                            );
+                            self.links.push_captured_block_scope_binding(part, symbol);
                             let initializer = match self.data_of(container) {
                                 NodeData::ForStatement(data) => data.initializer,
                                 _ => None,
@@ -4392,11 +4388,8 @@ impl<'a> CheckerState<'a> {
             .read_node(node, |links| links.context_free_type.resolved())
             .is_none()
         {
-            self.links.set_node_context_free_type(
-                self.speculation_depth,
-                node,
-                crate::links::LinkSlot::Resolved(ty),
-            );
+            self.links
+                .set_node_context_free_type(node, crate::links::LinkSlot::Resolved(ty));
         }
         Ok(ty)
     }

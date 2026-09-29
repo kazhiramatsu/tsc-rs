@@ -4705,11 +4705,8 @@ impl<'a> CheckerState<'a> {
                 break;
             }
         }
-        self.links.set_type_resolved_properties(
-            self.speculation_depth,
-            ty,
-            result.clone().into_boxed_slice(),
-        );
+        self.links
+            .set_type_resolved_properties(ty, result.clone().into_boxed_slice());
         Ok(result)
     }
 
@@ -5000,8 +4997,7 @@ impl<'a> CheckerState<'a> {
                 return Ok(cached);
             }
             let reduced = self.get_reduced_union_type(ty)?;
-            self.links
-                .set_type_resolved_reduced_type(self.speculation_depth, ty, reduced);
+            self.links.set_type_resolved_reduced_type(ty, reduced);
             return Ok(reduced);
         }
         if flags.intersects(TypeFlags::INTERSECTION) {
@@ -5066,8 +5062,7 @@ impl<'a> CheckerState<'a> {
                 })
                 .is_none()
         {
-            self.links
-                .set_type_resolved_reduced_type(self.speculation_depth, reduced, reduced);
+            self.links.set_type_resolved_reduced_type(reduced, reduced);
         }
         Ok(reduced)
     }
@@ -5167,8 +5162,7 @@ impl<'a> CheckerState<'a> {
         }
         let property = self.create_union_or_intersection_property(ty, name, skip)?;
         if let Some(property) = property {
-            self.links
-                .set_union_property(self.speculation_depth, key, property);
+            self.links.set_union_property(key, property);
         }
         Ok(property)
     }
@@ -5916,8 +5910,7 @@ impl<'a> CheckerState<'a> {
         } else {
             false
         };
-        self.links
-            .set_symbol_is_discriminant(self.speculation_depth, prop, is_discriminant);
+        self.links.set_symbol_is_discriminant(prop, is_discriminant);
         Ok(is_discriminant)
     }
 
@@ -7522,11 +7515,8 @@ impl<'a> CheckerState<'a> {
         } else {
             result
         };
-        self.links.set_type_array_fallback_signatures(
-            self.speculation_depth,
-            ty,
-            fallback.clone().into_boxed_slice(),
-        );
+        self.links
+            .set_type_array_fallback_signatures(ty, fallback.clone().into_boxed_slice());
         Ok(fallback)
     }
 

@@ -1701,10 +1701,7 @@ impl<'a> CheckerState<'a> {
                 &[],
             ) {
                 self.links
-                    .set_node_has_reported_statement_in_ambient_context(
-                        self.speculation_depth,
-                        node,
-                    );
+                    .set_node_has_reported_statement_in_ambient_context(node);
             }
             return;
         }
@@ -1721,10 +1718,7 @@ impl<'a> CheckerState<'a> {
                 &[],
             ) {
                 self.links
-                    .set_node_has_reported_statement_in_ambient_context(
-                        self.speculation_depth,
-                        parent,
-                    );
+                    .set_node_has_reported_statement_in_ambient_context(parent);
             }
         }
     }
@@ -3841,8 +3835,7 @@ impl<'a> CheckerState<'a> {
                     .links
                     .read_symbol(symbol, |links| links.cold().type_parameters_checked)
             {
-                self.links
-                    .set_symbol_type_parameters_checked(self.speculation_depth, symbol);
+                self.links.set_symbol_type_parameters_checked(symbol);
                 let declared = self.get_declared_type_of_type_parameter(symbol);
                 let declarations: Vec<NodeId> = self
                     .binder

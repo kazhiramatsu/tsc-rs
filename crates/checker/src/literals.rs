@@ -394,8 +394,7 @@ impl<'a> CheckerState<'a> {
             | ObjectFlags::ARRAY_LITERAL
             | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL;
         self.tables.type_mut(literal).object_flags = flags;
-        self.links
-            .set_type_literal_type(self.speculation_depth, ty, literal);
+        self.links.set_type_literal_type(ty, literal);
         Ok(literal)
     }
 

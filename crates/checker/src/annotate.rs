@@ -2752,8 +2752,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(cached);
         }
-        self.links
-            .set_mapped_type_parameter(self.speculation_depth, ty, resolved);
+        self.links.set_mapped_type_parameter(ty, resolved);
         Ok(resolved)
     }
 
@@ -2780,8 +2779,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(cached);
         }
-        self.links
-            .set_mapped_constraint_type(self.speculation_depth, ty, resolved);
+        self.links.set_mapped_constraint_type(ty, resolved);
         Ok(resolved)
     }
 
@@ -2817,8 +2815,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(cached);
         }
-        self.links
-            .set_mapped_name_type(self.speculation_depth, ty, resolved);
+        self.links.set_mapped_name_type(ty, resolved);
         Ok(resolved)
     }
 
@@ -2880,8 +2877,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(cached);
         }
-        self.links
-            .set_mapped_template_type(self.speculation_depth, ty, resolved);
+        self.links.set_mapped_template_type(ty, resolved);
         Ok(resolved)
     }
 
@@ -4518,8 +4514,7 @@ impl<'a> CheckerState<'a> {
             {
                 return Ok(existing);
             }
-            self.links
-                .set_type_declared_members(self.speculation_depth, target, id);
+            self.links.set_type_declared_members(target, id);
             return Ok(id);
         }
         let symbol = self
@@ -4554,8 +4549,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(existing);
         }
-        self.links
-            .set_type_declared_members(self.speculation_depth, target, id);
+        self.links.set_type_declared_members(target, id);
         let filled = (|state: &mut Self| -> CheckResult<()> {
             let call_signatures = state.get_signatures_of_symbol(call_symbol)?;
             state.members_mut(id).call_signatures = call_signatures;

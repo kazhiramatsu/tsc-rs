@@ -3482,9 +3482,7 @@ fn error_containing_concrete_mapped_type_keeps_its_declaration_face() {
             assert!(!state
                 .is_generic_mapped_type_state(mapped_type)
                 .expect("genericity"));
-            state
-                .links
-                .set_mapped_contains_error(state.speculation_depth, mapped_type);
+            state.links.set_mapped_contains_error(mapped_type);
             assert_eq!(
                 state
                     .type_to_string_slice(mapped_type)

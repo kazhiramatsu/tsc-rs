@@ -4749,14 +4749,12 @@ impl<'a> CheckerState<'a> {
             self.awaited_type_stack.pop();
             let mapped = mapped?;
             if let Some(mapped) = mapped {
-                self.links
-                    .set_type_awaited_type_of_type(self.speculation_depth, ty, mapped);
+                self.links.set_type_awaited_type_of_type(ty, mapped);
             }
             return Ok(mapped);
         }
         if self.is_awaited_type_needed(ty)? {
-            self.links
-                .set_type_awaited_type_of_type(self.speculation_depth, ty, ty);
+            self.links.set_type_awaited_type_of_type(ty, ty);
             return Ok(Some(ty));
         }
         let (promised, this_type_for_error) =
@@ -4779,8 +4777,7 @@ impl<'a> CheckerState<'a> {
             let Some(awaited) = awaited else {
                 return Ok(None);
             };
-            self.links
-                .set_type_awaited_type_of_type(self.speculation_depth, ty, awaited);
+            self.links.set_type_awaited_type_of_type(ty, awaited);
             return Ok(Some(awaited));
         }
         if self.is_thenable_type(ty)? {
@@ -4806,8 +4803,7 @@ impl<'a> CheckerState<'a> {
             }
             return Ok(None);
         }
-        self.links
-            .set_type_awaited_type_of_type(self.speculation_depth, ty, ty);
+        self.links.set_type_awaited_type_of_type(ty, ty);
         Ok(Some(ty))
     }
 
