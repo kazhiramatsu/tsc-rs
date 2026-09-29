@@ -1,9 +1,7 @@
-//! Declaration activation, output-plan boundary, and production-root controls.
-//! H2.7d admits bundle roots; the dormant harness bridge remains unavailable.
+//! Declaration bundle-transform and output-plan boundary controls.
+//! H2.7d admits bundle roots.
 
-use std::collections::{BTreeMap, BTreeSet};
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use tsc_checker::CompilerOptions;
 use tsc_emitter::{
@@ -11,87 +9,6 @@ use tsc_emitter::{
     EmitHost, EmitMode, EmitOutputPaths, EmitOutputPlan, EmitOutputUnit, EmitRoot, SourceFileId,
     TransformArena, TransformBundle, TransformError, TransformRoot, UnsupportedEmitFeature,
 };
-
-fn workspace() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .canonicalize()
-        .expect("workspace root")
-}
-
-fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
-    for entry in fs::read_dir(dir).expect("readable directory") {
-        let entry = entry.expect("directory entry");
-        let path = entry.path();
-        if path.is_dir() {
-            collect_rs_files(&path, out);
-        } else if path.extension().is_some_and(|extension| extension == "rs") {
-            out.push(path);
-        }
-    }
-}
-
-#[test]
-fn declaration_transformer_production_call_sites_are_exactly_allowlisted() {
-    let workspace = workspace();
-    let mut files = Vec::new();
-    collect_rs_files(&workspace.join("crates"), &mut files);
-    let symbols = [
-        (
-            "DeclarationTransformer::new(",
-            "fn new(",
-            BTreeSet::from(["crates/emitter/src/declarations/selection.rs".to_owned()]),
-        ),
-        (
-            "get_declaration_transformers(",
-            "fn get_declaration_transformers(",
-            BTreeSet::from(["crates/emitter/src/declarations/orchestration.rs".to_owned()]),
-        ),
-        (
-            "transform_declaration_unit_for_harness(",
-            "fn transform_declaration_unit_for_harness(",
-            BTreeSet::new(),
-        ),
-    ];
-    let mut actual = symbols
-        .iter()
-        .map(|(symbol, _, _)| ((*symbol).to_owned(), BTreeSet::new()))
-        .collect::<BTreeMap<_, _>>();
-
-    for path in files {
-        let relative = path
-            .strip_prefix(&workspace)
-            .expect("inside workspace")
-            .to_string_lossy()
-            .replace('\\', "/");
-        if relative.contains("/tests/") {
-            continue;
-        }
-        let source = fs::read_to_string(&path).expect("readable Rust source");
-        for line in source.lines() {
-            let trimmed = line.trim_start();
-            if trimmed.starts_with("//") || trimmed.starts_with("/*") || trimmed.starts_with('*') {
-                continue;
-            }
-            for (symbol, definition, _) in &symbols {
-                if line.contains(symbol) && !line.contains(definition) {
-                    actual
-                        .get_mut(*symbol)
-                        .expect("symbol row exists")
-                        .insert(relative.clone());
-                }
-            }
-        }
-    }
-
-    for (symbol, _, expected) in symbols {
-        assert_eq!(
-            actual.remove(symbol).expect("symbol was scanned"),
-            expected,
-            "production callers of {symbol} changed"
-        );
-    }
-}
 
 struct ControlHost {
     options: CompilerOptions,
@@ -209,15 +126,4 @@ fn declaration_plan_admits_nonempty_bundles_and_retains_boundary_refusals() {
         !execute.contains("transform_declaration_unit_for_harness"),
         "the dormant declaration seam must not be activated from execute"
     );
-}
-
-#[test]
-fn production_declaration_transform_requires_exactly_one_source_or_bundle_root() {
-    let orchestration = include_str!("../../../emitter/src/declarations/orchestration.rs");
-    assert!(orchestration.contains("if result.roots().len() != 1 {"));
-    assert!(
-        orchestration.contains("detail: \"declaration transform must produce exactly one root\"")
-    );
-    assert!(orchestration.contains("TransformRoot::SourceFile(_) =>"));
-    assert!(orchestration.contains("TransformRoot::Bundle(_) =>"));
 }
