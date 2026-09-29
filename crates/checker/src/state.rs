@@ -1140,8 +1140,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn take_authoritative_module_failure(
         &mut self,
     ) -> Option<crate::AuthoritativeModuleFailure> {
-        let failure = self.authoritative_module_failure.take();
-        failure
+        self.authoritative_module_failure.take()
     }
 
     /// Program construction (M4 5.0): binders in program order, each

@@ -2347,7 +2347,6 @@ impl LinksTables {
         {
             return;
         }
-        if speculation_depth == 0 {}
         let links = self.node.slot(id);
         links.check_flags =
             tsc_types::NodeCheckFlags::from_bits(links.check_flags.bits() | bits.bits());
@@ -4361,7 +4360,6 @@ impl LinksTables {
                 .push(speculation_depth, id, previous);
         }
         let links = self.ty.slot(id);
-        if speculation_depth == 0 {}
         let slot = &mut links.resolved_members;
         // setStructuredTypeMembers writes an empty table first as a
         // re-entrancy guard, then the real one (58333/58339) — allow

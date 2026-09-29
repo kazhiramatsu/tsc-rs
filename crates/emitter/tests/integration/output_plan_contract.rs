@@ -131,20 +131,17 @@ fn unsupported_plan_shapes_are_typed_and_rejected() {
         Err(EmitFailure::Unsupported(UnsupportedEmitFeature::BundleRoot))
     );
 
-    for (mode, feature) in [(
+    let declaration_only = EmitOutputPlan::whole_program(vec![EmitOutputUnit::new(
+        EmitRoot::SourceFile(source(1)),
+        javascript(),
         EmitMode::DeclarationOnly,
-        UnsupportedEmitFeature::DeclarationOnlyMode,
-    )] {
-        let plan = EmitOutputPlan::whole_program(vec![EmitOutputUnit::new(
-            EmitRoot::SourceFile(source(1)),
-            javascript(),
-            mode,
-        )]);
-        assert_eq!(
-            plan.validate_supported_shape(),
-            Err(EmitFailure::Unsupported(feature))
-        );
-    }
+    )]);
+    assert_eq!(
+        declaration_only.validate_supported_shape(),
+        Err(EmitFailure::Unsupported(
+            UnsupportedEmitFeature::DeclarationOnlyMode
+        ))
+    );
 
     let declaration = EmitOutputPlan::whole_program(vec![script_unit(
         1,
