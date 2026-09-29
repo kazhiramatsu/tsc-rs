@@ -69,6 +69,115 @@ pub fn load_compiler_no_emit(
         limits,
         CompilerProgramMode::NoEmit,
         EmitOptionFloor::Established,
+        None,
+    )
+}
+
+/// The compiler-runner fixture of one native (TypeScript 7.x) case: units,
+/// links and the tsconfig root plan built exactly as for the recorded 6.0.3
+/// fixtures (Go's runner keeps Strada's unit semantics). Configurations are
+/// supplied per plan by [`native_compiler_plan`].
+pub fn native_compiler_fixture(
+    profile: &super::native::NativeProfile,
+    case: &super::native::NativeCase,
+) -> HarnessResult<Arc<CompilerFixtureInput>> {
+    let workspace_path = profile.cases_root(case.suite).join(&case.relative_path);
+    let raw: Arc<[u8]> = fs::read(&workspace_path)
+        .map_err(|source| error(format!("{}: {source}", workspace_path.display())))?
+        .into();
+    let (encoding, decoded) = super::decode_source(&raw);
+    let upstream_path = format!(
+        "tsc/testdata/tests/cases/{}/{}",
+        case.suite.name(),
+        case.relative_path
+    );
+    let settings = extract_compiler_settings(&decoded);
+    let (parsed_units, links) = make_units_from_test(&decoded, &upstream_path)?;
+    let config_offset = parsed_units
+        .iter()
+        .position(|unit| is_config_file_name(&unit.name));
+    let source = Arc::new(VerifiedSource {
+        index: 0,
+        suite: SuiteName::Compiler,
+        relative_path: Arc::from(case.relative_path.as_str()),
+        upstream_path: Arc::from(upstream_path.as_str()),
+        workspace_path: Arc::new(workspace_path),
+        git_blob_sha1: Arc::from(""),
+        raw,
+        encoding,
+        decoded: Arc::from(decoded.as_str()),
+    });
+    compiler_fixture_from_parts(
+        source,
+        settings,
+        Vec::new(),
+        parsed_units,
+        config_offset,
+        links,
+    )
+    .map(Arc::new)
+}
+
+/// The execution plan of one native configuration: the fixture's settings in
+/// source order and spelling, with the configuration's values (Go lower-cases
+/// the names and trims one trailing `;`), and the shared root rules.
+pub fn native_compiler_plan(
+    fixture: Arc<CompilerFixtureInput>,
+    configuration: &super::native::NativeConfiguration,
+) -> HarnessResult<CompilerExecutionPlan> {
+    let effective_settings = fixture
+        .settings
+        .iter()
+        .map(|setting| OrderedSetting {
+            name: setting.name.clone(),
+            value: configuration
+                .settings
+                .get(&setting.name.to_ascii_lowercase())
+                .cloned()
+                .unwrap_or_else(|| setting.value.clone()),
+        })
+        .collect::<Vec<_>>();
+    let current_directory = compiler_current_directory(&effective_settings)?;
+    let use_case_sensitive_file_names = compiler_case_sensitivity(&effective_settings);
+    let allow_js = compiler_root_allow_js(&fixture, &effective_settings)?;
+    let root_selection = compiler_root_selection(&fixture, &effective_settings, allow_js)?;
+    let name: Arc<str> = Arc::from(configuration.name.as_str());
+    Ok(CompilerExecutionPlan {
+        fixture,
+        variant: CompilerVariant {
+            configuration_index: 0,
+            key: Arc::clone(&name),
+            description: Arc::clone(&name),
+            upstream_name: name,
+            overrides: Arc::from([]),
+        },
+        effective_settings: Arc::from(effective_settings),
+        current_directory: Arc::from(current_directory),
+        use_case_sensitive_file_names,
+        root_selection,
+    })
+}
+
+/// Load a native plan the way the native runner builds its Program for
+/// diagnostics: every option as configured (no implied `noEmit`), the
+/// harness defaults, and the runner's file system (`CompileFilesEx`): a later
+/// unit of the same path replaces an earlier one, and `test_library` (the
+/// profile's `tests/lib`) is mounted at `/.lib` when a root file mentions
+/// `/.lib/`. The library catalog is the vendored 6.0.3 set until the 7.x
+/// libraries are adopted.
+pub fn load_native_compiler_program(
+    workspace: &Path,
+    plan: &CompilerExecutionPlan,
+    limits: ProgramLoadLimits,
+    test_library: &Path,
+) -> HarnessResult<PreparedProgram> {
+    load_compiler_program(
+        workspace,
+        plan,
+        limits,
+        CompilerProgramMode::NativeHarness,
+        EmitOptionFloor::Native,
+        Some(test_library),
     )
 }
 
@@ -98,6 +207,8 @@ pub enum EmitOptionFloor {
     /// Current H2.6c map projection, including the original declaration-only mode.
     MapFamilyWithDeclarationOnly,
     DeclarationFamily,
+    /// The native (TypeScript 7.x) compiler runner: every option as configured.
+    Native,
 }
 
 pub fn load_compiler_emit(
@@ -111,6 +222,7 @@ pub fn load_compiler_emit(
         limits,
         CompilerProgramMode::Emit,
         EmitOptionFloor::Established,
+        None,
     )
 }
 
@@ -122,7 +234,14 @@ pub fn load_compiler_emit_with_option_floor(
     limits: ProgramLoadLimits,
     floor: EmitOptionFloor,
 ) -> HarnessResult<PreparedProgram> {
-    load_compiler_program(workspace, plan, limits, CompilerProgramMode::Emit, floor)
+    load_compiler_program(
+        workspace,
+        plan,
+        limits,
+        CompilerProgramMode::Emit,
+        floor,
+        None,
+    )
 }
 
 /// Reconstruct one qualification-owned compiler-runner VFS without depending
@@ -427,6 +546,39 @@ fn apply_emit_option_floor_to_config(options: &mut CompilerOptions, floor: EmitO
 enum CompilerProgramMode {
     NoEmit,
     Emit,
+    /// The options as configured: the native runner collects diagnostics
+    /// without emitting, but `noEmit` is not implied. A configuration that
+    /// sets `noEmit` loads through the no-emit loader, every other one through
+    /// the emitting loader (whose Program reports the output-path checks).
+    NativeHarness,
+}
+
+/// Every file under a native profile's `tests/lib` with its path relative to
+/// it (`testLibFolderMap` in harnessutil), in path order.
+fn read_test_library(root: &Path) -> HarnessResult<Vec<(String, Arc<str>)>> {
+    let mut files = Vec::new();
+    let mut directories = vec![root.to_path_buf()];
+    while let Some(directory) = directories.pop() {
+        let entries = fs::read_dir(&directory)
+            .map_err(|source| error(format!("{}: {source}", directory.display())))?;
+        for entry in entries {
+            let path = entry.map_err(|source| error(source.to_string()))?.path();
+            if path.is_dir() {
+                directories.push(path);
+                continue;
+            }
+            let text = fs::read_to_string(&path)
+                .map_err(|source| error(format!("{}: {source}", path.display())))?;
+            let relative = path
+                .strip_prefix(root)
+                .expect("walked under the test library")
+                .to_string_lossy()
+                .replace('\\', "/");
+            files.push((relative, Arc::from(text)));
+        }
+    }
+    files.sort_by(|left, right| left.0.cmp(&right.0));
+    Ok(files)
 }
 
 fn load_compiler_program(
@@ -435,32 +587,77 @@ fn load_compiler_program(
     limits: ProgramLoadLimits,
     mode: CompilerProgramMode,
     floor: EmitOptionFloor,
+    test_library: Option<&Path>,
 ) -> HarnessResult<PreparedProgram> {
     let current_directory = plan.current_directory.as_ref();
     let mut host_builder = MemoryCompilerHost::builder(current_directory)
         .case_sensitive(plan.use_case_sensitive_file_names);
     let mut source_paths = HashMap::<String, Arc<str>>::new();
 
-    let vfs_write_order = match &plan.root_selection {
+    let (vfs_write_order, root_units, other_units) = match &plan.root_selection {
         CompilerRootSelection::Explicit {
-            vfs_write_order, ..
+            vfs_write_order,
+            root_units,
+            other_units,
+            ..
         }
         | CompilerRootSelection::Config {
-            vfs_write_order, ..
-        } => vfs_write_order,
+            vfs_write_order,
+            root_units,
+            other_units,
+            ..
+        } => (vfs_write_order, root_units, other_units),
     };
-    for unit_id in vfs_write_order.iter() {
-        let unit = plan
-            .fixture
+    let unit = |unit_id: &CompilerUnitId| {
+        plan.fixture
             .units
             .get(unit_id.0 as usize)
-            .ok_or_else(|| error("compiler VFS unit is out of bounds"))?;
+            .ok_or_else(|| error("compiler VFS unit is out of bounds"))
+    };
+    // The native runner writes `toBeCompiled` and then `otherFiles` into one
+    // map, so a later unit of the same path replaces an earlier one.
+    let native = mode == CompilerProgramMode::NativeHarness;
+    let mut native_contents = HashMap::<String, Arc<str>>::new();
+    if native {
+        for unit_id in root_units.iter().chain(other_units.iter()) {
+            let unit = unit(unit_id)?;
+            if let Some(content) = &unit.content {
+                let path = normalize_compiler_fixture_path(current_directory, unit.name.as_ref())?;
+                native_contents.insert(path, Arc::clone(content));
+            }
+        }
+    }
+    for unit_id in vfs_write_order.iter() {
+        let unit = unit(unit_id)?;
         let path = normalize_compiler_fixture_path(current_directory, unit.name.as_ref())?;
-        let Some(content) = unit.content.as_ref() else {
+        let Some(mut content) = unit.content.as_ref() else {
             continue;
         };
+        if native {
+            if source_paths.contains_key(&path) {
+                continue;
+            }
+            content = native_contents.get(&path).unwrap_or(content);
+        }
         host_builder = host_builder.file(&path, content.as_bytes().to_vec());
         source_paths.insert(path, Arc::clone(content));
+    }
+    let mentions_test_library = root_units.iter().any(|unit_id| {
+        unit(unit_id).is_ok_and(|unit| {
+            unit.content
+                .as_deref()
+                .is_some_and(|content| content.contains("/.lib/"))
+        })
+    });
+    if let Some(test_library) = test_library.filter(|_| mentions_test_library) {
+        for (relative, content) in read_test_library(test_library)? {
+            if let std::collections::hash_map::Entry::Vacant(entry) =
+                source_paths.entry(format!("/.lib/{relative}"))
+            {
+                host_builder = host_builder.file(entry.key(), content.as_bytes().to_vec());
+                entry.insert(content);
+            }
+        }
     }
 
     // The compiler runner's VFS presents document/global symlinks through
@@ -577,7 +774,17 @@ fn load_compiler_program(
     let roots = compiler_root_paths(plan)?;
     let catalog = LibraryCatalog::typescript_6_0_3(library_directory);
     let loaded = match mode {
-        CompilerProgramMode::NoEmit => load_program(
+        CompilerProgramMode::NativeHarness if compiler_options.no_emit != Some(true) => {
+            load_emitting_program(
+                &host,
+                &roots,
+                compiler_options,
+                program_options,
+                &catalog,
+                limits,
+            )
+        }
+        CompilerProgramMode::NoEmit | CompilerProgramMode::NativeHarness => load_program(
             &host,
             &roots,
             compiler_options,
@@ -1174,6 +1381,7 @@ fn apply_compiler_setting(
                     | EmitOptionFloor::MapFamily
                     | EmitOptionFloor::MapFamilyWithDeclarationOnly
                     | EmitOptionFloor::DeclarationFamily
+                    | EmitOptionFloor::Native
             ) {
                 compiler_options.source_map = Some(boolean()?);
             }
@@ -1185,6 +1393,7 @@ fn apply_compiler_setting(
                     | EmitOptionFloor::MapFamily
                     | EmitOptionFloor::MapFamilyWithDeclarationOnly
                     | EmitOptionFloor::DeclarationFamily
+                    | EmitOptionFloor::Native
             ) {
                 compiler_options.inline_source_map = Some(boolean()?);
             }
@@ -1196,6 +1405,7 @@ fn apply_compiler_setting(
                     | EmitOptionFloor::MapFamily
                     | EmitOptionFloor::MapFamilyWithDeclarationOnly
                     | EmitOptionFloor::DeclarationFamily
+                    | EmitOptionFloor::Native
             ) {
                 compiler_options.inline_sources = Some(boolean()?);
             }
@@ -1207,6 +1417,7 @@ fn apply_compiler_setting(
                     | EmitOptionFloor::MapFamily
                     | EmitOptionFloor::MapFamilyWithDeclarationOnly
                     | EmitOptionFloor::DeclarationFamily
+                    | EmitOptionFloor::Native
             ) {
                 compiler_options.source_root = Some(value.to_owned().into());
             }
@@ -1218,6 +1429,7 @@ fn apply_compiler_setting(
                     | EmitOptionFloor::MapFamily
                     | EmitOptionFloor::MapFamilyWithDeclarationOnly
                     | EmitOptionFloor::DeclarationFamily
+                    | EmitOptionFloor::Native
             ) {
                 compiler_options.map_root = Some(value.to_owned().into());
             }
@@ -1232,6 +1444,7 @@ fn apply_compiler_setting(
                 EmitOptionFloor::MapFamily
                     | EmitOptionFloor::MapFamilyWithDeclarationOnly
                     | EmitOptionFloor::DeclarationFamily
+                    | EmitOptionFloor::Native
             ) {
                 compiler_options.emit_bom = Some(boolean()?);
             }
@@ -1239,7 +1452,9 @@ fn apply_compiler_setting(
         "emitdeclarationonly" => {
             if matches!(
                 floor,
-                EmitOptionFloor::MapFamilyWithDeclarationOnly | EmitOptionFloor::DeclarationFamily
+                EmitOptionFloor::MapFamilyWithDeclarationOnly
+                    | EmitOptionFloor::DeclarationFamily
+                    | EmitOptionFloor::Native
             ) {
                 compiler_options.emit_declaration_only = Some(boolean()?);
             }
@@ -1247,7 +1462,9 @@ fn apply_compiler_setting(
         "declarationmap" => {
             if matches!(
                 floor,
-                EmitOptionFloor::MapFamily | EmitOptionFloor::MapFamilyWithDeclarationOnly
+                EmitOptionFloor::MapFamily
+                    | EmitOptionFloor::MapFamilyWithDeclarationOnly
+                    | EmitOptionFloor::Native
             ) {
                 compiler_options.declaration_map = Some(boolean()?);
             }
@@ -1255,7 +1472,9 @@ fn apply_compiler_setting(
         "outfile" => {
             if matches!(
                 floor,
-                EmitOptionFloor::MapFamily | EmitOptionFloor::MapFamilyWithDeclarationOnly
+                EmitOptionFloor::MapFamily
+                    | EmitOptionFloor::MapFamilyWithDeclarationOnly
+                    | EmitOptionFloor::Native
             ) {
                 compiler_options.out_file = Some(value.to_owned().into());
             }
@@ -1269,7 +1488,9 @@ fn apply_compiler_setting(
         "outdir" => {
             if matches!(
                 floor,
-                EmitOptionFloor::MapFamily | EmitOptionFloor::MapFamilyWithDeclarationOnly
+                EmitOptionFloor::MapFamily
+                    | EmitOptionFloor::MapFamilyWithDeclarationOnly
+                    | EmitOptionFloor::Native
             ) {
                 compiler_options.out_dir = Some(value.to_owned().into());
             }
@@ -1277,10 +1498,32 @@ fn apply_compiler_setting(
         "noemithelpers" => {
             if matches!(
                 floor,
-                EmitOptionFloor::MapFamily | EmitOptionFloor::MapFamilyWithDeclarationOnly
+                EmitOptionFloor::MapFamily
+                    | EmitOptionFloor::MapFamilyWithDeclarationOnly
+                    | EmitOptionFloor::Native
             ) {
                 compiler_options.no_emit_helpers = Some(boolean()?);
             }
+        }
+        // The native runner builds the whole Program with these options
+        // (`CompileFilesEx` makes the paths absolute); the recorded 6.0.3
+        // floors keep their frozen admission scope and drop them below.
+        "rootdir" | "declarationdir" | "tsbuildinfofile" if floor == EmitOptionFloor::Native => {
+            let path = Some(normalize_virtual_path(current_directory, value)?.into());
+            match key.as_str() {
+                "rootdir" => compiler_options.root_dir = path,
+                "declarationdir" => compiler_options.declaration_dir = path,
+                _ => compiler_options.ts_build_info_file = path,
+            }
+        }
+        "stripinternal" if floor == EmitOptionFloor::Native => {
+            compiler_options.strip_internal = Some(boolean()?)
+        }
+        "nocheck" if floor == EmitOptionFloor::Native => {
+            compiler_options.no_check = Some(boolean()?)
+        }
+        "incremental" if floor == EmitOptionFloor::Native => {
+            compiler_options.incremental = Some(boolean()?)
         }
         "declarationdir"
         | "incremental"
@@ -1955,6 +2198,26 @@ fn build_compiler_fixture(
         )));
     }
 
+    compiler_fixture_from_parts(
+        source,
+        settings,
+        recorded.configurations.clone(),
+        parsed_units,
+        config_offset,
+        links,
+    )
+}
+
+/// Units, tsconfig root plan and links of one compiler-runner fixture, shared
+/// by the recorded 6.0.3 fixtures and the native profiles.
+fn compiler_fixture_from_parts(
+    source: Arc<VerifiedSource>,
+    settings: Vec<OrderedSetting>,
+    configurations: Vec<super::CompilerConfiguration>,
+    parsed_units: Vec<super::compiler::ParsedUnit>,
+    config_offset: Option<usize>,
+    links: Vec<super::CompilerLink>,
+) -> HarnessResult<CompilerFixtureInput> {
     let current_directory = compiler_current_directory(&settings)?;
     let original_fixture_path = Arc::clone(&source.upstream_path);
     let units = parsed_units
@@ -2036,7 +2299,7 @@ fn build_compiler_fixture(
         config_root_plan,
         config_host_log,
         settings: Arc::from(settings),
-        configurations: Arc::from(recorded.configurations.clone()),
+        configurations: Arc::from(configurations),
         global_symlink_directives: Arc::from(global_symlink_directives),
         global_symlinks: Arc::from(global_symlinks),
     })

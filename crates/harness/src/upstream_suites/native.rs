@@ -460,6 +460,11 @@ impl NativeProfile {
             .join(suite.name())
     }
 
+    /// `tests/lib`, which the runner mounts at `/.lib`.
+    pub fn test_library_root(&self) -> PathBuf {
+        self.upstream_root().join("tsc/testdata/tests/lib")
+    }
+
     /// Every `.ts`/`.tsx` file of both suites, as `TestLocal` enumerates them
     /// (`compilerBaselineRegex` is `\.tsx?$`), sorted by suite and path.
     pub fn cases(&self) -> HarnessResult<Vec<NativeCase>> {
