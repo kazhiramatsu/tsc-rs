@@ -50,6 +50,8 @@ mod h2_baseline;
 mod h2_transition;
 #[path = "integration/module_suffixes_oracle_contract.rs"]
 mod module_suffixes_oracle_contract;
+#[path = "integration/native_suite_expansion.rs"]
+mod native_suite_expansion;
 #[path = "integration/support/pins.rs"]
 mod pins;
 #[path = "integration/relation_pins.rs"]

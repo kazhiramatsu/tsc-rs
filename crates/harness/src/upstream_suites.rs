@@ -20,6 +20,7 @@ use crate::{HarnessError, HarnessResult};
 mod compiler;
 pub mod execution;
 pub mod h1_conformance;
+pub mod native;
 
 pub const SCHEMA: u32 = 1;
 pub const TYPESCRIPT_VERSION: &str = "6.0.3";
