@@ -1,0 +1,228 @@
+#!/usr/bin/env python3
+"""Vendor the native TypeScript compiler/conformance test inputs at one pinned commit.
+
+usage: vendor_typescript_native.py --commit <full sha> --profile <name> [--check]
+
+Copies, byte for byte and at their upstream paths, into
+vendor/typescript-native/<profile>/upstream/:
+
+  tsc/testdata/tests/cases/{compiler,conformance}   every case file
+  tsc/testdata/tests/lib                            the harness's /.lib files
+  tsc/internal/bundled/libs                         the embedded standard libraries
+  tsc/testdata/baselines/reference/{compiler,conformance}/*.errors.txt
+
+and writes vendor/typescript-native/<profile>/manifest.json with the commit,
+each set's Git tree id (or, for the filtered baseline set, its blob
+inventory), file and byte counts, and the sorted names of *all* compiler and
+conformance reference baselines (a configuration that ran without errors has
+other baselines but no .errors.txt; a skipped one has none).
+
+The upstream checkout lives under target/typescript-native/<commit>/ and is a
+shallow, blob-filtered clone; only the vendored blobs are fetched. `--check`
+verifies an existing vendored tree against its manifest without network access.
+"""
+
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tempfile
+
+ROOT = Path(__file__).resolve().parents[1]
+REMOTE = "https://github.com/microsoft/TypeScript.git"
+TREES = [
+    "tsc/testdata/tests/cases/compiler",
+    "tsc/testdata/tests/cases/conformance",
+    "tsc/testdata/tests/lib",
+    "tsc/internal/bundled/libs",
+]
+BASELINE_DIRS = [
+    "tsc/testdata/baselines/reference/compiler",
+    "tsc/testdata/baselines/reference/conformance",
+]
+ERRORS_SUFFIX = ".errors.txt"
+
+
+def git(checkout, *args, binary=False):
+    out = subprocess.check_output(["git", "-C", str(checkout), *args])
+    return out if binary else out.decode().strip()
+
+
+def checkout_for(commit):
+    path = ROOT / "target/typescript-native" / commit / "upstream"
+    if not (path / ".git").exists():
+        path.mkdir(parents=True, exist_ok=True)
+        subprocess.run(["git", "-C", str(path), "init", "-q"], check=True)
+        subprocess.run(["git", "-C", str(path), "remote", "add", "origin", REMOTE], check=True)
+        subprocess.run(["git", "-C", str(path), "fetch", "-q", "--depth", "1", "--filter=blob:none",
+                        "origin", commit], check=True)
+    head = git(path, "rev-parse", "FETCH_HEAD")
+    if head != commit:
+        raise SystemExit(f"{path}: fetched {head}, expected {commit}")
+    return path
+
+
+def ls_tree(checkout, commit, path):
+    """(mode, blob, path) for every blob under `path`, sorted by path."""
+    out = git(checkout, "ls-tree", "-r", "--full-tree", commit, "--", path)
+    rows = []
+    for line in out.splitlines():
+        meta, name = line.split("\t", 1)
+        mode, kind, blob = meta.split()
+        if kind != "blob":
+            raise SystemExit(f"{name}: unexpected {kind} entry")
+        rows.append((mode, blob, name))
+    return sorted(rows, key=lambda row: row[2])
+
+
+def inventory_digest(rows):
+    text = "".join(f"{mode} {blob} {name}\n" for mode, blob, name in rows)
+    return hashlib.sha256(text.encode()).hexdigest()
+
+
+def blob_sha1(data):
+    return hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()
+
+
+def fetch_blobs(checkout, commit):
+    """Check out only the vendored paths; the partial clone fetches their blobs in one batch."""
+    patterns = [f"/{path}/" for path in TREES] + [f"/{path}/*{ERRORS_SUFFIX}" for path in BASELINE_DIRS]
+    subprocess.run(["git", "-C", str(checkout), "sparse-checkout", "init", "--no-cone"], check=True)
+    (checkout / ".git/info/sparse-checkout").write_text("\n".join(patterns) + "\n")
+    subprocess.run(["git", "-C", str(checkout), "checkout", "-q", "--detach", commit], check=True)
+
+
+def read_blobs(checkout, blobs):
+    """Blob bytes straight from the object store (no working-tree end-of-line conversion)."""
+    # The requests go through a file: writing them to a pipe while the
+    # output pipe fills would deadlock both processes.
+    with tempfile.TemporaryFile() as requests:
+        requests.write("".join(f"{blob}\n" for blob in blobs).encode())
+        requests.seek(0)
+        process = subprocess.Popen(["git", "-C", str(checkout), "cat-file", "--batch"],
+                                   stdin=requests, stdout=subprocess.PIPE)
+    contents = {}
+    for blob in blobs:
+        header = process.stdout.readline().decode().split()
+        if len(header) != 3 or header[0] != blob or header[1] != "blob":
+            raise SystemExit(f"cat-file --batch: unexpected header {header} for {blob}")
+        contents[blob] = process.stdout.read(int(header[2]))
+        process.stdout.read(1)
+    process.wait()
+    return contents
+
+
+def vendor(commit, profile):
+    checkout = checkout_for(commit)
+    target = ROOT / "vendor/typescript-native" / profile
+    upstream = target / "upstream"
+    if upstream.exists():
+        shutil.rmtree(upstream)
+    sets = []
+    selected = []
+    for path in TREES:
+        rows = ls_tree(checkout, commit, path)
+        sets.append({"path": path, "git_tree_sha1": git(checkout, "rev-parse", f"{commit}:{path}"),
+                     "rows": rows})
+        selected.extend(rows)
+    names = []
+    for path in BASELINE_DIRS:
+        rows = ls_tree(checkout, commit, path)
+        names.extend(name for _, _, name in rows)
+        errors = [row for row in rows if row[2].endswith(ERRORS_SUFFIX)]
+        sets.append({"path": path, "filter": f"*{ERRORS_SUFFIX}", "rows": errors})
+        selected.extend(errors)
+    fetch_blobs(checkout, commit)
+    contents = read_blobs(checkout, sorted({blob for _, blob, _ in selected}))
+    for mode, blob, name in selected:
+        data = contents[blob]
+        if blob_sha1(data) != blob:
+            raise SystemExit(f"{name}: blob content does not hash to {blob}")
+        dest = upstream / name
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(data)
+        if mode == "100755":
+            dest.chmod(0o755)
+    manifest = {
+        "schema": 1,
+        "repository": REMOTE,
+        "commit": commit,
+        "commit_date": git(checkout, "show", "-s", "--format=%cI", commit),
+        "profile": profile,
+        "vendored_root": f"vendor/typescript-native/{profile}/upstream",
+        "sets": [
+            {
+                "path": item["path"],
+                **({"filter": item["filter"]} if "filter" in item else {}),
+                **({"git_tree_sha1": item["git_tree_sha1"]} if "git_tree_sha1" in item else {}),
+                "blob_inventory_sha256": inventory_digest(item["rows"]),
+                "files": len(item["rows"]),
+                "bytes": sum((upstream / name).stat().st_size for _, _, name in item["rows"]),
+            }
+            for item in sets
+        ],
+        "baseline_names": {
+            "path": "baseline-names.txt",
+            "entries": len(names),
+            "sha256": hashlib.sha256("".join(f"{n}\n" for n in sorted(names)).encode()).hexdigest(),
+        },
+    }
+    (target / "baseline-names.txt").write_text("".join(f"{name}\n" for name in sorted(names)))
+    (target / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    print(f"vendored {len(selected)} files into {upstream.relative_to(ROOT)}")
+    for item in manifest["sets"]:
+        print(f"  {item['path']}{' ' + item['filter'] if 'filter' in item else ''}: "
+              f"{item['files']} files, {item['bytes']} bytes")
+    print(f"  baseline names: {len(names)}")
+
+
+def check(profile):
+    target = ROOT / "vendor/typescript-native" / profile
+    manifest = json.loads((target / "manifest.json").read_text())
+    upstream = ROOT / manifest["vendored_root"]
+    expected_files = set()
+    for item in manifest["sets"]:
+        base = upstream / item["path"]
+        rows = []
+        for directory, _, files in os.walk(base):
+            for file in files:
+                full = Path(directory) / file
+                name = str(full.relative_to(upstream))
+                if "filter" in item and not name.endswith(ERRORS_SUFFIX):
+                    continue
+                data = full.read_bytes()
+                mode = "100755" if os.access(full, os.X_OK) else "100644"
+                rows.append((mode, blob_sha1(data), name))
+                expected_files.add(name)
+        rows.sort(key=lambda row: row[2])
+        if len(rows) != item["files"] or inventory_digest(rows) != item["blob_inventory_sha256"]:
+            raise SystemExit(f"{item['path']}: vendored files differ from the manifest")
+    present = {str(Path(d, f).relative_to(upstream)) for d, _, fs in os.walk(upstream) for f in fs}
+    if present != expected_files:
+        raise SystemExit(f"unexpected vendored files: {sorted(present - expected_files)[:5]}")
+    names = (target / manifest["baseline_names"]["path"]).read_bytes()
+    if hashlib.sha256(names).hexdigest() != manifest["baseline_names"]["sha256"]:
+        raise SystemExit("baseline-names.txt differs from the manifest")
+    print(f"{profile}: {len(present)} vendored files match the manifest")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    parser.add_argument("--commit")
+    parser.add_argument("--profile", required=True)
+    parser.add_argument("--check", action="store_true")
+    args = parser.parse_args()
+    if args.check:
+        check(args.profile)
+        return
+    if not args.commit or len(args.commit) != 40:
+        raise SystemExit("--commit takes a full 40-character SHA")
+    vendor(args.commit, args.profile)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

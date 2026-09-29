@@ -12,6 +12,7 @@ files remain at the root. Prose design lives under
 | [escapes.toml](escapes.toml), [fn-dispositions.toml](fn-dispositions.toml), [nodes-missing-fields.txt](nodes-missing-fields.txt) | Reviewed implementation-debt and schema inventories |
 | [diag-families.json](diag-families.json) | Diagnostic family definitions |
 | [m8/](m8/) | M8 scope, emitter inventory/dispositions, evidence configuration and frozen owner plans |
+| [ts71/](ts71/) | The deepest tier each TypeScript 7.1 conformance configuration has reached, per vendored native profile (`scripts/conformance_ts71.py --check` / `--update`) |
 | Other existing files | Subsystem observations, accepted state, pins and historical qualification records |
 
 These root artifacts moved without changing their bytes. An old root filename

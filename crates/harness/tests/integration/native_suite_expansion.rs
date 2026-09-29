@@ -1,0 +1,217 @@
+//! The native (TypeScript 7.x) harness rules reproduce the reference
+//! baselines' configuration set of the vendored profile: every configuration
+//! with a baseline is one the port predicts to run, and every configuration
+//! the port predicts to run has a baseline unless it produces no output.
+
+use std::collections::{BTreeMap, BTreeSet};
+use std::io::Write as _;
+use std::os::unix::fs::PermissionsExt as _;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
+
+use sha2::{Digest, Sha256};
+use tsc_harness::upstream_suites::native::{
+    baseline_stems, expand_case, NativeProfile, NativeSkip, NativeSuite,
+};
+
+const PROFILE: &str = "7.1.0-dev-19dadef8";
+
+fn workspace() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
+#[test]
+fn native_expansion_reproduces_the_reference_baseline_configurations() {
+    let profile = NativeProfile::load(&workspace(), PROFILE).expect("native profile");
+    let cases = profile.cases().expect("native cases");
+    assert_eq!(
+        cases.len(),
+        6_838 + 5_910,
+        "TestLocal enumerates every .ts/.tsx case"
+    );
+
+    let mut file_names = BTreeSet::new();
+    for case in &cases {
+        assert!(
+            file_names.insert(case.file_name().to_owned()),
+            "{}: duplicate basename",
+            case.relative_path
+        );
+    }
+
+    let names = profile.baseline_names().expect("baseline names");
+    let mut run = BTreeMap::new();
+    let mut quiet_allowed = BTreeSet::new();
+    let mut skipped = BTreeMap::<String, usize>::new();
+    let mut failures = Vec::new();
+    for case in &cases {
+        let expansion = match expand_case(&profile, case) {
+            Ok(expansion) => expansion,
+            Err(error) => {
+                failures.push(format!("{}: {error}", case.relative_path));
+                continue;
+            }
+        };
+        for (configuration, stem, skip) in expansion.configurations {
+            match skip {
+                None => {
+                    if configuration
+                        .settings
+                        .get("notypesandsymbols")
+                        .is_some_and(|value| value.eq_ignore_ascii_case("true"))
+                    {
+                        quiet_allowed.insert((case.suite, stem.clone()));
+                    }
+                    run.insert((case.suite, stem), case.relative_path.clone());
+                }
+                Some(NativeSkip::Fatal(rule)) => {
+                    failures.push(format!("{} ({stem}): fatal {rule}", case.relative_path));
+                }
+                Some(NativeSkip::UnknownDirective(name)) => {
+                    failures.push(format!(
+                        "{} ({stem}): unknown directive {name}",
+                        case.relative_path
+                    ));
+                }
+                Some(other) => *skipped.entry(format!("{other:?}")).or_default() += 1,
+            }
+        }
+    }
+
+    let mut observed = BTreeSet::new();
+    for suite in NativeSuite::ALL {
+        for stem in baseline_stems(&names, suite).into_keys() {
+            observed.insert((suite, stem));
+        }
+    }
+    let unexpected: Vec<_> = observed
+        .iter()
+        .filter(|key| !run.contains_key(*key))
+        .collect();
+    let silent: Vec<_> = run
+        .keys()
+        .filter(|key| !observed.contains(*key) && !quiet_allowed.contains(*key))
+        .collect();
+    println!(
+        "native expansion: {} cases, {} configurations run, {} observed, skipped {:?}",
+        cases.len(),
+        run.len(),
+        observed.len(),
+        skipped
+    );
+    for line in failures.iter().take(20) {
+        println!("failure: {line}");
+    }
+    for key in unexpected.iter().take(20) {
+        println!("baseline without a predicted run: {:?}", key);
+    }
+    for key in silent.iter().take(20) {
+        println!("predicted run without baselines: {:?} ({})", key, run[*key]);
+    }
+    assert!(
+        failures.is_empty(),
+        "{} cases failed to expand",
+        failures.len()
+    );
+    assert!(
+        unexpected.is_empty(),
+        "{} baseline configurations were not predicted",
+        unexpected.len()
+    );
+    assert!(
+        silent.is_empty(),
+        "{} predicted configurations have no baseline",
+        silent.len()
+    );
+}
+
+/// Every vendored file, with its Git blob id and mode, under `root/path`
+/// (only `*.errors.txt` when the set is filtered), sorted by upstream path.
+fn inventory(upstream: &Path, path: &str, errors_only: bool) -> Vec<(String, String, String)> {
+    let mut files = Vec::new();
+    let mut stack = vec![upstream.join(path)];
+    while let Some(directory) = stack.pop() {
+        for entry in std::fs::read_dir(&directory).expect("vendored directory") {
+            let entry = entry.expect("directory entry");
+            let full = entry.path();
+            if full.is_dir() {
+                stack.push(full);
+            } else if !errors_only || full.to_string_lossy().ends_with(".errors.txt") {
+                files.push(full);
+            }
+        }
+    }
+    let mut hash = Command::new("git")
+        .args(["hash-object", "--no-filters", "--stdin-paths"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("git hash-object");
+    let paths: String = files
+        .iter()
+        .map(|file| format!("{}\n", file.display()))
+        .collect();
+    let mut stdin = hash.stdin.take().expect("stdin");
+    let writer = std::thread::spawn(move || stdin.write_all(paths.as_bytes()));
+    let output = hash.wait_with_output().expect("git hash-object output");
+    writer.join().expect("writer").expect("write paths");
+    assert!(output.status.success());
+    let blobs = String::from_utf8(output.stdout).expect("blob ids");
+    let mut rows: Vec<_> = files
+        .iter()
+        .zip(blobs.lines())
+        .map(|(file, blob)| {
+            let mode = if file.metadata().expect("metadata").permissions().mode() & 0o111 != 0 {
+                "100755"
+            } else {
+                "100644"
+            };
+            let name = file
+                .strip_prefix(upstream)
+                .expect("under the upstream root")
+                .to_string_lossy()
+                .into_owned();
+            (mode.to_owned(), blob.to_owned(), name)
+        })
+        .collect();
+    rows.sort_by(|left, right| left.2.cmp(&right.2));
+    rows
+}
+
+#[test]
+fn native_vendored_inputs_match_the_manifest() {
+    let profile = NativeProfile::load(&workspace(), PROFILE).expect("native profile");
+    let manifest = &profile.manifest;
+    assert_eq!(manifest.schema, 1);
+    assert_eq!(
+        manifest.repository,
+        "https://github.com/microsoft/TypeScript.git"
+    );
+    assert_eq!(manifest.commit, "19dadef8888ba5b27d8b9f622480745cf623e020");
+    assert_eq!(manifest.profile, PROFILE);
+    let upstream = profile.upstream_root();
+    let mut vendored = 0;
+    for set in &manifest.sets {
+        let rows = inventory(&upstream, &set.path, set.filter.is_some());
+        let text: String = rows
+            .iter()
+            .map(|(mode, blob, name)| format!("{mode} {blob} {name}\n"))
+            .collect();
+        assert_eq!(rows.len() as u64, set.files, "{}: file count", set.path);
+        assert_eq!(
+            format!("{:x}", Sha256::digest(text.as_bytes())),
+            set.blob_inventory_sha256,
+            "{}: blob inventory",
+            set.path
+        );
+        vendored += rows.len();
+    }
+    assert_eq!(vendored, 20_187);
+    let names = profile.baseline_names().expect("baseline names");
+    assert_eq!(names.len() as u64, manifest.baseline_names.entries);
+    let text: String = names.iter().map(|name| format!("{name}\n")).collect();
+    assert_eq!(
+        format!("{:x}", Sha256::digest(text.as_bytes())),
+        manifest.baseline_names.sha256
+    );
+}

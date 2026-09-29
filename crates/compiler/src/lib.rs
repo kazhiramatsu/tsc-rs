@@ -88,6 +88,10 @@ pub struct ProgramSession {
     /// session ends instead of dropping it: a one-shot process exits right
     /// afterwards and only pays for the teardown. Off by default.
     leak_program: bool,
+    /// The native compiler runner's collection (see
+    /// [`run_for_native_harness`](Self::run_for_native_harness)); `None` for
+    /// every other run.
+    native_harness: Option<NativeHarnessCollection>,
     /// Checker budget for the no-emit whole-Program check; one checker by
     /// default (see [`CheckerBudget`]). Independent of `worker_budget`:
     /// each additional checker duplicates checker-local state over the one
@@ -1125,6 +1129,7 @@ impl ProgramSession {
             source_api_facts: BTreeMap::new(),
             worker_budget: WorkerBudget::serial(),
             leak_program: false,
+            native_harness: None,
             checker_budget: CheckerBudget::serial(),
         }
     }
@@ -1262,6 +1267,7 @@ impl ProgramSession {
             worker_budget,
             checker_budget: _,
             leak_program: _,
+            native_harness: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         tsc_emitter::validate_declaration_diagnostics_request(&emit_host)
@@ -1480,6 +1486,7 @@ impl ProgramSession {
             worker_budget,
             checker_budget: _,
             leak_program: _,
+            native_harness: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         let inputs = project_checker_inputs(&prepared, &source_api_facts)?;
@@ -1595,6 +1602,7 @@ impl ProgramSession {
             worker_budget,
             checker_budget: _,
             leak_program: _,
+            native_harness: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         let selection = EmitSelection::WholeProgram;
@@ -1694,6 +1702,7 @@ impl ProgramSession {
             worker_budget,
             checker_budget: _,
             leak_program: _,
+            native_harness: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         if forced_declarations {
@@ -1845,6 +1854,7 @@ impl ProgramSession {
             worker_budget,
             checker_budget,
             leak_program,
+            native_harness: _,
         } = self;
         let setup_started = std::time::Instant::now();
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
@@ -2469,6 +2479,47 @@ impl ProgramSession {
         self.run_no_emit_pass(true, LibraryPrefixCompletion::FixtureObservedOnly, false)
     }
 
+    /// The diagnostics TypeScript's native compiler runner records for one
+    /// configuration (`compileFilesWithHost` in
+    /// `tsc/internal/testutil/harnessutil`): config-file parsing, program
+    /// (options), syntactic, semantic and global diagnostics of the whole
+    /// Program without the command line's gating, the declaration diagnostics
+    /// when the options emit declarations, and suggestions when requested. The
+    /// union is [`NoEmitOutcome::native_harness_diagnostics`]; the other lists
+    /// keep their command-line meaning. The standard-library bundle is built
+    /// for this Program alone, as the command line builds it: the
+    /// process-lifetime bundle cache would keep one bundle per library set
+    /// and target of a long corpus run. The Program may be an emitting one;
+    /// nothing is emitted.
+    /// tsrs-native: harness execution mode; no tsc counterpart.
+    #[doc(hidden)]
+    pub fn run_for_native_harness(
+        mut self,
+        collection: NativeHarnessCollection,
+    ) -> Result<NoEmitOutcome, DriverError> {
+        self.native_harness = Some(collection);
+        self.run_no_emit_pass(false, LibraryPrefixCompletion::Complete, false)
+    }
+
+    /// The output-path diagnostics an emitting Program reports before it
+    /// writes anything (`verifyCompilerOptions`' emit blocking, such as
+    /// TS5055), which the native runner collects with the options
+    /// diagnostics; none for a Program that cannot emit.
+    fn native_output_diagnostics(&self) -> Vec<Diagnostic> {
+        let checks_output_paths = self
+            .native_harness
+            .is_some_and(|collection| collection.output_path_check);
+        if !checks_output_paths || self.prepared.mode() != PreparedProgramMode::Emit {
+            return Vec::new();
+        }
+        PreparedEmitHost::new_for_route(&self.prepared, self.emit_route, &self.source_api_facts)
+            .ok()
+            .filter(|host| validate_emit_request(host).is_ok())
+            .and_then(|host| preflight_emit(&host, EmitSelection::WholeProgram).ok())
+            .map(|preflight| preflight.diagnostics().to_vec())
+            .unwrap_or_default()
+    }
+
     /// `command_report` selects the --noEmit command's report: it adds the
     /// declaration getter when the options request declarations and skips
     /// the per-source aggregate that only the harnesses read
@@ -2506,10 +2557,11 @@ impl ProgramSession {
         // tsc emitFilesAndReportErrors (_tsc.js:129433-129440): the --noEmit
         // command's declaration getter, requested by `run_no_emit_command`
         // when the options ask for declarations.
-        let declaration_getter = command_report
-            && !harness_lib_cache
-            && self.prepared.compiler_options().no_emit == Some(true)
-            && get_emit_declarations(self.prepared.compiler_options());
+        let native_harness = self.native_harness.is_some();
+        let declaration_getter = !harness_lib_cache
+            && get_emit_declarations(self.prepared.compiler_options())
+            && (native_harness
+                || command_report && self.prepared.compiler_options().no_emit == Some(true));
         let mut declaration_diagnostics: Option<Result<DiagnosticList, DriverError>> = None;
         let checked = if harness_lib_cache {
             check_program_with_authoritative_modules_at_harness_cached(
@@ -2528,7 +2580,7 @@ impl ProgramSession {
             let mut operation = |snapshot: &ProgramSnapshot,
                                  session: &CheckerSession<'_>,
                                  checked: &CheckResult| {
-                if no_emit_report_is_clean(&self.prepared, checked) {
+                if native_harness || no_emit_report_is_clean(&self.prepared, checked) {
                     let started = std::time::Instant::now();
                     let every_file = (0..snapshot.documents().len()).collect::<Vec<_>>();
                     declaration_diagnostics = Some(no_emit_declaration_diagnostics(
@@ -2597,7 +2649,7 @@ impl ProgramSession {
                             sessions: &[CheckerSession<'_>],
                             files_by_shard: &[Vec<usize>]|
              -> bool {
-                if no_emit_report_is_clean(&self.prepared, checked) {
+                if native_harness || no_emit_report_is_clean(&self.prepared, checked) {
                     let started = std::time::Instant::now();
                     let mut shares = eager_shares
                         .lock()
@@ -2789,6 +2841,38 @@ impl ProgramSession {
         // emitFilesAndReportErrors compares the aggregate length with the
         // original config-diagnostic length. Config errors therefore remain
         // visible but do not themselves close any of the later gates.
+        let native_harness_diagnostics = match self.native_harness {
+            None => Vec::new(),
+            Some(NativeHarnessCollection {
+                capture_suggestions,
+                ..
+            }) => {
+                if let Some(partial) = partial_checks.first() {
+                    return Err(DriverError::IncompleteCheck {
+                        file_name: partial.file_name.clone(),
+                        start: partial.start,
+                        length: partial.length,
+                        reason: partial.reason.clone(),
+                        additional_partial_checks: partial_checks.len().saturating_sub(1),
+                    });
+                }
+                let mut all = config_diagnostics.clone();
+                all.extend(available_options.iter().cloned());
+                all.extend(self.native_output_diagnostics());
+                all.extend(syntactic_diagnostics.iter().cloned());
+                all.extend(available_semantic.iter().cloned());
+                if has_roots {
+                    all.extend(checked.global_diagnostics.iter().cloned());
+                }
+                all.extend(declaration_diagnostics.iter().cloned());
+                if capture_suggestions {
+                    all.extend(checked.suggestion_diagnostics.iter().cloned());
+                }
+                sort_and_dedupe_diagnostics(&mut all);
+                all
+            }
+        };
+
         let (options_diagnostics, global_diagnostics, semantic_diagnostics) =
             if syntactic_diagnostics.is_empty() {
                 let options_diagnostics = available_options;
@@ -2835,9 +2919,23 @@ impl ProgramSession {
             semantic_diagnostics,
             declaration_diagnostics,
             conformance_diagnostics,
+            native_harness_diagnostics,
             work_counters,
         })
     }
+}
+
+/// What [`ProgramSession::run_for_native_harness`] collects besides the
+/// Program's config, options, syntactic, semantic, global and declaration
+/// diagnostics.
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct NativeHarnessCollection {
+    /// The suggestion diagnostics (`@captureSuggestions`).
+    pub capture_suggestions: bool,
+    /// The output-path diagnostics of an emitting Program, such as TS5055;
+    /// off under the runner's `@suppressOutputPathCheck`.
+    pub output_path_check: bool,
 }
 
 /// The five diagnostic collections exposed by the no-emit driver.
@@ -2860,6 +2958,9 @@ pub struct NoEmitOutcome {
     // per-file getters, including suggestions. diagnostics()/into_diagnostics
     // exclude it, and the command report does not build it.
     conformance_diagnostics: DiagnosticList,
+    // The native compiler runner's ungated union
+    // (ProgramSession::run_for_native_harness); empty for every other run.
+    native_harness_diagnostics: DiagnosticList,
     // Operational evidence is not part of diagnostic-result equality. Tests
     // and qualification compare it explicitly through work_counters().
     work_counters: NoEmitWorkCounters,
@@ -2978,6 +3079,13 @@ impl NoEmitOutcome {
     /// leaves it empty.
     pub fn conformance_diagnostics(&self) -> &[Diagnostic] {
         &self.conformance_diagnostics
+    }
+
+    /// The native compiler runner's ungated union
+    /// ([`ProgramSession::run_for_native_harness`]); empty otherwise.
+    #[doc(hidden)]
+    pub fn native_harness_diagnostics(&self) -> &[Diagnostic] {
+        &self.native_harness_diagnostics
     }
 
     /// Parse/bind/full-text-copy evidence for this consumed session.

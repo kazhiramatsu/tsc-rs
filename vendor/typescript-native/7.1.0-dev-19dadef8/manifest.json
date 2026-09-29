@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "repository": "https://github.com/microsoft/TypeScript.git",
+  "commit": "19dadef8888ba5b27d8b9f622480745cf623e020",
+  "commit_date": "2026-09-29T02:49:13Z",
+  "profile": "7.1.0-dev-19dadef8",
+  "vendored_root": "vendor/typescript-native/7.1.0-dev-19dadef8/upstream",
+  "sets": [
+    {
+      "path": "tsc/testdata/tests/cases/compiler",
+      "git_tree_sha1": "d5a3267561faf2f5706a359d4401f7c4e6635cc1",
+      "blob_inventory_sha256": "db3c298a0cb5aa4cc56144b0d08241fbcc6a5b61d2ac73dd9e93f0510b194a25",
+      "files": 6839,
+      "bytes": 4824885
+    },
+    {
+      "path": "tsc/testdata/tests/cases/conformance",
+      "git_tree_sha1": "93ae53f6065c631e39da6e5923c981f9f8e302ec",
+      "blob_inventory_sha256": "f0c8bb4fcb6b4daba3f81b202ce7434d4650d39ce7b3340138cc534b64be4697",
+      "files": 5911,
+      "bytes": 3829694
+    },
+    {
+      "path": "tsc/testdata/tests/lib",
+      "git_tree_sha1": "dc0280a0cee5e76a93e1d0f02efe230929823db9",
+      "blob_inventory_sha256": "1862fce29dad7d495c4f6df325d89ceaf7203768946c46aa91960444a669b5a1",
+      "files": 4,
+      "bytes": 394949
+    },
+    {
+      "path": "tsc/internal/bundled/libs",
+      "git_tree_sha1": "5720ba9c1f475a3dcb22bc415078bfa54446e40b",
+      "blob_inventory_sha256": "e1d6a00d9a5009c0db5c846b8b206b6719231936c08803f7dfe19973e88def40",
+      "files": 113,
+      "bytes": 3791746
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/compiler",
+      "filter": "*.errors.txt",
+      "blob_inventory_sha256": "35f3e8b51301e1e4dfce0a6dbe21a3441c5e0f4aa497bd8b50840fa9eb284ce3",
+      "files": 3451,
+      "bytes": 6737544
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/conformance",
+      "filter": "*.errors.txt",
+      "blob_inventory_sha256": "8d50be183a8f551281c1f4053d154868eb05693489cef6f203a84ead4c9331ef",
+      "files": 3869,
+      "bytes": 10956496
+    }
+  ],
+  "baseline_names": {
+    "path": "baseline-names.txt",
+    "entries": 45533,
+    "sha256": "93a597836e2ae51c4099b32e14124b5ebef102afbe5f489c43097aed5019e4ac"
+  }
+}
