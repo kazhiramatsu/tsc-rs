@@ -35,9 +35,9 @@ fn cache_keys(state: &CheckerState<'_>, node: tsc_syntax::NodeId) -> rustc_hash:
 fn nonexistent_property_cache_persists_across_nested_speculation() {
     with_state(|state| {
         let node = state.binder.source(0).root;
-        let permanent = format!("{}|false", state.tables.intrinsics.string.0);
-        let parent_key = format!("{}|false", state.tables.intrinsics.number.0);
-        let child_key = format!("{}|true", state.tables.intrinsics.number.0);
+        let permanent = format!("{}|false", state.tables.intrinsics.string.index());
+        let parent_key = format!("{}|false", state.tables.intrinsics.number.index());
+        let child_key = format!("{}|true", state.tables.intrinsics.number.index());
         assert!(state
             .links
             .insert_node_non_existent_prop_key(0, node, permanent.clone()));
@@ -119,8 +119,8 @@ fn nonexistent_property_cache_persists_across_nested_speculation() {
 fn nonexistent_property_cache_persists_across_every_transaction_boundary() {
     with_state(|state| {
         let node = state.binder.source(0).root;
-        let permanent = format!("{}|false", state.tables.intrinsics.string.0);
-        let trial = format!("{}|false", state.tables.intrinsics.number.0);
+        let permanent = format!("{}|false", state.tables.intrinsics.string.index());
+        let trial = format!("{}|false", state.tables.intrinsics.number.index());
         assert!(state
             .links
             .insert_node_non_existent_prop_key(0, node, permanent.clone()));
@@ -186,10 +186,12 @@ fn mutate_everything(state: &mut CheckerState) {
         ty: string,
     });
     state.flow_loop_start += 3;
-    state.shared_flow.push((FlowId(0), FlowType::Type(string)));
+    state
+        .shared_flow
+        .push((FlowId::new(0), FlowType::Type(string)));
     state
         .reduce_label_overrides
-        .insert((0, FlowId(1)), vec![FlowId(2)]);
+        .insert((0, FlowId::new(1)), vec![FlowId::new(2)]);
     state.exhaustive_switch_computing.insert(root);
     // B: counters / flags.
     state.instantiation_depth += 5;
@@ -1194,8 +1196,8 @@ fn order_guard_reasons_survive_speculation_rollback() {
         state.order_guard.arm(boundary);
         // The guard compares ids only; ids at and above the boundary stand
         // for shard-local types without allocating any.
-        let post_init_a = tsc_types::TypeId(boundary as u32);
-        let post_init_b = tsc_types::TypeId(boundary as u32 + 1);
+        let post_init_a = tsc_types::TypeId::new(boundary as u32);
+        let post_init_b = tsc_types::TypeId::new(boundary as u32 + 1);
         let checkpoint = state.begin_speculation();
         state
             .order_guard

@@ -33,17 +33,19 @@ use crate::links::LinkSlot;
 use crate::state::{CheckResult, CheckerState, IndexInfo, SignatureId, SignatureKind};
 use crate::variance::VariancesResult;
 
-/// Arena id — see the module doc for the identity/rollback contract.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct InferenceContextId(pub u32);
+tsc_types::id_type!(
+    /// Arena id — see the module doc for the identity/rollback contract.
+    InferenceContextId
+);
 
-/// Arena id for an InferenceInfo — tsc infos are GC objects whose
-/// IDENTITY is load-bearing (thunk captures, mergeInferences slot
-/// replacement, 7.4's detached higher-order arrays), so the port
-/// stores them in `CheckerState::inference_info_arena` (E-class,
-/// append-only) and passes ids everywhere tsc passes the object.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct InferenceInfoId(pub u32);
+tsc_types::id_type!(
+    /// Arena id for an InferenceInfo — tsc infos are GC objects whose
+    /// IDENTITY is load-bearing (thunk captures, mergeInferences slot
+    /// replacement, 7.4's detached higher-order arrays), so the port
+    /// stores them in `CheckerState::inference_info_arena` (E-class,
+    /// append-only) and passes ids everywhere tsc passes the object.
+    InferenceInfoId
+);
 
 /// tsc InferenceInfo (the createInferenceInfo 68300 literal).
 ///
@@ -185,7 +187,7 @@ pub(crate) fn clone_inference_info(inference: &InferenceInfo) -> InferenceInfo {
 /// InferenceInfoId>` here, sharing the same objects.
 pub(crate) fn clear_cached_inferences(arena: &mut [InferenceInfo], infos: &[InferenceInfoId]) {
     for &id in infos {
-        let inference = &mut arena[id.0 as usize];
+        let inference = &mut arena[id.index() as usize];
         if !inference.is_fixed {
             inference.inferred_type = None;
         }
@@ -202,7 +204,7 @@ pub(crate) fn has_inference_candidates(info: &InferenceInfo) -> bool {
 impl<'a> CheckerState<'a> {
     /// tsrs-native: arena accessor (contexts are GC objects in tsc).
     pub(crate) fn inference_context(&self, id: InferenceContextId) -> &InferenceContext {
-        &self.inference_context_arena[id.0 as usize]
+        &self.inference_context_arena[id.index() as usize]
     }
 
     /// tsrs-native: arena accessor (contexts are GC objects in tsc).
@@ -210,22 +212,22 @@ impl<'a> CheckerState<'a> {
         &mut self,
         id: InferenceContextId,
     ) -> &mut InferenceContext {
-        &mut self.inference_context_arena[id.0 as usize]
+        &mut self.inference_context_arena[id.index() as usize]
     }
 
     /// tsrs-native: arena accessor (infos are GC objects in tsc).
     pub(crate) fn inference_info(&self, id: InferenceInfoId) -> &InferenceInfo {
-        &self.inference_info_arena[id.0 as usize]
+        &self.inference_info_arena[id.index() as usize]
     }
 
     /// tsrs-native: arena accessor (infos are GC objects in tsc).
     pub(crate) fn inference_info_mut(&mut self, id: InferenceInfoId) -> &mut InferenceInfo {
-        &mut self.inference_info_arena[id.0 as usize]
+        &mut self.inference_info_arena[id.index() as usize]
     }
 
     /// tsrs-native: arena allocation — tsc object creation.
     pub(crate) fn alloc_inference_info(&mut self, info: InferenceInfo) -> InferenceInfoId {
-        let id = InferenceInfoId(self.inference_info_arena.len() as u32);
+        let id = InferenceInfoId::new(self.inference_info_arena.len() as u32);
         self.inference_info_arena.push(info);
         id
     }
@@ -298,7 +300,7 @@ impl<'a> CheckerState<'a> {
         flags: InferenceFlags,
         compare_types: CompareTypesFn,
     ) -> InferenceContextId {
-        let id = InferenceContextId(self.inference_context_arena.len() as u32);
+        let id = InferenceContextId::new(self.inference_context_arena.len() as u32);
         // 68254-68255: both mappers capture the SAME inferences array
         // at creation — sources = map(inferences, i.typeParameter),
         // thunks close over the per-slot info objects.
@@ -481,7 +483,7 @@ impl<'a> CheckerState<'a> {
             // LIVE slots, not the capture.
             clear_cached_inferences(
                 &mut self.inference_info_arena,
-                &self.inference_context_arena[context.0 as usize].inferences,
+                &self.inference_context_arena[context.index() as usize].inferences,
             );
             self.inference_info_mut(captured).is_fixed = true;
         }

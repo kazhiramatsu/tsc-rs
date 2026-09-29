@@ -1473,7 +1473,7 @@ impl<'a> CheckerState<'a> {
             "{}{}{}",
             if is_private { "p" } else { "P" },
             if is_static { "s" } else { "S" },
-            name_type.0
+            name_type.index()
         );
         if let Some(&cached) = self.decorator_context_override_type_cache.get(&key) {
             return cached;

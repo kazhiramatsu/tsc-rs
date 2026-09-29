@@ -440,7 +440,7 @@ impl CheckerState<'_> {
         let properties = self.get_properties_of_type(ty)?;
         let parent = EmitResolverSymbol {
             session_token,
-            symbol_index: container_symbol.0,
+            symbol_index: container_symbol.index(),
         };
         let mut result = Vec::with_capacity(properties.len());
         for property in properties {
@@ -453,7 +453,7 @@ impl CheckerState<'_> {
                 name: property_data.escaped_name.clone(),
                 symbol: EmitResolverSymbol {
                     session_token,
-                    symbol_index: property.0,
+                    symbol_index: property.index(),
                 },
                 parent,
                 value_declaration,
@@ -1723,7 +1723,7 @@ impl<'a> CheckerState<'a> {
             .map_err(|abort| node_builder_abort_error(self, method, function, abort))?;
         let mut locals = SymbolTable::default();
         for property in properties {
-            locals.insert(property.name, SymbolId(property.symbol.symbol_index));
+            locals.insert(property.name, SymbolId::new(property.symbol.symbol_index));
         }
         self.emit_create_type_of_declaration(
             arena,

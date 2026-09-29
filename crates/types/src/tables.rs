@@ -118,10 +118,11 @@ impl IntersectionFlags {
     }
 }
 
-/// One interned list of types: equal lists intern to the same id (see
-/// [`TypeTables::intern_type_list`]).
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct TypeListId(pub u32);
+crate::id_type!(
+    /// One interned list of types: equal lists intern to the same id (see
+    /// [`TypeTables::intern_type_list`]).
+    TypeListId
+);
 
 /// The key of a target's instantiations map (`type.instantiations`):
 /// createTypeReference's `getTypeListId(typeArguments)` and
@@ -338,43 +339,43 @@ impl TypeTables {
             strict_null_checks,
             exact_optional_property_types,
             intrinsics: Intrinsics {
-                any: TypeId(0),
-                auto: TypeId(0),
-                wildcard: TypeId(0),
-                blocked_string: TypeId(0),
-                error: TypeId(0),
-                unresolved: TypeId(0),
-                non_inferrable_any: TypeId(0),
-                intrinsic_marker: TypeId(0),
-                unknown: TypeId(0),
-                undefined: TypeId(0),
-                undefined_widening: TypeId(0),
-                missing: TypeId(0),
-                undefined_or_missing: TypeId(0),
-                optional: TypeId(0),
-                null: TypeId(0),
-                null_widening: TypeId(0),
-                string: TypeId(0),
-                number: TypeId(0),
-                bigint: TypeId(0),
-                false_fresh: TypeId(0),
-                false_regular: TypeId(0),
-                true_fresh: TypeId(0),
-                true_regular: TypeId(0),
-                boolean: TypeId(0),
-                es_symbol: TypeId(0),
-                void: TypeId(0),
-                never: TypeId(0),
-                silent_never: TypeId(0),
-                implicit_never: TypeId(0),
-                unreachable_never: TypeId(0),
-                non_primitive: TypeId(0),
-                string_or_number: TypeId(0),
-                string_number_symbol: TypeId(0),
-                number_or_bigint: TypeId(0),
-                template_constraint: TypeId(0),
-                numeric_string: TypeId(0),
-                unique_literal: TypeId(0),
+                any: TypeId::new(0),
+                auto: TypeId::new(0),
+                wildcard: TypeId::new(0),
+                blocked_string: TypeId::new(0),
+                error: TypeId::new(0),
+                unresolved: TypeId::new(0),
+                non_inferrable_any: TypeId::new(0),
+                intrinsic_marker: TypeId::new(0),
+                unknown: TypeId::new(0),
+                undefined: TypeId::new(0),
+                undefined_widening: TypeId::new(0),
+                missing: TypeId::new(0),
+                undefined_or_missing: TypeId::new(0),
+                optional: TypeId::new(0),
+                null: TypeId::new(0),
+                null_widening: TypeId::new(0),
+                string: TypeId::new(0),
+                number: TypeId::new(0),
+                bigint: TypeId::new(0),
+                false_fresh: TypeId::new(0),
+                false_regular: TypeId::new(0),
+                true_fresh: TypeId::new(0),
+                true_regular: TypeId::new(0),
+                boolean: TypeId::new(0),
+                es_symbol: TypeId::new(0),
+                void: TypeId::new(0),
+                never: TypeId::new(0),
+                silent_never: TypeId::new(0),
+                implicit_never: TypeId::new(0),
+                unreachable_never: TypeId::new(0),
+                non_primitive: TypeId::new(0),
+                string_or_number: TypeId::new(0),
+                string_number_symbol: TypeId::new(0),
+                number_or_bigint: TypeId::new(0),
+                template_constraint: TypeId::new(0),
+                numeric_string: TypeId::new(0),
+                unique_literal: TypeId::new(0),
             },
             string_literal_types: HashMap::default(),
             utf8_string_literal_types: HashMap::default(),
@@ -403,7 +404,7 @@ impl TypeTables {
     /// tsc-hash: 8c00f116e39f7085c9e81dd1e3e17f04ab51ff0630b2c75228a12d38c03ef0e6
     /// tsc-span: _tsc.js:50095-50102
     pub fn create_type(&mut self, flags: TypeFlags, data: TypeData) -> TypeId {
-        let id = TypeId(self.types.len() as u32);
+        let id = TypeId::new(self.types.len() as u32);
         self.types.push(Type::new(flags, data));
         id
     }
@@ -462,13 +463,13 @@ impl TypeTables {
     }
 
     pub fn create_conditional_root(&mut self, data: ConditionalRootData) -> ConditionalRootId {
-        let id = ConditionalRootId(self.conditional_roots.len() as u32);
+        let id = ConditionalRootId::new(self.conditional_roots.len() as u32);
         self.conditional_roots.push(data);
         id
     }
 
     pub fn conditional_root(&self, id: ConditionalRootId) -> &ConditionalRootData {
-        &self.conditional_roots[id.0 as usize]
+        &self.conditional_roots[id.index() as usize]
     }
 
     /// The allocation half of getConditionalType. Resolution and
@@ -543,11 +544,11 @@ impl TypeTables {
     }
 
     pub fn type_of(&self, id: TypeId) -> &Type {
-        &self.types[id.0 as usize]
+        &self.types[id.index() as usize]
     }
 
     pub fn type_mut(&mut self, id: TypeId) -> &mut Type {
-        &mut self.types[id.0 as usize]
+        &mut self.types[id.index() as usize]
     }
 
     /// Reserve room for `additional` more types (and the literal-type
@@ -998,7 +999,7 @@ impl TypeTables {
         if let Some(&id) = self.type_lists.get(types) {
             return id;
         }
-        let id = TypeListId(self.type_lists.len() as u32);
+        let id = TypeListId::new(self.type_lists.len() as u32);
         self.type_lists.insert(types.into(), id);
         id
     }
@@ -1020,9 +1021,9 @@ impl TypeTables {
         let length = types.len();
         let mut i = 0;
         while i < length {
-            let start_id = types[i].0;
+            let start_id = types[i].index();
             let mut count = 1usize;
-            while i + count < length && types[i + count].0 == start_id + count as u32 {
+            while i + count < length && types[i + count].index() == start_id + count as u32 {
                 count += 1;
             }
             if result.len() > start_len {
@@ -1069,7 +1070,7 @@ impl TypeTables {
             return;
         };
         result.push('@');
-        push_decimal(result, symbol.0);
+        push_decimal(result, symbol.index());
         if let Some(arguments) = alias_type_arguments {
             result.push(':');
             self.push_type_list_id(arguments, result);
@@ -1171,11 +1172,11 @@ impl TypeTables {
                 UnionReduction::Subtype => "S",
                 UnionReduction::Literal => "L",
             };
-            let index = usize::from(types[0].0 >= types[1].0);
+            let index = usize::from(types[0].index() >= types[1].index());
             let mut key = String::with_capacity(24);
-            push_decimal(&mut key, types[index].0);
+            push_decimal(&mut key, types[index].index());
             key.push_str(infix);
-            push_decimal(&mut key, types[1 - index].0);
+            push_decimal(&mut key, types[1 - index].index());
             crate::perf::bump(crate::perf::PerfCounter::UnionOfUnionLookups);
             if let Some(&id) = self.union_of_union_types.get(&key) {
                 crate::perf::bump(crate::perf::PerfCounter::UnionOfUnionHits);
@@ -1422,7 +1423,7 @@ impl TypeTables {
                 }
             } else {
                 match type_set.last() {
-                    Some(&last) if ty.0 > last.0 => type_set.push(ty),
+                    Some(&last) if ty.index() > last.index() => type_set.push(ty),
                     _ => {
                         if let Err(index) = type_set.binary_search(&ty) {
                             type_set.insert(index, ty);
@@ -1629,7 +1630,7 @@ impl TypeTables {
                 // types, createOriginIndexType).
                 TypeData::Index { ty, .. } => {
                     key.push('#');
-                    push_decimal(&mut key, ty.0);
+                    push_decimal(&mut key, ty.index());
                     key.push('|');
                     self.push_type_list_id(&types, &mut key);
                 }
@@ -2255,7 +2256,7 @@ impl TypeTables {
                 type_parameters: type_parameters.clone().into_boxed_slice(),
                 // Patched right below, after the target id exists —
                 // tsc allocates thisType after the object (61194).
-                this_type: TypeId(u32::MAX),
+                this_type: TypeId::new(u32::MAX - 1),
                 element_flags: element_flags.to_vec().into_boxed_slice(),
                 min_length,
                 length_type,
@@ -2886,8 +2887,8 @@ impl TypeTables {
     ) -> TypeId {
         let key = format!(
             "{},{},{}{}",
-            object_type.0,
-            index_type.0,
+            object_type.index(),
+            index_type.index(),
             persistent_access_flags.bits(),
             self.get_alias_id(alias_symbol, alias_type_arguments)
         );

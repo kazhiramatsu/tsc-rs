@@ -121,8 +121,7 @@ pub enum VarianceHandlerFrame {
     Propagating(tsc_types::RelationComparisonResult),
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct SignatureId(pub u32);
+tsc_types::id_type!(SignatureId);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SignatureKind {
@@ -130,8 +129,7 @@ pub enum SignatureKind {
     Construct,
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct MembersId(pub u32);
+tsc_types::id_type!(MembersId);
 
 /// tsc Signature (core-interfaces §4). M4 5.2 adds the instantiation
 /// surface (typeParameters/target/mapper + the instantiations and
@@ -1432,36 +1430,36 @@ impl<'a> CheckerState<'a> {
             speculation_commit_count: 0,
             #[cfg(test)]
             speculation_rollback_count: 0,
-            empty_object_type: TypeId(0),
-            empty_type_literal_type: TypeId(0),
-            unknown_empty_object_type: TypeId(0),
-            unknown_union_type: TypeId(0),
-            empty_generic_type: TypeId(0),
-            any_function_type: TypeId(0),
-            empty_jsx_object_type: TypeId(0),
-            empty_fresh_jsx_object_type: TypeId(0),
+            empty_object_type: TypeId::new(0),
+            empty_type_literal_type: TypeId::new(0),
+            unknown_empty_object_type: TypeId::new(0),
+            unknown_union_type: TypeId::new(0),
+            empty_generic_type: TypeId::new(0),
+            any_function_type: TypeId::new(0),
+            empty_jsx_object_type: TypeId::new(0),
+            empty_fresh_jsx_object_type: TypeId::new(0),
             deferred_global_promise_type: None,
             deferred_global_promise_like_type: None,
             deferred_global_promise_constructor_symbol: None,
-            any_signature: SignatureId(0),
-            unknown_signature: SignatureId(0),
-            resolving_signature: SignatureId(0),
-            silent_never_signature: SignatureId(0),
+            any_signature: SignatureId::new(0),
+            unknown_signature: SignatureId::new(0),
+            resolving_signature: SignatureId::new(0),
+            silent_never_signature: SignatureId::new(0),
             is_inference_partially_blocked: false,
             apparent_argument_count: None,
-            no_constraint_type: TypeId(0),
-            circular_constraint_type: TypeId(0),
+            no_constraint_type: TypeId::new(0),
+            circular_constraint_type: TypeId::new(0),
             mappers: Vec::new(),
-            restrictive_mapper: crate::instantiate::MapperId(0),
-            permissive_mapper: crate::instantiate::MapperId(0),
-            unique_literal_mapper: crate::instantiate::MapperId(0),
-            report_unreliable_mapper: crate::instantiate::MapperId(0),
-            report_unmeasurable_mapper: crate::instantiate::MapperId(0),
-            marker_super_type: TypeId(0),
-            marker_sub_type: TypeId(0),
-            marker_other_type: TypeId(0),
-            marker_super_type_for_check: TypeId(0),
-            marker_sub_type_for_check: TypeId(0),
+            restrictive_mapper: crate::instantiate::MapperId::new(0),
+            permissive_mapper: crate::instantiate::MapperId::new(0),
+            unique_literal_mapper: crate::instantiate::MapperId::new(0),
+            report_unreliable_mapper: crate::instantiate::MapperId::new(0),
+            report_unmeasurable_mapper: crate::instantiate::MapperId::new(0),
+            marker_super_type: TypeId::new(0),
+            marker_sub_type: TypeId::new(0),
+            marker_other_type: TypeId::new(0),
+            marker_super_type_for_check: TypeId::new(0),
+            marker_sub_type_for_check: TypeId::new(0),
             variance_type_parameter: None,
             display_visited_types: rustc_hash::FxHashSet::default(),
             display_infer_type_parameters: Vec::new(),
@@ -1523,7 +1521,7 @@ impl<'a> CheckerState<'a> {
             deferred_global_omit_symbol: None,
             widening_contexts: Vec::new(),
             undefined_properties: rustc_hash::FxHashMap::default(),
-            typeof_type: TypeId(0),
+            typeof_type: TypeId::new(0),
             contextual_binding_patterns: Vec::new(),
             contextual_type_nodes: Vec::new(),
             contextual_types: Vec::new(),
@@ -1830,7 +1828,7 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: arena allocation for ResolvedMembers; tsc creates
     /// and retains ordinary JavaScript objects.
     pub fn alloc_members(&mut self, members: ResolvedMembers) -> MembersId {
-        let id = MembersId(self.members.len() as u32);
+        let id = MembersId::new(self.members.len() as u32);
         self.members.push(members);
         id
     }
@@ -1838,7 +1836,7 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: numeric MembersId arena accessor; tsc carries the
     /// object reference directly.
     pub fn members_of(&self, id: MembersId) -> &ResolvedMembers {
-        &self.members[id.0 as usize]
+        &self.members[id.index() as usize]
     }
 
     /// In-place mutation for tsc's repeated setStructuredTypeMembers
@@ -1848,13 +1846,13 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: mutable MembersId arena accessor required by Rust
     /// ownership; tsc mutates the object directly.
     pub fn members_mut(&mut self, id: MembersId) -> &mut ResolvedMembers {
-        &mut self.members[id.0 as usize]
+        &mut self.members[id.index() as usize]
     }
 
     /// tsrs-native: arena allocation for Signature objects; tsc uses
     /// ordinary JavaScript object allocation.
     pub fn alloc_signature(&mut self, signature: Signature) -> SignatureId {
-        let id = SignatureId(self.signatures.len() as u32);
+        let id = SignatureId::new(self.signatures.len() as u32);
         self.signatures.push(signature);
         id
     }
@@ -1862,13 +1860,13 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: mutable numeric SignatureId arena accessor; tsc
     /// mutates the object directly.
     pub fn signature_mut(&mut self, id: SignatureId) -> &mut Signature {
-        &mut self.signatures[id.0 as usize]
+        &mut self.signatures[id.index() as usize]
     }
 
     /// tsrs-native: numeric SignatureId arena accessor; tsc carries
     /// the object reference directly.
     pub fn signature_of(&self, id: SignatureId) -> &Signature {
-        &self.signatures[id.0 as usize]
+        &self.signatures[id.index() as usize]
     }
 
     /// tsrs-native: tsc 59839 `signature.resolvedReturnType ??= type`
@@ -1892,7 +1890,7 @@ impl<'a> CheckerState<'a> {
             self.speculative_signature_return_writes
                 .push((self.speculation_depth, id, previous));
         }
-        self.signatures[id.0 as usize].resolved_return_type = LinkSlot::Resolved(resolved);
+        self.signatures[id.index() as usize].resolved_return_type = LinkSlot::Resolved(resolved);
         resolved
     }
 
@@ -1918,7 +1916,7 @@ impl<'a> CheckerState<'a> {
                 .speculative_signature_return_writes
                 .pop()
                 .expect("length checked");
-            let slot = &mut self.signatures[signature.0 as usize].resolved_return_type;
+            let slot = &mut self.signatures[signature.index() as usize].resolved_return_type;
             if slot.is_resolving() {
                 *slot = previous;
             }
@@ -1933,7 +1931,7 @@ impl<'a> CheckerState<'a> {
     /// inside an overload trial; unlike `seal_signature_return_type`,
     /// it does not publish a cache on a pre-existing signature.
     pub fn set_fresh_signature_return_type(&mut self, id: SignatureId, resolved: TypeId) {
-        let slot = &mut self.signatures[id.0 as usize].resolved_return_type;
+        let slot = &mut self.signatures[id.index() as usize].resolved_return_type;
         assert!(
             slot.resolved().is_none(),
             "fresh return type initialized twice"

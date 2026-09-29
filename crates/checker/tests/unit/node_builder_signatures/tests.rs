@@ -511,39 +511,40 @@ fn scope_restores_owned_context_state() {
         EmitNodeBuilderFlags::NONE,
         |_checker, arena, target, context| {
             let original_name = create_identifier(arena, target, "T")?;
-            context.mapper = Some(MapperId(7));
+            context.mapper = Some(MapperId::new(7));
             context.must_create_type_parameter_symbol_list = false;
-            context.type_parameter_symbol_list = Some(HashSet::from_iter([SymbolId(11)]));
+            context.type_parameter_symbol_list = Some(HashSet::from_iter([SymbolId::new(11)]));
             context.must_create_type_parameters_names_lookups = false;
-            context.type_parameter_names = Some(HashMap::from_iter([(TypeId(12), original_name)]));
+            context.type_parameter_names =
+                Some(HashMap::from_iter([(TypeId::new(12), original_name)]));
             context.type_parameter_names_by_text = Some(HashSet::from_iter(["T".to_owned()]));
             context.type_parameter_names_by_text_next_name_count =
                 Some(HashMap::from_iter([("T".to_owned(), 2)]));
-            let restore = enter_new_scope(context, None, None, None, None, Some(MapperId(8)));
-            assert_eq!(context.mapper, Some(MapperId(8)));
+            let restore = enter_new_scope(context, None, None, None, None, Some(MapperId::new(8)));
+            assert_eq!(context.mapper, Some(MapperId::new(8)));
             // Copy-on-write (:52692+): entering a scope arms the
             // mustCreate flags but leaves the tables live; the next
             // write under an armed flag clones.
             assert!(context.must_create_type_parameter_symbol_list);
             assert_eq!(
                 context.type_parameter_symbol_list.as_ref(),
-                Some(&HashSet::from_iter([SymbolId(11)]))
+                Some(&HashSet::from_iter([SymbolId::new(11)]))
             );
             assert!(context.must_create_type_parameters_names_lookups);
             assert!(context.type_parameter_names.is_some());
             exit_new_scope(context, restore);
-            assert_eq!(context.mapper, Some(MapperId(7)));
+            assert_eq!(context.mapper, Some(MapperId::new(7)));
             assert!(!context.must_create_type_parameter_symbol_list);
             assert_eq!(
                 context.type_parameter_symbol_list.as_ref(),
-                Some(&HashSet::from_iter([SymbolId(11)]))
+                Some(&HashSet::from_iter([SymbolId::new(11)]))
             );
             assert!(!context.must_create_type_parameters_names_lookups);
             assert_eq!(
                 context
                     .type_parameter_names
                     .as_ref()
-                    .and_then(|names| names.get(&TypeId(12))),
+                    .and_then(|names| names.get(&TypeId::new(12))),
                 Some(&original_name)
             );
 

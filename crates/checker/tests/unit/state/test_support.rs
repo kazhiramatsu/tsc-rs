@@ -80,7 +80,10 @@ fn with_program_state_impl<R>(
     let mut binders: Vec<Binder<'_>> = Vec::new();
     for source in &sources {
         let (seed, base) = match binders.last() {
-            Some(previous) => (previous.next_symbol_id(), previous.symbols.next_id().0),
+            Some(previous) => (
+                previous.next_symbol_id(),
+                previous.symbols.next_id().index(),
+            ),
             None => (1, 0),
         };
         let mut binder = Binder::with_bases(source, options, seed, base);

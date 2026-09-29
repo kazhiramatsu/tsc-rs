@@ -112,21 +112,20 @@ impl SymbolIdentityRelocation {
                 detail: "symbol relocation ranges have different lengths",
             });
         }
-        let offset =
-            id.0.checked_sub(self.old.start())
-                .filter(|offset| *offset < self.old.len())
-                .ok_or(IdentityError::InvalidLease {
-                    space: IdentitySpace::Symbol,
-                    detail: "relocated SymbolId is outside its source arena",
-                })?;
-        id.0 = self
-            .new
-            .start()
-            .checked_add(offset)
+        let offset = id
+            .index()
+            .checked_sub(self.old.start())
+            .filter(|offset| *offset < self.old.len())
             .ok_or(IdentityError::InvalidLease {
                 space: IdentitySpace::Symbol,
-                detail: "relocated SymbolId overflowed",
+                detail: "relocated SymbolId is outside its source arena",
             })?;
+        *id = SymbolId::new(self.new.start().checked_add(offset).ok_or(
+            IdentityError::InvalidLease {
+                space: IdentitySpace::Symbol,
+                detail: "relocated SymbolId overflowed",
+            },
+        )?);
         Ok(())
     }
 }
@@ -211,7 +210,7 @@ impl SymbolArena {
 
     /// One past the last allocated SymbolId — the next arena's base.
     pub fn next_id(&self) -> SymbolId {
-        SymbolId(
+        SymbolId::new(
             self.base
                 .checked_add(
                     u32::try_from(self.symbols.len()).expect("symbol arena length exceeds u32"),
@@ -221,7 +220,7 @@ impl SymbolArena {
     }
 
     pub fn contains(&self, id: SymbolId) -> bool {
-        id.0 >= self.base && id.0 < self.next_id().0
+        id.index() >= self.base && id.index() < self.next_id().index()
     }
 
     pub fn alloc(&mut self, flags: SymbolFlags, escaped_name: EscapedName) -> SymbolId {
@@ -247,7 +246,7 @@ impl SymbolArena {
             .checked_add(offset)
             .filter(|raw| *raw < limit)
             .ok_or(SymbolArenaExhausted { transient, limit })?;
-        let id = SymbolId(raw);
+        let id = SymbolId::new(raw);
         self.symbols.push(Symbol::new(flags, escaped_name));
         Ok(id)
     }
@@ -384,11 +383,11 @@ impl SymbolArena {
 
     fn index(&self, id: SymbolId) -> usize {
         assert!(
-            id.0 >= self.base,
+            id.index() >= self.base,
             "SymbolId below arena base: {id:?} (base {})",
             self.base
         );
-        (id.0 - self.base) as usize
+        (id.index() - self.base) as usize
     }
 
     pub fn symbol(&self, id: SymbolId) -> &Symbol {

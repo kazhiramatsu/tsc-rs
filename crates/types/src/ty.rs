@@ -8,28 +8,35 @@
 
 use crate::flags::{AccessFlags, ElementFlags, IndexFlags, ObjectFlags, TypeFlags};
 
-/// tsc Type.id (createType 50098-50099). Arena index; ids are
-/// program-run-local and never serialized.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct TypeId(pub u32);
+crate::id_type!(
+    /// tsc Type.id (createType 50098-50099). Arena index; ids are
+    /// program-run-local and never serialized.
+    TypeId
+);
 
-/// tsc TypeMapper object identity. The mapper arena is checker-owned,
-/// but mapped-type semantic payloads retain this opaque identity
-/// without making the types crate depend on the checker.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct MapperId(pub u32);
+crate::id_type!(
+    /// tsc TypeMapper object identity. The mapper arena is checker-owned,
+    /// but mapped-type semantic payloads retain this opaque identity
+    /// without making the types crate depend on the checker.
+    MapperId
+);
 
-/// Checker-local conditional-root arena identity. A root is shared by
-/// every distributed/instantiated form of one written conditional
-/// declaration, just as tsc shares the `root` object.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct ConditionalRootId(pub u32);
+crate::id_type!(
+    /// Checker-local conditional-root arena identity. A root is shared by
+    /// every distributed/instantiated form of one written conditional
+    /// declaration, just as tsc shares the `root` object.
+    ConditionalRootId
+);
 
-/// tsc Symbol id space. Lives in tsc-rs-types so Type.symbol can point
-/// at binder/checker symbols without a dependency cycle; the binder
-/// re-exports it and owns the arena.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct SymbolId(pub u32);
+crate::id_type!(
+    /// tsc Symbol id space. Lives in tsc-rs-types so Type.symbol can point
+    /// at binder/checker symbols without a dependency cycle; the binder
+    /// re-exports it and owns the arena.
+    /// Its index is a position in the symbol identity space: persistent
+    /// symbols lie below `TRANSIENT_SYMBOL_BIT`; checker-transient symbols
+    /// carry that bit.
+    SymbolId
+);
 
 /// tsc PseudoBigInt (18906): sign + base-10 digit string.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]

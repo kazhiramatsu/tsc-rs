@@ -832,7 +832,7 @@ impl DenseKey for SymbolId {
     /// bit address page 2^21.
     #[inline]
     fn dense_index(self) -> usize {
-        let raw = self.0;
+        let raw = self.index();
         if raw & tsc_types::TRANSIENT_SYMBOL_BIT != 0 {
             ((raw & !tsc_types::TRANSIENT_SYMBOL_BIT) as usize) * 2 + 1
         } else {
@@ -844,7 +844,7 @@ impl DenseKey for SymbolId {
 impl DenseKey for TypeId {
     #[inline]
     fn dense_index(self) -> usize {
-        self.0 as usize
+        self.index() as usize
     }
 }
 

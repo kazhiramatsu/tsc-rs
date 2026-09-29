@@ -508,7 +508,7 @@ fn node_builder_tracker_forwards_gates_and_records_only_non_type_parameters() {
     let options = CompilerOptions::default();
     with_test_context(&options, Some(&mut tracker), |_checker, context| {
         let mut access = MockTrackerAccess { fail: false };
-        let property = SymbolId(11);
+        let property = SymbolId::new(11);
         let enclosing = Some(NodeId::new(22));
         assert!(!context
             .tracker
@@ -539,7 +539,7 @@ fn node_builder_tracker_forwards_gates_and_records_only_non_type_parameters() {
                 &mut context.tracked_symbols,
                 &mut context.recovery_tracked_symbols,
                 &mut access,
-                SymbolId(12),
+                SymbolId::new(12),
                 SymbolFlags::PROPERTY,
                 enclosing,
                 false,
@@ -558,7 +558,7 @@ fn node_builder_tracker_forwards_gates_and_records_only_non_type_parameters() {
                 &mut context.tracked_symbols,
                 &mut context.recovery_tracked_symbols,
                 &mut access,
-                SymbolId(13),
+                SymbolId::new(13),
                 SymbolFlags::TYPE_PARAMETER,
                 enclosing,
                 false,
@@ -576,7 +576,7 @@ fn node_builder_tracker_forwards_gates_and_records_only_non_type_parameters() {
                 &mut context.tracked_symbols,
                 &mut context.recovery_tracked_symbols,
                 &mut access,
-                SymbolId(14),
+                SymbolId::new(14),
                 SymbolFlags::PROPERTY,
                 enclosing,
                 false,
@@ -706,7 +706,7 @@ fn node_builder_tracker_propagates_fallible_access_errors_fail_closed() {
             &mut context.tracked_symbols,
             &mut context.recovery_tracked_symbols,
             &mut access,
-            SymbolId(1),
+            SymbolId::new(1),
             SymbolFlags::PROPERTY,
             Some(NodeId::new(2)),
             false,
@@ -744,8 +744,8 @@ fn node_builder_tracker_propagates_fallible_access_errors_fail_closed() {
 fn node_builder_save_restore_and_expansion_helpers_restore_all_owned_state() {
     let options = CompilerOptions::default();
     with_test_context(&options, None, |checker, context| {
-        let symbol = SymbolId(70);
-        let absent_symbol = SymbolId(71);
+        let symbol = SymbolId::new(70);
+        let absent_symbol = SymbolId::new(71);
         let old_type = checker.tables.intrinsics.any;
         let new_type = checker.tables.intrinsics.string;
         context.enclosing_symbol_types.insert(symbol, old_type);

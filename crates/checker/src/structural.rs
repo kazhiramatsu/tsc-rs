@@ -6519,7 +6519,9 @@ impl<'a> CheckerState<'a> {
                 let incompatible_generics = self.signature_of(signature).type_parameters.is_some()
                     && results.as_ref().is_some_and(|results| {
                         results.iter().any(|&s| {
-                            self.signatures[s.0 as usize].type_parameters.is_some()
+                            self.signatures[s.index() as usize]
+                                .type_parameters
+                                .is_some()
                                 && !self.compare_type_parameters_identical_ok(signature, s)
                         })
                     });

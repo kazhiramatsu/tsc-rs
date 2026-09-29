@@ -4602,13 +4602,13 @@ impl<'a> CheckerState<'a> {
         let mut last_type_id = 0u32;
         for &t in stack.iter().take(depth) {
             if self.has_matching_recursion_identity(t, identity)? {
-                if t.0 >= last_type_id {
+                if t.index() >= last_type_id {
                     count += 1;
                     if count >= max_depth {
                         return Ok(true);
                     }
                 }
-                last_type_id = t.0;
+                last_type_id = t.index();
             }
         }
         Ok(false)

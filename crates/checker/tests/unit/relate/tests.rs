@@ -52,7 +52,7 @@ fn relation_keys_swap_ids_for_identity_only() {
     with_state(|state| {
         let string = state.tables.intrinsics.string;
         let number = state.tables.intrinsics.number;
-        let (small, large) = if string.0 < number.0 {
+        let (small, large) = if string.index() < number.index() {
             (string, number)
         } else {
             (number, string)
@@ -66,7 +66,10 @@ fn relation_keys_swap_ids_for_identity_only() {
                 false,
             )
             .expect("relation key");
-        assert_eq!(identity.to_string(), format!("{},{}", small.0, large.0));
+        assert_eq!(
+            identity.to_string(),
+            format!("{},{}", small.index(), large.index())
+        );
         let assignable = state
             .get_relation_key(
                 large,
@@ -76,7 +79,10 @@ fn relation_keys_swap_ids_for_identity_only() {
                 false,
             )
             .expect("relation key");
-        assert_eq!(assignable.to_string(), format!("{},{}", large.0, small.0));
+        assert_eq!(
+            assignable.to_string(),
+            format!("{},{}", large.index(), small.index())
+        );
         let suffixed = state
             .get_relation_key(
                 small,
@@ -86,7 +92,10 @@ fn relation_keys_swap_ids_for_identity_only() {
                 false,
             )
             .expect("relation key");
-        assert_eq!(suffixed.to_string(), format!("{},{}:2", small.0, large.0));
+        assert_eq!(
+            suffixed.to_string(),
+            format!("{},{}:2", small.index(), large.index())
+        );
     });
 }
 
@@ -114,7 +123,7 @@ fn generic_reference_keys_use_backrefs() {
         // Shared type-parameter indices across both sides.
         assert_eq!(
             key.to_string(),
-            format!("{}=0=1,{}=0=1", target.0, target.0)
+            format!("{}=0=1,{}=0=1", target.index(), target.index())
         );
         // A concrete tuple reference is NOT a generic reference:
         // plain id-pair key.
@@ -132,7 +141,10 @@ fn generic_reference_keys_use_backrefs() {
                 false,
             )
             .expect("relation key");
-        assert_eq!(key.to_string(), format!("{},{}", concrete.0, concrete.0));
+        assert_eq!(
+            key.to_string(),
+            format!("{},{}", concrete.index(), concrete.index())
+        );
     });
 }
 
@@ -145,7 +157,7 @@ fn enum_relation_short_circuits_on_symbol_identity() {
             tsc_types::SymbolFlags::NONE,
             tsc_types::EscapedName::from_escaped_value(("identity".to_owned()).into()),
         );
-        assert_ne!(symbol.0 & tsc_types::TRANSIENT_SYMBOL_BIT, 0);
+        assert_ne!(symbol.index() & tsc_types::TRANSIENT_SYMBOL_BIT, 0);
         assert!(state
             .is_enum_type_related_to(symbol, symbol)
             .expect("identity path never escapes"));

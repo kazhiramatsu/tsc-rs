@@ -472,7 +472,7 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
 }
 
 fn tracker_symbol(symbol: SymbolId) -> EmitTrackerSymbol {
-    EmitTrackerSymbol(u64::from(symbol.0))
+    EmitTrackerSymbol(u64::from(symbol.index()))
 }
 
 fn tracker_node(node: NodeId) -> EmitTrackerNode {

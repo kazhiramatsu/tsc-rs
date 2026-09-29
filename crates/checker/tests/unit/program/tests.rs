@@ -58,7 +58,7 @@ fn routes_parse_order_arenas_without_changing_program_order() {
         &root,
         &options,
         dependency_binder.next_symbol_id(),
-        dependency_binder.symbols.next_id().0 + 7,
+        dependency_binder.symbols.next_id().index() + 7,
     );
     root_binder.bind_source_file();
 
@@ -101,15 +101,15 @@ fn routes_parse_order_arenas_without_changing_program_order() {
         ));
     }
 
-    for raw in dependency_binder.symbols.base()..dependency_binder.symbols.next_id().0 {
-        let id = SymbolId(raw);
+    for raw in dependency_binder.symbols.base()..dependency_binder.symbols.next_id().index() {
+        let id = SymbolId::new(raw);
         assert!(std::ptr::eq(
             program.symbol(id),
             dependency_binder.symbols.symbol(id)
         ));
     }
-    for raw in root_binder.symbols.base()..root_binder.symbols.next_id().0 {
-        let id = SymbolId(raw);
+    for raw in root_binder.symbols.base()..root_binder.symbols.next_id().index() {
+        let id = SymbolId::new(raw);
         assert!(std::ptr::eq(
             program.symbol(id),
             root_binder.symbols.symbol(id)
@@ -120,7 +120,7 @@ fn routes_parse_order_arenas_without_changing_program_order() {
         SymbolFlags::PROPERTY,
         tsc_types::EscapedName::from_escaped_value(("temporary".to_owned()).into()),
     );
-    assert_ne!(transient.0 & tsc_types::TRANSIENT_SYMBOL_BIT, 0);
+    assert_ne!(transient.index() & tsc_types::TRANSIENT_SYMBOL_BIT, 0);
     assert!(program
         .symbol(transient)
         .flags

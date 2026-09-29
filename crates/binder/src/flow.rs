@@ -11,8 +11,7 @@
 use tsc_syntax::NodeId;
 use tsc_types::FlowFlags;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct FlowId(pub u32);
+tsc_types::id_type!(FlowId);
 
 /// tsc stores the payload in FlowNode.node: an AST node for most
 /// kinds, `{switchStatement, clauseStart, clauseEnd}` for SwitchClause
@@ -70,7 +69,7 @@ impl FlowArena {
         payload: FlowPayload,
         antecedent: Option<FlowId>,
     ) -> FlowId {
-        let id = FlowId(self.nodes.len() as u32);
+        let id = FlowId::new(self.nodes.len() as u32);
         self.nodes.push(FlowNode {
             flags,
             payload,
@@ -80,11 +79,11 @@ impl FlowArena {
     }
 
     pub fn flow(&self, id: FlowId) -> &FlowNode {
-        &self.nodes[id.0 as usize]
+        &self.nodes[id.index() as usize]
     }
 
     pub fn flow_mut(&mut self, id: FlowId) -> &mut FlowNode {
-        &mut self.nodes[id.0 as usize]
+        &mut self.nodes[id.index() as usize]
     }
 
     pub fn len(&self) -> usize {

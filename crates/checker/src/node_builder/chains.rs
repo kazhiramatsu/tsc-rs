@@ -152,7 +152,7 @@ impl CheckerTrackerAccess<'_, '_> {
     fn symbol(&self, symbol: EmitTrackerSymbol) -> Option<SymbolId> {
         u32::try_from(symbol.0)
             .ok()
-            .map(SymbolId)
+            .map(SymbolId::new)
             .filter(|&symbol| self.checker.binder.try_symbol(symbol).is_some())
     }
 

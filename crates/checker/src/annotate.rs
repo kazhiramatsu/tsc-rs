@@ -1367,7 +1367,7 @@ impl<'a> CheckerState<'a> {
                 }
                 let mut escaped_text = tsc_types::JsString::from("__@");
                 escaped_text.push_js(self.binder.symbol(symbol).escaped_name.as_js());
-                escaped_text.push_str(&format!("@{}", symbol.0));
+                escaped_text.push_str(&format!("@{}", symbol.index()));
                 let escaped_name = tsc_types::EscapedName::from_escaped_value(escaped_text);
                 let ty = self
                     .tables

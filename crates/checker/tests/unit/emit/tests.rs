@@ -225,7 +225,7 @@ fn scoped_emit_resolver_reads_live_alias_and_constant_links_and_fails_closed_els
         .binder
         .node_symbol(export_aliases[0])
         .expect("export alias symbol")
-        .0;
+        .index();
     let session = CheckerSession::from_checked_state(state);
 
     let printed = session.with_emit_resolver(|resolver| {
@@ -801,7 +801,7 @@ fn emit_resolver_validates_symbol_session_before_symbol_bounds() {
         .binder
         .node_symbol(export_aliases[0])
         .expect("export alias symbol")
-        .0;
+        .index();
     let session = CheckerSession::from_checked_state(state);
     let node = EmitResolverNode::from_raw_source(1, export_aliases[0]);
 
