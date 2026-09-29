@@ -169,18 +169,6 @@ pub(crate) fn transform_top_level_declaration(
     context: &mut TransformationContext,
     input: TransformNode,
 ) -> Result<VisitResult, TransformError> {
-    let result = transform_top_level_declaration_worker(transformer, context, input);
-    if let Ok(result) = &result {
-        transformer.observe_boundary(context, true, input, result);
-    }
-    result
-}
-
-fn transform_top_level_declaration_worker(
-    transformer: &mut DeclarationTransformer<'_>,
-    context: &mut TransformationContext,
-    input: TransformNode,
-) -> Result<VisitResult, TransformError> {
     if let Some(late) = transformer.tracker.late_marked_statements.as_mut() {
         // tsc's `orderedRemoveItem` removes every occurrence before the
         // top-level switch consumes the statement.

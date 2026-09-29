@@ -11,10 +11,7 @@ use crate::{
     TransformationResult,
 };
 
-use super::{
-    get_declaration_transformers, get_declaration_transformers_with_observer, BoundaryEvent,
-    DeclarationCustomTransformers, DeclarationPathResolver,
-};
+use super::{get_declaration_transformers, DeclarationCustomTransformers, DeclarationPathResolver};
 
 /// Mount the declaration unit's own source. Any other program source a
 /// resolver answer reaches is mounted on first use
@@ -353,7 +350,8 @@ fn collect_linked_aliases_for_declaration(
 }
 
 /// tsc-port: emitDeclarationFileOrBundle @6.0.3
-/// The owned slice is the diagnostic/blocking seam only.
+/// Transform one source's declarations and return the blocking decision
+/// with the printable arena; the caller prints (test harness entry).
 /// tsc-hash: 8275307ffb4a07e3c7d8b7a5d7f2acf16bfe01c5f746285165c54dc225904434
 /// tsc-span: _tsc.js:116640-116715
 #[doc(hidden)]
@@ -363,7 +361,7 @@ pub fn transform_declaration_unit_for_harness<'t>(
     preflight: &EmitPreflight,
     paths: &'t dyn DeclarationPathResolver,
     source: SourceFileId,
-) -> Result<DeclarationTransformOutcome, EmitFailure> {
+) -> Result<(DeclarationTransformOutcome, TransformationResult<'t>), EmitFailure> {
     let emit_source = host.source_file(source).ok_or(EmitFailure::Contract(
         EmitContractViolation::PlannedSourceMissing(source),
     ))?;
@@ -410,75 +408,6 @@ pub fn transform_declaration_unit_for_harness<'t>(
         EmitFailure::Transform(Box::new(TransformError::UnknownSource(transform_source)))
     })?;
 
-    Ok(DeclarationTransformOutcome {
-        root,
-        diagnostics,
-        decl_blocked,
-        decl_blocked_inputs: DeclBlockedInputs {
-            diagnostics_len,
-            is_emit_blocked_evaluated,
-            is_emit_blocked,
-            no_emit,
-            decl_blocked,
-        },
-    })
-}
-
-/// Run one dormant declaration transform while retaining its printable arena
-/// and reporting the two declaration visitor boundaries to a harness observer.
-/// tsrs-native: observer-armed declaration replay bridge (h2-7a-m-4 P3).
-#[doc(hidden)]
-pub fn transform_declaration_unit_with_observer_for_harness<'t>(
-    resolver: &'t dyn EmitResolver,
-    host: &'t dyn EmitHost,
-    preflight: &EmitPreflight,
-    paths: &'t dyn DeclarationPathResolver,
-    source: SourceFileId,
-    observer: &'t mut dyn FnMut(BoundaryEvent),
-) -> Result<(DeclarationTransformOutcome, TransformationResult<'t>), EmitFailure> {
-    let emit_source = host.source_file(source).ok_or(EmitFailure::Contract(
-        EmitContractViolation::PlannedSourceMissing(source),
-    ))?;
-    let syntax = emit_source.syntax().ok_or(EmitFailure::Contract(
-        EmitContractViolation::CheckedSyntaxUnavailable(source),
-    ))?;
-    let declaration_path = paths
-        .declaration_file_path(source)
-        .unwrap_or_else(|| syntax.file_name.clone());
-    let options = host.compiler_options();
-
-    let mut arena = TransformArena::new();
-    let transform_source = mount_declaration_program_sources(&mut arena, host, source)?;
-    let transformers = get_declaration_transformers_with_observer(
-        options,
-        resolver,
-        host,
-        paths,
-        &DeclarationCustomTransformers::none(),
-        observer,
-    )?;
-    let result = transform_nodes(
-        arena,
-        vec![TransformRoot::SourceFile(transform_source)],
-        transformers,
-        false,
-    )
-    .map_err(|error| EmitFailure::Transform(Box::new(error)))?;
-    let diagnostics = result.diagnostics().to_vec();
-    let diagnostics_len = diagnostics.len();
-
-    let diagnostics_blocked = diagnostics_len != 0;
-    let is_emit_blocked_evaluated = !diagnostics_blocked;
-    let is_emit_blocked = if is_emit_blocked_evaluated {
-        preflight.is_emit_blocked(host, declaration_path.as_js())
-    } else {
-        false
-    };
-    let no_emit = options.no_emit;
-    let decl_blocked = diagnostics_blocked || is_emit_blocked || no_emit == Some(true);
-    let root = result.roots().first().cloned().ok_or_else(|| {
-        EmitFailure::Transform(Box::new(TransformError::UnknownSource(transform_source)))
-    })?;
     let outcome = DeclarationTransformOutcome {
         root,
         diagnostics,
@@ -491,6 +420,5 @@ pub fn transform_declaration_unit_with_observer_for_harness<'t>(
             decl_blocked,
         },
     };
-
     Ok((outcome, result))
 }

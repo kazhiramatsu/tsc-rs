@@ -18,13 +18,15 @@ perf-counters = ["tsc-types/perf-counters"]
 [dependencies]
 indexmap = "2"
 rustc-hash.workspace = true
-serde_json = { version = "1.0", features = ["preserve_order"] }
 tsc-binder.workspace = true
 tsc-diagnostics.workspace = true
 tsc-emitter.workspace = true
 tsc-program.workspace = true
 tsc-syntax.workspace = true
 tsc-types.workspace = true
+
+[dev-dependencies]
+serde_json = { version = "1.0", features = ["preserve_order"] }
 
 [lints]
 workspace = true

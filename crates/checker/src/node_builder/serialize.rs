@@ -1411,14 +1411,7 @@ impl<'state, 'program> ProductionSyntacticBuilderResolver<'state, 'program> {
         };
         let result = self
             .checker
-            .emit_is_symbol_accessible_with_observation(
-                access_symbol,
-                symbol,
-                enclosing,
-                enclosing_is_synthetic,
-                meaning,
-                should_compute_aliases,
-            )
+            .emit_is_symbol_accessible(access_symbol, enclosing, meaning, should_compute_aliases)
             .map_err(|abort| {
                 callback_abort_error(self.checker, self.method, Some(enclosing), abort)
             })?;
@@ -1522,13 +1515,7 @@ impl EmitTrackerAccess for ProductionSyntacticBuilderResolver<'_, '_> {
                 .iter()
                 .any(|&declaration| self.checker.kind_of(declaration) == SyntaxKind::TypeParameter)
         {
-            return Ok(self.checker.emit_accessible_symbol_observation(
-                symbol,
-                enclosing,
-                enclosing_is_synthetic,
-                meaning,
-                should_compute_aliases,
-            ));
+            return Ok(self.checker.accessible_result());
         }
         let mut scratch = self.scratch_arena.take().unwrap_or_default();
         let result = self.is_symbol_accessible_with_error_names(

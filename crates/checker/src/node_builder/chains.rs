@@ -285,23 +285,11 @@ impl EmitTrackerAccess for CheckerTrackerAccess<'_, '_> {
                 .symbol_flags(symbol)
                 .intersects(SymbolFlags::TYPE_PARAMETER)
         {
-            return Ok(self.checker.emit_accessible_symbol_observation(
-                symbol,
-                enclosing,
-                enclosing_is_synthetic,
-                meaning,
-                should_compute_aliases,
-            ));
+            return Ok(self.checker.accessible_result());
         }
         let result = self
             .checker
-            .emit_is_symbol_accessible_with_enclosing_kind(
-                symbol,
-                enclosing,
-                enclosing_is_synthetic,
-                meaning,
-                should_compute_aliases,
-            )
+            .emit_is_symbol_accessible(symbol, enclosing, meaning, should_compute_aliases)
             .map_err(|abort| tracker_error(self.checker, Some(enclosing), abort))?;
         // The statement wrapper performs the name-building call before it
         // forwards an inaccessible symbol to the declaration-transform
@@ -3138,13 +3126,7 @@ pub(crate) fn get_module_specifier_override(
     if let Some(symbol) = node_symbol {
         if let Some(enclosing) = context.enclosing_declaration {
             let accessible = checker
-                .emit_is_symbol_accessible_with_enclosing_kind(
-                    symbol,
-                    enclosing,
-                    context.enclosing_declaration_is_synthetic,
-                    meaning,
-                    false,
-                )
+                .emit_is_symbol_accessible(symbol, enclosing, meaning, false)
                 .map_err(|abort| checker_abort_error(checker, context, abort))?;
             if accessible.accessibility == tsc_emitter::EmitSymbolAccessibility::Accessible {
                 parent_symbol =

@@ -43,8 +43,7 @@ pub use declaration_map::{
     finish_declaration_bundle_map, finish_declaration_map, DeclarationMapEmit,
 };
 pub use declarations::{
-    get_declaration_diagnostics, transform_declaration_unit_for_harness,
-    transform_declaration_unit_with_observer_for_harness, BoundaryEvent, DeclBlockedInputs,
+    get_declaration_diagnostics, transform_declaration_unit_for_harness, DeclBlockedInputs,
     DeclarationCustomTransformers, DeclarationPathResolver, DeclarationTransformOutcome,
     DeclarationTransformer, PlanDeclarationPaths,
 };

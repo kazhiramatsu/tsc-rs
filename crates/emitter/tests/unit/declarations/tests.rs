@@ -474,59 +474,6 @@ fn subtree_binding_pattern_direct_return_preserves_upstream_diagnostic_leak() {
 }
 
 #[test]
-fn boundary_observer_records_rewritten_output_provenance_and_flags() {
-    let parsed = parse_source_file(
-        "fixture.ts",
-        "class C { private method(): void {} }\n",
-        Default::default(),
-        None,
-    );
-    let method = nodes_of_kind(&parsed, SyntaxKind::MethodDeclaration)[0];
-    let options = CompilerOptions::default();
-    let resolver = FixtureResolver {
-        first_declaration: true,
-        synthesized_declaration: None,
-        synthesized_return: None,
-        fail_declaration: None,
-    };
-    let source_id = SourceFileId::from_raw(0);
-    let host = TestHost {
-        options: &options,
-        syntax: &parsed,
-        ids: [source_id],
-    };
-    let paths = NoPaths;
-    let mut arena = TransformArena::new();
-    let source = arena.add_source(&parsed, Some(source_id));
-    let events = Rc::new(RefCell::new(Vec::new()));
-    let observed_events = Rc::clone(&events);
-    let mut observer = move |event| observed_events.borrow_mut().push(event);
-    let observation = Rc::new(RefCell::new(ProbeObservation::default()));
-    let transformer = ProbeTransformer {
-        declaration: DeclarationTransformer::new(&options, &resolver, &host, &paths)
-            .with_boundary_observer(&mut observer),
-        action: ProbeAction::Visit(method),
-        observation,
-    };
-
-    transform_nodes(
-        arena,
-        vec![TransformRoot::SourceFile(source)],
-        vec![Box::new(transformer)],
-        false,
-    )
-    .map(|_| ())
-    .expect("private method rewrite probe");
-
-    let events = events.borrow();
-    assert_eq!(events.len(), 1);
-    assert_eq!(events[0].input_ref, TransformNode::new(source, method));
-    assert_ne!(events[0].output_ref, Some(events[0].input_ref));
-    assert!(events[0].has_original);
-    assert!(!events[0].transform_flags.is_empty());
-}
-
-#[test]
 fn private_method_collapse_preserves_jsdoc_array_and_comment_range() {
     let parsed = parse_source_file(
         "fixture.ts",

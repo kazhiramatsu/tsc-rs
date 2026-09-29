@@ -5410,13 +5410,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         if let Some(enclosing) = self.enclosing_declaration {
             let accessible = self
                 .checker
-                .emit_is_symbol_accessible_with_enclosing_kind(
-                    symbol,
-                    enclosing,
-                    self.context.enclosing_declaration_is_synthetic,
-                    meaning,
-                    false,
-                )
+                .emit_is_symbol_accessible(symbol, enclosing, meaning, false)
                 .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?
                 .accessibility
                 == EmitSymbolAccessibility::Accessible;

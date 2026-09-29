@@ -1141,7 +1141,6 @@ impl<'a> CheckerState<'a> {
         &mut self,
     ) -> Option<crate::AuthoritativeModuleFailure> {
         let failure = self.authoritative_module_failure.take();
-        self.run_declaration_emit_replay_observer_for_harness();
         failure
     }
 

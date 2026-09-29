@@ -21,7 +21,6 @@ pub(crate) use chains::{
     serialize_inferred_type_for_declaration, set_text_range2, symbol_to_node,
     type_parameter_to_name, ClonedNodeBuilderContextRestore,
 };
-pub(crate) use context::transform_node_class;
 pub(crate) use context::{
     add_symbol_type_to_context, can_possibly_expand_type, check_truncation_length,
     check_truncation_length_if_expanding, no_inference_fallback_is_set, restore_flags,
@@ -797,19 +796,11 @@ impl tsc_emitter::EmitTrackerAccess for StandaloneTrackerAccess<'_, '_> {
             .map(tsc_binder::SymbolId)
             .filter(|&symbol| self.checker.binder.try_symbol(symbol).is_some())
             .ok_or_else(|| self.invalid_token())?;
-        let enclosing_is_synthetic =
-            enclosing_declaration.is_some_and(tracker::tracker_node_is_synthetic);
         let enclosing = enclosing_declaration
             .and_then(|node| self.node(node))
             .ok_or_else(|| self.invalid_token())?;
         self.checker
-            .emit_is_symbol_accessible_with_enclosing_kind(
-                symbol,
-                enclosing,
-                enclosing_is_synthetic,
-                meaning,
-                should_compute_aliases,
-            )
+            .emit_is_symbol_accessible(symbol, enclosing, meaning, should_compute_aliases)
             .map_err(|abort| self.abort(enclosing, abort))
     }
 
@@ -1204,130 +1195,3 @@ fn prepend_static_modifier(
 #[cfg(test)]
 #[path = "../../tests/unit/node_builder_core/tests.rs"]
 mod tests;
-
-/// h2-7a-m-3 P5: the harness-only decision-lane sink. When armed by the
-/// declaration replay observer, the NodeBuilder records the probe-comparable
-/// decision events — withContext exits, syntactic front-door frames, and
-/// tracker callbacks — for the union-domain replay. Production paths never
-/// arm it; an unarmed sink records nothing.
-pub(crate) mod replay_sink {
-    use std::cell::RefCell;
-
-    #[derive(Clone, Debug, PartialEq)]
-    pub(crate) enum DecisionEvent {
-        /// nodebuilder.withContext.result: (status, flags, internal_flags,
-        /// approximate_length, type_stack_len, truncating, out_truncated,
-        /// encountered_error, produced-node class).
-        WithContextResult {
-            status: &'static str,
-            flags: u32,
-            internal_flags: u32,
-            approximate_length: u32,
-            type_stack_len: usize,
-            truncating: bool,
-            out_truncated: bool,
-            encountered_error: bool,
-            produced: ProducedClass,
-        },
-        /// syntactic.serialize*.entry/.result frames.
-        SyntacticFrame {
-            site: &'static str,
-            fallback: bool,
-            produced: ProducedClass,
-        },
-        /// syntactic.*.checkerFallback markers.
-        SyntacticFallback {
-            site: &'static str,
-            report_fallback: bool,
-        },
-        /// tracker.* callback records (payload projected by the recording
-        /// tracker in the harness).
-        Tracker {
-            site: &'static str,
-            payload: tsc_program::JsonValue,
-        },
-    }
-
-    /// The §6.3 node-reference classes projected from a produced value.
-    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-    pub(crate) enum ProducedClass {
-        Absent,
-        ParseOwn { source: u32, node: u32 },
-        OriginalProjected { source: u32, node: u32 },
-        SyntheticWithoutOriginal,
-        Container { length: usize },
-    }
-
-    thread_local! {
-        static SINK: RefCell<Option<Vec<DecisionEvent>>> = const { RefCell::new(None) };
-    }
-
-    /// tsrs-native: harness decision-sink arming (h2-7a-m-3 §6).
-    pub(crate) fn arm() {
-        SINK.with(|sink| *sink.borrow_mut() = Some(Vec::new()));
-    }
-
-    /// tsrs-native: harness decision-sink drain.
-    pub(crate) fn disarm() -> Vec<DecisionEvent> {
-        SINK.with(|sink| sink.borrow_mut().take().unwrap_or_default())
-    }
-
-    /// tsrs-native: harness decision-sink append.
-    pub(crate) fn record(event: impl FnOnce() -> DecisionEvent) {
-        SINK.with(|sink| {
-            if let Some(events) = sink.borrow_mut().as_mut() {
-                events.push(event());
-            }
-        });
-    }
-
-    /// tsrs-native: harness decision-sink state probe.
-    pub(crate) fn armed() -> bool {
-        SINK.with(|sink| sink.borrow().is_some())
-    }
-
-    thread_local! {
-        static SYNTACTIC_FRAMES: RefCell<Vec<bool>> = const { RefCell::new(Vec::new()) };
-    }
-
-    /// Enter a probed syntactic front-door frame (upstream
-    /// __h27aProbeSyntacticCall pushes {fallback:false}).
-    /// tsrs-native: harness syntactic-frame entry (h2-7a-m-3 §6.2).
-    pub(crate) fn enter_syntactic_frame() {
-        if armed() {
-            SYNTACTIC_FRAMES.with(|frames| frames.borrow_mut().push(false));
-        }
-    }
-
-    /// The __h27aMarkSyntacticFallback discipline: every OPEN frame flips to
-    /// fallback, and the marker event records the reportFallback flag.
-    /// tsrs-native: harness checkerFallback marker (probe protocol).
-    pub(crate) fn mark_syntactic_fallback(site: &'static str, report_fallback: bool) {
-        if !armed() {
-            return;
-        }
-        SYNTACTIC_FRAMES.with(|frames| {
-            for frame in frames.borrow_mut().iter_mut() {
-                *frame = true;
-            }
-        });
-        record(|| DecisionEvent::SyntacticFallback {
-            site,
-            report_fallback,
-        });
-    }
-
-    /// Exit the probed frame, recording its fallback verdict + result class.
-    /// tsrs-native: harness syntactic-frame exit record.
-    pub(crate) fn exit_syntactic_frame(site: &'static str, produced: ProducedClass) {
-        if !armed() {
-            return;
-        }
-        let fallback = SYNTACTIC_FRAMES.with(|frames| frames.borrow_mut().pop().unwrap_or(false));
-        record(|| DecisionEvent::SyntacticFrame {
-            site,
-            fallback,
-            produced,
-        });
-    }
-}
