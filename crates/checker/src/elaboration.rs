@@ -474,13 +474,13 @@ impl<'a> CheckerState<'a> {
                 tsc_binder::unescape_leading_underscores(property_name).to_owned()
             }
             _ => {
-                let Ok(display) = self.type_to_string_slice(name_type) else {
+                let Ok(display) = self.type_to_string(name_type) else {
                     return Ok(None);
                 };
                 display
             }
         };
-        let Ok(target_text) = self.type_to_string_slice(target_type) else {
+        let Ok(target_text) = self.type_to_string(target_type) else {
             return Ok(None);
         };
         Ok(Some(self.related_info_for_node_js(
@@ -733,7 +733,7 @@ impl<'a> CheckerState<'a> {
             )?
         };
 
-        let children_target_text = self.type_to_string_slice(children_target)?;
+        let children_target_text = self.type_to_string(children_target)?;
         let mut reported = false;
         for (index, &child) in semantic_children.iter().enumerate() {
             let name_type = self.tables.get_number_literal_type(index as f64);
@@ -854,7 +854,7 @@ impl<'a> CheckerState<'a> {
             None,
         )?;
         let tag_name_text = self.text_of_node(tag_name)?;
-        let children_target_text = self.type_to_string_slice(children_target)?;
+        let children_target_text = self.type_to_string(children_target)?;
 
         if semantic_children.len() > 1 {
             if array_like_target != self.tables.intrinsics.never {

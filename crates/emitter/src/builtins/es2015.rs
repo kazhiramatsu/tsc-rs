@@ -58,9 +58,9 @@ use super::{
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 struct HierarchyFacts(u32);
 
-#[allow(dead_code)] // the full pinned alphabet (§4.3) stays declared
 impl HierarchyFacts {
     const NONE: Self = Self(0);
+    #[allow(dead_code)] // unused; keeps tsc's bit layout readable
     const FUNCTION: Self = Self(1);
     const ARROW_FUNCTION: Self = Self(2);
     const ASYNC_FUNCTION_BODY: Self = Self(4);
@@ -68,6 +68,7 @@ impl HierarchyFacts {
     const CAPTURES_THIS: Self = Self(16);
     const EXPORTED_VARIABLE_STATEMENT: Self = Self(32);
     const TOP_LEVEL: Self = Self(64);
+    #[allow(dead_code)] // unused; keeps tsc's bit layout readable
     const BLOCK: Self = Self(128);
     const ITERATION_STATEMENT: Self = Self(256);
     const ITERATION_STATEMENT_BLOCK: Self = Self(512);
@@ -115,20 +116,12 @@ impl HierarchyFacts {
         self.0
     }
 
-    const fn contains(self, other: Self) -> bool {
-        self.0 & other.0 == other.0
-    }
-
     const fn intersects(self, other: Self) -> bool {
         self.0 & other.0 != 0
     }
 
     const fn union(self, other: Self) -> Self {
         Self(self.0 | other.0)
-    }
-
-    const fn without(self, other: Self) -> Self {
-        Self(self.0 & !other.0)
     }
 }
 
@@ -153,8 +146,8 @@ impl Es2015SubstitutionFlags {
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 struct Jump(u32);
 
-#[allow(dead_code)] // the full pinned alphabet (§4.3) stays declared
 impl Jump {
+    #[allow(dead_code)] // unused; keeps tsc's bit layout readable
     const NONE: Self = Self(0);
     const BREAK: Self = Self(2);
     const CONTINUE: Self = Self(4);
@@ -926,8 +919,6 @@ pub(super) struct Es2015Visitor<'context, 'resolver, 'state> {
 struct StateBindingRecord {
     scope_path: Vec<u32>,
     sequence: u32,
-    #[allow(dead_code)] // the owning binding identity (diagnostics)
-    binding: TargetBinding,
     identifiers: Vec<TransformNode>,
 }
 
@@ -6824,7 +6815,6 @@ impl Es2015Visitor<'_, '_, '_> {
         accessor: TransformNode,
     ) -> Result<AllAccessorDeclarations, TransformError> {
         let mut first_accessor: Option<TransformNode> = None;
-        let mut second_accessor: Option<TransformNode> = None;
         let mut get_accessor: Option<TransformNode> = None;
         let mut set_accessor: Option<TransformNode> = None;
         if self.has_dynamic_name(accessor)? {
@@ -6860,8 +6850,6 @@ impl Es2015Visitor<'_, '_, '_> {
                 }
                 if first_accessor.is_none() {
                     first_accessor = Some(*member);
-                } else if second_accessor.is_none() {
-                    second_accessor = Some(*member);
                 }
                 if member_kind == SyntaxKind::GetAccessor && get_accessor.is_none() {
                     get_accessor = Some(*member);
@@ -6877,7 +6865,6 @@ impl Es2015Visitor<'_, '_, '_> {
         ))?;
         Ok(AllAccessorDeclarations {
             first_accessor,
-            second_accessor,
             get_accessor,
             set_accessor,
         })
@@ -7101,8 +7088,6 @@ impl Es2015Visitor<'_, '_, '_> {
 /// `getAllAccessorDeclarations` result record.
 struct AllAccessorDeclarations {
     first_accessor: TransformNode,
-    #[allow(dead_code)] // the pinned record shape (getAllAccessorDeclarations)
-    second_accessor: Option<TransformNode>,
     get_accessor: Option<TransformNode>,
     set_accessor: Option<TransformNode>,
 }
@@ -12112,7 +12097,6 @@ impl Es2015Visitor<'_, '_, '_> {
             self.state_binding_records.push(StateBindingRecord {
                 scope_path: self.function_scope_path.clone(),
                 sequence: record_index as u32,
-                binding: loop_result_binding.clone(),
                 identifiers: Vec::new(),
             });
             let loop_result_name = self.create_generated_identifier(&loop_result_binding)?;

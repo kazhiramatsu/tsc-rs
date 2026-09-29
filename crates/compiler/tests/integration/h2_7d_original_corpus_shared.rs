@@ -650,39 +650,6 @@ fn observe(case: &Value, host: &dyn CompilerHost, libraries: &BTreeMap<String, V
             );
         });
     let outcome = command.emit();
-    let activity = outcome.h2_activity();
-    for (slice, requested) in [
-        (
-            tsc_emitter::H2RuntimeSlice::H2_7d,
-            case["effective_options"]["outFile"]
-                .as_str()
-                .is_some_and(|path| !path.is_empty()),
-        ),
-        (
-            tsc_emitter::H2RuntimeSlice::H2_7e,
-            case["effective_options"]["declarationMap"] == true,
-        ),
-    ] {
-        assert_eq!(
-            activity.runtime_slice(slice),
-            u64::from(requested),
-            "{}: {} request",
-            case["case_id"],
-            slice.name()
-        );
-    }
-    for slice in tsc_emitter::H2RuntimeSlice::ALL {
-        if slice == tsc_emitter::H2RuntimeSlice::H2_7a || slice > tsc_emitter::H2RuntimeSlice::H2_7e
-        {
-            assert_eq!(
-                activity.runtime_slice(slice),
-                0,
-                "{}: inactive {}",
-                case["case_id"],
-                slice.name()
-            );
-        }
-    }
     let maps = outcome.source_maps().map(|maps| {
         maps.iter().map(|map| json!({
         "input_source_file_names":map.input_source_files().iter().map(|value| scalar_observation(value.as_js())).collect::<Vec<_>>(),"source_map_json":map.canonical_json()
@@ -1007,7 +974,7 @@ pub(super) fn assert_original_corpus(workspace_root: &Path) -> BTreeSet<String> 
     assert_eq!(compared, 283);
     assert_eq!(references, 32);
     // Distinct original IDs, never band totals added together. These are local
-    // comparison results only; runtime activity/admission remains separately owned.
+    // comparison results only.
     eprintln!("H2.7d original: compared={compared}, exact={exact}, references={references}, H2.6c exact overlap={exact_overlap}, exact IDs outside H2.6c={}; union=325, input-preserving repetitions=2", exact - exact_overlap);
     assert!(
         failures.is_empty(),

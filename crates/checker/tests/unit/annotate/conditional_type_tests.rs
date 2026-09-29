@@ -52,7 +52,7 @@ fn conditional_and_substitution_models_are_constructible_and_renderable() {
             );
             assert_eq!(
                 state
-                    .type_to_string_slice(conditional)
+                    .type_to_string(conditional)
                     .expect("every constructible conditional renders"),
                 "T extends string ? T : number"
             );

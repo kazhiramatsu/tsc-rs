@@ -30,9 +30,9 @@ fn literal_type_displays_and_diagnostics_retain_typescript_utf16_values() {
             let symbol = state
                 .resolve_file_scope_name("T", SymbolFlags::TYPE)
                 .unwrap();
-            let ty = state.get_declared_type_of_symbol_slice(symbol).unwrap();
+            let ty = state.get_declared_type_of_symbol(symbol).unwrap();
             assert_eq!(
-                state.type_to_string_slice(ty).unwrap().to_utf16(),
+                state.type_to_string(ty).unwrap().to_utf16(),
                 units("display"),
                 "{text}"
             );
@@ -3482,13 +3482,9 @@ fn error_containing_concrete_mapped_type_keeps_its_declaration_face() {
             assert!(!state
                 .is_generic_mapped_type_state(mapped_type)
                 .expect("genericity"));
-            state
-                .links
-                .set_mapped_contains_error(state.speculation_depth, mapped_type);
+            state.links.set_mapped_contains_error(mapped_type);
             assert_eq!(
-                state
-                    .type_to_string_slice(mapped_type)
-                    .expect("mapped display"),
+                state.type_to_string(mapped_type).expect("mapped display"),
                 "{ [P in string]: number; }"
             );
         },
@@ -3535,21 +3531,21 @@ fn display_recursive_object_revisit_uses_alias_or_elision_and_plain_sibling() {
                 .get_type_from_type_node(literal)
                 .expect("recursive type literal");
 
-            state.slice_visited_types.insert(recursive);
+            state.display_visited_types.insert(recursive);
             assert_eq!(
                 state
-                    .anonymous_object_type_to_string_slice(recursive, false)
+                    .anonymous_object_type_to_string(recursive, false)
                     .expect("recursive alias revisit")
                     .0,
                 "Recursive"
             );
-            state.slice_visited_types.remove(&recursive);
+            state.display_visited_types.remove(&recursive);
 
             // Nearest non-firing sibling: the first visit walks
             // the ordinary object members.
             assert_eq!(
                 state
-                    .type_node_from_object_type_slice(recursive, false)
+                    .type_node_from_object_type(recursive, false)
                     .expect("first structural visit")
                     .0,
                 "{ next: Recursive; }"
@@ -3558,18 +3554,18 @@ fn display_recursive_object_revisit_uses_alias_or_elision_and_plain_sibling() {
             // A symbol-less revisit takes createElidedInformationPlaceholder;
             // its corresponding first visit remains the empty type literal.
             let anonymous = state.create_resolved_empty_anonymous_type(None);
-            state.slice_visited_types.insert(anonymous);
+            state.display_visited_types.insert(anonymous);
             assert_eq!(
                 state
-                    .anonymous_object_type_to_string_slice(anonymous, false)
+                    .anonymous_object_type_to_string(anonymous, false)
                     .expect("symbol-less revisit")
                     .0,
                 "..."
             );
-            state.slice_visited_types.remove(&anonymous);
+            state.display_visited_types.remove(&anonymous);
             assert_eq!(
                 state
-                    .type_node_from_object_type_slice(anonymous, false)
+                    .type_node_from_object_type(anonymous, false)
                     .expect("empty first visit")
                     .0,
                 "{}"
@@ -3963,7 +3959,7 @@ fn reused_jsdoc_type_nodes_lower_to_typescript_nodes() {
                         .expect("JSDoc type expression")
                 };
                 state
-                    .type_annotation_text_slice(expression)
+                    .type_annotation_text_display(expression)
                     .expect("reused JSDoc annotation")
             },
         ))
@@ -4021,7 +4017,7 @@ fn reused_jsdoc_type_nodes_lower_to_typescript_nodes() {
                     .expect("JSDoc type literal")
             };
             state
-                .type_annotation_text_slice(node)
+                .type_annotation_text_display(node)
                 .expect("reused JSDoc type literal")
         },
     );
@@ -4040,7 +4036,7 @@ fn reused_object_index_signature_is_structural_not_jsdoc_flag_gated() {
             let reference = node_of_kind(state, tsc_syntax::SyntaxKind::TypeReference);
             assert_eq!(
                 state
-                    .type_annotation_text_slice(reference)
+                    .type_annotation_text_display(reference)
                     .expect("reused Object index annotation"),
                 "{ [x: string]: number; }"
             );
@@ -4694,7 +4690,7 @@ fn reused_symbol_visibility_matches_declaration_and_alias_fallbacks() {
                 .copied()
                 .find(|&node| state.kind_of(node) == SyntaxKind::ImportSpecifier)
                 .expect("import specifier");
-            assert!(!state.reused_declaration_is_visible_slice(import_specifier));
+            assert!(!state.reused_declaration_is_visible(import_specifier));
             let import_symbol = state
                 .node_symbol(import_specifier)
                 .or_else(|| {
@@ -4705,7 +4701,7 @@ fn reused_symbol_visibility_matches_declaration_and_alias_fallbacks() {
                     .and_then(|name| state.node_symbol(name))
                 })
                 .expect("import alias symbol");
-            assert!(state.symbol_has_visible_declarations_slice(import_symbol));
+            assert!(state.symbol_has_visible_declarations(import_symbol));
 
             let nested_class = nodes
                 .iter()
@@ -4720,7 +4716,7 @@ fn reused_symbol_visibility_matches_declaration_and_alias_fallbacks() {
                     )
                 })
                 .expect("ambient nested class");
-            assert!(state.reused_declaration_is_visible_slice(nested_class));
+            assert!(state.reused_declaration_is_visible(nested_class));
 
             let augmentation = nodes
                 .iter()
@@ -4738,7 +4734,7 @@ fn reused_symbol_visibility_matches_declaration_and_alias_fallbacks() {
                     )
                 })
                 .expect("external module augmentation");
-            assert!(state.reused_declaration_is_visible_slice(augmentation));
+            assert!(state.reused_declaration_is_visible(augmentation));
 
             let declarations = nodes
                 .iter()
@@ -4762,7 +4758,7 @@ fn reused_symbol_visibility_matches_declaration_and_alias_fallbacks() {
                     )
                 })
                 .expect("empty binding declaration");
-            assert!(!state.reused_declaration_is_visible_slice(empty));
+            assert!(!state.reused_declaration_is_visible(empty));
 
             let local = declarations
                 .iter()
@@ -4777,7 +4773,7 @@ fn reused_symbol_visibility_matches_declaration_and_alias_fallbacks() {
                     )
                 })
                 .expect("unexported local");
-            assert!(!state.reused_declaration_is_visible_slice(local));
+            assert!(!state.reused_declaration_is_visible(local));
             let local_symbol = state
                 .node_symbol(local)
                 .or_else(|| {
@@ -4785,7 +4781,7 @@ fn reused_symbol_visibility_matches_declaration_and_alias_fallbacks() {
                         .and_then(|name| state.node_symbol(name))
                 })
                 .expect("local symbol");
-            assert!(state.symbol_has_visible_declarations_slice(local_symbol));
+            assert!(state.symbol_has_visible_declarations(local_symbol));
 
             let binding = nodes
                 .iter()
@@ -4810,7 +4806,7 @@ fn reused_symbol_visibility_matches_declaration_and_alias_fallbacks() {
                     .and_then(|name| state.node_symbol(name))
                 })
                 .expect("binding symbol");
-            assert!(state.symbol_has_visible_declarations_slice(binding_symbol));
+            assert!(state.symbol_has_visible_declarations(binding_symbol));
         },
     );
 }
@@ -5116,10 +5112,10 @@ fn reused_shadowed_entity_recovers_semantically_without_reentry() {
                 .nth(1)
                 .expect("inner class")
         };
-        state.slice_display_enclosing = Some(inner_class);
+        state.display_enclosing = Some(inner_class);
         assert_eq!(
             state
-                .type_annotation_text_slice(reference)
+                .type_annotation_text_display(reference)
                 .expect("semantic recovery"),
             "globalThis.A"
         );
@@ -5160,10 +5156,10 @@ fn reused_entity_recovery_uses_the_shortest_context_name() {
                     })
                     .expect("alias context declaration")
             };
-            state.slice_display_enclosing = Some(alias_enclosing);
+            state.display_enclosing = Some(alias_enclosing);
             assert_eq!(
                 state
-                    .type_annotation_text_slice(reference)
+                    .type_annotation_text_display(reference)
                     .expect("alias recovery"),
                 "Alias"
             );
@@ -5178,10 +5174,10 @@ fn reused_entity_recovery_uses_the_shortest_context_name() {
                     })
                     .expect("bare context declaration")
             };
-            state.slice_display_enclosing = Some(bare_enclosing);
+            state.display_enclosing = Some(bare_enclosing);
             assert_eq!(
                 state
-                    .type_annotation_text_slice(reference)
+                    .type_annotation_text_display(reference)
                     .expect("import recovery"),
                 "import(\"./m\").Q"
             );
@@ -5238,7 +5234,7 @@ fn symbol_expression_uses_utf16_property_access_gate() {
             .expect("variable declaration symbol");
         assert_eq!(
             state
-                .symbol_expression_face_slice(symbol, None, true)
+                .symbol_expression_face(symbol, None, true)
                 .expect("symbol expression"),
             "A[𐐀].s"
         );
@@ -5256,7 +5252,7 @@ fn display_leaf_reuse_renders_mapped_import_template_and_plain_sibling() {
         let mapped = node_of_kind(state, tsc_syntax::SyntaxKind::MappedType);
         assert_eq!(
             state
-                .type_annotation_text_slice(mapped)
+                .type_annotation_text_display(mapped)
                 .expect("mapped annotation"),
             "{ -readonly [K in keyof T as `x${K & string}`]+?: \
                  import(\"./m\", { with: { \"resolution-mode\": \"import\" } }).Q<0x10n>; }"
@@ -5267,7 +5263,7 @@ fn display_leaf_reuse_renders_mapped_import_template_and_plain_sibling() {
         let plain = node_of_kind(state, tsc_syntax::SyntaxKind::TypeLiteral);
         assert_eq!(
             state
-                .type_annotation_text_slice(plain)
+                .type_annotation_text_display(plain)
                 .expect("plain annotation"),
             "{ x: string; }"
         );
@@ -5282,7 +5278,7 @@ fn display_leaf_reuse_renders_mapped_import_template_and_plain_sibling() {
             let mapped = node_of_kind(state, tsc_syntax::SyntaxKind::MappedType);
             assert_eq!(
                 state
-                    .type_annotation_text_slice(mapped)
+                    .type_annotation_text_display(mapped)
                     .expect("recovered mapped annotation"),
                 "{ [K in keyof T]: ; extra: string;}"
             );
@@ -5292,11 +5288,11 @@ fn display_leaf_reuse_renders_mapped_import_template_and_plain_sibling() {
     // Synthesized node-builder names take escapeNonAsciiString;
     // ordinary ASCII is the non-firing sibling.
     assert_eq!(
-        super::string_literal_name_slice("line\n😀", false).expect("escaped literal"),
+        super::string_literal_name("line\n😀", false).expect("escaped literal"),
         "\"line\\n\\uD83D\\uDE00\""
     );
     assert_eq!(
-        super::string_literal_name_slice("plain", false).expect("plain literal"),
+        super::string_literal_name("plain", false).expect("plain literal"),
         "\"plain\""
     );
 }
@@ -5403,7 +5399,7 @@ fn display_composer_splits_abstract_constructs_from_object_members() {
             // object still emits a single TypeLiteral.
             assert_eq!(
                 state
-                    .type_node_from_object_type_slice(object_type, false)
+                    .type_node_from_object_type(object_type, false)
                     .expect("plain object display")
                     .0,
                 "{ p: string; }"
@@ -5421,7 +5417,7 @@ fn display_composer_splits_abstract_constructs_from_object_members() {
                 .set_fresh_type_members(mixed, crate::links::LinkSlot::Resolved(mixed_members));
             assert_eq!(
                 state
-                    .type_to_string_slice(mixed)
+                    .type_to_string(mixed)
                     .expect("abstract/member intersection display"),
                 "(abstract new () => object) & { p: string; }"
             );
@@ -5444,7 +5440,7 @@ fn display_composer_synthesizes_class_auto_accessor_pair_and_plain_sibling() {
                 .get_symbol_of_declaration(class)
                 .expect("class symbol");
             let class_type = state
-                .get_declared_type_of_symbol_slice(class_symbol)
+                .get_declared_type_of_symbol(class_symbol)
                 .expect("class type");
 
             let accessor = state
@@ -5453,7 +5449,7 @@ fn display_composer_synthesizes_class_auto_accessor_pair_and_plain_sibling() {
                 .expect("accessor property");
             let mut rendered = Vec::new();
             state
-                .property_signature_slice(accessor, false, &mut rendered)
+                .property_signature(accessor, false, &mut rendered)
                 .expect("auto-accessor display");
             assert_eq!(rendered, ["get p(): string", "set p(arg: string)"]);
 
@@ -5465,7 +5461,7 @@ fn display_composer_synthesizes_class_auto_accessor_pair_and_plain_sibling() {
                 .expect("plain property");
             rendered.clear();
             state
-                .property_signature_slice(plain, false, &mut rendered)
+                .property_signature(plain, false, &mut rendered)
                 .expect("plain property display");
             assert_eq!(rendered, ["q: number"]);
         },
@@ -5500,7 +5496,7 @@ fn declared_class_and_interface_targets_render_self_type_arguments() {
                     .get_declared_type_of_class_or_interface(symbol)
                     .expect("declared class/interface type");
                 assert_eq!(
-                    state.type_to_string_slice(ty).expect("declared display"),
+                    state.type_to_string(ty).expect("declared display"),
                     expected
                 );
             }
@@ -6650,7 +6646,7 @@ fn script_global_member_face_ignores_module_local_shadowing() {
     // both the alias scan and the globals-tail globalThis probe
     // (50359) — the module-local shadowing `s` never enters. Pins
     // the globals-tail omission's re-justification
-    // (try_symbol_table_slice header).
+    // (try_symbol_table header).
     with_program_state(
         &[
             (
@@ -8984,14 +8980,11 @@ fn any_intrinsics_hide_internal_names_in_type_display() {
         let intrinsic_marker = state.tables.intrinsics.intrinsic_marker;
         let unknown = state.tables.intrinsics.unknown;
 
-        assert_eq!(state.type_to_string_slice(error).unwrap(), "any");
-        assert_eq!(state.type_to_string_slice(unresolved).unwrap(), "any");
-        assert_eq!(state.type_to_string_slice(any).unwrap(), "any");
-        assert_eq!(
-            state.type_to_string_slice(intrinsic_marker).unwrap(),
-            "intrinsic"
-        );
-        assert_eq!(state.type_to_string_slice(unknown).unwrap(), "unknown");
+        assert_eq!(state.type_to_string(error).unwrap(), "any");
+        assert_eq!(state.type_to_string(unresolved).unwrap(), "any");
+        assert_eq!(state.type_to_string(any).unwrap(), "any");
+        assert_eq!(state.type_to_string(intrinsic_marker).unwrap(), "intrinsic");
+        assert_eq!(state.type_to_string(unknown).unwrap(), "unknown");
     });
 }
 

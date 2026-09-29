@@ -1,35 +1,25 @@
-//! Relation pin probe bridge (greenfield M3 stage 4.0).
+//! Relation probe: declares a source and a target type in a scratch
+//! program, resolves both annotations, and asks the relation engine
+//! whether they are assignable or comparable.
 //!
-//! Relations are not directly observable until the checker exists, so
-//! the pin harness (`cargo xtask relpin`) drives the relation engine
-//! through this test-only entry: it parses the pin's type annotations
-//! in a scratch program, resolves them through the MINIMAL
-//! type-from-annotation path (stage 4.1), and asks the relation engine
-//! (stages 4.4-4.6). Ground truth comes from oracle probes of
-//! `declare var s: Source; var t: Target = s;` fixtures (any semantic
-//! diagnostic = not related; comparable pins use `s as Target` and the
-//! 2352 family the same way).
-//!
-//! Stage 4.1 wired the probe through the minimal
-//! type-from-annotation path (annotate.rs); the live relation engine
-//! now answers pins after both annotations resolve.
+//! The harness's relation-pin test (`crates/harness/tests/integration/
+//! relation_pins.rs`) compares the answers with TypeScript's recorded
+//! ones; the checker's unit tests reuse the scratch-program helpers.
 
 use tsc_syntax::{NodeData, NodeId, SourceFile};
 use tsc_types::{CompilerOptions, TypeId};
 
 use crate::state::CheckerState;
 
-/// Which tsc relation a pin exercises. M3 pins only probe the two
-/// checkTypeRelatedTo entry relations the fixtures can observe;
-/// identity/subtype/strictSubtype pins arrive with stage 4.8 via
-/// their assignability consequences.
+/// Which relation a pin exercises: the two checkTypeRelatedTo entry
+/// relations a fixture can observe.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RelpinRelation {
     Assignable,
     Comparable,
 }
 
-/// One pin, decoded from pins/relations.toml by xtask.
+/// One relation question (a pin from pins/relations.toml).
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RelpinQuery<'a> {
     /// Prelude declarations bound into the scratch program before the
@@ -52,19 +42,16 @@ pub struct RelpinQuery<'a> {
 pub enum RelpinVerdict {
     Related,
     NotRelated,
-    /// The probe cannot answer yet (machinery lands in a later stage).
-    /// `xtask relpin run` counts these as failures so the M3 gate
-    /// cannot pass with a stubbed engine.
+    /// The scratch program or an annotation could not be resolved; the
+    /// pin test counts this as a failure.
     Unavailable {
         reason: String,
     },
 }
 
-/// Stage 4.1: parse + bind the scratch program, resolve BOTH pin
-/// annotations through the minimal annotation path, then hand off to
-/// the relation engine — which is stages 4.4-4.5, so every pin that
-/// constructs cleanly still reports the engine as the blocker.
-/// tsrs-native: relpin command/test harness entry; no tsc counterpart.
+/// Parse and bind the scratch program, resolve both annotations, and ask
+/// the relation engine.
+/// tsrs-native: harness and unit-test entry; no tsc counterpart.
 pub fn probe_relation(query: &RelpinQuery) -> RelpinVerdict {
     let mut text = String::new();
     if !query.setup.is_empty() {
@@ -128,8 +115,7 @@ pub fn probe_relation(query: &RelpinQuery) -> RelpinVerdict {
     // engine must see the checkExpression-shaped FRESH type — fresh
     // literal variants for freshable literals, FreshLiteral|
     // ObjectLiteral object flags for object literals (excess-property
-    // checking keys on them; the real fresh types arrive with M6
-    // expression checking).
+    // checking keys on them; the probe checks no expression).
     let source_type = if query.source_is_fresh {
         mark_fresh_probe_source(&mut state, source_type)
     } else {
@@ -141,7 +127,7 @@ pub fn probe_relation(query: &RelpinQuery) -> RelpinVerdict {
         // The comparable fixture is an as-assertion: its legality is
         // checkAssertionDeferred's two-step comparable formula, not a
         // single isTypeComparableTo call.
-        RelpinRelation::Comparable => state.is_assertion_legal(source_type, target_type),
+        RelpinRelation::Comparable => assertion_is_legal(&mut state, source_type, target_type),
     };
     match related {
         Ok(true) => RelpinVerdict::Related,
@@ -150,6 +136,33 @@ pub fn probe_relation(query: &RelpinQuery) -> RelpinVerdict {
             reason: err.to_string(),
         },
     }
+}
+
+/// The comparable fixture `s as Target` reports 2352 iff neither
+/// comparable(target, widened(exprType)) nor comparable(exprType, target)
+/// holds, where exprType =
+/// getRegularTypeOfObjectLiteral(getBaseTypeOfLiteralType(source))
+/// (checkAssertionDeferred, _tsc.js:77939-77955). A declared probe source
+/// never requires widening, so the widened type is exprType itself.
+/// tsrs-native: probe projection of checkAssertionDeferred.
+fn assertion_is_legal(
+    state: &mut CheckerState,
+    source: TypeId,
+    target: TypeId,
+) -> crate::state::CheckResult<bool> {
+    let expr_type = state.get_base_type_of_literal_type(source)?;
+    let expr_type = state.get_regular_type_of_object_literal(expr_type)?;
+    let first = state.is_type_comparable_to(target, expr_type);
+    if let Ok(true) = first {
+        return Ok(true);
+    }
+    let second = state.is_type_comparable_to(expr_type, target);
+    if let Ok(true) = second {
+        return Ok(true);
+    }
+    first?;
+    second?;
+    Ok(false)
 }
 
 /// checkExpression's freshness for the probe's expression pins.

@@ -3,7 +3,7 @@ use tsc_emitter::{
     SourceFileTextMode, StandaloneWriter, TransformArena, TransformBundle, TransformRoot,
     UnsupportedEmitFeature,
 };
-use tsc_syntax::{parse_source_file, LanguageVariant, NodeData, ParseOptions};
+use tsc_syntax::{parse_source_file, LanguageVariant, ParseOptions};
 
 fn transformed(
     text: &str,
@@ -651,13 +651,6 @@ fn recording_absent_uses_the_same_pipeline_and_dormant_roots_fail_typed() {
     );
 
     let root = result.arena().root(source).unwrap();
-    let statements = match &result.arena().node(root).unwrap().data {
-        NodeData::SourceFile(data) => result
-            .arena()
-            .node_array_ref(source, data.statements.unwrap())
-            .unwrap(),
-        _ => unreachable!(),
-    };
     assert_eq!(
         printer
             .print(
@@ -671,18 +664,6 @@ fn recording_absent_uses_the_same_pipeline_and_dormant_roots_fail_typed() {
             .unwrap()
             .text(),
         text
-    );
-    assert_eq!(
-        printer.print(&mut result, PrintRequest::JavaScriptMap(source), None),
-        Err(PrinterError::Unsupported(
-            UnsupportedEmitFeature::JavaScriptMap
-        ))
-    );
-    assert_eq!(
-        printer.print(&mut result, PrintRequest::NodeList(statements), None),
-        Err(PrinterError::Unsupported(
-            UnsupportedEmitFeature::NodeListPrinting
-        ))
     );
     assert_eq!(
         printer.print(

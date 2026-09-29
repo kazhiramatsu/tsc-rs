@@ -981,9 +981,7 @@ pub enum PrintRequest {
         node: TransformNode,
         writer: StandaloneWriter,
     },
-    NodeList(TransformNodeArray),
     Bundle(TransformBundle),
-    JavaScriptMap(TransformSourceId),
     Declaration(TransformSourceId),
 }
 
@@ -1687,9 +1685,8 @@ impl Printer {
         Ok(requires_structured_emit)
     }
 
-    /// The generic H1 printer surface. H1.2 established the exact whole-source
-    /// identity arm; H1.3 adds the bounded changed-node JavaScript workers
-    /// while the remaining request/product axes stay typed controls.
+    /// Print one source file, bundle, standalone node or declaration root
+    /// without a checker global-name table.
     pub fn print(
         &mut self,
         transformation: &mut TransformationResult<'_>,
@@ -1703,13 +1700,7 @@ impl Printer {
             PrintRequest::StandaloneNode { node, writer } => {
                 self.print_standalone_node(transformation, node, writer, recording)
             }
-            PrintRequest::NodeList(_) => Err(PrinterError::Unsupported(
-                UnsupportedEmitFeature::NodeListPrinting,
-            )),
             PrintRequest::Bundle(bundle) => self.print_bundle(transformation, &bundle, recording),
-            PrintRequest::JavaScriptMap(_) => Err(PrinterError::Unsupported(
-                UnsupportedEmitFeature::JavaScriptMap,
-            )),
             PrintRequest::Declaration(source) => self.print_declaration_with_recording(
                 transformation,
                 source,
@@ -1720,8 +1711,8 @@ impl Printer {
     }
 
     /// Print a JavaScript SourceFile or Bundle with the actual checker global
-    /// name table. The legacy `print` entry retains its no-oracle contract;
-    /// standalone-node, declaration and map requests keep their own APIs.
+    /// name table. The `print` entry keeps its no-oracle contract;
+    /// standalone-node and declaration requests keep their own APIs.
     pub fn print_javascript_with_global_names(
         &mut self,
         transformation: &mut TransformationResult<'_>,
@@ -1746,12 +1737,6 @@ impl Printer {
             ),
             PrintRequest::StandaloneNode { .. } => Err(PrinterError::Unsupported(
                 UnsupportedEmitFeature::StandaloneNodePrinting,
-            )),
-            PrintRequest::NodeList(_) => Err(PrinterError::Unsupported(
-                UnsupportedEmitFeature::NodeListPrinting,
-            )),
-            PrintRequest::JavaScriptMap(_) => Err(PrinterError::Unsupported(
-                UnsupportedEmitFeature::JavaScriptMap,
             )),
             PrintRequest::Declaration(_) => Err(PrinterError::Unsupported(
                 UnsupportedEmitFeature::Declaration,
@@ -20571,7 +20556,6 @@ fn raw_write_range(
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum PrinterError {
     Unsupported(UnsupportedEmitFeature),
-    OptionUnavailable(&'static str),
     Transform(TransformError),
     Position(SourcePositionError),
     SourceIsNotATransformedRoot(TransformSourceId),
@@ -20646,9 +20630,6 @@ impl fmt::Display for PrinterError {
             Self::Unsupported(feature) => {
                 write!(formatter, "unsupported printer request: {}", feature.name())
             }
-            Self::OptionUnavailable(option) => {
-                write!(formatter, "printer option {option} is not active in H1.2")
-            }
             Self::Transform(error) => error.fmt(formatter),
             Self::Position(error) => error.fmt(formatter),
             Self::SourceIsNotATransformedRoot(source) => write!(
@@ -20667,13 +20648,13 @@ impl fmt::Display for PrinterError {
             }
             Self::SyntheticNodeWorkerUnavailable(node) => write!(
                 formatter,
-                "synthetic node {}:{} requires the H1.3 node worker",
+                "synthetic node {}:{} cannot be printed on this path",
                 node.source().raw(),
                 node.node().0
             ),
             Self::TransformedNodeWorkerUnavailable(node) => write!(
                 formatter,
-                "transformed node {}:{} requires the H1.3 node worker",
+                "transformed node {}:{} cannot be printed on this path",
                 node.source().raw(),
                 node.node().0
             ),

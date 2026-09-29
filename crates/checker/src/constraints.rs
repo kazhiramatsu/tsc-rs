@@ -109,8 +109,7 @@ impl<'a> CheckerState<'a> {
                 Some(target_constraint) => self.instantiate_type(target_constraint, mapper)?,
                 None => self.no_constraint_type,
             };
-            self.links
-                .set_type_parameter_constraint(self.speculation_depth, ty, constraint);
+            self.links.set_type_parameter_constraint(ty, constraint);
             return Ok((constraint != self.no_constraint_type).then_some(constraint));
         }
         let constraint = match self.get_constraint_declaration(ty) {
@@ -143,8 +142,7 @@ impl<'a> CheckerState<'a> {
                 resolved
             }
         };
-        self.links
-            .set_type_parameter_constraint(self.speculation_depth, ty, constraint);
+        self.links.set_type_parameter_constraint(ty, constraint);
         Ok((constraint != self.no_constraint_type).then_some(constraint))
     }
 
@@ -536,8 +534,7 @@ impl<'a> CheckerState<'a> {
             debug_assert_eq!(cached, resolved);
             return Ok(cached);
         }
-        self.links
-            .set_type_resolved_base_constraint(self.speculation_depth, ty, resolved);
+        self.links.set_type_resolved_base_constraint(ty, resolved);
         Ok(resolved)
     }
 
@@ -624,8 +621,7 @@ impl<'a> CheckerState<'a> {
             }
             self.circular_constraint_type
         };
-        self.links
-            .set_type_immediate_base_constraint(self.speculation_depth, t, resolved);
+        self.links.set_type_immediate_base_constraint(t, resolved);
         Ok(resolved)
     }
 

@@ -103,7 +103,7 @@ fn eager_array_roots_precede_user_types_in_union_order() {
             };
             assert_eq!(types.as_ref(), &[any_array, record]);
             assert_eq!(
-                state.type_to_string_slice(union).expect("union renders"),
+                state.type_to_string(union).expect("union renders"),
                 "any[] | Record<string, any>"
             );
         },

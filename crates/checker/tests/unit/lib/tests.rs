@@ -946,7 +946,10 @@ fn lib_bundle_key_projects_to_bind_observables() {
     let libs = [&lib];
     let base = CompilerOptions::default();
     let shared = lib_bundle(&libs, &base);
-    assert_eq!(shared.sources[0].language_version, ScriptTarget::ES2025);
+    assert_eq!(
+        shared.documents[0].source().language_version,
+        ScriptTarget::ES2025
+    );
 
     // Bind-inert options reuse the bundle: the checker consumes
     // them per program, never through the cached prefix.
@@ -974,7 +977,10 @@ fn lib_bundle_key_projects_to_bind_observables() {
     };
     let es5_bundle = lib_bundle(&libs, &es5);
     assert!(!std::ptr::eq(shared, es5_bundle));
-    assert_eq!(es5_bundle.sources[0].language_version, ScriptTarget::ES5);
+    assert_eq!(
+        es5_bundle.documents[0].source().language_version,
+        ScriptTarget::ES5
+    );
     let loose = CompilerOptions {
         always_strict: Some(false),
         ..base.clone()
@@ -1009,8 +1015,8 @@ fn lib_bundle_forced_fingerprint_collision_requires_exact_text() {
 
     assert!(!std::ptr::eq(first_bundle, second_bundle));
     assert!(std::ptr::eq(first_bundle, first_again));
-    assert_eq!(first_bundle.sources[0].text(), first.text());
-    assert_eq!(second_bundle.sources[0].text(), second.text());
+    assert_eq!(first_bundle.documents[0].source().text(), first.text());
+    assert_eq!(second_bundle.documents[0].source().text(), second.text());
 }
 
 #[test]
@@ -6724,7 +6730,7 @@ interface Wrap<out T> { xs: T[] }
 #[test]
 fn lib_types_render_in_constraint_failure_args() {
     // Named object types print their symbol name in the 2344 args
-    // (type_to_string_slice's named-object arm; oracle-pinned).
+    // (type_to_string's named-object arm; oracle-pinned).
     let diags = lib_backed_diags("interface Foo<T extends number> { x: T }\ntype X = Foo<Date>;\n");
     assert_eq!(
         diags,
@@ -7176,11 +7182,11 @@ fn order_guard_replays_last_union_member_inference_at_every_width() {
         .expect("authoritative result")
     };
     let run = |checkers: usize| run_with(checkers, true);
-    // The default (relaxed) budget keeps the sharded result, records the
-    // consumed order in its telemetry, and stays deterministic.
+    // The default (relaxed) budget keeps the sharded result without arming
+    // the guard, and stays deterministic.
     let relaxed = run_with(2, false);
     assert_eq!(relaxed.work_counters.checker_serial_replay(), 0);
-    assert_ne!(relaxed.work_counters.checker_replay_reasons(), 0);
+    assert_eq!(relaxed.work_counters.checker_replay_reasons(), 0);
     assert_eq!(run_with(2, false), relaxed);
     let serial = run(1);
     assert_eq!(serial.work_counters.checker_serial_replay(), 0);

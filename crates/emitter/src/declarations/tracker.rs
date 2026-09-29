@@ -10,7 +10,7 @@ use crate::{
     EmitHost, EmitModuleSpecifierHost, EmitResolutionMode, EmitResolverError,
     EmitSymbolAccessibility, EmitSymbolAccessibilityResult, EmitSymbolMeaning, EmitSymbolTracker,
     EmitTrackerAccess, EmitTrackerNode, EmitTrackerNodeDescription, EmitTrackerSymbol,
-    TransformError, TransformNode, TransformationContext, UnsupportedEmitFeature,
+    TransformError, TransformNode, TransformationContext,
 };
 
 use super::diagnostics::{
@@ -68,7 +68,6 @@ pub(crate) enum TrackerEffect {
         anchor: TrackerAnchor,
         add_undefined: bool,
     },
-    Unsupported(UnsupportedEmitFeature),
     Contract(&'static str),
 }
 
@@ -749,9 +748,6 @@ pub(crate) fn materialize_effects(
                     super::isolated::inference_error(source, node, None)
                 })??;
                 cx.add_diagnostic(diagnostic)?;
-            }
-            TrackerEffect::Unsupported(feature) => {
-                return Err(TransformError::Unsupported(feature))
             }
             TrackerEffect::Contract(detail) => {
                 return Err(TransformError::UnsupportedCompilerOption {

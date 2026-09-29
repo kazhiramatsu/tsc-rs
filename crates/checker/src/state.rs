@@ -435,32 +435,32 @@ pub struct CheckerState<'a> {
     /// TypeNode's else arm calls createTypeNodeFromObjectType direct);
     /// the slice guards both — divergence is observable only on a
     /// symbol-less self-containing type, which cannot be constructed.
-    pub(crate) slice_visited_types: rustc_hash::FxHashSet<TypeId>,
+    pub(crate) display_visited_types: rustc_hash::FxHashSet<TypeId>,
     /// nodeBuilder context.inferTypeParameters. Conditional-type
     /// rendering installs the root's infer parameters only while its
     /// extends type is serialized; the type-parameter arm uses this
     /// typed context to emit `infer T` (and a non-inferred constraint)
     /// instead of an ordinary `T` reference.
-    pub(crate) slice_infer_type_parameters: Vec<TypeId>,
+    pub(crate) display_infer_type_parameters: Vec<TypeId>,
     /// nodeBuilder context.approximateLength/maxTruncationLength/
     /// truncating for one typeToString call. These fields are parked
     /// on CheckerState because the bounded renderer is method-based;
     /// each public entry saves, initializes, and restores them so
     /// recursive rendering shares one context while reentrant root
     /// calls do not.
-    pub(crate) slice_approximate_length: usize,
-    pub(crate) slice_max_truncation_length: usize,
-    pub(crate) slice_truncating: bool,
+    pub(crate) display_approximate_length: usize,
+    pub(crate) display_max_truncation_length: usize,
+    pub(crate) display_truncating: bool,
     /// nodeBuilder context.reverseMappedStack
     /// (shouldUsePlaceholderForProperty, 52221-52240). It contains the
     /// reverse-mapped properties whose types are currently being
     /// serialized, so recursive and deeply nested mapped displays
     /// terminate through tsc's elision placeholder.
-    pub(crate) slice_reverse_mapped_stack: Vec<SymbolId>,
+    pub(crate) display_reverse_mapped_stack: Vec<SymbolId>,
     /// nodeBuilder context.flags' NoTypeReduction bit. Ordinary
     /// typeToString calls leave it false; elaborateNeverIntersection
     /// sets it so the explanation can name the original intersection.
-    pub(crate) slice_no_type_reduction: bool,
+    pub(crate) display_no_type_reduction: bool,
     /// The display slice's face of nodeBuilder
     /// context.enclosingDeclaration. getTypeNamesForErrorDisplay
     /// (50748) seeds it with the symbol's value declaration for a
@@ -468,33 +468,33 @@ pub struct CheckerState<'a> {
     /// nodes temporarily enter their own scope. Annotation reuse,
     /// entity-name accessibility/shortest symbol chains, and
     /// unique-symbol ancestry all consume the parked declaration.
-    pub(crate) slice_display_enclosing: Option<NodeId>,
+    pub(crate) display_enclosing: Option<NodeId>,
     /// nodeBuilder context.mapper while rendering instantiated
     /// signatures. This is deliberately separate from
     /// active_type_mappers, which is instantiateType's recursion/cache
     /// stack rather than display context. Nested signature rendering
     /// pushes another mapper and restores it on every exit.
-    pub(crate) slice_display_mappers: Vec<MapperId>,
+    pub(crate) display_mappers: Vec<MapperId>,
     /// createRecoveryBoundary's `hadError` cell and the nested
     /// visitExistingNodeTreeSymbols depth for the bounded reused-node
     /// printer. A TypePredicate deliberately leaves the error armed so
     /// the nearest enclosing non-predicate TypeNode is rebuilt
     /// semantically; IndexedAccess/keyof simple-node probes bypass a
     /// child boundary for the same reason.
-    pub(crate) slice_reuse_had_error: bool,
-    pub(crate) slice_reuse_visit_depth: usize,
+    pub(crate) display_reuse_had_error: bool,
+    pub(crate) display_reuse_visit_depth: usize,
     /// Standard-printer indentation while an existing TypeNode clone
     /// recursively prints initializer expressions and their bodies.
     /// typeToString supplies a writer whose newline text is empty, but
     /// whose indentation remains four spaces per nesting level.
-    pub(crate) slice_display_clone_indent: usize,
+    pub(crate) display_clone_indent: usize,
     /// The standard display writer's virtual `lineStart` state at the
     /// entry of the current cloned expression/body node. Callers that
     /// materialize a line event's indentation into their local String
     /// still pass `true`: a nested decorator list's leading writeLine
     /// must not add that indentation a second time. Every recursive
     /// entry saves and restores this bit.
-    pub(crate) slice_display_clone_at_line_start: bool,
+    pub(crate) display_clone_at_line_start: bool,
     /// tsc markerTypes (47005): ids of createMarkerType results.
     pub(crate) marker_types: rustc_hash::FxHashSet<TypeId>,
     /// tsc inVarianceComputation (47422).
@@ -1059,8 +1059,8 @@ pub struct CheckerState<'a> {
 }
 
 impl<'a> CheckerState<'a> {
-    /// Single-file construction — the M3 signature, kept for the
-    /// relpin probe and unit tests. `source` must be the binder's file.
+    /// Single-file construction for the relation probe and unit tests.
+    /// `source` must be the binder's file.
     /// tsrs-native: single-file test/probe adapter around the Rust
     /// multi-file CheckerState constructor.
     pub fn new(
@@ -1140,9 +1140,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn take_authoritative_module_failure(
         &mut self,
     ) -> Option<crate::AuthoritativeModuleFailure> {
-        let failure = self.authoritative_module_failure.take();
-        self.run_declaration_emit_replay_observer_for_harness();
-        failure
+        self.authoritative_module_failure.take()
     }
 
     /// Program construction (M4 5.0): binders in program order, each
@@ -1310,19 +1308,19 @@ impl<'a> CheckerState<'a> {
             marker_super_type_for_check: TypeId(0),
             marker_sub_type_for_check: TypeId(0),
             variance_type_parameter: None,
-            slice_visited_types: rustc_hash::FxHashSet::default(),
-            slice_infer_type_parameters: Vec::new(),
-            slice_approximate_length: 0,
-            slice_max_truncation_length: 160,
-            slice_truncating: false,
-            slice_reverse_mapped_stack: Vec::new(),
-            slice_no_type_reduction: false,
-            slice_display_enclosing: None,
-            slice_display_mappers: Vec::new(),
-            slice_reuse_had_error: false,
-            slice_reuse_visit_depth: 0,
-            slice_display_clone_indent: 0,
-            slice_display_clone_at_line_start: false,
+            display_visited_types: rustc_hash::FxHashSet::default(),
+            display_infer_type_parameters: Vec::new(),
+            display_approximate_length: 0,
+            display_max_truncation_length: 160,
+            display_truncating: false,
+            display_reverse_mapped_stack: Vec::new(),
+            display_no_type_reduction: false,
+            display_enclosing: None,
+            display_mappers: Vec::new(),
+            display_reuse_had_error: false,
+            display_reuse_visit_depth: 0,
+            display_clone_indent: 0,
+            display_clone_at_line_start: false,
             marker_types: rustc_hash::FxHashSet::default(),
             in_variance_computation: false,
             variance_handler_stack: Vec::new(),

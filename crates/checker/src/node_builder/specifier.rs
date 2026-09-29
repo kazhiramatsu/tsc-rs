@@ -5,8 +5,6 @@
 //! explicit parameters. Authoritative Programs supply the effective path
 //! options owned separately from the checker's `CompilerOptions` bag.
 
-#![allow(dead_code)]
-
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
@@ -39,6 +37,7 @@ pub(crate) enum ModuleSpecifierEnding {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ImportModuleSpecifierPreference {
+    #[allow(dead_code)] // a language-service preference; the compiler never sets it
     Relative,
     NonRelative,
     ProjectRelative,
@@ -47,6 +46,7 @@ pub(crate) enum ImportModuleSpecifierPreference {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ImportModuleSpecifierEnding {
     Minimal,
+    #[allow(dead_code)] // a language-service preference; the compiler never sets it
     Index,
     Js,
 }
@@ -338,7 +338,7 @@ pub(crate) fn get_specifier_for_module_symbol(
 }
 
 /// Reused-anchor disposition: this is the exact checker display decision
-/// already owned by `file_symbol_if_export_equals_container_slice`
+/// already owned by `file_symbol_if_export_equals_container`
 /// (check.rs:8182), projected here because that anchor is module-private.
 ///
 /// tsc-port: getFileSymbolIfFileSymbolExportEqualsContainer @6.0.3
@@ -1656,24 +1656,6 @@ pub(crate) fn for_each_file_name_of_module<'path, T>(
         }
     }
     None
-}
-
-/// tsc-port: getAllRuntimeDependencies @6.0.3
-/// tsc-hash: 62d9e01fb8c9f3f49fcd53deafb8cb72ff3d1b91d8b9f86ad573d1f29900a484
-/// tsc-span: _tsc.js:45707-45716
-pub(crate) fn get_all_runtime_dependencies(package_json: &Value) -> Vec<JsString> {
-    let mut result = Vec::new();
-    for field in ["dependencies", "peerDependencies", "optionalDependencies"] {
-        if let Some(object) = package_json_property(package_json, field).and_then(Value::as_object)
-        {
-            result.extend(
-                package_json_own_entries(object)
-                    .into_iter()
-                    .map(|(key, _)| key.to_owned()),
-            );
-        }
-    }
-    result
 }
 
 /// tsc-port: getAllModulePathsWorker @6.0.3

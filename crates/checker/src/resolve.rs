@@ -1483,7 +1483,7 @@ impl<'a> CheckerState<'a> {
                         if let Some(property_name) =
                             self.identifier_text_of(right).map(str::to_owned)
                         {
-                            let declared = self.get_declared_type_of_symbol_slice(symbol)?;
+                            let declared = self.get_declared_type_of_symbol(symbol)?;
                             if self
                                 .get_property_of_type_full(declared, &property_name)?
                                 .is_some()
@@ -1660,7 +1660,7 @@ impl<'a> CheckerState<'a> {
         if self.nodes_of(members).len() != 1 {
             return Ok(false);
         }
-        let ty = self.get_declared_type_of_symbol_slice(symbol)?;
+        let ty = self.get_declared_type_of_symbol(symbol)?;
         if !self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             return Ok(false);
         }

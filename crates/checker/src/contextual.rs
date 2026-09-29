@@ -2594,11 +2594,7 @@ impl<'a> CheckerState<'a> {
                     Some(cached) => cached,
                     None => {
                         let computed = self.get_spread_indices(&elements);
-                        self.links.set_node_spread_indices(
-                            self.speculation_depth,
-                            array_literal,
-                            computed,
-                        );
+                        self.links.set_node_spread_indices(array_literal, computed);
                         computed
                     }
                 };

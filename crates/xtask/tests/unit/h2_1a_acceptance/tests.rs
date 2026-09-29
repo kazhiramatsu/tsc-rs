@@ -131,13 +131,6 @@ fn current_source_promotions_compare_original_observations_and_pin_their_owner()
     .expect("parse H2.1a qualification");
     let cases = artifact["cases"].as_array().expect("qualification cases");
     assert_eq!(super::CURRENT_EXACT_SOURCE_PROMOTIONS.len(), 8);
-    assert_eq!(
-        super::CURRENT_EXACT_SOURCE_PROMOTIONS
-            .iter()
-            .filter(|promotion| !promotion.expected_extra_activity.is_empty())
-            .count(),
-        1,
-    );
     let mut writes = 0;
     let mut diagnostics = 0;
     for promotion in super::CURRENT_EXACT_SOURCE_PROMOTIONS {

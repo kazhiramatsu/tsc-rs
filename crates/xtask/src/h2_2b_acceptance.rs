@@ -9,8 +9,8 @@ use base64::Engine;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use tsc_compiler::{
-    EmitArtifact, EmitFailure, EmitIoError, EmitWriteDisposition, H2RuntimeSlice, MemoryOutputSink,
-    OutputSink, ProgramSession,
+    EmitArtifact, EmitFailure, EmitIoError, EmitWriteDisposition, MemoryOutputSink, OutputSink,
+    ProgramSession,
 };
 use tsc_diagnostics::{Diagnostic, DiagnosticCategory, MessageChain};
 use tsc_harness::upstream_suites::execution::load_qualified_compiler_emit;
@@ -298,151 +298,7 @@ fn execute_observed(workspace: &Path, case: &Value) -> Result<(usize, usize), Bo
         )));
     }
     assert_exact_writes(case_id, array(expected, "writes")?, &first_sink)?;
-    let activity = first.h2_activity();
-    let reached_sources = case["files"]
-        .as_array()
-        .map(|files| {
-            files
-                .iter()
-                .filter(|file| file["emit_eligible"] == true)
-                .count() as u64
-        })
-        .unwrap_or(0);
-    let enum_sources = case["files"]
-        .as_array()
-        .map(|files| {
-            files
-                .iter()
-                .filter(|file| {
-                    file["emit_eligible"] == true
-                        && file["feature_roots"].as_array().is_some_and(|roots| {
-                            roots.iter().any(|root| root["feature"] == "runtime-enums")
-                        })
-                })
-                .count() as u64
-        })
-        .unwrap_or(0);
-    let namespace_sources = case["files"]
-        .as_array()
-        .map(|files| {
-            files
-                .iter()
-                .filter(|file| {
-                    file["emit_eligible"] == true
-                        && file["feature_roots"].as_array().is_some_and(|roots| {
-                            roots
-                                .iter()
-                                .any(|root| root["feature"] == "runtime-namespaces")
-                        })
-                })
-                .count() as u64
-        })
-        .unwrap_or(0);
-    let commonjs_sources = case["files"]
-        .as_array()
-        .map(|files| {
-            files
-                .iter()
-                .filter(|file| file["emit_eligible"] == true && file["emit_module_format"] == 1)
-                .count() as u64
-        })
-        .unwrap_or(0);
-    let system_sources = case["files"]
-        .as_array()
-        .map(|files| {
-            files
-                .iter()
-                .filter(|file| file["emit_eligible"] == true && file["emit_module_format"] == 4)
-                .count() as u64
-        })
-        .unwrap_or(0);
-    let node_format_sources = expected_node_format_sources(case)?;
-    if activity.runtime_slice(H2RuntimeSlice::H2_1a) != reached_sources - system_sources
-        || activity.runtime_slice(H2RuntimeSlice::H2_1b) != commonjs_sources
-        || activity.runtime_slice(H2RuntimeSlice::H2_1c) != 0
-        || activity.runtime_slice(H2RuntimeSlice::H2_1d) != system_sources
-        || activity.runtime_slice(H2RuntimeSlice::H2_1e) != node_format_sources
-        || activity.runtime_slice(H2RuntimeSlice::H2_2a) != enum_sources
-        || activity.runtime_slice(H2RuntimeSlice::H2_2b) != namespace_sources
-    {
-        return Err(failure(format!(
-            "{case_id}: H2.2b activity does not match {reached_sources} reached, {node_format_sources} node-format, {enum_sources} enum, and {namespace_sources} namespace sources: actual H2.1a={} H2.1b={} H2.1d={} H2.1e={} H2.2a={} H2.2b={}",
-            activity.runtime_slice(H2RuntimeSlice::H2_1a),
-            activity.runtime_slice(H2RuntimeSlice::H2_1b),
-            activity.runtime_slice(H2RuntimeSlice::H2_1d),
-            activity.runtime_slice(H2RuntimeSlice::H2_1e),
-            activity.runtime_slice(H2RuntimeSlice::H2_2a),
-            activity.runtime_slice(H2RuntimeSlice::H2_2b),
-        )));
-    }
-    for slice in H2RuntimeSlice::ALL {
-        if !matches!(
-            slice,
-            H2RuntimeSlice::H2_1a
-                | H2RuntimeSlice::H2_1b
-                | H2RuntimeSlice::H2_1d
-                | H2RuntimeSlice::H2_1e
-                | H2RuntimeSlice::H2_2a
-                | H2RuntimeSlice::H2_2b
-        ) && activity.runtime_slice(slice) != 0
-        {
-            return Err(failure(format!(
-                "{case_id}: unadmitted {} activity",
-                slice.name()
-            )));
-        }
-    }
     Ok((first_sink.writes().len(), first_reported.len()))
-}
-
-fn expected_node_format_sources(case: &Value) -> Result<u64, Box<dyn Error>> {
-    let settings = array(&case["input"], "settings")?;
-    let all_sources = settings.iter().any(|setting| {
-        let name = setting["name"].as_str().unwrap_or_default();
-        let value = &setting["value"];
-        name == "rewriteRelativeImportExtensions" && value == true
-            || name == "module"
-                && value.as_str().is_some_and(|value| {
-                    matches!(
-                        value.to_ascii_lowercase().as_str(),
-                        "node16" | "node18" | "node20" | "nodenext"
-                    )
-                })
-    });
-    let inputs = array(&case["input"], "files")?;
-    let mut count = 0_u64;
-    for file in array(case, "files")?
-        .iter()
-        .filter(|file| file["emit_eligible"] == true)
-    {
-        let path = string(file, "path")?;
-        let owns_format = all_sources
-            || path.to_ascii_lowercase().ends_with(".mts")
-            || path.to_ascii_lowercase().ends_with(".cts")
-            || inputs
-                .iter()
-                .find(|input| input["path"].as_str() == Some(path))
-                .map(|input| {
-                    let bytes = base64::engine::general_purpose::STANDARD
-                        .decode(string(input, "utf8_base64")?)?;
-                    let text = String::from_utf8(bytes)?;
-                    Ok::<_, Box<dyn Error>>(
-                        text.contains(" with {")
-                            || text.contains(" assert {")
-                            || text.match_indices("import(").any(|(start, _)| {
-                                text[start + "import(".len()..]
-                                    .split_once(')')
-                                    .is_some_and(|(arguments, _)| arguments.contains(','))
-                            }),
-                    )
-                })
-                .transpose()?
-                .unwrap_or(false);
-        if owns_format {
-            count += 1;
-        }
-    }
-    Ok(count)
 }
 
 #[derive(Default)]

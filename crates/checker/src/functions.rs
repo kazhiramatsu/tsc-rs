@@ -90,11 +90,8 @@ impl<'a> CheckerState<'a> {
                         let object_flags = self.tables.object_flags_of(return_only_type)
                             | ObjectFlags::NON_INFERRABLE_TYPE;
                         self.tables.type_mut(return_only_type).object_flags = object_flags;
-                        self.links.set_node_context_free_type(
-                            self.speculation_depth,
-                            node,
-                            LinkSlot::Resolved(return_only_type),
-                        );
+                        self.links
+                            .set_node_context_free_type(node, LinkSlot::Resolved(return_only_type));
                         return Ok(return_only_type);
                     }
                 }
@@ -2279,7 +2276,7 @@ impl<'a> CheckerState<'a> {
                 if !self.is_reference_to_type(return_type, global_promise_type) {
                     let awaited = self.get_awaited_type_no_alias(return_type, None)?;
                     let display =
-                        self.type_to_string_slice(awaited.unwrap_or(self.tables.intrinsics.void))?;
+                        self.type_to_string(awaited.unwrap_or(self.tables.intrinsics.void))?;
                     self.report_error_for_invalid_async_return_type(
                         return_type_node,
                         return_type_error_location,
@@ -2296,7 +2293,7 @@ impl<'a> CheckerState<'a> {
             }
             let promise_constructor_name = self.get_entity_name_from_type_node(return_type_node);
             let Some(promise_constructor_name) = promise_constructor_name else {
-                let display = self.type_to_string_slice(return_type)?;
+                let display = self.type_to_string(return_type)?;
                 self.report_error_for_invalid_async_return_type(
                     return_type_node,
                     return_type_error_location,

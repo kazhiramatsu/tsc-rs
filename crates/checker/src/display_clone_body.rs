@@ -44,12 +44,12 @@ impl<'program> CheckerState<'program> {
         node: NodeId,
         at_line_start: bool,
     ) -> CheckResult<Option<JsString>> {
-        let saved_indent = self.slice_display_clone_indent;
-        let saved = self.slice_display_clone_at_line_start;
-        self.slice_display_clone_at_line_start = at_line_start;
+        let saved_indent = self.display_clone_indent;
+        let saved = self.display_clone_at_line_start;
+        self.display_clone_at_line_start = at_line_start;
         let result = DisplayCloneBodyPrinter { state: self }.node(node);
-        self.slice_display_clone_indent = saved_indent;
-        self.slice_display_clone_at_line_start = saved;
+        self.display_clone_indent = saved_indent;
+        self.display_clone_at_line_start = saved;
         result
     }
 
@@ -58,11 +58,11 @@ impl<'program> CheckerState<'program> {
         &mut self,
         expression: NodeId,
     ) -> CheckResult<Option<JsString>> {
-        let saved = self.slice_display_clone_at_line_start;
-        self.slice_display_clone_at_line_start = false;
+        let saved = self.display_clone_at_line_start;
+        self.display_clone_at_line_start = false;
         let result =
             DisplayCloneBodyPrinter { state: self }.computed_property_expression(expression);
-        self.slice_display_clone_at_line_start = saved;
+        self.display_clone_at_line_start = saved;
         result
     }
 
@@ -71,10 +71,10 @@ impl<'program> CheckerState<'program> {
         &mut self,
         nodes: Vec<NodeId>,
     ) -> CheckResult<Option<JsString>> {
-        let saved = self.slice_display_clone_at_line_start;
-        self.slice_display_clone_at_line_start = false;
+        let saved = self.display_clone_at_line_start;
+        self.display_clone_at_line_start = false;
         let result = DisplayCloneBodyPrinter { state: self }.parameter_nodes_text(nodes);
-        self.slice_display_clone_at_line_start = saved;
+        self.display_clone_at_line_start = saved;
         result
     }
 
@@ -83,12 +83,12 @@ impl<'program> CheckerState<'program> {
         &mut self,
         node: NodeId,
     ) -> CheckResult<Option<JsString>> {
-        let saved_indent = self.slice_display_clone_indent;
-        let saved_line_start = self.slice_display_clone_at_line_start;
-        self.slice_display_clone_at_line_start = false;
+        let saved_indent = self.display_clone_indent;
+        let saved_line_start = self.display_clone_at_line_start;
+        self.display_clone_at_line_start = false;
         let result = DisplayCloneBodyPrinter { state: self }.function_body_block(node);
-        self.slice_display_clone_indent = saved_indent;
-        self.slice_display_clone_at_line_start = saved_line_start;
+        self.display_clone_indent = saved_indent;
+        self.display_clone_at_line_start = saved_line_start;
         result
     }
 }
@@ -540,7 +540,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 let child_at_line_start = if needs_parentheses {
                     false
                 } else {
-                    self.state.slice_display_clone_at_line_start
+                    self.state.display_clone_at_line_start
                 };
                 let Some(mut text) =
                     self.expression_at_line_start(expression, child_at_line_start)?
@@ -1601,7 +1601,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         }
         let mut text = JsString::new();
         let mut index = 0;
-        let mut at_line_start = self.state.slice_display_clone_at_line_start;
+        let mut at_line_start = self.state.display_clone_at_line_start;
         while index < modifiers.len() {
             if matches!(self.state.data_of(modifiers[index]), NodeData::Decorator(_)) {
                 if !allow_decorators {
@@ -1690,14 +1690,12 @@ impl DisplayCloneBodyPrinter<'_, '_> {
 
     fn type_annotation_text(&mut self, node: NodeId) -> CheckResult<JsString> {
         self.with_line_start(false, |printer| {
-            printer.state.type_annotation_text_slice(node)
+            printer.state.type_annotation_text_display(node)
         })
     }
 
     fn member_name_text(&mut self, node: NodeId) -> CheckResult<JsString> {
-        self.with_line_start(false, |printer| {
-            printer.state.member_name_node_text_slice(node)
-        })
+        self.with_line_start(false, |printer| printer.state.member_name_node_text(node))
     }
 
     fn type_parameter_nodes_text(
@@ -2079,10 +2077,10 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         &mut self,
         operation: impl FnOnce(&mut Self) -> CheckResult<T>,
     ) -> CheckResult<T> {
-        let saved = self.state.slice_display_clone_indent;
-        self.state.slice_display_clone_indent = saved + 1;
+        let saved = self.state.display_clone_indent;
+        self.state.display_clone_indent = saved + 1;
         let result = operation(self);
-        self.state.slice_display_clone_indent = saved;
+        self.state.display_clone_indent = saved;
         result
     }
 
@@ -2091,10 +2089,10 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         at_line_start: bool,
         operation: impl FnOnce(&mut Self) -> CheckResult<T>,
     ) -> CheckResult<T> {
-        let saved = self.state.slice_display_clone_at_line_start;
-        self.state.slice_display_clone_at_line_start = at_line_start;
+        let saved = self.state.display_clone_at_line_start;
+        self.state.display_clone_at_line_start = at_line_start;
         let result = operation(self);
-        self.state.slice_display_clone_at_line_start = saved;
+        self.state.display_clone_at_line_start = saved;
         result
     }
 
@@ -2103,9 +2101,9 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         node: NodeId,
         operation: impl FnOnce(&mut Self) -> CheckResult<T>,
     ) -> CheckResult<T> {
-        let saved = self.state.slice_display_enclosing.replace(node);
+        let saved = self.state.display_enclosing.replace(node);
         let result = operation(self);
-        self.state.slice_display_enclosing = saved;
+        self.state.display_enclosing = saved;
         result
     }
 

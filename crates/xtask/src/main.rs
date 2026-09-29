@@ -54,7 +54,6 @@ mod node_codegen;
 mod recovery_census;
 mod recovery_corpus_native;
 mod recovery_parse_snapshot;
-mod relpin;
 mod slice_evidence;
 mod symbol_audit;
 mod upstream_suites;
@@ -209,18 +208,6 @@ fn main() {
             }
             None => {
                 eprintln!("missing perf command (conformance|ci-conformance-child)");
-                std::process::exit(2);
-            }
-        },
-        Some("relpin") => match args.next().as_deref() {
-            Some("gen") => run_or_exit(relpin::gen(args)),
-            Some("run") => run_or_exit(relpin::run(args)),
-            Some(other) => {
-                eprintln!("unknown relpin command: {other}");
-                std::process::exit(2);
-            }
-            None => {
-                eprintln!("missing relpin command (gen|run)");
                 std::process::exit(2);
             }
         },
@@ -7952,7 +7939,6 @@ fn ci_hosted_gates(baseline: &str, history_sensitive: bool) -> Result<(), Box<dy
     )?;
     codegen_nodes(true)?;
     schema_audit(std::iter::empty())?;
-    relpin::run(std::iter::empty())?;
     if history_sensitive {
         // Explicit manual diagnostics retain the trusted-history and frozen
         // M8-plan checks without making them part of the ordinary hosted lane.
@@ -9222,7 +9208,6 @@ fn ci_semantic_preflight(workspace: &Path, baseline: &str) -> Result<(), Box<dyn
     // fields must be listed in ratchets/nodes-missing-fields.txt).
     codegen_nodes(true)?;
     schema_audit(std::iter::empty())?;
-    relpin::run(std::iter::empty())?;
     // Run A1 -> A2 -> H0 -> A5 sequentially and fail-fast in one short-lived
     // child. H0 reuses A1's exact HEAD/blob proof instead of decoding the same
     // accepted-pair history again. The child joins and exits before B2, so its

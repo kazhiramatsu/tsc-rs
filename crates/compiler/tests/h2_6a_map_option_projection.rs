@@ -10,7 +10,7 @@ use std::sync::Arc;
 use base64::Engine as _;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use tsc_compiler::{EmitWriteMetadata, H2RuntimeSlice, MemoryOutputSink, ProgramSession};
+use tsc_compiler::{EmitWriteMetadata, MemoryOutputSink, ProgramSession};
 use tsc_diagnostics::{Diagnostic, MessageChain};
 use tsc_harness::upstream_suites::execution::{
     load_compiler_emit_with_option_floor, load_qualified_compiler_emit_with_option_floor,
@@ -238,12 +238,7 @@ fn observe(prepared: PreparedProgram) -> Value {
             "source_files": write.source_files().map(|files| files.iter().map(|path| path.to_string_lossy()).collect::<Vec<_>>()),
             "data_present": data_present, "data_source_map_url_pos": pos, "data_diagnostics_count": count })
     }).collect::<Vec<_>>();
-    json!({ "effective_map_options": effective,
-        "map_runtime_activity": {
-            "H2.6a": outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_6a),
-            "H2.6b": outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_6b),
-            "H2.6c": outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_6c),
-        }, "observation": {
+    json!({ "effective_map_options": effective, "observation": {
         "writes": writes, "reported_diagnostics": diagnostics(&reported),
         "emit_result": { "emit_skipped": outcome.emit_skipped(), "diagnostics": diagnostics(outcome.diagnostics()),
             "emitted_files": outcome.emitted_files().map(|paths| paths.iter().map(|path| path.to_string_lossy()).collect::<Vec<_>>()),
@@ -355,13 +350,6 @@ fn h2_6a_rows_and_adjacent_controls_match_complete_frozen_tuples() {
         assert_eq!(
             runs[0]["observation"], expected,
             "{id}: complete command tuple"
-        );
-        let activity = &runs[0]["map_runtime_activity"];
-        assert_eq!(activity["H2.6c"], 0, "{id}: no later map owner");
-        assert_eq!(
-            activity["H2.6b"].as_u64().unwrap() > 0,
-            ROWS.contains(id),
-            "{id}: embedded sources/roots use the existing H2.6b owner"
         );
         eprintln!("{id}: H2.6a projection EXACT x2");
     }

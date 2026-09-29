@@ -285,7 +285,7 @@ fn replay_case(case: &Value, fixture_sha256: &str, pass: usize) {
         command.exit_code(),
         expected,
     );
-    let activity = super::h2_7b_w4a_controls::assert_completed_observation(
+    super::h2_7b_w4a_controls::assert_completed_observation(
         case_id,
         &outcome,
         command.diagnostics(),
@@ -304,26 +304,7 @@ fn replay_case(case: &Value, fixture_sha256: &str, pass: usize) {
     let blocked = prepared.compiler_options().no_emit_on_error == Some(true)
         && expected["emit_result"]["emit_skipped"] == true;
     if blocked {
-        assert_eq!(
-            activity.script_transformer_list_constructions(),
-            0,
-            "{case_id}: no JS transform"
-        );
-        assert_eq!(
-            activity.printer_constructions(),
-            0,
-            "{case_id}: no printing"
-        );
-        assert_eq!(
-            activity.javascript_artifact_creations(),
-            0,
-            "{case_id}: no JS artifact"
-        );
-        assert_eq!(
-            activity.output_sink_write_attempts(),
-            0,
-            "{case_id}: no writes"
-        );
+        assert!(sink.writes.is_empty(), "{case_id}: no writes");
     }
 }
 

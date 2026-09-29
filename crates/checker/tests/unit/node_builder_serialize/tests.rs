@@ -4,7 +4,6 @@ use std::rc::Rc;
 use tsc_emitter::{EmitFlags, EmitTrackerNode};
 use tsc_types::CompilerOptions;
 
-use crate::narrow::TypePredicateKind;
 use crate::state::test_support::with_program_state;
 
 use super::*;
@@ -449,26 +448,6 @@ fn front_doors_preserve_flags_and_build_real_node_shapes() {
                 kind(&arena, expression),
                 SyntaxKind::LiteralType | SyntaxKind::NumberKeyword
             ));
-
-            let predicate = TypePredicate {
-                kind: TypePredicateKind::Identifier,
-                parameter_name: Some("value".to_owned()),
-                parameter_index: 0,
-                ty: Some(checker.tables.intrinsics.string),
-            };
-            let predicate = type_predicate_to_type_predicate_node(
-                checker,
-                &mut arena,
-                target,
-                &predicate,
-                Some(root),
-                None,
-                None,
-                None,
-            )
-            .expect("predicate front door")
-            .expect("predicate node");
-            assert_eq!(kind(&arena, predicate), SyntaxKind::TypePredicate);
 
             let index = IndexInfo {
                 key_type: checker.tables.intrinsics.string,

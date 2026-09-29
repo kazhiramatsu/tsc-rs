@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use crate::{
     MissingNodeRecovery, ParseDiagnosticOrigin, ParseRecovery, ParseRecoveryAction,
     ParseRecoveryEvent, ParseRecoveryKind, ParseTokenSkipSite,
@@ -843,6 +841,7 @@ fn leading_reference_directives(text: &str) -> RawReferenceDirectives {
 }
 
 impl<'text> Parser<'text> {
+    #[cfg(test)]
     fn new(
         file_name: JsString,
         text: &'text str,
@@ -10231,7 +10230,7 @@ impl<'text> Parser<'text> {
     }
 }
 
-#[allow(dead_code)]
+#[cfg(test)]
 fn parse_source_file(
     file_name: JsString,
     text: String,
@@ -10480,7 +10479,7 @@ fn parse_source_file_from_snapshot_worker(
 }
 
 /// tsc Parser.parseJsonText, including the JSON/JavaScript context flags.
-#[allow(dead_code)]
+#[cfg(test)]
 fn parse_json_text(file_name: JsString, text: String) -> SourceFile {
     parse_json_text_from_snapshot(
         file_name,

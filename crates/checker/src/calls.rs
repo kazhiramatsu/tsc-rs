@@ -1324,7 +1324,7 @@ impl<'a> CheckerState<'a> {
         if self.has_static_modifier(member) {
             self.get_type_of_symbol(class_symbol)
         } else {
-            self.get_declared_type_of_symbol_slice(class_symbol)
+            self.get_declared_type_of_symbol(class_symbol)
         }
     }
 
@@ -1339,7 +1339,7 @@ impl<'a> CheckerState<'a> {
         if self.is_static_element(node) {
             self.get_type_of_symbol(class_symbol)
         } else {
-            self.get_declared_type_of_symbol_slice(class_symbol)
+            self.get_declared_type_of_symbol(class_symbol)
         }
     }
 
@@ -2781,8 +2781,8 @@ impl<'a> CheckerState<'a> {
             diagnostic.related = output.related;
             return Ok(diagnostic);
         }
-        let source_text = self.type_to_string_slice(source)?;
-        let target_text = self.type_to_string_slice(target)?;
+        let source_text = self.type_to_string(source)?;
+        let target_text = self.type_to_string(target)?;
         // 65069-65072: literal sources generalize to their base
         // primitive unless the target could accept singletons.
         let source_text = if !self.tables.flags_of(target).intersects(TypeFlags::NEVER)
@@ -2867,8 +2867,8 @@ impl<'a> CheckerState<'a> {
             diagnostic.related = output.related;
             return Ok(diagnostic);
         }
-        let mut source_text = self.type_to_string_slice_with_error_enclosing(source)?;
-        let mut target_text = self.type_to_string_slice_with_error_enclosing(target)?;
+        let mut source_text = self.type_to_string_with_error_enclosing(source)?;
+        let mut target_text = self.type_to_string_with_error_enclosing(target)?;
         if source_text == target_text {
             source_text = self.get_type_name_for_error_display(source)?;
             target_text = self.get_type_name_for_error_display(target)?;
@@ -4325,8 +4325,7 @@ impl<'a> CheckerState<'a> {
                             return Err(err);
                         }
                     };
-                    let signature_text =
-                        self.signature_to_string_slice_for_overload_error(candidate)?;
+                    let signature_text = self.signature_to_string_for_overload_error(candidate)?;
                     for error in &mut errors {
                         let diagnostic = error
                             .diagnostic
@@ -5523,7 +5522,7 @@ impl<'a> CheckerState<'a> {
             _ => None,
         };
         let error_info = if let Some(types) = union_types {
-            let apparent_text = self.type_to_string_slice(apparent_type)?;
+            let apparent_text = self.type_to_string(apparent_type)?;
             let mut error_info = None;
             let mut has_signatures = false;
             for constituent in types {
@@ -5535,7 +5534,7 @@ impl<'a> CheckerState<'a> {
                     }
                 } else {
                     if error_info.is_none() {
-                        let constituent_text = self.type_to_string_slice(constituent)?;
+                        let constituent_text = self.type_to_string(constituent)?;
                         error_info = Some(prepend(
                             error_info,
                             if is_call {
@@ -5584,7 +5583,7 @@ impl<'a> CheckerState<'a> {
                 error_info
             }
         } else {
-            let apparent_text = self.type_to_string_slice(apparent_type)?;
+            let apparent_text = self.type_to_string(apparent_type)?;
             Some(prepend(
                 None,
                 if is_call {
@@ -5773,7 +5772,7 @@ impl<'a> CheckerState<'a> {
         }
         if call_signatures.is_empty() {
             if num_construct_signatures != 0 {
-                let display = self.type_to_string_slice(func_type)?;
+                let display = self.type_to_string(func_type)?;
                 self.error_at_js(
                     Some(node),
                     &diagnostics::Value_of_type_0_is_not_callable_Did_you_mean_to_include_new,
@@ -5843,7 +5842,7 @@ impl<'a> CheckerState<'a> {
             }
         }
         if has_jsdoc_class_signature {
-            let display = self.type_to_string_slice(func_type)?;
+            let display = self.type_to_string(func_type)?;
             self.error_at_js(
                 Some(node),
                 &diagnostics::Value_of_type_0_is_not_callable_Did_you_mean_to_include_new,
@@ -6100,7 +6099,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
             if modifiers.intersects(ModifierFlags::PRIVATE) {
-                let display = self.type_to_string_slice(declaring_class)?;
+                let display = self.type_to_string(declaring_class)?;
                 self.error_at_js(
                     Some(node),
                     &diagnostics::Constructor_of_class_0_is_private_and_only_accessible_within_the_class_declaration,
@@ -6108,7 +6107,7 @@ impl<'a> CheckerState<'a> {
                 );
             }
             if modifiers.intersects(ModifierFlags::PROTECTED) {
-                let display = self.type_to_string_slice(declaring_class)?;
+                let display = self.type_to_string(declaring_class)?;
                 self.error_at_js(
                     Some(node),
                     &diagnostics::Constructor_of_class_0_is_protected_and_only_accessible_within_the_class_declaration,
@@ -6578,7 +6577,7 @@ impl<'a> CheckerState<'a> {
             || specifier_flags.intersects(TypeFlags::NULL)
             || !self.is_type_assignable_to(specifier_type, self.tables.intrinsics.string)?
         {
-            let display = self.type_to_string_slice(specifier_type)?;
+            let display = self.type_to_string(specifier_type)?;
             self.error_at_js(
                 Some(specifier),
                 &diagnostics::Dynamic_import_s_specifier_must_be_of_type_string_but_here_has_type_0,

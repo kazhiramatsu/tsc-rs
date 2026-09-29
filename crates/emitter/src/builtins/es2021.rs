@@ -111,12 +111,10 @@ impl TargetPass {
 
     const fn unsupported_detail(self) -> &'static str {
         match self {
-            Self::Es2021 => {
-                "H2.5b/H2.5c admit transformES2021 for the ES2019 and ES2020 target boundaries"
-            }
-            Self::Es2020 => "H2.5c admits transformES2020 for the ES2019 target boundary",
-            Self::Es2019 => "H2.5d admits transformES2019 for the ES2018 target boundary",
-            Self::Es2016 => "H2.5g admits transformES2016 for the ES2015 target boundary",
+            Self::Es2021 => "transformES2021 runs only for the ES2019 and ES2020 targets",
+            Self::Es2020 => "transformES2020 runs only for the ES2019 target",
+            Self::Es2019 => "transformES2019 runs only for the ES2018 target",
+            Self::Es2016 => "transformES2016 runs only for the ES2015 target",
         }
     }
 

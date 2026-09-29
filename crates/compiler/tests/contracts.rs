@@ -8,10 +8,8 @@ mod utf16_scalar_path;
 mod automatic_type_directive_session_contract;
 #[path = "integration/cli_contract.rs"]
 mod cli_contract;
-#[path = "integration/declaration_resolver_replay_decision_equal.rs"]
-mod declaration_resolver_replay_decision_equal;
-#[path = "integration/declaration_transformer_replay_decision_equal.rs"]
-mod declaration_transformer_replay_decision_equal;
+#[path = "integration/declaration_emit_resolver_members.rs"]
+mod declaration_emit_resolver_members;
 #[path = "integration/emit_session_contract.rs"]
 mod emit_session_contract;
 #[path = "integration/emitter_residual_audit.rs"]

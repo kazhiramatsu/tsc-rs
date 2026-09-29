@@ -132,7 +132,7 @@ impl Transformer for Es2017Transformer<'_> {
         if self.target < ScriptTarget::ES5 || self.target > ScriptTarget::ES2016 {
             return Err(TransformError::UnsupportedCompilerOption {
                 option: "transformES2017",
-                detail: "H2.5h composes transformES2017 for ES5 through ES2016 targets",
+                detail: "transformES2017 runs only for the ES5 through ES2016 targets",
             });
         }
         Ok(())

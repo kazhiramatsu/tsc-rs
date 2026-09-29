@@ -20,7 +20,6 @@ impl<'a> CheckerState<'a> {
     ///
     /// NO enum-like arm — Enum (65536) maps to number (the extraction
     /// doc calls this out against the getBaseTypeOfLiteralType shape).
-    #[allow(dead_code)] // consumer: the relational-operator band (5.5e)
     pub(crate) fn get_base_type_of_literal_type_for_comparison(
         &mut self,
         ty: TypeId,
@@ -123,7 +122,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getWidenedLiteralLikeTypeForContextualReturnTypeIfNeeded @6.0.3
     /// tsc-hash: e4a1b137182f82fa0678d1ae3be9c2b587f29bdc5a8011d40f409f55fadf4e28
     /// tsc-span: _tsc.js:67777-67783
-    #[allow(dead_code)]
     pub(crate) fn get_widened_literal_like_type_for_contextual_return_type_if_needed(
         &mut self,
         ty: Option<TypeId>,
@@ -475,8 +473,7 @@ impl<'a> CheckerState<'a> {
         }
         if let Some(result) = result {
             if context.is_none() {
-                self.links
-                    .set_type_widened(self.speculation_depth, ty, result);
+                self.links.set_type_widened(ty, result);
             }
         }
         Ok(result.unwrap_or(ty))
@@ -555,7 +552,7 @@ impl<'a> CheckerState<'a> {
                     });
                     if let Some(value_declaration) = value_declaration {
                         let widened = self.get_widened_type(t)?;
-                        let type_string = self.type_to_string_slice(widened)?;
+                        let type_string = self.type_to_string(widened)?;
                         let symbol_string = self.symbol_display_name(p);
                         self.error_at_js(
                             Some(value_declaration),
@@ -587,7 +584,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<()> {
         use tsc_types::WideningKind;
         let widened = self.get_widened_type(ty)?;
-        let type_as_string = self.type_to_string_slice(widened)?;
+        let type_as_string = self.type_to_string(widened)?;
         if self.is_in_js_file(declaration) && !self.is_check_js_enabled_for_node(declaration) {
             return Ok(());
         }

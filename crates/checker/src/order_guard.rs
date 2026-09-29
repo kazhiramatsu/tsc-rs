@@ -284,11 +284,6 @@ impl OrderGuard {
         self.reasons
     }
 
-    /// The type count the guard was armed with (initialization boundary).
-    pub const fn init_boundary(&self) -> u32 {
-        self.init_boundary
-    }
-
     /// Whether `ty` is shard-local (created after the guard was armed).
     /// Always false for a disarmed guard, so callers can count without
     /// branching on the armed state themselves.
@@ -441,7 +436,6 @@ mod tests {
             guard.reasons(),
             OrderReason::REPRESENTATIVE.bits() | OrderReason::CIRCULARITY.bits()
         );
-        assert_eq!(guard.init_boundary(), 10);
     }
 
     #[test]

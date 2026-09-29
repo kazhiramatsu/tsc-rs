@@ -53,14 +53,12 @@ impl EmitRoot {
     }
 }
 
-/// Independent emit mode corresponding to TypeScript's internal emit-only
-/// and build-info controls.
+/// What one output unit emits: the ordinary script outputs, or only the
+/// declaration outputs of a forced declaration emit.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum EmitMode {
     Script,
     DeclarationOnly,
-    BuilderSignature,
-    BuildInfoOnly,
 }
 
 /// Typed provenance for an intentionally absent JavaScript member.
@@ -216,8 +214,9 @@ impl EmitOutputPlan {
         &self.units
     }
 
-    /// Validate the first H1 profile without invoking an output sink.
-    pub fn validate_bootstrap_shape(&self) -> Result<(), EmitFailure> {
+    /// Reject a plan shape this emitter does not implement, before any
+    /// output sink is invoked.
+    pub fn validate_supported_shape(&self) -> Result<(), EmitFailure> {
         if matches!(self.selection, EmitSelection::TargetSourceFile(_)) {
             return Err(EmitFailure::Unsupported(
                 UnsupportedEmitFeature::TargetedSelection,
@@ -232,16 +231,6 @@ impl EmitOutputPlan {
                 EmitMode::DeclarationOnly => {
                     return Err(EmitFailure::Unsupported(
                         UnsupportedEmitFeature::DeclarationOnlyMode,
-                    ));
-                }
-                EmitMode::BuilderSignature => {
-                    return Err(EmitFailure::Unsupported(
-                        UnsupportedEmitFeature::BuilderSignatureMode,
-                    ));
-                }
-                EmitMode::BuildInfoOnly => {
-                    return Err(EmitFailure::Unsupported(
-                        UnsupportedEmitFeature::BuildInfoOnlyMode,
                     ));
                 }
             }
@@ -365,7 +354,7 @@ fn select_source_files(
                 if if force_dts_emit {
                     source_file_may_emit_forced_declaration(source, host)
                 } else {
-                    source_file_may_be_emitted_for_host(source, host)
+                    source_file_may_be_emitted(source, host)
                 } =>
             {
                 // outFile always selects from the complete Program, even
@@ -394,17 +383,14 @@ fn select_source_files(
 /// tsc-port: sourceFileMayBeEmitted @6.0.3
 /// tsc-hash: 333fcd249758d38eb80146910286d7cabdbbf6f1ea0787f8f1a2c85e9535ecb2
 /// tsc-span: _tsc.js:16617-16634
-pub fn source_file_may_be_emitted(source: EmitSource<'_>) -> bool {
-    source.may_be_emitted() && !is_declaration_file_name(source.path())
-}
-
+///
 /// The Program retains source-side eligibility. JSON additionally depends on
 /// the emit request having somewhere distinct to copy the source, matching
 /// the option-dependent arm of TypeScript's `sourceFileMayBeEmitted`.
 /// Shared with the compiler's common-source-directory projection, which
 /// deliberately does not apply outFile's external-module selection filter.
 #[doc(hidden)]
-pub fn source_file_may_be_emitted_for_host(source: EmitSource<'_>, host: &dyn EmitHost) -> bool {
+pub fn source_file_may_be_emitted(source: EmitSource<'_>, host: &dyn EmitHost) -> bool {
     tsc_program::source_file_may_be_emitted_for_options(
         source.path(),
         source.may_be_emitted(),

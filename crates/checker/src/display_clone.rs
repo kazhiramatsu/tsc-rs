@@ -58,10 +58,10 @@ impl<'program> CheckerState<'program> {
         node: NodeId,
         at_line_start: bool,
     ) -> CheckResult<Option<JsString>> {
-        let saved = self.slice_display_clone_at_line_start;
-        self.slice_display_clone_at_line_start = at_line_start;
+        let saved = self.display_clone_at_line_start;
+        self.display_clone_at_line_start = at_line_start;
         let result = DisplayClonePrinter { state: self }.expression(node);
-        self.slice_display_clone_at_line_start = saved;
+        self.display_clone_at_line_start = saved;
         result
     }
 
@@ -94,7 +94,7 @@ impl<'program> CheckerState<'program> {
     /// spaces at the next write for every active indentation level.
     /// tsrs-native: string projection of the empty-newline writer's indent.
     pub(crate) fn display_clone_line_indent(&self) -> String {
-        "    ".repeat(self.slice_display_clone_indent)
+        "    ".repeat(self.display_clone_indent)
     }
 }
 
@@ -406,9 +406,8 @@ impl DisplayClonePrinter<'_, '_> {
                 let Some(name) = data.name else {
                     return Ok(None);
                 };
-                let name = self.with_line_start(false, |printer| {
-                    printer.state.member_name_node_text_slice(name)
-                })?;
+                let name = self
+                    .with_line_start(false, |printer| printer.state.member_name_node_text(name))?;
                 let Some(initializer) = data.initializer else {
                     return Ok(None);
                 };
@@ -495,7 +494,7 @@ impl DisplayClonePrinter<'_, '_> {
                 return Ok(None);
             };
             if line_before_dot {
-                printer.state.slice_display_clone_indent += 1;
+                printer.state.display_clone_indent += 1;
                 text.push_js((&printer.state.display_clone_line_indent()).into());
             }
             if data.question_dot_token.is_some() {
@@ -507,7 +506,7 @@ impl DisplayClonePrinter<'_, '_> {
                 text.push('.');
             }
             if line_after_dot {
-                printer.state.slice_display_clone_indent += 1;
+                printer.state.display_clone_indent += 1;
                 text.push_js((&printer.state.display_clone_line_indent()).into());
             }
             text.push_js((&name).into());
@@ -652,7 +651,7 @@ impl DisplayClonePrinter<'_, '_> {
             return Ok(None);
         };
         let ty = self.with_line_start(false, |printer| {
-            printer.state.type_annotation_text_slice(ty)
+            printer.state.type_annotation_text_display(ty)
         })?;
         let Some(expression) = data.expression else {
             return Ok(None);
@@ -695,7 +694,7 @@ impl DisplayClonePrinter<'_, '_> {
             return Ok(None);
         };
         let ty = self.with_line_start(false, |printer| {
-            printer.state.type_annotation_text_slice(ty)
+            printer.state.type_annotation_text_display(ty)
         })?;
         Ok(Some(crate::concat_js(&[&(expression), &" as ", &(ty)])))
     }
@@ -714,7 +713,7 @@ impl DisplayClonePrinter<'_, '_> {
             return Ok(None);
         };
         let ty = self.with_line_start(false, |printer| {
-            printer.state.type_annotation_text_slice(ty)
+            printer.state.type_annotation_text_display(ty)
         })?;
         Ok(Some(crate::concat_js(&[
             &(expression),
@@ -828,14 +827,14 @@ impl DisplayClonePrinter<'_, '_> {
                 return Ok(None);
             };
             if line_before_operator {
-                printer.state.slice_display_clone_indent += 1;
+                printer.state.display_clone_indent += 1;
                 text.push_js((&printer.state.display_clone_line_indent()).into());
             } else if operator_kind != SyntaxKind::CommaToken {
                 text.push(' ');
             }
             text.push_js((operator).into());
             if line_after_operator {
-                printer.state.slice_display_clone_indent += 1;
+                printer.state.display_clone_indent += 1;
                 text.push_js((&printer.state.display_clone_line_indent()).into());
             } else {
                 text.push(' ');
@@ -873,7 +872,7 @@ impl DisplayClonePrinter<'_, '_> {
             let condition_entry = if condition_needs_parentheses {
                 false
             } else {
-                printer.state.slice_display_clone_at_line_start
+                printer.state.display_clone_at_line_start
             };
             let Some(mut text) = printer
                 .with_line_start(condition_entry, |printer| printer.expression(condition))?
@@ -884,14 +883,14 @@ impl DisplayClonePrinter<'_, '_> {
                 text = crate::concat_js(&[&"(", &(text), &")"]);
             }
             if line_before_question {
-                printer.state.slice_display_clone_indent += 1;
+                printer.state.display_clone_indent += 1;
                 text.push_js((&printer.state.display_clone_line_indent()).into());
             } else {
                 text.push(' ');
             }
             text.push('?');
             if line_after_question {
-                printer.state.slice_display_clone_indent += 1;
+                printer.state.display_clone_indent += 1;
                 text.push_js((&printer.state.display_clone_line_indent()).into());
             } else {
                 text.push(' ');
@@ -904,20 +903,20 @@ impl DisplayClonePrinter<'_, '_> {
             };
             text.push_js((&when_true_text).into());
             if line_after_question {
-                printer.state.slice_display_clone_indent -= 1;
+                printer.state.display_clone_indent -= 1;
             }
             if line_before_question {
-                printer.state.slice_display_clone_indent -= 1;
+                printer.state.display_clone_indent -= 1;
             }
             if line_before_colon {
-                printer.state.slice_display_clone_indent += 1;
+                printer.state.display_clone_indent += 1;
                 text.push_js((&printer.state.display_clone_line_indent()).into());
             } else {
                 text.push(' ');
             }
             text.push(':');
             if line_after_colon {
-                printer.state.slice_display_clone_indent += 1;
+                printer.state.display_clone_indent += 1;
                 text.push_js((&printer.state.display_clone_line_indent()).into());
             } else {
                 text.push(' ');
@@ -1212,7 +1211,7 @@ impl DisplayClonePrinter<'_, '_> {
                 let multi_line = self.node_raw_range_is_multi_line(node);
                 self.with_restored_indent(|printer| {
                     if multi_line {
-                        printer.state.slice_display_clone_indent += 1;
+                        printer.state.display_clone_indent += 1;
                     }
                     let Some(expression) =
                         printer.with_line_start(false, |printer| printer.expression(expression))?
@@ -1299,7 +1298,7 @@ impl DisplayClonePrinter<'_, '_> {
         };
         let nodes = self.state.binder.node_array(nodes).nodes.clone();
         let rendered = self.with_line_start(false, |printer| {
-            printer.state.type_argument_nodes_text_slice(nodes)
+            printer.state.type_argument_nodes_text(nodes)
         })?;
         Ok(crate::concat_js(&[
             &"<",
@@ -1314,7 +1313,7 @@ impl DisplayClonePrinter<'_, '_> {
         disallow_comma: bool,
     ) -> CheckResult<Option<JsString>> {
         let mut rendered = Vec::with_capacity(nodes.len());
-        let first_at_line_start = self.state.slice_display_clone_at_line_start;
+        let first_at_line_start = self.state.display_clone_at_line_start;
         for (index, node) in nodes.into_iter().enumerate() {
             let at_line_start = index == 0 && first_at_line_start;
             let text = self.with_line_start(at_line_start, |printer| {
@@ -1337,7 +1336,7 @@ impl DisplayClonePrinter<'_, '_> {
         let child_at_line_start = if needs_parentheses {
             false
         } else {
-            self.state.slice_display_clone_at_line_start
+            self.state.display_clone_at_line_start
         };
         let Some(mut text) =
             self.with_line_start(child_at_line_start, |printer| printer.expression(node))?
@@ -1355,7 +1354,7 @@ impl DisplayClonePrinter<'_, '_> {
         let child_at_line_start = if needs_parentheses {
             false
         } else {
-            self.state.slice_display_clone_at_line_start
+            self.state.display_clone_at_line_start
         };
         let Some(mut text) =
             self.with_line_start(child_at_line_start, |printer| printer.expression(node))?
@@ -1373,7 +1372,7 @@ impl DisplayClonePrinter<'_, '_> {
         let child_at_line_start = if needs_parentheses {
             false
         } else {
-            self.state.slice_display_clone_at_line_start
+            self.state.display_clone_at_line_start
         };
         let Some(mut text) =
             self.with_line_start(child_at_line_start, |printer| printer.expression(node))?
@@ -1391,7 +1390,7 @@ impl DisplayClonePrinter<'_, '_> {
         let child_at_line_start = if needs_parentheses {
             false
         } else {
-            self.state.slice_display_clone_at_line_start
+            self.state.display_clone_at_line_start
         };
         let Some(mut text) =
             self.with_line_start(child_at_line_start, |printer| printer.expression(node))?
@@ -1416,7 +1415,7 @@ impl DisplayClonePrinter<'_, '_> {
         let child_at_line_start = if needs_parentheses {
             false
         } else {
-            self.state.slice_display_clone_at_line_start
+            self.state.display_clone_at_line_start
         };
         let Some(mut text) =
             self.with_line_start(child_at_line_start, |printer| printer.expression(node))?
@@ -1440,7 +1439,7 @@ impl DisplayClonePrinter<'_, '_> {
         let child_at_line_start = if needs_parentheses {
             false
         } else {
-            self.state.slice_display_clone_at_line_start
+            self.state.display_clone_at_line_start
         };
         let Some(mut text) =
             self.with_line_start(child_at_line_start, |printer| printer.expression(node))?
@@ -1468,7 +1467,7 @@ impl DisplayClonePrinter<'_, '_> {
         let child_at_line_start = if needs_parentheses {
             false
         } else {
-            self.state.slice_display_clone_at_line_start
+            self.state.display_clone_at_line_start
         };
         let Some(mut text) =
             self.with_line_start(child_at_line_start, |printer| printer.expression(operand))?
@@ -1785,7 +1784,7 @@ impl DisplayClonePrinter<'_, '_> {
         operation: impl FnOnce(&mut Self) -> CheckResult<T>,
     ) -> CheckResult<T> {
         self.with_restored_indent(|printer| {
-            printer.state.slice_display_clone_indent += 1;
+            printer.state.display_clone_indent += 1;
             operation(printer)
         })
     }
@@ -1794,9 +1793,9 @@ impl DisplayClonePrinter<'_, '_> {
         &mut self,
         operation: impl FnOnce(&mut Self) -> CheckResult<T>,
     ) -> CheckResult<T> {
-        let saved = self.state.slice_display_clone_indent;
+        let saved = self.state.display_clone_indent;
         let result = operation(self);
-        self.state.slice_display_clone_indent = saved;
+        self.state.display_clone_indent = saved;
         result
     }
 
@@ -1805,10 +1804,10 @@ impl DisplayClonePrinter<'_, '_> {
         at_line_start: bool,
         operation: impl FnOnce(&mut Self) -> CheckResult<T>,
     ) -> CheckResult<T> {
-        let saved = self.state.slice_display_clone_at_line_start;
-        self.state.slice_display_clone_at_line_start = at_line_start;
+        let saved = self.state.display_clone_at_line_start;
+        self.state.display_clone_at_line_start = at_line_start;
         let result = operation(self);
-        self.state.slice_display_clone_at_line_start = saved;
+        self.state.display_clone_at_line_start = saved;
         result
     }
 
@@ -1980,9 +1979,7 @@ impl DisplayClonePrinter<'_, '_> {
     ) {
         let fragment = fragment.into();
         if !fragment.is_empty() && text_ends_at_line_start(text) {
-            text.push_js(
-                (&"    ".repeat(self.state.slice_display_clone_indent + extra_indent)).into(),
-            );
+            text.push_js((&"    ".repeat(self.state.display_clone_indent + extra_indent)).into());
         }
         text.push_js(fragment);
     }

@@ -1,13 +1,13 @@
 use std::path::{Path, PathBuf};
 
 use tsc_emitter::{
-    emit_files, emit_files_with_activity, get_source_files_to_emit, preflight_emit,
-    validate_bootstrap_emit_options, DeclarationPathResolver, EmitBundle, EmitContractViolation,
-    EmitDiagnosticGate, EmitFailure, EmitHost, EmitIoError, EmitIoOperation, EmitMode,
-    EmitOutputPaths, EmitOutputPlan, EmitOutputUnit, EmitResolver, EmitResolverError,
-    EmitResolverMethod, EmitResolverNode, EmitRoot, EmitSelection, EmitSource,
-    EmitWriteDisposition, H2ActivityCanary, JavascriptOmission, MemoryOutputSink, OutputSink,
-    PlanDeclarationPaths, UnavailableEmitResolver, UnsupportedEmitFeature,
+    emit_files, get_source_files_to_emit, preflight_emit, validate_emit_options,
+    DeclarationPathResolver, EmitBundle, EmitContractViolation, EmitDiagnosticGate, EmitFailure,
+    EmitHost, EmitIoError, EmitIoOperation, EmitMode, EmitOutputPaths, EmitOutputPlan,
+    EmitOutputUnit, EmitResolver, EmitResolverError, EmitResolverMethod, EmitResolverNode,
+    EmitRoot, EmitSelection, EmitSource, EmitWriteDisposition, JavascriptOmission,
+    MemoryOutputSink, OutputSink, PlanDeclarationPaths, UnavailableEmitResolver,
+    UnsupportedEmitFeature,
 };
 use tsc_program::SourceFileId;
 use tsc_syntax::{parse_source_file, SourceFile};
@@ -22,7 +22,7 @@ fn script_unit(raw: u32, paths: EmitOutputPaths) -> EmitOutputUnit {
 }
 
 #[test]
-fn bootstrap_shape_is_whole_program_source_file_javascript_only() {
+fn whole_program_javascript_plan_has_a_supported_shape() {
     let plan = EmitOutputPlan::whole_program(vec![script_unit(
         3,
         EmitOutputPaths::javascript("/project/out.js"),
@@ -38,13 +38,13 @@ fn bootstrap_shape_is_whole_program_source_file_javascript_only() {
             .map(|path| path.scalar_test_path()),
         Some(std::path::Path::new("/project/out.js"))
     );
-    assert_eq!(plan.validate_bootstrap_shape(), Ok(()));
+    assert_eq!(plan.validate_supported_shape(), Ok(()));
 }
 
 #[test]
 fn remove_comments_is_an_active_javascript_emit_option() {
     assert_eq!(
-        validate_bootstrap_emit_options(&CompilerOptions {
+        validate_emit_options(&CompilerOptions {
             target: Some(99),
             module: Some(200),
             remove_comments: Some(true),
@@ -57,7 +57,7 @@ fn remove_comments_is_an_active_javascript_emit_option() {
 #[test]
 fn erasable_syntax_only_is_checker_policy_not_an_emit_preflight_axis() {
     assert_eq!(
-        validate_bootstrap_emit_options(&CompilerOptions {
+        validate_emit_options(&CompilerOptions {
             target: Some(99),
             module: Some(200),
             erasable_syntax_only: Some(true),
@@ -70,7 +70,7 @@ fn erasable_syntax_only_is_checker_policy_not_an_emit_preflight_axis() {
 #[test]
 fn declaration_is_admitted_while_composite_remains_refused() {
     assert_eq!(
-        validate_bootstrap_emit_options(&CompilerOptions {
+        validate_emit_options(&CompilerOptions {
             target: Some(2),
             module: Some(1),
             isolated_declarations: Some(true),
@@ -80,7 +80,7 @@ fn declaration_is_admitted_while_composite_remains_refused() {
     );
 
     assert_eq!(
-        validate_bootstrap_emit_options(&CompilerOptions {
+        validate_emit_options(&CompilerOptions {
             target: Some(2),
             module: Some(1),
             isolated_declarations: Some(true),
@@ -91,7 +91,7 @@ fn declaration_is_admitted_while_composite_remains_refused() {
     );
 
     assert_eq!(
-        validate_bootstrap_emit_options(&CompilerOptions {
+        validate_emit_options(&CompilerOptions {
             target: Some(2),
             module: Some(1),
             isolated_declarations: Some(true),
@@ -105,11 +105,11 @@ fn declaration_is_admitted_while_composite_remains_refused() {
 }
 
 #[test]
-fn every_dormant_axis_is_typed_and_rejected() {
+fn unsupported_plan_shapes_are_typed_and_rejected() {
     let javascript = || EmitOutputPaths::javascript("/project/out.js");
     let targeted = EmitOutputPlan::targeted(source(1), vec![script_unit(1, javascript())]);
     assert_eq!(
-        targeted.validate_bootstrap_shape(),
+        targeted.validate_supported_shape(),
         Err(EmitFailure::Unsupported(
             UnsupportedEmitFeature::TargetedSelection
         ))
@@ -120,47 +120,34 @@ fn every_dormant_axis_is_typed_and_rejected() {
         javascript(),
         EmitMode::Script,
     )]);
-    assert_eq!(bundle.validate_bootstrap_shape(), Ok(()));
+    assert_eq!(bundle.validate_supported_shape(), Ok(()));
     let empty_bundle = EmitOutputPlan::whole_program(vec![EmitOutputUnit::new(
         EmitRoot::Bundle(EmitBundle::new(vec![])),
         javascript(),
         EmitMode::Script,
     )]);
     assert_eq!(
-        empty_bundle.validate_bootstrap_shape(),
+        empty_bundle.validate_supported_shape(),
         Err(EmitFailure::Unsupported(UnsupportedEmitFeature::BundleRoot))
     );
 
-    for (mode, feature) in [
-        (
-            EmitMode::DeclarationOnly,
-            UnsupportedEmitFeature::DeclarationOnlyMode,
-        ),
-        (
-            EmitMode::BuilderSignature,
-            UnsupportedEmitFeature::BuilderSignatureMode,
-        ),
-        (
-            EmitMode::BuildInfoOnly,
-            UnsupportedEmitFeature::BuildInfoOnlyMode,
-        ),
-    ] {
-        let plan = EmitOutputPlan::whole_program(vec![EmitOutputUnit::new(
-            EmitRoot::SourceFile(source(1)),
-            javascript(),
-            mode,
-        )]);
-        assert_eq!(
-            plan.validate_bootstrap_shape(),
-            Err(EmitFailure::Unsupported(feature))
-        );
-    }
+    let declaration_only = EmitOutputPlan::whole_program(vec![EmitOutputUnit::new(
+        EmitRoot::SourceFile(source(1)),
+        javascript(),
+        EmitMode::DeclarationOnly,
+    )]);
+    assert_eq!(
+        declaration_only.validate_supported_shape(),
+        Err(EmitFailure::Unsupported(
+            UnsupportedEmitFeature::DeclarationOnlyMode
+        ))
+    );
 
     let declaration = EmitOutputPlan::whole_program(vec![script_unit(
         1,
         javascript().with_declaration("/project/out.d.ts"),
     )]);
-    assert_eq!(declaration.validate_bootstrap_shape(), Ok(()));
+    assert_eq!(declaration.validate_supported_shape(), Ok(()));
 
     for (paths, feature) in [
         (
@@ -174,28 +161,28 @@ fn every_dormant_axis_is_typed_and_rejected() {
     ] {
         let plan = EmitOutputPlan::whole_program(vec![script_unit(1, paths)]);
         assert_eq!(
-            plan.validate_bootstrap_shape(),
+            plan.validate_supported_shape(),
             Err(EmitFailure::Unsupported(feature))
         );
     }
 }
 
 /// h2-6a-m-3 G8: the planned `.js.map` member left the dormant set —
-/// a mapped unit passes the bootstrap-shape validation.
+/// a mapped unit passes the supported-shape validation.
 #[test]
 fn a_planned_javascript_map_member_is_accepted() {
     let plan = EmitOutputPlan::whole_program(vec![script_unit(
         1,
         EmitOutputPaths::javascript("/project/out.js").with_javascript_map("/project/out.js.map"),
     )]);
-    assert_eq!(plan.validate_bootstrap_shape(), Ok(()));
+    assert_eq!(plan.validate_supported_shape(), Ok(()));
 }
 
 #[test]
 fn malformed_active_slot_is_a_contract_failure() {
     let plan = EmitOutputPlan::whole_program(vec![script_unit(1, EmitOutputPaths::empty())]);
     assert_eq!(
-        plan.validate_bootstrap_shape(),
+        plan.validate_supported_shape(),
         Err(EmitFailure::Contract(
             EmitContractViolation::ScriptOutputMissingJavaScriptPath
         ))
@@ -207,7 +194,7 @@ fn declaration_only_javascript_absence_requires_typed_plan_provenance() {
     let paths = EmitOutputPaths::empty().with_declaration("/project/out.d.ts");
     let unproven = EmitOutputPlan::whole_program(vec![script_unit(1, paths.clone())]);
     assert_eq!(
-        unproven.validate_bootstrap_shape(),
+        unproven.validate_supported_shape(),
         Err(EmitFailure::Contract(
             EmitContractViolation::ScriptOutputMissingJavaScriptPath
         ))
@@ -216,7 +203,7 @@ fn declaration_only_javascript_absence_requires_typed_plan_provenance() {
     let proven = EmitOutputPlan::whole_program(vec![
         script_unit(1, paths).with_javascript_omitted(JavascriptOmission::EmitDeclarationOnly)
     ]);
-    assert_eq!(proven.validate_bootstrap_shape(), Ok(()));
+    assert_eq!(proven.validate_supported_shape(), Ok(()));
     assert_eq!(
         proven.units()[0].javascript_omitted(),
         Some(JavascriptOmission::EmitDeclarationOnly)
@@ -609,7 +596,7 @@ fn declaration_collision_preflight_covers_overwrite_duplicate_case_and_js_suppre
         preflight.plan().units()[0].javascript_omitted(),
         Some(JavascriptOmission::EmitDeclarationOnly)
     );
-    assert_eq!(preflight.plan().validate_bootstrap_shape(), Ok(()));
+    assert_eq!(preflight.plan().validate_supported_shape(), Ok(()));
 
     let no_emit = TestEmitHost::new(
         CompilerOptions {
@@ -625,168 +612,6 @@ fn declaration_collision_preflight_covers_overwrite_duplicate_case_and_js_suppre
         .unwrap()
         .diagnostics()
         .is_empty());
-}
-
-#[test]
-fn bundle_requests_require_their_profile_before_transforming_or_writing() {
-    for (options, make_profile, denied, admitted_bundle_requests) in [
-        (
-            CompilerOptions {
-                declaration_map: Some(true),
-                out_file: Some("/project/bundle.js".to_owned().into()),
-                ..CompilerOptions::default()
-            },
-            H2ActivityCanary::h2_7d_profile as fn() -> H2ActivityCanary,
-            tsc_emitter::H2RuntimeSlice::H2_7e,
-            1,
-        ),
-        (
-            CompilerOptions {
-                out_file: Some("/project/bundle.js".to_owned().into()),
-                ..CompilerOptions::default()
-            },
-            H2ActivityCanary::h2_7c_profile as fn() -> H2ActivityCanary,
-            tsc_emitter::H2RuntimeSlice::H2_7d,
-            0,
-        ),
-    ] {
-        let host = TestEmitHost::new(options, "/project", true, &[("/project/value.ts", true)]);
-        let preflight = preflight_emit(&host, EmitSelection::WholeProgram).unwrap();
-        let mut activity = make_profile();
-        let mut sink = MemoryOutputSink::new();
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            emit_files_with_activity(
-                &UnavailableEmitResolver,
-                &host,
-                preflight,
-                EmitSelection::WholeProgram,
-                &EmitDiagnosticGate::default(),
-                &mut sink,
-                &mut activity,
-            )
-        }));
-        let error = result.expect_err("a request needs its new runtime admission");
-        assert!(error.downcast_ref::<String>().unwrap().contains(&format!(
-            "unadmitted H2 runtime activity: {}",
-            denied.name()
-        )));
-        let counters = activity.counters();
-        assert_eq!(
-            counters.runtime_slice(tsc_emitter::H2RuntimeSlice::H2_7d),
-            admitted_bundle_requests
-        );
-        assert_eq!(counters.runtime_slice(denied), 0);
-        assert_eq!(counters.script_transformer_list_constructions(), 0);
-        assert_eq!(counters.transform_context_constructions(), 0);
-        assert_eq!(counters.printer_constructions(), 0);
-        assert_eq!(counters.output_sink_write_attempts(), 0);
-        assert!(sink.writes().is_empty());
-    }
-}
-
-#[test]
-fn h2_7b_rejects_declaration_option_and_forced_requests_before_printing() {
-    let declaration_options = [
-        CompilerOptions {
-            strip_internal: Some(true),
-            ..CompilerOptions::default()
-        },
-        CompilerOptions {
-            isolated_declarations: Some(true),
-            declaration: Some(true),
-            ..CompilerOptions::default()
-        },
-        CompilerOptions {
-            declaration_dir: Some(String::new().into()),
-            ..CompilerOptions::default()
-        },
-        CompilerOptions {
-            declaration: Some(true),
-            no_emit_on_error: Some(true),
-            ..CompilerOptions::default()
-        },
-        CompilerOptions {
-            emit_declaration_only: Some(true),
-            ..CompilerOptions::default()
-        },
-    ];
-    for options in declaration_options {
-        let host = TestEmitHost::new(options, "/project", true, &[]);
-        let preflight = preflight_emit(&host, EmitSelection::WholeProgram).unwrap();
-        let mut activity = H2ActivityCanary::h2_7b_profile();
-        let mut sink = MemoryOutputSink::new();
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            emit_files_with_activity(
-                &UnavailableEmitResolver,
-                &host,
-                preflight,
-                EmitSelection::WholeProgram,
-                &EmitDiagnosticGate::default(),
-                &mut sink,
-                &mut activity,
-            )
-        }));
-        let error = result.expect_err("a declaration option must require H2.7c admission");
-        assert!(error
-            .downcast_ref::<String>()
-            .unwrap()
-            .contains("unadmitted H2 runtime activity: H2.7c"));
-        assert!(activity.counters().all_zero());
-        assert!(sink.writes().is_empty());
-    }
-
-    let host = TestEmitHost::new(CompilerOptions::default(), "/project", true, &[]);
-    let mut activity = H2ActivityCanary::h2_7b_profile();
-    let mut sink = MemoryOutputSink::new();
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        tsc_emitter::emit_forced_declarations_with_activity(
-            &UnavailableEmitResolver,
-            &host,
-            EmitSelection::WholeProgram,
-            &mut sink,
-            &mut activity,
-        )
-    }));
-    let error = result.expect_err("even an empty forced request requires H2.7c admission");
-    assert!(error
-        .downcast_ref::<String>()
-        .unwrap()
-        .contains("unadmitted H2 runtime activity: H2.7c"));
-    assert!(activity.counters().all_zero());
-    assert!(sink.writes().is_empty());
-}
-
-#[test]
-fn legacy_javascript_option_requests_retain_h2_7b() {
-    for isolated_declarations in [false, true] {
-        let options = CompilerOptions {
-            strip_internal: Some(false),
-            isolated_declarations: Some(isolated_declarations),
-            no_emit_on_error: Some(true),
-            ..CompilerOptions::default()
-        };
-        let host = TestEmitHost::new(options, "/project", true, &[]);
-        let preflight = preflight_emit(&host, EmitSelection::WholeProgram).unwrap();
-        let mut activity = H2ActivityCanary::h2_7b_profile();
-        let mut sink = MemoryOutputSink::new();
-        let outcome = emit_files_with_activity(
-            &UnavailableEmitResolver,
-            &host,
-            preflight,
-            EmitSelection::WholeProgram,
-            &EmitDiagnosticGate::default(),
-            &mut sink,
-            &mut activity,
-        )
-        .unwrap();
-        assert_eq!(
-            outcome
-                .h2_activity()
-                .runtime_slice(tsc_emitter::H2RuntimeSlice::H2_7c),
-            0
-        );
-        assert!(sink.writes().is_empty());
-    }
 }
 
 #[test]

@@ -451,7 +451,7 @@ fn resolving_return_type_short_circuits_recursive_signature_comparison() {
                 .expect("y resolves");
             let y_type = state.get_type_of_symbol(y).expect("y type resolves");
             assert_eq!(
-                state.type_to_string_slice(y_type).expect("y type renders"),
+                state.type_to_string(y_type).expect("y type renders"),
                 "string | undefined"
             );
         },

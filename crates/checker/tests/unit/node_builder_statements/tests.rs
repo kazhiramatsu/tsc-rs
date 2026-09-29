@@ -1,6 +1,6 @@
 use tsc_emitter::{
-    create_printer, transform_nodes, NewLineKind, PrintRequest, PrinterOptions, SourceFileId,
-    StandaloneWriter, TransformArena, TransformNode, TransformSourceId,
+    create_printer, transform_nodes, EmitResolverError, NewLineKind, PrintRequest, PrinterOptions,
+    SourceFileId, StandaloneWriter, TransformArena, TransformNode, TransformSourceId,
 };
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::CompilerOptions;

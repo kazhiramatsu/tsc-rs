@@ -445,24 +445,6 @@ fn active_ancestor_bindings_stay_reserved_in_descendants() {
 }
 
 #[test]
-fn node_keyed_allocation_is_stable_per_node_and_advances_per_source_name() {
-    let mut scopes =
-        GeneratedBindingScopes::new(BTreeSet::new().into(), AncestorBindingPolicy::Reserve);
-    assert_eq!(
-        scopes.allocate_source_numbered_for_node((0, 1), "loop_init"),
-        "loop_init_1",
-    );
-    assert_eq!(
-        scopes.allocate_source_numbered_for_node((0, 1), "loop_init"),
-        "loop_init_1",
-    );
-    assert_eq!(
-        scopes.allocate_source_numbered_for_node((0, 2), "loop_init"),
-        "loop_init_2",
-    );
-}
-
-#[test]
 fn source_occupied_allocator_pushes_past_the_reserved_names() {
     // §12.3(a) universe-equality direction: parsed identifiers occupy the
     // allocator exactly as tsc's file-level unique-name predicate does.

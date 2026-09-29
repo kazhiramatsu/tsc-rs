@@ -107,7 +107,7 @@ impl CheckerBudget {
 
     /// Whether a shard's order-consuming operation discards the sharded
     /// result for a serial replay (the exact mode). By default the order
-    /// guard is telemetry only: every real program consumes shard-local
+    /// guard stays disarmed: every real program consumes shard-local
     /// type order in its first files (union subtype reduction, common
     /// supertypes, union signatures), so the replay made the parallel check
     /// a wasted prologue to a serial one. The accepted divergences are those

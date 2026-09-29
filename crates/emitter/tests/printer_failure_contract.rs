@@ -835,11 +835,6 @@ fn rust_only_typed_errors_keep_the_printer_usable() {
     let mut arena = TransformArena::new();
     let source = arena.add_source(&parsed, None);
     let s0 = statement(&arena, source, 0);
-    let root = arena.root(source).unwrap();
-    let NodeData::SourceFile(data) = &arena.node(root).unwrap().data else {
-        panic!("source file")
-    };
-    let statements = TransformNodeArray::new(source, data.statements.unwrap());
     let state = Rc::new(RefCell::new(HookState::default()));
     let hooks = FailingHooks {
         tracked: vec![SyntaxKind::SourceFile, SyntaxKind::ExpressionStatement],
@@ -859,19 +854,7 @@ fn rust_only_typed_errors_keep_the_printer_usable() {
     // compiler emit and never a TypeScript printer path.
     let mut printer = create_printer(PrinterOptions::new(NewLineKind::CarriageReturnLineFeed));
 
-    // 1. A typed unsupported request touches no writer; the next print is
-    // fresh.
-    let error = printer
-        .print(
-            &mut transformation,
-            PrintRequest::NodeList(statements),
-            None,
-        )
-        .unwrap_err();
-    assert!(matches!(
-        error,
-        PrinterError::Unsupported(UnsupportedEmitFeature::NodeListPrinting)
-    ));
+    // 1. A standalone print of the statement is the fresh baseline.
     let printed = printer
         .print(
             &mut transformation,

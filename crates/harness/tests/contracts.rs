@@ -52,6 +52,8 @@ mod h2_transition;
 mod module_suffixes_oracle_contract;
 #[path = "integration/support/pins.rs"]
 mod pins;
+#[path = "integration/relation_pins.rs"]
+mod relation_pins;
 #[path = "integration/transpile_suite_inventory.rs"]
 mod transpile_suite_inventory;
 #[path = "integration/upstream_execution_plan.rs"]

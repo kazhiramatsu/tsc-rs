@@ -307,11 +307,8 @@ impl<'a> CheckerState<'a> {
                 } else {
                     false
                 };
-                self.links.set_symbol_is_declaration_with_colliding_name(
-                    self.speculation_depth,
-                    symbol,
-                    colliding,
-                );
+                self.links
+                    .set_symbol_is_declaration_with_colliding_name(symbol, colliding);
             }
         }
         Ok(self
@@ -759,7 +756,7 @@ impl<'a> CheckerState<'a> {
                 Kind::Unknown
             });
         };
-        let ty = self.get_declared_type_of_symbol_slice(type_symbol)?;
+        let ty = self.get_declared_type_of_symbol(type_symbol)?;
         if self.tables.is_error_type(ty) {
             return Ok(if is_type_only {
                 Kind::ObjectType
@@ -2927,7 +2924,7 @@ impl<'a> CheckerState<'a> {
         if let Some(NodeData::StringLiteral(data)) =
             specifier.map(|specifier| self.data_of(specifier))
         {
-            return crate::check::string_literal_name_slice(&data.text, false).map(JsString::from);
+            return crate::check::string_literal_name(&data.text, false).map(JsString::from);
         }
         Ok(self.get_fully_qualified_name(module_symbol))
     }
@@ -3676,14 +3673,12 @@ impl<'a> CheckerState<'a> {
             return Ok(immediate);
         }
         let Some(node) = self.get_declaration_of_alias_symbol(symbol) else {
-            self.links
-                .set_symbol_immediate_target(self.speculation_depth, symbol, None);
+            self.links.set_symbol_immediate_target(symbol, None);
             return Ok(None);
         };
         let target =
             self.get_target_of_alias_declaration(node, /*dont_recursively_resolve*/ true)?;
-        self.links
-            .set_symbol_immediate_target(self.speculation_depth, symbol, target);
+        self.links.set_symbol_immediate_target(symbol, target);
         Ok(target)
     }
 
@@ -7558,10 +7553,8 @@ impl<'a> CheckerState<'a> {
             self.links.revert_symbol_resolved_exports(merged);
             self.links.revert_symbol_resolved_members(merged);
         }
-        self.links
-            .set_symbol_cjs_export_merged(self.speculation_depth, merged, merged);
-        self.links
-            .set_symbol_cjs_export_merged(self.speculation_depth, exported, merged);
+        self.links.set_symbol_cjs_export_merged(merged, merged);
+        self.links.set_symbol_cjs_export_merged(exported, merged);
         Ok(Some(merged))
     }
 
@@ -7806,8 +7799,7 @@ impl<'a> CheckerState<'a> {
         }
         let default_only =
             self.create_default_property_wrapper_for_module(symbol, Some(original_symbol), None)?;
-        self.links
-            .set_type_default_only_type(self.speculation_depth, ty, default_only);
+        self.links.set_type_default_only_type(ty, default_only);
         Ok(Some(default_only))
     }
 
@@ -7864,8 +7856,7 @@ impl<'a> CheckerState<'a> {
         } else {
             ty
         };
-        self.links
-            .set_type_synthetic_type(self.speculation_depth, ty, synthetic);
+        self.links.set_type_synthetic_type(ty, synthetic);
         Ok(synthetic)
     }
 
@@ -7983,7 +7974,6 @@ impl<'a> CheckerState<'a> {
             self.get_exports_of_module_worker(module_symbol)?;
         let exports = Arc::new(exports);
         self.links.set_symbol_module_exports(
-            self.speculation_depth,
             module_symbol,
             Arc::clone(&exports),
             type_only_export_star_map,
@@ -10527,8 +10517,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        self.links
-            .set_symbol_exports_checked(self.speculation_depth, module_symbol);
+        self.links.set_symbol_exports_checked(module_symbol);
         Ok(())
     }
 

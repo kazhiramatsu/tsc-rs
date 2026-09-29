@@ -13,7 +13,7 @@ use tsc_syntax::nodes::{
     NumericLiteralData, OptionalTypeData, PrefixUnaryExpressionData, PropertySignatureData,
     QualifiedNameData, RestTypeData, StringLiteralData, TemplateLiteralTypeData,
     TemplateLiteralTypeSpanData, TupleTypeData, TypeLiteralData, TypeOperatorData,
-    TypeParameterData, TypeQueryData, TypeReferenceData, UnionTypeData,
+    TypeParameterData, TypeQueryData, UnionTypeData,
 };
 use tsc_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsc_types::{
@@ -1046,25 +1046,6 @@ pub(super) fn clone_parse_node(
         .map(Some)
 }
 
-pub(super) fn clone_parse_node_to_source(
-    checker: &CheckerState<'_>,
-    arena: &mut TransformArena,
-    target: TransformSourceId,
-    node: NodeId,
-) -> BuildResult<Option<TransformNode>> {
-    let Some(original) = project_parse_node(checker, arena, node)? else {
-        return Ok(None);
-    };
-    if original.source() != target {
-        return arena
-            .factory()
-            .clone_node_to_source(original, target)
-            .map(Some)
-            .map_err(factory_error);
-    }
-    clone_parse_node(checker, arena, node)
-}
-
 /// The parameter-name producer calls factory.cloneNode without setTextRange.
 /// Preserve the parse origin for ownership while keeping the clone synthesized.
 /// tsc-port: parameterToParameterDeclarationName @6.0.3
@@ -1322,13 +1303,7 @@ fn is_symbol_accessible_with_error_names(
         return Ok(true);
     }
     let result = checker
-        .emit_is_symbol_accessible_with_enclosing_kind(
-            symbol,
-            enclosing,
-            context.enclosing_declaration_is_synthetic,
-            meaning,
-            false,
-        )
+        .emit_is_symbol_accessible(symbol, enclosing, meaning, false)
         .map_err(|abort| checker_abort_error(checker, context, abort))?;
     restore_direct_symbol_visibility(checker, symbol, enclosing, meaning, context)?;
     let nested_enclosing = (!context.enclosing_declaration_is_synthetic).then_some(enclosing);
@@ -3156,21 +3131,6 @@ fn deep_clone_or_reuse_node(
         .map_err(factory_error)
 }
 
-/// tsc-port: deepCloneOrReuseNodes @6.0.3
-/// tsc-hash: 4bf00b5c2df59930e6c881a869b984027bbb1eb1ae7ac46fd8354ea08b0852f3
-/// tsc-span: _tsc.js:51883-51892
-#[allow(dead_code)]
-fn deep_clone_or_reuse_nodes(
-    arena: &mut TransformArena,
-    nodes: &[TransformNode],
-) -> BuildResult<Vec<TransformNode>> {
-    nodes
-        .iter()
-        .copied()
-        .map(|node| deep_clone_or_reuse_node(arena, node))
-        .collect()
-}
-
 /// tsc-port: createTypeNodeFromObjectType @6.0.3
 /// tsc-hash: 90bfabc8231e6c1bdfdcd7d13da8b3d098a7b07a0c74aa778b109d30bdd4347b
 /// tsc-span: _tsc.js:51894-51937
@@ -4908,7 +4868,6 @@ pub(crate) fn map_to_type_nodes(
 /// tsc-port: typesAreSameReference @6.0.3
 /// tsc-hash: d9ee2b44342848a14d7e49485aed022879cec63e4b385d12538235e872085bcb
 /// tsc-span: _tsc.js:52473-52475
-#[allow(dead_code)]
 fn types_are_same_reference(checker: &CheckerState<'_>, left: TypeId, right: TypeId) -> bool {
     let left_type = checker.tables.type_of(left);
     let right_type = checker.tables.type_of(right);

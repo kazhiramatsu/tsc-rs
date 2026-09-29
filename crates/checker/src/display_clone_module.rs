@@ -27,11 +27,11 @@ impl<'program> CheckerState<'program> {
         &mut self,
         node: NodeId,
     ) -> CheckResult<Option<JsString>> {
-        let saved_indent = self.slice_display_clone_indent;
-        let saved_line_start = self.slice_display_clone_at_line_start;
+        let saved_indent = self.display_clone_indent;
+        let saved_line_start = self.display_clone_at_line_start;
         let result = DisplayCloneModulePrinter { state: self }.node(node);
-        self.slice_display_clone_indent = saved_indent;
-        self.slice_display_clone_at_line_start = saved_line_start;
+        self.display_clone_indent = saved_indent;
+        self.display_clone_at_line_start = saved_line_start;
         result
     }
 }
@@ -683,10 +683,10 @@ impl DisplayCloneModulePrinter<'_, '_> {
         &mut self,
         operation: impl FnOnce(&mut Self) -> CheckResult<T>,
     ) -> CheckResult<T> {
-        let saved = self.state.slice_display_clone_indent;
-        self.state.slice_display_clone_indent += 1;
+        let saved = self.state.display_clone_indent;
+        self.state.display_clone_indent += 1;
         let result = operation(self);
-        self.state.slice_display_clone_indent = saved;
+        self.state.display_clone_indent = saved;
         result
     }
 
@@ -695,10 +695,10 @@ impl DisplayCloneModulePrinter<'_, '_> {
         at_line_start: bool,
         operation: impl FnOnce(&mut Self) -> CheckResult<T>,
     ) -> CheckResult<T> {
-        let saved = self.state.slice_display_clone_at_line_start;
-        self.state.slice_display_clone_at_line_start = at_line_start;
+        let saved = self.state.display_clone_at_line_start;
+        self.state.display_clone_at_line_start = at_line_start;
         let result = operation(self);
-        self.state.slice_display_clone_at_line_start = saved;
+        self.state.display_clone_at_line_start = saved;
         result
     }
 

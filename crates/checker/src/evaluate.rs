@@ -759,7 +759,7 @@ impl<'a> CheckerState<'a> {
         let declaration = self.binder.symbol(symbol).value_declaration;
         let Some(declaration) = declaration.filter(|&declaration| declaration != location) else {
             // evaluateEnumMember also uses symbolToString for TS2565.
-            let display = self.symbol_name_as_written_slice(symbol);
+            let display = self.symbol_name_as_written(symbol);
             self.error_at_js(
                 Some(expr),
                 &diagnostics::Property_0_is_used_before_being_assigned,

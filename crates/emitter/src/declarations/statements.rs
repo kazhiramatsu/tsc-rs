@@ -169,18 +169,6 @@ pub(crate) fn transform_top_level_declaration(
     context: &mut TransformationContext,
     input: TransformNode,
 ) -> Result<VisitResult, TransformError> {
-    let result = transform_top_level_declaration_worker(transformer, context, input);
-    if let Ok(result) = &result {
-        transformer.observe_boundary(context, true, input, result);
-    }
-    result
-}
-
-fn transform_top_level_declaration_worker(
-    transformer: &mut DeclarationTransformer<'_>,
-    context: &mut TransformationContext,
-    input: TransformNode,
-) -> Result<VisitResult, TransformError> {
     if let Some(late) = transformer.tracker.late_marked_statements.as_mut() {
         // tsc's `orderedRemoveItem` removes every occurrence before the
         // top-level switch consumes the statement.
@@ -1232,7 +1220,6 @@ pub(crate) fn recreate_binding_element(
 /// tsc-port: stripExportModifiers @6.0.3
 /// tsc-hash: cab52b51edb6418ae744dfaf78406756b5ad29ea61ac3aa2a472afe6596f8c07
 /// tsc-span: _tsc.js:115315-115321
-#[allow(dead_code)]
 pub(crate) fn strip_export_modifiers(
     context: &mut TransformationContext,
     statement: TransformNode,
@@ -1306,7 +1293,6 @@ pub(crate) fn is_scope_marker(context: &TransformationContext, node: TransformNo
 /// tsc-port: hasScopeMarker2 @6.0.3
 /// tsc-hash: 093d9b2459b8e2507d9420e4ea56d3f22e0cb49ce59126472aada63e19bd2a90
 /// tsc-span: _tsc.js:115766-115768
-#[allow(dead_code)]
 pub(crate) fn has_scope_marker(
     context: &TransformationContext,
     statements: &[TransformNode],
@@ -2574,19 +2560,6 @@ fn variable_declaration_list_data(
     }
 }
 
-fn variable_declaration_data(
-    context: &TransformationContext,
-    node: TransformNode,
-) -> Result<VariableDeclarationData, TransformError> {
-    match &context.arena().node(node)?.data {
-        NodeData::VariableDeclaration(data) => Ok(data.clone()),
-        _ => Err(TransformError::FactoryKindMismatch {
-            expected: SyntaxKind::VariableDeclaration,
-            actual: context.arena().node(node)?.kind,
-        }),
-    }
-}
-
 fn binding_element_data(
     context: &TransformationContext,
     node: TransformNode,
@@ -2660,19 +2633,6 @@ fn named_imports_data(
         NodeData::NamedImports(data) => Ok(data.clone()),
         _ => Err(TransformError::FactoryKindMismatch {
             expected: SyntaxKind::NamedImports,
-            actual: context.arena().node(node)?.kind,
-        }),
-    }
-}
-
-fn parameter_data(
-    context: &TransformationContext,
-    node: TransformNode,
-) -> Result<ParameterData, TransformError> {
-    match &context.arena().node(node)?.data {
-        NodeData::Parameter(data) => Ok(data.clone()),
-        _ => Err(TransformError::FactoryKindMismatch {
-            expected: SyntaxKind::Parameter,
             actual: context.arena().node(node)?.kind,
         }),
     }

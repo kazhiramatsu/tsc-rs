@@ -16,10 +16,9 @@ use tsc_checker::{
 };
 use tsc_emitter::{
     create_printer, declaration_map_recording_inputs_for, finish_declaration_map, preflight_emit,
-    transform_declaration_unit_with_observer_for_harness, DeclarationPrintHandlers, EmitArtifact,
-    EmitHost, EmitResolver, EmitSource, EmitWriteMetadata, GlobalNameOracle, MapLaneInputs,
-    NewLineKind, PlanDeclarationPaths, PrinterOptions, SourceFileId, SourceFileTextMode,
-    TransformRoot,
+    transform_declaration_unit_for_harness, DeclarationPrintHandlers, EmitArtifact, EmitHost,
+    EmitResolver, EmitSource, EmitWriteMetadata, GlobalNameOracle, MapLaneInputs, NewLineKind,
+    PlanDeclarationPaths, PrinterOptions, SourceFileId, SourceFileTextMode, TransformRoot,
 };
 use tsc_program::{
     load_emitting_program, CompilerOptions, LibraryCatalog, ProgramLoadLimits, ProgramOptions,
@@ -273,15 +272,9 @@ fn h2_7e_nonbundle_declaration_maps_match_typescript() {
                                 let tsc_emitter::EmitRoot::SourceFile(source) = unit.root() else {
                                     panic!("non-bundle fixture")
                                 };
-                                let mut observer = |_| {};
                                 let (outcome, mut transformed) =
-                                    transform_declaration_unit_with_observer_for_harness(
-                                        resolver,
-                                        &host,
-                                        &preflight,
-                                        &paths,
-                                        *source,
-                                        &mut observer,
+                                    transform_declaration_unit_for_harness(
+                                        resolver, &host, &preflight, &paths, *source,
                                     )
                                     .unwrap();
                                 assert!(!outcome.decl_blocked, "{id}: {:?}", outcome.diagnostics);

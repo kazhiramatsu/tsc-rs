@@ -27,20 +27,8 @@ impl DeclarationTransformer<'_> {
     /// tsc-port: visitDeclarationSubtree @6.0.3
     /// tsc-hash: 49f1c56e7d287ca5c9d8ac236fe1d91a482f181858627f0e21a6770dad67b16b
     /// tsc-span: _tsc.js:114952-115256
-    pub(crate) fn visit_declaration_subtree(
-        &mut self,
-        cx: &mut TransformationContext,
-        input: TransformNode,
-    ) -> Result<VisitResult, TransformError> {
-        let result = self.visit_declaration_subtree_worker(cx, input);
-        if let Ok(result) = &result {
-            self.observe_boundary(cx, false, input, result);
-        }
-        result
-    }
-
     #[allow(clippy::mem_replace_option_with_some)] // packet §5.2 owned-frame form
-    fn visit_declaration_subtree_worker(
+    pub(crate) fn visit_declaration_subtree(
         &mut self,
         cx: &mut TransformationContext,
         input: TransformNode,

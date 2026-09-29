@@ -8,8 +8,8 @@ use base64::Engine;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use tsc_compiler::{
-    DriverError, EmitArtifact, EmitFailure, EmitIoError, EmitWriteDisposition, H2RuntimeSlice,
-    MemoryOutputSink, OutputSink, ProgramSession,
+    DriverError, EmitArtifact, EmitFailure, EmitIoError, EmitWriteDisposition, MemoryOutputSink,
+    OutputSink, ProgramSession,
 };
 use tsc_diagnostics::{Diagnostic, DiagnosticCategory, MessageChain};
 use tsc_harness::upstream_suites::execution::load_qualified_compiler_emit;
@@ -249,51 +249,6 @@ fn assert_reported_diagnostics(
     Ok(())
 }
 
-fn expected_activity_for_case(
-    case: &Value,
-    outcome: &tsc_compiler::EmitOutcome,
-) -> Result<(), Box<dyn Error>> {
-    let mut typescript_sources = 0_u64;
-    let mut javascript_sources = 0_u64;
-    let mut jsx_sources = 0_u64;
-    for file in array(case, "files")?
-        .iter()
-        .filter(|file| file["emit_eligible"] == true)
-    {
-        let file_name = string(file, "path")?.to_ascii_lowercase();
-        if file_name.ends_with(".js")
-            || file_name.ends_with(".mjs")
-            || file_name.ends_with(".cjs")
-            || file_name.ends_with(".jsx")
-        {
-            javascript_sources += 1;
-        } else {
-            typescript_sources += 1;
-        }
-        if file_name.ends_with(".tsx") || file_name.ends_with(".jsx") {
-            jsx_sources += 1;
-        }
-    }
-    let activity = outcome.h2_activity();
-    for slice in H2RuntimeSlice::ALL {
-        let expected = match slice {
-            H2RuntimeSlice::H2_1a => typescript_sources,
-            H2RuntimeSlice::H2_3a => javascript_sources,
-            H2RuntimeSlice::H2_3b => jsx_sources,
-            _ => 0,
-        };
-        if activity.runtime_slice(slice) != expected {
-            return Err(failure(format!(
-                "{}: {} activity expected {expected}, observed {}",
-                string(case, "case_id")?,
-                slice.name(),
-                activity.runtime_slice(slice),
-            )));
-        }
-    }
-    Ok(())
-}
-
 fn execute_exact_case(workspace: &Path, case: &Value) -> Result<(usize, usize), Box<dyn Error>> {
     let case_id = string(case, "case_id")?;
     let mut first_sink = MemoryOutputSink::new();
@@ -342,7 +297,6 @@ fn execute_exact_case(workspace: &Path, case: &Value) -> Result<(usize, usize), 
         )));
     }
     assert_exact_writes(case_id, array(expected, "writes")?, &first_sink)?;
-    expected_activity_for_case(case, &first)?;
     Ok((first_sink.writes().len(), first_reported.len()))
 }
 
@@ -451,31 +405,6 @@ fn owner_input(control: &Value) -> Result<PreparedProgram, Box<dyn Error>> {
         .map_err(|error| failure(format!("build owner program: {error}")))
 }
 
-fn expected_owner_activity(
-    control: &Value,
-    outcome: &tsc_compiler::EmitOutcome,
-) -> Result<(), Box<dyn Error>> {
-    let source = &array(&control["input"], "files")?[0];
-    let file_name = string(source, "path")?.to_ascii_lowercase();
-    let javascript = u64::from(file_name.ends_with(".jsx"));
-    for slice in H2RuntimeSlice::ALL {
-        let expected = match slice {
-            H2RuntimeSlice::H2_3a => javascript,
-            H2RuntimeSlice::H2_3b => 1,
-            _ => 0,
-        };
-        if outcome.h2_activity().runtime_slice(slice) != expected {
-            return Err(failure(format!(
-                "{}: {} owner activity expected {expected}, observed {}",
-                string(control, "control_id")?,
-                slice.name(),
-                outcome.h2_activity().runtime_slice(slice),
-            )));
-        }
-    }
-    Ok(())
-}
-
 fn execute_owner_control(control: &Value) -> Result<usize, Box<dyn Error>> {
     let id = string(control, "control_id")?;
     let mut first_sink = MemoryOutputSink::new();
@@ -504,7 +433,6 @@ fn execute_owner_control(control: &Value) -> Result<usize, Box<dyn Error>> {
         return Err(failure(format!("{id}: owner emit result differs")));
     }
     assert_exact_writes(id, array(expected, "writes")?, &first_sink)?;
-    expected_owner_activity(control, &first)?;
     Ok(first_sink.writes().len())
 }
 
