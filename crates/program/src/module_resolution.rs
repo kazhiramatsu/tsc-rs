@@ -6029,7 +6029,7 @@ fn parse_package_request<'p>(
     {
         return Err(ResolutionError::unsupported(
             "non-bare-module-specifier",
-            format!("the H0.2b exports resolver cannot resolve {specifier:?}"),
+            format!("the package exports resolver cannot resolve {specifier:?}"),
         ));
     }
     // parsePackageName splits only at ASCII slashes. A scoped name uses

@@ -20556,7 +20556,6 @@ fn raw_write_range(
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum PrinterError {
     Unsupported(UnsupportedEmitFeature),
-    OptionUnavailable(&'static str),
     Transform(TransformError),
     Position(SourcePositionError),
     SourceIsNotATransformedRoot(TransformSourceId),
@@ -20631,9 +20630,6 @@ impl fmt::Display for PrinterError {
             Self::Unsupported(feature) => {
                 write!(formatter, "unsupported printer request: {}", feature.name())
             }
-            Self::OptionUnavailable(option) => {
-                write!(formatter, "printer option {option} is not active in H1.2")
-            }
             Self::Transform(error) => error.fmt(formatter),
             Self::Position(error) => error.fmt(formatter),
             Self::SourceIsNotATransformedRoot(source) => write!(
@@ -20652,13 +20648,13 @@ impl fmt::Display for PrinterError {
             }
             Self::SyntheticNodeWorkerUnavailable(node) => write!(
                 formatter,
-                "synthetic node {}:{} requires the H1.3 node worker",
+                "synthetic node {}:{} cannot be printed on this path",
                 node.source().raw(),
                 node.node().0
             ),
             Self::TransformedNodeWorkerUnavailable(node) => write!(
                 formatter,
-                "transformed node {}:{} requires the H1.3 node worker",
+                "transformed node {}:{} cannot be printed on this path",
                 node.source().raw(),
                 node.node().0
             ),
