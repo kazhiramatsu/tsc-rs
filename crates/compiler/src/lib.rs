@@ -2469,13 +2469,17 @@ impl ProgramSession {
         self.run_no_emit_pass(true, LibraryPrefixCompletion::FixtureObservedOnly, false)
     }
 
+    /// `command_report` selects the --noEmit command's report: it adds the
+    /// declaration getter when the options request declarations and skips
+    /// the per-source aggregate that only the harnesses read
+    /// ([`NoEmitOutcome::conformance_diagnostics`]).
     pub(crate) fn run_no_emit_pass(
         self,
         harness_lib_cache: bool,
         library_prefix: LibraryPrefixCompletion,
-        declaration_getter: bool,
+        command_report: bool,
     ) -> Result<NoEmitOutcome, DriverError> {
-        self.run_inner(harness_lib_cache, library_prefix, declaration_getter)
+        self.run_inner(harness_lib_cache, library_prefix, command_report)
     }
 
     fn require_mode(&self, expected: PreparedProgramMode) -> Result<(), DriverError> {
@@ -2491,7 +2495,7 @@ impl ProgramSession {
         self,
         harness_lib_cache: bool,
         library_prefix: LibraryPrefixCompletion,
-        declaration_getter: bool,
+        command_report: bool,
     ) -> Result<NoEmitOutcome, DriverError> {
         let inputs = project_checker_inputs(&self.prepared, &self.source_api_facts)?;
         let has_roots = !self.prepared.roots().is_empty();
@@ -2502,7 +2506,7 @@ impl ProgramSession {
         // tsc emitFilesAndReportErrors (_tsc.js:129433-129440): the --noEmit
         // command's declaration getter, requested by `run_no_emit_command`
         // when the options ask for declarations.
-        let declaration_getter = declaration_getter
+        let declaration_getter = command_report
             && !harness_lib_cache
             && self.prepared.compiler_options().no_emit == Some(true)
             && get_emit_declarations(self.prepared.compiler_options());
@@ -2699,7 +2703,11 @@ impl ProgramSession {
         };
 
         let preparation = self.prepared.diagnostics();
-        let mut conformance_diagnostics = checked.diagnostics;
+        let mut conformance_diagnostics = if command_report {
+            Vec::new()
+        } else {
+            checked.diagnostics
+        };
         let config_diagnostics = preparation.config().to_vec();
         let mut syntactic_diagnostics = checked.syntactic_diagnostics;
         retain_source_diagnostic_paths(&self.prepared, &mut syntactic_diagnostics);
@@ -2733,24 +2741,27 @@ impl ProgramSession {
         // The conformance evidence stream is the aggregate of public
         // per-source getters. Source-owned program rows therefore join it,
         // while file-less/config-owned rows remain options diagnostics only.
-        conformance_diagnostics.extend(
-            preparation
-                .program()
-                .iter()
-                .chain(program_diagnostics.iter())
-                .filter(|diagnostic| {
-                    diagnostic
-                        .file_name
-                        .as_ref()
-                        .map(JsString::as_js)
-                        .is_some_and(|file_name| {
-                            prepared_source_owns_diagnostic(&self.prepared, file_name)
-                        })
-                })
-                .cloned(),
-        );
-        retain_source_diagnostic_paths(&self.prepared, &mut conformance_diagnostics);
-        sort_and_dedupe_diagnostics(&mut conformance_diagnostics);
+        // The command report never reads it.
+        if !command_report {
+            conformance_diagnostics.extend(
+                preparation
+                    .program()
+                    .iter()
+                    .chain(program_diagnostics.iter())
+                    .filter(|diagnostic| {
+                        diagnostic
+                            .file_name
+                            .as_ref()
+                            .map(JsString::as_js)
+                            .is_some_and(|file_name| {
+                                prepared_source_owns_diagnostic(&self.prepared, file_name)
+                            })
+                    })
+                    .cloned(),
+            );
+            retain_source_diagnostic_paths(&self.prepared, &mut conformance_diagnostics);
+            sort_and_dedupe_diagnostics(&mut conformance_diagnostics);
+        }
 
         let mut route_program_diagnostic = |diagnostic: &Diagnostic| {
             if diagnostic
@@ -2845,9 +2856,9 @@ pub struct NoEmitOutcome {
     /// ([`ProgramSession::run_no_emit_command`]): empty for `run()` and
     /// whenever the command's gate is closed.
     declaration_diagnostics: DiagnosticList,
-    // The legacy differential harness compares the aggregate of public
-    // per-file getters, including suggestions. This stream is retained only
-    // as evidence; diagnostics()/into_diagnostics intentionally exclude it.
+    // The differential conformance harness compares the aggregate of public
+    // per-file getters, including suggestions. diagnostics()/into_diagnostics
+    // exclude it, and the command report does not build it.
     conformance_diagnostics: DiagnosticList,
     // Operational evidence is not part of diagnostic-result equality. Tests
     // and qualification compare it explicitly through work_counters().
@@ -2962,7 +2973,9 @@ impl NoEmitOutcome {
     }
 
     /// Aggregate public-getter stream used only by differential conformance.
-    /// It includes suggestions and is therefore not CLI output.
+    /// It includes suggestions and is therefore not CLI output; the
+    /// --noEmit command's report ([`ProgramSession::run_no_emit_command`])
+    /// leaves it empty.
     pub fn conformance_diagnostics(&self) -> &[Diagnostic] {
         &self.conformance_diagnostics
     }
