@@ -55,7 +55,7 @@ fn mapped_type_model_constructibility() {
             ));
             assert_eq!(
                 state
-                    .type_to_string_slice(mapped)
+                    .type_to_string(mapped)
                     .expect("every constructible mapped type renders"),
                 "{ [K in keyof T]: T[K]; }"
             );
@@ -63,7 +63,7 @@ fn mapped_type_model_constructibility() {
             let (_, optional) = annotation_type(state, "w");
             assert_eq!(
                 state
-                    .type_to_string_slice(optional)
+                    .type_to_string(optional)
                     .expect("mapped modifiers render"),
                 "{ readonly [P in keyof T]?: P | undefined; }"
             );
@@ -71,7 +71,7 @@ fn mapped_type_model_constructibility() {
             let (_, remapped) = annotation_type(state, "x");
             assert_eq!(
                 state
-                    .type_to_string_slice(remapped)
+                    .type_to_string(remapped)
                     .expect("mapped key remap and subtractive modifiers render"),
                 "{ -readonly [Q in keyof T as `x${Q & string}`]-?: T[Q]; }"
             );
@@ -100,7 +100,7 @@ fn keyof_generic_remapped_type_stays_deferred() {
                 .intersects(ObjectFlags::MAPPED));
             assert_eq!(
                 state
-                    .type_to_string_slice(keys)
+                    .type_to_string(keys)
                     .expect("deferred mapped keyof renders"),
                 "keyof { [P in K as `_${P}`]: P; }"
             );

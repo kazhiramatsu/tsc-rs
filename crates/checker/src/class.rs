@@ -196,10 +196,10 @@ impl<'a> CheckerState<'a> {
             };
             if let Some(error_node) = error_node {
                 if !self.is_type_assignable_to(prop_type, info.value_type)? {
-                    let prop_display = self.symbol_name_as_written_slice(prop);
-                    let prop_type_display = self.type_to_string_slice(prop_type)?;
-                    let key_display = self.type_to_string_slice(info.key_type)?;
-                    let value_display = self.type_to_string_slice(info.value_type)?;
+                    let prop_display = self.symbol_name_as_written(prop);
+                    let prop_type_display = self.type_to_string(prop_type)?;
+                    let key_display = self.type_to_string(info.key_type)?;
+                    let value_display = self.type_to_string(info.value_type)?;
                     let related = prop_declaration
                         .filter(|&prop_declaration| error_node != prop_declaration)
                         .map(|prop_declaration| {
@@ -299,10 +299,10 @@ impl<'a> CheckerState<'a> {
             };
             if let Some(error_node) = error_node {
                 if !self.is_type_assignable_to(check_info.value_type, info.value_type)? {
-                    let check_key_display = self.type_to_string_slice(check_info.key_type)?;
-                    let check_value_display = self.type_to_string_slice(check_info.value_type)?;
-                    let key_display = self.type_to_string_slice(info.key_type)?;
-                    let value_display = self.type_to_string_slice(info.value_type)?;
+                    let check_key_display = self.type_to_string(check_info.key_type)?;
+                    let check_value_display = self.type_to_string(check_info.value_type)?;
+                    let key_display = self.type_to_string(info.key_type)?;
+                    let value_display = self.type_to_string(info.value_type)?;
                     self.error_at_js(
                         Some(error_node),
                         &diagnostics::_0_index_type_1_is_not_assignable_to_2_index_type_3,
@@ -369,7 +369,7 @@ impl<'a> CheckerState<'a> {
         }
         for (_, (entry_type, entry_declarations)) in map {
             if entry_declarations.len() > 1 {
-                let display = self.type_to_string_slice(entry_type)?;
+                let display = self.type_to_string(entry_type)?;
                 for declaration in entry_declarations {
                     self.error_at_js(
                         Some(declaration),
@@ -734,7 +734,7 @@ impl<'a> CheckerState<'a> {
         self.check_type_parameters(&type_parameter_nodes)?;
         self.check_exports_on_merged_declarations(node)?;
         let symbol = self.get_symbol_of_declaration(node)?;
-        let ty = self.get_declared_type_of_symbol_slice(symbol)?;
+        let ty = self.get_declared_type_of_symbol(symbol)?;
         let type_with_this = self.get_type_with_this_argument(ty, None, false)?;
         let static_type = self.get_type_of_symbol(symbol)?;
         self.check_type_parameter_lists_identical(symbol)?;
@@ -1244,7 +1244,7 @@ impl<'a> CheckerState<'a> {
         if declarations.len() <= 1 {
             return Ok(());
         }
-        let ty = self.get_declared_type_of_symbol_slice(symbol)?;
+        let ty = self.get_declared_type_of_symbol(symbol)?;
         let local_type_parameters: Vec<TypeId> = match &self.tables.type_of(ty).data {
             tsc_types::TypeData::GenericType {
                 type_parameters,
@@ -1534,7 +1534,7 @@ impl<'a> CheckerState<'a> {
             };
             if conflicts {
                 let symbol = self.get_symbol_of_declaration(node)?;
-                let class_name = self.symbol_name_as_written_slice(symbol);
+                let class_name = self.symbol_name_as_written(symbol);
                 let display_name = member_name.unescape();
                 self.error_at_js(
                     Some(member_name_node),
@@ -1815,7 +1815,7 @@ impl<'a> CheckerState<'a> {
                 let escaped_name = self.binder.symbol(member).escaped_name.clone();
                 let prop = self.get_property_of_type_full(this_type, &escaped_name)?;
                 let base_prop = self.get_property_of_type_full(base_type, &escaped_name)?;
-                let base_class_name = self.type_to_string_slice(base_with_this)?;
+                let base_class_name = self.type_to_string(base_with_this)?;
                 if prop.is_some() && base_prop.is_none() {
                     if member_has_override_modifier {
                         let member_name = self.symbol_display_name(member);
@@ -1899,7 +1899,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
         } else if member_has_override_modifier {
-            let class_name = self.type_to_string_slice(ty)?;
+            let class_name = self.type_to_string(ty)?;
             let message = if is_js {
                 &diagnostics::This_member_cannot_have_a_JSDoc_comment_with_an_override_tag_because_its_containing_class_0_does_not_extend_another_class
             } else {
@@ -1952,9 +1952,9 @@ impl<'a> CheckerState<'a> {
                 let base_prop_type = self.get_type_of_symbol(base_prop)?;
                 if !self.is_type_assignable_to(prop_type, base_prop_type)? {
                     let error_node = self.name_of_node(member).or(Some(member));
-                    let prop_name = self.symbol_name_as_written_slice(declared_prop);
-                    let type_text = self.type_to_string_slice(type_with_this)?;
-                    let base_text = self.type_to_string_slice(base_with_this)?;
+                    let prop_name = self.symbol_name_as_written(declared_prop);
+                    let type_text = self.type_to_string(type_with_this)?;
+                    let base_text = self.type_to_string(base_with_this)?;
                     let root = tsc_diagnostics::MessageChain::new_js_parts(
                         &diagnostics::Property_0_in_type_1_is_not_assignable_to_the_same_property_in_base_type_2,
                         &[prop_name.as_js(), (&type_text).into(), (&base_text).into()],
@@ -2026,7 +2026,7 @@ impl<'a> CheckerState<'a> {
         let type_class_declaration = self.get_class_like_declaration_of_symbol(type_symbol);
         let within = self.is_node_within_class(node, type_class_declaration);
         if !within {
-            let name = self.fully_qualified_name_slice(type_symbol)?;
+            let name = self.fully_qualified_name(type_symbol)?;
             self.error_at_js(
                 Some(node),
                 &diagnostics::Cannot_extend_a_class_0_Class_constructor_is_marked_as_private,
@@ -2044,7 +2044,7 @@ impl<'a> CheckerState<'a> {
     /// parent-chain face, including external source-file roots. Keep
     /// this diagnostic consumer on that implementation rather than a
     /// second parentless-only display slice.
-    fn fully_qualified_name_slice(&self, symbol: SymbolId) -> CheckResult<tsc_types::JsString> {
+    fn fully_qualified_name(&self, symbol: SymbolId) -> CheckResult<tsc_types::JsString> {
         Ok(self.get_fully_qualified_name(symbol))
     }
 
@@ -2125,8 +2125,8 @@ impl<'a> CheckerState<'a> {
                             continue 'base_property_check;
                         }
                     }
-                    let base_type_name = self.type_to_string_slice(base_type)?;
-                    let type_name = self.type_to_string_slice(ty)?;
+                    let base_type_name = self.type_to_string(base_type)?;
+                    let type_name = self.type_to_string(ty)?;
                     let base_property_name = self.symbol_display_name(base_property);
                     match not_implemented_info
                         .iter_mut()
@@ -2205,8 +2205,8 @@ impl<'a> CheckerState<'a> {
                                 &diagnostics::_0_is_defined_as_a_property_in_class_1_but_is_overridden_here_in_2_as_an_accessor
                             };
                         let base_name = self.symbol_display_name(base);
-                        let base_type_text = self.type_to_string_slice(base_type)?;
-                        let type_text = self.type_to_string_slice(ty)?;
+                        let base_type_text = self.type_to_string(base_type)?;
+                        let type_text = self.type_to_string(ty)?;
                         let error_node = self.derived_error_node(derived);
                         self.error_at_js(
                             error_node,
@@ -2279,7 +2279,7 @@ impl<'a> CheckerState<'a> {
                                 }
                                 if report {
                                     let base_name = self.symbol_display_name(base);
-                                    let base_type_text = self.type_to_string_slice(base_type)?;
+                                    let base_type_text = self.type_to_string(base_type)?;
                                     let error_node = self.derived_error_node(derived);
                                     self.error_at_js(
                                         error_node,
@@ -2310,9 +2310,9 @@ impl<'a> CheckerState<'a> {
                 } else {
                     &diagnostics::Class_0_defines_instance_member_property_1_but_extended_class_2_defines_it_as_instance_member_function
                 };
-                let base_type_text = self.type_to_string_slice(base_type)?;
+                let base_type_text = self.type_to_string(base_type)?;
                 let base_name = self.symbol_display_name(base);
-                let type_text = self.type_to_string_slice(ty)?;
+                let type_text = self.type_to_string(ty)?;
                 let error_node = self.derived_error_node(derived);
                 self.error_at_js(
                     error_node,
@@ -2462,16 +2462,15 @@ impl<'a> CheckerState<'a> {
                             let existing_containing_type = existing.containing_type;
                             if !self.is_property_identical_to(existing_prop, prop)? {
                                 ok = false;
-                                let type_name1 =
-                                    self.type_to_string_slice(existing_containing_type)?;
-                                let type_name2 = self.type_to_string_slice(base)?;
+                                let type_name1 = self.type_to_string(existing_containing_type)?;
+                                let type_name2 = self.type_to_string(base)?;
                                 // checkInheritedPropertiesAreIdentical
                                 // 85466: the 2319 detail uses the
                                 // default symbolToString face, so
                                 // quoted/numeric and late-computed
                                 // names keep their written spelling.
-                                let prop_name = self.symbol_name_as_written_slice(prop);
-                                let type_display = self.type_to_string_slice(ty)?;
+                                let prop_name = self.symbol_name_as_written(prop);
+                                let type_display = self.type_to_string(ty)?;
                                 let mut diagnostic = self.create_error_js(
                                     Some(type_node),
                                     &diagnostics::Interface_0_cannot_simultaneously_extend_types_1_and_2,

@@ -40,7 +40,7 @@ fn no_infer_type_production() {
                 .expect("object NoInfer constructs");
             assert!(state.tables.is_no_infer_type(object));
             assert_eq!(
-                state.type_to_string_slice(object).expect("NoInfer display"),
+                state.type_to_string(object).expect("NoInfer display"),
                 "NoInfer<{ x: string; }>"
             );
 

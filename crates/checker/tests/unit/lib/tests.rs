@@ -6730,7 +6730,7 @@ interface Wrap<out T> { xs: T[] }
 #[test]
 fn lib_types_render_in_constraint_failure_args() {
     // Named object types print their symbol name in the 2344 args
-    // (type_to_string_slice's named-object arm; oracle-pinned).
+    // (type_to_string's named-object arm; oracle-pinned).
     let diags = lib_backed_diags("interface Foo<T extends number> { x: T }\ntype X = Foo<Date>;\n");
     assert_eq!(
         diags,

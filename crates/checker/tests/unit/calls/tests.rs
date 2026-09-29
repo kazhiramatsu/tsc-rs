@@ -318,7 +318,7 @@ fn binding_pattern_return_mapper_contextualizes_later_empty_array_argument() {
                 .expect("mapped return type");
             assert_eq!(
                 state
-                    .type_to_string_slice(mapped_return)
+                    .type_to_string(mapped_return)
                     .expect("mapped return renders"),
                 "[any]"
             );
@@ -379,7 +379,7 @@ fn rejected_reduce_overloads_keep_tsc_contextual_state_and_failure_return_type()
                 .expect("return type");
             assert_eq!(
                 state
-                    .type_to_string_slice(return_type)
+                    .type_to_string(return_type)
                     .expect("return type renders"),
                 "number"
             );

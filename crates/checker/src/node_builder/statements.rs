@@ -598,7 +598,7 @@ fn symbol_to_declarations_worker(
     context: &mut NodeBuilderContext<'_>,
 ) -> BuildResult<Vec<TransformNode>> {
     let r#type = checker
-        .get_declared_type_of_symbol_slice(symbol)
+        .get_declared_type_of_symbol(symbol)
         .map_err(|abort| checker_abort_error(checker, context, abort))?;
     context.type_stack.push(Some(r#type));
     context.type_stack.push(None);
@@ -5519,7 +5519,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         ) {
             let restore = save_restore_flags(self.context);
             self.context.flags.0 |= IN_INITIAL_ENTITY_NAME;
-            let candidate = self.checker.entity_symbol_name_as_written_slice(
+            let candidate = self.checker.entity_symbol_name_as_written(
                 symbol,
                 true,
                 true,

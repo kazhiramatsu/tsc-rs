@@ -22,7 +22,7 @@ use tsc_types::{
     TypeFlags, TypeId,
 };
 
-use crate::check::can_use_property_access_slice;
+use crate::check::can_use_property_access;
 use crate::modules::ModuleResolutionMode;
 use crate::state::{CheckAbort, CheckerState, PackageJsonModuleType};
 
@@ -785,7 +785,7 @@ pub(super) fn track_symbol_in_context_at(
     Ok(())
 }
 
-/// Decision reuse: `CheckerState::symbol_chain_slice` is the already-exact
+/// Decision reuse: `CheckerState::symbol_chain` is the already-exact
 /// Rust owner of the nested `getSymbolChain` and `sortByBestName` decisions.
 /// This emit-channel wrapper preserves upstream's TypeParameter/context/
 /// DoNotIncludeSymbolChain front gate and never consumes its string result.
@@ -891,7 +891,7 @@ pub(super) fn lookup_symbol_chain_worker(
 /// tsc-hash: 5254873e77fc56b5bacdcd29064b22dbc40c38236f549a6c0af509851523b662
 /// tsc-span: _tsc.js:53001-53015
 ///
-/// `CheckerState::symbol_chain_slice` keeps getContainersOfSymbol's
+/// `CheckerState::symbol_chain` keeps getContainersOfSymbol's
 /// no-enclosing view (no reexportContainers) and ranks module parents by a
 /// host-rooted separator count because its display callers have no
 /// module-specifier host. The declaration emitter does: this channel appends
@@ -910,7 +910,7 @@ fn symbol_chain_with_reexport_containers(
 ) -> BuildResult<Option<Vec<SymbolId>>> {
     let enclosing = context.enclosing_declaration;
     let mut accessible = checker
-        .accessible_symbol_chain_at_slice(symbol, meaning, enclosing)
+        .accessible_symbol_chain_at(symbol, meaning, enclosing)
         .map_err(|abort| checker_abort_error(checker, context, abort))?;
     let needs_walk = match &accessible {
         None => true,
@@ -921,14 +921,14 @@ fn symbol_chain_with_reexport_containers(
                 CheckerState::qualified_left_meaning(meaning)
             };
             checker
-                .needs_qualification_slice(chain[0], link_meaning, enclosing)
+                .needs_qualification(chain[0], link_meaning, enclosing)
                 .map_err(|abort| checker_abort_error(checker, context, abort))?
         }
     };
     if needs_walk {
         let walk_from = accessible.as_ref().map_or(symbol, |chain| chain[0]);
         let mut parents = checker
-            .containers_of_symbol_slice(walk_from, enclosing, meaning)
+            .containers_of_symbol(walk_from, enclosing, meaning)
             .map_err(|abort| checker_abort_error(checker, context, abort))?;
         // getWithAlternativeContainers appends reexportContainers after the
         // ordinary container(s) (_tsc.js:50035, 50046); a symbol without any
@@ -1004,7 +1004,7 @@ fn symbol_chain_with_reexport_containers(
                     .copied();
                 if let Some(export_equals) = export_equals {
                     if checker
-                        .symbol_if_same_reference_slice(export_equals, symbol)
+                        .symbol_if_same_reference(export_equals, symbol)
                         .map_err(|abort| checker_abort_error(checker, context, abort))?
                     {
                         accessible = Some(parent_chain);
@@ -1018,7 +1018,7 @@ fn symbol_chain_with_reexport_containers(
                     Some(tail) => chain.extend(tail),
                     None => {
                         let alias = checker
-                            .alias_for_symbol_in_container_slice(parent, symbol)
+                            .alias_for_symbol_in_container(parent, symbol)
                             .map_err(|abort| checker_abort_error(checker, context, abort))?;
                         chain.push(alias.unwrap_or(symbol));
                     }
@@ -1289,7 +1289,7 @@ fn class_or_interface_type_parameters(
     context: &NodeBuilderContext<'_>,
 ) -> BuildResult<Vec<TypeId>> {
     let declared = checker
-        .get_declared_type_of_symbol_slice(symbol)
+        .get_declared_type_of_symbol(symbol)
         .map_err(|abort| checker_abort_error(checker, context, abort))?;
     Ok(match &checker.tables.type_of(declared).data {
         TypeData::GenericType {
@@ -1817,7 +1817,7 @@ fn create_access_from_symbol_chain(
     let parent = index.checked_sub(1).map(|index| chain[index]);
     let mut symbol_name = if index == 0 {
         context.flags.0 |= IN_INITIAL_ENTITY_NAME;
-        let name = checker.entity_symbol_name_as_written_slice(
+        let name = checker.entity_symbol_name_as_written(
             symbol,
             true,
             has_flag(context, USE_ALIAS_DEFINED_OUTSIDE_CURRENT_SCOPE),
@@ -1874,7 +1874,7 @@ fn create_access_from_symbol_chain(
             }
             return Ok(lhs);
         }
-        symbol_name = Some(checker.entity_symbol_name_as_written_slice(
+        symbol_name = Some(checker.entity_symbol_name_as_written(
             symbol,
             false,
             has_flag(context, USE_ALIAS_DEFINED_OUTSIDE_CURRENT_SCOPE),
@@ -2360,7 +2360,7 @@ fn create_entity_name_from_symbol_chain(
     if index == 0 {
         context.flags.0 |= IN_INITIAL_ENTITY_NAME;
     }
-    let name = checker.entity_symbol_name_as_written_slice(
+    let name = checker.entity_symbol_name_as_written(
         symbol,
         index == 0,
         has_flag(context, USE_ALIAS_DEFINED_OUTSIDE_CURRENT_SCOPE),
@@ -2387,7 +2387,7 @@ fn create_entity_name_from_symbol_chain(
 }
 
 fn strip_symbol_name_quotes<'n>(name: impl Into<JsStr<'n>>) -> JsString {
-    crate::check::strip_symbol_name_quotes_slice(name)
+    crate::check::strip_symbol_name_quotes_display(name)
 }
 
 fn first_utf16<'t>(text: impl Into<JsStr<'t>>) -> Option<u16> {
@@ -2434,7 +2434,7 @@ fn create_expression_from_symbol_chain(
     if index == 0 {
         context.flags.0 |= IN_INITIAL_ENTITY_NAME;
     }
-    let mut name = checker.entity_symbol_name_as_written_slice(
+    let mut name = checker.entity_symbol_name_as_written(
         symbol,
         index == 0,
         has_flag(context, USE_ALIAS_DEFINED_OUTSIDE_CURRENT_SCOPE),
@@ -2451,7 +2451,7 @@ fn create_expression_from_symbol_chain(
         add_approximate_length(context, js_len(&specifier) + 2);
         return create_string_literal(arena, target, &specifier, false);
     }
-    if index == 0 || can_use_property_access_slice(&name, checker.options.emit_script_target()) {
+    if index == 0 || can_use_property_access(&name, checker.options.emit_script_target()) {
         let identifier = create_output_identifier(arena, target, &name)?;
         let identifier = set_no_ascii_escaping(arena, identifier);
         add_approximate_length(context, js_len(&name) + 1);
@@ -2834,7 +2834,7 @@ pub(crate) fn existing_type_node_is_not_reference_or_is_reference_with_compatibl
         return Ok(true);
     };
     let existing_target = checker
-        .get_declared_type_of_symbol_slice(symbol)
+        .get_declared_type_of_symbol(symbol)
         .map_err(|abort| checker_abort_error(checker, context, abort))?;
     let target = checker.tables.reference_target(r#type);
     if existing_target != target {

@@ -891,8 +891,8 @@ impl<'a> CheckerState<'a> {
             // report-only CheckAbort may elide only the relation
             // detail; it must not suppress the accepted 2786 row.
             Ok(None) | Err(_) => {
-                let source_text = self.type_to_string_slice(source)?;
-                let target_text = self.type_to_string_slice(target)?;
+                let source_text = self.type_to_string(source)?;
+                let target_text = self.type_to_string(target)?;
                 let chain = containing.with_next(vec![MessageChain::new_js(
                     head,
                     &[(source_text), (target_text)],
@@ -1077,7 +1077,7 @@ impl<'a> CheckerState<'a> {
         let Some(symbol) = self.jsx_namespace_export(namespace, name, SymbolFlags::TYPE)? else {
             return Ok(self.tables.intrinsics.error);
         };
-        self.get_declared_type_of_symbol_slice(symbol)
+        self.get_declared_type_of_symbol(symbol)
     }
 
     /// tsc-port: reportErrorResults.jsxIntrinsicIntersectionGuard @6.0.3
@@ -1373,7 +1373,7 @@ impl<'a> CheckerState<'a> {
             None => None,
         };
         let return_type = match type_symbol {
-            Some(type_symbol) => self.get_declared_type_of_symbol_slice(type_symbol)?,
+            Some(type_symbol) => self.get_declared_type_of_symbol(type_symbol)?,
             None => self.tables.intrinsics.error,
         };
         let props = self.binder.create_symbol(
@@ -1880,7 +1880,7 @@ impl<'a> CheckerState<'a> {
         in_js: bool,
         type_arguments: &[TypeId],
     ) -> CheckResult<Option<TypeId>> {
-        let declared_managed_type = self.get_declared_type_of_symbol_slice(managed_sym)?;
+        let declared_managed_type = self.get_declared_type_of_symbol(managed_sym)?;
         if self
             .symbol_flags(managed_sym)
             .intersects(SymbolFlags::TYPE_ALIAS)
@@ -1964,7 +1964,7 @@ impl<'a> CheckerState<'a> {
         let Some(container_sym) = container_sym else {
             return Ok(None);
         };
-        let container_type = self.get_declared_type_of_symbol_slice(container_sym)?;
+        let container_type = self.get_declared_type_of_symbol(container_sym)?;
         let properties = self.get_properties_of_type(container_type)?;
         if properties.is_empty() {
             return Ok(Some(EscapedName::from_identifier_escaped_text("")));

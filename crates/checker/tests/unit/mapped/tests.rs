@@ -74,7 +74,7 @@ fn finite_mapped_members_remap_duplicate_keys_and_instantiate_values() {
             let a = property(state, finite, "a");
             assert!(state.symbol_flags(a).intersects(SymbolFlags::OPTIONAL));
             let a_type = state.get_type_of_symbol(a).expect("mapped value types");
-            let a_text = state.type_to_string_slice(a_type).expect("value renders");
+            let a_text = state.type_to_string(a_type).expect("value renders");
             assert!(a_text.contains("\"a\""), "{a_text:?}");
             assert!(a_text.contains("undefined"), "{a_text:?}");
 
@@ -89,10 +89,7 @@ fn finite_mapped_members_remap_duplicate_keys_and_instantiate_values() {
             let xa = property(state, remapped, "xa");
             assert!(!state.symbol_flags(xa).intersects(SymbolFlags::OPTIONAL));
             let xa_type = state.get_type_of_symbol(xa).expect("xa type");
-            assert_eq!(
-                state.type_to_string_slice(xa_type).expect("xa renders"),
-                "\"a\""
-            );
+            assert_eq!(state.type_to_string(xa_type).expect("xa renders"), "\"a\"");
 
             let duplicate = annotation_type(state, "duplicate");
             let x = property(state, duplicate, "x");
@@ -137,7 +134,7 @@ fn mapped_members_copy_modifiers_create_index_info_and_report_keyof() {
             let keys = state
                 .get_index_type(remapped, IndexFlags::NONE)
                 .expect("keyof remapped mapped type");
-            let key_text = state.type_to_string_slice(keys).expect("key union renders");
+            let key_text = state.type_to_string(keys).expect("key union renders");
             assert!(key_text.contains("\"xa\""), "{key_text:?}");
             assert!(key_text.contains("\"xb\""), "{key_text:?}");
         },
@@ -173,9 +170,7 @@ fn homomorphic_mapped_instantiation_preserves_array_and_tuple_shapes() {
             assert_eq!(tuple_arguments[0], state.tables.intrinsics.number);
 
             let mutable = annotation_type(state, "mutable");
-            let mutable_text = state
-                .type_to_string_slice(mutable)
-                .expect("mutable renders");
+            let mutable_text = state.type_to_string(mutable).expect("mutable renders");
             assert!(
                 state.is_array_type(mutable).expect("array predicate"),
                 "{mutable_text:?}: {:?}",
@@ -222,9 +217,7 @@ fn apparent_homomorphic_mapped_type_uses_array_base_constraint() {
             let apparent = state
                 .get_apparent_type(mapped)
                 .expect("mapped apparent type resolves");
-            let apparent_text = state
-                .type_to_string_slice(apparent)
-                .expect("apparent renders");
+            let apparent_text = state.type_to_string(apparent).expect("apparent renders");
             assert!(
                 state
                     .is_readonly_array_type(apparent)
@@ -271,7 +264,7 @@ fn generic_indexed_mapped_substitution_preserves_template_and_optionality() {
                 .expect("mapped template substitutes");
             assert_eq!(
                 state
-                    .type_to_string_slice(substituted)
+                    .type_to_string(substituted)
                     .expect("substitution renders"),
                 "K"
             );
@@ -295,7 +288,7 @@ fn generic_indexed_mapped_substitution_preserves_template_and_optionality() {
                 .substitute_indexed_mapped_type(object_type, index_type)
                 .expect("optional mapped template substitutes");
             let rendered = state
-                .type_to_string_slice(substituted)
+                .type_to_string(substituted)
                 .expect("optional substitution renders");
             assert!(rendered.contains("K"), "{rendered:?}");
             assert!(rendered.contains("undefined"), "{rendered:?}");

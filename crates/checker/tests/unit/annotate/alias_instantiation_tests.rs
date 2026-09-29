@@ -61,7 +61,7 @@ fn generic_tuple_normalization_simplifies_variadic_indexed_access_elements() {
                 .resolve_file_scope_name("G", tsc_types::SymbolFlags::TYPE_ALIAS)
                 .expect("G resolves");
             let declared = state
-                .get_declared_type_of_symbol_slice(symbol)
+                .get_declared_type_of_symbol(symbol)
                 .expect("G's generic tuple resolves");
             assert!(state.tables.is_generic_tuple_type(declared));
 

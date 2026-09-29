@@ -552,7 +552,7 @@ impl<'a> CheckerState<'a> {
                     });
                     if let Some(value_declaration) = value_declaration {
                         let widened = self.get_widened_type(t)?;
-                        let type_string = self.type_to_string_slice(widened)?;
+                        let type_string = self.type_to_string(widened)?;
                         let symbol_string = self.symbol_display_name(p);
                         self.error_at_js(
                             Some(value_declaration),
@@ -584,7 +584,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<()> {
         use tsc_types::WideningKind;
         let widened = self.get_widened_type(ty)?;
-        let type_as_string = self.type_to_string_slice(widened)?;
+        let type_as_string = self.type_to_string(widened)?;
         if self.is_in_js_file(declaration) && !self.is_check_js_enabled_for_node(declaration) {
             return Ok(());
         }

@@ -59,7 +59,7 @@ fn property_name_nodes_retain_raw_symbol_and_name_type_values() {
                             .links
                             .set_symbol_name_type(0, symbol, Some(name_type));
                     }
-                    let written = checker.entity_symbol_name_as_written_slice(
+                    let written = checker.entity_symbol_name_as_written(
                         symbol,
                         true,
                         true,

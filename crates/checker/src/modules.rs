@@ -756,7 +756,7 @@ impl<'a> CheckerState<'a> {
                 Kind::Unknown
             });
         };
-        let ty = self.get_declared_type_of_symbol_slice(type_symbol)?;
+        let ty = self.get_declared_type_of_symbol(type_symbol)?;
         if self.tables.is_error_type(ty) {
             return Ok(if is_type_only {
                 Kind::ObjectType
@@ -2924,7 +2924,7 @@ impl<'a> CheckerState<'a> {
         if let Some(NodeData::StringLiteral(data)) =
             specifier.map(|specifier| self.data_of(specifier))
         {
-            return crate::check::string_literal_name_slice(&data.text, false).map(JsString::from);
+            return crate::check::string_literal_name(&data.text, false).map(JsString::from);
         }
         Ok(self.get_fully_qualified_name(module_symbol))
     }

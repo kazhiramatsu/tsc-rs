@@ -441,7 +441,7 @@ fn resolved_conditional_and_unresolved_name_shapes_are_sound() {
                 .expect("resolved conditional");
             assert_eq!(
                 state
-                    .type_to_string_slice(conditional)
+                    .type_to_string(conditional)
                     .expect("resolved conditional display"),
                 "2"
             );
@@ -466,9 +466,7 @@ fn resolved_conditional_and_unresolved_name_shapes_are_sound() {
                 .intersects(CheckFlags::UNRESOLVED));
             assert_eq!(state.symbol_display_name(alias), "Missing");
             assert_eq!(
-                state
-                    .type_to_string_slice(ty)
-                    .expect("unresolved alias display"),
+                state.type_to_string(ty).expect("unresolved alias display"),
                 "Missing"
             );
             assert_eq!(state.suggestion_count, suggestion_count + 1);
@@ -503,7 +501,7 @@ fn resolved_conditional_and_unresolved_name_shapes_are_sound() {
             );
             assert_eq!(
                 state
-                    .type_to_string_slice(d)
+                    .type_to_string(d)
                     .expect("qualified unresolved alias display"),
                 "Missing.Scope<string>"
             );

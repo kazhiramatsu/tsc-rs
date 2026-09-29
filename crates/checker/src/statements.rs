@@ -553,8 +553,8 @@ impl<'a> CheckerState<'a> {
             Some(name) => self.declaration_name_display(name),
             None => "(Missing)".to_owned(),
         };
-        let first_text = self.type_to_string_slice(first_type)?;
-        let next_text = self.type_to_string_slice(next_type)?;
+        let first_text = self.type_to_string(first_type)?;
+        let next_text = self.type_to_string(next_type)?;
         let related = first_declaration
             .map(|declaration| {
                 self.related_info_for_node(
@@ -2223,7 +2223,7 @@ impl<'a> CheckerState<'a> {
                     /*strict*/ false,
                 )?)
         {
-            let display = self.type_to_string_slice(right_type)?;
+            let display = self.type_to_string(right_type)?;
             self.error_at_js(
                 expression,
                 &diagnostics::The_right_hand_side_of_a_for_in_statement_must_be_of_type_any_an_object_type_or_a_type_parameter_but_here_has_type_0,

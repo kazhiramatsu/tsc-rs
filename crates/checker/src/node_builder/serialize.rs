@@ -348,7 +348,7 @@ fn recover_suppressed_type_reference(
     };
     let alias = checker.get_resolved_symbol(type_name).ok()??;
     let target = recover_suppressed_import_target(checker, alias)?;
-    checker.get_declared_type_of_symbol_slice(target).ok()
+    checker.get_declared_type_of_symbol(target).ok()
 }
 
 /// Recover the declaration type that upstream obtains through its ordinary

@@ -1338,8 +1338,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 RelationComparisonResult::FAILED.bits() | overflow_bits.bits(),
             ),
         );
-        let source_text = self.st.type_to_string_slice(source)?;
-        let target_text = self.st.type_to_string_slice(target)?;
+        let source_text = self.st.type_to_string(source)?;
+        let target_text = self.st.type_to_string(target)?;
         Ok(Some(RelationErrorOutput {
             message: MessageChain::new_js(message, &[source_text, target_text]),
             related: Vec::new(),
@@ -1710,10 +1710,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         };
         let source_text = self
             .st
-            .type_to_string_slice_with_error_enclosing(display_source)?;
+            .type_to_string_with_error_enclosing(display_source)?;
         let target_text = self
             .st
-            .type_to_string_slice_with_error_enclosing(display_target)?;
+            .type_to_string_with_error_enclosing(display_target)?;
 
         let mut callable_face = false;
         for kind in [
@@ -1752,7 +1752,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 source_member,
                 target_enum,
             } => {
-                let target_type = self.st.get_declared_type_of_symbol_slice(target_enum)?;
+                let target_type = self.st.get_declared_type_of_symbol(target_enum)?;
                 let target_text = self.st.get_type_name_for_error_display(target_type)?;
                 self.report_error_js(
                     &diagnostics::Property_0_is_missing_in_type_1,
@@ -2076,8 +2076,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         if !self.error_state.incompatible_stack.is_empty() {
             self.report_incompatible_stack()?;
         }
-        let mut source_text = self.st.type_to_string_slice_with_error_enclosing(source)?;
-        let mut target_text = self.st.type_to_string_slice_with_error_enclosing(target)?;
+        let mut source_text = self.st.type_to_string_with_error_enclosing(source)?;
+        let mut target_text = self.st.type_to_string_with_error_enclosing(target)?;
         if source_text == target_text {
             source_text = self.st.get_type_name_for_error_display(source)?;
             target_text = self.st.get_type_name_for_error_display(target)?;
@@ -2124,7 +2124,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 false
             };
             if assignable_to_constraint {
-                let constraint_text = self.st.type_to_string_slice_with_error_enclosing(
+                let constraint_text = self.st.type_to_string_with_error_enclosing(
                     constraint.expect("successful constraint relation has a constraint"),
                 )?;
                 self.report_error_js(
@@ -2165,7 +2165,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         .st
                         .get_suggested_type_for_nonexistent_string_literal_type(source, target)
                     {
-                        let suggested_text = self.st.type_to_string_slice(suggested_type)?;
+                        let suggested_text = self.st.type_to_string(suggested_type)?;
                         self.report_error_js(
                             &diagnostics::Type_0_is_not_assignable_to_type_1_Did_you_mean_2,
                             vec![(generalized_source_text), (target_text), (suggested_text)],
@@ -2191,8 +2191,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         source: TypeId,
         target: TypeId,
     ) -> CheckResult<()> {
-        let source_text = self.st.type_to_string_slice_with_error_enclosing(source)?;
-        let target_text = self.st.type_to_string_slice_with_error_enclosing(target)?;
+        let source_text = self.st.type_to_string_with_error_enclosing(source)?;
+        let target_text = self.st.type_to_string_with_error_enclosing(target)?;
         let string_type = self.st.tables.intrinsics.string;
         let number_type = self.st.tables.intrinsics.number;
         let boolean_type = self.st.tables.intrinsics.boolean;
@@ -2353,7 +2353,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             return Ok(());
         }
 
-        let target_text = self.st.type_to_string_slice_at(target, declaration)?;
+        let target_text = self.st.type_to_string_at(target, declaration)?;
         let related = self.st.related_info_for_node_js(
             declaration,
             &diagnostics::This_type_parameter_might_need_an_extends_0_constraint,
@@ -2497,7 +2497,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         IntersectionState::NONE,
                     )?) {
                         if report_errors {
-                            let name = self.st.symbol_name_as_written_slice(prop);
+                            let name = self.st.symbol_name_as_written(prop);
                             self.report_incompatible_error_js(
                                 &diagnostics::Types_of_property_0_are_incompatible,
                                 vec![name],
@@ -2664,7 +2664,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 .is_some_and(|parent| is_jsx(self.st, parent));
         let prop_symbol = self.st.binder.symbol(prop);
         let prop_declaration = prop_symbol.value_declaration;
-        let prop_text = self.st.symbol_name_as_written_slice(prop);
+        let prop_text = self.st.symbol_name_as_written(prop);
         if comparing_jsx {
             let mut report_node = error_node;
             if let Some(prop_declaration) = prop_declaration {
@@ -2686,8 +2686,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             // the generic 2322. This head-site adapter owns the final
             // source location, so materialize the same complete chain
             // before returning UnknownProperty to its caller.
-            let source_text = self.st.type_to_string_slice(source)?;
-            let target_text = self.st.type_to_string_slice(error_target)?;
+            let source_text = self.st.type_to_string(source)?;
+            let target_text = self.st.type_to_string(error_target)?;
             let target_properties = self.st.get_properties_of_type(error_target)?;
             let jsx_specific = match prop_text.as_str() {
                 Some("for") => target_properties
@@ -2711,7 +2711,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             // written face (_tsc.js:65373-65374); only the object-literal
             // branch below and the property/element accesses use symbolName.
             let suggestion = suggestion_symbol
-                .map(|suggestion_symbol| self.st.symbol_name_as_written_slice(suggestion_symbol));
+                .map(|suggestion_symbol| self.st.symbol_name_as_written(suggestion_symbol));
             return Ok(ExcessPropertyReport {
                 node: report_node,
                 kind: ExcessPropertyReportKind::Jsx {
@@ -2763,7 +2763,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 }
             }
         }
-        let target_text = self.st.type_to_string_slice(error_target)?;
+        let target_text = self.st.type_to_string(error_target)?;
         Ok(ExcessPropertyReport {
             node: report_node,
             kind: ExcessPropertyReportKind::ObjectLiteral {
@@ -3494,8 +3494,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     } else {
                         &diagnostics::Excessive_stack_depth_comparing_types_0_and_1
                     };
-                    let source_text = self.st.type_to_string_slice(source)?;
-                    let target_text = self.st.type_to_string_slice(target)?;
+                    let source_text = self.st.type_to_string(source)?;
+                    let target_text = self.st.type_to_string(target)?;
                     self.report_error_js(message, vec![source_text, target_text])?;
                     self.error_state.override_next_error_info += 1;
                 }

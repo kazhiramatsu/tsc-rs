@@ -338,7 +338,7 @@ pub(crate) fn get_specifier_for_module_symbol(
 }
 
 /// Reused-anchor disposition: this is the exact checker display decision
-/// already owned by `file_symbol_if_export_equals_container_slice`
+/// already owned by `file_symbol_if_export_equals_container`
 /// (check.rs:8182), projected here because that anchor is module-private.
 ///
 /// tsc-port: getFileSymbolIfFileSymbolExportEqualsContainer @6.0.3

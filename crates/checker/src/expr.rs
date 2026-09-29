@@ -1226,7 +1226,7 @@ impl<'a> CheckerState<'a> {
                     .strict_option_value(self.options.no_implicit_any);
                 if no_implicit_any {
                     let display = self.symbol_display_name(symbol);
-                    let type_display = self.type_to_string_slice(flow_type)?;
+                    let type_display = self.type_to_string(flow_type)?;
                     let source = self.binder.source_of_node(declaration);
                     let name = node_util::get_name_of_declaration(source, declaration)
                         .unwrap_or(declaration);
@@ -1247,7 +1247,7 @@ impl<'a> CheckerState<'a> {
             && !self.contains_undefined_type(ty)
             && self.contains_undefined_type(flow_type)
         {
-            let display = self.symbol_name_as_written_slice(symbol);
+            let display = self.symbol_name_as_written(symbol);
             self.error_at_js(
                 Some(node),
                 &diagnostics::Variable_0_is_used_before_being_assigned,

@@ -737,8 +737,8 @@ impl<'a> CheckerState<'a> {
         };
         if !self.pop_type_resolution() {
             self.links.set_mapped_contains_error(mapped_type);
-            let property_name = self.symbol_name_as_written_slice(symbol);
-            let mapped_text = self.type_to_string_slice(mapped_type)?;
+            let property_name = self.symbol_name_as_written(symbol);
+            let mapped_text = self.type_to_string(mapped_type)?;
             self.error_at_js(
                 self.current_node,
                 &diagnostics::Type_of_property_0_circularly_references_itself_in_mapped_type_1,

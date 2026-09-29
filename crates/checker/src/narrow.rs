@@ -1215,7 +1215,7 @@ impl<'a> CheckerState<'a> {
         let target_type = if is_static {
             self.get_type_of_symbol(class_symbol)?
         } else {
-            self.get_declared_type_of_symbol_slice(class_symbol)?
+            self.get_declared_type_of_symbol(class_symbol)?
         };
         self.get_narrowed_type(ty, target_type, assume_true, /*check_derived*/ true)
     }
@@ -3099,7 +3099,7 @@ impl<'a> CheckerState<'a> {
                 if self.is_static_element(container) {
                     return self.get_type_of_symbol(symbol).map(Some);
                 }
-                let declared = self.get_declared_type_of_symbol_slice(symbol)?;
+                let declared = self.get_declared_type_of_symbol(symbol)?;
                 return Ok(self.this_type_of_interface(declared));
             }
         }
