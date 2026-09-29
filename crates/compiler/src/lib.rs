@@ -12,7 +12,6 @@
 use std::collections::BTreeMap;
 use std::error::Error;
 use std::fmt;
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use tsc_checker::emit::CheckerSession;
@@ -3039,10 +3038,6 @@ pub enum DriverError {
     MissingPreparedSourceIdentity {
         path: JsString,
     },
-    NonUnicodeDisplayPath {
-        source_file: Option<SourceFileId>,
-        path: PathBuf,
-    },
     IncompleteCheck {
         file_name: JsString,
         start: u32,
@@ -3079,11 +3074,6 @@ impl fmt::Display for DriverError {
                 formatter,
                 "project prepared program for no-emit execution: source {} has no stable SourceFileId",
                 path.to_string_lossy()
-            ),
-            Self::NonUnicodeDisplayPath { path, .. } => write!(
-                formatter,
-                "project prepared program for no-emit execution for {}: prepared display path is not valid Unicode",
-                path.display()
             ),
             Self::IncompleteCheck {
                 file_name,

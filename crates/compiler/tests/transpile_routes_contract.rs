@@ -314,7 +314,6 @@ fn error_kind(error: &TranspileError) -> &'static str {
         TranspileError::OutputGenerationFailed { .. } => "output-generation-failed",
         TranspileError::MultipleOutputs { .. } => "multiple-outputs",
         TranspileError::UnsupportedOptionValue { .. } => "rust-unsupported-option-value",
-        TranspileError::UnsupportedTranspileOption { .. } => "rust-unsupported-transpile-option",
         TranspileError::Program(_) => "rust-program-load",
         TranspileError::Driver(_) => "rust-driver",
     }

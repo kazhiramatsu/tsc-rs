@@ -29,7 +29,3 @@ pub use ty::{
     SymbolId, TemplateText, TupleTargetData, Type, TypeData, TypeId,
 };
 pub use version::compiler_version_satisfies;
-
-pub fn is_scaffolded() -> bool {
-    true
-}

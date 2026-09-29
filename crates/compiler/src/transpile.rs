@@ -127,10 +127,6 @@ pub enum TranspileError {
     /// Rust-only: an option whose value cannot be represented in the typed
     /// `CompilerOptions` (TypeScript passes such values through untyped).
     UnsupportedOptionValue { name: JsString, detail: String },
-    /// Rust-only: a `TranspileOptions` field with no Rust producer. Every
-    /// field of [`TranspileOptions`] currently has one; the variant remains
-    /// for the API1 `transformers` control, which is outside this adapter.
-    UnsupportedTranspileOption { field: &'static str },
     /// Rust-only: the loader refused the single input (extension or text).
     Program(Box<ProgramLoadError>),
     /// Rust-only: the checked session or emitter refused the request.
@@ -149,9 +145,6 @@ impl std::fmt::Display for TranspileError {
                 "unsupported transpile option value for {}: {detail}",
                 name.to_string_lossy()
             ),
-            Self::UnsupportedTranspileOption { field } => {
-                write!(formatter, "unsupported TranspileOptions field: {field}")
-            }
             Self::Program(error) => write!(formatter, "program load failed: {error}"),
             Self::Driver(error) => write!(formatter, "driver failed: {error}"),
         }

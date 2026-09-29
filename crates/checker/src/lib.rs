@@ -4180,9 +4180,6 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         }
     }
 
-    debug_assert!(tsc_binder::is_scaffolded());
-    debug_assert!(tsc_types::is_scaffolded());
-
     CheckExecution {
         result: assemble_check_result(
             &file_diagnostics,
