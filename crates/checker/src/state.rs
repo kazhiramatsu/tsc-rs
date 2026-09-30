@@ -158,9 +158,6 @@ pub struct Signature {
     pub target: Option<SignatureId>,
     /// tsc signature.mapper (63434).
     pub mapper: Option<MapperId>,
-    /// tsc signature.instantiations (getSignatureInstantiationWithout
-    /// FillingInTypeArguments 59903), keyed by getTypeListId.
-    pub instantiations: rustc_hash::FxHashMap<String, SignatureId>,
     /// tsc signature.erasedSignatureCache (getErasedSignature 59927).
     pub erased_signature_cache: Option<SignatureId>,
     /// tsc signature.canonicalSignatureCache (getCanonicalSignature
@@ -173,7 +170,7 @@ pub struct Signature {
     /// clones): TypeFlags::UNION or ::INTERSECTION.
     pub composite_kind: Option<TypeFlags>,
     /// tsc signature.compositeSignatures (58206).
-    pub composite_signatures: Option<Vec<SignatureId>>,
+    pub composite_signatures: Option<Box<[SignatureId]>>,
     /// tsc signature.optionalCallSignatureCache (getOptionalCallSignature
     /// 57899-57903): the (inner, outer) call-chain clone pair.
     pub optional_call_signature_cache: (Option<SignatureId>, Option<SignatureId>),
@@ -187,13 +184,16 @@ pub struct Signature {
     pub isolated_signature_type: Option<TypeId>,
 }
 
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(std::mem::size_of::<Signature>() == 136);
+
 impl Signature {
     /// A copy of the signature without its lazily filled caches (the
-    /// resolved return type and the instantiation, erased, canonical, base,
-    /// optional-call and isolated-type memos): what a clone, an instantiation
-    /// or a combination reads from its source. A whole `clone` also copied
-    /// the instantiation cache, which grows with every instantiation of a
-    /// generic signature.
+    /// resolved return type and the erased, canonical, base, optional-call
+    /// and isolated-type memos): what a clone, an instantiation or a
+    /// combination reads from its source. The instantiation cache is keyed
+    /// by signature identity in `CheckerState::signature_instantiations`, so
+    /// a copy starts without one.
     pub(crate) fn without_caches(&self) -> Signature {
         Signature {
             declaration: self.declaration,
@@ -206,7 +206,6 @@ impl Signature {
             from_method: self.from_method,
             target: self.target,
             mapper: self.mapper,
-            instantiations: rustc_hash::FxHashMap::default(),
             erased_signature_cache: None,
             canonical_signature_cache: None,
             base_signature_cache: None,
@@ -317,6 +316,11 @@ pub struct CheckerState<'a> {
     pub strict_function_types: bool,
     pub links: LinksTables,
     pub signatures: Vec<Signature>,
+    /// tsc signature.instantiations (getSignatureInstantiationWithout
+    /// FillingInTypeArguments 59903): every signature's map in one table
+    /// keyed by the signature and getTypeListId, so a signature record does
+    /// not carry an (almost always empty) map.
+    pub(crate) signature_instantiations: rustc_hash::FxHashMap<(SignatureId, String), SignatureId>,
     /// Trial-local resolvedReturnType protocol writes. The resolution
     /// stack observes slot completion while a candidate runs, but the
     /// signature memo returns to its entry value at the boundary.
@@ -394,6 +398,9 @@ pub struct CheckerState<'a> {
     /// The TypeMapper arena — MapperId equality IS tsc's mapper object
     /// identity (findActiveMapper 73616 compares `===`).
     pub(crate) mappers: Vec<crate::instantiate::TypeMapper>,
+    /// The source and target lists of the array and deferred mappers (see
+    /// `instantiate::MapperList`).
+    pub(crate) mapper_lists: Vec<TypeId>,
     /// tsc restrictiveMapper (47103).
     pub(crate) restrictive_mapper: crate::instantiate::MapperId,
     /// tsc permissiveMapper (47104).
@@ -1108,18 +1115,18 @@ impl<'a> CheckerState<'a> {
                     .as_ref()
                     .map_or(0, |list| list.capacity() * 4)
                     + signature.parameters.capacity() * 4
-                    + map_bytes(&signature.instantiations)
-                    + signature
-                        .instantiations
-                        .keys()
-                        .map(String::capacity)
-                        .sum::<usize>()
                     + signature
                         .composite_signatures
                         .as_ref()
-                        .map_or(0, |list| list.capacity() * 4)
+                        .map_or(0, |list| list.len() * 4)
             })
-            .sum();
+            .sum::<usize>()
+            + map_bytes(&self.signature_instantiations)
+            + self
+                .signature_instantiations
+                .keys()
+                .map(|(_, key)| key.capacity())
+                .sum::<usize>();
         rows.push((
             "signatures (Signature)",
             self.signatures.len(),
@@ -1149,7 +1156,8 @@ impl<'a> CheckerState<'a> {
         rows.push((
             "type mappers",
             self.mappers.len(),
-            self.mappers.capacity() * std::mem::size_of::<crate::instantiate::TypeMapper>(),
+            self.mappers.capacity() * std::mem::size_of::<crate::instantiate::TypeMapper>()
+                + self.mapper_lists.capacity() * std::mem::size_of::<TypeId>(),
         ));
         let (relations, relation_bytes) = self.relations.memory_usage();
         rows.push(("relation caches", relations, relation_bytes));
@@ -1419,6 +1427,7 @@ impl<'a> CheckerState<'a> {
             strict_function_types,
             links: LinksTables::with_capacity_hint(program_nodes, program_symbols),
             signatures: Vec::new(),
+            signature_instantiations: rustc_hash::FxHashMap::default(),
             speculative_signature_return_writes: Vec::new(),
             members: Vec::new(),
             relations: RelationCaches::default(),
@@ -1450,6 +1459,7 @@ impl<'a> CheckerState<'a> {
             no_constraint_type: TypeId::new(0),
             circular_constraint_type: TypeId::new(0),
             mappers: Vec::new(),
+            mapper_lists: Vec::new(),
             restrictive_mapper: crate::instantiate::MapperId::new(0),
             permissive_mapper: crate::instantiate::MapperId::new(0),
             unique_literal_mapper: crate::instantiate::MapperId::new(0),
@@ -1797,7 +1807,6 @@ impl<'a> CheckerState<'a> {
             from_method: false,
             target: None,
             mapper: None,
-            instantiations: rustc_hash::FxHashMap::default(),
             erased_signature_cache: None,
             canonical_signature_cache: None,
             base_signature_cache: None,

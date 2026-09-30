@@ -3088,7 +3088,7 @@ impl<'a> CheckerState<'a> {
         let left_mapper = self.signature_of(left).mapper;
         let composite_signatures = {
             let mut list = match (left_composite_kind, &left_composite_signatures) {
-                (Some(TypeFlags::INTERSECTION), Some(signatures)) => signatures.clone(),
+                (Some(TypeFlags::INTERSECTION), Some(signatures)) => signatures.to_vec(),
                 _ => vec![left],
             };
             list.push(right);
@@ -3113,12 +3113,11 @@ impl<'a> CheckerState<'a> {
             from_method: self.signature_of(left).from_method,
             target: None,
             mapper,
-            instantiations: rustc_hash::FxHashMap::default(),
             erased_signature_cache: None,
             canonical_signature_cache: None,
             base_signature_cache: None,
             composite_kind: Some(TypeFlags::INTERSECTION),
-            composite_signatures: Some(composite_signatures),
+            composite_signatures: Some(composite_signatures.into_boxed_slice()),
             optional_call_signature_cache: (None, None),
             isolated_signature_kind: self.signature_of(left).isolated_signature_kind,
             isolated_signature_type: None,

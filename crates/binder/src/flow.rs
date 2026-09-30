@@ -15,7 +15,9 @@ tsc_types::id_type!(FlowId);
 
 /// tsc stores the payload in FlowNode.node: an AST node for most
 /// kinds, `{switchStatement, clauseStart, clauseEnd}` for SwitchClause
-/// and `{target, antecedents}` for ReduceLabel.
+/// and `{target, antecedents}` for ReduceLabel. A branch or loop label
+/// (tsc FlowLabel) keeps its antecedent list here, so that the millions of
+/// plain nodes carry one antecedent slot instead of a list.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub enum FlowPayload {
     #[default]
@@ -26,17 +28,51 @@ pub enum FlowPayload {
         clause_start: u32,
         clause_end: u32,
     },
-    ReduceLabel {
-        target: FlowId,
+    /// Boxed: a try/finally creates a few, and inline the pair would size
+    /// every flow node.
+    ReduceLabel(Box<ReduceLabel>),
+    /// tsc FlowLabel.antecedents, collected by addAntecedent as the binder
+    /// walks (None until the first one).
+    Label {
         antecedents: Vec<FlowId>,
     },
+}
+
+/// tsc ReduceLabel's `{target, antecedents}` (createReduceLabel 43095).
+#[derive(Clone, Debug, PartialEq)]
+pub struct ReduceLabel {
+    pub target: FlowId,
+    pub antecedents: Vec<FlowId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct FlowNode {
     pub flags: FlowFlags,
     pub payload: FlowPayload,
-    pub antecedent: Vec<FlowId>,
+    /// tsc FlowNode.antecedent of the plain kinds; a label's list lives in
+    /// its payload (see [`FlowNode::antecedents`]).
+    antecedent: Option<FlowId>,
+}
+
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(std::mem::size_of::<FlowNode>() == 32);
+
+impl FlowNode {
+    /// The antecedents in tsc's order: a label's list, or the plain kinds'
+    /// single antecedent (none for the start and unreachable nodes).
+    pub fn antecedents(&self) -> &[FlowId] {
+        match &self.payload {
+            FlowPayload::Label { antecedents } => antecedents,
+            _ => self.antecedent.as_slice(),
+        }
+    }
+
+    fn label_antecedents_mut(&mut self) -> &mut Vec<FlowId> {
+        match &mut self.payload {
+            FlowPayload::Label { antecedents } => antecedents,
+            _ => unreachable!("only branch and loop labels collect antecedents"),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -51,8 +87,13 @@ impl FlowArena {
         let antecedents = self
             .nodes
             .iter()
-            .map(|node| node.antecedent.capacity() * std::mem::size_of::<FlowId>())
-            .sum();
+            .map(|node| match &node.payload {
+                FlowPayload::Label { antecedents } => antecedents.capacity(),
+                FlowPayload::ReduceLabel(reduce) => reduce.antecedents.capacity(),
+                _ => 0,
+            })
+            .sum::<usize>()
+            * std::mem::size_of::<FlowId>();
         (
             self.nodes.len(),
             self.nodes.capacity() * std::mem::size_of::<FlowNode>(),
@@ -73,7 +114,7 @@ impl FlowArena {
         self.nodes.push(FlowNode {
             flags,
             payload,
-            antecedent: antecedent.into_iter().collect(),
+            antecedent,
         });
         id
     }
@@ -96,12 +137,24 @@ impl FlowArena {
 
     /// tsc createBranchLabel (43077).
     pub fn create_branch_label(&mut self) -> FlowId {
-        self.create_flow_node(FlowFlags::BRANCH_LABEL, FlowPayload::None, None)
+        self.create_flow_node(
+            FlowFlags::BRANCH_LABEL,
+            FlowPayload::Label {
+                antecedents: Vec::new(),
+            },
+            None,
+        )
     }
 
     /// tsc createLoopLabel (43086).
     pub fn create_loop_label(&mut self) -> FlowId {
-        self.create_flow_node(FlowFlags::LOOP_LABEL, FlowPayload::None, None)
+        self.create_flow_node(
+            FlowFlags::LOOP_LABEL,
+            FlowPayload::Label {
+                antecedents: Vec::new(),
+            },
+            None,
+        )
     }
 
     /// tsc createReduceLabel (43095).
@@ -113,12 +166,18 @@ impl FlowArena {
     ) -> FlowId {
         self.create_flow_node(
             FlowFlags::REDUCE_LABEL,
-            FlowPayload::ReduceLabel {
+            FlowPayload::ReduceLabel(Box::new(ReduceLabel {
                 target,
                 antecedents,
-            },
+            })),
             Some(antecedent),
         )
+    }
+
+    /// Replace a label's antecedent list (the finally label of a try
+    /// statement takes the normal, exception and return exits at once).
+    pub fn set_label_antecedents(&mut self, label: FlowId, antecedents: Vec<FlowId>) {
+        *self.flow_mut(label).label_antecedents_mut() = antecedents;
     }
 
     /// tsc setFlowNodeReferenced (43098): the second reference marks
@@ -142,17 +201,19 @@ impl FlowArena {
         {
             return;
         }
-        if self.flow(label).antecedent.contains(&antecedent) {
+        if self.flow(label).antecedents().contains(&antecedent) {
             return;
         }
-        self.flow_mut(label).antecedent.push(antecedent);
+        self.flow_mut(label)
+            .label_antecedents_mut()
+            .push(antecedent);
         self.set_flow_node_referenced(antecedent);
     }
 
     /// tsc finishFlowLabel (43141): no antecedents ⇒ unreachable, one
     /// ⇒ COLLAPSES to it, several ⇒ the label itself.
     pub fn finish_flow_label(&mut self, flow: FlowId, unreachable: FlowId) -> FlowId {
-        let antecedents = &self.flow(flow).antecedent;
+        let antecedents = self.flow(flow).antecedents();
         match antecedents.len() {
             0 => unreachable,
             1 => antecedents[0],

@@ -76,7 +76,6 @@ impl<'a> CheckerState<'a> {
                             from_method: false,
                             target: None,
                             mapper: None,
-                            instantiations: rustc_hash::FxHashMap::default(),
                             erased_signature_cache: None,
                             canonical_signature_cache: None,
                             base_signature_cache: None,

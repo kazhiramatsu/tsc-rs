@@ -551,15 +551,16 @@ impl TypeTables {
         &mut self.types[id.index() as usize]
     }
 
-    /// Reserve room for `additional` more types (and the literal-type
-    /// interning maps that grow with them) so a checker sized from its
+    /// Reserve room for `additional` more types so a checker sized from its
     /// syntax fills the arena without the doubling copies of a growing
-    /// vector. Untouched capacity stays virtual memory.
+    /// vector. Untouched capacity stays virtual memory. The interning maps
+    /// grow on their own: a hash table spreads its entries over every page
+    /// it reserves, so a reservation sized for the largest programs was
+    /// resident in full on every checker (VS Code: 20 MiB per checker for
+    /// 45,000 string literals), while rehashing costs well under a
+    /// millisecond.
     pub fn reserve_types(&mut self, additional: usize) {
         self.types.reserve(additional);
-        self.string_literal_types.reserve(additional / 8);
-        self.utf8_string_literal_types.reserve(additional / 8);
-        self.union_types.reserve(additional / 16);
     }
 
     pub fn len(&self) -> usize {

@@ -6273,7 +6273,6 @@ impl<'a> CheckerState<'a> {
             from_method: source.from_method,
             target: source.target,
             mapper: source.mapper,
-            instantiations: rustc_hash::FxHashMap::default(),
             erased_signature_cache: None,
             canonical_signature_cache: None,
             base_signature_cache: None,
@@ -6297,7 +6296,7 @@ impl<'a> CheckerState<'a> {
     ) -> SignatureId {
         let result = self.clone_signature(signature);
         let data = self.signature_mut(result);
-        data.composite_signatures = Some(union_signatures);
+        data.composite_signatures = Some(union_signatures.into_boxed_slice());
         data.composite_kind = Some(TypeFlags::UNION);
         data.target = None;
         data.mapper = None;
@@ -6974,7 +6973,7 @@ impl<'a> CheckerState<'a> {
             left_data.composite_signatures.clone(),
         ) {
             (Some(kind), Some(signatures)) if !kind.intersects(TypeFlags::INTERSECTION) => {
-                signatures
+                signatures.into_vec()
             }
             _ => vec![left],
         };
@@ -7017,12 +7016,11 @@ impl<'a> CheckerState<'a> {
             from_method: left_data.from_method,
             target: None,
             mapper,
-            instantiations: rustc_hash::FxHashMap::default(),
             erased_signature_cache: None,
             canonical_signature_cache: None,
             base_signature_cache: None,
             composite_kind: Some(TypeFlags::UNION),
-            composite_signatures: Some(composite_signatures),
+            composite_signatures: Some(composite_signatures.into_boxed_slice()),
             optional_call_signature_cache: (None, None),
             isolated_signature_kind: left_data.isolated_signature_kind,
             isolated_signature_type: None,
