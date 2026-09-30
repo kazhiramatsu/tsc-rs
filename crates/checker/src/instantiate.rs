@@ -106,7 +106,6 @@ pub enum TypeMapper {
     /// tsc-span: _tsc.js:63362-63364
     ///
     /// `targets: None` is the type-eraser form (targets → anyType).
-    /// Boxed slices: a program holds millions of mappers.
     Array {
         sources: MapperList,
         targets: Option<MapperList>,
@@ -227,6 +226,7 @@ impl<'a> CheckerState<'a> {
         self.mappers.push(mapper);
         id
     }
+
     /// Store `types` in the mapper-list arena (see [`MapperList`]).
     pub(crate) fn alloc_mapper_list(&mut self, types: &[TypeId]) -> MapperList {
         let start = u32::try_from(self.mapper_lists.len()).expect("mapper list arena fits u32");
@@ -241,7 +241,6 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn mapper_list(&self, list: MapperList) -> &[TypeId] {
         &self.mapper_lists[list.start as usize..(list.start + list.len) as usize]
     }
-
 
     /// tsc-port: makeUnaryTypeMapper @6.0.3
     /// tsc-hash: f16e43be81b2a0ab46054c6a62c222608c47514ebef557e8fdbe5fc2b022cb63
@@ -307,13 +306,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:63327-63358
     pub fn get_mapped_type(&mut self, ty: TypeId, mapper: MapperId) -> CheckResult<TypeId> {
         self.profile_ops[crate::line_profile::OP_MAPPED] += 1;
-        // The two lookup mappers answer through a borrow: this runs for every
-        // type a mapper touches, and a clone would copy an array mapper's
-        // source and target lists each time.
-        match self.mapper(mapper) {
-            TypeMapper::Simple { source, target } => {
-                return Ok(if ty == *source { *target } else { ty });
-            }
+        match *self.mapper(mapper) {
+            TypeMapper::Simple { source, target } => Ok(if ty == source { target } else { ty }),
             TypeMapper::Array { sources, targets } => {
                 let Some(index) = self
                     .mapper_list(sources)
@@ -325,13 +319,7 @@ impl<'a> CheckerState<'a> {
                 Ok(match targets {
                     Some(targets) => self.mapper_list(targets)[index],
                     None => self.tables.intrinsics.any,
-                });
-            }
-            _ => {}
-        }
-        match self.mapper(mapper).clone() {
-            TypeMapper::Simple { .. } | TypeMapper::Array { .. } => {
-                unreachable!("lookup mappers are answered above")
+                })
             }
             // 63341-63350: linear source scan, thunk on match,
             // identity otherwise. The scan reads the mapper pair's
@@ -354,7 +342,6 @@ impl<'a> CheckerState<'a> {
                 DeferredMapperTargets::InferenceNonFixing(context) => {
                     let index = self
                         .inference_context(context)
-                    let type_parameters = self.mapper_list(type_parameters);
                         .mapper_sources
                         .iter()
                         .position(|&source| source == ty);
@@ -367,10 +354,12 @@ impl<'a> CheckerState<'a> {
                     node,
                     type_parameters,
                 } => {
+                    let type_parameters = self.mapper_list(type_parameters);
                     let Some(index) = type_parameters.iter().position(|&source| source == ty)
                     else {
                         return Ok(ty);
                     };
+                    let type_parameters = type_parameters.to_vec();
                     self.get_effective_type_argument_at_index(node, &type_parameters, index)
                 }
             },
@@ -608,7 +597,6 @@ impl<'a> CheckerState<'a> {
             from_method: source.from_method,
             target: Some(signature),
             mapper: Some(mapper),
-            instantiations: rustc_hash::FxHashMap::default(),
             erased_signature_cache: None,
             canonical_signature_cache: None,
             base_signature_cache: None,
@@ -2546,16 +2534,17 @@ impl<'a> CheckerState<'a> {
         signature: SignatureId,
         type_arguments: Option<&[TypeId]>,
     ) -> CheckResult<SignatureId> {
-        let key = self.tables.get_type_list_id(type_arguments.unwrap_or(&[]));
+        let key = (
+            signature,
+            self.tables.get_type_list_id(type_arguments.unwrap_or(&[])),
+        );
         perf::bump(PerfCounter::SignatureInstantiationLookups);
-        if let Some(&existing) = self.signature_of(signature).instantiations.get(&key) {
+        if let Some(&existing) = self.signature_instantiations.get(&key) {
             perf::bump(PerfCounter::SignatureInstantiationHits);
             return Ok(existing);
         }
         let instantiation = self.create_signature_instantiation(signature, type_arguments)?;
-        self.signatures[signature.index() as usize]
-            .instantiations
-            .insert(key, instantiation);
+        self.signature_instantiations.insert(key, instantiation);
         Ok(instantiation)
     }
 
