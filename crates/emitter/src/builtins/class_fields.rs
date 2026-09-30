@@ -2982,7 +2982,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
                 self.context
                     .arena()
                     .node(body)?
-                    .multi_line
+                    .multi_line()
                     .unwrap_or(!statements.is_empty())
             } else {
                 !statements.is_empty()

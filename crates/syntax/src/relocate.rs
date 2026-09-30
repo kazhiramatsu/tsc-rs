@@ -6160,7 +6160,7 @@ where
                 && optional_node_equal(left.right, right.right, &mut node)
         }
         (NodeData::RegularExpressionLiteral(left), NodeData::RegularExpressionLiteral(right)) => {
-            left.text == right.text && left.is_unterminated == right.is_unterminated
+            left.text == right.text
         }
         (NodeData::RestType(left), NodeData::RestType(right)) => {
             optional_node_equal(left.r#type, right.r#type, &mut node)
@@ -6205,10 +6205,7 @@ where
         (NodeData::SpreadElement(left), NodeData::SpreadElement(right)) => {
             optional_node_equal(left.expression, right.expression, &mut node)
         }
-        (NodeData::StringLiteral(left), NodeData::StringLiteral(right)) => {
-            left.text == right.text
-                && left.has_extended_unicode_escape == right.has_extended_unicode_escape
-        }
+        (NodeData::StringLiteral(left), NodeData::StringLiteral(right)) => left.text == right.text,
         (NodeData::SwitchStatement(left), NodeData::SwitchStatement(right)) => {
             optional_node_equal(left.expression, right.expression, &mut node)
                 && optional_node_equal(left.case_block, right.case_block, &mut node)

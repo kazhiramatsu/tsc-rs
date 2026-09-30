@@ -79,7 +79,7 @@ fn template_facets_follow_parser_flags_and_survive_factory_copies() {
             case["case_id"]
         );
         for node in nodes {
-            let template_flags = arena.node(node).unwrap().template_flags;
+            let template_flags = arena.node(node).unwrap().template_flags();
             let transform_flags = arena.transform_flags(node);
             let clone = arena.factory().clone_node(node).unwrap();
             let foreign_clone = arena
@@ -87,7 +87,7 @@ fn template_facets_follow_parser_flags_and_survive_factory_copies() {
                 .clone_node_to_source(node, other_source)
                 .unwrap();
             for cloned in [clone, foreign_clone] {
-                assert_eq!(arena.node(cloned).unwrap().template_flags, template_flags);
+                assert_eq!(arena.node(cloned).unwrap().template_flags(), template_flags);
                 assert_eq!(arena.transform_flags(cloned), transform_flags);
             }
         }

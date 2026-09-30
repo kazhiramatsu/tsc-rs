@@ -209,9 +209,7 @@ fn syntax_graphs_equal(left: &SourceFile, right: &SourceFile) -> bool {
             let right_node = right.arena.node(right_id);
             if left_node.kind != right_node.kind
                 || left_node.flags != right_node.flags
-                || left_node.numeric_literal_flags != right_node.numeric_literal_flags
-                || left_node.template_flags != right_node.template_flags
-                || left_node.multi_line != right_node.multi_line
+                || left_node.literal_flags != right_node.literal_flags
                 || left_node.pos != right_node.pos
                 || left_node.end != right_node.end
             {

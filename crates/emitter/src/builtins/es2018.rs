@@ -505,10 +505,10 @@ impl<'context> Es2018Visitor<'context> {
                 Some(self.visit_catch_clause_with_object_rest(original, data)?)
             }
             NodeData::FunctionDeclaration(data) => {
-                Some(self.visit_function_declaration(original, data)?)
+                Some(self.visit_function_declaration(original, *data)?)
             }
             NodeData::FunctionExpression(data) => {
-                Some(self.visit_function_expression(original, data)?)
+                Some(self.visit_function_expression(original, *data)?)
             }
             NodeData::ArrowFunction(data) => Some(self.visit_arrow_function(original, data)?),
             NodeData::ClassDeclaration(data) if self.super_capture_is_active() => {
@@ -518,7 +518,7 @@ impl<'context> Es2018Visitor<'context> {
                 Some(self.visit_super_capture_boundary(original, NodeData::ClassExpression(data))?)
             }
             NodeData::MethodDeclaration(data) => {
-                Some(self.visit_method_declaration(original, data)?)
+                Some(self.visit_method_declaration(original, *data)?)
             }
             NodeData::GetAccessor(data) => Some(self.visit_get_accessor(original, data)?),
             NodeData::SetAccessor(data) => Some(self.visit_set_accessor(original, data)?),
@@ -2237,7 +2237,7 @@ impl<'context> Es2018Visitor<'context> {
         data.asterisk_token = transformed.asterisk_token;
         data.parameters = transformed.parameters;
         data.body = transformed.body;
-        self.update_without_visit(original, NodeData::FunctionDeclaration(data))
+        self.update_without_visit(original, NodeData::FunctionDeclaration(Box::new(data)))
     }
 
     fn visit_function_expression(
@@ -2260,7 +2260,7 @@ impl<'context> Es2018Visitor<'context> {
         data.asterisk_token = transformed.asterisk_token;
         data.parameters = transformed.parameters;
         data.body = transformed.body;
-        self.update_without_visit(original, NodeData::FunctionExpression(data))
+        self.update_without_visit(original, NodeData::FunctionExpression(Box::new(data)))
     }
 
     fn visit_arrow_function(
@@ -2308,7 +2308,7 @@ impl<'context> Es2018Visitor<'context> {
         data.asterisk_token = transformed.asterisk_token;
         data.parameters = transformed.parameters;
         data.body = transformed.body;
-        self.update_without_visit(original, NodeData::MethodDeclaration(data))
+        self.update_without_visit(original, NodeData::MethodDeclaration(Box::new(data)))
     }
 
     fn visit_get_accessor(
@@ -2873,7 +2873,7 @@ impl<'context> Es2018Visitor<'context> {
                     parent: SyntaxKind::FunctionDeclaration,
                     field: "async generator body",
                 })?;
-        let outer_body_is_multi_line = self.context.arena().node(body)?.multi_line == Some(true)
+        let outer_body_is_multi_line = self.context.arena().node(body)?.multi_line() == Some(true)
             || super_capture.owns_access && super_capture.has_element_access;
         let inner_name = name
             .and_then(|name| self.identifier_text(name).ok())
@@ -2896,7 +2896,7 @@ impl<'context> Es2018Visitor<'context> {
         let inner_flags = self.child_flags(&[asterisk, body])?;
         let inner = self.context.factory()?.create_node(
             self.source,
-            NodeData::FunctionExpression(tsc_syntax::nodes::FunctionExpressionData {
+            NodeData::FunctionExpression(Box::new(tsc_syntax::nodes::FunctionExpressionData {
                 name: inner_name.map(TransformNode::node),
                 type_parameters: None,
                 parameters: Some(parameters.array()),
@@ -2904,7 +2904,7 @@ impl<'context> Es2018Visitor<'context> {
                 asterisk_token: Some(asterisk.node()),
                 body: Some(body.node()),
                 modifiers: None,
-            }),
+            })),
             inner_flags,
         )?;
         // `createAsyncGeneratorHelper` marks the generator function
@@ -4379,7 +4379,6 @@ impl<'context> Es2018Visitor<'context> {
             self.source,
             NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
                 text: text.to_owned(),
-                has_extended_unicode_escape: None,
             }),
             TransformFlags::NONE,
         )
@@ -4707,7 +4706,7 @@ impl<'context> Es2018Visitor<'context> {
             | self.context.arena().propagate_child_flags(body)?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::FunctionExpression(tsc_syntax::nodes::FunctionExpressionData {
+            NodeData::FunctionExpression(Box::new(tsc_syntax::nodes::FunctionExpressionData {
                 name: None,
                 type_parameters: None,
                 parameters: Some(parameters.array()),
@@ -4715,7 +4714,7 @@ impl<'context> Es2018Visitor<'context> {
                 asterisk_token: None,
                 body: Some(body.node()),
                 modifiers: None,
-            }),
+            })),
             flags,
         )
     }

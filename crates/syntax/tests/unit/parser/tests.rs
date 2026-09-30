@@ -95,7 +95,7 @@ fn numeric_literals_retain_the_scanner_flags_used_by_the_printer() {
                 let NodeData::NumericLiteral(data) = &node.data else {
                     unreachable!()
                 };
-                (data.text.as_str(), node.numeric_literal_flags)
+                (data.text.as_str(), node.numeric_literal_flags())
             })
             .collect::<Vec<_>>(),
         [("16", 64), ("100", 16), ("1", 0)]
@@ -111,21 +111,21 @@ fn literal_and_block_nodes_retain_the_printer_multiline_bit() {
     assert_eq!(
         nodes_of_kind(&source, SyntaxKind::ArrayLiteralExpression)
             .into_iter()
-            .map(|node| source.arena.node(node).multi_line)
+            .map(|node| source.arena.node(node).multi_line())
             .collect::<Vec<_>>(),
         [Some(true), Some(false)]
     );
     assert_eq!(
         nodes_of_kind(&source, SyntaxKind::ObjectLiteralExpression)
             .into_iter()
-            .map(|node| source.arena.node(node).multi_line)
+            .map(|node| source.arena.node(node).multi_line())
             .collect::<Vec<_>>(),
         [Some(true)]
     );
     assert_eq!(
         nodes_of_kind(&source, SyntaxKind::Block)
             .into_iter()
-            .map(|node| source.arena.node(node).multi_line)
+            .map(|node| source.arena.node(node).multi_line())
             .collect::<Vec<_>>(),
         [Some(true)]
     );
@@ -235,19 +235,30 @@ fn regex_literal_stores_only_true_unterminated_state() {
     let unterminated = parse_with_target("/a", ScriptTarget::ES5);
     let terminated_regex = nodes_of_kind(&terminated, SyntaxKind::RegularExpressionLiteral)[0];
     let unterminated_regex = nodes_of_kind(&unterminated, SyntaxKind::RegularExpressionLiteral)[0];
-    let NodeData::RegularExpressionLiteral(terminated_data) =
-        &terminated.arena.node(terminated_regex).data
-    else {
-        unreachable!()
-    };
-    let NodeData::RegularExpressionLiteral(unterminated_data) =
-        &unterminated.arena.node(unterminated_regex).data
-    else {
-        unreachable!()
-    };
+    assert!(terminated
+        .arena
+        .node(terminated_regex)
+        .data
+        .as_regular_expression_literal()
+        .is_some());
+    assert!(unterminated
+        .arena
+        .node(unterminated_regex)
+        .data
+        .as_regular_expression_literal()
+        .is_some());
 
-    assert_eq!(terminated_data.is_unterminated, None);
-    assert_eq!(unterminated_data.is_unterminated, Some(true));
+    assert_eq!(
+        terminated.arena.node(terminated_regex).is_unterminated(),
+        None
+    );
+    assert_eq!(
+        unterminated
+            .arena
+            .node(unterminated_regex)
+            .is_unterminated(),
+        Some(true)
+    );
     assert_eq!(
         unterminated.parse_diagnostics[0].code(),
         gen::Unterminated_regular_expression_literal.code

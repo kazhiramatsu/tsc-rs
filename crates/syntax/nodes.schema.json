@@ -2001,8 +2001,7 @@
       "kindName": "RegularExpressionLiteral",
       "dataName": "RegularExpressionLiteralData",
       "fields": [
-        {"name": "text", "rustName": "text", "type": "String", "optional": false, "child": false},
-        {"name": "isUnterminated", "rustName": "is_unterminated", "type": "Bool", "optional": true, "child": false}
+        {"name": "text", "rustName": "text", "type": "String", "optional": false, "child": false}
       ],
       "children": [
       ]
@@ -2115,8 +2114,7 @@
       "kindName": "StringLiteral",
       "dataName": "StringLiteralData",
       "fields": [
-        {"name": "text", "rustName": "text", "type": "String", "optional": false, "child": false},
-        {"name": "hasExtendedUnicodeEscape", "rustName": "has_extended_unicode_escape", "type": "Bool", "optional": true, "child": false}
+        {"name": "text", "rustName": "text", "type": "String", "optional": false, "child": false}
       ],
       "children": [
       ]

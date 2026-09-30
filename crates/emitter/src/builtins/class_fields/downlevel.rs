@@ -5895,7 +5895,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                         });
                     };
                     let function =
-                        self.create_private_method_function(member, data, method_name)?;
+                        self.create_private_method_function(member, *data, method_name)?;
                     operations
                         .pending
                         .append_private_definition(PrivateDefinition {
@@ -6507,7 +6507,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let modifiers = self.visit_function_modifiers(modifiers)?;
         let function = self.context.factory()?.create_node(
             self.source,
-            NodeData::FunctionExpression(tsc_syntax::nodes::FunctionExpressionData {
+            NodeData::FunctionExpression(Box::new(tsc_syntax::nodes::FunctionExpressionData {
                 name: Some(name.node()),
                 type_parameters,
                 parameters,
@@ -6515,7 +6515,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 asterisk_token,
                 body,
                 modifiers,
-            }),
+            })),
             TransformFlags::NONE,
         )?;
         // Later Rust transforms project resolver queries back into the
@@ -8160,7 +8160,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 field: "body",
             })?;
         let body_record = self.context.arena().node(body)?.clone();
-        let original_multi_line = body_record.multi_line;
+        let original_multi_line = body_record.multi_line();
         let NodeData::Block(mut block) = body_record.data else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::Constructor,
@@ -9166,7 +9166,6 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             self.source,
             NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
                 text: text.to_owned(),
-                has_extended_unicode_escape: None,
             }),
             TransformFlags::NONE,
         )

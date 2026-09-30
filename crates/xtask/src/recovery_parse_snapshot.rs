@@ -130,12 +130,9 @@ pub fn digest(source: &SourceFile) -> Value {
                 // compile failure; private SourceFile fields have a schema guard.
                 let tsc_syntax::nodes::Node {
                     kind,
+                    // The literal and tri-state bits are read through the accessors below.
+                    literal_flags: _,
                     flags,
-                    // Emit-session state only; zero on every parsed node.
-                    transform_flags: _,
-                    numeric_literal_flags,
-                    template_flags,
-                    multi_line,
                     pos,
                     end,
                     parent,
@@ -150,8 +147,9 @@ pub fn digest(source: &SourceFile) -> Value {
                 contexts.update((flags & NodeFlags::CONTEXT_FLAGS.bits()).to_le_bytes());
                 json!({"node":*kind as u16,"pos":position(*pos),"end":position(*end),
                     "flags":flags & !NodeFlags::CONTEXT_FLAGS.bits(),
-                    "numeric_literal_flags":numeric_literal_flags,"template_flags":template_flags,
-                    "multi_line":multi_line,"parent":parent.map(|id|graph.node(id)),
+                    "numeric_literal_flags":node.numeric_literal_flags(),
+                    "template_flags":node.template_flags(),
+                    "multi_line":node.multi_line(),"parent":parent.map(|id|graph.node(id)),
                     "js_doc":js_doc.map(|id|graph.array(id)),"fields":fields})
             }
             GraphEntry::Array(id) => {

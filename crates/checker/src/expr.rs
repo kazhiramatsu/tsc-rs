@@ -816,7 +816,7 @@ impl<'a> CheckerState<'a> {
                 .unwrap_or(token_start_byte as u32);
             (
                 literal_text,
-                data.is_unterminated == Some(true),
+                raw.is_unterminated() == Some(true),
                 source.language_version,
                 source.file_name.clone(),
                 token_start_utf16,

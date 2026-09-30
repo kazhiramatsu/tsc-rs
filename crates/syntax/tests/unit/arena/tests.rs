@@ -8,10 +8,7 @@ use crate::nodes::{
 fn finalizes_parent_links_and_error_aggregation() {
     let mut arena = NodeArena::new();
     let stmt = arena.alloc_node(
-        NodeData::StringLiteral(StringLiteralData {
-            text: "x".into(),
-            has_extended_unicode_escape: None,
-        }),
+        NodeData::StringLiteral(StringLiteralData { text: "x".into() }),
         0,
         1,
         NodeFlags::THIS_NODE_HAS_ERROR,

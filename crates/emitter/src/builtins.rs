@@ -638,7 +638,6 @@ impl TypeScriptTransformer<'_> {
                     source,
                     NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
                         text: tsc_types::JsString::from_code_units(value.code_units()),
-                        has_extended_unicode_escape: None,
                     }),
                     TransformFlags::NONE,
                 )?,
@@ -924,7 +923,6 @@ fn ensure_use_strict_prologue(
         source,
         NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
             text: "use strict".into(),
-            has_extended_unicode_escape: None,
         }),
         TransformFlags::NONE,
     )?;
@@ -2092,7 +2090,6 @@ fn insert_external_helpers_import_declaration(
         source,
         NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
             text: "tslib".into(),
-            has_extended_unicode_escape: None,
         }),
         TransformFlags::NONE,
     )?;
@@ -6079,7 +6076,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                         concise_body: false,
                     }
                 };
-                let function = self.visit_function_declaration(statement, data, owner)?;
+                let function = self.visit_function_declaration(statement, *data, owner)?;
                 self.nodes.insert(statement.node(), function.node());
                 Ok(vec![function])
             }
@@ -7991,18 +7988,18 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     })?,
                 NodeData::FunctionDeclaration(data) => self.visit_function_declaration(
                     original,
-                    data,
+                    *data,
                     CommonJsFunctionLexicalOwner::Function {
                         kind: SyntaxKind::FunctionDeclaration,
                         concise_body: false,
                     },
                 )?,
                 NodeData::FunctionExpression(data) => {
-                    self.visit_function_expression(original, data)?
+                    self.visit_function_expression(original, *data)?
                 }
                 NodeData::ArrowFunction(data) => self.visit_arrow_function(original, data)?,
                 NodeData::MethodDeclaration(data) => {
-                    self.visit_method_declaration(original, data)?
+                    self.visit_method_declaration(original, *data)?
                 }
                 NodeData::GetAccessor(data) => self.visit_get_accessor(original, data)?,
                 NodeData::SetAccessor(data) => self.visit_set_accessor(original, data)?,
@@ -8033,7 +8030,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         data.r#type = self.visit_optional_node(data.r#type)?;
         (data.parameters, data.body) =
             self.visit_module_function_children(data.parameters, data.body, owner)?;
-        self.update_generic_without_visit(original, NodeData::FunctionDeclaration(data))
+        self.update_generic_without_visit(original, NodeData::FunctionDeclaration(Box::new(data)))
     }
 
     fn visit_function_expression(
@@ -8054,7 +8051,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 concise_body: false,
             },
         )?;
-        self.update_generic_without_visit(original, NodeData::FunctionExpression(data))
+        self.update_generic_without_visit(original, NodeData::FunctionExpression(Box::new(data)))
     }
 
     fn visit_arrow_function(
@@ -8107,7 +8104,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 concise_body: false,
             },
         )?;
-        self.update_generic_without_visit(original, NodeData::MethodDeclaration(data))
+        self.update_generic_without_visit(original, NodeData::MethodDeclaration(Box::new(data)))
     }
 
     fn visit_get_accessor(
@@ -10879,7 +10876,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .create_node_array(self.source, parameters)?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::FunctionExpression(tsc_syntax::nodes::FunctionExpressionData {
+            NodeData::FunctionExpression(Box::new(tsc_syntax::nodes::FunctionExpressionData {
                 name: None,
                 type_parameters: None,
                 parameters: Some(parameters.array()),
@@ -10887,7 +10884,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 asterisk_token: None,
                 body: Some(body.node()),
                 modifiers: None,
-            }),
+            })),
             TransformFlags::NONE,
         )
     }
@@ -14949,7 +14946,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             .create_node_array(self.source, parameters)?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::FunctionExpression(tsc_syntax::nodes::FunctionExpressionData {
+            NodeData::FunctionExpression(Box::new(tsc_syntax::nodes::FunctionExpressionData {
                 name: None,
                 type_parameters: None,
                 parameters: Some(parameters.array()),
@@ -14957,7 +14954,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 asterisk_token: None,
                 body: Some(body.node()),
                 modifiers: None,
-            }),
+            })),
             TransformFlags::NONE,
         )
     }
@@ -17470,11 +17467,8 @@ fn snapshot_transform_flags(
     source: TransformSourceId,
 ) -> Result<(Vec<i32>, Vec<i32>), TransformError> {
     let syntax = arena.source(source)?.syntax();
-    let nodes = syntax
-        .arena
-        .nodes()
-        .iter()
-        .map(|node| node.transform_flags)
+    let nodes = (syntax.arena.node_base()..syntax.arena.node_end())
+        .map(|node| syntax.arena.transform_flags(NodeId::new(node)))
         .collect();
     let arrays = (syntax.arena.array_base()..syntax.arena.array_end())
         .map(|array| {
@@ -18043,14 +18037,14 @@ fn local_transform_flags(node: &Node) -> TransformFlags {
             // (_tsc.js:21508-21514) over the parse record's
             // numeric_literal_flags word (the scanner's TokenFlags
             // carrier; 384 = BinaryOrOctalSpecifier).
-            if node.numeric_literal_flags & 384 != 0 {
+            if node.numeric_literal_flags() & 384 != 0 {
                 flags |= TransformFlags::CONTAINS_ES_2015;
             }
         }
-        NodeData::StringLiteral(data) => {
+        NodeData::StringLiteral(_) => {
             // createStringLiteral hasExtendedUnicodeEscape row
             // (_tsc.js:21529-21534).
-            if data.has_extended_unicode_escape == Some(true) {
+            if node.has_extended_unicode_escape() == Some(true) {
                 flags |= TransformFlags::CONTAINS_ES_2015;
             }
         }
@@ -18064,7 +18058,7 @@ fn local_transform_flags(node: &Node) -> TransformFlags {
         | NodeData::TemplateTail(_) => {
             // getTransformFlagsOfTemplateLiteralLike (_tsc.js:22862-22868);
             flags |= TransformFlags::CONTAINS_ES_2015;
-            if node.template_flags != 0 {
+            if node.template_flags() != 0 {
                 flags |= TransformFlags::CONTAINS_ES_2018;
             }
         }

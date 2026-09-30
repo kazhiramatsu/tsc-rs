@@ -8,6 +8,11 @@ use tsc_types::{IdentityError, IdentityLease, IdentityRange, IdentitySpace, Node
 pub struct NodeArena {
     nodes: Vec<Node>,
     arrays: Vec<NodeArray>,
+    /// tsc Node.transformFlags per node slot, written only on an emit
+    /// session's copy of a tree (the emitter's transform-flag classifier and
+    /// factory); a parsed arena keeps none, so its node records carry no
+    /// field for them. Shorter than `nodes` until a write reaches a slot.
+    transform_flags: Vec<i32>,
     /// Program-wide id bases (M4 5.0): tsc nodes are heap objects with
     /// program-unique identity; per-file arenas get the same property
     /// by allocating NodeId/NodeArrayId from a per-file base so a
@@ -184,10 +189,7 @@ impl SubtreeCopier {
                 shifted_position(old_node.end, position_delta) as usize,
                 NodeFlags::from_bits(old_node.flags),
             );
-            let copied = destination.node_mut(id);
-            copied.numeric_literal_flags = old_node.numeric_literal_flags;
-            copied.template_flags = old_node.template_flags;
-            copied.multi_line = old_node.multi_line;
+            destination.node_mut(id).literal_flags = old_node.literal_flags;
             let index = self.node_index(*old_id);
             self.node_map[index] = id;
             self.node_lineage.push((*old_id, id));
@@ -319,7 +321,8 @@ impl NodeArena {
     /// Add this arena's allocations to `usage`.
     pub fn add_memory_usage(&self, usage: &mut SyntaxMemory) {
         usage.nodes += self.nodes.len();
-        usage.node_bytes += self.nodes.capacity() * std::mem::size_of::<Node>();
+        usage.node_bytes += self.nodes.capacity() * std::mem::size_of::<Node>()
+            + self.transform_flags.capacity() * std::mem::size_of::<i32>();
         usage.arrays += self.arrays.len();
         usage.array_bytes += self.arrays.capacity() * std::mem::size_of::<NodeArray>();
         for array in &self.arrays {
@@ -533,6 +536,30 @@ impl NodeArena {
     pub fn node_mut(&mut self, id: NodeId) -> &mut Node {
         let index = self.node_index(id);
         &mut self.nodes[index]
+    }
+
+    /// tsc Node.transformFlags of `id`: none until an emit session writes them.
+    pub fn transform_flags(&self, id: NodeId) -> i32 {
+        debug_assert!(self.contains_node(id));
+        self.transform_flags
+            .get((id.index() - self.node_base) as usize)
+            .copied()
+            .unwrap_or(0)
+    }
+
+    /// Write tsc Node.transformFlags of `id` (an emit session's copy).
+    pub fn set_transform_flags(&mut self, id: NodeId, flags: i32) {
+        debug_assert!(self.contains_node(id));
+        let slot = (id.index() - self.node_base) as usize;
+        if self.transform_flags.len() <= slot {
+            self.transform_flags.resize(self.nodes.len(), 0);
+        }
+        self.transform_flags[slot] = flags;
+    }
+
+    /// Forget every node's transform flags (an emit session's reset).
+    pub fn clear_transform_flags(&mut self) {
+        self.transform_flags.clear();
     }
 
     pub fn set_js_doc(&mut self, host: NodeId, js_doc: NodeArrayId) {
@@ -776,11 +803,8 @@ impl NodeArena {
         );
         self.nodes.push(Node {
             kind,
+            literal_flags: 0,
             flags: flags.bits(),
-            transform_flags: 0,
-            numeric_literal_flags: 0,
-            template_flags: 0,
-            multi_line: None,
             pos: pos as u32,
             end: end as u32,
             parent: None,

@@ -1718,7 +1718,7 @@ impl DisplayClonePrinter<'_, '_> {
             return false;
         };
         let node = self.state.binder.source_of_node(node).arena.node(node);
-        node.numeric_literal_flags & 448 == 0 && !data.text.contains(['.', 'e', 'E'])
+        node.numeric_literal_flags() & 448 == 0 && !data.text.contains(['.', 'e', 'E'])
     }
 
     fn is_optional_chain(&self, node: NodeId) -> bool {
@@ -1817,7 +1817,7 @@ impl DisplayClonePrinter<'_, '_> {
             .source_of_node(node)
             .arena
             .node(node)
-            .multi_line
+            .multi_line()
             == Some(true)
     }
 

@@ -2182,7 +2182,6 @@ fn create_string_literal<'a, H: FlattenHost>(
         source,
         NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
             text: text.into().to_owned(),
-            has_extended_unicode_escape: None,
         }),
         TransformFlags::NONE,
     )

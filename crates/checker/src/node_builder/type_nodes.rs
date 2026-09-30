@@ -1577,10 +1577,7 @@ fn type_to_type_node_worker(
                 let literal = create_node(
                     arena,
                     target,
-                    NodeData::StringLiteral(StringLiteralData {
-                        text: member_name,
-                        has_extended_unicode_escape: None,
-                    }),
+                    NodeData::StringLiteral(StringLiteralData { text: member_name }),
                 )?;
                 let literal = create_literal_type_node(arena, target, literal)?;
                 let parent_data = arena.node(parent_name).map_err(factory_error)?.data.clone();
@@ -4175,7 +4172,6 @@ fn create_property_signature_with_name(
             target,
             NodeData::StringLiteral(StringLiteralData {
                 text: name.to_owned().into(),
-                has_extended_unicode_escape: None,
             }),
         )?
     };

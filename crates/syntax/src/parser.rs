@@ -2619,7 +2619,7 @@ impl<'text> Parser<'text> {
         );
         self.set_await_context(saved_await_context);
         self.finish_node_data(
-            NodeData::FunctionDeclaration(FunctionDeclarationData {
+            NodeData::FunctionDeclaration(Box::new(FunctionDeclarationData {
                 modifiers,
                 asterisk_token,
                 name,
@@ -2627,7 +2627,7 @@ impl<'text> Parser<'text> {
                 type_parameters,
                 parameters: Some(parameters),
                 body,
-            }),
+            })),
             pos,
         )
     }
@@ -3712,7 +3712,7 @@ impl<'text> Parser<'text> {
             }),
             pos,
         );
-        self.arena.node_mut(block).multi_line = multi_line;
+        self.arena.node_mut(block).set_multi_line(multi_line);
 
         if self.token() == SyntaxKind::EqualsToken {
             self.parse_error_at_current_token(
@@ -5538,10 +5538,10 @@ impl<'text> Parser<'text> {
         let contains_only_trivia_white_spaces = self.token() == SyntaxKind::JsxTextAllWhiteSpaces;
         self.scan_jsx_text();
         self.finish_node_data(
-            NodeData::JsxText(JsxTextData {
+            NodeData::JsxText(Box::new(JsxTextData {
                 text,
                 contains_only_trivia_white_spaces,
-            }),
+            })),
             pos,
         )
     }
@@ -6756,7 +6756,7 @@ impl<'text> Parser<'text> {
             }),
             pos,
         );
-        self.arena.node_mut(array).multi_line = Some(multi_line);
+        self.arena.node_mut(array).set_multi_line(Some(multi_line));
         array
     }
 
@@ -6782,7 +6782,7 @@ impl<'text> Parser<'text> {
             }),
             pos,
         );
-        self.arena.node_mut(object).multi_line = Some(multi_line);
+        self.arena.node_mut(object).set_multi_line(Some(multi_line));
         object
     }
 
@@ -6936,7 +6936,7 @@ impl<'text> Parser<'text> {
             diagnostic_message,
         );
         self.finish_node_data(
-            NodeData::MethodDeclaration(MethodDeclarationData {
+            NodeData::MethodDeclaration(Box::new(MethodDeclarationData {
                 modifiers,
                 asterisk_token,
                 name: Some(name),
@@ -6946,7 +6946,7 @@ impl<'text> Parser<'text> {
                 type_parameters,
                 parameters: Some(parameters),
                 body,
-            }),
+            })),
             pos,
         )
     }
@@ -7177,7 +7177,7 @@ impl<'text> Parser<'text> {
         let body = Some(self.parse_function_block(is_generator, is_async, false, None));
         self.set_decorator_context(saved_decorator_context);
         self.finish_node_data(
-            NodeData::FunctionExpression(FunctionExpressionData {
+            NodeData::FunctionExpression(Box::new(FunctionExpressionData {
                 modifiers,
                 asterisk_token,
                 name,
@@ -7185,7 +7185,7 @@ impl<'text> Parser<'text> {
                 type_parameters,
                 parameters: Some(parameters),
                 body,
-            }),
+            })),
             pos,
         )
     }
@@ -7309,7 +7309,9 @@ impl<'text> Parser<'text> {
             _ => unreachable!("template fragment kind"),
         };
         let id = self.arena.alloc_node(data, pos, end, NodeFlags::NONE);
-        self.arena.node_mut(id).template_flags = self.scanner.template_literal_flags();
+        self.arena
+            .node_mut(id)
+            .set_template_flags(self.scanner.template_literal_flags());
         self.next_token();
         self.finish_node_at(id, pos, end)
     }
@@ -7323,14 +7325,14 @@ impl<'text> Parser<'text> {
         let text = self.scanner.token_value().to_owned();
         let has_extended_unicode_escape = self.scanner.has_extended_unicode_escape();
         let id = self.arena.alloc_node(
-            NodeData::StringLiteral(StringLiteralData {
-                text,
-                has_extended_unicode_escape: Some(has_extended_unicode_escape),
-            }),
+            NodeData::StringLiteral(StringLiteralData { text }),
             pos,
             end,
             NodeFlags::NONE,
         );
+        self.arena
+            .node_mut(id)
+            .set_has_extended_unicode_escape(Some(has_extended_unicode_escape));
         self.next_token();
         self.finish_node_at(id, pos, end)
     }
@@ -7346,7 +7348,9 @@ impl<'text> Parser<'text> {
             end,
             NodeFlags::NONE,
         );
-        self.arena.node_mut(id).numeric_literal_flags = numeric_literal_flags;
+        self.arena
+            .node_mut(id)
+            .set_numeric_literal_flags(numeric_literal_flags);
         self.next_token();
         self.finish_node_at(id, pos, end)
     }
@@ -7371,14 +7375,12 @@ impl<'text> Parser<'text> {
         let text = self.current_token_text();
         let is_unterminated = self.scanner.is_unterminated().then_some(true);
         let id = self.arena.alloc_node(
-            NodeData::RegularExpressionLiteral(RegularExpressionLiteralData {
-                text,
-                is_unterminated,
-            }),
+            NodeData::RegularExpressionLiteral(RegularExpressionLiteralData { text }),
             pos,
             end,
             NodeFlags::NONE,
         );
+        self.arena.node_mut(id).set_is_unterminated(is_unterminated);
         self.next_token();
         self.finish_node_at(id, pos, end)
     }
@@ -7398,7 +7400,9 @@ impl<'text> Parser<'text> {
             end,
             NodeFlags::NONE,
         );
-        self.arena.node_mut(id).template_flags = self.scanner.template_literal_flags();
+        self.arena
+            .node_mut(id)
+            .set_template_flags(self.scanner.template_literal_flags());
         self.next_token();
         self.finish_node_at(id, pos, end)
     }

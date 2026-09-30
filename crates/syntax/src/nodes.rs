@@ -43,31 +43,58 @@ pub enum NodePayload {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Node {
     pub kind: SyntaxKind,
+    /// The node's parser-owned scalar facts, read through the accessors
+    /// below: tsc's tri-state multiLine in bits 0-1 (0 unset, 1 false,
+    /// 2 true); on a StringLiteral hasExtendedUnicodeEscape and on a
+    /// RegularExpressionLiteral isUnterminated in bits 2-3, encoded the
+    /// same way; on a NumericLiteral tsc's numericLiteralFlags and on the
+    /// template literal kinds templateFlags in the remaining bits (their
+    /// TokenFlags masks lie within bits 3-14).
+    pub literal_flags: u16,
     pub flags: i32,
-    /// tsc Node.transformFlags: written only on an emit session's detached
-    /// copy of the tree (the emitter's transform-flag classifier and factory);
-    /// zero on every parsed node.
-    pub transform_flags: i32,
-    /// tsc NumericLiteral.numericLiteralFlags; zero on every other node kind.
-    /// Every numeric-literal TokenFlags bit lies below bit 16.
-    pub numeric_literal_flags: u16,
-    /// Parser-owned TemplateLiteralLikeNode.templateFlags; zero on other node kinds.
-    /// Every template-literal TokenFlags bit lies below bit 16.
-    pub template_flags: u16,
-    /// tsc's internal Array/Object/Block.multiLine parser bit.
-    pub multi_line: Option<bool>,
     pub pos: u32,
     pub end: u32,
     pub parent: Option<NodeId>,
     /// tsc's internal Node.jsDoc attachment; not an ordinary forEachChild edge.
     pub js_doc: Option<NodeArrayId>,
+    /// tsc Node.transformFlags lives beside the records in `NodeArena`,
+    /// written only on an emit session's copy of a tree.
     pub data: NodeData,
 }
 
 // A large Program holds tens of millions of node records, so their size
 // is a memory budget: growing it is a deliberate decision.
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(std::mem::size_of::<Node>() == 72);
+const _: () = assert!(std::mem::size_of::<Node>() == 56);
+
+/// `literal_flags` bits 0-1: tsc's multiLine. tsc keeps it on Block,
+/// ArrayLiteralExpression and ObjectLiteralExpression; the emitter also
+/// sets it where tsc sets EmitFlags.MultiLine, so every kind carries it.
+const MULTI_LINE_BITS: u16 = 0b0011;
+/// `literal_flags` bits 2-3: StringLiteral.hasExtendedUnicodeEscape or
+/// RegularExpressionLiteral.isUnterminated.
+const LITERAL_STATE_BITS: u16 = 0b1100;
+const LITERAL_STATE_SHIFT: u32 = 2;
+/// `literal_flags` bits carrying NumericLiteral.numericLiteralFlags or a
+/// template literal's templateFlags: tsc's masks never touch bits 0-2, and
+/// those kinds carry no literal state.
+const TOKEN_FLAG_BITS: u16 = !MULTI_LINE_BITS;
+
+fn tri_state(bits: u16) -> Option<bool> {
+    match bits {
+        1 => Some(false),
+        2 => Some(true),
+        _ => None,
+    }
+}
+
+fn tri_state_bits(value: Option<bool>) -> u16 {
+    match value {
+        None => 0,
+        Some(false) => 1,
+        Some(true) => 2,
+    }
+}
 
 impl Node {
     /// This record's scalar facts with another payload: a probe for the
@@ -75,17 +102,103 @@ impl Node {
     pub fn with_data(&self, data: NodeData) -> Node {
         Node {
             kind: self.kind,
+            literal_flags: self.literal_flags,
             flags: self.flags,
-            transform_flags: self.transform_flags,
-            numeric_literal_flags: self.numeric_literal_flags,
-            template_flags: self.template_flags,
-            multi_line: self.multi_line,
             pos: self.pos,
             end: self.end,
             parent: self.parent,
             js_doc: self.js_doc,
             data,
         }
+    }
+
+    /// tsc's multiLine bit (see `MULTI_LINE_BITS`).
+    pub fn multi_line(&self) -> Option<bool> {
+        tri_state(self.literal_flags & MULTI_LINE_BITS)
+    }
+
+    pub fn set_multi_line(&mut self, multi_line: Option<bool>) {
+        self.literal_flags = (self.literal_flags & !MULTI_LINE_BITS) | tri_state_bits(multi_line);
+    }
+
+    /// tsc NumericLiteral.numericLiteralFlags; zero on every other kind.
+    pub fn numeric_literal_flags(&self) -> u16 {
+        if self.kind == SyntaxKind::NumericLiteral {
+            self.literal_flags & TOKEN_FLAG_BITS
+        } else {
+            0
+        }
+    }
+
+    pub fn set_numeric_literal_flags(&mut self, flags: u16) {
+        debug_assert_eq!(self.kind, SyntaxKind::NumericLiteral);
+        self.set_token_flags(flags);
+    }
+
+    /// tsc TemplateLiteralLikeNode.templateFlags; zero on every other kind.
+    pub fn template_flags(&self) -> u16 {
+        if self.is_template_literal_like() {
+            self.literal_flags & TOKEN_FLAG_BITS
+        } else {
+            0
+        }
+    }
+
+    pub fn set_template_flags(&mut self, flags: u16) {
+        debug_assert!(self.is_template_literal_like());
+        self.set_token_flags(flags);
+    }
+
+    fn is_template_literal_like(&self) -> bool {
+        matches!(
+            self.kind,
+            SyntaxKind::NoSubstitutionTemplateLiteral
+                | SyntaxKind::TemplateHead
+                | SyntaxKind::TemplateMiddle
+                | SyntaxKind::TemplateTail
+        )
+    }
+
+    fn set_token_flags(&mut self, flags: u16) {
+        debug_assert_eq!(flags & !TOKEN_FLAG_BITS, 0);
+        self.literal_flags = (self.literal_flags & MULTI_LINE_BITS) | flags;
+    }
+
+    /// tsc StringLiteral.hasExtendedUnicodeEscape; None on every other kind.
+    pub fn has_extended_unicode_escape(&self) -> Option<bool> {
+        if self.kind == SyntaxKind::StringLiteral {
+            self.literal_state()
+        } else {
+            None
+        }
+    }
+
+    pub fn set_has_extended_unicode_escape(&mut self, value: Option<bool>) {
+        debug_assert_eq!(self.kind, SyntaxKind::StringLiteral);
+        self.set_literal_state(value);
+    }
+
+    /// tsc RegularExpressionLiteral.isUnterminated; None on every other kind.
+    pub fn is_unterminated(&self) -> Option<bool> {
+        if self.kind == SyntaxKind::RegularExpressionLiteral {
+            self.literal_state()
+        } else {
+            None
+        }
+    }
+
+    pub fn set_is_unterminated(&mut self, value: Option<bool>) {
+        debug_assert_eq!(self.kind, SyntaxKind::RegularExpressionLiteral);
+        self.set_literal_state(value);
+    }
+
+    fn literal_state(&self) -> Option<bool> {
+        tri_state((self.literal_flags & LITERAL_STATE_BITS) >> LITERAL_STATE_SHIFT)
+    }
+
+    fn set_literal_state(&mut self, value: Option<bool>) {
+        self.literal_flags = (self.literal_flags & !LITERAL_STATE_BITS)
+            | (tri_state_bits(value) << LITERAL_STATE_SHIFT);
     }
 }
 
@@ -1103,7 +1216,6 @@ pub struct QualifiedNameData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct RegularExpressionLiteralData {
     pub text: String,
-    pub is_unterminated: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1161,7 +1273,6 @@ pub struct SpreadElementData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct StringLiteralData {
     pub text: tsc_types::JsString,
-    pub has_extended_unicode_escape: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1393,8 +1504,8 @@ pub enum NodeData {
     ForInStatement(ForInStatementData),
     ForOfStatement(ForOfStatementData),
     ForStatement(ForStatementData),
-    FunctionDeclaration(FunctionDeclarationData),
-    FunctionExpression(FunctionExpressionData),
+    FunctionDeclaration(Box<FunctionDeclarationData>),
+    FunctionExpression(Box<FunctionExpressionData>),
     FunctionType(FunctionTypeData),
     GetAccessor(GetAccessorData),
     HeritageClause(HeritageClauseData),
@@ -1413,46 +1524,46 @@ pub enum NodeData {
     InferType(InferTypeData),
     InterfaceDeclaration(InterfaceDeclarationData),
     IntersectionType(IntersectionTypeData),
-    JSDoc(JSDocData),
+    JSDoc(Box<JSDocData>),
     JSDocAllType(JSDocAllTypeData),
-    JSDocAugmentsTag(JSDocAugmentsTagData),
-    JSDocAuthorTag(JSDocAuthorTagData),
+    JSDocAugmentsTag(Box<JSDocAugmentsTagData>),
+    JSDocAuthorTag(Box<JSDocAuthorTagData>),
     JSDocCallbackTag(Box<JSDocCallbackTagData>),
-    JSDocClassTag(JSDocClassTagData),
-    JSDocDeprecatedTag(JSDocDeprecatedTagData),
-    JSDocEnumTag(JSDocEnumTagData),
+    JSDocClassTag(Box<JSDocClassTagData>),
+    JSDocDeprecatedTag(Box<JSDocDeprecatedTagData>),
+    JSDocEnumTag(Box<JSDocEnumTagData>),
     JSDocFunctionType(JSDocFunctionTypeData),
-    JSDocImplementsTag(JSDocImplementsTagData),
+    JSDocImplementsTag(Box<JSDocImplementsTagData>),
     JSDocImportTag(Box<JSDocImportTagData>),
-    JSDocLink(JSDocLinkData),
-    JSDocLinkCode(JSDocLinkCodeData),
-    JSDocLinkPlain(JSDocLinkPlainData),
+    JSDocLink(Box<JSDocLinkData>),
+    JSDocLinkCode(Box<JSDocLinkCodeData>),
+    JSDocLinkPlain(Box<JSDocLinkPlainData>),
     JSDocMemberName(JSDocMemberNameData),
     JSDocNameReference(JSDocNameReferenceData),
     JSDocNamepathType(JSDocNamepathTypeData),
     JSDocNonNullableType(JSDocNonNullableTypeData),
     JSDocNullableType(JSDocNullableTypeData),
     JSDocOptionalType(JSDocOptionalTypeData),
-    JSDocOverloadTag(JSDocOverloadTagData),
-    JSDocOverrideTag(JSDocOverrideTagData),
+    JSDocOverloadTag(Box<JSDocOverloadTagData>),
+    JSDocOverrideTag(Box<JSDocOverrideTagData>),
     JSDocParameterTag(Box<JSDocParameterTagData>),
-    JSDocPrivateTag(JSDocPrivateTagData),
+    JSDocPrivateTag(Box<JSDocPrivateTagData>),
     JSDocPropertyTag(Box<JSDocPropertyTagData>),
-    JSDocProtectedTag(JSDocProtectedTagData),
-    JSDocPublicTag(JSDocPublicTagData),
-    JSDocReadonlyTag(JSDocReadonlyTagData),
-    JSDocReturnTag(JSDocReturnTagData),
-    JSDocSatisfiesTag(JSDocSatisfiesTagData),
-    JSDocSeeTag(JSDocSeeTagData),
+    JSDocProtectedTag(Box<JSDocProtectedTagData>),
+    JSDocPublicTag(Box<JSDocPublicTagData>),
+    JSDocReadonlyTag(Box<JSDocReadonlyTagData>),
+    JSDocReturnTag(Box<JSDocReturnTagData>),
+    JSDocSatisfiesTag(Box<JSDocSatisfiesTagData>),
+    JSDocSeeTag(Box<JSDocSeeTagData>),
     JSDocSignature(JSDocSignatureData),
-    JSDocTag(JSDocTagData),
+    JSDocTag(Box<JSDocTagData>),
     JSDocTemplateTag(Box<JSDocTemplateTagData>),
     JSDocText(JSDocTextData),
-    JSDocThisTag(JSDocThisTagData),
-    JSDocThrowsTag(JSDocThrowsTagData),
+    JSDocThisTag(Box<JSDocThisTagData>),
+    JSDocThrowsTag(Box<JSDocThrowsTagData>),
     JSDocTypeExpression(JSDocTypeExpressionData),
     JSDocTypeLiteral(JSDocTypeLiteralData),
-    JSDocTypeTag(JSDocTypeTagData),
+    JSDocTypeTag(Box<JSDocTypeTagData>),
     JSDocTypedefTag(Box<JSDocTypedefTagData>),
     JSDocUnknownType(JSDocUnknownTypeData),
     JSDocVariadicType(JSDocVariadicTypeData),
@@ -1466,12 +1577,12 @@ pub enum NodeData {
     JsxOpeningElement(JsxOpeningElementData),
     JsxSelfClosingElement(JsxSelfClosingElementData),
     JsxSpreadAttribute(JsxSpreadAttributeData),
-    JsxText(JsxTextData),
+    JsxText(Box<JsxTextData>),
     LabeledStatement(LabeledStatementData),
     LiteralType(LiteralTypeData),
     MappedType(MappedTypeData),
     MetaProperty(MetaPropertyData),
-    MethodDeclaration(MethodDeclarationData),
+    MethodDeclaration(Box<MethodDeclarationData>),
     MethodSignature(MethodSignatureData),
     MissingDeclaration(MissingDeclarationData),
     ModuleBlock(ModuleBlockData),
@@ -1947,24 +2058,28 @@ impl NodeData {
                 condition: None,
                 incrementor: None,
             }),
-            SyntaxKind::FunctionDeclaration => Self::FunctionDeclaration(FunctionDeclarationData {
-                name: None,
-                type_parameters: None,
-                parameters: None,
-                r#type: None,
-                asterisk_token: None,
-                body: None,
-                modifiers: None,
-            }),
-            SyntaxKind::FunctionExpression => Self::FunctionExpression(FunctionExpressionData {
-                name: None,
-                type_parameters: None,
-                parameters: None,
-                r#type: None,
-                asterisk_token: None,
-                body: None,
-                modifiers: None,
-            }),
+            SyntaxKind::FunctionDeclaration => {
+                Self::FunctionDeclaration(Box::new(FunctionDeclarationData {
+                    name: None,
+                    type_parameters: None,
+                    parameters: None,
+                    r#type: None,
+                    asterisk_token: None,
+                    body: None,
+                    modifiers: None,
+                }))
+            }
+            SyntaxKind::FunctionExpression => {
+                Self::FunctionExpression(Box::new(FunctionExpressionData {
+                    name: None,
+                    type_parameters: None,
+                    parameters: None,
+                    r#type: None,
+                    asterisk_token: None,
+                    body: None,
+                    modifiers: None,
+                }))
+            }
             SyntaxKind::FunctionType => Self::FunctionType(FunctionTypeData {
                 type_parameters: None,
                 parameters: None,
@@ -2062,20 +2177,22 @@ impl NodeData {
             SyntaxKind::IntersectionType => {
                 Self::IntersectionType(IntersectionTypeData { types: None })
             }
-            SyntaxKind::JSDoc => Self::JSDoc(JSDocData {
+            SyntaxKind::JSDoc => Self::JSDoc(Box::new(JSDocData {
                 tags: None,
                 comment: None,
-            }),
+            })),
             SyntaxKind::JSDocAllType => Self::JSDocAllType(JSDocAllTypeData {}),
-            SyntaxKind::JSDocAugmentsTag => Self::JSDocAugmentsTag(JSDocAugmentsTagData {
+            SyntaxKind::JSDocAugmentsTag => {
+                Self::JSDocAugmentsTag(Box::new(JSDocAugmentsTagData {
+                    tag_name: None,
+                    comment: None,
+                    class: None,
+                }))
+            }
+            SyntaxKind::JSDocAuthorTag => Self::JSDocAuthorTag(Box::new(JSDocAuthorTagData {
                 tag_name: None,
                 comment: None,
-                class: None,
-            }),
-            SyntaxKind::JSDocAuthorTag => Self::JSDocAuthorTag(JSDocAuthorTagData {
-                tag_name: None,
-                comment: None,
-            }),
+            })),
             SyntaxKind::JSDocCallbackTag => {
                 Self::JSDocCallbackTag(Box::new(JSDocCallbackTagData {
                     tag_name: None,
@@ -2085,30 +2202,34 @@ impl NodeData {
                     type_expression: None,
                 }))
             }
-            SyntaxKind::JSDocClassTag => Self::JSDocClassTag(JSDocClassTagData {
+            SyntaxKind::JSDocClassTag => Self::JSDocClassTag(Box::new(JSDocClassTagData {
                 tag_name: None,
                 comment: None,
-            }),
-            SyntaxKind::JSDocDeprecatedTag => Self::JSDocDeprecatedTag(JSDocDeprecatedTagData {
-                tag_name: None,
-                comment: None,
-            }),
-            SyntaxKind::JSDocEnumTag => Self::JSDocEnumTag(JSDocEnumTagData {
+            })),
+            SyntaxKind::JSDocDeprecatedTag => {
+                Self::JSDocDeprecatedTag(Box::new(JSDocDeprecatedTagData {
+                    tag_name: None,
+                    comment: None,
+                }))
+            }
+            SyntaxKind::JSDocEnumTag => Self::JSDocEnumTag(Box::new(JSDocEnumTagData {
                 tag_name: None,
                 comment: None,
                 type_expression: None,
-            }),
+            })),
             SyntaxKind::JSDocFunctionType => Self::JSDocFunctionType(JSDocFunctionTypeData {
                 name: None,
                 type_parameters: None,
                 parameters: None,
                 r#type: None,
             }),
-            SyntaxKind::JSDocImplementsTag => Self::JSDocImplementsTag(JSDocImplementsTagData {
-                tag_name: None,
-                comment: None,
-                class: None,
-            }),
+            SyntaxKind::JSDocImplementsTag => {
+                Self::JSDocImplementsTag(Box::new(JSDocImplementsTagData {
+                    tag_name: None,
+                    comment: None,
+                    class: None,
+                }))
+            }
             SyntaxKind::JSDocImportTag => Self::JSDocImportTag(Box::new(JSDocImportTagData {
                 tag_name: None,
                 comment: None,
@@ -2116,18 +2237,18 @@ impl NodeData {
                 module_specifier: None,
                 attributes: None,
             })),
-            SyntaxKind::JSDocLink => Self::JSDocLink(JSDocLinkData {
+            SyntaxKind::JSDocLink => Self::JSDocLink(Box::new(JSDocLinkData {
                 name: None,
                 text: String::new(),
-            }),
-            SyntaxKind::JSDocLinkCode => Self::JSDocLinkCode(JSDocLinkCodeData {
+            })),
+            SyntaxKind::JSDocLinkCode => Self::JSDocLinkCode(Box::new(JSDocLinkCodeData {
                 name: None,
                 text: String::new(),
-            }),
-            SyntaxKind::JSDocLinkPlain => Self::JSDocLinkPlain(JSDocLinkPlainData {
+            })),
+            SyntaxKind::JSDocLinkPlain => Self::JSDocLinkPlain(Box::new(JSDocLinkPlainData {
                 name: None,
                 text: String::new(),
-            }),
+            })),
             SyntaxKind::JSDocMemberName => Self::JSDocMemberName(JSDocMemberNameData {
                 left: None,
                 right: None,
@@ -2151,15 +2272,19 @@ impl NodeData {
             SyntaxKind::JSDocOptionalType => {
                 Self::JSDocOptionalType(JSDocOptionalTypeData { r#type: None })
             }
-            SyntaxKind::JSDocOverloadTag => Self::JSDocOverloadTag(JSDocOverloadTagData {
-                tag_name: None,
-                comment: None,
-                type_expression: None,
-            }),
-            SyntaxKind::JSDocOverrideTag => Self::JSDocOverrideTag(JSDocOverrideTagData {
-                tag_name: None,
-                comment: None,
-            }),
+            SyntaxKind::JSDocOverloadTag => {
+                Self::JSDocOverloadTag(Box::new(JSDocOverloadTagData {
+                    tag_name: None,
+                    comment: None,
+                    type_expression: None,
+                }))
+            }
+            SyntaxKind::JSDocOverrideTag => {
+                Self::JSDocOverrideTag(Box::new(JSDocOverrideTagData {
+                    tag_name: None,
+                    comment: None,
+                }))
+            }
             SyntaxKind::JSDocParameterTag => {
                 Self::JSDocParameterTag(Box::new(JSDocParameterTagData {
                     tag_name: None,
@@ -2170,10 +2295,10 @@ impl NodeData {
                     is_bracketed: false,
                 }))
             }
-            SyntaxKind::JSDocPrivateTag => Self::JSDocPrivateTag(JSDocPrivateTagData {
+            SyntaxKind::JSDocPrivateTag => Self::JSDocPrivateTag(Box::new(JSDocPrivateTagData {
                 tag_name: None,
                 comment: None,
-            }),
+            })),
             SyntaxKind::JSDocPropertyTag => {
                 Self::JSDocPropertyTag(Box::new(JSDocPropertyTagData {
                     tag_name: None,
@@ -2184,42 +2309,48 @@ impl NodeData {
                     is_bracketed: false,
                 }))
             }
-            SyntaxKind::JSDocProtectedTag => Self::JSDocProtectedTag(JSDocProtectedTagData {
+            SyntaxKind::JSDocProtectedTag => {
+                Self::JSDocProtectedTag(Box::new(JSDocProtectedTagData {
+                    tag_name: None,
+                    comment: None,
+                }))
+            }
+            SyntaxKind::JSDocPublicTag => Self::JSDocPublicTag(Box::new(JSDocPublicTagData {
                 tag_name: None,
                 comment: None,
-            }),
-            SyntaxKind::JSDocPublicTag => Self::JSDocPublicTag(JSDocPublicTagData {
-                tag_name: None,
-                comment: None,
-            }),
-            SyntaxKind::JSDocReadonlyTag => Self::JSDocReadonlyTag(JSDocReadonlyTagData {
-                tag_name: None,
-                comment: None,
-            }),
-            SyntaxKind::JSDocReturnTag => Self::JSDocReturnTag(JSDocReturnTagData {
+            })),
+            SyntaxKind::JSDocReadonlyTag => {
+                Self::JSDocReadonlyTag(Box::new(JSDocReadonlyTagData {
+                    tag_name: None,
+                    comment: None,
+                }))
+            }
+            SyntaxKind::JSDocReturnTag => Self::JSDocReturnTag(Box::new(JSDocReturnTagData {
                 tag_name: None,
                 comment: None,
                 type_expression: None,
-            }),
-            SyntaxKind::JSDocSatisfiesTag => Self::JSDocSatisfiesTag(JSDocSatisfiesTagData {
-                tag_name: None,
-                comment: None,
-                type_expression: None,
-            }),
-            SyntaxKind::JSDocSeeTag => Self::JSDocSeeTag(JSDocSeeTagData {
+            })),
+            SyntaxKind::JSDocSatisfiesTag => {
+                Self::JSDocSatisfiesTag(Box::new(JSDocSatisfiesTagData {
+                    tag_name: None,
+                    comment: None,
+                    type_expression: None,
+                }))
+            }
+            SyntaxKind::JSDocSeeTag => Self::JSDocSeeTag(Box::new(JSDocSeeTagData {
                 tag_name: None,
                 comment: None,
                 name: None,
-            }),
+            })),
             SyntaxKind::JSDocSignature => Self::JSDocSignature(JSDocSignatureData {
                 type_parameters: None,
                 parameters: None,
                 r#type: None,
             }),
-            SyntaxKind::JSDocTag => Self::JSDocTag(JSDocTagData {
+            SyntaxKind::JSDocTag => Self::JSDocTag(Box::new(JSDocTagData {
                 tag_name: None,
                 comment: None,
-            }),
+            })),
             SyntaxKind::JSDocTemplateTag => {
                 Self::JSDocTemplateTag(Box::new(JSDocTemplateTagData {
                     tag_name: None,
@@ -2231,16 +2362,16 @@ impl NodeData {
             SyntaxKind::JSDocText => Self::JSDocText(JSDocTextData {
                 text: String::new(),
             }),
-            SyntaxKind::JSDocThisTag => Self::JSDocThisTag(JSDocThisTagData {
+            SyntaxKind::JSDocThisTag => Self::JSDocThisTag(Box::new(JSDocThisTagData {
                 tag_name: None,
                 comment: None,
                 type_expression: None,
-            }),
-            SyntaxKind::JSDocThrowsTag => Self::JSDocThrowsTag(JSDocThrowsTagData {
+            })),
+            SyntaxKind::JSDocThrowsTag => Self::JSDocThrowsTag(Box::new(JSDocThrowsTagData {
                 tag_name: None,
                 comment: None,
                 type_expression: None,
-            }),
+            })),
             SyntaxKind::JSDocTypeExpression => {
                 Self::JSDocTypeExpression(JSDocTypeExpressionData { r#type: None })
             }
@@ -2248,11 +2379,11 @@ impl NodeData {
                 js_doc_property_tags: None,
                 is_array_type: false,
             }),
-            SyntaxKind::JSDocTypeTag => Self::JSDocTypeTag(JSDocTypeTagData {
+            SyntaxKind::JSDocTypeTag => Self::JSDocTypeTag(Box::new(JSDocTypeTagData {
                 tag_name: None,
                 comment: None,
                 type_expression: None,
-            }),
+            })),
             SyntaxKind::JSDocTypedefTag => Self::JSDocTypedefTag(Box::new(JSDocTypedefTagData {
                 tag_name: None,
                 comment: None,
@@ -2307,10 +2438,10 @@ impl NodeData {
             SyntaxKind::JsxSpreadAttribute => {
                 Self::JsxSpreadAttribute(JsxSpreadAttributeData { expression: None })
             }
-            SyntaxKind::JsxText => Self::JsxText(JsxTextData {
+            SyntaxKind::JsxText => Self::JsxText(Box::new(JsxTextData {
                 text: String::new(),
                 contains_only_trivia_white_spaces: false,
-            }),
+            })),
             SyntaxKind::LabeledStatement => Self::LabeledStatement(LabeledStatementData {
                 label: None,
                 statement: None,
@@ -2328,17 +2459,19 @@ impl NodeData {
                 keyword_token: SyntaxKind::MetaProperty,
                 name: None,
             }),
-            SyntaxKind::MethodDeclaration => Self::MethodDeclaration(MethodDeclarationData {
-                name: None,
-                type_parameters: None,
-                parameters: None,
-                r#type: None,
-                asterisk_token: None,
-                question_token: None,
-                exclamation_token: None,
-                body: None,
-                modifiers: None,
-            }),
+            SyntaxKind::MethodDeclaration => {
+                Self::MethodDeclaration(Box::new(MethodDeclarationData {
+                    name: None,
+                    type_parameters: None,
+                    parameters: None,
+                    r#type: None,
+                    asterisk_token: None,
+                    question_token: None,
+                    exclamation_token: None,
+                    body: None,
+                    modifiers: None,
+                }))
+            }
             SyntaxKind::MethodSignature => Self::MethodSignature(MethodSignatureData {
                 name: None,
                 type_parameters: None,
@@ -2475,7 +2608,6 @@ impl NodeData {
             SyntaxKind::RegularExpressionLiteral => {
                 Self::RegularExpressionLiteral(RegularExpressionLiteralData {
                     text: String::new(),
-                    is_unterminated: None,
                 })
             }
             SyntaxKind::RestType => Self::RestType(RestTypeData { r#type: None }),
@@ -2516,7 +2648,6 @@ impl NodeData {
             }
             SyntaxKind::StringLiteral => Self::StringLiteral(StringLiteralData {
                 text: tsc_types::JsString::new(),
-                has_extended_unicode_escape: None,
             }),
             SyntaxKind::SwitchStatement => Self::SwitchStatement(SwitchStatementData {
                 expression: None,
