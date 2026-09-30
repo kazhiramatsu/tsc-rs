@@ -1096,7 +1096,7 @@ impl<'context, 'resolver, 'state> Es2015Visitor<'context, 'resolver, 'state> {
     }
 
     fn node_is_multi_line(&self, node: TransformNode) -> Result<bool, TransformError> {
-        Ok(self.context.arena().node(node)?.multi_line == Some(true))
+        Ok(self.context.arena().node(node)?.multi_line() == Some(true))
     }
 
     fn identifier_text(&self, node: TransformNode) -> Result<String, TransformError> {
@@ -2029,7 +2029,7 @@ impl Es2015Visitor<'_, '_, '_> {
         }
         self.context.factory()?.create_node(
             source,
-            NodeData::FunctionExpression(tsc_syntax::nodes::FunctionExpressionData {
+            NodeData::FunctionExpression(Box::new(tsc_syntax::nodes::FunctionExpressionData {
                 name: name.map(|name| name.node()),
                 type_parameters: None,
                 parameters: Some(parameters_array.array()),
@@ -2037,7 +2037,7 @@ impl Es2015Visitor<'_, '_, '_> {
                 asterisk_token: asterisk_token.map(|token| token.node()),
                 body: Some(body.node()),
                 modifiers: None,
-            }),
+            })),
             flags,
         )
     }
@@ -2861,9 +2861,10 @@ impl Es2015Visitor<'_, '_, '_> {
         &mut self,
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let (has_escape, text) = match &self.context.arena().node(node)?.data {
+        let record = self.context.arena().node(node)?;
+        let (has_escape, text) = match &record.data {
             NodeData::StringLiteral(data) => (
-                data.has_extended_unicode_escape == Some(true),
+                record.has_extended_unicode_escape() == Some(true),
                 data.text.clone(),
             ),
             _ => (false, tsc_types::JsString::new()),
@@ -2884,7 +2885,7 @@ impl Es2015Visitor<'_, '_, '_> {
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
         let record = self.context.arena().node(node)?;
-        let is_binary_or_octal = record.numeric_literal_flags & 384 != 0;
+        let is_binary_or_octal = record.numeric_literal_flags() & 384 != 0;
         let text = match &record.data {
             NodeData::NumericLiteral(data) => data.text.clone(),
             _ => String::new(),
@@ -4592,7 +4593,7 @@ impl Es2015Visitor<'_, '_, '_> {
                 .create_node_array(source, parameters)?
         };
         let updated_data =
-            NodeData::FunctionExpression(tsc_syntax::nodes::FunctionExpressionData {
+            NodeData::FunctionExpression(Box::new(tsc_syntax::nodes::FunctionExpressionData {
                 name: name.map(|name| name.node()),
                 type_parameters: None,
                 parameters: Some(parameters_array.array()),
@@ -4600,7 +4601,7 @@ impl Es2015Visitor<'_, '_, '_> {
                 asterisk_token: asterisk,
                 body: Some(body.node()),
                 modifiers: None,
-            });
+            }));
         if self.context.arena().node(node)?.data == updated_data {
             return Ok(node);
         }
@@ -4670,7 +4671,7 @@ impl Es2015Visitor<'_, '_, '_> {
                 .create_node_array(source, parameters)?
         };
         let updated_data =
-            NodeData::FunctionDeclaration(tsc_syntax::nodes::FunctionDeclarationData {
+            NodeData::FunctionDeclaration(Box::new(tsc_syntax::nodes::FunctionDeclarationData {
                 name: name.map(|name| name.node()),
                 type_parameters: None,
                 parameters: Some(parameters_array.array()),
@@ -4678,7 +4679,7 @@ impl Es2015Visitor<'_, '_, '_> {
                 asterisk_token: asterisk,
                 body: Some(body.node()),
                 modifiers,
-            });
+            }));
         if self.context.arena().node(node)?.data == updated_data {
             return Ok(node);
         }
@@ -8849,15 +8850,17 @@ impl Es2015Visitor<'_, '_, '_> {
                 | TransformFlags::CONTAINS_HOISTED_DECLARATION_OR_COMPLETION;
             self.context.factory()?.create_node(
                 source,
-                NodeData::FunctionDeclaration(tsc_syntax::nodes::FunctionDeclarationData {
-                    name: Some(name.node()),
-                    type_parameters: None,
-                    parameters: Some(parameters_array.array()),
-                    r#type: None,
-                    asterisk_token: None,
-                    body: Some(body.node()),
-                    modifiers: None,
-                }),
+                NodeData::FunctionDeclaration(Box::new(
+                    tsc_syntax::nodes::FunctionDeclarationData {
+                        name: Some(name.node()),
+                        type_parameters: None,
+                        parameters: Some(parameters_array.array()),
+                        r#type: None,
+                        asterisk_token: None,
+                        body: Some(body.node()),
+                        modifiers: None,
+                    },
+                )),
                 flags,
             )?
         };

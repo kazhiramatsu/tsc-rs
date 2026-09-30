@@ -670,8 +670,8 @@ impl<'context, 'renames> GeneratorsVisitor<'context, 'renames> {
                     .arena()
                     .propagate_child_flags(self.node(name))?;
             }
-            let replaced =
-                NodeData::FunctionDeclaration(tsc_syntax::nodes::FunctionDeclarationData {
+            let replaced = NodeData::FunctionDeclaration(Box::new(
+                tsc_syntax::nodes::FunctionDeclarationData {
                     name: data.name,
                     type_parameters: None,
                     parameters,
@@ -679,7 +679,8 @@ impl<'context, 'renames> GeneratorsVisitor<'context, 'renames> {
                     asterisk_token: None,
                     body: Some(body.node()),
                     modifiers: data.modifiers,
-                });
+                },
+            ));
             let created = self
                 .context
                 .factory()?
@@ -737,7 +738,7 @@ impl<'context, 'renames> GeneratorsVisitor<'context, 'renames> {
                     .propagate_child_flags(self.node(name))?;
             }
             let replaced =
-                NodeData::FunctionExpression(tsc_syntax::nodes::FunctionExpressionData {
+                NodeData::FunctionExpression(Box::new(tsc_syntax::nodes::FunctionExpressionData {
                     name: data.name,
                     type_parameters: None,
                     parameters,
@@ -745,7 +746,7 @@ impl<'context, 'renames> GeneratorsVisitor<'context, 'renames> {
                     asterisk_token: None,
                     body: Some(body.node()),
                     modifiers: None,
-                });
+                }));
             let created = self
                 .context
                 .factory()?
@@ -5195,7 +5196,6 @@ impl GeneratorsVisitor<'_, '_> {
             source,
             NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
                 text: text.to_owned(),
-                has_extended_unicode_escape: None,
             }),
             TransformFlags::NONE,
         )
@@ -5766,7 +5766,7 @@ impl GeneratorsVisitor<'_, '_> {
             | self.context.arena().propagate_child_flags(body)?;
         self.context.factory()?.create_node(
             source,
-            NodeData::FunctionExpression(tsc_syntax::nodes::FunctionExpressionData {
+            NodeData::FunctionExpression(Box::new(tsc_syntax::nodes::FunctionExpressionData {
                 name: None,
                 type_parameters: None,
                 parameters: Some(parameters.array()),
@@ -5774,7 +5774,7 @@ impl GeneratorsVisitor<'_, '_> {
                 asterisk_token: None,
                 body: Some(body.node()),
                 modifiers: None,
-            }),
+            })),
             flags,
         )
     }
@@ -5797,7 +5797,7 @@ impl GeneratorsVisitor<'_, '_> {
             | self.context.arena().propagate_child_flags(body)?;
         self.context.factory()?.create_node(
             source,
-            NodeData::FunctionExpression(tsc_syntax::nodes::FunctionExpressionData {
+            NodeData::FunctionExpression(Box::new(tsc_syntax::nodes::FunctionExpressionData {
                 name: name.map(TransformNode::node),
                 type_parameters: None,
                 parameters: Some(parameters.array()),
@@ -5805,7 +5805,7 @@ impl GeneratorsVisitor<'_, '_> {
                 asterisk_token: asterisk_token.map(TransformNode::node),
                 body: Some(body.node()),
                 modifiers,
-            }),
+            })),
             flags,
         )
     }
@@ -5920,7 +5920,7 @@ impl GeneratorsVisitor<'_, '_> {
     /// `node.multiLine` — the parser/factory decision carried on the node
     /// record (the printer's own read, printer.rs block arm).
     fn node_is_multi_line(&self, node: TransformNode) -> Result<bool, TransformError> {
-        Ok(self.context.arena().node(node)?.multi_line == Some(true))
+        Ok(self.context.arena().node(node)?.multi_line() == Some(true))
     }
 
     fn identifier_text(&self, node: TransformNode) -> Result<String, TransformError> {

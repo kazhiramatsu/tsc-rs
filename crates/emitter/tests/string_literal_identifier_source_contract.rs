@@ -79,7 +79,6 @@ impl Transformer for LiteralTransformer {
                 source,
                 NodeData::StringLiteral(StringLiteralData {
                     text: identifier.text().into(),
-                    has_extended_unicode_escape: None,
                 }),
                 TransformFlags::NONE,
             )?,

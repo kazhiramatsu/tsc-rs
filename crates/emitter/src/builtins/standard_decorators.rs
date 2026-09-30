@@ -4998,7 +4998,6 @@ impl<'context> StandardDecoratorVisitor<'context> {
             self.source,
             NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
                 text: text.to_owned(),
-                has_extended_unicode_escape: None,
             }),
             TransformFlags::NONE,
         )
@@ -5331,7 +5330,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
     ) -> Result<TransformNode, TransformError> {
         self.context.factory()?.create_node(
             self.source,
-            NodeData::FunctionExpression(tsc_syntax::nodes::FunctionExpressionData {
+            NodeData::FunctionExpression(Box::new(tsc_syntax::nodes::FunctionExpressionData {
                 name: None,
                 type_parameters: None,
                 parameters,
@@ -5339,7 +5338,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 asterisk_token,
                 body: Some(body.node()),
                 modifiers,
-            }),
+            })),
             TransformFlags::NONE,
         )
     }

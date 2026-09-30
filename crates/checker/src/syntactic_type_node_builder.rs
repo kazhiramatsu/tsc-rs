@@ -402,10 +402,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
     ) -> Result<TransformNode, EmitResolverError> {
         self.create_node(
             source,
-            NodeData::StringLiteral(StringLiteralData {
-                text: text.into(),
-                has_extended_unicode_escape: None,
-            }),
+            NodeData::StringLiteral(StringLiteralData { text: text.into() }),
             TransformFlags::NONE,
         )
     }

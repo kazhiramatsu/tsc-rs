@@ -18,10 +18,15 @@ fn fragments(source: &SourceFile, id: NodeId, output: &mut Vec<Value>) {
             "end": source.positions().byte_to_utf16(node.end).unwrap(),
             "value_utf16": text.to_utf16(),
             "raw_text": raw,
-            "template_flags": node.template_flags,
+            "template_flags": node.template_flags(),
         }));
     } else {
-        assert_eq!(node.template_flags, 0, "template flags on {:?}", node.kind);
+        assert_eq!(
+            node.template_flags(),
+            0,
+            "template flags on {:?}",
+            node.kind
+        );
     }
     for_each_child(&source.arena, node, |child| {
         fragments(source, child, output);

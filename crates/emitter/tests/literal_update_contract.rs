@@ -167,11 +167,13 @@ fn template_payload(kind: SyntaxKind, text: JsString, raw_text: Option<String>) 
     }
 }
 
-fn literal_parts(data: &NodeData) -> (JsString, Option<String>, Option<bool>) {
-    match data {
-        NodeData::StringLiteral(data) => {
-            (data.text.clone(), None, data.has_extended_unicode_escape)
-        }
+fn literal_parts(record: &tsc_syntax::Node) -> (JsString, Option<String>, Option<bool>) {
+    match &record.data {
+        NodeData::StringLiteral(data) => (
+            data.text.clone(),
+            None,
+            record.has_extended_unicode_escape(),
+        ),
         NodeData::NoSubstitutionTemplateLiteral(data) => {
             (data.text.clone(), data.raw_text.clone(), None)
         }
@@ -200,7 +202,7 @@ fn state(
             i64::from(value)
         }
     };
-    let (_, raw_projection, has_extended_unicode_escape) = literal_parts(&record.data);
+    let (_, raw_projection, has_extended_unicode_escape) = literal_parts(record);
     let raw_text_utf16 = if is_string {
         Value::Null
     } else if let Some(raw) =
@@ -226,7 +228,7 @@ fn state(
         "parent": record.parent.is_some(),
         "text_utf16": arena.literal_code_units(node).unwrap().unwrap(),
         "raw_text_utf16": raw_text_utf16,
-        "template_flags": if is_string { Value::Null } else { json!(record.template_flags) },
+        "template_flags": if is_string { Value::Null } else { json!(record.template_flags()) },
         "single_quote": if is_string {
             json!(properties.and_then(tsc_emitter::LiteralNodeProperties::string_literal_single_quote))
         } else {
@@ -282,14 +284,17 @@ fn apply_generic(
 ) -> Result<Option<TransformNode>, TransformError> {
     let record = arena.node(node)?.clone();
     let flags = arena.transform_flags(node);
-    let (text, raw_text, has_extended_unicode_escape) = literal_parts(&record.data);
+    let (text, raw_text, has_extended_unicode_escape) = literal_parts(&record);
     let scalar = |units: &[u16]| String::from_utf16(units).ok();
     let payload = match (kind == SyntaxKind::StringLiteral, operation) {
         (_, "same") => record.data.clone(),
-        // `createStringLiteral(after, node.singleQuote)`: no escape marker.
+        // `createStringLiteral(after, node.singleQuote)` leaves the escape
+        // marker unset. The marker is a node property the generic update
+        // keeps, so the route expresses the cooked update only where the
+        // marker is unset already (a synthesized literal).
+        (true, "cooked") if has_extended_unicode_escape.is_some() => return Ok(None),
         (true, "cooked") => NodeData::StringLiteral(StringLiteralData {
             text: JsString::from_code_units(after),
-            has_extended_unicode_escape: None,
         }),
         (false, "cooked") => template_payload(kind, JsString::from_code_units(after), raw_text),
         (false, "raw") => match scalar(after) {
@@ -303,7 +308,6 @@ fn apply_generic(
         (false, "flags") | (true, "quote") => return Ok(None),
         (is_string, other) => panic!("unsupported generic operation {other} (string: {is_string})"),
     };
-    let _ = has_extended_unicode_escape;
     let flags = transform_flags_of(&payload, flags);
     arena.factory().update_node(node, payload, flags).map(Some)
 }
@@ -321,7 +325,7 @@ fn apply_typed(
     let current_text = arena.literal_code_units(node)?.expect("literal operand");
     let properties = arena.literal_properties(node);
     if kind == SyntaxKind::StringLiteral {
-        let (_, _, has_extended_unicode_escape) = literal_parts(&record.data);
+        let (_, _, has_extended_unicode_escape) = literal_parts(&record);
         let current_quote =
             properties.and_then(tsc_emitter::LiteralNodeProperties::string_literal_single_quote);
         let (text, quote, escape): (&[u16], Option<bool>, Option<bool>) = match operation {
@@ -335,13 +339,13 @@ fn apply_typed(
             .update_string_literal(node, text, quote, escape)
             .map(Some);
     }
-    let (_, projection, _) = literal_parts(&record.data);
+    let (_, projection, _) = literal_parts(&record);
     let current_raw: Option<Vec<u16>> =
         match properties.and_then(tsc_emitter::LiteralNodeProperties::raw_template_text) {
             Some(owned) => Some(owned.code_units().to_vec()),
             None => projection.map(|raw| raw.encode_utf16().collect()),
         };
-    let flags = i32::from(record.template_flags) & TokenFlags::TEMPLATE_LITERAL_LIKE_FLAGS.bits();
+    let flags = i32::from(record.template_flags()) & TokenFlags::TEMPLATE_LITERAL_LIKE_FLAGS.bits();
     let empty: &[u16] = &[];
     let (text, raw, flags): (&[u16], Option<&[u16]>, i32) = match operation {
         "same" => (&current_text, current_raw.as_deref(), flags),
@@ -441,10 +445,7 @@ fn factory_case(case: &Value, route: Route) -> Outcome {
                     base = Some(identifier);
                     let literal = arena.factory().create_node(
                         source,
-                        NodeData::StringLiteral(StringLiteralData {
-                            text: "abc".into(),
-                            has_extended_unicode_escape: None,
-                        }),
+                        NodeData::StringLiteral(StringLiteralData { text: "abc".into() }),
                         TransformFlags::NONE,
                     )?;
                     arena
@@ -842,7 +843,7 @@ fn lifetime_case(case: &Value) -> Result<Value, String> {
     transformation.dispose();
     let arena = transformation.arena();
     let is_string = kind == SyntaxKind::StringLiteral;
-    let (_, raw_projection, _) = literal_parts(&arena.node(node).unwrap().data);
+    let (_, raw_projection, _) = literal_parts(arena.node(node).unwrap());
     let survived = json!({
         "text_utf16": arena.literal_code_units(node).unwrap().unwrap(),
         "raw_text_utf16": if is_string { Value::Null } else if let Some(raw) =
@@ -990,7 +991,7 @@ fn factory_literal_updates_match_typescript() {
             failures.len()
         );
         let expected = match *route {
-            "generic" => (782, 205),
+            "generic" => (768, 219),
             "typed" => (987, 0),
             _ => unreachable!(),
         };

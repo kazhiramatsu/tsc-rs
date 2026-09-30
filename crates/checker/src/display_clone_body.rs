@@ -1423,7 +1423,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 text.push(';');
                 Ok(Some(text))
             }
-            NodeData::MethodDeclaration(data) => self.method_declaration(data),
+            NodeData::MethodDeclaration(data) => self.method_declaration(*data),
             NodeData::GetAccessor(data) => self.accessor_declaration(
                 "get",
                 data.modifiers,
@@ -2138,7 +2138,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
             .source_of_node(node)
             .arena
             .node(node)
-            .multi_line
+            .multi_line()
             == Some(true)
     }
 

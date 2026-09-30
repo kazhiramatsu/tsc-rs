@@ -385,7 +385,7 @@ fn comma_argument_factory_matches_typescript() {
                     let record = arena.node(expression).unwrap();
                     serde_json::json!({"pos": raw_position(record.pos), "end": raw_position(record.end),
                         "original_present": arena.metadata(expression).and_then(|m| m.original()).is_some(),
-                        "multi_line": record.multi_line})
+                        "multi_line": record.multi_line()})
                 });
                 let array_id = match &arena.node(expression).unwrap().data {
                     NodeData::CallExpression(data) => data.arguments,

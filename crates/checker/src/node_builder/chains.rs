@@ -1533,7 +1533,6 @@ fn create_string_literal<'t>(
         target,
         NodeData::StringLiteral(StringLiteralData {
             text: text.into().to_owned(),
-            has_extended_unicode_escape: None,
         }),
     )?;
     arena

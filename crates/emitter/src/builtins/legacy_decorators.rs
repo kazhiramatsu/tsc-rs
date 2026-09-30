@@ -3794,7 +3794,6 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             self.source,
             NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
                 text: text.to_owned(),
-                has_extended_unicode_escape: None,
             }),
             TransformFlags::NONE,
         )

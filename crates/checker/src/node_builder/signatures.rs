@@ -616,7 +616,7 @@ pub(crate) fn signature_to_signature_declaration_helper(
             SyntaxKind::MethodDeclaration => create_node(
                 arena,
                 target,
-                NodeData::MethodDeclaration(MethodDeclarationData {
+                NodeData::MethodDeclaration(Box::new(MethodDeclarationData {
                     name,
                     type_parameters,
                     parameters,
@@ -626,7 +626,7 @@ pub(crate) fn signature_to_signature_declaration_helper(
                     exclamation_token: None,
                     body: None,
                     modifiers,
-                }),
+                })),
             )?,
             SyntaxKind::Constructor => create_node(
                 arena,
@@ -745,7 +745,7 @@ pub(crate) fn signature_to_signature_declaration_helper(
             SyntaxKind::FunctionDeclaration => create_node(
                 arena,
                 target,
-                NodeData::FunctionDeclaration(FunctionDeclarationData {
+                NodeData::FunctionDeclaration(Box::new(FunctionDeclarationData {
                     name,
                     type_parameters,
                     parameters,
@@ -753,14 +753,14 @@ pub(crate) fn signature_to_signature_declaration_helper(
                     asterisk_token: None,
                     body: None,
                     modifiers,
-                }),
+                })),
             )?,
             SyntaxKind::FunctionExpression => {
                 let body = empty_block(arena, target)?;
                 create_node(
                     arena,
                     target,
-                    NodeData::FunctionExpression(FunctionExpressionData {
+                    NodeData::FunctionExpression(Box::new(FunctionExpressionData {
                         name,
                         type_parameters,
                         parameters,
@@ -768,7 +768,7 @@ pub(crate) fn signature_to_signature_declaration_helper(
                         asterisk_token: None,
                         body: Some(body.node()),
                         modifiers,
-                    }),
+                    })),
                 )?
             }
             SyntaxKind::ArrowFunction => {

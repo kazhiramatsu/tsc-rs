@@ -179,10 +179,12 @@ fn list_format_flags_matches_typescript() {
                 };
                 let record = arena.node(node).unwrap();
                 let (array, multi_line) = match &record.data {
-                    NodeData::ArrayLiteralExpression(data) => (data.elements, record.multi_line),
-                    NodeData::ObjectLiteralExpression(data) => (data.properties, record.multi_line),
-                    NodeData::ArrayBindingPattern(data) => (data.elements, record.multi_line),
-                    NodeData::ObjectBindingPattern(data) => (data.elements, record.multi_line),
+                    NodeData::ArrayLiteralExpression(data) => (data.elements, record.multi_line()),
+                    NodeData::ObjectLiteralExpression(data) => {
+                        (data.properties, record.multi_line())
+                    }
+                    NodeData::ArrayBindingPattern(data) => (data.elements, record.multi_line()),
+                    NodeData::ObjectBindingPattern(data) => (data.elements, record.multi_line()),
                     NodeData::ImportAttributes(data) => (data.elements, data.multi_line),
                     _ => unreachable!(),
                 };

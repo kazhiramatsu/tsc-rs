@@ -3610,7 +3610,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             .create_node_array(self.source, vec![module_parameter])?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::FunctionDeclaration(tsc_syntax::nodes::FunctionDeclarationData {
+            NodeData::FunctionDeclaration(Box::new(tsc_syntax::nodes::FunctionDeclarationData {
                 name: Some(name.node()),
                 type_parameters: None,
                 parameters: Some(parameters.array()),
@@ -3618,7 +3618,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                 asterisk_token: None,
                 body: Some(body.node()),
                 modifiers: None,
-            }),
+            })),
             TransformFlags::NONE,
         )
     }
@@ -4039,7 +4039,6 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             self.source,
             NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
                 text: text.to_owned(),
-                has_extended_unicode_escape: None,
             }),
             TransformFlags::NONE,
         )
@@ -4206,7 +4205,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             .create_node_array(self.source, parameters)?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::FunctionExpression(tsc_syntax::nodes::FunctionExpressionData {
+            NodeData::FunctionExpression(Box::new(tsc_syntax::nodes::FunctionExpressionData {
                 name: None,
                 type_parameters: None,
                 parameters: Some(parameters.array()),
@@ -4214,7 +4213,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                 asterisk_token: None,
                 body: Some(body.node()),
                 modifiers,
-            }),
+            })),
             TransformFlags::NONE,
         )
     }

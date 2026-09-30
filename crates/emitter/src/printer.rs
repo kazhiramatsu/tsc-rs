@@ -1632,7 +1632,7 @@ impl Printer {
         }
         let requires_literal_rewrite = match &record.data {
             NodeData::NumericLiteral(_) => {
-                let flags = TokenFlags::from_bits(i32::from(record.numeric_literal_flags));
+                let flags = TokenFlags::from_bits(i32::from(record.numeric_literal_flags()));
                 flags.intersects(TokenFlags::IS_INVALID)
                     || flags.contains(TokenFlags::CONTAINS_SEPARATOR)
                         && target.is_none_or(|target| target < ScriptTarget::ES2021)
@@ -3020,7 +3020,7 @@ impl Printer {
             .is_some()
             || NodeFlags::from_bits(record.flags).contains(NodeFlags::SYNTHESIZED)
             || self.emission_plan.structured_nodes.contains(&node);
-        let multi_line = record.multi_line == Some(true);
+        let multi_line = record.multi_line() == Some(true);
         let declaration_source = transformation
             .arena()
             .source(node.source())?
@@ -12337,7 +12337,7 @@ impl Printer {
                         .is_some_and(|text| text.chars().any(is_line_break)),
                     SourceRange::Synthesized => false,
                 };
-            if record.multi_line == Some(true) || source_is_multiline {
+            if record.multi_line() == Some(true) || source_is_multiline {
                 writer.write_line(false);
             } else {
                 writer.write_space(" ");
@@ -13745,7 +13745,7 @@ impl Printer {
         let expression = self.skip_partially_emitted_expressions(transformation, expression)?;
         let record = transformation.arena().node(expression)?;
         if let NodeData::NumericLiteral(data) = &record.data {
-            if TokenFlags::from_bits(i32::from(record.numeric_literal_flags))
+            if TokenFlags::from_bits(i32::from(record.numeric_literal_flags()))
                 .intersects(TokenFlags::WITH_SPECIFIER)
             {
                 return Ok(false);

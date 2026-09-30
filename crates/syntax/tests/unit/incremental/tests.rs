@@ -86,9 +86,9 @@ fn canonical_tree(source: &SourceFile) -> CanonicalTree {
             CanonicalNode {
                 kind: node.kind,
                 flags: node.flags,
-                numeric_literal_flags: node.numeric_literal_flags,
-                template_flags: node.template_flags,
-                multi_line: node.multi_line,
+                numeric_literal_flags: node.numeric_literal_flags(),
+                template_flags: node.template_flags(),
+                multi_line: node.multi_line(),
                 pos: node.pos,
                 end: node.end,
                 parent: node.parent.map(|id| {

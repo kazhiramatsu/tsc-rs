@@ -1450,7 +1450,7 @@ where
             }
         }
         NodeData::RegularExpressionLiteral(data) => {
-            if let Some(value) = data.is_unterminated {
+            if let Some(value) = node.is_unterminated() {
                 cb("isUnterminated", ObservableField::Bool(value));
             }
             cb("text", ObservableField::String(&data.text));
@@ -1532,7 +1532,7 @@ where
             }
         }
         NodeData::StringLiteral(data) => {
-            if let Some(value) = data.has_extended_unicode_escape {
+            if let Some(value) = node.has_extended_unicode_escape() {
                 cb("hasExtendedUnicodeEscape", ObservableField::Bool(value));
             }
             cb("text", ObservableField::JsString(data.text.as_js()));

@@ -784,7 +784,7 @@ impl TransformArena {
     pub fn transform_flags(&self, node: TransformNode) -> TransformFlags {
         match self.sources.get(node.source.raw() as usize) {
             Some(source) if source.source.arena.contains_node(node.node) => {
-                TransformFlags::from_bits(source.source.arena.node(node.node).transform_flags)
+                TransformFlags::from_bits(source.source.arena.transform_flags(node.node))
             }
             _ => TransformFlags::NONE,
         }
@@ -796,7 +796,10 @@ impl TransformArena {
     pub fn set_transform_flags(&mut self, node: TransformNode, flags: TransformFlags) {
         if let Some(source) = self.sources.get_mut(node.source.raw() as usize) {
             if source.source.arena.contains_node(node.node) {
-                source.source.arena.node_mut(node.node).transform_flags = flags.bits();
+                source
+                    .source
+                    .arena
+                    .set_transform_flags(node.node, flags.bits());
             }
         }
     }
@@ -1021,9 +1024,7 @@ impl TransformArena {
     pub fn clear_session_metadata(&mut self) {
         self.metadata.clear();
         for source in &mut self.sources {
-            for node in source.source.arena.nodes_mut() {
-                node.transform_flags = 0;
-            }
+            source.source.arena.clear_transform_flags();
             for array in source.source.arena.node_arrays_mut() {
                 array.transform_flags = 0;
             }
@@ -2035,10 +2036,7 @@ impl<'arena> NodeFactory<'arena> {
     ) -> Result<TransformNode, TransformError> {
         let literal = self.create_node(
             source,
-            NodeData::StringLiteral(StringLiteralData {
-                text: text.into(),
-                has_extended_unicode_escape: None,
-            }),
+            NodeData::StringLiteral(StringLiteralData { text: text.into() }),
             TransformFlags::NONE,
         )?;
         self.arena
@@ -2120,7 +2118,7 @@ impl<'arena> NodeFactory<'arena> {
                 .source
                 .arena
                 .node_mut(literal.node)
-                .template_flags = template_flags.bits() as u16;
+                .set_template_flags(template_flags.bits() as u16);
             let flags = self.arena.transform_flags(literal) | TransformFlags::CONTAINS_ES_2018;
             self.arena.set_transform_flags(literal, flags);
         }
@@ -2170,7 +2168,7 @@ impl<'arena> NodeFactory<'arena> {
         };
         if current_text.to_utf16() == text
             && current_raw.as_deref() == raw
-            && i32::from(record.template_flags) & mask == requested_flags
+            && i32::from(record.template_flags()) & mask == requested_flags
         {
             return Ok(original);
         }
@@ -2206,10 +2204,15 @@ impl<'arena> NodeFactory<'arena> {
             source,
             NodeData::StringLiteral(StringLiteralData {
                 text: JsString::from_code_units(text),
-                has_extended_unicode_escape,
             }),
             flags,
         )?;
+        self.arena
+            .source_mut(source)?
+            .source
+            .arena
+            .node_mut(literal.node)
+            .set_has_extended_unicode_escape(has_extended_unicode_escape);
         if let Some(single_quote) = single_quote {
             self.arena
                 .literal_properties_mut(literal)?
@@ -2249,7 +2252,7 @@ impl<'arena> NodeFactory<'arena> {
             .and_then(LiteralNodeProperties::string_literal_single_quote);
         if data.text.to_utf16() == text
             && current_quote == single_quote
-            && data.has_extended_unicode_escape == has_extended_unicode_escape
+            && record.has_extended_unicode_escape() == has_extended_unicode_escape
         {
             return Ok(original);
         }
@@ -3501,7 +3504,7 @@ impl<'arena> NodeFactory<'arena> {
         };
         self.create_node(
             source,
-            NodeData::MethodDeclaration(MethodDeclarationData {
+            NodeData::MethodDeclaration(Box::new(MethodDeclarationData {
                 name: Some(self.node_id(source, name)?),
                 type_parameters: self.optional_array_id(source, type_parameters)?,
                 parameters: Some(self.array_id(source, parameters)?),
@@ -3511,7 +3514,7 @@ impl<'arena> NodeFactory<'arena> {
                 exclamation_token: None,
                 body: self.optional_node_id(source, body)?,
                 modifiers: self.optional_array_id(source, modifiers)?,
-            }),
+            })),
             flags,
         )
     }
@@ -3723,7 +3726,7 @@ impl<'arena> NodeFactory<'arena> {
         };
         self.create_node(
             source,
-            NodeData::FunctionDeclaration(FunctionDeclarationData {
+            NodeData::FunctionDeclaration(Box::new(FunctionDeclarationData {
                 name: self.optional_node_id(source, name)?,
                 type_parameters: self.optional_array_id(source, type_parameters)?,
                 parameters: Some(self.array_id(source, parameters)?),
@@ -3731,7 +3734,7 @@ impl<'arena> NodeFactory<'arena> {
                 asterisk_token: self.optional_node_id(source, asterisk_token)?,
                 body: self.optional_node_id(source, body)?,
                 modifiers: self.optional_array_id(source, modifiers)?,
-            }),
+            })),
             flags,
         )
     }
@@ -3765,7 +3768,7 @@ impl<'arena> NodeFactory<'arena> {
         )?;
         self.create_node(
             source,
-            NodeData::FunctionExpression(FunctionExpressionData {
+            NodeData::FunctionExpression(Box::new(FunctionExpressionData {
                 name: self.optional_node_id(source, name)?,
                 type_parameters: self.optional_array_id(source, type_parameters)?,
                 parameters: Some(self.array_id(source, parameters)?),
@@ -3773,7 +3776,7 @@ impl<'arena> NodeFactory<'arena> {
                 asterisk_token: self.optional_node_id(source, asterisk_token)?,
                 body: Some(self.node_id(source, body)?),
                 modifiers: self.optional_array_id(source, modifiers)?,
-            }),
+            })),
             flags,
         )
     }
@@ -5456,14 +5459,12 @@ impl<'arena> NodeFactory<'arena> {
     pub fn clone_node(&mut self, original: TransformNode) -> Result<TransformNode, TransformError> {
         // Copy the scalar facts by value and the payload exactly once; the
         // previous whole-record clone duplicated the payload a second time.
-        let (kind, node_flags, numeric_literal_flags, template_flags, multi_line, js_doc, data) = {
+        let (kind, node_flags, literal_flags, js_doc, data) = {
             let record = self.arena.node(original)?;
             (
                 record.kind,
                 record.flags,
-                record.numeric_literal_flags,
-                record.template_flags,
-                record.multi_line,
+                record.literal_flags,
                 record.js_doc,
                 record.data.clone(),
             )
@@ -5492,9 +5493,7 @@ impl<'arena> NodeFactory<'arena> {
                 .source
                 .arena
                 .node_mut(id);
-            copied.numeric_literal_flags = numeric_literal_flags;
-            copied.template_flags = template_flags;
-            copied.multi_line = multi_line;
+            copied.literal_flags = literal_flags;
             copied.js_doc = js_doc;
             copied.parent = None;
         }
@@ -8016,7 +8015,7 @@ impl<'arena> NodeFactory<'arena> {
             .source
             .arena
             .node_mut(node.node)
-            .multi_line = Some(multi_line);
+            .set_multi_line(Some(multi_line));
         Ok(node)
     }
 
@@ -8094,9 +8093,7 @@ impl<'a> CrossSourceReuseClone<'a> {
                 .source
                 .arena
                 .node_mut(cloned);
-            copied.numeric_literal_flags = record.numeric_literal_flags;
-            copied.template_flags = record.template_flags;
-            copied.multi_line = record.multi_line;
+            copied.literal_flags = record.literal_flags;
             copied.js_doc = js_doc;
             copied.parent = None;
         }

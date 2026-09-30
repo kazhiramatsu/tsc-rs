@@ -167,9 +167,14 @@ pub(crate) fn schema_audit(args: impl Iterator<Item = String>) -> Result<(), Box
     const HEADER_OWNED_FIELDS: &[&str] = &["pos", "end", "flags", "parent"];
     // tsc fields the node data derives through an accessor instead of
     // storing: `IdentifierData::text` unescapes `escaped_text` as tsc's
-    // `idText` does.
-    const DERIVED_FIELDS: &[(&str, &str)] =
-        &[("Identifier", "text"), ("PrivateIdentifier", "text")];
+    // `idText` does, and the two literal booleans live in the node header's
+    // literal flags (`Node::has_extended_unicode_escape`, `Node::is_unterminated`).
+    const DERIVED_FIELDS: &[(&str, &str)] = &[
+        ("Identifier", "text"),
+        ("PrivateIdentifier", "text"),
+        ("RegularExpressionLiteral", "isUnterminated"),
+        ("StringLiteral", "hasExtendedUnicodeEscape"),
+    ];
 
     let mut derived = BTreeSet::new();
     let mut ghosts = Vec::new();
@@ -763,30 +768,72 @@ const DTS_SCALAR_ADMISSIONS: &[(&str, &[&str])] = &[
     ("PostfixUnaryExpression", &["operator"]),
     ("PrefixUnaryExpression", &["operator"]),
     ("PrivateIdentifier", &["escapedText"]),
-    ("RegularExpressionLiteral", &["text", "isUnterminated"]),
-    ("StringLiteral", &["text", "hasExtendedUnicodeEscape"]),
+    ("RegularExpressionLiteral", &["text"]),
+    ("StringLiteral", &["text"]),
     ("TemplateHead", &["text", "rawText"]),
     ("TemplateMiddle", &["text", "rawText"]),
     ("TemplateTail", &["text", "rawText"]),
     ("TypeOperator", &["operator"]),
 ];
 
-/// Kinds whose payload `NodeData` keeps in a `Box`. Each is larger than
-/// every other payload (a template literal piece keeps its cooked and raw
-/// text; these JSDoc tags keep a comment next to three child slots) and is
-/// rare in a Program, so boxing them keeps every node record at 72 bytes
-/// rather than 88.
+/// Kinds whose payload `NodeData` keeps in a `Box`: every payload that
+/// would exceed 24 bytes inline (a text next to another field, a JSDoc
+/// comment next to a child, or seven or more child slots). Boxing them keeps
+/// every node record at 56 bytes; a large Program holds tens of millions of
+/// nodes, and these kinds are a few percent of them.
 const BOXED_PAYLOADS: &[&str] = &[
+    "FunctionDeclaration",
+    "FunctionExpression",
+    "JSDoc",
+    "JSDocAugmentsTag",
+    "JSDocAuthorTag",
     "JSDocCallbackTag",
+    "JSDocClassTag",
+    "JSDocDeprecatedTag",
+    "JSDocEnumTag",
+    "JSDocImplementsTag",
     "JSDocImportTag",
+    "JSDocLink",
+    "JSDocLinkCode",
+    "JSDocLinkPlain",
+    "JSDocOverloadTag",
+    "JSDocOverrideTag",
     "JSDocParameterTag",
+    "JSDocPrivateTag",
     "JSDocPropertyTag",
+    "JSDocProtectedTag",
+    "JSDocPublicTag",
+    "JSDocReadonlyTag",
+    "JSDocReturnTag",
+    "JSDocSatisfiesTag",
+    "JSDocSeeTag",
+    "JSDocTag",
     "JSDocTemplateTag",
+    "JSDocThisTag",
+    "JSDocThrowsTag",
+    "JSDocTypeTag",
     "JSDocTypedefTag",
+    "JsxText",
+    "MethodDeclaration",
     "NoSubstitutionTemplateLiteral",
     "TemplateHead",
     "TemplateMiddle",
     "TemplateTail",
+];
+
+/// tsc fields the observable view reports from the node header's literal
+/// flags instead of a payload field (see DERIVED_FIELDS in the schema audit).
+const HEADER_DERIVED_OBSERVABLES: &[(&str, &str, &str)] = &[
+    (
+        "RegularExpressionLiteral",
+        "isUnterminated",
+        "is_unterminated",
+    ),
+    (
+        "StringLiteral",
+        "hasExtendedUnicodeEscape",
+        "has_extended_unicode_escape",
+    ),
 ];
 
 /// Kinds with neither forEachChild visits nor admitted scalars, listed so
@@ -1173,6 +1220,172 @@ fn snake_case(name: &str) -> String {
     out.trim_matches('_').to_owned()
 }
 
+/// The node header: every kind's record is this header plus its `NodeData`
+/// payload, and the parser-owned scalar facts of a node share one 16-bit
+/// word so the record stays at 56 bytes.
+const NODE_RECORD: &str = r#"#[derive(Clone, Debug, PartialEq)]
+pub struct Node {
+    pub kind: SyntaxKind,
+    /// The node's parser-owned scalar facts, read through the accessors
+    /// below: tsc's tri-state multiLine in bits 0-1 (0 unset, 1 false,
+    /// 2 true); on a StringLiteral hasExtendedUnicodeEscape and on a
+    /// RegularExpressionLiteral isUnterminated in bits 2-3, encoded the
+    /// same way; on a NumericLiteral tsc's numericLiteralFlags and on the
+    /// template literal kinds templateFlags in the remaining bits (their
+    /// TokenFlags masks lie within bits 3-14).
+    pub literal_flags: u16,
+    pub flags: i32,
+    pub pos: u32,
+    pub end: u32,
+    pub parent: Option<NodeId>,
+    /// tsc's internal Node.jsDoc attachment; not an ordinary forEachChild edge.
+    pub js_doc: Option<NodeArrayId>,
+    /// tsc Node.transformFlags lives beside the records in `NodeArena`,
+    /// written only on an emit session's copy of a tree.
+    pub data: NodeData,
+}
+
+// A large Program holds tens of millions of node records, so their size
+// is a memory budget: growing it is a deliberate decision.
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(std::mem::size_of::<Node>() == 56);
+
+/// `literal_flags` bits 0-1: tsc's multiLine. tsc keeps it on Block,
+/// ArrayLiteralExpression and ObjectLiteralExpression; the emitter also
+/// sets it where tsc sets EmitFlags.MultiLine, so every kind carries it.
+const MULTI_LINE_BITS: u16 = 0b0011;
+/// `literal_flags` bits 2-3: StringLiteral.hasExtendedUnicodeEscape or
+/// RegularExpressionLiteral.isUnterminated.
+const LITERAL_STATE_BITS: u16 = 0b1100;
+const LITERAL_STATE_SHIFT: u32 = 2;
+/// `literal_flags` bits carrying NumericLiteral.numericLiteralFlags or a
+/// template literal's templateFlags: tsc's masks never touch bits 0-2, and
+/// those kinds carry no literal state.
+const TOKEN_FLAG_BITS: u16 = !MULTI_LINE_BITS;
+
+fn tri_state(bits: u16) -> Option<bool> {
+    match bits {
+        1 => Some(false),
+        2 => Some(true),
+        _ => None,
+    }
+}
+
+fn tri_state_bits(value: Option<bool>) -> u16 {
+    match value {
+        None => 0,
+        Some(false) => 1,
+        Some(true) => 2,
+    }
+}
+
+impl Node {
+    /// This record's scalar facts with another payload: a probe for the
+    /// emitter's flag classifier that clones no payload of its own.
+    pub fn with_data(&self, data: NodeData) -> Node {
+        Node {
+            kind: self.kind,
+            literal_flags: self.literal_flags,
+            flags: self.flags,
+            pos: self.pos,
+            end: self.end,
+            parent: self.parent,
+            js_doc: self.js_doc,
+            data,
+        }
+    }
+
+    /// tsc's multiLine bit (see `MULTI_LINE_BITS`).
+    pub fn multi_line(&self) -> Option<bool> {
+        tri_state(self.literal_flags & MULTI_LINE_BITS)
+    }
+
+    pub fn set_multi_line(&mut self, multi_line: Option<bool>) {
+        self.literal_flags = (self.literal_flags & !MULTI_LINE_BITS) | tri_state_bits(multi_line);
+    }
+
+    /// tsc NumericLiteral.numericLiteralFlags; zero on every other kind.
+    pub fn numeric_literal_flags(&self) -> u16 {
+        if self.kind == SyntaxKind::NumericLiteral {
+            self.literal_flags & TOKEN_FLAG_BITS
+        } else {
+            0
+        }
+    }
+
+    pub fn set_numeric_literal_flags(&mut self, flags: u16) {
+        debug_assert_eq!(self.kind, SyntaxKind::NumericLiteral);
+        self.set_token_flags(flags);
+    }
+
+    /// tsc TemplateLiteralLikeNode.templateFlags; zero on every other kind.
+    pub fn template_flags(&self) -> u16 {
+        if self.is_template_literal_like() {
+            self.literal_flags & TOKEN_FLAG_BITS
+        } else {
+            0
+        }
+    }
+
+    pub fn set_template_flags(&mut self, flags: u16) {
+        debug_assert!(self.is_template_literal_like());
+        self.set_token_flags(flags);
+    }
+
+    fn is_template_literal_like(&self) -> bool {
+        matches!(
+            self.kind,
+            SyntaxKind::NoSubstitutionTemplateLiteral
+                | SyntaxKind::TemplateHead
+                | SyntaxKind::TemplateMiddle
+                | SyntaxKind::TemplateTail
+        )
+    }
+
+    fn set_token_flags(&mut self, flags: u16) {
+        debug_assert_eq!(flags & !TOKEN_FLAG_BITS, 0);
+        self.literal_flags = (self.literal_flags & MULTI_LINE_BITS) | flags;
+    }
+
+    /// tsc StringLiteral.hasExtendedUnicodeEscape; None on every other kind.
+    pub fn has_extended_unicode_escape(&self) -> Option<bool> {
+        if self.kind == SyntaxKind::StringLiteral {
+            self.literal_state()
+        } else {
+            None
+        }
+    }
+
+    pub fn set_has_extended_unicode_escape(&mut self, value: Option<bool>) {
+        debug_assert_eq!(self.kind, SyntaxKind::StringLiteral);
+        self.set_literal_state(value);
+    }
+
+    /// tsc RegularExpressionLiteral.isUnterminated; None on every other kind.
+    pub fn is_unterminated(&self) -> Option<bool> {
+        if self.kind == SyntaxKind::RegularExpressionLiteral {
+            self.literal_state()
+        } else {
+            None
+        }
+    }
+
+    pub fn set_is_unterminated(&mut self, value: Option<bool>) {
+        debug_assert_eq!(self.kind, SyntaxKind::RegularExpressionLiteral);
+        self.set_literal_state(value);
+    }
+
+    fn literal_state(&self) -> Option<bool> {
+        tri_state((self.literal_flags & LITERAL_STATE_BITS) >> LITERAL_STATE_SHIFT)
+    }
+
+    fn set_literal_state(&mut self, value: Option<bool>) {
+        self.literal_flags = (self.literal_flags & !LITERAL_STATE_BITS)
+            | (tri_state_bits(value) << LITERAL_STATE_SHIFT);
+    }
+}
+"#;
+
 fn render_nodes_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Error>> {
     if let Some(kind) = BOXED_PAYLOADS
         .iter()
@@ -1230,99 +1443,7 @@ fn render_nodes_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Error>> {
     writeln!(out, "    Kind(SyntaxKind),")?;
     writeln!(out, "}}")?;
     writeln!(out)?;
-    writeln!(out, "#[derive(Clone, Debug, PartialEq)]")?;
-    writeln!(out, "pub struct Node {{")?;
-    writeln!(out, "    pub kind: SyntaxKind,")?;
-    writeln!(out, "    pub flags: i32,")?;
-    writeln!(
-        out,
-        "    /// tsc Node.transformFlags: written only on an emit session's detached"
-    )?;
-    writeln!(
-        out,
-        "    /// copy of the tree (the emitter's transform-flag classifier and factory);"
-    )?;
-    writeln!(out, "    /// zero on every parsed node.")?;
-    writeln!(out, "    pub transform_flags: i32,")?;
-    writeln!(
-        out,
-        "    /// tsc NumericLiteral.numericLiteralFlags; zero on every other node kind."
-    )?;
-    writeln!(
-        out,
-        "    /// Every numeric-literal TokenFlags bit lies below bit 16."
-    )?;
-    writeln!(out, "    pub numeric_literal_flags: u16,")?;
-    writeln!(
-        out,
-        "    /// Parser-owned TemplateLiteralLikeNode.templateFlags; zero on other node kinds."
-    )?;
-    writeln!(
-        out,
-        "    /// Every template-literal TokenFlags bit lies below bit 16."
-    )?;
-    writeln!(out, "    pub template_flags: u16,")?;
-    writeln!(
-        out,
-        "    /// tsc's internal Array/Object/Block.multiLine parser bit."
-    )?;
-    writeln!(out, "    pub multi_line: Option<bool>,")?;
-    writeln!(out, "    pub pos: u32,")?;
-    writeln!(out, "    pub end: u32,")?;
-    writeln!(out, "    pub parent: Option<NodeId>,")?;
-    writeln!(
-        out,
-        "    /// tsc's internal Node.jsDoc attachment; not an ordinary forEachChild edge."
-    )?;
-    writeln!(out, "    pub js_doc: Option<NodeArrayId>,")?;
-    writeln!(out, "    pub data: NodeData,")?;
-    writeln!(out, "}}")?;
-    writeln!(out)?;
-    writeln!(
-        out,
-        "// A large Program holds tens of millions of node records, so their size"
-    )?;
-    writeln!(
-        out,
-        "// is a memory budget: growing it is a deliberate decision."
-    )?;
-    writeln!(out, "#[cfg(target_pointer_width = \"64\")]")?;
-    writeln!(
-        out,
-        "const _: () = assert!(std::mem::size_of::<Node>() == 72);"
-    )?;
-    writeln!(out)?;
-    writeln!(out, "impl Node {{")?;
-    writeln!(
-        out,
-        "    /// This record's scalar facts with another payload: a probe for the"
-    )?;
-    writeln!(
-        out,
-        "    /// emitter's flag classifier that clones no payload of its own."
-    )?;
-    writeln!(
-        out,
-        "    pub fn with_data(&self, data: NodeData) -> Node {{"
-    )?;
-    writeln!(out, "        Node {{")?;
-    writeln!(out, "            kind: self.kind,")?;
-    writeln!(out, "            flags: self.flags,")?;
-    writeln!(out, "            transform_flags: self.transform_flags,")?;
-    writeln!(
-        out,
-        "            numeric_literal_flags: self.numeric_literal_flags,"
-    )?;
-    writeln!(out, "            template_flags: self.template_flags,")?;
-    writeln!(out, "            multi_line: self.multi_line,")?;
-    writeln!(out, "            pos: self.pos,")?;
-    writeln!(out, "            end: self.end,")?;
-    writeln!(out, "            parent: self.parent,")?;
-    writeln!(out, "            js_doc: self.js_doc,")?;
-    writeln!(out, "            data,")?;
-    writeln!(out, "        }}")?;
-    writeln!(out, "    }}")?;
-    writeln!(out, "}}")?;
+    out.push_str(NODE_RECORD);
     writeln!(out)?;
 
     for schema in schemas {
@@ -2785,6 +2906,15 @@ fn render_observable_fields_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn
             "        NodeData::{}({binding}) => {{",
             schema.kind_name
         )?;
+        // The literal booleans the node header derives (sorted before `text`).
+        for (kind, ts_name, accessor) in HEADER_DERIVED_OBSERVABLES {
+            if *kind == schema.kind_name {
+                writeln!(
+                    out,
+                    "            if let Some(value) = node.{accessor}() {{ cb({ts_name:?}, ObservableField::Bool(value)); }}"
+                )?;
+            }
+        }
         for field in fields {
             match (field.ty, rust_optional(field)) {
                 (RustFieldType::Node, true) => {

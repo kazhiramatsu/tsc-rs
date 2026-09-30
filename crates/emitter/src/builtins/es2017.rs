@@ -345,12 +345,12 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             }
             NodeData::FunctionDeclaration(data) => {
                 Some(self.with_non_top_level_context(|visitor| {
-                    visitor.visit_function_declaration(original, data)
+                    visitor.visit_function_declaration(original, *data)
                 })?)
             }
             NodeData::FunctionExpression(data) => {
                 Some(self.with_non_top_level_context(|visitor| {
-                    visitor.visit_function_expression(original, data)
+                    visitor.visit_function_expression(original, *data)
                 })?)
             }
             NodeData::ArrowFunction(data) => Some(self.with_non_top_level_context(|visitor| {
@@ -358,7 +358,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             })?),
             NodeData::MethodDeclaration(data) => {
                 Some(self.with_non_top_level_context(|visitor| {
-                    visitor.visit_method_declaration(original, data)
+                    visitor.visit_method_declaration(original, *data)
                 })?)
             }
             NodeData::GetAccessor(data) => Some(self.with_non_top_level_context(|visitor| {
@@ -1297,7 +1297,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         data.asterisk_token = transformed.asterisk_token;
         data.parameters = transformed.parameters;
         data.body = transformed.body;
-        self.update_without_visit(original, NodeData::FunctionDeclaration(data))
+        self.update_without_visit(original, NodeData::FunctionDeclaration(Box::new(data)))
     }
 
     fn visit_function_expression(
@@ -1321,7 +1321,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         data.asterisk_token = transformed.asterisk_token;
         data.parameters = transformed.parameters;
         data.body = transformed.body;
-        self.update_without_visit(original, NodeData::FunctionExpression(data))
+        self.update_without_visit(original, NodeData::FunctionExpression(Box::new(data)))
     }
 
     fn visit_arrow_function(
@@ -1372,7 +1372,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         data.asterisk_token = transformed.asterisk_token;
         data.parameters = transformed.parameters;
         data.body = transformed.body;
-        self.update_without_visit(original, NodeData::MethodDeclaration(data))
+        self.update_without_visit(original, NodeData::MethodDeclaration(Box::new(data)))
     }
 
     fn visit_get_accessor(
@@ -2043,7 +2043,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             | self.context.arena().propagate_child_flags(body)?;
         let generator = self.context.factory()?.create_node(
             self.source,
-            NodeData::FunctionExpression(tsc_syntax::nodes::FunctionExpressionData {
+            NodeData::FunctionExpression(Box::new(tsc_syntax::nodes::FunctionExpressionData {
                 name: None,
                 type_parameters: None,
                 parameters: Some(parameters.array()),
@@ -2051,7 +2051,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                 asterisk_token: Some(asterisk.node()),
                 body: Some(body.node()),
                 modifiers: None,
-            }),
+            })),
             flags,
         )?;
         self.context
@@ -2810,7 +2810,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             | self.context.arena().propagate_child_flags(body)?;
         self.context.factory()?.create_node(
             self.source,
-            NodeData::FunctionExpression(tsc_syntax::nodes::FunctionExpressionData {
+            NodeData::FunctionExpression(Box::new(tsc_syntax::nodes::FunctionExpressionData {
                 name: None,
                 type_parameters: None,
                 parameters: Some(parameters.array()),
@@ -2818,7 +2818,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                 asterisk_token: None,
                 body: Some(body.node()),
                 modifiers: None,
-            }),
+            })),
             flags,
         )
     }

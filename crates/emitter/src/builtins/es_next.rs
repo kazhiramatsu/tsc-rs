@@ -1907,10 +1907,7 @@ impl<'context> EsNextVisitor<'context> {
     fn create_string_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
         self.context.factory()?.create_node(
             self.source,
-            NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
-                text: text.into(),
-                has_extended_unicode_escape: None,
-            }),
+            NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData { text: text.into() }),
             TransformFlags::NONE,
         )
     }
