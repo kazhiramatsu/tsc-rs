@@ -20,10 +20,10 @@ fn label_lifecycle_collapse_and_share() {
     // Unreachable antecedents and duplicates are dropped.
     let multi = arena.create_branch_label();
     arena.add_antecedent(multi, unreachable);
-    assert!(arena.flow(multi).antecedent.is_empty());
+    assert!(arena.flow(multi).antecedents().is_empty());
     arena.add_antecedent(multi, start);
     arena.add_antecedent(multi, start);
-    assert_eq!(arena.flow(multi).antecedent.len(), 1);
+    assert_eq!(arena.flow(multi).antecedents().len(), 1);
     // Second REFERENCE marks Shared.
     assert!(arena.flow(start).flags.intersects(FlowFlags::SHARED));
 

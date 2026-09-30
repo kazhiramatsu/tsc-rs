@@ -168,7 +168,7 @@ impl<'a> CheckerState<'a> {
             .file(file)
             .flow
             .flow(flow)
-            .antecedent
+            .antecedents()
             .first()
             .expect(
             "plain flow kinds (Assignment/Call/Condition/SwitchClause/ArrayMutation/ReduceLabel) \
@@ -186,7 +186,12 @@ impl<'a> CheckerState<'a> {
         if let Some(overridden) = self.reduce_label_overrides.get(&(file, flow)) {
             return overridden.clone();
         }
-        self.binder.file(file).flow.flow(flow).antecedent.clone()
+        self.binder
+            .file(file)
+            .flow
+            .flow(flow)
+            .antecedents()
+            .to_vec()
     }
 
     fn flow_payload_node(&self, file: usize, flow: FlowId) -> Option<NodeId> {
@@ -564,13 +569,12 @@ impl<'a> CheckerState<'a> {
                 // label's antecedents temporarily swapped (tsc mutates
                 // target.antecedent in place; the override map is the
                 // immutable-arena equivalent, restored ALSO on unwind).
-                let FlowPayload::ReduceLabel {
-                    target,
-                    ref antecedents,
-                } = self.binder.file(query.file).flow.flow(flow).payload
+                let FlowPayload::ReduceLabel(ref reduce) =
+                    self.binder.file(query.file).flow.flow(flow).payload
                 else {
                     unreachable!("REDUCE_LABEL flag implies ReduceLabel payload");
                 };
+                let (target, antecedents) = (reduce.target, &reduce.antecedents);
                 let swapped = antecedents.clone();
                 let antecedent = self.flow_antecedent(query.file, flow);
                 let saved = self
@@ -1707,13 +1711,12 @@ impl<'a> CheckerState<'a> {
                 flow = self.flow_antecedent(file, flow);
             } else if flags.intersects(FlowFlags::REDUCE_LABEL) {
                 self.last_flow_node = None;
-                let FlowPayload::ReduceLabel {
-                    target,
-                    ref antecedents,
-                } = self.binder.file(file).flow.flow(flow).payload
+                let FlowPayload::ReduceLabel(ref reduce) =
+                    self.binder.file(file).flow.flow(flow).payload
                 else {
                     unreachable!("REDUCE_LABEL flag implies ReduceLabel payload");
                 };
+                let (target, antecedents) = (reduce.target, &reduce.antecedents);
                 let swapped = antecedents.clone();
                 let antecedent = self.flow_antecedent(file, flow);
                 let saved = self.reduce_label_overrides.insert((file, target), swapped);
@@ -1796,13 +1799,12 @@ impl<'a> CheckerState<'a> {
                     .first()
                     .expect("LOOP_LABEL flow nodes carry an entry antecedent");
             } else if flags.intersects(FlowFlags::REDUCE_LABEL) {
-                let FlowPayload::ReduceLabel {
-                    target,
-                    ref antecedents,
-                } = self.binder.file(file).flow.flow(flow).payload
+                let FlowPayload::ReduceLabel(ref reduce) =
+                    self.binder.file(file).flow.flow(flow).payload
                 else {
                     unreachable!("REDUCE_LABEL flag implies ReduceLabel payload");
                 };
+                let (target, antecedents) = (reduce.target, &reduce.antecedents);
                 let swapped = antecedents.clone();
                 let antecedent = self.flow_antecedent(file, flow);
                 let saved = self.reduce_label_overrides.insert((file, target), swapped);
