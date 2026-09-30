@@ -2060,6 +2060,7 @@ impl<'a> CheckerState<'a> {
                         .is_some_and(|file_symbol| {
                             self.binder
                                 .symbol(file_symbol)
+                                .extras()
                                 .global_exports
                                 .contains_key(&name)
                         })

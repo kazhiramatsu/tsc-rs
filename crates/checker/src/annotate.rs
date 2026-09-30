@@ -4913,10 +4913,11 @@ impl<'a> CheckerState<'a> {
             let assignments = state
                 .binder
                 .symbol(assignment_owner)
+                .extras()
                 .assignment_declaration_members
-                .as_deref()
-                .map(|members| members.values().copied().collect::<Vec<_>>())
-                .unwrap_or_default();
+                .values()
+                .copied()
+                .collect::<Vec<_>>();
             for member in assignments {
                 let assignment_kind = tsc_binder::get_assignment_declaration_kind(
                     state.binder.source_of_node(member),
@@ -5255,7 +5256,11 @@ impl<'a> CheckerState<'a> {
         self.links
             .set_symbol_late_symbol(self.speculation_depth, member_symbol, late_symbol);
         if self.binder.symbol(late_symbol).declarations.is_empty()
-            || !self.binder.symbol(member_symbol).is_replaceable_by_method
+            || !self
+                .binder
+                .symbol(member_symbol)
+                .extras()
+                .is_replaceable_by_method
         {
             self.binder
                 .symbol_mut(late_symbol)
@@ -5323,6 +5328,7 @@ impl<'a> CheckerState<'a> {
             || !self
                 .binder
                 .symbol(declaration_symbol)
+                .extras()
                 .is_replaceable_by_method
         {
             self.binder.symbol_mut(index_symbol).declarations.push(decl);
