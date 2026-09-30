@@ -1,5 +1,5 @@
 use super::*;
-use crate::nodes::{NodeArray, NodeData};
+use crate::nodes::NodeData;
 use crate::relocate::{collect_node_data_ids, remap_node_data_ids};
 use std::collections::HashMap;
 use tsc_diagnostics::{DocumentVersion, MessageChain, VersionedTextStore};
@@ -20,9 +20,18 @@ struct CanonicalNode {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+struct CanonicalArray {
+    nodes: Vec<NodeId>,
+    pos: u32,
+    end: u32,
+    has_trailing_comma: bool,
+    is_missing_list: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 struct CanonicalTree {
     nodes: Vec<CanonicalNode>,
-    arrays: Vec<NodeArray>,
+    arrays: Vec<CanonicalArray>,
     external_module_indicator: Option<NodeId>,
 }
 
@@ -62,7 +71,7 @@ fn canonical_tree(source: &SourceFile) -> CanonicalTree {
         }
         if array_index < arrays.len() {
             let array = source.arena.node_array(arrays[array_index]);
-            for child in &array.nodes {
+            for child in array.nodes {
                 if let std::collections::hash_map::Entry::Vacant(entry) = node_map.entry(*child) {
                     let canonical = NodeId::new(nodes.len() as u32);
                     entry.insert(canonical);
@@ -108,13 +117,22 @@ fn canonical_tree(source: &SourceFile) -> CanonicalTree {
     let canonical_arrays = arrays
         .iter()
         .map(|id| {
-            let mut array = source.arena.node_array(*id).clone();
-            for node in &mut array.nodes {
-                *node = *node_map
-                    .get(node)
-                    .expect("canonical array element belongs to the root graph");
+            let array = source.arena.node_array(*id);
+            CanonicalArray {
+                nodes: array
+                    .nodes
+                    .iter()
+                    .map(|node| {
+                        *node_map
+                            .get(node)
+                            .expect("canonical array element belongs to the root graph")
+                    })
+                    .collect(),
+                pos: array.pos,
+                end: array.end,
+                has_trailing_comma: array.has_trailing_comma,
+                is_missing_list: array.is_missing_list,
             }
-            array
         })
         .collect();
     CanonicalTree {

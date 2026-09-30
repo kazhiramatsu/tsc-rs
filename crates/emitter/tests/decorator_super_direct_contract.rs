@@ -90,7 +90,7 @@ impl Site<'_> {
             .node_array(TransformNodeArray::new(self.source, array))
             .expect("node array")
             .nodes
-            .clone()
+            .to_vec()
     }
 
     fn data(&self, id: NodeId) -> NodeData {

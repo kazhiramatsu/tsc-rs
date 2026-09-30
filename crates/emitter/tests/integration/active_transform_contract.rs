@@ -548,7 +548,7 @@ impl UsingCommonJsSourceIdentityResolver {
         };
         let statements = source_file
             .statements
-            .map(|statements| source.arena.node_array(statements).nodes.as_slice())
+            .map(|statements| source.arena.node_array(statements).nodes)
             .unwrap_or_default();
         let mut declarations_by_name = BTreeMap::<String, (NodeId, NodeId)>::new();
         let mut declarations_by_reference = BTreeMap::new();
@@ -577,7 +577,7 @@ impl UsingCommonJsSourceIdentityResolver {
                     let Some(declarations) = list.declarations else {
                         continue;
                     };
-                    for declaration in &source.arena.node_array(declarations).nodes {
+                    for declaration in source.arena.node_array(declarations).nodes {
                         let NodeData::VariableDeclaration(data) =
                             &source.arena.node(*declaration).data
                         else {
@@ -627,7 +627,7 @@ impl UsingCommonJsSourceIdentityResolver {
             let Some(elements) = named.elements else {
                 continue;
             };
-            for specifier in &source.arena.node_array(elements).nodes {
+            for specifier in source.arena.node_array(elements).nodes {
                 let NodeData::ExportSpecifier(specifier) = &source.arena.node(*specifier).data
                 else {
                     continue;
@@ -7234,7 +7234,7 @@ fn typescript_and_legacy_passes_exchange_one_ambient_property_anchor() {
         .arena
         .node_array(parsed_class.members.expect("parsed class members"))
         .nodes
-        .clone();
+        .to_vec();
 
     let options = CompilerOptions {
         target: Some(ScriptTarget::ES_NEXT.bits()),

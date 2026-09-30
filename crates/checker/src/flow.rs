@@ -792,7 +792,7 @@ impl<'a> CheckerState<'a> {
                         _ => None,
                     };
                     let arguments: Vec<NodeId> = arguments
-                        .map(|arguments| self.binder.node_array(arguments).nodes.clone())
+                        .map(|arguments| self.binder.node_array(arguments).nodes.to_vec())
                         .unwrap_or_default();
                     match usize::try_from(predicate.parameter_index)
                         .ok()
@@ -1522,7 +1522,7 @@ impl<'a> CheckerState<'a> {
         }
         let mut evolved = ty;
         if let Some(arguments) = call_arguments {
-            let arguments: Vec<NodeId> = self.binder.node_array(arguments).nodes.clone();
+            let arguments: Vec<NodeId> = self.binder.node_array(arguments).nodes.to_vec();
             for argument in arguments {
                 evolved = self.add_evolving_array_element_type(evolved, argument)?;
             }
@@ -1923,7 +1923,7 @@ impl<'a> CheckerState<'a> {
                 _ => None,
             };
             let index = elements
-                .map(|elements| self.binder.node_array(elements).nodes.clone())
+                .map(|elements| self.binder.node_array(elements).nodes.to_vec())
                 .and_then(|nodes| nodes.iter().position(|&element| element == node));
             let Some(index) = index else {
                 return Ok(self.tables.intrinsics.error);
@@ -2005,7 +2005,7 @@ impl<'a> CheckerState<'a> {
             _ => None,
         };
         let index = elements
-            .map(|elements| self.binder.node_array(elements).nodes.clone())
+            .map(|elements| self.binder.node_array(elements).nodes.to_vec())
             .and_then(|nodes| nodes.iter().position(|&e| e == element));
         let Some(index) = index else {
             return Ok(self.tables.intrinsics.error);
@@ -4165,7 +4165,7 @@ impl<'a> CheckerState<'a> {
         let Some(elements) = elements else {
             return Ok(false);
         };
-        let elements: Vec<NodeId> = self.binder.node_array(elements).nodes.clone();
+        let elements: Vec<NodeId> = self.binder.node_array(elements).nodes.to_vec();
         for element in elements {
             if self.kind_of(element) == SyntaxKind::OmittedExpression {
                 continue;
@@ -4462,7 +4462,7 @@ impl<'a> CheckerState<'a> {
                     NodeData::MethodDeclaration(f) => f.parameters,
                     _ => None,
                 }
-                .map(|list| self.binder.node_array(list).nodes.clone())
+                .map(|list| self.binder.node_array(list).nodes.to_vec())
                 .unwrap_or_default();
                 if parameters.len() >= 2
                     && self.is_context_sensitive_function_or_object_literal_method(func)?

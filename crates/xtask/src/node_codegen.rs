@@ -1386,6 +1386,39 @@ impl Node {
 }
 "#;
 
+/// The node-array view and its stored record (see `NodeArena::node_array`).
+const NODE_ARRAY: &str = r#"/// A tsc NodeArray as `NodeArena::node_array` reads it: the stored
+/// `NodeArrayRecord` together with its elements from the arena's item
+/// store.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct NodeArray<'a> {
+    pub nodes: &'a [NodeId],
+    pub pos: u32,
+    pub end: u32,
+    pub has_trailing_comma: bool,
+    /// tsc createMissingList's isMissingList marker.
+    pub is_missing_list: bool,
+}
+
+/// The stored form of a tsc NodeArray: its elements are the `len` ids at
+/// `items` in the arena's item store. tsc NodeArray.transformFlags lives
+/// beside the records in `NodeArena`, written only on an emit session's
+/// copy of a tree.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct NodeArrayRecord {
+    pub(crate) items: u32,
+    pub(crate) len: u32,
+    pub pos: u32,
+    pub end: u32,
+    pub has_trailing_comma: bool,
+    /// tsc createMissingList's isMissingList marker.
+    pub is_missing_list: bool,
+}
+
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(std::mem::size_of::<NodeArrayRecord>() == 20);
+"#;
+
 fn render_nodes_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Error>> {
     if let Some(kind) = BOXED_PAYLOADS
         .iter()
@@ -1415,25 +1448,7 @@ fn render_nodes_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Error>> {
     )?;
     writeln!(out, "}}")?;
     writeln!(out)?;
-    writeln!(out, "#[derive(Clone, Debug, Eq, PartialEq)]")?;
-    writeln!(out, "pub struct NodeArray {{")?;
-    writeln!(out, "    pub nodes: Vec<NodeId>,")?;
-    writeln!(out, "    pub pos: u32,")?;
-    writeln!(out, "    pub end: u32,")?;
-    writeln!(out, "    pub has_trailing_comma: bool,")?;
-    writeln!(out, "    /// tsc createMissingList's isMissingList marker.")?;
-    writeln!(out, "    pub is_missing_list: bool,")?;
-    writeln!(
-        out,
-        "    /// tsc NodeArray.transformFlags: written only on an emit session's"
-    )?;
-    writeln!(
-        out,
-        "    /// detached copy of the tree (the emitter's transform-flag classifier);"
-    )?;
-    writeln!(out, "    /// zero on every parsed array.")?;
-    writeln!(out, "    pub transform_flags: i32,")?;
-    writeln!(out, "}}")?;
+    out.push_str(NODE_ARRAY);
     writeln!(out)?;
     writeln!(out, "#[derive(Clone, Debug, PartialEq)]")?;
     writeln!(out, "pub enum NodePayload {{")?;
@@ -1652,7 +1667,7 @@ fn render_for_each_child_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Er
     writeln!(out, "    fn node(&self, id: NodeId) -> &Node;")?;
     writeln!(
         out,
-        "    fn node_array(&self, id: NodeArrayId) -> &NodeArray;"
+        "    fn node_array(&self, id: NodeArrayId) -> NodeArray<'_>;"
     )?;
     writeln!(out, "}}")?;
     writeln!(out)?;
@@ -2083,7 +2098,7 @@ fn render_for_each_child_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Er
         "fn visit_nodes<L, F>(lookup: &L, id: NodeArrayId, cb: &mut F) -> Option<NodeId>"
     )?;
     writeln!(out, "where L: NodeLookup, F: FnMut(NodeId) -> bool {{")?;
-    writeln!(out, "    for node in &lookup.node_array(id).nodes {{")?;
+    writeln!(out, "    for node in lookup.node_array(id).nodes {{")?;
     writeln!(out, "        if cb(*node) {{ return Some(*node); }}")?;
     writeln!(out, "    }}")?;
     writeln!(out, "    None")?;

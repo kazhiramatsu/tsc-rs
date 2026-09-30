@@ -500,7 +500,7 @@ fn index_list_elements(
     indexed: &mut HashMap<u32, (usize, ReusableNode)>,
     pending: &mut Vec<(NodeId, usize)>,
 ) -> Result<(), IncrementalParseError> {
-    for child in &source.arena.node_array(array_id).nodes {
+    for child in source.arena.node_array(array_id).nodes {
         let node = source.arena.node(*child);
         let candidate = adjusted_candidate(
             *child,

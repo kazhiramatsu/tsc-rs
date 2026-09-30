@@ -2270,7 +2270,7 @@ impl<'context> EsNextVisitor<'context> {
             .arena()
             .node_array(original_array)?
             .nodes
-            .clone()
+            .to_vec()
             .into_iter()
             .filter(|modifier| {
                 self.context
@@ -2464,7 +2464,7 @@ impl NodeDataChildVisitor for DirectChildCollector<'_> {
         let array = self
             .arena
             .node_array(TransformNodeArray::new(self.source, id))?;
-        self.children.extend_from_slice(&array.nodes);
+        self.children.extend_from_slice(array.nodes);
         Ok(Some(id))
     }
 

@@ -64,7 +64,7 @@ fn reference_walk(
         let array_ref = arena
             .node_array_ref(source, array)
             .expect("generated child array belongs to its source");
-        let ids = arena.node_array(array_ref)?.nodes.clone();
+        let ids = arena.node_array(array_ref)?.nodes.to_vec();
         let mut flags = TransformFlags::NONE;
         for child in ids {
             let child_flags = reference_walk(arena, source, child, visiting, complete)?;
@@ -265,8 +265,16 @@ fn explicit_walk_matches_the_reference_with_shared_children_and_a_back_edge() {
             0,
             none,
         );
-        // inner = [shared]; the back edge to `parent` is appended below.
-        let inner_array = syntax.alloc_array(vec![shared], 0, 0, false);
+        // parent = [shared, shared, inner]; its elements attach below, once
+        // they exist.
+        let parent = syntax.alloc_node(
+            NodeData::ArrayLiteralExpression(ArrayLiteralExpressionData { elements: None }),
+            0,
+            0,
+            none,
+        );
+        // inner = [shared, parent]: a back edge to its ancestor.
+        let inner_array = syntax.alloc_array(&[shared, parent], 0, 0, false);
         let inner = syntax.alloc_node(
             NodeData::ArrayLiteralExpression(ArrayLiteralExpressionData {
                 elements: Some(inner_array),
@@ -275,18 +283,11 @@ fn explicit_walk_matches_the_reference_with_shared_children_and_a_back_edge() {
             0,
             none,
         );
-        // parent = [shared, shared, inner]
-        let outer_array = syntax.alloc_array(vec![shared, shared, inner], 0, 0, false);
-        let parent = syntax.alloc_node(
+        let outer_array = syntax.alloc_array(&[shared, shared, inner], 0, 0, false);
+        syntax.node_mut(parent).data =
             NodeData::ArrayLiteralExpression(ArrayLiteralExpressionData {
                 elements: Some(outer_array),
-            }),
-            0,
-            0,
-            none,
-        );
-        // Back edge: inner's array now also contains its ancestor `parent`.
-        syntax.node_array_mut(inner_array).nodes.push(parent);
+            });
         (parent, inner, shared, leaf, outer_array, inner_array)
     };
     let mut explicit = TransformArena::new();

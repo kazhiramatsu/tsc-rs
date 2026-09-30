@@ -980,7 +980,7 @@ impl<'a> CheckerState<'a> {
             };
             self.collect_module_augmentations(
                 source,
-                &source.arena.node_array(statements).nodes,
+                source.arena.node_array(statements).nodes,
                 /*in_ambient_module*/ false,
                 &mut global_augmentations,
                 &mut module_augmentations,
@@ -1075,7 +1075,7 @@ impl<'a> CheckerState<'a> {
             };
             self.collect_module_augmentations(
                 source,
-                &source.arena.node_array(nested).nodes,
+                source.arena.node_array(nested).nodes,
                 /*in_ambient_module*/ true,
                 global_augmentations,
                 module_augmentations,

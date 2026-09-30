@@ -159,10 +159,9 @@ pub fn digest(source: &SourceFile) -> Value {
                     end,
                     has_trailing_comma,
                     is_missing_list,
-                    transform_flags: _,
                 } = source.arena.node_array(id);
                 json!({"array":nodes.iter().map(|id|graph.node(*id)).collect::<Vec<_>>(),
-                    "pos":position(*pos),"end":position(*end),
+                    "pos":position(pos),"end":position(end),
                     "has_trailing_comma":has_trailing_comma,"is_missing_list":is_missing_list})
             }
         };

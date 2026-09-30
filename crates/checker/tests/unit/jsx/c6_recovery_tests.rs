@@ -86,7 +86,7 @@ fn synthetic_attribute_recovery_preserves_a_bound_sibling() {
         0,
         NodeFlags::NONE,
     );
-    let synthetic_properties = source.arena.alloc_synthetic_array(vec![
+    let synthetic_properties = source.arena.alloc_synthetic_array(&[
         valid_attribute,
         unbound_attribute,
         unknown_attribute,

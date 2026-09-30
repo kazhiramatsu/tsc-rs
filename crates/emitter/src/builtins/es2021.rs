@@ -1581,7 +1581,7 @@ impl<'context> TargetVisitor<'context> {
             return Ok(None);
         };
         let original = self.array(parameters);
-        let nodes = self.context.arena().node_array(original)?.nodes.clone();
+        let nodes = self.context.arena().node_array(original)?.nodes.to_vec();
         if nodes.len() != plan.binding_aliases.len() {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::Parameter,

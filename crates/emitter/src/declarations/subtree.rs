@@ -746,7 +746,7 @@ impl DeclarationTransformer<'_> {
             if let Some(elements) =
                 elements.and_then(|array| cx.arena().node_array_ref(name.source(), array))
             {
-                for &element in &cx.arena().node_array(elements)?.nodes.clone() {
+                for &element in &cx.arena().node_array(elements)?.nodes.to_vec() {
                     if self.binding_name_visible(cx, TransformNode::new(name.source(), element))? {
                         return Ok(true);
                     }
@@ -926,7 +926,7 @@ impl DeclarationTransformer<'_> {
             return Ok(None);
         };
         let mut output = Vec::new();
-        for &node in &cx.arena().node_array(array)?.nodes.clone() {
+        for &node in &cx.arena().node_array(array)?.nodes.to_vec() {
             match self.visit_declaration_subtree(cx, TransformNode::new(owner.source(), node))? {
                 VisitResult::None => {}
                 VisitResult::Node(node) => output.push(node),

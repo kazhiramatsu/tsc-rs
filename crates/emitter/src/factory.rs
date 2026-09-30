@@ -747,7 +747,7 @@ impl TransformArena {
         target.trailing_comments = trailing;
     }
 
-    pub fn node_array(&self, array: TransformNodeArray) -> Result<&NodeArray, TransformError> {
+    pub fn node_array(&self, array: TransformNodeArray) -> Result<NodeArray<'_>, TransformError> {
         let source = self.source(array.source)?;
         if array.array.index() < source.source.arena.array_base()
             || array.array.index() >= source.source.arena.array_end()
@@ -808,9 +808,7 @@ impl TransformArena {
     pub fn array_transform_flags(&self, array: TransformNodeArray) -> TransformFlags {
         match self.sources.get(array.source.raw() as usize) {
             Some(source) if source.source.arena.contains_array(array.array) => {
-                TransformFlags::from_bits(
-                    source.source.arena.node_array(array.array).transform_flags,
-                )
+                TransformFlags::from_bits(source.source.arena.array_transform_flags(array.array))
             }
             _ => TransformFlags::NONE,
         }
@@ -823,8 +821,7 @@ impl TransformArena {
                 source
                     .source
                     .arena
-                    .node_array_mut(array.array)
-                    .transform_flags = flags.bits();
+                    .set_array_transform_flags(array.array, flags.bits());
             }
         }
     }
@@ -1025,9 +1022,7 @@ impl TransformArena {
         self.metadata.clear();
         for source in &mut self.sources {
             source.source.arena.clear_transform_flags();
-            for array in source.source.arena.node_arrays_mut() {
-                array.transform_flags = 0;
-            }
+            source.source.arena.clear_array_transform_flags();
         }
     }
 
@@ -1640,10 +1635,10 @@ impl TypeParenthesizer {
             TransformNode,
         ) -> Result<TransformNode, TransformError>,
     ) -> Result<TransformNodeArray, TransformError> {
-        let original = factory.arena.node_array(array)?.clone();
+        let original = factory.arena.node_array(array)?.nodes.to_vec();
         let mut changed = false;
-        let mut nodes = Vec::with_capacity(original.nodes.len());
-        for id in original.nodes {
+        let mut nodes = Vec::with_capacity(original.len());
+        for id in original {
             let node = TransformNode::new(array.source, id);
             let mapped = rule(factory, node)?;
             changed |= mapped != node;
@@ -1847,7 +1842,7 @@ impl<'arena> NodeFactory<'arena> {
             return Ok(ModifierFlags::NONE);
         };
         let mut flags = ModifierFlags::NONE;
-        for &node in &self.arena.node_array(modifiers)?.nodes {
+        for &node in self.arena.node_array(modifiers)?.nodes {
             let kind = self
                 .arena
                 .node(TransformNode::new(modifiers.source, node))?
@@ -5390,10 +5385,11 @@ impl<'arena> NodeFactory<'arena> {
             raw.push(node.node);
         }
         let syntax = &mut self.arena.source_mut(source)?.source;
-        let array_id = syntax.arena.alloc_synthetic_array(raw);
-        let record = syntax.arena.node_array_mut(array_id);
-        record.has_trailing_comma = has_trailing_comma;
-        record.transform_flags = flags.bits();
+        let array_id = syntax.arena.alloc_synthetic_array(&raw);
+        syntax.arena.node_array_mut(array_id).has_trailing_comma = has_trailing_comma;
+        syntax
+            .arena
+            .set_array_transform_flags(array_id, flags.bits());
         Ok(TransformNodeArray {
             source,
             array: array_id,
@@ -6280,9 +6276,10 @@ impl<'arena> NodeFactory<'arena> {
             Some(array) => TransformNodeArray::new(source, array),
             None => self.create_node_array(source, Vec::new())?,
         };
-        let record = self.arena.node_array(original)?.clone();
+        let record = self.arena.node_array(original)?;
+        let (pos, end, has_trailing_comma) = (record.pos, record.end, record.has_trailing_comma);
         let mut nodes = Vec::with_capacity(record.nodes.len());
-        for id in &record.nodes {
+        for id in record.nodes {
             let node = self
                 .arena
                 .node_ref(source, *id)
@@ -6298,13 +6295,13 @@ impl<'arena> NodeFactory<'arena> {
         } else {
             false
         };
-        let trailing_comma = record.has_trailing_comma || last_is_omitted;
-        if trailing_comma != record.has_trailing_comma {
+        let trailing_comma = has_trailing_comma || last_is_omitted;
+        if trailing_comma != has_trailing_comma {
             // createArrayLiteralExpression calls createNodeArray with an
             // explicit true for a final hole, before parenthesizing children.
             let flags = self.arena.array_transform_flags(original);
             original = self.create_node_array_with_trailing_comma(source, nodes.clone(), true)?;
-            self.set_node_array_text_range(original, record.pos, record.end)?;
+            self.set_node_array_text_range(original, pos, end)?;
             self.arena.set_array_transform_flags(original, flags);
         }
         let mut changed = false;
@@ -6316,7 +6313,7 @@ impl<'arena> NodeFactory<'arena> {
         let mapped = if changed {
             let mapped =
                 self.create_node_array_with_trailing_comma(source, nodes, trailing_comma)?;
-            self.set_node_array_text_range(mapped, record.pos, record.end)?;
+            self.set_node_array_text_range(mapped, pos, end)?;
             mapped
         } else {
             original
@@ -8115,10 +8112,13 @@ impl<'a> CrossSourceReuseClone<'a> {
             self.arena.node_array(target)?;
             return Ok(array);
         }
-        let record = self.arena.node_array(original)?.clone();
+        let record = self.arena.node_array(original)?;
+        let elements = record.nodes.to_vec();
+        let (has_trailing_comma, is_missing_list) =
+            (record.has_trailing_comma, record.is_missing_list);
         let transform_flags = self.arena.array_transform_flags(original);
-        let mut nodes = Vec::with_capacity(record.nodes.len());
-        for node in record.nodes {
+        let mut nodes = Vec::with_capacity(elements.len());
+        for node in elements {
             nodes.push(self.clone_node(node)?.node());
         }
         let cloned = self
@@ -8126,7 +8126,7 @@ impl<'a> CrossSourceReuseClone<'a> {
             .source_mut(self.target)?
             .source
             .arena
-            .alloc_synthetic_array(nodes);
+            .alloc_synthetic_array(&nodes);
         {
             let copied = self
                 .arena
@@ -8134,8 +8134,8 @@ impl<'a> CrossSourceReuseClone<'a> {
                 .source
                 .arena
                 .node_array_mut(cloned);
-            copied.has_trailing_comma = record.has_trailing_comma;
-            copied.is_missing_list = record.is_missing_list;
+            copied.has_trailing_comma = has_trailing_comma;
+            copied.is_missing_list = is_missing_list;
         }
         self.arrays.insert(array, cloned);
         self.arena.set_array_transform_flags(

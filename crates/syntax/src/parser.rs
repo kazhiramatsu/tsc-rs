@@ -1631,7 +1631,7 @@ impl<'text> Parser<'text> {
 
         self.parsing_context = saved_context;
         self.arena
-            .alloc_array(list, list_pos, self.node_pos(), false)
+            .alloc_array(&list, list_pos, self.node_pos(), false)
     }
 
     fn parse_delimited_list(
@@ -1710,7 +1710,7 @@ impl<'text> Parser<'text> {
         self.parsing_context = saved_context;
         Some(
             self.arena
-                .alloc_array(list, list_pos, self.node_pos(), comma_start.is_some()),
+                .alloc_array(&list, list_pos, self.node_pos(), comma_start.is_some()),
         )
     }
 
@@ -2517,7 +2517,7 @@ impl<'text> Parser<'text> {
 
     fn mark_modifiers_ambient(&mut self, modifiers: Option<crate::NodeArrayId>) {
         if let Some(list) = modifiers {
-            let nodes = self.arena.node_array(list).nodes.clone();
+            let nodes = self.arena.node_array(list).nodes.to_vec();
             for modifier in nodes {
                 self.arena.node_mut(modifier).flags |= NodeFlags::AMBIENT.bits();
             }
@@ -4880,7 +4880,7 @@ impl<'text> Parser<'text> {
         if list.is_empty() {
             None
         } else {
-            Some(self.arena.alloc_array(list, pos, self.node_pos(), false))
+            Some(self.arena.alloc_array(&list, pos, self.node_pos(), false))
         }
     }
 
@@ -4891,7 +4891,7 @@ impl<'text> Parser<'text> {
         let pos = self.node_pos();
         let modifier = self.parse_token_node();
         let end = self.arena.node(modifier).end as usize;
-        Some(self.arena.alloc_array(vec![modifier], pos, end, false))
+        Some(self.arena.alloc_array(&[modifier], pos, end, false))
     }
 
     fn parse_parenthesized_arrow_function_expression(
@@ -5005,9 +5005,9 @@ impl<'text> Parser<'text> {
         let parameter_node = self.arena.node(parameter);
         let (parameter_pos, parameter_end) =
             (parameter_node.pos as usize, parameter_node.end as usize);
-        let parameters =
-            self.arena
-                .alloc_array(vec![parameter], parameter_pos, parameter_end, false);
+        let parameters = self
+            .arena
+            .alloc_array(&[parameter], parameter_pos, parameter_end, false);
         let equals_greater_than_token =
             self.parse_expected_token(SyntaxKind::EqualsGreaterThanToken, None);
         let body = self.parse_arrow_function_expression_body(
@@ -5422,12 +5422,12 @@ impl<'text> Parser<'text> {
 
                     let (mut nodes, children_pos) = {
                         let array = self.arena.node_array(children);
-                        (array.nodes.clone(), array.pos as usize)
+                        (array.nodes.to_vec(), array.pos as usize)
                     };
                     *nodes
                         .last_mut()
                         .expect("rebalance only fires on a non-empty child list") = new_last;
-                    children = self.arena.alloc_array(nodes, children_pos, end, false);
+                    children = self.arena.alloc_array(&nodes, children_pos, end, false);
                     closing_element = last_closing;
                 } else {
                     closing_element =
@@ -5613,7 +5613,7 @@ impl<'text> Parser<'text> {
         }
         self.parsing_context = save_parsing_context;
         self.arena
-            .alloc_array(list, list_pos, self.node_pos(), false)
+            .alloc_array(&list, list_pos, self.node_pos(), false)
     }
 
     /// tsc parseJsxAttributes.
@@ -7220,7 +7220,7 @@ impl<'text> Parser<'text> {
         }
         let template_spans = self
             .arena
-            .alloc_array(spans, spans_pos, self.node_pos(), false);
+            .alloc_array(&spans, spans_pos, self.node_pos(), false);
         self.finish_node_data(
             NodeData::TemplateExpression(TemplateExpressionData {
                 head: Some(head),
@@ -7480,7 +7480,7 @@ impl<'text> Parser<'text> {
         }
         let template_spans = self
             .arena
-            .alloc_array(spans, spans_pos, self.node_pos(), false);
+            .alloc_array(&spans, spans_pos, self.node_pos(), false);
         self.finish_node_data(
             NodeData::TemplateLiteralType(TemplateLiteralTypeData {
                 head: Some(head),
@@ -8266,7 +8266,7 @@ impl<'text> Parser<'text> {
         let pos = self.node_pos();
         let modifier = self.parse_token_node();
         let end = self.arena.node(modifier).end as usize;
-        Some(self.arena.alloc_array(vec![modifier], pos, end, false))
+        Some(self.arena.alloc_array(&[modifier], pos, end, false))
     }
 
     fn parse_function_or_constructor_type(&mut self) -> NodeId {
@@ -8713,7 +8713,7 @@ impl<'text> Parser<'text> {
                     .unwrap_or_else(|| parse_constituent_type(self));
                 types.push(next);
             }
-            let array = self.arena.alloc_array(types, pos, self.node_pos(), false);
+            let array = self.arena.alloc_array(&types, pos, self.node_pos(), false);
             r#type = self.finish_node_data(create_type_node(array), pos);
         }
         r#type
@@ -9814,7 +9814,7 @@ impl<'text> Parser<'text> {
     fn reparse_top_level_await(&mut self, statements_id: crate::NodeArrayId) -> crate::NodeArrayId {
         let (old_statements, array_pos, array_end) = {
             let array = self.arena.node_array(statements_id);
-            (array.nodes.clone(), array.pos as usize, array.end as usize)
+            (array.nodes.to_vec(), array.pos as usize, array.end as usize)
         };
         let saved_diagnostics = std::mem::take(&mut self.parse_diagnostics);
         let saved_recovery = std::mem::take(&mut self.parse_recovery);
@@ -9878,7 +9878,7 @@ impl<'text> Parser<'text> {
         }
 
         self.arena
-            .alloc_array(statements, array_pos, array_end, false)
+            .alloc_array(&statements, array_pos, array_end, false)
     }
 
     fn find_statement_with_await(&self, statements: &[NodeId], from: usize) -> Option<usize> {
@@ -9907,7 +9907,7 @@ impl<'text> Parser<'text> {
         statements: crate::NodeArrayId,
         end_of_file_token: NodeId,
     ) -> Vec<bool> {
-        let mut stack = self.arena.node_array(statements).nodes.clone();
+        let mut stack = self.arena.node_array(statements).nodes.to_vec();
         stack.push(end_of_file_token);
         let mut seen = vec![false; self.arena.len()];
         while let Some(node) = stack.pop() {
@@ -9997,7 +9997,7 @@ impl<'text> Parser<'text> {
                 .arena
                 .node(*docs.last().expect("non-empty JSDoc list"))
                 .end as usize;
-            let js_doc = self.arena.alloc_array(docs, array_start, array_end, false);
+            let js_doc = self.arena.alloc_array(&docs, array_start, array_end, false);
             self.arena.set_js_doc(host, js_doc);
             if deprecated {
                 self.arena.node_mut(host).flags |= NodeFlags::DEPRECATED.bits();
@@ -10524,7 +10524,7 @@ pub fn parse_json_text_from_snapshot_with_bases(
     let pos = parser.node_pos();
 
     let (statements, end_of_file_token) = if parser.token() == SyntaxKind::EndOfFileToken {
-        let statements = parser.arena.alloc_array(Vec::new(), pos, pos, false);
+        let statements = parser.arena.alloc_array(&Vec::new(), pos, pos, false);
         let end_of_file_token = parser.parse_token_node();
         (statements, end_of_file_token)
     } else {
@@ -10570,7 +10570,7 @@ pub fn parse_json_text_from_snapshot_with_bases(
             let expressions_end = parser.node_pos();
             let elements = parser
                 .arena
-                .alloc_array(expressions, pos, expressions_end, false);
+                .alloc_array(&expressions, pos, expressions_end, false);
             parser.finish_node_data(
                 NodeData::ArrayLiteralExpression(ArrayLiteralExpressionData {
                     elements: Some(elements),
@@ -10588,7 +10588,7 @@ pub fn parse_json_text_from_snapshot_with_bases(
         );
         let statements = parser
             .arena
-            .alloc_array(vec![statement], pos, parser.node_pos(), false);
+            .alloc_array(&[statement], pos, parser.node_pos(), false);
         let end_of_file_token =
             parser.parse_expected_token(SyntaxKind::EndOfFileToken, Some(&gen::Unexpected_token));
         (statements, end_of_file_token)

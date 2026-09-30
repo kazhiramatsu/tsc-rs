@@ -1889,7 +1889,7 @@ impl Printer {
                 _ => return Err(PrinterError::RootIsNotSourceFile(root)),
             };
             let statements = statement_array
-                .map(|array| source.arena.node_array(array).nodes.clone())
+                .map(|array| source.arena.node_array(array).nodes.to_vec())
                 .unwrap_or_default();
             (
                 source.language_variant,
@@ -2018,7 +2018,7 @@ impl Printer {
                 .and_then(|array| transformation.arena().node_array_ref(source_id, array))
                 .map(|array| transformation.arena().node_array(array))
                 .transpose()?
-                .map(|array| array.nodes.clone())
+                .map(|array| array.nodes.to_vec())
                 .unwrap_or_default(),
             _ => return Err(PrinterError::RootIsNotSourceFile(root)),
         };
@@ -3954,7 +3954,7 @@ impl Printer {
                 else {
                     return Ok(());
                 };
-                let ids = transformation.arena().node_array(spans)?.nodes.clone();
+                let ids = transformation.arena().node_array(spans)?.nodes.to_vec();
                 for id in ids {
                     let span = TransformNode::new(node.source(), id);
                     let expression_id = match &transformation.arena().node(span)?.data {
@@ -4815,7 +4815,7 @@ impl Printer {
                     })
                     .map(|declarations| transformation.arena().node_array(declarations))
                     .transpose()?
-                    .map(|declarations| declarations.nodes.clone())
+                    .map(|declarations| declarations.nodes.to_vec())
                     .unwrap_or_default();
                 for (index, declaration) in declarations.iter().copied().enumerate() {
                     if index != 0 {
@@ -8380,7 +8380,7 @@ impl Printer {
                 let (statements, statement_list_end) = if let Some(array) = array {
                     let array = transformation.arena().node_array(array)?;
                     (
-                        array.nodes.clone(),
+                        array.nodes.to_vec(),
                         (array.end != u32::MAX).then_some(array.end as usize),
                     )
                 } else {
@@ -8944,7 +8944,7 @@ impl Printer {
         {
             let array = transformation.arena().node_array(array)?;
             (
-                array.nodes.clone(),
+                array.nodes.to_vec(),
                 (array.end != u32::MAX).then_some(array.end as usize),
             )
         } else {
@@ -9033,7 +9033,7 @@ impl Printer {
             .and_then(|array| transformation.arena().node_array_ref(source, array))
             .map(|array| transformation.arena().node_array(array))
             .transpose()?
-            .map(|array| array.nodes.clone())
+            .map(|array| array.nodes.to_vec())
             .unwrap_or_default();
         if statements.len() != 1 {
             return Ok(false);
@@ -9060,7 +9060,7 @@ impl Printer {
             .and_then(|array| transformation.arena().node_array_ref(source, array))
             .map(|array| transformation.arena().node_array(array))
             .transpose()?
-            .map(|array| array.nodes.clone())
+            .map(|array| array.nodes.to_vec())
             .unwrap_or_default();
         let first = statements
             .first()
@@ -9594,7 +9594,7 @@ impl Printer {
         let (ids, trailing_comma, array_end) = if let Some(array) = array {
             let record = transformation.arena().node_array(array)?;
             (
-                record.nodes.clone(),
+                record.nodes.to_vec(),
                 record.has_trailing_comma
                     && format.allow_trailing_comma
                     && format.delimiter == ListDelimiter::Comma,
@@ -9878,7 +9878,7 @@ impl Printer {
             elements.and_then(|id| transformation.arena().node_array_ref(parent.source(), id));
         let (ids, trailing_comma) = if let Some(array) = array {
             let record = transformation.arena().node_array(array)?;
-            (record.nodes.clone(), record.has_trailing_comma)
+            (record.nodes.to_vec(), record.has_trailing_comma)
         } else {
             (Vec::new(), false)
         };
@@ -10318,7 +10318,7 @@ impl Printer {
                 .arena()
                 .node_array(member_array)?
                 .nodes
-                .clone();
+                .to_vec();
             if !member_ids.is_empty() {
                 writer.write_line(false);
                 writer.increase_indent();
@@ -12556,7 +12556,7 @@ impl Printer {
             .arena()
             .node_array(TransformNodeArray::new(parent.source(), elements))?
             .nodes
-            .clone();
+            .to_vec();
         let mut previous = None;
         for id in ids {
             let child = transformation
@@ -12775,7 +12775,7 @@ impl Printer {
         else {
             return Ok(());
         };
-        let ids = transformation.arena().node_array(array)?.nodes.clone();
+        let ids = transformation.arena().node_array(array)?.nodes.to_vec();
         for (index, id) in ids.iter().copied().enumerate() {
             let child = transformation
                 .arena()
@@ -12981,7 +12981,7 @@ impl Printer {
             })
             .map(|array| transformation.arena().node_array(array))
             .transpose()?
-            .map(|array| array.nodes.clone())
+            .map(|array| array.nodes.to_vec())
             .unwrap_or_default();
         if ids.is_empty() {
             writer.write_line(false);
@@ -13097,7 +13097,7 @@ impl Printer {
             })
             .map(|array| transformation.arena().node_array(array))
             .transpose()?
-            .map(|array| array.nodes.clone())
+            .map(|array| array.nodes.to_vec())
             .unwrap_or_default();
         if ids.is_empty() {
             if !no_space_if_empty {
@@ -13158,7 +13158,7 @@ impl Printer {
             .arena()
             .node_array(type_arguments)?
             .nodes
-            .clone();
+            .to_vec();
         if ids.is_empty() {
             return Ok(());
         }
@@ -13307,7 +13307,7 @@ impl Printer {
         let (ids, synthesized_array) = if let Some(array) = array {
             let record = transformation.arena().node_array(array)?;
             (
-                record.nodes.clone(),
+                record.nodes.to_vec(),
                 record.pos == u32::MAX && record.end == u32::MAX,
             )
         } else {
@@ -13896,7 +13896,7 @@ impl Printer {
         let (ids, trailing_comma, synthesized) = if let Some(array) = array {
             let record = transformation.arena().node_array(array)?;
             (
-                record.nodes.clone(),
+                record.nodes.to_vec(),
                 record.has_trailing_comma,
                 record.pos == u32::MAX && record.end == u32::MAX,
             )
@@ -14333,7 +14333,7 @@ impl Printer {
         else {
             return Ok(());
         };
-        let ids = transformation.arena().node_array(array)?.nodes.clone();
+        let ids = transformation.arena().node_array(array)?.nodes.to_vec();
         for id in ids {
             let child = transformation
                 .arena()
@@ -14374,7 +14374,7 @@ impl Printer {
         else {
             return Ok(());
         };
-        let ids = transformation.arena().node_array(array)?.nodes.clone();
+        let ids = transformation.arena().node_array(array)?.nodes.to_vec();
         for (index, id) in ids.into_iter().enumerate() {
             let attribute = transformation
                 .arena()
@@ -14415,7 +14415,7 @@ impl Printer {
         else {
             return Ok(());
         };
-        let ids = transformation.arena().node_array(array)?.nodes.clone();
+        let ids = transformation.arena().node_array(array)?.nodes.to_vec();
         let mut previous = None;
         for id in ids {
             if let Some(previous) = previous {
@@ -14470,7 +14470,7 @@ impl Printer {
         else {
             return Ok(());
         };
-        let ids = transformation.arena().node_array(array)?.nodes.clone();
+        let ids = transformation.arena().node_array(array)?.nodes.to_vec();
         for (index, id) in ids.into_iter().enumerate() {
             if index != 0 {
                 writer.write(separator);
@@ -14581,7 +14581,7 @@ impl Printer {
             .transpose()?
             .map(|array| {
                 (
-                    array.nodes.clone(),
+                    array.nodes.to_vec(),
                     array.pos == u32::MAX && array.end == u32::MAX,
                 )
             })

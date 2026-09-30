@@ -260,7 +260,7 @@ fn build_targets(
                 .node_array(TransformNodeArray::new(sources[0], data.arguments.unwrap()))
                 .unwrap()
                 .nodes
-                .clone();
+                .to_vec();
             let items = arguments[1..]
                 .iter()
                 .map(|id| arena.node_ref(sources[0], *id).unwrap())

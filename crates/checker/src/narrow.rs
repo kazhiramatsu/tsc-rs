@@ -1977,7 +1977,7 @@ impl<'a> CheckerState<'a> {
             _ => None,
         });
         match clauses {
-            Some(clauses) => self.binder.node_array(clauses).nodes.clone(),
+            Some(clauses) => self.binder.node_array(clauses).nodes.to_vec(),
             None => Vec::new(),
         }
     }
@@ -2498,7 +2498,7 @@ impl<'a> CheckerState<'a> {
                         _ => None,
                     };
                     let arguments: Vec<NodeId> = arguments
-                        .map(|arguments| self.binder.node_array(arguments).nodes.clone())
+                        .map(|arguments| self.binder.node_array(arguments).nodes.to_vec())
                         .unwrap_or_default();
                     if let Some(callee_receiver) = callee_receiver {
                         let candidate = self.get_reference_candidate(callee_receiver);
@@ -2661,7 +2661,7 @@ impl<'a> CheckerState<'a> {
             _ => (None, None),
         };
         let arguments: Vec<NodeId> = arguments
-            .map(|arguments| self.binder.node_array(arguments).nodes.clone())
+            .map(|arguments| self.binder.node_array(arguments).nodes.to_vec())
             .unwrap_or_default();
         for argument in arguments {
             if self.is_matching_query_reference(query, argument)?

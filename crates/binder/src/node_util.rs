@@ -220,7 +220,7 @@ fn jsdoc_tags(source: &SourceFile, doc: NodeId) -> &[NodeId] {
         return &[];
     };
     data.tags
-        .map(|tags| source.arena.node_array(tags).nodes.as_slice())
+        .map(|tags| source.arena.node_array(tags).nodes)
         .unwrap_or(&[])
 }
 
@@ -249,7 +249,7 @@ fn visit_owned_jsdoc_tags_from_attachment(
     docs: NodeArrayId,
     visitor: &mut impl FnMut(NodeId) -> bool,
 ) -> bool {
-    let docs = &source.arena.node_array(docs).nodes;
+    let docs = source.arena.node_array(docs).nodes;
     let last = docs.last().copied();
     for &doc in docs {
         for &tag in jsdoc_tags(source, doc) {
@@ -552,7 +552,7 @@ pub fn modifier_to_flag(token: SyntaxKind) -> ModifierFlags {
 pub fn modifiers_to_flags(source: &SourceFile, modifiers: Option<NodeArrayId>) -> ModifierFlags {
     let mut flags = ModifierFlags::NONE;
     if let Some(modifiers) = modifiers {
-        for &modifier in &source.arena.node_array(modifiers).nodes {
+        for &modifier in source.arena.node_array(modifiers).nodes {
             flags |= modifier_to_flag(source.arena.node(modifier).kind);
         }
     }
@@ -1271,7 +1271,7 @@ fn case_clause_span(
     statements: Option<NodeArrayId>,
 ) -> (usize, usize) {
     let end = statements
-        .map(|statements| &source.arena.node_array(statements).nodes)
+        .map(|statements| source.arena.node_array(statements).nodes)
         .and_then(|nodes| nodes.first())
         .map(|&first| source.arena.node(first).pos as usize)
         .unwrap_or(node_end);
@@ -2159,7 +2159,7 @@ fn has_narrowable_argument(source: &SourceFile, expr: NodeId) -> bool {
         return false;
     };
     if let Some(arguments) = data.arguments {
-        for &argument in &source.arena.node_array(arguments).nodes {
+        for &argument in source.arena.node_array(arguments).nodes {
             if contains_narrowable_reference(source, argument) {
                 return true;
             }

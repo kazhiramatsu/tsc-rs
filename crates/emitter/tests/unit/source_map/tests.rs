@@ -726,7 +726,7 @@ fn print_recorded_with_options(
         .arena
         .node_array(source_file.statements.expect("top-level statements"))
         .nodes
-        .clone();
+        .to_vec();
     let mut arena = TransformArena::new();
     let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
     let statements = statement_ids

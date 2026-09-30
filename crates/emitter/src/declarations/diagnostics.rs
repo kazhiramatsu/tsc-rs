@@ -735,7 +735,7 @@ pub(crate) fn effective_modifier_flags(source: &SourceFile, node: NodeId) -> Mod
         return ModifierFlags::NONE;
     };
     let mut flags = ModifierFlags::NONE;
-    for &modifier in &source.arena.node_array(modifiers).nodes {
+    for &modifier in source.arena.node_array(modifiers).nodes {
         flags |= match source.arena.node(modifier).kind {
             SyntaxKind::PublicKeyword => ModifierFlags::PUBLIC,
             SyntaxKind::PrivateKeyword => ModifierFlags::PRIVATE,
@@ -1020,7 +1020,7 @@ fn case_clause_span(
     statements: Option<NodeArrayId>,
 ) -> (usize, usize) {
     let end = statements
-        .map(|statements| &source.arena.node_array(statements).nodes)
+        .map(|statements| source.arena.node_array(statements).nodes)
         .and_then(|nodes| nodes.first())
         .map(|&first| source.arena.node(first).pos as usize)
         .unwrap_or(node_end);

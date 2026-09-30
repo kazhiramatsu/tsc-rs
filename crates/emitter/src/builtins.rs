@@ -980,7 +980,7 @@ fn source_file_has_use_strict_prologue(
     let Some(statements) = statements.and_then(|id| arena.node_array_ref(source, id)) else {
         return Ok(false);
     };
-    for id in &arena.node_array(statements)?.nodes {
+    for id in arena.node_array(statements)?.nodes {
         let statement = arena
             .node_ref(source, *id)
             .ok_or_else(|| TransformError::UnknownNode(TransformNode::new(source, *id)))?;
@@ -1986,7 +1986,7 @@ impl NodeDataChildVisitor for RelativeModuleSpecifierVisitor<'_> {
             return Ok(Some(*mapped));
         }
         let original = TransformNodeArray::new(self.source, id);
-        let nodes = self.context.arena().node_array(original)?.nodes.clone();
+        let nodes = self.context.arena().node_array(original)?.nodes.to_vec();
         let mut visited = Vec::with_capacity(nodes.len());
         for node in nodes {
             visited.push(self.visit(node)?);
@@ -2283,7 +2283,7 @@ fn transformed_source_has_external_module_indicator(
     let Some(statements) = statements.and_then(|id| arena.node_array_ref(source, id)) else {
         return Ok(false);
     };
-    for statement in &arena.node_array(statements)?.nodes {
+    for statement in arena.node_array(statements)?.nodes {
         let statement = arena
             .node_ref(source, *statement)
             .ok_or_else(|| TransformError::UnknownNode(TransformNode::new(source, *statement)))?;
@@ -8268,7 +8268,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             return Ok(parameters);
         };
         let array = self.array(parameters);
-        let nodes = self.context.arena().node_array(array)?.nodes.clone();
+        let nodes = self.context.arena().node_array(array)?.nodes.to_vec();
         let mut lowered = Vec::with_capacity(nodes.len());
         for parameter in nodes {
             lowered.push(self.lower_module_parameter_default(parameter)?);
@@ -12402,7 +12402,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 .arena()
                 .node_array(original_statements)?
                 .nodes
-                .clone();
+                .to_vec();
             let mut output = Vec::with_capacity(input.len());
             for statement in input {
                 let kind = self.context.arena().node(self.node(statement))?.kind;
@@ -12455,7 +12455,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         original: TransformNodeArray,
         members: Vec<TransformNode>,
     ) -> Result<Vec<TransformNode>, TransformError> {
-        let member_ids = self.context.arena().node_array(original)?.nodes.clone();
+        let member_ids = self.context.arena().node_array(original)?.nodes.to_vec();
         let mut parameters = Vec::new();
         for member in &member_ids {
             let record = self.context.arena().node(self.node(*member))?;
@@ -12489,7 +12489,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         };
         let parameters = self.array(parameters);
         let mut properties = Vec::new();
-        for parameter in &self.context.arena().node_array(parameters)?.nodes {
+        for parameter in self.context.arena().node_array(parameters)?.nodes {
             let node = self.node(*parameter);
             let NodeData::Parameter(data) = &self.context.arena().node(node)?.data else {
                 continue;
@@ -12584,7 +12584,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 self.context
                     .arena()
                     .node_array(statements)
-                    .map(|array| array.nodes.clone())
+                    .map(|array| array.nodes.to_vec())
             })
             .transpose()?
             .unwrap_or_default();
@@ -12717,7 +12717,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                     self.context
                         .arena()
                         .node_array(statements)
-                        .map(|array| array.nodes.clone())
+                        .map(|array| array.nodes.to_vec())
                 })
                 .transpose()?
                 .unwrap_or_default();
@@ -12785,7 +12785,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 self.context
                     .arena()
                     .node_array(statements)
-                    .map(|array| array.nodes.clone())
+                    .map(|array| array.nodes.to_vec())
             })
             .transpose()?
             .unwrap_or_default();
@@ -13045,7 +13045,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                         })
                         .map(|statements| self.context.arena().node_array(statements))
                         .transpose()?
-                        .map(|statements| statements.nodes.clone())
+                        .map(|statements| statements.nodes.to_vec())
                         .unwrap_or_default();
                     let mut output = Vec::new();
                     for statement in input {
@@ -13387,7 +13387,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             })
             .map(|declarations| self.context.arena().node_array(declarations))
             .transpose()?
-            .map(|declarations| declarations.nodes.clone())
+            .map(|declarations| declarations.nodes.to_vec())
             .unwrap_or_default();
         let mut expressions = Vec::new();
         for declaration in declarations {
@@ -14162,7 +14162,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             .and_then(|members| self.context.arena().node_array_ref(self.source, members))
             .map(|members| self.context.arena().node_array(members))
             .transpose()?
-            .map(|members| members.nodes.clone())
+            .map(|members| members.nodes.to_vec())
             .unwrap_or_default();
         self.enum_container_names
             .insert(id, name.clone().into_boxed_str());
@@ -14460,7 +14460,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 .and_then(|array| self.context.arena().node_array_ref(self.source, array))
                 .map(|array| self.context.arena().node_array(array))
                 .transpose()?
-                .map(|array| array.nodes.as_slice())
+                .map(|array| array.nodes)
                 .unwrap_or_default();
             let last_modifier_end = modifier_nodes
                 .last()
@@ -15154,7 +15154,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         let original = modifiers
             .and_then(|modifiers| self.context.arena().node_array_ref(self.source, modifiers));
         if let Some(original) = original {
-            let input = self.context.arena().node_array(original)?.nodes.clone();
+            let input = self.context.arena().node_array(original)?.nodes.to_vec();
             for modifier in input {
                 let modifier_node = self.node(modifier);
                 if self.context.arena().node(modifier_node)?.kind == SyntaxKind::Decorator {
@@ -15583,7 +15583,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                     .arena()
                     .node_array(original_array)?
                     .nodes
-                    .clone();
+                    .to_vec();
                 let mut retained = Vec::new();
                 for specifier in ids {
                     let specifier_node = self.node(specifier);
@@ -15665,7 +15665,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             .arena()
             .node_array(original_array)?
             .nodes
-            .clone();
+            .to_vec();
         let mut retained = Vec::new();
         for specifier in ids {
             let specifier_node = self.node(specifier);
@@ -15894,7 +15894,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         else {
             return Ok(false);
         };
-        for element in &self.context.arena().node_array(elements)?.nodes {
+        for element in self.context.arena().node_array(elements)?.nodes {
             if self.binding_name_contains(*element, expected)? {
                 return Ok(true);
             }
@@ -15959,7 +15959,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         let Some(members) = members else {
             return Ok(facts);
         };
-        for member in &self.context.arena().node_array(self.array(members))?.nodes {
+        for member in self.context.arena().node_array(self.array(members))?.nodes {
             let Some(member) = self.context.arena().node_ref(self.source, *member) else {
                 continue;
             };
@@ -16611,7 +16611,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         }
         self.class_member_arrays
             .insert(members, ClassMemberArrayVisit::Visiting { parent });
-        let input = self.context.arena().node_array(original)?.nodes.clone();
+        let input = self.context.arena().node_array(original)?.nodes.to_vec();
         let mut visited = Vec::with_capacity(input.len());
         for member in input {
             if let Some(member) = self.visit_class_element(parent, member)? {
@@ -17379,7 +17379,7 @@ fn compute_transform_flags_incremental(
             let flags = {
                 let syntax = arena.source(source)?.syntax();
                 let mut flags = TransformFlags::NONE;
-                for &element in &syntax.arena.node_array(array).nodes {
+                for &element in syntax.arena.node_array(array).nodes {
                     if !syntax.arena.contains_node(element) {
                         return Err(TransformError::UnknownNode(TransformNode::new(
                             source, element,
@@ -17471,12 +17471,7 @@ fn snapshot_transform_flags(
         .map(|node| syntax.arena.transform_flags(NodeId::new(node)))
         .collect();
     let arrays = (syntax.arena.array_base()..syntax.arena.array_end())
-        .map(|array| {
-            syntax
-                .arena
-                .node_array(NodeArrayId::new(array))
-                .transform_flags
-        })
+        .map(|array| syntax.arena.array_transform_flags(NodeArrayId::new(array)))
         .collect();
     Ok((nodes, arrays))
 }
@@ -17588,7 +17583,7 @@ fn compute_transform_flags_linear(
             let flags = {
                 let syntax = arena.source(source)?.syntax();
                 let mut flags = TransformFlags::NONE;
-                for &element in &syntax.arena.node_array(array).nodes {
+                for &element in syntax.arena.node_array(array).nodes {
                     let Some(element_index) = index_of(element) else {
                         return Err(TransformError::UnknownNode(TransformNode::new(
                             source, element,
@@ -18640,7 +18635,7 @@ fn function_like_facet_flags(
     let is_generator = asterisk_token.is_some();
     let mut is_async = false;
     if let Some(modifiers) = modifiers.and_then(|array| arena.node_array_ref(source, array)) {
-        for modifier in &arena.node_array(modifiers)?.nodes {
+        for modifier in arena.node_array(modifiers)?.nodes {
             if let Some(modifier) = arena.node_ref(source, *modifier) {
                 if arena.node(modifier)?.kind == SyntaxKind::AsyncKeyword {
                     is_async = true;

@@ -2082,7 +2082,7 @@ fn array_nodes_in_context(
     let Some(array) = array.and_then(|array| context.arena().node_array_ref(source, array)) else {
         return Ok(Vec::new());
     };
-    let nodes = context.arena().node_array(array)?.nodes.clone();
+    let nodes = context.arena().node_array(array)?.nodes.to_vec();
     nodes
         .iter()
         .map(|node| {

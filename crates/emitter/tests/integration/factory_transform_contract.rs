@@ -389,7 +389,7 @@ impl Transformer for SharedClassMemberArrayTransformer {
             .statements
             .and_then(|statements| context.arena().node_array_ref(source, statements))
             .expect("source file has parsed statements");
-        let statements = context.arena().node_array(statement_array)?.nodes.clone();
+        let statements = context.arena().node_array(statement_array)?.nodes.to_vec();
         let [first_id, second_id] = statements.as_slice() else {
             panic!("shared-member probe requires exactly two classes")
         };

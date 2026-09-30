@@ -139,7 +139,7 @@ fn transform_modifier_flags(
         return Ok(ModifierFlags::NONE);
     };
     let mut flags = ModifierFlags::NONE;
-    for &modifier in &arena.node_array(modifiers).map_err(factory_error)?.nodes {
+    for &modifier in arena.node_array(modifiers).map_err(factory_error)?.nodes {
         let Some(modifier) = arena.node_ref(target, modifier) else {
             continue;
         };

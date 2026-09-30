@@ -1508,7 +1508,7 @@ fn retained_report_expression_may_own_only_its_semicolon_and_trivia() {
         .arena
         .node_array(data.statements.unwrap())
         .nodes
-        .clone();
+        .to_vec();
     let expression = statements
         .into_iter()
         .find(|id| parsed.arena.node(*id).kind == SyntaxKind::ExpressionStatement)

@@ -45,7 +45,7 @@ impl<'a> CheckerState<'a> {
             .arena
             .node(node)
             .js_doc
-            .map(|docs| source.arena.node_array(docs).nodes.clone())
+            .map(|docs| source.arena.node_array(docs).nodes.to_vec())
             .unwrap_or_default()
     }
 

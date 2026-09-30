@@ -18,19 +18,36 @@ impl JSDocComment {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct NodeArray {
-    pub nodes: Vec<NodeId>,
+/// A tsc NodeArray as `NodeArena::node_array` reads it: the stored
+/// `NodeArrayRecord` together with its elements from the arena's item
+/// store.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct NodeArray<'a> {
+    pub nodes: &'a [NodeId],
     pub pos: u32,
     pub end: u32,
     pub has_trailing_comma: bool,
     /// tsc createMissingList's isMissingList marker.
     pub is_missing_list: bool,
-    /// tsc NodeArray.transformFlags: written only on an emit session's
-    /// detached copy of the tree (the emitter's transform-flag classifier);
-    /// zero on every parsed array.
-    pub transform_flags: i32,
 }
+
+/// The stored form of a tsc NodeArray: its elements are the `len` ids at
+/// `items` in the arena's item store. tsc NodeArray.transformFlags lives
+/// beside the records in `NodeArena`, written only on an emit session's
+/// copy of a tree.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct NodeArrayRecord {
+    pub(crate) items: u32,
+    pub(crate) len: u32,
+    pub pos: u32,
+    pub end: u32,
+    pub has_trailing_comma: bool,
+    /// tsc createMissingList's isMissingList marker.
+    pub is_missing_list: bool,
+}
+
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(std::mem::size_of::<NodeArrayRecord>() == 20);
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum NodePayload {

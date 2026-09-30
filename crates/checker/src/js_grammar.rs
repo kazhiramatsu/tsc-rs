@@ -227,7 +227,7 @@ impl<'a> JsGrammarWalker<'a> {
     }
 
     fn array_elements(&self, id: NodeArrayId) -> Vec<NodeId> {
-        self.source.arena.node_array(id).nodes.clone()
+        self.source.arena.node_array(id).nodes.to_vec()
     }
 
     fn recurse(&mut self, id: NodeId) {

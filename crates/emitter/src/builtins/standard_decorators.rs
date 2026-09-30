@@ -5940,7 +5940,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         parameters: NodeArrayId,
     ) -> Result<NodeArrayId, TransformError> {
         let array = self.array(parameters);
-        let nodes = self.context.arena().node_array(array)?.nodes.clone();
+        let nodes = self.context.arena().node_array(array)?.nodes.to_vec();
         let mut result = Vec::with_capacity(nodes.len());
         let mut changed = false;
         for node in nodes {
@@ -7328,7 +7328,7 @@ impl<'visitor, 'context> DecoratorLexicalThisRewriter<'visitor, 'context> {
             .arena()
             .node_array(original)?
             .nodes
-            .clone();
+            .to_vec();
         let mut rewritten_nodes = Vec::with_capacity(nodes.len());
         for node in nodes {
             if let Some(rewritten) = self.rewrite_node(node)? {
@@ -7438,7 +7438,7 @@ impl<'visitor, 'context> DecoratorClassThisRewriter<'visitor, 'context> {
             .arena()
             .node_array(original)?
             .nodes
-            .clone();
+            .to_vec();
         let mut rewritten_nodes = Vec::with_capacity(nodes.len());
         for node in nodes {
             if let Some(rewritten) = self.rewrite_node(node)? {
@@ -7874,7 +7874,7 @@ impl StandardDecoratorVisitor<'_> {
             return Ok(None);
         };
         let original = self.array(members);
-        let nodes = self.context.arena().node_array(original)?.nodes.clone();
+        let nodes = self.context.arena().node_array(original)?.nodes.to_vec();
         let mut visited = Vec::with_capacity(nodes.len());
         for member in nodes {
             let member = self.node(member);
@@ -8759,7 +8759,7 @@ impl StandardDecoratorVisitor<'_> {
                 .arena()
                 .node_array(original_elements)?
                 .nodes
-                .clone();
+                .to_vec();
             let length = nodes.len();
             let mut visited = Vec::with_capacity(length);
             for (index, element) in nodes.into_iter().enumerate() {
@@ -8829,7 +8829,7 @@ impl StandardDecoratorVisitor<'_> {
                         .arena()
                         .node_array(original_elements)?
                         .nodes
-                        .clone();
+                        .to_vec();
                     let mut visited = Vec::with_capacity(nodes.len());
                     for element in nodes {
                         visited.push(self.visit_array_assignment_element(self.node(element))?);
@@ -8852,7 +8852,7 @@ impl StandardDecoratorVisitor<'_> {
                         .arena()
                         .node_array(original_properties)?
                         .nodes
-                        .clone();
+                        .to_vec();
                     let mut visited = Vec::with_capacity(nodes.len());
                     for property in nodes {
                         visited.push(self.visit_object_assignment_element(self.node(property))?);
@@ -9127,7 +9127,7 @@ impl StandardDecoratorVisitor<'_> {
             return Ok(*mapped);
         }
         let original = self.array(id);
-        let nodes = self.context.arena().node_array(original)?.nodes.clone();
+        let nodes = self.context.arena().node_array(original)?.nodes.to_vec();
         let mut visited = Vec::with_capacity(nodes.len());
         for node in nodes {
             match self.classify_fallback_child(node)? {

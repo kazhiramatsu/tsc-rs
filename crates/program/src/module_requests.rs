@@ -591,7 +591,7 @@ fn plan_module_requests_worker(
                     }
                     let arguments = call
                         .arguments
-                        .map(|arguments| parsed.arena.node_array(arguments).nodes.as_slice())
+                        .map(|arguments| parsed.arena.node_array(arguments).nodes)
                         .unwrap_or_default();
                     // TypeScript's collector records the first string-literal-like
                     // argument whenever at least one argument exists. The
@@ -621,7 +621,7 @@ fn plan_module_requests_worker(
                 });
                 let arguments = call
                     .arguments
-                    .map(|arguments| parsed.arena.node_array(arguments).nodes.as_slice())
+                    .map(|arguments| parsed.arena.node_array(arguments).nodes)
                     .unwrap_or_default();
                 if is_require
                     && arguments.len() == 1
@@ -903,7 +903,7 @@ fn collect_static_module_references(
     };
     let statements = root
         .statements
-        .map(|statements| parsed.arena.node_array(statements).nodes.as_slice())
+        .map(|statements| parsed.arena.node_array(statements).nodes)
         .unwrap_or_default();
     collect_static_module_reference_statements(
         parsed,
@@ -1142,7 +1142,7 @@ fn module_body_statements(parsed: &SourceFile, body: Option<NodeId>) -> Option<&
     Some(
         block
             .statements
-            .map(|statements| parsed.arena.node_array(statements).nodes.as_slice())
+            .map(|statements| parsed.arena.node_array(statements).nodes)
             .unwrap_or_default(),
     )
 }
@@ -1177,7 +1177,7 @@ fn collect_unpreprocessed_module_requests(
     };
     let statements = block
         .statements
-        .map(|statements| parsed.arena.node_array(statements).nodes.as_slice())
+        .map(|statements| parsed.arena.node_array(statements).nodes)
         .unwrap_or_default();
     for &statement in statements {
         match &parsed.arena.node(statement).data {

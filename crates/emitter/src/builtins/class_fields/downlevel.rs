@@ -1542,7 +1542,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 .arena()
                 .node_array(original_elements)?
                 .nodes
-                .clone();
+                .to_vec();
             let length = nodes.len();
             let mut visited = Vec::with_capacity(length);
             for (index, element) in nodes.into_iter().enumerate() {
@@ -1745,7 +1745,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .arena()
             .node_array(original_parameters)?
             .nodes
-            .clone();
+            .to_vec();
         let mut lowered = Vec::with_capacity(nodes.len());
         for parameter in nodes {
             lowered.push(self.lower_parameter_default(self.node(parameter))?);
@@ -4804,7 +4804,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             return Ok(None);
         };
         let original = self.array(elements);
-        let ids = self.context.arena().node_array(original)?.nodes.clone();
+        let ids = self.context.arena().node_array(original)?.nodes.to_vec();
         let mut visited = Vec::with_capacity(ids.len());
         for id in ids {
             let node = self.node(id);
@@ -4864,7 +4864,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             return Ok(None);
         };
         let original = self.array(elements);
-        let ids = self.context.arena().node_array(original)?.nodes.clone();
+        let ids = self.context.arena().node_array(original)?.nodes.to_vec();
         let mut visited = Vec::with_capacity(ids.len());
         for id in ids {
             let node = self.node(id);
@@ -6366,7 +6366,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                     .elements
                     .and_then(|elements| self.context.arena().node_array_ref(self.source, elements))
                 {
-                    let nodes = self.context.arena().node_array(elements)?.nodes.clone();
+                    let nodes = self.context.arena().node_array(elements)?.nodes.to_vec();
                     for element in nodes {
                         self.flatten_class_pending_comma_list_worker(
                             self.node(element),

@@ -188,7 +188,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
     }
 
     fn alloc_array(&mut self, nodes: Vec<NodeId>, pos: usize, end: usize) -> crate::NodeArrayId {
-        self.parser.arena.alloc_array(nodes, pos, end, false)
+        self.parser.arena.alloc_array(&nodes, pos, end, false)
     }
 
     /// tsc-port: parseJSDocIdentifierName @6.0.3
@@ -1086,7 +1086,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             return None;
         }
         let end = self.node_pos();
-        let array = self.parser.arena.alloc_synthetic_array(children);
+        let array = self.parser.arena.alloc_synthetic_array(&children);
         let literal = self.finish(
             NodeData::JSDocTypeLiteral(JSDocTypeLiteralData {
                 js_doc_property_tags: Some(array),
@@ -1683,7 +1683,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                     let properties = if property_tags.is_empty() {
                         None
                     } else {
-                        Some(self.parser.arena.alloc_synthetic_array(property_tags))
+                        Some(self.parser.arena.alloc_synthetic_array(&property_tags))
                     };
                     Some(self.finish(
                         NodeData::JSDocTypeLiteral(JSDocTypeLiteralData {

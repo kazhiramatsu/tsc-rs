@@ -88,12 +88,17 @@ fn comma_argument_factory_matches_typescript() {
                     panic!("call")
                 };
                 let original_array = TransformNodeArray::new(source, call_data.arguments.unwrap());
-                let original_record = arena.node_array(original_array).unwrap().clone();
+                let original_record = arena.node_array(original_array).unwrap();
                 let original = original_record
                     .nodes
                     .iter()
                     .map(|id| arena.node_ref(source, *id).unwrap())
                     .collect::<Vec<_>>();
+                let (original_pos, original_end, original_has_trailing_comma) = (
+                    original_record.pos,
+                    original_record.end,
+                    original_record.has_trailing_comma,
+                );
                 let supplied = match case["list_mode"].as_str().unwrap() {
                     "line-boundaries" => {
                         let mut children = Vec::new();
@@ -127,18 +132,14 @@ fn comma_argument_factory_matches_typescript() {
                         if case["ranged_list"].as_bool().unwrap() {
                             arena
                                 .factory()
-                                .set_node_array_text_range(
-                                    array,
-                                    original_record.pos,
-                                    original_record.end,
-                                )
+                                .set_node_array_text_range(array, original_pos, original_end)
                                 .unwrap();
                         }
                         Some(array)
                     }
                     "trailing-token" => {
                         assert_eq!(original.len(), 2);
-                        assert!(original_record.has_trailing_comma);
+                        assert!(original_has_trailing_comma);
                         let last = match case["last_provenance"].as_str().unwrap() {
                             "parsed" => original[1],
                             "clone" => arena.factory().clone_node(original[1]).unwrap(),
@@ -189,7 +190,7 @@ fn comma_argument_factory_matches_typescript() {
                                 .unwrap()
                         };
                         let (pos, end) = if case["ranged_list"].as_bool().unwrap() {
-                            (original_record.pos, original_record.end)
+                            (original_pos, original_end)
                         } else {
                             (u32::MAX, u32::MAX)
                         };
@@ -231,11 +232,7 @@ fn comma_argument_factory_matches_typescript() {
                         if case["ranged_list"].as_bool().unwrap() {
                             arena
                                 .factory()
-                                .set_node_array_text_range(
-                                    array,
-                                    original_record.pos,
-                                    original_record.end,
-                                )
+                                .set_node_array_text_range(array, original_pos, original_end)
                                 .unwrap();
                         }
                         Some(array)
@@ -257,11 +254,7 @@ fn comma_argument_factory_matches_typescript() {
                             .unwrap();
                         arena
                             .factory()
-                            .set_node_array_text_range(
-                                array,
-                                original_record.pos,
-                                original_record.end,
-                            )
+                            .set_node_array_text_range(array, original_pos, original_end)
                             .unwrap();
                         Some(array)
                     }
