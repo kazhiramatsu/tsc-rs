@@ -4030,7 +4030,7 @@ impl<'text> Parser<'text> {
             let pos = self.node_pos();
             let id = self.arena.alloc_node(
                 NodeData::Identifier(IdentifierData {
-                    escaped_text: String::new(),
+                    escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(""),
                 }),
                 pos,
                 pos,
@@ -4341,13 +4341,11 @@ impl<'text> Parser<'text> {
             self.node_pos()
         };
         let end = self.scanner.pos();
-        let text = self.current_token_text();
+        let escaped_text = self.current_token_name();
         // tsc factory createIdentifier (21609): escapedText is the
         // ESCAPED form; `text` (idText) stays raw.
         let id = self.arena.alloc_node(
-            NodeData::Identifier(IdentifierData {
-                escaped_text: crate::escape_leading_underscores(&text),
-            }),
+            NodeData::Identifier(IdentifierData { escaped_text }),
             pos,
             end,
             NodeFlags::NONE,
@@ -4359,12 +4357,10 @@ impl<'text> Parser<'text> {
     fn parse_private_identifier(&mut self) -> NodeId {
         let pos = self.node_pos();
         let end = self.scanner.pos();
-        let text = self.current_token_text();
+        let escaped_text = self.current_token_name();
         // tsc factory createPrivateIdentifier: escapedText is escaped.
         let id = self.arena.alloc_node(
-            NodeData::PrivateIdentifier(PrivateIdentifierData {
-                escaped_text: crate::escape_leading_underscores(&text),
-            }),
+            NodeData::PrivateIdentifier(PrivateIdentifierData { escaped_text }),
             pos,
             end,
             NodeFlags::NONE,
@@ -5391,7 +5387,7 @@ impl<'text> Parser<'text> {
                     let end = self.arena.node_array(last_children).end as usize;
                     let empty_identifier = self.arena.alloc_node(
                         NodeData::Identifier(IdentifierData {
-                            escaped_text: String::new(),
+                            escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(""),
                         }),
                         end,
                         end,
@@ -5923,9 +5919,9 @@ impl<'text> Parser<'text> {
         }
     }
 
-    fn identifier_escaped_text(&self, id: Option<NodeId>) -> Option<&str> {
+    fn identifier_escaped_text(&self, id: Option<NodeId>) -> Option<tsc_types::EscapedName> {
         match &self.arena.node(id?).data {
-            NodeData::Identifier(data) => Some(&data.escaped_text),
+            NodeData::Identifier(data) => Some(data.escaped_text),
             _ => None,
         }
     }
@@ -9365,6 +9361,16 @@ impl<'text> Parser<'text> {
 
     // Identifier/private/numeric/regexp token consumers are scalar by grammar.
     // Diagnostic arguments use current_token_value instead, including literals.
+    /// The escaped name of the current identifier token (tsc factory
+    /// createIdentifier: escapedText is the ESCAPED form; idText stays raw).
+    fn current_token_name(&self) -> tsc_types::EscapedName {
+        let value = self.scanner.token_value();
+        if value.is_empty() {
+            return tsc_types::EscapedName::escape(token_to_string(self.token()).as_str().into());
+        }
+        tsc_types::EscapedName::escape(value)
+    }
+
     fn current_token_text(&self) -> String {
         let value = self.scanner.token_value();
         if value.is_empty() {

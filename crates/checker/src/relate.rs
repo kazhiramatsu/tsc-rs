@@ -450,9 +450,9 @@ impl<'a> CheckerState<'a> {
             {
                 continue;
             }
-            let name = self.binder.symbol(source_property).escaped_name.clone();
+            let name = self.binder.symbol(source_property).escaped_name;
             let target_property = self
-                .get_property_of_type_full(target_enum_type, &name)?
+                .get_property_of_type_full(target_enum_type, name)?
                 .filter(|&property| {
                     self.binder
                         .symbol(property)

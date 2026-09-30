@@ -450,7 +450,7 @@ impl CheckerState<'_> {
                 .filter(|&declaration| self.emit_is_parse_tree_node(declaration))
                 .map(|declaration| self.declaration_emit_resolver_node(declaration));
             result.push(EmitFunctionProperty {
-                name: property_data.escaped_name.clone(),
+                name: property_data.escaped_name,
                 symbol: EmitResolverSymbol {
                     session_token,
                     symbol_index: property.index(),
@@ -1016,10 +1016,10 @@ impl CheckerState<'_> {
             let symbol_flags = self.binder.symbol(symbol).flags;
             let directly_accessible_type_parameter =
                 if symbol_flags.intersects(SymbolFlags::TYPE_PARAMETER) {
-                    let name = self.binder.symbol(symbol).escaped_name.clone();
+                    let name = self.binder.symbol(symbol).escaped_name;
                     self.resolve_name(
                         Some(enclosing_declaration),
-                        &name,
+                        name,
                         meaning,
                         /*name_not_found_message*/ None,
                         /*is_use*/ false,
@@ -1416,7 +1416,7 @@ impl CheckerState<'_> {
     /// tsc-span: _tsc.js:88396-88398
     pub(crate) fn emit_has_global_name(&self, name: &str) -> bool {
         self.globals
-            .contains_key(&tsc_binder::escape_leading_underscores(name))
+            .contains_key(tsc_binder::escape_leading_underscores(name))
     }
 
     /// tsc-port: collectLinkedAliases @6.0.3

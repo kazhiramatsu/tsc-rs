@@ -186,9 +186,7 @@ impl DisplayClonePrinter<'_, '_> {
         let NodeData::Identifier(data) = self.state.data_of(node) else {
             return Ok(None);
         };
-        Ok(Some(JsString::from(
-            tsc_syntax::unescape_leading_underscores(&data.escaped_text),
-        )))
+        Ok(Some(JsString::from(data.text())))
     }
 
     fn private_identifier(&self, node: NodeId) -> CheckResult<Option<JsString>> {
@@ -1280,9 +1278,7 @@ impl DisplayClonePrinter<'_, '_> {
 
     fn jsx_attribute_name(&self, node: NodeId) -> Option<JsString> {
         match self.state.data_of(node) {
-            NodeData::Identifier(data) => Some(JsString::from(
-                tsc_syntax::unescape_leading_underscores(&data.escaped_text),
-            )),
+            NodeData::Identifier(data) => Some(JsString::from(data.text())),
             NodeData::JsxNamespacedName(data) => {
                 let namespace = data.namespace.and_then(|node| self.identifier_name(node))?;
                 let name = data.name.and_then(|node| self.identifier_name(node))?;
@@ -1763,9 +1759,7 @@ impl DisplayClonePrinter<'_, '_> {
 
     fn identifier_name(&self, node: NodeId) -> Option<JsString> {
         match self.state.data_of(node) {
-            NodeData::Identifier(data) => Some(JsString::from(
-                tsc_syntax::unescape_leading_underscores(&data.escaped_text),
-            )),
+            NodeData::Identifier(data) => Some(JsString::from(data.text())),
             NodeData::PrivateIdentifier(data) => Some(data.text().to_owned().into()),
             _ => None,
         }

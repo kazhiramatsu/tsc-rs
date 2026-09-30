@@ -19,6 +19,7 @@ use tsc_types::{CheckMode, SymbolFlags, TypeData, TypeFacts, TypeFlags, TypeId};
 
 use crate::flow::FlowQuery;
 use crate::state::{CheckResult, CheckerState, SignatureId};
+use tsc_binder::NameKey;
 use tsc_types::perf::{self, PerfCounter};
 
 impl<'a> CheckerState<'a> {
@@ -388,7 +389,7 @@ impl<'a> CheckerState<'a> {
         } else {
             computed_type
         };
-        if self.is_discriminant_property(ty, &name)? {
+        if self.is_discriminant_property(ty, name)? {
             Ok(Some(access))
         } else {
             Ok(None)
@@ -426,7 +427,7 @@ impl<'a> CheckerState<'a> {
         } else {
             ty
         };
-        let Some(mut prop_type) = self.get_type_of_property_of_type_full(base, &prop_name)? else {
+        let Some(mut prop_type) = self.get_type_of_property_of_type_full(base, prop_name)? else {
             return Ok(ty);
         };
         if remove_nullable && optional_chain {
@@ -436,7 +437,7 @@ impl<'a> CheckerState<'a> {
         let unknown = self.tables.intrinsics.unknown;
         self.filter_type_with(ty, |state, t| {
             let discriminant_type = state
-                .get_type_of_property_or_index_signature_of_type(t, &prop_name)?
+                .get_type_of_property_or_index_signature_of_type(t, prop_name)?
                 .unwrap_or(unknown);
             if state
                 .tables
@@ -460,12 +461,12 @@ impl<'a> CheckerState<'a> {
     /// The FULL union/intersection-capable form (getPropertyOfType +
     /// getTypeOfSymbol) — engine.rs's same-named accessor is the M3
     /// object-member slice and stays for its M3-era callers.
-    pub(crate) fn get_type_of_property_of_type_full<'n>(
+    pub(crate) fn get_type_of_property_of_type_full(
         &mut self,
         ty: TypeId,
-        name: impl Into<tsc_types::JsStr<'n>>,
+        name: impl NameKey,
     ) -> CheckResult<Option<TypeId>> {
-        let name = name.into();
+        let name = name.name();
         match self.get_property_of_type_full(ty, name)? {
             Some(prop) => Ok(Some(self.get_type_of_symbol(prop)?)),
             None => Ok(None),
@@ -1070,7 +1071,7 @@ impl<'a> CheckerState<'a> {
                             return Ok(candidate);
                         }
                         let key_type = self
-                            .get_type_of_property_of_type_full(candidate, &key_property_name)?
+                            .get_type_of_property_of_type_full(candidate, key_property_name)?
                             .unwrap_or(self.tables.intrinsics.unknown);
                         if self.is_unit_type(key_type) {
                             return Ok(self.tables.filter_type(ty, |_, t| t != candidate));
@@ -1088,13 +1089,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isTypePresencePossible @6.0.3
     /// tsc-hash: 9b3a45915ce986a841949427850985e8e6974bf65c9f0a8250f37e83fd29aead
     /// tsc-span: _tsc.js:70868-70871
-    fn is_type_presence_possible<'n>(
+    fn is_type_presence_possible(
         &mut self,
         ty: TypeId,
-        prop_name: impl Into<tsc_types::JsStr<'n>>,
+        prop_name: impl NameKey,
         assume_true: bool,
     ) -> CheckResult<bool> {
-        let prop_name = prop_name.into();
+        let prop_name = prop_name.name();
         if let Some(prop) = self.get_property_of_type_full(ty, prop_name)? {
             let optional = self
                 .binder
@@ -1134,11 +1135,11 @@ impl<'a> CheckerState<'a> {
             return Ok(ty);
         };
         let is_known_property = self.some_type_result(ty, |state, t| {
-            state.is_type_presence_possible(t, &name, /*assume_true*/ true)
+            state.is_type_presence_possible(t, name, /*assume_true*/ true)
         })?;
         if is_known_property {
             return self.filter_type_with(ty, |state, t| {
-                state.is_type_presence_possible(t, &name, assume_true)
+                state.is_type_presence_possible(t, name, assume_true)
             });
         }
         if assume_true {
@@ -1231,7 +1232,8 @@ impl<'a> CheckerState<'a> {
         let is_constructor_access = match self.data_of(expr) {
             NodeData::PropertyAccessExpression(data) => {
                 let name = data.name;
-                self.escaped_text_of(name) == Some("constructor")
+                name.and_then(|name| self.identifier_name_of(name))
+                    == Some(tsc_types::known_name!("constructor"))
             }
             NodeData::ElementAccessExpression(data) => {
                 let argument = data.argument_expression;
@@ -2922,7 +2924,7 @@ impl<'a> CheckerState<'a> {
                             .cloned(),
                     };
                     match lookup {
-                        Some(lookup) => self.get_property_of_type_full(receiver_type, &lookup)?,
+                        Some(lookup) => self.get_property_of_type_full(receiver_type, lookup)?,
                         None => None,
                     }
                 } else {

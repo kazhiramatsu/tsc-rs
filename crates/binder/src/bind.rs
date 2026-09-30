@@ -32,7 +32,7 @@ use crate::node_util::{
     is_property_access_entity_name_expression, jsdoc_full_name, jsdoc_type_expression, kind_of,
     name_field_of, parent_of, statements_of,
 };
-use crate::symbols::{InternalSymbolName, SymbolId};
+use crate::symbols::{InternalSymbolName, NameKey, SymbolId};
 use tsc_diagnostics::{gen as diagnostics, DiagnosticArgument, DiagnosticMessage};
 use tsc_syntax::{for_each_child, NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsc_types::{
@@ -182,7 +182,7 @@ impl<'a> BinderWorker<'a> {
                                 };
                                 self.block_scope_container
                                     .and_then(|container| {
-                                        self.lookup_symbol_for_name(container, &data.escaped_text)
+                                        self.lookup_symbol_for_name(container, data.escaped_text)
                                     })
                                     .and_then(|symbol| {
                                         self.symbols.symbol(symbol).value_declaration
@@ -656,7 +656,7 @@ impl<'a> BinderWorker<'a> {
         let name = self
             .get_declaration_name(node)
             .unwrap_or_else(|| EscapedName::internal(InternalSymbolName::MISSING));
-        let symbol = self.symbols.alloc(SymbolFlags::SIGNATURE, name.clone());
+        let symbol = self.symbols.alloc(SymbolFlags::SIGNATURE, name);
         self.add_declaration_to_symbol(symbol, node, SymbolFlags::SIGNATURE);
         let type_literal_symbol = self.symbols.alloc(
             SymbolFlags::TYPE_LITERAL,
@@ -739,13 +739,11 @@ impl<'a> BinderWorker<'a> {
             let name = name_field_of(self.source, node);
             let binding_name = name
                 .and_then(|name| match &self.source.arena.node(name).data {
-                    NodeData::Identifier(data) => Some(EscapedName::from_identifier_escaped_text(
-                        &data.escaped_text,
-                    )),
+                    NodeData::Identifier(data) => Some(data.escaped_text),
                     _ => None,
                 })
                 .unwrap_or_else(|| EscapedName::internal(InternalSymbolName::CLASS));
-            self.bind_anonymous_declaration(node, SymbolFlags::CLASS, binding_name.clone());
+            self.bind_anonymous_declaration(node, SymbolFlags::CLASS, binding_name);
             if name.is_some() {
                 self.classifiable_names.insert(binding_name);
             }
@@ -1048,9 +1046,7 @@ impl<'a> BinderWorker<'a> {
         self.check_strict_mode_function_name(node);
         let binding_name = name_field_of(self.source, node)
             .and_then(|name| match &self.source.arena.node(name).data {
-                NodeData::Identifier(data) => Some(EscapedName::from_identifier_escaped_text(
-                    &data.escaped_text,
-                )),
+                NodeData::Identifier(data) => Some(data.escaped_text),
                 _ => None,
             })
             .unwrap_or_else(|| EscapedName::internal(InternalSymbolName::FUNCTION));
@@ -2054,7 +2050,7 @@ impl<'a> BinderWorker<'a> {
                 let expression = access_expression_of(self.source, entity_name)?;
                 let parent = self.bind_existing_entity_name_as_module(expression, parent_symbol)?;
                 let name = get_element_or_property_access_name(self.source, entity_name)?;
-                let symbol = self.symbols.symbol(parent).exports().get(&name).copied()?;
+                let symbol = self.symbols.symbol(parent).exports().get(name).copied()?;
                 let name_node =
                     crate::assignment::get_element_or_property_access_argument_expression_or_name(
                         self.source,
@@ -2092,7 +2088,7 @@ impl<'a> BinderWorker<'a> {
                     );
                     return Some(symbol);
                 }
-                let name = EscapedName::from_identifier_escaped_text(&data.escaped_text);
+                let name = data.escaped_text;
                 let symbol = if let Some(parent) = parent_symbol {
                     self.declare_symbol(
                         TableRef::Exports(parent),
@@ -2107,7 +2103,7 @@ impl<'a> BinderWorker<'a> {
                         false,
                     )
                 } else {
-                    let existing = self.js_global_augmentations.get(&name).copied();
+                    let existing = self.js_global_augmentations.get(name).copied();
                     if let Some(existing) = existing {
                         self.add_declaration_to_symbol(
                             existing,
@@ -2116,7 +2112,7 @@ impl<'a> BinderWorker<'a> {
                         );
                         existing
                     } else {
-                        let symbol = self.symbols.alloc(SymbolFlags::NONE, name.clone());
+                        let symbol = self.symbols.alloc(SymbolFlags::NONE, name);
                         self.js_global_augmentations.insert(name, symbol);
                         self.add_declaration_to_symbol(
                             symbol,
@@ -2138,7 +2134,7 @@ impl<'a> BinderWorker<'a> {
                         entity_name,
                     )?;
                 let name = get_element_or_property_access_name(self.source, entity_name)?;
-                if let Some(&symbol) = self.symbols.symbol(parent).exports().get(&name) {
+                if let Some(&symbol) = self.symbols.symbol(parent).exports().get(name) {
                     self.add_declaration_to_symbol(
                         symbol,
                         name_node,
@@ -2248,7 +2244,8 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: dae249c103758584c4ea6f4bfc83facec94aa163b279cfa2a91db53cae556a9a
     /// tsc-span: _tsc.js:45202-45216
     ///
-    fn lookup_symbol_for_name(&self, container: NodeId, name: &str) -> Option<SymbolId> {
+    fn lookup_symbol_for_name(&self, container: NodeId, name: impl NameKey) -> Option<SymbolId> {
+        let name = name.name();
         if let Some(locals) = self.locals.get(&container) {
             if let Some(&local) = locals.get(name) {
                 return Some(self.symbols.symbol(local).export_symbol.unwrap_or(local));
@@ -2270,7 +2267,7 @@ impl<'a> BinderWorker<'a> {
     fn lookup_symbol_for_property_access(&self, node: NodeId) -> Option<SymbolId> {
         match &self.source.arena.node(node).data {
             NodeData::Identifier(data) => {
-                let name = data.escaped_text.as_str();
+                let name = data.escaped_text;
                 self.block_scope_container
                     .and_then(|container| self.lookup_symbol_for_name(container, name))
                     .or_else(|| {
@@ -2283,7 +2280,7 @@ impl<'a> BinderWorker<'a> {
                 let parent = self
                     .lookup_symbol_for_property_access(access_expression_of(self.source, node)?)?;
                 let name = get_element_or_property_access_name(self.source, node)?;
-                self.symbols.symbol(parent).exports().get(&name).copied()
+                self.symbols.symbol(parent).exports().get(name).copied()
             }
             _ => None,
         }
@@ -2299,7 +2296,7 @@ impl<'a> BinderWorker<'a> {
     ) -> Option<SymbolId> {
         match &self.source.arena.node(node).data {
             NodeData::Identifier(data) => {
-                let name = data.escaped_text.as_str();
+                let name = data.escaped_text;
                 self.lookup_symbol_for_name(container, name)
             }
             NodeData::PropertyAccessExpression(_) | NodeData::ElementAccessExpression(_) => {
@@ -2308,7 +2305,7 @@ impl<'a> BinderWorker<'a> {
                 let parent = self
                     .lookup_symbol_for_property_access(access_expression_of(self.source, node)?)?;
                 let name = get_element_or_property_access_name(self.source, node)?;
-                self.symbols.symbol(parent).exports().get(&name).copied()
+                self.symbols.symbol(parent).exports().get(name).copied()
             }
             _ => None,
         }
@@ -2387,10 +2384,11 @@ impl<'a> BinderWorker<'a> {
             return;
         }
         let escaped_text = match &self.source.arena.node(node).data {
-            NodeData::Identifier(data) => data.escaped_text.clone(),
+            NodeData::Identifier(data) => data.escaped_text,
             _ => return,
         };
-        let Some(original_keyword_kind) = tsc_syntax::keyword_kind(&escaped_text) else {
+        let Some(original_keyword_kind) = tsc_syntax::keyword_kind(escaped_text.identifier_text())
+        else {
             return;
         };
         let keyword = original_keyword_kind as u16;
@@ -2450,7 +2448,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-span: _tsc.js:44132-44138
     fn check_private_identifier(&mut self, node: NodeId) {
         let escaped_text = match &self.source.arena.node(node).data {
-            NodeData::PrivateIdentifier(data) => data.escaped_text.as_str(),
+            NodeData::PrivateIdentifier(data) => data.escaped_text.identifier_text(),
             _ => return,
         };
         if escaped_text == "#constructor" && self.source.parse_diagnostics.is_empty() {
@@ -3482,7 +3480,7 @@ impl<'a> BinderWorker<'a> {
         match label {
             Some(label) => {
                 let escaped = match &self.source.arena.node(label).data {
-                    NodeData::Identifier(data) => data.escaped_text.clone(),
+                    NodeData::Identifier(data) => data.escaped_text,
                     _ => return,
                 };
                 // tsc findActiveLabel (43304): innermost first.
@@ -3795,7 +3793,7 @@ impl<'a> BinderWorker<'a> {
         let name = label
             .and_then(|label| match &self.source.arena.node(label).data {
                 // Labels are grammar identifiers, never literal property values.
-                NodeData::Identifier(data) => Some(data.escaped_text.clone()),
+                NodeData::Identifier(data) => Some(data.escaped_text),
                 _ => None,
             })
             .unwrap_or_default();

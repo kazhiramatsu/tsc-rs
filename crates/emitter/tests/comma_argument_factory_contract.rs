@@ -116,7 +116,7 @@ fn comma_argument_factory_matches_typescript() {
                                     else {
                                         panic!("identifier")
                                     };
-                                    let name = data.escaped_text.clone();
+                                    let name = data.escaped_text.identifier_text();
                                     let child =
                                         arena.factory().create_identifier(source, name).unwrap();
                                     arena.factory().set_text_range(child, parsed).unwrap()

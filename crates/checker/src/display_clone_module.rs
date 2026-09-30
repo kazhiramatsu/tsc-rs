@@ -660,9 +660,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
 
     fn identifier(&self, node: NodeId) -> Option<JsString> {
         match self.state.data_of(node) {
-            NodeData::Identifier(data) => Some(JsString::from(
-                tsc_syntax::unescape_leading_underscores(&data.escaped_text),
-            )),
+            NodeData::Identifier(data) => Some(JsString::from(data.text())),
             _ => None,
         }
     }

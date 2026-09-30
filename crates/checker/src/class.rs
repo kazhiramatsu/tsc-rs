@@ -177,7 +177,7 @@ impl<'a> CheckerState<'a> {
                         for base in bases {
                             let base_prop = self.get_property_of_object_type(
                                 base,
-                                &self.binder.symbol(prop).escaped_name.clone(),
+                                self.binder.symbol(prop).escaped_name,
                             )?;
                             let base_index = self.get_index_type_of_type(base, info.key_type)?;
                             if base_prop.is_some() && base_index.is_some() {
@@ -410,9 +410,7 @@ impl<'a> CheckerState<'a> {
             let member_name = match self.data_of(name) {
                 NodeData::StringLiteral(data) => data.text.clone(),
                 NodeData::NumericLiteral(data) => data.text.clone().into(),
-                NodeData::Identifier(data) => {
-                    tsc_syntax::unescape_leading_underscores(&data.escaped_text).into()
-                }
+                NodeData::Identifier(data) => data.text().into(),
                 _ => continue,
             };
             if names.contains(&member_name) {
@@ -1301,15 +1299,14 @@ impl<'a> CheckerState<'a> {
                     self.effective_constraint_of_type_parameter_node(source);
                 let source_default_node = source_data.default;
                 let source_text = source_name.and_then(|name| match self.data_of(name) {
-                    NodeData::Identifier(data) => Some(EscapedName::from_identifier_escaped_text(
-                        &data.escaped_text,
-                    )),
+                    NodeData::Identifier(data) => Some(data.escaped_text),
                     _ => None,
                 });
-                let target_name =
-                    self.tables.type_of(target).symbol.map(|target_symbol| {
-                        self.binder.symbol(target_symbol).escaped_name.clone()
-                    });
+                let target_name = self
+                    .tables
+                    .type_of(target)
+                    .symbol
+                    .map(|target_symbol| self.binder.symbol(target_symbol).escaped_name);
                 if source_text != target_name {
                     return Ok(false);
                 }
@@ -1435,9 +1432,7 @@ impl<'a> CheckerState<'a> {
                         };
                         if let Some(param_name) = param_name {
                             if let NodeData::Identifier(name_data) = self.data_of(param_name) {
-                                let text = EscapedName::from_identifier_escaped_text(
-                                    &name_data.escaped_text,
-                                );
+                                let text = name_data.escaped_text;
                                 add_name(
                                     self,
                                     &mut instance_names,
@@ -1809,9 +1804,9 @@ impl<'a> CheckerState<'a> {
                 } else {
                     base_with_this
                 };
-                let escaped_name = self.binder.symbol(member).escaped_name.clone();
-                let prop = self.get_property_of_type_full(this_type, &escaped_name)?;
-                let base_prop = self.get_property_of_type_full(base_type, &escaped_name)?;
+                let escaped_name = self.binder.symbol(member).escaped_name;
+                let prop = self.get_property_of_type_full(this_type, escaped_name)?;
+                let base_prop = self.get_property_of_type_full(base_type, escaped_name)?;
                 let base_class_name = self.type_to_string(base_with_this)?;
                 if prop.is_some() && base_prop.is_none() {
                     if member_has_override_modifier {
@@ -1941,9 +1936,9 @@ impl<'a> CheckerState<'a> {
             // (symbolProperty24 pins the 2416 member row over the
             // 2420 head).
             let declared_prop = self.get_late_bound_symbol(declared_prop)?;
-            let escaped_name = self.binder.symbol(declared_prop).escaped_name.clone();
-            let prop = self.get_property_of_type_full(type_with_this, &escaped_name)?;
-            let base_prop = self.get_property_of_type_full(base_with_this, &escaped_name)?;
+            let escaped_name = self.binder.symbol(declared_prop).escaped_name;
+            let prop = self.get_property_of_type_full(type_with_this, escaped_name)?;
+            let base_prop = self.get_property_of_type_full(base_with_this, escaped_name)?;
             if let (Some(prop), Some(base_prop)) = (prop, base_prop) {
                 let prop_type = self.get_type_of_symbol(prop)?;
                 let base_prop_type = self.get_type_of_symbol(base_prop)?;
@@ -2088,9 +2083,8 @@ impl<'a> CheckerState<'a> {
             {
                 continue;
             }
-            let base_escaped_name = self.binder.symbol(base).escaped_name.clone();
-            let Some(base_symbol) = self.get_property_of_object_type(ty, &base_escaped_name)?
-            else {
+            let base_escaped_name = self.binder.symbol(base).escaped_name;
+            let Some(base_symbol) = self.get_property_of_object_type(ty, base_escaped_name)? else {
                 continue;
             };
             let derived = self.get_target_symbol(base_symbol);
@@ -2115,7 +2109,7 @@ impl<'a> CheckerState<'a> {
                             continue;
                         }
                         let base_symbol2 =
-                            self.get_property_of_object_type(other_base_type, &base_escaped_name)?;
+                            self.get_property_of_object_type(other_base_type, base_escaped_name)?;
                         let derived_elsewhere =
                             base_symbol2.map(|symbol| self.get_target_symbol(symbol));
                         if derived_elsewhere.is_some_and(|elsewhere| elsewhere != base) {
@@ -2427,7 +2421,7 @@ impl<'a> CheckerState<'a> {
         let mut seen: rustc_hash::FxHashMap<EscapedName, SeenEntry> = Default::default();
         let declared_members = self.resolve_declared_members(ty)?;
         for prop in self.members_of(declared_members).properties.clone() {
-            let escaped_name = self.binder.symbol(prop).escaped_name.clone();
+            let escaped_name = self.binder.symbol(prop).escaped_name;
             seen.insert(
                 escaped_name,
                 SeenEntry {
@@ -2441,7 +2435,7 @@ impl<'a> CheckerState<'a> {
             let this_type = self.this_type_of_class_or_interface(ty);
             let base_with_this = self.get_type_with_this_argument(base, this_type, false)?;
             for prop in self.get_properties_of_type(base_with_this)? {
-                let escaped_name = self.binder.symbol(prop).escaped_name.clone();
+                let escaped_name = self.binder.symbol(prop).escaped_name;
                 match seen.get(&escaped_name) {
                     None => {
                         seen.insert(

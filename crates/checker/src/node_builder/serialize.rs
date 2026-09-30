@@ -1794,7 +1794,7 @@ impl ProductionSyntacticBuilderResolver<'_, '_> {
                     NodeData::Identifier(data) => context
                         .synthetic_scope_locals
                         .as_ref()
-                        .and_then(|locals| locals.get(data.escaped_text.as_bytes()).copied()),
+                        .and_then(|locals| locals.get(&data.escaped_text).copied()),
                     _ => None,
                 })
                 .flatten();
@@ -2672,7 +2672,7 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
             return Ok(None);
         };
         let name = match self.checker.data_of(property_name) {
-            NodeData::Identifier(data) => data.escaped_text.clone(),
+            NodeData::Identifier(data) => data.escaped_text.identifier_text().to_owned(),
             NodeData::QualifiedName(data) => data
                 .right
                 .and_then(|right| self.checker.identifier_text_of(right).map(str::to_owned))
@@ -2765,17 +2765,15 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
                         let old_symbol = context
                             .synthetic_scope_locals
                             .as_ref()
-                            .and_then(|locals| locals.get(data.escaped_text.as_bytes()).copied());
-                        cleanup.record_type_parameter_local(&data.escaped_text, old_symbol);
+                            .and_then(|locals| locals.get(&data.escaped_text).copied());
+                        cleanup.record_type_parameter_local(
+                            data.escaped_text.identifier_text(),
+                            old_symbol,
+                        );
                         context
                             .synthetic_scope_locals
                             .get_or_insert_with(rustc_hash::FxHashMap::default)
-                            .insert(
-                                tsc_types::EscapedName::from_identifier_escaped_text(
-                                    &data.escaped_text,
-                                ),
-                                symbol,
-                            );
+                            .insert(data.escaped_text, symbol);
                     }
                 }
                 if context.enclosing_declaration.is_some()
@@ -2822,17 +2820,15 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
                         let old_symbol = context
                             .synthetic_scope_locals
                             .as_ref()
-                            .and_then(|locals| locals.get(data.escaped_text.as_bytes()).copied());
-                        cleanup.record_type_parameter_local(&data.escaped_text, old_symbol);
+                            .and_then(|locals| locals.get(&data.escaped_text).copied());
+                        cleanup.record_type_parameter_local(
+                            data.escaped_text.identifier_text(),
+                            old_symbol,
+                        );
                         context
                             .synthetic_scope_locals
                             .get_or_insert_with(rustc_hash::FxHashMap::default)
-                            .insert(
-                                tsc_types::EscapedName::from_identifier_escaped_text(
-                                    &data.escaped_text,
-                                ),
-                                symbol,
-                            );
+                            .insert(data.escaped_text, symbol);
                     }
                 }
                 if context.enclosing_declaration.is_some() && !type_parameters.is_empty() {

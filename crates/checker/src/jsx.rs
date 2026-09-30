@@ -336,10 +336,10 @@ impl<'a> CheckerState<'a> {
                     object_flags |=
                         self.tables.object_flags_of(expr_type) & ObjectFlags::PROPAGATING_FLAGS;
                     let member_flags = self.binder.symbol(member).flags;
-                    let escaped_name = self.binder.symbol(member).escaped_name.clone();
+                    let escaped_name = self.binder.symbol(member).escaped_name;
                     let attribute_symbol = self
                         .binder
-                        .create_symbol(SymbolFlags::PROPERTY | member_flags, escaped_name.clone());
+                        .create_symbol(SymbolFlags::PROPERTY | member_flags, escaped_name);
                     let declarations = self.binder.symbol(member).declarations.clone();
                     let parent = self.binder.symbol(member).parent;
                     let value_declaration = self.binder.symbol(member).value_declaration;
@@ -355,9 +355,9 @@ impl<'a> CheckerState<'a> {
                         .set_fresh_symbol_type(attribute_symbol, LinkSlot::Resolved(expr_type));
                     self.links
                         .set_symbol_target(self.speculation_depth, attribute_symbol, member);
-                    attributes_table.insert(escaped_name.clone(), attribute_symbol);
+                    attributes_table.insert(escaped_name, attribute_symbol);
                     if let Some(all) = &mut all_attributes_table {
-                        all.insert(escaped_name.clone(), attribute_symbol);
+                        all.insert(escaped_name, attribute_symbol);
                     }
                     let name_text = match self.data_of(attribute_decl) {
                         NodeData::JsxAttribute(data) => {
@@ -381,7 +381,7 @@ impl<'a> CheckerState<'a> {
                             .filter(|&name| self.kind_of(name) == SyntaxKind::Identifier)
                         {
                             if let Some(property) =
-                                self.get_property_of_type_full(contextual_type, &escaped_name)?
+                                self.get_property_of_type_full(contextual_type, escaped_name)?
                             {
                                 if self.is_deprecated_symbol(property) {
                                     let declarations =
@@ -571,7 +571,7 @@ impl<'a> CheckerState<'a> {
                     };
                     let children_prop_symbol = self
                         .binder
-                        .create_symbol(SymbolFlags::PROPERTY, children_name.clone());
+                        .create_symbol(SymbolFlags::PROPERTY, *children_name);
                     let children_prop_type = if children_types.len() == 1 {
                         children_types[0]
                     } else if self
@@ -592,7 +592,7 @@ impl<'a> CheckerState<'a> {
                     // The fabricated PropertySignature valueDeclaration
                     // (74456-74466) is elided — see the fn header.
                     let mut child_prop_map = SymbolTable::default();
-                    child_prop_map.insert(children_name.clone(), children_prop_symbol);
+                    child_prop_map.insert(*children_name, children_prop_symbol);
                     let child_type = self.make_resolved_anonymous_type(
                         attributes_symbol,
                         self.member_table(&child_prop_map),
@@ -960,7 +960,7 @@ impl<'a> CheckerState<'a> {
         if !(is_fragment && jsx_factory_namespace == "null") {
             let symbol = self.resolve_name(
                 Some(jsx_factory_location),
-                &jsx_factory_namespace,
+                jsx_factory_namespace,
                 meaning,
                 jsx_factory_ref_err,
                 /*is_use*/ true,
@@ -985,7 +985,7 @@ impl<'a> CheckerState<'a> {
             // tsc-span: _tsc.js:71811-71824
             let _ = self.resolve_name(
                 Some(jsx_factory_location),
-                &factory_namespace,
+                factory_namespace,
                 meaning,
                 jsx_factory_ref_err,
                 /*is_use*/ true,
@@ -1135,7 +1135,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:74340-74342
     pub(crate) fn is_jsx_intrinsic_tag_name(&self, tag_name: NodeId) -> bool {
         match self.data_of(tag_name) {
-            NodeData::Identifier(data) => is_intrinsic_jsx_name(&data.escaped_text),
+            NodeData::Identifier(data) => {
+                is_intrinsic_jsx_name(data.escaped_text.identifier_text())
+            }
             NodeData::JsxNamespacedName(_) => true,
             _ => false,
         }
@@ -1145,7 +1147,7 @@ impl<'a> CheckerState<'a> {
     /// (tagName.escapedText ‖ getEscapedTextOfJsxNamespacedName).
     fn intrinsic_tag_property_name(&self, tag_name: NodeId) -> CheckResult<String> {
         match self.data_of(tag_name) {
-            NodeData::Identifier(data) => Ok(data.escaped_text.clone()),
+            NodeData::Identifier(data) => Ok(data.escaped_text.identifier_text().to_owned()),
             NodeData::JsxNamespacedName(_) => Ok(self.jsx_attribute_name_text(tag_name)),
             _ => unreachable!(
                 "caller invariant: parse_jsx_tag_name creates Identifier/JsxNamespacedName and \
@@ -1330,7 +1332,7 @@ impl<'a> CheckerState<'a> {
         let value = self.string_literal_type_value(ty)?;
         let value = value.to_js_string();
         let escaped = tsc_binder::escape_leading_underscores(value.as_js());
-        if let Some(prop) = self.get_property_of_type_full(intrinsic_elements_type, &escaped)? {
+        if let Some(prop) = self.get_property_of_type_full(intrinsic_elements_type, escaped)? {
             return Ok(Some(self.get_type_of_symbol(prop)?));
         }
         let string = self.tables.intrinsics.string;
@@ -1540,7 +1542,7 @@ impl<'a> CheckerState<'a> {
             Some(symbol) => Some(symbol),
             None => self.resolve_name(
                 Some(node),
-                &fragment_factory_name,
+                fragment_factory_name,
                 SymbolFlags::VALUE,
                 Some(&diagnostics::Using_JSX_fragments_requires_fragment_factory_0_to_be_in_scope_but_it_could_not_be_found),
                 /*is_use*/ true,
@@ -1784,8 +1786,7 @@ impl<'a> CheckerState<'a> {
                 Some(self.get_return_type_of_signature(signature)?)
             }
             Some(location) => {
-                let location = location.clone();
-                self.get_jsx_props_type_for_signature_from_member(signature, &location)?
+                self.get_jsx_props_type_for_signature_from_member(signature, location)?
             }
         };
         let Some(mut attributes_type) = attributes_type else {
@@ -1970,7 +1971,7 @@ impl<'a> CheckerState<'a> {
             return Ok(Some(EscapedName::from_identifier_escaped_text("")));
         }
         if properties.len() == 1 {
-            return Ok(Some(self.binder.symbol(properties[0]).escaped_name.clone()));
+            return Ok(Some(self.binder.symbol(properties[0]).escaped_name));
         }
         let first_declaration = self
             .binder
@@ -2090,7 +2091,7 @@ impl<'a> CheckerState<'a> {
                     let namespace_name = self.get_jsx_namespace_name(location);
                     self.resolve_name(
                         Some(location),
-                        &namespace_name,
+                        namespace_name,
                         SymbolFlags::NAMESPACE,
                         None,
                         /*is_use*/ false,
@@ -2395,7 +2396,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:19332-19334
     pub(crate) fn jsx_attribute_name_text(&self, name: NodeId) -> String {
         match self.data_of(name) {
-            NodeData::Identifier(data) => data.escaped_text.clone(),
+            NodeData::Identifier(data) => data.escaped_text.identifier_text().to_owned(),
             NodeData::JsxNamespacedName(data) => {
                 let namespace = data
                     .namespace

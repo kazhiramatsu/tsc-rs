@@ -237,7 +237,9 @@ fn create_identifier(
         .create_node(
             source,
             NodeData::Identifier(IdentifierData {
-                escaped_text: escape_leading_underscores(text),
+                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(
+                    &escape_leading_underscores(text),
+                ),
             }),
             TransformFlags::NONE,
         )

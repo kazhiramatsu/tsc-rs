@@ -23,6 +23,7 @@ use tsc_types::{
 
 use crate::links::LinkSlot;
 use crate::state::{CheckResult, CheckerState, ResolutionTarget, Signature, SignatureId};
+use tsc_binder::NameKey;
 use tsc_types::perf::{self, PerfCounter};
 
 pub use tsc_types::MapperId;
@@ -137,10 +138,8 @@ pub(crate) enum IntrinsicTypeKind {
 
 /// tsrs-native: Rust enum projection of tsc's intrinsicTypeKinds map;
 /// the map lookup is inline state, not a standalone tsc function.
-pub(crate) fn intrinsic_type_kind<'n>(
-    name: impl Into<tsc_types::JsStr<'n>>,
-) -> Option<IntrinsicTypeKind> {
-    match name.into().as_str()? {
+pub(crate) fn intrinsic_type_kind(name: impl NameKey) -> Option<IntrinsicTypeKind> {
+    match name.name().as_str()? {
         "Uppercase" => Some(IntrinsicTypeKind::Uppercase),
         "Lowercase" => Some(IntrinsicTypeKind::Lowercase),
         "Capitalize" => Some(IntrinsicTypeKind::Capitalize),
@@ -652,7 +651,7 @@ impl<'a> CheckerState<'a> {
         }
         let source = self.binder.symbol(symbol);
         let source_flags = source.flags;
-        let escaped_name = source.escaped_name.clone();
+        let escaped_name = source.escaped_name;
         let declarations = source.declarations.clone();
         let parent = source.parent;
         let value_declaration = source.value_declaration;
@@ -3047,8 +3046,8 @@ impl<'a> CheckerState<'a> {
                 } => value.clone(),
                 _ => unreachable!("string-literal flag implies string payload"),
             };
-            let name = self.binder.symbol(symbol).escaped_name.clone();
-            let mapped = apply_string_mapping(intrinsic_type_kind(&name), &value);
+            let name = self.binder.symbol(symbol).escaped_name;
+            let mapped = apply_string_mapping(intrinsic_type_kind(name), &value);
             return Ok(self.tables.get_string_literal_type_from_text(&mapped));
         }
         if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
@@ -3092,10 +3091,10 @@ impl<'a> CheckerState<'a> {
         texts: Vec<tsc_types::TemplateText>,
         types: Vec<TypeId>,
     ) -> CheckResult<(Vec<tsc_types::TemplateText>, Vec<TypeId>)> {
-        let name = self.binder.symbol(symbol).escaped_name.clone();
-        match intrinsic_type_kind(&name) {
+        let name = self.binder.symbol(symbol).escaped_name;
+        match intrinsic_type_kind(name) {
             Some(IntrinsicTypeKind::Uppercase) | Some(IntrinsicTypeKind::Lowercase) => {
-                let upper = intrinsic_type_kind(&name) == Some(IntrinsicTypeKind::Uppercase);
+                let upper = intrinsic_type_kind(name) == Some(IntrinsicTypeKind::Uppercase);
                 let new_texts = texts
                     .iter()
                     .map(|text| js_template_text_case(text, upper))
@@ -3107,7 +3106,7 @@ impl<'a> CheckerState<'a> {
                 Ok((new_texts, new_types))
             }
             Some(IntrinsicTypeKind::Capitalize) | Some(IntrinsicTypeKind::Uncapitalize) => {
-                let upper = intrinsic_type_kind(&name) == Some(IntrinsicTypeKind::Capitalize);
+                let upper = intrinsic_type_kind(name) == Some(IntrinsicTypeKind::Capitalize);
                 if texts[0].is_empty() {
                     let mut new_types = types.clone();
                     new_types[0] = self.get_string_mapping_type(symbol, types[0])?;
@@ -3203,7 +3202,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:16698-16700
     pub(crate) fn is_this_identifier(&self, node: NodeId) -> bool {
         self.kind_of(node) == SyntaxKind::Identifier
-            && self.identifier_text_of(node) == Some("this")
+            && self.identifier_name_of(node) == Some(tsc_types::known_name!("this"))
     }
 
     /// tsc-port: isNodeDescendantOf @6.0.3

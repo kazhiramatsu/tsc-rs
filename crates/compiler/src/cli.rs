@@ -532,7 +532,14 @@ pub fn run_cli(args: &[String]) -> CliOutput {
             report.push('\n');
         }
         // A failed sidecar write must not change the CLI outcome.
-        let _ = std::fs::write(path, report);
+        let _ = std::fs::write(&path, report);
+        let mut sites = String::new();
+        for (site, count) in tsc_types::perf::name_sites() {
+            sites.push_str(&format!("{count} {site}\n"));
+        }
+        let mut sites_path = path.clone();
+        sites_path.push(".sites");
+        let _ = std::fs::write(sites_path, sites);
     }
     match result {
         Ok(output) => output,

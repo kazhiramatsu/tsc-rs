@@ -827,7 +827,9 @@ fn substitution_identifier_clone(
         factory.create_node(
             node.source(),
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                escaped_text: tsc_syntax::escape_leading_underscores(&text),
+                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(
+                    &tsc_syntax::escape_leading_underscores(&text),
+                ),
             }),
             TransformFlags::NONE,
         )?
@@ -1385,7 +1387,9 @@ impl Es2015Visitor<'_, '_, '_> {
         self.context.factory()?.create_node(
             source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                escaped_text: tsc_syntax::escape_leading_underscores(text),
+                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(
+                    &tsc_syntax::escape_leading_underscores(text),
+                ),
             }),
             TransformFlags::NONE,
         )
@@ -2815,7 +2819,7 @@ impl Es2015Visitor<'_, '_, '_> {
                 let NodeData::Identifier(data) = &self.context.arena().node(node)?.data else {
                     return Ok(node);
                 };
-                unescape_leading_underscores(&data.escaped_text).to_owned()
+                data.text().to_owned()
             };
             let created = self.create_identifier(&text)?;
             // `setTextRange(...)` — position-threading would re-open the
@@ -2978,18 +2982,6 @@ impl Es2015Visitor<'_, '_, '_> {
             return self.return_captured_this(node);
         }
         self.visit_each_child_required(node)
-    }
-}
-
-/// tsc-port: unescapeLeadingUnderscores @6.0.3
-/// tsc-hash: e8294a1e4ef10b8ca2bcce06045e22adab6689e46b655acf51bacc3810ef5271
-/// tsc-span: _tsc.js:11441-11444
-fn unescape_leading_underscores(identifier: &str) -> &str {
-    let bytes = identifier.as_bytes();
-    if bytes.len() >= 3 && bytes[0] == b'_' && bytes[1] == b'_' && bytes[2] == b'_' {
-        &identifier[1..]
-    } else {
-        identifier
     }
 }
 
@@ -6925,9 +6917,7 @@ impl Es2015Visitor<'_, '_, '_> {
         let Some(name) = name else { return Ok(None) };
         let name = self.node(name);
         match &self.context.arena().node(name)?.data {
-            NodeData::Identifier(data) => Ok(Some(
-                tsc_types::EscapedName::from_identifier_escaped_text(&data.escaped_text),
-            )),
+            NodeData::Identifier(data) => Ok(Some(data.escaped_text)),
             NodeData::StringLiteral(data) => {
                 Ok(Some(tsc_types::EscapedName::escape(data.text.as_js())))
             }
@@ -8710,7 +8700,9 @@ impl Es2015Visitor<'_, '_, '_> {
         let NodeData::Identifier(data) = &self.context.arena().node(node)?.data else {
             return Ok(false);
         };
-        Ok(is_non_contextual_keyword_text(&data.escaped_text))
+        Ok(is_non_contextual_keyword_text(
+            data.escaped_text.identifier_text(),
+        ))
     }
 
     /// `setTextRange(factory.createNodeArray(statements), location)` — the
@@ -10494,7 +10486,7 @@ impl Es2015Visitor<'_, '_, '_> {
                         "expression",
                     ))?,
                 NodeData::Identifier(data) => {
-                    let text = unescape_leading_underscores(&data.escaped_text).to_owned();
+                    let text = data.text().to_owned();
                     self.create_string_literal(&text)?
                 }
                 _ => property_name,

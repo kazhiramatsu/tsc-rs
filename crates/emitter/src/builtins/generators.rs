@@ -5011,9 +5011,7 @@ impl GeneratorsVisitor<'_, '_> {
             return Ok(None);
         };
         Ok(match &self.context.arena().node(self.node(name))?.data {
-            NodeData::Identifier(data) => Some(EscapedName::from_identifier_escaped_text(
-                &data.escaped_text,
-            )),
+            NodeData::Identifier(data) => Some(data.escaped_text),
             NodeData::StringLiteral(data) => Some(EscapedName::escape((&data.text).into())),
             NodeData::NumericLiteral(data) => Some(EscapedName::escape((&data.text).into())),
             NodeData::BigIntLiteral(data) => Some(EscapedName::escape((&data.text).into())),
@@ -5180,7 +5178,9 @@ impl GeneratorsVisitor<'_, '_> {
         self.context.factory()?.create_node(
             source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                escaped_text: tsc_syntax::escape_leading_underscores(text),
+                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(
+                    &tsc_syntax::escape_leading_underscores(text),
+                ),
             }),
             TransformFlags::NONE,
         )
@@ -6250,7 +6250,9 @@ fn create_identifier_raw(
     factory.create_node(
         source,
         NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-            escaped_text: tsc_syntax::escape_leading_underscores(text),
+            escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(
+                &tsc_syntax::escape_leading_underscores(text),
+            ),
         }),
         TransformFlags::NONE,
     )

@@ -34,6 +34,7 @@ use super::type_nodes::{
     BuildResult,
 };
 use super::NodeBuilderContext;
+use tsc_binder::NameKey;
 
 const USE_FULLY_QUALIFIED_TYPE: u32 = 64;
 const WRITE_TYPE_PARAMETERS_IN_QUALIFIED_NAME: u32 = 512;
@@ -833,12 +834,12 @@ pub(super) fn lookup_symbol_chain_worker(
         // Rust represents enterNewScope's synthesized Block as an overlay
         // rather than a binder node. Give that overlay the same first-scope
         // precedence as upstream before delegating the parse-tree walk.
-        let escaped_name = checker.binder.symbol(symbol).escaped_name.as_js();
+        let escaped_name = checker.binder.symbol(symbol).escaped_name;
         let meaning_flags = symbol_flags_for_meaning(meaning);
         let shadowed_by_synthetic_local = context
             .synthetic_scope_locals
             .as_ref()
-            .and_then(|locals| locals.get(escaped_name.as_bytes()))
+            .and_then(|locals| locals.get(&escaped_name))
             .copied()
             .is_some_and(|local| {
                 checker.get_merged_symbol(local) != checker.get_merged_symbol(symbol)
@@ -855,7 +856,7 @@ pub(super) fn lookup_symbol_chain_worker(
         let global_this_is_shadowed = context
             .synthetic_scope_locals
             .as_ref()
-            .and_then(|locals| locals.get("globalThis".as_bytes()))
+            .and_then(|locals| locals.get(&tsc_types::known_name!("globalThis")))
             .copied()
             .is_some_and(|local| {
                 checker.get_merged_symbol(local)
@@ -1058,11 +1059,11 @@ pub(super) fn symbol_is_shadowed_in_synthetic_scope(
     if context.synthetic_scope_kind != Some(SyntaxKind::ModuleDeclaration) {
         return false;
     }
-    let escaped_name = checker.binder.symbol(symbol).escaped_name.as_js();
+    let escaped_name = checker.binder.symbol(symbol).escaped_name;
     let shadowed = context
         .synthetic_scope_locals
         .as_ref()
-        .and_then(|locals| locals.get(escaped_name.as_bytes()))
+        .and_then(|locals| locals.get(&escaped_name))
         .copied()
         .is_some_and(|local| {
             checker.get_merged_symbol(local) != checker.get_merged_symbol(symbol)
@@ -1226,8 +1227,8 @@ fn alias_for_symbol_in_module(
     let exports = checker
         .get_exports_of_symbol(module)
         .map_err(|abort| checker_abort_error(checker, context, abort))?;
-    let escaped_name = checker.binder.symbol(symbol).escaped_name.clone();
-    if let Some(candidate) = exports.get(&escaped_name).copied() {
+    let escaped_name = checker.binder.symbol(symbol).escaped_name;
+    if let Some(candidate) = exports.get(escaped_name).copied() {
         if checker
             .get_symbol_if_same_reference(candidate, symbol)
             .map_err(|abort| checker_abort_error(checker, context, abort))?
@@ -1495,7 +1496,7 @@ pub(crate) fn chains_symbol_to_entity_name_node(
         let identifier = create_output_identifier(
             arena,
             target,
-            tsc_binder::unescape_leading_underscores(&checker.binder.symbol(symbol).escaped_name),
+            tsc_binder::unescape_leading_underscores(checker.binder.symbol(symbol).escaped_name),
         )?;
         match checker.binder.symbol(symbol).parent {
             Some(parent) => {
@@ -1888,7 +1889,7 @@ fn create_access_from_symbol_chain(
             let members = checker
                 .get_members_of_symbol(parent)
                 .map_err(|abort| checker_abort_error(checker, context, abort))?;
-            let matching_member = match members.get(&checker.binder.symbol(symbol).escaped_name) {
+            let matching_member = match members.get(checker.binder.symbol(symbol).escaped_name) {
                 Some(&member) => checker
                     .get_symbol_if_same_reference(member, symbol)
                     .map_err(|abort| checker_abort_error(checker, context, abort))?
@@ -2084,7 +2085,7 @@ pub(crate) fn chains_symbol_to_type_node(
                     &mut context.reported_diagnostic,
                     &old_specifier,
                     Some(tsc_binder::unescape_leading_underscores(
-                        &checker.binder.symbol(symbol).escaped_name,
+                        checker.binder.symbol(symbol).escaped_name,
                     )),
                 );
             }
@@ -2164,17 +2165,17 @@ pub(crate) fn chains_symbol_to_type_node(
 /// tsc-port: typeParameterShadowsOtherTypeParameterInScope @6.0.3
 /// tsc-hash: de490c564fbc92d3c74c1148d84aa6288cf0d44e7ad0f5b816592851f91a0f62
 /// tsc-span: _tsc.js:53253-53267
-fn type_parameter_shadows_other_type_parameter_in_scope<'n>(
+fn type_parameter_shadows_other_type_parameter_in_scope(
     checker: &mut CheckerState<'_>,
-    escaped_name: impl Into<JsStr<'n>>,
+    escaped_name: impl NameKey,
     context: &NodeBuilderContext<'_>,
     r#type: TypeId,
 ) -> BuildResult<bool> {
-    let escaped_name = escaped_name.into();
+    let escaped_name = escaped_name.name();
     if let Some(resolved) = context
         .synthetic_scope_locals
         .as_ref()
-        .and_then(|locals| locals.get(escaped_name.as_bytes()))
+        .and_then(|locals| locals.get(&escaped_name))
         .copied()
     {
         return Ok(checker
@@ -2548,16 +2549,16 @@ fn cloned_hash_private_name(
     clone_parse_node(checker, arena, name)
 }
 
-fn create_property_name_for_identifier_or_literal<'n>(
+fn create_property_name_for_identifier_or_literal(
     arena: &mut TransformArena,
     target: TransformSourceId,
-    name: impl Into<JsStr<'n>>,
+    name: impl NameKey,
     script_target: tsc_types::ScriptTarget,
     single_quote: bool,
     string_named: bool,
     is_method: bool,
 ) -> BuildResult<TransformNode> {
-    let name = name.into();
+    let name = name.name();
     let method_named_new = is_method && name == "new";
     // Identifier and canonical numeric spellings cannot contain unpaired
     // surrogates. Values outside those grammars remain string literal names.
@@ -2618,7 +2619,7 @@ pub(crate) fn chains_get_property_name_node_for_symbol(
         return Ok(name);
     }
     let raw_name =
-        tsc_binder::unescape_leading_underscores(&checker.binder.symbol(symbol).escaped_name);
+        tsc_binder::unescape_leading_underscores(checker.binder.symbol(symbol).escaped_name);
     create_property_name_for_identifier_or_literal(
         arena,
         target,
@@ -3141,9 +3142,7 @@ pub(crate) fn get_module_specifier_override(
             &mut context.reported_diagnostic,
             &name,
             node_symbol.map(|symbol| {
-                tsc_binder::unescape_leading_underscores(
-                    &checker.binder.symbol(symbol).escaped_name,
-                )
+                tsc_binder::unescape_leading_underscores(checker.binder.symbol(symbol).escaped_name)
             }),
         );
     }

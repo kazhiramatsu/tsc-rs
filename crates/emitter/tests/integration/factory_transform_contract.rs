@@ -690,7 +690,7 @@ impl Transformer for SyntheticArrowTokenOriginalTransformer {
         let body = context.factory()?.create_node(
             source,
             NodeData::Identifier(IdentifierData {
-                escaped_text: "value".to_owned(),
+                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text("value"),
             }),
             TransformFlags::NONE,
         )?;
@@ -1201,7 +1201,7 @@ impl SyntheticExportAssignmentTransformer {
                 context.factory()?.create_node(
                     source,
                     NodeData::Identifier(IdentifierData {
-                        escaped_text: text.to_owned(),
+                        escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(text),
                     }),
                     TransformFlags::NONE,
                 )
@@ -1312,7 +1312,7 @@ impl Transformer for SyntheticThrowRecoveryTransformer {
         let expression = context.factory()?.create_node(
             source,
             NodeData::Identifier(IdentifierData {
-                escaped_text: String::new(),
+                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(""),
             }),
             TransformFlags::NONE,
         )?;
@@ -1390,14 +1390,14 @@ impl Transformer for ResolverProjectionTransformer {
         let synthetic = context.factory()?.create_node(
             source,
             NodeData::Identifier(IdentifierData {
-                escaped_text: "synthetic".to_owned(),
+                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text("synthetic"),
             }),
             TransformFlags::NONE,
         )?;
         let ranged_synthetic = context.factory()?.create_node(
             source,
             NodeData::Identifier(IdentifierData {
-                escaped_text: "ranged".to_owned(),
+                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text("ranged"),
             }),
             TransformFlags::NONE,
         )?;
@@ -1408,7 +1408,7 @@ impl Transformer for ResolverProjectionTransformer {
         let synthetic_terminal = context.factory()?.create_node(
             source,
             NodeData::Identifier(IdentifierData {
-                escaped_text: "terminal".to_owned(),
+                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text("terminal"),
             }),
             TransformFlags::NONE,
         )?;

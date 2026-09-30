@@ -3,9 +3,7 @@
 //! spans. Anchors are into the vendored `_tsc.js`.
 
 use crate::symbols::escape_leading_underscores;
-use tsc_syntax::{
-    unescape_leading_underscores, NodeArrayId, NodeData, NodeId, SourceFile, SyntaxKind,
-};
+use tsc_syntax::{NodeArrayId, NodeData, NodeId, SourceFile, SyntaxKind};
 use tsc_types::{EscapedName, JsStr, JsString, ModifierFlags, NodeFlags};
 
 pub fn node_flags(source: &SourceFile, id: NodeId) -> NodeFlags {
@@ -1054,8 +1052,8 @@ pub fn literal_text_of(source: &SourceFile, id: NodeId) -> Option<JsStr<'_>> {
 /// tsc idText: unescapeLeadingUnderscores(node.escapedText).
 pub fn id_text(source: &SourceFile, id: NodeId) -> Option<&str> {
     match &source.arena.node(id).data {
-        NodeData::Identifier(data) => Some(unescape_leading_underscores(&data.escaped_text)),
-        NodeData::PrivateIdentifier(data) => Some(unescape_leading_underscores(&data.escaped_text)),
+        NodeData::Identifier(data) => Some(data.text()),
+        NodeData::PrivateIdentifier(data) => Some(data.text()),
         _ => None,
     }
 }
@@ -1077,12 +1075,8 @@ pub fn get_escaped_text_of_identifier_or_literal(
     id: NodeId,
 ) -> Option<EscapedName> {
     match &source.arena.node(id).data {
-        NodeData::Identifier(data) => Some(EscapedName::from_identifier_escaped_text(
-            &data.escaped_text,
-        )),
-        NodeData::PrivateIdentifier(data) => Some(EscapedName::from_identifier_escaped_text(
-            &data.escaped_text,
-        )),
+        NodeData::Identifier(data) => Some(data.escaped_text),
+        NodeData::PrivateIdentifier(data) => Some(data.escaped_text),
         NodeData::JsxNamespacedName(_) => get_escaped_text_of_jsx_namespaced_name(source, id),
         _ => literal_text_of(source, id).map(escape_leading_underscores),
     }

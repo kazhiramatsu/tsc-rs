@@ -130,7 +130,7 @@ fn expanded_tuple_element_label(
         None => format!(
             "{}_{}",
             tsc_binder::unescape_leading_underscores(
-                &checker.binder.symbol(rest_symbol).escaped_name
+                checker.binder.symbol(rest_symbol).escaped_name
             )
             .as_str()
             .expect("rest parameter names are scalar identifiers"),
@@ -156,7 +156,7 @@ fn expanded_tuple_element_label_from_binding_element(
     if let Some(name) = name {
         match checker.data_of(name) {
             NodeData::Identifier(data) => {
-                let text = tsc_syntax::unescape_leading_underscores(&data.escaped_text).to_owned();
+                let text = data.text().to_owned();
                 if dot_dot_dot {
                     return if element_flags.intersects(ElementFlags::VARIABLE) {
                         text
@@ -403,12 +403,12 @@ pub(crate) fn signature_to_signature_declaration_helper(
             let original = signature.parameters.get(index).copied();
             if original.is_some_and(|original| original != parameter) {
                 locals.insert(
-                    checker.binder.symbol(parameter).escaped_name.clone(),
+                    checker.binder.symbol(parameter).escaped_name,
                     checker.unknown_symbol,
                 );
                 if let Some(original) = original {
                     locals.insert(
-                        checker.binder.symbol(original).escaped_name.clone(),
+                        checker.binder.symbol(original).escaped_name,
                         checker.unknown_symbol,
                     );
                 }
@@ -963,10 +963,7 @@ pub(crate) fn prime_type_parameter_names_for_scope(
             context
                 .synthetic_scope_locals
                 .get_or_insert_with(HashMap::default)
-                .insert(
-                    tsc_types::EscapedName::from_identifier_escaped_text(&data.escaped_text),
-                    symbol,
-                );
+                .insert(data.escaped_text, symbol);
         }
     }
     context.enclosing_declaration_is_synthetic = true;
@@ -1027,7 +1024,7 @@ fn collect_binding_element_symbols(
     match checker.data_of(name) {
         NodeData::Identifier(_) => {
             if let Some(symbol) = checker.node_symbol(element).or(checker.node_symbol(name)) {
-                locals.push((checker.binder.symbol(symbol).escaped_name.clone(), symbol));
+                locals.push((checker.binder.symbol(symbol).escaped_name, symbol));
             }
         }
         NodeData::ArrayBindingPattern(_) | NodeData::ObjectBindingPattern(_) => {
@@ -1064,10 +1061,7 @@ pub(super) fn parameter_scope_symbols(
         collect_binding_pattern_symbols(checker, pattern, &mut locals);
         locals
     } else {
-        vec![(
-            checker.binder.symbol(parameter).escaped_name.clone(),
-            parameter,
-        )]
+        vec![(checker.binder.symbol(parameter).escaped_name, parameter)]
     }
 }
 

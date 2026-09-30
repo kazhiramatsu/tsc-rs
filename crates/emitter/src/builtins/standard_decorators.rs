@@ -4958,7 +4958,9 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let identifier = self.context.factory()?.create_node(
             self.source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                escaped_text: tsc_syntax::escape_leading_underscores(text),
+                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(
+                    &tsc_syntax::escape_leading_underscores(text),
+                ),
             }),
             TransformFlags::NONE,
         )?;
@@ -4983,7 +4985,9 @@ impl<'context> StandardDecoratorVisitor<'context> {
         self.context.factory()?.create_node(
             self.source,
             NodeData::PrivateIdentifier(tsc_syntax::nodes::PrivateIdentifierData {
-                escaped_text: tsc_syntax::escape_leading_underscores(text),
+                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(
+                    &tsc_syntax::escape_leading_underscores(text),
+                ),
             }),
             TransformFlags::NONE,
         )

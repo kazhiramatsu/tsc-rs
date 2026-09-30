@@ -220,7 +220,9 @@ impl Transformer for ClassFieldsTransformer<'_> {
             let replacement = factory.create_node(
                 node.source(),
                 NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                    escaped_text: tsc_syntax::escape_leading_underscores(&alias_text),
+                    escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(
+                        &tsc_syntax::escape_leading_underscores(&alias_text),
+                    ),
                 }),
                 TransformFlags::NONE,
             )?;
@@ -426,7 +428,9 @@ impl ClassFieldsTransformer<'_> {
                 let replacement = factory.create_node(
                     node.source(),
                     NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                        escaped_text: tsc_syntax::escape_leading_underscores(&text),
+                        escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(
+                            &tsc_syntax::escape_leading_underscores(&text),
+                        ),
                     }),
                     TransformFlags::NONE,
                 )?;
@@ -1090,7 +1094,9 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         self.context.factory()?.create_node(
             self.source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                escaped_text: tsc_syntax::escape_leading_underscores(text),
+                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(
+                    &tsc_syntax::escape_leading_underscores(text),
+                ),
             }),
             TransformFlags::NONE,
         )
@@ -1100,7 +1106,9 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         self.context.factory()?.create_node(
             self.source,
             NodeData::PrivateIdentifier(tsc_syntax::nodes::PrivateIdentifierData {
-                escaped_text: tsc_syntax::escape_leading_underscores(text),
+                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(
+                    &tsc_syntax::escape_leading_underscores(text),
+                ),
             }),
             TransformFlags::NONE,
         )

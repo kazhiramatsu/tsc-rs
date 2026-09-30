@@ -14,6 +14,7 @@ use tsc_types::{
 
 use crate::links::LinkSlot;
 use crate::state::{CheckResult, CheckerState};
+use tsc_binder::NameKey;
 use tsc_diagnostics::gen as diagnostics;
 
 impl<'a> CheckerState<'a> {
@@ -359,7 +360,7 @@ impl<'a> CheckerState<'a> {
         let ty = match name_type {
             Some(name_type) => Some(name_type),
             None => {
-                if self.binder.symbol(property).escaped_name == "default" {
+                if self.binder.symbol(property).escaped_name == tsc_types::known_name!("default") {
                     Some(self.tables.get_string_literal_type("default"))
                 } else {
                     let name = self
@@ -408,7 +409,7 @@ impl<'a> CheckerState<'a> {
                 Ok(self
                     .tables
                     .get_string_literal_type(tsc_syntax::unescape_leading_underscores(
-                        &data.escaped_text,
+                        data.escaped_text.identifier_text(),
                     )))
             }
             NodeData::StringLiteral(data) => {
@@ -912,7 +913,7 @@ impl<'a> CheckerState<'a> {
                 .intersects(TypeFlags::STRING_OR_NUMBER_LITERAL)
             {
                 if let Some(name) = state.property_name_from_type(t) {
-                    if is_numeric_literal_name(&name) {
+                    if is_numeric_literal_name(name) {
                         let index = crate::evaluate::js_string_to_number(name.as_js());
                         return index >= 0.0 && (index as usize) < limit;
                     }
@@ -1937,7 +1938,7 @@ impl<'a> CheckerState<'a> {
             )),
             // getPropertyNameFromType's UniqueESSymbol arm: the
             // late-bound `__@<name>@<id>` member name.
-            TypeData::UniqueESSymbol { escaped_name } => Some(escaped_name.clone()),
+            TypeData::UniqueESSymbol { escaped_name } => Some(*escaped_name),
             _ => None,
         }
     }
@@ -2103,10 +2104,10 @@ impl<'a> CheckerState<'a> {
 /// tsc-port: isNumericLiteralName @6.0.3
 /// tsc-hash: 792c3a97db611b31a75c5d2ee921c6788c6a6ccbfbd6a3240b943e3f98205802
 /// tsc-span: _tsc.js:19205-19207
-pub(crate) fn is_numeric_literal_name<'n>(name: impl Into<tsc_types::JsStr<'n>>) -> bool {
+pub(crate) fn is_numeric_literal_name(name: impl NameKey) -> bool {
     // NumberToString produces only scalar text. A non-scalar JS value cannot
     // equal that canonical numeric spelling and remains a string-name key.
-    let Some(name) = name.into().as_str() else {
+    let Some(name) = name.name().as_str() else {
         return false;
     };
     match name.parse::<f64>() {

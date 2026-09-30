@@ -345,7 +345,7 @@ fn factory_private_expression_flags_distinguish_declarations_property_access_and
             .create_node(
                 source,
                 NodeData::PrivateIdentifier(tsc_syntax::nodes::PrivateIdentifierData {
-                    escaped_text: "#field".to_owned(),
+                    escaped_text: tsc_types::EscapedName::from_identifier_escaped_text("#field"),
                 }),
                 TransformFlags::NONE,
             )
@@ -439,7 +439,9 @@ fn create_test_identifier(
         .create_node(
             source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                escaped_text: tsc_syntax::escape_leading_underscores(text),
+                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(
+                    &tsc_syntax::escape_leading_underscores(text),
+                ),
             }),
             TransformFlags::NONE,
         )

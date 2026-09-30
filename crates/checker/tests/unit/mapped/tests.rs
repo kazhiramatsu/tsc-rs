@@ -70,7 +70,7 @@ fn finite_mapped_members_remap_duplicate_keys_and_instantiate_values() {
                 .get_properties_of_type_full(finite)
                 .expect("finite properties")
                 .into_iter()
-                .map(|symbol| state.binder.symbol(symbol).escaped_name.clone())
+                .map(|symbol| state.binder.symbol(symbol).escaped_name)
                 .collect();
             assert_eq!(names, ["a", "b"]);
             let a = property(state, finite, "a");
@@ -85,7 +85,7 @@ fn finite_mapped_members_remap_duplicate_keys_and_instantiate_values() {
                 .get_properties_of_type_full(remapped)
                 .expect("remapped properties")
                 .into_iter()
-                .map(|symbol| state.binder.symbol(symbol).escaped_name.clone())
+                .map(|symbol| state.binder.symbol(symbol).escaped_name)
                 .collect();
             assert_eq!(remapped_names, ["xa", "xb"]);
             let xa = property(state, remapped, "xa");

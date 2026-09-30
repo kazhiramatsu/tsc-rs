@@ -560,7 +560,7 @@ impl<'a> CheckerState<'a> {
             let prop_name = self
                 .get_property_name_from_type(prop_name_type)
                 .expect("usable property-name type has a property name");
-            if let Some(existing) = members.get(&prop_name).copied() {
+            if let Some(existing) = members.get(prop_name).copied() {
                 let existing_name = self
                     .links
                     .symbol(existing)
@@ -585,7 +585,7 @@ impl<'a> CheckerState<'a> {
                 let modifier_name = self
                     .get_property_name_from_type(key_type)
                     .expect("usable property-name type has a property name");
-                self.get_property_of_type_full(modifiers_type, &modifier_name)?
+                self.get_property_of_type_full(modifiers_type, modifier_name)?
             } else {
                 None
             };
@@ -617,7 +617,7 @@ impl<'a> CheckerState<'a> {
                 } else {
                     SymbolFlags::NONE
                 };
-            let property = self.binder.create_symbol(symbol_flags, prop_name.clone());
+            let property = self.binder.create_symbol(symbol_flags, prop_name);
             let check_flags = CheckFlags::from_bits(
                 late.bits()
                     | CheckFlags::MAPPED.bits()

@@ -172,7 +172,7 @@ pub fn get_assignment_declaration_property_access_kind(
         }
         let id = access_expression_of(source, next_to_last).unwrap_or(next_to_last);
         let id_escaped = match &source.arena.node(id).data {
-            NodeData::Identifier(data) => Some(data.escaped_text.as_str()),
+            NodeData::Identifier(data) => Some(data.escaped_text.identifier_text()),
             _ => None,
         };
         if (id_escaped == Some("exports")
@@ -328,9 +328,7 @@ pub fn get_element_or_property_access_name(
 ) -> Option<EscapedName> {
     let name = get_element_or_property_access_argument_expression_or_name(source, node)?;
     match &source.arena.node(name).data {
-        NodeData::Identifier(data) => Some(EscapedName::from_identifier_escaped_text(
-            &data.escaped_text,
-        )),
+        NodeData::Identifier(data) => Some(data.escaped_text),
         _ if is_string_or_numeric_literal_like(source, name) => {
             literal_text_of(source, name).map(escape_leading_underscores)
         }

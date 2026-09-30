@@ -500,6 +500,7 @@ dependencies = [
 name = "tsc-rs-types"
 version = "0.1.0"
 dependencies = [
+ "hashbrown 0.16.1",
  "rustc-hash",
  "tsc-rs-diagnostics",
 ]

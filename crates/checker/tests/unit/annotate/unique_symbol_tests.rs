@@ -39,7 +39,7 @@ fn unique_symbol_types_are_per_declaration_memoized_and_widen() {
             );
             let name_of = |state: &crate::state::CheckerState, ty| {
                 match &state.tables.type_of(ty).data {
-                    TypeData::UniqueESSymbol { escaped_name } => escaped_name.clone(),
+                    TypeData::UniqueESSymbol { escaped_name } => *escaped_name,
                     other => panic!("expected a unique symbol, got {other:?}"),
                 }
             };

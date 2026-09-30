@@ -1349,7 +1349,7 @@ impl<'a> CheckerState<'a> {
         );
         match self.data_of(name) {
             NodeData::Identifier(data) => {
-                let text = tsc_syntax::unescape_leading_underscores(&data.escaped_text).to_owned();
+                let text = data.text().to_owned();
                 Ok(self.tables.get_string_literal_type(&text))
             }
             NodeData::NumericLiteral(data) => {
@@ -1419,9 +1419,7 @@ impl<'a> CheckerState<'a> {
         let is_private = self.kind_of(name) == SyntaxKind::PrivateIdentifier;
         let name_type = if is_private {
             let text = match self.data_of(name) {
-                NodeData::PrivateIdentifier(data) => {
-                    tsc_syntax::unescape_leading_underscores(&data.escaped_text).to_owned()
-                }
+                NodeData::PrivateIdentifier(data) => data.text().to_owned(),
                 _ => unreachable!("kind/data agree"),
             };
             self.tables.get_string_literal_type(&text)
@@ -2903,8 +2901,8 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         for target_prop in self.get_properties_of_type(target)? {
-            let name = self.binder.symbol(target_prop).escaped_name.clone();
-            let source_type = self.get_type_of_property_of_type(source, &name)?;
+            let name = self.binder.symbol(target_prop).escaped_name;
+            let source_type = self.get_type_of_property_of_type(source, name)?;
             let target_type = self.get_type_of_symbol(target_prop)?;
             if self.is_exact_optional_property_mismatch(source_type, Some(target_type))? {
                 return Ok(true);
@@ -3374,7 +3372,7 @@ impl<'a> CheckerState<'a> {
         let factory_namespace = self.get_jsx_namespace_name(node);
         let namespace_symbol = self.resolve_name(
             Some(node),
-            &factory_namespace,
+            factory_namespace,
             SymbolFlags::NAMESPACE,
             /*name_not_found_message*/ None,
             /*is_use*/ true,

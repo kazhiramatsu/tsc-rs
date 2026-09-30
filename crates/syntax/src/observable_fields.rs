@@ -515,7 +515,10 @@ where
             }
         }
         NodeData::Identifier(data) => {
-            cb("escapedText", ObservableField::String(&data.escaped_text));
+            cb(
+                "escapedText",
+                ObservableField::String(data.escaped_text.identifier_text()),
+            );
         }
         NodeData::IfStatement(data) => {
             if let Some(value) = data.else_statement {
@@ -1374,7 +1377,10 @@ where
             }
         }
         NodeData::PrivateIdentifier(data) => {
-            cb("escapedText", ObservableField::String(&data.escaped_text));
+            cb(
+                "escapedText",
+                ObservableField::String(data.escaped_text.identifier_text()),
+            );
         }
         NodeData::PropertyAccessExpression(data) => {
             if let Some(value) = data.expression {

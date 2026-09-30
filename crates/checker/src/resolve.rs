@@ -12,10 +12,10 @@ use tsc_binder::node_util::{
     self, body_of, get_immediately_invoked_function_expression, has_syntactic_modifier,
     is_function_like_declaration_kind, is_function_like_kind, is_part_of_parameter_declaration,
 };
-use tsc_binder::{SymbolId, SymbolTable};
+use tsc_binder::{NameKey, SymbolId, SymbolTable};
 use tsc_diagnostics::{gen as diagnostics, DiagnosticCategory, DiagnosticMessage, JsStr, JsString};
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
-use tsc_types::{ModifierFlags, NodeFlags, ScriptTarget, SymbolFlags, TypeFlags};
+use tsc_types::{EscapedName, ModifierFlags, NodeFlags, ScriptTarget, SymbolFlags, TypeFlags};
 
 use crate::state::{CheckResult, CheckerState};
 
@@ -32,7 +32,7 @@ enum LookupInput {
 
 impl LookupInput {
     /// tsrs-native: borrow-splitting input for createNameResolver lookups.
-    fn new(table: Option<&SymbolTable>, name: JsStr<'_>, suggestion: bool) -> Self {
+    fn new(table: Option<&SymbolTable>, name: EscapedName, suggestion: bool) -> Self {
         if suggestion {
             Self::Snapshot(table.cloned().unwrap_or_default())
         } else {
@@ -60,10 +60,10 @@ impl<'a> CheckerState<'a> {
     /// The Alias arm chases the alias TARGET's flags (getSymbolFlags,
     /// M4 5.8d): an alias whose own flags miss `meaning` matches when
     /// its resolved chain carries it.
-    pub fn get_symbol_in_table<'n>(
+    pub fn get_symbol_in_table(
         &mut self,
         table: &SymbolTable,
-        name: impl Into<tsc_types::JsStr<'n>>,
+        name: impl NameKey,
         meaning: SymbolFlags,
     ) -> CheckResult<Option<SymbolId>> {
         if meaning.is_empty() {
@@ -113,7 +113,7 @@ impl<'a> CheckerState<'a> {
     fn lookup_probe(
         &mut self,
         input: LookupInput,
-        name: JsStr<'_>,
+        name: EscapedName,
         meaning: SymbolFlags,
         is_globals: bool,
     ) -> CheckResult<LookupProbe> {
@@ -156,7 +156,7 @@ impl<'a> CheckerState<'a> {
     fn finish_lookup(
         &mut self,
         probe: LookupProbe,
-        name: JsStr<'_>,
+        name: EscapedName,
         meaning: SymbolFlags,
     ) -> Option<SymbolId> {
         match probe {
@@ -190,10 +190,10 @@ impl<'a> CheckerState<'a> {
     ///
     /// Elisions, each FN-only and owned by a later stage:
     /// - the JS `require` fallback (requireSymbol — M2 3.4c residual).
-    pub fn resolve_name<'n>(
+    pub fn resolve_name(
         &mut self,
         location: Option<NodeId>,
-        name: impl Into<JsStr<'n>>,
+        name: impl NameKey,
         meaning: SymbolFlags,
         name_not_found_message: Option<&'static DiagnosticMessage>,
         is_use: bool,
@@ -201,7 +201,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Option<SymbolId>> {
         self.resolve_name_full(
             location,
-            name.into(),
+            name.name(),
             meaning,
             name_not_found_message,
             is_use,
@@ -218,15 +218,15 @@ impl<'a> CheckerState<'a> {
     /// (75522-75535): the SAME scope walk, each table answering
     /// exact-match-else-spelling — an inner near-miss legitimately
     /// shadows an outer exact match, like tsc.
-    pub(crate) fn resolve_name_for_symbol_suggestion<'n>(
+    pub(crate) fn resolve_name_for_symbol_suggestion(
         &mut self,
         location: Option<NodeId>,
-        name: impl Into<JsStr<'n>>,
+        name: impl NameKey,
         meaning: SymbolFlags,
     ) -> CheckResult<Option<SymbolId>> {
         self.resolve_name_full(
             location,
-            name.into(),
+            name.name(),
             meaning,
             /*name_not_found_message*/ None,
             /*is_use*/ false,
@@ -239,7 +239,7 @@ impl<'a> CheckerState<'a> {
     fn resolve_name_full(
         &mut self,
         location: Option<NodeId>,
-        name: JsStr<'_>,
+        name: EscapedName,
         meaning: SymbolFlags,
         name_not_found_message: Option<&'static DiagnosticMessage>,
         is_use: bool,
@@ -257,7 +257,7 @@ impl<'a> CheckerState<'a> {
         let mut within_deferred_context = false;
 
         'walk: while let Some(loc) = location {
-            if name == "const" && self.is_const_assertion(loc) {
+            if name == tsc_types::known_name!("const") && self.is_const_assertion(loc) {
                 return Ok(None);
             }
             if matches!(
@@ -376,13 +376,13 @@ impl<'a> CheckerState<'a> {
                         {
                             // Default exports are not looked up by
                             // local name...
-                            if let Some(&default_export) = module_exports.and_then(|exports| {
-                                exports.get(tsc_types::InternalSymbolName::DEFAULT)
-                            }) {
+                            if let Some(&default_export) = module_exports
+                                .and_then(|exports| exports.get(tsc_types::known_name!("default")))
+                            {
                                 let local = self.local_symbol_for_export_default(default_export);
                                 if let Some(local) = local {
                                     if self.binder.symbol(default_export).flags.intersects(meaning)
-                                        && self.binder.symbol(local).escaped_name.as_js() == name
+                                        && self.binder.symbol(local).escaped_name == name
                                     {
                                         result = Some(default_export);
                                         break 'walk;
@@ -469,10 +469,10 @@ impl<'a> CheckerState<'a> {
                             )
                         {
                             let enum_symbol = self.get_symbol_of_declaration(loc)?;
-                            let enum_name = self.binder.symbol(enum_symbol).escaped_name.clone();
+                            let enum_name = self.binder.symbol(enum_symbol).escaped_name;
                             let display = tsc_binder::unescape_leading_underscores(name);
                             let qualified = crate::concat_js(&[
-                                &tsc_binder::unescape_leading_underscores(&enum_name),
+                                &tsc_binder::unescape_leading_underscores(enum_name),
                                 &".",
                                 &display,
                             ]);
@@ -545,7 +545,7 @@ impl<'a> CheckerState<'a> {
                             unreachable!("ClassExpression kind implies payload");
                         };
                         if let Some(class_name) = data.name {
-                            if self.identifier_text_of(class_name).map(JsStr::from) == Some(name) {
+                            if self.identifier_name_of(class_name) == Some(name) {
                                 result = self.binder.node_symbol(loc);
                                 if result.is_some() {
                                     break 'walk;
@@ -635,13 +635,17 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::GetAccessor
                 | SyntaxKind::SetAccessor
                 | SyntaxKind::FunctionDeclaration => {
-                    if meaning.intersects(SymbolFlags::VARIABLE) && name == "arguments" {
+                    if meaning.intersects(SymbolFlags::VARIABLE)
+                        && name == tsc_types::known_name!("arguments")
+                    {
                         result = Some(self.arguments_symbol);
                         break 'walk;
                     }
                 }
                 SyntaxKind::FunctionExpression => {
-                    if meaning.intersects(SymbolFlags::VARIABLE) && name == "arguments" {
+                    if meaning.intersects(SymbolFlags::VARIABLE)
+                        && name == tsc_types::known_name!("arguments")
+                    {
                         result = Some(self.arguments_symbol);
                         break 'walk;
                     }
@@ -650,8 +654,7 @@ impl<'a> CheckerState<'a> {
                             unreachable!("kind implies payload");
                         };
                         if let Some(function_name) = data.name {
-                            if self.identifier_text_of(function_name).map(JsStr::from) == Some(name)
-                            {
+                            if self.identifier_name_of(function_name) == Some(name) {
                                 result = self.binder.node_symbol(loc);
                                 if result.is_some() {
                                     break 'walk;
@@ -740,7 +743,7 @@ impl<'a> CheckerState<'a> {
                                 unreachable!("TypeParameter kind implies payload");
                             };
                             if let Some(tp_name) = tp.name {
-                                if self.identifier_text_of(tp_name).map(JsStr::from) == Some(name) {
+                                if self.identifier_name_of(tp_name) == Some(name) {
                                     result = self.binder.node_symbol(type_parameter);
                                     if result.is_some() {
                                         break 'walk;
@@ -1085,7 +1088,7 @@ impl<'a> CheckerState<'a> {
     fn check_and_report_error_for_invalid_initializer(
         &mut self,
         error_location: Option<NodeId>,
-        name: JsStr<'_>,
+        name: EscapedName,
         property: NodeId,
         result: Option<SymbolId>,
     ) -> bool {
@@ -1244,7 +1247,7 @@ impl<'a> CheckerState<'a> {
     fn on_failed_to_resolve_symbol(
         &mut self,
         error_location: Option<NodeId>,
-        name: JsStr<'_>,
+        name: EscapedName,
         meaning: SymbolFlags,
         message: &'static DiagnosticMessage,
     ) {
@@ -1275,7 +1278,7 @@ impl<'a> CheckerState<'a> {
         // UsingTypeAsNamespace members and UsingTypeAsValue's symbol
         // arm never fire for these names (nothing resolves under any
         // meaning), so the slice is exact.
-        if meaning.intersects(SymbolFlags::VALUE) && is_primitive_type_name(name) {
+        if meaning.intersects(SymbolFlags::VALUE) && is_primitive_type_name(name.as_js()) {
             if let Some(error_location) = error_location {
                 self.report_primitive_type_name_used_as_value(error_location, name);
                 return;
@@ -1351,7 +1354,7 @@ impl<'a> CheckerState<'a> {
         let display: JsString = error_location
             .filter(|&location| {
                 self.kind_of(location) == SyntaxKind::Identifier
-                    && self.identifier_text_of(location).map(JsStr::from) == Some(name)
+                    && self.identifier_name_of(location) == Some(name)
             })
             .map(|location| {
                 node_util::declaration_name_to_string(
@@ -1456,7 +1459,7 @@ impl<'a> CheckerState<'a> {
     fn check_and_report_error_for_using_type_as_namespace(
         &mut self,
         error_location: NodeId,
-        name: JsStr<'_>,
+        name: EscapedName,
         meaning: SymbolFlags,
     ) -> CheckResult<bool> {
         let namespace_meaning = if self.is_in_js_file(error_location) {
@@ -1517,7 +1520,7 @@ impl<'a> CheckerState<'a> {
     fn check_and_report_error_for_using_namespace_as_type_or_value(
         &mut self,
         error_location: NodeId,
-        name: JsStr<'_>,
+        name: EscapedName,
         meaning: SymbolFlags,
     ) -> CheckResult<bool> {
         let value_only =
@@ -1586,7 +1589,7 @@ impl<'a> CheckerState<'a> {
     fn check_and_report_error_for_using_type_as_value(
         &mut self,
         error_location: NodeId,
-        name: JsStr<'_>,
+        name: EscapedName,
         meaning: SymbolFlags,
     ) -> CheckResult<bool> {
         if !meaning.intersects(SymbolFlags::VALUE) {
@@ -1607,7 +1610,7 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         let display = tsc_binder::unescape_leading_underscores(name);
-        if is_es2015_or_later_constructor_name(name) {
+        if is_es2015_or_later_constructor_name(name.as_js()) {
             self.error_at_js(
                 Some(error_location),
                 &diagnostics::_0_only_refers_to_a_type_but_is_being_used_as_a_value_here_Do_you_need_to_change_your_target_library_Try_changing_the_lib_compiler_option_to_es2015_or_later,
@@ -1687,7 +1690,7 @@ impl<'a> CheckerState<'a> {
     fn check_and_report_error_for_using_value_as_type(
         &mut self,
         error_location: NodeId,
-        name: JsStr<'_>,
+        name: EscapedName,
         meaning: SymbolFlags,
     ) -> CheckResult<bool> {
         let non_namespace_type =
@@ -1775,13 +1778,13 @@ impl<'a> CheckerState<'a> {
     fn check_and_report_error_for_missing_prefix(
         &mut self,
         error_location: Option<NodeId>,
-        name: JsStr<'_>,
+        name: EscapedName,
     ) -> crate::state::CheckResult<bool> {
         let Some(error_location) = error_location else {
             return Ok(false);
         };
         if self.kind_of(error_location) != SyntaxKind::Identifier
-            || self.identifier_text_of(error_location).map(JsStr::from) != Some(name)
+            || self.identifier_text_of(error_location).map(JsStr::from) != Some(name.as_js())
             || self.is_type_reference_identifier(error_location)
             || self.is_in_type_query(error_location)
         {
@@ -1867,14 +1870,14 @@ impl<'a> CheckerState<'a> {
     fn report_primitive_type_name_used_as_value(
         &mut self,
         error_location: NodeId,
-        name: JsStr<'_>,
+        name: EscapedName,
     ) {
         let parent = self.parent_of(error_location);
         if parent.is_some_and(|parent| self.kind_of(parent) == SyntaxKind::ExportSpecifier) {
             self.error_at_js(
                 Some(error_location),
                 &diagnostics::Cannot_export_0_Only_local_declarations_can_be_exported_from_a_module,
-                &[name],
+                &[name.as_js()],
             );
             return;
         }
@@ -2047,7 +2050,7 @@ impl<'a> CheckerState<'a> {
         {
             let merged = self.get_merged_symbol(result);
             let declarations = self.binder.symbol(merged).declarations.clone();
-            let name = self.binder.symbol(merged).escaped_name.clone();
+            let name = self.binder.symbol(merged).escaped_name;
             let is_umd_global = !declarations.is_empty()
                 && declarations.iter().all(|&declaration| {
                     if self.kind_of(declaration) == SyntaxKind::NamespaceExportDeclaration {
@@ -2063,11 +2066,11 @@ impl<'a> CheckerState<'a> {
                                 .symbol(file_symbol)
                                 .extras()
                                 .global_exports
-                                .contains_key(&name)
+                                .contains_key(name)
                         })
                 });
             if is_umd_global {
-                let display = tsc_binder::unescape_leading_underscores(&name);
+                let display = tsc_binder::unescape_leading_underscores(name);
                 let mut diagnostic = self.diagnostic_for_node_js(
                     error_location,
                     &diagnostics::_0_refers_to_a_UMD_global_but_the_current_file_is_a_module_Consider_adding_an_import_instead,
@@ -2103,7 +2106,7 @@ impl<'a> CheckerState<'a> {
             } else {
                 let candidate_data = self.binder.symbol(candidate);
                 let value_declaration = candidate_data.value_declaration;
-                let candidate_name = candidate_data.escaped_name.clone();
+                let candidate_name = candidate_data.escaped_name;
                 let root = node_util::get_root_declaration(
                     self.binder.source_of_node(associated_declaration),
                     associated_declaration,
@@ -2118,7 +2121,7 @@ impl<'a> CheckerState<'a> {
                 });
                 if declared_after {
                     if let Some((locals, candidate_name)) = root_local {
-                        if self.get_symbol_in_table(&locals, &candidate_name, meaning)?
+                        if self.get_symbol_in_table(&locals, candidate_name, meaning)?
                             == Some(candidate)
                         {
                             let referenced_name = node_util::declaration_name_to_string(
@@ -2160,8 +2163,8 @@ impl<'a> CheckerState<'a> {
                 } else {
                     &diagnostics::_0_was_imported_here
                 };
-                let name = self.binder.symbol(result).escaped_name.clone();
-                let display = tsc_binder::unescape_leading_underscores(&name);
+                let name = self.binder.symbol(result).escaped_name;
+                let display = tsc_binder::unescape_leading_underscores(name);
                 let related = self.related_info_for_node_js(
                     type_only_declaration,
                     related_message,
@@ -2180,13 +2183,13 @@ impl<'a> CheckerState<'a> {
                 self.kind_of(last) == SyntaxKind::SourceFile
                     && self.binder.is_external_or_common_js_module_of_node(last)
             }) {
-                let name = self.binder.symbol(result).escaped_name.clone();
+                let name = self.binder.symbol(result).escaped_name;
                 let globals = Arc::clone(&self.globals);
-                if self.get_symbol_in_table(&globals, &name, meaning)? == Some(result) {
+                if self.get_symbol_in_table(&globals, name, meaning)? == Some(result) {
                     if let Some(locals) = self.binder.locals_of_scope(source_file) {
                         if let Some(non_value) = self.get_symbol_in_table(
                             &locals,
-                            &name,
+                            name,
                             SymbolFlags::from_bits(!SymbolFlags::VALUE.bits()),
                         )? {
                             let import = self
@@ -2210,7 +2213,7 @@ impl<'a> CheckerState<'a> {
                                 self.error_at_js(
                                     Some(import),
                                     &diagnostics::Import_0_conflicts_with_global_value_used_in_this_file_so_must_be_declared_with_a_type_only_import_when_isolatedModules_is_enabled,
-                                    &[tsc_binder::unescape_leading_underscores(&name)],
+                                    &[tsc_binder::unescape_leading_underscores(name)],
                                 );
                             }
                         }
@@ -2345,7 +2348,7 @@ impl<'a> CheckerState<'a> {
             };
         let symbol = match self.kind_of(name) {
             SyntaxKind::Identifier => {
-                let Some(text) = self.identifier_text_of(name).map(str::to_owned) else {
+                let Some(text) = self.identifier_name_of(name) else {
                     return Ok(None);
                 };
                 let synthesized = self.node_flags(name) & NodeFlags::SYNTHESIZED.bits() != 0;
@@ -2361,7 +2364,7 @@ impl<'a> CheckerState<'a> {
                 };
                 let symbol = self.resolve_name(
                     location.or(Some(name)),
-                    &text,
+                    text,
                     meaning,
                     (!ignore_errors && symbol_from_js_prototype.is_none()).then_some(message),
                     true,
@@ -2871,13 +2874,22 @@ impl<'a> CheckerState<'a> {
 
     /// tsrs-native: typed Identifier/PrivateIdentifier projection for
     /// tsc idText/direct escapedText access.
+    /// The escaped name of an Identifier or PrivateIdentifier node.
+    pub(crate) fn identifier_name_of(&self, node: NodeId) -> Option<EscapedName> {
+        match self.data_of(node) {
+            NodeData::Identifier(data) => Some(data.escaped_text),
+            NodeData::PrivateIdentifier(data) => Some(data.escaped_text),
+            _ => None,
+        }
+    }
+
     pub(crate) fn identifier_text_of(&self, node: NodeId) -> Option<&'a str> {
         match self.data_of(node) {
-            NodeData::Identifier(data) => Some(&data.escaped_text),
+            NodeData::Identifier(data) => Some(data.escaped_text.identifier_text()),
             // tsc idText serves Identifier AND PrivateIdentifier — the
             // private text keeps its `#` (getSymbolNameForPrivateIdentifier
             // suffixes exactly this form).
-            NodeData::PrivateIdentifier(data) => Some(&data.escaped_text),
+            NodeData::PrivateIdentifier(data) => Some(data.escaped_text.identifier_text()),
             _ => None,
         }
     }
@@ -2900,12 +2912,12 @@ impl<'a> CheckerState<'a> {
         let resolved = if node_util::node_is_missing(self.binder.source_of_node(node), Some(node)) {
             None
         } else {
-            let name = self.identifier_text_of(node).unwrap_or_default().to_owned();
+            let name = self.identifier_name_of(node).unwrap_or_default();
             let message = self.cannot_find_name_diagnostic_for_name(node);
             let is_use = !self.is_write_only_access(node);
             self.resolve_name(
                 Some(node),
-                &name,
+                name,
                 SymbolFlags::VALUE | SymbolFlags::EXPORT_VALUE,
                 Some(message),
                 is_use,
@@ -3157,10 +3169,8 @@ static SCRIPT_TARGET_FEATURE_FIRST_LIB: &[(&str, &str)] = &[
 /// tsc-port: getSuggestedLibForNonExistentName @6.0.3
 /// tsc-hash: b60265e4566246083d64e6d4fc258cac9ecc7c3e156ac3218c439b565375f46b
 /// tsc-span: _tsc.js:75476-75481
-pub(crate) fn get_suggested_lib_for_non_existent_name<'n>(
-    name: impl Into<JsStr<'n>>,
-) -> Option<&'static str> {
-    let name = name.into();
+pub(crate) fn get_suggested_lib_for_non_existent_name(name: impl NameKey) -> Option<&'static str> {
+    let name = name.name();
     SCRIPT_TARGET_FEATURE_FIRST_LIB
         .iter()
         .find(|(type_name, _)| name == *type_name)

@@ -21,6 +21,7 @@ use crate::inference::CompareTypesFn;
 use crate::relate::RelationKind;
 pub use crate::state::SignatureKind;
 use crate::state::{CheckResult, CheckerState, IndexInfo, SignatureId};
+use tsc_binder::NameKey;
 
 /// tsc SignatureCheckMode (inlined const enum).
 mod check_mode {
@@ -1854,7 +1855,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     vec![source_property_type]
                 },
             );
-            excluded_properties.insert(self.st.binder.symbol(source_property).escaped_name.clone());
+            excluded_properties.insert(self.st.binder.symbol(source_property).escaped_name);
         }
         let discriminant_combinations = cartesian_product(&source_discriminant_types);
         let mut matching_types: Vec<TypeId> = Vec::new();
@@ -1863,9 +1864,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             let mut has_match = false;
             'outer: for &ty in &target_types {
                 for (i, &source_property) in source_properties_filtered.iter().enumerate() {
-                    let name = self.st.binder.symbol(source_property).escaped_name.clone();
-                    let Some(target_property) = self.st.get_property_of_type_full(ty, &name)?
-                    else {
+                    let name = self.st.binder.symbol(source_property).escaped_name;
+                    let Some(target_property) = self.st.get_property_of_type_full(ty, name)? else {
                         continue 'outer;
                     };
                     if source_property == target_property {
@@ -1989,14 +1989,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             });
         }
         for &prop in discriminators {
-            let property_name = self.st.binder.symbol(prop).escaped_name.clone();
+            let property_name = self.st.binder.symbol(prop).escaped_name;
             let discriminating_type = self.st.get_type_of_symbol(prop)?;
             let mut matched = false;
             for i in 0..types.len() {
                 if is_true(include[i]) {
                     if let Some(target_type) = self
                         .st
-                        .get_type_of_property_or_index_signature_of_type(types[i], &property_name)?
+                        .get_type_of_property_or_index_signature_of_type(types[i], property_name)?
                     {
                         if self.some_type_related_for_discrimination(
                             discriminating_type,
@@ -2449,8 +2449,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             can_exclude_discriminants = false;
                         }
                         if can_exclude_discriminants
-                            && excluded_properties
-                                .is_some_and(|e| e.contains(source_position.to_string().as_bytes()))
+                            && excluded_properties.is_some_and(|e| {
+                                e.contains(&NameKey::name(source_position.to_string().as_str()))
+                            })
                         {
                             continue;
                         }
@@ -2550,12 +2551,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         if self.st.is_object_literal_type(target) {
             let source_props = self.st.get_properties_of_type(source)?;
             for source_prop in self.exclude_properties(source_props, excluded_properties) {
-                let name = self.st.binder.symbol(source_prop).escaped_name.clone();
-                if self
-                    .st
-                    .get_property_of_object_type(target, &name)?
-                    .is_none()
-                {
+                let name = self.st.binder.symbol(source_prop).escaped_name;
+                if self.st.get_property_of_object_type(target, name)?.is_none() {
                     if report_errors {
                         let prop_name = self.st.symbol_name_as_written(source_prop);
                         let target_text = self.st.type_to_string(target)?;
@@ -2572,13 +2569,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         let numeric_names_only =
             self.st.tables.is_tuple_type(source) && self.st.tables.is_tuple_type(target);
         for target_prop in self.exclude_properties(properties, excluded_properties) {
-            let name = self.st.binder.symbol(target_prop).escaped_name.clone();
+            let name = self.st.binder.symbol(target_prop).escaped_name;
             let target_symbol_flags = self.st.symbol_flags(target_prop);
             if !target_symbol_flags.intersects(SymbolFlags::PROTOTYPE)
-                && (!numeric_names_only || is_numeric_name(&name) || name == "length")
+                && (!numeric_names_only || is_numeric_name(name) || name == "length")
                 && (!optionals_only || target_symbol_flags.intersects(SymbolFlags::OPTIONAL))
             {
-                let source_prop = self.st.get_property_of_type_full(source, &name)?;
+                let source_prop = self.st.get_property_of_type_full(source, name)?;
                 if let Some(source_prop) = source_prop {
                     if source_prop != target_prop {
                         let skip_optional = self.relation == RelationKind::Comparable;
@@ -2728,8 +2725,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             {
                 continue;
             }
-            let name = self.st.binder.symbol(property).escaped_name.clone();
-            if self.st.get_property_of_type_full(source, &name)?.is_none() {
+            let name = self.st.binder.symbol(property).escaped_name;
+            if self.st.get_property_of_type_full(source, name)?.is_none() {
                 properties.push(property);
             }
         }
@@ -2896,8 +2893,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
         let mut result = Ternary::TRUE;
         for source_prop in source_properties {
-            let name = self.st.binder.symbol(source_prop).escaped_name.clone();
-            let Some(target_prop) = self.st.get_property_of_object_type(target, &name)? else {
+            let name = self.st.binder.symbol(source_prop).escaped_name;
+            let Some(target_prop) = self.st.get_property_of_object_type(target, name)? else {
                 return Ok(Ternary::FALSE);
             };
             let related = self.compare_properties(source_prop, target_prop)?;
@@ -4594,24 +4591,24 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getPropertyOfObjectType @6.0.3
     /// tsc-hash: 8bd506ce7021670c0037b7ad4db75e2324fd5de9f14eb24b8c4233cf095e369e
     /// tsc-span: _tsc.js:58711-58719
-    pub fn get_property_of_object_type<'n>(
+    pub fn get_property_of_object_type(
         &mut self,
         ty: TypeId,
-        name: impl Into<JsStr<'n>>,
+        name: impl NameKey,
     ) -> CheckResult<Option<SymbolId>> {
-        let name = name.into();
+        let name = name.name();
         self.get_property_of_object_type_with_include_type_only_members(
             ty, name, /*include_type_only_members*/ false,
         )
     }
 
-    fn get_property_of_object_type_with_include_type_only_members<'n>(
+    fn get_property_of_object_type_with_include_type_only_members(
         &mut self,
         ty: TypeId,
-        name: impl Into<JsStr<'n>>,
+        name: impl NameKey,
         include_type_only_members: bool,
     ) -> CheckResult<Option<SymbolId>> {
-        let name = name.into();
+        let name = name.name();
         if !self.tables.flags_of(ty).intersects(TypeFlags::OBJECT) {
             return Ok(None);
         }
@@ -4630,7 +4627,7 @@ impl<'a> CheckerState<'a> {
                         .get(module_symbol)
                         .clone()
                         .as_ref()
-                        .is_some_and(|map| map.contains_key(name.as_bytes()))
+                        .is_some_and(|map| map.contains_key(&NameKey::name(name)))
             });
         if !hidden_type_only_export && self.symbol_is_value(symbol, include_type_only_members)? {
             Ok(Some(symbol))
@@ -4687,11 +4684,11 @@ impl<'a> CheckerState<'a> {
         let mut result: Vec<SymbolId> = Vec::new();
         for current in members {
             for prop in self.get_properties_of_type_full(current)? {
-                let name = self.binder.symbol(prop).escaped_name.clone();
+                let name = self.binder.symbol(prop).escaped_name;
                 if !seen.contains(&name) {
-                    seen.push(name.clone());
+                    seen.push(name);
                     if let Some(combined) = self.get_property_of_union_or_intersection_type(
-                        ty, &name, /*skip_object_function_property_augment*/ !is_union,
+                        ty, name, /*skip_object_function_property_augment*/ !is_union,
                     )? {
                         result.push(combined);
                     }
@@ -4713,12 +4710,12 @@ impl<'a> CheckerState<'a> {
     /// M3 slice: the function/object global augmentation fallbacks are
     /// empty in the noLib world; late-bound and type-only members are
     /// M4.
-    pub fn get_property_of_type_full<'n>(
+    pub fn get_property_of_type_full(
         &mut self,
         ty: TypeId,
-        name: impl Into<JsStr<'n>>,
+        name: impl NameKey,
     ) -> CheckResult<Option<SymbolId>> {
-        let name = name.into();
+        let name = name.name();
         self.get_property_of_type_ex_with_include_type_only_members(
             ty, name, /*skip_object_function_property_augment*/ false,
             /*include_type_only_members*/ false,
@@ -4738,13 +4735,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getPropertyOfType @6.0.3
     /// tsc-hash: 39a7221f835629e1b6b6c3d3e53d7aec1032999299e682d96846922fa299498a
     /// tsc-span: _tsc.js:59348-59389
-    pub fn get_property_of_type_ex<'n>(
+    pub fn get_property_of_type_ex(
         &mut self,
         ty: TypeId,
-        name: impl Into<JsStr<'n>>,
+        name: impl NameKey,
         skip_object_function_property_augment: bool,
     ) -> CheckResult<Option<SymbolId>> {
-        let name = name.into();
+        let name = name.name();
         self.get_property_of_type_ex_with_include_type_only_members(
             ty,
             name,
@@ -4755,14 +4752,14 @@ impl<'a> CheckerState<'a> {
 
     /// tsrs-native: include-carrying body behind the getPropertyOfType
     /// compatibility wrappers.
-    pub(crate) fn get_property_of_type_ex_with_include_type_only_members<'n>(
+    pub(crate) fn get_property_of_type_ex_with_include_type_only_members(
         &mut self,
         ty: TypeId,
-        name: impl Into<JsStr<'n>>,
+        name: impl NameKey,
         skip_object_function_property_augment: bool,
         include_type_only_members: bool,
     ) -> CheckResult<Option<SymbolId>> {
-        let name = name.into();
+        let name = name.name();
         let reduced = self.get_reduced_apparent_type(ty)?;
         let flags = self.tables.flags_of(reduced);
         if flags.intersects(TypeFlags::OBJECT) {
@@ -4829,12 +4826,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTypeOfPropertyOrIndexSignatureOfType @6.0.3
     /// tsc-hash: ae41aa69b4517daebd8ee32fa4aa6db6ef15902492947777622dd0cabd315099
     /// tsc-span: _tsc.js:55807-55817
-    pub fn get_type_of_property_or_index_signature_of_type<'n>(
+    pub fn get_type_of_property_or_index_signature_of_type(
         &mut self,
         ty: TypeId,
-        name: impl Into<JsStr<'n>>,
+        name: impl NameKey,
     ) -> CheckResult<Option<TypeId>> {
-        let name = name.into();
+        let name = name.name();
         if let Some(prop) = self.get_property_of_type_full(ty, name)? {
             return Ok(Some(self.get_type_of_symbol(prop)?));
         }
@@ -4849,13 +4846,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getPropertyOfUnionOrIntersectionType @6.0.3
     /// tsc-hash: b4f449a45ce4346e6e458eb4962ea77e413761aeff9603015c0c64c55bcb87da
     /// tsc-span: _tsc.js:59283-59286
-    pub fn get_property_of_union_or_intersection_type<'n>(
+    pub fn get_property_of_union_or_intersection_type(
         &mut self,
         ty: TypeId,
-        name: impl Into<JsStr<'n>>,
+        name: impl NameKey,
         skip_object_function_property_augment: bool,
     ) -> CheckResult<Option<SymbolId>> {
-        let name = name.into();
+        let name = name.name();
         let Some(property) = self.get_union_or_intersection_property(
             ty,
             name,
@@ -5149,14 +5146,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 490f85816c9419feb271b4eda40fdda59ef8b7868f80e46af09245eef7e95ab8
     /// tsc-span: _tsc.js:59246-59261
     #[allow(clippy::only_used_in_recursion)] // the skip flag is tsc's cache-key parameter
-    fn get_union_or_intersection_property<'n>(
+    fn get_union_or_intersection_property(
         &mut self,
         ty: TypeId,
-        name: impl Into<JsStr<'n>>,
+        name: impl NameKey,
         skip: bool,
     ) -> CheckResult<Option<SymbolId>> {
-        let name = name.into();
-        let key = (ty, EscapedName::from_escaped_value(name.to_owned()), skip);
+        let name = name.name();
+        let key = (ty, name, skip);
         if let Some(cached) = self.links.union_property(&key) {
             return Ok(Some(cached));
         }
@@ -5879,12 +5876,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isDiscriminantProperty @6.0.3
     /// tsc-hash: 1b3d6f14be2183682f24b21ec0f57e84975ced1cf03ab31db92b2b62388d6a8a
     /// tsc-span: _tsc.js:69562-69573
-    pub(crate) fn is_discriminant_property<'n>(
+    pub(crate) fn is_discriminant_property(
         &mut self,
         ty: TypeId,
-        name: impl Into<JsStr<'n>>,
+        name: impl NameKey,
     ) -> CheckResult<bool> {
-        let name = name.into();
+        let name = name.name();
         if !self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             return Ok(false);
         }
@@ -5921,8 +5918,8 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Option<Vec<SymbolId>>> {
         let mut result: Option<Vec<SymbolId>> = None;
         for &source_property in source_properties {
-            let name = self.binder.symbol(source_property).escaped_name.clone();
-            if self.is_discriminant_property(target, &name)? {
+            let name = self.binder.symbol(source_property).escaped_name;
+            if self.is_discriminant_property(target, name)? {
                 result.get_or_insert_with(Vec::new).push(source_property);
             }
         }
@@ -6023,8 +6020,8 @@ impl<'a> CheckerState<'a> {
                         .get_check_flags(target_prop)
                         .intersects(CheckFlags::PARTIAL))
             {
-                let name = self.binder.symbol(target_prop).escaped_name.clone();
-                match self.get_property_of_type_full(source, &name)? {
+                let name = self.binder.symbol(target_prop).escaped_name;
+                match self.get_property_of_type_full(source, name)? {
                     None => return Ok(Some(target_prop)),
                     Some(source_prop) if match_discriminant_properties => {
                         let target_type = self.get_type_of_symbol(target_prop)?;
@@ -6166,13 +6163,13 @@ impl<'a> CheckerState<'a> {
                 .containing_type
                 .get(prop)
                 .expect("synthetic properties carry their containing type");
-            let name = self.binder.symbol(prop).escaped_name.clone();
+            let name = self.binder.symbol(prop).escaped_name;
             let types = match &self.tables.type_of(containing).data {
                 TypeData::Union { types, .. } | TypeData::Intersection { types } => types.to_vec(),
                 _ => unreachable!("containing types are unions or intersections"),
             };
             for t in types {
-                if let Some(p) = self.get_property_of_type_full(t, &name)? {
+                if let Some(p) = self.get_property_of_type_full(t, name)? {
                     self.for_each_property_leaf(p, out)?;
                 }
             }
@@ -6316,7 +6313,7 @@ impl<'a> CheckerState<'a> {
         ty: Option<TypeId>,
     ) -> SymbolId {
         let source_flags = self.symbol_flags(source);
-        let name = self.binder.symbol(source).escaped_name.clone();
+        let name = self.binder.symbol(source).escaped_name;
         let symbol = self.binder.create_symbol(source_flags, name);
         let readonly = tsc_types::CheckFlags::from_bits(
             self.get_check_flags(source).bits() & tsc_types::CheckFlags::READONLY.bits(),
@@ -6881,8 +6878,7 @@ impl<'a> CheckerState<'a> {
             return Ok(Some(
                 self.binder
                     .symbol(signature_data.parameters[pos])
-                    .escaped_name
-                    .clone(),
+                    .escaped_name,
             ));
         }
         let Some(&rest_parameter) = self.signature_of(signature).parameters.get(param_count) else {
@@ -6919,9 +6915,7 @@ impl<'a> CheckerState<'a> {
                 return Ok(Some(EscapedName::escape(label.as_str().into())));
             }
         }
-        Ok(Some(
-            self.binder.symbol(rest_parameter).escaped_name.clone(),
-        ))
+        Ok(Some(self.binder.symbol(rest_parameter).escaped_name))
     }
 
     /// tsc-port: combineSignaturesOfUnionMembers @6.0.3
@@ -7467,7 +7461,7 @@ impl<'a> CheckerState<'a> {
                 break;
             }
 
-            let name = self.binder.symbol(symbol).escaped_name.clone();
+            let name = self.binder.symbol(symbol).escaped_name;
             if member_name.as_ref().is_some_and(|current| current != &name) {
                 eligible = false;
                 break;
@@ -8277,12 +8271,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getApplicableIndexInfoForName @6.0.3
     /// tsc-hash: f6b9b92223c2975ab3d55e4c1bc1acabbde0fdbf39ea15d47561f74bedf015b5
     /// tsc-span: _tsc.js:59479-59481
-    pub(crate) fn get_applicable_index_info_for_name_info<'n>(
+    pub(crate) fn get_applicable_index_info_for_name_info(
         &mut self,
         ty: TypeId,
-        name: impl Into<JsStr<'n>>,
+        name: impl NameKey,
     ) -> CheckResult<Option<IndexInfo>> {
-        let name = name.into();
+        let name = name.name();
         // getApplicableIndexInfoForName probes LATE-BOUND names
         // (isLateBoundName — the `__@` unique-symbol spellings) with
         // esSymbolType, everything else with the name's literal type.

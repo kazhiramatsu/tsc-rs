@@ -294,7 +294,7 @@ impl<'a> CheckerState<'a> {
                 .tables
                 .type_of(tp)
                 .symbol
-                .map(|symbol| self.binder.symbol(symbol).escaped_name.clone())
+                .map(|symbol| self.binder.symbol(symbol).escaped_name)
                 .unwrap_or_else(|| tsc_types::EscapedName::from_identifier_escaped_text(""));
             if self.has_type_parameter_by_name(&inferred_type_parameters, &name)
                 || self.has_type_parameter_by_name(&result, &name)
@@ -3612,7 +3612,7 @@ impl<'a> CheckerState<'a> {
                 continue;
             }
             if let Some(name) = self.property_name_from_binding_element(e)? {
-                if self.get_property_of_type_full(ty, &name)?.is_none() {
+                if self.get_property_of_type_full(ty, name)?.is_none() {
                     missing_elements.push(e);
                 }
             }
@@ -3623,7 +3623,7 @@ impl<'a> CheckerState<'a> {
         let mut members = tsc_binder::SymbolTable::default();
         let mut properties: Vec<SymbolId> = Vec::new();
         for prop in self.get_properties_of_object_type_owned(ty)? {
-            let name = self.binder.symbol(prop).escaped_name.clone();
+            let name = self.binder.symbol(prop).escaped_name;
             members.insert(name, prop);
             properties.push(prop);
         }
@@ -3633,7 +3633,7 @@ impl<'a> CheckerState<'a> {
                 .expect("filtered above");
             let symbol = self
                 .binder
-                .create_symbol(SymbolFlags::PROPERTY | SymbolFlags::OPTIONAL, name.clone());
+                .create_symbol(SymbolFlags::PROPERTY | SymbolFlags::OPTIONAL, name);
             let element_type = self.get_type_from_binding_element(
                 e, /*include_pattern_in_type*/ false, /*report_errors*/ false,
             )?;

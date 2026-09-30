@@ -393,7 +393,7 @@ fn no_host_specifier_for_module_symbol(
     module_symbol: SymbolId,
 ) -> CheckResult<JsString> {
     let symbol = state.binder.symbol(module_symbol);
-    if let Some(name) = unquote_ambient_symbol_name(&symbol.escaped_name) {
+    if let Some(name) = unquote_ambient_symbol_name(symbol.escaped_name) {
         let source_file_module = symbol
             .declarations
             .iter()
@@ -416,7 +416,7 @@ fn no_host_specifier_for_module_symbol(
 }
 
 fn ambient_symbol_name<'a>(state: &'a CheckerState<'_>, symbol: SymbolId) -> Option<JsStr<'a>> {
-    unquote_ambient_symbol_name(&state.binder.symbol(symbol).escaped_name)
+    unquote_ambient_symbol_name(state.binder.symbol(symbol).escaped_name)
 }
 
 fn unquote_ambient_symbol_name<'p>(name: impl Into<JsStr<'p>>) -> Option<JsStr<'p>> {
@@ -3774,7 +3774,7 @@ fn package_root_end<'p>(path: impl Into<JsStr<'p>>, package_start: usize) -> Opt
     )
 }
 
-fn get_package_name_from_types_package_name<'p>(name: impl Into<JsStr<'p>>) -> JsString {
+fn get_package_name_from_types_package_name<'n, 'p>(name: impl Into<JsStr<'n>>) -> JsString {
     let name = name.into();
     let Some(without_prefix) = name.strip_prefix("@types/") else {
         return name.to_owned();
@@ -3824,9 +3824,9 @@ fn get_conditions(options: &CompilerOptions, resolution_mode: EmitResolutionMode
     conditions
 }
 
-fn is_applicable_versioned_types_key<'path>(
+fn is_applicable_versioned_types_key<'n, 'path>(
     conditions: &[JsString],
-    key: impl Into<JsStr<'path>>,
+    key: impl Into<JsStr<'n>>,
 ) -> bool {
     let key = key.into();
     conditions.iter().any(|condition| condition == "types")
@@ -3863,8 +3863,8 @@ fn selected_types_versions_paths(package_json: &Value) -> Option<Vec<ModulePathM
     None
 }
 
-fn path_mapping_key_matches<'p>(
-    key: impl Into<JsStr<'p>>,
+fn path_mapping_key_matches<'n, 'p>(
+    key: impl Into<JsStr<'n>>,
     candidate: impl Into<JsStr<'p>>,
 ) -> bool {
     let key = key.into();

@@ -330,7 +330,7 @@ impl SyntacticBuilderResolver for TestResolver {
             .create_node(
                 target,
                 NodeData::Identifier(IdentifierData {
-                    escaped_text: "arg".to_owned(),
+                    escaped_text: tsc_types::EscapedName::from_identifier_escaped_text("arg"),
                 }),
                 TransformFlags::NONE,
             )

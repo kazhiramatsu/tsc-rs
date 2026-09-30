@@ -15,6 +15,7 @@ use tsc_types::{EscapedName, JsStr, JsString, NodeFlags, SymbolFlags, TypeData, 
 
 use crate::links::LinkSlot;
 use crate::state::{CheckResult, CheckerState};
+use tsc_binder::NameKey;
 
 /// tsc-port: escapeString @6.0.3 (doubleQuote flavor)
 /// tsc-hash: a41f6d5932395df14118761cfc227d8ad3266e0e2f3133c4ec5857ff7e0b4d2d
@@ -157,7 +158,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn clone_symbol(&mut self, symbol: SymbolId) -> SymbolId {
         let original = self.binder.symbol(symbol);
         let flags = original.flags;
-        let escaped_name = original.escaped_name.clone();
+        let escaped_name = original.escaped_name;
         let declarations = original.declarations.clone();
         let parent = original.parent;
         let value_declaration = original.value_declaration;
@@ -413,8 +414,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 483aaf1e4cc4280b31d8e18dab23b7c3bb1ed6966d92ff0e59a80ab3bdb157f5
     /// tsc-span: _tsc.js:50649-50682
     pub fn symbol_display_name(&self, symbol: SymbolId) -> JsString {
-        tsc_binder::unescape_leading_underscores(&self.binder.symbol(symbol).escaped_name)
-            .to_owned()
+        tsc_binder::unescape_leading_underscores(self.binder.symbol(symbol).escaped_name).to_owned()
     }
 
     /// tsc-port: symbolName @6.0.3
@@ -657,14 +657,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: addDuplicateDeclarationErrorsForSymbols @6.0.3
     /// tsc-hash: e718d927bbdd807670fe6c275346799c2546a4c3670890477379ca1685296aa3
     /// tsc-span: _tsc.js:47784-47788
-    pub(crate) fn add_duplicate_declaration_errors_for_symbols<'n>(
+    pub(crate) fn add_duplicate_declaration_errors_for_symbols(
         &mut self,
         target: SymbolId,
         message: &'static tsc_diagnostics::DiagnosticMessage,
-        symbol_name: impl Into<JsStr<'n>>,
+        symbol_name: impl NameKey,
         source: SymbolId,
     ) {
-        let symbol_name = symbol_name.into();
+        let symbol_name = symbol_name.name();
         let declarations = self.binder.symbol(target).declarations.clone();
         let related = self.binder.symbol(source).declarations.clone();
         for node in declarations {
@@ -778,11 +778,11 @@ impl<'a> CheckerState<'a> {
                     self.binder.symbol_mut(merged).parent = Some(parent);
                 }
             }
-            target.insert(id.clone(), merged);
+            target.insert(*id, merged);
         }
     }
 
-    /// Merge into the checker-owned globals table without moving that table
+    /// M*erge into the checker-owned globals table without moving that table
     /// out of `self`. `mergeSymbol` may resolve an existing alias while it
     /// combines a colliding declaration; that resolution must observe every
     /// global published earlier in this same merge, just as it does through
@@ -795,11 +795,11 @@ impl<'a> CheckerState<'a> {
                 Some(existing) => self.merge_symbol(existing, source_symbol, unidirectional),
                 None => self.get_merged_symbol(source_symbol),
             };
-            std::sync::Arc::make_mut(&mut self.globals).insert(id.clone(), merged);
+            std::sync::Arc::make_mut(&mut self.globals).insert(*id, merged);
         }
     }
 
-    /// `merge_into_globals` over borrowed entries (a file's locals listed
+    /// `merge_into_globals` over borrowed ent*ries (a file's locals listed
     /// without cloning its table).
     fn merge_entries_into_globals(
         &mut self,
@@ -813,20 +813,16 @@ impl<'a> CheckerState<'a> {
                 Some(existing) => self.merge_symbol(existing, source_symbol, unidirectional),
                 None => self.get_merged_symbol(source_symbol),
             };
-            std::sync::Arc::make_mut(&mut self.globals).insert(id.clone(), merged);
+            std::sync::Arc::make_mut(&mut self.globals).insert(*id, merged);
         }
     }
 
-    /// tsc-port: addUndefinedToGlobalsOrErrorOnRedeclaration @6.0.3
+    /// tsc-port: addUndefinedToGlobalsOrError*OnRedeclaration @6.0.3
     /// tsc-hash: 441bb0403861850ce1c4a8190e56d54ee70bfccfb47b247bd784ae08bc8af46c
     /// tsc-span: _tsc.js:47882-47894
     fn add_undefined_to_globals_or_error_on_redeclaration(&mut self) {
-        let name = self
-            .binder
-            .symbol(self.undefined_symbol)
-            .escaped_name
-            .clone();
-        match self.globals.get(&name).copied() {
+        let name = self.binder.symbol(self.undefined_symbol).escaped_name;
+        match self.globals.get(name).copied() {
             Some(target_symbol) => {
                 let declarations = self.binder.symbol(target_symbol).declarations.clone();
                 for declaration in declarations {
@@ -874,7 +870,7 @@ impl<'a> CheckerState<'a> {
                 let locals = self.binder.locals_of(source.root).map(|locals| {
                     locals
                         .iter()
-                        .map(|(name, &symbol)| (name.clone(), symbol))
+                        .map(|(name, &symbol)| (*name, symbol))
                         .collect::<Vec<_>>()
                 });
                 if let Some(locals) = locals {
@@ -916,8 +912,7 @@ impl<'a> CheckerState<'a> {
                     .clone();
                 for (id, &source_symbol) in global_exports.iter() {
                     if !self.globals.contains_key(id) {
-                        std::sync::Arc::make_mut(&mut self.globals)
-                            .insert(id.clone(), source_symbol);
+                        std::sync::Arc::make_mut(&mut self.globals).insert(*id, source_symbol);
                     }
                 }
             }

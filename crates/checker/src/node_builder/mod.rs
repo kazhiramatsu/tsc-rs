@@ -72,7 +72,7 @@ pub(crate) fn with_synthetic_module_scope(
     context.synthetic_scope_locals = Some(
         locals
             .iter()
-            .map(|(name, &symbol)| (name.clone(), symbol))
+            .map(|(name, &symbol)| (*name, symbol))
             .collect(),
     );
     restore
@@ -990,13 +990,13 @@ pub(crate) fn late_bound_index_signatures(
                                 .node(first_identifier)
                                 .data
                             {
-                                NodeData::Identifier(data) => data.escaped_text.clone(),
-                                _ => String::new(),
+                                NodeData::Identifier(data) => data.escaped_text,
+                                _ => tsc_types::EscapedName::default(),
                             };
                             let resolved = checker
                                 .resolve_name(
                                     Some(first_identifier),
-                                    &text,
+                                    text,
                                     tsc_types::SymbolFlags::VALUE
                                         | tsc_types::SymbolFlags::EXPORT_VALUE,
                                     None,

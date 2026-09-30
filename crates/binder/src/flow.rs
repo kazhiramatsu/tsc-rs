@@ -225,7 +225,7 @@ impl FlowArena {
 /// tsc activeLabelList entry (a linked list in tsc; a stack here).
 #[derive(Clone, Debug)]
 pub struct ActiveLabel {
-    pub name: String,
+    pub name: tsc_types::EscapedName,
     pub break_target: FlowId,
     pub continue_target: Option<FlowId>,
     pub referenced: bool,

@@ -800,7 +800,7 @@ impl<'a> CheckerState<'a> {
             .tables
             .type_of(input_type)
             .symbol
-            .map(|symbol| self.binder.symbol(symbol).escaped_name.clone());
+            .map(|symbol| self.binder.symbol(symbol).escaped_name);
         if symbol_name.is_some_and(|name| name.as_str().is_some_and(is_es2015_or_later_iterable)) {
             return Ok((
                 &diagnostics::Type_0_can_only_be_iterated_through_when_using_the_downlevelIteration_flag_or_with_a_target_of_es2015_or_higher,
@@ -1215,7 +1215,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<IterationTypesResult> {
         let property_name =
             self.get_property_name_for_known_symbol_name(resolver.iterator_symbol_name())?;
-        let method = self.get_property_of_type_full(ty, &property_name)?;
+        let method = self.get_property_of_type_full(ty, property_name)?;
         let method_type = match method {
             Some(method)
                 if !self

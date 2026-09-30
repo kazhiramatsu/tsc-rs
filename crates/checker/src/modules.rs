@@ -29,6 +29,7 @@ use tsc_types::{
 use crate::expr::Ancestor;
 use crate::links::LinkSlot;
 use crate::state::{CheckResult, CheckerState, PackageJsonModuleType};
+use tsc_binder::NameKey;
 use tsc_types::perf::{self, PerfCounter};
 use tsc_types::TypeId;
 
@@ -276,11 +277,11 @@ impl<'a> CheckerState<'a> {
             if self.is_statement_with_locals(container)
                 || self.is_symbol_of_destructured_element_of_catch_binding(symbol)
             {
-                let name = self.binder.symbol(symbol).escaped_name.clone();
+                let name = self.binder.symbol(symbol).escaped_name;
                 let colliding = if self
                     .resolve_name(
                         self.parent_of(container),
-                        &name,
+                        name,
                         tsc_types::SymbolFlags::VALUE,
                         None,
                         false,
@@ -1520,7 +1521,7 @@ impl<'a> CheckerState<'a> {
         let text = self.module_export_name_text_escaped(exported_name);
         let symbol = self.resolve_name(
             Some(exported_name),
-            &text,
+            text,
             SymbolFlags::VALUE | SymbolFlags::TYPE | SymbolFlags::NAMESPACE | SymbolFlags::ALIAS,
             /*name_not_found_message*/ None,
             /*is_use*/ true,
@@ -2022,14 +2023,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: resolveExportByName @6.0.3
     /// tsc-hash: 44fb57abfeda2ba65f7348458183aabe71673fd3ca7beeb3d1d71284d703d68d
     /// tsc-span: _tsc.js:48552-48569
-    fn resolve_export_by_name<'n>(
+    fn resolve_export_by_name(
         &mut self,
         module_symbol: SymbolId,
-        name: impl Into<JsStr<'n>>,
+        name: impl NameKey,
         source_node: Option<NodeId>,
         dont_resolve_alias: bool,
     ) -> CheckResult<Option<SymbolId>> {
-        let name = name.into();
+        let name = name.name();
         let export_value = self
             .binder
             .symbol(module_symbol)
@@ -2132,7 +2133,7 @@ impl<'a> CheckerState<'a> {
             if self
                 .resolve_export_by_name(
                     module_symbol,
-                    &escape_leading_underscores("__esModule"),
+                    escape_leading_underscores("__esModule"),
                     /*source_node*/ None,
                     dont_resolve_alias,
                 )?
@@ -2160,7 +2161,7 @@ impl<'a> CheckerState<'a> {
                 return Ok(self
                     .resolve_export_by_name(
                         module_symbol,
-                        &escape_leading_underscores("__esModule"),
+                        escape_leading_underscores("__esModule"),
                         /*source_node*/ None,
                         dont_resolve_alias,
                     )?
@@ -2459,11 +2460,11 @@ impl<'a> CheckerState<'a> {
         let local_symbol = self.binder.node_symbol(node);
         let module_name = self.get_fully_qualified_name(module_symbol);
         let exports_has_local = local_symbol.is_some_and(|local| {
-            let local_name = self.binder.symbol(local).escaped_name.clone();
+            let local_name = self.binder.symbol(local).escaped_name;
             self.binder
                 .symbol(module_symbol)
                 .exports()
-                .contains_key(&local_name)
+                .contains_key(local_name)
         });
         if exports_has_local {
             let local_name = local_symbol
@@ -2611,7 +2612,7 @@ impl<'a> CheckerState<'a> {
             return value_symbol;
         }
         let flags = value.flags | self.binder.symbol(type_symbol).flags;
-        let escaped_name = value.escaped_name.clone();
+        let escaped_name = value.escaped_name;
         let mut declarations = value.declarations.clone();
         for declaration in self.binder.symbol(type_symbol).declarations.clone() {
             if !declarations.contains(&declaration) {
@@ -2635,14 +2636,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getExportOfModule @6.0.3
     /// tsc-hash: 950617f5bdc9aeda1fea2768cf70eb55ea0d2209306b7c3b9d510fd63f7cc57f
     /// tsc-span: _tsc.js:48825-48842
-    fn get_export_of_module<'n>(
+    fn get_export_of_module(
         &mut self,
         symbol: SymbolId,
-        name_text: impl Into<JsStr<'n>>,
+        name: impl NameKey,
         specifier: NodeId,
         dont_resolve_alias: bool,
     ) -> CheckResult<Option<SymbolId>> {
-        let name_text = name_text.into();
+        let name = name.name();
         if !self
             .binder
             .symbol(symbol)
@@ -2652,7 +2653,7 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         }
         let exports = self.get_exports_of_symbol(symbol)?;
-        let export_symbol = exports.get(name_text).copied();
+        let export_symbol = exports.get(name).copied();
         let resolved = self.resolve_symbol_ex(export_symbol, dont_resolve_alias)?;
         let export_star_declaration = self
             .links
@@ -2661,7 +2662,7 @@ impl<'a> CheckerState<'a> {
             .get(symbol)
             .clone()
             .as_ref()
-            .and_then(|map| map.get(name_text.as_bytes()))
+            .and_then(|map| map.get(&name))
             .copied();
         self.mark_symbol_of_alias_declaration_if_type_only(
             Some(specifier),
@@ -2669,7 +2670,7 @@ impl<'a> CheckerState<'a> {
             resolved,
             /*overwrite_empty*/ false,
             export_star_declaration,
-            Some(name_text),
+            Some(name.as_js()),
         )?;
         Ok(resolved)
     }
@@ -2677,12 +2678,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getPropertyOfVariable @6.0.3
     /// tsc-hash: fdd893d0bd7bcf0aa247b2765c029c1d4698c4d9438f49f0f07ce31ba360d386
     /// tsc-span: _tsc.js:48843-48850
-    fn get_property_of_variable<'n>(
+    fn get_property_of_variable(
         &mut self,
         symbol: SymbolId,
-        name: impl Into<JsStr<'n>>,
+        name: impl NameKey,
     ) -> CheckResult<Option<SymbolId>> {
-        let name = name.into();
+        let name = name.name();
         if !self
             .binder
             .symbol(symbol)
@@ -2772,14 +2773,14 @@ impl<'a> CheckerState<'a> {
         {
             let ty = self.get_type_of_symbol(target_symbol)?;
             self.get_property_of_type_ex(
-                ty, &name_text, /*skip_object_function_property_augment*/ true,
+                ty, name_text, /*skip_object_function_property_augment*/ true,
             )?
         } else {
-            self.get_property_of_variable(target_symbol, &name_text)?
+            self.get_property_of_variable(target_symbol, name_text)?
         };
         symbol_from_variable = self.resolve_symbol_ex(symbol_from_variable, dont_resolve_alias)?;
         let mut symbol_from_module =
-            self.get_export_of_module(target_symbol, &name_text, specifier, dont_resolve_alias)?;
+            self.get_export_of_module(target_symbol, name_text, specifier, dont_resolve_alias)?;
         if symbol_from_module.is_none() && name_text == InternalSymbolName::DEFAULT {
             let file_index = self.source_file_index_of_symbol(module_symbol);
             if self.is_only_importable_as_default(module_specifier, Some(module_symbol))?
@@ -2943,7 +2944,7 @@ impl<'a> CheckerState<'a> {
             .symbol(module_symbol)
             .value_declaration
             .and_then(|declaration| self.binder.locals_of(declaration))
-            .and_then(|locals| locals.get(&name_text))
+            .and_then(|locals| locals.get(name_text))
             .copied();
         let Some(local_symbol) = local_symbol else {
             self.error_at_js(
@@ -3408,7 +3409,7 @@ impl<'a> CheckerState<'a> {
                     .as_ref()
                     .is_some_and(|targets| {
                         targets
-                            .get(&self.binder.symbol(target).escaped_name)
+                            .get(self.binder.symbol(target).escaped_name)
                             .copied()
                             == Some(target)
                     })
@@ -3640,9 +3641,8 @@ impl<'a> CheckerState<'a> {
                 .symbol_cold()
                 .type_only_export_star_name
                 .get(symbol)
-                .clone()
-                .unwrap_or_else(|| self.binder.symbol(symbol).escaped_name.clone());
-            let export_symbol = exports.get(&lookup_name).copied();
+                .unwrap_or_else(|| self.binder.symbol(symbol).escaped_name);
+            let export_symbol = exports.get(lookup_name).copied();
             self.resolve_symbol_ex(export_symbol, false)?
         } else {
             let declaration_symbol = self.binder.node_symbol(declaration);
@@ -4566,7 +4566,7 @@ impl<'a> CheckerState<'a> {
                 .iter()
                 .map(|(name, &child)| {
                     let mut child_path = path.clone();
-                    child_path.push(name.clone());
+                    child_path.push(*name);
                     (child, child_path)
                 })
                 .collect::<Vec<_>>();
@@ -4788,7 +4788,7 @@ impl<'a> CheckerState<'a> {
             return None;
         }
         let quoted = EscapedName::quoted_module(module_name);
-        let symbol = self.globals.get(&quoted).copied()?;
+        let symbol = self.globals.get(quoted).copied()?;
         if !self
             .binder
             .symbol(symbol)
@@ -4848,8 +4848,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: nodeCoreModules @6.0.3
     /// tsc-hash: 0e632ec6b143db94f7d3289fd8c884f1e2d5cba30ad853d6cd66d2e6f35149da
     /// tsc-span: _tsc.js:19947-20016
-    fn is_node_core_module<'n>(name: impl Into<JsStr<'n>>) -> bool {
-        let name = name.into();
+    fn is_node_core_module(name: impl NameKey) -> bool {
+        let name = name.name();
         let Some(name) = name.as_str() else {
             return false;
         };
@@ -5811,9 +5811,9 @@ impl<'a> CheckerState<'a> {
         )
     }
 
-    fn package_map_entry<'b, 'path_text>(
+    fn package_map_entry<'n, 'b, 'path_text>(
         map: &'b tsc_program::JsonValue,
-        key: impl Into<JsStr<'path_text>>,
+        key: impl Into<JsStr<'n>>,
         exports: bool,
     ) -> Option<(&'b tsc_program::JsonValue, Option<JsString>)> {
         let key = key.into();
@@ -6169,10 +6169,10 @@ impl<'a> CheckerState<'a> {
         None
     }
 
-    fn package_map_target<'path_text>(
+    fn package_map_target<'n, 'path_text>(
         &self,
         map: &tsc_program::JsonValue,
-        key: impl Into<JsStr<'path_text>>,
+        key: impl Into<JsStr<'n>>,
         resolution_mode: ModuleResolutionMode,
         exports: bool,
     ) -> Option<JsString> {
@@ -6342,7 +6342,7 @@ impl<'a> CheckerState<'a> {
                 for &name in Self::external_emit_helper_names(helper, legacy_decorators) {
                     let exported = self.get_symbol_in_table(
                         &exports,
-                        &escape_leading_underscores(name),
+                        escape_leading_underscores(name),
                         SymbolFlags::VALUE,
                     )?;
                     let symbol = self.resolve_symbol_ex(exported, false)?;
@@ -7537,13 +7537,13 @@ impl<'a> CheckerState<'a> {
             .symbol(module_symbol)
             .exports()
             .iter()
-            .map(|(name, &symbol)| (name.clone(), symbol))
+            .map(|(name, &symbol)| (*name, symbol))
             .collect();
         for (name, source_symbol) in module_exports {
             if name == InternalSymbolName::EXPORT_EQUALS {
                 continue;
             }
-            let existing = self.binder.symbol(merged).exports().get(&name).copied();
+            let existing = self.binder.symbol(merged).exports().get(name).copied();
             let value = match existing {
                 Some(existing) => self.merge_symbol(existing, source_symbol, false),
                 None => source_symbol,
@@ -7877,7 +7877,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<SymbolId> {
         let original = self.binder.symbol(symbol);
         let flags = original.flags;
-        let escaped_name = original.escaped_name.clone();
+        let escaped_name = original.escaped_name;
         let declarations = original.declarations.clone();
         let parent = original.parent;
         let value_declaration = original.value_declaration;
@@ -8034,7 +8034,7 @@ impl<'a> CheckerState<'a> {
         if !is_type_only {
             if let Some(symbol) = symbol {
                 for name in self.binder.symbol(symbol).exports().keys() {
-                    non_type_only_names.insert(name.clone());
+                    non_type_only_names.insert(*name);
                 }
             }
         }
@@ -8104,7 +8104,7 @@ impl<'a> CheckerState<'a> {
             if export_star_is_type_only {
                 let map = type_only_export_star_map.get_or_insert_with(Default::default);
                 for name in symbols.keys() {
-                    map.insert(name.clone(), export_star);
+                    map.insert(*name, export_star);
                 }
             }
         }
@@ -8129,10 +8129,10 @@ impl<'a> CheckerState<'a> {
             }
             match target.get(id).copied() {
                 None => {
-                    target.insert(id.clone(), source_symbol);
+                    target.insert(*id, source_symbol);
                     if let Some((lookup_table, _, specifier_text)) = &mut lookup {
                         lookup_table
-                            .entry(id.clone())
+                            .entry(*id)
                             .or_insert_with(|| ((*specifier_text).to_owned(), Vec::new()));
                     }
                 }
@@ -8218,9 +8218,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn module_export_name_text_escaped(&self, name: NodeId) -> EscapedName {
         match self.data_of(name) {
             NodeData::StringLiteral(data) => escape_leading_underscores(&data.text),
-            NodeData::Identifier(data) => {
-                EscapedName::from_identifier_escaped_text(&data.escaped_text)
-            }
+            NodeData::Identifier(data) => data.escaped_text,
             _ => EscapedName::escape("".into()),
         }
     }
@@ -8232,7 +8230,7 @@ impl<'a> CheckerState<'a> {
         match self.data_of(name) {
             NodeData::StringLiteral(data) => data.text.clone(),
             NodeData::Identifier(data) => {
-                unescape_leading_underscores(&data.escaped_text).to_owned()
+                unescape_leading_underscores(data.escaped_text).to_owned()
             }
             _ => JsString::new(),
         }
@@ -8981,9 +8979,9 @@ impl<'a> CheckerState<'a> {
                     .unwrap_or("...".into());
                 let imported_identifier = match self.data_of(error_node) {
                     NodeData::Identifier(data) => {
-                        unescape_leading_underscores(&data.escaped_text).to_owned()
+                        unescape_leading_underscores(data.escaped_text).to_owned()
                     }
-                    _ => unescape_leading_underscores(&self.binder.symbol(symbol).escaped_name)
+                    _ => unescape_leading_underscores(self.binder.symbol(symbol).escaped_name)
                         .to_owned(),
                 };
                 let import_type = crate::concat_js(&[
@@ -9237,8 +9235,8 @@ impl<'a> CheckerState<'a> {
             if self.is_deprecated_symbol(target_symbol) {
                 let declarations = self.binder.symbol(target_symbol).declarations.clone();
                 if !declarations.is_empty() {
-                    let name = self.binder.symbol(target_symbol).escaped_name.clone();
-                    self.add_deprecated_suggestion(node, &declarations, &name);
+                    let name = self.binder.symbol(target_symbol).escaped_name;
+                    self.add_deprecated_suggestion(node, &declarations, name);
                 }
             }
         }
@@ -9265,7 +9263,7 @@ impl<'a> CheckerState<'a> {
             .binder
             .symbol(file_symbol)
             .exports()
-            .get(&escaped_name)
+            .get(escaped_name)
             .copied()?;
         if already_exported != target {
             return None;
@@ -9281,7 +9279,7 @@ impl<'a> CheckerState<'a> {
                 (SyntaxKind::FirstJSDocNode..=SyntaxKind::LastJSDocNode).contains(&kind)
             })?;
         let display =
-            unescape_leading_underscores(&self.binder.symbol(already_exported).escaped_name);
+            unescape_leading_underscores(self.binder.symbol(already_exported).escaped_name);
         Some(self.related_info_for_node_js(
             exporting_declaration,
             &diagnostics::_0_is_automatically_exported_here,
@@ -9602,7 +9600,7 @@ impl<'a> CheckerState<'a> {
                 .unwrap_or_else(|| EscapedName::escape("".into()));
             let member = self
                 .binder
-                .create_symbol(SymbolFlags::PROPERTY, member_name.clone());
+                .create_symbol(SymbolFlags::PROPERTY, member_name);
             self.binder.symbol_mut(member).parent = Some(object_symbol);
             let value_type = self.check_expression_cached(value, CheckMode::NORMAL)?;
             let member_type = self.tables.get_regular_type_of_literal_type(value_type);
@@ -10143,7 +10141,7 @@ impl<'a> CheckerState<'a> {
             let text = self.module_export_name_text_escaped(exported_name);
             let symbol = self.resolve_name(
                 Some(exported_name),
-                &text,
+                text,
                 SymbolFlags::VALUE
                     | SymbolFlags::TYPE
                     | SymbolFlags::NAMESPACE

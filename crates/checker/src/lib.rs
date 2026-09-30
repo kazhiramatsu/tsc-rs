@@ -798,10 +798,7 @@ pub struct PartialCheck {
 }
 
 /// tsc getSupportedExtensions: JS roots only join the program with allowJs.
-fn is_supported_source_file_name<'n>(
-    name: impl Into<tsc_types::JsStr<'n>>,
-    allow_js: bool,
-) -> bool {
+fn is_supported_source_file_name<'n>(name: impl Into<JsStr<'n>>, allow_js: bool) -> bool {
     let name = name.into();
     let ts_like = [".ts", ".tsx", ".mts", ".cts", ".json"];
     ts_like.iter().any(|extension| name.ends_with(extension)) || (allow_js && is_js_file_name(name))
@@ -810,7 +807,7 @@ fn is_supported_source_file_name<'n>(
 /// tsc-port: hasJSFileExtension @6.0.3
 /// tsc-hash: 26f2de10186fd7377e0fc90d254165421f27320a1b95dca68e43ee8f2f71128d
 /// tsc-span: _tsc.js:18654-18656
-pub(crate) fn is_js_file_name<'n>(name: impl Into<tsc_types::JsStr<'n>>) -> bool {
+pub(crate) fn is_js_file_name<'n>(name: impl Into<JsStr<'n>>) -> bool {
     let name = name.into();
     [".js", ".jsx", ".mjs", ".cjs"]
         .iter()
@@ -2889,21 +2886,16 @@ fn report_program_memory(snapshot: &ProgramSnapshot) {
         syntax.array_items,
         syntax.array_item_bytes,
     );
-    row(
-        "syntax: identifier strings",
-        syntax.identifiers,
-        syntax.identifier_text_bytes,
-    );
+    let (names, name_bytes) = tsc_types::EscapedName::interned_names();
+    row("syntax: identifiers (interned)", syntax.identifiers, 0);
+    row("names: interned name texts", names, name_bytes);
     row(
         "syntax: other literal strings",
         syntax.string_nodes,
         syntax.string_bytes,
     );
-    let syntax_total = syntax.node_bytes
-        + syntax.array_bytes
-        + syntax.array_item_bytes
-        + syntax.identifier_text_bytes
-        + syntax.string_bytes;
+    let syntax_total =
+        syntax.node_bytes + syntax.array_bytes + syntax.array_item_bytes + syntax.string_bytes;
     row("syntax: total", syntax.nodes, syntax_total);
     let table_bytes: usize = binder.tables.values().sum();
     row(

@@ -119,6 +119,12 @@ pub enum PerfCounter {
     CheckerReplayContextualSignature,
     CheckerReplayUnionIndexInfos,
     CheckerReplayIntersectionLast,
+    // ---- the name table ----
+    NamesInternCalls,
+    NamesInternInserts,
+    NamesTextReads,
+    NamesTextKeyLookups,
+    NamesEscapeCalls,
     /// Sentinel: number of counters (not a counter).
     Count,
 }
@@ -204,6 +210,11 @@ pub const WIRED: [bool; COUNT] = [
     true,  // checker_replay.contextual_signature
     true,  // checker_replay.union_index_infos
     true,  // checker_replay.intersection_last
+    true,  // names.intern.calls
+    true,  // names.intern.inserts
+    true,  // names.text.reads
+    true,  // names.key.text_lookups
+    true,  // names.escape.calls
 ];
 
 /// Report names in variant order.
@@ -283,6 +294,11 @@ pub const NAMES: [&str; COUNT] = [
     "checker_replay.contextual_signature",
     "checker_replay.union_index_infos",
     "checker_replay.intersection_last",
+    "names.intern.calls",
+    "names.intern.inserts",
+    "names.text.reads",
+    "names.key.text_lookups",
+    "names.escape.calls",
 ];
 
 #[cfg(feature = "perf-counters")]
@@ -311,6 +327,57 @@ mod enabled {
             .zip(super::WIRED.iter())
             .map(|((name, counter), wired)| (*name, wired.then(|| counter.load(Ordering::Relaxed))))
             .collect()
+    }
+}
+
+/// Call-site attribution of name-table traffic (measurement builds only):
+/// which callers intern text keys or construct names from text.
+#[cfg(feature = "perf-counters")]
+mod sites {
+    use std::collections::HashMap;
+    use std::panic::Location;
+    use std::sync::Mutex;
+
+    static SITES: Mutex<Option<HashMap<&'static Location<'static>, u64>>> = Mutex::new(None);
+
+    pub fn note(location: &'static Location<'static>) {
+        let mut sites = SITES.lock().expect("name sites poisoned");
+        *sites
+            .get_or_insert_with(HashMap::new)
+            .entry(location)
+            .or_insert(0) += 1;
+    }
+
+    pub fn snapshot() -> Vec<(String, u64)> {
+        let sites = SITES.lock().expect("name sites poisoned");
+        let mut rows: Vec<(String, u64)> = sites
+            .as_ref()
+            .map(|sites| sites.iter().map(|(l, n)| (l.to_string(), *n)).collect())
+            .unwrap_or_default();
+        rows.sort_by(|a, b| b.1.cmp(&a.1));
+        rows
+    }
+}
+
+/// Record the caller of a name-table entry point (no-op without the feature).
+#[inline(always)]
+pub fn name_site(location: &'static std::panic::Location<'static>) {
+    #[cfg(feature = "perf-counters")]
+    sites::note(location);
+    #[cfg(not(feature = "perf-counters"))]
+    let _ = location;
+}
+
+/// Name-table call sites with their counts, most frequent first; empty
+/// without the feature.
+pub fn name_sites() -> Vec<(String, u64)> {
+    #[cfg(feature = "perf-counters")]
+    {
+        sites::snapshot()
+    }
+    #[cfg(not(feature = "perf-counters"))]
+    {
+        Vec::new()
     }
 }
 
@@ -360,7 +427,7 @@ mod tests {
         assert_eq!(NAMES.len(), COUNT);
         assert_eq!(WIRED.len(), COUNT);
         assert_eq!(NAMES[0], "links.node.reads");
-        assert_eq!(NAMES[COUNT - 1], "checker_replay.intersection_last");
+        assert_eq!(NAMES[COUNT - 1], "names.escape.calls");
     }
 
     #[test]

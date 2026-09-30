@@ -212,7 +212,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         let text = self.token_value();
         let id = self.finish(
             NodeData::Identifier(IdentifierData {
-                escaped_text: crate::escape_leading_underscores(&text),
+                escaped_text: tsc_types::EscapedName::escape((&text).into()),
             }),
             pos,
             end,

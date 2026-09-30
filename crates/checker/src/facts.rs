@@ -273,7 +273,10 @@ impl<'a> CheckerState<'a> {
         if !members.call_signatures.is_empty() || !members.construct_signatures.is_empty() {
             return Ok(true);
         }
-        let has_bind = members.members.get(&self.binder, "bind").is_some();
+        let has_bind = members
+            .members
+            .get(&self.binder, tsc_types::known_name!("bind"))
+            .is_some();
         if !has_bind {
             return Ok(false);
         }

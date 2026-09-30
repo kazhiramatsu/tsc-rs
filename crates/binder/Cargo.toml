@@ -12,6 +12,10 @@ dev-profile-opt-level = 3
 name = "tsc_binder"
 path = "src/lib.rs"
 
+[features]
+# Measurement builds only: name-table call-site attribution (see tsc_types::perf).
+perf-counters = ["tsc-types/perf-counters"]
+
 [dependencies]
 hashbrown = { version = "0.16", default-features = false, features = ["inline-more"] }
 indexmap = "2"

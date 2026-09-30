@@ -33,7 +33,9 @@ impl UnfinalizedGeneratedNameTransformer {
         context.factory()?.create_node(
             source,
             NodeData::Identifier(syntax_nodes::IdentifierData {
-                escaped_text: tsc_syntax::escape_leading_underscores(text),
+                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(
+                    &tsc_syntax::escape_leading_underscores(text),
+                ),
             }),
             TransformFlags::NONE,
         )

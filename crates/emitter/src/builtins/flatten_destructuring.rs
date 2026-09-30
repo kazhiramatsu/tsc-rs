@@ -2114,7 +2114,9 @@ fn create_identifier<H: FlattenHost>(
     host.context().factory()?.create_node(
         source,
         NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-            escaped_text: tsc_syntax::escape_leading_underscores(text),
+            escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(
+                &tsc_syntax::escape_leading_underscores(text),
+            ),
         }),
         TransformFlags::NONE,
     )

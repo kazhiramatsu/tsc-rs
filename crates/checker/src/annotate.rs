@@ -55,7 +55,7 @@ impl<'a> CheckerState<'a> {
     /// `escapedText` property access.
     pub(crate) fn identifier_text(&self, node: NodeId) -> Option<&str> {
         match self.data_of(node) {
-            NodeData::Identifier(data) => Some(&data.escaped_text),
+            NodeData::Identifier(data) => Some(data.escaped_text.identifier_text()),
             _ => None,
         }
     }
@@ -3309,8 +3309,8 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<TypeId> {
         let ty = self.get_declared_type_of_type_alias(symbol)?;
         if ty == self.tables.intrinsics.intrinsic_marker {
-            let name = self.binder.symbol(symbol).escaped_name.clone();
-            if let Some(kind) = crate::instantiate::intrinsic_type_kind(&name) {
+            let name = self.binder.symbol(symbol).escaped_name;
+            if let Some(kind) = crate::instantiate::intrinsic_type_kind(name) {
                 if let Some(arguments) = type_arguments {
                     if arguments.len() == 1 {
                         return if kind == crate::instantiate::IntrinsicTypeKind::NoInfer {
@@ -4314,7 +4314,7 @@ impl<'a> CheckerState<'a> {
                     };
                 let inferred = state
                     .binder
-                    .create_symbol(symbol_flags, source_symbol.escaped_name.clone());
+                    .create_symbol(symbol_flags, source_symbol.escaped_name);
                 let check_flags = CheckFlags::REVERSE_MAPPED
                     | if readonly_mask && state.is_readonly_symbol(property)? {
                         CheckFlags::READONLY
@@ -4771,7 +4771,7 @@ impl<'a> CheckerState<'a> {
     fn symbol_list_to_table(&self, symbols: &[SymbolId]) -> tsc_binder::SymbolTable {
         let mut table = tsc_binder::SymbolTable::default();
         for &symbol in symbols {
-            table.insert(self.binder.symbol(symbol).escaped_name.clone(), symbol);
+            table.insert(self.binder.symbol(symbol).escaped_name, symbol);
         }
         table
     }
@@ -4954,7 +4954,7 @@ impl<'a> CheckerState<'a> {
                         }
                         None => state.get_merged_symbol(member),
                     };
-                    combined.insert(name.clone(), merged);
+                    combined.insert(*name, merged);
                 }
                 Arc::new(combined)
             };
@@ -4996,7 +4996,7 @@ impl<'a> CheckerState<'a> {
                             };
                             // A merged table is a new object; the shared
                             // early table stays as the other readers saw it.
-                            Arc::make_mut(&mut resolved).insert(name.clone(), member);
+                            Arc::make_mut(&mut resolved).insert(*name, member);
                         }
                     }
                 }
@@ -5146,22 +5146,20 @@ impl<'a> CheckerState<'a> {
             return Ok(Some(decl_symbol));
         };
         let symbol_flags = self.binder.symbol(decl_symbol).flags;
-        let mut late_symbol = match late.get(&member_name) {
+        let mut late_symbol = match late.get(member_name) {
             Some(&existing) => existing,
             None => {
-                let created = self
-                    .binder
-                    .create_symbol(SymbolFlags::NONE, member_name.clone());
+                let created = self.binder.create_symbol(SymbolFlags::NONE, member_name);
                 self.links.set_symbol_check_flags(
                     self.speculation_depth,
                     created,
                     tsc_types::CheckFlags::LATE,
                 );
-                late.insert(member_name.clone(), created);
+                late.insert(member_name, created);
                 created
             }
         };
-        let early_symbol = early.get(&member_name).copied();
+        let early_symbol = early.get(member_name).copied();
         let parent_is_class = self.symbol_flags(parent).intersects(SymbolFlags::CLASS);
         let excluded = get_excluded_symbol_flags(symbol_flags);
         if !parent_is_class && self.binder.symbol(late_symbol).flags.intersects(excluded) {
@@ -5177,7 +5175,7 @@ impl<'a> CheckerState<'a> {
                 .flags_of(name_type)
                 .intersects(TypeFlags::UNIQUE_ES_SYMBOL)
             {
-                tsc_binder::unescape_leading_underscores(&member_name).to_owned()
+                tsc_binder::unescape_leading_underscores(member_name).to_owned()
             } else {
                 self.text_of_node(decl_name)?.into()
             };
@@ -5202,9 +5200,7 @@ impl<'a> CheckerState<'a> {
             // table keeps the FIRST symbol (member types resolve
             // first-wins); the detached fresh symbol just carries this
             // declaration.
-            let fresh = self
-                .binder
-                .create_symbol(SymbolFlags::NONE, member_name.clone());
+            let fresh = self.binder.create_symbol(SymbolFlags::NONE, member_name);
             self.links.set_symbol_check_flags(
                 self.speculation_depth,
                 fresh,
@@ -6982,7 +6978,7 @@ impl<'a> CheckerState<'a> {
             if self.is_static_private_identifier_property(base) {
                 continue;
             }
-            let derived = symbols.get(&self.binder, &self.binder.symbol(base).escaped_name);
+            let derived = symbols.get(&self.binder, self.binder.symbol(base).escaped_name);
             let replace = match derived {
                 None => true,
                 Some(derived) => {
@@ -7520,7 +7516,7 @@ impl<'a> CheckerState<'a> {
             .symbols()
             .iter()
             .copied()
-            .filter(|&symbol| !is_reserved_member_name(&self.binder.symbol(symbol).escaped_name))
+            .filter(|&symbol| !is_reserved_member_name(self.binder.symbol(symbol).escaped_name))
             .collect();
         let mut named = Vec::with_capacity(candidates.len());
         for symbol in candidates {
@@ -8404,8 +8400,8 @@ impl<'a> CheckerState<'a> {
         let Some(&base_class_type) = base_types.first() else {
             return Ok(None);
         };
-        let name = self.binder.symbol(property).escaped_name.clone();
-        match self.get_property_of_type_full(base_class_type, &name)? {
+        let name = self.binder.symbol(property).escaped_name;
+        match self.get_property_of_type_full(base_class_type, name)? {
             Some(base_property) => self.get_type_of_symbol(base_property).map(Some),
             None => Ok(None),
         }
@@ -9395,7 +9391,7 @@ impl<'a> CheckerState<'a> {
                     }
                 }
                 let flags = self.symbol_flags(export_member) | self.symbol_flags(object_member);
-                let union_member = self.binder.create_symbol(flags, name.clone());
+                let union_member = self.binder.create_symbol(flags, *name);
                 let export_type = self.get_type_of_symbol(export_member)?;
                 let object_type = self.get_type_of_symbol(object_member)?;
                 let union_type =
@@ -9521,8 +9517,8 @@ impl<'a> CheckerState<'a> {
             return Ok(declared_type);
         };
         let annotated_type = self.get_type_from_type_node(annotation)?;
-        let name = self.binder.symbol(symbol).escaped_name.clone();
-        let Some(annotation_symbol) = self.get_property_of_type_full(annotated_type, &name)? else {
+        let name = self.binder.symbol(symbol).escaped_name;
+        let Some(annotation_symbol) = self.get_property_of_type_full(annotated_type, name)? else {
             return Ok(declared_type);
         };
         self.get_non_missing_type_of_symbol(annotation_symbol)
@@ -10668,10 +10664,10 @@ impl<'a> CheckerState<'a> {
                         SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
                     )
                 }) {
-                let name = self.binder.symbol(parameter_symbol).escaped_name.clone();
+                let name = self.binder.symbol(parameter_symbol).escaped_name;
                 self.resolve_name(
                     Some(parameter),
-                    &name,
+                    name,
                     SymbolFlags::VALUE,
                     /*name_not_found_message*/ None,
                     /*is_use*/ false,
@@ -11183,7 +11179,7 @@ fn get_excluded_symbol_flags(flags: SymbolFlags) -> SymbolFlags {
 }
 
 /// tsrs-native: Rust-structural helper for the h2-7a-m-3 foundation.
-pub(crate) fn is_reserved_member_name<'a>(name: impl Into<JsStr<'a>>) -> bool {
+pub(crate) fn is_reserved_member_name<'n, 'a>(name: impl Into<JsStr<'n>>) -> bool {
     let name = name.into();
     // h2-7a-m-3 widening (body site)
     let bytes = name.as_bytes();
@@ -11315,7 +11311,7 @@ impl<'a> CheckerState<'a> {
                 } else {
                     SymbolFlags::from_bits(0)
                 };
-            let symbol = self.binder.create_symbol(flags, text.clone());
+            let symbol = self.binder.create_symbol(flags, text);
             let element_type =
                 self.get_type_from_binding_element(e, include_pattern_in_type, report_errors)?;
             self.links
