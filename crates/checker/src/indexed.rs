@@ -1585,12 +1585,8 @@ impl<'a> CheckerState<'a> {
             }
             if index_flags.intersects(TypeFlags::NUMBER | TypeFlags::STRING) {
                 let resolved = self.resolve_structured_type_members(object_type)?;
-                let properties: Vec<SymbolId> = self
-                    .members_of(resolved)
-                    .members
-                    .values()
-                    .copied()
-                    .collect();
+                let properties: Vec<SymbolId> =
+                    self.members_of(resolved).members.symbols().to_vec();
                 let mut types = Vec::with_capacity(properties.len() + 1);
                 for property in properties {
                     types.push(self.get_type_of_symbol(property)?);

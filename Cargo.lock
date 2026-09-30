@@ -356,6 +356,7 @@ dependencies = [
 name = "tsc-rs-checker"
 version = "0.1.0"
 dependencies = [
+ "hashbrown 0.16.1",
  "indexmap",
  "rustc-hash",
  "serde_json",

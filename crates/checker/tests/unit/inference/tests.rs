@@ -1712,7 +1712,10 @@ fn string_literal_against_keyof_records_reverse_empty_object() {
             let resolved = state.members_of(members);
             assert_eq!(resolved.properties.len(), 1);
             assert!(resolved.index_infos.is_empty());
-            let prop = *resolved.members.get("a").expect("member `a`");
+            let prop = resolved
+                .members
+                .get(&state.binder, "a")
+                .expect("member `a`");
             assert_eq!(
                 state.links.symbol(prop).type_of_symbol.resolved(),
                 Some(state.tables.intrinsics.any),
@@ -1802,8 +1805,12 @@ fn literal_union_against_keyof_filters_and_escapes_members() {
             assert_eq!(
                 resolved
                     .members
-                    .keys()
-                    .map(|value| value
+                    .symbols()
+                    .iter()
+                    .map(|&symbol| state
+                        .binder
+                        .symbol(symbol)
+                        .escaped_name
                         .as_js()
                         .as_str()
                         .expect("scalar name observation")

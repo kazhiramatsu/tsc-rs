@@ -7768,7 +7768,7 @@ impl<'a> CheckerState<'a> {
         };
         Ok(self.make_resolved_anonymous_type(
             anonymous_symbol,
-            member_table.into(),
+            self.member_table(&member_table),
             properties,
             Vec::new(),
             ObjectFlags::ANONYMOUS,
@@ -9610,7 +9610,7 @@ impl<'a> CheckerState<'a> {
         }
         let ty = self.make_resolved_anonymous_type(
             Some(object_symbol),
-            members.into(),
+            self.member_table(&members),
             properties,
             Vec::new(),
             tsc_types::ObjectFlags::OBJECT_LITERAL | tsc_types::ObjectFlags::NON_INFERRABLE_TYPE,

@@ -18,6 +18,7 @@ use tsc_types::{
 
 use crate::instantiate::MapperId;
 use crate::links::{LinkSlot, LinksTables};
+use crate::member_table::MemberTable;
 use crate::program::{ProgramBinder, ProgramSnapshot};
 use crate::relate::RelationCaches;
 
@@ -267,9 +268,10 @@ pub type WideningContextId = usize;
 /// 50198): members table + named properties + signatures + index infos.
 #[derive(Clone, Debug, Default)]
 pub struct ResolvedMembers {
-    /// Shared with the declaring symbol's own table when the members are
-    /// exactly its declared members; a fresh table otherwise.
-    pub members: std::sync::Arc<SymbolTable>,
+    /// The declared members (copied from the declaring symbol's own table
+    /// when they are exactly those), the instantiated ones, or the declared
+    /// plus inherited ones; see [`MemberTable`].
+    pub members: MemberTable,
     pub properties: Vec<SymbolId>,
     pub call_signatures: Vec<SignatureId>,
     pub construct_signatures: Vec<SignatureId>,
@@ -1132,15 +1134,12 @@ impl<'a> CheckerState<'a> {
             self.signatures.len(),
             self.signatures.capacity() * std::mem::size_of::<Signature>() + signature_heap,
         ));
-        let mut member_tables = rustc_hash::FxHashMap::default();
         let members_heap: usize = self
             .members
             .iter()
             .map(|members| {
-                member_tables
-                    .entry(std::sync::Arc::as_ptr(&members.members))
-                    .or_insert_with(|| members.members.heap_bytes());
-                members.properties.capacity() * 4
+                members.members.heap_bytes()
+                    + members.properties.capacity() * 4
                     + members.call_signatures.capacity() * 4
                     + members.construct_signatures.capacity() * 4
                     + members.index_infos.capacity() * std::mem::size_of::<IndexInfo>()
@@ -1149,9 +1148,7 @@ impl<'a> CheckerState<'a> {
         rows.push((
             "resolved members",
             self.members.len(),
-            self.members.capacity() * std::mem::size_of::<ResolvedMembers>()
-                + members_heap
-                + member_tables.values().sum::<usize>(),
+            self.members.capacity() * std::mem::size_of::<ResolvedMembers>() + members_heap,
         ));
         rows.push((
             "type mappers",
@@ -1840,6 +1837,12 @@ impl<'a> CheckerState<'a> {
         let id = MembersId::new(self.members.len() as u32);
         self.members.push(members);
         id
+    }
+
+    /// A resolved members table from a symbol table the checker built (its
+    /// keys are the members' names).
+    pub(crate) fn member_table(&self, table: &SymbolTable) -> MemberTable {
+        MemberTable::from_symbol_table(&self.binder, table)
     }
 
     /// tsrs-native: numeric MembersId arena accessor; tsc carries the

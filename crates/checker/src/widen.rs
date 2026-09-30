@@ -370,7 +370,7 @@ impl<'a> CheckerState<'a> {
             ObjectFlags::from_bits(ObjectFlags::ANONYMOUS.bits() | carried);
         self.tables.type_mut(result).symbol = symbol;
         let members_id = self.alloc_members(crate::state::ResolvedMembers {
-            members: members.into(),
+            members: self.member_table(&members),
             properties,
             call_signatures: Vec::new(),
             construct_signatures: Vec::new(),

@@ -595,7 +595,7 @@ impl<'a> CheckerState<'a> {
                     child_prop_map.insert(children_name.clone(), children_prop_symbol);
                     let child_type = self.make_resolved_anonymous_type(
                         attributes_symbol,
-                        child_prop_map.into(),
+                        self.member_table(&child_prop_map),
                         vec![children_prop_symbol],
                         Vec::new(),
                         ObjectFlags::ANONYMOUS,
@@ -654,7 +654,7 @@ impl<'a> CheckerState<'a> {
         let properties: Vec<SymbolId> = attributes_table.values().copied().collect();
         self.make_resolved_anonymous_type(
             attributes_symbol,
-            attributes_table.clone().into(),
+            self.member_table(attributes_table),
             properties,
             Vec::new(),
             flags,
@@ -1228,8 +1228,7 @@ impl<'a> CheckerState<'a> {
                 let index_symbol = self
                     .members_of(members)
                     .members
-                    .get(tsc_binder::InternalSymbolName::INDEX)
-                    .copied();
+                    .get(&self.binder, tsc_binder::InternalSymbolName::INDEX);
                 // tsc stores `intrinsicElementsType.symbol` here, which
                 // an alias-declared IntrinsicElements leaves undefined:
                 // the memo then never fills and no T0 path reads the
