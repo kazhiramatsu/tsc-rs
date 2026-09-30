@@ -771,8 +771,12 @@ impl<'a> BinderWorker<'a> {
                     let const_enum_only = !flags.intersects(
                         SymbolFlags::FUNCTION | SymbolFlags::CLASS | SymbolFlags::REGULAR_ENUM,
                     ) && state == ModuleInstanceState::ConstEnumOnly
-                        && self.symbols.symbol(symbol).const_enum_only_module != Some(false);
-                    self.symbols.symbol_mut(symbol).const_enum_only_module = Some(const_enum_only);
+                        && self.symbols.symbol(symbol).extras().const_enum_only_module
+                            != Some(false);
+                    self.symbols
+                        .symbol_mut(symbol)
+                        .extras_mut()
+                        .const_enum_only_module = Some(const_enum_only);
                 }
             }
         }

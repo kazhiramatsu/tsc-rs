@@ -44,19 +44,41 @@ pub struct Symbol {
     /// binder fills the table in place, readers clone the handle.
     pub members: Arc<SymbolTable>,
     pub exports: Arc<SymbolTable>,
-    /// tsc Symbol.globalExports (bindNamespaceExportDeclaration).
-    pub global_exports: Arc<SymbolTable>,
     pub parent: Option<SymbolId>,
     /// local ↔ export link installed by declareModuleMember.
     pub export_symbol: Option<SymbolId>,
+    /// The fields few symbols set; see [`Symbol::extras`].
+    extras: Option<Box<SymbolExtras>>,
+}
+
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(std::mem::size_of::<Symbol>() == 88);
+
+/// The [`Symbol`] fields few symbols set: a UMD global-export table, the JS
+/// assignment-declaration members and two binder latches. They live in one
+/// box allocated on the first write, so every other symbol, including the
+/// millions a checker instantiates, pays one pointer for them.
+#[derive(Clone, Debug, PartialEq)]
+pub struct SymbolExtras {
+    /// tsc Symbol.globalExports (bindNamespaceExportDeclaration).
+    pub global_exports: Arc<SymbolTable>,
     pub const_enum_only_module: Option<bool>,
     pub is_replaceable_by_method: bool,
     /// tsc Symbol.assignmentDeclarationMembers: dynamically named JS
     /// assignments are late-bound when the containing symbol's
     /// members/exports are resolved.
-    /// Allocated on the first assignment-declaration member: the map is
-    /// empty for almost every symbol, so it costs one pointer until then.
-    pub assignment_declaration_members: Option<Box<IndexMap<NodeId, NodeId>>>,
+    pub assignment_declaration_members: IndexMap<NodeId, NodeId>,
+}
+
+impl Default for SymbolExtras {
+    fn default() -> Self {
+        Self {
+            global_exports: empty_symbol_table(),
+            const_enum_only_module: None,
+            is_replaceable_by_method: false,
+            assignment_declaration_members: IndexMap::new(),
+        }
+    }
 }
 
 impl Symbol {
@@ -68,13 +90,43 @@ impl Symbol {
             value_declaration: None,
             members: empty_symbol_table(),
             exports: empty_symbol_table(),
-            global_exports: empty_symbol_table(),
             parent: None,
             export_symbol: None,
-            const_enum_only_module: None,
-            is_replaceable_by_method: false,
-            assignment_declaration_members: None,
+            extras: None,
         }
+    }
+
+    /// The fields few symbols set; their defaults when none was written.
+    pub fn extras(&self) -> &SymbolExtras {
+        static ABSENT: std::sync::OnceLock<SymbolExtras> = std::sync::OnceLock::new();
+        match &self.extras {
+            Some(extras) => extras,
+            None => ABSENT.get_or_init(|| SymbolExtras {
+                global_exports: Arc::default(),
+                ..SymbolExtras::default()
+            }),
+        }
+    }
+
+    /// The fields few symbols set, for writing; allocated on first use.
+    pub fn extras_mut(&mut self) -> &mut SymbolExtras {
+        self.extras.get_or_insert_with(Box::default)
+    }
+
+    /// The member, export and global-export tables.
+    pub fn tables(&self) -> impl Iterator<Item = &Arc<SymbolTable>> {
+        [&self.members, &self.exports]
+            .into_iter()
+            .chain(self.extras.as_deref().map(|extras| &extras.global_exports))
+    }
+
+    /// The member, export and global-export tables, for rewriting.
+    pub(crate) fn tables_mut(&mut self) -> impl Iterator<Item = &mut Arc<SymbolTable>> {
+        [&mut self.members, &mut self.exports].into_iter().chain(
+            self.extras
+                .as_deref_mut()
+                .map(|extras| &mut extras.global_exports),
+        )
     }
 }
 
@@ -164,13 +216,15 @@ impl SymbolArena {
         let mut owned = 0;
         for symbol in &self.symbols {
             owned += symbol.escaped_name.heap_bytes() + symbol.declarations.heap_bytes();
-            for table in [&symbol.members, &symbol.exports, &symbol.global_exports] {
+            for table in symbol.tables() {
                 tables
                     .entry(std::sync::Arc::as_ptr(table))
                     .or_insert_with(|| table.heap_bytes());
             }
-            if let Some(members) = &symbol.assignment_declaration_members {
-                owned += members.capacity() * (2 * std::mem::size_of::<NodeId>() + 16);
+            if let Some(extras) = &symbol.extras {
+                owned += std::mem::size_of::<SymbolExtras>()
+                    + extras.assignment_declaration_members.capacity()
+                        * (2 * std::mem::size_of::<NodeId>() + 16);
             }
         }
         (
@@ -195,7 +249,7 @@ impl SymbolArena {
 
     /// Room for `additional` more symbols without moving the arena: a
     /// checker sizes its transient arena from its share of the program
-    /// instead of doubling (and copying 176 bytes per symbol) as it grows.
+    /// instead of doubling (and copying 88 bytes per symbol) as it grows.
     pub fn reserve(&mut self, additional: usize) {
         self.symbols.reserve(additional);
     }
@@ -298,11 +352,7 @@ impl SymbolArena {
         lease: IdentityLease,
     ) -> Result<(), IdentityError> {
         for symbol in &mut self.symbols {
-            for table in [
-                &mut symbol.members,
-                &mut symbol.exports,
-                &mut symbol.global_exports,
-            ] {
+            for table in symbol.tables_mut() {
                 if !table.is_empty() {
                     relocate_symbol_table_values(Arc::make_mut(table), &relocation)?;
                 }

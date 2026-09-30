@@ -1625,8 +1625,8 @@ impl<'a> BinderWorker<'a> {
         if let Some(symbol) = symbol {
             self.symbols
                 .symbol_mut(symbol)
+                .extras_mut()
                 .assignment_declaration_members
-                .get_or_insert_with(Box::default)
                 .insert(node, node);
         }
     }

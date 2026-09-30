@@ -831,7 +831,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn is_const_enum_or_const_enum_only_module_symbol(&self, symbol: SymbolId) -> bool {
         let symbol = self.binder.symbol(symbol);
         symbol.flags.intersects(SymbolFlags::CONST_ENUM)
-            || symbol.const_enum_only_module == Some(true)
+            || symbol.extras().const_enum_only_module == Some(true)
     }
 
     /// tsc-port: isValueAliasDeclaration @6.0.3
@@ -7876,7 +7876,7 @@ impl<'a> CheckerState<'a> {
         let declarations = original.declarations.clone();
         let parent = original.parent;
         let value_declaration = original.value_declaration;
-        let const_enum_only_module = original.const_enum_only_module;
+        let const_enum_only_module = original.extras().const_enum_only_module;
         let members = original.members.clone();
         let exports = original.exports.clone();
         let result = self.binder.create_symbol(flags, escaped_name);
@@ -7885,7 +7885,7 @@ impl<'a> CheckerState<'a> {
         cloned.parent = parent;
         cloned.value_declaration = value_declaration;
         if const_enum_only_module == Some(true) {
-            cloned.const_enum_only_module = Some(true);
+            cloned.extras_mut().const_enum_only_module = Some(true);
         }
         cloned.members = members;
         cloned.exports = exports;

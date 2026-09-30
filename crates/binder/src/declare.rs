@@ -683,7 +683,7 @@ impl<'a> BinderWorker<'a> {
             TableRef::Locals(node) => self.locals.entry(node).or_default(),
             TableRef::Members(symbol) => &self.symbols.symbol(symbol).members,
             TableRef::Exports(symbol) => &self.symbols.symbol(symbol).exports,
-            TableRef::GlobalExports(symbol) => &self.symbols.symbol(symbol).global_exports,
+            TableRef::GlobalExports(symbol) => &self.symbols.symbol(symbol).extras().global_exports,
         }
     }
 
@@ -697,7 +697,7 @@ impl<'a> BinderWorker<'a> {
                 Arc::make_mut(&mut self.symbols.symbol_mut(symbol).exports)
             }
             TableRef::GlobalExports(symbol) => {
-                Arc::make_mut(&mut self.symbols.symbol_mut(symbol).global_exports)
+                Arc::make_mut(&mut self.symbols.symbol_mut(symbol).extras_mut().global_exports)
             }
         }
     }
@@ -764,13 +764,20 @@ impl<'a> BinderWorker<'a> {
                         let symbol = self.create_symbol(SymbolFlags::NONE, name.clone());
                         self.table_mut(table).insert(name, symbol);
                         if is_replaceable_by_method {
-                            self.symbols.symbol_mut(symbol).is_replaceable_by_method = true;
+                            self.symbols
+                                .symbol_mut(symbol)
+                                .extras_mut()
+                                .is_replaceable_by_method = true;
                         }
                         symbol
                     }
                     Some(existing)
                         if is_replaceable_by_method
-                            && !self.symbols.symbol(existing).is_replaceable_by_method =>
+                            && !self
+                                .symbols
+                                .symbol(existing)
+                                .extras()
+                                .is_replaceable_by_method =>
                     {
                         // A replaceable-by-method binding cannot replace
                         // an ordinary symbol: keep the existing one and
@@ -778,7 +785,12 @@ impl<'a> BinderWorker<'a> {
                         return existing;
                     }
                     Some(existing) if self.symbols.symbol(existing).flags.intersects(excludes) => {
-                        if self.symbols.symbol(existing).is_replaceable_by_method {
+                        if self
+                            .symbols
+                            .symbol(existing)
+                            .extras()
+                            .is_replaceable_by_method
+                        {
                             let symbol = self.create_symbol(SymbolFlags::NONE, name.clone());
                             self.table_mut(table).insert(name, symbol);
                             symbol
@@ -848,12 +860,12 @@ impl<'a> BinderWorker<'a> {
             self.symbols.symbol_mut(symbol).declarations.push(node);
         }
         let sym = self.symbols.symbol_mut(symbol);
-        if sym.const_enum_only_module == Some(true)
+        if sym.extras().const_enum_only_module == Some(true)
             && sym
                 .flags
                 .intersects(SymbolFlags::FUNCTION | SymbolFlags::CLASS | SymbolFlags::REGULAR_ENUM)
         {
-            sym.const_enum_only_module = Some(false);
+            sym.extras_mut().const_enum_only_module = Some(false);
         }
         if symbol_flags.intersects(SymbolFlags::VALUE) {
             self.set_value_declaration(symbol, node);
@@ -1325,11 +1337,7 @@ impl BinderWorker<'_> {
         if has_private_serials {
             for symbol in symbols.symbols_mut() {
                 serial_relocation.name(&mut symbol.escaped_name)?;
-                for table in [
-                    &mut symbol.members,
-                    &mut symbol.exports,
-                    &mut symbol.global_exports,
-                ] {
+                for table in symbol.tables_mut() {
                     if !table.is_empty() {
                         relocate_private_table_keys(Arc::make_mut(table), &serial_relocation)?;
                     }

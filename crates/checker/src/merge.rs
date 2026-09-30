@@ -161,7 +161,7 @@ impl<'a> CheckerState<'a> {
         let declarations = original.declarations.clone();
         let parent = original.parent;
         let value_declaration = original.value_declaration;
-        let const_enum_only_module = original.const_enum_only_module;
+        let const_enum_only_module = original.extras().const_enum_only_module;
         let members = original.members.clone();
         let exports = original.exports.clone();
         let result = self.binder.create_symbol(flags, escaped_name);
@@ -170,7 +170,7 @@ impl<'a> CheckerState<'a> {
         cloned.parent = parent;
         cloned.value_declaration = value_declaration;
         if const_enum_only_module == Some(true) {
-            cloned.const_enum_only_module = Some(true);
+            cloned.extras_mut().const_enum_only_module = Some(true);
         }
         cloned.members = members;
         cloned.exports = exports;
@@ -333,10 +333,13 @@ impl<'a> CheckerState<'a> {
                     .symbol(target)
                     .flags
                     .intersects(SymbolFlags::VALUE_MODULE)
-                && self.binder.symbol(target).const_enum_only_module == Some(true)
-                && self.binder.symbol(source).const_enum_only_module != Some(true)
+                && self.binder.symbol(target).extras().const_enum_only_module == Some(true)
+                && self.binder.symbol(source).extras().const_enum_only_module != Some(true)
             {
-                self.binder.symbol_mut(target).const_enum_only_module = Some(false);
+                self.binder
+                    .symbol_mut(target)
+                    .extras_mut()
+                    .const_enum_only_module = Some(false);
             }
             {
                 let source_symbol = self.binder.symbol(source);
@@ -905,7 +908,12 @@ impl<'a> CheckerState<'a> {
             // file.symbol.globalExports (88760-88767): only names not
             // already in globals join.
             if let Some(file_symbol) = self.binder.node_symbol(source.root) {
-                let global_exports = self.binder.symbol(file_symbol).global_exports.clone();
+                let global_exports = self
+                    .binder
+                    .symbol(file_symbol)
+                    .extras()
+                    .global_exports
+                    .clone();
                 for (id, &source_symbol) in global_exports.iter() {
                     if !self.globals.contains_key(id) {
                         std::sync::Arc::make_mut(&mut self.globals)
