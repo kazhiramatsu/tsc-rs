@@ -62,7 +62,10 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_alias_variances(&mut self, symbol: SymbolId) -> CheckResult<VariancesResult> {
         let type_parameters = self
             .links
-            .read_symbol(symbol, |links| links.cold().type_parameters.clone())
+            .symbol_cold()
+            .type_parameters
+            .get(symbol)
+            .clone()
             .unwrap_or_default();
         self.get_variances_worker(symbol, &type_parameters)
     }
@@ -80,10 +83,7 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
         type_parameters: &[TypeId],
     ) -> CheckResult<VariancesResult> {
-        match &self
-            .links
-            .read_symbol(symbol, |links| links.cold().variances.clone())
-        {
+        match &self.links.symbol_cold().variances.get(symbol).clone() {
             LinkSlot::Resolved(list) => return Ok(VariancesResult::Known(list.clone())),
             LinkSlot::Resolving => {
                 perf::bump(PerfCounter::SentinelVarianceInProgress);
@@ -221,7 +221,10 @@ impl<'a> CheckerState<'a> {
         {
             let type_parameters = self
                 .links
-                .read_symbol(symbol, |links| links.cold().type_parameters.clone())
+                .symbol_cold()
+                .type_parameters
+                .get(symbol)
+                .clone()
                 .unwrap_or_default();
             let arguments = self.instantiate_types(&type_parameters, mapper)?;
             self.get_type_alias_instantiation(

@@ -1233,10 +1233,7 @@ impl<'a> CheckerState<'a> {
         if self.binder.symbol(symbol).declarations.len() == 1 {
             return Ok(());
         }
-        if self
-            .links
-            .read_symbol(symbol, |links| links.cold().type_parameters_checked)
-        {
+        if *self.links.symbol_cold().type_parameters_checked.get(symbol) {
             return Ok(());
         }
         self.links.set_symbol_type_parameters_checked(symbol);

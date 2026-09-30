@@ -891,27 +891,42 @@ fn dm_visibility_walk_collects_and_monotonically_paints_linked_aliases() {
             .expect("exported interface declaration");
         let source_file = state.binder.source(0).root;
 
-        assert_eq!(state.links.node(painted_interface).is_visible, None);
-        assert_eq!(state.links.node(source_file).is_visible, None);
+        assert_eq!(
+            *state.links.node_cold().is_visible.get(painted_interface),
+            None
+        );
+        assert_eq!(*state.links.node_cold().is_visible.get(source_file), None);
         assert!(state
             .emit_is_declaration_visible(painted_interface)
             .expect("recursive visibility memo"));
-        assert_eq!(state.links.node(painted_interface).is_visible, Some(true));
-        assert_eq!(state.links.node(source_file).is_visible, Some(true));
+        assert_eq!(
+            *state.links.node_cold().is_visible.get(painted_interface),
+            Some(true)
+        );
+        assert_eq!(
+            *state.links.node_cold().is_visible.get(source_file),
+            Some(true)
+        );
 
-        assert_eq!(state.links.node(import_equals).is_visible, None);
+        assert_eq!(*state.links.node_cold().is_visible.get(import_equals), None);
         assert!(!state
             .emit_is_declaration_visible(import_equals)
             .expect("initial visibility memo"));
-        assert_eq!(state.links.node(import_equals).is_visible, Some(false));
+        assert_eq!(
+            *state.links.node_cold().is_visible.get(import_equals),
+            Some(false)
+        );
 
         let collected = state
             .collect_linked_aliases(export_name, /*set_visibility*/ false)
             .expect("collect branch")
             .expect("linked alias nodes");
         assert_eq!(collected, vec![import_equals, namespace]);
-        assert_eq!(state.links.node(import_equals).is_visible, Some(false));
-        assert_eq!(state.links.node(namespace).is_visible, None);
+        assert_eq!(
+            *state.links.node_cold().is_visible.get(import_equals),
+            Some(false)
+        );
+        assert_eq!(*state.links.node_cold().is_visible.get(namespace), None);
 
         assert_eq!(
             state
@@ -919,8 +934,14 @@ fn dm_visibility_walk_collects_and_monotonically_paints_linked_aliases() {
                 .expect("paint branch"),
             None
         );
-        assert_eq!(state.links.node(import_equals).is_visible, Some(true));
-        assert_eq!(state.links.node(namespace).is_visible, Some(true));
+        assert_eq!(
+            *state.links.node_cold().is_visible.get(import_equals),
+            Some(true)
+        );
+        assert_eq!(
+            *state.links.node_cold().is_visible.get(namespace),
+            Some(true)
+        );
         assert!(state
             .emit_is_declaration_visible(import_equals)
             .expect("painted visibility query"));
@@ -964,7 +985,7 @@ fn dm_check_phase_paints_both_export_alias_arms_only_for_declaration_outputs() {
                         .node_ids()
                         .find(|&node| state.kind_of(node) == SyntaxKind::ImportEqualsDeclaration)
                         .expect("import-equals declaration");
-                    state.links.node(declaration).is_visible
+                    *state.links.node_cold().is_visible.get(declaration)
                 })
                 .collect::<Vec<_>>()
         })

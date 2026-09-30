@@ -386,7 +386,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(ty);
         }
-        if let Some(literal) = self.links.read_ty(ty, |links| links.cold().literal_type) {
+        if let Some(literal) = *self.links.type_cold().literal_type.get(ty) {
             return Ok(literal);
         }
         let literal = self.tables.clone_type_reference(ty);
@@ -1012,7 +1012,9 @@ impl<'a> CheckerState<'a> {
             self.get_apparent_type_of_contextual_type(node, ContextFlags::NONE)?;
         acc.contextual_type_has_pattern = acc.contextual_type.is_some_and(|contextual| {
             self.links
-                .read_ty(contextual, |links| links.cold().pattern)
+                .type_cold()
+                .pattern
+                .get(contextual)
                 .is_some_and(|pattern| {
                     matches!(
                         self.kind_of(pattern),
@@ -1647,7 +1649,7 @@ impl<'a> CheckerState<'a> {
                     .set_fresh_symbol_type(result, crate::links::LinkSlot::Resolved(result_type));
                 let declarations = self.binder.symbol(prop).declarations.clone();
                 self.binder.symbol_mut(result).declarations = declarations;
-                let name_type = self.links.read_symbol(prop, |links| links.name_type);
+                let name_type = self.links.symbol(prop).name_type;
                 self.links
                     .set_symbol_name_type(self.speculation_depth, result, name_type);
                 self.links
@@ -1881,7 +1883,7 @@ impl<'a> CheckerState<'a> {
                     let mut declarations = left_declarations;
                     declarations.extend(right_declarations);
                     self.binder.symbol_mut(result).declarations = declarations;
-                    let name_type = self.links.read_symbol(left_prop, |links| links.name_type);
+                    let name_type = self.links.symbol(left_prop).name_type;
                     self.links
                         .set_symbol_name_type(self.speculation_depth, result, name_type);
                     members.insert(name, result);
@@ -1983,7 +1985,7 @@ impl<'a> CheckerState<'a> {
             .set_fresh_symbol_type(result, crate::links::LinkSlot::Resolved(result_type));
         let declarations = self.binder.symbol(prop).declarations.clone();
         self.binder.symbol_mut(result).declarations = declarations;
-        let name_type = self.links.read_symbol(prop, |links| links.name_type);
+        let name_type = self.links.symbol(prop).name_type;
         self.links
             .set_symbol_name_type(self.speculation_depth, result, name_type);
         self.links

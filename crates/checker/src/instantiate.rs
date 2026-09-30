@@ -466,9 +466,13 @@ impl<'a> CheckerState<'a> {
         if unconstrained {
             return tp;
         }
-        if let Some(cached) = self.links.read_ty(tp, |links| {
-            links.cold().restrictive_instantiation.resolved()
-        }) {
+        if let Some(cached) = self
+            .links
+            .type_cold()
+            .restrictive_instantiation
+            .get(tp)
+            .resolved()
+        {
             return cached;
         }
         let symbol = self.tables.type_of(tp).symbol;
@@ -609,9 +613,7 @@ impl<'a> CheckerState<'a> {
                 }
                 // 63442-63444: set accessors also need a var-free
                 // writeType before the fast path applies.
-                if let Some(write_type) = self
-                    .links
-                    .read_symbol(symbol, |links| links.cold().write_type.resolved())
+                if let Some(write_type) = self.links.symbol_cold().write_type.get(symbol).resolved()
                 {
                     if !self.could_contain_type_variables(write_type) {
                         return symbol;
@@ -645,7 +647,7 @@ impl<'a> CheckerState<'a> {
                         | CheckFlags::REST_PARAMETER)
                         .bits(),
             );
-        let name_type = self.links.read_symbol(symbol, |links| links.name_type);
+        let name_type = self.links.symbol(symbol).name_type;
         let result = self.binder.create_symbol(source_flags, escaped_name);
         self.links
             .set_symbol_check_flags(self.speculation_depth, result, check_flags);
@@ -683,7 +685,8 @@ impl<'a> CheckerState<'a> {
         let declaration = if is_reference {
             // 63464: deferred references carry their node.
             self.links
-                .read_ty(ty, |links| links.cold().deferred_node)
+                .ty(ty)
+                .deferred_node
                 .expect("References here are deferred (worker !node gate)")
         } else if object_flags.intersects(ObjectFlags::INSTANTIATION_EXPRESSION_TYPE) {
             // 63464 second arm: instantiation-expression types carry
@@ -691,7 +694,8 @@ impl<'a> CheckerState<'a> {
             // (stamped at creation, 77999, and propagated to
             // Instantiated copies, 63649-63651).
             self.links
-                .read_ty(ty, |links| links.cold().deferred_node)
+                .ty(ty)
+                .deferred_node
                 .expect("InstantiationExpressionType types stamp their node at creation")
         } else {
             let symbol = self
@@ -741,11 +745,13 @@ impl<'a> CheckerState<'a> {
         } else {
             ty
         };
-        let type_parameters = match self.links.read_node(declaration, |links| {
-            links
-                .cold()
-                .and_then(|cold| cold.outer_type_parameters.resolved())
-        }) {
+        let type_parameters = match self
+            .links
+            .node_cold()
+            .outer_type_parameters
+            .get(declaration)
+            .resolved()
+        {
             Some(cached) => cached.to_vec(),
             None => {
                 let mut outer = self
@@ -823,7 +829,7 @@ impl<'a> CheckerState<'a> {
         // `type.mapper` (63485): the deferred-reference mapper for
         // references, the instantiation mapper for anonymous shells.
         let type_mapper = if is_reference {
-            self.links.read_ty(ty, |links| links.cold().deferred_mapper)
+            *self.links.type_cold().deferred_mapper.get(ty)
         } else if let TypeData::Mapped(mapped) = &self.tables.type_of(ty).data {
             mapped.mapper
         } else {
@@ -1203,7 +1209,8 @@ impl<'a> CheckerState<'a> {
             // key for getObjectTypeInstantiation (63464).
             let node = self
                 .links
-                .read_ty(ty, |links| links.cold().deferred_node)
+                .ty(ty)
+                .deferred_node
                 .expect("InstantiationExpressionType types stamp their node at creation");
             self.links
                 .set_fresh_type_deferred_reference_links(result, node, None);
@@ -1618,10 +1625,7 @@ impl<'a> CheckerState<'a> {
                 .intersects(ObjectFlags::REFERENCE | ObjectFlags::ANONYMOUS | ObjectFlags::MAPPED)
             {
                 if object_flags.intersects(ObjectFlags::REFERENCE)
-                    && self
-                        .links
-                        .read_ty(ty, |links| links.cold().deferred_node)
-                        .is_none()
+                    && self.links.ty(ty).deferred_node.is_none()
                 {
                     // The !type.node fast path (63725-63729); deferred
                     // (node-carrying) references fall through to
@@ -1904,7 +1908,10 @@ impl<'a> CheckerState<'a> {
         }
         if let Some(cached) = self
             .links
-            .read_ty(ty, |links| links.cold().permissive_instantiation.resolved())
+            .type_cold()
+            .permissive_instantiation
+            .get(ty)
+            .resolved()
         {
             return Ok(cached);
         }
@@ -1926,9 +1933,13 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(ty);
         }
-        if let Some(cached) = self.links.read_ty(ty, |links| {
-            links.cold().restrictive_instantiation.resolved()
-        }) {
+        if let Some(cached) = self
+            .links
+            .type_cold()
+            .restrictive_instantiation
+            .get(ty)
+            .resolved()
+        {
             return Ok(cached);
         }
         let mapper = self.restrictive_mapper;
@@ -2011,15 +2022,12 @@ impl<'a> CheckerState<'a> {
                     // `type.node || some(getTypeArguments(type), ...)`
                     // (68336): node-carrying references short-circuit
                     // true without forcing their arguments.
-                    self.links
-                        .read_ty(ty, |links| links.cold().deferred_node)
-                        .is_some()
-                        || {
-                            let arguments: Vec<TypeId> = self.tables.type_arguments(ty).to_vec();
-                            arguments
-                                .into_iter()
-                                .any(|argument| self.could_contain_type_variables(argument))
-                        }
+                    self.links.ty(ty).deferred_node.is_some() || {
+                        let arguments: Vec<TypeId> = self.tables.type_arguments(ty).to_vec();
+                        arguments
+                            .into_iter()
+                            .any(|argument| self.could_contain_type_variables(argument))
+                    }
                 }) || (object_flags.intersects(ObjectFlags::ANONYMOUS)
                     && self.tables.type_of(ty).symbol.is_some_and(|symbol| {
                         self.binder.symbol(symbol).flags.intersects(

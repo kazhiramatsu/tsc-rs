@@ -232,7 +232,7 @@ fn generic_mapped_index_probe_does_not_materialize_members() {
             };
             assert!(
                 matches!(
-                    state.links.ty(object_type).resolved_members,
+                    state.links.ty(object_type).resolved_members.get(),
                     crate::links::LinkSlot::Vacant
                 ),
                 "the string-index-only probe must not expand a generic mapped template"

@@ -825,18 +825,18 @@ fn setter_name_serialization_queries_the_write_type_only_when_emitting_it() {
             assert_eq!(checker.kind_of(setter), SyntaxKind::SetAccessor);
             assert!(checker
                 .links
-                .symbol(property)
-                .cold()
+                .symbol_cold()
                 .write_type
+                .get(property)
                 .resolved()
                 .is_none());
             // Isolate the write-type cache from the signature's own lazy work.
             checker.get_signature_from_declaration(setter).unwrap();
             assert!(checker
                 .links
-                .symbol(property)
-                .cold()
+                .symbol_cold()
                 .write_type
+                .get(property)
                 .resolved()
                 .is_none());
             let mut arena = TransformArena::new();
@@ -869,9 +869,9 @@ fn setter_name_serialization_queries_the_write_type_only_when_emitting_it() {
                     assert_eq!(
                         checker
                             .links
-                            .symbol(property)
-                            .cold()
+                            .symbol_cold()
                             .write_type
+                            .get(property)
                             .resolved()
                             .is_none(),
                         private

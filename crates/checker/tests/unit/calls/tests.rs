@@ -1199,9 +1199,9 @@ fn failed_candidate_keeps_deferred_assertion_operand_stash() {
             assert!(rows(state).is_empty());
             assert!(state
                 .links
-                .node(assertion)
-                .cold()
-                .and_then(|cold| cold.assertion_expression_type)
+                .node_cold()
+                .assertion_expression_type
+                .get(assertion)
                 .is_some());
             assert_eq!(state.speculation_depth, 0);
         },

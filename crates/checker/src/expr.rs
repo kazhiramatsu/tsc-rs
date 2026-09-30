@@ -4375,7 +4375,10 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<TypeId> {
         if let Some(cached) = self
             .links
-            .read_node(node, |links| links.context_free_type.resolved())
+            .node_cold()
+            .context_free_type
+            .get(node)
+            .resolved()
         {
             return Ok(cached);
         }
@@ -4385,7 +4388,10 @@ impl<'a> CheckerState<'a> {
         let ty = result?;
         if self
             .links
-            .read_node(node, |links| links.context_free_type.resolved())
+            .node_cold()
+            .context_free_type
+            .get(node)
+            .resolved()
             .is_none()
         {
             self.links

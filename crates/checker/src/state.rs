@@ -2092,20 +2092,20 @@ impl<'a> CheckerState<'a> {
                     unreachable!("ResolvedBaseTypes resolution targets are types");
                 };
                 // `!!type.baseTypesResolved` (55772).
-                self.links.read_ty(ty, |links| links.cold().base_types_resolved)
+                *self.links.type_cold().base_types_resolved.get(ty)
             }
             TypeSystemPropertyName::RESOLVED_BASE_CONSTRUCTOR_TYPE => {
                 let ResolutionTarget::Type(ty) = target else {
                     unreachable!("ResolvedBaseConstructorType resolution targets are types");
                 };
-                self.links.read_ty(ty, |links| links.cold().resolved_base_constructor_type.resolved())
+                self.links.type_cold().resolved_base_constructor_type.get(ty).resolved()
                     .is_some()
             }
             TypeSystemPropertyName::WRITE_TYPE => {
                 let ResolutionTarget::Symbol(symbol) = target else {
                     unreachable!("WriteType resolution targets are symbols");
                 };
-                self.links.read_symbol(symbol, |links| links.cold().write_type.resolved()).is_some()
+                self.links.symbol_cold().write_type.get(symbol).resolved().is_some()
             }
             TypeSystemPropertyName::PARAMETER_INITIALIZER_CONTAINS_UNDEFINED => {
                 let ResolutionTarget::Node(node) = target else {
@@ -2115,7 +2115,10 @@ impl<'a> CheckerState<'a> {
                 };
                 // `links.parameterInitializerContainsUndefined !== undefined`
                 // (55773).
-                self.links.read_node(node, |links| links.parameter_initializer_contains_undefined)
+                self.links
+                    .node_cold()
+                    .parameter_initializer_contains_undefined
+                    .get(node)
                     .is_some()
             }
             _ => unreachable!(

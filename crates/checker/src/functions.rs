@@ -57,7 +57,10 @@ impl<'a> CheckerState<'a> {
                     if self.could_contain_type_variables(contextual_return) {
                         if let Some(cached) = self
                             .links
-                            .read_node(node, |links| links.context_free_type.resolved())
+                            .node_cold()
+                            .context_free_type
+                            .get(node)
+                            .resolved()
                         {
                             return Ok(cached);
                         }

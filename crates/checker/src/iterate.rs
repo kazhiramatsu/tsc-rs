@@ -482,14 +482,15 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         key: IterationCacheKey,
     ) -> Option<IterationTypesResult> {
-        let links = self.links.ty(ty);
-        match key {
-            IterationCacheKey::Iterable => links.cold().iteration_types_of_iterable,
-            IterationCacheKey::AsyncIterable => links.cold().iteration_types_of_async_iterable,
-            IterationCacheKey::Iterator => links.cold().iteration_types_of_iterator,
-            IterationCacheKey::AsyncIterator => links.cold().iteration_types_of_async_iterator,
-            IterationCacheKey::IteratorResult => links.cold().iteration_types_of_iterator_result,
-        }
+        let cold = self.links.type_cold();
+        let cache = match key {
+            IterationCacheKey::Iterable => &cold.iteration_types_of_iterable,
+            IterationCacheKey::AsyncIterable => &cold.iteration_types_of_async_iterable,
+            IterationCacheKey::Iterator => &cold.iteration_types_of_iterator,
+            IterationCacheKey::AsyncIterator => &cold.iteration_types_of_async_iterator,
+            IterationCacheKey::IteratorResult => &cold.iteration_types_of_iterator_result,
+        };
+        *cache.get(ty)
     }
 
     /// tsc-port: setCachedIterationTypes @6.0.3

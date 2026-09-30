@@ -2648,9 +2648,9 @@ impl<'a> CheckerState<'a> {
         };
         let stashed = self
             .links
-            .read_node(node, |links| {
-                links.cold().and_then(|cold| cold.assertion_expression_type)
-            })
+            .node_cold()
+            .assertion_expression_type
+            .get(node)
             .expect("every deferred assertion keeps its stashed operand type across trials");
         let base = self.get_base_type_of_literal_type(stashed)?;
         let expr_type = self.get_regular_type_of_object_literal(base)?;
@@ -2835,11 +2835,13 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(expr_type);
         }
-        if let Some(map) = &self.links.read_node(node, |links| {
-            links
-                .cold()
-                .and_then(|cold| cold.instantiation_expression_types.clone())
-        }) {
+        if let Some(map) = &self
+            .links
+            .node_cold()
+            .instantiation_expression_types
+            .get(node)
+            .clone()
+        {
             if let Some(&cached) = map.get(&expr_type) {
                 return Ok(cached);
             }
@@ -4723,10 +4725,7 @@ impl<'a> CheckerState<'a> {
         if self.is_awaited_type_instantiation(ty)? {
             return Ok(Some(ty));
         }
-        if let Some(cached) = self
-            .links
-            .read_ty(ty, |links| links.cold().awaited_type_of_type)
-        {
+        if let Some(cached) = *self.links.type_cold().awaited_type_of_type.get(ty) {
             return Ok(Some(cached));
         }
         if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {

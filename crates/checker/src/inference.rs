@@ -1858,7 +1858,10 @@ impl InferTypesWalker<'_, '_> {
                     let params = self
                         .st
                         .links
-                        .read_symbol(alias, |links| links.cold().type_parameters.clone());
+                        .symbol_cold()
+                        .type_parameters
+                        .get(alias)
+                        .clone();
                     let min_params = self.st.get_min_type_argument_count(params.as_deref());
                     let in_js = self
                         .st
@@ -2153,16 +2156,8 @@ impl InferTypesWalker<'_, '_> {
             && target_object_flags.intersects(ObjectFlags::REFERENCE)
             && (self.st.tables.reference_target(source) == self.st.tables.reference_target(target)
                 || self.st.is_array_type(source)? && self.st.is_array_type(target)?)
-            && !(self
-                .st
-                .links
-                .read_ty(source, |links| links.cold().deferred_node)
-                .is_some()
-                && self
-                    .st
-                    .links
-                    .read_ty(target, |links| links.cold().deferred_node)
-                    .is_some());
+            && !(self.st.links.ty(source).deferred_node.is_some()
+                && self.st.links.ty(target).deferred_node.is_some());
         if matching_references {
             // 68770-68771: matching references infer pairwise under the
             // target's measured variances.
@@ -3086,12 +3081,7 @@ impl InferTypesWalker<'_, '_> {
             return Ok(true);
         }
         if constraint_flags.intersects(TypeFlags::TYPE_PARAMETER) {
-            let index_flags = if self
-                .st
-                .links
-                .read_ty(source, |links| links.cold().pattern)
-                .is_some()
-            {
+            let index_flags = if self.st.links.type_cold().pattern.get(source).is_some() {
                 tsc_types::IndexFlags::NO_INDEX_SIGNATURES
             } else {
                 tsc_types::IndexFlags::NONE

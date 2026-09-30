@@ -207,9 +207,13 @@ impl<'a> CheckerState<'a> {
     }
 
     fn is_reducible_intersection(&mut self, ty: TypeId) -> CheckResult<bool> {
-        let unique_filled = match self.links.read_ty(ty, |links| {
-            links.cold().unique_literal_filled_instantiation.resolved()
-        }) {
+        let unique_filled = match self
+            .links
+            .type_cold()
+            .unique_literal_filled_instantiation
+            .get(ty)
+            .resolved()
+        {
             Some(cached) => cached,
             None => {
                 let mapper = self.unique_literal_mapper;
@@ -235,12 +239,17 @@ impl<'a> CheckerState<'a> {
     ) -> TypeId {
         let strings_only = index_flags.intersects(IndexFlags::STRINGS_ONLY);
         let cached = if strings_only {
-            self.links.read_ty(ty, |links| {
-                links.cold().resolved_string_index_type.resolved()
-            })
+            self.links
+                .type_cold()
+                .resolved_string_index_type
+                .get(ty)
+                .resolved()
         } else {
             self.links
-                .read_ty(ty, |links| links.cold().resolved_index_type.resolved())
+                .type_cold()
+                .resolved_index_type
+                .get(ty)
+                .resolved()
         };
         if let Some(cached) = cached {
             return cached;
@@ -346,7 +355,7 @@ impl<'a> CheckerState<'a> {
         if non_public {
             return Ok(self.tables.intrinsics.never);
         }
-        let name_type = self.links.read_symbol(property, |links| links.name_type);
+        let name_type = self.links.symbol(property).name_type;
         let ty = match name_type {
             Some(name_type) => Some(name_type),
             None => {
@@ -790,12 +799,7 @@ impl<'a> CheckerState<'a> {
         writing: bool,
     ) -> CheckResult<TypeId> {
         {
-            let links = self.links.ty(ty);
-            let slot = if writing {
-                &links.cold().simplified_for_writing
-            } else {
-                &links.cold().simplified_for_reading
-            };
+            let slot = self.links.type_cold().simplified(writing).get(ty);
             if slot.is_resolving() {
                 // The circular sentinel: mid-flight re-entry reads the
                 // type unsimplified (62472-62474).

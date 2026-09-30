@@ -472,9 +472,9 @@ fn symbol_cache_hits_by_context_and_misses_by_resolution_mode() {
         assert_eq!(
             state
                 .links
-                .symbol(symbol)
-                .cold()
+                .symbol_cold()
                 .specifier_cache
+                .get(symbol)
                 .as_ref()
                 .map(BTreeMap::len),
             Some(2)
