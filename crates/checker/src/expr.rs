@@ -3651,7 +3651,7 @@ impl<'a> CheckerState<'a> {
         self.tables.type_mut(id).object_flags = source_object_flags;
         self.tables.type_mut(id).symbol = symbol;
         let members_id = self.alloc_members(crate::state::ResolvedMembers {
-            members: members.into(),
+            members: self.member_table(&members),
             properties,
             call_signatures: Vec::new(),
             construct_signatures: Vec::new(),

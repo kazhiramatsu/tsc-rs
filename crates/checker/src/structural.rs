@@ -4616,7 +4616,7 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         }
         let members = self.resolve_structured_type_members(ty)?;
-        let Some(symbol) = self.members_of(members).members.get(name).copied() else {
+        let Some(symbol) = self.members_of(members).members.get(&self.binder, name) else {
             return Ok(None);
         };
         let hidden_type_only_export = !include_type_only_members

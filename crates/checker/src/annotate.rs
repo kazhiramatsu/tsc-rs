@@ -15,16 +15,11 @@ use tsc_types::{
 use crate::evaluate::EvalValue;
 
 use crate::links::LinkSlot;
+use crate::member_table::MemberTable;
 use crate::state::{
     CheckResult, CheckerState, IndexInfo, MembersId, ResolvedMembers, Signature, SignatureId,
 };
 use tsc_types::perf::{self, PerfCounter};
-
-/// An owned symbol table from a shared handle: the copy is skipped when the
-/// handle is the only one (a fresh table), and taken otherwise.
-fn owned_symbol_table(table: Arc<tsc_binder::SymbolTable>) -> tsc_binder::SymbolTable {
-    Arc::try_unwrap(table).unwrap_or_else(|shared| (*shared).clone())
-}
 
 impl<'a> CheckerState<'a> {
     // ---- node helpers ----
@@ -4376,7 +4371,7 @@ impl<'a> CheckerState<'a> {
             }
             let properties = members.values().copied().collect();
             Ok(ResolvedMembers {
-                members: members.into(),
+                members: state.member_table(&members),
                 properties,
                 call_signatures: Vec::new(),
                 construct_signatures: Vec::new(),
@@ -4522,7 +4517,7 @@ impl<'a> CheckerState<'a> {
             properties.push(length_symbol);
             let members = self.symbol_list_to_table(&properties);
             let id = self.alloc_members(ResolvedMembers {
-                members: members.into(),
+                members: self.member_table(&members),
                 properties,
                 ..ResolvedMembers::default()
             });
@@ -4547,7 +4542,8 @@ impl<'a> CheckerState<'a> {
             .type_of(target)
             .symbol
             .expect("class/interface targets carry their declaring symbol");
-        let members = owned_symbol_table(self.get_members_of_symbol(symbol)?);
+        let declared = self.get_members_of_symbol(symbol)?;
+        let members = self.member_table(&declared);
         let properties = self.get_named_members(&members)?;
         // tsc resolveDeclaredMembers publishes declaredProperties
         // FIRST and fills signatures/index infos into the type in
@@ -4556,10 +4552,10 @@ impl<'a> CheckerState<'a> {
         // 5.9c late-bound index reads) observes the still-empty
         // signature/index lists instead of recursing. An Err unwind
         // retracts the parked table.
-        let call_symbol = members.get(InternalSymbolName::CALL).copied();
-        let new_symbol = members.get(InternalSymbolName::NEW).copied();
+        let call_symbol = members.get(&self.binder, InternalSymbolName::CALL);
+        let new_symbol = members.get(&self.binder, InternalSymbolName::NEW);
         let id = self.alloc_members(ResolvedMembers {
-            members: members.into(),
+            members,
             properties,
             ..ResolvedMembers::default()
         });
@@ -4617,7 +4613,7 @@ impl<'a> CheckerState<'a> {
         type_arguments: &[TypeId],
     ) -> CheckResult<MembersId> {
         let mut mapper: Option<crate::instantiate::MapperId> = None;
-        let mut members: Arc<tsc_binder::SymbolTable>;
+        let mut members: MemberTable;
         let mut call_signatures: Vec<SignatureId>;
         let mut construct_signatures: Vec<SignatureId>;
         let mut index_infos: Vec<IndexInfo>;
@@ -4630,11 +4626,12 @@ impl<'a> CheckerState<'a> {
             members = match source_symbol {
                 Some(symbol) => {
                     members_are_live_table = true;
-                    self.get_members_of_symbol(symbol)?
+                    let table = self.get_members_of_symbol(symbol)?;
+                    self.member_table(&table)
                 }
                 None => {
                     let declared = self.members_of(source).properties.clone();
-                    self.symbol_list_to_table(&declared).into()
+                    MemberTable::from_symbols(&self.binder, &declared)
                 }
             };
             call_signatures = self.members_of(source).call_signatures.clone();
@@ -4645,13 +4642,11 @@ impl<'a> CheckerState<'a> {
                 self.create_type_mapper(type_parameters.to_vec(), Some(type_arguments.to_vec()));
             mapper = Some(type_mapper);
             let declared_properties = self.members_of(source).properties.clone();
-            members = self
-                .create_instantiated_symbol_table(
-                    &declared_properties,
-                    type_mapper,
-                    /*mapping_this_only*/ type_parameters.len() == 1,
-                )?
-                .into();
+            members = self.create_instantiated_symbol_table(
+                &declared_properties,
+                type_mapper,
+                /*mapping_this_only*/ type_parameters.len() == 1,
+            )?;
             let declared_calls = self.members_of(source).call_signatures.clone();
             call_signatures = self.instantiate_signature_list(&declared_calls, type_mapper)?;
             let declared_constructs = self.members_of(source).construct_signatures.clone();
@@ -4667,19 +4662,16 @@ impl<'a> CheckerState<'a> {
                 // index symbol) before inheriting — the symbol's own
                 // table must not absorb base members.
                 let declared_properties = self.members_of(source).properties.clone();
-                let mut table = self.symbol_list_to_table(&declared_properties);
+                let mut table = MemberTable::from_symbols(&self.binder, &declared_properties);
                 let source_index = source_symbol.and_then(|symbol| {
                     self.symbol_members(symbol)
                         .get(InternalSymbolName::INDEX)
                         .copied()
                 });
                 if let Some(index_symbol) = source_index {
-                    table.insert(
-                        tsc_types::EscapedName::internal(InternalSymbolName::INDEX),
-                        index_symbol,
-                    );
+                    table.insert(&self.binder, index_symbol);
                 }
-                members = table.into();
+                members = table;
             }
             // Early write (57829): partial members become observable.
             let properties = self.get_named_members(&members)?;
@@ -4708,7 +4700,7 @@ impl<'a> CheckerState<'a> {
                     };
                     let base_properties =
                         state.get_properties_of_type_full(instantiated_base_type)?;
-                    state.add_inherited_members(Arc::make_mut(&mut members), &base_properties)?;
+                    state.add_inherited_members(&mut members, &base_properties)?;
                     call_signatures.extend(state.get_signatures_of_type(
                         instantiated_base_type,
                         crate::structural::SignatureKind::Call,
@@ -6951,19 +6943,18 @@ impl<'a> CheckerState<'a> {
         symbols: &[SymbolId],
         mapper: crate::instantiate::MapperId,
         mapping_this_only: bool,
-    ) -> CheckResult<tsc_binder::SymbolTable> {
-        let mut result = tsc_binder::SymbolTable::default();
+    ) -> CheckResult<MemberTable> {
         // One table per instantiated object type: sized once instead of
         // rehashed while the members are inserted (VS Code: 1% of the
         // checker's self time was hashbrown growth).
-        result.reserve(symbols.len());
+        let mut result = MemberTable::with_capacity(symbols.len());
         for &symbol in symbols {
             let value = if mapping_this_only && self.is_thisless(symbol) {
                 symbol
             } else {
                 self.instantiate_symbol(symbol, mapper)
             };
-            result.insert(self.binder.symbol(symbol).escaped_name.clone(), value);
+            result.insert(&self.binder, value);
         }
         Ok(result)
     }
@@ -6980,19 +6971,19 @@ impl<'a> CheckerState<'a> {
     /// does not carry the base's `static #x`.
     fn add_inherited_members(
         &mut self,
-        symbols: &mut tsc_binder::SymbolTable,
+        symbols: &mut MemberTable,
         base_symbols: &[SymbolId],
     ) -> CheckResult<()> {
         // Room for every inherited member at once (a few are overridden and
         // skipped): an instance table would otherwise regrow while it copies
         // its base's members.
-        symbols.reserve(base_symbols.len());
+        symbols.reserve(&self.binder, base_symbols.len());
         for &base in base_symbols {
             if self.is_static_private_identifier_property(base) {
                 continue;
             }
-            let name = self.binder.symbol(base).escaped_name.clone();
-            let replace = match symbols.get(&name).copied() {
+            let derived = symbols.get(&self.binder, &self.binder.symbol(base).escaped_name);
+            let replace = match derived {
                 None => true,
                 Some(derived) => {
                     let value_declaration = self.binder.symbol(derived).value_declaration;
@@ -7005,7 +6996,7 @@ impl<'a> CheckerState<'a> {
                 }
             };
             if replace {
-                symbols.insert(name, base);
+                symbols.insert(&self.binder, base);
             }
         }
         Ok(())
@@ -7257,7 +7248,7 @@ impl<'a> CheckerState<'a> {
                 let index_infos = state.instantiate_index_info_list(&target_index_infos, mapper)?;
                 let properties = state.get_named_members(&members)?;
                 return Ok(ResolvedMembers {
-                    members: members.into(),
+                    members,
                     properties,
                     call_signatures,
                     construct_signatures,
@@ -7274,15 +7265,18 @@ impl<'a> CheckerState<'a> {
             if flags.intersects(SymbolFlags::TYPE_LITERAL) {
                 active_id =
                     Some(state.publish_anonymous_members_stage(ty, ResolvedMembers::default()));
-                let members = owned_symbol_table(state.get_members_of_symbol(symbol)?);
+                let declared = state.get_members_of_symbol(symbol)?;
+                let members = state.member_table(&declared);
                 let properties = state.get_named_members(&members)?;
-                let call_signatures = state
-                    .get_signatures_of_symbol(members.get(InternalSymbolName::CALL).copied())?;
-                let construct_signatures = state
-                    .get_signatures_of_symbol(members.get(InternalSymbolName::NEW).copied())?;
+                let call_signatures = state.get_signatures_of_symbol(
+                    members.get(&state.binder, InternalSymbolName::CALL),
+                )?;
+                let construct_signatures = state.get_signatures_of_symbol(
+                    members.get(&state.binder, InternalSymbolName::NEW),
+                )?;
                 let index_infos = state.get_index_infos_of_symbol(symbol)?;
                 return Ok(ResolvedMembers {
-                    members: members.into(),
+                    members,
                     properties,
                     call_signatures,
                     construct_signatures,
@@ -7295,12 +7289,13 @@ impl<'a> CheckerState<'a> {
             // target/TypeLiteral heads (enums, namespaces, globalThis
             // included) — no flags gate.
             {
-                let mut members = owned_symbol_table(state.get_exports_of_symbol(symbol)?);
+                let exports = state.get_exports_of_symbol(symbol)?;
+                let mut members = state.member_table(&exports);
                 // 58343-58352: globalThis members drop block-scoped
                 // bindings and purely-ambient value modules.
                 if symbol == state.global_this_symbol {
-                    let mut vars_only = tsc_binder::SymbolTable::default();
-                    for (name, &member) in members.iter() {
+                    let mut vars_only = MemberTable::with_capacity(members.len());
+                    for &member in members.symbols() {
                         let member_flags = state.symbol_flags(member);
                         let declarations = &state.binder.symbol(member).declarations;
                         let ambient_module_only = member_flags
@@ -7315,7 +7310,7 @@ impl<'a> CheckerState<'a> {
                         if !member_flags.intersects(SymbolFlags::BLOCK_SCOPED)
                             && !ambient_module_only
                         {
-                            vars_only.insert(name.clone(), member);
+                            vars_only.insert(&state.binder, member);
                         }
                     }
                     members = vars_only;
@@ -7328,7 +7323,7 @@ impl<'a> CheckerState<'a> {
                 let stage_id = state.publish_anonymous_members_stage(
                     ty,
                     ResolvedMembers {
-                        members: members.clone().into(),
+                        members: members.clone(),
                         ..ResolvedMembers::default()
                     },
                 );
@@ -7346,13 +7341,11 @@ impl<'a> CheckerState<'a> {
                         // 58359-58360: copy named+index members, then
                         // inherit the base's STATIC side.
                         let named = state.get_named_members(&members)?;
-                        let mut table = state.symbol_list_to_table(&named);
-                        if let Some(index_symbol) = members.get(InternalSymbolName::INDEX).copied()
+                        let mut table = MemberTable::from_symbols(&state.binder, &named);
+                        if let Some(index_symbol) =
+                            members.get(&state.binder, InternalSymbolName::INDEX)
                         {
-                            table.insert(
-                                tsc_types::EscapedName::internal(InternalSymbolName::INDEX),
-                                index_symbol,
-                            );
+                            table.insert(&state.binder, index_symbol);
                         }
                         members = table;
                         let base_properties =
@@ -7370,14 +7363,13 @@ impl<'a> CheckerState<'a> {
                         });
                     }
                 }
-                let index_symbol = members.get(InternalSymbolName::INDEX).copied();
+                let index_symbol = members.get(&state.binder, InternalSymbolName::INDEX);
                 let index_infos = match index_symbol {
                     // 58366-58367: infos from the index symbol, with
                     // the member table as the sibling list (feeds the
                     // late-bound computed-name buckets).
                     Some(index_symbol) => {
-                        let siblings: Vec<SymbolId> =
-                            members.iter().map(|(_, &member)| member).collect();
+                        let siblings: Vec<SymbolId> = members.symbols().to_vec();
                         state.get_index_infos_of_index_symbol(index_symbol, Some(siblings))?
                     }
                     None => {
@@ -7454,7 +7446,7 @@ impl<'a> CheckerState<'a> {
                 }
                 let properties = state.get_named_members(&members)?;
                 Ok(ResolvedMembers {
-                    members: members.into(),
+                    members,
                     properties,
                     call_signatures,
                     construct_signatures,
@@ -7520,14 +7512,15 @@ impl<'a> CheckerState<'a> {
     /// justification pattern again).
     pub(crate) fn get_named_members(
         &mut self,
-        members: &tsc_binder::SymbolTable,
+        members: &MemberTable,
     ) -> CheckResult<Vec<SymbolId>> {
         // Names are only tested for the reserved prefix and the symbols kept
         // for the value check, so no name is copied.
         let candidates: Vec<SymbolId> = members
+            .symbols()
             .iter()
-            .filter(|(name, _)| !is_reserved_member_name(*name))
-            .map(|(_, &symbol)| symbol)
+            .copied()
+            .filter(|&symbol| !is_reserved_member_name(&self.binder.symbol(symbol).escaped_name))
             .collect();
         let mut named = Vec::with_capacity(candidates.len());
         for symbol in candidates {
@@ -7976,7 +7969,7 @@ impl<'a> CheckerState<'a> {
             .read_ty(ty, |links| links.resolved_members.resolved())
             .expect("fresh anonymous type has resolved members");
         *self.members_mut(members_id) = ResolvedMembers {
-            members: members.into(),
+            members: self.member_table(&members),
             properties,
             call_signatures: Vec::new(),
             construct_signatures: Vec::new(),
@@ -8069,7 +8062,7 @@ impl<'a> CheckerState<'a> {
                     );
                     let resolved = self.make_resolved_anonymous_type(
                         Some(symbol),
-                        module_members.into(),
+                        self.member_table(&module_members),
                         vec![result],
                         Vec::new(),
                         ObjectFlags::ANONYMOUS,
@@ -9339,7 +9332,7 @@ impl<'a> CheckerState<'a> {
 
         let resolved_id = self.resolve_structured_type_members(ty)?;
         let resolved = self.members_of(resolved_id).clone();
-        let mut members = Arc::unwrap_or_clone(resolved.members);
+        let mut members = resolved.members;
         let initial_size = members.len();
         let exports = self
             .binder
@@ -9347,8 +9340,8 @@ impl<'a> CheckerState<'a> {
             .exports
             .clone();
         for (name, &export_member) in exports.iter() {
-            let Some(object_member) = members.get(name).copied() else {
-                members.insert(name.clone(), export_member);
+            let Some(object_member) = members.get(&self.binder, name) else {
+                members.insert(&self.binder, export_member);
                 continue;
             };
             if object_member == export_member
@@ -9356,7 +9349,7 @@ impl<'a> CheckerState<'a> {
                     .symbol_flags(export_member)
                     .intersects(SymbolFlags::ALIAS)
             {
-                members.insert(name.clone(), export_member);
+                members.insert(&self.binder, export_member);
                 continue;
             }
             if self
@@ -9423,11 +9416,11 @@ impl<'a> CheckerState<'a> {
                 }
                 self.links
                     .set_fresh_symbol_type(union_member, LinkSlot::Resolved(union_type));
-                members.insert(name.clone(), union_member);
+                members.insert(&self.binder, union_member);
             } else {
                 let merged =
                     self.merge_symbol(export_member, object_member, /*unidirectional*/ false);
-                members.insert(name.clone(), merged);
+                members.insert(&self.binder, merged);
             }
         }
 
@@ -9446,7 +9439,7 @@ impl<'a> CheckerState<'a> {
             (initial_size == members.len())
                 .then_some(self.tables.type_of(ty).symbol)
                 .flatten(),
-            members.into(),
+            members,
             properties,
             resolved.index_infos,
             copied_object_flags,
@@ -11335,7 +11328,7 @@ impl<'a> CheckerState<'a> {
             .create_type(TypeFlags::OBJECT, tsc_types::TypeData::Object);
         self.tables.type_mut(id).object_flags = ObjectFlags::ANONYMOUS | object_flags;
         let members_id = self.alloc_members(crate::state::ResolvedMembers {
-            members: members.into(),
+            members: self.member_table(&members),
             properties,
             call_signatures: Vec::new(),
             construct_signatures: Vec::new(),

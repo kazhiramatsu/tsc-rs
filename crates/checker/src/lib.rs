@@ -118,6 +118,7 @@ pub mod line_profile;
 pub mod links;
 pub mod literals;
 pub mod mapped;
+pub mod member_table;
 pub mod merge;
 pub mod modules;
 pub mod narrow;

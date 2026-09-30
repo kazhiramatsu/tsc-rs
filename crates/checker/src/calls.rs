@@ -1504,8 +1504,9 @@ impl<'a> CheckerState<'a> {
             .links
             .read_ty(override_type, |links| links.resolved_members.resolved())
             .expect("freshly created anonymous types carry resolved members");
+        let members = self.member_table(&members);
         let resolved = self.members_mut(members_id);
-        resolved.members = members.into();
+        resolved.members = members;
         resolved.properties = vec![name_prop, private_prop, static_prop];
         self.decorator_context_override_type_cache
             .insert(key, override_type);
@@ -7026,7 +7027,7 @@ impl<'a> CheckerState<'a> {
                     let properties = exports.values().copied().collect();
                     let js_assignment_type = self.make_resolved_anonymous_type(
                         Some(js_symbol),
-                        exports,
+                        self.member_table(&exports),
                         properties,
                         Vec::new(),
                         ObjectFlags::JS_LITERAL,

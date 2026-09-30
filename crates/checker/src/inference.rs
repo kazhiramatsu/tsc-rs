@@ -705,8 +705,9 @@ impl<'a> CheckerState<'a> {
                 prop.declarations = declarations;
                 prop.value_declaration = value_declaration;
             }
-            std::sync::Arc::make_mut(&mut self.members_mut(members_id).members)
-                .insert(name, literal_prop);
+            self.members[members_id.index() as usize]
+                .members
+                .insert(&self.binder, literal_prop);
         }
         if self.tables.flags_of(ty).intersects(TypeFlags::STRING) {
             let index_info = IndexInfo {
@@ -720,12 +721,7 @@ impl<'a> CheckerState<'a> {
             };
             self.members_mut(members_id).index_infos.push(index_info);
         }
-        let properties: Vec<_> = self
-            .members_of(members_id)
-            .members
-            .values()
-            .copied()
-            .collect();
+        let properties: Vec<_> = self.members_of(members_id).members.symbols().to_vec();
         self.members_mut(members_id).properties = properties;
         id
     }
