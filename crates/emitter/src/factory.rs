@@ -693,7 +693,7 @@ impl TransformArena {
                 actual: record.kind,
             });
         };
-        data.escaped_text = tsc_syntax::escape_leading_underscores(text);
+        data.escaped_text = tsc_types::EscapedName::escape(text.into());
         Ok(())
     }
 
@@ -1895,7 +1895,9 @@ impl<'arena> NodeFactory<'arena> {
         self.create_node(
             source,
             NodeData::Identifier(IdentifierData {
-                escaped_text: tsc_syntax::escape_leading_underscores(&text),
+                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(
+                    &tsc_syntax::escape_leading_underscores(&text),
+                ),
             }),
             flags,
         )
@@ -1937,7 +1939,9 @@ impl<'arena> NodeFactory<'arena> {
         self.create_node(
             source,
             NodeData::PrivateIdentifier(PrivateIdentifierData {
-                escaped_text: tsc_syntax::escape_leading_underscores(&text),
+                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(
+                    &tsc_syntax::escape_leading_underscores(&text),
+                ),
             }),
             TransformFlags::CONTAINS_CLASS_FIELDS,
         )
@@ -5278,7 +5282,9 @@ impl<'arena> NodeFactory<'arena> {
         let identifier = self.create_node(
             source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                escaped_text: tsc_syntax::escape_leading_underscores(text),
+                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(
+                    &tsc_syntax::escape_leading_underscores(text),
+                ),
             }),
             TransformFlags::NONE,
         )?;

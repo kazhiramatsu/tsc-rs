@@ -45,6 +45,7 @@ use super::{
     with_context, with_synthetic_module_scope, BuildResult, NodeBuilderContext,
     SignatureDeclarationOptions, SyntheticModuleScopeRestore,
 };
+use tsc_binder::NameKey;
 
 const ALLOW_ANONYMOUS_IDENTIFIER: u32 = 131_072;
 const IN_TYPE_ALIAS: u32 = 8_388_608;
@@ -603,7 +604,7 @@ fn symbol_to_declarations_worker(
     context.type_stack.push(Some(r#type));
     context.type_stack.push(None);
     let mut table = SymbolTable::default();
-    table.insert(checker.binder.symbol(symbol).escaped_name.clone(), symbol);
+    table.insert(checker.binder.symbol(symbol).escaped_name, symbol);
     let result = symbol_table_to_declaration_statements(checker, arena, target, &table, context);
     context.type_stack.pop();
     context.type_stack.pop();
@@ -1525,9 +1526,8 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         escaped_symbol_name: Option<EscapedName>,
     ) -> BuildResult<()> {
         let symbol_data = self.checker.binder.symbol(symbol).clone();
-        let escaped_symbol_name =
-            escaped_symbol_name.unwrap_or_else(|| symbol_data.escaped_name.clone());
-        let symbol_name = tsc_binder::unescape_leading_underscores(&escaped_symbol_name).to_owned();
+        let escaped_symbol_name = escaped_symbol_name.unwrap_or(symbol_data.escaped_name);
+        let symbol_name = tsc_binder::unescape_leading_underscores(escaped_symbol_name).to_owned();
         let is_default = escaped_symbol_name == tsc_types::InternalSymbolName::DEFAULT;
         if is_private
             && self.context.flags.0 & ALLOW_ANONYMOUS_IDENTIFIER == 0
@@ -1682,7 +1682,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                         type_symbol,
                         is_private,
                         property_as_alias,
-                        Some(escaped_symbol_name.clone()),
+                        Some(escaped_symbol_name),
                     );
                     let references = self
                         .context
@@ -1921,7 +1921,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
             return;
         }
         let name = tsc_binder::unescape_leading_underscores(
-            &self.checker.binder.symbol(symbol).escaped_name,
+            self.checker.binder.symbol(symbol).escaped_name,
         )
         .to_owned();
         let _ = self.get_unused_name(&name, Some(symbol));
@@ -2066,13 +2066,13 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
     /// tsc-port: serializeTypeAlias @6.0.3
     /// tsc-hash: 3f680b229b027017d227c09fec93ac0536eb88d62202961ba0e4bc80a1aa2570
     /// tsc-span: _tsc.js:54211-54240
-    fn serialize_type_alias<'n>(
+    fn serialize_type_alias(
         &mut self,
         symbol: SymbolId,
-        symbol_name: impl Into<JsStr<'n>>,
+        symbol_name: impl NameKey,
         modifier_flags: ModifierFlags,
     ) -> BuildResult<()> {
-        let symbol_name = symbol_name.into();
+        let symbol_name = symbol_name.name();
         let alias_type = self
             .checker
             .get_declared_type_of_type_alias(symbol)
@@ -2262,13 +2262,13 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
     /// tsc-port: serializeInterface @6.0.3
     /// tsc-hash: e1fdd40dc220944b36b9f034eb5cb985249c346db44cdd1453db2d6f7431e901
     /// tsc-span: _tsc.js:54241-54270
-    fn serialize_interface<'n>(
+    fn serialize_interface(
         &mut self,
         symbol: SymbolId,
-        symbol_name: impl Into<JsStr<'n>>,
+        symbol_name: impl NameKey,
         modifier_flags: ModifierFlags,
     ) -> BuildResult<()> {
-        let symbol_name = symbol_name.into();
+        let symbol_name = symbol_name.name();
         let internal_name = self.get_internal_symbol_name(symbol, symbol_name);
         add_approximate_length(self.context, 14 + internal_name.encode_utf16().count());
         let interface_type = self
@@ -2547,13 +2547,13 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
     /// tsc-port: serializeModule @6.0.3
     /// tsc-hash: 1e332e6c96670e8c64f234b92e1ab6cf63589dbc1586e841b60e85960e0cd5e2
     /// tsc-span: _tsc.js:54339-54407
-    fn serialize_module<'n>(
+    fn serialize_module(
         &mut self,
         symbol: SymbolId,
-        symbol_name: impl Into<JsStr<'n>>,
+        symbol_name: impl NameKey,
         modifier_flags: ModifierFlags,
     ) -> BuildResult<()> {
-        let symbol_name = symbol_name.into();
+        let symbol_name = symbol_name.name();
         let members = self.get_namespace_members_for_serialization(symbol)?;
         let expanding = is_expanding(self.context);
         let (mut real, mut merged) = (Vec::new(), Vec::new());
@@ -2584,7 +2584,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                     continue;
                 }
                 let name = tsc_binder::unescape_leading_underscores(
-                    &self.checker.binder.symbol(member).escaped_name,
+                    self.checker.binder.symbol(member).escaped_name,
                 )
                 .to_owned();
                 let member_internal_name = self.get_internal_symbol_name(member, &name);
@@ -2656,7 +2656,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                 };
                 self.include_private_symbol(target);
                 let target_symbol_name = tsc_binder::unescape_leading_underscores(
-                    &self.checker.binder.symbol(target).escaped_name,
+                    self.checker.binder.symbol(target).escaped_name,
                 )
                 .to_owned();
                 let target_name = if target == member {
@@ -2688,13 +2688,13 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
     /// tsc-port: serializeEnum @6.0.3
     /// tsc-hash: b325c26b84a08d8f70a33b8536557373d6bf5d264eb1dba4d0729161a12c3aed
     /// tsc-span: _tsc.js:54408-54457
-    fn serialize_enum<'n>(
+    fn serialize_enum(
         &mut self,
         symbol: SymbolId,
-        symbol_name: impl Into<JsStr<'n>>,
+        symbol_name: impl NameKey,
         modifier_flags: ModifierFlags,
     ) -> BuildResult<()> {
-        let symbol_name = symbol_name.into();
+        let symbol_name = symbol_name.name();
         let internal = self.get_internal_symbol_name(symbol, symbol_name);
         add_approximate_length(self.context, 9 + internal.encode_utf16().count());
         let mut member_symbols: Vec<SymbolId> = self
@@ -2793,7 +2793,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
             } else {
                 None
             };
-            let member_name = tsc_binder::unescape_leading_underscores(&data.escaped_name);
+            let member_name = tsc_binder::unescape_leading_underscores(data.escaped_name);
             add_approximate_length(
                 self.context,
                 4 + member_name.len_units()
@@ -3004,10 +3004,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         // namespace table. Keep its identity and lookup overlay explicit.
         let mut table = SymbolTable::default();
         for property in local {
-            table.insert(
-                self.checker.binder.symbol(property).escaped_name.clone(),
-                property,
-            );
+            table.insert(self.checker.binder.symbol(property).escaped_name, property);
         }
         let old_results = std::mem::take(&mut self.results);
         let old_adding_declare = self.adding_declare;
@@ -3606,7 +3603,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         add_approximate_length(
             self.context,
             11 + local_name.encode_utf16().count()
-                + tsc_binder::unescape_leading_underscores(&target_data.escaped_name).len_units(),
+                + tsc_binder::unescape_leading_underscores(target_data.escaped_name).len_units(),
         );
         let name = create_identifier(self.arena, self.target, local_name)?;
         let module_reference = if is_local_import {
@@ -3683,7 +3680,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
             })
             .flatten();
         let mut verbatim_target_name = declaration_name.unwrap_or_else(|| {
-            tsc_binder::unescape_leading_underscores(&target_data.escaped_name).to_owned()
+            tsc_binder::unescape_leading_underscores(target_data.escaped_name).to_owned()
         });
         if verbatim_target_name == tsc_types::InternalSymbolName::EXPORT_EQUALS
             && self
@@ -3994,7 +3991,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                     }
                 }
                 let exported_name = tsc_binder::unescape_leading_underscores(
-                    &self.checker.binder.symbol(symbol).escaped_name,
+                    self.checker.binder.symbol(symbol).escaped_name,
                 )
                 .to_owned();
                 self.serialize_export_specifier(
@@ -4181,9 +4178,9 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
     /// tsc-port: serializeExportSpecifier @6.0.3
     /// tsc-hash: b3fb36e9d0e5bf03d237cacfbdc3a632a48530faab565d52fa493c0d7c88e32c
     /// tsc-span: _tsc.js:54947-54965
-    fn serialize_export_specifier<'a, 'b>(
+    fn serialize_export_specifier<'n, 'a, 'b>(
         &mut self,
-        local_name: impl Into<JsStr<'a>>,
+        local_name: impl Into<JsStr<'n>>,
         target_name: impl Into<JsStr<'b>>,
         specifier: Option<TransformNode>,
     ) -> BuildResult<()> {
@@ -4231,7 +4228,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
             return Ok(false);
         }
         let name = tsc_binder::unescape_leading_underscores(
-            &self.checker.binder.symbol(symbol).escaped_name,
+            self.checker.binder.symbol(symbol).escaped_name,
         )
         .to_owned();
         let is_export_equals = name == tsc_types::InternalSymbolName::EXPORT_EQUALS;
@@ -4310,7 +4307,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                     self.checker.kind_of(expression) == SyntaxKind::ClassExpression
                 }) {
                     let target_symbol_name = tsc_binder::unescape_leading_underscores(
-                        &self.checker.binder.symbol(target).escaped_name,
+                        self.checker.binder.symbol(target).escaped_name,
                     )
                     .to_owned();
                     let target_name = self.get_internal_symbol_name(target, &target_symbol_name);
@@ -4535,7 +4532,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         }
         for property in properties {
             let property_data = self.checker.binder.symbol(property);
-            let name = tsc_binder::unescape_leading_underscores(&property_data.escaped_name);
+            let name = tsc_binder::unescape_leading_underscores(property_data.escaped_name);
             if property_data.escaped_name.starts_with("__@")
                 || !name.as_str().is_some_and(tsc_syntax::is_identifier_text)
                 || property_data
@@ -4623,7 +4620,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         base_type: TypeId,
         property: SymbolId,
     ) -> BuildResult<Option<SymbolId>> {
-        let name = self.checker.binder.symbol(property).escaped_name.clone();
+        let name = self.checker.binder.symbol(property).escaped_name;
         let properties = self
             .checker
             .get_properties_of_type(base_type)

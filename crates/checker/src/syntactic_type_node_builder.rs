@@ -389,7 +389,9 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         self.create_node(
             source,
             NodeData::Identifier(IdentifierData {
-                escaped_text: tsc_syntax::escape_leading_underscores(&text),
+                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(
+                    &tsc_syntax::escape_leading_underscores(&text),
+                ),
             }),
             TransformFlags::NONE,
         )
@@ -3772,7 +3774,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
 
     fn identifier_text(&self, node: TransformNode) -> Result<&str, EmitResolverError> {
         match &self.node(node)?.data {
-            NodeData::Identifier(data) => Ok(&data.escaped_text),
+            NodeData::Identifier(data) => Ok(data.escaped_text.identifier_text()),
             _ => Err(self.required_child_error(SyntaxKind::Identifier, "escapedText")),
         }
     }

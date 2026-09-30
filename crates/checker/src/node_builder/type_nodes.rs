@@ -936,7 +936,9 @@ pub(super) fn create_identifier(
         arena,
         target,
         NodeData::Identifier(IdentifierData {
-            escaped_text: tsc_syntax::escape_leading_underscores(text),
+            escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(
+                &tsc_syntax::escape_leading_underscores(text),
+            ),
         }),
     )
 }
@@ -1413,10 +1415,10 @@ pub(super) fn restore_direct_symbol_visibility(
     if context.enclosing_declaration_is_synthetic {
         return Ok(());
     }
-    let name = checker.binder.symbol(symbol).escaped_name.clone();
+    let name = checker.binder.symbol(symbol).escaped_name;
     let meaning_flags = SymbolFlags::from_bits(meaning.0 as i32);
     let resolved = checker
-        .resolve_name(Some(enclosing), &name, meaning_flags, None, false, false)
+        .resolve_name(Some(enclosing), name, meaning_flags, None, false, false)
         .map_err(|abort| checker_abort_error(checker, context, abort))?;
     let Some(resolved) = resolved else {
         return Ok(());
@@ -1796,7 +1798,7 @@ fn type_to_type_node_worker(
                     // (_tsc.js:51472, 50142-50144) tests the escaped name: a
                     // user-written `__Foo` is stored as `___Foo` and is not
                     // reserved; only internal `__type`-style names are.
-                    if is_reserved_member_name(&checker.binder.symbol(alias).escaped_name)
+                    if is_reserved_member_name(checker.binder.symbol(alias).escaped_name)
                         && !checker.symbol_flags(alias).intersects(SymbolFlags::CLASS)
                     {
                         let empty = create_identifier(arena, target, "")?;

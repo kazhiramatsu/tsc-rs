@@ -756,12 +756,12 @@ impl<'a> BinderWorker<'a> {
             ),
             Some(name) => {
                 if includes.intersects(SymbolFlags::CLASSIFIABLE) {
-                    self.classifiable_names.insert(name.clone());
+                    self.classifiable_names.insert(name);
                 }
-                let existing = self.table(table).get(&name).copied();
+                let existing = self.table(table).get(name).copied();
                 match existing {
                     None => {
-                        let symbol = self.create_symbol(SymbolFlags::NONE, name.clone());
+                        let symbol = self.create_symbol(SymbolFlags::NONE, name);
                         self.table_mut(table).insert(name, symbol);
                         if is_replaceable_by_method {
                             self.symbols
@@ -791,7 +791,7 @@ impl<'a> BinderWorker<'a> {
                             .extras()
                             .is_replaceable_by_method
                         {
-                            let symbol = self.create_symbol(SymbolFlags::NONE, name.clone());
+                            let symbol = self.create_symbol(SymbolFlags::NONE, name);
                             self.table_mut(table).insert(name, symbol);
                             symbol
                         } else if !(includes.intersects(SymbolFlags::VARIABLE)
@@ -964,7 +964,7 @@ impl<'a> BinderWorker<'a> {
                 let containing_class = get_containing_class(self.source, node)?;
                 let class_symbol = self.node_symbol.get(&containing_class).copied()?;
                 let escaped_text = match &self.source.arena.node(name).data {
-                    NodeData::PrivateIdentifier(data) => data.escaped_text.clone(),
+                    NodeData::PrivateIdentifier(data) => data.escaped_text,
                     _ => return None,
                 };
                 // tsc getSymbolNameForPrivateIdentifier (_tsc.js 15905).
@@ -1037,7 +1037,7 @@ impl<'a> BinderWorker<'a> {
             return declaration_name_to_string(self.source, Some(name)).into();
         }
         match self.get_declaration_name(node) {
-            Some(name) => unescape_leading_underscores(&name).to_owned(),
+            Some(name) => unescape_leading_underscores(name).to_owned(),
             None => declaration_name_to_string(self.source, None).into(),
         }
     }
@@ -1092,14 +1092,12 @@ impl<'a> BinderWorker<'a> {
             {
                 let escaped = alias_name
                     .and_then(|name| match &self.source.arena.node(name).data {
-                        NodeData::Identifier(data) => Some(data.escaped_text.clone()),
+                        NodeData::Identifier(data) => Some(data.escaped_text),
                         _ => None,
                     })
                     .unwrap_or_default();
-                let suggestion = format!(
-                    "export type {{ {} }}",
-                    tsc_syntax::unescape_leading_underscores(&escaped)
-                );
+                let suggestion =
+                    format!("export type {{ {} }}", escaped.unescape().to_string_lossy());
                 related_information.push(self.related_for_node(
                     node,
                     &diagnostics::Did_you_mean_0,

@@ -4,8 +4,8 @@ use std::hash::{Hash, Hasher};
 
 use hashbrown::hash_table::{Entry, HashTable};
 use rustc_hash::FxHasher;
-use tsc_binder::{SymbolId, SymbolTable};
-use tsc_diagnostics::JsStr;
+use tsc_binder::{NameKey, SymbolId, SymbolTable};
+use tsc_types::EscapedName;
 
 use crate::program::ProgramBinder;
 
@@ -15,9 +15,10 @@ use crate::program::ProgramBinder;
 /// tsrs-native: a checker resolves the members of nearly every object type
 /// it touches (1.2 million tables on VS Code with one checker), and a
 /// member's key is always the symbol's own escaped name. The table therefore
-/// stores each member as its four-byte identity and hashes the names through
-/// the symbol records, where the binder's [`SymbolTable`] copies every name
-/// into its entries. Iteration follows insertion order, never the hash.
+/// stores each member as its four-byte identity and hashes the name ids
+/// through the symbol records, where the binder's [`SymbolTable`] keeps a
+/// name beside every symbol. Iteration follows insertion order, never the
+/// hash.
 #[derive(Clone, Debug, Default)]
 pub struct MemberTable {
     symbols: Vec<SymbolId>,
@@ -25,14 +26,14 @@ pub struct MemberTable {
     positions: HashTable<u32>,
 }
 
-fn hash_name(name: &[u8]) -> u64 {
+fn hash_name(name: EscapedName) -> u64 {
     let mut hasher = FxHasher::default();
-    name.hash(&mut hasher);
+    name.index().hash(&mut hasher);
     hasher.finish()
 }
 
-fn name_of<'b>(binder: &'b ProgramBinder<'_>, symbol: SymbolId) -> &'b [u8] {
-    binder.symbol(symbol).escaped_name.as_js().as_bytes()
+fn name_of(binder: &ProgramBinder<'_>, symbol: SymbolId) -> EscapedName {
+    binder.symbol(symbol).escaped_name
 }
 
 impl MemberTable {
@@ -48,7 +49,7 @@ impl MemberTable {
         let mut members = Self::with_capacity(table.len());
         for (name, &symbol) in table.iter() {
             debug_assert_eq!(
-                name.as_js().as_bytes(),
+                *name,
                 name_of(binder, symbol),
                 "a member table key is the member's escaped name"
             );
@@ -88,13 +89,8 @@ impl MemberTable {
         });
     }
 
-    pub fn get<'a>(
-        &self,
-        binder: &ProgramBinder<'_>,
-        name: impl Into<JsStr<'a>>,
-    ) -> Option<SymbolId> {
-        let name = name.into();
-        let name = name.as_bytes();
+    pub fn get(&self, binder: &ProgramBinder<'_>, name: impl NameKey) -> Option<SymbolId> {
+        let name = name.name();
         self.positions
             .find(hash_name(name), |&position| {
                 name_of(binder, self.symbols[position as usize]) == name

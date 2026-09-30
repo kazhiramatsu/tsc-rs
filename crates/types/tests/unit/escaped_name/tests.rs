@@ -28,13 +28,16 @@ fn internal_names_and_distinct_surrogates_have_distinct_keys() {
         );
     }
     for (i, units) in values.iter().enumerate() {
-        let query = JsString::from_code_units(units);
-        assert_eq!(table.get(query.as_bytes()), Some(&i));
+        let query = EscapedName::escape(JsString::from_code_units(units).as_js());
+        assert_eq!(table.get(&query), Some(&i));
     }
     table.insert(internal, 4);
     table.insert(user, 5);
-    assert_eq!(table.get("__call".as_bytes()), Some(&4));
-    assert_eq!(table.get("___call".as_bytes()), Some(&5));
+    assert_eq!(table.get(&EscapedName::internal("__call")), Some(&4));
+    assert_eq!(
+        table.get(&EscapedName::escape(JsStr::from_str("__call"))),
+        Some(&5)
+    );
 }
 
 #[test]
@@ -43,8 +46,8 @@ fn byte_order_and_explicit_js_order_remain_distinct() {
     let supplementary = EscapedName::escape(JsStr::from_str("\u{10000}"));
     assert!(bmp < supplementary);
     assert_eq!(bmp.cmp_utf16(&supplementary), Ordering::Greater);
-    let bmp_bytes: &[u8] = bmp.borrow();
-    let supplementary_bytes: &[u8] = supplementary.borrow();
+    let bmp_bytes = bmp.as_js().as_bytes();
+    let supplementary_bytes = supplementary.as_js().as_bytes();
     assert_eq!(bmp.cmp(&supplementary), bmp_bytes.cmp(supplementary_bytes));
 }
 

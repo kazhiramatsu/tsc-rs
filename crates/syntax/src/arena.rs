@@ -317,7 +317,6 @@ pub struct SyntaxMemory {
     pub array_items: usize,
     pub array_item_bytes: usize,
     pub identifiers: usize,
-    pub identifier_text_bytes: usize,
     pub string_nodes: usize,
     pub string_bytes: usize,
     /// Node counts by kind.
@@ -342,11 +341,9 @@ impl NodeArena {
                 usage.string_bytes += bytes;
             };
             match &node.data {
-                NodeData::Identifier(data) => {
-                    usage.identifiers += 1;
-                    usage.identifier_text_bytes += data.escaped_text.capacity();
-                }
-                NodeData::PrivateIdentifier(data) => string(data.escaped_text.capacity()),
+                // Identifier names are interned: the name table reports their text.
+                NodeData::Identifier(_) => usage.identifiers += 1,
+                NodeData::PrivateIdentifier(_) => string(0),
                 NodeData::StringLiteral(data) => string(data.text.heap_bytes()),
                 NodeData::NumericLiteral(data) => string(data.text.capacity()),
                 NodeData::BigIntLiteral(data) => string(data.text.capacity()),

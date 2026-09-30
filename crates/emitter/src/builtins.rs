@@ -647,7 +647,9 @@ impl TypeScriptTransformer<'_> {
                         factory.create_node(
                             source,
                             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                                escaped_text: "NaN".to_owned(),
+                                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(
+                                    "NaN",
+                                ),
                             }),
                             TransformFlags::NONE,
                         )?
@@ -655,7 +657,9 @@ impl TypeScriptTransformer<'_> {
                         let infinity = factory.create_node(
                             source,
                             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                                escaped_text: "Infinity".to_owned(),
+                                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(
+                                    "Infinity",
+                                ),
                             }),
                             TransformFlags::NONE,
                         )?;
@@ -782,7 +786,9 @@ impl TypeScriptTransformer<'_> {
             let container = factory.create_node(
                 source,
                 NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                    escaped_text: tsc_syntax::escape_leading_underscores(&container_name),
+                    escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(
+                        &tsc_syntax::escape_leading_underscores(&container_name),
+                    ),
                 }),
                 TransformFlags::NONE,
             )?;
@@ -1740,7 +1746,9 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
         self.context.factory()?.create_node(
             self.source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                escaped_text: tsc_syntax::escape_leading_underscores(text),
+                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(
+                    &tsc_syntax::escape_leading_underscores(text),
+                ),
             }),
             TransformFlags::NONE,
         )
@@ -2041,7 +2049,9 @@ fn insert_external_helpers_import_declaration(
         let identifier = context.factory()?.create_node(
             source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                escaped_text: tsc_syntax::escape_leading_underscores(name),
+                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(
+                    &tsc_syntax::escape_leading_underscores(name),
+                ),
             }),
             TransformFlags::NONE,
         )?;
@@ -10710,7 +10720,9 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let identifier = self.context.factory()?.create_node(
             self.source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                escaped_text: tsc_syntax::escape_leading_underscores(text),
+                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(
+                    &tsc_syntax::escape_leading_underscores(text),
+                ),
             }),
             TransformFlags::NONE,
         )?;
@@ -14613,7 +14625,9 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         let identifier = self.context.factory()?.create_node(
             self.source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                escaped_text: tsc_syntax::escape_leading_underscores(text),
+                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(
+                    &tsc_syntax::escape_leading_underscores(text),
+                ),
             }),
             TransformFlags::NONE,
         )?;
@@ -17837,7 +17851,7 @@ fn parameter_emit_role(
         || matches!(
             &name.data,
             NodeData::Identifier(identifier)
-                if identifier_to_keyword_kind(&identifier.escaped_text)
+                if identifier_to_keyword_kind(identifier.escaped_text.identifier_text())
                     == Some(SyntaxKind::ThisKeyword)
         );
     Ok(if is_this {

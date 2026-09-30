@@ -13,7 +13,7 @@ name = "tsc_checker"
 path = "src/lib.rs"
 
 [features]
-perf-counters = ["tsc-types/perf-counters"]
+perf-counters = ["tsc-binder/perf-counters", "tsc-types/perf-counters"]
 
 [dependencies]
 hashbrown = { version = "0.16", default-features = false, features = ["inline-more"] }

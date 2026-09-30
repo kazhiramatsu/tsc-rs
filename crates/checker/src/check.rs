@@ -38,6 +38,7 @@ use crate::program::ProgramFileId;
 use crate::state::{
     CheckAbort, CheckResult, CheckerState, OracleCrashKind, SignatureId, SignatureKind,
 };
+use tsc_binder::NameKey;
 
 /// Debug-only unwind census (the abort-unwind invariant):
 /// every transient stack an element check may push must be back at
@@ -2270,7 +2271,9 @@ impl<'a> CheckerState<'a> {
         }
 
         let (left, right) = match self.data_of(name) {
-            NodeData::Identifier(data) => (container, data.escaped_text.clone()),
+            NodeData::Identifier(data) => {
+                (container, data.escaped_text.identifier_text().to_owned())
+            }
             // 87523-87524: `name.left` / `name.right` of a QualifiedName as of
             // a JSDocMemberName. `{@link Class.member}` fails the entity-name
             // pass above (a class is no namespace), and this resolution of
@@ -3330,7 +3333,7 @@ impl<'a> CheckerState<'a> {
         }) {
             let location = self.get_deprecated_suggestion_node(node);
             let name =
-                tsc_binder::unescape_leading_underscores(&self.binder.symbol(symbol).escaped_name)
+                tsc_binder::unescape_leading_underscores(self.binder.symbol(symbol).escaped_name)
                     .to_owned();
             self.add_deprecated_suggestion(location, &declarations, &name);
         }
@@ -5112,7 +5115,7 @@ impl<'a> CheckerState<'a> {
             {
                 continue;
             }
-            let name = self.binder.symbol(target_prop).escaped_name.clone();
+            let name = self.binder.symbol(target_prop).escaped_name;
             // isStaticPrivateIdentifierProperty skip: only STATIC
             // private-identifier properties stay out of the head —
             // instance private names DO surface (privateNamesUnique-4
@@ -5134,7 +5137,7 @@ impl<'a> CheckerState<'a> {
                     continue;
                 }
             }
-            if self.get_property_of_type_full(source, &name)?.is_none() {
+            if self.get_property_of_type_full(source, name)?.is_none() {
                 unmatched.push(target_prop);
             }
         }
@@ -5330,7 +5333,7 @@ impl<'a> CheckerState<'a> {
         prop: SymbolId,
         write_computed_props: bool,
     ) -> CheckResult<JsString> {
-        let escaped = self.binder.symbol(prop).escaped_name.clone();
+        let escaped = self.binder.symbol(prop).escaped_name;
         if escaped.starts_with("#") {
             return Ok(escaped.as_js().to_owned());
         }
@@ -5437,7 +5440,7 @@ impl<'a> CheckerState<'a> {
         }
         match self.data_of(node).clone() {
             NodeData::Identifier(data) => {
-                Ok(tsc_syntax::unescape_leading_underscores(&data.escaped_text).to_owned().into())
+                Ok(data.text().to_owned().into())
             }
             NodeData::PrivateIdentifier(data) => Ok(data.text().into()),
             NodeData::StringLiteral(data) => string_literal_name(&data.text, false).map(JsString::from),
@@ -8234,8 +8237,8 @@ impl<'a> CheckerState<'a> {
         visited: &mut Vec<ScopeTableKey>,
         enclosing: Option<NodeId>,
     ) -> CheckResult<Option<Vec<SymbolId>>> {
-        let escaped = self.binder.symbol(symbol).escaped_name.clone();
-        let direct = table.get(&escaped).copied();
+        let escaped = self.binder.symbol(symbol).escaped_name;
+        let direct = table.get(escaped).copied();
         if self.symbol_chain_is_accessible(
             symbol,
             direct,
@@ -8432,9 +8435,9 @@ impl<'a> CheckerState<'a> {
         meaning: tsc_types::SymbolFlags,
         enclosing: Option<NodeId>,
     ) -> CheckResult<bool> {
-        let escaped = self.binder.symbol(symbol).escaped_name.clone();
+        let escaped = self.binder.symbol(symbol).escaped_name;
         for (_, table, _) in self.symbol_tables_in_scope(enclosing) {
-            let Some(&entry) = table.get(&escaped) else {
+            let Some(&entry) = table.get(escaped) else {
                 continue;
             };
             let entry = self.get_merged_symbol(entry);
@@ -8780,8 +8783,8 @@ impl<'a> CheckerState<'a> {
             }
         }
         let exports = self.get_exports_of_symbol(container)?;
-        let escaped = self.binder.symbol(symbol).escaped_name.clone();
-        if let Some(&quick) = exports.get(&escaped) {
+        let escaped = self.binder.symbol(symbol).escaped_name;
+        if let Some(&quick) = exports.get(escaped) {
             if self.symbol_if_same_reference(quick, symbol)? {
                 return Ok(Some(quick));
             }
@@ -9978,7 +9981,7 @@ impl<'a> CheckerState<'a> {
                 let base = rest_symbol
                     .map(|symbol| {
                         tsc_binder::unescape_leading_underscores(
-                            &self.binder.symbol(symbol).escaped_name,
+                            self.binder.symbol(symbol).escaped_name,
                         )
                         .as_str()
                         .expect("rest parameter symbols have scalar identifier names")
@@ -10012,8 +10015,7 @@ impl<'a> CheckerState<'a> {
         if let Some(name) = name {
             match self.data_of(name) {
                 NodeData::Identifier(data) => {
-                    let text =
-                        tsc_syntax::unescape_leading_underscores(&data.escaped_text).to_owned();
+                    let text = data.text().to_owned();
                     if dot_dot_dot {
                         return Ok(if element_flags.intersects(ElementFlags::VARIABLE) {
                             text
@@ -10186,9 +10188,7 @@ impl<'a> CheckerState<'a> {
                         });
                 match name_node {
                     Some(name) => match self.data_of(name) {
-                        NodeData::Identifier(data) => {
-                            tsc_syntax::unescape_leading_underscores(&data.escaped_text).into()
-                        }
+                        NodeData::Identifier(data) => data.text().into(),
                         NodeData::QualifiedName(data) => data
                             .right
                             .and_then(|right| self.identifier_text_of(right))
@@ -12974,11 +12974,7 @@ impl<'a> CheckerState<'a> {
     /// dots / the property-access spellings type queries carry.
     fn entity_name_text(&mut self, node: NodeId) -> CheckResult<JsString> {
         match self.data_of(node).clone() {
-            NodeData::Identifier(data) => {
-                Ok(tsc_syntax::unescape_leading_underscores(&data.escaped_text)
-                    .to_owned()
-                    .into())
-            }
+            NodeData::Identifier(data) => Ok(data.text().to_owned().into()),
             NodeData::PrivateIdentifier(data) => Ok(data.text().into()),
             NodeData::QualifiedName(data) => {
                 let left =
@@ -13389,11 +13385,7 @@ impl<'a> CheckerState<'a> {
     /// and entity-name ledger blocks.
     pub(crate) fn member_name_node_text(&mut self, name: NodeId) -> CheckResult<JsString> {
         match self.data_of(name).clone() {
-            NodeData::Identifier(data) => {
-                Ok(tsc_syntax::unescape_leading_underscores(&data.escaped_text)
-                    .to_owned()
-                    .into())
-            }
+            NodeData::Identifier(data) => Ok(data.text().to_owned().into()),
             NodeData::PrivateIdentifier(data) => Ok(data.text().into()),
             NodeData::StringLiteral(data) => {
                 string_literal_name(&data.text, false).map(JsString::from)
@@ -13568,9 +13560,7 @@ impl<'a> CheckerState<'a> {
                 };
                 let name_node = data.name.expect("BindingElement carries its binding name");
                 let name = match self.data_of(name_node) {
-                    NodeData::Identifier(data) => {
-                        tsc_syntax::unescape_leading_underscores(&data.escaped_text).into()
-                    }
+                    NodeData::Identifier(data) => data.text().into(),
                     NodeData::ObjectBindingPattern(_) | NodeData::ArrayBindingPattern(_) => {
                         self.binding_pattern_text_worker(name_node, preserve_initializers)?
                     }
@@ -13707,7 +13697,7 @@ impl<'a> CheckerState<'a> {
             }
         }
         let raw =
-            tsc_binder::unescape_leading_underscores(&self.binder.symbol(property).escaped_name)
+            tsc_binder::unescape_leading_underscores(self.binder.symbol(property).escaped_name)
                 .to_owned();
         identifier_or_literal_name(&raw, string_named, single_quote, is_method).map(JsString::from)
     }
@@ -14250,13 +14240,13 @@ fn array_type_node_text(element: impl Into<JsString>, kind: SliceTypeNodeKind) -
 /// The numeric face prints `(+name).toString()` (factory
 /// createNumericLiteral over the coerced value); the string face is
 /// the printer's quoted literal.
-fn identifier_or_literal_name<'n>(
-    name: impl Into<tsc_types::JsStr<'n>>,
+fn identifier_or_literal_name(
+    name: impl NameKey,
     string_named: bool,
     single_quote: bool,
     is_method: bool,
 ) -> CheckResult<String> {
-    let name = name.into();
+    let name = name.name();
     let is_method_named_new = is_method && name == "new";
     if !is_method_named_new {
         if let Some(identifier) = name

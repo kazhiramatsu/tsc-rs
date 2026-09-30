@@ -429,7 +429,12 @@ mod tests {
             match &mut changed.arena.node_mut(NodeId::new(index as u32)).data {
                 NodeData::ImportClause(d) => d.is_type_only = !d.is_type_only,
                 NodeData::HeritageClause(d) => d.token = SyntaxKind::ImplementsKeyword,
-                NodeData::Identifier(d) => d.escaped_text.push_str("changed"),
+                NodeData::Identifier(d) => {
+                    d.escaped_text = tsc_types::EscapedName::from_identifier_escaped_text(&format!(
+                        "{}changed",
+                        d.escaped_text.identifier_text()
+                    ))
+                }
                 _ => unreachable!(),
             }
             assert_ne!(

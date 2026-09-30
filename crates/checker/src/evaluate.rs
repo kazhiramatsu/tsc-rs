@@ -20,6 +20,7 @@ use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{CheckMode, EscapedName, JsString, ModifierFlags, NodeFlags, SymbolFlags};
 
 use crate::state::{CheckResult, CheckerState};
+use tsc_binder::NameKey;
 
 /// tsc EvaluatorResult.value: string | number | undefined (pseudo
 /// bigints never flow — the evaluator has no bigint arms).
@@ -222,7 +223,7 @@ impl<'a> CheckerState<'a> {
             );
         } else {
             let text = self.get_text_of_property_name(name)?;
-            if is_numeric_literal_name(&text) && !is_infinity_or_nan_string(&text) {
+            if is_numeric_literal_name(text) && !is_infinity_or_nan_string(text) {
                 self.error_at(
                     Some(name),
                     &diagnostics::An_enum_member_cannot_have_a_numeric_name,
@@ -1558,12 +1559,8 @@ impl<'a> CheckerState<'a> {
             // emitNode.autoGenerate is not represented in the parsed
             // arena; parsed identifiers/private identifiers therefore
             // take the escapedText arm directly.
-            NodeData::Identifier(data) => Some(EscapedName::from_identifier_escaped_text(
-                &data.escaped_text,
-            )),
-            NodeData::PrivateIdentifier(data) => Some(EscapedName::from_identifier_escaped_text(
-                &data.escaped_text,
-            )),
+            NodeData::Identifier(data) => Some(data.escaped_text),
+            NodeData::PrivateIdentifier(data) => Some(data.escaped_text),
             NodeData::StringLiteral(data) => {
                 Some(tsc_binder::escape_leading_underscores(&data.text))
             }
@@ -1779,16 +1776,16 @@ impl<'a> CheckerState<'a> {
 ///
 /// `(+name).toString() === name` — JS ToNumber over the name string,
 /// round-tripped through Number#toString.
-pub(crate) fn is_numeric_literal_name<'n>(name: impl Into<tsc_types::JsStr<'n>>) -> bool {
-    let name = name.into();
+pub(crate) fn is_numeric_literal_name(name: impl NameKey) -> bool {
+    let name = name.name();
     name == tsc_types::js_number_to_string(js_string_to_number(name)).as_str()
 }
 
 /// tsc-port: isInfinityOrNaNString @6.0.3
 /// tsc-hash: 0e62fa3d1eedc96edada87bf439e9b1e08da6114503b430fd3b76fcc9ec063ef
 /// tsc-span: _tsc.js:19196-19198
-fn is_infinity_or_nan_string<'n>(name: impl Into<tsc_types::JsStr<'n>>) -> bool {
-    let name = name.into();
+fn is_infinity_or_nan_string(name: impl NameKey) -> bool {
+    let name = name.name();
     name == "Infinity" || name == "-Infinity" || name == "NaN"
 }
 

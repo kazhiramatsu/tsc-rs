@@ -1471,6 +1471,8 @@ fn render_nodes_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Error>> {
                 field.rust_name,
                 if is_js_string_text(&schema.kind_name, field) {
                     "tsc_types::JsString".to_owned()
+                } else if is_escaped_name_text(&schema.kind_name, field) {
+                    "tsc_types::EscapedName".to_owned()
                 } else {
                     render_field_type(field)
                 }
@@ -1605,6 +1607,9 @@ fn render_missing_field_value(field: &SchemaField, kind_name: &str) -> String {
     if is_js_string_text(kind_name, field) {
         return "tsc_types::JsString::new()".to_owned();
     }
+    if is_escaped_name_text(kind_name, field) {
+        return "tsc_types::EscapedName::from_identifier_escaped_text(\"\")".to_owned();
+    }
 
     match field.ty {
         RustFieldType::Node => "NodeId::default()".to_owned(),
@@ -1630,6 +1635,13 @@ fn is_js_string_text(kind_name: &str, field: &SchemaField) -> bool {
                 | "TemplateMiddle"
                 | "TemplateTail"
         )
+}
+
+/// An identifier's escaped text is an interned `EscapedName`: the name the
+/// binder keys its tables by, at the size of an id. The d.ts/schema
+/// category remains `string`.
+fn is_escaped_name_text(kind_name: &str, field: &SchemaField) -> bool {
+    field.ts_name == "escapedText" && matches!(kind_name, "Identifier" | "PrivateIdentifier")
 }
 
 fn render_field_type(field: &SchemaField) -> String {
@@ -2986,6 +2998,12 @@ fn render_observable_fields_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn
                         writeln!(
                             out,
                             "            cb({:?}, ObservableField::JsString(data.{}.as_js()));",
+                            field.ts_name, field.rust_name
+                        )?;
+                    } else if is_escaped_name_text(&schema.kind_name, field) {
+                        writeln!(
+                            out,
+                            "            cb({:?}, ObservableField::String(data.{}.identifier_text()));",
                             field.ts_name, field.rust_name
                         )?;
                     } else {

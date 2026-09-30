@@ -691,9 +691,7 @@ impl<'a> CheckerState<'a> {
                 unreachable!("StringLiteral flag implies string data");
             };
             let name = tsc_types::EscapedName::escape(value.to_js_string().as_js());
-            let literal_prop = self
-                .binder
-                .create_symbol(SymbolFlags::PROPERTY, name.clone());
+            let literal_prop = self.binder.create_symbol(SymbolFlags::PROPERTY, name);
             self.links.set_fresh_symbol_type(
                 literal_prop,
                 LinkSlot::Resolved(self.tables.intrinsics.any),
@@ -2886,10 +2884,10 @@ impl InferTypesWalker<'_, '_> {
                 .type_of(right)
                 .symbol
                 .expect("StringMapping carries its intrinsic alias symbol");
-            let name = self.st.binder.symbol(symbol).escaped_name.clone();
+            let name = self.st.binder.symbol(symbol).escaped_name;
             str_value
                 == &crate::instantiate::apply_string_mapping(
-                    crate::instantiate::intrinsic_type_kind(&name),
+                    crate::instantiate::intrinsic_type_kind(name),
                     str_value,
                 )
         } {
@@ -3448,8 +3446,8 @@ impl InferTypesWalker<'_, '_> {
     fn infer_from_properties(&mut self, source: TypeId, target: TypeId) -> CheckResult<()> {
         let properties = self.st.get_properties_of_object_type_owned(target)?;
         for target_prop in properties {
-            let name = self.st.binder.symbol(target_prop).escaped_name.clone();
-            let Some(source_prop) = self.st.get_property_of_type_full(source, &name)? else {
+            let name = self.st.binder.symbol(target_prop).escaped_name;
+            let Some(source_prop) = self.st.get_property_of_type_full(source, name)? else {
                 continue;
             };
             // 69174: hasSkipDirectInferenceFlag over the declarations

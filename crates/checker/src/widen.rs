@@ -210,14 +210,13 @@ impl<'a> CheckerState<'a> {
             .expect("sibling-less context has a parent (createWideningContext callers)");
         let property_name = self.widening_contexts[context]
             .property_name
-            .clone()
             .expect("child contexts carry a property name");
         let mut siblings = Vec::new();
         for ty in self.get_siblings_of_context(parent)? {
             if !self.is_object_literal_type(ty) {
                 continue;
             }
-            let Some(prop) = self.get_property_of_object_type(ty, &property_name)? else {
+            let Some(prop) = self.get_property_of_object_type(ty, property_name)? else {
                 continue;
             };
             let prop_type = self.get_type_of_symbol(prop)?;
@@ -265,7 +264,7 @@ impl<'a> CheckerState<'a> {
                 continue;
             }
             for prop in self.get_properties_of_type_full(t)? {
-                let name = self.binder.symbol(prop).escaped_name.clone();
+                let name = self.binder.symbol(prop).escaped_name;
                 match index_of.get(&name) {
                     Some(&slot) => names[slot] = prop,
                     None => {
@@ -295,7 +294,7 @@ impl<'a> CheckerState<'a> {
         }
         let original = self.get_type_of_symbol(prop)?;
         let prop_context = context.map(|parent| {
-            let name = self.binder.symbol(prop).escaped_name.clone();
+            let name = self.binder.symbol(prop).escaped_name;
             self.create_widening_context(Some(parent), Some(name), /*siblings*/ None)
         });
         let widened = self.get_widened_type_with_context(original, prop_context)?;
@@ -317,7 +316,7 @@ impl<'a> CheckerState<'a> {
     /// "eOPT is unmodeled" justification was false — options.rs
     /// carries it and tables.rs computes the intrinsic from it).
     fn get_undefined_property(&mut self, prop: SymbolId) -> SymbolId {
-        let name = self.binder.symbol(prop).escaped_name.clone();
+        let name = self.binder.symbol(prop).escaped_name;
         if let Some(&cached) = self.undefined_properties.get(&name) {
             return cached;
         }
@@ -340,14 +339,14 @@ impl<'a> CheckerState<'a> {
         let mut properties: Vec<SymbolId> = Vec::new();
         for prop in self.get_properties_of_object_type_owned(ty)? {
             let widened = self.get_widened_property(prop, context)?;
-            let name = self.binder.symbol(widened).escaped_name.clone();
+            let name = self.binder.symbol(widened).escaped_name;
             members.insert(name, widened);
             properties.push(widened);
         }
         if let Some(context) = context {
             for prop in self.get_properties_of_context(context)? {
-                let name = self.binder.symbol(prop).escaped_name.clone();
-                if members.get(&name).is_none() {
+                let name = self.binder.symbol(prop).escaped_name;
+                if members.get(name).is_none() {
                     let undefined_prop = self.get_undefined_property(prop);
                     members.insert(name, undefined_prop);
                     properties.push(undefined_prop);
@@ -629,7 +628,7 @@ impl<'a> CheckerState<'a> {
                             let resolves_as_type = self
                                 .resolve_name(
                                     Some(declaration),
-                                    &tsc_binder::escape_leading_underscores(&name_text),
+                                    tsc_binder::escape_leading_underscores(&name_text),
                                     SymbolFlags::TYPE,
                                     /*name_not_found_message*/ None,
                                     /*is_use*/ true,

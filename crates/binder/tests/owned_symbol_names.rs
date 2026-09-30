@@ -33,7 +33,7 @@ fn source_module_names_and_duplicate_diagnostic_paths_keep_js_values() {
         let mut expected = "\"/work/".encode_utf16().collect::<Vec<_>>();
         expected.extend([unit, 0x22]);
         assert_eq!(symbol.escaped_name.as_js().to_utf16(), expected);
-        names.push(symbol.escaped_name.clone());
+        names.push(symbol.escaped_name);
         assert!(!binder.bind_diagnostics.is_empty());
         assert!(binder
             .bind_diagnostics

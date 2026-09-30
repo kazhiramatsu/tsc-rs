@@ -546,7 +546,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: beb742e6e73179136a6e9921ecf8187897b5a23baa9ba1161f7233396e71ab31
     /// tsc-span: _tsc.js:74083-74087
     fn is_symbol_with_numeric_name(&mut self, symbol: SymbolId) -> CheckResult<bool> {
-        if crate::indexed::is_numeric_literal_name(&self.binder.symbol(symbol).escaped_name) {
+        if crate::indexed::is_numeric_literal_name(self.binder.symbol(symbol).escaped_name) {
             return Ok(true);
         }
         let Some(first_decl) = self.binder.symbol(symbol).declarations.first().copied() else {
@@ -1158,7 +1158,7 @@ impl<'a> CheckerState<'a> {
                         prop
                     }
                     None => {
-                        let name = self.binder.symbol(member_sym).escaped_name.clone();
+                        let name = self.binder.symbol(member_sym).escaped_name;
                         let prop = self
                             .binder
                             .create_symbol(SymbolFlags::PROPERTY | member_flags, name);
@@ -1181,8 +1181,8 @@ impl<'a> CheckerState<'a> {
                         .intersects(ObjectFlags::OBJECT_LITERAL_PATTERN_WITH_COMPUTED_PROPERTIES)
                 {
                     let contextual = acc.contextual_type.expect("pattern implies contextual");
-                    let member_name = self.binder.symbol(member_sym).escaped_name.clone();
-                    let implied_prop = self.get_property_of_type_full(contextual, &member_name)?;
+                    let member_name = self.binder.symbol(member_sym).escaped_name;
+                    let implied_prop = self.get_property_of_type_full(contextual, member_name)?;
                     match implied_prop {
                         Some(implied) => {
                             let optional =
@@ -1223,7 +1223,7 @@ impl<'a> CheckerState<'a> {
                     .set_symbol_target(self.speculation_depth, prop, member_sym);
                 member = prop;
                 if let Some(all) = &mut acc.all_properties_table {
-                    let name = self.binder.symbol(prop).escaped_name.clone();
+                    let name = self.binder.symbol(prop).escaped_name;
                     all.insert(name, prop);
                 }
                 // 74206-74213: the intra-expression inference-site
@@ -1354,7 +1354,7 @@ impl<'a> CheckerState<'a> {
                     }
                 }
             } else {
-                let name = self.binder.symbol(member).escaped_name.clone();
+                let name = self.binder.symbol(member).escaped_name;
                 acc.properties_table.insert(name, member);
             }
             acc.properties_array.push(member);
@@ -1514,8 +1514,8 @@ impl<'a> CheckerState<'a> {
             if self.get_check_flags(right).intersects(CheckFlags::PARTIAL) {
                 continue;
             }
-            let name = self.binder.symbol(right).escaped_name.clone();
-            let Some(&left) = props.get(&name) else {
+            let name = self.binder.symbol(right).escaped_name;
+            let Some(&left) = props.get(name) else {
                 continue;
             };
             let display = self.symbol_display_name(left);
@@ -1624,10 +1624,10 @@ impl<'a> CheckerState<'a> {
                 let prop_flags = self.binder.symbol(prop).flags;
                 let is_setonly_accessor = prop_flags.intersects(SymbolFlags::SET_ACCESSOR)
                     && !prop_flags.intersects(SymbolFlags::GET_ACCESSOR);
-                let name = self.binder.symbol(prop).escaped_name.clone();
+                let name = self.binder.symbol(prop).escaped_name;
                 let result = self
                     .binder
-                    .create_symbol(SymbolFlags::PROPERTY | SymbolFlags::OPTIONAL, name.clone());
+                    .create_symbol(SymbolFlags::PROPERTY | SymbolFlags::OPTIONAL, name);
                 let late = self.get_check_flags(prop) & CheckFlags::LATE;
                 let check_flags = late
                     | if readonly {
@@ -1829,7 +1829,7 @@ impl<'a> CheckerState<'a> {
             self.get_union_index_infos(&[left, right])?
         };
         for right_prop in self.get_properties_of_type(right)? {
-            let name = self.binder.symbol(right_prop).escaped_name.clone();
+            let name = self.binder.symbol(right_prop).escaped_name;
             let modifiers = self.get_declaration_modifier_flags_from_symbol(right_prop);
             if modifiers
                 .intersects(tsc_types::ModifierFlags::PRIVATE | tsc_types::ModifierFlags::PROTECTED)
@@ -1841,11 +1841,11 @@ impl<'a> CheckerState<'a> {
             }
         }
         for left_prop in self.get_properties_of_type(left)? {
-            let name = self.binder.symbol(left_prop).escaped_name.clone();
+            let name = self.binder.symbol(left_prop).escaped_name;
             if skipped_private_members.contains(&name) || !self.is_spreadable_property(left_prop) {
                 continue;
             }
-            if let Some(&right_prop) = members.get(&name) {
+            if let Some(&right_prop) = members.get(name) {
                 let right_type = self.get_type_of_symbol(right_prop)?;
                 if self
                     .binder
@@ -1857,7 +1857,7 @@ impl<'a> CheckerState<'a> {
                     let right_declarations = self.binder.symbol(right_prop).declarations.clone();
                     let flags = SymbolFlags::PROPERTY
                         | (self.binder.symbol(left_prop).flags & SymbolFlags::OPTIONAL);
-                    let result = self.binder.create_symbol(flags, name.clone());
+                    let result = self.binder.create_symbol(flags, name);
                     let left_type = self.get_type_of_symbol(left_prop)?;
                     let left_without_undefined =
                         self.remove_missing_or_undefined_type(left_type)?;
@@ -1964,7 +1964,7 @@ impl<'a> CheckerState<'a> {
             return Ok(prop);
         }
         let flags = SymbolFlags::PROPERTY | (prop_flags & SymbolFlags::OPTIONAL);
-        let name = self.binder.symbol(prop).escaped_name.clone();
+        let name = self.binder.symbol(prop).escaped_name;
         let result = self.binder.create_symbol(flags, name);
         let late = self.get_check_flags(prop) & CheckFlags::LATE;
         let check_flags = late

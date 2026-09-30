@@ -39,7 +39,7 @@ fn jsdoc_child_order_and_comment_union_follow_tsc() {
     let identifier = |arena: &mut NodeArena, text: &str, pos: usize| {
         arena.alloc_node(
             NodeData::Identifier(IdentifierData {
-                escaped_text: text.to_owned(),
+                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(text),
             }),
             pos,
             pos + text.len(),

@@ -2071,10 +2071,10 @@ impl<'a> CheckerState<'a> {
         let Some(text) = self.property_name_from_type_usable(name_type) else {
             return Ok(self.tables.intrinsics.error);
         };
-        if let Some(prop_type) = self.get_type_of_property_of_type(ty, &text)? {
+        if let Some(prop_type) = self.get_type_of_property_of_type(ty, text)? {
             return Ok(prop_type);
         }
-        let index_type = self.get_applicable_index_info_for_name(ty, &text)?;
+        let index_type = self.get_applicable_index_info_for_name(ty, text)?;
         let included = self.include_undefined_in_index_signature(index_type)?;
         Ok(included.unwrap_or(self.tables.intrinsics.error))
     }
@@ -2928,7 +2928,7 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
         container: NodeId,
     ) -> CheckResult<TypeId> {
-        let escaped_name = self.binder.symbol(symbol).escaped_name.clone();
+        let escaped_name = self.binder.symbol(symbol).escaped_name;
         let description = escaped_name
             .as_js()
             .strip_prefix("__#")
@@ -3019,7 +3019,7 @@ impl<'a> CheckerState<'a> {
         prop_type: TypeId,
         container: NodeId,
     ) -> CheckResult<TypeId> {
-        let escaped_name = self.binder.symbol(symbol).escaped_name.clone();
+        let escaped_name = self.binder.symbol(symbol).escaped_name;
         let description = escaped_name
             .as_js()
             .strip_prefix("__#")
@@ -3734,8 +3734,8 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn escaped_text_of(&self, node: Option<NodeId>) -> Option<&str> {
         let node = node?;
         match self.data_of(node) {
-            NodeData::Identifier(data) => Some(data.escaped_text.as_str()),
-            NodeData::PrivateIdentifier(data) => Some(data.escaped_text.as_str()),
+            NodeData::Identifier(data) => Some(data.escaped_text.identifier_text()),
+            NodeData::PrivateIdentifier(data) => Some(data.escaped_text.identifier_text()),
             _ => None,
         }
     }
@@ -3752,9 +3752,7 @@ impl<'a> CheckerState<'a> {
                 let NodeData::PropertyAccessExpression(data) = self.data_of(access) else {
                     return Ok(None);
                 };
-                Ok(self
-                    .escaped_text_of(data.name)
-                    .map(EscapedName::from_identifier_escaped_text))
+                Ok(data.name.and_then(|name| self.identifier_name_of(name)))
             }
             SyntaxKind::ElementAccessExpression => {
                 self.try_get_element_access_expression_name(access)
@@ -3799,7 +3797,7 @@ impl<'a> CheckerState<'a> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL) {
             if let TypeData::UniqueESSymbol { escaped_name } = &self.tables.type_of(ty).data {
-                return Some(escaped_name.clone());
+                return Some(*escaped_name);
             }
             return None;
         }

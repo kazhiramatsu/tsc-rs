@@ -17,6 +17,7 @@ path = "src/lib.rs"
 perf-counters = []
 
 [dependencies]
+hashbrown = { version = "0.16", default-features = false, features = ["inline-more"] }
 rustc-hash.workspace = true
 tsc-diagnostics.workspace = true
 

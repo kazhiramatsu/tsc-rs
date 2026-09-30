@@ -33,6 +33,7 @@ use tsc_types::{
 
 use crate::indexed::is_numeric_literal_name;
 use crate::state::{CheckResult, CheckerState, SignatureId};
+use tsc_binder::NameKey;
 use tsc_types::perf::{self, PerfCounter};
 
 /// One lazy discriminator of discriminateTypeByDiscriminableItems'
@@ -565,7 +566,7 @@ impl<'a> CheckerState<'a> {
         }
         let name_type = self.get_literal_type_from_property_name(name)?;
         if let Some(text) = self.property_name_from_type_usable(name_type) {
-            return self.get_type_of_property_of_type(parent_type, &text);
+            return self.get_type_of_property_of_type(parent_type, text);
         }
         Ok(None)
     }
@@ -586,8 +587,8 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         };
         let symbol = self.get_symbol_of_declaration(declaration)?;
-        let name = self.binder.symbol(symbol).escaped_name.clone();
-        self.get_type_of_property_of_contextual_type(parent_type, &name, None)
+        let name = self.binder.symbol(symbol).escaped_name;
+        self.get_type_of_property_of_contextual_type(parent_type, name, None)
     }
 
     /// tsc-port: getContextualTypeForInitializerExpression @6.0.3
@@ -1154,7 +1155,7 @@ impl<'a> CheckerState<'a> {
                     return Ok(None);
                 };
                 let lhs_type = self.get_type_of_expression(expression)?;
-                self.get_property_of_type_full(lhs_type, &name_text)
+                self.get_property_of_type_full(lhs_type, name_text)
             }
             _ => Ok(None),
         }
@@ -1252,7 +1253,7 @@ impl<'a> CheckerState<'a> {
                                 let annotated_type = self.get_type_from_type_node(annotated)?;
                                 return self.get_type_of_property_of_contextual_type(
                                     annotated_type,
-                                    &name_str,
+                                    name_str,
                                     None,
                                 );
                             }
@@ -1329,7 +1330,7 @@ impl<'a> CheckerState<'a> {
         let Some(name) = self.element_or_property_access_name(left) else {
             return Ok(None);
         };
-        self.get_type_of_property_of_contextual_type(this_type, &name, None)
+        self.get_type_of_property_of_contextual_type(this_type, name, None)
     }
 
     /// tsc getElementOrPropertyAccessName (15134-15145): the identifier
@@ -1441,13 +1442,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTypeOfPropertyOfContextualType @6.0.3
     /// tsc-hash: ec4d63f5248309d0acfd4a38b4b9e2e26840d7b409f04390cd5d3333d849d0cd
     /// tsc-span: _tsc.js:73112-73162
-    pub(crate) fn get_type_of_property_of_contextual_type<'n>(
+    pub(crate) fn get_type_of_property_of_contextual_type(
         &mut self,
         ty: TypeId,
-        name: impl Into<tsc_types::JsStr<'n>>,
+        name: impl NameKey,
         name_type: Option<TypeId>,
     ) -> CheckResult<Option<TypeId>> {
-        let name = name.into();
+        let name = name.name();
         let name = name.to_owned();
         self.map_type(
             ty,
@@ -1475,7 +1476,7 @@ impl<'a> CheckerState<'a> {
                             let substituted = state
                                 .get_indexed_mapped_type_substituted_type_of_contextual_type(
                                     constituent,
-                                    &name,
+                                    name,
                                     name_type,
                                 )?;
                             state.append_contextual_property_type_constituent(
@@ -1485,7 +1486,7 @@ impl<'a> CheckerState<'a> {
                             continue;
                         }
                         let property_type = state
-                            .get_type_of_concrete_property_of_contextual_type(constituent, &name)?;
+                            .get_type_of_concrete_property_of_contextual_type(constituent, name)?;
                         let Some(property_type) = property_type else {
                             if !ignore_index_infos {
                                 index_info_candidates.push(constituent);
@@ -1501,7 +1502,7 @@ impl<'a> CheckerState<'a> {
                     }
                     for candidate in index_info_candidates {
                         let index_info_type = state.get_type_from_index_infos_of_contextual_type(
-                            candidate, &name, name_type,
+                            candidate, name, name_type,
                         )?;
                         state.append_contextual_property_type_constituent(
                             &mut types,
@@ -1526,10 +1527,10 @@ impl<'a> CheckerState<'a> {
                         != crate::mapped::MappedTypeNameTypeKind::Remapping
                 {
                     return state.get_indexed_mapped_type_substituted_type_of_contextual_type(
-                        t, &name, name_type,
+                        t, name, name_type,
                     );
                 }
-                match state.get_type_of_concrete_property_of_contextual_type(t, &name)? {
+                match state.get_type_of_concrete_property_of_contextual_type(t, name)? {
                     Some(property_type) => {
                         // appendContextualPropertyTypeConstituent's
                         // any→unknown laundering applies on the
@@ -1537,7 +1538,7 @@ impl<'a> CheckerState<'a> {
                         // returns the property type as-is.
                         Ok(Some(property_type))
                     }
-                    None => state.get_type_from_index_infos_of_contextual_type(t, &name, name_type),
+                    None => state.get_type_from_index_infos_of_contextual_type(t, name, name_type),
                 }
             },
             true,
@@ -1581,13 +1582,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getIndexedMappedTypeSubstitutedTypeOfContextualType @6.0.3
     /// tsc-hash: 80d9c33b479640b8d3f675320d8bb2a6a4602849210e0bbf5eccdda16ffc9e84
     /// tsc-span: _tsc.js:73166-73177
-    fn get_indexed_mapped_type_substituted_type_of_contextual_type<'n>(
+    fn get_indexed_mapped_type_substituted_type_of_contextual_type(
         &mut self,
         ty: TypeId,
-        name: impl Into<tsc_types::JsStr<'n>>,
+        name: impl NameKey,
         name_type: Option<TypeId>,
     ) -> CheckResult<Option<TypeId>> {
-        let name = name.into();
+        let name = name.name();
         let property_name_type = name_type.unwrap_or_else(|| {
             self.tables
                 .get_string_literal_type(tsc_binder::unescape_leading_underscores(name))
@@ -1635,12 +1636,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTypeOfConcretePropertyOfContextualType @6.0.3
     /// tsc-hash: a43fe4c12bceede221999a4ac05100e280a4f8caab2099195e2bc86334d2afe8
     /// tsc-span: _tsc.js:73178-73184
-    fn get_type_of_concrete_property_of_contextual_type<'n>(
+    fn get_type_of_concrete_property_of_contextual_type(
         &mut self,
         ty: TypeId,
-        name: impl Into<tsc_types::JsStr<'n>>,
+        name: impl NameKey,
     ) -> CheckResult<Option<TypeId>> {
-        let name = name.into();
+        let name = name.name();
         let Some(prop) = self.get_property_of_type_full(ty, name)? else {
             return Ok(None);
         };
@@ -1672,13 +1673,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTypeFromIndexInfosOfContextualType @6.0.3
     /// tsc-hash: 7cc354d24fafe9c954bd57a3d377d49dfb4d52f364497d10d612f50d2d95c28d
     /// tsc-span: _tsc.js:73185-73203
-    fn get_type_from_index_infos_of_contextual_type<'n>(
+    fn get_type_from_index_infos_of_contextual_type(
         &mut self,
         ty: TypeId,
-        name: impl Into<tsc_types::JsStr<'n>>,
+        name: impl NameKey,
         name_type: Option<TypeId>,
     ) -> CheckResult<Option<TypeId>> {
-        let name = name.into();
+        let name = name.name();
         if self.tables.is_tuple_type(ty) && is_numeric_literal_name(name) {
             let parsed = crate::evaluate::js_string_to_number(name);
             if parsed >= 0.0 {
@@ -1747,9 +1748,9 @@ impl<'a> CheckerState<'a> {
         };
         if self.has_bindable_name(element)? {
             let symbol = self.get_symbol_of_declaration(element)?;
-            let name = self.binder.symbol(symbol).escaped_name.clone();
+            let name = self.binder.symbol(symbol).escaped_name;
             let name_type = self.links.symbol(symbol).name_type;
-            return self.get_type_of_property_of_contextual_type(ty, &name, name_type);
+            return self.get_type_of_property_of_contextual_type(ty, name, name_type);
         }
         if let Some(name) = self.name_of_node(element) {
             if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
@@ -1761,7 +1762,7 @@ impl<'a> CheckerState<'a> {
                         self.check_expression(expression, tsc_types::CheckMode::NORMAL)?;
                     if let Some(text) = self.property_name_from_type_usable(expr_type) {
                         if let Some(prop_type) =
-                            self.get_type_of_property_of_contextual_type(ty, &text, None)?
+                            self.get_type_of_property_of_contextual_type(ty, text, None)?
                         {
                             return Ok(Some(prop_type));
                         }
@@ -2054,7 +2055,7 @@ impl<'a> CheckerState<'a> {
                 let Some(symbol) = self.node_symbol(p) else {
                     continue;
                 };
-                let escaped_name = self.binder.symbol(symbol).escaped_name.clone();
+                let escaped_name = self.binder.symbol(symbol).escaped_name;
                 match self.kind_of(p) {
                     SyntaxKind::PropertyAssignment => {
                         let NodeData::PropertyAssignment(data) = self.data_of(p) else {
@@ -2064,7 +2065,7 @@ impl<'a> CheckerState<'a> {
                             continue;
                         };
                         if self.is_possibly_discriminant_value(initializer)
-                            && self.is_discriminant_property(contextual_type, &escaped_name)?
+                            && self.is_discriminant_property(contextual_type, escaped_name)?
                         {
                             discriminators.push((
                                 ContextualDiscriminator::ContextFree(initializer),
@@ -2077,7 +2078,7 @@ impl<'a> CheckerState<'a> {
                             unreachable!("kind/data agree");
                         };
                         let Some(name) = data.name else { continue };
-                        if self.is_discriminant_property(contextual_type, &escaped_name)? {
+                        if self.is_discriminant_property(contextual_type, escaped_name)? {
                             discriminators
                                 .push((ContextualDiscriminator::ContextFree(name), escaped_name));
                         }
@@ -2096,18 +2097,18 @@ impl<'a> CheckerState<'a> {
                 if !self.symbol_flags(s).intersects(SymbolFlags::OPTIONAL) {
                     continue;
                 }
-                let name = self.binder.symbol(s).escaped_name.clone();
+                let name = self.binder.symbol(s).escaped_name;
                 let node_symbol = self.node_symbol(node).expect("has_members implies symbol");
                 if self
                     .binder
                     .symbol(node_symbol)
                     .members()
-                    .get(&name)
+                    .get(name)
                     .is_some()
                 {
                     continue;
                 }
-                if self.is_discriminant_property(contextual_type, &name)? {
+                if self.is_discriminant_property(contextual_type, name)? {
                     absent_optional.push(name);
                 }
             }
@@ -2151,8 +2152,8 @@ impl<'a> CheckerState<'a> {
             let Some(symbol) = self.node_symbol(p) else {
                 continue;
             };
-            let escaped_name = self.binder.symbol(symbol).escaped_name.clone();
-            if !self.is_discriminant_property(contextual_type, &escaped_name)? {
+            let escaped_name = self.binder.symbol(symbol).escaped_name;
+            if !self.is_discriminant_property(contextual_type, escaped_name)? {
                 continue;
             }
             let initializer = match self.data_of(p) {
@@ -2181,7 +2182,7 @@ impl<'a> CheckerState<'a> {
                 if !self.symbol_flags(s).intersects(SymbolFlags::OPTIONAL) {
                     continue;
                 }
-                let name = self.binder.symbol(s).escaped_name.clone();
+                let name = self.binder.symbol(s).escaped_name;
                 // 73411-73414: an absent `children` attribute does not
                 // discriminate when the element HAS semantic children.
                 if jsx_children_property_name
@@ -2209,12 +2210,12 @@ impl<'a> CheckerState<'a> {
                     .binder
                     .symbol(node_symbol)
                     .members()
-                    .get(&name)
+                    .get(name)
                     .is_some()
                 {
                     continue;
                 }
-                if self.is_discriminant_property(contextual_type, &name)? {
+                if self.is_discriminant_property(contextual_type, name)? {
                     absent_optional.push(name);
                 }
             }
@@ -2749,7 +2750,7 @@ impl<'a> CheckerState<'a> {
             .collect();
         let child_index = real_children.iter().position(|&c| c == child);
         let child_field_type =
-            self.get_type_of_property_of_contextual_type(attributes_type, &children_name, None)?;
+            self.get_type_of_property_of_contextual_type(attributes_type, children_name, None)?;
         let Some(child_field_type) = child_field_type else {
             return Ok(None);
         };
@@ -2853,7 +2854,7 @@ impl<'a> CheckerState<'a> {
         let Some(name) = self.get_name_from_import_attribute(node) else {
             return Ok(None);
         };
-        self.get_type_of_property_of_contextual_type(attributes_type, &name, None)
+        self.get_type_of_property_of_contextual_type(attributes_type, name, None)
     }
 
     /// tsc getNameFromImportAttribute (19376-19378).
@@ -2863,9 +2864,7 @@ impl<'a> CheckerState<'a> {
         };
         let name = data.name?;
         match self.data_of(name) {
-            NodeData::Identifier(data) => Some(
-                tsc_types::EscapedName::from_identifier_escaped_text(&data.escaped_text),
-            ),
+            NodeData::Identifier(data) => Some(data.escaped_text),
             NodeData::StringLiteral(data) => {
                 Some(tsc_types::EscapedName::escape(data.text.as_js()))
             }

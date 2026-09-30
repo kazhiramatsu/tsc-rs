@@ -27,6 +27,7 @@ use tsc_syntax::NodeId;
 use crate::evaluate::EvalValue;
 use crate::relate::{EnumRelationError, EnumRelationOutcome, RelationKey, RelationKind};
 use crate::state::{CheckResult, CheckerState};
+use tsc_binder::NameKey;
 use tsc_types::perf::{self, PerfCounter};
 
 #[derive(Debug)]
@@ -2447,11 +2448,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         let source_symbol = self.st.tables.type_of(source).symbol;
         for prop in self.st.get_properties_of_type(source)? {
             if self.should_check_as_excess_property(prop, source_symbol) {
-                let name = self.st.binder.symbol(prop).escaped_name.clone();
+                let name = self.st.binder.symbol(prop).escaped_name;
                 if is_comparing_jsx_attributes && name.as_js().contains("-") {
                     continue;
                 }
-                if !self.st.is_known_property(reduced_target, &name)? {
+                if !self.st.is_known_property(reduced_target, name)? {
                     let diagnostic = if let Some(error_node) = report_node {
                         Some(self.create_excess_property_diagnostic(
                             source,
@@ -2479,7 +2480,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 if let Some(check_types) = &check_types {
                     let prop_type = self.st.get_type_of_symbol(prop)?;
                     let target_prop_type =
-                        self.get_type_of_property_in_types(check_types.clone(), &name)?;
+                        self.get_type_of_property_in_types(check_types.clone(), name)?;
                     // 65401-65405: this relation is diagnostic-active
                     // in the reporting walk; suppressing it loses the
                     // innermost failure level before 2326 is stacked.
@@ -2800,12 +2801,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// (the review pin `({a}&{b})|{c}` caught the object-only slice
     /// fabricating undefinedType), so the property lookup branches on
     /// UnionOrIntersection exactly as 65336 does.
-    pub(crate) fn get_type_of_property_in_types<'n>(
+    pub(crate) fn get_type_of_property_in_types(
         &mut self,
         types: Vec<TypeId>,
-        name: impl Into<tsc_types::JsStr<'n>>,
+        name: impl NameKey,
     ) -> CheckResult<TypeId> {
-        let name = name.into();
+        let name = name.name();
         let mut prop_types = Vec::with_capacity(types.len());
         for ty in types {
             let apparent = self.st.get_apparent_type(ty)?;
@@ -3774,11 +3775,11 @@ impl<'a> CheckerState<'a> {
             .object_flags_of(source)
             .intersects(ObjectFlags::JSX_ATTRIBUTES);
         for prop in self.get_properties_of_type(source)? {
-            let name = self.binder.symbol(prop).escaped_name.clone();
+            let name = self.binder.symbol(prop).escaped_name;
             if is_comparing_jsx_attributes && name.as_js().contains("-") {
                 return Ok(true);
             }
-            if self.is_known_property(target, &name)? {
+            if self.is_known_property(target, name)? {
                 return Ok(true);
             }
         }
@@ -3811,12 +3812,12 @@ impl<'a> CheckerState<'a> {
     /// and manufactured a 2322 tsc never reports). The binder-flags
     /// VALUE re-filter is gone too: symbolIsValue already gates
     /// inside the property lookup.
-    pub fn get_type_of_property_of_type<'n>(
+    pub fn get_type_of_property_of_type(
         &mut self,
         ty: TypeId,
-        name: impl Into<tsc_types::JsStr<'n>>,
+        name: impl NameKey,
     ) -> CheckResult<Option<TypeId>> {
-        let name = name.into();
+        let name = name.name();
         self.get_type_of_property_of_type_full(ty, name)
     }
 
@@ -3841,10 +3842,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getApplicableIndexInfoForName @6.0.3
     /// tsc-hash: f6b9b92223c2975ab3d55e4c1bc1acabbde0fdbf39ea15d47561f74bedf015b5
     /// tsc-span: _tsc.js:59479-59481
-    pub fn get_applicable_index_info_for_name<'n>(
+    pub fn get_applicable_index_info_for_name(
         &mut self,
         ty: TypeId,
-        name: impl Into<tsc_types::JsStr<'n>>,
+        name: impl NameKey,
     ) -> CheckResult<Option<TypeId>> {
         Ok(self
             .get_applicable_index_info_for_name_info(ty, name)?
@@ -3859,12 +3860,8 @@ impl<'a> CheckerState<'a> {
     /// string)` disjunct is live. `isComparingJsxAttributes` is owned
     /// by the callers because it depends on the source type; they
     /// admit hyphenated JSX names before this target-only recursion.
-    pub fn is_known_property<'n>(
-        &mut self,
-        target: TypeId,
-        name: impl Into<tsc_types::JsStr<'n>>,
-    ) -> CheckResult<bool> {
-        let name = name.into();
+    pub fn is_known_property(&mut self, target: TypeId, name: impl NameKey) -> CheckResult<bool> {
+        let name = name.name();
         let flags = self.tables.flags_of(target);
         if flags.intersects(TypeFlags::OBJECT) {
             // 74828: getPropertyOfObjectType — the symbolIsValue gate
@@ -4116,7 +4113,7 @@ impl<'a> CheckerState<'a> {
             } else {
                 self.create_symbol_with_type(property, Some(updated))
             };
-            let name = self.binder.symbol(member).escaped_name.clone();
+            let name = self.binder.symbol(member).escaped_name;
             members.insert(name, member);
             properties.push(member);
         }
@@ -4192,7 +4189,7 @@ impl<'a> CheckerState<'a> {
                 for prop in self.get_properties_of_type(t)? {
                     let prop_type = self.get_type_of_symbol(prop)?;
                     if self.is_unit_type(prop_type) {
-                        key_property_name = Some(self.binder.symbol(prop).escaped_name.clone());
+                        key_property_name = Some(self.binder.symbol(prop).escaped_name);
                         break 'outer;
                     }
                 }
@@ -4210,7 +4207,7 @@ impl<'a> CheckerState<'a> {
         self.links.set_type_union_key_property(
             union,
             crate::links::UnionKeyProperty {
-                name: resolved_name.clone(),
+                name: resolved_name,
                 constituent_map: map,
             },
         );
@@ -4291,7 +4288,7 @@ impl<'a> CheckerState<'a> {
         let Some(key_property_name) = self.get_key_property_name(union)? else {
             return Ok(None);
         };
-        let Some(prop_type) = self.get_type_of_property_of_type(ty, &key_property_name)? else {
+        let Some(prop_type) = self.get_type_of_property_of_type(ty, key_property_name)? else {
             return Ok(None);
         };
         self.get_constituent_type_for_key_type(union, prop_type)
@@ -4365,7 +4362,7 @@ impl<'a> CheckerState<'a> {
                     .map(|&property| {
                         (
                             crate::contextual::ContextualDiscriminator::SymbolType(property),
-                            self.binder.symbol(property).escaped_name.clone(),
+                            self.binder.symbol(property).escaped_name,
                         )
                     })
                     .collect();

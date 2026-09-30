@@ -581,7 +581,7 @@ impl<'a> CheckerState<'a> {
                                     );
                                 } else {
                                     let display = tsc_binder::unescape_leading_underscores(
-                                        &self.binder.symbol(local).escaped_name,
+                                        self.binder.symbol(local).escaped_name,
                                     )
                                     .to_owned();
                                     self.add_unused_diagnostic_at_js(
@@ -765,7 +765,7 @@ impl<'a> CheckerState<'a> {
         )
         .unwrap_or(declaration);
         let display =
-            tsc_binder::unescape_leading_underscores(&self.binder.symbol(symbol).escaped_name)
+            tsc_binder::unescape_leading_underscores(self.binder.symbol(symbol).escaped_name)
                 .to_owned();
         let message = if self.is_type_declaration_for_unused(declaration) {
             &diagnostics::_0_is_declared_but_never_used

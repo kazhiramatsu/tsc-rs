@@ -22,7 +22,7 @@ use tsc_binder::node_util;
 use tsc_diagnostics::{gen as diagnostics, DiagnosticCategory, DiagnosticMessage, MessageChain};
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{
-    CheckMode, IterationUse, ModifierFlags, NodeFlags, SymbolFlags, TypeFlags, TypeId,
+    CheckMode, EscapedName, IterationUse, ModifierFlags, NodeFlags, SymbolFlags, TypeFlags, TypeId,
 };
 
 use crate::state::{CheckResult, CheckerState};
@@ -185,7 +185,7 @@ impl<'a> CheckerState<'a> {
                     let expr_type = self.get_literal_type_from_property_name(effective_name)?;
                     if let Some(name_text) = self.property_name_from_type_usable(expr_type) {
                         if let Some(property) =
-                            self.get_property_of_type_full(parent_type, &name_text)?
+                            self.get_property_of_type_full(parent_type, name_text)?
                         {
                             self.mark_property_as_referenced(
                                 property, /*node_for_check_write_only*/ None,
@@ -1268,12 +1268,12 @@ impl<'a> CheckerState<'a> {
         &self,
         node: NodeId,
         identifier: Option<NodeId>,
-        name: &str,
+        name: EscapedName,
     ) -> bool {
         let Some(identifier) = identifier else {
             return false;
         };
-        if self.identifier_text_of(identifier) != Some(name) {
+        if self.identifier_name_of(identifier) != Some(name) {
             return false;
         }
         let kind = self.kind_of(node);
@@ -1363,8 +1363,12 @@ impl<'a> CheckerState<'a> {
         if self.emit_module_format_of_file(node) >= 5 {
             return;
         }
-        if !self.need_collision_check_for_identifier(node, name, "require")
-            && !self.need_collision_check_for_identifier(node, name, "exports")
+        if !self.need_collision_check_for_identifier(node, name, tsc_types::known_name!("require"))
+            && !self.need_collision_check_for_identifier(
+                node,
+                name,
+                tsc_types::known_name!("exports"),
+            )
         {
             return;
         }
@@ -1404,7 +1408,8 @@ impl<'a> CheckerState<'a> {
         if self.options.emit_script_target() >= tsc_types::ScriptTarget::ES2017 {
             return;
         }
-        if !self.need_collision_check_for_identifier(node, name, "Promise") {
+        if !self.need_collision_check_for_identifier(node, name, tsc_types::known_name!("Promise"))
+        {
             return;
         }
         let name = name.expect("collision check implies a name");
@@ -1439,8 +1444,15 @@ impl<'a> CheckerState<'a> {
         name: Option<NodeId>,
     ) {
         if self.options.emit_script_target() <= tsc_types::ScriptTarget::ES2021
-            && (self.need_collision_check_for_identifier(node, name, "WeakMap")
-                || self.need_collision_check_for_identifier(node, name, "WeakSet"))
+            && (self.need_collision_check_for_identifier(
+                node,
+                name,
+                tsc_types::known_name!("WeakMap"),
+            ) || self.need_collision_check_for_identifier(
+                node,
+                name,
+                tsc_types::known_name!("WeakSet"),
+            ))
         {
             self.potential_weak_map_set_collisions.push(node);
         }
@@ -1487,7 +1499,11 @@ impl<'a> CheckerState<'a> {
         if name.is_some()
             && target >= tsc_types::ScriptTarget::ES2015
             && target <= tsc_types::ScriptTarget::ES2021
-            && self.need_collision_check_for_identifier(node, name, "Reflect")
+            && self.need_collision_check_for_identifier(
+                node,
+                name,
+                tsc_types::known_name!("Reflect"),
+            )
         {
             self.potential_reflect_collisions.push(node);
         }

@@ -304,10 +304,10 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
     /// tsc-port: SymbolTrackerImpl.reportPrivateInBaseOfClassExpression @6.0.3
     /// tsc-hash: 7246a663106e14972dabfa9c357b0dd78e7b86948c6cb3774f680d377a1d8872
     /// tsc-span: _tsc.js:91001-91007
-    pub(crate) fn report_private_in_base_of_class_expression<'name>(
+    pub(crate) fn report_private_in_base_of_class_expression<'n, 'name>(
         &mut self,
         reported_diagnostic: &mut bool,
-        property_name: impl Into<tsc_types::JsStr<'name>>,
+        property_name: impl Into<tsc_types::JsStr<'n>>,
     ) {
         let property_name = property_name.into();
         if self.defer_report(
@@ -407,10 +407,10 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
     /// tsc-port: SymbolTrackerImpl.reportNonSerializableProperty @6.0.3
     /// tsc-hash: 227a16e3134442aaeeefc90843ff7448eb455298647ae1e455df5cf9754eaab0
     /// tsc-span: _tsc.js:91043-91049
-    pub(crate) fn report_non_serializable_property<'name>(
+    pub(crate) fn report_non_serializable_property<'n, 'name>(
         &mut self,
         reported_diagnostic: &mut bool,
-        property_name: impl Into<tsc_types::JsStr<'name>>,
+        property_name: impl Into<tsc_types::JsStr<'n>>,
     ) {
         let property_name = property_name.into();
         if self.defer_report(

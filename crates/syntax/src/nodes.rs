@@ -555,7 +555,7 @@ pub struct HeritageClauseData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct IdentifierData {
-    pub escaped_text: String,
+    pub escaped_text: tsc_types::EscapedName,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1186,7 +1186,7 @@ pub struct PrefixUnaryExpressionData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PrivateIdentifierData {
-    pub escaped_text: String,
+    pub escaped_text: tsc_types::EscapedName,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -2116,7 +2116,7 @@ impl NodeData {
                 types: None,
             }),
             SyntaxKind::Identifier => Self::Identifier(IdentifierData {
-                escaped_text: String::new(),
+                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(""),
             }),
             SyntaxKind::IfStatement => Self::IfStatement(IfStatementData {
                 expression: None,
@@ -2587,7 +2587,7 @@ impl NodeData {
                 })
             }
             SyntaxKind::PrivateIdentifier => Self::PrivateIdentifier(PrivateIdentifierData {
-                escaped_text: String::new(),
+                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(""),
             }),
             SyntaxKind::PropertyAccessExpression => {
                 Self::PropertyAccessExpression(PropertyAccessExpressionData {

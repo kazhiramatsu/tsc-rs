@@ -957,10 +957,10 @@ impl<'a> CheckerState<'a> {
             {
                 continue;
             }
-            let name = self.binder.symbol(property).escaped_name.clone();
+            let name = self.binder.symbol(property).escaped_name;
             let location = self.binder.symbol(property).value_declaration;
             let Some(symbol) =
-                self.resolve_name(location, &name, SymbolFlags::TYPE, None, false, false)?
+                self.resolve_name(location, name, SymbolFlags::TYPE, None, false, false)?
             else {
                 continue;
             };
@@ -1094,7 +1094,7 @@ impl<'a> CheckerState<'a> {
         if !self.all_types_assignable_to_kind(ty, TypeFlags::NON_PRIMITIVE)? {
             return Ok(None);
         }
-        let property = self.get_property_of_type_full(ty, &has_instance_property_name)?;
+        let property = self.get_property_of_type_full(ty, has_instance_property_name)?;
         let Some(property) = property else {
             return Ok(None);
         };
@@ -2187,7 +2187,7 @@ impl<'a> CheckerState<'a> {
                 };
                 let expr_type = self.get_literal_type_from_property_name(name)?;
                 if let Some(text) = self.property_name_from_type_usable(expr_type) {
-                    let prop = self.get_property_of_type_full(object_literal_type, &text)?;
+                    let prop = self.get_property_of_type_full(object_literal_type, text)?;
                     if let Some(prop) = prop {
                         self.mark_property_as_referenced(prop, Some(property), right_is_this);
                         self.check_property_accessibility(
@@ -3807,7 +3807,7 @@ impl<'a> CheckerState<'a> {
         let mut result_properties = Vec::with_capacity(spreadable_properties.len());
         for prop in spreadable_properties {
             let spread = self.get_spread_symbol(prop, /*readonly*/ false)?;
-            members.insert(self.binder.symbol(prop).escaped_name.clone(), spread);
+            members.insert(self.binder.symbol(prop).escaped_name, spread);
             result_properties.push(spread);
         }
         let index_infos = self.get_index_infos_of_type(source)?;

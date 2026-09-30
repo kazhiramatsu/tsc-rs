@@ -726,7 +726,7 @@ fn create_identifier(
     context.factory()?.create_node(
         source,
         NodeData::Identifier(IdentifierData {
-            escaped_text: text.to_owned(),
+            escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(text),
         }),
         TransformFlags::NONE,
     )

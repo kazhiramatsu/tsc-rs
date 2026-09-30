@@ -20,7 +20,7 @@ pub use tsc_types::SymbolId;
 /// observable (member synthesis and display order downstream), so it is
 /// insertion order, never hash order. Keys are stored PRE-escaped.
 mod table;
-pub use table::{EscapedNameSet, SymbolTable};
+pub use table::{EscapedNameSet, NameKey, SymbolTable};
 
 mod declarations;
 pub use declarations::Declarations;
@@ -49,7 +49,7 @@ pub struct Symbol {
 }
 
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(std::mem::size_of::<Symbol>() == 72);
+const _: () = assert!(std::mem::size_of::<Symbol>() == 56);
 
 /// The [`Symbol`] fields most symbols leave empty: the member, export and UMD
 /// global-export tables, the JS assignment-declaration members and two

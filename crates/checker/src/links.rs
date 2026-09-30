@@ -1888,7 +1888,7 @@ impl LinksTables {
             return;
         }
         let declaration = *self.symbol_cold.type_only_declaration.get(id);
-        let export_star_name = self.symbol_cold.type_only_export_star_name.get(id).clone();
+        let export_star_name = *self.symbol_cold.type_only_export_star_name.get(id);
         self.speculative_type_only_alias_writes.push((
             speculation_depth,
             id,

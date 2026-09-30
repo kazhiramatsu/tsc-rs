@@ -17,6 +17,7 @@ use tsc_types::{
 
 use crate::relate::RelationKind;
 use crate::state::{CheckResult, CheckerState, SignatureKind};
+use tsc_binder::NameKey;
 
 /// The semantic result of an elaboration attempt.
 ///
@@ -385,15 +386,15 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: elaborateElementwise @6.0.3 (the report-pair tail)
     /// tsc-hash: c289d4a4008697be6117b4bcd7c5f21e756946f8ccf08d921769996736688326
     /// tsc-span: _tsc.js:64165-64171
-    pub(crate) fn remove_missing_for_member_report<'n>(
+    pub(crate) fn remove_missing_for_member_report(
         &mut self,
         source_type: TypeId,
         target_type: TypeId,
-        name_text: impl Into<tsc_types::JsStr<'n>>,
+        name_text: impl NameKey,
         actual: TypeId,
         expected: TypeId,
     ) -> CheckResult<(TypeId, TypeId)> {
-        let name_text = name_text.into();
+        let name_text = name_text.name();
         let target_is_optional = self
             .get_property_of_type_full(target_type, name_text)?
             .is_some_and(|property| {
@@ -615,14 +616,14 @@ impl<'a> CheckerState<'a> {
         let (source_property_type, target_property_type) = self.remove_missing_for_member_report(
             source_container,
             target_container,
-            &name_text,
+            name_text,
             source_property_type,
             target_property_type,
         )?;
         let (specific_source, _) = self.remove_missing_for_member_report(
             source_container,
             target_container,
-            &name_text,
+            name_text,
             specific_source,
             original_target,
         )?;
@@ -833,7 +834,7 @@ impl<'a> CheckerState<'a> {
             .get_jsx_element_children_property_name(jsx_namespace)?
             .unwrap_or_else(|| tsc_types::EscapedName::from_identifier_escaped_text("children"));
         let children_name =
-            tsc_binder::unescape_leading_underscores(&escaped_children_name).to_owned();
+            tsc_binder::unescape_leading_underscores(escaped_children_name).to_owned();
         let name_type = self.tables.get_string_literal_type(&children_name);
         let children_target = self.get_indexed_access_type(
             target_type,
@@ -1346,14 +1347,14 @@ impl<'a> CheckerState<'a> {
                     let (source_property_type, expected) = self.remove_missing_for_member_report(
                         source_type,
                         target_type,
-                        &name_text,
+                        name_text,
                         source_property_type,
                         expected,
                     )?;
                     let (specific_source, _) = self.remove_missing_for_member_report(
                         source_type,
                         target_type,
-                        &name_text,
+                        name_text,
                         specific_source,
                         original_expected,
                     )?;

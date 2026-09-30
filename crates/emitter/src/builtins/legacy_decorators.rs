@@ -2089,12 +2089,12 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         name: TransformNode,
     ) -> Result<Option<AccessorPropertyNameIdentity>, TransformError> {
         Ok(match &self.context.arena().node(name)?.data {
-            NodeData::Identifier(data) => Some(AccessorPropertyNameIdentity::Static(
-                tsc_types::EscapedName::from_identifier_escaped_text(&data.escaped_text),
-            )),
-            NodeData::PrivateIdentifier(data) => Some(AccessorPropertyNameIdentity::Static(
-                tsc_types::EscapedName::from_identifier_escaped_text(&data.escaped_text),
-            )),
+            NodeData::Identifier(data) => {
+                Some(AccessorPropertyNameIdentity::Static(data.escaped_text))
+            }
+            NodeData::PrivateIdentifier(data) => {
+                Some(AccessorPropertyNameIdentity::Static(data.escaped_text))
+            }
             NodeData::StringLiteral(data) => Some(AccessorPropertyNameIdentity::Static(
                 tsc_types::EscapedName::escape((&data.text).into()),
             )),
@@ -3769,7 +3769,9 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         self.context.factory()?.create_node(
             self.source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                escaped_text: tsc_syntax::escape_leading_underscores(text),
+                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(
+                    &tsc_syntax::escape_leading_underscores(text),
+                ),
             }),
             TransformFlags::NONE,
         )

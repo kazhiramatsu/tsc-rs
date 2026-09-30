@@ -21,6 +21,7 @@ use tsc_types::{
 };
 
 use crate::state::{CheckResult, CheckerState, SignatureId};
+use tsc_binder::NameKey;
 
 impl<'a> CheckerState<'a> {
     /// tsc-port: entityNameToString @6.0.3
@@ -775,14 +776,14 @@ impl<'a> CheckerState<'a> {
                 .containing_type
                 .get(prop)
                 .expect("Synthetic check flag implies containing type");
-            let name = self.binder.symbol(prop).escaped_name.clone();
+            let name = self.binder.symbol(prop).escaped_name;
             let constituents: Vec<TypeId> = match &self.tables.type_of(containing).data {
                 tsc_types::TypeData::Union { types, .. } => types.to_vec(),
                 tsc_types::TypeData::Intersection { types } => types.to_vec(),
                 _ => unreachable!("synthetic containing type is a union or intersection"),
             };
             for constituent in constituents {
-                if let Some(member) = self.get_property_of_type_full(constituent, &name)? {
+                if let Some(member) = self.get_property_of_type_full(constituent, name)? {
                     if self.for_each_property_bool(member, callback)? {
                         return Ok(true);
                     }
@@ -1362,12 +1363,8 @@ impl<'a> CheckerState<'a> {
         left_type: TypeId,
         lexically_scoped_identifier: SymbolId,
     ) -> CheckResult<Option<SymbolId>> {
-        let name = self
-            .binder
-            .symbol(lexically_scoped_identifier)
-            .escaped_name
-            .clone();
-        self.get_property_of_type_full(left_type, &name)
+        let name = self.binder.symbol(lexically_scoped_identifier).escaped_name;
+        self.get_property_of_type_full(left_type, name)
     }
 
     /// tsc-port: checkPrivateIdentifierPropertyAccess @6.0.3
@@ -1726,9 +1723,7 @@ impl<'a> CheckerState<'a> {
                 let mut base = self.property_access_or_identifier_to_string(data.expression?)?;
                 let argument = data.argument_expression?;
                 let name = match self.data_of(argument) {
-                    NodeData::Identifier(data) => {
-                        tsc_syntax::unescape_leading_underscores(&data.escaped_text).into()
-                    }
+                    NodeData::Identifier(data) => data.text().into(),
                     NodeData::StringLiteral(data) => data.text.clone(),
                     NodeData::NoSubstitutionTemplateLiteral(data) => data.text.clone(),
                     NodeData::NumericLiteral(data) => data.text.clone().into(),
@@ -1739,9 +1734,7 @@ impl<'a> CheckerState<'a> {
                 base.push_js(name.as_js());
                 Some(base)
             }
-            NodeData::Identifier(data) => {
-                Some(tsc_syntax::unescape_leading_underscores(&data.escaped_text).into())
-            }
+            NodeData::Identifier(data) => Some(data.text().into()),
             NodeData::JsxNamespacedName(_) => Some(self.jsx_attribute_name_text(expression).into()),
             _ => None,
         }
@@ -1947,8 +1940,8 @@ impl<'a> CheckerState<'a> {
                 break;
             }
             if self.is_deprecated_symbol(target) {
-                let name = self.binder.symbol(target).escaped_name.clone();
-                self.add_deprecated_suggestion(location, &declarations, &name);
+                let name = self.binder.symbol(target).escaped_name;
+                self.add_deprecated_suggestion(location, &declarations, name);
                 break;
             }
             if current == target_symbol {
@@ -2020,6 +2013,7 @@ impl<'a> CheckerState<'a> {
             .intersects(TypeFlags::ANY)
             || apparent_type == self.tables.intrinsics.silent_never;
         let right_is_private = self.kind_of(right) == SyntaxKind::PrivateIdentifier;
+        let right_name = self.identifier_name_of(right).unwrap_or_default();
         let right_text = self
             .identifier_text_of(right)
             .map(str::to_owned)
@@ -2150,7 +2144,7 @@ impl<'a> CheckerState<'a> {
             let include_type_only_members = self.kind_of(node) == SyntaxKind::QualifiedName;
             prop = self.get_property_of_type_ex_with_include_type_only_members(
                 apparent_type,
-                &right_text,
+                right_name,
                 skip_object_function_property_augment,
                 include_type_only_members,
             )?;
@@ -3114,8 +3108,8 @@ impl<'a> CheckerState<'a> {
         let Some(&first_base) = base_types.first() else {
             return Ok(false);
         };
-        let name = self.binder.symbol(prop).escaped_name.clone();
-        let super_property = self.get_property_of_type_full(first_base, &name)?;
+        let name = self.binder.symbol(prop).escaped_name;
+        let super_property = self.get_property_of_type_full(first_base, name)?;
         Ok(super_property
             .is_some_and(|symbol| self.binder.symbol(symbol).value_declaration.is_some()))
     }
@@ -3581,9 +3575,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: typeHasStaticProperty @6.0.3
     /// tsc-hash: 8e00c6c781a5ab8b88e17d268b78a78c33c5f1eaf1f73b428c996fd17def8621
     /// tsc-span: _tsc.js:75471-75500
-    pub(crate) fn type_has_static_property<'n>(
+    pub(crate) fn type_has_static_property(
         &mut self,
-        prop_name: impl Into<JsStr<'n>>,
+        prop_name: impl NameKey,
         containing_type: TypeId,
     ) -> CheckResult<bool> {
         let Some(symbol) = self.tables.type_of(containing_type).symbol else {
@@ -3612,8 +3606,8 @@ impl<'a> CheckerState<'a> {
         let Some(container) = self.tables.type_of(apparent).symbol else {
             return Ok(None);
         };
-        let container_name = self.binder.symbol(container).escaped_name.clone();
-        let container_name = tsc_binder::unescape_leading_underscores(&container_name);
+        let container_name = self.binder.symbol(container).escaped_name;
+        let container_name = tsc_binder::unescape_leading_underscores(container_name);
         Ok(SCRIPT_TARGET_FEATURE_MEMBERS
             .iter()
             .find(|(type_name, _, member)| {
@@ -3648,8 +3642,8 @@ impl<'a> CheckerState<'a> {
             let Some(symbol) = self.tables.type_of(*constituent).symbol else {
                 return Ok(false);
             };
-            let name = self.binder.symbol(symbol).escaped_name.clone();
-            if !dom_shape(tsc_binder::unescape_leading_underscores(&name)) {
+            let name = self.binder.symbol(symbol).escaped_name;
+            if !dom_shape(tsc_binder::unescape_leading_underscores(name)) {
                 return Ok(false);
             }
         }
@@ -4121,7 +4115,7 @@ impl<'a> CheckerState<'a> {
                 let apparent_members = self.union_members_or_self(apparent);
                 let mut property_symbol = None;
                 for t in apparent_members {
-                    if let Some(found) = self.get_property_of_type_full(t, &property_name)? {
+                    if let Some(found) = self.get_property_of_type_full(t, property_name)? {
                         property_symbol = Some(found);
                         break;
                     }
@@ -4131,7 +4125,7 @@ impl<'a> CheckerState<'a> {
                         .get_declaration_modifier_flags_from_symbol(property_symbol)
                         .intersects(ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER)
                     {
-                        let display = tsc_binder::unescape_leading_underscores(&property_name);
+                        let display = tsc_binder::unescape_leading_underscores(property_name);
                         self.error_at_js(
                             Some(access_node),
                             &tsc_diagnostics::gen::Private_or_protected_member_0_cannot_be_accessed_on_a_type_parameter,
@@ -4335,7 +4329,7 @@ impl<'a> CheckerState<'a> {
                 source_module = Some(symbol);
                 break;
             }
-            path.push(data.escaped_name.clone());
+            path.push(data.escaped_name);
             current = data.parent;
         }
         path.reverse();

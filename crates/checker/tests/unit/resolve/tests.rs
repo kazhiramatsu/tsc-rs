@@ -20,9 +20,7 @@ fn canonical_name_resolution_keeps_lone_surrogates_distinct() {
                 .iter()
                 .map(|name| {
                     let escaped = EscapedName::escape(name.as_js());
-                    let symbol = state
-                        .binder
-                        .create_symbol(SymbolFlags::TYPE_ALIAS, escaped.clone());
+                    let symbol = state.binder.create_symbol(SymbolFlags::TYPE_ALIAS, escaped);
                     std::sync::Arc::make_mut(&mut state.globals).insert(escaped, symbol);
                     symbol
                 })

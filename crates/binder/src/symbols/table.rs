@@ -3,7 +3,62 @@ use std::hash::{Hash, Hasher};
 use hashbrown::hash_table::{Entry, HashTable};
 use indexmap::{set, IndexSet};
 use rustc_hash::{FxBuildHasher, FxHasher};
-use tsc_types::{EscapedName, JsStr, SymbolId};
+use tsc_types::{EscapedName, JsStr, JsString, SymbolId};
+
+/// A key of a symbol table: a name, or an already escaped text, which is
+/// interned verbatim (a text no symbol carries then misses in the table).
+/// Lookups by name cost an id comparison; prefer them on hot paths.
+pub trait NameKey {
+    fn name(self) -> EscapedName;
+}
+
+impl NameKey for EscapedName {
+    fn name(self) -> EscapedName {
+        self
+    }
+}
+
+impl NameKey for &EscapedName {
+    fn name(self) -> EscapedName {
+        *self
+    }
+}
+
+impl NameKey for &str {
+    #[cfg_attr(feature = "perf-counters", track_caller)]
+    fn name(self) -> EscapedName {
+        tsc_types::perf::name_site(std::panic::Location::caller());
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::NamesTextKeyLookups);
+        EscapedName::from_escaped_text(JsStr::from(self))
+    }
+}
+
+impl NameKey for &String {
+    #[cfg_attr(feature = "perf-counters", track_caller)]
+    fn name(self) -> EscapedName {
+        tsc_types::perf::name_site(std::panic::Location::caller());
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::NamesTextKeyLookups);
+        EscapedName::from_escaped_text(JsStr::from(self))
+    }
+}
+
+impl NameKey for JsStr<'_> {
+    #[cfg_attr(feature = "perf-counters", track_caller)]
+    fn name(self) -> EscapedName {
+        tsc_types::perf::name_site(std::panic::Location::caller());
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::NamesTextKeyLookups);
+        EscapedName::from_escaped_text(self)
+    }
+}
+
+impl NameKey for &JsString {
+    #[cfg_attr(feature = "perf-counters", track_caller)]
+    fn name(self) -> EscapedName {
+        tsc_types::perf::name_site(std::panic::Location::caller());
+        tsc_types::perf::bump(tsc_types::perf::PerfCounter::NamesTextKeyLookups);
+        EscapedName::from_escaped_text(self.as_js())
+    }
+}
 
 /// Ordered escaped-name identity storage. Only canonical JavaScript strings
 /// can cross the public query boundary; byte borrowing is an internal detail.
@@ -19,20 +74,20 @@ use tsc_types::{EscapedName, JsStr, SymbolId};
 pub struct SymbolTable(Option<Box<SymbolMap>>);
 
 /// An insertion-ordered name -> symbol map: the entries in one vector and a
-/// hash table of their positions. An entry costs its 32 bytes plus about five
-/// bytes of index, where an `IndexMap` also keeps every entry's hash and indexes
-/// it by `usize` (about 60 bytes). A checker builds such a table for every
-/// class or interface instantiation, including the inherited members, so a
-/// large program holds millions of entries.
+/// hash table of their positions, hashed by the name's id. An entry costs its
+/// 8 bytes plus about five bytes of index, where an `IndexMap` also keeps
+/// every entry's hash and indexes it by `usize` (about 60 bytes). A checker
+/// builds such a table for every class or interface instantiation, including
+/// the inherited members, so a large program holds millions of entries.
 #[derive(Clone, Default)]
 struct SymbolMap {
     entries: Vec<(EscapedName, SymbolId)>,
     positions: HashTable<u32>,
 }
 
-fn hash_name(name: &[u8]) -> u64 {
+fn hash_name(name: EscapedName) -> u64 {
     let mut hasher = FxHasher::default();
-    name.hash(&mut hasher);
+    name.index().hash(&mut hasher);
     hasher.finish()
 }
 
@@ -49,15 +104,15 @@ impl SymbolMap {
         self.entries.reserve(additional);
         let entries = &self.entries;
         self.positions.reserve(additional, |&position| {
-            hash_name(entries[position as usize].0.as_js().as_bytes())
+            hash_name(entries[position as usize].0)
         });
     }
 
-    fn position(&self, name: &[u8]) -> Option<usize> {
+    fn position(&self, name: EscapedName) -> Option<usize> {
         let entries = &self.entries;
         self.positions
             .find(hash_name(name), |&position| {
-                entries[position as usize].0.as_js().as_bytes() == name
+                entries[position as usize].0 == name
             })
             .map(|&position| position as usize)
     }
@@ -66,11 +121,10 @@ impl SymbolMap {
     /// JavaScript `Map`.
     fn insert(&mut self, name: EscapedName, value: SymbolId) -> Option<SymbolId> {
         let entries = &self.entries;
-        let key = name.as_js().as_bytes();
         let entry = self.positions.entry(
-            hash_name(key),
-            |&position| entries[position as usize].0.as_js().as_bytes() == key,
-            |&position| hash_name(entries[position as usize].0.as_js().as_bytes()),
+            hash_name(name),
+            |&position| entries[position as usize].0 == name,
+            |&position| hash_name(entries[position as usize].0),
         );
         match entry {
             Entry::Occupied(slot) => {
@@ -87,7 +141,7 @@ impl SymbolMap {
     }
 
     /// Remove an entry and close the gap, keeping the others in order.
-    fn shift_remove(&mut self, name: &[u8]) -> Option<SymbolId> {
+    fn shift_remove(&mut self, name: EscapedName) -> Option<SymbolId> {
         let position = self.position(name)?;
         let removed = position as u32;
         self.positions
@@ -121,7 +175,7 @@ impl PartialEq for SymbolTable {
         this.len() == other.len()
             && this.entries.iter().all(|(name, symbol)| {
                 other
-                    .position(name.as_js().as_bytes())
+                    .position(*name)
                     .is_some_and(|position| other.entries[position].1 == *symbol)
             })
     }
@@ -168,8 +222,8 @@ impl EscapedNameSet {
     pub fn insert(&mut self, name: EscapedName) -> bool {
         self.0.insert(name)
     }
-    pub fn contains<'a>(&self, name: impl Into<JsStr<'a>>) -> bool {
-        self.0.contains(name.into().as_bytes())
+    pub fn contains(&self, name: impl NameKey) -> bool {
+        self.0.contains(&name.name())
     }
     pub fn iter(&self) -> set::Iter<'_, EscapedName> {
         self.0.iter()
@@ -190,11 +244,6 @@ impl SymbolTable {
         self.0.as_ref().map_or(0, |map| {
             std::mem::size_of::<SymbolMap>()
                 + map.entries.capacity() * std::mem::size_of::<(EscapedName, SymbolId)>()
-                + map
-                    .entries
-                    .iter()
-                    .map(|(name, _)| name.heap_bytes())
-                    .sum::<usize>()
                 + map.positions.capacity() * (std::mem::size_of::<u32>() + 1)
         })
     }
@@ -230,32 +279,29 @@ impl SymbolTable {
         }
     }
 
-    pub fn get<'a>(&self, key: impl Into<JsStr<'a>>) -> Option<&SymbolId> {
+    pub fn get(&self, key: impl NameKey) -> Option<&SymbolId> {
         let map = self.0.as_deref()?;
-        let position = map.position(key.into().as_bytes())?;
+        let position = map.position(key.name())?;
         Some(&map.entries[position].1)
     }
 
-    pub fn get_mut<'a>(&mut self, key: impl Into<JsStr<'a>>) -> Option<&mut SymbolId> {
+    pub fn get_mut(&mut self, key: impl NameKey) -> Option<&mut SymbolId> {
         let map = self.0.as_deref_mut()?;
-        let position = map.position(key.into().as_bytes())?;
+        let position = map.position(key.name())?;
         Some(&mut map.entries[position].1)
     }
 
-    pub fn contains_key<'a>(&self, key: impl Into<JsStr<'a>>) -> bool {
+    pub fn contains_key(&self, key: impl NameKey) -> bool {
         self.get(key).is_some()
     }
 
-    pub fn shift_remove<'a>(&mut self, key: impl Into<JsStr<'a>>) -> Option<SymbolId> {
-        self.0.as_deref_mut()?.shift_remove(key.into().as_bytes())
+    pub fn shift_remove(&mut self, key: impl NameKey) -> Option<SymbolId> {
+        self.0.as_deref_mut()?.shift_remove(key.name())
     }
 
-    pub fn get_full<'a>(
-        &self,
-        key: impl Into<JsStr<'a>>,
-    ) -> Option<(usize, &EscapedName, &SymbolId)> {
+    pub fn get_full(&self, key: impl NameKey) -> Option<(usize, &EscapedName, &SymbolId)> {
         let map = self.0.as_deref()?;
-        let position = map.position(key.into().as_bytes())?;
+        let position = map.position(key.name())?;
         let (name, symbol) = &map.entries[position];
         Some((position, name, symbol))
     }
@@ -342,7 +388,7 @@ impl<'a> IntoIterator for &'a mut SymbolTable {
     }
 }
 
-impl<'a, Q: Into<JsStr<'a>>> std::ops::Index<Q> for SymbolTable {
+impl<Q: NameKey> std::ops::Index<Q> for SymbolTable {
     type Output = SymbolId;
     fn index(&self, key: Q) -> &Self::Output {
         self.get(key).expect("symbol table key exists")

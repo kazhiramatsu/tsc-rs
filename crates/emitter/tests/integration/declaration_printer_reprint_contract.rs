@@ -594,7 +594,7 @@ impl Transformer for SyntheticPrinterNodeTransformer {
         let name = context.factory()?.create_node(
             source,
             NodeData::Identifier(IdentifierData {
-                escaped_text: "x".to_owned(),
+                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text("x"),
             }),
             TransformFlags::NONE,
         )?;
