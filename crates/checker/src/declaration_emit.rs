@@ -2000,7 +2000,7 @@ impl<'a> CheckerState<'a> {
             Some(symbol) => {
                 self.resolve_external_module_symbol(Some(symbol), false)
                     .map_err(|abort| node_builder_abort_error(self, method, node, abort))?;
-                (*self.binder.symbol(symbol).exports).clone()
+                (**self.binder.symbol(symbol).exports()).clone()
             }
         };
         crate::node_builder::with_context(

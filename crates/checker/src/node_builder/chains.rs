@@ -999,7 +999,7 @@ fn symbol_chain_with_reexport_containers(
                 let export_equals = checker
                     .binder
                     .symbol(parent)
-                    .exports
+                    .exports()
                     .get(tsc_types::InternalSymbolName::EXPORT_EQUALS)
                     .copied();
                 if let Some(export_equals) = export_equals {
@@ -1211,7 +1211,7 @@ fn alias_for_symbol_in_module(
     let export_equals = checker
         .binder
         .symbol(module)
-        .exports
+        .exports()
         .get(tsc_types::InternalSymbolName::EXPORT_EQUALS)
         .copied();
     if let Some(export_equals) = export_equals {

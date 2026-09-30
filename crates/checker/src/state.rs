@@ -1955,7 +1955,7 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: SymbolId arena projection for tsc's direct
     /// `symbol.members` property access.
     pub fn symbol_members(&self, symbol: SymbolId) -> &SymbolTable {
-        &self.binder.symbol(symbol).members
+        self.binder.symbol(symbol).members()
     }
 
     /// File-scope name resolution for the relpin scratch program — the

@@ -40,26 +40,30 @@ pub struct Symbol {
     pub declarations: Declarations,
     /// addDeclarationToSymbol: FIRST value declaration wins.
     pub value_declaration: Option<NodeId>,
-    /// Shared with every checker that resolves this symbol's members: the
-    /// binder fills the table in place, readers clone the handle.
-    pub members: Arc<SymbolTable>,
-    pub exports: Arc<SymbolTable>,
     pub parent: Option<SymbolId>,
     /// local ↔ export link installed by declareModuleMember.
     pub export_symbol: Option<SymbolId>,
-    /// The fields few symbols set; see [`Symbol::extras`].
+    /// The member and export tables and the fields few symbols set; see
+    /// [`Symbol::members`] and [`Symbol::extras`].
     extras: Option<Box<SymbolExtras>>,
 }
 
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(std::mem::size_of::<Symbol>() == 88);
+const _: () = assert!(std::mem::size_of::<Symbol>() == 72);
 
-/// The [`Symbol`] fields few symbols set: a UMD global-export table, the JS
-/// assignment-declaration members and two binder latches. They live in one
-/// box allocated on the first write, so every other symbol, including the
-/// millions a checker instantiates, pays one pointer for them.
+/// The [`Symbol`] fields most symbols leave empty: the member, export and UMD
+/// global-export tables, the JS assignment-declaration members and two
+/// binder latches. They live in one box allocated on the first write, so
+/// every other symbol, including the millions of property symbols a checker
+/// instantiates, pays one pointer for them.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SymbolExtras {
+    /// tsc Symbol.members. Shared with every checker that resolves this
+    /// symbol's members: the binder fills the table in place, readers clone
+    /// the handle.
+    pub members: Arc<SymbolTable>,
+    /// tsc Symbol.exports.
+    pub exports: Arc<SymbolTable>,
     /// tsc Symbol.globalExports (bindNamespaceExportDeclaration).
     pub global_exports: Arc<SymbolTable>,
     pub const_enum_only_module: Option<bool>,
@@ -73,6 +77,8 @@ pub struct SymbolExtras {
 impl Default for SymbolExtras {
     fn default() -> Self {
         Self {
+            members: empty_symbol_table(),
+            exports: empty_symbol_table(),
             global_exports: empty_symbol_table(),
             const_enum_only_module: None,
             is_replaceable_by_method: false,
@@ -88,8 +94,6 @@ impl Symbol {
             escaped_name,
             declarations: Declarations::new(),
             value_declaration: None,
-            members: empty_symbol_table(),
-            exports: empty_symbol_table(),
             parent: None,
             export_symbol: None,
             extras: None,
@@ -102,10 +106,33 @@ impl Symbol {
         match &self.extras {
             Some(extras) => extras,
             None => ABSENT.get_or_init(|| SymbolExtras {
+                members: Arc::default(),
+                exports: Arc::default(),
                 global_exports: Arc::default(),
                 ..SymbolExtras::default()
             }),
         }
+    }
+
+    /// tsc Symbol.members: the members the binder declared on a class,
+    /// interface, enum or type literal (empty for most symbols).
+    pub fn members(&self) -> &Arc<SymbolTable> {
+        &self.extras().members
+    }
+
+    /// tsc Symbol.exports: a module's or namespace's exports.
+    pub fn exports(&self) -> &Arc<SymbolTable> {
+        &self.extras().exports
+    }
+
+    /// The members table for writing; allocated with the extras on first use.
+    pub fn members_mut(&mut self) -> &mut Arc<SymbolTable> {
+        &mut self.extras_mut().members
+    }
+
+    /// The exports table for writing; allocated with the extras on first use.
+    pub fn exports_mut(&mut self) -> &mut Arc<SymbolTable> {
+        &mut self.extras_mut().exports
     }
 
     /// The fields few symbols set, for writing; allocated on first use.
@@ -113,20 +140,23 @@ impl Symbol {
         self.extras.get_or_insert_with(Box::default)
     }
 
-    /// The member, export and global-export tables.
+    /// The member, export and global-export tables (none without extras).
     pub fn tables(&self) -> impl Iterator<Item = &Arc<SymbolTable>> {
-        [&self.members, &self.exports]
+        self.extras
+            .as_deref()
             .into_iter()
-            .chain(self.extras.as_deref().map(|extras| &extras.global_exports))
+            .flat_map(|extras| [&extras.members, &extras.exports, &extras.global_exports])
     }
 
     /// The member, export and global-export tables, for rewriting.
     pub(crate) fn tables_mut(&mut self) -> impl Iterator<Item = &mut Arc<SymbolTable>> {
-        [&mut self.members, &mut self.exports].into_iter().chain(
-            self.extras
-                .as_deref_mut()
-                .map(|extras| &mut extras.global_exports),
-        )
+        self.extras.as_deref_mut().into_iter().flat_map(|extras| {
+            [
+                &mut extras.members,
+                &mut extras.exports,
+                &mut extras.global_exports,
+            ]
+        })
     }
 }
 

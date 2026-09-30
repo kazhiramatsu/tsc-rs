@@ -162,8 +162,8 @@ impl<'a> CheckerState<'a> {
         let parent = original.parent;
         let value_declaration = original.value_declaration;
         let const_enum_only_module = original.extras().const_enum_only_module;
-        let members = original.members.clone();
-        let exports = original.exports.clone();
+        let members = original.members().clone();
+        let exports = original.exports().clone();
         let result = self.binder.create_symbol(flags, escaped_name);
         let cloned = self.binder.symbol_mut(result);
         cloned.declarations = declarations;
@@ -172,8 +172,8 @@ impl<'a> CheckerState<'a> {
         if const_enum_only_module == Some(true) {
             cloned.extras_mut().const_enum_only_module = Some(true);
         }
-        cloned.members = members;
-        cloned.exports = exports;
+        *cloned.members_mut() = members;
+        *cloned.exports_mut() = exports;
         self.record_merged_symbol(result, symbol);
         result
     }
@@ -208,29 +208,29 @@ impl<'a> CheckerState<'a> {
         };
         self.binder.symbol_mut(inferred).flags |= source_class_flags;
 
-        let source_exports = self.binder.symbol(source).exports.clone();
+        let source_exports = self.binder.symbol(source).exports().clone();
         if !source_exports.is_empty() {
             let mut inferred_exports =
-                std::mem::take(&mut self.binder.symbol_mut(inferred).exports);
+                std::mem::take(self.binder.symbol_mut(inferred).exports_mut());
             self.merge_symbol_table(
                 std::sync::Arc::make_mut(&mut inferred_exports),
                 &source_exports,
                 /*unidirectional*/ false,
                 Some(inferred),
             );
-            self.binder.symbol_mut(inferred).exports = inferred_exports;
+            *self.binder.symbol_mut(inferred).exports_mut() = inferred_exports;
         }
-        let source_members = self.binder.symbol(source).members.clone();
+        let source_members = self.binder.symbol(source).members().clone();
         if !source_members.is_empty() {
             let mut inferred_members =
-                std::mem::take(&mut self.binder.symbol_mut(inferred).members);
+                std::mem::take(self.binder.symbol_mut(inferred).members_mut());
             self.merge_symbol_table(
                 std::sync::Arc::make_mut(&mut inferred_members),
                 &source_members,
                 /*unidirectional*/ false,
                 None,
             );
-            self.binder.symbol_mut(inferred).members = inferred_members;
+            *self.binder.symbol_mut(inferred).members_mut() = inferred_members;
         }
         self.links
             .set_symbol_inferred_class_symbol(self.speculation_depth, source, inferred);
@@ -352,29 +352,29 @@ impl<'a> CheckerState<'a> {
                     self.set_value_declaration(target, value_declaration);
                 }
             }
-            let source_members = self.binder.symbol(source).members.clone();
+            let source_members = self.binder.symbol(source).members().clone();
             if !source_members.is_empty() {
                 let mut target_members =
-                    std::mem::take(&mut self.binder.symbol_mut(target).members);
+                    std::mem::take(self.binder.symbol_mut(target).members_mut());
                 self.merge_symbol_table(
                     std::sync::Arc::make_mut(&mut target_members),
                     &source_members,
                     unidirectional,
                     None,
                 );
-                self.binder.symbol_mut(target).members = target_members;
+                *self.binder.symbol_mut(target).members_mut() = target_members;
             }
-            let source_exports = self.binder.symbol(source).exports.clone();
+            let source_exports = self.binder.symbol(source).exports().clone();
             if !source_exports.is_empty() {
                 let mut target_exports =
-                    std::mem::take(&mut self.binder.symbol_mut(target).exports);
+                    std::mem::take(self.binder.symbol_mut(target).exports_mut());
                 self.merge_symbol_table(
                     std::sync::Arc::make_mut(&mut target_exports),
                     &source_exports,
                     unidirectional,
                     Some(target),
                 );
-                self.binder.symbol_mut(target).exports = target_exports;
+                *self.binder.symbol_mut(target).exports_mut() = target_exports;
             }
             if !unidirectional {
                 self.record_merged_symbol(target, source);
@@ -997,7 +997,7 @@ impl<'a> CheckerState<'a> {
             if self.binder.symbol(symbol).declarations.first().copied() != Some(augmentation) {
                 continue;
             }
-            let exports = self.binder.symbol(symbol).exports.clone();
+            let exports = self.binder.symbol(symbol).exports().clone();
             self.merge_into_globals(&exports, false);
         }
         // Pass 2: external-module augmentations resolve + merge.
@@ -1168,14 +1168,15 @@ impl<'a> CheckerState<'a> {
                 let has_export_star = self
                     .binder
                     .symbol(main_module)
-                    .exports
+                    .exports()
                     .contains_key(tsc_types::InternalSymbolName::EXPORT_STAR);
-                let augmentation_exports = self.binder.symbol(augmentation_symbol).exports.clone();
+                let augmentation_exports =
+                    self.binder.symbol(augmentation_symbol).exports().clone();
                 if has_export_star && !augmentation_exports.is_empty() {
                     let resolved_exports = self.get_exports_of_module(main_module)?;
                     for (key, &value) in augmentation_exports.iter() {
                         if let Some(&resolved) = resolved_exports.get(key) {
-                            if !self.binder.symbol(main_module).exports.contains_key(key) {
+                            if !self.binder.symbol(main_module).exports().contains_key(key) {
                                 self.merge_symbol(resolved, value, false);
                             }
                         }

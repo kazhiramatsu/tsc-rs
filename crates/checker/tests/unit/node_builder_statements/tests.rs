@@ -97,7 +97,7 @@ fn with_declaration_statements(
         let table = checker
             .binder
             .node_symbol(root)
-            .map(|symbol| (*checker.binder.symbol(symbol).exports).clone())
+            .map(|symbol| (**checker.binder.symbol(symbol).exports()).clone())
             .or_else(|| checker.binder.locals_of(root).cloned())
             .expect("source-file symbol table");
         let mut arena = TransformArena::new();
@@ -674,7 +674,7 @@ fn symbol_to_declarations_simplifies_class_interface_enum_and_module_modifiers()
             let exports = checker
                 .binder
                 .node_symbol(root)
-                .map(|symbol| checker.binder.symbol(symbol).exports.clone())
+                .map(|symbol| checker.binder.symbol(symbol).exports().clone())
                 .expect("module exports");
             let mut arena = TransformArena::new();
             let target = arena.add_source(
@@ -820,7 +820,7 @@ fn setter_name_serialization_queries_the_write_type_only_when_emitting_it() {
         with_program_state(&[("/main.js", &source)], &options, |checker| {
             let root = checker.binder.source(0).root;
             let foo = checker.binder.locals_of(root).unwrap()["Foo"];
-            let property = checker.binder.symbol(foo).members["x"];
+            let property = checker.binder.symbol(foo).members()["x"];
             let setter = checker.binder.symbol(property).declarations[0];
             assert_eq!(checker.kind_of(setter), SyntaxKind::SetAccessor);
             assert!(checker
@@ -898,7 +898,7 @@ fn setter_name_serialization_rejects_a_set_accessor_without_a_declaration() {
         |checker| {
             let root = checker.binder.source(0).root;
             let foo = checker.binder.locals_of(root).unwrap()["Foo"];
-            let property = checker.binder.symbol(foo).members["x"];
+            let property = checker.binder.symbol(foo).members()["x"];
             assert!(checker
                 .binder
                 .symbol(property)
@@ -1344,7 +1344,7 @@ fn declaration_comment_range_g4b_absent_signature_has_no_property_fallback() {
             |checker| {
                 let root = checker.binder.source(0).root;
                 let class = checker.binder.locals_of(root).unwrap()["C"];
-                let property = checker.binder.symbol(class).members["m"];
+                let property = checker.binder.symbol(class).members()["m"];
                 let method_type = checker.get_type_of_symbol(property).unwrap();
                 let signatures = checker
                     .get_signatures_of_type(method_type, SignatureKind::Call)

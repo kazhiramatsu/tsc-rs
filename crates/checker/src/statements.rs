@@ -353,7 +353,7 @@ impl<'a> CheckerState<'a> {
                             if self.nodes_of(data.properties).is_empty()
                                 || tsc_binder::assignment::is_prototype_access(source, name)
                     )
-                    && !self.binder.symbol(symbol).exports.is_empty();
+                    && !self.binder.symbol(symbol).exports().is_empty();
                 if !is_js_object_literal_initializer
                     && parent_parent_kind != Some(SyntaxKind::ForInStatement)
                 {

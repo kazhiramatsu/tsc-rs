@@ -2536,7 +2536,7 @@ impl<'a> CheckerState<'a> {
                         .map(|symbol| self.get_merged_symbol(symbol))
                         .filter(|&symbol| {
                             self.symbol_flags(symbol).intersects(SymbolFlags::FUNCTION)
-                                && !self.binder.symbol(symbol).members.is_empty()
+                                && !self.binder.symbol(symbol).members().is_empty()
                         })
                 } else if self.is_js_constructor(container) {
                     self.node_symbol(container)

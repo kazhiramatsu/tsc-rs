@@ -2033,7 +2033,7 @@ impl<'a> CheckerState<'a> {
         let export_value = self
             .binder
             .symbol(module_symbol)
-            .exports
+            .exports()
             .get(InternalSymbolName::EXPORT_EQUALS)
             .copied();
         let export_symbol = match export_value {
@@ -2043,7 +2043,12 @@ impl<'a> CheckerState<'a> {
                     ty, name, /*skip_object_function_property_augment*/ true,
                 )?
             }
-            None => self.binder.symbol(module_symbol).exports.get(name).copied(),
+            None => self
+                .binder
+                .symbol(module_symbol)
+                .exports()
+                .get(name)
+                .copied(),
         };
         let resolved = self.resolve_symbol_ex(export_symbol, dont_resolve_alias)?;
         self.mark_symbol_of_alias_declaration_if_type_only(
@@ -2326,7 +2331,7 @@ impl<'a> CheckerState<'a> {
                 let export_equals_symbol = self
                     .binder
                     .symbol(module_symbol)
-                    .exports
+                    .exports()
                     .get(InternalSymbolName::EXPORT_EQUALS)
                     .copied();
                 let export_assignment = export_equals_symbol
@@ -2457,7 +2462,7 @@ impl<'a> CheckerState<'a> {
             let local_name = self.binder.symbol(local).escaped_name.clone();
             self.binder
                 .symbol(module_symbol)
-                .exports
+                .exports()
                 .contains_key(&local_name)
         });
         if exports_has_local {
@@ -2474,7 +2479,7 @@ impl<'a> CheckerState<'a> {
         let export_star = self
             .binder
             .symbol(module_symbol)
-            .exports
+            .exports()
             .get(InternalSymbolName::EXPORT_STAR)
             .copied();
         let mut related = Vec::new();
@@ -2493,7 +2498,7 @@ impl<'a> CheckerState<'a> {
                     if self
                         .binder
                         .symbol(resolved)
-                        .exports
+                        .exports()
                         .contains_key(InternalSymbolName::DEFAULT)
                     {
                         related.push(self.related_info_for_node_js(
@@ -2615,15 +2620,15 @@ impl<'a> CheckerState<'a> {
         }
         let parent = value.parent.or(self.binder.symbol(type_symbol).parent);
         let value_declaration = value.value_declaration;
-        let members = self.binder.symbol(type_symbol).members.clone();
-        let exports = self.binder.symbol(value_symbol).exports.clone();
+        let members = self.binder.symbol(type_symbol).members().clone();
+        let exports = self.binder.symbol(value_symbol).exports().clone();
         let result = self.binder.create_symbol(flags, escaped_name);
         let symbol = self.binder.symbol_mut(result);
         symbol.declarations = declarations;
         symbol.parent = parent;
         symbol.value_declaration = value_declaration;
-        symbol.members = members;
-        symbol.exports = exports;
+        *symbol.members_mut() = members;
+        *symbol.exports_mut() = exports;
         result
     }
 
@@ -2762,7 +2767,7 @@ impl<'a> CheckerState<'a> {
         let mut symbol_from_variable = if self
             .binder
             .symbol(module_symbol)
-            .exports
+            .exports()
             .contains_key(InternalSymbolName::EXPORT_EQUALS)
         {
             let ty = self.get_type_of_symbol(target_symbol)?;
@@ -2868,7 +2873,7 @@ impl<'a> CheckerState<'a> {
         if self
             .binder
             .symbol(module_symbol)
-            .exports
+            .exports()
             .contains_key(InternalSymbolName::DEFAULT)
         {
             self.error_at_js(
@@ -2951,7 +2956,7 @@ impl<'a> CheckerState<'a> {
         let exported_equals_symbol = self
             .binder
             .symbol(module_symbol)
-            .exports
+            .exports()
             .get(InternalSymbolName::EXPORT_EQUALS)
             .copied();
         if let Some(exported_equals_symbol) = exported_equals_symbol {
@@ -2976,7 +2981,7 @@ impl<'a> CheckerState<'a> {
         let exports: Vec<SymbolId> = self
             .binder
             .symbol(module_symbol)
-            .exports
+            .exports()
             .values()
             .copied()
             .collect();
@@ -3518,7 +3523,7 @@ impl<'a> CheckerState<'a> {
                 let export_symbol = self
                     .binder
                     .symbol(target)
-                    .exports
+                    .exports()
                     .get(InternalSymbolName::EXPORT_EQUALS)
                     .copied()
                     .unwrap_or(target);
@@ -4557,7 +4562,7 @@ impl<'a> CheckerState<'a> {
             let children = self
                 .binder
                 .symbol(current)
-                .exports
+                .exports()
                 .iter()
                 .map(|(name, &child)| {
                     let mut child_path = path.clone();
@@ -7445,7 +7450,7 @@ impl<'a> CheckerState<'a> {
         let export_equals = self
             .binder
             .symbol(module_symbol)
-            .exports
+            .exports()
             .get(InternalSymbolName::EXPORT_EQUALS)
             .copied();
         let export_equals = self.resolve_symbol_ex(export_equals, dont_resolve_alias)?;
@@ -7474,7 +7479,7 @@ impl<'a> CheckerState<'a> {
             if self
                 .binder
                 .symbol(resolved)
-                .exports
+                .exports()
                 .values()
                 .any(|&export| {
                     self.is_duplicated_common_js_export(&self.binder.symbol(export).declarations)
@@ -7501,7 +7506,7 @@ impl<'a> CheckerState<'a> {
         };
         if exported == self.unknown_symbol
             || exported == module_symbol
-            || self.binder.symbol(module_symbol).exports.len() == 1
+            || self.binder.symbol(module_symbol).exports().len() == 1
             || self
                 .binder
                 .symbol(exported)
@@ -7530,7 +7535,7 @@ impl<'a> CheckerState<'a> {
         let module_exports: Vec<(EscapedName, SymbolId)> = self
             .binder
             .symbol(module_symbol)
-            .exports
+            .exports()
             .iter()
             .map(|(name, &symbol)| (name.clone(), symbol))
             .collect();
@@ -7538,12 +7543,12 @@ impl<'a> CheckerState<'a> {
             if name == InternalSymbolName::EXPORT_EQUALS {
                 continue;
             }
-            let existing = self.binder.symbol(merged).exports.get(&name).copied();
+            let existing = self.binder.symbol(merged).exports().get(&name).copied();
             let value = match existing {
                 Some(existing) => self.merge_symbol(existing, source_symbol, false),
                 None => source_symbol,
             };
-            std::sync::Arc::make_mut(&mut self.binder.symbol_mut(merged).exports)
+            std::sync::Arc::make_mut(self.binder.symbol_mut(merged).exports_mut())
                 .insert(name, value);
         }
         if merged == exported {
@@ -7877,8 +7882,8 @@ impl<'a> CheckerState<'a> {
         let parent = original.parent;
         let value_declaration = original.value_declaration;
         let const_enum_only_module = original.extras().const_enum_only_module;
-        let members = original.members.clone();
-        let exports = original.exports.clone();
+        let members = original.members().clone();
+        let exports = original.exports().clone();
         let result = self.binder.create_symbol(flags, escaped_name);
         let cloned = self.binder.symbol_mut(result);
         cloned.declarations = declarations;
@@ -7887,8 +7892,8 @@ impl<'a> CheckerState<'a> {
         if const_enum_only_module == Some(true) {
             cloned.extras_mut().const_enum_only_module = Some(true);
         }
-        cloned.members = members;
-        cloned.exports = exports;
+        *cloned.members_mut() = members;
+        *cloned.exports_mut() = exports;
         self.links
             .set_symbol_target(self.speculation_depth, result, symbol);
         self.links
@@ -7935,7 +7940,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn has_export_assignment_symbol(&self, module_symbol: SymbolId) -> bool {
         self.binder
             .symbol(module_symbol)
-            .exports
+            .exports()
             .contains_key(InternalSymbolName::EXPORT_EQUALS)
     }
 
@@ -8028,7 +8033,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Option<SymbolTable>> {
         if !is_type_only {
             if let Some(symbol) = symbol {
-                for name in self.binder.symbol(symbol).exports.keys() {
+                for name in self.binder.symbol(symbol).exports().keys() {
                     non_type_only_names.insert(name.clone());
                 }
             }
@@ -8040,7 +8045,7 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         }
         visited.push(symbol);
-        let mut symbols = (*self.binder.symbol(symbol).exports).clone();
+        let mut symbols = (**self.binder.symbol(symbol).exports()).clone();
         let export_stars = symbols.get(InternalSymbolName::EXPORT_STAR).copied();
         if let Some(export_stars) = export_stars {
             let mut nested_symbols = SymbolTable::default();
@@ -9259,7 +9264,7 @@ impl<'a> CheckerState<'a> {
         let already_exported = self
             .binder
             .symbol(file_symbol)
-            .exports
+            .exports()
             .get(&escaped_name)
             .copied()?;
         if already_exported != target {
@@ -10457,7 +10462,7 @@ impl<'a> CheckerState<'a> {
         let export_equals_symbol = self
             .binder
             .symbol(module_symbol)
-            .exports
+            .exports()
             .get(InternalSymbolName::EXPORT_EQUALS)
             .copied();
         if let Some(export_equals_symbol) = export_equals_symbol {
@@ -10547,7 +10552,7 @@ impl<'a> CheckerState<'a> {
     fn has_exported_members(&self, module_symbol: SymbolId) -> bool {
         self.binder
             .symbol(module_symbol)
-            .exports
+            .exports()
             .keys()
             .any(|id| id != InternalSymbolName::EXPORT_EQUALS)
     }

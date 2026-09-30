@@ -39,7 +39,7 @@ fn jsdoc_function_type_binds_call_and_construct_members() {
         );
         let binder = bind(&source);
         let symbol = binder.node_symbol[&function_type];
-        assert!(binder.symbols.symbol(symbol).members.contains_key(member));
+        assert!(binder.symbols.symbol(symbol).members().contains_key(member));
     }
 }
 
@@ -186,22 +186,30 @@ fn end_to_end_bind_declares_top_level_symbols() {
     assert!(binder
         .symbols
         .symbol(class_symbol)
-        .exports
+        .exports()
         .contains_key("prototype"));
     assert!(binder
         .symbols
         .symbol(class_symbol)
-        .members
+        .members()
         .contains_key("m"));
     // Interface members, enum members (exports), namespace exports.
-    assert!(binder.symbols.symbol(locals["I"]).members.contains_key("a"));
+    assert!(binder
+        .symbols
+        .symbol(locals["I"])
+        .members()
+        .contains_key("a"));
     let enum_symbol = locals["E"];
-    assert!(binder.symbols.symbol(enum_symbol).exports.contains_key("A"));
+    assert!(binder
+        .symbols
+        .symbol(enum_symbol)
+        .exports()
+        .contains_key("A"));
     let namespace_symbol = locals["N"];
     assert!(binder
         .symbols
         .symbol(namespace_symbol)
-        .exports
+        .exports()
         .contains_key("v"));
     assert!(binder.bind_diagnostics.is_empty());
 }
@@ -260,7 +268,11 @@ fn external_module_file_symbol_and_export_links() {
     let binder = bind(&source);
     let file_symbol = binder.node_symbol[&source.root];
     assert_eq!(binder.symbols.symbol(file_symbol).escaped_name, "\"main\"");
-    assert!(binder.symbols.symbol(file_symbol).exports.contains_key("f"));
+    assert!(binder
+        .symbols
+        .symbol(file_symbol)
+        .exports()
+        .contains_key("f"));
     // Local side of the exported function is linked.
     let locals = binder.locals.get(&source.root).expect("locals");
     let local_f = locals["f"];
@@ -591,7 +603,7 @@ fn declaration_file_root_gets_export_context_and_implicit_exports() {
         .flags_of(source.root)
         .intersects(tsc_types::NodeFlags::EXPORT_CONTEXT));
     let file_symbol = binder.node_symbol[&source.root];
-    let named = binder.symbols.symbol(file_symbol).exports["Named"];
+    let named = binder.symbols.symbol(file_symbol).exports()["Named"];
     let named = binder.symbols.symbol(named);
     assert_eq!(named.declarations.len(), 2);
     assert!(named.flags.intersects(tsc_types::SymbolFlags::TYPE_ALIAS));
@@ -676,7 +688,7 @@ module.exports = F;
     assert_eq!(f_symbol.flags.bits(), 67_110_448);
     assert_eq!(
         f_symbol
-            .members
+            .members()
             .keys()
             .map(|name| name.as_str().expect("these test names are scalar"))
             .collect::<Vec<_>>(),
@@ -684,42 +696,42 @@ module.exports = F;
     );
     assert_eq!(
         f_symbol
-            .exports
+            .exports()
             .keys()
             .map(|name| name.as_str().expect("these test names are scalar"))
             .collect::<Vec<_>>(),
         ["s", "b", "prototype", "d"]
     );
     assert_eq!(
-        binder.symbols.symbol(f_symbol.members["i"]).flags.bits(),
+        binder.symbols.symbol(f_symbol.members()["i"]).flags.bits(),
         67_108_868
     );
     assert_eq!(
-        binder.symbols.symbol(f_symbol.members["p"]).flags.bits(),
+        binder.symbols.symbol(f_symbol.members()["p"]).flags.bits(),
         67_108_868
     );
     assert_eq!(
-        binder.symbols.symbol(f_symbol.members["g"]).flags.bits(),
+        binder.symbols.symbol(f_symbol.members()["g"]).flags.bits(),
         67_141_636
     );
     assert_eq!(
-        binder.symbols.symbol(f_symbol.exports["s"]).flags.bits(),
+        binder.symbols.symbol(f_symbol.exports()["s"]).flags.bits(),
         67_117_056
     );
     assert_eq!(
-        binder.symbols.symbol(f_symbol.exports["b"]).flags.bits(),
+        binder.symbols.symbol(f_symbol.exports()["b"]).flags.bits(),
         67_108_868
     );
     assert_eq!(
         binder
             .symbols
-            .symbol(f_symbol.exports["prototype"])
+            .symbol(f_symbol.exports()["prototype"])
             .flags
             .bits(),
         67_108_868
     );
     assert_eq!(
-        binder.symbols.symbol(f_symbol.exports["d"]).flags.bits(),
+        binder.symbols.symbol(f_symbol.exports()["d"]).flags.bits(),
         67_117_056
     );
 
@@ -728,24 +740,32 @@ module.exports = F;
     assert_eq!(file_symbol.flags, SymbolFlags::VALUE_MODULE);
     assert_eq!(
         file_symbol
-            .exports
+            .exports()
             .keys()
             .map(|name| name.as_str().expect("these test names are scalar"))
             .collect::<Vec<_>>(),
         ["x", "y", InternalSymbolName::EXPORT_EQUALS]
     );
     assert_eq!(
-        binder.symbols.symbol(file_symbol.exports["x"]).flags.bits(),
-        1_048_580
-    );
-    assert_eq!(
-        binder.symbols.symbol(file_symbol.exports["y"]).flags.bits(),
+        binder
+            .symbols
+            .symbol(file_symbol.exports()["x"])
+            .flags
+            .bits(),
         1_048_580
     );
     assert_eq!(
         binder
             .symbols
-            .symbol(file_symbol.exports[InternalSymbolName::EXPORT_EQUALS])
+            .symbol(file_symbol.exports()["y"])
+            .flags
+            .bits(),
+        1_048_580
+    );
+    assert_eq!(
+        binder
+            .symbols
+            .symbol(file_symbol.exports()[InternalSymbolName::EXPORT_EQUALS])
             .flags
             .bits(),
         69_206_016
@@ -787,11 +807,13 @@ F[key] = 3;
     let g = root_locals["G"];
     let f_symbol = binder.symbols.symbol(f);
     assert!(f_symbol.flags.intersects(SymbolFlags::CLASS));
-    assert!(f_symbol.members.contains_key("x"));
-    assert!(f_symbol.members.contains_key(InternalSymbolName::COMPUTED));
+    assert!(f_symbol.members().contains_key("x"));
+    assert!(f_symbol
+        .members()
+        .contains_key(InternalSymbolName::COMPUTED));
     assert_eq!(f_symbol.extras().assignment_declaration_members.len(), 2);
     assert!(
-        !binder.symbols.symbol(g).members.contains_key("y"),
+        !binder.symbols.symbol(g).members().contains_key("y"),
         "an object-valued local with the same spelling is not a this alias"
     );
 }
@@ -851,7 +873,7 @@ module.exports = imported;
     let file_symbol = binder.symbols.symbol(file);
     assert_eq!(
         file_symbol
-            .exports
+            .exports()
             .keys()
             .map(|name| name.as_str().expect("these test names are scalar"))
             .collect::<Vec<_>>(),
@@ -860,7 +882,7 @@ module.exports = imported;
     assert_eq!(
         binder
             .symbols
-            .symbol(file_symbol.exports[InternalSymbolName::EXPORT_EQUALS])
+            .symbol(file_symbol.exports()[InternalSymbolName::EXPORT_EQUALS])
             .flags
             .bits(),
         69_206_016
@@ -930,7 +952,7 @@ fn forced_external_module_still_accepts_common_js_assignments() {
     let binder = bind(&source);
     assert!(binder.common_js_module_indicator.is_some());
     let file = binder.node_symbol[&source.root];
-    assert!(binder.symbols.symbol(file).exports.contains_key("x"));
+    assert!(binder.symbols.symbol(file).exports().contains_key("x"));
 }
 
 #[test]
@@ -957,22 +979,22 @@ function outer() {
     assert!(binder
         .symbols
         .symbol(locals["empty"])
-        .exports
+        .exports()
         .contains_key("x"));
     assert!(!binder
         .symbols
         .symbol(locals["rich"])
-        .exports
+        .exports()
         .contains_key("y"));
     assert!(binder
         .symbols
         .symbol(locals["defaulted"])
-        .exports
+        .exports()
         .contains_key("z"));
     assert!(binder
         .symbols
         .symbol(locals["called"])
-        .exports
+        .exports()
         .contains_key("w"));
 }
 
@@ -1004,7 +1026,7 @@ fn jsdoc_typedef_and_properties_bind_real_declaration_nodes() {
     };
     assert_eq!(kind_of(&source, type_literal), SyntaxKind::JSDocTypeLiteral);
     let type_symbol = binder.node_symbol[&type_literal];
-    let property = binder.symbols.symbol(type_symbol).members["required"];
+    let property = binder.symbols.symbol(type_symbol).members()["required"];
     let property_symbol = binder.symbols.symbol(property);
     assert!(property_symbol.flags.intersects(SymbolFlags::PROPERTY));
     assert_eq!(property_symbol.declarations.len(), 1);
@@ -1042,7 +1064,7 @@ fn dotted_jsdoc_typedef_binds_namespace_then_leaf_alias() {
     let host = find_nodes(&source, SyntaxKind::FunctionDeclaration)[0];
     assert!(!binder.locals[&host].contains_key("Types"));
     let types = binder.locals[&source.root]["Types"];
-    let count = binder.symbols.symbol(types).exports["Count"];
+    let count = binder.symbols.symbol(types).exports()["Count"];
     let count = binder.symbols.symbol(count);
 
     assert!(count.flags.intersects(SymbolFlags::TYPE_ALIAS));
@@ -1069,7 +1091,7 @@ fn dotted_jsdoc_typedef_merges_namespace_face_into_explicit_export_alias() {
     );
     let binder = bind(&source);
     let file = binder.node_symbol[&source.root];
-    let exported = binder.symbols.symbol(file).exports["myTypes"];
+    let exported = binder.symbols.symbol(file).exports()["myTypes"];
     let exported = binder.symbols.symbol(exported);
 
     assert!(exported.flags.intersects(SymbolFlags::ALIAS));
@@ -1089,7 +1111,7 @@ fn nameless_jsdoc_typedef_on_property_routes_to_namespace_export() {
     let source = parse_named("a.js", "/** @typedef {number} */\nTypes.Count;\n", true);
     let binder = bind(&source);
     let types = binder.js_global_augmentations["Types"];
-    let count = binder.symbols.symbol(types).exports["Count"];
+    let count = binder.symbols.symbol(types).exports()["Count"];
     let count = binder.symbols.symbol(count);
     assert!(count.flags.intersects(SymbolFlags::TYPE_ALIAS));
     assert!(count
@@ -1155,7 +1177,7 @@ fn jsdoc_template_callback_and_class_tags_use_effective_hosts() {
     assert!(binder
         .symbols
         .symbol(signature_type)
-        .members
+        .members()
         .contains_key(InternalSymbolName::CALL));
 
     let class_function = binder.locals[&source.root]["C"];
@@ -1175,7 +1197,7 @@ fn jsdoc_type_special_property_uses_materialized_ast_tag() {
     );
     let binder = bind(&source);
     let function = binder.locals[&source.root]["F"];
-    let count = binder.symbols.symbol(function).exports["count"];
+    let count = binder.symbols.symbol(function).exports()["count"];
     assert!(binder
         .symbols
         .symbol(count)

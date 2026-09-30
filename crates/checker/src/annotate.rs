@@ -2263,7 +2263,7 @@ impl<'a> CheckerState<'a> {
         let is_export_equals = self
             .binder
             .symbol(inner_module_symbol)
-            .exports
+            .exports()
             .contains_key(InternalSymbolName::EXPORT_EQUALS);
         let module_symbol = self
             .resolve_external_module_symbol(Some(inner_module_symbol), false)?
@@ -4789,7 +4789,7 @@ impl<'a> CheckerState<'a> {
         {
             return self.get_resolved_members_of_symbol(symbol);
         }
-        Ok(Arc::clone(&self.binder.symbol(symbol).members))
+        Ok(Arc::clone(self.binder.symbol(symbol).members()))
     }
 
     /// tsc-port: getResolvedMembersOrExportsOfSymbol @6.0.3
@@ -4829,11 +4829,11 @@ impl<'a> CheckerState<'a> {
         // links slot (tsc stores the same object); late-bound members below
         // build a fresh table instead of writing through it.
         let early: Arc<tsc_binder::SymbolTable> = if !is_static {
-            Arc::clone(&self.binder.symbol(symbol).members)
+            Arc::clone(self.binder.symbol(symbol).members())
         } else if self.symbol_flags(symbol).intersects(SymbolFlags::MODULE) {
             Arc::new(self.get_exports_of_module_worker(symbol)?.0)
         } else {
-            Arc::clone(&self.binder.symbol(symbol).exports)
+            Arc::clone(self.binder.symbol(symbol).exports())
         };
         if is_static {
             self.links.set_symbol_resolved_exports_late_bind(
@@ -5355,7 +5355,7 @@ impl<'a> CheckerState<'a> {
         if self.symbol_flags(symbol).intersects(SymbolFlags::MODULE) {
             return self.get_exports_of_module(symbol);
         }
-        Ok(Arc::clone(&self.binder.symbol(symbol).exports))
+        Ok(Arc::clone(self.binder.symbol(symbol).exports()))
     }
 
     /// getMembersOfDeclaration (19010-ish): the member lists a
@@ -7958,7 +7958,7 @@ impl<'a> CheckerState<'a> {
         if !self.nodes_of(data.properties).is_empty() {
             return None;
         }
-        let members = (*self.binder.symbol(symbol).exports).clone();
+        let members = (**self.binder.symbol(symbol).exports()).clone();
         let properties = members.values().copied().collect();
         let ty = self.create_resolved_empty_anonymous_type(Some(symbol));
         self.tables.type_mut(ty).object_flags = ObjectFlags::from_bits(
@@ -8039,8 +8039,8 @@ impl<'a> CheckerState<'a> {
                     let flags = file.flags;
                     let declarations = file.declarations.clone();
                     let value_declaration = file.value_declaration;
-                    let members = file.members.clone();
-                    let exports = file.exports.clone();
+                    let members = file.members().clone();
+                    let exports = file.exports().clone();
                     let result = self.binder.create_symbol(
                         flags,
                         tsc_types::EscapedName::from_identifier_escaped_text("exports"),
@@ -8050,8 +8050,8 @@ impl<'a> CheckerState<'a> {
                         result_symbol.declarations = declarations;
                         result_symbol.parent = Some(symbol);
                         result_symbol.value_declaration = value_declaration;
-                        result_symbol.members = members;
-                        result_symbol.exports = exports;
+                        *result_symbol.members_mut() = members;
+                        *result_symbol.exports_mut() = exports;
                     }
                     self.links
                         .set_symbol_target(self.speculation_depth, result, file_symbol);
@@ -9337,7 +9337,7 @@ impl<'a> CheckerState<'a> {
         let exports = self
             .binder
             .symbol(resolved_symbol.unwrap_or(symbol))
-            .exports
+            .exports()
             .clone();
         for (name, &export_member) in exports.iter() {
             let Some(object_member) = members.get(&self.binder, name) else {
@@ -9748,7 +9748,7 @@ impl<'a> CheckerState<'a> {
         }
         self.node_symbol(func)
             .map(|symbol| self.get_merged_symbol(symbol))
-            .is_some_and(|symbol| !self.binder.symbol(symbol).members.is_empty())
+            .is_some_and(|symbol| !self.binder.symbol(symbol).members().is_empty())
     }
 
     fn create_js_constructor_signature(
@@ -9915,7 +9915,7 @@ impl<'a> CheckerState<'a> {
         let Some(prototype) = self
             .binder
             .symbol(assignment_symbol)
-            .exports
+            .exports()
             .get("prototype")
             .copied()
         else {
@@ -10032,7 +10032,7 @@ impl<'a> CheckerState<'a> {
                 let export_equals = self
                     .binder
                     .symbol(type_symbol)
-                    .exports
+                    .exports()
                     .get(InternalSymbolName::EXPORT_EQUALS)
                     .copied()
                     .map(|export| self.get_merged_symbol(export))

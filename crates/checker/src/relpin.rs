@@ -203,13 +203,13 @@ fn mark_fresh_probe_source(state: &mut CheckerState, ty: TypeId) -> TypeId {
                 let escaped_name = original.escaped_name.clone();
                 let declarations = original.declarations.clone();
                 let parent = original.parent;
-                let members = original.members.clone();
+                let members = original.members().clone();
                 let clone = state.binder.create_symbol(flags, escaped_name);
                 let clone_data = state.binder.symbol_mut(clone);
                 clone_data.value_declaration = declarations.first().copied();
                 clone_data.declarations = declarations;
                 clone_data.parent = parent;
-                clone_data.members = members;
+                *clone_data.members_mut() = members;
                 state.tables.type_mut(ty).symbol = Some(clone);
             }
         }
