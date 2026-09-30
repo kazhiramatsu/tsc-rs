@@ -2839,8 +2839,16 @@ fn reserve_type_tables(state: &mut state::CheckerState<'_>, node_count: usize) {
     let reserve =
         |per_node: f64| ((node_count as f64 * per_node) as usize).clamp(MIN_RESERVED, MAX_RESERVED);
     state.tables.reserve_types(reserve(1.0));
-    state.binder.reserve_transient_symbols(reserve(2.0));
+    // Transient symbols outgrow the shared cap on the largest programs (VS
+    // Code's shards by 3-7 %, its serial check three times over), and each
+    // doubling copies the arena while the old buffer is still resident;
+    // untouched capacity stays virtual, so this arena takes a higher cap.
+    const MAX_RESERVED_TRANSIENT_SYMBOLS: usize = 1 << 22;
+    state.binder.reserve_transient_symbols(
+        ((node_count as f64 * 2.0) as usize).clamp(MIN_RESERVED, MAX_RESERVED_TRANSIENT_SYMBOLS),
+    );
     state.mappers.reserve(reserve(1.5));
+    state.mapper_lists.reserve(reserve(2.0));
     state.members.reserve(reserve(0.5));
     state.signatures.reserve(reserve(0.25));
 }
@@ -2848,7 +2856,6 @@ fn reserve_type_tables(state: &mut state::CheckerState<'_>, node_count: usize) {
 /// With `TSRS_MEMORY_REPORT` set, print what the parsed and bound documents
 /// of `snapshot` allocate, by structure, to stderr.
 fn report_program_memory(snapshot: &ProgramSnapshot) {
-    state.mapper_lists.reserve(reserve(2.0));
     if std::env::var_os("TSRS_MEMORY_REPORT").is_none() {
         return;
     }
