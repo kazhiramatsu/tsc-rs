@@ -398,6 +398,9 @@ pub struct CheckerState<'a> {
     pub(crate) restrictive_mapper: crate::instantiate::MapperId,
     /// tsc permissiveMapper (47104).
     pub(crate) permissive_mapper: crate::instantiate::MapperId,
+    /// The source and target lists of the array and deferred mappers (see
+    /// `instantiate::MapperList`).
+    pub(crate) mapper_lists: Vec<TypeId>,
     /// tsc uniqueLiteralMapper (47112).
     pub(crate) unique_literal_mapper: crate::instantiate::MapperId,
     /// tsc reportUnreliableMapper (47114).
@@ -1149,7 +1152,8 @@ impl<'a> CheckerState<'a> {
         rows.push((
             "type mappers",
             self.mappers.len(),
-            self.mappers.capacity() * std::mem::size_of::<crate::instantiate::TypeMapper>(),
+            self.mappers.capacity() * std::mem::size_of::<crate::instantiate::TypeMapper>()
+                + self.mapper_lists.capacity() * std::mem::size_of::<TypeId>(),
         ));
         let (relations, relation_bytes) = self.relations.memory_usage();
         rows.push(("relation caches", relations, relation_bytes));
@@ -1455,6 +1459,7 @@ impl<'a> CheckerState<'a> {
             unique_literal_mapper: crate::instantiate::MapperId::new(0),
             report_unreliable_mapper: crate::instantiate::MapperId::new(0),
             report_unmeasurable_mapper: crate::instantiate::MapperId::new(0),
+            mapper_lists: Vec::new(),
             marker_super_type: TypeId::new(0),
             marker_sub_type: TypeId::new(0),
             marker_other_type: TypeId::new(0),

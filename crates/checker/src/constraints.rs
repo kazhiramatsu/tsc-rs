@@ -199,10 +199,11 @@ impl<'a> CheckerState<'a> {
                 else {
                     continue;
                 };
+                let type_parameters = self.alloc_mapper_list(&type_parameters);
                 let mapper = self.alloc_mapper(TypeMapper::Deferred(
                     DeferredMapperTargets::EffectiveTypeArguments {
                         node: grand_parent,
-                        type_parameters: type_parameters.clone(),
+                        type_parameters,
                     },
                 ));
                 let constraint = self.instantiate_type(declared_constraint, Some(mapper))?;

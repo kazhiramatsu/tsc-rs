@@ -37,7 +37,7 @@ pub use tsc_types::MapperId;
 /// the InferenceContext doc for the creation-stability proof that
 /// this equals tsc's creation-time snapshot), targets are the
 /// fixing/non-fixing thunk bodies (inference.rs *_mapper_target).
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum DeferredMapperTargets {
     /// makeFixingMapperForContext (68258).
     InferenceFixing(crate::inference::InferenceContextId),
@@ -48,8 +48,20 @@ pub enum DeferredMapperTargets {
     /// argument only if its source is actually mapped.
     EffectiveTypeArguments {
         node: NodeId,
-        type_parameters: Vec<TypeId>,
+        type_parameters: MapperList,
     },
+}
+
+/// A list of types a mapper holds: `len` entries of
+/// `CheckerState::mapper_lists` from `start`.
+///
+/// tsrs-native: a checker creates millions of mappers, so their source and
+/// target lists live in one arena instead of one heap allocation each, and
+/// the mapper record stays a few words (tsc closes over the arrays).
+#[derive(Clone, Copy, Debug)]
+pub struct MapperList {
+    start: u32,
+    len: u32,
 }
 
 /// tsc-port: makeFunctionTypeMapper @6.0.3
@@ -78,8 +90,9 @@ pub enum FunctionMapper {
     ReportsUnreliable,
 }
 
-/// tsc TypeMapper — the six TypeMapKind shapes.
-#[derive(Clone, Debug)]
+/// tsc TypeMapper — the six TypeMapKind shapes. A program holds millions of
+/// mappers, so every shape fits in a few words (see [`MapperList`]).
+#[derive(Clone, Copy, Debug)]
 pub enum TypeMapper {
     /// tsc-port: makeUnaryTypeMapper @6.0.3
     /// tsc-hash: f16e43be81b2a0ab46054c6a62c222608c47514ebef557e8fdbe5fc2b022cb63
@@ -95,8 +108,8 @@ pub enum TypeMapper {
     /// `targets: None` is the type-eraser form (targets → anyType).
     /// Boxed slices: a program holds millions of mappers.
     Array {
-        sources: Box<[TypeId]>,
-        targets: Option<Box<[TypeId]>>,
+        sources: MapperList,
+        targets: Option<MapperList>,
     },
     Deferred(DeferredMapperTargets),
     Function(FunctionMapper),
@@ -214,6 +227,21 @@ impl<'a> CheckerState<'a> {
         self.mappers.push(mapper);
         id
     }
+    /// Store `types` in the mapper-list arena (see [`MapperList`]).
+    pub(crate) fn alloc_mapper_list(&mut self, types: &[TypeId]) -> MapperList {
+        let start = u32::try_from(self.mapper_lists.len()).expect("mapper list arena fits u32");
+        self.mapper_lists.extend_from_slice(types);
+        MapperList {
+            start,
+            len: u32::try_from(types.len()).expect("mapper list length fits u32"),
+        }
+    }
+
+    /// The types of a stored mapper list.
+    pub(crate) fn mapper_list(&self, list: MapperList) -> &[TypeId] {
+        &self.mapper_lists[list.start as usize..(list.start + list.len) as usize]
+    }
+
 
     /// tsc-port: makeUnaryTypeMapper @6.0.3
     /// tsc-hash: f16e43be81b2a0ab46054c6a62c222608c47514ebef557e8fdbe5fc2b022cb63
@@ -230,10 +258,9 @@ impl<'a> CheckerState<'a> {
         sources: Vec<TypeId>,
         targets: Option<Vec<TypeId>>,
     ) -> MapperId {
-        self.alloc_mapper(TypeMapper::Array {
-            sources: sources.into_boxed_slice(),
-            targets: targets.map(Vec::into_boxed_slice),
-        })
+        let sources = self.alloc_mapper_list(&sources);
+        let targets = targets.map(|targets| self.alloc_mapper_list(&targets));
+        self.alloc_mapper(TypeMapper::Array { sources, targets })
     }
 
     fn make_composite_type_mapper(
@@ -288,11 +315,15 @@ impl<'a> CheckerState<'a> {
                 return Ok(if ty == *source { *target } else { ty });
             }
             TypeMapper::Array { sources, targets } => {
-                let Some(index) = sources.iter().position(|&source| source == ty) else {
+                let Some(index) = self
+                    .mapper_list(sources)
+                    .iter()
+                    .position(|&source| source == ty)
+                else {
                     return Ok(ty);
                 };
-                return Ok(match targets {
-                    Some(targets) => targets[index],
+                Ok(match targets {
+                    Some(targets) => self.mapper_list(targets)[index],
                     None => self.tables.intrinsics.any,
                 });
             }
@@ -323,6 +354,7 @@ impl<'a> CheckerState<'a> {
                 DeferredMapperTargets::InferenceNonFixing(context) => {
                     let index = self
                         .inference_context(context)
+                    let type_parameters = self.mapper_list(type_parameters);
                         .mapper_sources
                         .iter()
                         .position(|&source| source == ty);

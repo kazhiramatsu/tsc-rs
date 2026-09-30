@@ -2848,6 +2848,7 @@ fn reserve_type_tables(state: &mut state::CheckerState<'_>, node_count: usize) {
 /// With `TSRS_MEMORY_REPORT` set, print what the parsed and bound documents
 /// of `snapshot` allocate, by structure, to stderr.
 fn report_program_memory(snapshot: &ProgramSnapshot) {
+    state.mapper_lists.reserve(reserve(2.0));
     if std::env::var_os("TSRS_MEMORY_REPORT").is_none() {
         return;
     }
