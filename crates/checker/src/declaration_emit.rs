@@ -547,7 +547,7 @@ impl CheckerState<'_> {
     /// every declaration visited by the decision gets its own
     /// NodeLinks.isVisible write. The display slice remains read-only.
     pub(crate) fn emit_is_declaration_visible(&mut self, declaration: NodeId) -> CheckResult<bool> {
-        if let Some(visible) = self.links.read_node(declaration, |links| links.is_visible) {
+        if let Some(visible) = *self.links.node_cold().is_visible.get(declaration) {
             return Ok(visible);
         }
         let visible = self.emit_determine_declaration_is_visible(declaration)?;
@@ -555,7 +555,9 @@ impl CheckerState<'_> {
             .set_node_is_visible(self.speculation_depth, declaration, visible);
         Ok(self
             .links
-            .read_node(declaration, |links| links.is_visible)
+            .node_cold()
+            .is_visible
+            .get(declaration)
             .unwrap_or(visible))
     }
 

@@ -209,7 +209,7 @@ fn declarationless_recovery_alias_uses_stable_miss_sentinels() {
         state.unknown_symbol
     );
     assert_eq!(
-        state.links.symbol(recovered).cold().alias_target,
+        *state.links.symbol_cold().alias_target.get(recovered),
         LinkSlot::Resolved(state.unknown_symbol)
     );
     assert_eq!(
@@ -219,12 +219,12 @@ fn declarationless_recovery_alias_uses_stable_miss_sentinels() {
         None
     );
     assert_eq!(
-        state.links.symbol(recovered).cold().immediate_target,
+        *state.links.symbol_cold().immediate_target.get(recovered),
         Some(None)
     );
 
     state
         .mark_alias_symbol_as_referenced(recovered)
         .expect("declarationless alias can still be marked referenced");
-    assert!(state.links.symbol(recovered).cold().alias_referenced);
+    assert!(*state.links.symbol_cold().alias_referenced.get(recovered));
 }

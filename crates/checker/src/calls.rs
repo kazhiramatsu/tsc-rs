@@ -1019,9 +1019,7 @@ impl<'a> CheckerState<'a> {
         let parent = self
             .parent_of(decorator)
             .expect("decorators hang off their decorated node");
-        if let Some(existing) = self.links.read_node(parent, |links| {
-            links.cold().and_then(|cold| cold.decorator_signature)
-        }) {
+        if let Some(existing) = *self.links.node_cold().decorator_signature.get(parent) {
             return Ok((existing != self.any_signature).then_some(existing));
         }
         let sentinel = self.any_signature;
@@ -1148,9 +1146,7 @@ impl<'a> CheckerState<'a> {
         let parent = self
             .parent_of(decorator)
             .expect("decorators hang off their decorated node");
-        if let Some(existing) = self.links.read_node(parent, |links| {
-            links.cold().and_then(|cold| cold.decorator_signature)
-        }) {
+        if let Some(existing) = *self.links.node_cold().decorator_signature.get(parent) {
             return Ok((existing != self.any_signature).then_some(existing));
         }
         let sentinel = self.any_signature;
@@ -4137,7 +4133,7 @@ impl<'a> CheckerState<'a> {
         // have concretely resolved the links mid-flight.
         if let LinkSlot::Resolved(resolved) = self
             .links
-            .read_node(node, |links| links.resolved_signature.clone())
+            .read_node(node, |links| links.resolved_signature.get())
         {
             return Ok(resolved);
         }
@@ -4175,7 +4171,7 @@ impl<'a> CheckerState<'a> {
             )?;
             if let LinkSlot::Resolved(resolved) = self
                 .links
-                .read_node(node, |links| links.resolved_signature.clone())
+                .read_node(node, |links| links.resolved_signature.get())
             {
                 return Ok(resolved);
             }
@@ -5608,7 +5604,7 @@ impl<'a> CheckerState<'a> {
         if parent_call_args == Some(0) {
             if let LinkSlot::Resolved(resolved_symbol) = self
                 .links
-                .read_node(error_target, |links| links.resolved_symbol.clone())
+                .read_node(error_target, |links| links.resolved_symbol.get())
             {
                 if self
                     .binder
@@ -6805,7 +6801,7 @@ impl<'a> CheckerState<'a> {
         self.profile_ops[crate::line_profile::OP_SIGNATURES] += 1;
         let cached = self
             .links
-            .read_node(node, |links| links.resolved_signature.clone());
+            .read_node(node, |links| links.resolved_signature.get());
         if let LinkSlot::Resolved(cached) = cached {
             return Ok(cached);
         }
@@ -6860,7 +6856,7 @@ impl<'a> CheckerState<'a> {
                     // never reaches here as Vacant).
                     if matches!(
                         self.links
-                            .read_node(node, |links| links.resolved_signature.clone()),
+                            .read_node(node, |links| links.resolved_signature.get()),
                         LinkSlot::Vacant
                     ) {
                         self.contained_call_resolutions.insert(node);

@@ -1093,9 +1093,9 @@ fn alternative_containing_module_chains(
     let file_index = checker.binder.file_index_of_node(enclosing);
     if let Some(cached) = checker
         .links
-        .symbol(symbol)
-        .cold()
+        .symbol_cold()
         .extended_containers_by_file
+        .get(symbol)
         .get(&file_index)
     {
         return Ok(cached.clone());
@@ -1159,9 +1159,9 @@ fn alternative_containing_module_chains(
     }
     if let Some(cached) = checker
         .links
-        .symbol(symbol)
-        .cold()
+        .symbol_cold()
         .extended_containers
+        .get(symbol)
         .as_ref()
     {
         return Ok(cached.clone());

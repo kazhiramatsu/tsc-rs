@@ -740,7 +740,10 @@ impl<'a> CheckerState<'a> {
         self.get_declared_type_of_symbol(symbol)?;
         let type_parameter_count = self
             .links
-            .read_symbol(symbol, |links| links.cold().type_parameters.clone())
+            .symbol_cold()
+            .type_parameters
+            .get(symbol)
+            .clone()
             .as_ref()
             .map_or(0, Vec::len);
         if type_parameter_count != arity {

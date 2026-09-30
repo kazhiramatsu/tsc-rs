@@ -20,15 +20,15 @@ fn with_state<R>(run: impl FnOnce(&mut CheckerState) -> R) -> R {
     )
 }
 
-/// The node's nonExistentPropCheckCache keys (empty when the cold record
-/// was never allocated).
+/// The node's nonExistentPropCheckCache keys (empty when none was ever
+/// inserted).
 fn cache_keys(state: &CheckerState<'_>, node: tsc_syntax::NodeId) -> rustc_hash::FxHashSet<String> {
     state
         .links
-        .node(node)
-        .cold()
-        .map(|cold| cold.non_existent_prop_check_cache.clone())
-        .unwrap_or_default()
+        .node_cold()
+        .non_existent_prop_check_cache
+        .get(node)
+        .clone()
 }
 
 #[test]
@@ -81,32 +81,37 @@ fn nonexistent_property_cache_persists_across_nested_speculation() {
         observed.extend([
             state
                 .links
-                .node(node)
-                .cold()
-                .is_some_and(|cold| cold.non_existent_prop_check_cache.contains(&parent_key)),
+                .node_cold()
+                .non_existent_prop_check_cache
+                .get(node)
+                .contains(&parent_key),
             state
                 .links
-                .node(node)
-                .cold()
-                .is_some_and(|cold| cold.non_existent_prop_check_cache.contains(&child_key)),
+                .node_cold()
+                .non_existent_prop_check_cache
+                .get(node)
+                .contains(&child_key),
         ]);
         state.rollback_speculation(outer);
         observed.extend([
             state
                 .links
-                .node(node)
-                .cold()
-                .is_some_and(|cold| cold.non_existent_prop_check_cache.contains(&permanent)),
+                .node_cold()
+                .non_existent_prop_check_cache
+                .get(node)
+                .contains(&permanent),
             state
                 .links
-                .node(node)
-                .cold()
-                .is_some_and(|cold| cold.non_existent_prop_check_cache.contains(&parent_key)),
+                .node_cold()
+                .non_existent_prop_check_cache
+                .get(node)
+                .contains(&parent_key),
             state
                 .links
-                .node(node)
-                .cold()
-                .is_some_and(|cold| cold.non_existent_prop_check_cache.contains(&child_key)),
+                .node_cold()
+                .non_existent_prop_check_cache
+                .get(node)
+                .contains(&child_key),
         ]);
         assert_eq!(
             observed,
@@ -136,9 +141,10 @@ fn nonexistent_property_cache_persists_across_every_transaction_boundary() {
                 );
                 visible_inside = state
                     .links
-                    .node(node)
-                    .cold()
-                    .is_some_and(|cold| cold.non_existent_prop_check_cache.contains(&trial));
+                    .node_cold()
+                    .non_existent_prop_check_cache
+                    .get(node)
+                    .contains(&trial);
                 match outcome {
                     0 => Ok(SpeculationOutcome::Commit(())),
                     1 => Ok(SpeculationOutcome::Rollback(())),
@@ -430,27 +436,27 @@ fn link_protocols_persist_on_commit_and_rollback() {
         );
         state.commit_speculation(committed);
         assert!(matches!(
-            state.links.node(committed_node).resolved_signature,
+            state.links.node(committed_node).resolved_signature.get(),
             LinkSlot::Resolved(_)
         ));
         // A completed node resolution persists (tsc never clears
         // links.resolvedType); only a `Resolving` sentinel is unwound.
         assert!(matches!(
-            state.links.node(committed_node).resolved_type,
+            state.links.node(committed_node).resolved_type.get(),
             LinkSlot::Resolved(_)
         ));
         assert!(matches!(
-            state.links.symbol(committed_symbol).declared_type,
+            state.links.symbol(committed_symbol).declared_type.get(),
             LinkSlot::Resolved(_)
         ));
         assert!(state
             .links
-            .symbol(committed_symbol)
-            .cold()
+            .symbol_cold()
             .unique_es_symbol_type
+            .get(committed_symbol)
             .is_some());
         assert!(matches!(
-            state.links.ty(committed_type).resolved_members,
+            state.links.ty(committed_type).resolved_members.get(),
             LinkSlot::Resolved(_)
         ));
 
@@ -464,25 +470,25 @@ fn link_protocols_persist_on_commit_and_rollback() {
         );
         state.rollback_speculation(rolled_back);
         assert!(matches!(
-            state.links.node(rolled_back_node).resolved_signature,
+            state.links.node(rolled_back_node).resolved_signature.get(),
             LinkSlot::Resolved(_)
         ));
         assert!(matches!(
-            state.links.node(rolled_back_node).resolved_type,
+            state.links.node(rolled_back_node).resolved_type.get(),
             LinkSlot::Resolved(_)
         ));
         assert!(matches!(
-            state.links.symbol(rolled_back_symbol).declared_type,
+            state.links.symbol(rolled_back_symbol).declared_type.get(),
             LinkSlot::Resolved(_)
         ));
         assert!(state
             .links
-            .symbol(rolled_back_symbol)
-            .cold()
+            .symbol_cold()
             .unique_es_symbol_type
+            .get(rolled_back_symbol)
             .is_some());
         assert!(matches!(
-            state.links.ty(rolled_back_type).resolved_members,
+            state.links.ty(rolled_back_type).resolved_members.get(),
             LinkSlot::Resolved(_)
         ));
         assert_eq!(state.links.speculative_resolved_signature_mark(), 0);
@@ -517,7 +523,7 @@ fn declaration_signatures_persist_through_nested_rollback() {
                 .expect("signature resolves");
             state.commit_speculation(committed);
             assert!(matches!(
-                state.links.node(f).resolved_signature,
+                state.links.node(f).resolved_signature.get(),
                 LinkSlot::Resolved(signature) if signature == f_signature
             ));
 
@@ -528,12 +534,12 @@ fn declaration_signatures_persist_through_nested_rollback() {
                 .expect("nested signature resolves");
             state.commit_speculation(inner);
             assert!(matches!(
-                state.links.node(g).resolved_signature,
+                state.links.node(g).resolved_signature.get(),
                 LinkSlot::Resolved(_)
             ));
             state.rollback_speculation(outer);
             assert!(matches!(
-                state.links.node(g).resolved_signature,
+                state.links.node(g).resolved_signature.get(),
                 LinkSlot::Resolved(_)
             ));
             assert_eq!(state.links.speculative_declaration_signature_mark(), 0);
@@ -1062,7 +1068,7 @@ fn revert_twin_is_legal_under_speculation() {
         state.speculation_depth = 1;
         state.links.revert_node_enum_values_computed(root);
         state.speculation_depth = 0;
-        assert!(!state.links.node(root).enum_values_computed);
+        assert!(!*state.links.node_cold().enum_values_computed.get(root));
     });
 }
 

@@ -191,11 +191,12 @@ impl<'a> CheckerState<'a> {
         declaration: NodeId,
     ) -> CheckResult<bool> {
         let symbol = self.get_symbol_of_declaration(declaration)?;
-        Ok(self.links.read_node(node, |links| {
-            links
-                .cold()
-                .is_some_and(|cold| cold.captured_block_scope_bindings.contains(&symbol))
-        }))
+        Ok(self
+            .links
+            .node_cold()
+            .captured_block_scope_bindings
+            .get(node)
+            .contains(&symbol))
     }
 
     /// tsc-port: getReferencedDeclarationWithCollidingName @6.0.3
@@ -263,9 +264,9 @@ impl<'a> CheckerState<'a> {
         }
         if self
             .links
-            .read_symbol(symbol, |links| {
-                links.cold().is_declaration_with_colliding_name
-            })
+            .symbol_cold()
+            .is_declaration_with_colliding_name
+            .get(symbol)
             .is_none()
         {
             let Some(container) = self.get_enclosing_block_scope_container(value_declaration)
@@ -313,9 +314,9 @@ impl<'a> CheckerState<'a> {
         }
         Ok(self
             .links
-            .read_symbol(symbol, |links| {
-                links.cold().is_declaration_with_colliding_name
-            })
+            .symbol_cold()
+            .is_declaration_with_colliding_name
+            .get(symbol)
             .unwrap_or(false))
     }
 
@@ -981,16 +982,10 @@ impl<'a> CheckerState<'a> {
         let Some(symbol) = self.emit_alias_declaration_symbol(node) else {
             return Ok(false);
         };
-        if self
-            .links
-            .read_symbol(symbol, |links| links.cold().alias_referenced)
-        {
+        if *self.links.symbol_cold().alias_referenced.get(symbol) {
             return Ok(true);
         }
-        let Some(target) = self
-            .links
-            .read_symbol(symbol, |links| links.cold().alias_target.resolved())
-        else {
+        let Some(target) = self.links.symbol_cold().alias_target.get(symbol).resolved() else {
             return Ok(false);
         };
         let source = self.binder.source_of_node(node);
@@ -1049,10 +1044,7 @@ impl<'a> CheckerState<'a> {
         // `verbatimModuleSyntax` reaches the ordinary emit route since
         // H2.8a-A-RES-EMITTER-FINAL EF7-VERBATIM-GATE; tsc answers these
         // resolver queries independently of the option.
-        if self
-            .links
-            .read_symbol(symbol, |links| links.cold().alias_referenced)
-        {
+        if *self.links.symbol_cold().alias_referenced.get(symbol) {
             return Ok(());
         }
         self.links
@@ -1626,10 +1618,7 @@ impl<'a> CheckerState<'a> {
                 .intersects(SymbolFlags::ALIAS),
             "Should only get Alias here."
         );
-        match self
-            .links
-            .read_symbol(symbol, |links| links.cold().alias_target.clone())
-        {
+        match self.links.symbol_cold().alias_target.get(symbol).clone() {
             LinkSlot::Resolved(target) => return Ok(target),
             LinkSlot::Resolving => {
                 perf::bump(PerfCounter::SentinelAliasResolving);
@@ -1668,7 +1657,10 @@ impl<'a> CheckerState<'a> {
         };
         if self
             .links
-            .read_symbol(symbol, |links| links.cold().alias_target.is_resolving())
+            .symbol_cold()
+            .alias_target
+            .get(symbol)
+            .is_resolving()
         {
             let resolved = target.unwrap_or(self.unknown_symbol);
             self.links.set_symbol_alias_target(
@@ -1686,10 +1678,7 @@ impl<'a> CheckerState<'a> {
                 &[(&name).into()],
             );
         }
-        match self
-            .links
-            .read_symbol(symbol, |links| links.cold().alias_target.clone())
-        {
+        match self.links.symbol_cold().alias_target.get(symbol).clone() {
             LinkSlot::Resolved(resolved) => Ok(resolved),
             _ => unreachable!("resolveAlias tail leaves the slot Resolved"),
         }
@@ -1701,7 +1690,10 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn try_resolve_alias(&mut self, symbol: SymbolId) -> CheckResult<Option<SymbolId>> {
         if self
             .links
-            .read_symbol(symbol, |links| links.cold().alias_target.is_resolving())
+            .symbol_cold()
+            .alias_target
+            .get(symbol)
+            .is_resolving()
         {
             return Ok(None);
         }
@@ -2659,9 +2651,10 @@ impl<'a> CheckerState<'a> {
         let resolved = self.resolve_symbol_ex(export_symbol, dont_resolve_alias)?;
         let export_star_declaration = self
             .links
-            .read_symbol(symbol, |links| {
-                links.cold().type_only_export_star_map.clone()
-            })
+            .symbol_cold()
+            .type_only_export_star_map
+            .get(symbol)
+            .clone()
             .as_ref()
             .and_then(|map| map.get(name_text.as_bytes()))
             .copied();
@@ -3515,9 +3508,11 @@ impl<'a> CheckerState<'a> {
         target: Option<SymbolId>,
         overwrite_empty: bool,
     ) -> CheckResult<bool> {
-        let existing = self
+        let existing = *self
             .links
-            .read_symbol(source_symbol, |links| links.cold().type_only_declaration);
+            .symbol_cold()
+            .type_only_declaration
+            .get(source_symbol);
         if let Some(target) = target {
             if existing.is_none() || (overwrite_empty && existing == Some(None)) {
                 let export_symbol = self
@@ -3540,7 +3535,9 @@ impl<'a> CheckerState<'a> {
                     Some(declaration) => Some(declaration),
                     None => self
                         .links
-                        .read_symbol(export_symbol, |links| links.cold().type_only_declaration)
+                        .symbol_cold()
+                        .type_only_declaration
+                        .get(export_symbol)
                         .flatten(),
                 };
                 self.links.set_symbol_type_only_declaration(
@@ -3552,7 +3549,9 @@ impl<'a> CheckerState<'a> {
         }
         Ok(self
             .links
-            .read_symbol(source_symbol, |links| links.cold().type_only_declaration)
+            .symbol_cold()
+            .type_only_declaration
+            .get(source_symbol)
             .flatten()
             .is_some())
     }
@@ -3589,7 +3588,9 @@ impl<'a> CheckerState<'a> {
         }
         if self
             .links
-            .read_symbol(symbol, |links| links.cold().type_only_declaration)
+            .symbol_cold()
+            .type_only_declaration
+            .get(symbol)
             .is_none()
         {
             self.links
@@ -3611,7 +3612,9 @@ impl<'a> CheckerState<'a> {
         }
         let type_only_declaration = self
             .links
-            .read_symbol(symbol, |links| links.cold().type_only_declaration)
+            .symbol_cold()
+            .type_only_declaration
+            .get(symbol)
             .flatten();
         let Some(include) = include else {
             return Ok(type_only_declaration);
@@ -3629,9 +3632,10 @@ impl<'a> CheckerState<'a> {
             let exports = self.get_exports_of_module(parent)?;
             let lookup_name = self
                 .links
-                .read_symbol(symbol, |links| {
-                    links.cold().type_only_export_star_name.clone()
-                })
+                .symbol_cold()
+                .type_only_export_star_name
+                .get(symbol)
+                .clone()
                 .unwrap_or_else(|| self.binder.symbol(symbol).escaped_name.clone());
             let export_symbol = exports.get(&lookup_name).copied();
             self.resolve_symbol_ex(export_symbol, false)?
@@ -3666,9 +3670,7 @@ impl<'a> CheckerState<'a> {
                 .intersects(SymbolFlags::ALIAS),
             "Should only get Alias here."
         );
-        let links_immediate = self
-            .links
-            .read_symbol(symbol, |links| links.cold().immediate_target);
+        let links_immediate = *self.links.symbol_cold().immediate_target.get(symbol);
         if let Some(immediate) = links_immediate {
             return Ok(immediate);
         }
@@ -7508,10 +7510,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(Some(exported));
         }
-        if let Some(merged) = self
-            .links
-            .read_symbol(exported, |links| links.cold().cjs_export_merged)
-        {
+        if let Some(merged) = *self.links.symbol_cold().cjs_export_merged.get(exported) {
             return Ok(Some(merged));
         }
         let merged = if self
@@ -7791,10 +7790,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(None);
         }
-        if let Some(memo) = self
-            .links
-            .read_ty(ty, |links| links.cold().default_only_type)
-        {
+        if let Some(memo) = *self.links.type_cold().default_only_type.get(ty) {
             return Ok(Some(memo));
         }
         let default_only =
@@ -7818,7 +7814,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(ty);
         }
-        if let Some(memo) = self.links.read_ty(ty, |links| links.cold().synthetic_type) {
+        if let Some(memo) = *self.links.type_cold().synthetic_type.get(ty) {
             return Ok(memo);
         }
         let file_index = self.source_file_index_of_symbol(original_symbol);
@@ -7966,7 +7962,10 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Arc<SymbolTable>> {
         if let LinkSlot::Resolved(exports) = self
             .links
-            .read_symbol(module_symbol, |links| links.cold().resolved_exports.clone())
+            .symbol_cold()
+            .resolved_exports
+            .get(module_symbol)
+            .clone()
         {
             return Ok(exports);
         }
@@ -10452,10 +10451,7 @@ impl<'a> CheckerState<'a> {
             return Ok(());
         };
         let module_symbol = self.get_merged_symbol(module_symbol);
-        if self
-            .links
-            .read_symbol(module_symbol, |links| links.cold().exports_checked)
-        {
+        if *self.links.symbol_cold().exports_checked.get(module_symbol) {
             return Ok(());
         }
         let export_equals_symbol = self

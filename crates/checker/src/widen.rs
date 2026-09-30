@@ -402,7 +402,7 @@ impl<'a> CheckerState<'a> {
             return Ok(ty);
         }
         if context.is_none() {
-            if let Some(widened) = self.links.read_ty(ty, |links| links.cold().widened) {
+            if let Some(widened) = *self.links.type_cold().widened.get(ty) {
                 return Ok(widened);
             }
         }

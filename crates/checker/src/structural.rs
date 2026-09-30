@@ -538,9 +538,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                                 .alias_type_arguments
                                 .clone()
                                 .expect("same-alias pairs both carry alias arguments");
-                            let params = self.st.links.read_symbol(alias_symbol, |links| {
-                                links.cold().type_parameters.clone()
-                            });
+                            let params = self
+                                .st
+                                .links
+                                .symbol_cold()
+                                .type_parameters
+                                .get(alias_symbol)
+                                .clone();
                             let min_arguments =
                                 self.st.get_min_type_argument_count(params.as_deref());
                             let source_types = self
@@ -4621,9 +4625,10 @@ impl<'a> CheckerState<'a> {
                     .intersects(SymbolFlags::VALUE_MODULE)
                     && self
                         .links
-                        .read_symbol(module_symbol, |links| {
-                            links.cold().type_only_export_star_map.clone()
-                        })
+                        .symbol_cold()
+                        .type_only_export_star_map
+                        .get(module_symbol)
+                        .clone()
                         .as_ref()
                         .is_some_and(|map| map.contains_key(name.as_bytes()))
             });
@@ -4666,7 +4671,10 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Vec<SymbolId>> {
         if let Some(cached) = self
             .links
-            .read_ty(ty, |links| links.cold().resolved_properties.resolved())
+            .type_cold()
+            .resolved_properties
+            .get(ty)
+            .resolved()
         {
             return Ok(cached.to_vec());
         }
@@ -4980,7 +4988,10 @@ impl<'a> CheckerState<'a> {
         {
             if let Some(cached) = self
                 .links
-                .read_ty(ty, |links| links.cold().resolved_reduced_type.resolved())
+                .type_cold()
+                .resolved_reduced_type
+                .get(ty)
+                .resolved()
             {
                 return Ok(cached);
             }
@@ -5045,9 +5056,10 @@ impl<'a> CheckerState<'a> {
         if self.tables.flags_of(reduced).intersects(TypeFlags::UNION)
             && self
                 .links
-                .read_ty(reduced, |links| {
-                    links.cold().resolved_reduced_type.resolved()
-                })
+                .type_cold()
+                .resolved_reduced_type
+                .get(reduced)
+                .resolved()
                 .is_none()
         {
             self.links.set_type_resolved_reduced_type(reduced, reduced);
@@ -5426,7 +5438,7 @@ impl<'a> CheckerState<'a> {
             if first_type.is_none() {
                 first_type = Some(ty);
                 // 59206: nameType rides the FIRST member.
-                name_type = self.links.read_symbol(prop, |links| links.name_type);
+                name_type = self.links.symbol(prop).name_type;
             }
             // 59209-59213: writeTypes materializes (seeded with the
             // read types so far) as soon as any member's write type
@@ -5885,10 +5897,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(false);
         }
-        if let Some(cached) = self
-            .links
-            .read_symbol(prop, |links| links.cold().is_discriminant_property)
-        {
+        if let Some(cached) = *self.links.symbol_cold().is_discriminant_property.get(prop) {
             return Ok(cached);
         }
         let check_flags = self.get_check_flags(prop);
@@ -6129,7 +6138,10 @@ impl<'a> CheckerState<'a> {
             return 0;
         };
         self.links
-            .read_symbol(symbol, |links| links.cold().type_parameters.clone())
+            .symbol_cold()
+            .type_parameters
+            .get(symbol)
+            .clone()
             .as_deref()
             .map_or(0, <[TypeId]>::len)
     }
@@ -6150,7 +6162,9 @@ impl<'a> CheckerState<'a> {
         if self.get_check_flags(prop).intersects(CheckFlags::SYNTHETIC) {
             let containing = self
                 .links
-                .read_symbol(prop, |links| links.containing_type)
+                .symbol_cold()
+                .containing_type
+                .get(prop)
                 .expect("synthetic properties carry their containing type");
             let name = self.binder.symbol(prop).escaped_name.clone();
             let types = match &self.tables.type_of(containing).data {
@@ -6327,7 +6341,7 @@ impl<'a> CheckerState<'a> {
                 clone.value_declaration = value_declaration;
             }
         }
-        if let Some(name_type) = self.links.read_symbol(source, |links| links.name_type) {
+        if let Some(name_type) = self.links.symbol(source).name_type {
             self.links
                 .set_symbol_name_type(self.speculation_depth, symbol, Some(name_type));
         }
@@ -7406,9 +7420,13 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(result);
         }
-        if let Some(cached) = self.links.read_ty(ty, |links| {
-            links.cold().array_fallback_signatures.resolved()
-        }) {
+        if let Some(cached) = self
+            .links
+            .type_cold()
+            .array_fallback_signatures
+            .get(ty)
+            .resolved()
+        {
             return Ok(cached.into_vec());
         }
 

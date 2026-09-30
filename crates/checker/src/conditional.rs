@@ -503,9 +503,13 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
     ) -> CheckResult<TypeId> {
-        if let Some(cached) = self.links.read_ty(ty, |links| {
-            links.cold().conditional_default_constraint.resolved()
-        }) {
+        if let Some(cached) = self
+            .links
+            .type_cold()
+            .conditional_default_constraint
+            .get(ty)
+            .resolved()
+        {
             return Ok(cached);
         }
         let true_constraint = self.get_inferred_true_type_from_conditional_type(ty)?;
@@ -540,21 +544,26 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
     ) -> CheckResult<Option<TypeId>> {
-        if let Some(cached) = self.links.read_ty(ty, |links| {
-            links
-                .cold()
-                .conditional_constraint_of_distributive
-                .resolved()
-        }) {
+        if let Some(cached) = self
+            .links
+            .type_cold()
+            .conditional_constraint_of_distributive
+            .get(ty)
+            .resolved()
+        {
             return Ok(cached);
         }
         let TypeData::Conditional(data) = self.tables.type_of(ty).data.clone() else {
             unreachable!("Conditional flag implies conditional data");
         };
         let root = self.tables.conditional_root(data.root).clone();
-        let already_restrictive = self.links.read_ty(ty, |links| {
-            links.cold().restrictive_instantiation.resolved()
-        }) == Some(ty);
+        let already_restrictive = self
+            .links
+            .type_cold()
+            .restrictive_instantiation
+            .get(ty)
+            .resolved()
+            == Some(ty);
         if root.is_distributive && !already_restrictive {
             let simplified = self.get_simplified_type(data.check_type, /*writing*/ false)?;
             let constraint = if simplified == data.check_type {
@@ -687,7 +696,10 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<TypeId> {
         if let Some(cached) = self
             .links
-            .read_ty(ty, |links| links.cold().conditional_true_type.resolved())
+            .type_cold()
+            .conditional_true_type
+            .get(ty)
+            .resolved()
         {
             return Ok(cached);
         }
@@ -717,7 +729,10 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<TypeId> {
         if let Some(cached) = self
             .links
-            .read_ty(ty, |links| links.cold().conditional_false_type.resolved())
+            .type_cold()
+            .conditional_false_type
+            .get(ty)
+            .resolved()
         {
             return Ok(cached);
         }
@@ -745,9 +760,13 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
     ) -> CheckResult<TypeId> {
-        if let Some(cached) = self.links.read_ty(ty, |links| {
-            links.cold().conditional_inferred_true_type.resolved()
-        }) {
+        if let Some(cached) = self
+            .links
+            .type_cold()
+            .conditional_inferred_true_type
+            .get(ty)
+            .resolved()
+        {
             return Ok(cached);
         }
         let TypeData::Conditional(data) = self.tables.type_of(ty).data.clone() else {

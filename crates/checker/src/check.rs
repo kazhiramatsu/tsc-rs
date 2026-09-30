@@ -345,7 +345,9 @@ impl<'a> CheckerState<'a> {
         }
         if self
             .links
-            .read_node(node, |links| links.calculated_flags)
+            .node_cold()
+            .calculated_flags
+            .get(node)
             .intersects(flag)
         {
             return Ok(());
@@ -420,7 +422,9 @@ impl<'a> CheckerState<'a> {
         while let Some(current) = stack.pop() {
             if self
                 .links
-                .read_node(current, |links| links.calculated_flags)
+                .node_cold()
+                .calculated_flags
+                .get(current)
                 .intersects(flag)
             {
                 continue;
@@ -1691,9 +1695,12 @@ impl<'a> CheckerState<'a> {
             tsc_binder::node_util::is_function_like_kind(kind)
                 || matches!(kind, SyntaxKind::GetAccessor | SyntaxKind::SetAccessor)
         });
-        if !self.links.read_node(node, |links| {
-            links.has_reported_statement_in_ambient_context
-        }) && parent_is_function_like_or_accessor
+        if !*self
+            .links
+            .node_cold()
+            .has_reported_statement_in_ambient_context
+            .get(node)
+            && parent_is_function_like_or_accessor
         {
             if self.grammar_error_on_first_token(
                 node,
@@ -1710,13 +1717,17 @@ impl<'a> CheckerState<'a> {
             Some(SyntaxKind::Block) | Some(SyntaxKind::ModuleBlock) | Some(SyntaxKind::SourceFile)
         ) {
             let parent = parent.expect("kind implies presence");
-            if !self.links.read_node(parent, |links| {
-                links.has_reported_statement_in_ambient_context
-            }) && self.grammar_error_on_first_token(
-                node,
-                &diagnostics::Statements_are_not_allowed_in_ambient_contexts,
-                &[],
-            ) {
+            if !*self
+                .links
+                .node_cold()
+                .has_reported_statement_in_ambient_context
+                .get(parent)
+                && self.grammar_error_on_first_token(
+                    node,
+                    &diagnostics::Statements_are_not_allowed_in_ambient_contexts,
+                    &[],
+                )
+            {
                 self.links
                     .set_node_has_reported_statement_in_ambient_context(parent);
             }
@@ -2740,9 +2751,11 @@ impl<'a> CheckerState<'a> {
         &mut self,
         declaration: NodeId,
     ) -> CheckResult<bool> {
-        if let Some(cached) = self
+        if let Some(cached) = *self
             .links
-            .read_node(declaration, |links| links.contains_arguments_reference)
+            .node_cold()
+            .contains_arguments_reference
+            .get(declaration)
         {
             return Ok(cached);
         }
@@ -3424,9 +3437,8 @@ impl<'a> CheckerState<'a> {
             .flags
             .intersects(tsc_types::SymbolFlags::TYPE_ALIAS)
         {
-            if let Some(type_parameters) = self
-                .links
-                .read_symbol(symbol, |links| links.cold().type_parameters.clone())
+            if let Some(type_parameters) =
+                self.links.symbol_cold().type_parameters.get(symbol).clone()
             {
                 return Ok(Some(type_parameters));
             }
@@ -3831,9 +3843,7 @@ impl<'a> CheckerState<'a> {
         if let Some(type_parameter) = type_parameter {
             let symbol = self.get_symbol_of_declaration(type_parameter)?;
             if self.binder.symbol(symbol).declarations.len() > 1
-                && !self
-                    .links
-                    .read_symbol(symbol, |links| links.cold().type_parameters_checked)
+                && !*self.links.symbol_cold().type_parameters_checked.get(symbol)
             {
                 self.links.set_symbol_type_parameters_checked(symbol);
                 let declared = self.get_declared_type_of_type_parameter(symbol);
@@ -4220,7 +4230,7 @@ impl<'a> CheckerState<'a> {
             if let Some(slot_node) = slot_node {
                 if matches!(
                     self.links
-                        .read_node(slot_node, |links| links.resolved_signature.clone()),
+                        .read_node(slot_node, |links| links.resolved_signature.get()),
                     crate::links::LinkSlot::Vacant
                 ) && self.contained_call_resolutions.contains(&slot_node)
                 {
@@ -5357,7 +5367,7 @@ impl<'a> CheckerState<'a> {
                 );
             }
         } else if write_computed_props {
-            if let Some(name_type) = self.links.read_symbol(prop, |links| links.name_type) {
+            if let Some(name_type) = self.links.symbol(prop).name_type {
                 if self
                     .tables
                     .flags_of(name_type)
@@ -5724,10 +5734,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(symbol);
         }
-        if self
-            .links
-            .read_symbol(symbol, |links| links.cold().late_symbol)
-            .is_none()
+        if self.links.symbol_cold().late_symbol.get(symbol).is_none()
             && data
                 .declarations
                 .clone()
@@ -5754,7 +5761,9 @@ impl<'a> CheckerState<'a> {
         }
         Ok(self
             .links
-            .read_symbol(symbol, |links| links.cold().late_symbol)
+            .symbol_cold()
+            .late_symbol
+            .get(symbol)
             .unwrap_or(symbol))
     }
 
@@ -6083,7 +6092,7 @@ impl<'a> CheckerState<'a> {
         use_alias_defined_outside_current_scope: bool,
         enclosing: Option<NodeId>,
     ) -> Option<JsString> {
-        let name_type = self.links.read_symbol(symbol, |links| links.name_type)?;
+        let name_type = self.links.symbol(symbol).name_type?;
         let flags = self.tables.flags_of(name_type);
         if flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL) {
             let name = match &self.tables.type_of(name_type).data {
@@ -6238,7 +6247,7 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
 
-        let Some(node) = self.links.read_ty(ty, |links| links.cold().deferred_node) else {
+        let Some(node) = self.links.ty(ty).deferred_node else {
             return Ok(true);
         };
         let NodeData::TypeReference(data) = self.data_of(node) else {
@@ -7371,7 +7380,7 @@ impl<'a> CheckerState<'a> {
             .object_flags_of(ty)
             .intersects(ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
         {
-            if let Some(existing) = self.links.read_ty(ty, |links| links.cold().deferred_node) {
+            if let Some(existing) = self.links.ty(ty).deferred_node {
                 if self.kind_of(existing) == SyntaxKind::TypeQuery
                     && self.get_type_from_type_node(existing)? == ty
                 {
@@ -9078,9 +9087,7 @@ impl<'a> CheckerState<'a> {
             .object_flags_of(ty)
             .intersects(ObjectFlags::MAPPED)
             && (self.is_generic_mapped_type_state(ty)?
-                || self
-                    .links
-                    .read_ty(ty, |links| links.cold().mapped_contains_error))
+                || *self.links.type_cold().mapped_contains_error.get(ty))
         {
             return self.mapped_type_to_string_node(ty, fully_qualified);
         }
@@ -9329,7 +9336,9 @@ impl<'a> CheckerState<'a> {
         if let Some(&last) = self.display_reverse_mapped_stack.last() {
             let property_type = self
                 .links
-                .read_symbol(last, |links| links.cold().property_type)
+                .symbol_cold()
+                .property_type
+                .get(last)
                 .expect("reverse-mapped properties carry propertyType");
             if !self
                 .tables
@@ -9343,8 +9352,11 @@ impl<'a> CheckerState<'a> {
         if self.display_reverse_mapped_stack.len() < DEPTH {
             return false;
         }
-        let mapped_type = links
+        let mapped_type = self
+            .links
+            .symbol_cold()
             .mapped_type
+            .get(property)
             .expect("reverse-mapped properties carry mappedType");
         let mapped_symbol = self.tables.type_of(mapped_type).symbol;
         self.display_reverse_mapped_stack
@@ -9354,7 +9366,9 @@ impl<'a> CheckerState<'a> {
             .all(|&stacked| {
                 let mapped = self
                     .links
-                    .read_symbol(stacked, |links| links.mapped_type)
+                    .symbol_cold()
+                    .mapped_type
+                    .get(stacked)
                     .expect("reverse-mapped properties carry mappedType");
                 self.tables.type_of(mapped).symbol == mapped_symbol
             })
@@ -13617,7 +13631,7 @@ impl<'a> CheckerState<'a> {
             }
         }
         let declarations = self.binder.symbol(property).declarations.clone();
-        let name_type = self.links.read_symbol(property, |links| links.name_type);
+        let name_type = self.links.symbol(property).name_type;
         let name_type_flags = name_type.map(|name_type| self.tables.flags_of(name_type));
         let string_named = !declarations.is_empty()
             && declarations

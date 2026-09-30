@@ -1359,10 +1359,7 @@ impl<'a> CheckerState<'a> {
                 .node_symbol(symbol_node)
                 .map(|s| self.get_merged_symbol(s));
             if let Some(symbol) = symbol {
-                if let Some(cached) = self
-                    .links
-                    .read_symbol(symbol, |links| links.cold().unique_es_symbol_type)
-                {
+                if let Some(cached) = *self.links.symbol_cold().unique_es_symbol_type.get(symbol) {
                     return Ok(cached);
                 }
                 let mut escaped_text = tsc_types::JsString::from("__@");
@@ -2011,7 +2008,8 @@ impl<'a> CheckerState<'a> {
         }
         let node = self
             .links
-            .read_ty(ty, |links| links.cold().deferred_node)
+            .ty(ty)
+            .deferred_node
             .expect("unresolved references are deferred (node-carrying)");
         let computed = (|state: &mut Self| -> CheckResult<Vec<TypeId>> {
             match state.data_of(node) {
@@ -2063,7 +2061,7 @@ impl<'a> CheckerState<'a> {
             // `??=` short-circuits: a slot filled during the recursive
             // resolution skips the mapper application entirely (60211).
             if self.tables.try_type_arguments(ty).is_none() {
-                let resolved = match self.links.read_ty(ty, |links| links.cold().deferred_mapper) {
+                let resolved = match *self.links.type_cold().deferred_mapper.get(ty) {
                     // An Err below unwinds with the slot still vacant —
                     // nothing cached, re-queryable.
                     Some(mapper) => self.instantiate_types(&type_arguments, mapper)?,
@@ -2526,7 +2524,10 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<TypeId> {
         if let Some(cached) = self
             .links
-            .read_node(node, |links| links.resolved_jsdoc_type.resolved())
+            .node_cold()
+            .resolved_jsdoc_type
+            .get(node)
+            .resolved()
         {
             return Ok(cached);
         }
@@ -2736,7 +2737,10 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<TypeId> {
         if let Some(cached) = self
             .links
-            .read_ty(ty, |links| links.cold().mapped_type_parameter.resolved())
+            .type_cold()
+            .mapped_type_parameter
+            .get(ty)
+            .resolved()
         {
             return Ok(cached);
         }
@@ -2751,7 +2755,10 @@ impl<'a> CheckerState<'a> {
         let resolved = self.get_declared_type_of_type_parameter(symbol);
         if let Some(cached) = self
             .links
-            .read_ty(ty, |links| links.cold().mapped_type_parameter.resolved())
+            .type_cold()
+            .mapped_type_parameter
+            .get(ty)
+            .resolved()
         {
             return Ok(cached);
         }
@@ -2768,7 +2775,10 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<TypeId> {
         if let Some(cached) = self
             .links
-            .read_ty(ty, |links| links.cold().mapped_constraint_type.resolved())
+            .type_cold()
+            .mapped_constraint_type
+            .get(ty)
+            .resolved()
         {
             return Ok(cached);
         }
@@ -2778,7 +2788,10 @@ impl<'a> CheckerState<'a> {
             .unwrap_or(self.tables.intrinsics.error);
         if let Some(cached) = self
             .links
-            .read_ty(ty, |links| links.cold().mapped_constraint_type.resolved())
+            .type_cold()
+            .mapped_constraint_type
+            .get(ty)
+            .resolved()
         {
             return Ok(cached);
         }
@@ -2793,10 +2806,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
     ) -> CheckResult<Option<TypeId>> {
-        if let Some(cached) = self
-            .links
-            .read_ty(ty, |links| links.cold().mapped_name_type.resolved())
-        {
+        if let Some(cached) = self.links.type_cold().mapped_name_type.get(ty).resolved() {
             return Ok(cached);
         }
         let mapped = self.mapped_type_data(ty);
@@ -2812,10 +2822,7 @@ impl<'a> CheckerState<'a> {
             }
             None => None,
         };
-        if let Some(cached) = self
-            .links
-            .read_ty(ty, |links| links.cold().mapped_name_type.resolved())
-        {
+        if let Some(cached) = self.links.type_cold().mapped_name_type.get(ty).resolved() {
             return Ok(cached);
         }
         self.links.set_mapped_name_type(ty, resolved);
@@ -2849,7 +2856,10 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_template_type_from_mapped_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         if let Some(cached) = self
             .links
-            .read_ty(ty, |links| links.cold().mapped_template_type.resolved())
+            .type_cold()
+            .mapped_template_type
+            .get(ty)
+            .resolved()
         {
             return Ok(cached);
         }
@@ -2876,7 +2886,10 @@ impl<'a> CheckerState<'a> {
         };
         if let Some(cached) = self
             .links
-            .read_ty(ty, |links| links.cold().mapped_template_type.resolved())
+            .type_cold()
+            .mapped_template_type
+            .get(ty)
+            .resolved()
         {
             return Ok(cached);
         }
@@ -3193,9 +3206,7 @@ impl<'a> CheckerState<'a> {
             return Ok(error);
         }
         let ty = self.get_declared_type_of_type_alias(symbol)?;
-        let type_parameters = self
-            .links
-            .read_symbol(symbol, |links| links.cold().type_parameters.clone());
+        let type_parameters = self.links.symbol_cold().type_parameters.get(symbol).clone();
         if let Some(type_parameters) = type_parameters {
             let node_type_arguments = match self.data_of(node) {
                 NodeData::TypeReference(data) => self.nodes_of(data.type_arguments),
@@ -3318,7 +3329,10 @@ impl<'a> CheckerState<'a> {
         }
         let type_parameters = self
             .links
-            .read_symbol(symbol, |links| links.cold().type_parameters.clone())
+            .symbol_cold()
+            .type_parameters
+            .get(symbol)
+            .clone()
             .expect("getTypeAliasInstantiation callers gate on typeParameters");
         let id_key = format!(
             "{}{}",
@@ -4353,7 +4367,7 @@ impl<'a> CheckerState<'a> {
                 state.links.set_symbol_reverse_mapped_links(
                     state.speculation_depth,
                     inferred,
-                    state.links.read_symbol(property, |links| links.name_type),
+                    state.links.symbol(property).name_type,
                     property_type,
                     mapped_type,
                     constraint_type,
@@ -4436,7 +4450,10 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn resolve_declared_members(&mut self, target: TypeId) -> CheckResult<MembersId> {
         if let Some(declared) = self
             .links
-            .read_ty(target, |links| links.cold().declared_members.resolved())
+            .type_cold()
+            .declared_members
+            .get(target)
+            .resolved()
         {
             return Ok(declared);
         }
@@ -4515,7 +4532,10 @@ impl<'a> CheckerState<'a> {
             // second declared-members slot transition.
             if let Some(existing) = self
                 .links
-                .read_ty(target, |links| links.cold().declared_members.resolved())
+                .type_cold()
+                .declared_members
+                .get(target)
+                .resolved()
             {
                 return Ok(existing);
             }
@@ -4550,7 +4570,10 @@ impl<'a> CheckerState<'a> {
         // it in place.
         if let Some(existing) = self
             .links
-            .read_ty(target, |links| links.cold().declared_members.resolved())
+            .type_cold()
+            .declared_members
+            .get(target)
+            .resolved()
         {
             return Ok(existing);
         }
@@ -4796,10 +4819,16 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Arc<tsc_binder::SymbolTable>> {
         let cached = if is_static {
             self.links
-                .read_symbol(symbol, |links| links.cold().resolved_exports.resolved())
+                .symbol_cold()
+                .resolved_exports
+                .get(symbol)
+                .resolved()
         } else {
             self.links
-                .read_symbol(symbol, |links| links.cold().resolved_members.resolved())
+                .symbol_cold()
+                .resolved_members
+                .get(symbol)
+                .resolved()
         };
         if let Some(resolved) = cached {
             return Ok(resolved);
@@ -4941,7 +4970,9 @@ impl<'a> CheckerState<'a> {
                 .intersects(SymbolFlags::TRANSIENT)
                 && state
                     .links
-                    .read_symbol(symbol, |links| links.cold().cjs_export_merged)
+                    .symbol_cold()
+                    .cjs_export_merged
+                    .get(symbol)
                     .is_some()
             {
                 for declaration in state.binder.symbol(symbol).declarations.clone() {
@@ -4951,11 +4982,17 @@ impl<'a> CheckerState<'a> {
                     let table = if is_static {
                         state
                             .links
-                            .read_symbol(original, |links| links.cold().resolved_exports.resolved())
+                            .symbol_cold()
+                            .resolved_exports
+                            .get(original)
+                            .resolved()
                     } else {
                         state
                             .links
-                            .read_symbol(original, |links| links.cold().resolved_members.resolved())
+                            .symbol_cold()
+                            .resolved_members
+                            .get(original)
+                            .resolved()
                     };
                     if let Some(table) = table {
                         for (name, &member) in table.iter() {
@@ -5456,15 +5493,10 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(Vec::new());
         }
-        let speculative_cold = self.speculation_depth != 0
-            && !self
-                .links
-                .read_ty(ty, |links| links.cold().base_types_resolved);
+        let speculative_cold =
+            self.speculation_depth != 0 && !*self.links.type_cold().base_types_resolved.get(ty);
         let mut owns_resolution = false;
-        if !self
-            .links
-            .read_ty(ty, |links| links.cold().base_types_resolved)
-        {
+        if !*self.links.type_cold().base_types_resolved.get(ty) {
             if self.push_type_resolution(
                 crate::state::ResolutionTarget::Type(ty),
                 tsc_types::TypeSystemPropertyName::RESOLVED_BASE_TYPES,
@@ -5529,7 +5561,10 @@ impl<'a> CheckerState<'a> {
         }
         let result = self
             .links
-            .read_ty(ty, |links| links.cold().resolved_base_types.clone())
+            .type_cold()
+            .resolved_base_types
+            .get(ty)
+            .clone()
             .unwrap_or_default();
         if speculative_cold && owns_resolution {
             self.links.clear_speculative_type_base_types(ty);
@@ -5569,7 +5604,10 @@ impl<'a> CheckerState<'a> {
     fn resolve_base_types_of_interface(&mut self, ty: TypeId, symbol: SymbolId) -> CheckResult<()> {
         let mut resolved = self
             .links
-            .read_ty(ty, |links| links.cold().resolved_base_types.clone())
+            .type_cold()
+            .resolved_base_types
+            .get(ty)
+            .clone()
             .unwrap_or_default();
         self.links
             .set_type_resolved_base_types(self.speculation_depth, ty, resolved.clone());
@@ -5810,9 +5848,13 @@ impl<'a> CheckerState<'a> {
     /// slice (report-only containment) and always continues with
     /// errorType like tsc.
     pub(crate) fn get_base_constructor_type_of_class(&mut self, ty: TypeId) -> CheckResult<TypeId> {
-        if let Some(resolved) = self.links.read_ty(ty, |links| {
-            links.cold().resolved_base_constructor_type.resolved()
-        }) {
+        if let Some(resolved) = self
+            .links
+            .type_cold()
+            .resolved_base_constructor_type
+            .get(ty)
+            .resolved()
+        {
             return Ok(resolved);
         }
         let declaration = self
@@ -5884,9 +5926,10 @@ impl<'a> CheckerState<'a> {
             let error = self.tables.intrinsics.error;
             if self
                 .links
-                .read_ty(ty, |links| {
-                    links.cold().resolved_base_constructor_type.resolved()
-                })
+                .type_cold()
+                .resolved_base_constructor_type
+                .get(ty)
+                .resolved()
                 .is_none()
             {
                 self.links.set_type_resolved_base_constructor_type(
@@ -5897,9 +5940,10 @@ impl<'a> CheckerState<'a> {
             }
             return Ok(self
                 .links
-                .read_ty(ty, |links| {
-                    links.cold().resolved_base_constructor_type.resolved()
-                })
+                .type_cold()
+                .resolved_base_constructor_type
+                .get(ty)
+                .resolved()
                 .expect("just filled"));
         }
         // 57169: the comparison is against nullWideningType — distinct
@@ -5982,9 +6026,10 @@ impl<'a> CheckerState<'a> {
             let error = self.tables.intrinsics.error;
             if self
                 .links
-                .read_ty(ty, |links| {
-                    links.cold().resolved_base_constructor_type.resolved()
-                })
+                .type_cold()
+                .resolved_base_constructor_type
+                .get(ty)
+                .resolved()
                 .is_none()
             {
                 self.links.set_type_resolved_base_constructor_type(
@@ -5995,16 +6040,18 @@ impl<'a> CheckerState<'a> {
             }
             return Ok(self
                 .links
-                .read_ty(ty, |links| {
-                    links.cold().resolved_base_constructor_type.resolved()
-                })
+                .type_cold()
+                .resolved_base_constructor_type
+                .get(ty)
+                .resolved()
                 .expect("just filled"));
         }
         if self
             .links
-            .read_ty(ty, |links| {
-                links.cold().resolved_base_constructor_type.resolved()
-            })
+            .type_cold()
+            .resolved_base_constructor_type
+            .get(ty)
+            .resolved()
             .is_none()
         {
             self.links.set_type_resolved_base_constructor_type(
@@ -6015,9 +6062,10 @@ impl<'a> CheckerState<'a> {
         }
         Ok(self
             .links
-            .read_ty(ty, |links| {
-                links.cold().resolved_base_constructor_type.resolved()
-            })
+            .type_cold()
+            .resolved_base_constructor_type
+            .get(ty)
+            .resolved()
             .expect("just filled"))
     }
 
@@ -6787,10 +6835,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: e244812d509db78f1218b344fc0737b9f010d62f752928c7740aaa30990c8a88
     /// tsc-span: _tsc.js:56787-56803
     pub(crate) fn get_write_type_of_accessors(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
-        if let Some(cached) = self
-            .links
-            .read_symbol(symbol, |links| links.cold().write_type.resolved())
-        {
+        if let Some(cached) = self.links.symbol_cold().write_type.get(symbol).resolved() {
             return Ok(cached);
         }
         if !self.push_type_resolution(
@@ -6843,7 +6888,10 @@ impl<'a> CheckerState<'a> {
         };
         if self
             .links
-            .read_symbol(symbol, |links| links.cold().write_type.resolved())
+            .symbol_cold()
+            .write_type
+            .get(symbol)
+            .resolved()
             .is_none()
         {
             self.links
@@ -6851,7 +6899,10 @@ impl<'a> CheckerState<'a> {
         }
         Ok(self
             .links
-            .read_symbol(symbol, |links| links.cold().write_type.resolved())
+            .symbol_cold()
+            .write_type
+            .get(symbol)
+            .resolved()
             .expect("just filled"))
     }
 
@@ -7786,17 +7837,17 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
     ) -> CheckResult<TypeId> {
-        let links = self.links.symbol(symbol);
-        if let LinkSlot::Resolved(ty) = links.type_of_symbol {
+        if let Some(ty) = self.links.symbol(symbol).type_of_symbol.resolved() {
             return Ok(ty);
         }
-        let parent = links
-            .cold()
+        let cold = self.links.symbol_cold();
+        let parent = cold
             .deferral_parent
+            .get(symbol)
             .expect("DeferredType implies links.deferral_parent");
-        let constituents = links
-            .cold()
+        let constituents = cold
             .deferral_constituents
+            .get(symbol)
             .clone()
             .expect("DeferredType implies links.deferral_constituents");
         let ty = if self.tables.flags_of(parent).intersects(TypeFlags::UNION) {
@@ -7820,19 +7871,17 @@ impl<'a> CheckerState<'a> {
             perf::bump(PerfCounter::TypeOfSymbolHits);
             return Ok(cached);
         }
-        let links = self.links.symbol(symbol);
+        let cold = self.links.symbol_cold();
         let resolved = self
             .infer_reverse_mapped_type(
-                links
-                    .cold()
-                    .property_type
+                cold.property_type
+                    .get(symbol)
                     .expect("reverse mapped symbol carries propertyType"),
-                links
-                    .mapped_type
+                cold.mapped_type
+                    .get(symbol)
                     .expect("reverse mapped symbol carries mappedType"),
-                links
-                    .cold()
-                    .constraint_type
+                cold.constraint_type
+                    .get(symbol)
                     .expect("reverse mapped symbol carries constraintType"),
             )?
             .unwrap_or(self.tables.intrinsics.unknown);
@@ -9574,9 +9623,12 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(false);
         }
-        if let Some(cached) = self.links.read_symbol(symbol, |links| {
-            links.cold().is_constructor_declared_property
-        }) {
+        if let Some(cached) = *self
+            .links
+            .symbol_cold()
+            .is_constructor_declared_property
+            .get(symbol)
+        {
             return Ok(cached);
         }
         self.links.set_symbol_is_constructor_declared_property(

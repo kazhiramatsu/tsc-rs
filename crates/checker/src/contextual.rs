@@ -1052,11 +1052,8 @@ impl<'a> CheckerState<'a> {
                 // those get the LHS type.
                 let ty = self.get_contextual_type(binary, context_flags)?;
                 if Some(node) == right {
-                    let has_pattern = ty.is_some_and(|t| {
-                        self.links
-                            .read_ty(t, |links| links.cold().pattern)
-                            .is_some()
-                    });
+                    let has_pattern =
+                        ty.is_some_and(|t| self.links.type_cold().pattern.get(t).is_some());
                     let no_context_non_expando =
                         ty.is_none() && !self.is_defaulted_expando_initializer(binary);
                     if has_pattern || no_context_non_expando {
@@ -1751,7 +1748,7 @@ impl<'a> CheckerState<'a> {
         if self.has_bindable_name(element)? {
             let symbol = self.get_symbol_of_declaration(element)?;
             let name = self.binder.symbol(symbol).escaped_name.clone();
-            let name_type = self.links.read_symbol(symbol, |links| links.name_type);
+            let name_type = self.links.symbol(symbol).name_type;
             return self.get_type_of_property_of_contextual_type(ty, &name, name_type);
         }
         if let Some(name) = self.name_of_node(element) {
@@ -2588,9 +2585,8 @@ impl<'a> CheckerState<'a> {
                 let Some(element_index) = elements.iter().position(|&e| e == node) else {
                     return Ok(None);
                 };
-                let spread_indices = match self.links.read_node(array_literal, |links| {
-                    links.cold().and_then(|cold| cold.spread_indices)
-                }) {
+                let spread_indices = match *self.links.node_cold().spread_indices.get(array_literal)
+                {
                     Some(cached) => cached,
                     None => {
                         let computed = self.get_spread_indices(&elements);

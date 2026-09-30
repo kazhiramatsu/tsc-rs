@@ -275,9 +275,9 @@ pub(crate) fn get_specifier_for_module_symbol(
     let cache_key = create_mode_aware_cache_key(&context_path, resolution_mode);
     if let Some(specifier) = state
         .links
-        .symbol(module_symbol)
-        .cold()
+        .symbol_cold()
         .specifier_cache
+        .get(module_symbol)
         .as_ref()
         .and_then(|cache| cache.get(&cache_key))
         .filter(|specifier| !specifier.is_empty())

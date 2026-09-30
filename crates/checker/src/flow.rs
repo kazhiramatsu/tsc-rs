@@ -2654,9 +2654,12 @@ impl<'a> CheckerState<'a> {
         &mut self,
         declaration: NodeId,
     ) -> CheckResult<bool> {
-        if let Some(cached) = self.links.read_node(declaration, |links| {
-            links.parameter_initializer_contains_undefined
-        }) {
+        if let Some(cached) = *self
+            .links
+            .node_cold()
+            .parameter_initializer_contains_undefined
+            .get(declaration)
+        {
             return Ok(cached);
         }
         if !self.push_type_resolution(
@@ -2690,9 +2693,9 @@ impl<'a> CheckerState<'a> {
         }
         if self
             .links
-            .read_node(declaration, |links| {
-                links.parameter_initializer_contains_undefined
-            })
+            .node_cold()
+            .parameter_initializer_contains_undefined
+            .get(declaration)
             .is_none()
         {
             self.links
@@ -4040,16 +4043,15 @@ impl<'a> CheckerState<'a> {
     /// The second read after isSymbolAssigned is live in tsc: the
     /// marking pass may SET lastAssignmentPos as a side effect.
     pub(crate) fn is_symbol_assigned_definitely(&mut self, symbol: SymbolId) -> CheckResult<bool> {
-        if let Some(pos) = self
-            .links
-            .read_symbol(symbol, |links| links.cold().last_assignment_pos)
-        {
+        if let Some(pos) = *self.links.symbol_cold().last_assignment_pos.get(symbol) {
             return Ok(pos < 0);
         }
         Ok(self.is_symbol_assigned(symbol)?
             && self
                 .links
-                .read_symbol(symbol, |links| links.cold().last_assignment_pos)
+                .symbol_cold()
+                .last_assignment_pos
+                .get(symbol)
                 .is_some_and(|pos| pos < 0))
     }
 
@@ -4109,9 +4111,7 @@ impl<'a> CheckerState<'a> {
                 marked?;
             }
         }
-        let pos = self
-            .links
-            .read_symbol(symbol, |links| links.cold().last_assignment_pos);
+        let pos = *self.links.symbol_cold().last_assignment_pos.get(symbol);
         Ok(match pos {
             None | Some(0) => true,
             Some(pos) => location.is_some_and(|location| {
@@ -4227,9 +4227,7 @@ impl<'a> CheckerState<'a> {
                         let Some(symbol) = self.get_resolved_symbol(node)? else {
                             continue;
                         };
-                        let previous = self
-                            .links
-                            .read_symbol(symbol, |links| links.cold().last_assignment_pos);
+                        let previous = *self.links.symbol_cold().last_assignment_pos.get(symbol);
                         let has_definite_assignment = assignment_target
                             == crate::expr::AssignmentKind::Definite
                             || previous.is_some_and(|pos| pos < 0);
@@ -4272,9 +4270,8 @@ impl<'a> CheckerState<'a> {
                                 );
                             }
                             if has_definite_assignment {
-                                let current = self
-                                    .links
-                                    .read_symbol(symbol, |links| links.cold().last_assignment_pos);
+                                let current =
+                                    *self.links.symbol_cold().last_assignment_pos.get(symbol);
                                 if let Some(pos) = current {
                                     if pos > 0 {
                                         self.links.set_symbol_last_assignment_pos(
@@ -4352,7 +4349,9 @@ impl<'a> CheckerState<'a> {
         if self.is_parameter_or_mutable_local_variable(symbol) {
             let sign = if self
                 .links
-                .read_symbol(symbol, |links| links.cold().last_assignment_pos)
+                .symbol_cold()
+                .last_assignment_pos
+                .get(symbol)
                 .is_some_and(|pos| pos < 0)
             {
                 -1

@@ -482,7 +482,7 @@ fn resolved_conditional_and_unresolved_name_shapes_are_sound() {
                 "cached unresolved annotations do not reburn suggestion budget"
             );
             assert!(matches!(
-                state.links.node(annotation).resolved_symbol,
+                state.links.node(annotation).resolved_symbol.get(),
                 LinkSlot::Resolved(symbol) if symbol == alias
             ));
 
@@ -522,14 +522,14 @@ fn type_node_resolution_persists_across_a_rolled_back_trial() {
             .speculate(|state| {
                 let resolved = annotation_type(state, "a");
                 assert!(matches!(
-                    state.links.node(annotation).resolved_type,
+                    state.links.node(annotation).resolved_type.get(),
                     LinkSlot::Resolved(cached) if cached == resolved
                 ));
                 Ok(SpeculationOutcome::Rollback(resolved))
             })
             .expect("trial resolves");
         assert!(matches!(
-            state.links.node(annotation).resolved_type,
+            state.links.node(annotation).resolved_type.get(),
             LinkSlot::Resolved(cached) if cached == resolved
         ));
         assert_eq!(annotation_type(state, "a"), resolved);

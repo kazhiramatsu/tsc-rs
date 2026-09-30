@@ -188,9 +188,14 @@ impl<'a> CheckerState<'a> {
     /// target goes through cloneSymbol, including its merged-symbol
     /// redirection, exactly like tsc.
     pub(crate) fn merge_js_symbols(&mut self, target: SymbolId, source: SymbolId) -> SymbolId {
-        if let Some(inferred) = self.links.read_symbol(source, |links| {
-            links.cold().inferred_class_symbols.get(&target).copied()
-        }) {
+        if let Some(inferred) = self
+            .links
+            .symbol_cold()
+            .inferred_class_symbols
+            .get(source)
+            .get(&target)
+            .copied()
+        {
             return inferred;
         }
         let original = self.binder.symbol(target);
@@ -464,7 +469,7 @@ impl<'a> CheckerState<'a> {
                 .read_symbol(symbol, |links| links.check_flags)
                 .intersects(tsc_types::CheckFlags::LATE);
             if is_early_computed {
-                if let Some(name_type) = self.links.read_symbol(symbol, |links| links.name_type) {
+                if let Some(name_type) = self.links.symbol(symbol).name_type {
                     let flags = self.tables.flags_of(name_type);
                     if flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL) {
                         let name = match &self.tables.type_of(name_type).data {
