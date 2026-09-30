@@ -7022,7 +7022,7 @@ impl<'a> CheckerState<'a> {
         }
         if self.is_in_js_file(node) {
             if let Some(js_symbol) = self.get_symbol_of_expando(node) {
-                let exports = std::sync::Arc::clone(&self.binder.symbol(js_symbol).exports);
+                let exports = std::sync::Arc::clone(self.binder.symbol(js_symbol).exports());
                 if !exports.is_empty() {
                     let properties = exports.values().copied().collect();
                     let js_assignment_type = self.make_resolved_anonymous_type(

@@ -8030,7 +8030,7 @@ impl<'a> CheckerState<'a> {
                     let export_equals = self
                         .binder
                         .symbol(parent)
-                        .exports
+                        .exports()
                         .get(tsc_types::InternalSymbolName::EXPORT_EQUALS)
                         .copied();
                     if let Some(export_equals) = export_equals {
@@ -8161,7 +8161,7 @@ impl<'a> CheckerState<'a> {
                 SyntaxKind::SourceFile | SyntaxKind::ModuleDeclaration => {
                     if let Some(symbol) = self.binder.node_symbol(loc) {
                         let symbol = self.get_merged_symbol(symbol);
-                        let exports = std::sync::Arc::clone(&self.binder.symbol(symbol).exports);
+                        let exports = std::sync::Arc::clone(self.binder.symbol(symbol).exports());
                         tables.push((
                             ScopeTableKey::Exports(symbol),
                             crate::program::ScopeTable::Shared(exports),
@@ -8743,7 +8743,7 @@ impl<'a> CheckerState<'a> {
         let exported = self
             .binder
             .symbol(file_symbol)
-            .exports
+            .exports()
             .get(tsc_types::InternalSymbolName::EXPORT_EQUALS)
             .copied();
         let Some(exported) = exported else {
@@ -8771,7 +8771,7 @@ impl<'a> CheckerState<'a> {
         let export_equals = self
             .binder
             .symbol(container)
-            .exports
+            .exports()
             .get(tsc_types::InternalSymbolName::EXPORT_EQUALS)
             .copied();
         if let Some(export_equals) = export_equals {

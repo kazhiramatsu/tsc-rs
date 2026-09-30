@@ -681,8 +681,8 @@ impl<'a> BinderWorker<'a> {
     fn table(&mut self, table: TableRef) -> &SymbolTable {
         match table {
             TableRef::Locals(node) => self.locals.entry(node).or_default(),
-            TableRef::Members(symbol) => &self.symbols.symbol(symbol).members,
-            TableRef::Exports(symbol) => &self.symbols.symbol(symbol).exports,
+            TableRef::Members(symbol) => self.symbols.symbol(symbol).members(),
+            TableRef::Exports(symbol) => self.symbols.symbol(symbol).exports(),
             TableRef::GlobalExports(symbol) => &self.symbols.symbol(symbol).extras().global_exports,
         }
     }
@@ -691,10 +691,10 @@ impl<'a> BinderWorker<'a> {
         match table {
             TableRef::Locals(node) => self.locals.entry(node).or_default(),
             TableRef::Members(symbol) => {
-                Arc::make_mut(&mut self.symbols.symbol_mut(symbol).members)
+                Arc::make_mut(self.symbols.symbol_mut(symbol).members_mut())
             }
             TableRef::Exports(symbol) => {
-                Arc::make_mut(&mut self.symbols.symbol_mut(symbol).exports)
+                Arc::make_mut(self.symbols.symbol_mut(symbol).exports_mut())
             }
             TableRef::GlobalExports(symbol) => {
                 Arc::make_mut(&mut self.symbols.symbol_mut(symbol).extras_mut().global_exports)

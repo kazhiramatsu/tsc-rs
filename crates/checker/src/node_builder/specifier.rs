@@ -371,7 +371,7 @@ fn get_file_symbol_if_file_symbol_export_equals_container(
     let Some(exported) = state
         .binder
         .symbol(file_symbol)
-        .exports
+        .exports()
         .get(tsc_binder::InternalSymbolName::EXPORT_EQUALS)
         .copied()
     else {
@@ -1803,7 +1803,7 @@ pub(crate) fn try_get_module_name_from_ambient_module(
         let export_assignment = state
             .binder
             .symbol(ambient_symbol)
-            .exports
+            .exports()
             .get(tsc_binder::InternalSymbolName::EXPORT_EQUALS)
             .and_then(|&symbol| state.binder.symbol(symbol).value_declaration)
             .and_then(|value_declaration| match state.data_of(value_declaration) {

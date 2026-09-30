@@ -2088,7 +2088,7 @@ impl<'a> CheckerState<'a> {
         }
         let node_members: Option<&tsc_binder::SymbolTable> = self
             .node_symbol(node)
-            .map(|s| &*self.binder.symbol(s).members);
+            .map(|s| &**self.binder.symbol(s).members());
         let has_members = node_members.is_some_and(|m| !m.is_empty());
         let mut absent_optional: Vec<tsc_types::EscapedName> = Vec::new();
         if has_members {
@@ -2098,7 +2098,13 @@ impl<'a> CheckerState<'a> {
                 }
                 let name = self.binder.symbol(s).escaped_name.clone();
                 let node_symbol = self.node_symbol(node).expect("has_members implies symbol");
-                if self.binder.symbol(node_symbol).members.get(&name).is_some() {
+                if self
+                    .binder
+                    .symbol(node_symbol)
+                    .members()
+                    .get(&name)
+                    .is_some()
+                {
                     continue;
                 }
                 if self.is_discriminant_property(contextual_type, &name)? {
@@ -2168,7 +2174,7 @@ impl<'a> CheckerState<'a> {
         }
         let has_members = self
             .node_symbol(node)
-            .is_some_and(|s| !self.binder.symbol(s).members.is_empty());
+            .is_some_and(|s| !self.binder.symbol(s).members().is_empty());
         let mut absent_optional: Vec<tsc_types::EscapedName> = Vec::new();
         if has_members {
             for s in self.get_properties_of_type(contextual_type)? {
@@ -2199,7 +2205,13 @@ impl<'a> CheckerState<'a> {
                     }
                 }
                 let node_symbol = self.node_symbol(node).expect("has_members implies symbol");
-                if self.binder.symbol(node_symbol).members.get(&name).is_some() {
+                if self
+                    .binder
+                    .symbol(node_symbol)
+                    .members()
+                    .get(&name)
+                    .is_some()
+                {
                     continue;
                 }
                 if self.is_discriminant_property(contextual_type, &name)? {

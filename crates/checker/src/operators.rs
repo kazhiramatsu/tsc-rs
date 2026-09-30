@@ -1017,7 +1017,7 @@ impl<'a> CheckerState<'a> {
                     return false;
                 };
                 self.kind_of(initializer) == SyntaxKind::ObjectLiteralExpression
-                    && !self.binder.symbol(symbol).exports.is_empty()
+                    && !self.binder.symbol(symbol).exports().is_empty()
             }
             _ => false,
         }
@@ -1552,7 +1552,7 @@ impl<'a> CheckerState<'a> {
                     .and_then(|symbol| {
                         self.binder
                             .symbol(symbol)
-                            .exports
+                            .exports()
                             .get(tsc_types::InternalSymbolName::EXPORT_EQUALS)
                             .copied()
                     })

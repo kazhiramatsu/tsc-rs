@@ -1761,7 +1761,7 @@ fn checked_js_imported_jsdoc_namespace_resolves_to_its_type_only_face() {
             let file = state
                 .node_symbol(state.binder.source(0).root)
                 .expect("external module symbol");
-            let exported = state.binder.symbol(file).exports["myTypes"];
+            let exported = state.binder.symbol(file).exports()["myTypes"];
             assert!(state
                 .binder
                 .symbol(exported)

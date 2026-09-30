@@ -663,7 +663,7 @@ impl<'a> BinderWorker<'a> {
             EscapedName::internal(InternalSymbolName::TYPE),
         );
         self.add_declaration_to_symbol(type_literal_symbol, node, SymbolFlags::TYPE_LITERAL);
-        std::sync::Arc::make_mut(&mut self.symbols.symbol_mut(type_literal_symbol).members)
+        std::sync::Arc::make_mut(self.symbols.symbol_mut(type_literal_symbol).members_mut())
             .insert(name, symbol);
     }
 
@@ -760,7 +760,7 @@ impl<'a> BinderWorker<'a> {
         let existing_export = self
             .symbols
             .symbol(symbol)
-            .exports
+            .exports()
             .get("prototype")
             .copied();
         if let Some(existing) = existing_export {
@@ -773,7 +773,7 @@ impl<'a> BinderWorker<'a> {
                 self.bind_diagnostics.push(diag);
             }
         }
-        std::sync::Arc::make_mut(&mut self.symbols.symbol_mut(symbol).exports)
+        std::sync::Arc::make_mut(self.symbols.symbol_mut(symbol).exports_mut())
             .insert(EscapedName::internal("prototype"), prototype_symbol);
         self.symbols.symbol_mut(prototype_symbol).parent = Some(symbol);
     }
@@ -2054,7 +2054,7 @@ impl<'a> BinderWorker<'a> {
                 let expression = access_expression_of(self.source, entity_name)?;
                 let parent = self.bind_existing_entity_name_as_module(expression, parent_symbol)?;
                 let name = get_element_or_property_access_name(self.source, entity_name)?;
-                let symbol = self.symbols.symbol(parent).exports.get(&name).copied()?;
+                let symbol = self.symbols.symbol(parent).exports().get(&name).copied()?;
                 let name_node =
                     crate::assignment::get_element_or_property_access_argument_expression_or_name(
                         self.source,
@@ -2138,7 +2138,7 @@ impl<'a> BinderWorker<'a> {
                         entity_name,
                     )?;
                 let name = get_element_or_property_access_name(self.source, entity_name)?;
-                if let Some(&symbol) = self.symbols.symbol(parent).exports.get(&name) {
+                if let Some(&symbol) = self.symbols.symbol(parent).exports().get(&name) {
                     self.add_declaration_to_symbol(
                         symbol,
                         name_node,
@@ -2262,7 +2262,7 @@ impl<'a> BinderWorker<'a> {
         let container_symbol = self.node_symbol.get(&container).copied()?;
         self.symbols
             .symbol(container_symbol)
-            .exports
+            .exports()
             .get(name)
             .copied()
     }
@@ -2283,7 +2283,7 @@ impl<'a> BinderWorker<'a> {
                 let parent = self
                     .lookup_symbol_for_property_access(access_expression_of(self.source, node)?)?;
                 let name = get_element_or_property_access_name(self.source, node)?;
-                self.symbols.symbol(parent).exports.get(&name).copied()
+                self.symbols.symbol(parent).exports().get(&name).copied()
             }
             _ => None,
         }
@@ -2308,7 +2308,7 @@ impl<'a> BinderWorker<'a> {
                 let parent = self
                     .lookup_symbol_for_property_access(access_expression_of(self.source, node)?)?;
                 let name = get_element_or_property_access_name(self.source, node)?;
-                self.symbols.symbol(parent).exports.get(&name).copied()
+                self.symbols.symbol(parent).exports().get(&name).copied()
             }
             _ => None,
         }

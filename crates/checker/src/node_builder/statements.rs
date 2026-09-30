@@ -1669,8 +1669,8 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                                             .is_function_expression_or_arrow_function(declaration)
                                     },
                                 )
-                                && (!type_symbol_data.members.is_empty()
-                                    || !type_symbol_data.exports.is_empty())
+                                && (!type_symbol_data.members().is_empty()
+                                    || !type_symbol_data.exports().is_empty())
                         });
                 if let Some(type_symbol) = remapped_function_symbol {
                     let previous = self
@@ -2701,7 +2701,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
             .checker
             .binder
             .symbol(symbol)
-            .exports
+            .exports()
             .values()
             .copied()
             .filter(|&member| {
@@ -2715,7 +2715,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                 .checker
                 .binder
                 .symbol(symbol)
-                .members
+                .members()
                 .values()
                 .copied()
                 .filter(|&member| {
@@ -2889,7 +2889,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         if !symbol_data
             .flags
             .intersects(SymbolFlags::VALUE_MODULE | SymbolFlags::NAMESPACE_MODULE)
-            || symbol_data.exports.is_empty()
+            || symbol_data.exports().is_empty()
         {
             let properties = self
                 .checker

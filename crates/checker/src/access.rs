@@ -1201,11 +1201,11 @@ impl<'a> CheckerState<'a> {
             let suffix = format!("@{prop_name}");
             let found = {
                 let symbol_data = self.binder.symbol(symbol);
-                let in_members = symbol_data.members.iter().find_map(|(name, &member)| {
+                let in_members = symbol_data.members().iter().find_map(|(name, &member)| {
                     (name.starts_with("__#") && name.as_js().ends_with(&suffix)).then_some(member)
                 });
                 in_members.or_else(|| {
-                    symbol_data.exports.iter().find_map(|(name, &member)| {
+                    symbol_data.exports().iter().find_map(|(name, &member)| {
                         (name.starts_with("__#") && name.as_js().ends_with(&suffix))
                             .then_some(member)
                     })
@@ -1976,7 +1976,7 @@ impl<'a> CheckerState<'a> {
         // those owned tables: the exact write remains on the merged
         // symbol's binder exports. Read that projection first, then
         // the ordinary globals table.
-        if let Some(symbol) = self.binder.symbol(merged).exports.get(name).copied() {
+        if let Some(symbol) = self.binder.symbol(merged).exports().get(name).copied() {
             return Ok(Some(symbol));
         }
         Ok(self.globals.get(name).copied())

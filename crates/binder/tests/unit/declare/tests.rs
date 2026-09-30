@@ -48,7 +48,7 @@ fn bind_relocation_matches_direct_nonzero_symbols_and_private_serials() {
         .symbols
         .symbols()
         .iter()
-        .flat_map(|symbol| symbol.members.keys())
+        .flat_map(|symbol| symbol.members().keys())
         .any(|name| name.starts_with("__#10@")));
 
     drop(relocated);
@@ -301,7 +301,7 @@ fn multiple_default_export_classes_report_2528_with_relateds() {
     assert!(binder
         .symbols
         .symbol(container)
-        .exports
+        .exports()
         .contains_key("default"));
 }
 

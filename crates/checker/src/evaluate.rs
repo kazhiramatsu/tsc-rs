@@ -728,7 +728,7 @@ impl<'a> CheckerState<'a> {
         let member = self
             .binder
             .symbol(root_symbol)
-            .exports
+            .exports()
             .get(name.as_js())
             .copied();
         let Some(member) = member else {

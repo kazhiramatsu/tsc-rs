@@ -79,8 +79,14 @@ fn binder_names_match_independent_typescript_observations() {
         let selected = find_kind(&source, source.root, case.kind).unwrap();
         let table = match case.table {
             "locals" => &binder.locals[&selected],
-            "members" => &binder.symbols.symbol(binder.node_symbol[&selected]).members,
-            "exports" => &binder.symbols.symbol(binder.node_symbol[&selected]).exports,
+            "members" => binder
+                .symbols
+                .symbol(binder.node_symbol[&selected])
+                .members(),
+            "exports" => binder
+                .symbols
+                .symbol(binder.node_symbol[&selected])
+                .exports(),
             _ => unreachable!(),
         };
         let expected = case
