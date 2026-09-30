@@ -3098,7 +3098,7 @@ fn rust_jsdoc_ast_dump(file_name: &str, text: &str) -> serde_json::Value {
             let Some(documents) = source.arena.node(owner).js_doc else {
                 return;
             };
-            for document in &source.arena.node_array(documents).nodes {
+            for document in source.arena.node_array(documents).nodes {
                 add_jsdoc_dump_node(&source.arena, *document, 'j', 0, jsdoc_ids, jsdoc_entries);
             }
             attachments.push((owner, documents));

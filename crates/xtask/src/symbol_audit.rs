@@ -31,7 +31,7 @@ pub fn audit_source_file(source: &SourceFile, binder: &tsc_binder::Binder<'_>) -
     let mut names = Vec::new();
     if let Some(data) = source.arena.node(source.root).data.as_source_file() {
         if let Some(statements) = data.statements {
-            for &statement in &source.arena.node_array(statements).nodes {
+            for &statement in source.arena.node_array(statements).nodes {
                 visit_statement(source, statement, 0, &mut names);
             }
         }
@@ -115,7 +115,7 @@ fn push_binding_elements(
     out: &mut Vec<NodeId>,
 ) {
     let Some(elements) = elements else { return };
-    for &element in &source.arena.node_array(elements).nodes {
+    for &element in source.arena.node_array(elements).nodes {
         if let NodeData::BindingElement(data) = &source.arena.node(element).data {
             push_binding_names(source, data.name, out);
         }
@@ -124,7 +124,7 @@ fn push_binding_elements(
 
 fn push_member_names(source: &SourceFile, members: Option<NodeArrayId>, out: &mut Vec<NodeId>) {
     let Some(members) = members else { return };
-    for &member in &source.arena.node_array(members).nodes {
+    for &member in source.arena.node_array(members).nodes {
         let name = match &source.arena.node(member).data {
             NodeData::PropertyDeclaration(data) => data.name,
             NodeData::PropertySignature(data) => data.name,
@@ -181,7 +181,7 @@ fn visit_statement(source: &SourceFile, statement: NodeId, depth: u32, out: &mut
             }
             if depth == 0 {
                 if let Some(statements) = block {
-                    for &inner in &source.arena.node_array(statements).nodes {
+                    for &inner in source.arena.node_array(statements).nodes {
                         visit_statement(source, inner, 1, out);
                     }
                 }
@@ -197,7 +197,7 @@ fn visit_statement(source: &SourceFile, statement: NodeId, depth: u32, out: &mut
             let Some(declarations) = list.declarations else {
                 return;
             };
-            for &declaration in &source.arena.node_array(declarations).nodes {
+            for &declaration in source.arena.node_array(declarations).nodes {
                 if let NodeData::VariableDeclaration(data) = &source.arena.node(declaration).data {
                     push_binding_names(source, data.name, out);
                 }
@@ -221,7 +221,7 @@ fn visit_statement(source: &SourceFile, statement: NodeId, depth: u32, out: &mut
                     let Some(elements) = data.elements else {
                         return;
                     };
-                    for &element in &source.arena.node_array(elements).nodes {
+                    for &element in source.arena.node_array(elements).nodes {
                         if let NodeData::ImportSpecifier(data) = &source.arena.node(element).data {
                             push_name(source, data.name, out);
                         }
@@ -240,7 +240,7 @@ fn visit_statement(source: &SourceFile, statement: NodeId, depth: u32, out: &mut
                     let Some(elements) = data.elements else {
                         return;
                     };
-                    for &element in &source.arena.node_array(elements).nodes {
+                    for &element in source.arena.node_array(elements).nodes {
                         if let NodeData::ExportSpecifier(data) = &source.arena.node(element).data {
                             push_name(source, data.name, out);
                         }

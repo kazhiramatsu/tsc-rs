@@ -56,7 +56,7 @@ fn comma_list_printer_matches_typescript() {
                     panic!("call")
                 };
                 let original_array = TransformNodeArray::new(source, call_data.arguments.unwrap());
-                let original_ids = arena.node_array(original_array).unwrap().nodes.clone();
+                let original_ids = arena.node_array(original_array).unwrap().nodes.to_vec();
                 let original = original_ids
                     .iter()
                     .map(|id| arena.node_ref(source, *id).unwrap())

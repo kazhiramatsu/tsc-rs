@@ -188,8 +188,8 @@ impl ParseRecovery {
         if pattern.pos != second.pos {
             return None;
         }
-        let elements = &source.arena.node_array(pattern_data.elements?).nodes;
-        let [element_id] = elements.as_slice() else {
+        let elements = source.arena.node_array(pattern_data.elements?).nodes;
+        let [element_id] = elements else {
             return None;
         };
         let element = source.arena.node(*element_id);

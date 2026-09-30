@@ -1317,7 +1317,7 @@ pub(crate) fn transform_heritage_clauses(
             Vec::new(),
         )?));
     };
-    let clause_nodes = context.arena().node_array(clauses)?.nodes.clone();
+    let clause_nodes = context.arena().node_array(clauses)?.nodes.to_vec();
     let mut result = Vec::new();
     for clause in clause_nodes {
         let clause = TransformNode::new(clauses.source(), clause);
@@ -1349,7 +1349,7 @@ pub(crate) fn transform_heritage_clauses(
             .factory()?
             .create_node_array(clause.source(), filtered_types)?;
         let mut types = Vec::new();
-        for &type_node in &context.arena().node_array(filtered_types)?.nodes.clone() {
+        for &type_node in &context.arena().node_array(filtered_types)?.nodes.to_vec() {
             let type_node = TransformNode::new(clause.source(), type_node);
             match transformer.visit_declaration_subtree(context, type_node)? {
                 VisitResult::None => {}

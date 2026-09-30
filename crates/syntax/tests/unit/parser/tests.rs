@@ -1683,7 +1683,7 @@ fn parse_unary_update_await_and_yield_shapes() {
         .arena
         .node_array(generator_body.statements.expect("generator statements"));
     assert_eq!(generator_statements.nodes.len(), 2);
-    for statement in &generator_statements.nodes {
+    for statement in generator_statements.nodes {
         let expression = source
             .arena
             .node(*statement)
@@ -2871,7 +2871,7 @@ fn statement_nodes(source: &SourceFile) -> Vec<NodeId> {
         .arena
         .node_array(root.statements.expect("statements"))
         .nodes
-        .clone()
+        .to_vec()
 }
 
 #[test]

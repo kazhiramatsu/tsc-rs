@@ -5,7 +5,7 @@ use crate::SyntaxKind;
 
 pub trait NodeLookup {
     fn node(&self, id: NodeId) -> &Node;
-    fn node_array(&self, id: NodeArrayId) -> &NodeArray;
+    fn node_array(&self, id: NodeArrayId) -> NodeArray<'_>;
 }
 
 pub fn for_each_child<L, F>(lookup: &L, node: &Node, mut cb: F) -> Option<NodeId>
@@ -4102,7 +4102,7 @@ where
     L: NodeLookup,
     F: FnMut(NodeId) -> bool,
 {
-    for node in &lookup.node_array(id).nodes {
+    for node in lookup.node_array(id).nodes {
         if cb(*node) {
             return Some(*node);
         }

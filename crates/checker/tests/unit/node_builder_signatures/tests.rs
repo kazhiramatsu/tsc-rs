@@ -247,7 +247,7 @@ fn emitted_array(
     target: TransformSourceId,
     array: tsc_syntax::NodeArrayId,
 ) -> &[NodeId] {
-    &arena
+    arena
         .source(target)
         .expect("transform source")
         .syntax()

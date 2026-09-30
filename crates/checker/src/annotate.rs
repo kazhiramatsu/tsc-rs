@@ -46,7 +46,7 @@ impl<'a> CheckerState<'a> {
     /// JavaScript objects.
     pub(crate) fn nodes_of(&self, array: Option<NodeArrayId>) -> Vec<NodeId> {
         match array {
-            Some(array) => self.binder.node_array(array).nodes.clone(),
+            Some(array) => self.binder.node_array(array).nodes.to_vec(),
             None => Vec::new(),
         }
     }

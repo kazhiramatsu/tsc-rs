@@ -1783,7 +1783,7 @@ impl<'context> JsxVisitor<'context> {
         else {
             return Ok(Vec::new());
         };
-        Ok(self.context.arena().node_array(array)?.nodes.clone())
+        Ok(self.context.arena().node_array(array)?.nodes.to_vec())
     }
 
     fn identifier_text(

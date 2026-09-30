@@ -4124,7 +4124,7 @@ impl GeneratorsVisitor<'_, '_> {
 
     fn visit_node_array(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, TransformError> {
         let original = tsc_syntax_array(self.source, id);
-        let nodes = self.context.arena().node_array(original)?.nodes.clone();
+        let nodes = self.context.arena().node_array(original)?.nodes.to_vec();
         let mut visited = Vec::with_capacity(nodes.len());
         for node in nodes {
             if let Some(node) = self.visit(node)? {

@@ -457,7 +457,7 @@ fn constructor_prologue_stops_before_strings_and_noncontiguous_custom_statements
         .arena
         .node_array(body.statements.expect("body statements"))
         .nodes
-        .clone();
+        .to_vec();
 
     let mut arena = TransformArena::new();
     let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
@@ -643,7 +643,7 @@ fn collect_binding_declarations(
         NodeData::ObjectBindingPattern(pattern) => {
             for element in pattern
                 .elements
-                .map(|elements| source.arena.node_array(elements).nodes.as_slice())
+                .map(|elements| source.arena.node_array(elements).nodes)
                 .unwrap_or_default()
             {
                 if let NodeData::BindingElement(binding) = &source.arena.node(*element).data {
@@ -656,7 +656,7 @@ fn collect_binding_declarations(
         NodeData::ArrayBindingPattern(pattern) => {
             for element in pattern
                 .elements
-                .map(|elements| source.arena.node_array(elements).nodes.as_slice())
+                .map(|elements| source.arena.node_array(elements).nodes)
                 .unwrap_or_default()
             {
                 if let NodeData::BindingElement(binding) = &source.arena.node(*element).data {
@@ -679,7 +679,7 @@ impl ExportedVariableResolver {
         };
         for statement in root
             .statements
-            .map(|statements| source.arena.node_array(statements).nodes.as_slice())
+            .map(|statements| source.arena.node_array(statements).nodes)
             .unwrap_or_default()
         {
             let NodeData::VariableStatement(variable) = &source.arena.node(*statement).data else {
@@ -703,7 +703,7 @@ impl ExportedVariableResolver {
             };
             for declaration in list
                 .declarations
-                .map(|declarations| source.arena.node_array(declarations).nodes.as_slice())
+                .map(|declarations| source.arena.node_array(declarations).nodes)
                 .unwrap_or_default()
             {
                 let NodeData::VariableDeclaration(variable) = &source.arena.node(*declaration).data
@@ -835,9 +835,7 @@ impl SourceExportContainerResolver {
                     {
                         for declaration in list
                             .declarations
-                            .map(|declarations| {
-                                source.arena.node_array(declarations).nodes.as_slice()
-                            })
+                            .map(|declarations| source.arena.node_array(declarations).nodes)
                             .unwrap_or_default()
                         {
                             let NodeData::VariableDeclaration(variable) =
@@ -4445,7 +4443,7 @@ fn standard_decorator_class_references_preserve_parsed_and_generated_identity() 
         .arena
         .node_array(parsed_source.statements.expect("parsed statements"))
         .nodes
-        .clone();
+        .to_vec();
     while let Some(node) = pending.pop() {
         let record = parsed.arena.node(node);
         match &record.data {
@@ -6502,7 +6500,7 @@ fn meta_property_token_maps_internal_invariants_match_typescript() {
         }
         fn visit_nodes(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, Self::Error> {
             let array = self.arena.node_array_ref(self.source, id).unwrap();
-            let ids = self.arena.node_array(array)?.nodes.clone();
+            let ids = self.arena.node_array(array)?.nodes.to_vec();
             let nodes = ids
                 .into_iter()
                 .map(|id| {

@@ -1296,7 +1296,7 @@ impl DisplayClonePrinter<'_, '_> {
         let Some(nodes) = nodes else {
             return Ok(JsString::new());
         };
-        let nodes = self.state.binder.node_array(nodes).nodes.clone();
+        let nodes = self.state.binder.node_array(nodes).nodes.to_vec();
         let rendered = self.with_line_start(false, |printer| {
             printer.state.type_argument_nodes_text(nodes)
         })?;
@@ -1776,7 +1776,7 @@ impl DisplayClonePrinter<'_, '_> {
             return (Vec::new(), false);
         };
         let nodes = self.state.binder.node_array(nodes);
-        (nodes.nodes.clone(), nodes.has_trailing_comma)
+        (nodes.nodes.to_vec(), nodes.has_trailing_comma)
     }
 
     fn with_increased_indent<T>(

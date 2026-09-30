@@ -3020,7 +3020,7 @@ impl<'a> CheckerState<'a> {
 
     fn nodes_of_array(&self, array: Option<tsc_syntax::NodeArrayId>) -> Vec<NodeId> {
         match array {
-            Some(array) => self.binder.node_array(array).nodes.clone(),
+            Some(array) => self.binder.node_array(array).nodes.to_vec(),
             None => Vec::new(),
         }
     }

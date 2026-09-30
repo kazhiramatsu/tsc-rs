@@ -672,7 +672,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
             return (Vec::new(), false);
         };
         let nodes = self.state.binder.node_array(nodes);
-        (nodes.nodes.clone(), nodes.has_trailing_comma)
+        (nodes.nodes.to_vec(), nodes.has_trailing_comma)
     }
 
     fn nodes(&self, nodes: Option<NodeArrayId>) -> Vec<NodeId> {

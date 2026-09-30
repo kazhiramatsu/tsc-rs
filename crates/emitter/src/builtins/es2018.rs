@@ -652,7 +652,7 @@ impl<'context> Es2018Visitor<'context> {
                 .arena()
                 .node_array(original_elements)?
                 .nodes
-                .clone();
+                .to_vec();
             let length = nodes.len();
             let mut visited = Vec::with_capacity(length);
             for (index, element) in nodes.into_iter().enumerate() {
@@ -5179,7 +5179,7 @@ impl<'context> Es2018Visitor<'context> {
             }
         }
         let original = self.array(id);
-        let nodes = self.context.arena().node_array(original)?.nodes.clone();
+        let nodes = self.context.arena().node_array(original)?.nodes.to_vec();
         let mut visited = Vec::with_capacity(nodes.len());
         for node in nodes {
             if let Some(node) = self.visit(node)? {

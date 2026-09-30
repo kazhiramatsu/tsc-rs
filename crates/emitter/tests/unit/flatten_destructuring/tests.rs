@@ -437,7 +437,7 @@ impl ProjectionVisitor<'_> {
         else {
             return Ok(Vec::new());
         };
-        let nodes = self.context.arena().node_array(array)?.nodes.clone();
+        let nodes = self.context.arena().node_array(array)?.nodes.to_vec();
         Ok(nodes.iter().map(|node| self.node(*node)).collect())
     }
 }

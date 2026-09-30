@@ -1447,7 +1447,7 @@ impl<'a> ProgramBinder<'a> {
     /// contiguously per file, like nodes).
     /// tsrs-native: multi-file arena routing for Rust's numeric
     /// NodeArrayId.
-    pub fn node_array(&self, id: NodeArrayId) -> &'a NodeArray {
+    pub fn node_array(&self, id: NodeArrayId) -> NodeArray<'a> {
         let index =
             Self::try_owner_file_with_hint(&self.array_owners, id.index(), &self.array_owner_hint)
                 .unwrap_or_else(|| Self::owner_file(&self.array_owners, id.index(), "NodeArrayId"));

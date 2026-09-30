@@ -82,7 +82,7 @@ fn statements(source: &SourceFile) -> Vec<NodeId> {
         .as_source_file()
         .expect("root");
     let statements = data.statements.expect("statements");
-    source.arena.node_array(statements).nodes.clone()
+    source.arena.node_array(statements).nodes.to_vec()
 }
 
 /// The declared node + includes/excludes a statement would get from

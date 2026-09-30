@@ -1382,7 +1382,7 @@ impl<'a> BinderWorker<'a> {
         let Some(properties) = data.properties else {
             return false;
         };
-        let properties = self.source.arena.node_array(properties).nodes.clone();
+        let properties = self.source.arena.node_array(properties).nodes.to_vec();
         if properties.is_empty()
             || !properties.iter().all(|&property| {
                 kind_of(self.source, property) == SyntaxKind::ShorthandPropertyAssignment
@@ -1857,7 +1857,7 @@ impl<'a> BinderWorker<'a> {
         };
         let mut has_get = false;
         let mut has_set = false;
-        for &property in &self.source.arena.node_array(properties).nodes {
+        for &property in self.source.arena.node_array(properties).nodes {
             let name = name_field_of(self.source, property);
             has_get |= name.is_some_and(|name| id_text(self.source, name) == Some("get"));
             has_set |= name.is_some_and(|name| id_text(self.source, name) == Some("set"));
@@ -2324,7 +2324,7 @@ impl<'a> BinderWorker<'a> {
             return;
         }
         let Some(statements) = statements else { return };
-        let statements = self.source.arena.node_array(statements).nodes.clone();
+        let statements = self.source.arena.node_array(statements).nodes.to_vec();
         for statement in statements {
             if !self.is_prologue_directive(statement) {
                 return;
@@ -2719,7 +2719,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc bindEach (42834). Consumed by the stage-3.5 flow binders.
     fn bind_each(&mut self, nodes: Option<NodeArrayId>) {
         let Some(nodes) = nodes else { return };
-        let nodes = self.source.arena.node_array(nodes).nodes.clone();
+        let nodes = self.source.arena.node_array(nodes).nodes.to_vec();
         for node in nodes {
             self.bind(Some(node));
         }
@@ -2734,7 +2734,7 @@ impl<'a> BinderWorker<'a> {
     /// and duplicate-diagnostic order.
     fn bind_each_functions_first(&mut self, nodes: Option<NodeArrayId>) {
         let Some(nodes) = nodes else { return };
-        let nodes = self.source.arena.node_array(nodes).nodes.clone();
+        let nodes = self.source.arena.node_array(nodes).nodes.to_vec();
         for &node in &nodes {
             if kind_of(self.source, node) == SyntaxKind::FunctionDeclaration {
                 self.bind(Some(node));
@@ -2889,7 +2889,7 @@ impl<'a> BinderWorker<'a> {
         let Some(js_doc) = self.source.arena.node(host).js_doc else {
             return;
         };
-        let docs = self.source.arena.node_array(js_doc).nodes.clone();
+        let docs = self.source.arena.node_array(js_doc).nodes.to_vec();
         for doc in docs {
             self.bind(Some(doc));
         }
@@ -3681,7 +3681,7 @@ impl<'a> BinderWorker<'a> {
             _ => None,
         };
         let Some(clauses) = clauses else { return };
-        let clauses = self.source.arena.node_array(clauses).nodes.clone();
+        let clauses = self.source.arena.node_array(clauses).nodes.to_vec();
         let switch_statement = parent_of(self.source, node).expect("case block parent");
         let switch_expression = match &self.source.arena.node(switch_statement).data {
             NodeData::SwitchStatement(data) => data.expression,
@@ -3856,7 +3856,7 @@ impl<'a> BinderWorker<'a> {
                 _ => None,
             };
             let Some(elements) = elements else { return };
-            for &element in &self.source.arena.node_array(elements).nodes.clone() {
+            for &element in &self.source.arena.node_array(elements).nodes.to_vec() {
                 if kind_of(self.source, element) == SyntaxKind::SpreadElement {
                     if let Some(expression) = crate::node_util::expression_of(self.source, element)
                     {
@@ -3872,7 +3872,7 @@ impl<'a> BinderWorker<'a> {
                 _ => None,
             };
             let Some(properties) = properties else { return };
-            for &property in &self.source.arena.node_array(properties).nodes.clone() {
+            for &property in &self.source.arena.node_array(properties).nodes.to_vec() {
                 match &self.source.arena.node(property).data {
                     NodeData::PropertyAssignment(data) => {
                         if let Some(initializer) = data.initializer {
@@ -4273,7 +4273,7 @@ impl<'a> BinderWorker<'a> {
                     _ => None,
                 };
                 if let Some(elements) = elements {
-                    for &child in &self.source.arena.node_array(elements).nodes.clone() {
+                    for &child in &self.source.arena.node_array(elements).nodes.to_vec() {
                         self.bind_initialized_variable_flow(child);
                     }
                 }

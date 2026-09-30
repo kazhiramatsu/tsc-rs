@@ -574,7 +574,7 @@ fn a_union_parenthesizes_an_intersection_constituent_only_when_rebuilt() {
         let types = arena
             .node_array_ref(union.source(), data.types.unwrap())
             .unwrap();
-        arena.node_array(types).unwrap().nodes.clone()
+        arena.node_array(types).unwrap().nodes.to_vec()
     }
 
     let source_file = parsed("types.ts", "type T = A & B | C;");
@@ -697,7 +697,7 @@ fn literal_code_units_follow_owned_values_independently_of_source_provenance() {
             .arena
             .node_array(data.statements.unwrap())
             .nodes
-            .clone()
+            .to_vec()
     };
     let expression = |statement: NodeId| match &source_file.arena.node(statement).data {
         NodeData::ExpressionStatement(data) => data.expression.unwrap(),

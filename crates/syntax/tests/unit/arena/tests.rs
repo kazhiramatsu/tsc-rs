@@ -13,7 +13,7 @@ fn finalizes_parent_links_and_error_aggregation() {
         1,
         NodeFlags::THIS_NODE_HAS_ERROR,
     );
-    let statements = arena.alloc_array(vec![stmt], 0, 1, false);
+    let statements = arena.alloc_array(&[stmt], 0, 1, false);
     let eof = arena.alloc_token(SyntaxKind::EndOfFileToken, 1, 1, NodeFlags::NONE);
     let root = arena.alloc_node(
         NodeData::SourceFile(SourceFileData {
@@ -65,7 +65,7 @@ fn jsdoc_child_order_and_comment_union_follow_tsc() {
         28,
         NodeFlags::JS_DOC,
     );
-    let comments = arena.alloc_array(vec![comment_text], 17, 28, false);
+    let comments = arena.alloc_array(&[comment_text], 17, 28, false);
 
     for (is_name_first, expected) in [
         (true, vec![tag_name, name, type_expression, comment_text]),
@@ -145,7 +145,7 @@ fn jsdoc_child_order_and_comment_union_follow_tsc() {
 #[test]
 fn synthetic_node_array_preserves_tsc_negative_span() {
     let mut arena = NodeArena::new();
-    let array = arena.alloc_synthetic_array(Vec::new());
+    let array = arena.alloc_synthetic_array(&Vec::new());
     assert_eq!(arena.node_array(array).pos, u32::MAX);
     assert_eq!(arena.node_array(array).end, u32::MAX);
     assert!(!arena.node_array(array).has_trailing_comma);

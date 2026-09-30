@@ -168,7 +168,7 @@ fn dm_symbol_declaration_order_facts_follow_binder_declarations() {
         .arena
         .node_array(data.statements.expect("statements"))
         .nodes
-        .clone();
+        .to_vec();
     let mut binder = tsc_binder::Binder::with_bases(&source, &options, 1, 0);
     binder.bind_source_file();
     let mut state = CheckerState::from_program(vec![&binder], &options);

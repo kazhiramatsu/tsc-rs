@@ -438,11 +438,7 @@ fn convert_json_source_file_to_value_with_assignment(
         return None;
     }
     let source_file = source.arena.node(source.root).data.as_source_file()?;
-    let statements = source
-        .arena
-        .node_array(source_file.statements?)
-        .nodes
-        .as_slice();
+    let statements = source.arena.node_array(source_file.statements?).nodes;
     let [statement] = statements else {
         return None;
     };
@@ -550,7 +546,7 @@ fn convert_jsonc_value_worker(
                             .arena
                             .node_array(node.data.as_array_literal_expression()?.elements?)
                             .nodes
-                            .clone();
+                            .to_vec();
                         tasks.push(ConversionTask::FinishArray(elements.len()));
                         tasks.extend(elements.into_iter().rev().map(|value| {
                             ConversionTask::Visit {
@@ -568,7 +564,7 @@ fn convert_jsonc_value_worker(
                             .arena
                             .node_array(node.data.as_object_literal_expression()?.properties?)
                             .nodes
-                            .clone();
+                            .to_vec();
                         let mut keys = Vec::with_capacity(properties.len());
                         let mut initializers = Vec::with_capacity(properties.len());
                         for property in properties {

@@ -1653,7 +1653,7 @@ impl NodeDataChildVisitor for BindingNameVisitor<'_, '_, '_> {
             .node_array(original)
             .map_err(factory_error)?
             .nodes
-            .clone();
+            .to_vec();
         let mut nodes = Vec::with_capacity(ids.len());
         for id in ids {
             nodes.push(self.visit(TransformNode::new(self.source, id))?);

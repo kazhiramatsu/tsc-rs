@@ -1545,7 +1545,7 @@ impl<'a> CheckerState<'a> {
         let Some(modifiers) = node_util::modifiers_of(source, node) else {
             return Some(false);
         };
-        let modifiers = self.binder.node_array(modifiers).nodes.clone();
+        let modifiers = self.binder.node_array(modifiers).nodes.to_vec();
         let first_modifier_except = |allowed: Option<SyntaxKind>| {
             modifiers
                 .iter()
@@ -1830,7 +1830,7 @@ impl<'a> CheckerState<'a> {
                 _ => None,
             };
             let statements: Vec<NodeId> = statements
-                .map(|statements| self.binder.node_array(statements).nodes.clone())
+                .map(|statements| self.binder.node_array(statements).nodes.to_vec())
                 .unwrap_or_default();
             if let Some(offset) = statements.iter().position(|&statement| statement == node) {
                 let mut first = offset;
@@ -13508,7 +13508,7 @@ impl<'a> CheckerState<'a> {
                 let (elements, has_trailing_comma) = match data.elements {
                     Some(elements) => {
                         let elements = self.binder.node_array(elements);
-                        (elements.nodes.clone(), elements.has_trailing_comma)
+                        (elements.nodes.to_vec(), elements.has_trailing_comma)
                     }
                     None => (Vec::new(), false),
                 };
@@ -13529,7 +13529,7 @@ impl<'a> CheckerState<'a> {
                 let (elements, has_trailing_comma) = match data.elements {
                     Some(elements) => {
                         let elements = self.binder.node_array(elements);
-                        (elements.nodes.clone(), elements.has_trailing_comma)
+                        (elements.nodes.to_vec(), elements.has_trailing_comma)
                     }
                     None => (Vec::new(), false),
                 };

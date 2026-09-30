@@ -870,7 +870,7 @@ impl<'a> CheckerState<'a> {
                         let Some(elements) = data.elements else {
                             return Ok(false);
                         };
-                        let elements = self.binder.node_array(elements).nodes.clone();
+                        let elements = self.binder.node_array(elements).nodes.to_vec();
                         for element in elements {
                             if self.emit_is_value_alias_declaration(element)? {
                                 return Ok(true);

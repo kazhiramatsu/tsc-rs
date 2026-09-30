@@ -32,7 +32,7 @@ impl DeclarationTransformer<'_> {
                 if let Some(elements) =
                     elements.and_then(|array| cx.arena().node_array_ref(name.source(), array))
                 {
-                    for &element in &cx.arena().node_array(elements)?.nodes.clone() {
+                    for &element in &cx.arena().node_array(elements)?.nodes.to_vec() {
                         let element = TransformNode::new(name.source(), element);
                         if self.kind(cx, element)? == SyntaxKind::OmittedExpression {
                             visited.push(element);
@@ -343,7 +343,7 @@ impl DeclarationTransformer<'_> {
             parameters.and_then(|array| cx.arena().node_array_ref(owner.source(), array))
         {
             has_trailing_comma = cx.arena().node_array(parameters)?.has_trailing_comma;
-            for &parameter in &cx.arena().node_array(parameters)?.nodes.clone() {
+            for &parameter in &cx.arena().node_array(parameters)?.nodes.to_vec() {
                 updated.push(self.ensure_parameter(
                     cx,
                     TransformNode::new(owner.source(), parameter),
@@ -451,7 +451,7 @@ impl DeclarationTransformer<'_> {
             let Some(modifiers) = modifier_array(cx, node)? else {
                 return Ok(None);
             };
-            let modifier_nodes = cx.arena().node_array(modifiers)?.nodes.clone();
+            let modifier_nodes = cx.arena().node_array(modifiers)?.nodes.to_vec();
             let mut retained = Vec::with_capacity(modifier_nodes.len());
             for modifier in modifier_nodes {
                 let modifier = TransformNode::new(node.source(), modifier);
@@ -632,7 +632,7 @@ impl DeclarationTransformer<'_> {
             return Ok(None);
         };
         let mut output = Vec::new();
-        for &node in &cx.arena().node_array(original)?.nodes.clone() {
+        for &node in &cx.arena().node_array(original)?.nodes.to_vec() {
             let node = TransformNode::new(source, node);
             match self.visit_declaration_subtree(cx, node)? {
                 VisitResult::None => {}

@@ -125,7 +125,7 @@ fn declaration_names_precede_uses_in_source_module_and_function_scopes() {
         }
         fn visit_nodes(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, TransformError> {
             let array = TransformNodeArray::new(self.source, id);
-            let ids = self.arena.node_array(array)?.nodes.clone();
+            let ids = self.arena.node_array(array)?.nodes.to_vec();
             let mut nodes = Vec::new();
             for id in ids {
                 let id = self.visit_node(id)?.unwrap();

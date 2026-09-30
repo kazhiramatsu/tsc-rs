@@ -4510,7 +4510,7 @@ impl NodeDataChildVisitor for SystemVisitor<'_, '_> {
             return Ok(Some(*mapped));
         }
         let original = self.array(id);
-        let nodes = self.context.arena().node_array(original)?.nodes.clone();
+        let nodes = self.context.arena().node_array(original)?.nodes.to_vec();
         let mut visited = Vec::with_capacity(nodes.len());
         for node in nodes {
             visited.push(self.visit(node)?);

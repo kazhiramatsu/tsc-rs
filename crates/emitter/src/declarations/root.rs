@@ -330,7 +330,7 @@ fn statements_with_empty_exports(
 ) -> Result<Vec<TransformNode>, TransformError> {
     statements.push(empty_exports);
     let array = factory.create_node_array(source, statements)?;
-    let nodes = factory.arena().node_array(array)?.nodes.clone();
+    let nodes = factory.arena().node_array(array)?.nodes.to_vec();
     Ok(nodes
         .into_iter()
         .map(|node| TransformNode::new(source, node))

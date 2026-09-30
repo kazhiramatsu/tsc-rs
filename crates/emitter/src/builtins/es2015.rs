@@ -2089,7 +2089,7 @@ impl NodeDataChildVisitor for Es2015Visitor<'_, '_, '_> {
 
     fn visit_nodes(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, Self::Error> {
         let original = tsc_syntax_array(self.source, id);
-        let nodes = self.context.arena().node_array(original)?.nodes.clone();
+        let nodes = self.context.arena().node_array(original)?.nodes.to_vec();
         let mut visited = Vec::with_capacity(nodes.len());
         for node in nodes {
             match self.visit(self.node(node))? {
@@ -3441,7 +3441,7 @@ impl Es2015Visitor<'_, '_, '_> {
             return Ok(true);
         };
         let declarations = arena.node_array(tsc_syntax_array(self.source, declarations))?;
-        for declaration in declarations.nodes.clone() {
+        for declaration in declarations.nodes.iter().copied() {
             let declaration = self.node(declaration);
             let NodeData::VariableDeclaration(data) = &self.context.arena().node(declaration)?.data
             else {
@@ -9303,7 +9303,7 @@ fn child_nodes_of(
         .collect();
     for array in arrays {
         let array = TransformNodeArray::new(node.source(), array);
-        for id in &arena.node_array(array)?.nodes {
+        for id in arena.node_array(array)?.nodes {
             out.push(TransformNode::new(node.source(), *id));
         }
     }
@@ -10631,7 +10631,7 @@ impl NodeDataChildVisitor for SimplifyRewriter<'_, '_, '_, '_, '_> {
             .arena()
             .node_array(original)?
             .nodes
-            .clone();
+            .to_vec();
         let mut visited = Vec::with_capacity(nodes.len());
         for node in nodes {
             let node = self.visitor.node(node);

@@ -1869,7 +1869,7 @@ fn collect_function_body_declaration_name_events(
                     .contains(EmitFlags::REUSE_TEMP_VARIABLE_SCOPE)
             }) {
                 if let Some(parameters) = data.parameters {
-                    for parameter in &arena
+                    for parameter in arena
                         .node_array(crate::TransformNodeArray::new(source, parameters))?
                         .nodes
                     {
@@ -1906,7 +1906,7 @@ fn collect_function_body_declaration_name_events(
         )?;
     }
     for array in arrays {
-        for child in &arena
+        for child in arena
             .node_array(crate::TransformNodeArray::new(source, array))?
             .nodes
         {

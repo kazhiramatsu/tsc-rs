@@ -90,7 +90,7 @@ impl Printer {
                     transformation
                         .arena()
                         .node_array(array)
-                        .map(|array| array.nodes.clone())
+                        .map(|array| array.nodes.to_vec())
                 })
                 .transpose()?
                 .unwrap_or_default();

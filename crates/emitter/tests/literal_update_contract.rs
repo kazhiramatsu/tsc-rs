@@ -561,7 +561,7 @@ impl Updater {
                 let head =
                     self.update_fragment(context, TransformNode::new(source, data.head.unwrap()))?;
                 let spans_array = TransformNodeArray::new(source, data.template_spans.unwrap());
-                let span_ids = context.arena().node_array(spans_array)?.nodes.clone();
+                let span_ids = context.arena().node_array(spans_array)?.nodes.to_vec();
                 let mut spans = Vec::with_capacity(span_ids.len());
                 let mut flags = context.arena().transform_flags(template)
                     | context.arena().transform_flags(head);
@@ -629,7 +629,7 @@ impl Transformer for Updater {
             unreachable!("source file root");
         };
         let statements_array = TransformNodeArray::new(source, file.statements.unwrap());
-        let statement_ids = context.arena().node_array(statements_array)?.nodes.clone();
+        let statement_ids = context.arena().node_array(statements_array)?.nodes.to_vec();
         let mut statements = Vec::with_capacity(statement_ids.len());
         let mut flags = context.arena().transform_flags(root_node);
         for statement_id in statement_ids {

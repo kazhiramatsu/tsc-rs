@@ -2767,7 +2767,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
             .node_array(type_parameters)
             .map_err(|error| self.factory_error(error))?
             .nodes
-            .clone();
+            .to_vec();
         let type_parameter_nodes: Vec<_> = type_parameter_ids
             .into_iter()
             .filter_map(|node| self.arena.node_ref(source, node))
@@ -2791,7 +2791,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
                     .node_array(modifiers)
                     .map_err(|error| self.factory_error(error))?
                     .nodes
-                    .clone();
+                    .to_vec();
                 let mut reused = Vec::new();
                 for modifier in modifier_nodes {
                     if let Some(modifier) = self.arena.node_ref(source, modifier) {
@@ -4231,7 +4231,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
             .node_array(original)
             .map_err(|error| self.factory_error(error))?
             .nodes
-            .clone();
+            .to_vec();
         let mut changed = false;
         let mut nodes = Vec::with_capacity(original_nodes.len());
         for node_id in original_nodes {

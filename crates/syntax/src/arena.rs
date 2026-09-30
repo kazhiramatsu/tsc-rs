@@ -1,5 +1,5 @@
 use crate::for_each_child::{for_each_child, NodeLookup};
-use crate::nodes::{Node, NodeArray, NodeArrayId, NodeData, NodeId};
+use crate::nodes::{Node, NodeArray, NodeArrayId, NodeArrayRecord, NodeData, NodeId};
 use crate::relocate::{collect_node_data_ids, relocate_node_data, remap_node_data_ids};
 use crate::SyntaxKind;
 use tsc_types::{IdentityError, IdentityLease, IdentityRange, IdentitySpace, NodeFlags};
@@ -7,12 +7,17 @@ use tsc_types::{IdentityError, IdentityLease, IdentityRange, IdentitySpace, Node
 #[derive(Clone, Debug, Default)]
 pub struct NodeArena {
     nodes: Vec<Node>,
-    arrays: Vec<NodeArray>,
+    arrays: Vec<NodeArrayRecord>,
+    /// The elements of every array in allocation order: each record's
+    /// `items..items + len` range of this store.
+    array_items: Vec<NodeId>,
     /// tsc Node.transformFlags per node slot, written only on an emit
     /// session's copy of a tree (the emitter's transform-flag classifier and
     /// factory); a parsed arena keeps none, so its node records carry no
     /// field for them. Shorter than `nodes` until a write reaches a slot.
     transform_flags: Vec<i32>,
+    /// tsc NodeArray.transformFlags per array slot, kept like `transform_flags`.
+    array_transform_flags: Vec<i32>,
     /// Program-wide id bases (M4 5.0): tsc nodes are heap objects with
     /// program-unique identity; per-file arenas get the same property
     /// by allocating NodeId/NodeArrayId from a per-file base so a
@@ -29,6 +34,7 @@ impl PartialEq for NodeArena {
         // A lease is an ownership capability, not observable AST content.
         self.nodes == other.nodes
             && self.arrays == other.arrays
+            && self.array_items == other.array_items
             && self.node_base == other.node_base
             && self.array_base == other.array_base
     }
@@ -198,7 +204,7 @@ impl SubtreeCopier {
         for old_id in &self.old_arrays {
             let old_array = old.node_array(*old_id);
             let id = destination.alloc_array(
-                old_array.nodes.clone(),
+                old_array.nodes,
                 shifted_position(old_array.pos, position_delta) as usize,
                 shifted_position(old_array.end, position_delta) as usize,
                 old_array.has_trailing_comma,
@@ -237,8 +243,9 @@ impl SubtreeCopier {
         for old_id in &self.old_arrays {
             let old_index = self.array_index(*old_id);
             let new_id = self.array_map[old_index];
-            let destination_index = destination.array_index(new_id);
-            for node in &mut destination.arrays[destination_index].nodes {
+            let record = &destination.arrays[destination.array_index(new_id)];
+            let items = record.items as usize..(record.items + record.len) as usize;
+            for node in &mut destination.array_items[items] {
                 let index = (node.index() - self.old_node_base) as usize;
                 debug_assert_eq!(self.node_marks[index], self.generation);
                 *node = self.node_map[index];
@@ -324,11 +331,10 @@ impl NodeArena {
         usage.node_bytes += self.nodes.capacity() * std::mem::size_of::<Node>()
             + self.transform_flags.capacity() * std::mem::size_of::<i32>();
         usage.arrays += self.arrays.len();
-        usage.array_bytes += self.arrays.capacity() * std::mem::size_of::<NodeArray>();
-        for array in &self.arrays {
-            usage.array_items += array.nodes.len();
-            usage.array_item_bytes += array.nodes.capacity() * std::mem::size_of::<NodeId>();
-        }
+        usage.array_bytes += self.arrays.capacity() * std::mem::size_of::<NodeArrayRecord>()
+            + self.array_transform_flags.capacity() * std::mem::size_of::<i32>();
+        usage.array_items += self.array_items.len();
+        usage.array_item_bytes += self.array_items.capacity() * std::mem::size_of::<NodeId>();
         for node in &self.nodes {
             *usage.kinds.entry(node.kind).or_default() += 1;
             let mut string = |bytes: usize| {
@@ -398,11 +404,13 @@ impl NodeArena {
     /// Reserve storage for a source of `text_len` bytes before parsing it,
     /// so the node vector does not grow (and move every record) a dozen
     /// times. Ordinary TypeScript produces about one node per five bytes
-    /// and one array per forty; declaration files far fewer, and the unused
-    /// capacity of a large reservation stays untouched memory.
+    /// and one array per forty, with two elements each; declaration files
+    /// far fewer, and the unused capacity of a large reservation stays
+    /// untouched memory.
     pub fn reserve_for_text(&mut self, text_len: usize) {
         self.nodes.reserve(text_len / 5);
         self.arrays.reserve(text_len / 40);
+        self.array_items.reserve(text_len / 20);
     }
 
     pub fn node_base(&self) -> u32 {
@@ -483,7 +491,7 @@ impl NodeArena {
 
     pub fn alloc_array(
         &mut self,
-        nodes: Vec<NodeId>,
+        nodes: &[NodeId],
         pos: usize,
         end: usize,
         has_trailing_comma: bool,
@@ -494,25 +502,29 @@ impl NodeArena {
                 .checked_add(offset)
                 .expect("node-array identity space exhausted"),
         );
-        self.arrays.push(NodeArray {
-            nodes,
+        let items =
+            u32::try_from(self.array_items.len()).expect("node-array item store exceeds u32");
+        let len = u32::try_from(nodes.len()).expect("node array length exceeds u32");
+        self.array_items.extend_from_slice(nodes);
+        self.arrays.push(NodeArrayRecord {
+            items,
+            len,
             pos: pos as u32,
             end: end as u32,
             has_trailing_comma,
             is_missing_list: false,
-            transform_flags: 0,
         });
         id
     }
 
     pub fn empty_array(&mut self, pos: usize) -> NodeArrayId {
-        self.alloc_array(Vec::new(), pos, pos, false)
+        self.alloc_array(&[], pos, pos, false)
     }
 
     /// tsc factory-created arrays that are not parsed list ranges carry
     /// `pos = end = -1`. NodeArray uses unsigned parser offsets, so the
     /// all-ones value is the arena representation of that synthetic span.
-    pub fn alloc_synthetic_array(&mut self, nodes: Vec<NodeId>) -> NodeArrayId {
+    pub fn alloc_synthetic_array(&mut self, nodes: &[NodeId]) -> NodeArrayId {
         self.alloc_array(nodes, u32::MAX as usize, u32::MAX as usize, false)
     }
 
@@ -574,22 +586,52 @@ impl NodeArena {
         &mut self.nodes
     }
 
-    pub fn node_arrays_mut(&mut self) -> &mut [NodeArray] {
-        &mut self.arrays
-    }
-
+    /// The array `id` with its elements.
     #[inline]
-    pub fn node_array(&self, id: NodeArrayId) -> &NodeArray {
-        &self.arrays[self.array_index(id)]
+    pub fn node_array(&self, id: NodeArrayId) -> NodeArray<'_> {
+        let record = &self.arrays[self.array_index(id)];
+        NodeArray {
+            nodes: &self.array_items[record.items as usize..(record.items + record.len) as usize],
+            pos: record.pos,
+            end: record.end,
+            has_trailing_comma: record.has_trailing_comma,
+            is_missing_list: record.is_missing_list,
+        }
     }
 
-    pub fn node_array_mut(&mut self, id: NodeArrayId) -> &mut NodeArray {
+    /// The stored record of `id`, for writing its range and list markers;
+    /// the elements of an array never change after its allocation.
+    pub fn node_array_mut(&mut self, id: NodeArrayId) -> &mut NodeArrayRecord {
         let index = self.array_index(id);
         &mut self.arrays[index]
     }
 
-    pub fn node_arrays(&self) -> &[NodeArray] {
+    pub fn node_arrays(&self) -> &[NodeArrayRecord] {
         &self.arrays
+    }
+
+    /// tsc NodeArray.transformFlags of `id`: none until an emit session writes them.
+    pub fn array_transform_flags(&self, id: NodeArrayId) -> i32 {
+        debug_assert!(self.contains_array(id));
+        self.array_transform_flags
+            .get((id.index() - self.array_base) as usize)
+            .copied()
+            .unwrap_or(0)
+    }
+
+    /// Write tsc NodeArray.transformFlags of `id` (an emit session's copy).
+    pub fn set_array_transform_flags(&mut self, id: NodeArrayId, flags: i32) {
+        debug_assert!(self.contains_array(id));
+        let slot = (id.index() - self.array_base) as usize;
+        if self.array_transform_flags.len() <= slot {
+            self.array_transform_flags.resize(self.arrays.len(), 0);
+        }
+        self.array_transform_flags[slot] = flags;
+    }
+
+    /// Forget every array's transform flags (an emit session's reset).
+    pub fn clear_array_transform_flags(&mut self) {
+        self.array_transform_flags.clear();
     }
 
     pub fn len(&self) -> usize {
@@ -654,10 +696,8 @@ impl NodeArena {
             }
             relocate_node_data(&mut node.data, &relocation)?;
         }
-        for array in &mut self.arrays {
-            for node in &mut array.nodes {
-                relocation.node(node)?;
-            }
+        for node in &mut self.array_items {
+            relocation.node(node)?;
         }
         self.node_base = relocation.new_nodes.start();
         self.array_base = relocation.new_arrays.start();
@@ -977,7 +1017,7 @@ impl NodeLookup for NodeArena {
         self.node(id)
     }
 
-    fn node_array(&self, id: NodeArrayId) -> &NodeArray {
+    fn node_array(&self, id: NodeArrayId) -> NodeArray<'_> {
         self.node_array(id)
     }
 }

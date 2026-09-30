@@ -3527,7 +3527,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             return Ok(None);
         };
         let original = self.array(parameters);
-        let nodes = self.context.arena().node_array(original)?.nodes.clone();
+        let nodes = self.context.arena().node_array(original)?.nodes.to_vec();
         let mut output = Vec::with_capacity(nodes.len());
         for parameter in nodes {
             output.push(self.lower_parameter_default(self.node(parameter))?);

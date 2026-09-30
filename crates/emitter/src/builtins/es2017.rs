@@ -199,7 +199,7 @@ fn source_file_is_effectively_strict(
     else {
         return Ok(false);
     };
-    for statement in &context.arena().node_array(statements)?.nodes {
+    for statement in context.arena().node_array(statements)?.nodes {
         let Some(statement) = context.arena().node_ref(root.source(), *statement) else {
             continue;
         };
@@ -2578,7 +2578,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             return Ok(*mapped);
         }
         let original = self.array(id);
-        let nodes = self.context.arena().node_array(original)?.nodes.clone();
+        let nodes = self.context.arena().node_array(original)?.nodes.to_vec();
         let mut visited = Vec::with_capacity(nodes.len());
         for node in nodes {
             if let Some(node) = self.visit(node)? {

@@ -577,14 +577,14 @@ fn build_fixture_resolver(arena: &TransformArena, source: TransformSourceId) -> 
                 NodeData::Identifier(data) => out.push((data.text().to_owned(), value_declaration)),
                 NodeData::ObjectBindingPattern(pattern) => {
                     if let Some(elements) = pattern.elements {
-                        for element in &syntax.arena.node_array(elements).nodes {
+                        for element in syntax.arena.node_array(elements).nodes {
                             stack.push((*element, *element));
                         }
                     }
                 }
                 NodeData::ArrayBindingPattern(pattern) => {
                     if let Some(elements) = pattern.elements {
-                        for element in &syntax.arena.node_array(elements).nodes {
+                        for element in syntax.arena.node_array(elements).nodes {
                             if binder.kind(*element) != SyntaxKind::OmittedExpression {
                                 stack.push((*element, *element));
                             }

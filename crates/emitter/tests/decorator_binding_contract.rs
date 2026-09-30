@@ -137,7 +137,7 @@ fn root_statements(arena: &TransformArena, source: TransformSourceId) -> Vec<Nod
         ))
         .expect("statements")
         .nodes
-        .clone()
+        .to_vec()
 }
 
 fn declaration_name(

@@ -868,7 +868,7 @@ fn get_module_instance_state_worker(
                     if let NodeData::NamedExports(named) = &source.arena.node(clause).data {
                         let mut state = ModuleInstanceState::NonInstantiated;
                         if let Some(elements) = named.elements {
-                            for &specifier in &source.arena.node_array(elements).nodes {
+                            for &specifier in source.arena.node_array(elements).nodes {
                                 let specifier_state = get_module_instance_state_for_alias_target(
                                     source, specifier, visited,
                                 );
@@ -949,7 +949,7 @@ fn get_module_instance_state_for_alias_target(
         if is_scope {
             if let Some(statements) = statements_of(source, current) {
                 let mut found: Option<ModuleInstanceState> = None;
-                for &statement in &source.arena.node_array(statements).nodes {
+                for &statement in source.arena.node_array(statements).nodes {
                     if crate::node_util::node_has_name(source, statement, name) {
                         let state = get_module_instance_state_cached(source, statement, visited);
                         if found.is_none() || state.raw() > found.unwrap().raw() {

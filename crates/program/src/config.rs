@@ -4304,7 +4304,7 @@ fn config_array_elements(source: &SourceFile, array: NodeId) -> Vec<NodeId> {
         .data
         .as_array_literal_expression()
         .and_then(|array| array.elements)
-        .map(|elements| source.arena.node_array(elements).nodes.clone())
+        .map(|elements| source.arena.node_array(elements).nodes.to_vec())
         .unwrap_or_default()
 }
 
