@@ -65,8 +65,8 @@ pub fn audit_source_file(source: &SourceFile, binder: &tsc_binder::Binder<'_>) -
                         sym.escaped_name.as_str().expect("scalar symbol-audit name"),
                         sym.flags.bits(),
                         sym.declarations.len(),
-                        sorted_keys(&sym.members),
-                        sorted_keys(&sym.exports),
+                        sorted_keys(sym.members()),
+                        sorted_keys(sym.exports()),
                     )
                 }
             }
