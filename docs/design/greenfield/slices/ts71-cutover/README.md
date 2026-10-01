@@ -209,5 +209,65 @@ emitの第2 sessionで従来の784秒から約1.6倍）。errors tierは変更�
   `docs/witness-testing.md`に退役の注記を置いた。
 - `rust` jobが走らせないもの：`crates/compiler/tests/*`（witness suite）、harnessのh1／h2 profile、programと
   conformanceの6.0.3 contract、xtask／fuzz／oracle。P3-3で削除した後に`cargo test --workspace`へ切り替える。
+- hosted記録：PR #616（head `20ac82e4a`、merge `3c82d6e09`）、run 36900968172 — `plan` 32s、`rust` 14m35s、
+  `conformance (TypeScript 7.1)` 22m29s、`gates` 19s、すべて成功。
 
-RUN_RECORD
+## P3-3 削除（2026-10-02）
+
+21,475 file、約1,235万行の削除（挿入1,054行）。残った`6.0.3`の出現は`tsc-port … @6.0.3`のheader、
+本packetを含む歴史記述、release noteの類だけになった（`rg "6\.0\.3" --glob '!docs/**'`で確認）。
+
+### 削除したもの
+
+| 面 | 内容 |
+| --- | --- |
+| 参照profile | `ReferenceProfile`型と`CompilerOptions.reference_profile`、`gen::typescript_6_0_3`（11 message）、6.0.3のlib表（`TYPESCRIPT_6_0_3_LIBRARIES`、`LIB_LIST_DESCRIPTOR`）・`TARGET_VALUES`、`SCRIPT_TARGET_FEATURE_*`の6.0.3表、`LibraryCatalog::typescript_6_0_3`／`for_profile`／`reference_profile`、`CompilerConfigHost::with_reference_profile`、`ConfigParseHost::reference_profile`。各armは7.1の挙動に固定：TS1344／TS5090／TS8030／TS9019は7.1の文面、`resolution-mode`はkeyの探索だけ（TS1463／TS1464／TS1454／TS1455の個数・key検査は消滅）、relation headの抑止は常時、`stableTypeOrdering`の既定はtrue、既定targetはES2026。transpile経路も7.1 catalog |
+| `vendor/typescript-6.0.3`、`vendor/PIN.md` | 66 MB。`tsc-port … @6.0.3`のheaderはtag `v0.1.0`の`vendor/typescript-6.0.3/lib/_tsc.js`を指す（CLAUDE.md「Retired tooling」に注記） |
+| `crates/oracle`、`crates/fuzz` | workspace memberから除去（fuzzは6.0.3 oracleとの差分fuzzer） |
+| `crates/xtask` | `codegen diagnostics`／`diagnostics-check`だけを残した（`diagnostics_codegen.rs`、legacy entryの生成なし）。nodes／enums／scanner codegenは入力（6.0.3の`typescript.d.ts`／`_tsc.js`）が消えたので削除し、生成済みsourceは手保守。`workspace sync`／`readme-status`もCI退役で削除（Cargo.tomlのprofile blockは手保守） |
+| `crates/conformance` | `ts71.rs`とそのbinだけ。旧runner（families／goldens_diff／h0_memory／host_resolution／identity／ratchet／rendered／scope／shadow_diff）、`identity-vectors-v1.json`、依存（oracle／checker／host／toml_edit／zstd） |
+| `crates/harness` | native（7.x）経路だけ：`upstream_suites.rs`は`OrderedSetting`／`CompilerLink`／`SourceEncoding`／`decode_source`に、`compiler.rs`は`makeUnitsFromTest`と directive scanに縮小。`execution.rs`から6.0.3 corpus（manifest／SourceCache／`load_compiler_no_emit`／emit floor／qualified emit／project suite）を削除し、`EmitOptionFloor`を廃して全directiveを無条件に投影（`load_native_compiler_program`が唯一の入口）。`lib.rs`のProgramJson（oracle driver入力）削除。h1／h2 integration test、`ratchets/pins`依存のtest削除 |
+| `ratchets/` | `ts71/`以外（292 MB）。`pins/`、`goldens/`、`.github/ci/contracts`も |
+| `ts-tests/` | 53 MB |
+| `scripts/` | `conformance_ts71*.py`、`typescript7.py`、`vendor_typescript_native.py`、`benchmark-cli.py`（＋test）以外の全script（observe／check／witness／walk／pin等） |
+| 6.0.3観測との比較test | `crates/compiler/tests/fixtures`（114 MB）と、それを読むcompiler test（top-level 32 file、integration 108 file）；programの`config_diagnostics_oracle_contract`／`h2_7d_bundle_source_facts`、node経由で6.0.3 bundleを呼ぶ`#[ignore]` test 5件；checkerの`emit`（H1 active-transform oracle、H2.5h foundation replay）・`node_builder_statements`／`syntactic_type_node_builder`のcompiler fixture test、`ts603_profile_*`；emitterの`active_transform_contract`／`printer_oracle_contract`／`declaration_printer_reprint_contract`／`comment_scope_witness_contract`／`comma_argument_factory_contract`、`helpers`（`_tsc.js`との文面照合）、source_mapのwitness replay、builtinsのcompiler fixture test；syntaxの`emitter-context-recovery`検査；CLI contractのtsc 6.0.3 parity test（`run_typescript`経由）とemit sessionのowner-controls test；参照されなくなったfixture 14 file |
+| docs | `docs/witness-testing.md`削除、`docs/setup.md`を現行手順に書き直し、`docs/verification-status.md`の注記、`ratchets/README.md`、README（「Reference」節、`--version`、API、Run CI、limitations）、CLAUDE.md（intro、quick reference、Retired tooling） |
+
+### 残したもの（判断基準）
+
+削除したassetに依存しないtestは、6.0.3の観測を記録したfixture（`crates/emitter/tests/fixtures`、
+`crates/syntax/tests/fixtures`、programの`h2-8b-*`、checkerの`tests/fixtures`）を読むものも含めて残した。
+それらは今の出力に対するregression testとして通っており、7.1への追随で期待値が変わる時点で個別に更新・削除する。
+適応したtest：`LibraryCatalog::typescript_6_0_3` → `typescript_7_1`（program contract 36箇所、compiler 3箇所）、
+`ts-tests`／`vendor/typescript-6.0.3/lib`のpathをnative profileの同一内容のfileへ（checker unit 10箇所、
+`preserve_symlinks_session_contract`）、`typescript_library_catalog_contract`はnative corpusの`mergeTwoInterfaces.ts`で
+7.1 closure（ES2026 90、es2025 82、es2015 19、es5+dom 15）を検査、`config_option_catalog_contract`は7.1の`LibMap`
+（115 entry）を検査。tsgoで再pinしたもの：`import_type_with_form_reports_only_the_resolution_row`（`with: {}`にTS1464なし）、
+`jsdoc_import_tag_bare_with_reports_only_the_parser_diagnostic`（TS1463／1464なし、parserのTS1005のみ）。
+P3-5へ送った差：import typeの`assert`形のTS2880は7.1ではparserが`assert` keyword（tsgo `a.ts(1,33)`、長さ6）に
+報告する（`parser.go` `parseImportType`、import／export declarationも同様に`tryParseImportAttributes`／
+`parseExportDeclaration`）が、tsc-rsはcheckerが6.0の位置（value側、`ignoreDeprecations`で抑止）に報告する。
+TS2880 classの移行時にparserへ移し、checkerの3 site（`check.rs` import type、`modules.rs` declaration、
+`calls.rs` import call＝tsgoは`checkImportCallExpression`で`assert` property名）を揃える。
+
+### CI
+
+`rust` jobは`cargo fmt --all -- --check`、`cargo clippy --workspace --all-targets -- -D warnings`、
+`cargo test --workspace`、`cargo xtask codegen diagnostics-check`になった（`.github/ci/replay.py`）。
+harness crateに`[lints] workspace = true`を足した（`iter_over_hash_type`に合わせてsymlink alias列挙をsort順に）。
+
+### 検証（local、最終bytes）
+
+- `cargo fmt --all -- --check`、`cargo clippy --workspace --all-targets -- -D warnings`：clean。
+- `cargo test --workspace --no-fail-fast`：70 target、3,613 passed、0 failed、0 ignored（node経由の`#[ignore]`
+  oracle auditは削除済み）。checker unit 1,774、syntax 216、program 60（lib）＋500（contracts）、
+  compiler 23（lib）＋143（contracts）。
+- `cargo xtask codegen diagnostics-check`：`gen.rs`は生成器の出力と一致（legacy module削除後）。
+- `python3 -m unittest discover -s .github/ci -p test_replay.py`：6 tests。`git diff --check`：clean。
+  READMEのanchorと変更docsの相対linkを検査。
+- 速度・peak memory（qbench、3 round、`nice -n 20`、`--noEmit`、median wall ms／peak RSS MiB、tsgo比）：
+  hono 121.8（283）／154.9（325）0.79、zod 532.1（1,297）／896.1（1,793）0.59、Playwright 362.8（786）／560.9（1,037）0.65、
+  TypeScript `src/compiler` 341.6（291）／345.2（408）0.99、Next.js 770.6（1,325）／1,344.5（1,636）0.57、
+  Effect 533.5（1,037）／798.6（1,203）0.67、VS Code 3,477（5,477）／4,563（7,002）0.76。#615の比（0.76／0.57／0.61／
+  0.95／0.59／0.70／0.75）と差はrun間のばらつきの範囲で、退行なし（P3-3が消したのはcold branchだけ）。
+- hosted：本PRの`plan`／`rust`（`cargo test --workspace`）／`conformance (TypeScript 7.1)`／`gates`。

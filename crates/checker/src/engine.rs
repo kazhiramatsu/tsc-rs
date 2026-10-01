@@ -19,8 +19,7 @@ use tsc_diagnostics::{
 };
 use tsc_types::{
     ConditionalRootId, EscapedName, ExpandingFlags, IntersectionState, ObjectFlags, RecursionFlags,
-    ReferenceProfile, RelationComparisonResult, SymbolFlags, Ternary, TypeData, TypeFlags, TypeId,
-    UnionReduction,
+    RelationComparisonResult, SymbolFlags, Ternary, TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
 use tsc_syntax::NodeId;
@@ -2200,12 +2199,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             });
         }
         let message = message.expect("relation error has a selected head");
-        if self.st.options.reference_profile == ReferenceProfile::TypeScript71
-            && self.chain_head_suppresses_relation_head(
-                message,
-                &generalized_source_text,
-                &target_text,
-            )
+        if self.chain_head_suppresses_relation_head(message, &generalized_source_text, &target_text)
         {
             return Ok(());
         }
@@ -2399,8 +2393,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         // rows before this head.
         let defer_generic_head = head_message.is_none()
             && maybe_suppress
-            && (self.st.options.reference_profile == ReferenceProfile::TypeScript603
-                || !self.error_state.incompatible_stack.is_empty());
+            && !self.error_state.incompatible_stack.is_empty();
         if defer_generic_head {
             let saved_error_state = self.capture_error_calculation_state();
             self.report_relation_error(None, source, target)?;

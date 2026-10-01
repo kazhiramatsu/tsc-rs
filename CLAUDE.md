@@ -2,12 +2,11 @@
 
 A Rust port of the TypeScript compiler. Its reference is TypeScript 7.1 (the
 native compiler, `tsgo`, at the vendored commit); the tsc 6.0.3 line ended
-with release v0.1.0 (tag `v0.1.0`, branch `release/6.0.3`). The Oxc-style
-virtual Cargo workspace at the repository root is the only codebase: `Cargo.toml`
-owns the members under `crates/`, each member has its own `src/`, and no
-top-level `src/` exists. The paused v1 codebase is preserved at tag
-`v1-final` (check out that tag to resume it; `scripts/bootstrap.sh` there
-rebuilds its corpus/oracle).
+with release v0.1.0 (tag `v0.1.0`, branch `release/6.0.3`), and `main` keeps
+no 6.0.3 code, record, oracle or test. The Oxc-style virtual Cargo workspace
+at the repository root is the only codebase: `Cargo.toml` owns the members
+under `crates/`, each member has its own `src/`, and no top-level `src/`
+exists. The paused v1 codebase is preserved at tag `v1-final`.
 
 The emitter was completed in
 [PR #561](https://github.com/kazhiramatsu/tsc-rs/pull/561) (2026-09-21).
@@ -24,9 +23,8 @@ the planned follow-on work and links its packets. The completed H1/H2 slice
 packets and the M-stage guides are historical records of how the port was
 qualified, not instructions for new work.
 
-The TypeScript 7.1 ratchet lives in `ratchets/ts71/`; the other `ratchets/`
-artifacts are retired tsc 6.0.3 records that P3-3 of the cutover removes.
-Keep new project-specific generated data out of the repository root.
+The TypeScript 7.1 ratchet lives in `ratchets/ts71/`. Keep new
+project-specific generated data out of the repository root.
 
 ## Current verification policy
 
@@ -159,18 +157,26 @@ independent task, not merely an available agent slot.
   consistent priority setting; demoted development timings are not benchmark
   results. Never raise a performance ceiling to compensate for interference.
 - The local equivalents of the hosted jobs are `python3 .github/ci/replay.py
-  rust` and, after `cargo build --release -p tsc-rs-conformance --bin
-  conformance-ts71`, `python3 scripts/conformance_ts71.py --workers 4
-  --check`; the README's "Run CI" section describes both.
+  rust` (formatting, Clippy, `cargo test --workspace`, `cargo xtask codegen
+  diagnostics-check`) and, after `cargo build --release -p
+  tsc-rs-conformance --bin conformance-ts71`, `python3
+  scripts/conformance_ts71.py --workers 4 --check`; the README's "Run CI"
+  section describes both.
+- `cargo xtask codegen diagnostics` regenerates `crates/diagnostics/src/gen.rs`
+  from the vendored 7.1 `diagnosticMessages.json`; it is the only xtask
+  command. The other generated sources (syntax nodes, enums, scanner tables)
+  are hand-maintained since their 6.0.3 inputs left the tree.
 
 ## Retired tooling
 
-The tsc 6.0.3-era tools (`cargo xtask acceptance`, `conformance`, `ratchet`,
-`escapes`, `ledger`, `slice-evidence`, `completion`, the H0–H2 and L0/L1
-qualification commands, `crates/oracle/*.mjs`, `ratchets/` outside `ts71/`,
-`scripts/witness.py` and the witness suites, `ts-tests/`) are retired with
-the TypeScript 7.1 cutover. They stay in the tree only until P3-3 of the
-[cutover packet](docs/design/greenfield/slices/ts71-cutover/README.md)
-deletes them, are not maintained, and are never a merge prerequisite or
-current evidence; their last maintained state is tag `v0.1.0` (branch
-`release/6.0.3`).
+The tsc 6.0.3-era tools (the `xtask` acceptance, conformance, ratchet,
+escapes, ledger, slice-evidence, completion and H0–H2/L0/L1 qualification
+commands, `crates/oracle`, `crates/fuzz`, `ratchets/` outside `ts71/`,
+`scripts/witness.py` and the witness suites, `ts-tests/`,
+`vendor/typescript-6.0.3` and the tests that compared with tsc 6.0.3
+observations) were deleted by P3-3 of the
+[cutover packet](docs/design/greenfield/slices/ts71-cutover/README.md).
+Their last maintained state is tag `v0.1.0` (branch `release/6.0.3`); the
+`tsc-port … @6.0.3` headers in the sources cite spans of that tag's
+`vendor/typescript-6.0.3/lib/_tsc.js`. Historical slice packets under
+`docs/design/` describe them as they were; they are not instructions.

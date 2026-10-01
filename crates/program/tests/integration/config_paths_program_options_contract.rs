@@ -512,7 +512,13 @@ fn paths_diagnostic_locations_follow_root_syntax_fallback_and_compacted_indices(
         panic!("one compacted substitution diagnostic expected")
     };
     assert_eq!(diagnostic.code(), 5090);
-    assert_eq!(diagnostic.message_text().as_str().expect("scalar diagnostic observation"), "Non-relative paths are not allowed when 'baseUrl' is not set. Did you forget a leading './'?");
+    assert_eq!(
+        diagnostic
+            .message_text()
+            .as_str()
+            .expect("scalar diagnostic observation"),
+        "Non-relative paths are not allowed. Did you forget a leading './'?"
+    );
     assert_eq!(diagnostic.start, Some(text.find("missing").unwrap() as u32));
     assert_eq!(diagnostic.length, Some("missing".len() as u32));
 

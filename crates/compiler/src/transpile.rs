@@ -24,7 +24,7 @@ use tsc_host::MemoryCompilerHost;
 use tsc_program::{
     compiler_option_declaration, compiler_option_named_choices, load_emitting_program,
     CompilerOptionValueKind, CompilerOptions, LibraryCatalog, ProgramLoadError, ProgramLoadLimits,
-    ProgramOptions, ReferenceProfile,
+    ProgramOptions,
 };
 
 use crate::{DriverError, NoEmitWorkCounters, ProgramSession, SourceApiFacts};
@@ -331,10 +331,7 @@ fn transpile_worker(
         &[PathBuf::from(&root_path)],
         options.clone(),
         program_options,
-        // The transpile routes are verified against frozen tsc 6.0.3
-        // `transpileModule`/`transpileDeclaration` observations; they keep
-        // the 6.0.3 reference profile until those are re-observed.
-        &LibraryCatalog::typescript_6_0_3(VIRTUAL_LIB_DIRECTORY),
+        &LibraryCatalog::typescript_7_1(VIRTUAL_LIB_DIRECTORY),
         ProgramLoadLimits::new(4, 64, 4, 64 * 1024 * 1024, 64 * 1024 * 1024),
     )
     .map_err(|error| TranspileError::Program(Box::new(error)))?;
@@ -540,8 +537,7 @@ pub fn fixup_compiler_options(
 /// tsc-hash: 0330bc27d0b2048dfce2f80180bea27e78fe227e4058973da720817d033fcde3
 /// tsc-span: typescript.js:42338-42340
 fn invalid_custom_type(name: &str) -> Diagnostic {
-    let choices =
-        compiler_option_named_choices(ReferenceProfile::TypeScript603, name).unwrap_or_default();
+    let choices = compiler_option_named_choices(name).unwrap_or_default();
     Diagnostic::new(
         None,
         None,

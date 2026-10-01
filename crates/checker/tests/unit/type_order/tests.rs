@@ -181,35 +181,3 @@ fn stable_type_ordering_sorts_the_typeof_union() {
         );
     }
 }
-
-/// The tsc 6.0.3 reference profile keeps the creation order unless the
-/// option is set; tsc-rs's own profile orders by content unless it is set to
-/// false.
-#[test]
-fn reference_profile_selects_the_default_type_order() {
-    use tsc_types::ReferenceProfile;
-    let files = [InputFile::new(
-        "/main.ts",
-        "declare const value: unknown\nconst t: never = typeof value\n",
-    )];
-    let libs = [focused_default_library()];
-    let run = |profile: ReferenceProfile, stable_type_ordering: Option<bool>| {
-        let options = CompilerOptions {
-            strict: Some(true),
-            stable_type_ordering,
-            reference_profile: profile,
-            ..CompilerOptions::default()
-        };
-        messages(&check_program_with_libs_at(&libs, &files, &options, "/"))
-    };
-    let creation = "Type '\"string\" | \"number\" | \"bigint\" | \"boolean\" | \"symbol\" | \"undefined\" | \"object\" | \"function\"' is not assignable to type 'never'.";
-    let content = "Type '\"bigint\" | \"boolean\" | \"function\" | \"number\" | \"object\" | \"string\" | \"symbol\" | \"undefined\"' is not assignable to type 'never'.";
-    assert_eq!(run(ReferenceProfile::TypeScript603, None), [creation]);
-    assert_eq!(run(ReferenceProfile::TypeScript603, Some(true)), [content]);
-    assert_eq!(run(ReferenceProfile::TypeScript71, None), [content]);
-    assert_eq!(run(ReferenceProfile::TypeScript71, Some(false)), [creation]);
-    assert_eq!(
-        CompilerOptions::default().reference_profile,
-        ReferenceProfile::TypeScript71
-    );
-}

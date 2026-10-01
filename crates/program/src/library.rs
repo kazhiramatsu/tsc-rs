@@ -3,8 +3,6 @@ use std::path::{Path, PathBuf};
 use tsc_host::to_file_name_lower_case;
 use tsc_types::CompilerOptions;
 
-use tsc_types::ReferenceProfile;
-
 use crate::config_options::{libraries, library_value, CompilerOptionNamedStringValue};
 use crate::path::ProgramPath;
 
@@ -37,43 +35,23 @@ pub(crate) fn replacement_package_name(lib_file_name: &str) -> String {
 ///
 /// The catalog owns metadata only. Library bytes still come from the caller's
 /// [`tsc_host::CompilerHost`], so memory and filesystem hosts observe the same
-/// read, decode, lexical-identity, and failure contracts. The catalog also
-/// fixes the Program's [`ReferenceProfile`]: a Program that loads TypeScript
-/// 7.1's libraries follows 7.1's defaults, one that loads tsc 6.0.3's follows
-/// 6.0.3's.
+/// read, decode, lexical-identity, and failure contracts. The entries are
+/// TypeScript 7.1's `LibMap` (`tsc/internal/bundled/libs` at the vendored
+/// native profile).
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LibraryCatalog {
     directory: PathBuf,
-    profile: ReferenceProfile,
 }
 
 impl LibraryCatalog {
-    /// Construct the exact catalog shipped by the vendored TypeScript 6.0.3
-    /// (`vendor/typescript-6.0.3/lib`).
+    /// Construct the catalog TypeScript 7.1 embeds (`tsc/internal/bundled/libs`
+    /// at the vendored native profile).
     ///
     /// `directory` is injected by the embedding application instead of being
     /// inferred from the process executable or a global installation.
-    pub fn typescript_6_0_3(directory: impl Into<PathBuf>) -> Self {
-        Self {
-            directory: directory.into(),
-            profile: ReferenceProfile::TypeScript603,
-        }
-    }
-
-    /// Construct the catalog TypeScript 7.1 embeds (`tsc/internal/bundled/libs`
-    /// at the vendored native profile), tsc-rs's own catalog.
     pub fn typescript_7_1(directory: impl Into<PathBuf>) -> Self {
         Self {
             directory: directory.into(),
-            profile: ReferenceProfile::TypeScript71,
-        }
-    }
-
-    /// The catalog of `profile` at `directory`.
-    pub fn for_profile(profile: ReferenceProfile, directory: impl Into<PathBuf>) -> Self {
-        match profile {
-            ReferenceProfile::TypeScript603 => Self::typescript_6_0_3(directory),
-            ReferenceProfile::TypeScript71 => Self::typescript_7_1(directory),
         }
     }
 
@@ -81,14 +59,9 @@ impl LibraryCatalog {
         &self.directory
     }
 
-    /// The reference profile the catalog's libraries belong to.
-    pub const fn reference_profile(&self) -> ReferenceProfile {
-        self.profile
-    }
-
     /// The catalog's `libMap` entries in insertion order.
     pub const fn entries(&self) -> &'static [CompilerOptionNamedStringValue] {
-        libraries(self.profile)
+        libraries()
     }
 
     pub const fn logical_entry_count(&self) -> usize {
@@ -98,10 +71,7 @@ impl LibraryCatalog {
     /// The number of distinct files the entries name (several aliases share
     /// a file).
     pub const fn distinct_file_count(&self) -> usize {
-        match self.profile {
-            ReferenceProfile::TypeScript603 => 95,
-            ReferenceProfile::TypeScript71 => 99,
-        }
+        99
     }
 
     /// Resolve one raw `compilerOptions.lib` key.
@@ -113,7 +83,7 @@ impl LibraryCatalog {
         if value != to_file_name_lower_case(value) {
             return None;
         }
-        library_value(self.profile, value)
+        library_value(value)
     }
 
     /// Resolve the exact spelling admitted by `/// <reference lib="...">`.
@@ -125,7 +95,7 @@ impl LibraryCatalog {
         let value = value.into();
         let value = value.as_str()?;
         let normalized = to_file_name_lower_case(value);
-        library_value(self.profile, &normalized)
+        library_value(&normalized)
     }
 
     /// Return whether `file_name` is an exact basename owned by the pinned
@@ -146,12 +116,12 @@ impl LibraryCatalog {
                 | "lib.es2023.full.d.ts"
                 | "lib.es2024.full.d.ts"
                 | "lib.es2025.full.d.ts"
+                | "lib.es2026.full.d.ts"
                 | "lib.esnext.full.d.ts"
-        ) || (file_name == "lib.es2026.full.d.ts" && self.profile == ReferenceProfile::TypeScript71)
-            || self
-                .entries()
-                .iter()
-                .any(|entry| entry.value() == file_name)
+        ) || self
+            .entries()
+            .iter()
+            .any(|entry| entry.value() == file_name)
     }
 
     /// TypeScript's target-selected default library, including the ES2015
@@ -160,15 +130,10 @@ impl LibraryCatalog {
     /// tsc-port: targetToLibMap/getDefaultLibFileName @6.0.3
     /// tsc-hash: 7bb778cf3aca481496de2c0e1a073621a04f7f9cdcadd4ba837c16bd94544422
     /// tsc-span: _tsc.js:11240-11274
-    /// TypeScript 7.1 (`tsoptions/enummaps.go` targetToLibMap) adds ES2026.
-    /// An absent target is the catalog's profile's default, which is also
-    /// what the loader stamps on the Program's options.
+    /// TypeScript 7.1 (`tsoptions/enummaps.go` targetToLibMap) adds ES2026,
+    /// which is also the default of an absent target.
     pub fn default_file_name(&self, options: &CompilerOptions) -> &'static str {
-        let target = match options.target {
-            Some(target) if target != tsc_types::ScriptTarget::ES3.bits() => target,
-            _ => self.profile.default_script_target().bits(),
-        };
-        match target {
+        match options.emit_script_target().bits() {
             99 => "lib.esnext.full.d.ts",
             13 => "lib.es2026.full.d.ts",
             12 => "lib.es2025.full.d.ts",

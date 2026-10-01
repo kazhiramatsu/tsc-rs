@@ -15021,7 +15021,7 @@
             "file": "/project/tsconfig.json",
             "start": 151,
             "length": 6,
-            "message": "Non-relative paths are not allowed when 'baseUrl' is not set. Did you forget a leading './'?",
+            "message": "Non-relative paths are not allowed. Did you forget a leading './'?",
             "related_information": []
           },
           {
@@ -15039,7 +15039,7 @@
             "file": "/project/tsconfig.json",
             "start": 158,
             "length": 5,
-            "message": "Non-relative paths are not allowed when 'baseUrl' is not set. Did you forget a leading './'?",
+            "message": "Non-relative paths are not allowed. Did you forget a leading './'?",
             "related_information": []
           },
           {

@@ -130,10 +130,11 @@ pub use config_host::CompilerConfigHost;
 pub use config_matcher::ConfigFilePattern;
 pub use config_options::{
     compiler_option_declaration, compiler_option_declarations, compiler_option_spelling_suggestion,
-    is_command_option_without_build, jsconfig_defaults, typescript_6_0_3_libraries,
-    CompilerOptionDeclaration, CompilerOptionListDescriptor, CompilerOptionListElementKind,
-    CompilerOptionNamedStringValue, CompilerOptionNamedValue, CompilerOptionObjectDescriptor,
-    CompilerOptionValueKind, JsConfigDefaultValue, COMPILER_OPTION_DECLARATIONS, JSCONFIG_DEFAULTS,
+    is_command_option_without_build, jsconfig_defaults, CompilerOptionDeclaration,
+    CompilerOptionListDescriptor, CompilerOptionListElementKind, CompilerOptionNamedStringValue,
+    CompilerOptionNamedValue, CompilerOptionObjectDescriptor, CompilerOptionValueKind,
+    JsConfigDefaultValue, COMPILER_OPTION_DECLARATIONS, JSCONFIG_DEFAULTS,
+    TYPESCRIPT_7_1_LIBRARIES,
 };
 pub use error::{PreparationError, PreparationErrorKind, PreparationOperation};
 pub use js_string_ops::{replace_all_stars_value, replace_first_star_value};
@@ -189,7 +190,7 @@ pub use resolution_cache::{
 };
 pub use symlinks::{discover_symlink_facts, SymlinkFacts};
 pub use text::{decode_host_text, HostTextDecodeError, HostTextEncoding};
-pub use tsc_types::{CompilerOptionNumber, CompilerOptions, ModuleSuffix, ReferenceProfile};
+pub use tsc_types::{CompilerOptionNumber, CompilerOptions, ModuleSuffix};
 pub use workers::{
     run_thread_start_hook, set_thread_start_hook, WorkerBudget, MAX_WORKERS, WORKER_STACK_BYTES,
 };

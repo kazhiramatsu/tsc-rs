@@ -6,22 +6,16 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
+/// The workspace root: the nearest ancestor of the current directory that
+/// holds the vendored native TypeScript profiles.
 pub(crate) fn find_workspace_root() -> Result<PathBuf, Box<dyn Error>> {
     let cwd = std::env::current_dir()?;
     for dir in cwd.ancestors() {
-        if dir.join("vendor/typescript-6.0.3/lib/_tsc.js").is_file() {
+        if dir.join("Cargo.toml").is_file() && dir.join("vendor/typescript-native").is_dir() {
             return Ok(dir.to_owned());
         }
-
-        for workspace_name in ["tsc-rs", "tsrs2"] {
-            let nested = dir.join(workspace_name);
-            if nested.join("vendor/typescript-6.0.3/lib/_tsc.js").is_file() {
-                return Ok(nested);
-            }
-        }
     }
-
-    Err("could not find tsc-rs workspace root".into())
+    Err("could not find the tsc-rs workspace root".into())
 }
 
 pub(crate) fn write_generated(path: &Path, text: &str, check: bool) -> Result<(), Box<dyn Error>> {
@@ -60,29 +54,4 @@ pub(crate) fn rustfmt_text(text: &str) -> Result<String, Box<dyn Error>> {
     }
 
     Ok(String::from_utf8(output.stdout)?)
-}
-
-pub(crate) fn strip_line_comment(line: &str) -> String {
-    let mut quoted = false;
-    let mut escaped = false;
-    let mut prev = '\0';
-
-    for (idx, ch) in line.char_indices() {
-        if quoted {
-            if escaped {
-                escaped = false;
-            } else if ch == '\\' {
-                escaped = true;
-            } else if ch == '"' {
-                quoted = false;
-            }
-        } else if ch == '"' {
-            quoted = true;
-        } else if prev == '/' && ch == '/' {
-            return line[..idx - 1].to_owned();
-        }
-        prev = ch;
-    }
-
-    line.to_owned()
 }

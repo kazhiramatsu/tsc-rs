@@ -1,8 +1,6 @@
 use tsc_binder::node_util;
 use tsc_syntax::{NodeData, SyntaxKind};
-use tsc_types::{
-    CompilerOptions, ObjectFlags, ReferenceProfile, ScriptTarget, SymbolFlags, TypeData, TypeFlags,
-};
+use tsc_types::{CompilerOptions, ObjectFlags, ScriptTarget, SymbolFlags, TypeData, TypeFlags};
 
 use crate::state::test_support::{with_program_state, with_program_state_allow_parse_diagnostics};
 use crate::state::CheckerState;
@@ -959,7 +957,7 @@ fn jsdoc_typedef_duplicate_type_preserves_explicit_type_sibling() {
 fn jsdoc_callback_overload_and_nested_property_report_8039() {
     let fixture = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../ts-tests/tests/cases/conformance/jsdoc/templateInsideCallback.ts"
+        "/../../vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/testdata/tests/cases/conformance/jsdoc/templateInsideCallback.ts"
     ));
     let text = fixture
         .split_once("// @filename: templateInsideCallback.js\n")
@@ -1026,7 +1024,7 @@ fn jsdoc_callback_overload_and_nested_property_report_8039() {
 fn jsdoc_invalid_template_preserves_frozen_overload_sibling() {
     let fixture = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../ts-tests/tests/cases/conformance/jsdoc/overloadTag2.ts"
+        "/../../vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/testdata/tests/cases/conformance/jsdoc/overloadTag2.ts"
     ));
     let text = fixture
         .split_once("// @filename: overloadTag2.js\n")
@@ -2737,25 +2735,27 @@ fn jsdoc_accessibility_rejects_non_attached_and_non_tag_comments() {
     );
 }
 
+/// TypeScript 7.1 only looks the `resolution-mode` key up (tsgo reports
+/// no TS1463/TS1464 for the bare `with`); the parser's TS1005 is the
+/// diagnostic of this input.
 #[test]
-fn jsdoc_import_tag_bare_with_reports_parser_and_checker_diagnostics() {
-    // TS1464 (the resolution-mode key count) is a tsc 6.0.3 rule; the
-    // 7.1 profile only looks the key up.
+fn jsdoc_import_tag_bare_with_reports_only_the_parser_diagnostic() {
     let options = CompilerOptions {
         allow_js: true,
         check_js: Some(true),
-        reference_profile: ReferenceProfile::TypeScript603,
         ..CompilerOptions::default()
     };
     let text = "/** @import * as f from \"./foo\" with */";
     with_program_state(&[("a.js", text)], &options, |state| {
         state.check_source_file(0);
-        let diagnostic = state
-            .diagnostics
-            .iter()
-            .find(|diagnostic| diagnostic.code() == 1464)
-            .expect("TS1464");
-        assert_eq!((diagnostic.start, diagnostic.length), (Some(32), Some(4)));
+        assert!(
+            state
+                .diagnostics
+                .iter()
+                .all(|diagnostic| !matches!(diagnostic.code(), 1463 | 1464)),
+            "{:?}",
+            state.diagnostics
+        );
         let diagnostic = state
             .binder
             .source(0)
@@ -9467,24 +9467,6 @@ fn ts71_profile_reports_missing_property_rows_in_place_of_relation_heads() {
     );
 }
 
-#[test]
-fn ts603_profile_keeps_relation_heads_above_missing_property_rows() {
-    let options = CompilerOptions {
-        reference_profile: ReferenceProfile::TypeScript603,
-        ..CompilerOptions::default()
-    };
-    assert_eq!(
-        checked_chain_codes_with(RELATION_HEAD_FIXTURE, &options),
-        [
-            vec![2345, 2741],
-            vec![2345, 2741],
-            vec![2345, 2739],
-            vec![1360, 2741],
-            vec![2344, 2741],
-        ]
-    );
-}
-
 /// The 7.1 rule compares the row's arguments with the head's faces: a
 /// row that names another pair (the apparent `{}` of `object`) leaves
 /// the generic head in place, and the conversion and
@@ -9508,10 +9490,9 @@ fn ts71_profile_keeps_heads_whose_detail_names_another_pair_or_an_implementation
     );
 }
 
-/// The readonly-versus-mutable row (4104) replaces the argument head
-/// under 7.1 and stays beneath it under 6.0.3.
+/// The readonly-versus-mutable row (4104) replaces the argument head.
 #[test]
-fn readonly_tuple_argument_row_replaces_the_argument_head_only_under_ts71() {
+fn readonly_tuple_argument_row_replaces_the_argument_head() {
     let text = "interface Array<T> { length: number; [n: number]: T; }\n\
          interface ReadonlyArray<T> { readonly length: number; readonly [n: number]: T; }\n\
          declare function f(x: [number, number]): void;\n\
@@ -9522,9 +9503,4 @@ fn readonly_tuple_argument_row_replaces_the_argument_head_only_under_ts71() {
         checked_diags(text)[0].3,
         "The type 'readonly [3, 4]' is 'readonly' and cannot be assigned to the mutable type '[number, number]'."
     );
-    let options = CompilerOptions {
-        reference_profile: ReferenceProfile::TypeScript603,
-        ..CompilerOptions::default()
-    };
-    assert_eq!(checked_chain_codes_with(text, &options), [vec![2345, 4104]]);
 }

@@ -46,43 +46,6 @@ fn slashes(path: JsStr<'_>) -> JsString {
         .collect()
 }
 
-pub(super) fn normalize_virtual(base: JsStr<'_>, path: JsStr<'_>) -> Result<JsString, String> {
-    let path = slashes(path);
-    let combined = if path.starts_with("/") {
-        path
-    } else {
-        join(base, path.as_js())
-    };
-    // The scalar corpus normalizer flips separators after joining the base,
-    // too. Preserve that order for virtual JS queries.
-    let combined = slashes(combined.as_js());
-    if combined.contains("\0") {
-        return Err(format!("virtual path contains NUL: {combined:?}"));
-    }
-    if !combined.starts_with("/") {
-        return Err(format!("virtual path is not absolute: {combined:?}"));
-    }
-    let mut parts = Vec::new();
-    for part in combined.as_js().split_ascii(b'/') {
-        if part.is_empty() || part == "." {
-            continue;
-        }
-        if part == ".." {
-            parts.pop();
-        } else {
-            parts.push(part);
-        }
-    }
-    let mut result = JsString::from("/");
-    for (index, part) in parts.into_iter().enumerate() {
-        if index != 0 {
-            result.push_str("/");
-        }
-        result.push_js(part);
-    }
-    Ok(result)
-}
-
 fn root_parts(path: JsStr<'_>) -> Option<(JsStr<'_>, JsStr<'_>)> {
     if let Some(tail) = path.strip_prefix("//") {
         return match tail.as_bytes().iter().position(|byte| *byte == b'/') {
@@ -402,7 +365,3 @@ pub(super) fn scalar_json_observation(
         }
     })
 }
-
-#[cfg(test)]
-#[path = "../../../tests/unit/upstream_suites/execution/js_paths/tests.rs"]
-mod tests;

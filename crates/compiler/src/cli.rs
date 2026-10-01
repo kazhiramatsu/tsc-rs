@@ -46,10 +46,10 @@ const EXIT_COMMAND_LINE: i32 = 1;
 const EXIT_DIAGNOSTIC: i32 = 2;
 const EXIT_FAILURE: i32 = 2;
 const CONFIG_FILE_NAME: &str = "tsconfig.json";
-const TYPESCRIPT_VERSION: &str = "6.0.3";
 /// The vendored TypeScript profile whose standard libraries the executable
-/// embeds and whose behavior it follows (see `tsc_types::ReferenceProfile`).
+/// embeds and whose behavior it follows; `--version` reports it.
 const EMBEDDED_LIBRARY_PROFILE: &str = "7.1.0-dev-19dadef8";
+const TYPESCRIPT_VERSION: &str = EMBEDDED_LIBRARY_PROFILE;
 type DiagnosticSourceMap = BTreeMap<JsString, Arc<TextSnapshot>>;
 const DEFAULT_LIMITS: ProgramLoadLimits = ProgramLoadLimits::new(
     1_000_000,
@@ -276,7 +276,7 @@ fn stable_io_message(error: &io::Error, operation: &str, path: JsStr<'_>) -> JsS
     }
 }
 
-/// Production CLI host with an immutable, binary-owned TypeScript 6.0.3
+/// Production CLI host with an immutable, binary-owned TypeScript 7.1
 /// standard-library directory. User/config/package paths retain ordinary
 /// filesystem semantics; only exact immediate children of this private
 /// directory are intercepted.

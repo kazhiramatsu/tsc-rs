@@ -15,11 +15,12 @@ path = "src/lib.rs"
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
-sha2 = "0.10"
-tsc-checker.workspace = true
 tsc-diagnostics.workspace = true
 tsc-host.workspace = true
 tsc-program.workspace = true
 
 [dev-dependencies]
-toml_edit = "0.22"
+sha2 = "0.10"
+
+[lints]
+workspace = true

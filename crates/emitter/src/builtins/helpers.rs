@@ -337,7 +337,3 @@ pub(super) fn awaiter() -> EmitHelper {
         Vec::new(),
     )
 }
-
-#[cfg(test)]
-#[path = "../../tests/unit/helpers/tests.rs"]
-mod helpers_tests;

@@ -16,10 +16,10 @@ use tsc_program::{
 };
 
 const UPSTREAM_FIXTURE_PATH: &str =
-    "ts-tests/tests/cases/compiler/moduleResolutionWithSymlinks_preserveSymlinks.ts";
+    "vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/testdata/tests/cases/compiler/moduleResolutionWithSymlinks_preserveSymlinks.ts";
 const UPSTREAM_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../ts-tests/tests/cases/compiler/moduleResolutionWithSymlinks_preserveSymlinks.ts"
+    "/../../vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/testdata/tests/cases/compiler/moduleResolutionWithSymlinks_preserveSymlinks.ts"
 ));
 const PINNED_FIXTURE: &str = concat!(
     "// @target: es2015\n",
@@ -297,13 +297,14 @@ fn preserve_symlinks_matches_the_upstream_session_contract_for_memory_and_filesy
     let lexical_linked = tree.path("app/node_modules/linked/index.d.ts");
     let lexical_linked2 = tree.path("app/node_modules/linked2/index.d.ts");
     let real = tree.path("app/node_modules/real/index.d.ts");
-    let vendored_library_directory =
-        fs::canonicalize(workspace_path("vendor/typescript-6.0.3/lib"))
-            .expect("canonicalize vendored TypeScript library directory");
+    let vendored_library_directory = fs::canonicalize(workspace_path(
+        "vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/internal/bundled/libs",
+    ))
+    .expect("canonicalize vendored TypeScript library directory");
     let library_directory = tree.path("typescript/lib");
     let library_package = tree.path("typescript/package.json");
     let fixture_package = tree.path("package.json");
-    let library_catalog = LibraryCatalog::typescript_6_0_3(&library_directory);
+    let library_catalog = LibraryCatalog::typescript_7_1(&library_directory);
 
     for directory in [
         tree.path("linked"),

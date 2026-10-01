@@ -10,8 +10,8 @@ preserved at tag `v1-final`.
   current emitter architecture, post-H1 schedule, and selected slice packet;
   retained greenfield M-stage guides and the convergence plan are historical
   lineage rather than current H2 implementation instructions.
-- [setup.md](setup.md): requirements (pinned Rust/Node toolchains) and
-  the verification commands.
+- [setup.md](setup.md): requirements (the pinned Rust toolchain, Python for
+  the conformance scripts) and the verification commands.
 - [benchmarking.md](benchmarking.md): reproducible CLI comparisons, correctness
   checks, variation across runs, and multi-file tsgo parallelism controls.
 - [NOTES-m1.md](NOTES-m1.md): M1 final-gate triage — the one-line

@@ -36,8 +36,7 @@ use crate::symbols::{InternalSymbolName, NameKey, SymbolId};
 use tsc_diagnostics::{gen as diagnostics, DiagnosticArgument, DiagnosticMessage};
 use tsc_syntax::{for_each_child, NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsc_types::{
-    EscapedName, FlowFlags, JsStr, JsString, ModifierFlags, NodeFlags, ReferenceProfile,
-    ScriptTarget, SymbolFlags,
+    EscapedName, FlowFlags, JsStr, JsString, ModifierFlags, NodeFlags, ScriptTarget, SymbolFlags,
 };
 
 impl<'a> BinderWorker<'a> {
@@ -2675,15 +2674,11 @@ impl<'a> BinderWorker<'a> {
                 || kind_of(self.source, statement) == SyntaxKind::VariableStatement
             {
                 if let Some(label) = label {
-                    // TypeScript 7.1 dropped the stray leading quote of
-                    // tsc 6.0.3's TS1344 text.
-                    let message = match self.options.reference_profile {
-                        ReferenceProfile::TypeScript603 => {
-                            &diagnostics::typescript_6_0_3::A_label_is_not_allowed_here
-                        }
-                        ReferenceProfile::TypeScript71 => &diagnostics::A_label_is_not_allowed_here,
-                    };
-                    self.error_on_first_token(label, message, &[]);
+                    self.error_on_first_token(
+                        label,
+                        &diagnostics::A_label_is_not_allowed_here,
+                        &[],
+                    );
                 }
             }
         }

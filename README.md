@@ -3,10 +3,8 @@
 tsc-rs is a TypeScript compiler written in Rust. It checks types and compiles
 TypeScript to JavaScript, with support for source maps and declaration files.
 Its compatibility target is **TypeScript 7.1** (the native compiler, at a
-pinned development commit) for type checking, and **tsc 6.0.3** for the
-options TypeScript 6.0 deprecated and for the emitted output; see
-[Reference profile](#reference-profile). The same compiler is available to
-Rust programs as a library; see the
+pinned development commit); see [Reference](#reference). The same compiler
+is available to Rust programs as a library; see the
 [compiler API](#compiler-api-for-rust-projects-experimental).
 
 See the [current limitations](#current-limitations) before adopting it for
@@ -52,7 +50,7 @@ The executable is `target/release/tsc-rs` (`tsc-rs.exe` on Windows):
 ```
 
 ```text
-Version 6.0.3
+Version 7.1.0-dev-19dadef8
 ```
 
 Node.js and npm are not required to build or run the compiler. TypeScript's
@@ -293,44 +291,34 @@ project can be checked at any point with `tsc-rs --noEmit -p .`, including
 after adding the source map and [declaration](#declaration-files) settings
 below.
 
-### Reference profile
+### Reference
 
-Where tsc 6.0.3 and TypeScript 7.1 behave differently without an option to
-choose between them, tsc-rs follows TypeScript 7.1:
+tsc-rs follows TypeScript 7.1 at the vendored native profile
+(`vendor/typescript-native/7.1.0-dev-19dadef8`, the commit `--version`
+names), and the TypeScript 7.1 conformance baselines verify its
+diagnostics and its emitted JavaScript, declaration files and source maps
+(see [Run CI](#run-ci)). In particular:
 
 - The standard library declarations are TypeScript 7.1's (`lib.es2026.*`
   exist, `esnext.array` and the other moved aliases name the ES2026
   files), the default `target` is ES2026, and `target: "es2026"` is
   accepted.
 - Union members, the properties of inferred object types and `typeof`
-  facts are ordered by their content, which is what TypeScript 7 does
-  unconditionally and what tsc 6.0's `stableTypeOrdering` option
-  previews; see [Stable type ordering](#stable-type-ordering).
-- Diagnostic messages use TypeScript 7.1's catalog, including the texts it
-  reworded (TS1344, TS5090, TS8030 and TS9019 among others).
+  facts are ordered by their content, as TypeScript 7 does
+  unconditionally; see [Stable type ordering](#stable-type-ordering).
+- Diagnostic messages use TypeScript 7.1's catalog.
 - A relation failure is reported by the row that names it when that row
   directly follows the head for the same source and target: a missing
   property (TS2741, TS2739, TS2740), a readonly array or tuple assigned
-  to a mutable one (TS4104) or excessive complexity (TS2859). TypeScript
-  7.1 drops the `Argument of type ...` (TS2345), `... does not satisfy
-  the constraint ...` (TS2344), `satisfies` (TS1360) and `this` context
-  (TS2684) heads that tsc 6.0.3 kept above such rows, and keeps a head
-  whose detail names another pair, which tsc 6.0.3 dropped.
+  to a mutable one (TS4104) or excessive complexity (TS2859).
 
 The options TypeScript 6.0 deprecated and 7.x removed (`target: "es5"`,
 `outFile`, the `amd`, `umd` and `system` module kinds, the `node10` and
-`classic` module resolutions, `baseUrl`, ...) keep working as in tsc 6.0.3,
-with the TS5101/TS5107 deprecation errors that `ignoreDeprecations: "6.0"`
-silences. The emitted JavaScript, declaration files and source maps are
-still verified against tsc 6.0.3's output.
-
-The Rust API exposes the choice through the standard-library catalog a
-Program loads with: `LibraryCatalog::typescript_7_1` gives the behavior
-above, and `LibraryCatalog::typescript_6_0_3` reproduces tsc 6.0.3's
-defaults, including its creation-order type ordering and its message
-texts. The `tsc-rs` command always uses the TypeScript 7.1 profile; its
-`--version` output still names 6.0.3, the version of the emitter's
-reference.
+`classic` module resolutions, `baseUrl`, ...) still run, with the
+TS5101/TS5107 deprecation errors that `ignoreDeprecations: "6.0"` silences,
+but their output is no longer verified against a reference. The tsc 6.0.3
+compatible line ended with release v0.1.0 (tag `v0.1.0`, branch
+`release/6.0.3`).
 
 ### Stable type ordering
 
@@ -339,8 +327,8 @@ union members, object properties and other internal lists by their content
 instead of by the order in which the checker created them. TypeScript 7
 always uses this order, and tsgo's output follows it. tsc-rs uses it by
 default. `"stableTypeOrdering": false` in `tsconfig.json`, or
-`--stableTypeOrdering false` on the command line, restores tsc 6.0.3's
-creation order; `--stableTypeOrdering` without a value selects the default
+`--stableTypeOrdering false` on the command line, restores the creation
+order of tsc 6.0; `--stableTypeOrdering` without a value selects the default
 explicitly. The setting applies to both `--noEmit` checks and builds.
 
 The order matters most for tsc-rs because it checks files on several
@@ -392,10 +380,8 @@ The API has four parts:
 The API reads the standard library declarations from the directory given to
 `LibraryCatalog::typescript_7_1`; the checked-in
 `vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/internal/bundled/libs`
-supplies the matching files. `LibraryCatalog::typescript_6_0_3` with
-`vendor/typescript-6.0.3/lib` selects tsc 6.0.3's
-[reference profile](#reference-profile) instead. The copy embedded in the
-`tsc-rs` executable is not exposed through the API.
+supplies the matching files. The copy embedded in the `tsc-rs` executable
+is not exposed through the API.
 
 ### Check a project
 
@@ -819,7 +805,7 @@ emitted file trees were compared byte for byte.
 
 These comparisons were made with tsc 6.0.3's creation order on both sides
 (`stableTypeOrdering: false` in tsc-rs since that order stopped being the
-default; see [Reference profile](#reference-profile)). Diagnostics were
+default; see [Reference](#reference)). Diagnostics were
 identical on every configuration except Effect, where
 tsc-rs with its default eight checkers reports two errors in
 `src/Stream.ts` (TS2375 at line 5009 and TS2345 at line 5059, both about
@@ -876,7 +862,7 @@ their GitHub Actions logs.
 | Check | What it verifies |
 | --- | --- |
 | **TypeScript 7.1 conformance** (`conformance (TypeScript 7.1)`) | Runs the `compiler` and `conformance` test cases vendored from TypeScript 7.1 through the native test runner's configuration expansion, on one checker, and compares the diagnostics (`.errors.txt`) and the emitted JavaScript, declaration files and source maps (`.js`, `.js.map`) with the vendored reference baselines byte for byte (`scripts/conformance_ts71.py --check`). The ratchet `ratchets/ts71/` records the error tier and the emit tier each configuration has reached and rejects regressions. A sharded control (`--checkers 4`) is compared with the one-checker report by `scripts/conformance_ts71_compare.py`; the design packet records the configurations where they differ. Cases that use an option TypeScript 7 removed are not compared. |
-| **Rust checks** (`rust`) | Checks formatting, runs Clippy over every target of the workspace, and executes the unit and integration tests of the types, diagnostics, syntax, binder, host, checker, program, emitter, compiler, harness and conformance crates (`python3 .github/ci/replay.py rust`). |
+| **Rust checks** (`rust`) | Checks formatting, runs Clippy over every target of the workspace, executes every workspace test target (`cargo test --workspace`) and verifies that the generated diagnostic catalog is current (`python3 .github/ci/replay.py rust`). |
 
 The `gates` check requires both jobs to succeed; a change that touches only
 `docs/`, this file, `CONTRIBUTING.md` or `LICENSE` selects neither.
@@ -903,7 +889,8 @@ export CARGO_PROFILE_TEST_DEBUG=0
 export RUSTC_WRAPPER=
 ```
 
-Run the Rust checks (formatting, Clippy and the test targets):
+Run the Rust checks (formatting, Clippy, the workspace tests and the
+generated diagnostic catalog):
 
 ```sh
 python3 .github/ci/replay.py rust
@@ -950,7 +937,7 @@ runs are listed under the repository's Actions tab.
 - Peak memory grows with the checker count (eight by default, twelve when
   writing declaration files); see [peak memory](#peak-memory). A lower
   `TSRS_CHECKERS` count reduces it at some cost in speed.
-- With `stableTypeOrdering: false` (tsc 6.0.3's creation order), the
+- With `stableTypeOrdering: false` (tsc 6.0's creation order), the
   diagnostics of a program can depend on how its files are partitioned
   among the checkers: on Effect, the default eight checkers report two
   errors that `tsc` and a run with six or fewer checkers do not; see the
@@ -961,9 +948,10 @@ runs are listed under the repository's Actions tab.
   [stable type ordering](#stable-type-ordering), or set `TSRS_CHECKERS=1`
   when a byte-identical `.d.ts` in tsc 6.0's creation order matters more
   than the parallel speed-up.
-- Type checking follows TypeScript 7.1 but does not yet reproduce every one
-  of its conformance baselines; the `conformance-ts71` workflow records the
-  current state (see [Run CI](#run-ci)).
+- Type checking and emit follow TypeScript 7.1 but do not yet reproduce
+  every one of its conformance baselines; the `conformance (TypeScript
+  7.1)` job and `ratchets/ts71/` record the current state (see
+  [Run CI](#run-ci)).
 
 If a command reports an unsupported option, first check whether the option
 belongs in `tsconfig.json`.

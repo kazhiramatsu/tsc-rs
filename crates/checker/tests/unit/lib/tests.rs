@@ -944,16 +944,12 @@ fn lib_bundle_key_projects_to_bind_observables() {
         "declare const bundleKeyProbe: number;\n".to_owned(),
     );
     let libs = [&lib];
-    // The ES2025 language version pinned below is tsc 6.0.3's default
-    // target; the 7.1 profile defaults to ES2026.
-    let base = CompilerOptions {
-        reference_profile: tsc_types::ReferenceProfile::TypeScript603,
-        ..CompilerOptions::default()
-    };
+    // An absent target is TypeScript 7.1's default, ES2026.
+    let base = CompilerOptions::default();
     let shared = lib_bundle(&libs, &base);
     assert_eq!(
         shared.documents[0].source().language_version,
-        ScriptTarget::ES2025
+        ScriptTarget::ES2026
     );
 
     // Bind-inert options reuse the bundle: the checker consumes
@@ -967,8 +963,8 @@ fn lib_bundle_key_projects_to_bind_observables() {
     };
     assert!(std::ptr::eq(shared, lib_bundle(&libs, &inert)));
 
-    // ES3 and an absent target compute the same ES2025
-    // languageVersion (options.rs:139) — one bundle.
+    // ES3 and an absent target compute the same ES2026
+    // languageVersion (`emit_script_target`) — one bundle.
     let es3 = CompilerOptions {
         target: Some(ScriptTarget::ES3.bits()),
         ..base.clone()
@@ -3083,7 +3079,7 @@ fn discriminated_destructuring_sibling_still_narrows() {
 fn full_lib_bundle(target_libs: &[&str]) -> Vec<InputFile> {
     let base = concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../vendor/typescript-6.0.3/lib/"
+        "/../../vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/internal/bundled/libs/"
     );
     target_libs
         .iter()
@@ -3256,7 +3252,7 @@ fn async_iteration_fixture_reports_no_spurious_2322() {
     };
     let text = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../ts-tests/tests/cases/conformance/controlFlow/controlFlowIterationErrorsAsync.ts"
+        "/../../vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/testdata/tests/cases/conformance/controlFlow/controlFlowIterationErrorsAsync.ts"
     ))
     .expect("fixture")
     .lines()
@@ -6631,7 +6627,7 @@ fn skip_lib_check_preserves_syntax_errors_and_skips_semantic_errors() {
 fn es5_lib() -> InputFile {
     let path = concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../vendor/typescript-6.0.3/lib/lib.es5.d.ts"
+        "/../../vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/internal/bundled/libs/lib.es5.d.ts"
     );
     InputFile::new(
         "lib.es5.d.ts".to_owned(),
@@ -6789,7 +6785,7 @@ fn check_program_includes_parse_diagnostics() {
 fn merged_lib_interface_type_parameters_unify() {
     let vendor = concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../vendor/typescript-6.0.3/lib/"
+        "/../../vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/internal/bundled/libs/"
     );
     let lib = |name: &str| {
         InputFile::new(

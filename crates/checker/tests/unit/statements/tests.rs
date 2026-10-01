@@ -1301,34 +1301,18 @@ fn comma_in_computed_property_name_reports_1171() {
     assert_eq!(rows.len(), 2, "{rows:?}");
 }
 
+/// TypeScript 7.1 reports no exactly-one-key row for an empty `with`
+/// clause of an import type (tsgo at the vendored profile reports nothing
+/// for `typeof import("./m", { with: {} })`); the 2307 is the import-type
+/// resolution seam. The `assert` form's TS2880 is a parser diagnostic on
+/// the `assert` keyword in 7.1 (`parser.go` `parseImportType`), which
+/// tsc-rs still reports from the checker at tsc 6.0's position; that
+/// class moves with the P3-5 migration of the cutover packet.
 #[test]
-fn import_type_assert_form_reports_2880_and_with_form_stays_silent() {
-    // The parser threads the consumed keyword into
-    // ImportAttributesData.token (review find: the source form is
-    // unrecoverable after the parse). getResolutionModeOverride
-    // is LIVE (5.8d): zero attribute entries draw the
-    // exactly-one-resolution-mode-key rows (oracle probe58d p5;
-    // the 2307 is the import-type resolution seam, LIVE since
-    // 5.9d's getTypeFromImportTypeNode).
-    // The exactly-one-resolution-mode-key row (1456) is a tsc 6.0.3
-    // rule; the 7.1 profile only looks the key up.
-    let six_oh_three = CompilerOptions {
-        reference_profile: tsc_types::ReferenceProfile::TypeScript603,
-        ..CompilerOptions::default()
-    };
+fn import_type_with_form_reports_only_the_resolution_row() {
     assert_eq!(
-        checked_rows_with(
-            "type T = typeof import(\"./m\", { assert: {} });\n",
-            &six_oh_three
-        ),
-        [(2880, 40, 1), (1456, 40, 2), (2307, 23, 5)]
-    );
-    assert_eq!(
-        checked_rows_with(
-            "type U = typeof import(\"./m\", { with: {} });\n",
-            &six_oh_three
-        ),
-        [(1464, 38, 2), (2307, 23, 5)]
+        checked_rows("type U = typeof import(\"./m\", { with: {} });\n"),
+        [(2307, 23, 5)]
     );
 }
 

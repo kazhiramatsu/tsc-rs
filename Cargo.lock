@@ -3,12 +3,6 @@
 version = 4
 
 [[package]]
-name = "arraydeque"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d902e3d592a523def97af8f317b08ce16b7ab854c1985a0c671e6f15cebc236"
-
-[[package]]
 name = "base64"
 version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -95,12 +89,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5baebc0774151f905a1a2cc41989300b1e6fbb29aff0ceffa1064fdd3088d582"
 
 [[package]]
-name = "foldhash"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
-
-[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -126,24 +114,12 @@ name = "hashbrown"
 version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
-dependencies = [
- "foldhash",
-]
 
 [[package]]
 name = "hashbrown"
 version = "0.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
-
-[[package]]
-name = "hashlink"
-version = "0.11.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "824e001ac4f3012dd16a264bec811403a67ca9deb6c102fc5049b32c4574b35f"
-dependencies = [
- "hashbrown 0.16.1",
-]
 
 [[package]]
 name = "indexmap"
@@ -317,30 +293,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "toml_datetime"
-version = "0.6.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22cddaf88f4fbc13c51aebbf5f8eceb5c7c5a9da2ac40a13519eb5b0a0e8f11c"
-
-[[package]]
-name = "toml_edit"
-version = "0.22.27"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41fe8c660ae4257887cf66394862d21dbca4a6ddd26f04a3560410406a2f819a"
-dependencies = [
- "indexmap",
- "toml_datetime",
- "toml_write",
- "winnow",
-]
-
-[[package]]
-name = "toml_write"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d99f8c9a7727884afe522e9bd5edbfc91a3312b36a77b5fb8926e4c31a41801"
-
-[[package]]
 name = "tsc-rs-binder"
 version = "0.1.0"
 dependencies = [
@@ -398,15 +350,10 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "toml_edit",
- "tsc-rs-checker",
  "tsc-rs-compiler",
  "tsc-rs-diagnostics",
  "tsc-rs-harness",
- "tsc-rs-host",
- "tsc-rs-oracle",
  "tsc-rs-program",
- "zstd",
 ]
 
 [[package]]
@@ -429,27 +376,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "tsc-rs-fuzz"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "sha2",
- "toml_edit",
- "tsc-rs-checker",
- "tsc-rs-diagnostics",
- "tsc-rs-harness",
-]
-
-[[package]]
 name = "tsc-rs-harness"
 version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "toml_edit",
- "tsc-rs-checker",
  "tsc-rs-diagnostics",
  "tsc-rs-host",
  "tsc-rs-program",
@@ -461,14 +393,6 @@ version = "0.1.0"
 dependencies = [
  "dunce",
  "tsc-rs-diagnostics",
-]
-
-[[package]]
-name = "tsc-rs-oracle"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -508,29 +432,6 @@ dependencies = [
 [[package]]
 name = "tsc-rs-xtask"
 version = "0.1.0"
-dependencies = [
- "base64",
- "libc",
- "serde",
- "serde_json",
- "sha2",
- "toml_edit",
- "tsc-rs-binder",
- "tsc-rs-checker",
- "tsc-rs-compiler",
- "tsc-rs-conformance",
- "tsc-rs-diagnostics",
- "tsc-rs-emitter",
- "tsc-rs-fuzz",
- "tsc-rs-harness",
- "tsc-rs-host",
- "tsc-rs-oracle",
- "tsc-rs-program",
- "tsc-rs-syntax",
- "tsc-rs-types",
- "yaml-rust2",
- "zstd",
-]
 
 [[package]]
 name = "typenum"
@@ -549,25 +450,6 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
-
-[[package]]
-name = "winnow"
-version = "0.7.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df79d97927682d2fd8adb29682d1140b343be4ac0f08fd68b7765d9c059d3945"
-dependencies = [
- "memchr",
-]
-
-[[package]]
-name = "yaml-rust2"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "631a50d867fafb7093e709d75aaee9e0e0d5deb934021fcea25ac2fe09edc51e"
-dependencies = [
- "arraydeque",
- "hashlink",
-]
 
 [[package]]
 name = "zmij"
