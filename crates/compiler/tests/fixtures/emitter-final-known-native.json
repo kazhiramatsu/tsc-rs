@@ -1,7 +1,0 @@
-{
-  "schema": 1,
-  "kind": "emitter-final-known-native",
-  "status": "known-divergences-not-typescript-compatibility",
-  "producer_diff_sha256": "241f13aa19a15ca76ad85db8392a19d741d2f5bda3389e790bf3baaf7e4c2d53",
-  "cases": []
-}

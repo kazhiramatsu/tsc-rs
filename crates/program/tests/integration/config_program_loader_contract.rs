@@ -1,11 +1,9 @@
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use serde_json::{json, Value};
 use tsc_host::{CompilerHost, FsCompilerHost, MemoryCompilerHost};
 use tsc_program::{
     decode_host_text, load_config_program, load_config_program_with_no_emit_override,
@@ -40,7 +38,7 @@ fn unsupported_h0_config_scope_fails_at_the_program_gate() {
     let references_error = load_config_program_with_no_emit_override(
         &host,
         &references,
-        &LibraryCatalog::typescript_6_0_3(PathBuf::from("/work/lib")),
+        &LibraryCatalog::typescript_7_1(PathBuf::from("/work/lib")),
         LIMITS,
     )
     .expect_err("project references must not enter the single-project loader");
@@ -68,7 +66,7 @@ fn unsupported_h0_config_scope_fails_at_the_program_gate() {
     let prepared = load_config_program_with_no_emit_override(
         &host,
         &emit,
-        &LibraryCatalog::typescript_6_0_3(PathBuf::from("/work/lib")),
+        &LibraryCatalog::typescript_7_1(PathBuf::from("/work/lib")),
         LIMITS,
     )
     .expect("declaration output is admitted for a no-emit check");
@@ -91,7 +89,7 @@ fn recognized_but_unprojected_config_options_fail_closed() {
     let error = load_config_program_with_no_emit_override(
         &host,
         &plan,
-        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
         LIMITS,
     )
     .expect_err("incremental must not be silently ignored by the no-emit loader");
@@ -124,7 +122,7 @@ fn inherited_root_scopes_respect_acquisition_noninheritance() {
         let loaded = load_config_program_with_no_emit_override(
             &host,
             &plan,
-            &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+            &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
             LIMITS,
         );
         if scope == "typeAcquisition" {
@@ -176,7 +174,7 @@ fn compile_on_save_is_admitted_for_a_no_emit_check() {
     let prepared = load_config_program_with_no_emit_override(
         &host,
         &plan,
-        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
         LIMITS,
     )
     .expect("compileOnSave is inert for a no-emit check");
@@ -191,7 +189,7 @@ fn language_service_plugins_are_admitted_for_every_command() {
     // service plugins (VS Code's tsec, Effect's language service) loads and
     // reports exactly what tsc reports.
     let host = host();
-    let catalog = LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib");
+    let catalog = LibraryCatalog::typescript_7_1("/vendor/typescript/lib");
     let plan = parse_config_root_plan(
         &ConfigHostAdapter::new(&host),
         request(
@@ -222,7 +220,7 @@ fn emit_decorator_metadata_is_admitted_for_a_no_emit_check() {
     // and reports exactly what tsc reports, including its
     // experimentalDecorators requirement.
     let host = host();
-    let catalog = LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib");
+    let catalog = LibraryCatalog::typescript_7_1("/vendor/typescript/lib");
     let plan = parse_config_root_plan(
         &ConfigHostAdapter::new(&host),
         request(
@@ -245,7 +243,7 @@ fn erasable_syntax_only_is_admitted_for_a_no_emit_check() {
     // checker implements, so a --noEmit check of a project that sets it
     // (Effect's base tsconfig) loads and reports exactly what tsc reports.
     let host = host();
-    let catalog = LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib");
+    let catalog = LibraryCatalog::typescript_7_1("/vendor/typescript/lib");
     let plan = parse_config_root_plan(
         &ConfigHostAdapter::new(&host),
         request(
@@ -412,7 +410,7 @@ fn config_plan_loads_no_emit_program_without_reparsing_options() {
     let prepared = load_config_program(
         &host,
         &plan,
-        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
         LIMITS,
     )
     .expect("load config program");
@@ -477,7 +475,7 @@ fn composite_project_reports_an_unlisted_file_beside_its_root_dir_violation() {
     let prepared = load_config_program(
         &host,
         &plan,
-        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
         LIMITS,
     )
     .expect("a --noEmit check of a composite project loads");
@@ -506,7 +504,7 @@ fn missing_configured_type_retains_ts1419_config_related_information() {
     let prepared = load_config_program(
         &host,
         &plan,
-        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
         LIMITS,
     )
     .expect("load missing configured type as a diagnostic");
@@ -554,7 +552,7 @@ fn missing_default_library_retains_ts1426_target_related_information() {
     let prepared = load_config_program(
         &host,
         &plan,
-        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
         LIMITS,
     )
     .expect("load missing default library as a diagnostic");
@@ -601,7 +599,7 @@ fn missing_explicit_library_matches_typescript_without_ts1423_related_informatio
     let prepared = load_config_program(
         &host,
         &plan,
-        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
         LIMITS,
     )
     .expect("load missing explicit library as a diagnostic");
@@ -637,7 +635,7 @@ fn case_only_alias_retains_ts1410_files_list_related_information() {
     let prepared = load_config_program(
         &host,
         &plan,
-        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
         LIMITS,
     )
     .expect("load case-only alias config");
@@ -683,7 +681,7 @@ fn case_only_alias_retains_ts1408_include_pattern_related_information() {
     let prepared = load_config_program(
         &host,
         &plan,
-        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
         LIMITS,
     )
     .expect("load include-pattern alias config");
@@ -735,7 +733,7 @@ fn case_only_alias_retains_default_include_reason_without_related_information() 
     let prepared = load_config_program(
         &host,
         &plan,
-        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
         LIMITS,
     )
     .expect("load default-include alias config");
@@ -770,7 +768,7 @@ fn case_sensitive_distinct_files_retain_both_files_list_provenance_entries() {
     let prepared = load_config_program(
         &host,
         &plan,
-        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
         LIMITS,
     )
     .expect("load both case-sensitive files");
@@ -817,109 +815,6 @@ fn case_sensitive_distinct_files_retain_both_files_list_provenance_entries() {
 }
 
 #[test]
-#[ignore = "local H0 program oracle audit; requires the pinned Node runtime"]
-fn missing_library_config_related_information_matches_vendored_typescript() {
-    const PROBE: &str = r#"
-const ts = require(process.argv[1]);
-const configs = JSON.parse(process.argv[2]);
-function probe(configText) {
-  const configFile = ts.parseJsonText('/project/tsconfig.json', configText);
-  const parseHost = {
-    useCaseSensitiveFileNames: true,
-    readDirectory: () => [],
-    fileExists: path => path === '/project/main.ts',
-    readFile: path => path === '/project/main.ts' ? 'export {};\n' : undefined,
-  };
-  const parsed = ts.parseJsonSourceFileConfigFileContent(configFile, parseHost, '/project');
-  const host = ts.createCompilerHost(parsed.options);
-  host.getCurrentDirectory = () => '/project';
-  host.getDefaultLibLocation = () => '/vendor/typescript/lib';
-  host.getDefaultLibFileName = () => '/vendor/typescript/lib/lib.d.ts';
-  host.fileExists = path => path === '/project/main.ts';
-  host.readFile = path => path === '/project/main.ts' ? 'export {};\n' : undefined;
-  host.getSourceFile = (path, target) => path === '/project/main.ts'
-    ? ts.createSourceFile(path, 'export {};\n', target, true)
-    : undefined;
-  const program = ts.createProgram({
-    rootNames: parsed.fileNames,
-    options: parsed.options,
-    host,
-  });
-  const diagnostic = ts.getPreEmitDiagnostics(program).find(row => row.code === 6053);
-  if (!diagnostic) throw new Error('missing TS6053');
-  return {
-    relatedInformationPresent: diagnostic.relatedInformation !== undefined,
-    related: (diagnostic.relatedInformation || []).map(related => ({
-      code: related.code,
-      file: related.file && related.file.fileName,
-      start: related.start,
-      length: related.length,
-      message: ts.flattenDiagnosticMessageText(related.messageText, '\n'),
-    })),
-  };
-}
-process.stdout.write(JSON.stringify(configs.map(probe)));
-"#;
-    let configs = [
-        r#"{"note":"😀","compilerOptions":{"noEmit":true,"target":"es5","types":[]},"files":["main.ts"]}"#,
-        r#"{"compilerOptions":{"noEmit":true,"lib":["es5"],"types":[]},"files":["main.ts"]}"#,
-        r#"{"compilerOptions":{"noEmit":true,"target":"ES5","types":[]},"files":["main.ts"]}"#,
-        r#"{"compilerOptions":{"noEmit":true,"target":"es2015","target":"es5","types":[]},"files":["main.ts"]}"#,
-        r#"{"compilerOptions":{"noEmit":true,"target":"es5","target":"es5","types":[]},"files":["main.ts"]}"#,
-        r#"{"compilerOptions":{"noEmit":true,"types":[]},"files":["main.ts"]}"#,
-    ];
-    let bundle = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .join("vendor/typescript-6.0.3/lib/typescript.js");
-    let output = Command::new("node")
-        .arg("-e")
-        .arg(PROBE)
-        .arg(bundle)
-        .arg(json!(configs).to_string())
-        .output()
-        .expect("run vendored TypeScript program provenance probe");
-    assert!(
-        output.status.success(),
-        "TypeScript probe failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let oracle: Value = serde_json::from_slice(&output.stdout).expect("probe output is JSON");
-
-    let rust = configs
-        .iter()
-        .map(|text| {
-            let host = host();
-            let plan = parse_config_root_plan(&ConfigHostAdapter::new(&host), request(text))
-                .expect("parse oracle config");
-            let prepared = load_config_program(
-                &host,
-                &plan,
-                &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
-                LIMITS,
-            )
-            .expect("load oracle config");
-            let diagnostic = prepared
-                .diagnostics()
-                .program()
-                .iter()
-                .find(|diagnostic| diagnostic.code() == 6053)
-                .expect("Rust program publishes TS6053");
-            json!({
-                "relatedInformationPresent": diagnostic.related_information_present,
-                "related": diagnostic.related.iter().map(|related| json!({
-                    "code": related.message.code,
-                    "file": scalar_json(&related.file_name),
-                    "start": related.start,
-                    "length": related.length,
-                    "message": scalar_json(&related.message.text),
-                })).collect::<Vec<_>>(),
-            })
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(json!(rust), oracle);
-}
-
-#[test]
 fn config_plan_projects_checker_options_into_the_prepared_program() {
     let host = host();
     let adapter = ConfigHostAdapter::new(&host);
@@ -933,7 +828,7 @@ fn config_plan_projects_checker_options_into_the_prepared_program() {
     let prepared = load_config_program(
         &host,
         &plan,
-        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
         LIMITS,
     )
     .expect("load projected options");
@@ -974,7 +869,7 @@ fn config_plan_retains_h1_printer_options_without_broadening_h0_loader() {
     let prepared = load_config_program(
         &host,
         &plan,
-        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
         LIMITS,
     )
     .expect("the no-emit loader retains emitter-only options");
@@ -1016,7 +911,7 @@ fn config_plan_projects_no_resolve_and_keeps_dependencies_out_of_the_program() {
     let prepared = load_config_program(
         &host,
         &plan,
-        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
         LIMITS,
     )
     .expect("load noResolve config program");
@@ -1048,7 +943,7 @@ fn filesystem_and_memory_config_programs_are_identical() {
         .expect("memory config plan");
     assert_eq!(filesystem_plan, memory_plan);
 
-    let catalog = LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib");
+    let catalog = LibraryCatalog::typescript_7_1("/vendor/typescript/lib");
     let filesystem_program = load_config_program(&filesystem, &filesystem_plan, &catalog, LIMITS)
         .expect("filesystem config program");
     let memory_program = load_config_program(&memory, &memory_plan, &catalog, LIMITS)
@@ -1102,7 +997,7 @@ fn shared_compiler_host_config_adapter_keeps_include_exclude_equivalent() {
         std::slice::from_ref(&main_name)
     );
 
-    let catalog = LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib");
+    let catalog = LibraryCatalog::typescript_7_1("/vendor/typescript/lib");
     let filesystem_program = load_config_program(&filesystem, &filesystem_plan, &catalog, LIMITS)
         .expect("filesystem include/exclude program");
     let memory_program = load_config_program(&memory, &memory_plan, &catalog, LIMITS)
@@ -1235,7 +1130,7 @@ fn config_loader_rejects_omitted_or_false_no_emit_before_host_loading() {
         let error = load_config_program(
             &host,
             &plan,
-            &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+            &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
             LIMITS,
         )
         .expect_err("non-true noEmit must fail closed");
@@ -1258,7 +1153,7 @@ fn command_line_no_emit_override_wins_over_a_false_config_value() {
     let prepared = load_config_program_with_no_emit_override(
         &host,
         &plan,
-        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
         LIMITS,
     )
     .expect("command-line noEmit override");
@@ -1269,7 +1164,7 @@ fn command_line_no_emit_override_wins_over_a_false_config_value() {
 fn emitting_config_loader_is_distinct_and_rejects_effective_no_emit() {
     let host = host();
     let adapter = ConfigHostAdapter::new(&host);
-    let catalog = LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib");
+    let catalog = LibraryCatalog::typescript_7_1("/vendor/typescript/lib");
     let emit_plan = parse_config_root_plan(
         &adapter,
         request(
@@ -1315,7 +1210,7 @@ fn emitting_config_loader_applies_typed_command_line_precedence() {
     let prepared = load_emitting_config_program_with_overrides(
         &host,
         &plan,
-        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
         LIMITS,
         ConfigEmitOptionOverrides {
             target: Some(99),
@@ -1349,7 +1244,7 @@ fn config_diagnostics_are_a_gate_and_remain_separate_from_option_diagnostics() {
     let error = load_config_program(
         &host,
         &plan,
-        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
         LIMITS,
     )
     .expect_err("config diagnostic must stop program construction");
@@ -1383,7 +1278,7 @@ fn ts6_option_deprecations_are_reported_without_blocking_no_emit_loading() {
     let prepared = load_config_program(
         &host,
         &plan,
-        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
         LIMITS,
     )
     .expect("a deprecation diagnostic must not prevent source loading");
@@ -1436,7 +1331,7 @@ fn ts6_option_deprecations_are_reported_without_blocking_no_emit_loading() {
     let error = load_config_program(
         &host,
         &removed,
-        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
         LIMITS,
     )
     .expect_err("removed compiler options remain a fatal getOptionsDiagnostics row");
@@ -1642,7 +1537,7 @@ fn allow_importing_ts_extensions_requires_no_emit_unless_overridden() {
     let error = load_config_program(
         &host,
         &plan,
-        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
         LIMITS,
     )
     .expect_err("allowImportingTsExtensions needs a noEmit setting");
@@ -1651,13 +1546,11 @@ fn allow_importing_ts_extensions_requires_no_emit_unless_overridden() {
     let prepared = load_config_program_with_no_emit_override(
         &host,
         &plan,
-        &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
+        &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
         LIMITS,
     )
     .expect("the command-line noEmit override satisfies TS5096");
     assert_eq!(prepared.compiler_options().no_emit, Some(true));
 }
-
-use super::utf16_scalar_json::observe as scalar_json;
 
 use super::utf16_scalar_path::ScalarTestPath as _;

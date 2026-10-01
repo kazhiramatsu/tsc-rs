@@ -2172,9 +2172,8 @@ impl ScriptTarget {
     pub const JSON: Self = Self(100);
     /// tsc ScriptTarget.Latest
     pub const LATEST: Self = Self(99);
-    /// TypeScript 7.1 ScriptTargetLatestStandard (ES2026); tsc 6.0.3's
-    /// LatestStandard is ES2025, see
-    /// [`ReferenceProfile::default_script_target`](crate::ReferenceProfile::default_script_target).
+    /// TypeScript 7.1 ScriptTargetLatestStandard (ES2026), the default
+    /// `target` (see [`CompilerOptions::emit_script_target`](crate::CompilerOptions::emit_script_target)).
     pub const LATEST_STANDARD: Self = Self(13);
 
     pub const fn from_bits(bits: i32) -> Self {

@@ -8,7 +8,7 @@ compiler and conformance reference baselines (`baseline-names.txt`).
 
 | Profile | Commit | Contents |
 | --- | --- | --- |
-| `7.1.0-dev-19dadef8` | `19dadef8888ba5b27d8b9f622480745cf623e020` (main, 2026-09-29; no 7.1 tag yet) | `tsc/testdata/tests/cases/{compiler,conformance}`, `tsc/testdata/tests/lib`, `tsc/internal/bundled/libs`, and the `*.errors.txt` files of `tsc/testdata/baselines/reference/{compiler,conformance}` |
+| `7.1.0-dev-19dadef8` | `19dadef8888ba5b27d8b9f622480745cf623e020` (main, 2026-09-29; no 7.1 tag yet) | `tsc/testdata/tests/cases/{compiler,conformance}`, `tsc/testdata/tests/lib`, `tsc/internal/bundled/libs`, `tsc/internal/diagnostics/diagnosticMessages.json`, and the `*.errors.txt`, `*.js`, `*.js.map` and `*.sourcemap.txt` files of `tsc/testdata/baselines/reference/{compiler,conformance}` |
 
 Produce or verify a profile with:
 

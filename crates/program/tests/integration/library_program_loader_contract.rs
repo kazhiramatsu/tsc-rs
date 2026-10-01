@@ -11,7 +11,7 @@ const LIBRARY_DIRECTORY: &str = "/typescript/lib";
 const GENEROUS_LIMIT: usize = 1_048_576;
 
 fn catalog() -> LibraryCatalog {
-    LibraryCatalog::typescript_6_0_3(LIBRARY_DIRECTORY)
+    LibraryCatalog::typescript_7_1(LIBRARY_DIRECTORY)
 }
 
 fn compiler_options() -> CompilerOptions {
@@ -224,11 +224,11 @@ fn default_target_library_graph_is_a_sorted_prefix_before_dependency_postorder()
 }
 
 #[test]
-fn absent_target_selects_es2025_full_and_explicit_empty_suppresses_default() {
+fn absent_target_selects_es2026_full_and_explicit_empty_suppresses_default() {
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/root.ts", b"export {};\n".to_vec())
         .file(
-            "/typescript/lib/lib.es2025.full.d.ts",
+            "/typescript/lib/lib.es2026.full.d.ts",
             b"declare const latestStandard: true;\n".to_vec(),
         )
         .build()
@@ -240,11 +240,11 @@ fn absent_target_selects_es2025_full_and_explicit_empty_suppresses_default() {
         compiler_options(),
         generous_limits(),
     )
-    .expect("absent target computes the ES2025 default library");
-    assert_library_prefix(&defaulted, &["/typescript/lib/lib.es2025.full.d.ts"]);
+    .expect("absent target computes the ES2026 default library");
+    assert_library_prefix(&defaulted, &["/typescript/lib/lib.es2026.full.d.ts"]);
     assert_eq!(
         source_paths(&defaulted),
-        ["/typescript/lib/lib.es2025.full.d.ts", "/work/root.ts",]
+        ["/typescript/lib/lib.es2026.full.d.ts", "/work/root.ts",]
             .into_iter()
             .map(Path::new)
             .collect::<Vec<_>>()
@@ -659,7 +659,7 @@ fn mapped_missing_lib_reference_is_located_but_missing_selected_roots_are_filele
     assert_eq!(default.length, None);
     assert_eq!(
         default.message_text(),
-        "File '/typescript/lib/lib.es2025.full.d.ts' not found."
+        "File '/typescript/lib/lib.es2026.full.d.ts' not found."
     );
     assert!(default.message.next_present);
     assert_eq!(default.message.next.len(), 1);
@@ -669,7 +669,7 @@ fn mapped_missing_lib_reference_is_located_but_missing_selected_roots_are_filele
     assert_eq!(default.message.next[0].next[0].code, 1425);
     assert_eq!(
         default.message.next[0].next[0].text,
-        "Default library for target 'es2025'"
+        "Default library for target 'es2026'"
     );
 }
 
@@ -993,7 +993,7 @@ fn empty_roots_do_not_load_default_or_explicit_libraries() {
     let default_read = HostError::new(
         HostErrorKind::Other,
         HostOperation::ReadFile,
-        Some(PathBuf::from("/typescript/lib/lib.es2025.full.d.ts")),
+        Some(PathBuf::from("/typescript/lib/lib.es2026.full.d.ts")),
         "empty programs must not read the computed default library",
     );
     let explicit_read = HostError::new(

@@ -395,70 +395,15 @@ pub struct CompilerOptions {
     /// suppresses options deprecated in 6.0; invalid values are diagnosed at
     /// the config boundary.
     pub ignore_deprecations: Option<JsString>,
-    /// Which TypeScript release's defaults the Program follows where the two
-    /// releases differ without an option; see [`ReferenceProfile`]. Not a
-    /// tsc option: the loader sets it from the standard-library catalog, and
-    /// the harnesses of the frozen tsc 6.0.3 records set it directly.
-    pub reference_profile: ReferenceProfile,
-}
-
-/// The TypeScript release whose behavior a Program reproduces where tsc 6.0.3
-/// and TypeScript 7.1 differ without a compiler option to select between
-/// them: the default `target`, the standard-library catalog, the default
-/// member order of unions (tsc 6.0's `stableTypeOrdering`, which TypeScript
-/// 7 always uses) and the text of the diagnostic messages that 7.1 changed.
-///
-/// tsc-rs follows TypeScript 7.1 by default. The 6.0.3 profile serves the
-/// comparisons against the frozen tsc 6.0.3 records and the options
-/// TypeScript 6.0 deprecated, whose behavior tsc-rs keeps from 6.0.3.
-/// tsrs-native: no tsc counterpart.
-#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
-pub enum ReferenceProfile {
-    /// tsc 6.0.3 (`vendor/typescript-6.0.3`).
-    TypeScript603,
-    /// TypeScript 7.1 at the vendored native profile
-    /// (`vendor/typescript-native/7.1.0-dev-19dadef8`).
-    #[default]
-    TypeScript71,
-}
-
-impl ReferenceProfile {
-    /// The target `_computedOptions.target.computeValue` (6.0.3, ES2025 as
-    /// LatestStandard) or `GetEmitScriptTarget` (7.1, ES2026) selects when
-    /// none is configured.
-    pub const fn default_script_target(self) -> ScriptTarget {
-        match self {
-            Self::TypeScript603 => ScriptTarget::ES2025,
-            Self::TypeScript71 => ScriptTarget::ES2026,
-        }
-    }
-
-    /// Whether unions, named members and `typeof` facts take the content
-    /// order when `stableTypeOrdering` is not configured: tsc 6.0.3 defaults
-    /// the option to false; TypeScript 7 orders by content unconditionally
-    /// and ignores the option.
-    pub const fn stable_type_ordering_default(self) -> bool {
-        match self {
-            Self::TypeScript603 => false,
-            Self::TypeScript71 => true,
-        }
-    }
-
-    pub const fn name(self) -> &'static str {
-        match self {
-            Self::TypeScript603 => "6.0.3",
-            Self::TypeScript71 => "7.1.0-dev-19dadef8",
-        }
-    }
 }
 
 impl CompilerOptions {
     /// `stableTypeOrdering` as the checker applies it: the configured value,
-    /// else the profile's default (see
-    /// [`ReferenceProfile::stable_type_ordering_default`]).
+    /// else true. TypeScript 7 orders unions, named members and `typeof`
+    /// facts by content unconditionally and ignores the option; tsc-rs keeps
+    /// the explicit `false` for the creation order.
     pub fn stable_type_ordering_effective(&self) -> bool {
-        self.stable_type_ordering
-            .unwrap_or_else(|| self.reference_profile.stable_type_ordering_default())
+        self.stable_type_ordering.unwrap_or(true)
     }
 
     /// tsc's module-resolution option defaults to true when absent.
@@ -496,13 +441,12 @@ impl CompilerOptions {
         (depth as f64) < self.max_node_module_js_depth_effective()
     }
 
-    /// tsc _computedOptions.target.computeValue (18245): ES3 counts as
-    /// unset; the default is the profile's LatestStandard (tsc 6.0.3:
-    /// ES2025; TypeScript 7.1 `GetEmitScriptTarget`: ES2026).
+    /// TypeScript 7.1 `GetEmitScriptTarget`: ES3 counts as unset; the
+    /// default is `ScriptTargetLatestStandard` (ES2026).
     pub fn emit_script_target(&self) -> ScriptTarget {
         match self.target {
             Some(target) if target != ScriptTarget::ES3.bits() => ScriptTarget::from_bits(target),
-            _ => self.reference_profile.default_script_target(),
+            _ => ScriptTarget::LATEST_STANDARD,
         }
     }
 

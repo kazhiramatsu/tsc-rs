@@ -10,9 +10,7 @@ members = [
     "crates/checker",
     "crates/diagnostics",
     "crates/harness",
-    "crates/oracle",
     "crates/conformance",
-    "crates/fuzz",
     "crates/xtask",
 ]
 resolver = "2"
@@ -35,10 +33,8 @@ tsc-compiler = { package = "tsc-rs-compiler", path = "crates/compiler" }
 tsc-conformance = { package = "tsc-rs-conformance", path = "crates/conformance" }
 tsc-diagnostics = { package = "tsc-rs-diagnostics", path = "crates/diagnostics" }
 tsc-emitter = { package = "tsc-rs-emitter", path = "crates/emitter" }
-tsc-fuzz = { package = "tsc-rs-fuzz", path = "crates/fuzz" }
 tsc-harness = { package = "tsc-rs-harness", path = "crates/harness" }
 tsc-host = { package = "tsc-rs-host", path = "crates/host" }
-tsc-oracle = { package = "tsc-rs-oracle", path = "crates/oracle" }
 tsc-program = { package = "tsc-rs-program", path = "crates/program" }
 tsc-syntax = { package = "tsc-rs-syntax", path = "crates/syntax" }
 tsc-types = { package = "tsc-rs-types", path = "crates/types" }
@@ -60,10 +56,10 @@ codegen-units = 1
 [profile.test]
 debug = 0
 
-# `cargo xtask` runs the dev profile; unoptimized parse/bind/check made
-# corpus-wide commands ~9x slower than release. Optimize the compute
-# crates while keeping dev's debug-assertions (invariant checks stay on).
-# BEGIN GENERATED: cargo xtask workspace sync
+# The dev profile runs the tests; unoptimized parse/bind/check made the
+# corpus-wide ones ~9x slower than release. Optimize the compute crates while
+# keeping dev's debug-assertions (invariant checks stay on). The list follows
+# the `dev-profile-opt-level` metadata of the member manifests.
 [profile.dev.package.tsc-rs-binder]
 opt-level = 3
 [profile.dev.package.tsc-rs-checker]
@@ -80,4 +76,3 @@ opt-level = 3
 opt-level = 3
 [profile.dev.package.tsc-rs-types]
 opt-level = 3
-# END GENERATED: cargo xtask workspace sync

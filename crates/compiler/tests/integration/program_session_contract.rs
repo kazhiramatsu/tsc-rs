@@ -3286,6 +3286,9 @@ fn sharded_session_replays_order_sensitive_inference_serially() {
                 |options| {
                     options.strict = Some(true);
                     options.skip_lib_check = Some(true);
+                    // The inference is order-sensitive only in the
+                    // creation order.
+                    options.stable_type_ordering = Some(false);
                 },
             ))
             .with_checker_budget(
@@ -3464,6 +3467,10 @@ fn assert_sharded_control(types: &str, first: &str, second: &str, expected: &[Ob
                 module_resolution: Some(100), // ModuleResolutionKind.Bundler
                 strict: Some(true),
                 skip_lib_check: Some(true),
+                // The controls are order-sensitive inferences of the
+                // creation order; the content order resolves them the
+                // same way on every shard.
+                stable_type_ordering: Some(false),
                 ..CompilerOptions::default()
             },
             |builder, ids| {

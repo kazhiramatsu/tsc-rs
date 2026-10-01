@@ -2,7 +2,6 @@
 
 use tsc_diagnostics::{gen as d, Diagnostic, DiagnosticMessage, RelatedInfo};
 use tsc_syntax::{NodeData, NodeId, SourceFile, SyntaxKind};
-use tsc_types::ReferenceProfile;
 
 use crate::{TransformError, UnsupportedEmitFeature};
 
@@ -19,7 +18,6 @@ pub(crate) fn inference_error(
     source: &SourceFile,
     node: NodeId,
     parameter_add_undefined: Option<bool>,
-    profile: ReferenceProfile,
 ) -> Result<Diagnostic, TransformError> {
     let record = source.arena.node(node);
     if is_in_heritage_clause(source, node) {
@@ -52,18 +50,10 @@ pub(crate) fn inference_error(
         NodeData::VariableDeclaration(_) | NodeData::PropertyDeclaration(_) => {
             declaration_error(source, node)
         }
-        // TypeScript 7.1 reworded TS9019.
         NodeData::BindingElement(_) => Ok(diagnostic_for_source_node(
             source,
             node,
-            match profile {
-                ReferenceProfile::TypeScript603 => {
-                    &d::typescript_6_0_3::Binding_elements_can_t_be_exported_directly_with_isolatedDeclarations
-                }
-                ReferenceProfile::TypeScript71 => {
-                    &d::Binding_elements_with_initializers_can_t_be_exported_directly_with_isolatedDeclarations
-                }
-            },
+            &d::Binding_elements_with_initializers_can_t_be_exported_directly_with_isolatedDeclarations,
             &[],
         )),
         NodeData::PropertyAssignment(data) => expression_error(

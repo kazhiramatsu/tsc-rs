@@ -1,6 +1,0 @@
-{
-  "version": 1,
-  "route": "native-divergence-controls",
-  "note": "Native outcomes frozen at the final candidate bytes (REPORT.md section 3): a typed error, or the SHA-256 of every write with exit code, status writes and diagnostics. The comparator asserts each on both passes and counts it as known, never exact; a row that becomes exact fails until it is retired here.",
-  "cases": []
-}

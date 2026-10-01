@@ -35,7 +35,7 @@ fn javascript_output(source_text: &str, target: i32) -> String {
         &[PathBuf::from("/project/a.ts")],
         options,
         ProgramOptions::default(),
-        &LibraryCatalog::typescript_6_0_3("/lib"),
+        &LibraryCatalog::typescript_7_1("/lib"),
         ProgramLoadLimits::new(256, 2048, 64, 16 * 1024 * 1024, 128 * 1024 * 1024),
     )
     .expect("emitting program");
@@ -95,7 +95,7 @@ fn declaration_output(source_text: &str) -> String {
         &[PathBuf::from("/project/a.ts")],
         options,
         ProgramOptions::default(),
-        &LibraryCatalog::typescript_6_0_3("/lib"),
+        &LibraryCatalog::typescript_7_1("/lib"),
         ProgramLoadLimits::new(256, 2048, 64, 16 * 1024 * 1024, 128 * 1024 * 1024),
     )
     .expect("emitting program");

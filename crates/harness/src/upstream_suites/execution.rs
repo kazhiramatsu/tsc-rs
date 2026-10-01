@@ -1,83 +1,41 @@
-//! Lossless, deterministic execution inputs for the pinned TypeScript suites.
+//! Execution inputs of the native (TypeScript 7.x) compiler-runner cases: the
+//! fixture's units mounted on an in-memory host under the virtual root, the
+//! options its directives project, and the Program the runner loads.
 //!
-//! The expansion manifest records the complete case inventory without copying
-//! source text into a large JSON artifact. This module joins that inventory
-//! back to the pinned corpus. Source bytes are verified for every recorded
-//! path, decoded once per Git blob, and shared by every matrix variant.
-//!
-//! Compiler config files are parsed once through the program-owned H0.5 root
-//! planner. The harness supplies the fixed compiler corpus's `harnessIO`
-//! virtual-host observations, then retains TypeScript's original-unit stable
-//! membership partition instead of substituting `ParsedCommandLine.fileNames`
-//! order. This adapter is not the future general filesystem `matchFiles` host.
+//! Compiler config files are parsed once through the program-owned root
+//! planner. The harness reproduces `harnessIO`'s virtual host for them, then
+//! retains TypeScript's original-unit stable membership partition instead of
+//! substituting `ParsedCommandLine.fileNames` order. This adapter is not the
+//! general filesystem `matchFiles` host.
 
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
-use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use serde::de::{MapAccess, Visitor};
-use serde::{Deserialize, Deserializer};
 use serde_json::{json, Value};
 use tsc_diagnostics::{JsStr, JsString};
 use tsc_host::{CompilerHost, FsCompilerHost, HostError, MemoryCompilerHost};
 use tsc_program::{
-    load_emitting_program, load_program, parse_config_root_plan, CompilerConfigHost,
-    CompilerOptionNumber, CompilerOptions, ConfigFilePattern, ConfigHostError, ConfigHostOperation,
+    load_emitting_program, load_program, parse_config_root_plan, CompilerOptionNumber,
+    CompilerOptions, ConfigFilePattern, ConfigHostError, ConfigHostOperation,
     ConfigOptionValueState, ConfigParseHost, ConfigRootPlan, ConfigRootPlanRequest, LibraryCatalog,
     ModuleSuffix, PreparedProgram, ProgramLoadLimits, ProgramOptions, ProgramPath,
 };
 
 use super::compiler::{
-    expand_configurations, extract_compiler_settings, is_config_file_name, make_units_from_test,
-    ParsedUnit,
+    extract_compiler_settings, is_config_file_name, make_units_from_test, ParsedUnit,
 };
-use super::{
-    collect_suite_paths, decode_source, error, git_blob_sha1, path_from_posix,
-    read_recorded_manifest, sha256_hex, CaseConfiguration, CompilerFixtureExpansion,
-    ExecutionState, ExpansionManifest, OrderedSetting, ProjectInputFiles, ProjectModule,
-    SourceEncoding, SourceInventoryEntry, SuiteName, UnitContent, VIRTUAL_SOURCE_ROOT,
-};
+use super::{error, OrderedSetting, SourceEncoding, VIRTUAL_SOURCE_ROOT};
 use crate::HarnessResult;
 
 mod js_paths;
-pub mod observable_input;
-mod project;
-
-pub use project::{
-    load_node_modules_search_project, load_project_emit, load_project_emit_with_option_floor,
-    load_project_no_emit, ProjectConfigProgram, ProjectNoEmitProgram,
-};
-
-/// Build the same bounded no-emit [`PreparedProgram`] that the compiler
-/// runner would hand to `createProgram` for one recorded compiler case.
-///
-/// The upstream compiler runner normally continues into emit and baseline
-/// comparison. H0 owns the source/config/loader boundary only, so this
-/// adapter deliberately stops at the owned program and keeps that distinction
-/// explicit in its name and return type.
-pub fn load_compiler_no_emit(
-    workspace: &Path,
-    plan: &CompilerExecutionPlan,
-    limits: ProgramLoadLimits,
-) -> HarnessResult<PreparedProgram> {
-    load_compiler_program(
-        workspace,
-        plan,
-        limits,
-        CompilerProgramMode::NoEmit,
-        EmitOptionFloor::Established,
-        None,
-        None,
-    )
-}
 
 /// The compiler-runner fixture of one native (TypeScript 7.x) case: units,
-/// links and the tsconfig root plan built exactly as for the recorded 6.0.3
-/// fixtures (Go's runner keeps Strada's unit semantics). Configurations are
-/// supplied per plan by [`native_compiler_plan`].
+/// links and the tsconfig root plan with Strada's unit semantics, which Go's
+/// runner keeps. Configurations are supplied per plan by
+/// [`native_compiler_plan`].
 pub fn native_compiler_fixture(
     profile: &super::native::NativeProfile,
     case: &super::native::NativeCase,
@@ -99,7 +57,6 @@ pub fn native_compiler_fixture(
         .position(|unit| is_config_file_name(&unit.name));
     let source = Arc::new(VerifiedSource {
         index: 0,
-        suite: SuiteName::Compiler,
         relative_path: Arc::from(case.relative_path.as_str()),
         upstream_path: Arc::from(upstream_path.as_str()),
         workspace_path: Arc::new(workspace_path),
@@ -108,16 +65,7 @@ pub fn native_compiler_fixture(
         encoding,
         decoded: Arc::from(decoded.as_str()),
     });
-    compiler_fixture_from_parts(
-        source,
-        settings,
-        Vec::new(),
-        parsed_units,
-        config_offset,
-        links,
-        tsc_program::ReferenceProfile::TypeScript71,
-    )
-    .map(Arc::new)
+    compiler_fixture_from_parts(source, settings, parsed_units, config_offset, links).map(Arc::new)
 }
 
 /// The execution plan of one native configuration: the fixture's settings in
@@ -160,444 +108,20 @@ pub fn native_compiler_plan(
     })
 }
 
-/// Load a native plan the way the native runner builds its Program for
-/// diagnostics: every option as configured (no implied `noEmit`), the
+/// Load a native plan the way the native runner builds its Program: every
+/// option as configured (no implied `noEmit`; a configuration that sets
+/// `noEmit` loads through the no-emit loader, every other one through the
+/// emitting loader, whose Program reports the output-path checks), the
 /// harness defaults, and the runner's file system (`CompileFilesEx`): a later
 /// unit of the same path replaces an earlier one, and `test_library` (the
 /// profile's `tests/lib`) is mounted at `/.lib` when a root file mentions
-/// `/.lib/`. The library catalog is the vendored 6.0.3 set until the 7.x
-/// libraries are adopted.
+/// `/.lib/`. `standard_library` is the profile's `lib.*.d.ts` catalog.
 pub fn load_native_compiler_program(
     workspace: &Path,
     plan: &CompilerExecutionPlan,
     limits: ProgramLoadLimits,
     test_library: &Path,
     standard_library: &Path,
-) -> HarnessResult<PreparedProgram> {
-    load_compiler_program(
-        workspace,
-        plan,
-        limits,
-        CompilerProgramMode::NativeHarness,
-        EmitOptionFloor::Native,
-        Some(test_library),
-        Some(standard_library),
-    )
-}
-
-/// Build the profile-admitted emitting [`PreparedProgram`] for one pinned
-/// compiler-runner case.
-///
-/// The caller still owns classification and exact output comparison. This
-/// adapter only reconstructs the same verified VFS, root order, and effective
-/// options as [`load_compiler_no_emit`] before selecting the distinct emitting
-/// loader.
-/// Which map-family options the fixture-settings projection admits.
-///
-/// The established H2.5g/H2.5h acceptance floor DROPS the map family (both
-/// sides of those frozen bands are mapless). H2.6a retains its observed map
-/// options through `SourceMapWithOptions`; `SourceMap` preserves the original
-/// ca-2 projection for its other callers. H2.6b projects the complete map
-/// family, including BOM/bundle options. H2.6c additionally retains
-/// `emitDeclarationOnly`, which its frozen TypeScript input already contains.
-/// Earlier map floors and the H2.7b declaration floor keep their existing scope.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum EmitOptionFloor {
-    Established,
-    SourceMap,
-    /// H2.6a input reconstruction, without BOM, bundle, or declaration maps.
-    SourceMapWithOptions,
-    MapFamily,
-    /// Current H2.6c map projection, including the original declaration-only mode.
-    MapFamilyWithDeclarationOnly,
-    DeclarationFamily,
-    /// The native (TypeScript 7.x) compiler runner: every option as configured.
-    Native,
-}
-
-pub fn load_compiler_emit(
-    workspace: &Path,
-    plan: &CompilerExecutionPlan,
-    limits: ProgramLoadLimits,
-) -> HarnessResult<PreparedProgram> {
-    load_compiler_program(
-        workspace,
-        plan,
-        limits,
-        CompilerProgramMode::Emit,
-        EmitOptionFloor::Established,
-        None,
-        None,
-    )
-}
-
-/// [`load_compiler_emit`] with an explicit settings floor (the H2.6a/H2.6b
-/// acceptance lanes).
-pub fn load_compiler_emit_with_option_floor(
-    workspace: &Path,
-    plan: &CompilerExecutionPlan,
-    limits: ProgramLoadLimits,
-    floor: EmitOptionFloor,
-) -> HarnessResult<PreparedProgram> {
-    load_compiler_program(
-        workspace,
-        plan,
-        limits,
-        CompilerProgramMode::Emit,
-        floor,
-        None,
-        None,
-    )
-}
-
-/// Reconstruct one qualification-owned compiler-runner VFS without depending
-/// on which pinned suite originally supplied the fixture.
-///
-/// H2 source-reachability evidence carries the exact merged harness settings,
-/// root order, current directory, and verified virtual bytes. This adapter
-/// applies the same option projection and read-only TypeScript library mount
-/// as [`load_compiler_emit`]. Config discovery, links, and symlinks are
-/// deliberately absent from this protocol; a slice must first disposition
-/// those host behaviors before using a richer execution route.
-pub fn load_qualified_compiler_emit(
-    workspace: &Path,
-    current_directory: &str,
-    files: &[(PathBuf, Vec<u8>)],
-    roots: &[PathBuf],
-    settings: &[(String, String)],
-    limits: ProgramLoadLimits,
-) -> HarnessResult<PreparedProgram> {
-    load_qualified_compiler_emit_with_option_floor(
-        workspace,
-        current_directory,
-        files,
-        roots,
-        settings,
-        limits,
-        EmitOptionFloor::Established,
-    )
-}
-
-/// [`load_qualified_compiler_emit`] with an explicit settings floor (the
-/// H2.6a/H2.6b acceptance lanes).
-#[allow(clippy::too_many_arguments)]
-pub fn load_qualified_compiler_emit_with_option_floor(
-    workspace: &Path,
-    current_directory: &str,
-    files: &[(PathBuf, Vec<u8>)],
-    roots: &[PathBuf],
-    settings: &[(String, String)],
-    limits: ProgramLoadLimits,
-    floor: EmitOptionFloor,
-) -> HarnessResult<PreparedProgram> {
-    load_qualified_compiler_emit_with_symlinks(
-        workspace,
-        current_directory,
-        files,
-        &[],
-        roots,
-        settings,
-        limits,
-        floor,
-    )
-}
-
-/// [`load_qualified_compiler_emit_with_option_floor`] plus the frozen
-/// input's file-level symlinks (`vfs_symlinks`: each `(link, target)` pair is
-/// an aliased file spelling the upstream vfs presented, with `realpath`
-/// resolving the link to its physical target).
-#[allow(clippy::too_many_arguments)]
-pub fn load_qualified_compiler_emit_with_symlinks(
-    workspace: &Path,
-    current_directory: &str,
-    files: &[(PathBuf, Vec<u8>)],
-    symlinks: &[(PathBuf, PathBuf)],
-    roots: &[PathBuf],
-    settings: &[(String, String)],
-    limits: ProgramLoadLimits,
-    floor: EmitOptionFloor,
-) -> HarnessResult<PreparedProgram> {
-    if files.is_empty() || roots.is_empty() {
-        return Err(error(
-            "qualified compiler input must contain files and roots",
-        ));
-    }
-    let mut host_builder = MemoryCompilerHost::builder(current_directory).case_sensitive(true);
-    let mut unique_paths = HashSet::with_capacity(files.len());
-    for (file_name, bytes) in files {
-        if !file_name.is_absolute() || !unique_paths.insert(file_name.clone()) {
-            return Err(error(format!(
-                "qualified compiler input has invalid or duplicate file {file_name:?}"
-            )));
-        }
-        host_builder = host_builder.file(file_name, bytes.clone());
-    }
-    for (link, target) in symlinks {
-        let Some((_, bytes)) = files.iter().find(|(path, _)| path == target) else {
-            return Err(error(format!(
-                "qualified compiler symlink target is absent from the VFS: {target:?}"
-            )));
-        };
-        if !link.is_absolute() || !unique_paths.insert(link.clone()) {
-            return Err(error(format!(
-                "qualified compiler symlink has an invalid or duplicate link path {link:?}"
-            )));
-        }
-        host_builder = host_builder
-            .file(link, bytes.clone())
-            .realpath(link.clone(), target.clone());
-    }
-    for root in roots {
-        if !root.is_absolute() || !unique_paths.contains(root) {
-            return Err(error(format!(
-                "qualified compiler root is absent from the VFS: {root:?}"
-            )));
-        }
-    }
-    for directory in
-        compiler_vfs_trailing_directory_aliases(unique_paths.iter().map(PathBuf::as_path))?
-    {
-        host_builder = host_builder.directory(directory);
-    }
-    let fixture_host = host_builder.build().map_err(|host_error| {
-        error(format!(
-            "failed to build qualified compiler fixture host: {host_error}"
-        ))
-    })?;
-    // h2-7b-m-2 fence amendment #3 (and its E14 correction): the
-    // declaration-family runner applies a virtual tsconfig found among the
-    // case's files — the H2.7b census machine parses it
-    // (`h2-7b-qualification.mjs`: parseJsonText + parseJsonSourceFileConfigFileContent
-    // from the config's directory) so its config-driven rows observe the
-    // config's options, whereas the H2.5g / 5h / 6a / 6b / 6c machines splice
-    // the config unit out of the program and record it for identity only
-    // (`h2-5g-qualification.mjs` virtualConfig). Applying the config on the
-    // other floors resolved `types`/`typeRoots` that those observations never
-    // requested (hosted 5g: conformance/references/library-reference-13 lost
-    // its frozen TS2592).
-    // H2.6a's new reconstruction floor also accepts config options. Its 177
-    // frozen inputs have no virtual config; independent config/directive
-    // witnesses establish this route without changing the historical floors.
-    let virtual_config_paths = if matches!(
-        floor,
-        EmitOptionFloor::DeclarationFamily | EmitOptionFloor::SourceMapWithOptions
-    ) {
-        files
-            .iter()
-            .filter_map(|(path, _)| {
-                path.to_str()
-                    .filter(|path| is_config_file_name(path))
-                    .map(str::to_owned)
-            })
-            .collect::<Vec<_>>()
-    } else {
-        Vec::new()
-    };
-    if virtual_config_paths.len() > 1 {
-        return Err(error(format!(
-            "qualified compiler input has multiple virtual config files: {virtual_config_paths:?}"
-        )));
-    }
-    let config_root_plan = virtual_config_paths
-        .first()
-        .map(|config_path| {
-            let config_host = CompilerConfigHost::new(&fixture_host);
-            let text = config_host
-                .read_file(config_path.as_str().into())
-                .map_err(|parse_error| {
-                    error(format!(
-                        "failed to read qualified compiler virtual config {config_path:?}: {parse_error}"
-                    ))
-                })?
-                .ok_or_else(|| {
-                    error(format!(
-                        "qualified compiler virtual config is absent from the VFS: {config_path:?}"
-                    ))
-                })?;
-            parse_config_root_plan(
-                &config_host,
-                ConfigRootPlanRequest {
-                    file_name: config_path.clone().into(),
-                    text,
-                    base_path: current_directory.into(),
-                },
-            )
-            .map_err(|parse_error| {
-                error(format!(
-                    "failed to parse qualified compiler virtual config {config_path:?}: {parse_error}"
-                ))
-            })
-        })
-        .transpose()?;
-    let library_directory = workspace.join("vendor/typescript-6.0.3/lib");
-    let host = CompilerSuiteHost::new(workspace, fixture_host, library_directory.clone(), true)?;
-
-    let config_has_explicit_allow_js = config_root_plan.as_ref().is_some_and(|config| {
-        matches!(
-            config.options().typed_value_state("allowJs"),
-            ConfigOptionValueState::Value(value) if value.is_boolean()
-        )
-    });
-    let (mut compiler_options, mut program_options) = config_root_plan
-        .as_ref()
-        .map(|config| {
-            let mut compiler_options = config.compiler_options().clone();
-            apply_emit_option_floor_to_config(&mut compiler_options, floor);
-            (
-                compiler_options,
-                config
-                    .program_options()
-                    .clone()
-                    .with_program_owned_config_option_diagnostics(),
-            )
-        })
-        .unwrap_or_else(|| (CompilerOptions::default(), ProgramOptions::default()));
-    // H2's qualification host starts from this harness default before
-    // applying fixture settings. An explicit config or directive value wins.
-    compiler_options.skip_default_lib_check.get_or_insert(true);
-    apply_compiler_settings(
-        &mut compiler_options,
-        &mut program_options,
-        current_directory,
-        settings
-            .iter()
-            .map(|(name, value)| (name.as_str(), value.as_str())),
-        config_has_explicit_allow_js,
-        floor,
-    )?;
-    if floor == EmitOptionFloor::DeclarationFamily {
-        compiler_options.list_emitted_files = Some(true);
-    }
-    compiler_options.new_line.get_or_insert(0);
-    compiler_options.no_error_truncation = Some(true);
-    let catalog = LibraryCatalog::typescript_6_0_3(library_directory);
-    load_emitting_program(
-        &host,
-        roots,
-        compiler_options,
-        program_options,
-        &catalog,
-        limits,
-    )
-    .map_err(|load_error| {
-        error(format!(
-            "failed to load qualified compiler fixture: {load_error}"
-        ))
-    })
-}
-
-/// Apply the same admission floor to options originating in a virtual config
-/// that [`apply_compiler_setting`] applies to compiler-runner directives.
-/// Config parsing remains responsible for typed conversion and path rebasing;
-/// this projection only removes options that the selected floor still drops.
-fn apply_emit_option_floor_to_config(options: &mut CompilerOptions, floor: EmitOptionFloor) {
-    if !matches!(
-        floor,
-        EmitOptionFloor::SourceMap
-            | EmitOptionFloor::SourceMapWithOptions
-            | EmitOptionFloor::MapFamily
-            | EmitOptionFloor::MapFamilyWithDeclarationOnly
-            | EmitOptionFloor::DeclarationFamily
-    ) {
-        options.source_map = None;
-    }
-    if !matches!(
-        floor,
-        EmitOptionFloor::SourceMapWithOptions
-            | EmitOptionFloor::MapFamily
-            | EmitOptionFloor::MapFamilyWithDeclarationOnly
-            | EmitOptionFloor::DeclarationFamily
-    ) {
-        options.inline_source_map = None;
-        options.inline_sources = None;
-        options.source_root = None;
-        options.map_root = None;
-    }
-    if !matches!(
-        floor,
-        EmitOptionFloor::MapFamily
-            | EmitOptionFloor::MapFamilyWithDeclarationOnly
-            | EmitOptionFloor::DeclarationFamily
-    ) {
-        options.emit_bom = None;
-    }
-    if !matches!(
-        floor,
-        EmitOptionFloor::MapFamilyWithDeclarationOnly | EmitOptionFloor::DeclarationFamily
-    ) {
-        options.emit_declaration_only = None;
-    }
-
-    options.no_emit_helpers = None;
-    if !matches!(
-        floor,
-        EmitOptionFloor::MapFamily | EmitOptionFloor::MapFamilyWithDeclarationOnly
-    ) {
-        options.declaration_map = None;
-        options.out_file = None;
-    }
-    options.out_dir = None;
-    options.declaration_dir = None;
-    options.incremental = None;
-    options.assume_changes_only_affect_direct_dependencies = None;
-    options.strip_internal = None;
-    options.out = None;
-    options.root_dir = None;
-    options.ts_build_info_file = None;
-    options.stable_type_ordering = None;
-    options.no_check = None;
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum CompilerProgramMode {
-    NoEmit,
-    Emit,
-    /// The options as configured: the native runner collects diagnostics
-    /// without emitting, but `noEmit` is not implied. A configuration that
-    /// sets `noEmit` loads through the no-emit loader, every other one through
-    /// the emitting loader (whose Program reports the output-path checks).
-    NativeHarness,
-}
-
-/// Every file under a native profile's `tests/lib` with its path relative to
-/// it (`testLibFolderMap` in harnessutil), in path order.
-fn read_test_library(root: &Path) -> HarnessResult<Vec<(String, Arc<str>)>> {
-    let mut files = Vec::new();
-    let mut directories = vec![root.to_path_buf()];
-    while let Some(directory) = directories.pop() {
-        let entries = fs::read_dir(&directory)
-            .map_err(|source| error(format!("{}: {source}", directory.display())))?;
-        for entry in entries {
-            let path = entry.map_err(|source| error(source.to_string()))?.path();
-            if path.is_dir() {
-                directories.push(path);
-                continue;
-            }
-            let text = fs::read_to_string(&path)
-                .map_err(|source| error(format!("{}: {source}", path.display())))?;
-            let relative = path
-                .strip_prefix(root)
-                .expect("walked under the test library")
-                .to_string_lossy()
-                .replace('\\', "/");
-            files.push((relative, Arc::from(text)));
-        }
-    }
-    files.sort_by(|left, right| left.0.cmp(&right.0));
-    Ok(files)
-}
-
-/// `standard_library` selects the native profile's `lib.*.d.ts` catalog
-/// (TypeScript 7.1); without it the Program loads tsc 6.0.3's.
-#[allow(clippy::too_many_arguments)]
-fn load_compiler_program(
-    workspace: &Path,
-    plan: &CompilerExecutionPlan,
-    limits: ProgramLoadLimits,
-    mode: CompilerProgramMode,
-    floor: EmitOptionFloor,
-    test_library: Option<&Path>,
-    standard_library: Option<&Path>,
 ) -> HarnessResult<PreparedProgram> {
     let current_directory = plan.current_directory.as_ref();
     let mut host_builder = MemoryCompilerHost::builder(current_directory)
@@ -626,29 +150,24 @@ fn load_compiler_program(
     };
     // The native runner writes `toBeCompiled` and then `otherFiles` into one
     // map, so a later unit of the same path replaces an earlier one.
-    let native = mode == CompilerProgramMode::NativeHarness;
     let mut native_contents = HashMap::<String, Arc<str>>::new();
-    if native {
-        for unit_id in root_units.iter().chain(other_units.iter()) {
-            let unit = unit(unit_id)?;
-            if let Some(content) = &unit.content {
-                let path = normalize_compiler_fixture_path(current_directory, unit.name.as_ref())?;
-                native_contents.insert(path, Arc::clone(content));
-            }
+    for unit_id in root_units.iter().chain(other_units.iter()) {
+        let unit = unit(unit_id)?;
+        if let Some(content) = &unit.content {
+            let path = normalize_compiler_fixture_path(current_directory, unit.name.as_ref())?;
+            native_contents.insert(path, Arc::clone(content));
         }
     }
     for unit_id in vfs_write_order.iter() {
         let unit = unit(unit_id)?;
         let path = normalize_compiler_fixture_path(current_directory, unit.name.as_ref())?;
-        let Some(mut content) = unit.content.as_ref() else {
+        let Some(content) = unit.content.as_ref() else {
             continue;
         };
-        if native {
-            if source_paths.contains_key(&path) {
-                continue;
-            }
-            content = native_contents.get(&path).unwrap_or(content);
+        if source_paths.contains_key(&path) {
+            continue;
         }
+        let content = native_contents.get(&path).unwrap_or(content);
         host_builder = host_builder.file(&path, content.as_bytes().to_vec());
         source_paths.insert(path, Arc::clone(content));
     }
@@ -659,7 +178,7 @@ fn load_compiler_program(
                 .is_some_and(|content| content.contains("/.lib/"))
         })
     });
-    if let Some(test_library) = test_library.filter(|_| mentions_test_library) {
+    if mentions_test_library {
         for (relative, content) in read_test_library(test_library)? {
             if let std::collections::hash_map::Entry::Vacant(entry) =
                 source_paths.entry(format!("/.lib/{relative}"))
@@ -668,6 +187,34 @@ fn load_compiler_program(
                 entry.insert(content);
             }
         }
+    }
+
+    /// Every file under a native profile's `tests/lib` with its path relative to
+    /// it (`testLibFolderMap` in harnessutil), in path order.
+    fn read_test_library(root: &Path) -> HarnessResult<Vec<(String, Arc<str>)>> {
+        let mut files = Vec::new();
+        let mut directories = vec![root.to_path_buf()];
+        while let Some(directory) = directories.pop() {
+            let entries = fs::read_dir(&directory)
+                .map_err(|source| error(format!("{}: {source}", directory.display())))?;
+            for entry in entries {
+                let path = entry.map_err(|source| error(source.to_string()))?.path();
+                if path.is_dir() {
+                    directories.push(path);
+                    continue;
+                }
+                let text = fs::read_to_string(&path)
+                    .map_err(|source| error(format!("{}: {source}", path.display())))?;
+                let relative = path
+                    .strip_prefix(root)
+                    .expect("walked under the test library")
+                    .to_string_lossy()
+                    .replace('\\', "/");
+                files.push((relative, Arc::from(text)));
+            }
+        }
+        files.sort_by(|left, right| left.0.cmp(&right.0));
+        Ok(files)
     }
 
     // The compiler runner's VFS presents document/global symlinks through
@@ -721,7 +268,9 @@ fn load_compiler_program(
             } else {
                 let prefix = format!("{}/", target.trim_end_matches('/'));
                 let link_prefix = link.trim_end_matches('/');
-                for descendant in source_paths.keys() {
+                let mut descendants = source_paths.keys().collect::<Vec<_>>();
+                descendants.sort();
+                for descendant in descendants {
                     if let Some(suffix) = descendant.strip_prefix(&prefix) {
                         aliases.push((format!("{link_prefix}/{suffix}"), descendant.clone()));
                     }
@@ -761,16 +310,7 @@ fn load_compiler_program(
             plan.fixture.source.relative_path
         ))
     })?;
-    let (library_directory, library_profile) = match standard_library {
-        Some(directory) => (
-            directory.to_path_buf(),
-            tsc_program::ReferenceProfile::TypeScript71,
-        ),
-        None => (
-            workspace.join("vendor/typescript-6.0.3/lib"),
-            tsc_program::ReferenceProfile::TypeScript603,
-        ),
-    };
+    let library_directory = standard_library.to_path_buf();
     let host = CompilerSuiteHost::new(
         workspace,
         fixture_host,
@@ -778,7 +318,7 @@ fn load_compiler_program(
         plan.use_case_sensitive_file_names,
     )?;
 
-    let (mut compiler_options, program_options) = plan_compiler_options(plan, floor)?;
+    let (mut compiler_options, program_options) = plan_compiler_options(plan)?;
     // CompilerBaselineRunner normalizes these harness-only defaults
     // after config and directive projection. They are not command-line
     // defaults: in particular, its absent `newLine` becomes CRLF even when
@@ -787,38 +327,26 @@ fn load_compiler_program(
     // bytes while the production CLI continues to use its own host default.
     compiler_options.new_line.get_or_insert(0);
     compiler_options.no_error_truncation = Some(true);
-    if mode == CompilerProgramMode::NoEmit {
-        compiler_options.no_emit = Some(true);
-    }
     let roots = compiler_root_paths(plan)?;
-    let catalog = LibraryCatalog::for_profile(library_profile, library_directory);
-    let loaded = match mode {
-        CompilerProgramMode::NativeHarness if compiler_options.no_emit != Some(true) => {
-            load_emitting_program(
-                &host,
-                &roots,
-                compiler_options,
-                program_options,
-                &catalog,
-                limits,
-            )
-        }
-        CompilerProgramMode::NoEmit | CompilerProgramMode::NativeHarness => load_program(
+    let catalog = LibraryCatalog::typescript_7_1(library_directory);
+    let loaded = if compiler_options.no_emit == Some(true) {
+        load_program(
             &host,
             &roots,
             compiler_options,
             program_options,
             &catalog,
             limits,
-        ),
-        CompilerProgramMode::Emit => load_emitting_program(
+        )
+    } else {
+        load_emitting_program(
             &host,
             &roots,
             compiler_options,
             program_options,
             &catalog,
             limits,
-        ),
+        )
     };
     loaded.map_err(|load_error| {
         error(format!(
@@ -1033,13 +561,11 @@ fn compiler_root_paths(plan: &CompilerExecutionPlan) -> HarnessResult<Vec<PathBu
 
 fn plan_compiler_options(
     plan: &CompilerExecutionPlan,
-    floor: EmitOptionFloor,
 ) -> HarnessResult<(CompilerOptions, ProgramOptions)> {
     let (compiler_options, mut program_options) = project_compiler_options(
         &plan.fixture,
         &plan.effective_settings,
         plan.current_directory.as_ref(),
-        floor,
     )?;
 
     if plan.fixture.config_root_plan.is_some() {
@@ -1056,7 +582,6 @@ fn project_compiler_options(
     fixture: &CompilerFixtureInput,
     settings: &[OrderedSetting],
     current_directory: &str,
-    floor: EmitOptionFloor,
 ) -> HarnessResult<(CompilerOptions, ProgramOptions)> {
     let (mut compiler_options, mut program_options, config_has_explicit_allow_js) = fixture
         .config_root_plan
@@ -1073,12 +598,6 @@ fn project_compiler_options(
         })
         .unwrap_or_else(|| (CompilerOptions::default(), ProgramOptions::default(), false));
 
-    // The H2.6a reconstruction applies the same option floor to both input
-    // layers. Historical floors retain their existing config inheritance.
-    if floor == EmitOptionFloor::SourceMapWithOptions {
-        apply_emit_option_floor_to_config(&mut compiler_options, floor);
-    }
-
     // CompilerBaselineRunner's effective-options contract defaults this to
     // true only when the config did not supply a value. Fixture settings are
     // applied below and retain the final override.
@@ -1091,11 +610,7 @@ fn project_compiler_options(
             .iter()
             .map(|setting| (setting.name.as_str(), setting.value.as_str())),
         config_has_explicit_allow_js,
-        floor,
     )?;
-    if floor == EmitOptionFloor::DeclarationFamily {
-        compiler_options.list_emitted_files = Some(true);
-    }
     Ok((compiler_options, program_options))
 }
 
@@ -1110,7 +625,6 @@ fn apply_compiler_settings<'setting>(
     current_directory: &str,
     settings: impl IntoIterator<Item = (&'setting str, &'setting str)>,
     lower_layer_has_explicit_allow_js: bool,
-    floor: EmitOptionFloor,
 ) -> HarnessResult<()> {
     let mut has_explicit_allow_js = lower_layer_has_explicit_allow_js;
     for (name, value) in settings {
@@ -1122,7 +636,6 @@ fn apply_compiler_settings<'setting>(
             current_directory,
             name,
             value,
-            floor,
         )?;
     }
     if !has_explicit_allow_js {
@@ -1181,7 +694,6 @@ fn apply_compiler_setting(
     current_directory: &str,
     name: &str,
     value: &str,
-    floor: EmitOptionFloor,
 ) -> HarnessResult<()> {
     let key = CompilerFixtureOptionKey::new(name);
     if let Some(metadata) = CompilerBaselineMetadata::lookup(&key) {
@@ -1389,145 +901,20 @@ fn apply_compiler_setting(
         // hides the blocked-emit diagnostic set the observations record
         // (H2.5h CA-2b).
         "noemitonerror" => compiler_options.no_emit_on_error = Some(boolean()?),
-        // `sourcemap` projects on the H2.6a and H2.6b floors and stays
-        // dropped on the established floor (the frozen 5g/5h bands are
-        // mapless on both sides).
-        "sourcemap" => {
-            if matches!(
-                floor,
-                EmitOptionFloor::SourceMap
-                    | EmitOptionFloor::SourceMapWithOptions
-                    | EmitOptionFloor::MapFamily
-                    | EmitOptionFloor::MapFamilyWithDeclarationOnly
-                    | EmitOptionFloor::DeclarationFamily
-                    | EmitOptionFloor::Native
-            ) {
-                compiler_options.source_map = Some(boolean()?);
-            }
-        }
-        "inlinesourcemap" => {
-            if matches!(
-                floor,
-                EmitOptionFloor::SourceMapWithOptions
-                    | EmitOptionFloor::MapFamily
-                    | EmitOptionFloor::MapFamilyWithDeclarationOnly
-                    | EmitOptionFloor::DeclarationFamily
-                    | EmitOptionFloor::Native
-            ) {
-                compiler_options.inline_source_map = Some(boolean()?);
-            }
-        }
-        "inlinesources" => {
-            if matches!(
-                floor,
-                EmitOptionFloor::SourceMapWithOptions
-                    | EmitOptionFloor::MapFamily
-                    | EmitOptionFloor::MapFamilyWithDeclarationOnly
-                    | EmitOptionFloor::DeclarationFamily
-                    | EmitOptionFloor::Native
-            ) {
-                compiler_options.inline_sources = Some(boolean()?);
-            }
-        }
-        "sourceroot" => {
-            if matches!(
-                floor,
-                EmitOptionFloor::SourceMapWithOptions
-                    | EmitOptionFloor::MapFamily
-                    | EmitOptionFloor::MapFamilyWithDeclarationOnly
-                    | EmitOptionFloor::DeclarationFamily
-                    | EmitOptionFloor::Native
-            ) {
-                compiler_options.source_root = Some(value.to_owned().into());
-            }
-        }
-        "maproot" => {
-            if matches!(
-                floor,
-                EmitOptionFloor::SourceMapWithOptions
-                    | EmitOptionFloor::MapFamily
-                    | EmitOptionFloor::MapFamilyWithDeclarationOnly
-                    | EmitOptionFloor::DeclarationFamily
-                    | EmitOptionFloor::Native
-            ) {
-                compiler_options.map_root = Some(value.to_owned().into());
-            }
-        }
-        // W5 K21: the production emitter honors emitBOM on the JavaScript
-        // write's byte-order-mark flag (execute.rs). The breadth floor
-        // projects it so the observation's BOM facet is comparable; the
-        // 5g/5h/6a floors keep the historical drop.
-        "emitbom" => {
-            if matches!(
-                floor,
-                EmitOptionFloor::MapFamily
-                    | EmitOptionFloor::MapFamilyWithDeclarationOnly
-                    | EmitOptionFloor::DeclarationFamily
-                    | EmitOptionFloor::Native
-            ) {
-                compiler_options.emit_bom = Some(boolean()?);
-            }
-        }
-        "emitdeclarationonly" => {
-            if matches!(
-                floor,
-                EmitOptionFloor::MapFamilyWithDeclarationOnly
-                    | EmitOptionFloor::DeclarationFamily
-                    | EmitOptionFloor::Native
-            ) {
-                compiler_options.emit_declaration_only = Some(boolean()?);
-            }
-        }
-        "declarationmap" => {
-            if matches!(
-                floor,
-                EmitOptionFloor::MapFamily
-                    | EmitOptionFloor::MapFamilyWithDeclarationOnly
-                    | EmitOptionFloor::Native
-            ) {
-                compiler_options.declaration_map = Some(boolean()?);
-            }
-        }
-        "outfile" => {
-            if matches!(
-                floor,
-                EmitOptionFloor::MapFamily
-                    | EmitOptionFloor::MapFamilyWithDeclarationOnly
-                    | EmitOptionFloor::Native
-            ) {
-                compiler_options.out_file = Some(value.to_owned().into());
-            }
-        }
-        // The map-family floors replay frozen TypeScript observations that
-        // the upstream harness took with these directives applied: dropping
-        // them here made the H2.6c `outDir` / `noEmitHelpers` rows known
-        // divergences whose only cause was this projection
-        // (H2.8a-A-RES-EMITTER-FINAL EF3). The established, source-map and
-        // declaration floors keep their frozen admission scope unchanged.
-        "outdir" => {
-            if matches!(
-                floor,
-                EmitOptionFloor::MapFamily
-                    | EmitOptionFloor::MapFamilyWithDeclarationOnly
-                    | EmitOptionFloor::Native
-            ) {
-                compiler_options.out_dir = Some(value.to_owned().into());
-            }
-        }
-        "noemithelpers" => {
-            if matches!(
-                floor,
-                EmitOptionFloor::MapFamily
-                    | EmitOptionFloor::MapFamilyWithDeclarationOnly
-                    | EmitOptionFloor::Native
-            ) {
-                compiler_options.no_emit_helpers = Some(boolean()?);
-            }
-        }
+        "sourcemap" => compiler_options.source_map = Some(boolean()?),
+        "inlinesourcemap" => compiler_options.inline_source_map = Some(boolean()?),
+        "inlinesources" => compiler_options.inline_sources = Some(boolean()?),
+        "sourceroot" => compiler_options.source_root = Some(value.to_owned().into()),
+        "maproot" => compiler_options.map_root = Some(value.to_owned().into()),
+        "emitbom" => compiler_options.emit_bom = Some(boolean()?),
+        "emitdeclarationonly" => compiler_options.emit_declaration_only = Some(boolean()?),
+        "declarationmap" => compiler_options.declaration_map = Some(boolean()?),
+        "outfile" => compiler_options.out_file = Some(value.to_owned().into()),
+        "outdir" => compiler_options.out_dir = Some(value.to_owned().into()),
+        "noemithelpers" => compiler_options.no_emit_helpers = Some(boolean()?),
         // The native runner builds the whole Program with these options
-        // (`CompileFilesEx` makes the paths absolute); the recorded 6.0.3
-        // floors keep their frozen admission scope and drop them below.
-        "rootdir" | "declarationdir" | "tsbuildinfofile" if floor == EmitOptionFloor::Native => {
+        // (`CompileFilesEx` makes the paths absolute).
+        "rootdir" | "declarationdir" | "tsbuildinfofile" => {
             let path = Some(normalize_virtual_path(current_directory, value)?.into());
             match key.as_str() {
                 "rootdir" => compiler_options.root_dir = path,
@@ -1535,23 +922,12 @@ fn apply_compiler_setting(
                 _ => compiler_options.ts_build_info_file = path,
             }
         }
-        "stripinternal" if floor == EmitOptionFloor::Native => {
-            compiler_options.strip_internal = Some(boolean()?)
-        }
-        "nocheck" if floor == EmitOptionFloor::Native => {
-            compiler_options.no_check = Some(boolean()?)
-        }
-        "incremental" if floor == EmitOptionFloor::Native => {
-            compiler_options.incremental = Some(boolean()?)
-        }
-        "declarationdir"
-        | "incremental"
-        | "assumechangesonlyaffectdirectdependencies"
-        | "stripinternal"
+        "stripinternal" => compiler_options.strip_internal = Some(boolean()?),
+        "nocheck" => compiler_options.no_check = Some(boolean()?),
+        "incremental" => compiler_options.incremental = Some(boolean()?),
+        "assumechangesonlyaffectdirectdependencies"
         | "disablesizelimit"
         | "out"
-        | "rootdir"
-        | "tsbuildinfofile"
         | "pretty"
         | "traceresolution"
         | "listfilesonly"
@@ -1561,7 +937,6 @@ fn apply_compiler_setting(
         | "stabletypeordering"
         | "notypesandsymbols"
         | "noimplicitreferences"
-        | "nocheck"
         | "currentdirectory"
         | "usecasesensitivefilenames"
         | "filename"
@@ -1685,46 +1060,10 @@ fn parse_jsx(value: &str) -> HarnessResult<i32> {
     }
 }
 
-/// A fully verified, canonically ordered set of execution plans.
-#[derive(Clone, Debug)]
-pub struct UpstreamExecutionCorpus {
-    pub manifest: Arc<ExpansionManifest>,
-    pub plans: Arc<[UpstreamExecutionPlan]>,
-    pub cache_stats: SourceCacheStats,
-}
-
-/// One entry in the recorded 7,908-case execution order.
-#[derive(Clone, Debug)]
-pub struct UpstreamExecutionPlan {
-    pub provenance: CaseProvenance,
-    pub input: UpstreamExecutionInput,
-}
-
-#[derive(Clone, Debug)]
-pub enum UpstreamExecutionInput {
-    Compiler(CompilerExecutionPlan),
-    Project(ProjectExecutionPlan),
-}
-
-#[derive(Clone, Debug)]
-pub struct CaseProvenance {
-    /// Stable manifest offset for deterministic sharding and result assembly.
-    pub case_index: u32,
-    pub case_id: Arc<str>,
-    pub suite: SuiteName,
-    pub source_index: u32,
-    pub source_path: Arc<str>,
-    pub upstream_path: Arc<str>,
-    pub git_blob_sha1: Arc<str>,
-    pub source_commit: &'static str,
-    pub initial_execution_state: ExecutionState,
-}
-
-/// Content and identity for one source path in the pinned corpus.
+/// Content and identity for one source path in the vendored corpus.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedSource {
     pub index: u32,
-    pub suite: SuiteName,
     pub relative_path: Arc<str>,
     pub upstream_path: Arc<str>,
     pub workspace_path: Arc<PathBuf>,
@@ -1732,18 +1071,6 @@ pub struct VerifiedSource {
     pub raw: Arc<[u8]>,
     pub encoding: SourceEncoding,
     pub decoded: Arc<str>,
-}
-
-/// Observable work avoided by the blob-keyed source cache.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub struct SourceCacheStats {
-    pub verified_source_paths: usize,
-    pub verified_source_bytes: u64,
-    pub unique_raw_blobs: usize,
-    pub reused_raw_blobs: usize,
-    pub decode_requests: usize,
-    pub unique_decoded_blobs: usize,
-    pub reused_decoded_blobs: usize,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -1764,7 +1091,6 @@ pub struct CompilerFixtureInput {
     /// of the later program-loader host.
     pub config_host_log: Arc<[Value]>,
     pub settings: Arc<[OrderedSetting]>,
-    pub configurations: Arc<[super::CompilerConfiguration]>,
     /// Lossless `@link` directive order before JavaScript object assignment.
     pub global_symlink_directives: Arc<[CompilerSymlinkOperation]>,
     /// Effective FileSet order. Repeated normalized link keys replace their
@@ -1855,391 +1181,13 @@ pub enum CompilerRootSelection {
     },
 }
 
-#[derive(Clone, Debug)]
-pub struct ProjectFixtureInput {
-    pub source: Arc<VerifiedSource>,
-    /// Raw source is retained because it is the ultimate lossless descriptor.
-    pub descriptor_raw: Arc<[u8]>,
-    pub descriptor_text: Arc<str>,
-    /// Top-level JavaScript property order, including case-distinct keys.
-    pub properties: Arc<[OrderedJsonProperty]>,
-    pub scenario: Arc<str>,
-    pub project_root: Arc<str>,
-    pub input_files: ProjectInputFiles,
-    pub current_directory: Arc<str>,
-    pub mount: Arc<ProjectMount>,
-    pub root_selection: ProjectRootSelection,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct OrderedJsonProperty {
-    pub name: Arc<str>,
-    pub value: Value,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ProjectMount {
-    pub workspace_path: Arc<PathBuf>,
-    pub virtual_path: Arc<str>,
-    pub case_sensitive: bool,
-    pub read_only: bool,
-    /// Every file below the pinned `tests/cases/projects` tree. The source
-    /// cache verifies each path and decodes each distinct Git blob once before
-    /// the mount is published; all project matrix variants share these owners.
-    pub files: Arc<[ProjectMountFile]>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ProjectMountFile {
-    pub source: Arc<VerifiedSource>,
-    pub virtual_path: Arc<str>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum ProjectRootSelection {
-    Explicit {
-        /// Raw descriptor order, spelling, and duplicates are retained.
-        input_names: Arc<[Arc<str>]>,
-    },
-    ProjectConfig {
-        raw_project: Arc<str>,
-        config_file_name: Arc<str>,
-        resolved_config_path: Arc<str>,
-    },
-    DiscoverConfig,
-}
-
-#[derive(Clone, Debug)]
-pub struct ProjectExecutionPlan {
-    pub fixture: Arc<ProjectFixtureInput>,
-    /// Module variant identity remains separate from a descriptor-level module
-    /// property, which the next option-projection stage may apply afterwards.
-    pub module_variant: ProjectModule,
-    pub baseline_folder: Arc<str>,
-    pub descriptor_module_override: Option<Value>,
-}
-
-/// Verify the recorded corpus and construct every compiler/project plan in its
-/// canonical manifest order.
-pub fn load_recorded_execution_plans(workspace: &Path) -> HarnessResult<UpstreamExecutionCorpus> {
-    let (manifest, _) = read_recorded_manifest(workspace)?;
-    let manifest = Arc::new(manifest);
-    let mut cache = SourceCache::load(workspace, &manifest)?;
-
-    let mut compiler_fixtures = HashMap::with_capacity(manifest.compiler_fixtures.len());
-    for fixture in &manifest.compiler_fixtures {
-        let source = cache.decoded_source(&manifest, fixture.source)?;
-        let input = Arc::new(build_compiler_fixture(fixture, source)?);
-        if compiler_fixtures.insert(fixture.source, input).is_some() {
-            return Err(error(format!(
-                "duplicate compiler fixture source index {}",
-                fixture.source
-            )));
-        }
-    }
-
-    let project_mount_files = manifest
-        .sources
-        .iter()
-        .enumerate()
-        .filter(|(_, source)| source.suite == SuiteName::Projects)
-        .map(|(index, _)| {
-            let source = cache.decoded_source(
-                &manifest,
-                u32::try_from(index).map_err(|_| error("project mount source index overflow"))?,
-            )?;
-            let virtual_path =
-                join_posix("/.src/tests/cases/projects", source.relative_path.as_ref());
-            Ok(ProjectMountFile {
-                source,
-                virtual_path: Arc::from(virtual_path),
-            })
-        })
-        .collect::<HarnessResult<Vec<_>>>()?;
-    let tests_mount = Arc::new(ProjectMount {
-        workspace_path: Arc::new(workspace.join("ts-tests/tests")),
-        virtual_path: Arc::from("/.src/tests"),
-        case_sensitive: true,
-        read_only: true,
-        files: Arc::from(project_mount_files),
-    });
-    let mut project_fixtures = HashMap::with_capacity(manifest.project_fixtures.len());
-    for fixture in &manifest.project_fixtures {
-        let source = cache.decoded_source(&manifest, fixture.source)?;
-        let input = Arc::new(build_project_fixture(
-            fixture,
-            source,
-            Arc::clone(&tests_mount),
-        )?);
-        if project_fixtures.insert(fixture.source, input).is_some() {
-            return Err(error(format!(
-                "duplicate project fixture source index {}",
-                fixture.source
-            )));
-        }
-    }
-
-    let mut plans = Vec::with_capacity(manifest.cases.len());
-    for (case_index, case) in manifest.cases.iter().enumerate() {
-        let input = match &case.configuration {
-            CaseConfiguration::Compiler { configuration } => {
-                let fixture = compiler_fixtures.get(&case.source).ok_or_else(|| {
-                    error(format!("compiler case {:?} has no fixture input", case.id))
-                })?;
-                UpstreamExecutionInput::Compiler(build_compiler_plan(
-                    Arc::clone(fixture),
-                    *configuration,
-                )?)
-            }
-            CaseConfiguration::Project {
-                module,
-                baseline_folder,
-            } => {
-                let fixture = project_fixtures.get(&case.source).ok_or_else(|| {
-                    error(format!("project case {:?} has no fixture input", case.id))
-                })?;
-                UpstreamExecutionInput::Project(build_project_plan(
-                    Arc::clone(fixture),
-                    *module,
-                    baseline_folder,
-                ))
-            }
-        };
-        let verified_source = match &input {
-            UpstreamExecutionInput::Compiler(plan) => &plan.fixture.source,
-            UpstreamExecutionInput::Project(plan) => &plan.fixture.source,
-        };
-        let provenance = CaseProvenance {
-            case_index: u32::try_from(case_index)
-                .map_err(|_| error("upstream execution case index overflow"))?,
-            case_id: Arc::from(case.id.as_str()),
-            suite: case.suite,
-            source_index: case.source,
-            source_path: Arc::clone(&verified_source.relative_path),
-            upstream_path: Arc::clone(&verified_source.upstream_path),
-            git_blob_sha1: Arc::clone(&verified_source.git_blob_sha1),
-            source_commit: super::SOURCE_COMMIT,
-            initial_execution_state: case.initial_execution_state,
-        };
-        plans.push(UpstreamExecutionPlan { provenance, input });
-    }
-
-    Ok(UpstreamExecutionCorpus {
-        manifest,
-        plans: Arc::from(plans),
-        cache_stats: cache.stats,
-    })
-}
-
-struct SourceCache {
-    workspace_paths: Vec<Arc<PathBuf>>,
-    raw_sources: Vec<Arc<[u8]>>,
-    raw_by_blob: HashMap<String, Arc<[u8]>>,
-    decoded_by_blob: HashMap<String, (SourceEncoding, Arc<str>)>,
-    stats: SourceCacheStats,
-}
-
-impl SourceCache {
-    fn load(workspace: &Path, manifest: &ExpansionManifest) -> HarnessResult<Self> {
-        verify_suite_path_sets(workspace, manifest)?;
-
-        let mut cache = Self {
-            workspace_paths: Vec::with_capacity(manifest.sources.len()),
-            raw_sources: Vec::with_capacity(manifest.sources.len()),
-            raw_by_blob: HashMap::new(),
-            decoded_by_blob: HashMap::new(),
-            stats: SourceCacheStats::default(),
-        };
-
-        for source in &manifest.sources {
-            let suite = suite_identity(manifest, source.suite)?;
-            let path = workspace
-                .join(&suite.vendored_path)
-                .join(path_from_posix(&source.path)?);
-            let raw = fs::read(&path).map_err(|source_error| {
-                error(format!(
-                    "failed to read pinned execution source {}: {source_error}",
-                    path.display()
-                ))
-            })?;
-            verify_source_bytes(source, &path, &raw)?;
-
-            cache.stats.verified_source_paths += 1;
-            cache.stats.verified_source_bytes = cache
-                .stats
-                .verified_source_bytes
-                .checked_add(raw.len() as u64)
-                .ok_or_else(|| error("verified source byte count overflow"))?;
-
-            let shared = if let Some(existing) = cache.raw_by_blob.get(&source.git_blob_sha1) {
-                if existing.as_ref() != raw.as_slice() {
-                    return Err(error(format!(
-                        "Git blob collision while loading {}",
-                        path.display()
-                    )));
-                }
-                cache.stats.reused_raw_blobs += 1;
-                Arc::clone(existing)
-            } else {
-                let shared: Arc<[u8]> = Arc::from(raw);
-                cache
-                    .raw_by_blob
-                    .insert(source.git_blob_sha1.clone(), Arc::clone(&shared));
-                shared
-            };
-            cache.workspace_paths.push(Arc::new(path));
-            cache.raw_sources.push(shared);
-        }
-        cache.stats.unique_raw_blobs = cache.raw_by_blob.len();
-        Ok(cache)
-    }
-
-    fn decoded_source(
-        &mut self,
-        manifest: &ExpansionManifest,
-        index: u32,
-    ) -> HarnessResult<Arc<VerifiedSource>> {
-        let source = source_entry(manifest, index)?;
-        let raw = self
-            .raw_sources
-            .get(index as usize)
-            .cloned()
-            .ok_or_else(|| error(format!("source index {index} was not loaded")))?;
-        let workspace_path = self
-            .workspace_paths
-            .get(index as usize)
-            .cloned()
-            .ok_or_else(|| error(format!("source index {index} has no workspace path")))?;
-        self.stats.decode_requests += 1;
-        let (encoding, decoded) =
-            if let Some((encoding, decoded)) = self.decoded_by_blob.get(&source.git_blob_sha1) {
-                self.stats.reused_decoded_blobs += 1;
-                (*encoding, Arc::clone(decoded))
-            } else {
-                let (encoding, decoded) = decode_source(raw.as_ref());
-                let decoded: Arc<str> = Arc::from(decoded);
-                self.decoded_by_blob.insert(
-                    source.git_blob_sha1.clone(),
-                    (encoding, Arc::clone(&decoded)),
-                );
-                (encoding, decoded)
-            };
-        self.stats.unique_decoded_blobs = self.decoded_by_blob.len();
-
-        let suite = suite_identity(manifest, source.suite)?;
-        Ok(Arc::new(VerifiedSource {
-            index,
-            suite: source.suite,
-            relative_path: Arc::from(source.path.as_str()),
-            upstream_path: Arc::from(join_posix(&suite.source_path, &source.path)),
-            workspace_path,
-            git_blob_sha1: Arc::from(source.git_blob_sha1.as_str()),
-            raw,
-            encoding,
-            decoded,
-        }))
-    }
-}
-
-fn verify_suite_path_sets(workspace: &Path, manifest: &ExpansionManifest) -> HarnessResult<()> {
-    for suite in &manifest.corpus_pin.suites {
-        let root = workspace.join(&suite.vendored_path);
-        let actual = collect_suite_paths(&root)?;
-        let expected = manifest
-            .sources
-            .iter()
-            .filter(|source| source.suite == suite.name)
-            .map(|source| source.path.clone())
-            .collect::<Vec<_>>();
-        if actual != expected {
-            return Err(error(format!(
-                "execution corpus path set for {} no longer matches the recorded manifest",
-                suite.name.as_str()
-            )));
-        }
-    }
-    Ok(())
-}
-
-fn verify_source_bytes(
-    source: &SourceInventoryEntry,
-    path: &Path,
-    raw: &[u8],
-) -> HarnessResult<()> {
-    if raw.len() as u64 != source.bytes
-        || sha256_hex(raw) != source.sha256
-        || git_blob_sha1(raw) != source.git_blob_sha1
-    {
-        return Err(error(format!(
-            "execution source {} does not match its recorded byte and blob identity",
-            path.display()
-        )));
-    }
-    Ok(())
-}
-
-fn build_compiler_fixture(
-    recorded: &CompilerFixtureExpansion,
-    source: Arc<VerifiedSource>,
-) -> HarnessResult<CompilerFixtureInput> {
-    if source.encoding != recorded.encoding
-        || source.decoded.len() as u64 != recorded.decoded_utf8_bytes
-        || sha256_hex(source.decoded.as_bytes()) != recorded.decoded_sha256
-    {
-        return Err(error(format!(
-            "decoded compiler fixture {:?} does not match the manifest",
-            source.relative_path
-        )));
-    }
-    let settings = extract_compiler_settings(&source.decoded);
-    if settings != recorded.settings {
-        return Err(error(format!(
-            "compiler settings for {:?} no longer match the manifest",
-            source.relative_path
-        )));
-    }
-    let configurations = expand_configurations(source.relative_path.as_ref(), &settings)?;
-    if configurations != recorded.configurations {
-        return Err(error(format!(
-            "compiler configurations for {:?} no longer match the source settings",
-            source.relative_path
-        )));
-    }
-    let (parsed_units, links) =
-        make_units_from_test(&source.decoded, source.upstream_path.as_ref())?;
-    let config_offset = parsed_units
-        .iter()
-        .position(|unit| is_config_file_name(&unit.name));
-    verify_parsed_units(recorded, &parsed_units, config_offset, &source)?;
-    if links != recorded.links {
-        return Err(error(format!(
-            "compiler @link directives for {:?} no longer match the manifest",
-            source.relative_path
-        )));
-    }
-
-    compiler_fixture_from_parts(
-        source,
-        settings,
-        recorded.configurations.clone(),
-        parsed_units,
-        config_offset,
-        links,
-        tsc_program::ReferenceProfile::TypeScript603,
-    )
-}
-
-/// Units, tsconfig root plan and links of one compiler-runner fixture, shared
-/// by the recorded 6.0.3 fixtures and the native profiles.
-#[allow(clippy::too_many_arguments)]
+/// Units, tsconfig root plan and links of one compiler-runner fixture.
 fn compiler_fixture_from_parts(
     source: Arc<VerifiedSource>,
     settings: Vec<OrderedSetting>,
-    configurations: Vec<super::CompilerConfiguration>,
     parsed_units: Vec<super::compiler::ParsedUnit>,
     config_offset: Option<usize>,
     links: Vec<super::CompilerLink>,
-    profile: tsc_program::ReferenceProfile,
 ) -> HarnessResult<CompilerFixtureInput> {
     let current_directory = compiler_current_directory(&settings)?;
     let original_fixture_path = Arc::clone(&source.upstream_path);
@@ -2271,7 +1219,7 @@ fn compiler_fixture_from_parts(
                     source.relative_path
                 ))
             })?;
-            let host = CompilerFixtureConfigHost::new(&units, profile);
+            let host = CompilerFixtureConfigHost::new(&units);
             let parsed = parse_config_root_plan(
                 &host,
                 ConfigRootPlanRequest {
@@ -2322,7 +1270,6 @@ fn compiler_fixture_from_parts(
         config_root_plan,
         config_host_log,
         settings: Arc::from(settings),
-        configurations: Arc::from(configurations),
         global_symlink_directives: Arc::from(global_symlink_directives),
         global_symlinks: Arc::from(global_symlinks),
     })
@@ -2343,68 +1290,6 @@ fn effective_global_symlinks(
         }
     }
     effective
-}
-
-fn verify_parsed_units(
-    recorded: &CompilerFixtureExpansion,
-    parsed: &[ParsedUnit],
-    config_offset: Option<usize>,
-    source: &VerifiedSource,
-) -> HarnessResult<()> {
-    let mut normal_offset = 0;
-    for (index, unit) in parsed.iter().enumerate() {
-        let expected = if Some(index) == config_offset {
-            recorded.virtual_config.as_ref()
-        } else {
-            let expected = recorded.normal_units.get(normal_offset);
-            normal_offset += 1;
-            expected
-        }
-        .ok_or_else(|| {
-            error(format!(
-                "compiler unit occurrence {index} for {:?} is absent from the manifest",
-                source.relative_path
-            ))
-        })?;
-        if unit.name != expected.name || unit.file_options != expected.file_options {
-            return Err(error(format!(
-                "compiler unit occurrence {index} for {:?} no longer matches the manifest",
-                source.relative_path
-            )));
-        }
-        let actual_content = match &unit.content {
-            Some(content) => UnitContent::Present {
-                utf8_bytes: content.len() as u64,
-                sha256: sha256_hex(content.as_bytes()),
-            },
-            None => UnitContent::Missing,
-        };
-        if actual_content != expected.content {
-            return Err(error(format!(
-                "compiler unit content {index} for {:?} no longer matches the manifest",
-                source.relative_path
-            )));
-        }
-        let symlinks = exact_setting(&unit.file_options, "symlink")
-            .filter(|value| !value.is_empty())
-            .map(|value| value.split(',').map(js_trim).collect::<Vec<_>>())
-            .unwrap_or_default();
-        if symlinks != expected.document_symlinks {
-            return Err(error(format!(
-                "compiler document symlinks {index} for {:?} no longer match the manifest",
-                source.relative_path
-            )));
-        }
-    }
-    if normal_offset != recorded.normal_units.len()
-        || config_offset.is_some() != recorded.virtual_config.is_some()
-    {
-        return Err(error(format!(
-            "compiler unit partition for {:?} no longer matches the manifest",
-            source.relative_path
-        )));
-    }
-    Ok(())
 }
 
 fn build_compiler_unit(
@@ -2460,17 +1345,13 @@ fn build_compiler_unit(
 struct CompilerFixtureConfigHost<'a> {
     units: &'a [CompilerUnitInput],
     log: RefCell<Vec<tsc_program::JsonValue>>,
-    /// The suite's reference: tsc 6.0.3 for the recorded compiler-runner
-    /// fixtures, TypeScript 7.1 for the native profile's cases.
-    profile: tsc_program::ReferenceProfile,
 }
 
 impl<'a> CompilerFixtureConfigHost<'a> {
-    fn new(units: &'a [CompilerUnitInput], profile: tsc_program::ReferenceProfile) -> Self {
+    fn new(units: &'a [CompilerUnitInput]) -> Self {
         Self {
             units,
             log: RefCell::new(Vec::new()),
-            profile,
         }
     }
 
@@ -2487,10 +1368,6 @@ impl<'a> CompilerFixtureConfigHost<'a> {
 }
 
 impl ConfigParseHost for CompilerFixtureConfigHost<'_> {
-    fn reference_profile(&self) -> tsc_program::ReferenceProfile {
-        self.profile
-    }
-
     fn use_case_sensitive_file_names(&self) -> bool {
         false
     }
@@ -2674,53 +1551,6 @@ fn compiler_fixture_root_parts(path: &str) -> Option<(&str, &str)> {
         }
     }
     None
-}
-
-fn compare_utf16(left: &str, right: &str) -> std::cmp::Ordering {
-    left.encode_utf16().cmp(right.encode_utf16())
-}
-
-fn build_compiler_plan(
-    fixture: Arc<CompilerFixtureInput>,
-    configuration_index: u32,
-) -> HarnessResult<CompilerExecutionPlan> {
-    let recorded = fixture.source.index;
-    let manifest_configuration = fixture
-        .configurations
-        .get(configuration_index as usize)
-        .ok_or_else(|| {
-            error(format!(
-                "compiler source index {recorded} has no configuration {configuration_index}"
-            ))
-        })?
-        .clone();
-    let effective_settings = if manifest_configuration.settings.is_empty() {
-        Arc::clone(&fixture.settings)
-    } else {
-        Arc::from(merge_ordered_settings(
-            fixture.settings.as_ref(),
-            &manifest_configuration.settings,
-        ))
-    };
-    let current_directory = compiler_current_directory(&effective_settings)?;
-    let use_case_sensitive_file_names = compiler_case_sensitivity(&effective_settings);
-    let allow_js = compiler_root_allow_js(&fixture, &effective_settings)?;
-    let root_selection = compiler_root_selection(&fixture, &effective_settings, allow_js)?;
-
-    Ok(CompilerExecutionPlan {
-        fixture,
-        variant: CompilerVariant {
-            configuration_index,
-            key: Arc::from(manifest_configuration.variant.as_str()),
-            description: Arc::from(manifest_configuration.description.as_str()),
-            upstream_name: Arc::from(manifest_configuration.upstream_name.as_str()),
-            overrides: Arc::from(manifest_configuration.settings.clone()),
-        },
-        effective_settings,
-        current_directory: Arc::from(current_directory),
-        use_case_sensitive_file_names,
-        root_selection,
-    })
 }
 
 fn compiler_root_selection(
@@ -2928,232 +1758,6 @@ fn json_filtered_roots(
         .collect()
 }
 
-fn build_project_fixture(
-    recorded: &super::ProjectFixtureExpansion,
-    source: Arc<VerifiedSource>,
-    tests_mount: Arc<ProjectMount>,
-) -> HarnessResult<ProjectFixtureInput> {
-    if source.encoding != recorded.encoding {
-        return Err(error(format!(
-            "project descriptor {:?} encoding no longer matches the manifest",
-            source.relative_path
-        )));
-    }
-    let properties = parse_ordered_json_object(&source.decoded, source.relative_path.as_ref())?;
-    let scenario =
-        required_ordered_string(&properties, "scenario", source.relative_path.as_ref())?.to_owned();
-    let project_root =
-        required_ordered_string(&properties, "projectRoot", source.relative_path.as_ref())?
-            .to_owned();
-    if scenario != recorded.scenario || project_root != recorded.project_root {
-        return Err(error(format!(
-            "project descriptor {:?} identity no longer matches the manifest",
-            source.relative_path
-        )));
-    }
-    verify_project_inputs(
-        &properties,
-        &recorded.input_files,
-        source.relative_path.as_ref(),
-    )?;
-    let current_directory = normalize_virtual_path(VIRTUAL_SOURCE_ROOT, &project_root)?;
-    let root_selection =
-        project_root_selection(&properties, &recorded.input_files, &current_directory)?;
-    Ok(ProjectFixtureInput {
-        descriptor_raw: Arc::clone(&source.raw),
-        descriptor_text: Arc::clone(&source.decoded),
-        properties: Arc::from(
-            properties
-                .into_iter()
-                .map(|(name, value)| OrderedJsonProperty {
-                    name: Arc::from(name),
-                    value,
-                })
-                .collect::<Vec<_>>(),
-        ),
-        scenario: Arc::from(scenario),
-        project_root: Arc::from(project_root),
-        input_files: recorded.input_files.clone(),
-        current_directory: Arc::from(current_directory),
-        mount: tests_mount,
-        root_selection,
-        source,
-    })
-}
-
-fn build_project_plan(
-    fixture: Arc<ProjectFixtureInput>,
-    module: ProjectModule,
-    baseline_folder: &str,
-) -> ProjectExecutionPlan {
-    let descriptor_module_override = fixture
-        .properties
-        .iter()
-        .filter(|property| property.name.as_ref() == "module")
-        .map(|property| property.value.clone())
-        .next_back();
-    ProjectExecutionPlan {
-        fixture,
-        module_variant: module,
-        baseline_folder: Arc::from(baseline_folder),
-        descriptor_module_override,
-    }
-}
-
-fn project_root_selection(
-    properties: &[(String, Value)],
-    inputs: &ProjectInputFiles,
-    current_directory: &str,
-) -> HarnessResult<ProjectRootSelection> {
-    let raw_project = properties
-        .iter()
-        .filter(|(name, _)| name == "project")
-        .filter_map(|(_, value)| value.as_str())
-        .next_back()
-        .filter(|value| !value.is_empty());
-    if let Some(project) = raw_project {
-        if matches!(inputs, ProjectInputFiles::Present { inputs } if !inputs.is_empty()) {
-            return Err(error(
-                "project descriptor cannot combine a project option with explicit input files",
-            ));
-        }
-        let config_file_name = normalize_posix_path(&join_posix(project, "tsconfig.json"), false)?;
-        let resolved_config_path = normalize_virtual_path(current_directory, &config_file_name)?;
-        return Ok(ProjectRootSelection::ProjectConfig {
-            raw_project: Arc::from(project),
-            config_file_name: Arc::from(config_file_name),
-            resolved_config_path: Arc::from(resolved_config_path),
-        });
-    }
-    match inputs {
-        ProjectInputFiles::Present { inputs } if !inputs.is_empty() => {
-            Ok(ProjectRootSelection::Explicit {
-                input_names: Arc::from(
-                    inputs
-                        .iter()
-                        .map(|input| Arc::from(input.path.as_str()))
-                        .collect::<Vec<_>>(),
-                ),
-            })
-        }
-        ProjectInputFiles::Absent | ProjectInputFiles::Present { .. } => {
-            Ok(ProjectRootSelection::DiscoverConfig)
-        }
-    }
-}
-
-fn verify_project_inputs(
-    properties: &[(String, Value)],
-    recorded: &ProjectInputFiles,
-    fixture_path: &str,
-) -> HarnessResult<()> {
-    let value = properties
-        .iter()
-        .find(|(name, _)| name == "inputFiles")
-        .map(|(_, value)| value);
-    match (value, recorded) {
-        (None, ProjectInputFiles::Absent) => Ok(()),
-        (Some(Value::Array(values)), ProjectInputFiles::Present { inputs }) => {
-            let actual = values
-                .iter()
-                .map(|value| {
-                    value.as_str().ok_or_else(|| {
-                        error(format!(
-                            "project descriptor {fixture_path:?} inputFiles entries must be strings"
-                        ))
-                    })
-                })
-                .collect::<HarnessResult<Vec<_>>>()?;
-            if actual
-                == inputs
-                    .iter()
-                    .map(|input| input.path.as_str())
-                    .collect::<Vec<_>>()
-            {
-                Ok(())
-            } else {
-                Err(error(format!(
-                    "project descriptor {fixture_path:?} inputs no longer match the manifest"
-                )))
-            }
-        }
-        _ => Err(error(format!(
-            "project descriptor {fixture_path:?} inputFiles state no longer matches the manifest"
-        ))),
-    }
-}
-
-#[derive(Debug)]
-struct OrderedObject(Vec<(String, Value)>);
-
-impl<'de> Deserialize<'de> for OrderedObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct OrderedObjectVisitor;
-
-        impl<'de> Visitor<'de> for OrderedObjectVisitor {
-            type Value = OrderedObject;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                formatter.write_str("a JSON object")
-            }
-
-            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
-            where
-                A: MapAccess<'de>,
-            {
-                let mut properties = Vec::with_capacity(map.size_hint().unwrap_or(0));
-                while let Some((name, value)) = map.next_entry::<String, Value>()? {
-                    if let Some((_, existing)) = properties
-                        .iter_mut()
-                        .find(|(existing, _)| existing == &name)
-                    {
-                        *existing = value;
-                    } else {
-                        properties.push((name, value));
-                    }
-                }
-                Ok(OrderedObject(properties))
-            }
-        }
-
-        deserializer.deserialize_map(OrderedObjectVisitor)
-    }
-}
-
-fn parse_ordered_json_object(text: &str, path: &str) -> HarnessResult<Vec<(String, Value)>> {
-    let mut deserializer = serde_json::Deserializer::from_str(text);
-    let object = OrderedObject::deserialize(&mut deserializer).map_err(|source| {
-        error(format!(
-            "project descriptor {path:?} is invalid JSON: {source}"
-        ))
-    })?;
-    deserializer.end().map_err(|source| {
-        error(format!(
-            "project descriptor {path:?} has trailing JSON content: {source}"
-        ))
-    })?;
-    Ok(object.0)
-}
-
-fn required_ordered_string<'a>(
-    properties: &'a [(String, Value)],
-    name: &str,
-    path: &str,
-) -> HarnessResult<&'a str> {
-    properties
-        .iter()
-        .find(|(candidate, _)| candidate == name)
-        .and_then(|(_, value)| value.as_str())
-        .ok_or_else(|| {
-            error(format!(
-                "project descriptor {path:?} field {name:?} must be a string"
-            ))
-        })
-}
-
 fn compiler_current_directory(settings: &[OrderedSetting]) -> HarnessResult<String> {
     exact_setting(settings, "currentDirectory")
         .map(|value| normalize_virtual_path(VIRTUAL_SOURCE_ROOT, value))
@@ -3172,24 +1776,6 @@ fn compiler_case_sensitivity(settings: &[OrderedSetting]) -> bool {
         .map(|setting| setting.value.eq_ignore_ascii_case("true"))
         .next_back()
         .unwrap_or(true)
-}
-
-fn merge_ordered_settings(
-    base: &[OrderedSetting],
-    overrides: &[OrderedSetting],
-) -> Vec<OrderedSetting> {
-    let mut result = base.to_vec();
-    for setting in overrides {
-        if let Some(existing) = result
-            .iter_mut()
-            .find(|existing| existing.name == setting.name)
-        {
-            existing.value.clone_from(&setting.value);
-        } else {
-            result.push(setting.clone());
-        }
-    }
-    result
 }
 
 fn exact_setting<'a>(settings: &'a [OrderedSetting], name: &str) -> Option<&'a str> {
@@ -3281,40 +1867,6 @@ fn normalize_posix_path(path: &str, require_absolute: bool) -> HarnessResult<Str
         } else {
             body
         })
-    }
-}
-
-fn source_entry(manifest: &ExpansionManifest, index: u32) -> HarnessResult<&SourceInventoryEntry> {
-    manifest.sources.get(index as usize).ok_or_else(|| {
-        error(format!(
-            "execution plan references missing source index {index}"
-        ))
-    })
-}
-
-fn suite_identity(
-    manifest: &ExpansionManifest,
-    suite: SuiteName,
-) -> HarnessResult<&super::CorpusSuiteIdentity> {
-    manifest
-        .corpus_pin
-        .suites
-        .iter()
-        .find(|identity| identity.name == suite)
-        .ok_or_else(|| error(format!("manifest has no {} suite identity", suite.as_str())))
-}
-
-fn join_posix(left: &str, right: &str) -> String {
-    if left.is_empty() {
-        right.to_owned()
-    } else if right.is_empty() {
-        left.to_owned()
-    } else {
-        format!(
-            "{}/{}",
-            left.trim_end_matches('/'),
-            right.trim_start_matches('/')
-        )
     }
 }
 

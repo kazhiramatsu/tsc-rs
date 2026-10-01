@@ -1,5 +1,4 @@
 use std::path::{Path, PathBuf};
-use std::process::Command;
 #[cfg(unix)]
 use std::sync::atomic::{AtomicU64, Ordering};
 #[cfg(unix)]
@@ -7,8 +6,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 #[cfg(unix)]
 use std::{fs, io};
 
-use serde_json::{json, Value};
-use tsc_diagnostics::MessageChain;
 #[cfg(unix)]
 use tsc_host::FsCompilerHost;
 use tsc_host::{CompilerHost, HostError, HostErrorKind, HostOperation, MemoryCompilerHost};
@@ -1702,161 +1699,6 @@ fn case_sensitive_files_differing_only_in_case_remain_distinct_and_report_tsc_ca
 }
 
 #[test]
-#[ignore = "local H0 program oracle audit; requires the pinned Node runtime"]
-fn case_sensitive_casing_collision_matrix_matches_vendored_typescript() {
-    const PROBE: &str = r#"
-const ts = require(process.argv[1]);
-const files = new Map([
-  ['/project/main.ts', "import { value } from './Value';\nvoid value;\n"],
-  ['/project/Value.ts', 'export const value = 1;\n'],
-  ['/project/value.ts', 'export const value = 2;\n'],
-]);
-const cases = [
-  ['/project/Value.ts', '/project/value.ts'],
-  ['/project/value.ts', '/project/Value.ts'],
-  ['/project/main.ts', '/project/value.ts'],
-  ['/project/value.ts', '/project/main.ts'],
-];
-function chain(message) {
-  if (typeof message === 'string') return { code: null, text: message, next: null };
-  return {
-    code: message.code,
-    text: message.messageText,
-    next: message.next === undefined ? null : message.next.map(chain),
-  };
-}
-function probe(rootNames) {
-  const options = {
-    noEmit: true,
-    noLib: true,
-    types: [],
-    forceConsistentCasingInFileNames: false,
-    module: ts.ModuleKind.CommonJS,
-    moduleResolution: ts.ModuleResolutionKind.Node10,
-  };
-  const host = ts.createCompilerHost(options);
-  host.useCaseSensitiveFileNames = () => true;
-  host.getCanonicalFileName = path => path;
-  host.realpath = path => path;
-  host.getCurrentDirectory = () => '/project';
-  host.directoryExists = path => path === '/project';
-  host.getDirectories = () => [];
-  host.fileExists = path => files.has(path);
-  host.readFile = path => files.get(path);
-  host.getSourceFile = (path, target) => files.has(path)
-    ? ts.createSourceFile(path, files.get(path), target, true)
-    : undefined;
-  const program = ts.createProgram({ rootNames, options, host });
-  return {
-    sources: program.getSourceFiles().map(source => source.fileName),
-    diagnostics: ts.getPreEmitDiagnostics(program)
-      .filter(diagnostic => diagnostic.code === 1149 || diagnostic.code === 1261)
-      .map(diagnostic => ({
-        code: diagnostic.code,
-        file: diagnostic.file ? diagnostic.file.fileName : null,
-        start: diagnostic.start === undefined ? null : diagnostic.start,
-        length: diagnostic.length === undefined ? null : diagnostic.length,
-        message: chain(diagnostic.messageText),
-        relatedPresent: diagnostic.relatedInformation !== undefined,
-        related: (diagnostic.relatedInformation || []).map(related => ({
-          code: related.code,
-          file: related.file ? related.file.fileName : null,
-          start: related.start === undefined ? null : related.start,
-          length: related.length === undefined ? null : related.length,
-          message: chain(related.messageText),
-        })),
-      })),
-  };
-}
-process.stdout.write(JSON.stringify(cases.map(probe)));
-"#;
-
-    fn chain_json(message: &MessageChain) -> Value {
-        json!({
-            "code": message.code,
-            "text": scalar_json(&message.text),
-            "next": message.next_present.then(|| {
-                message.next.iter().map(chain_json).collect::<Vec<_>>()
-            }),
-        })
-    }
-
-    let bundle = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .join("vendor/typescript-6.0.3/lib/typescript.js");
-    let output = Command::new("node")
-        .arg("-e")
-        .arg(PROBE)
-        .arg(bundle)
-        .output()
-        .expect("run vendored TypeScript case-sensitive casing probe");
-    assert!(
-        output.status.success(),
-        "TypeScript probe failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let oracle: Value = serde_json::from_slice(&output.stdout).expect("probe output is JSON");
-
-    let roots = [
-        ["/project/Value.ts", "/project/value.ts"],
-        ["/project/value.ts", "/project/Value.ts"],
-        ["/project/main.ts", "/project/value.ts"],
-        ["/project/value.ts", "/project/main.ts"],
-    ];
-    let rust = roots
-        .iter()
-        .map(|roots| {
-            let host = MemoryCompilerHost::builder("/project")
-                .case_sensitive(true)
-                .file(
-                    "/project/main.ts",
-                    b"import { value } from './Value';\nvoid value;\n".to_vec(),
-                )
-                .file("/project/Value.ts", b"export const value = 1;\n".to_vec())
-                .file("/project/value.ts", b"export const value = 2;\n".to_vec())
-                .build()
-                .expect("build Rust case-sensitive oracle host");
-            let program = load_with_options(
-                &host,
-                roots,
-                CompilerOptions {
-                    force_consistent_casing_in_file_names: Some(false),
-                    module: Some(1),
-                    module_resolution: Some(2),
-                    ..compiler_options()
-                },
-                program_options(),
-                generous_limits(),
-            )
-            .expect("load Rust case-sensitive oracle program");
-            json!({
-                "sources": program.source_files().iter().map(|source| {
-                    source.path().display().scalar_test_path().to_str().expect("source path is Unicode")
-                }).collect::<Vec<_>>(),
-                "diagnostics": program.diagnostics().program().iter()
-                    .filter(|diagnostic| matches!(diagnostic.code(), 1149 | 1261))
-                    .map(|diagnostic| json!({
-                        "code": diagnostic.code(),
-                        "file": scalar_json(&diagnostic.file_name),
-                        "start": diagnostic.start,
-                        "length": diagnostic.length,
-                        "message": chain_json(&diagnostic.message),
-                        "relatedPresent": diagnostic.related_information_present,
-                        "related": diagnostic.related.iter().map(|related| json!({
-                            "code": related.message.code,
-                            "file": scalar_json(&related.file_name),
-                            "start": related.start,
-                            "length": related.length,
-                            "message": chain_json(&related.message),
-                        })).collect::<Vec<_>>(),
-                    })).collect::<Vec<_>>(),
-            })
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(json!(rust), oracle);
-}
-
-#[test]
 fn arbitrary_declaration_roots_and_explicit_paths_are_regular_typescript_sources() {
     let host = MemoryCompilerHost::builder("/work")
         .file(
@@ -2137,74 +1979,6 @@ fn empty_path_references_probe_the_containing_directory_and_report_located_ts623
         [Path::new("/work.ts"), Path::new("/work/main.ts")]
     );
     assert!(resolved.diagnostics().program().is_empty());
-}
-
-#[test]
-#[ignore = "local H0 program oracle audit; requires the pinned Node runtime"]
-fn empty_path_reference_diagnostic_matches_vendored_typescript() {
-    const PROBE: &str = r#"
-const ts = require(process.argv[1]);
-const text = '/// <reference path="" />\nexport {};\n';
-const options = { noEmit: true, noLib: true, types: [] };
-const host = ts.createCompilerHost(options);
-host.getCurrentDirectory = () => '/work';
-host.fileExists = path => path === '/work/main.ts';
-host.readFile = path => path === '/work/main.ts' ? text : undefined;
-host.directoryExists = path => path === '/work';
-host.getDirectories = () => [];
-host.getSourceFile = (path, target) => path === '/work/main.ts'
-  ? ts.createSourceFile(path, text, target, true)
-  : undefined;
-const program = ts.createProgram({ rootNames: ['/work/main.ts'], options, host });
-const diagnostic = ts.getPreEmitDiagnostics(program).find(row => row.code === 6231);
-if (!diagnostic) throw new Error('missing TS6231');
-process.stdout.write(JSON.stringify({
-  code: diagnostic.code,
-  file: diagnostic.file && diagnostic.file.fileName,
-  start: diagnostic.start,
-  length: diagnostic.length,
-  message: ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'),
-}));
-"#;
-    let bundle = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .join("vendor/typescript-6.0.3/lib/typescript.js");
-    let output = Command::new("node")
-        .arg("-e")
-        .arg(PROBE)
-        .arg(bundle)
-        .output()
-        .expect("run vendored TypeScript empty-path probe");
-    assert!(
-        output.status.success(),
-        "TypeScript probe failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let oracle: Value = serde_json::from_slice(&output.stdout).expect("probe output is JSON");
-
-    let text = "/// <reference path=\"\" />\nexport {};\n";
-    let host = MemoryCompilerHost::builder("/work")
-        .file("/work/main.ts", text.as_bytes().to_vec())
-        .build()
-        .expect("build Rust empty-path oracle host");
-    let program = load(&host, &["/work/main.ts"], generous_limits())
-        .expect("load Rust empty-path oracle program");
-    let diagnostic = program
-        .diagnostics()
-        .program()
-        .iter()
-        .find(|row| row.code() == 6231)
-        .expect("Rust publishes TS6231");
-    assert_eq!(
-        json!({
-            "code": diagnostic.code(),
-            "file": scalar_json(&diagnostic.file_name),
-            "start": diagnostic.start,
-            "length": diagnostic.length,
-            "message": scalar_json(&diagnostic.message_text().as_str().expect("scalar diagnostic observation")),
-        }),
-        oracle
-    );
 }
 
 #[test]
@@ -4991,87 +4765,6 @@ fn rooted_windows_path_reference_is_not_rebased_under_its_containing_directory()
 }
 
 #[test]
-#[ignore = "local H0 program oracle audit; requires the pinned Node runtime"]
-fn windows_and_unc_root_normalization_matches_vendored_typescript() {
-    const PROBE: &str = r#"
-const ts = require(process.argv[1]);
-const roots = [
-  '\\\\server\\share\\unc.ts',
-  '//?/C:/sdk/extended.ts',
-  '\\root\\root-relative.ts',
-  'C:\\work\\drive.ts',
-];
-const files = new Map([
-  ['//server/share/unc.ts', 'export {};'],
-  ['//?/C:/sdk/extended.ts', 'export {};'],
-  ['/root/root-relative.ts', 'export {};'],
-  ['C:/work/drive.ts', 'export {};'],
-]);
-const options = { noEmit: true, noLib: true, types: [] };
-const host = ts.createCompilerHost(options);
-host.useCaseSensitiveFileNames = () => true;
-host.getCanonicalFileName = path => path;
-host.getCurrentDirectory = () => 'C:/work';
-host.directoryExists = () => true;
-host.getDirectories = () => [];
-host.fileExists = path => files.has(path);
-host.readFile = path => files.get(path);
-host.getSourceFile = (path, target) => files.has(path)
-  ? ts.createSourceFile(path, files.get(path), target, true)
-  : undefined;
-const program = ts.createProgram({ rootNames: roots, options, host });
-process.stdout.write(JSON.stringify(program.getSourceFiles().map(source => source.fileName)));
-"#;
-
-    let bundle = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .join("vendor/typescript-6.0.3/lib/typescript.js");
-    let output = Command::new("node")
-        .arg("-e")
-        .arg(PROBE)
-        .arg(bundle)
-        .output()
-        .expect("run vendored TypeScript rooted Windows source probe");
-    assert!(
-        output.status.success(),
-        "TypeScript probe failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let oracle: Value = serde_json::from_slice(&output.stdout).expect("probe output is JSON");
-
-    let host = MemoryCompilerHost::builder("C:/work")
-        .case_sensitive(true)
-        .file("//server/share/unc.ts", b"export {};".to_vec())
-        .file("//?/C:/sdk/extended.ts", b"export {};".to_vec())
-        .file("/root/root-relative.ts", b"export {};".to_vec())
-        .file("C:/work/drive.ts", b"export {};".to_vec())
-        .build()
-        .expect("build Rust rooted Windows oracle host");
-    let program = load(
-        &host,
-        &[
-            r"\\server\share\unc.ts",
-            "//?/C:/sdk/extended.ts",
-            r"\root\root-relative.ts",
-            r"C:\work\drive.ts",
-        ],
-        generous_limits(),
-    )
-    .expect("load Rust rooted Windows oracle program");
-    let rust = json!(program
-        .source_files()
-        .iter()
-        .map(|source| source
-            .path()
-            .display()
-            .scalar_test_path()
-            .to_str()
-            .expect("source path is Unicode"))
-        .collect::<Vec<_>>());
-    assert_eq!(rust, oracle);
-}
-
-#[test]
 fn later_root_promotes_its_own_emit_eligibility_but_not_external_relative_children() {
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/root.ts", b"import 'pkg';\nexport {};".to_vec())
@@ -5149,5 +4842,3 @@ fn later_root_promotes_its_own_emit_eligibility_but_not_external_relative_childr
 }
 
 use super::utf16_scalar_path::ScalarTestPath as _;
-
-use super::utf16_scalar_json::observe as scalar_json;

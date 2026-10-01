@@ -2173,64 +2173,6 @@ fn rooted_disk_module_names_follow_typescript_windows_and_unc_lexical_semantics(
 }
 
 #[test]
-#[ignore = "local H0 resolver oracle audit; requires the pinned Node runtime"]
-fn rooted_disk_module_name_matrix_matches_vendored_typescript() {
-    const PROBE: &str = r#"
-const ts = require(process.argv[1]);
-const files = new Set([
-  '//server/share/value.ts',
-  '//?/C:/sdk/item.ts',
-  '/rooted.ts',
-  'C:/drive.ts',
-]);
-const specifiers = [
-  '//server/share/value',
-  '\\\\server\\share\\value',
-  '//?/C:/sdk/item',
-  '\\rooted',
-  'C:/drive',
-  'C:relative',
-];
-const rows = specifiers.map(specifier => {
-  const calls = [];
-  const host = {
-    fileExists(path) { calls.push(path); return files.has(path); },
-    readFile() { return undefined; },
-    directoryExists() { return true; },
-    realpath(path) { return path; },
-    getCurrentDirectory() { return 'C:/work'; },
-  };
-  const result = ts.resolveModuleName(
-    specifier,
-    'C:/work/main.ts',
-    { moduleResolution: ts.ModuleResolutionKind.Node10 },
-    host,
-  );
-  return [specifier, result.resolvedModule?.resolvedFileName ?? null, calls];
-});
-process.stdout.write(JSON.stringify(rows));
-"#;
-
-    let bundle = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .join("vendor/typescript-6.0.3/lib/typescript.js");
-    let output = std::process::Command::new("node")
-        .arg("-e")
-        .arg(PROBE)
-        .arg(bundle)
-        .output()
-        .expect("run vendored TypeScript rooted-disk module probe");
-    assert!(
-        output.status.success(),
-        "TypeScript probe failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let oracle: serde_json::Value =
-        serde_json::from_slice(&output.stdout).expect("probe output is JSON");
-    assert_eq!(serde_json::json!(rooted_disk_resolution_matrix()), oracle);
-}
-
-#[test]
 fn root_dirs_use_the_longest_prefix_then_declared_alternate_order() {
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/src/app/main.ts", b"export {};".to_vec())

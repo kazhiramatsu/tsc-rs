@@ -1,12 +1,11 @@
-//! Frozen TypeScript 6.0.3 compiler-option metadata.
+//! Compiler-option metadata: tsc's declaration order with TypeScript 7.1's
+//! `target` and `lib` values.
 //!
 //! Config parsing needs two properties that are easy to accidentally conflate:
 //! exact, case-sensitive property lookup and source-order spelling suggestions.
 //! This catalog keeps the declaration order (including the duplicate `help`
 //! declaration) so both operations can follow `tsc` without loading its
 //! JavaScript bundle at runtime.
-
-use tsc_types::ReferenceProfile;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CompilerOptionNamedValue {
@@ -169,448 +168,10 @@ impl CompilerOptionValueKind {
     }
 }
 
-/// TypeScript 6.0.3's exact libEntries/libMap insertion order.
-///
-/// This single catalog backs both compiler-option conversion and standard-
-/// library loading, so aliases and diagnostic choices cannot drift apart.
-///
-/// tsc-port: libEntries/libMap @6.0.3
-/// tsc-hash: 06ee42a546f222ef70b4aef6f138d2919318f94f96a3cb065ff83ab52eb8de55
-/// tsc-span: _tsc.js:36426-36542
-pub static TYPESCRIPT_6_0_3_LIBRARIES: &[CompilerOptionNamedStringValue] = &[
-    CompilerOptionNamedStringValue {
-        name: "es5",
-        value: "lib.es5.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es6",
-        value: "lib.es2015.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2015",
-        value: "lib.es2015.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es7",
-        value: "lib.es2016.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2016",
-        value: "lib.es2016.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2017",
-        value: "lib.es2017.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2018",
-        value: "lib.es2018.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2019",
-        value: "lib.es2019.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2020",
-        value: "lib.es2020.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2021",
-        value: "lib.es2021.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2022",
-        value: "lib.es2022.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2023",
-        value: "lib.es2023.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2024",
-        value: "lib.es2024.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2025",
-        value: "lib.es2025.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "esnext",
-        value: "lib.esnext.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "dom",
-        value: "lib.dom.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "dom.iterable",
-        value: "lib.dom.iterable.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "dom.asynciterable",
-        value: "lib.dom.asynciterable.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "webworker",
-        value: "lib.webworker.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "webworker.importscripts",
-        value: "lib.webworker.importscripts.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "webworker.iterable",
-        value: "lib.webworker.iterable.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "webworker.asynciterable",
-        value: "lib.webworker.asynciterable.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "scripthost",
-        value: "lib.scripthost.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2015.core",
-        value: "lib.es2015.core.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2015.collection",
-        value: "lib.es2015.collection.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2015.generator",
-        value: "lib.es2015.generator.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2015.iterable",
-        value: "lib.es2015.iterable.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2015.promise",
-        value: "lib.es2015.promise.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2015.proxy",
-        value: "lib.es2015.proxy.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2015.reflect",
-        value: "lib.es2015.reflect.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2015.symbol",
-        value: "lib.es2015.symbol.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2015.symbol.wellknown",
-        value: "lib.es2015.symbol.wellknown.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2016.array.include",
-        value: "lib.es2016.array.include.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2016.intl",
-        value: "lib.es2016.intl.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2017.arraybuffer",
-        value: "lib.es2017.arraybuffer.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2017.date",
-        value: "lib.es2017.date.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2017.object",
-        value: "lib.es2017.object.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2017.sharedmemory",
-        value: "lib.es2017.sharedmemory.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2017.string",
-        value: "lib.es2017.string.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2017.intl",
-        value: "lib.es2017.intl.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2017.typedarrays",
-        value: "lib.es2017.typedarrays.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2018.asyncgenerator",
-        value: "lib.es2018.asyncgenerator.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2018.asynciterable",
-        value: "lib.es2018.asynciterable.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2018.intl",
-        value: "lib.es2018.intl.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2018.promise",
-        value: "lib.es2018.promise.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2018.regexp",
-        value: "lib.es2018.regexp.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2019.array",
-        value: "lib.es2019.array.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2019.object",
-        value: "lib.es2019.object.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2019.string",
-        value: "lib.es2019.string.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2019.symbol",
-        value: "lib.es2019.symbol.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2019.intl",
-        value: "lib.es2019.intl.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2020.bigint",
-        value: "lib.es2020.bigint.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2020.date",
-        value: "lib.es2020.date.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2020.promise",
-        value: "lib.es2020.promise.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2020.sharedmemory",
-        value: "lib.es2020.sharedmemory.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2020.string",
-        value: "lib.es2020.string.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2020.symbol.wellknown",
-        value: "lib.es2020.symbol.wellknown.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2020.intl",
-        value: "lib.es2020.intl.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2020.number",
-        value: "lib.es2020.number.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2021.promise",
-        value: "lib.es2021.promise.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2021.string",
-        value: "lib.es2021.string.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2021.weakref",
-        value: "lib.es2021.weakref.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2021.intl",
-        value: "lib.es2021.intl.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2022.array",
-        value: "lib.es2022.array.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2022.error",
-        value: "lib.es2022.error.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2022.intl",
-        value: "lib.es2022.intl.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2022.object",
-        value: "lib.es2022.object.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2022.string",
-        value: "lib.es2022.string.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2022.regexp",
-        value: "lib.es2022.regexp.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2023.array",
-        value: "lib.es2023.array.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2023.collection",
-        value: "lib.es2023.collection.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2023.intl",
-        value: "lib.es2023.intl.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2024.arraybuffer",
-        value: "lib.es2024.arraybuffer.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2024.collection",
-        value: "lib.es2024.collection.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2024.object",
-        value: "lib.es2024.object.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2024.promise",
-        value: "lib.es2024.promise.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2024.regexp",
-        value: "lib.es2024.regexp.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2024.sharedmemory",
-        value: "lib.es2024.sharedmemory.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2024.string",
-        value: "lib.es2024.string.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2025.collection",
-        value: "lib.es2025.collection.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2025.float16",
-        value: "lib.es2025.float16.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2025.intl",
-        value: "lib.es2025.intl.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2025.iterator",
-        value: "lib.es2025.iterator.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2025.promise",
-        value: "lib.es2025.promise.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "es2025.regexp",
-        value: "lib.es2025.regexp.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "esnext.asynciterable",
-        value: "lib.es2018.asynciterable.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "esnext.symbol",
-        value: "lib.es2019.symbol.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "esnext.bigint",
-        value: "lib.es2020.bigint.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "esnext.weakref",
-        value: "lib.es2021.weakref.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "esnext.object",
-        value: "lib.es2024.object.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "esnext.regexp",
-        value: "lib.es2024.regexp.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "esnext.string",
-        value: "lib.es2024.string.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "esnext.float16",
-        value: "lib.es2025.float16.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "esnext.iterator",
-        value: "lib.es2025.iterator.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "esnext.promise",
-        value: "lib.es2025.promise.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "esnext.array",
-        value: "lib.esnext.array.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "esnext.collection",
-        value: "lib.esnext.collection.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "esnext.date",
-        value: "lib.esnext.date.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "esnext.decorators",
-        value: "lib.esnext.decorators.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "esnext.disposable",
-        value: "lib.esnext.disposable.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "esnext.error",
-        value: "lib.esnext.error.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "esnext.intl",
-        value: "lib.esnext.intl.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "esnext.sharedmemory",
-        value: "lib.esnext.sharedmemory.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "esnext.temporal",
-        value: "lib.esnext.temporal.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "esnext.typedarrays",
-        value: "lib.esnext.typedarrays.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "decorators",
-        value: "lib.decorators.d.ts",
-    },
-    CompilerOptionNamedStringValue {
-        name: "decorators.legacy",
-        value: "lib.decorators.legacy.d.ts",
-    },
-];
-
 /// TypeScript 7.1's `LibMap` insertion order (`tsoptions/enummaps.go` at the
-/// vendored native profile): the es2026 libraries and the `esnext.*` aliases
-/// that moved onto them. Selected by [`ReferenceProfile::TypeScript71`].
+/// vendored native profile). This single catalog backs both compiler-option
+/// conversion and standard-library loading, so aliases and diagnostic
+/// choices cannot drift apart.
 pub static TYPESCRIPT_7_1_LIBRARIES: &[CompilerOptionNamedStringValue] = &[
     CompilerOptionNamedStringValue {
         name: "es5",
@@ -1074,17 +635,7 @@ pub static TYPESCRIPT_7_1_LIBRARIES: &[CompilerOptionNamedStringValue] = &[
     },
 ];
 
-pub const LIB_LIST_DESCRIPTOR: CompilerOptionListDescriptor = CompilerOptionListDescriptor {
-    element_name: "lib",
-    element_kind: CompilerOptionListElementKind::NamedString(TYPESCRIPT_6_0_3_LIBRARIES),
-    preserve_falsy_values: false,
-    allow_config_dir_template_substitution: false,
-    validate_file_spec: false,
-};
-
-/// The `lib` list descriptor of the TypeScript 7.1 profile; the compiler
-/// option declarations carry the 6.0.3 one and the converters select by
-/// profile.
+/// The `lib` list descriptor: TypeScript 7.1's catalog.
 pub const LIB_LIST_DESCRIPTOR_7_1: CompilerOptionListDescriptor = CompilerOptionListDescriptor {
     element_name: "lib",
     element_kind: CompilerOptionListElementKind::NamedString(TYPESCRIPT_7_1_LIBRARIES),
@@ -1151,51 +702,14 @@ pub const PATHS_OBJECT_DESCRIPTOR: CompilerOptionObjectDescriptor =
         allow_config_dir_template_substitution: true,
     };
 
-pub const fn typescript_6_0_3_libraries() -> &'static [CompilerOptionNamedStringValue] {
-    TYPESCRIPT_6_0_3_LIBRARIES
+/// The `lib` catalog in its insertion order.
+pub const fn libraries() -> &'static [CompilerOptionNamedStringValue] {
+    TYPESCRIPT_7_1_LIBRARIES
 }
 
-/// The profile's `lib` catalog in its insertion order.
-pub const fn libraries(profile: ReferenceProfile) -> &'static [CompilerOptionNamedStringValue] {
-    match profile {
-        ReferenceProfile::TypeScript603 => TYPESCRIPT_6_0_3_LIBRARIES,
-        ReferenceProfile::TypeScript71 => TYPESCRIPT_7_1_LIBRARIES,
-    }
-}
-
-pub const fn lib_list_descriptor(profile: ReferenceProfile) -> CompilerOptionListDescriptor {
-    match profile {
-        ReferenceProfile::TypeScript603 => LIB_LIST_DESCRIPTOR,
-        ReferenceProfile::TypeScript71 => LIB_LIST_DESCRIPTOR_7_1,
-    }
-}
-
-/// Resolve one lowercased `compilerOptions.lib` key in the profile's catalog.
-pub(crate) fn library_value(profile: ReferenceProfile, name: &str) -> Option<&'static str> {
-    lib_list_descriptor(profile).named_string_value(name)
-}
-
-/// The profile's `target` values: TypeScript 7.1 adds `es2026`.
-pub const fn target_values(profile: ReferenceProfile) -> &'static [CompilerOptionNamedValue] {
-    match profile {
-        ReferenceProfile::TypeScript603 => TARGET_VALUES,
-        ReferenceProfile::TypeScript71 => TARGET_VALUES_7_1,
-    }
-}
-
-/// The named values the profile admits for an enum-typed option: `target`
-/// differs between the profiles; every other option keeps its declaration's
-/// values.
-pub fn named_values(
-    profile: ReferenceProfile,
-    name: &str,
-    declared: &'static [CompilerOptionNamedValue],
-) -> &'static [CompilerOptionNamedValue] {
-    if name == "target" {
-        target_values(profile)
-    } else {
-        declared
-    }
+/// Resolve one lowercased `compilerOptions.lib` key in the catalog.
+pub(crate) fn library_value(name: &str) -> Option<&'static str> {
+    LIB_LIST_DESCRIPTOR_7_1.named_string_value(name)
 }
 
 /// Look a written spelling up in `values` as `CompilerOptionValueKind::Named`
@@ -1308,71 +822,8 @@ const fn jsconfig_option(
     }
 }
 
-const TARGET_VALUES: &[CompilerOptionNamedValue] = &[
-    CompilerOptionNamedValue {
-        name: "es3",
-        value: 0,
-    },
-    CompilerOptionNamedValue {
-        name: "es5",
-        value: 1,
-    },
-    CompilerOptionNamedValue {
-        name: "es6",
-        value: 2,
-    },
-    CompilerOptionNamedValue {
-        name: "es2015",
-        value: 2,
-    },
-    CompilerOptionNamedValue {
-        name: "es2016",
-        value: 3,
-    },
-    CompilerOptionNamedValue {
-        name: "es2017",
-        value: 4,
-    },
-    CompilerOptionNamedValue {
-        name: "es2018",
-        value: 5,
-    },
-    CompilerOptionNamedValue {
-        name: "es2019",
-        value: 6,
-    },
-    CompilerOptionNamedValue {
-        name: "es2020",
-        value: 7,
-    },
-    CompilerOptionNamedValue {
-        name: "es2021",
-        value: 8,
-    },
-    CompilerOptionNamedValue {
-        name: "es2022",
-        value: 9,
-    },
-    CompilerOptionNamedValue {
-        name: "es2023",
-        value: 10,
-    },
-    CompilerOptionNamedValue {
-        name: "es2024",
-        value: 11,
-    },
-    CompilerOptionNamedValue {
-        name: "es2025",
-        value: 12,
-    },
-    CompilerOptionNamedValue {
-        name: "esnext",
-        value: 99,
-    },
-];
-
 /// TypeScript 7.1's `targetOptionMap` with tsc 6.0.3's `es3` entry kept in
-/// front, as [`TARGET_VALUES`] keeps it: `es2026` (13) joins before `esnext`.
+/// front: `es2026` (13) joins before `esnext`.
 const TARGET_VALUES_7_1: &[CompilerOptionNamedValue] = &[
     CompilerOptionNamedValue {
         name: "es3",
@@ -1643,9 +1094,12 @@ pub static COMPILER_OPTION_DECLARATIONS: &[CompilerOptionDeclaration] = &[
     command_line_option("showConfig", CompilerOptionValueKind::Boolean),
     command_line_option("listFilesOnly", CompilerOptionValueKind::Boolean),
     command_line_option("ignoreConfig", CompilerOptionValueKind::Boolean),
-    option("target", CompilerOptionValueKind::Named(TARGET_VALUES)),
+    option("target", CompilerOptionValueKind::Named(TARGET_VALUES_7_1)),
     option("module", CompilerOptionValueKind::Named(MODULE_VALUES)),
-    option("lib", CompilerOptionValueKind::List(LIB_LIST_DESCRIPTOR)),
+    option(
+        "lib",
+        CompilerOptionValueKind::List(LIB_LIST_DESCRIPTOR_7_1),
+    ),
     jsconfig_option(
         "allowJs",
         CompilerOptionValueKind::Boolean,

@@ -25,23 +25,13 @@ ROOT = Path(__file__).resolve().parents[2]
 DOCUMENTATION = ("README.md", "CONTRIBUTING.md", "LICENSE")
 CONFORMANCE_TS71_WORKERS = "4"
 JOBS = {"rust": "has_rust", "conformance-ts71": "has_conformance_ts71"}
-# The Rust test targets the hosted job runs: the self-contained unit and
-# integration tests. The targets that compare with tsc 6.0.3 observations
-# (crates/compiler/tests/*, the harness H1/H2 profiles, the program and
-# conformance 6.0.3 contracts, xtask, fuzz) are retired by P3-3 of the
-# TypeScript 7.1 cutover and are not run.
+# The Rust checks the hosted job runs: formatting, Clippy over every target,
+# every workspace test target, and the generated diagnostic catalog.
 RUST_CHECKS = (
     ["cargo", "fmt", "--all", "--", "--check"],
     ["cargo", "clippy", "--workspace", "--all-targets", "--", "-D", "warnings"],
-    ["cargo", "test", "-p", "tsc-rs-types", "-p", "tsc-rs-diagnostics", "-p", "tsc-rs-syntax",
-     "-p", "tsc-rs-binder", "-p", "tsc-rs-host"],
-    ["cargo", "test", "-p", "tsc-rs-checker"],
-    ["cargo", "test", "-p", "tsc-rs-program", "--lib"],
-    ["cargo", "test", "-p", "tsc-rs-emitter"],
-    ["cargo", "test", "-p", "tsc-rs-compiler", "--lib"],
-    ["cargo", "test", "-p", "tsc-rs-harness", "--lib"],
-    ["cargo", "test", "-p", "tsc-rs-harness", "--test", "contracts", "--", "native_"],
-    ["cargo", "test", "-p", "tsc-rs-conformance", "--lib", "--", "ts71"],
+    ["cargo", "test", "--workspace"],
+    ["cargo", "xtask", "codegen", "diagnostics-check"],
 )
 
 

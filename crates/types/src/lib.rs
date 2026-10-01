@@ -20,7 +20,7 @@ pub use identity::{
     IdentityLimits, IdentityRange, IdentityReservation, IdentitySpace, IdentitySpaceStats,
     TRANSIENT_SYMBOL_BIT,
 };
-pub use options::{CompilerOptionNumber, CompilerOptions, ModuleSuffix, ReferenceProfile};
+pub use options::{CompilerOptionNumber, CompilerOptions, ModuleSuffix};
 pub use tables::{
     js_number_to_string, InstantiationKey, IntersectionFlags, Intrinsics, TupleTargetFlags,
     TypeListId, TypeTables, TypesMemory, UnionReduction,

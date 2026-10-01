@@ -579,7 +579,7 @@ fn every_automatic_resolution_precedes_the_first_target_and_library_read() {
         ProgramOptions::default()
             .with_types(vec!["first".to_owned().into(), "second".to_owned().into()])
             .with_type_roots(vec![path("/types")]),
-        &LibraryCatalog::typescript_6_0_3(LIBRARY_DIRECTORY),
+        &LibraryCatalog::typescript_7_1(LIBRARY_DIRECTORY),
         generous_limits(),
     )
     .expect_err("the second resolution failure precedes target and library reads");
@@ -727,7 +727,7 @@ fn library_prefix_publication_remaps_root_and_automatic_type_target_ids() {
         ProgramOptions::default()
             .with_types(vec!["pkg".to_owned().into()])
             .with_type_roots(vec![path("/types")]),
-        &LibraryCatalog::typescript_6_0_3(LIBRARY_DIRECTORY),
+        &LibraryCatalog::typescript_7_1(LIBRARY_DIRECTORY),
         generous_limits(),
     )
     .expect("publish library prefix before root and automatic package");

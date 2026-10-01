@@ -5,8 +5,6 @@ mod utf16_scalar_path;
 
 #[path = "integration/automatic_type_directive_loader_contract.rs"]
 mod automatic_type_directive_loader_contract;
-#[path = "integration/config_diagnostics_oracle_contract.rs"]
-mod config_diagnostics_oracle_contract;
 #[path = "integration/config_keyword_recovery_contract.rs"]
 mod config_keyword_recovery_contract;
 #[path = "integration/config_option_bag_scaling_contract.rs"]

@@ -3,7 +3,7 @@ use tsc_types::CompilerOptions;
 
 #[test]
 fn physical_library_priority_accepts_optional_filename_affixes() {
-    let catalog = LibraryCatalog::typescript_6_0_3("/lib");
+    let catalog = LibraryCatalog::typescript_7_1("/lib");
     let directory = crate::ProgramPath::from_trusted_parts("/lib", "/lib").unwrap();
     // Direct replay of getDefaultLibFilePriority returns 1 for both paths:
     // removePrefix/removeSuffix leave a nonmatching spelling unchanged.
@@ -18,48 +18,33 @@ fn physical_library_priority_accepts_optional_filename_affixes() {
 }
 
 #[test]
-fn resolved_source_priorities_match_typescript_path_boundaries() {
-    let artifact: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../fixtures/h2-8b-library-priority.json"))
-            .expect("frozen upstream library priorities");
-    assert_eq!(artifact["typescript"], "6.0.3");
-    assert_eq!(artifact["repetitions"], 2);
-    let cases = artifact["cases"].as_array().expect("priority cases");
-    assert_eq!(cases.len(), 15);
-    let path = |text: &str| {
-        crate::ProgramPath::from_trusted_parts(text, tsc_host::to_file_name_lower_case(text))
-            .expect("normalized witness path")
-    };
-    for case in cases {
-        let directory = path(case["directory"].as_str().unwrap());
-        let source = path(case["file"].as_str().unwrap());
-        let catalog = LibraryCatalog::typescript_6_0_3(case["directory"].as_str().unwrap());
-        for _ in 0..2 {
-            assert_eq!(
-                catalog.source_file_priority(&source, &directory),
-                case["priority"].as_u64().unwrap() as usize,
-                "{}",
-                case["case_id"],
-            );
-        }
-    }
-}
-
-#[test]
-fn typescript_6_0_3_catalog_pins_aliases_counts_and_target_defaults() {
-    let catalog = LibraryCatalog::typescript_6_0_3("/vendor/lib");
-    assert_eq!(catalog.logical_entry_count(), 107);
-    assert_eq!(catalog.distinct_file_count(), 95);
+fn typescript_7_1_catalog_pins_aliases_counts_and_target_defaults() {
+    let catalog = LibraryCatalog::typescript_7_1("/vendor/lib");
+    assert_eq!(catalog.logical_entry_count(), 115);
+    assert_eq!(catalog.distinct_file_count(), 99);
     assert_eq!(catalog.option_file_name("es6"), Some("lib.es2015.d.ts"));
+    assert_eq!(catalog.option_file_name("es2026"), Some("lib.es2026.d.ts"));
     assert_eq!(
-        catalog.option_file_name("esnext.object"),
-        Some("lib.es2024.object.d.ts")
+        catalog.option_file_name("esnext.array"),
+        Some("lib.es2026.array.d.ts")
+    );
+    assert_eq!(
+        catalog.option_file_name("esnext.iterator"),
+        Some("lib.es2026.iterator.d.ts")
     );
     assert_eq!(catalog.option_file_name("DOM"), None);
     assert_eq!(catalog.option_file_name("lib.dom.d.ts"), None);
     assert_eq!(catalog.reference_file_name("lib.dom.d.ts"), None);
+    assert!(catalog.contains_file_name("lib.es2026.full.d.ts"));
     assert_eq!(
         catalog.default_file_name(&CompilerOptions::default()),
+        "lib.es2026.full.d.ts"
+    );
+    assert_eq!(
+        catalog.default_file_name(&CompilerOptions {
+            target: Some(12),
+            ..CompilerOptions::default()
+        }),
         "lib.es2025.full.d.ts"
     );
     assert_eq!(
@@ -72,53 +57,8 @@ fn typescript_6_0_3_catalog_pins_aliases_counts_and_target_defaults() {
 }
 
 #[test]
-fn typescript_7_1_catalog_pins_aliases_counts_and_target_defaults() {
-    let catalog = LibraryCatalog::typescript_7_1("/vendor/lib");
-    assert_eq!(
-        catalog.reference_profile(),
-        tsc_types::ReferenceProfile::TypeScript71
-    );
-    assert_eq!(catalog.logical_entry_count(), 115);
-    assert_eq!(catalog.distinct_file_count(), 99);
-    assert_eq!(catalog.option_file_name("es2026"), Some("lib.es2026.d.ts"));
-    assert_eq!(
-        catalog.option_file_name("esnext.array"),
-        Some("lib.es2026.array.d.ts")
-    );
-    assert_eq!(
-        catalog.option_file_name("esnext.iterator"),
-        Some("lib.es2026.iterator.d.ts")
-    );
-    assert_eq!(
-        LibraryCatalog::typescript_6_0_3("/vendor/lib").option_file_name("es2026"),
-        None
-    );
-    assert!(catalog.contains_file_name("lib.es2026.full.d.ts"));
-    assert!(
-        !LibraryCatalog::typescript_6_0_3("/vendor/lib").contains_file_name("lib.es2026.full.d.ts")
-    );
-    assert_eq!(
-        catalog.default_file_name(&CompilerOptions::default()),
-        "lib.es2026.full.d.ts"
-    );
-    assert_eq!(
-        catalog.default_file_name(&CompilerOptions {
-            target: Some(12),
-            ..CompilerOptions::default()
-        }),
-        "lib.es2025.full.d.ts"
-    );
-    // The 6.0.3 catalog answers for its own profile whatever the options say.
-    assert_eq!(
-        LibraryCatalog::typescript_6_0_3("/vendor/lib")
-            .default_file_name(&CompilerOptions::default()),
-        "lib.es2025.full.d.ts"
-    );
-}
-
-#[test]
 fn priorities_and_spelling_suggestions_match_the_pinned_order() {
-    let catalog = LibraryCatalog::typescript_6_0_3("/vendor/lib");
+    let catalog = LibraryCatalog::typescript_7_1("/vendor/lib");
     assert_eq!(catalog.file_name_priority("lib.es6.d.ts"), 0);
     assert!(
         catalog.file_name_priority("lib.es5.d.ts") < catalog.file_name_priority("lib.dom.d.ts")

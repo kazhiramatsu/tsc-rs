@@ -1,11 +1,11 @@
 use tsc_program::{
     compiler_option_declaration, compiler_option_declarations, compiler_option_spelling_suggestion,
-    is_command_option_without_build, jsconfig_defaults, typescript_6_0_3_libraries,
-    CompilerOptionListElementKind, CompilerOptionValueKind, JsConfigDefaultValue,
+    is_command_option_without_build, jsconfig_defaults, CompilerOptionListElementKind,
+    CompilerOptionValueKind, JsConfigDefaultValue, TYPESCRIPT_7_1_LIBRARIES,
 };
 
 #[test]
-fn catalog_preserves_the_typescript_6_0_3_declaration_order() {
+fn catalog_preserves_the_tsc_declaration_order() {
     let expected = [
         "help",
         "help",
@@ -145,7 +145,7 @@ fn catalog_preserves_the_typescript_6_0_3_declaration_order() {
 }
 
 #[test]
-fn structured_metadata_and_the_shared_lib_map_match_typescript_6_0_3() {
+fn structured_metadata_and_the_shared_lib_map_match_typescript_7_1() {
     let expected = [
         ("lib", "lib", "named", false, false),
         ("rootDirs", "rootDirs", "path", false, true),
@@ -180,8 +180,8 @@ fn structured_metadata_and_the_shared_lib_map_match_typescript_6_0_3() {
         );
     }
 
-    let libraries = typescript_6_0_3_libraries();
-    assert_eq!(libraries.len(), 107);
+    let libraries = TYPESCRIPT_7_1_LIBRARIES;
+    assert_eq!(libraries.len(), 115);
     assert_eq!(
         (libraries[0].name(), libraries[0].value()),
         ("es5", "lib.es5.d.ts")
@@ -191,7 +191,7 @@ fn structured_metadata_and_the_shared_lib_map_match_typescript_6_0_3() {
         ("es6", "lib.es2015.d.ts")
     );
     assert_eq!(
-        (libraries[106].name(), libraries[106].value()),
+        (libraries[114].name(), libraries[114].value()),
         ("decorators.legacy", "lib.decorators.legacy.d.ts")
     );
     let lib = compiler_option_declaration("lib")
@@ -212,7 +212,7 @@ fn structured_metadata_and_the_shared_lib_map_match_typescript_6_0_3() {
         })
         .collect::<Vec<_>>();
     let [(paths, descriptor)] = object_options.as_slice() else {
-        panic!("paths is TypeScript 6.0.3's only object compiler option")
+        panic!("paths is tsc's only object compiler option")
     };
     assert_eq!(paths.name(), "paths");
     assert!(paths.is_tsconfig_only());

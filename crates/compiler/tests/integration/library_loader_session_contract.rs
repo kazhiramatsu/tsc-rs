@@ -29,7 +29,7 @@ fn catalog_loaded_library_prefix_flows_through_the_owned_program_session() {
         )
         .build()
         .expect("build in-memory program and library host");
-    let catalog = LibraryCatalog::typescript_6_0_3("/typescript/lib");
+    let catalog = LibraryCatalog::typescript_7_1("/typescript/lib");
     let prepared = load_program(
         &host,
         &[PathBuf::from("/work/root.ts")],

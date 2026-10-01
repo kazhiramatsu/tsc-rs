@@ -37,15 +37,13 @@ use tsc_diagnostics::{
 };
 use tsc_host::{CompilerHost, HostError, HostErrorKind, HostOperation};
 use tsc_syntax::{NodeId, SourceFile, SyntaxKind};
-use tsc_types::{
-    js_number_to_string, CompilerOptionNumber, CompilerOptions, ModuleSuffix, ReferenceProfile,
-};
+use tsc_types::{js_number_to_string, CompilerOptionNumber, CompilerOptions, ModuleSuffix};
 
 use crate::config_options::{
     compiler_option_declaration, compiler_option_spelling_suggestion,
-    is_command_option_without_build, jsconfig_defaults, lib_list_descriptor, libraries,
-    named_value_in, named_values, CompilerOptionListDescriptor, CompilerOptionListElementKind,
-    CompilerOptionValueKind, JsConfigDefaultValue,
+    is_command_option_without_build, jsconfig_defaults, libraries, named_value_in,
+    CompilerOptionListDescriptor, CompilerOptionListElementKind, CompilerOptionValueKind,
+    JsConfigDefaultValue,
 };
 use crate::json::{
     convert_recoverable_json_node_to_value, convert_recoverable_json_source_file_to_value,
@@ -161,13 +159,6 @@ impl Error for ConfigHostError {}
 /// supplies that contract for both filesystem and memory hosts; specialized
 /// fixture hosts may intentionally expose a narrower files-only surface.
 pub trait ConfigParseHost {
-    /// The reference profile whose option values (`target`, `lib`) and
-    /// messages the parse follows; tsc-rs's own, TypeScript 7.1, unless the
-    /// host serves a tsc 6.0.3 comparison.
-    fn reference_profile(&self) -> ReferenceProfile {
-        ReferenceProfile::TypeScript71
-    }
-
     fn use_case_sensitive_file_names(&self) -> bool;
 
     fn file_exists(&self, path: JsStr<'_>) -> Result<bool, ConfigHostError>;
@@ -1781,7 +1772,6 @@ fn parse_config_root_plan_inner(
     let paths_option_validation = paths_option_validation_plan(&node.options, &node.source);
     let discovery_options = effective_discovery_options(&node.options, &config_base)?;
     let mut module_resolution_options = config_module_resolution_options(
-        host.reference_profile(),
         &node.options,
         &discovery_options,
         &config_file_name,
@@ -2627,10 +2617,8 @@ impl ParseContext<'_> {
         let own_compile_on_save =
             config_property_get(object, &raw_property_names, "compileOnSave").cloned();
 
-        let profile = self.host.reference_profile();
         let mut own_options = default_compiler_options(normalized_file_name, base_path);
         let mut converted_own_options = config_option_group(
-            profile,
             base_path,
             ConfigOptionGroup::Compiler,
             &parsed,
@@ -2651,7 +2639,6 @@ impl ParseContext<'_> {
         }
         own_options.extend_from(&converted_own_options);
         let own_watch_options = config_option_group(
-            profile,
             base_path,
             ConfigOptionGroup::Watch,
             &parsed,
@@ -2661,13 +2648,12 @@ impl ParseContext<'_> {
             (!own_watch_options.typed_entries.is_empty()).then_some(own_watch_options);
         let mut type_acquisition = default_type_acquisition(normalized_file_name);
         type_acquisition.extend_from(&config_option_group(
-            profile,
             base_path,
             ConfigOptionGroup::Acquisition,
             &parsed,
             &mut own_errors,
         )?);
-        validate_compile_on_save(profile, &parsed, base_path, &mut own_errors)?;
+        validate_compile_on_save(&parsed, base_path, &mut own_errors)?;
         let own_files = specs("files", base_path, &parsed, &mut own_errors);
         let own_include = specs("include", base_path, &parsed, &mut own_errors);
         let own_exclude = specs("exclude", base_path, &parsed, &mut own_errors);
@@ -4989,9 +4975,7 @@ fn effective_discovery_options<'j0>(
 /// tsc-port: getPathsBasePath @6.0.3
 /// tsc-hash: c569002f6d6a8e7d3b4e2718964fae18fd77125393b0193997bf4cc1f38c494a
 /// tsc-span: _tsc.js:16595-16599
-#[allow(clippy::too_many_arguments)]
 fn config_module_resolution_options<'j0>(
-    profile: ReferenceProfile,
     options: &ConfigOptionBag,
     discovery: &ConfigDiscoveryOptions,
     config_file_name: impl Into<JsStr<'j0>>,
@@ -5001,7 +4985,6 @@ fn config_module_resolution_options<'j0>(
 ) -> Result<ConfigModuleResolutionOptions, ConfigParseError> {
     let config_file_name = config_file_name.into();
     let compiler_options = CompilerOptions {
-        reference_profile: profile,
         allow_js: discovery.allow_js,
         force_consistent_casing_in_file_names: config_option_bool(
             options,
@@ -5048,7 +5031,7 @@ fn config_module_resolution_options<'j0>(
         // logical keys (`es5`). Bridge that representation at the config
         // boundary so direct programmatic callers retain their fail-closed
         // raw-key contract without making config programs unusable.
-        lib: config_option_lib(profile, options),
+        lib: config_option_lib(options),
         lib_replacement: config_option_bool(options, "libReplacement"),
         jsx: config_option_i32(options, "jsx"),
         no_emit_for_js_files: None, // internal Program API option, not a tsconfig setting
@@ -5254,7 +5237,7 @@ fn config_option_string_list(options: &ConfigOptionBag, name: &str) -> Option<Ve
     )
 }
 
-fn config_option_lib(profile: ReferenceProfile, options: &ConfigOptionBag) -> Option<Vec<String>> {
+fn config_option_lib(options: &ConfigOptionBag) -> Option<Vec<String>> {
     let values = config_option_string_list(options, "lib")?;
     Some(
         values
@@ -5266,7 +5249,7 @@ fn config_option_lib(profile: ReferenceProfile, options: &ConfigOptionBag) -> Op
                 let file_name = file_name
                     .as_str()
                     .expect("converted lib entries are scalar catalogue values");
-                libraries(profile)
+                libraries()
                     .iter()
                     .find(|entry| entry.value() == file_name)
                     .map_or(file_name.to_owned(), |entry| entry.name().to_owned())
@@ -5578,7 +5561,6 @@ fn default_type_acquisition<'j0>(file_name: impl Into<JsStr<'j0>>) -> ConfigOpti
 }
 
 fn validate_compile_on_save<'j0>(
-    profile: ReferenceProfile,
     source: &SourceFile,
     base_path: impl Into<JsStr<'j0>>,
     errors: &mut Vec<Diagnostic>,
@@ -5596,7 +5578,6 @@ fn validate_compile_on_save<'j0>(
                     "compileOnSave",
                     &value,
                     CompilerOptionConversionContext {
-                        profile,
                         source,
                         value_node: property.initializer,
                         base_path,
@@ -5679,7 +5660,6 @@ impl ConfigOptionGroup {
 }
 
 fn config_option_group<'j0>(
-    profile: ReferenceProfile,
     base_path: impl Into<JsStr<'j0>>,
     group: ConfigOptionGroup,
     source: &SourceFile,
@@ -5755,7 +5735,6 @@ fn config_option_group<'j0>(
                         name,
                         &value,
                         CompilerOptionConversionContext {
-                            profile,
                             source,
                             value_node: property.initializer,
                             base_path,
@@ -5809,7 +5788,6 @@ fn config_option_group<'j0>(
 }
 
 struct CompilerOptionConversionContext<'a> {
-    profile: ReferenceProfile,
     source: &'a SourceFile,
     value_node: NodeId,
     base_path: JsStr<'a>,
@@ -5833,7 +5811,6 @@ fn convert_compiler_option_value(
     errors: &mut Vec<Diagnostic>,
 ) -> Result<Option<ConfigTypedOptionValue>, ConfigParseError> {
     let CompilerOptionConversionContext {
-        profile,
         source,
         value_node,
         base_path,
@@ -5869,7 +5846,6 @@ fn convert_compiler_option_value(
     }
     if let CompilerOptionValueKind::List(descriptor) = declaration.value_kind() {
         return convert_compiler_option_list_value(
-            profile,
             descriptor,
             value
                 .as_array()
@@ -5889,9 +5865,8 @@ fn convert_compiler_option_value(
     }
     if let CompilerOptionValueKind::Named(values) = declaration.value_kind() {
         let written = value.as_js().expect("named options require a string");
-        let values = named_values(profile, name, values);
         let Some(converted) = named_value_in(values, written) else {
-            let choices = config_named_option_choices(profile, name, values);
+            let choices = config_named_option_choices(name, values);
             errors.push(config_diagnostic(
                 &gen::Argument_for_0_option_must_be_1,
                 &[format!("--{name}"), choices],
@@ -6084,9 +6059,7 @@ fn converted_typed_object(
     )
 }
 
-#[allow(clippy::too_many_arguments)]
 fn convert_compiler_option_list_value<'j0>(
-    profile: ReferenceProfile,
     descriptor: CompilerOptionListDescriptor,
     values: &[Value],
     source: &SourceFile,
@@ -6108,7 +6081,6 @@ fn convert_compiler_option_list_value<'j0>(
             .and_then(|node| config_location(source, *node))
             .or_else(|| value_location.clone());
         let element = convert_compiler_option_list_element(
-            profile,
             descriptor,
             value,
             base_path,
@@ -6123,7 +6095,6 @@ fn convert_compiler_option_list_value<'j0>(
 }
 
 fn convert_compiler_option_list_element<'j0>(
-    profile: ReferenceProfile,
     descriptor: CompilerOptionListDescriptor,
     value: &Value,
     base_path: impl Into<JsStr<'j0>>,
@@ -6131,12 +6102,6 @@ fn convert_compiler_option_list_element<'j0>(
     errors: &mut Vec<Diagnostic>,
 ) -> Result<ConfigTypedListElement, ConfigParseError> {
     let base_path = base_path.into();
-    // The `lib` catalog is the profile's.
-    let descriptor = if descriptor.element_name() == "lib" {
-        lib_list_descriptor(profile)
-    } else {
-        descriptor
-    };
     if value.is_null() {
         return Ok(ConfigTypedListElement::Undefined);
     }
@@ -6238,31 +6203,22 @@ fn config_named_string_option_choices(descriptor: CompilerOptionListDescriptor) 
 /// tsc-span: typescript.js:42341-42345
 /// The `'a', 'b'` choice list for an enum-typed option, as printed by
 /// TS6046. `None` when the option is not enum-typed.
-pub fn compiler_option_named_choices(profile: ReferenceProfile, name: &str) -> Option<String> {
+pub fn compiler_option_named_choices(name: &str) -> Option<String> {
     let declaration = crate::config_options::compiler_option_declaration(name)?;
     match declaration.value_kind() {
-        CompilerOptionValueKind::Named(values) => Some(config_named_option_choices(
-            profile,
-            name,
-            named_values(profile, name, values),
-        )),
+        CompilerOptionValueKind::Named(values) => Some(config_named_option_choices(name, values)),
         _ => None,
     }
 }
 
-/// tsc 6.0.3 omits the values it deprecated; TypeScript 7.1
-/// (`tsoptions/errors.go` `formatEnumTypeKeys`) omits the same
+/// TypeScript 7.1 (`tsoptions/errors.go` `formatEnumTypeKeys`) omits the
 /// `DeprecatedKeys` and lists `es2026`.
 fn config_named_option_choices(
-    profile: ReferenceProfile,
     name: &str,
     values: &[crate::config_options::CompilerOptionNamedValue],
 ) -> String {
     match name {
-        "target" => match profile {
-            ReferenceProfile::TypeScript603 => "'es6', 'es2015', 'es2016', 'es2017', 'es2018', 'es2019', 'es2020', 'es2021', 'es2022', 'es2023', 'es2024', 'es2025', 'esnext'".to_owned(),
-            ReferenceProfile::TypeScript71 => "'es6', 'es2015', 'es2016', 'es2017', 'es2018', 'es2019', 'es2020', 'es2021', 'es2022', 'es2023', 'es2024', 'es2025', 'es2026', 'esnext'".to_owned(),
-        },
+        "target" => "'es6', 'es2015', 'es2016', 'es2017', 'es2018', 'es2019', 'es2020', 'es2021', 'es2022', 'es2023', 'es2024', 'es2025', 'es2026', 'esnext'".to_owned(),
         "module" => "'commonjs', 'es6', 'es2015', 'es2020', 'es2022', 'esnext', 'node16', 'node18', 'node20', 'nodenext', 'preserve'".to_owned(),
         "moduleResolution" => "'node16', 'nodenext', 'bundler'".to_owned(),
         _ => values
