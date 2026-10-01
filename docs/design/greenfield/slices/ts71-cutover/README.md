@@ -408,3 +408,15 @@ compilation」のchain付き）で報告する。tsc-rsのharnessは旧tscの`is
 - conformance：15,228 configuration、lane A 13,467（変化なし）、full 12,671→12,719（+48）、text 114、category 21、mismatch 616→568、harness error 45、emit full 12,410。fullに上がったのは未使用type parameterの27構成（上記26＋`unusedTypeParameters8`）とharness root選択の21構成。ratchet：0 regressions、48行追加。`unusedTypeParameters_templateTag2`は残る（C1／C3の`/** @type {T} */ this.p;`を7.1は宣言と見ず、TS2339とTS6205になる——JSのexpando／`this` class）。
 - hosted：PR #621（head `095b95311`、merge `675452004`）、run 36933021735 — `plan` 25s、`rust` 9m28s、`conformance (TypeScript 7.1)` 21m57s、`gates` 11s。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main `68043e837`と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 121→120、zod 529→518、Playwright 345→341、TypeScript `src/compiler` 355→345、Next.js 781→789、Effect 545→514、VS Code 3,472→3,503。tsc-rs÷tsgoは0.57〜0.98で従来どおり、peak memoryは同等（MB main→本branch：307→306、1,298→1,304、759→745、291→292、1,329→1,332、1,049→1,039、5,500→5,473）。退行なし。
+
+## P3-5d did-you-mean suggestionの上限撤廃（2026-10-02）
+
+P3-5c後の集計で(missing TS2552, unexpected TS2304)が13構成（`commonMissingSemicolons`、
+`maximum10SpellingSuggestions`、`parserharness`、`parserindenter`、`parserRealSource11`…）。tsc 6.0は
+`maximumSuggestionCount`＝10でchecker全体のDid-you-mean候補計算を打ち切っていた（tsc-rsは`suggestion_count`と
+`MAXIMUM_SUGGESTION_COUNT`で移植し、noLibのinit probeの消費や推測rollbackでの復元まで模していた）が、tsgoには上限が
+無い（`onFailedToResolveSymbol`、`maximum10SpellingSuggestions`の7.1 baselineは12個全部にsuggestion）。
+`suggestion_count`／`MAXIMUM_SUGGESTION_COUNT`と関連state（speculation checkpoint、init probeの消費）を削除し、
+annotate／speculateのunit testから上限の観測を外した。noLibで上限の挙動をpinしていたaccessのunit test 4件はtsgoの行に再pin（`tsc-19dadef8`を`--noLib`＋global型の宣言で実行：`helo`→TS2552 "Did you mean 'hello'?"、近似名3件はすべてTS2552、候補の無い名前はTS2304のままで後続のsuggestionに影響しない）。facts／spell／calls／speculateのbudget言及コメントも書き換えた。
+- conformance：15,228 configuration、lane A 13,467（変化なし）、full 12,719→12,731（+12）、text 114、category 21→22、mismatch 568→555、harness error 45、emit full 12,410。(missing TS2552, unexpected TS2304)の13構成がすべて上がった：fullが12（`commonMissingSemicolons`、`maximum10SpellingSuggestions`、`parserindenter`、`parserRealSource6`〜`9`／`11`〜`13`、`parserS7.6_A4.2_T1`、`scannerS7.6_A4.2_T1`）、`parserharness`はcategory（位置・code・categoryは一致し、残る差はTS6053 "File '{0}' not found."の引数——tsgoは`/// <reference path="../compiler/io.ts" />`の記述どおり`'../compiler/io.ts'`、tsc-rsは解決後の`'/compiler/io.ts'`。別classとして次の集計に残す）。ratchet：0 regressions、13行追加。
+- hosted：HOSTED_RECORD

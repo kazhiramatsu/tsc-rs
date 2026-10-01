@@ -470,8 +470,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:67855-67867
     ///
     /// The lib NonNullable<T> alias when it exists (getGlobalSymbol
-    /// with NO diagnostic — no suggestion-budget interaction); the
-    /// noLib fallback is `T & {}`. The miss memoizes as tsc's
+    /// with NO diagnostic); the noLib fallback is `T & {}`. The miss memoizes as tsc's
     /// unknownSymbol sentinel.
     fn get_global_non_nullable_type_instantiation(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         if self.deferred_global_non_nullable_type_alias.is_none() {

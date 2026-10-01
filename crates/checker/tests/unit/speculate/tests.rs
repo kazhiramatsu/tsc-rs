@@ -204,7 +204,6 @@ fn mutate_everything(state: &mut CheckerState) {
     state.inline_level += 2;
     state.in_variance_computation = true;
     state.variance_type_parameter = Some(string);
-    state.suggestion_count += 4;
     state.is_inference_partially_blocked = true;
     // D: diagnostics sinks.
     let diagnostic = state.create_error(None, &diagnostics::Cannot_find_name_0, &["x"]);
@@ -249,7 +248,6 @@ struct Observed {
     inline_level: u32,
     in_variance_computation: bool,
     variance_type_parameter: Option<tsc_types::TypeId>,
-    suggestion_count: u32,
     is_inference_partially_blocked: bool,
     diagnostics: usize,
     visible_global_diagnostics: usize,
@@ -299,7 +297,6 @@ fn observe(state: &CheckerState) -> Observed {
         inline_level: state.inline_level,
         in_variance_computation: state.in_variance_computation,
         variance_type_parameter: state.variance_type_parameter,
-        suggestion_count: state.suggestion_count,
         is_inference_partially_blocked: state.is_inference_partially_blocked,
         diagnostics: state.diagnostics.len(),
         visible_global_diagnostics: state.visible_global_diagnostics.len(),
@@ -356,7 +353,6 @@ fn commit_keeps_sinks_and_budget_consumption() {
         let diagnostic = state.create_error(None, &diagnostics::Cannot_find_name_0, &["x"]);
         state.push_error_diagnostic(diagnostic);
         state.mark_partially_checked_node(root, "7.0t commit test");
-        state.suggestion_count += 1;
         state.commit_speculation(checkpoint);
         assert_eq!(state.speculation_depth, 0);
         assert_eq!(state.diagnostics.len(), before.diagnostics + 1);
@@ -364,7 +360,6 @@ fn commit_keeps_sinks_and_budget_consumption() {
             state.partial_check_records.len(),
             before.partial_check_records + 1
         );
-        assert_eq!(state.suggestion_count, before.suggestion_count + 1);
     });
 }
 

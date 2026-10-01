@@ -21,8 +21,8 @@
 //!   on rollback; debug-asserted BALANCED on commit.
 //! - B (counters): `speculation_depth` is the transaction's own RAII
 //!   guard; `instantiation_depth`/`inline_level`/variance flags/
-//!   `suggestion_count`/`is_inference_partially_blocked` restore on
-//!   rollback. `instantiation_count` deliberately does NOT restore —
+//!   `is_inference_partially_blocked` restore on rollback.
+//!   `instantiation_count` deliberately does NOT restore —
 //!   tsc resets it at the three check entry points (86551/86921/80965)
 //!   and never mid-resolution. `flow_analysis_disabled` is a one-way
 //!   latch even in tsc — left alone.
@@ -155,10 +155,6 @@ pub struct SpeculationCheckpoint {
     inline_level: u32,
     in_variance_computation: bool,
     variance_type_parameter: Option<TypeId>,
-    /// tsc consumes the did-you-mean budget only on reporting paths;
-    /// the port's eager lazy-diagnostic identity lets a trial consume
-    /// it, so the transaction gives it back on rollback.
-    suggestion_count: u32,
     is_inference_partially_blocked: bool,
 
     // ---- D: diagnostics sinks ----
@@ -392,7 +388,6 @@ impl CheckerState<'_> {
             inline_level: self.inline_level,
             in_variance_computation: self.in_variance_computation,
             variance_type_parameter: self.variance_type_parameter,
-            suggestion_count: self.suggestion_count,
             is_inference_partially_blocked: self.is_inference_partially_blocked,
             diagnostics: self.diagnostics.len(),
             visible_global_diagnostics: self.visible_global_diagnostics.len(),
@@ -422,10 +417,10 @@ impl CheckerState<'_> {
     /// tsrs-native: the 7.0t transaction commit — no tsc counterpart.
     ///
     /// The trial succeeded: keep everything it produced (diagnostics,
-    /// sink pushes, budget consumption) and drop the guard. The
-    /// transient stacks must already be balanced — an imbalance here is
-    /// a missing pop/revert twin inside the region, the same bug class
-    /// check.rs's abort-unwind census catches per element.
+    /// sink pushes) and drop the guard. The transient stacks must
+    /// already be balanced — an imbalance here is a missing pop/revert
+    /// twin inside the region, the same bug class check.rs's
+    /// abort-unwind census catches per element.
     pub fn commit_speculation(&mut self, mut checkpoint: SpeculationCheckpoint) {
         assert_eq!(
             self.speculation_depth, checkpoint.depth,
@@ -653,7 +648,6 @@ impl CheckerState<'_> {
         self.inline_level = checkpoint.inline_level;
         self.in_variance_computation = checkpoint.in_variance_computation;
         self.variance_type_parameter = checkpoint.variance_type_parameter;
-        self.suggestion_count = checkpoint.suggestion_count;
         self.is_inference_partially_blocked = checkpoint.is_inference_partially_blocked;
 
         // D: diagnostics sinks. tsc keeps every diagnostic a candidate

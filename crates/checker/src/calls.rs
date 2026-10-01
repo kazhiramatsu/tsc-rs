@@ -7137,7 +7137,7 @@ impl<'a> CheckerState<'a> {
         }
         // getGlobalESSymbolConstructorSymbol(reportErrors=false)
         // (77701): the silent global-value probe; the deferredGlobal*
-        // memo elides (deterministic, no suggestion-budget burn).
+        // memo elides (deterministic).
         let Some(global_es_symbol) = self.get_global_symbol("Symbol", SymbolFlags::VALUE, None)?
         else {
             return Ok(false);

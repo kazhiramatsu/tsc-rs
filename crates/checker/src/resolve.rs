@@ -19,9 +19,6 @@ use tsc_types::{EscapedName, ModifierFlags, NodeFlags, ScriptTarget, SymbolFlags
 
 use crate::state::{CheckResult, CheckerState};
 
-/// tsc maximumSuggestionCount (47424).
-const MAXIMUM_SUGGESTION_COUNT: u32 = 10;
-
 /// Own only what lookup needs before mutably borrowing the checker to resolve
 /// aliases. Normal lookups copy one candidate; spelling keeps the original
 /// table snapshot so alias resolution cannot change its candidate order.
@@ -1369,89 +1366,87 @@ impl<'a> CheckerState<'a> {
         if let Some(lib) = suggested_lib {
             self.error_at_js(error_location, message, &[display.as_js(), lib.into()]);
         } else {
-            let mut suggestion: Option<SymbolId> = None;
-            if self.suggestion_count < MAXIMUM_SUGGESTION_COUNT {
-                // A CheckAbort unwind makes plain-vs-suggested
-                // undecidable — skip the report (the failure-band
-                // discipline above).
-                suggestion =
-                    match self.resolve_name_for_symbol_suggestion(error_location, name, meaning) {
-                        Ok(suggestion) => suggestion,
-                        Err(_) => return,
-                    };
-                // The isGlobalScopeAugmentationDeclaration filter
-                // (48126-48129) — LIVE since 5.8d retired the
-                // global-augmentation failure gate: a `declare global`
-                // container symbol never suggests.
-                if let Some(candidate) = suggestion {
-                    let is_global_scope_augmentation_declaration =
-                        self.binder.symbol(candidate).value_declaration.is_some_and(
-                            |declaration| {
-                                let source = self.binder.source_of_node(declaration);
-                                node_util::is_ambient_module(source, declaration)
-                                    && node_util::is_global_scope_augmentation(source, declaration)
-                            },
-                        );
-                    if is_global_scope_augmentation_declaration {
-                        suggestion = None;
-                    }
-                }
-                if let Some(suggested) = suggestion {
-                    let suggestion_name = self.symbol_display_name(suggested);
-                    // Namespace meaning selects the 2833 flavor; plain
-                    // unchecked JS uses the suggestion-category 2570
-                    // flavor where checked JS/TS uses 2552.
-                    let is_unchecked_js =
-                        self.is_unchecked_js_suggestion(error_location, Some(suggested), false);
-                    let did_you_mean = if meaning == SymbolFlags::NAMESPACE {
-                        &diagnostics::Cannot_find_namespace_0_Did_you_mean_1
-                    } else if is_unchecked_js {
-                        &diagnostics::Could_not_find_name_0_Did_you_mean_1
-                    } else {
-                        &diagnostics::Cannot_find_name_0_Did_you_mean_1
-                    };
-                    let mut diagnostic = self.diagnostic_for_node_or_compiler(
-                        error_location,
-                        did_you_mean,
-                        &[display.as_js(), suggestion_name.as_js()],
-                    );
-                    // getCanonicalDiagnostic(nameNotFoundMessage, name):
-                    // sort/dedupe compare through the PLAIN form.
-                    diagnostic.canonical_head = Some(tsc_diagnostics::CanonicalHead {
-                        code: message.code,
-                        text: tsc_diagnostics::MessageChain::new_js(
-                            message,
-                            std::slice::from_ref(&display),
-                        )
-                        .text,
+            // tsgo has no suggestion budget (tsc 6.0 stopped after ten
+            // did-you-mean suggestions per checker). A CheckAbort unwind
+            // makes plain-vs-suggested undecidable — skip the report (the
+            // failure-band discipline above).
+            let mut suggestion: Option<SymbolId> =
+                match self.resolve_name_for_symbol_suggestion(error_location, name, meaning) {
+                    Ok(suggestion) => suggestion,
+                    Err(_) => return,
+                };
+            // The isGlobalScopeAugmentationDeclaration filter
+            // (48126-48129) — LIVE since 5.8d retired the
+            // global-augmentation failure gate: a `declare global`
+            // container symbol never suggests.
+            if let Some(candidate) = suggestion {
+                let is_global_scope_augmentation_declaration = self
+                    .binder
+                    .symbol(candidate)
+                    .value_declaration
+                    .is_some_and(|declaration| {
+                        let source = self.binder.source_of_node(declaration);
+                        node_util::is_ambient_module(source, declaration)
+                            && node_util::is_global_scope_augmentation(source, declaration)
                     });
-                    if is_unchecked_js {
-                        diagnostic.message.category = DiagnosticCategory::Suggestion;
-                    }
-                    // addErrorOrSuggestion clones an unchecked-JS
-                    // suggestion into suggestionDiagnostics before
-                    // tsc appends related information to the original
-                    // diagnostic, so the published 2570 has no related
-                    // row.
-                    if !is_unchecked_js {
-                        if let Some(value_declaration) =
-                            self.binder.symbol(suggested).value_declaration
-                        {
-                            diagnostic.related.push(self.related_info_for_node_js(
-                                value_declaration,
-                                &diagnostics::_0_is_declared_here,
-                                &[suggestion_name.as_js()],
-                            ));
-                        }
-                    }
-                    self.push_error_diagnostic(diagnostic);
+                if is_global_scope_augmentation_declaration {
+                    suggestion = None;
                 }
             }
+            if let Some(suggested) = suggestion {
+                let suggestion_name = self.symbol_display_name(suggested);
+                // Namespace meaning selects the 2833 flavor; plain
+                // unchecked JS uses the suggestion-category 2570
+                // flavor where checked JS/TS uses 2552.
+                let is_unchecked_js =
+                    self.is_unchecked_js_suggestion(error_location, Some(suggested), false);
+                let did_you_mean = if meaning == SymbolFlags::NAMESPACE {
+                    &diagnostics::Cannot_find_namespace_0_Did_you_mean_1
+                } else if is_unchecked_js {
+                    &diagnostics::Could_not_find_name_0_Did_you_mean_1
+                } else {
+                    &diagnostics::Cannot_find_name_0_Did_you_mean_1
+                };
+                let mut diagnostic = self.diagnostic_for_node_or_compiler(
+                    error_location,
+                    did_you_mean,
+                    &[display.as_js(), suggestion_name.as_js()],
+                );
+                // getCanonicalDiagnostic(nameNotFoundMessage, name):
+                // sort/dedupe compare through the PLAIN form.
+                diagnostic.canonical_head = Some(tsc_diagnostics::CanonicalHead {
+                    code: message.code,
+                    text: tsc_diagnostics::MessageChain::new_js(
+                        message,
+                        std::slice::from_ref(&display),
+                    )
+                    .text,
+                });
+                if is_unchecked_js {
+                    diagnostic.message.category = DiagnosticCategory::Suggestion;
+                }
+                // addErrorOrSuggestion clones an unchecked-JS
+                // suggestion into suggestionDiagnostics before
+                // tsc appends related information to the original
+                // diagnostic, so the published 2570 has no related
+                // row.
+                if !is_unchecked_js {
+                    if let Some(value_declaration) = self.binder.symbol(suggested).value_declaration
+                    {
+                        diagnostic.related.push(self.related_info_for_node_js(
+                            value_declaration,
+                            &diagnostics::_0_is_declared_here,
+                            &[suggestion_name.as_js()],
+                        ));
+                    }
+                }
+                self.push_error_diagnostic(diagnostic);
+            }
+
             if suggestion.is_none() {
                 self.error_at_js(error_location, message, &[display.as_js()]);
             }
         }
-        self.suggestion_count += 1;
     }
 
     /// tsc-port: checkAndReportErrorForUsingTypeAsNamespace @6.0.3

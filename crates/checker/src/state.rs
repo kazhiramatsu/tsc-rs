@@ -668,19 +668,8 @@ pub struct CheckerState<'a> {
     /// Some(Some(unknown_symbol)) = miss memo (getter filters it).
     pub(crate) deferred_global_extract_symbol: Option<Option<SymbolId>>,
 
-    // ---- M4 5.5d: name-suggestion state ----
-    /// tsc suggestionCount (47423), capped by maximumSuggestionCount
-    /// (47424) = 10: the checker-wide Did-you-mean budget. Every
-    /// resolution failure that passes the onFailed guard chain
-    /// consumes one slot — including lib-suggestion (2583-family) and
-    /// no-suggestion (plain 2304) failures, but NOT guard-arm-handled
-    /// ones (2662/2663/2693). The noLib bootstrap burns all 10 (see
-    /// run_init_global_type_probes); oracle-pinned via
-    /// strictBindCallApply:false (burn 8, budget 2).
-    pub(crate) suggestion_count: u32,
-    /// initializeTypeChecker's reportErrors=true getGlobalType probes
-    /// (88779-88850), resolved EAGERLY at init so their failures burn
-    /// the suggestion budget at tsc's time even though our global TYPE
+    /// initializeTypeChecker's reportErrors=true getGlobalType probes,
+    /// resolved eagerly at init even though our global TYPE
     /// materialization stays lazy (the documented 5.0 deviation). The
     /// lazy getters consult this memo instead of re-probing — one
     /// resolveName-with-message per name per program, like tsc.
@@ -1524,7 +1513,6 @@ impl<'a> CheckerState<'a> {
             deferred_global_disposable_type: None,
             deferred_global_async_disposable_type: None,
             deferred_global_extract_symbol: None,
-            suggestion_count: 0,
             init_global_type_probes: rustc_hash::FxHashMap::default(),
             deferred_global_non_nullable_type_alias: None,
             deferred_global_record_symbol: None,
