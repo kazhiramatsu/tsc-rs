@@ -52,10 +52,11 @@ pub use tsc_emitter::{
 pub use tsc_program::PreparedProgramMode;
 pub use tsc_program::WorkerBudget;
 use tsc_program::{
-    plan_source_requests, validate_compiler_options, validate_paths_option_diagnostics,
-    CompilerOptionValidationLocation, CompilerOptions, MissingResolutionError, ModuleExtension,
-    PreparedProgram, PreparedSourceFile, ResolutionKey, ResolutionMode, ResolutionOutcome,
-    ResolvedModuleTarget, SourceFileId, SourceRequestPlan, UnloadedModuleReason,
+    plan_source_requests, removed_base_url_paths_suggestion, validate_compiler_options,
+    validate_paths_option_diagnostics, CompilerOptionValidationLocation, CompilerOptions,
+    MissingResolutionError, ModuleExtension, PreparedProgram, PreparedSourceFile, ResolutionKey,
+    ResolutionMode, ResolutionOutcome, ResolvedModuleTarget, SourceFileId, SourceRequestPlan,
+    UnloadedModuleReason,
 };
 
 mod cli;
@@ -3464,9 +3465,9 @@ fn emit_session_diagnostics(
 /// tsc-hash: 27def76917aef23a76e4b9d8b2036c28d04e47b44ef525ac578c6a1d48518e2d
 /// tsc-span: _tsc.js:125007-125017
 ///
-/// tsc-port: verifyDeprecatedCompilerOptions @6.0.3
-/// tsc-hash: 2565bc5d5347775444bdbd8c11a3cc1ff2411d066648ec1f7786a231ec23a112
-/// tsc-span: _tsc.js:125087-125250
+/// tsgo-port: verifyCompilerOptions "Removed in TS7" @7.1 (program.go:951-1008).
+/// `ignoreDeprecations` is parsed but has no effect in 7.1. The rows for the
+/// options TypeScript 5.5 removed remain until the option catalog follows 7.1.
 fn programmatic_option_diagnostics(prepared: &PreparedProgram) -> DiagnosticList {
     let options = prepared.compiler_options();
     let external_config_option_diagnostics = prepared
@@ -3571,7 +3572,7 @@ fn programmatic_option_diagnostics(prepared: &PreparedProgram) -> DiagnosticList
             prepared,
             &mut diagnostics,
             "importsNotUsedAsValues",
-            Some("verbatimModuleSyntax"),
+            Some("verbatimModuleSyntax".into()),
         );
     }
     if options.preserve_value_imports == Some(true) {
@@ -3579,110 +3580,79 @@ fn programmatic_option_diagnostics(prepared: &PreparedProgram) -> DiagnosticList
             prepared,
             &mut diagnostics,
             "preserveValueImports",
-            Some("verbatimModuleSyntax"),
+            Some("verbatimModuleSyntax".into()),
         );
     }
 
-    if let Some(value) = options.ignore_deprecations.as_ref().map(JsString::as_js) {
-        // tsc getIgnoreDeprecationsVersion (_tsc.js:125052-125061) accepts
-        // exactly "5.0" and "6.0"; any other value reports 5103 once
-        // (reportInvalidIgnoreDeprecations, _tsc.js:122639) while the
-        // deprecation rows below still fire.
-        if !matches!(value.as_str(), Some("5.0" | "6.0")) {
-            push_programmatic_option_diagnostic(
-                prepared,
-                &mut diagnostics,
-                &["ignoreDeprecations"],
-                ProgrammaticOptionDiagnosticLocation::Value,
-                true,
-                MessageChain::new(&gen::Invalid_value_for_ignoreDeprecations, &[]),
-            );
+    // Removed in TS7. `ignoreDeprecations` is parsed but has no effect.
+    if let Some(base_url) = options.base_url.as_ref() {
+        // The suggestion exists only with a config file: the base URL
+        // relative to that file.
+        let use_instead = prepared.program_options().config_file().map(|config_file| {
+            removed_base_url_paths_suggestion(
+                config_file.path().display(),
+                base_url.as_js(),
+                prepared.current_directory().display(),
+                prepared.path_context().use_case_sensitive_file_names(),
+            )
+        });
+        push_programmatic_removed_option_name(
+            prepared,
+            &mut diagnostics,
+            "baseUrl",
+            use_instead.as_ref().map(JsString::as_js),
+        );
+    }
+    if options.out_file.is_some() {
+        push_programmatic_removed_option_name(prepared, &mut diagnostics, "outFile", None);
+    }
+    if options.target == Some(1) {
+        push_programmatic_removed_option_value(prepared, &mut diagnostics, "target", "ES5");
+    }
+    let module_name = match options.module {
+        Some(2) => Some("AMD"),
+        Some(4) => Some("System"),
+        Some(3) => Some("UMD"),
+        _ => None,
+    };
+    if let Some(module_name) = module_name {
+        push_programmatic_removed_option_value(prepared, &mut diagnostics, "module", module_name);
+    }
+    if options.module_resolution == Some(1) {
+        push_programmatic_removed_option_value(
+            prepared,
+            &mut diagnostics,
+            "moduleResolution",
+            "Classic",
+        );
+    }
+    for (removed, name) in [
+        (options.always_strict == Some(false), "alwaysStrict"),
+        (options.es_module_interop == Some(false), "esModuleInterop"),
+        (
+            options.allow_synthetic_default_imports == Some(false),
+            "allowSyntheticDefaultImports",
+        ),
+    ] {
+        if removed {
+            push_programmatic_removed_option_value(prepared, &mut diagnostics, name, "false");
         }
     }
-    if options.ignore_deprecations.as_ref().map(JsString::as_js) != Some(JsStr::from("6.0")) {
-        if options.target == Some(1) {
-            push_programmatic_option_deprecation_value(
-                prepared,
-                &mut diagnostics,
-                "target",
-                "ES5",
-                false,
-            );
-        }
-        if options.always_strict == Some(false) {
-            push_programmatic_option_deprecation_value(
-                prepared,
-                &mut diagnostics,
-                "alwaysStrict",
-                "false",
-                false,
-            );
-        }
-        match options.module_resolution {
-            Some(1) => push_programmatic_option_deprecation_value(
-                prepared,
-                &mut diagnostics,
-                "moduleResolution",
-                "classic",
-                false,
-            ),
-            Some(2) => push_programmatic_option_deprecation_value(
-                prepared,
-                &mut diagnostics,
-                "moduleResolution",
-                "node10",
-                true,
-            ),
-            _ => {}
-        }
-        if options.base_url.is_some() {
-            push_programmatic_option_deprecation_name(prepared, &mut diagnostics, "baseUrl", true);
-        }
-        if options.es_module_interop == Some(false) {
-            push_programmatic_option_deprecation_value(
-                prepared,
-                &mut diagnostics,
-                "esModuleInterop",
-                "false",
-                false,
-            );
-        }
-        if options.allow_synthetic_default_imports == Some(false) {
-            push_programmatic_option_deprecation_value(
-                prepared,
-                &mut diagnostics,
-                "allowSyntheticDefaultImports",
-                "false",
-                false,
-            );
-        }
-        if options.out_file.is_some() {
-            push_programmatic_option_deprecation_name(prepared, &mut diagnostics, "outFile", false);
-        }
-        if options.downlevel_iteration.is_some() {
-            push_programmatic_option_deprecation_name(
-                prepared,
-                &mut diagnostics,
-                "downlevelIteration",
-                false,
-            );
-        }
-        let module_name = match options.module {
-            Some(0) => Some("None"),
-            Some(2) => Some("AMD"),
-            Some(3) => Some("UMD"),
-            Some(4) => Some("System"),
-            _ => None,
-        };
-        if let Some(module_name) = module_name {
-            push_programmatic_option_deprecation_value(
-                prepared,
-                &mut diagnostics,
-                "module",
-                module_name,
-                false,
-            );
-        }
+    if options.module_resolution == Some(2) {
+        push_programmatic_removed_option_value(
+            prepared,
+            &mut diagnostics,
+            "moduleResolution",
+            "node10",
+        );
+    }
+    if options.downlevel_iteration.is_some() {
+        push_programmatic_removed_option_name(
+            prepared,
+            &mut diagnostics,
+            "downlevelIteration",
+            None,
+        );
     }
     if !external_config_option_diagnostics {
         diagnostics.extend(validate_paths_option_diagnostics(
@@ -3700,9 +3670,11 @@ enum ProgrammaticOptionDiagnosticLocation {
     Value,
 }
 
-/// tsc-port: createDiagnosticForOption @6.0.3
-/// tsc-hash: 24da25470bdd02c4cde5520b78ea191837823bf1df686438144a8106edfd5f53
-/// tsc-span: _tsc.js:125368-125386
+/// tsgo-port: createDiagnosticForOption and
+/// createOptionDiagnosticInObjectLiteralSyntax @7.1 (program.go:893-921):
+/// the first property, in document order, that one of `names` matches (a
+/// second name or a duplicate key adds no row), else the `compilerOptions`
+/// name, else a fileless diagnostic.
 fn push_programmatic_option_diagnostic(
     prepared: &PreparedProgram,
     diagnostics: &mut Vec<Diagnostic>,
@@ -3739,6 +3711,7 @@ fn push_programmatic_option_diagnostic(
         .copied()
         .collect::<Vec<_>>();
     locations.sort_unstable_by_key(|location| location.start());
+    locations.truncate(1);
     if locations.is_empty() && use_compiler_options_fallback {
         locations.extend(config_file.compiler_options_location());
     }
@@ -3757,38 +3730,6 @@ fn push_programmatic_option_diagnostic(
         )
         .with_file_path(config_file.diagnostic_file_path())
     }));
-}
-
-fn push_programmatic_option_deprecation_value(
-    prepared: &PreparedProgram,
-    diagnostics: &mut Vec<Diagnostic>,
-    name: &str,
-    value: &str,
-    related: bool,
-) {
-    let mut message = MessageChain::new(
-        &gen::Option_0_1_is_deprecated_and_will_stop_functioning_in_TypeScript_2_Specify_compilerOption_ignoreDeprecations_3_to_silence_this_error,
-        &[
-            name.to_owned(),
-            value.to_owned(),
-            "7.0".to_owned(),
-            "6.0".to_owned(),
-        ],
-    );
-    if related {
-        message = message.with_next(vec![MessageChain::new(
-            &gen::Visit_https_aka_ms_ts6_for_migration_information,
-            &[],
-        )]);
-    }
-    push_programmatic_option_diagnostic(
-        prepared,
-        diagnostics,
-        &[name],
-        ProgrammaticOptionDiagnosticLocation::Value,
-        true,
-        message,
-    );
 }
 
 fn push_programmatic_removed_option_value(
@@ -3814,42 +3755,16 @@ fn push_programmatic_removed_option_name(
     prepared: &PreparedProgram,
     diagnostics: &mut Vec<Diagnostic>,
     name: &str,
-    use_instead: Option<&str>,
+    use_instead: Option<JsStr<'_>>,
 ) {
     let mut message = MessageChain::new(
         &gen::Option_0_has_been_removed_Please_remove_it_from_your_configuration,
         &[name.to_owned()],
     );
     if let Some(use_instead) = use_instead {
-        message = message.with_next(vec![MessageChain::new(
+        message = message.with_next(vec![MessageChain::new_js(
             &gen::Use_0_instead,
             &[use_instead.to_owned()],
-        )]);
-    }
-    push_programmatic_option_diagnostic(
-        prepared,
-        diagnostics,
-        &[name],
-        ProgrammaticOptionDiagnosticLocation::Name,
-        true,
-        message,
-    );
-}
-
-fn push_programmatic_option_deprecation_name(
-    prepared: &PreparedProgram,
-    diagnostics: &mut Vec<Diagnostic>,
-    name: &str,
-    related: bool,
-) {
-    let mut message = MessageChain::new(
-        &gen::Option_0_is_deprecated_and_will_stop_functioning_in_TypeScript_1_Specify_compilerOption_ignoreDeprecations_2_to_silence_this_error,
-        &[name.to_owned(), "7.0".to_owned(), "6.0".to_owned()],
-    );
-    if related {
-        message = message.with_next(vec![MessageChain::new(
-            &gen::Visit_https_aka_ms_ts6_for_migration_information,
-            &[],
         )]);
     }
     push_programmatic_option_diagnostic(

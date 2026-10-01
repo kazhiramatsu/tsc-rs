@@ -415,7 +415,7 @@ fn commonjs_erased_final_import_retains_statement_list_tail_comments() {
 }
 
 #[test]
-fn deprecated_module_none_selects_transform_modules_commonjs_delegate() {
+fn module_none_selects_transform_modules_commonjs_delegate() {
     let prepared = prepared_with_sources_and_minimal_lib(
         CompilerOptions {
             no_emit: Some(false),
@@ -430,13 +430,8 @@ fn deprecated_module_none_selects_transform_modules_commonjs_delegate() {
         .emit_with_reported_diagnostics_for_harness(&mut sink)
         .expect("module=None CommonJS-delegate emit");
 
-    assert_eq!(
-        diagnostics
-            .iter()
-            .map(|diagnostic| diagnostic.code())
-            .collect::<Vec<_>>(),
-        [5107]
-    );
+    // TypeScript 7.1 has no diagnostic for a programmatic `module: None`.
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
     assert_eq!(sink.writes().len(), 1);
     assert_eq!(
         sink.writes()[0].callback_text(),
@@ -1099,7 +1094,6 @@ fn h2_3b_classic_jsx_factories_fragments_namespaces_and_ranges_match_typescript(
             strict: Some(false),
             always_strict: Some(false),
             new_line: Some(1),
-            ignore_deprecations: Some("6.0".to_owned().into()),
             ..CompilerOptions::default()
         },
         &[("/project/emoji-😀.tsx", SOURCE)],
@@ -1147,7 +1141,6 @@ fn h2_3b_classic_factory_import_substitution_and_lexical_shadowing_match_typescr
             jsx: Some(2),
             es_module_interop: Some(true),
             new_line: Some(1),
-            ignore_deprecations: Some("6.0".to_owned().into()),
             ..CompilerOptions::default()
         },
         SOURCE,
@@ -1315,7 +1308,6 @@ fn h2_3d_json_text_paths_bom_newlines_and_module_invariance_match_typescript() {
                 resolve_json_module: Some(true),
                 out_dir: Some("/project/dist".to_owned().into()),
                 new_line: Some(1),
-                ignore_deprecations: Some("6.0".to_owned().into()),
                 ..CompilerOptions::default()
             },
             &[("/project/data.json", SOURCE)],
@@ -1391,7 +1383,14 @@ fn h2_3d_json_without_distinct_output_location_is_not_written() {
 
 #[test]
 fn h2_3d_resolve_json_module_option_diagnostics_match_typescript_and_gate_no_emit_on_error() {
-    for (module, module_resolution, expected_code) in [(200, 1, 5070), (3, 2, 5071), (4, 2, 5071)] {
+    // TypeScript 7.1 adds the removed-option rows (`moduleResolution=Classic`,
+    // `module=UMD`/`module=System` and `moduleResolution=node10`) next to the
+    // resolveJsonModule relationship row.
+    for (module, module_resolution, expected_codes) in [
+        (200, 1, &[5070, 5108][..]),
+        (3, 2, &[5071, 5108, 5108][..]),
+        (4, 2, &[5071, 5108, 5108][..]),
+    ] {
         for no_emit_on_error in [false, true] {
             let prepared = prepared_with_sources_and_minimal_lib(
                 CompilerOptions {
@@ -1402,7 +1401,6 @@ fn h2_3d_resolve_json_module_option_diagnostics_match_typescript_and_gate_no_emi
                     module_resolution: Some(module_resolution),
                     resolve_json_module: Some(true),
                     out_dir: Some("/project/dist".to_owned().into()),
-                    ignore_deprecations: Some("6.0".to_owned().into()),
                     ..CompilerOptions::default()
                 },
                 &[("/project/data.json", "{\"value\":1}")],
@@ -1417,7 +1415,7 @@ fn h2_3d_resolve_json_module_option_diagnostics_match_typescript_and_gate_no_emi
                     .iter()
                     .map(|diagnostic| diagnostic.code())
                     .collect::<Vec<_>>(),
-                [expected_code],
+                expected_codes,
                 "module={module} moduleResolution={module_resolution} noEmitOnError={no_emit_on_error}"
             );
             assert_eq!(outcome.emit_skipped(), no_emit_on_error);

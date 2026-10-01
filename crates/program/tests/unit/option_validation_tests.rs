@@ -236,7 +236,7 @@ fn one_snapshot_can_report_multiple_violations_without_filtering() {
 
 #[test]
 fn source_map_relationship_diagnostics_stay_non_fatal_in_the_config_gate() {
-    // The W5 K22 rows report like the 5101/5107 family: the program still
+    // The W5 K22 rows report like the 5102/5108 family: the program still
     // loads, checks, and emits (verifyCompilerOptions rows are not a
     // source-loading gate). A fatal classification would suppress the
     // frozen target writes and flip emit_skipped.

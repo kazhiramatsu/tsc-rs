@@ -1,46 +1,32 @@
 {
-  "version": 1,
+  "version": 2,
   "slice": "H2.8b-CFG1c",
-  "typescript": "6.0.3",
-  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "typescript": "7.1.0-dev-19dadef8",
+  "source_commit": "19dadef8888ba5b27d8b9f622480745cf623e020",
   "source": {
-    "path": "vendor/typescript-6.0.3/lib/_tsc.js",
-    "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
-    "anchors": [
-      {
-        "symbol": "verifyCompilerOptions",
-        "start_line": 124751,
-        "end_line": 125027,
-        "sha256": "e47279a97febaf4dbb6d039e4b5655ab2d2829abee7c5c75ffaf06f52ea44925"
-      },
-      {
-        "symbol": "createDiagnosticForOption",
-        "start_line": 125337,
-        "end_line": 125424,
-        "sha256": "f0bb55056716cffb5fb14d72f45c809092d8afafa37496114d5b83b1b8ad3070"
-      },
-      {
-        "symbol": "parseJsonSourceFileConfigFileContent",
-        "start_line": 38973,
-        "end_line": 39171,
-        "sha256": "07f1b78d7a64e7de9a0242477b0f035046682d3dea94128b82f5a3d8e477a7f2"
-      }
-    ]
+    "observer": "tsc-rs parse_config_root_plan, recorded by the fixture test's observe() (the removed-option rows follow tsgo program.go verifyCompilerOptions \"Removed in TS7\" at the vendored commit)",
+    "verification": "tsgo built from the vendored commit (Version 7.1.0-dev), run as `tsgo -p <config> --pretty false` on each case's materialized files on 2026-10-02: every config-level row's file, line, column, code and message chain compared (lengths are not printed by tsgo; the recorded lengths are the config parser's property-name and value spans). Result: 56 of 76 cases identical; the 20 others differ only in rows for options or values TypeScript 7 removed (outFile/classic/system/none relationship rows, the bundler default for the removed module kinds, module none and target es3 as TS6046), recorded in docs/design/greenfield/slices/ts71-cutover/README.md (P3-5a) for the next class."
   },
-  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
-  "observer_sha256": "7d92cb2a24609fc57c1aca61412de3b87f96585bf16f53527cfedd0811823650",
   "inputs": {
     "path": "crates/program/tests/fixtures/h2-8b-config-diagnostics-inputs.json",
     "sha256": "5218789e141c70bd6e22e4ff7d2a6928740c762796f5c8477655be3279ba0d22"
   },
   "repetitions": 2,
-  "program_executions": 152,
-  "config_parse_executions": 152,
   "cases": [
     {
       "case_id": "h2-8b-config-diagnostics/valid",
       "typescript_observation": {
-        "option_diagnostics": [],
+        "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          }
+        ],
         "raw": {
           "compilerOptions": {
             "target": "es2020",
@@ -254,20 +240,20 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
-            "code": 5052,
+            "code": 5108,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 133,
-            "length": 30,
-            "message": "Option 'strictPropertyInitialization' cannot be specified without specifying option 'strictNullChecks'.",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
             "related_information": []
           },
           {
             "code": 5052,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 169,
-            "length": 18,
+            "start": 133,
+            "length": 30,
             "message": "Option 'strictPropertyInitialization' cannot be specified without specifying option 'strictNullChecks'.",
             "related_information": []
           }
@@ -487,7 +473,17 @@
     {
       "case_id": "h2-8b-config-diagnostics/strict-property-inherited-strict",
       "typescript_observation": {
-        "option_diagnostics": [],
+        "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          }
+        ],
         "raw": {
           "compilerOptions": {
             "target": "es2020",
@@ -705,20 +701,20 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
-            "code": 5052,
+            "code": 5108,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 133,
-            "length": 28,
-            "message": "Option 'exactOptionalPropertyTypes' cannot be specified without specifying option 'strictNullChecks'.",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
             "related_information": []
           },
           {
             "code": 5052,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 167,
-            "length": 18,
+            "start": 133,
+            "length": 28,
             "message": "Option 'exactOptionalPropertyTypes' cannot be specified without specifying option 'strictNullChecks'.",
             "related_information": []
           }
@@ -938,7 +934,17 @@
     {
       "case_id": "h2-8b-config-diagnostics/exact-optional-control",
       "typescript_observation": {
-        "option_diagnostics": [],
+        "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          }
+        ],
         "raw": {
           "compilerOptions": {
             "target": "es2020",
@@ -1156,6 +1162,24 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 47,
+            "length": 5,
+            "message": "Option 'module=AMD' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 72,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
+          {
             "code": 5053,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -1165,12 +1189,12 @@
             "related_information": []
           },
           {
-            "code": 5053,
+            "code": 5102,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 153,
             "length": 9,
-            "message": "Option 'outFile' cannot be specified with option 'isolatedModules'.",
+            "message": "Option 'outFile' has been removed. Please remove it from your configuration.",
             "related_information": []
           }
         ],
@@ -1391,6 +1415,24 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 47,
+            "length": 5,
+            "message": "Option 'module=AMD' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 72,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
+          {
             "code": 5053,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -1409,12 +1451,12 @@
             "related_information": []
           },
           {
-            "code": 5053,
+            "code": 5102,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 158,
             "length": 9,
-            "message": "Option 'outFile' cannot be specified with option 'verbatimModuleSyntax'.",
+            "message": "Option 'outFile' has been removed. Please remove it from your configuration.",
             "related_information": []
           }
         ],
@@ -1635,6 +1677,24 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 47,
+            "length": 8,
+            "message": "Option 'module=System' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
+          {
             "code": 5053,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -1653,12 +1713,12 @@
             "related_information": []
           },
           {
-            "code": 5053,
+            "code": 5102,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 184,
             "length": 9,
-            "message": "Option 'outFile' cannot be specified with option 'verbatimModuleSyntax'.",
+            "message": "Option 'outFile' has been removed. Please remove it from your configuration.",
             "related_information": []
           }
         ],
@@ -1881,20 +1941,20 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
-            "code": 5053,
+            "code": 5108,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 133,
-            "length": 22,
-            "message": "Option 'allowJs' cannot be specified with option 'isolatedDeclarations'.",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
             "related_information": []
           },
           {
             "code": 5053,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 161,
-            "length": 9,
+            "start": 133,
+            "length": 22,
             "message": "Option 'allowJs' cannot be specified with option 'isolatedDeclarations'.",
             "related_information": []
           }
@@ -2118,20 +2178,20 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
-            "code": 5069,
+            "code": 5108,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 133,
-            "length": 22,
-            "message": "Option 'isolatedDeclarations' cannot be specified without specifying option 'declaration' or option 'composite'.",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
             "related_information": []
           },
           {
             "code": 5069,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 161,
-            "length": 13,
+            "start": 133,
+            "length": 22,
             "message": "Option 'isolatedDeclarations' cannot be specified without specifying option 'declaration' or option 'composite'.",
             "related_information": []
           }
@@ -2351,7 +2411,17 @@
     {
       "case_id": "h2-8b-config-diagnostics/isolated-declarations-composite",
       "typescript_observation": {
-        "option_diagnostics": [],
+        "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          }
+        ],
         "raw": {
           "compilerOptions": {
             "target": "es2020",
@@ -2569,20 +2639,20 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
-            "code": 5053,
+            "code": 5108,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 133,
-            "length": 11,
-            "message": "Option 'sourceMap' cannot be specified with option 'inlineSourceMap'.",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
             "related_information": []
           },
           {
             "code": 5053,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 150,
-            "length": 17,
+            "start": 133,
+            "length": 11,
             "message": "Option 'sourceMap' cannot be specified with option 'inlineSourceMap'.",
             "related_information": []
           }
@@ -2804,6 +2874,15 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
+          {
             "code": 5053,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -2819,15 +2898,6 @@
             "start": 133,
             "length": 9,
             "message": "Option 'mapRoot' cannot be specified without specifying option 'sourceMap' or option 'declarationMap'.",
-            "related_information": []
-          },
-          {
-            "code": 5053,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 150,
-            "length": 17,
-            "message": "Option 'mapRoot' cannot be specified with option 'inlineSourceMap'.",
             "related_information": []
           }
         ],
@@ -3047,6 +3117,15 @@
       "case_id": "h2-8b-config-diagnostics/inline-sources",
       "typescript_observation": {
         "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
           {
             "code": 5051,
             "category": "error",
@@ -3270,7 +3349,17 @@
     {
       "case_id": "h2-8b-config-diagnostics/inline-sources-control",
       "typescript_observation": {
-        "option_diagnostics": [],
+        "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          }
+        ],
         "raw": {
           "compilerOptions": {
             "target": "es2020",
@@ -3487,6 +3576,15 @@
       "case_id": "h2-8b-config-diagnostics/source-root",
       "typescript_observation": {
         "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
           {
             "code": 5051,
             "category": "error",
@@ -3712,20 +3810,20 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
-            "code": 5069,
+            "code": 5108,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 133,
-            "length": 9,
-            "message": "Option 'mapRoot' cannot be specified without specifying option 'sourceMap' or option 'declarationMap'.",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
             "related_information": []
           },
           {
             "code": 5069,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 150,
-            "length": 11,
+            "start": 133,
+            "length": 9,
             "message": "Option 'mapRoot' cannot be specified without specifying option 'sourceMap' or option 'declarationMap'.",
             "related_information": []
           }
@@ -3948,6 +4046,15 @@
       "case_id": "h2-8b-config-diagnostics/composite-no-declaration",
       "typescript_observation": {
         "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
           {
             "code": 6304,
             "category": "error",
@@ -4182,6 +4289,15 @@
             "length": 17,
             "message": "Composite projects may not disable incremental compilation.",
             "related_information": []
+          },
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
           }
         ],
         "raw": {
@@ -4400,6 +4516,15 @@
       "case_id": "h2-8b-config-diagnostics/composite-both-disabled",
       "typescript_observation": {
         "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
           {
             "code": 6304,
             "category": "error",
@@ -4636,7 +4761,17 @@
     {
       "case_id": "h2-8b-config-diagnostics/config-incremental-valid",
       "typescript_observation": {
-        "option_diagnostics": [],
+        "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          }
+        ],
         "raw": {
           "compilerOptions": {
             "target": "es2020",
@@ -4852,20 +4987,20 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
-            "code": 5069,
+            "code": 5108,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 133,
-            "length": 16,
-            "message": "Option 'declarationDir' cannot be specified without specifying option 'declaration' or option 'composite'.",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
             "related_information": []
           },
           {
             "code": 5069,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 158,
-            "length": 13,
+            "start": 133,
+            "length": 16,
             "message": "Option 'declarationDir' cannot be specified without specifying option 'declaration' or option 'composite'.",
             "related_information": []
           }
@@ -5087,6 +5222,24 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 47,
+            "length": 5,
+            "message": "Option 'module=AMD' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 72,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
+          {
             "code": 5053,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -5096,12 +5249,12 @@
             "related_information": []
           },
           {
-            "code": 5053,
+            "code": 5102,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 155,
             "length": 9,
-            "message": "Option 'declarationDir' cannot be specified with option 'outFile'.",
+            "message": "Option 'outFile' has been removed. Please remove it from your configuration.",
             "related_information": []
           }
         ],
@@ -5324,20 +5477,20 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
-            "code": 5069,
+            "code": 5108,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 133,
-            "length": 16,
-            "message": "Option 'declarationMap' cannot be specified without specifying option 'declaration' or option 'composite'.",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
             "related_information": []
           },
           {
             "code": 5069,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 155,
-            "length": 13,
+            "start": 133,
+            "length": 16,
             "message": "Option 'declarationMap' cannot be specified without specifying option 'declaration' or option 'composite'.",
             "related_information": []
           }
@@ -5558,6 +5711,15 @@
       "case_id": "h2-8b-config-diagnostics/lib-and-no-lib",
       "typescript_observation": {
         "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
           {
             "code": 5053,
             "category": "error",
@@ -5801,12 +5963,21 @@
             "related_information": []
           },
           {
-            "code": 5047,
+            "code": 5108,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 128,
-            "length": 17,
-            "message": "Option 'isolatedModules' can only be used when either option '--module' is provided or option 'target' is 'ES2015' or higher.",
+            "start": 29,
+            "length": 5,
+            "message": "Option 'target=ES5' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 70,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
             "related_information": []
           }
         ],
@@ -6023,7 +6194,17 @@
     {
       "case_id": "h2-8b-config-diagnostics/isolated-none-es2015",
       "typescript_observation": {
-        "option_diagnostics": [],
+        "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 73,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          }
+        ],
         "raw": {
           "compilerOptions": {
             "target": "es2015",
@@ -6239,20 +6420,20 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
-            "code": 5091,
+            "code": 5108,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 133,
-            "length": 17,
-            "message": "Option 'preserveConstEnums' cannot be disabled when 'isolatedModules' is enabled.",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
             "related_information": []
           },
           {
             "code": 5091,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 156,
-            "length": 20,
+            "start": 133,
+            "length": 17,
             "message": "Option 'preserveConstEnums' cannot be disabled when 'isolatedModules' is enabled.",
             "related_information": []
           }
@@ -6474,20 +6655,20 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
-            "code": 5091,
+            "code": 5108,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 133,
-            "length": 22,
-            "message": "Option 'preserveConstEnums' cannot be disabled when 'verbatimModuleSyntax' is enabled.",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
             "related_information": []
           },
           {
             "code": 5091,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 161,
-            "length": 20,
+            "start": 133,
+            "length": 22,
             "message": "Option 'preserveConstEnums' cannot be disabled when 'verbatimModuleSyntax' is enabled.",
             "related_information": []
           }
@@ -6718,12 +6899,21 @@
             "related_information": []
           },
           {
-            "code": 6082,
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 77,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
+          {
+            "code": 5102,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 135,
             "length": 9,
-            "message": "Only 'amd' and 'system' modules are supported alongside --outFile.",
+            "message": "Option 'outFile' has been removed. Please remove it from your configuration.",
             "related_information": []
           }
         ],
@@ -6940,7 +7130,26 @@
     {
       "case_id": "h2-8b-config-diagnostics/outfile-declaration-only",
       "typescript_observation": {
-        "option_diagnostics": [],
+        "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 77,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
+          {
+            "code": 5102,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 135,
+            "length": 9,
+            "message": "Option 'outFile' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          }
+        ],
         "raw": {
           "compilerOptions": {
             "target": "es2020",
@@ -7159,6 +7368,15 @@
       "case_id": "h2-8b-config-diagnostics/json-classic",
       "typescript_observation": {
         "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 9,
+            "message": "Option 'moduleResolution=Classic' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
           {
             "code": 5070,
             "category": "error",
@@ -7393,12 +7611,21 @@
             "related_information": []
           },
           {
-            "code": 5071,
+            "code": 5108,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 133,
-            "length": 19,
-            "message": "Option '--resolveJsonModule' cannot be specified when 'module' is set to 'none', 'system', or 'umd'.",
+            "start": 47,
+            "length": 8,
+            "message": "Option 'module=System' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
             "related_information": []
           }
         ],
@@ -7615,7 +7842,17 @@
     {
       "case_id": "h2-8b-config-diagnostics/json-esnext",
       "typescript_observation": {
-        "option_diagnostics": [],
+        "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          }
+        ],
         "raw": {
           "compilerOptions": {
             "target": "es2020",
@@ -7831,19 +8068,19 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
-            "code": 5052,
+            "code": 5108,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 133,
-            "length": 9,
-            "message": "Option 'checkJs' cannot be specified without specifying option 'allowJs'.",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
             "related_information": []
           },
           {
             "code": 5052,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 148,
+            "start": 133,
             "length": 9,
             "message": "Option 'checkJs' cannot be specified without specifying option 'allowJs'.",
             "related_information": []
@@ -8064,7 +8301,17 @@
     {
       "case_id": "h2-8b-config-diagnostics/check-js-implies-allow",
       "typescript_observation": {
-        "option_diagnostics": [],
+        "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          }
+        ],
         "raw": {
           "compilerOptions": {
             "target": "es2020",
@@ -8280,20 +8527,20 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
-            "code": 5069,
+            "code": 5108,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 133,
-            "length": 21,
-            "message": "Option 'emitDeclarationOnly' cannot be specified without specifying option 'declaration' or option 'composite'.",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
             "related_information": []
           },
           {
             "code": 5069,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 160,
-            "length": 13,
+            "start": 133,
+            "length": 21,
             "message": "Option 'emitDeclarationOnly' cannot be specified without specifying option 'declaration' or option 'composite'.",
             "related_information": []
           }
@@ -8515,20 +8762,20 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
-            "code": 5052,
+            "code": 5108,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 133,
-            "length": 23,
-            "message": "Option 'emitDecoratorMetadata' cannot be specified without specifying option 'experimentalDecorators'.",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
             "related_information": []
           },
           {
             "code": 5052,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 162,
-            "length": 24,
+            "start": 133,
+            "length": 23,
             "message": "Option 'emitDecoratorMetadata' cannot be specified without specifying option 'experimentalDecorators'.",
             "related_information": []
           }
@@ -8748,7 +8995,17 @@
     {
       "case_id": "h2-8b-config-diagnostics/decorator-metadata-valid",
       "typescript_observation": {
-        "option_diagnostics": [],
+        "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          }
+        ],
         "raw": {
           "compilerOptions": {
             "target": "es2020",
@@ -8966,20 +9223,20 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
-            "code": 5053,
+            "code": 5108,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 133,
-            "length": 12,
-            "message": "Option 'reactNamespace' cannot be specified with option 'jsxFactory'.",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
             "related_information": []
           },
           {
             "code": 5053,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 150,
-            "length": 16,
+            "start": 133,
+            "length": 12,
             "message": "Option 'reactNamespace' cannot be specified with option 'jsxFactory'.",
             "related_information": []
           }
@@ -9200,6 +9457,15 @@
       "case_id": "h2-8b-config-diagnostics/jsx-factory-runtime",
       "typescript_observation": {
         "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
           {
             "code": 5089,
             "category": "error",
@@ -9427,6 +9693,15 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
+          {
             "code": 5067,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -9650,6 +9925,15 @@
       "case_id": "h2-8b-config-diagnostics/jsx-namespace-invalid",
       "typescript_observation": {
         "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
           {
             "code": 5059,
             "category": "error",
@@ -9875,6 +10159,15 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
+          {
             "code": 5052,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -10098,6 +10391,15 @@
       "case_id": "h2-8b-config-diagnostics/jsx-fragment-runtime",
       "typescript_observation": {
         "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
           {
             "code": 5089,
             "category": "error",
@@ -10336,6 +10638,15 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
+          {
             "code": 18035,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -10561,6 +10872,15 @@
       "case_id": "h2-8b-config-diagnostics/jsx-namespace-runtime",
       "typescript_observation": {
         "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
           {
             "code": 5089,
             "category": "error",
@@ -10788,6 +11108,15 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
+          {
             "code": 5089,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -11014,6 +11343,24 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 47,
+            "length": 5,
+            "message": "Option 'module=AMD' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 72,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
+          {
             "code": 5105,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -11236,7 +11583,17 @@
     {
       "case_id": "h2-8b-config-diagnostics/verbatim-none-control",
       "typescript_observation": {
-        "option_diagnostics": [],
+        "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 73,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          }
+        ],
         "raw": {
           "compilerOptions": {
             "target": "es2020",
@@ -11451,6 +11808,15 @@
       "case_id": "h2-8b-config-diagnostics/ts-extensions-invalid",
       "typescript_observation": {
         "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
           {
             "code": 5096,
             "category": "error",
@@ -11674,7 +12040,17 @@
     {
       "case_id": "h2-8b-config-diagnostics/ts-extensions-noemit",
       "typescript_observation": {
-        "option_diagnostics": [],
+        "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          }
+        ],
         "raw": {
           "compilerOptions": {
             "target": "es2020",
@@ -11890,7 +12266,17 @@
     {
       "case_id": "h2-8b-config-diagnostics/ts-extensions-declaration-only",
       "typescript_observation": {
-        "option_diagnostics": [],
+        "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          }
+        ],
         "raw": {
           "compilerOptions": {
             "target": "es2020",
@@ -12108,7 +12494,17 @@
     {
       "case_id": "h2-8b-config-diagnostics/ts-extensions-rewrite",
       "typescript_observation": {
-        "option_diagnostics": [],
+        "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          }
+        ],
         "raw": {
           "compilerOptions": {
             "target": "es2020",
@@ -12325,6 +12721,15 @@
       "case_id": "h2-8b-config-diagnostics/exports-classic",
       "typescript_observation": {
         "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 9,
+            "message": "Option 'moduleResolution=Classic' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
           {
             "code": 5098,
             "category": "error",
@@ -12550,6 +12955,15 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 9,
+            "message": "Option 'moduleResolution=Classic' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
+          {
             "code": 5098,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -12774,6 +13188,15 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 9,
+            "message": "Option 'moduleResolution=Classic' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
+          {
             "code": 5098,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -12996,7 +13419,17 @@
     {
       "case_id": "h2-8b-config-diagnostics/package-flags-false",
       "typescript_observation": {
-        "option_diagnostics": [],
+        "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          }
+        ],
         "raw": {
           "compilerOptions": {
             "target": "es2020",
@@ -13435,6 +13868,15 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 47,
+            "length": 5,
+            "message": "Option 'module=AMD' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
+          {
             "code": 5095,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -13657,6 +14099,15 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 9,
+            "message": "Option 'moduleResolution=Classic' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
+          {
             "code": 5109,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -13878,6 +14329,15 @@
       "case_id": "h2-8b-config-diagnostics/node18-classic",
       "typescript_observation": {
         "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 9,
+            "message": "Option 'moduleResolution=Classic' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
           {
             "code": 5109,
             "category": "error",
@@ -14110,6 +14570,15 @@
             "related_information": []
           },
           {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 9,
+            "message": "Option 'moduleResolution=Classic' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
+          {
             "code": 5109,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -14338,6 +14807,15 @@
             "start": 1,
             "length": 17,
             "message": "Option '--resolveJsonModule' cannot be specified when 'moduleResolution' is set to 'classic'.",
+            "related_information": []
+          },
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 77,
+            "length": 9,
+            "message": "Option 'moduleResolution=Classic' has been removed. Please remove it from your configuration.",
             "related_information": []
           },
           {
@@ -15007,6 +15485,15 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
+          {
             "code": 5061,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -15290,30 +15777,21 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
-            "code": 5107,
+            "code": 5108,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 29,
             "length": 5,
-            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "message": "Option 'target=ES5' has been removed. Please remove it from your configuration.",
             "related_information": []
           },
           {
-            "code": 5107,
+            "code": 5108,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 72,
             "length": 6,
-            "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
-            "related_information": []
-          },
-          {
-            "code": 5103,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 100,
-            "length": 5,
-            "message": "Invalid value for '--ignoreDeprecations'.",
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
             "related_information": []
           }
         ],
@@ -15530,20 +16008,20 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
-            "code": 5052,
+            "code": 5108,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 133,
-            "length": 18,
-            "message": "Option 'strictPropertyInitialization' cannot be specified without specifying option 'strictNullChecks'.",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
             "related_information": []
           },
           {
             "code": 5052,
             "category": "error",
             "file": "/project/tsconfig.json",
-            "start": 158,
-            "length": 30,
+            "start": 133,
+            "length": 18,
             "message": "Option 'strictPropertyInitialization' cannot be specified without specifying option 'strictNullChecks'.",
             "related_information": []
           },
@@ -15814,6 +16292,15 @@
             "length": null,
             "message": "Option 'allowImportingTsExtensions' can only be used when one of 'noEmit', 'emitDeclarationOnly', or 'rewriteRelativeImportExtensions' is set.",
             "related_information": []
+          },
+          {
+            "code": 5108,
+            "category": "error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
           }
         ],
         "raw": {
@@ -16047,6 +16534,15 @@
             "start": 47,
             "length": 17,
             "message": "Option 'allowImportingTsExtensions' can only be used when one of 'noEmit', 'emitDeclarationOnly', or 'rewriteRelativeImportExtensions' is set.",
+            "related_information": []
+          },
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 47,
+            "length": 17,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
             "related_information": []
           }
         ],
@@ -16283,6 +16779,15 @@
             "length": 17,
             "message": "Option 'allowImportingTsExtensions' can only be used when one of 'noEmit', 'emitDeclarationOnly', or 'rewriteRelativeImportExtensions' is set.",
             "related_information": []
+          },
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 47,
+            "length": 17,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
           }
         ],
         "raw": {
@@ -16514,6 +17019,15 @@
             "related_information": []
           },
           {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 47,
+            "length": 17,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
+          {
             "code": 5052,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -16742,29 +17256,20 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
+          {
             "code": 5052,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 133,
             "length": 18,
-            "message": "Option 'strictPropertyInitialization' cannot be specified without specifying option 'strictNullChecks'.",
-            "related_information": []
-          },
-          {
-            "code": 5052,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 158,
-            "length": 30,
-            "message": "Option 'strictPropertyInitialization' cannot be specified without specifying option 'strictNullChecks'.",
-            "related_information": []
-          },
-          {
-            "code": 5052,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 195,
-            "length": 30,
             "message": "Option 'strictPropertyInitialization' cannot be specified without specifying option 'strictNullChecks'.",
             "related_information": []
           }
@@ -16985,6 +17490,15 @@
       "case_id": "h2-8b-config-diagnostics/duplicate-compiler-options",
       "typescript_observation": {
         "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 1,
+            "length": 17,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
           {
             "code": 5052,
             "category": "error",
@@ -17211,6 +17725,15 @@
       "case_id": "h2-8b-config-diagnostics/astral-before-option",
       "typescript_observation": {
         "option_diagnostics": [
+          {
+            "code": 5108,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 87,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
           {
             "code": 5096,
             "category": "error",

@@ -9323,9 +9323,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 3364af7eedac773cdcb46f3c4f3c52e917037d11f996b2e129f1f9841f76adbb
     /// tsc-span: _tsc.js:86173-86216
     ///
-    /// TypeScript 6.0 silences the assert-deprecation row when
-    /// `ignoreDeprecations` is exactly `"6.0"`; every other value keeps it
-    /// live once the module kind supports attributes. The CommonJS-require row (2856/2836) rides the
+    /// The assert-deprecation row (TS2880) is unconditional once the module
+    /// kind supports attributes: TypeScript 7.1 ignores `ignoreDeprecations`
+    /// (tsgo reports the row from the parser; the checker position is the
+    /// same `assert` keyword). The CommonJS-require row (2856/2836) rides the
     /// specifier's emit syntax and takes priority over the type-only
     /// (2857) and resolution-mode (1454) rows — the oracle-correction
     /// epoch made it observable corpus-wide.
@@ -9385,14 +9386,7 @@ impl<'a> CheckerState<'a> {
             );
             return Ok(());
         }
-        if !is_import_attributes
-            && self
-                .options
-                .ignore_deprecations
-                .as_ref()
-                .map(JsString::as_js)
-                != Some("6.0".into())
-        {
+        if !is_import_attributes {
             self.grammar_error_on_first_token(
                 node,
                 &diagnostics::Import_assertions_have_been_replaced_by_import_attributes_Use_with_instead_of_assert,

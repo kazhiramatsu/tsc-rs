@@ -396,7 +396,6 @@ fn paths_base_url_and_root_dirs_produce_identical_filesystem_backed_diagnostics(
     let compiler_options = CompilerOptions {
         no_emit: Some(true),
         base_url: Some("base".to_owned().into()),
-        ignore_deprecations: Some("6.0".to_owned().into()),
         ..CompilerOptions::default()
     };
     let root_dirs = [tree.root().to_path_buf(), tree.path("generated")]
@@ -433,6 +432,28 @@ fn paths_base_url_and_root_dirs_produce_identical_filesystem_backed_diagnostics(
     )
     .expect("load FsHost program");
     assert_eq!(from_memory, from_filesystem);
+    // TypeScript 7.1 reports the removed `baseUrl` option while it still
+    // resolves through it, and that row suppresses the semantic diagnostics;
+    // the resolutions themselves show that `paths`, `baseUrl` and `rootDirs`
+    // each resolved their import.
+    let root_source = from_memory
+        .source_files()
+        .iter()
+        .find(|source| source.path().display().scalar_test_path() == tree.path("root.ts"))
+        .expect("root source is owned");
+    let requests = plan_source_requests(root_source, from_memory.compiler_options())
+        .expect("plan root requests");
+    assert_eq!(requests.module_requests().len(), 3);
+    for request in requests.module_requests() {
+        let resolution = from_memory
+            .resolutions()
+            .require_module(request)
+            .expect("root request has an authoritative row");
+        assert!(
+            matches!(resolution.outcome(), ResolutionOutcome::Resolved(_)),
+            "{request:?}"
+        );
+    }
 
     let memory_outcome = ProgramSession::new(from_memory)
         .run()
@@ -442,16 +463,16 @@ fn paths_base_url_and_root_dirs_produce_identical_filesystem_backed_diagnostics(
         .expect("run FsHost prepared program");
     assert_eq!(memory_outcome, filesystem_outcome);
     assert!(memory_outcome.syntactic_diagnostics().is_empty());
-    assert!(memory_outcome.options_diagnostics().is_empty());
-    assert!(memory_outcome.global_diagnostics().is_empty());
     assert_eq!(
         memory_outcome
-            .semantic_diagnostics()
+            .options_diagnostics()
             .iter()
             .map(|diagnostic| diagnostic.code())
             .collect::<Vec<_>>(),
-        [2322]
+        [5102]
     );
+    assert!(memory_outcome.global_diagnostics().is_empty());
+    assert!(memory_outcome.semantic_diagnostics().is_empty());
 }
 
 #[test]
@@ -1087,8 +1108,6 @@ fn arbitrary_declaration_membership_keeps_importer_specific_ts6263() {
     let compiler_options = CompilerOptions {
         no_emit: Some(true),
         module: Some(1),
-        module_resolution: Some(2),
-        ignore_deprecations: Some("6.0".to_owned().into()),
         resolve_json_module: Some(false),
         ..CompilerOptions::default()
     };

@@ -387,13 +387,11 @@ pub struct CompilerOptions {
     pub jsx_fragment_factory: Option<JsString>,
     pub jsx_import_source: Option<JsString>,
     pub react_namespace: Option<JsString>,
-    /// TypeScript 6.0's option-diagnostic suppression version. This is a
-    /// config/driver concern rather than a checker option, but carrying the
-    /// converted value through the owned option snapshot keeps
-    /// `getOptionsDiagnostics` and config-backed program execution on the
-    /// same effective option set. Only the exact supported `"6.0"` value
-    /// suppresses options deprecated in 6.0; invalid values are diagnosed at
-    /// the config boundary.
+    /// TypeScript 7.1 still parses `ignoreDeprecations` (a string option)
+    /// but neither validates it nor lets it silence a diagnostic: the
+    /// options it used to silence were removed in TypeScript 7 and report
+    /// TS5102/TS5108 unconditionally. The value is carried for API parity
+    /// only.
     pub ignore_deprecations: Option<JsString>,
 }
 

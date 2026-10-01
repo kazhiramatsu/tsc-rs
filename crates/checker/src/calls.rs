@@ -6590,35 +6590,26 @@ impl<'a> CheckerState<'a> {
                     &diagnostics::Type_0_is_not_assignable_to_type_1,
                 )?;
             }
-            // TypeScript 6.0 silences this deprecated `assert` property only
-            // for the exact `ignoreDeprecations: "6.0"` value.
-            if self
-                .options
-                .ignore_deprecations
-                .as_ref()
-                .map(tsc_types::JsString::as_js)
-                != Some("6.0".into())
-            {
-                if let NodeData::ObjectLiteralExpression(literal) = self.data_of(args[1]) {
-                    let properties = literal.properties;
-                    for property in self.nodes_of(properties) {
-                        let NodeData::PropertyAssignment(assignment) = self.data_of(property)
-                        else {
-                            continue;
-                        };
-                        let Some(name) = assignment.name else {
-                            continue;
-                        };
-                        if self.kind_of(name) == SyntaxKind::Identifier
-                            && self.identifier_text_of(name) == Some("assert")
-                        {
-                            self.grammar_error_on_node(
-                                name,
-                                &diagnostics::Import_assertions_have_been_replaced_by_import_attributes_Use_with_instead_of_assert,
-                                &[],
-                            );
-                            break;
-                        }
+            // The `assert` option property stays a checker row in 7.1
+            // (tsgo checker.go:8462); `ignoreDeprecations` has no effect.
+            if let NodeData::ObjectLiteralExpression(literal) = self.data_of(args[1]) {
+                let properties = literal.properties;
+                for property in self.nodes_of(properties) {
+                    let NodeData::PropertyAssignment(assignment) = self.data_of(property) else {
+                        continue;
+                    };
+                    let Some(name) = assignment.name else {
+                        continue;
+                    };
+                    if self.kind_of(name) == SyntaxKind::Identifier
+                        && self.identifier_text_of(name) == Some("assert")
+                    {
+                        self.grammar_error_on_node(
+                            name,
+                            &diagnostics::Import_assertions_have_been_replaced_by_import_attributes_Use_with_instead_of_assert,
+                            &[],
+                        );
+                        break;
                     }
                 }
             }

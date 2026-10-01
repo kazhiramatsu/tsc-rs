@@ -312,12 +312,18 @@ diagnostics and its emitted JavaScript, declaration files and source maps
   property (TS2741, TS2739, TS2740), a readonly array or tuple assigned
   to a mutable one (TS4104) or excessive complexity (TS2859).
 
-The options TypeScript 6.0 deprecated and 7.x removed (`target: "es5"`,
-`outFile`, the `amd`, `umd` and `system` module kinds, the `node10` and
-`classic` module resolutions, `baseUrl`, ...) still run, with the
-TS5101/TS5107 deprecation errors that `ignoreDeprecations: "6.0"` silences,
-but their output is no longer verified against a reference. The tsc 6.0.3
-compatible line ended with release v0.1.0 (tag `v0.1.0`, branch
+The options TypeScript 7 removed (`baseUrl`, `outFile`,
+`downlevelIteration`, `target: "es5"`, the `amd`, `umd` and `system` module
+kinds, the `node10` and `classic` module resolutions, `alwaysStrict: false`,
+`esModuleInterop: false` and `allowSyntheticDefaultImports: false`) report
+TypeScript 7.1's TS5102 or TS5108 error ("Option ... has been removed.
+Please remove it from your configuration.", with the `paths` suggestion for
+`baseUrl`), and the program is still checked and emitted with the option in
+effect. Like `tsc`, the command line reports no semantic errors while such
+an option error exists. `ignoreDeprecations` is accepted but has no effect.
+The behavior of the removed options themselves is not verified against a
+reference (the TypeScript 7.1 conformance skips those configurations). The
+tsc 6.0.3 compatible line ended with release v0.1.0 (tag `v0.1.0`, branch
 `release/6.0.3`).
 
 ### Stable type ordering

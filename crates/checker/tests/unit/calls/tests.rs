@@ -2183,7 +2183,7 @@ fn import_defer_reports_18060_at_the_default_module_kind() {
 }
 
 #[test]
-fn import_assert_key_reports_2880_under_esnext_module() {
+fn import_assert_key_reports_2880_under_esnext_module_regardless_of_ignore_deprecations() {
     let options = CompilerOptions {
         module: Some(99),
         ..CompilerOptions::default()
@@ -2193,13 +2193,14 @@ fn import_assert_key_reports_2880_under_esnext_module() {
         [(2880, 16, 6), (2307, 7, 5), (2711, 0, 29)]
     );
 
-    let silenced = CompilerOptions {
+    // TypeScript 7.1 parses `ignoreDeprecations` but it silences nothing.
+    let not_silenced = CompilerOptions {
         ignore_deprecations: Some(("6.0".to_owned()).into()),
         ..options
     };
     assert_eq!(
-        checked_rows_with("import(\"./m\", { assert: {} });\n", &silenced),
-        [(2307, 7, 5), (2711, 0, 29)]
+        checked_rows_with("import(\"./m\", { assert: {} });\n", &not_silenced),
+        [(2880, 16, 6), (2307, 7, 5), (2711, 0, 29)]
     );
 }
 

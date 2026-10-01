@@ -1258,65 +1258,68 @@ fn config_diagnostics_are_a_gate_and_remain_separate_from_option_diagnostics() {
 }
 
 #[test]
-fn ts6_option_deprecations_are_reported_without_blocking_no_emit_loading() {
+fn removed_options_are_reported_without_blocking_no_emit_loading() {
     let host = host();
     let adapter = ConfigHostAdapter::new(&host);
+    let catalog = LibraryCatalog::typescript_7_1("/vendor/typescript/lib");
     let plan = parse_config_root_plan(
         &adapter,
         request(
             r#"{"compilerOptions":{"noEmit":true,"noLib":true,"moduleResolution":"node"},"files":["main.ts"]}"#,
         ),
     )
-    .expect("parse deprecated-option plan");
+    .expect("parse removed-option plan");
+    let [diagnostic] = plan.option_diagnostics() else {
+        panic!(
+            "expected one removed-option row: {:?}",
+            plan.option_diagnostics()
+        );
+    };
+    assert_eq!(diagnostic.code(), 5108);
     assert_eq!(
-        plan.option_diagnostics()
-            .iter()
-            .map(|diagnostic| diagnostic.code())
-            .collect::<Vec<_>>(),
-        [5107]
+        diagnostic
+            .message_text()
+            .as_str()
+            .expect("scalar diagnostic observation"),
+        "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration."
     );
-    let prepared = load_config_program(
-        &host,
-        &plan,
-        &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
-        LIMITS,
-    )
-    .expect("a deprecation diagnostic must not prevent source loading");
+    let prepared = load_config_program(&host, &plan, &catalog, LIMITS)
+        .expect("a removed-option row must not prevent source loading");
     assert_eq!(prepared.compiler_options().ignore_deprecations, None);
 
-    let silenced = parse_config_root_plan(
-        &adapter,
-        request(
-            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"moduleResolution":"node","ignoreDeprecations":"6.0"},"files":["main.ts"]}"#,
-        ),
-    )
-    .expect("parse silenced deprecated-option plan");
-    assert!(silenced.option_diagnostics().is_empty());
-    assert_eq!(
-        silenced
-            .compiler_options()
-            .ignore_deprecations
-            .as_ref()
-            .map(|value| value.as_str().expect("scalar legacy option observation")),
-        Some("6.0")
-    );
+    // TypeScript 7.1 parses `ignoreDeprecations` but neither validates it
+    // nor lets it silence a row.
+    for value in ["6.0", "5.0", "5.1"] {
+        let plan = parse_config_root_plan(
+            &adapter,
+            request(&format!(
+                r#"{{"compilerOptions":{{"noEmit":true,"noLib":true,"moduleResolution":"node","ignoreDeprecations":"{value}"}},"files":["main.ts"]}}"#
+            )),
+        )
+        .expect("parse ignoreDeprecations plan");
+        assert_eq!(
+            plan.option_diagnostics()
+                .iter()
+                .map(|diagnostic| diagnostic.code())
+                .collect::<Vec<_>>(),
+            [5108],
+            "ignoreDeprecations {value}"
+        );
+        assert_eq!(
+            plan.compiler_options()
+                .ignore_deprecations
+                .as_ref()
+                .map(|value| value.as_str().expect("scalar option observation")),
+            Some(value)
+        );
+    }
 
-    let invalid = parse_config_root_plan(
-        &adapter,
-        request(
-            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"ignoreDeprecations":"5.1"},"files":["main.ts"]}"#,
-        ),
-    )
-    .expect("parse invalid ignoreDeprecations plan");
-    assert!(invalid
-        .option_diagnostics()
-        .iter()
-        .any(|diagnostic| diagnostic.code() == 5103));
-
+    // The options TypeScript 5.5 removed keep their rows until the option
+    // catalog follows 7.1, where they are unknown options.
     let removed = parse_config_root_plan(
         &adapter,
         request(
-            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"target":"ES3","ignoreDeprecations":"5.0"},"files":["main.ts"]}"#,
+            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"target":"ES3"},"files":["main.ts"]}"#,
         ),
     )
     .expect("parse removed-target plan");
@@ -1328,30 +1331,8 @@ fn ts6_option_deprecations_are_reported_without_blocking_no_emit_loading() {
             .collect::<Vec<_>>(),
         [5108]
     );
-    let error = load_config_program(
-        &host,
-        &removed,
-        &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
-        LIMITS,
-    )
-    .expect_err("removed compiler options remain a fatal getOptionsDiagnostics row");
-    assert_eq!(error.options_diagnostics()[0].code(), 5108);
-
-    let removed_with_current_suppression = parse_config_root_plan(
-        &adapter,
-        request(
-            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"target":"ES3","ignoreDeprecations":"6.0"},"files":["main.ts"]}"#,
-        ),
-    )
-    .expect("parse removed-target plan with current suppression");
-    assert_eq!(
-        removed_with_current_suppression
-            .option_diagnostics()
-            .iter()
-            .map(|diagnostic| diagnostic.code())
-            .collect::<Vec<_>>(),
-        [5108]
-    );
+    load_config_program(&host, &removed, &catalog, LIMITS)
+        .expect("removed-option rows are program diagnostics, not a loading gate");
 }
 
 #[test]
@@ -1402,7 +1383,7 @@ fn root_config_retains_option_syntax_for_effective_program_diagnostics() {
 }
 
 #[test]
-fn ts6_module_option_relationship_diagnostics_match_the_effective_kinds() {
+fn module_option_relationship_diagnostics_match_the_effective_kinds() {
     let host = host();
     let adapter = ConfigHostAdapter::new(&host);
     let codes = |compiler_options: &str| {
@@ -1422,24 +1403,24 @@ fn ts6_module_option_relationship_diagnostics_match_the_effective_kinds() {
 
     assert_eq!(
         codes(r#""module":"node16","moduleResolution":"node10""#),
-        [5107, 5109]
+        [5108, 5109]
     );
     assert_eq!(codes(r#""moduleResolution":"node16""#), [5110]);
     assert_eq!(
         codes(r#""module":"amd","moduleResolution":"bundler""#),
-        [5095, 5107]
+        [5095, 5108]
     );
     assert_eq!(
         codes(r#""resolvePackageJsonExports":true,"moduleResolution":"classic""#),
-        [5098, 5107]
+        [5098, 5108]
     );
     assert_eq!(
         codes(r#""customConditions":[],"moduleResolution":"classic""#),
-        [5098, 5107]
+        [5098, 5108]
     );
     assert_eq!(
         codes(r#""verbatimModuleSyntax":true,"module":"amd""#),
-        [5105, 5107]
+        [5105, 5108]
     );
 }
 
@@ -1493,26 +1474,18 @@ fn compiler_option_relationship_diagnostics_use_tsc_config_spans() {
         assert_eq!(diagnostic.length, Some(located_text.len() as u32));
     }
 
+    // TypeScript 7.1 reports a two-name row once, at the first of the two
+    // properties in document order (tsoptions.ForEachPropertyAssignment).
     let text = r#"{"compilerOptions":{"noEmit":true,"noLib":true,"strictNullChecks":false,"exactOptionalPropertyTypes":true},"files":["main.ts"]}"#;
     let plan = parse_config_root_plan(&adapter, request(text))
-        .expect("parse two-location compiler option relationship plan");
-    let diagnostics = plan.option_diagnostics();
+        .expect("parse two-name compiler option relationship plan");
+    let [diagnostic] = plan.option_diagnostics() else {
+        panic!("expected one row: {:?}", plan.option_diagnostics());
+    };
+    assert_eq!(diagnostic.code(), 5052);
     assert_eq!(
-        diagnostics
-            .iter()
-            .map(|diagnostic| diagnostic.code())
-            .collect::<Vec<_>>(),
-        [5052, 5052]
-    );
-    assert_eq!(
-        diagnostics
-            .iter()
-            .map(|diagnostic| diagnostic.start)
-            .collect::<Vec<_>>(),
-        [
-            Some(text.find("\"strictNullChecks\"").unwrap() as u32),
-            Some(text.find("\"exactOptionalPropertyTypes\"").unwrap() as u32),
-        ]
+        diagnostic.start,
+        Some(text.find("\"strictNullChecks\"").unwrap() as u32)
     );
 }
 

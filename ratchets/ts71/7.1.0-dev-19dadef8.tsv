@@ -473,6 +473,7 @@ compiler/bindingPatternOmittedExpressionNesting	full	none
 compiler/binopAssignmentShouldHaveType	full	js
 compiler/blockScopedBindingCaptureThisInFunction	full	js
 compiler/blockScopedBindingUsedBeforeDef	category	js
+compiler/blockScopedBindingsInDownlevelGenerator(target=es2015)	full	js
 compiler/blockScopedBindingsReassignedInLoop1	full	js
 compiler/blockScopedBindingsReassignedInLoop2	full	js
 compiler/blockScopedBindingsReassignedInLoop3	full	js
@@ -3181,6 +3182,7 @@ compiler/importAndVariableDeclarationConflict4	full	js
 compiler/importAsBaseClass	full	js
 compiler/importAssertionNonstring	full	js
 compiler/importAssertionsDeprecated	full	js
+compiler/importAssertionsDeprecatedIgnored	full	js
 compiler/importAttributesWithValueComments	full	js
 compiler/importDecl	full	js
 compiler/importDeclFromTypeNodeInJsSource	full	none
@@ -5612,6 +5614,7 @@ compiler/sourceMapValidationModule	full	js
 compiler/sourceMapValidationStatements	full	js
 compiler/sourceMapValidationSwitch	full	js
 compiler/sourceMapValidationTryCatchFinally	full	js
+compiler/sourceMapValidationVarInDownLevelGenerator(target=es2015)	full	js
 compiler/sourceMapValidationVariables	full	js
 compiler/sourceMapValidationWhile	full	js
 compiler/sourceMapValidationWithComments	full	js
@@ -6575,6 +6578,11 @@ conformance/ES5For-of29(target=es2015)	full	js
 conformance/ES5For-of3(target=es2015)	full	js
 conformance/ES5For-of30(target=es2015)	full	js
 conformance/ES5For-of31(target=es2015)	full	js
+conformance/ES5For-of33(target=es2015)	full	js
+conformance/ES5For-of34(target=es2015)	full	js
+conformance/ES5For-of35(target=es2015)	full	js
+conformance/ES5For-of36(target=es2015)	full	js
+conformance/ES5For-of37(target=es2015)	full	js
 conformance/ES5For-of4(target=es2015)	full	js
 conformance/ES5For-of5(target=es2015)	full	js
 conformance/ES5For-of6(target=es2015)	full	js
@@ -6830,6 +6838,7 @@ conformance/arrayLiteral	full	js
 conformance/arrayLiteralExpressionContextualTyping	full	js
 conformance/arrayLiteralInference	full	js
 conformance/arrayLiteralSpread	full	js
+conformance/arrayLiteralSpreadES5iterable(target=es2015)	full	js
 conformance/arrayLiteralWidened	full	js
 conformance/arrayLiteralWithMultipleBestCommonTypes	full	js
 conformance/arrayLiterals	full	js
@@ -6936,6 +6945,7 @@ conformance/asyncAliasReturnType_es6	full	js
 conformance/asyncArrowFunction10_es2017	full	js
 conformance/asyncArrowFunction10_es5(target=es2015)	full	js
 conformance/asyncArrowFunction10_es6	full	js
+conformance/asyncArrowFunction11_es5(target=es2015)	full	js
 conformance/asyncArrowFunction1_es2017	full	js
 conformance/asyncArrowFunction1_es5(target=es2015)	full	js
 conformance/asyncArrowFunction1_es6	full	js
@@ -8066,9 +8076,11 @@ conformance/derivedTypeAccessesHiddenBaseCallViaSuperPropertyAccess	full	js
 conformance/derivedTypeDoesNotRequireExtendsClause	full	js
 conformance/derivedUninitializedPropertyDeclaration	full	js
 conformance/destructuringArrayBindingPatternAndAssignment1ES5	full	js
+conformance/destructuringArrayBindingPatternAndAssignment1ES5iterable	full	js
 conformance/destructuringArrayBindingPatternAndAssignment1ES6	full	js
 conformance/destructuringArrayBindingPatternAndAssignment2	full	js
 conformance/destructuringArrayBindingPatternAndAssignment3	full	js
+conformance/destructuringArrayBindingPatternAndAssignment4(target=es2015)	full	js
 conformance/destructuringArrayBindingPatternAndAssignment5SiblingInitializer	full	js
 conformance/destructuringAssignabilityCheck	full	js
 conformance/destructuringCatch	full	js
@@ -8089,14 +8101,17 @@ conformance/destructuringObjectBindingPatternAndAssignment9SiblingInitializer	fu
 conformance/destructuringParameterDeclaration10(strict=false)	full	js
 conformance/destructuringParameterDeclaration10(strict=true)	full	js
 conformance/destructuringParameterDeclaration1ES5	full	js
+conformance/destructuringParameterDeclaration1ES5iterable	full	js
 conformance/destructuringParameterDeclaration1ES6	full	js
 conformance/destructuringParameterDeclaration2	full	none
 conformance/destructuringParameterDeclaration3ES5	full	js
+conformance/destructuringParameterDeclaration3ES5iterable(target=es2015)	full	js
 conformance/destructuringParameterDeclaration3ES6	full	js
 conformance/destructuringParameterDeclaration4	full	js
 conformance/destructuringParameterDeclaration5	full	js
 conformance/destructuringParameterDeclaration6	full	none
 conformance/destructuringParameterDeclaration7ES5(target=es2015)	full	js
+conformance/destructuringParameterDeclaration7ES5iterable(target=es2015)	full	js
 conformance/destructuringParameterDeclaration8	full	js
 conformance/destructuringParameterDeclaration9(strict=false)	full	js
 conformance/destructuringParameterDeclaration9(strict=true)	full	js
@@ -8116,6 +8131,7 @@ conformance/destructuringTypeAssertionsES5_5(target=es2015)	full	js
 conformance/destructuringTypeAssertionsES5_6(target=es2015)	full	js
 conformance/destructuringTypeAssertionsES5_7(target=es2015)	full	js
 conformance/destructuringVariableDeclaration1ES5	full	js
+conformance/destructuringVariableDeclaration1ES5iterable(target=es2015)	full	js
 conformance/destructuringVariableDeclaration1ES6	full	js
 conformance/destructuringVariableDeclaration2	full	js
 conformance/destructuringVoid	full	js
@@ -8270,12 +8286,16 @@ conformance/emptyArrayBindingPatternParameter02	full	js
 conformance/emptyArrayBindingPatternParameter03	full	js
 conformance/emptyArrayBindingPatternParameter04	full	js
 conformance/emptyAssignmentPatterns01_ES5(target=es2015)	full	js
+conformance/emptyAssignmentPatterns01_ES5iterable(target=es2015)	full	js
 conformance/emptyAssignmentPatterns01_ES6	full	js
 conformance/emptyAssignmentPatterns02_ES5(target=es2015)	full	js
+conformance/emptyAssignmentPatterns02_ES5iterable(target=es2015)	full	js
 conformance/emptyAssignmentPatterns02_ES6	full	js
 conformance/emptyAssignmentPatterns03_ES5(target=es2015)	full	js
+conformance/emptyAssignmentPatterns03_ES5iterable(target=es2015)	full	js
 conformance/emptyAssignmentPatterns03_ES6	full	js
 conformance/emptyAssignmentPatterns04_ES5(target=es2015)	full	js
+conformance/emptyAssignmentPatterns04_ES5iterable(target=es2015)	full	js
 conformance/emptyAssignmentPatterns04_ES6	full	js
 conformance/emptyObjectBindingPatternParameter01	full	js
 conformance/emptyObjectBindingPatternParameter02	full	js
@@ -8284,8 +8304,10 @@ conformance/emptyObjectBindingPatternParameter04	full	js
 conformance/emptyTuplesTypeAssertion01	full	js
 conformance/emptyTuplesTypeAssertion02	full	js
 conformance/emptyVariableDeclarationBindingPatterns01_ES5(target=es2015)	full	js
+conformance/emptyVariableDeclarationBindingPatterns01_ES5iterable(target=es2015)	full	js
 conformance/emptyVariableDeclarationBindingPatterns01_ES6	full	js
 conformance/emptyVariableDeclarationBindingPatterns02_ES5(target=es2015)	full	js
+conformance/emptyVariableDeclarationBindingPatterns02_ES5iterable(target=es2015)	full	js
 conformance/emptyVariableDeclarationBindingPatterns02_ES6	full	js
 conformance/enumAssignability	full	js
 conformance/enumAssignabilityInInheritance	full	js
@@ -8727,6 +8749,7 @@ conformance/for-of6	full	js
 conformance/for-of7	full	js
 conformance/for-of8	full	js
 conformance/for-of9	full	js
+conformance/forAwaitPerIterationBindingDownlevel(target=es2015)	full	js
 conformance/forBreakStatements	full	js
 conformance/forContinueStatements	full	js
 conformance/forInBreakStatements	full	js
@@ -11381,6 +11404,7 @@ conformance/restElementWithBindingPattern2	full	js
 conformance/restElementWithInitializer1	full	js
 conformance/restElementWithInitializer2	full	js
 conformance/restElementWithNullInitializer(target=es2015)	full	js
+conformance/restParameterInDownlevelGenerator(target=es2015)	full	js
 conformance/restParameterWithoutAnnotationIsAnyArray	full	js
 conformance/restParametersOfNonArrayTypes	full	js
 conformance/restParametersOfNonArrayTypes2	full	js

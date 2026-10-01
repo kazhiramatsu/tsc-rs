@@ -88,44 +88,58 @@ fn option_codes(text: &str) -> Vec<u32> {
 }
 
 #[test]
-fn base_url_deprecation_uses_the_option_key_location() {
+fn base_url_removal_uses_the_option_key_location_and_suggests_paths() {
     let text = r#"{"compilerOptions":{"noEmit":true,"lib":["es5"],"baseUrl":".","paths":{"@app/*":["src/*"]},"ignoreDeprecations":"6.0"},"include":["src/**/*.ts"]}"#;
-    let plan = parse_config_root_plan(
-        &MemoryConfigHost::default().with_directory_files(&["/project/a.ts"]),
-        request("/project/tsconfig.json", text),
-    )
-    .expect("baseUrl config parses");
-    assert!(plan
-        .option_diagnostics()
-        .iter()
-        .all(|diagnostic| diagnostic.code() != 5101));
-
-    let text = text.replace(",\"ignoreDeprecations\":\"6.0\"", "");
-    let plan = parse_config_root_plan(
-        &MemoryConfigHost::default().with_directory_files(&["/project/a.ts"]),
-        request("/project/tsconfig.json", &text),
-    )
-    .expect("baseUrl deprecation remains a reportable option diagnostic");
-    let [diagnostic] = plan
-        .option_diagnostics()
-        .iter()
-        .filter(|diagnostic| diagnostic.code() == 5101)
-        .collect::<Vec<_>>()[..]
-    else {
-        panic!(
-            "exactly one baseUrl deprecation expected: {:?}",
-            plan.option_diagnostics()
+    // `ignoreDeprecations` has no effect in TypeScript 7.1.
+    for text in [
+        text.to_owned(),
+        text.replace(",\"ignoreDeprecations\":\"6.0\"", ""),
+    ] {
+        let plan = parse_config_root_plan(
+            &MemoryConfigHost::default().with_directory_files(&["/project/a.ts"]),
+            request("/project/tsconfig.json", &text),
+        )
+        .expect("baseUrl config parses");
+        let [diagnostic] = plan
+            .option_diagnostics()
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 5102)
+            .collect::<Vec<_>>()[..]
+        else {
+            panic!(
+                "exactly one baseUrl removal expected: {:?}",
+                plan.option_diagnostics()
+            );
+        };
+        assert_eq!(
+            diagnostic.start,
+            Some(text.find("\"baseUrl\"").unwrap() as u32)
         );
-    };
-    assert_eq!(
-        diagnostic.start,
-        Some(text.find("\"baseUrl\"").unwrap() as u32)
-    );
+        assert_eq!(diagnostic.length, Some(9));
+        assert_eq!(
+            diagnostic
+                .message_text()
+                .as_str()
+                .expect("scalar diagnostic observation"),
+            "Option 'baseUrl' has been removed. Please remove it from your configuration."
+        );
+        let [suggestion] = &diagnostic.message.next[..] else {
+            panic!("expected the paths suggestion: {:?}", diagnostic.message);
+        };
+        assert_eq!(suggestion.code, 5106);
+        assert_eq!(
+            suggestion
+                .text
+                .as_str()
+                .expect("scalar diagnostic observation"),
+            "Use '\"paths\": {\"*\": [\"./*\"]}' instead."
+        );
+    }
 }
 
 #[test]
-fn base_url_deprecation_with_exact_cli_shape_uses_the_option_key_location() {
-    let text = r#"{"compilerOptions":{"noEmit":true,"lib":["es5"],"baseUrl":".","paths":{"@app/*":["src/*"]}},"include":["src/**/*.ts"]}"#;
+fn base_url_removal_with_exact_cli_shape_suggests_the_relative_directory() {
+    let text = r#"{"compilerOptions":{"noEmit":true,"lib":["es5"],"baseUrl":"src","paths":{"@app/*":["*"]}},"include":["src/**/*.ts"]}"#;
     let plan = parse_config_root_plan(
         &MemoryConfigHost::default().with_directory_files(&["/project/src/main.ts"]),
         request("/project/tsconfig.json", text),
@@ -134,11 +148,18 @@ fn base_url_deprecation_with_exact_cli_shape_uses_the_option_key_location() {
     let diagnostic = plan
         .option_diagnostics()
         .iter()
-        .find(|diagnostic| diagnostic.code() == 5101)
-        .expect("baseUrl deprecation");
+        .find(|diagnostic| diagnostic.code() == 5102)
+        .expect("baseUrl removal");
     assert_eq!(
         diagnostic.start,
         Some(text.find("\"baseUrl\"").unwrap() as u32)
+    );
+    assert_eq!(
+        diagnostic.message.next[0]
+            .text
+            .as_str()
+            .expect("scalar diagnostic observation"),
+        "Use '\"paths\": {\"*\": [\"./src/*\"]}' instead."
     );
 }
 
