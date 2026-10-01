@@ -233,7 +233,8 @@ loaderがProgramのoptionsに写す。config parserは`ConfigParseHost::referenc
 6.0.3で文言が異なる、または7.1にない11 entryを`typescript_6_0_3` moduleに持つ。
 
 凍結した6.0.3の記録（acceptance／witness）は`LibraryCatalog::typescript_6_0_3`と6.0.3 oracleのconfig hostを通るので
-挙動が変わらない。CLI（`tsc-rs`）、Rust APIの例、transpile経路、native harnessは7.1 profileで動く。
+挙動が変わらない。CLI（`tsc-rs`）、Rust APIの例、native harnessは7.1 profileで動く。transpile経路（`transpile_module`／`transpile_declaration`）は
+凍結した6.0.3の観測（`h2_8c_transpile`）と比べているので、再観測するまで6.0.3 profileに留める（hosted witnessで判明：TS6046の候補一覧と既定targetが変わるため）。
 `--version`は6.0.3のまま（emitterの参照）で、READMEにその旨を記した。
 
 ### 7.1側の取込み

@@ -331,7 +331,10 @@ fn transpile_worker(
         &[PathBuf::from(&root_path)],
         options.clone(),
         program_options,
-        &LibraryCatalog::typescript_7_1(VIRTUAL_LIB_DIRECTORY),
+        // The transpile routes are verified against frozen tsc 6.0.3
+        // `transpileModule`/`transpileDeclaration` observations; they keep
+        // the 6.0.3 reference profile until those are re-observed.
+        &LibraryCatalog::typescript_6_0_3(VIRTUAL_LIB_DIRECTORY),
         ProgramLoadLimits::new(4, 64, 4, 64 * 1024 * 1024, 64 * 1024 * 1024),
     )
     .map_err(|error| TranspileError::Program(Box::new(error)))?;
@@ -538,7 +541,7 @@ pub fn fixup_compiler_options(
 /// tsc-span: typescript.js:42338-42340
 fn invalid_custom_type(name: &str) -> Diagnostic {
     let choices =
-        compiler_option_named_choices(ReferenceProfile::TypeScript71, name).unwrap_or_default();
+        compiler_option_named_choices(ReferenceProfile::TypeScript603, name).unwrap_or_default();
     Diagnostic::new(
         None,
         None,
