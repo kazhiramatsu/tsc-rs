@@ -10,6 +10,7 @@
 //! 6.0.3 behavior for the deprecated options, and those cases stay with the
 //! 6.0.3 conformance goldens for now.
 
+mod emit_baseline;
 mod errors_baseline;
 
 use std::collections::BTreeMap;
@@ -17,10 +18,13 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 
+use emit_baseline::{Emission, MapOptions};
 use errors_baseline::remove_test_path_prefixes;
 use serde::Serialize;
 use sha2::Digest as _;
-use tsc_compiler::{CheckerBudget, NativeHarnessCollection, ProgramSession};
+use tsc_compiler::{
+    CheckerBudget, MemoryOutputSink, NativeHarnessCollection, PreparedProgramMode, ProgramSession,
+};
 use tsc_diagnostics::{Diagnostic, PositionIndex};
 use tsc_harness::upstream_suites::execution::{
     load_native_compiler_program, native_compiler_fixture, native_compiler_plan,
@@ -245,6 +249,72 @@ pub enum Agreement {
     Full,
 }
 
+/// Whether an emit baseline (`.js`, `.js.map`) matches its reference byte
+/// for byte. `Full` also when neither side has one.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+pub enum EmitAgreement {
+    None,
+    /// The native runner writes no baseline for the case (`skippedEmitTests`
+    /// in `compiler_runner.go`: output order or contents depend on its
+    /// concurrency), so there is nothing to compare.
+    NotAssessed,
+    Full,
+}
+
+/// `skippedEmitTests` (`compiler_runner.go`): the cases whose JavaScript
+/// baseline the native runner skips.
+const SKIPPED_EMIT_TESTS: [&str; 8] = [
+    "filesEmittingIntoSameOutput.ts",
+    "jsFileCompilationWithJsEmitPathSameAsInput.ts",
+    "grammarErrors.ts",
+    "jsFileCompilationEmitBlockedCorrectly.ts",
+    "jsDeclarationsReexportAliasesEsModuleInterop.ts",
+    "jsFileCompilationWithoutJsExtensions.ts",
+    "typeOnlyMerge2.ts",
+    "typeOnlyMerge3.ts",
+];
+
+/// Compare a rendered emit baseline with its reference: the agreement and,
+/// for a mismatch, a short reason for the record.
+fn emit_agreement(
+    rendered: Option<&str>,
+    expected: Option<&str>,
+    error: Option<&str>,
+) -> (EmitAgreement, Option<String>) {
+    if let Some(error) = error {
+        return (EmitAgreement::None, Some(error.to_owned()));
+    }
+    match (rendered, expected) {
+        (None, None) => (EmitAgreement::Full, None),
+        (Some(rendered), Some(expected)) if rendered == expected => (EmitAgreement::Full, None),
+        (Some(_), None) => (EmitAgreement::None, Some("reference missing".to_owned())),
+        (None, Some(_)) => (EmitAgreement::None, Some("output missing".to_owned())),
+        (Some(rendered), Some(expected)) => {
+            let detail = if expected.contains("//// [DtsFileErrors]") {
+                "reference has DtsFileErrors".to_owned()
+            } else if expected.contains("\n!!!! File ") {
+                "reference has the noCheck comparison".to_owned()
+            } else {
+                let line = rendered
+                    .split('\n')
+                    .zip(expected.split('\n'))
+                    .position(|(a, b)| a != b)
+                    .map_or_else(
+                        || {
+                            rendered
+                                .split('\n')
+                                .count()
+                                .min(expected.split('\n').count())
+                        },
+                        |index| index + 1,
+                    );
+                format!("differs at line {line}")
+            };
+            (EmitAgreement::None, Some(detail))
+        }
+    }
+}
+
 fn agreement(expected: &[BaselineDiagnostic], actual: &[BaselineDiagnostic]) -> Agreement {
     fn sorted<T: Ord + Clone>(items: impl Iterator<Item = T>) -> Vec<T> {
         let mut items: Vec<T> = items.collect();
@@ -296,6 +366,19 @@ pub enum Outcome {
         /// with the same digest produced the same diagnostics in the same
         /// order, whatever their tier.
         rendered_sha256: Option<String>,
+        /// Whether tsc-rs's JavaScript emit baseline (the `.js` reference:
+        /// the JavaScript and declaration files) matches byte for byte.
+        emit: EmitAgreement,
+        /// Why the emit differs: the first differing line, the missing side,
+        /// a reference section the runner does not reproduce, or an emit
+        /// error.
+        emit_detail: Option<String>,
+        /// SHA-256 of tsc-rs's rendered `.js` baseline (the empty string when
+        /// it emitted nothing).
+        emit_sha256: String,
+        /// The same for the `.js.map` reference (the raw source maps).
+        map: EmitAgreement,
+        map_detail: Option<String>,
     },
     /// Lane A, but tsc-rs could not build or check the Program.
     HarnessError { reason: String },
@@ -328,7 +411,8 @@ pub struct RunOptions {
     pub checkers: usize,
     /// Write the rendered error baseline of every lane-A configuration that
     /// differs from its reference to `<dump>/<suite>/<stem>.errors.txt` (an
-    /// empty file when tsc-rs reports nothing), for diffing.
+    /// empty file when tsc-rs reports nothing), for diffing; likewise the
+    /// `.js` and `.js.map` baselines that differ.
     pub dump: Option<PathBuf>,
 }
 
@@ -341,10 +425,12 @@ fn limits() -> ProgramLoadLimits {
     ProgramLoadLimits::new(512, 8_192, 64, 64 * 1024 * 1024, 256 * 1024 * 1024)
 }
 
-/// The fixture files in the order the native runner passes them to the
-/// error baseline (`tsConfigFiles`, `toBeCompiled`, `otherFiles`), each by
-/// its normalized absolute unit path with its text.
-fn baseline_input_files(plan: &CompilerExecutionPlan) -> Vec<(String, String)> {
+/// Fixture units by their normalized absolute unit path, with their text.
+type Units = Vec<(String, String)>;
+
+/// The fixture units of the plan's groups (`tsConfigFiles`, `toBeCompiled`,
+/// `otherFiles`).
+fn plan_units(plan: &CompilerExecutionPlan) -> (Units, Units, Units) {
     let (config, roots, others) = match &plan.root_selection {
         CompilerRootSelection::Explicit {
             root_units,
@@ -358,22 +444,90 @@ fn baseline_input_files(plan: &CompilerExecutionPlan) -> Vec<(String, String)> {
             ..
         } => (Some(*config_unit), root_units, other_units),
     };
-    config
-        .iter()
-        .chain(roots.iter())
-        .chain(others.iter())
-        .filter_map(|id| plan.fixture.units.iter().find(|unit| unit.id == *id))
-        .map(|unit| {
-            let name = unit.name.replace('\\', "/");
-            let path = if name.starts_with('/') {
-                name
-            } else {
-                format!("{}/{}", plan.current_directory.trim_end_matches('/'), name)
-            };
-            let content = unit.content.as_deref().unwrap_or_default().to_owned();
-            (normalize(&path), content)
-        })
-        .collect()
+    let unit = |id: &tsc_harness::upstream_suites::execution::CompilerUnitId| {
+        plan.fixture
+            .units
+            .iter()
+            .find(|unit| unit.id == *id)
+            .map(|unit| {
+                let name = unit.name.replace('\\', "/");
+                let path = if name.starts_with('/') {
+                    name
+                } else {
+                    format!("{}/{}", plan.current_directory.trim_end_matches('/'), name)
+                };
+                let content = unit.content.as_deref().unwrap_or_default().to_owned();
+                (normalize(&path), content)
+            })
+    };
+    (
+        config.iter().filter_map(unit).collect(),
+        roots.iter().filter_map(unit).collect(),
+        others.iter().filter_map(unit).collect(),
+    )
+}
+
+/// The fixture files in the order the native runner passes them to the
+/// error baseline (`tsConfigFiles`, `toBeCompiled`, `otherFiles`).
+fn baseline_input_files(plan: &CompilerExecutionPlan) -> Vec<(String, String)> {
+    let (config, roots, others) = plan_units(plan);
+    config.into_iter().chain(roots).chain(others).collect()
+}
+
+/// The sources the JavaScript emit baseline lists (`otherFiles`, then
+/// `toBeCompiled`; no config file).
+fn js_baseline_sources(plan: &CompilerExecutionPlan) -> Vec<(String, String)> {
+    let (_, roots, others) = plan_units(plan);
+    others.into_iter().chain(roots).collect()
+}
+
+/// Emit the configuration as the native harness's second Program does
+/// (`compileFilesWithHost`: `program.Emit` after the diagnostics Program),
+/// collecting the written files, with the map options of the Program's
+/// effective compiler options (the directives and the config file). Nothing
+/// for a Program that cannot emit (`noEmit`).
+fn emit_outputs(
+    workspace: &Path,
+    plan: &CompilerExecutionPlan,
+    test_library: &Path,
+    standard_library: &Path,
+    budget: CheckerBudget,
+) -> Result<(Emission, MapOptions), String> {
+    let prepared =
+        load_native_compiler_program(workspace, plan, limits(), test_library, standard_library)
+            .map_err(|error| format!("load: {error}"))?;
+    let options = prepared.compiler_options();
+    let on = |value: Option<bool>| value == Some(true);
+    let map_options = MapOptions {
+        source_map: on(options.source_map),
+        // GetAreDeclarationMapsEnabled: declaration maps need declarations.
+        declaration_map: on(options.declaration_map)
+            && (on(options.declaration) || on(options.composite)),
+        inline_source_map: on(options.inline_source_map),
+        no_emit_on_error: on(options.no_emit_on_error),
+    };
+    if prepared.mode() != PreparedProgramMode::Emit {
+        return Ok((Emission::default(), map_options));
+    }
+    let mut sink = MemoryOutputSink::new();
+    ProgramSession::new(prepared)
+        .with_checker_budget(budget)
+        .emit(&mut sink)
+        .map_err(|error| format!("emit: {error}"))?;
+    Ok((Emission::from_writes(sink.writes()), map_options))
+}
+
+fn sha256_hex(text: &str) -> String {
+    format!("{:x}", sha2::Sha256::digest(text.as_bytes()))
+}
+
+fn dump_file(directory: &Path, suite: NativeSuite, file_name: &str, content: &str) {
+    let path = directory.join(suite.name()).join(file_name);
+    let written = std::fs::create_dir_all(directory.join(suite.name()))
+        .and_then(|()| std::fs::write(&path, content));
+    if let Err(error) = written {
+        eprintln!("{}: {error}", path.display());
+    }
 }
 
 fn normalize(path: &str) -> String {
@@ -390,10 +544,11 @@ fn normalize(path: &str) -> String {
     format!("/{}", parts.join("/"))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_lane_a(
     workspace: &Path,
     profile: &NativeProfile,
-    suite: NativeSuite,
+    (suite, case_path): (NativeSuite, &str),
     (configuration, stem): (&NativeConfiguration, &str),
     plan: &CompilerExecutionPlan,
     dump: Option<&Path>,
@@ -426,10 +581,11 @@ fn run_lane_a(
             }
         }
     };
-    let budget =
-        std::num::NonZeroUsize::new(checkers).map_or(CheckerBudget::serial(), CheckerBudget::new);
+    let budget = || {
+        std::num::NonZeroUsize::new(checkers).map_or(CheckerBudget::serial(), CheckerBudget::new)
+    };
     let outcome = match ProgramSession::new(prepared)
-        .with_checker_budget(budget)
+        .with_checker_budget(budget())
         .run_for_native_harness(collection)
     {
         Ok(outcome) => outcome,
@@ -469,14 +625,12 @@ fn run_lane_a(
         if agreement == Agreement::Text && rendered == expected_text {
             agreement = Agreement::Full;
         } else if let Some(directory) = dump.filter(|_| rendered != expected_text) {
-            let path = directory
-                .join(suite.name())
-                .join(format!("{stem}.errors.txt"));
-            let written = std::fs::create_dir_all(directory.join(suite.name()))
-                .and_then(|()| std::fs::write(&path, rendered.unwrap_or_default()));
-            if let Err(error) = written {
-                eprintln!("{}: {error}", path.display());
-            }
+            dump_file(
+                directory,
+                suite,
+                &format!("{stem}.errors.txt"),
+                rendered.as_deref().unwrap_or_default(),
+            );
         }
     }
     let key = |d: &BaselineDiagnostic| (d.file.clone(), d.line, d.column, d.code);
@@ -488,6 +642,76 @@ fn run_lane_a(
         .iter()
         .find(|a| !expected.iter().any(|d| key(a) == key(d)))
         .cloned();
+
+    // The emit, as the native harness's second Program produces it, against
+    // the `.js` and `.js.map` references.
+    let (emission, map_options, emit_error) =
+        match emit_outputs(workspace, plan, &test_library, &standard_library, budget()) {
+            Ok((emission, map_options)) => (emission, map_options, None),
+            Err(error) => (Emission::default(), MapOptions::default(), Some(error)),
+        };
+    let full_emit_paths = flag("fullemitpaths");
+    let header = format!("tests/cases/{}/{case_path}", suite.name());
+    let sources = js_baseline_sources(plan);
+    let source_inputs: Vec<_> = sources
+        .iter()
+        .map(|(name, content)| errors_baseline::InputFile { name, content })
+        .collect();
+    let rendered_js = emit_baseline::render_js(&header, &source_inputs, &emission, full_emit_paths);
+    let expected_js = std::fs::read(profile.js_baseline_path(suite, stem))
+        .ok()
+        .map(|bytes| String::from_utf8_lossy(&bytes).into_owned());
+    let file_name = case_path.rsplit('/').next().unwrap_or(case_path);
+    let (emit, emit_detail) = if SKIPPED_EMIT_TESTS.contains(&file_name) {
+        (
+            EmitAgreement::NotAssessed,
+            Some("the native runner skips this case's JavaScript baseline".to_owned()),
+        )
+    } else {
+        emit_agreement(
+            rendered_js.as_deref(),
+            expected_js.as_deref(),
+            emit_error.as_deref(),
+        )
+    };
+    let emit_sha256 = sha256_hex(rendered_js.as_deref().unwrap_or_default());
+    let all_inputs: Vec<_> = files
+        .iter()
+        .map(|(name, content)| errors_baseline::InputFile { name, content })
+        .collect();
+    let rendered_map = emit_baseline::render_js_map(
+        map_options,
+        !diagnostics.is_empty(),
+        &emission,
+        &all_inputs,
+        full_emit_paths,
+    );
+    let expected_map = std::fs::read(profile.js_map_baseline_path(suite, stem))
+        .ok()
+        .map(|bytes| String::from_utf8_lossy(&bytes).into_owned());
+    let (map, map_detail) = emit_agreement(
+        rendered_map.as_deref(),
+        expected_map.as_deref(),
+        emit_error.as_deref(),
+    );
+    if let Some(directory) = dump {
+        if emit == EmitAgreement::None {
+            dump_file(
+                directory,
+                suite,
+                &format!("{stem}.js"),
+                rendered_js.as_deref().unwrap_or_default(),
+            );
+        }
+        if map == EmitAgreement::None {
+            dump_file(
+                directory,
+                suite,
+                &format!("{stem}.js.map"),
+                rendered_map.as_deref().unwrap_or_default(),
+            );
+        }
+    }
     Outcome::Compared {
         agreement,
         expected: expected.len(),
@@ -495,6 +719,11 @@ fn run_lane_a(
         missing,
         unexpected,
         rendered_sha256,
+        emit,
+        emit_detail,
+        emit_sha256,
+        map,
+        map_detail,
     }
 }
 
@@ -715,7 +944,7 @@ fn run_case(
                                 run_lane_a(
                                     workspace,
                                     profile,
-                                    case.suite,
+                                    (case.suite, &case.relative_path),
                                     (&configuration, &stem),
                                     &plan,
                                     dump,
@@ -763,6 +992,14 @@ pub struct Summary {
     pub category: usize,
     pub location: usize,
     pub mismatch: usize,
+    /// Compared configurations whose `.js` emit baseline matches / differs /
+    /// is not assessed (the native runner skips it).
+    pub emit_full: usize,
+    pub emit_mismatch: usize,
+    pub emit_not_assessed: usize,
+    /// The same for the `.js.map` baseline.
+    pub map_full: usize,
+    pub map_mismatch: usize,
     pub harness_errors: usize,
     pub deprecated: usize,
     pub not_run: usize,
@@ -775,7 +1012,12 @@ pub fn summarize(results: &[ConfigurationResult]) -> Summary {
     };
     for result in results {
         match &result.outcome {
-            Outcome::Compared { agreement, .. } => {
+            Outcome::Compared {
+                agreement,
+                emit,
+                map,
+                ..
+            } => {
                 summary.lane_a += 1;
                 match agreement {
                     Agreement::Full => summary.full += 1,
@@ -783,6 +1025,17 @@ pub fn summarize(results: &[ConfigurationResult]) -> Summary {
                     Agreement::Category => summary.category += 1,
                     Agreement::Location => summary.location += 1,
                     Agreement::None => summary.mismatch += 1,
+                }
+                match emit {
+                    EmitAgreement::Full => summary.emit_full += 1,
+                    EmitAgreement::None => summary.emit_mismatch += 1,
+                    EmitAgreement::NotAssessed => summary.emit_not_assessed += 1,
+                }
+                match map {
+                    EmitAgreement::Full => summary.map_full += 1,
+                    EmitAgreement::None | EmitAgreement::NotAssessed => {
+                        summary.map_mismatch += 1;
+                    }
                 }
             }
             Outcome::HarnessError { .. } => {

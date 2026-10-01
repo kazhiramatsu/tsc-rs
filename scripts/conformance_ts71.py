@@ -25,9 +25,11 @@ checks nor updates the ratchet.
 
 The ratchet ratchets/ts71/<profile>.tsv lists every lane-A configuration that
 agrees with its baseline at least on locations, with the deepest tier it
-reached (location < category < text < full). `--check` fails when a listed
-configuration of the run is now below its tier; `--update` records the run's
-tiers without lowering any.
+reached (location < category < text < full) and, in a third column, its emit
+tier: `js` when tsc-rs's JavaScript emit baseline (the `.js` reference, with
+the declaration files) matches byte for byte, `none` otherwise. `--check`
+fails when a listed configuration of the run is now below either tier;
+`--update` records the run's tiers without lowering any.
 """
 
 import argparse
@@ -42,9 +44,10 @@ import time
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 BINARY = ROOT / "target/release/conformance-ts71"
 TIERS = ("location", "category", "text", "full")
+EMIT_TIERS = ("none", "js")
 RATCHET_HEADER = (
-    "# TypeScript 7.1 lane-A configurations and the deepest tier each has reached\n"
-    "# (scripts/conformance_ts71.py --update). A tier is lowered only by a reviewed edit.\n"
+    "# TypeScript 7.1 lane-A configurations, the deepest error tier each has reached and\n"
+    "# its emit tier (scripts/conformance_ts71.py --update). A tier is lowered only by a reviewed edit.\n"
 )
 
 
@@ -162,7 +165,8 @@ class Shard:
 
 def summarize(results):
     summary = {"configurations": len(results), "lane_a": 0, "full": 0, "text": 0, "category": 0,
-               "location": 0, "mismatch": 0, "harness_errors": 0, "deprecated": 0, "not_run": 0}
+               "location": 0, "mismatch": 0, "emit_full": 0, "emit_mismatch": 0,
+               "emit_not_assessed": 0, "harness_errors": 0, "deprecated": 0, "not_run": 0}
     tiers = {"Full": "full", "Text": "text", "Category": "category", "Location": "location",
              "None": "mismatch"}
     for result in results:
@@ -170,6 +174,8 @@ def summarize(results):
         if status == "compared":
             summary["lane_a"] += 1
             summary[tiers[result["agreement"]]] += 1
+            summary[{"Full": "emit_full", "NotAssessed": "emit_not_assessed"}
+                    .get(result.get("emit"), "emit_mismatch")] += 1
         elif status == "harness-error":
             summary["lane_a"] += 1
             summary["harness_errors"] += 1
@@ -181,20 +187,24 @@ def summarize(results):
 
 
 def measured_tiers(results):
-    """`suite/stem` -> tier of every configuration compared at location or deeper."""
-    return {f"{result['suite']}/{result['stem']}": result["agreement"].lower()
+    """`suite/stem` -> (error tier, emit tier) of every configuration compared at
+    location or deeper."""
+    return {f"{result['suite']}/{result['stem']}":
+            (result["agreement"].lower(), "js" if result.get("emit") == "Full" else "none")
             for result in results
             if result["status"] == "compared" and result["agreement"] != "None"}
 
 
 def read_ratchet(path):
+    """`suite/stem` -> (error tier, emit tier); a row without the emit column
+    (written before the emit comparison existed) counts as `none`."""
     if not path.exists():
         return {}
     accepted = {}
     for line in path.read_text().splitlines():
         if line and not line.startswith("#"):
-            key, tier = line.split("\t")
-            accepted[key] = tier
+            key, tier, *rest = line.split("\t")
+            accepted[key] = (tier, rest[0] if rest else "none")
     return accepted
 
 
@@ -207,29 +217,41 @@ def check_ratchet(path, results, filtered):
     ran = {f"{result['suite']}/{result['stem']}" for result in results}
     measured = measured_tiers(results)
     rank = {tier: index for index, tier in enumerate(TIERS)}
+    emit_rank = {tier: index for index, tier in enumerate(EMIT_TIERS)}
     accepted = read_ratchet(path)
-    regressions = sorted(
-        (key, tier, measured.get(key, "none"))
-        for key, tier in accepted.items()
-        if (key in ran or not filtered) and rank.get(measured.get(key), -1) < rank[tier]
-    )
-    improved = sum(1 for key, tier in measured.items()
-                   if rank[tier] > rank.get(accepted.get(key), -1))
-    for key, tier, now in regressions:
-        print(f"  regression: {key} accepted {tier}, now {now}")
+    regressions = []
+    for key, (tier, emit) in accepted.items():
+        if key not in ran and filtered:
+            continue
+        now_tier, now_emit = measured.get(key, ("none", "none"))
+        if rank.get(now_tier, -1) < rank[tier]:
+            regressions.append((key, f"accepted {tier}, now {now_tier}"))
+        elif emit_rank[now_emit] < emit_rank[emit]:
+            regressions.append((key, f"accepted emit {emit}, now {now_emit}"))
+    regressions.sort()
+    improved = sum(1 for key, (tier, emit) in measured.items()
+                   if rank[tier] > rank.get(accepted.get(key, ("none", "none"))[0], -1)
+                   or emit_rank[emit] > emit_rank[accepted.get(key, ("none", "none"))[1]])
+    for key, detail in regressions:
+        print(f"  regression: {key} {detail}")
     print(f"ratchet: {len(regressions)} regressions, {improved} configurations above "
-          f"their accepted tier ({path.relative_to(ROOT)})")
+          f"their accepted tiers ({path.relative_to(ROOT)})")
     return not regressions
 
 
 def update_ratchet(path, results):
     rank = {tier: index for index, tier in enumerate(TIERS)}
+    emit_rank = {tier: index for index, tier in enumerate(EMIT_TIERS)}
     accepted = read_ratchet(path)
-    for key, tier in measured_tiers(results).items():
-        if rank[tier] > rank.get(accepted.get(key), -1):
-            accepted[key] = tier
+    for key, (tier, emit) in measured_tiers(results).items():
+        old_tier, old_emit = accepted.get(key, ("none", "none"))
+        accepted[key] = (
+            tier if rank[tier] > rank.get(old_tier, -1) else old_tier,
+            emit if emit_rank[emit] > emit_rank[old_emit] else old_emit,
+        )
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(RATCHET_HEADER + "".join(f"{key}\t{accepted[key]}\n" for key in sorted(accepted)))
+    path.write_text(RATCHET_HEADER + "".join(
+        f"{key}\t{accepted[key][0]}\t{accepted[key][1]}\n" for key in sorted(accepted)))
     print(f"ratchet: {len(accepted)} configurations recorded in {path.relative_to(ROOT)}")
 
 

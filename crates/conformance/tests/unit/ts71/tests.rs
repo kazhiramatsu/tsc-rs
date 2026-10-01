@@ -168,3 +168,105 @@ fn deprecated_options_route_to_lane_b() {
         None
     );
 }
+
+#[test]
+fn the_js_baseline_lists_sources_then_javascript_then_declarations() {
+    use super::emit_baseline::{render_js, Emission, EmittedFile};
+    let sources = [
+        errors_baseline::InputFile {
+            name: "/.src/other.ts",
+            content: "export const o = 1;",
+        },
+        errors_baseline::InputFile {
+            name: "/.src/main.ts",
+            content: "import { o } from \"./other\";\nexport const m = o;",
+        },
+    ];
+    let emission = Emission {
+        js: vec![
+            EmittedFile {
+                path: "/.src/other.js".to_owned(),
+                content: "export const o = 1;\r\n".to_owned(),
+            },
+            EmittedFile {
+                path: "/.src/main.js".to_owned(),
+                content: "import { o } from \"./other\";\r\nexport const m = o;\r\n".to_owned(),
+            },
+        ],
+        dts: vec![EmittedFile {
+            path: "/.src/main.d.ts".to_owned(),
+            content: "export declare const m = 1;\r\n".to_owned(),
+        }],
+        maps: Vec::new(),
+    };
+    let rendered = render_js("tests/cases/compiler/main.ts", &sources, &emission, false).unwrap();
+    assert_eq!(
+        rendered,
+        "//// [tests/cases/compiler/main.ts] ////\r\n\r\n\
+         //// [other.ts]\r\nexport const o = 1;\r\n\
+         //// [main.ts]\r\nimport { o } from \"./other\";\nexport const m = o;\r\n\r\n\
+         //// [other.js]\r\nexport const o = 1;\r\n\
+         //// [main.js]\r\nimport { o } from \"./other\";\r\nexport const m = o;\r\n\r\n\r\n\
+         //// [main.d.ts]\r\nexport declare const m = 1;\r\n"
+    );
+    // Nothing emitted: no baseline (the runner writes no file).
+    assert!(render_js(
+        "tests/cases/compiler/main.ts",
+        &sources,
+        &Emission::default(),
+        false
+    )
+    .is_none());
+    // `@fullEmitPaths` keeps the output path without the harness prefix.
+    let full = render_js("tests/cases/compiler/main.ts", &sources, &emission, true).unwrap();
+    assert!(full.contains("//// [other.js]\r\n"), "{full}");
+}
+
+#[test]
+fn the_js_map_baseline_follows_the_map_options() {
+    use super::emit_baseline::{render_js_map, Emission, EmittedFile, MapOptions};
+    let inputs = [errors_baseline::InputFile {
+        name: "/.src/a.ts",
+        content: "const a = 1;",
+    }];
+    let map = "{\"version\":3,\"file\":\"a.js\",\"sources\":[\"a.ts\"],\"mappings\":\"AAAA\"}";
+    let emission = Emission {
+        js: vec![EmittedFile {
+            path: "/.src/a.js".to_owned(),
+            content: "const a = 1;\r\n".to_owned(),
+        }],
+        dts: Vec::new(),
+        maps: vec![EmittedFile {
+            path: "/.src/a.js.map".to_owned(),
+            content: map.to_owned(),
+        }],
+    };
+    let on = MapOptions {
+        source_map: true,
+        ..MapOptions::default()
+    };
+    let rendered = render_js_map(on, false, &emission, &inputs, false).unwrap();
+    assert_eq!(
+        rendered,
+        format!(
+            "//// [a.js.map]\r\n{map}\n//// https://sokra.github.io/source-map-visualization#base64,\
+             Y29uc3QgYSA9IDE7DQo=,{},Y29uc3QgYSA9IDE7\n",
+            // The map itself, base64-encoded.
+            "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZXMiOlsiYS50cyJdLCJtYXBwaW5ncyI6IkFBQUEifQ=="
+        )
+    );
+    // Inline maps, no map option, a noEmitOnError run with diagnostics and
+    // no map at all write no baseline.
+    let inline = MapOptions {
+        inline_source_map: true,
+        ..on
+    };
+    assert!(render_js_map(inline, false, &emission, &inputs, false).is_none());
+    assert!(render_js_map(MapOptions::default(), false, &emission, &inputs, false).is_none());
+    let on_error = MapOptions {
+        no_emit_on_error: true,
+        ..on
+    };
+    assert!(render_js_map(on_error, true, &emission, &inputs, false).is_none());
+    assert!(render_js_map(on, false, &Emission::default(), &inputs, false).is_none());
+}

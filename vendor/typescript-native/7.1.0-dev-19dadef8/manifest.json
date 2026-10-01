@@ -49,11 +49,53 @@
       "bytes": 6737544
     },
     {
+      "path": "tsc/testdata/baselines/reference/compiler",
+      "filter": "*.js",
+      "blob_inventory_sha256": "c08321fe59439d843672577409a7ff9c9e072b6d3284052b4a95027ef5608242",
+      "files": 6167,
+      "bytes": 8805284
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/compiler",
+      "filter": "*.js.map",
+      "blob_inventory_sha256": "214917d41478e6b098e1ddb861a49da435f8c49ee322d61088a7137059d728f8",
+      "files": 130,
+      "bytes": 677057
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/compiler",
+      "filter": "*.sourcemap.txt",
+      "blob_inventory_sha256": "7df83f9f347c8c104bd870c581945141446feff0f369d5bbb4a07bac5a154227",
+      "files": 137,
+      "bytes": 3396268
+    },
+    {
       "path": "tsc/testdata/baselines/reference/conformance",
       "filter": "*.errors.txt",
       "blob_inventory_sha256": "8d50be183a8f551281c1f4053d154868eb05693489cef6f203a84ead4c9331ef",
       "files": 3869,
       "bytes": 10956496
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/conformance",
+      "filter": "*.js",
+      "blob_inventory_sha256": "4a361bbb889ccd12defdd7c58c4592a65c4edb0fbba7bd45504872bbcd31f8b8",
+      "files": 6018,
+      "bytes": 9367270
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/conformance",
+      "filter": "*.js.map",
+      "blob_inventory_sha256": "da78c0c25ad4253ed9f976e313db0d06cd6f81f1570e6afbb4faed09ebbecc67",
+      "files": 20,
+      "bytes": 69876
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/conformance",
+      "filter": "*.sourcemap.txt",
+      "blob_inventory_sha256": "967593979d2f90a2d56cff99ce00b9a9d768f0da4c60e2c439ea06c6d65773d7",
+      "files": 20,
+      "bytes": 220784
     }
   ],
   "baseline_names": {

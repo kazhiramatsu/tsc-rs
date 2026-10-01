@@ -11,12 +11,15 @@ vendor/typescript-native/<profile>/upstream/:
   tsc/internal/bundled/libs                         the embedded standard libraries
   tsc/internal/diagnostics/diagnosticMessages.json  the diagnostic message catalog
   tsc/testdata/baselines/reference/{compiler,conformance}/*.errors.txt
+  tsc/testdata/baselines/reference/{compiler,conformance}/*.js
+  tsc/testdata/baselines/reference/{compiler,conformance}/*.js.map
+  tsc/testdata/baselines/reference/{compiler,conformance}/*.sourcemap.txt
 
 and writes vendor/typescript-native/<profile>/manifest.json with the commit,
-each set's Git tree id (a single file's blob id; the filtered baseline set
+each set's Git tree id (a single file's blob id; a filtered baseline set
 records only its blob inventory), file and byte counts, and the sorted names of
 *all* compiler and conformance reference baselines (a configuration that ran without errors has
-other baselines but no .errors.txt; a skipped one has none).
+other baselines but no .errors.txt; one that emits nothing has no .js; a skipped one has none).
 
 The upstream checkout lives under target/typescript-native/<commit>/ and is a
 shallow, blob-filtered clone; only the vendored blobs are fetched. `--check`
@@ -48,7 +51,19 @@ BASELINE_DIRS = [
     "tsc/testdata/baselines/reference/compiler",
     "tsc/testdata/baselines/reference/conformance",
 ]
-ERRORS_SUFFIX = ".errors.txt"
+# The baseline kinds the runner compares: errors, the JavaScript/declaration
+# emit, the raw source maps and the source-map records. A kind's suffix must
+# not end another kind's suffix (`.js` is matched before `.js.map` is ruled
+# out by `baseline_kind`).
+BASELINE_SUFFIXES = (".errors.txt", ".js", ".js.map", ".sourcemap.txt")
+
+
+def baseline_kind(name):
+    """The vendored baseline suffix of `name`, or None for the other kinds."""
+    for suffix in sorted(BASELINE_SUFFIXES, key=len, reverse=True):
+        if name.endswith(suffix):
+            return suffix
+    return None
 
 
 def git(checkout, *args, binary=False):
@@ -95,7 +110,7 @@ def blob_sha1(data):
 def fetch_blobs(checkout, commit):
     """Check out only the vendored paths; the partial clone fetches their blobs in one batch."""
     patterns = ([f"/{path}/" for path in TREES] + [f"/{path}" for path in FILES]
-                + [f"/{path}/*{ERRORS_SUFFIX}" for path in BASELINE_DIRS])
+                + [f"/{path}/*{suffix}" for path in BASELINE_DIRS for suffix in BASELINE_SUFFIXES])
     subprocess.run(["git", "-C", str(checkout), "sparse-checkout", "init", "--no-cone"], check=True)
     (checkout / ".git/info/sparse-checkout").write_text("\n".join(patterns) + "\n")
     subprocess.run(["git", "-C", str(checkout), "checkout", "-q", "--detach", commit], check=True)
@@ -144,9 +159,10 @@ def vendor(commit, profile):
     for path in BASELINE_DIRS:
         rows = ls_tree(checkout, commit, path)
         names.extend(name for _, _, name in rows)
-        errors = [row for row in rows if row[2].endswith(ERRORS_SUFFIX)]
-        sets.append({"path": path, "filter": f"*{ERRORS_SUFFIX}", "rows": errors})
-        selected.extend(errors)
+        for suffix in BASELINE_SUFFIXES:
+            kind = [row for row in rows if baseline_kind(row[2]) == suffix]
+            sets.append({"path": path, "filter": f"*{suffix}", "rows": kind})
+            selected.extend(kind)
     fetch_blobs(checkout, commit)
     contents = read_blobs(checkout, sorted({blob for _, blob, _ in selected}))
     for mode, blob, name in selected:
@@ -207,7 +223,7 @@ def check(profile):
                           for directory, _, files in os.walk(base) for file in files]
         for full in candidates:
             name = str(full.relative_to(upstream))
-            if "filter" in item and not name.endswith(ERRORS_SUFFIX):
+            if "filter" in item and baseline_kind(name) != item["filter"][1:]:
                 continue
             data = full.read_bytes()
             mode = "100755" if os.access(full, os.X_OK) else "100644"

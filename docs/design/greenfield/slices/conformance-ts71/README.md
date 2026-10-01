@@ -272,6 +272,13 @@ T3→不一致の2件は、7.1がtsc 6.0.3の`--stableTypeOrdering`とも異な�
 tsc 6.0.3は生成順でそれぞれ一致・不一致、`--stableTypeOrdering`で不一致・一致、tsgo nightly（2026-07-07）は
 7.1 baselineと同じ。tsc-rsは`--stableTypeOrdering`付きtsc 6.0.3と同じ結果になる。両方とも7.xの修正の移植が要る。
 
+### emitの比較（P3-1、2026-10-02）
+
+[ts71-cutover](../ts71-cutover/README.md#p3-1-emit-baseline2026-10-02)のP3-1で、lane Aの各configurationは
+diagnosticsの後にemitの第2 session（`ProgramSession::emit`、memory sink）を走らせ、Goの`DoJSEmitBaseline`／
+`DoSourcemapBaseline`形式に描画した`.js`／`.js.map`を上流baselineとbyte比較する。reportの`emit`／`map`、
+ratchetの第3列（emit tier `js`／`none`）がその結果で、`--dump`は差分の`.js`／`.js.map`も書く。
+
 ### 並列実行の対照
 
 conformanceの比較は1 checkerで行う（`ProgramSession`の既定、`CheckerBudget::serial()`）。並列実行が順序以外で一致するかは、

@@ -7,10 +7,11 @@ The reports come from scripts/conformance_ts71.py: the reference is the
 one-checker run (target/conformance-ts71/<profile>/report.json) and the other a
 sharded control (`--checkers <n>`, target/conformance-ts71/<profile>/checkers-<n>/
 report.json) or a run at another source revision. Every lane-A configuration is
-compared on its outcome, its tier and the digest of tsc-rs's rendered error
-baseline (`rendered_sha256`): two configurations with the same digest produced
-the same diagnostics in the same order. The script prints the configurations
-that differ, grouped by how, and exits 1 when any differ.
+compared on its outcome, its tier, the digest of tsc-rs's rendered error
+baseline (`rendered_sha256`) and the emit agreement and digest (`emit`,
+`emit_sha256`): two configurations with the same digests produced the same
+diagnostics in the same order and the same output files. The script prints the
+configurations that differ, grouped by how, and exits 1 when any differ.
 """
 
 import json
@@ -43,7 +44,7 @@ def main(argv):
     other_profile, other = rows(argv[2])
     if reference_profile != other_profile:
         sys.exit(f"profiles differ: {reference_profile} vs {other_profile}")
-    groups = {"only in one report": [], "outcome": [], "tier": [], "diagnostics": []}
+    groups = {"only in one report": [], "outcome": [], "tier": [], "diagnostics": [], "emit": []}
     same = 0
     for key in sorted(set(reference) | set(other)):
         left, right = reference.get(key), other.get(key)
@@ -61,6 +62,9 @@ def main(argv):
             continue
         if left.get("rendered_sha256") != right.get("rendered_sha256"):
             groups["diagnostics"].append((key, describe(left), describe(right)))
+            continue
+        if (left.get("emit"), left.get("emit_sha256")) != (right.get("emit"), right.get("emit_sha256")):
+            groups["emit"].append((key, left.get("emit"), right.get("emit")))
             continue
         same += 1
     for title, items in groups.items():
