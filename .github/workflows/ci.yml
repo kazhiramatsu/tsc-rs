@@ -19,44 +19,55 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      has_acceptance: ${{ steps.plan.outputs.has_acceptance }}
-      matrix: ${{ steps.plan.outputs.acceptance_matrix }}
+      has_rust: ${{ steps.plan.outputs.has_rust }}
+      has_conformance_ts71: ${{ steps.plan.outputs.has_conformance_ts71 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
           fetch-depth: 0
       - id: plan
-        name: Select affected replay groups
+        name: Select the jobs the change needs
         run: python3 .github/ci/replay.py plan
 
-  acceptance:
-    name: acceptance (${{ matrix.group }})
+  rust:
+    name: rust
     needs: plan
-    if: needs.plan.outputs.has_acceptance == 'true'
+    if: needs.plan.outputs.has_rust == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     env:
       CARGO_BUILD_JOBS: "2"
       CARGO_INCREMENTAL: "0"
       CARGO_PROFILE_TEST_DEBUG: "0"
       RUSTC_WRAPPER: ""
-      TSRS_H2_5G_WORKERS: "2"
-      TSRS_CONFORMANCE_WORKERS: "2"
-      ACCEPTANCE_GROUP: ${{ matrix.group }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - name: Run selected acceptance
-        run: python3 .github/ci/replay.py acceptance "$ACCEPTANCE_GROUP"
+      - name: Formatting, Clippy and the Rust test targets
+        run: python3 .github/ci/replay.py rust
+
+  conformance-ts71:
+    name: conformance (TypeScript 7.1)
+    needs: plan
+    if: needs.plan.outputs.has_conformance_ts71 == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      CARGO_BUILD_JOBS: "2"
+      CARGO_INCREMENTAL: "0"
+      RUSTC_WRAPPER: ""
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Compare lane A with the vendored TypeScript 7.1 baselines
+        run: python3 .github/ci/replay.py conformance-ts71
 
   gates:
     name: gates
-    needs: [plan, acceptance]
+    needs: [plan, rust, conformance-ts71]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -66,5 +77,5 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - name: Require every selected group to succeed
-        run: python3 .github/ci/replay.py gate acceptance
+      - name: Require every selected job to succeed
+        run: python3 .github/ci/replay.py gate ci
