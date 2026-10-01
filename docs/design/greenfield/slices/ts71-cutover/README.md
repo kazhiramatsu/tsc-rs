@@ -369,9 +369,41 @@ go.workの要求どおりgo1.27.1）でprobeし、option catalog・計算値・�
   TS5109 4件、amd／system＋`moduleResolution: node`でtsgoだけが出すTS5095 6件。
 - test：program（catalog順、loader、paths 5064→5066、scaling、module_request）、compiler（session／emit）、
   emitter（builtins module 0、bundle printer fixtureの`module: none` caseはskip、output plan）を7.1に再pin。
-- 次（P3-5c）：明示`classic`／`node10`をtsgoどおり既定へ写像する。resolverのclassic／node10経路が死に、
-  `module_resolution_contract`等のnode10前提のtest（30件超）の再pin／削除が要るので別PR。P3-6（旧resolver退役）と
-  同じ流れ。
+- 明示`classic`／`node10`をtsgoどおり既定へ写像する件は、resolverのclassic／node10経路が死に
+  `module_resolution_contract`等のnode10前提のtest（91箇所）の再pin／削除が要り、conformanceの利得がない
+  （harnessがその構成をskipする）ので、P3-6（旧resolver退役）に送る。P3-5はconformanceのclassを続ける。
 - conformance（release、`--workers 4 --check`）：15,228 configuration、lane A 13,467（変化なし）、full 12,666→12,671、text 114、category 21、mismatch 622→616、harness error 44→45（`compiler/intersectionConstructorReductionCrash`がP3-5a時のfullからharness errorへ戻った。負荷依存のstress caseでratchet行は入れていない）、emit full 12,411→12,410（同じcase）。fullに上がったのは`compiler/deprecatedCompilerOptions1`〜`6`の6構成（tsconfigの削除済み／5.5削除optionの行がTS5023等で一致、各8行）。ratchet：0 regressions、6行追加。
 - hosted：PR #620（head `06ce2a074`、merge `df5b75156`）、run 36926416348 — `plan` 31s、`rust` 9m54s、`conformance (TypeScript 7.1)` 17m12s、`gates` 12s。
 - perf（README corpora、`--noEmit`、nice 20、release build対tsgo 7.1.0-dev）：3 roundsの初回計測ではhono 0.82／TypeScript `src/compiler` 1.08がP3-5a（0.71／0.98）より悪く見えたが、main（P3-5a、`4b2c383cb`）と本branchのbinaryを同条件で5 rounds A/Bすると同値（median wall ms、main→本branch：hono 116→116、`src/compiler` 323→326、zod 514→511；peak RSS MB 310→289、291→292、1301→1300）で、tsgo比はhono 0.73、`src/compiler` 0.95、zod 0.56。初回の差は計測ノイズ（release build直後）で、退行なし。他のcorporaは初回計測でP3-5aと同じ帯（Playwright 0.59、Next.js 0.59、Effect 0.65、VS Code 0.76；peak memory同等以下）。
+
+## P3-5c 未使用type parameterの診断（TS6196、2026-10-02）
+
+P3-5bまでのreport（mismatch 616）を最初の差のcodeで集計すると、(missing TS6196, unexpected TS6133)が26構成で最大の
+単独classだった（次点：TS2683 24、TS2300 23、TS2339 20、TS2309 18、TS2304 17、TS2749 17、TS6504 14、TS2303 12、
+(TS2769,TS2769) 20、(TS2552,TS2304) 13）。tsgo `checker.go` `checkUnusedTypeParameters`／`checkUnusedInferTypeParameter`
+（vendored commit）に合わせた：
+
+- 未使用のtype parameterはTS6196「'{0}' is declared but never used.」をそのtype parameter node（名前＋constraint／
+  default）に出す。6.0.3は値と同じTS6133で、listに1つだけのときは`<T>`の範囲に出していた。
+- listに2つ以上あり全部未使用ならTS6205「All type parameters are unused.」を`<…>`の範囲に（6.0.3と同じ）。
+- `infer U`はTS6196を名前に（6.0.3は`infer U`全体にTS6133）。
+- 検査対象は「symbolの全declarationが同じfileにある」宣言すべて（tsgo `allDeclarationsInSameSourceFile`）。6.0.3は
+  最後のdeclarationだけだった。mergeされたinterfaceのtype parameterは1つのsymbolを共有するのでどちらかの使用で
+  使用済み、overloadのtype parameterは各宣言ごと（tsgo probe：`c.ts`で確認）。
+- gateは従来どおり`noUnusedParameters`（`UnusedKindParameter`）。
+- JSの`@template`で全部未使用のときのTS6205の範囲は、tsgoが`@template`群を1つのlistに再parseするので
+  「最初のtagの位置−1」から「最後のparameterの後のtriviaを飛ばした位置＋1」まで。
+- unit test（`crates/checker/tests/unit/unused/tests.rs`の4本と、type parameter行を付随して固定していた
+  calls／functions／libの9本）をtsgoの行に再pin。
+
+同じPRで、harnessのroot選択も直した（最初の差がTS6504 14構成／TS6054 7構成のclass）：Goのrunner
+（`harnessutil.CompileFilesEx`）は`.json`と`.tsbuildinfo`以外の全unitをprogramのrootに渡し、allowJsなしのJS rootや
+未対応拡張子のrootはprogramがTS6504／TS6054（「The file is in the program because: Root file specified for
+compilation」のchain付き）で報告する。tsc-rsのharnessは旧tscの`isSupportedSourceFileName`でroot候補を落としていた
+（`supported_compiler_roots`）ので、Goと同じ除外だけにした。対象の21構成（`checkJsFiles6`、
+`jsFileCompilationWithoutJsExtensions`、`privateIdentifierPropertyAccessDestructuringAssignmentES6`、
+`bundlerConditionsExcludesNode`×2、`bundlerNodeModules1`×2、`nodeModulesAtTypesPriority`、
+`resolvesWithoutExportsDiagnostic1`×2、`nodeModulesExportsBlocksTypesVersions`×4、`jsFileCompilationWithMapFileAsJs*`×3、
+`bundlerImportTsExtensions`×4）は全てfull（loaderの`load_root`が既にchain付きのTS6504／TS6054を出していた）。
+- conformance：15,228 configuration、lane A 13,467（変化なし）、full 12,671→12,719（+48）、text 114、category 21、mismatch 616→568、harness error 45、emit full 12,410。fullに上がったのは未使用type parameterの27構成（上記26＋`unusedTypeParameters8`）とharness root選択の21構成。ratchet：0 regressions、48行追加。`unusedTypeParameters_templateTag2`は残る（C1／C3の`/** @type {T} */ this.p;`を7.1は宣言と見ず、TS2339とTS6205になる——JSのexpando／`this` class）。
+- hosted：HOSTED_RECORD

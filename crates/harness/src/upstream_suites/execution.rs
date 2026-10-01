@@ -89,8 +89,7 @@ pub fn native_compiler_plan(
         .collect::<Vec<_>>();
     let current_directory = compiler_current_directory(&effective_settings)?;
     let use_case_sensitive_file_names = compiler_case_sensitivity(&effective_settings);
-    let allow_js = compiler_root_allow_js(&fixture, &effective_settings)?;
-    let root_selection = compiler_root_selection(&fixture, &effective_settings, allow_js)?;
+    let root_selection = compiler_root_selection(&fixture, &effective_settings)?;
     let name: Arc<str> = Arc::from(configuration.name.as_str());
     Ok(CompilerExecutionPlan {
         fixture,
@@ -1532,7 +1531,6 @@ fn compiler_fixture_root_parts(path: &str) -> Option<(&str, &str)> {
 fn compiler_root_selection(
     fixture: &CompilerFixtureInput,
     settings: &[OrderedSetting],
-    allow_js: bool,
 ) -> HarnessResult<CompilerRootSelection> {
     let candidates = fixture
         .units
@@ -1610,7 +1608,6 @@ fn compiler_root_selection(
             CompilerExplicitRootReason::LastUnitImplicitReferences,
             vec![last],
             other_units,
-            allow_js,
         ))
     } else {
         Ok(explicit_compiler_roots(
@@ -1618,7 +1615,6 @@ fn compiler_root_selection(
             CompilerExplicitRootReason::AllUnits,
             candidates,
             Vec::new(),
-            allow_js,
         ))
     }
 }
@@ -1628,14 +1624,13 @@ fn explicit_compiler_roots(
     reason: CompilerExplicitRootReason,
     root_units: Vec<CompilerUnitId>,
     other_units: Vec<CompilerUnitId>,
-    allow_js: bool,
 ) -> CompilerRootSelection {
     let vfs_write_order = root_units
         .iter()
         .chain(&other_units)
         .copied()
         .collect::<Vec<_>>();
-    let program_root_units = supported_compiler_roots(fixture, &root_units, allow_js);
+    let program_root_units = supported_compiler_roots(fixture, &root_units);
     CompilerRootSelection::Explicit {
         reason,
         root_units: Arc::from(root_units),
@@ -1645,74 +1640,26 @@ fn explicit_compiler_roots(
     }
 }
 
-/// tsc `isSupportedSourceFileName` followed by CompilerBaselineRunner's
-/// explicit JSON-root exclusion. The comparison is deliberately
-/// case-sensitive, matching `fileExtensionIs`; host case sensitivity affects
-/// path identity, not recognized source-extension spelling.
+/// The native runner's root list (`harnessutil.CompileFilesEx`): every unit
+/// to be compiled except `.json` and `.tsbuildinfo` files becomes a program
+/// root, whatever its extension, so a JavaScript root without `allowJs` or a
+/// root with an unsupported extension reaches the program and reports
+/// TS6504/TS6054 there (tsc's harness filtered them out first). The
+/// comparison is deliberately case-sensitive, matching `fileExtensionIs`.
 fn supported_compiler_roots(
     fixture: &CompilerFixtureInput,
     root_units: &[CompilerUnitId],
-    allow_js: bool,
 ) -> Vec<CompilerUnitId> {
-    const TS_EXTENSIONS: [&str; 7] = [".ts", ".tsx", ".d.ts", ".cts", ".d.cts", ".mts", ".d.mts"];
-    const JS_EXTENSIONS: [&str; 4] = [".js", ".jsx", ".mjs", ".cjs"];
-
     root_units
         .iter()
         .copied()
         .filter(|id| {
             fixture.units.get(id.0 as usize).is_some_and(|unit| {
                 let name = unit.name.as_ref();
-                !file_extension_is(name, ".json")
-                    && (TS_EXTENSIONS
-                        .iter()
-                        .any(|extension| file_extension_is(name, extension))
-                        || allow_js
-                            && JS_EXTENSIONS
-                                .iter()
-                                .any(|extension| file_extension_is(name, extension)))
+                !file_extension_is(name, ".json") && !file_extension_is(name, ".tsbuildinfo")
             })
         })
         .collect()
-}
-
-/// Compute only the option dependency needed during root selection without
-/// eagerly validating unrelated fixture options. This mirrors tsc's
-/// `_computedOptions.allowJs`: an explicit `allowJs` wins, otherwise `checkJs`
-/// supplies the value.
-fn compiler_root_allow_js(
-    fixture: &CompilerFixtureInput,
-    settings: &[OrderedSetting],
-) -> HarnessResult<bool> {
-    let (mut allow_js, mut check_js, mut has_explicit_allow_js) = fixture
-        .config_root_plan
-        .as_ref()
-        .map(|config| {
-            (
-                config.compiler_options().allow_js,
-                config.compiler_options().check_js,
-                matches!(
-                    config.options().typed_value_state("allowJs"),
-                    ConfigOptionValueState::Value(value) if value.is_boolean()
-                ),
-            )
-        })
-        .unwrap_or((false, None, false));
-    for setting in settings {
-        match CompilerFixtureOptionKey::new(&setting.name).as_str() {
-            "allowjs" => {
-                allow_js = parse_compiler_bool(&setting.name, &setting.value)?;
-                has_explicit_allow_js = true;
-            }
-            "checkjs" => check_js = Some(parse_compiler_bool(&setting.name, &setting.value)?),
-            _ => {}
-        }
-    }
-    Ok(if has_explicit_allow_js {
-        allow_js
-    } else {
-        check_js.unwrap_or(false)
-    })
 }
 
 fn file_extension_is(path: &str, extension: &str) -> bool {

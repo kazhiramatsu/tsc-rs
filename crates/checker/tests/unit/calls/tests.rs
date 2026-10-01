@@ -1175,7 +1175,7 @@ fn selected_generic_object_candidate_keeps_contextual_method_returns() {
                  });\n",
                 &options,
             ),
-            [(6133, 141, 3)]
+            [(6196, 142, 1)]
         );
 }
 
@@ -1305,7 +1305,7 @@ fn between_overload_bounds_reports_2575() {
 fn single_signature_typearg_arity_reports_2558_on_the_range() {
     assert_eq!(
         checked_rows("declare function t<T, U>(x: T): void;\nt<number>(1);\n"),
-        [(2558, 40, 6), (6133, 22, 1)]
+        [(2558, 40, 6), (6196, 22, 1)]
     );
 }
 
@@ -1315,7 +1315,7 @@ fn overload_typearg_brackets_report_2743() {
             checked_rows(
                 "declare function ta<T>(x: T): void;\ndeclare function ta<T, U, V>(x: T): void;\nta<string, number>(\"a\");\n"
             ),
-            [(2743, 81, 14), (6133, 59, 1), (6133, 62, 1)]
+            [(2743, 81, 14), (6196, 59, 1), (6196, 62, 1)]
         );
 }
 
@@ -2504,7 +2504,7 @@ fn es_method_decorator_arity_overflow_reports_1241_and_1270() {
 #[test]
 fn es_decorator_arrow_receives_contextual_call_signature() {
     let text = "@((value, context) => { context.nonexistent; return value; })\nclass C {}\ninterface ClassDecoratorContext<T> {}\n";
-    assert_eq!(checked_rows(text), [(2339, 32, 11), (6133, 104, 3)]);
+    assert_eq!(checked_rows(text), [(2339, 32, 11), (6196, 105, 1)]);
 }
 
 #[test]
@@ -2554,7 +2554,7 @@ fn es_decorator_contextual_signature_cache_is_order_independent() {
         state.check_source_file(0);
         rows(state)
     });
-    assert_eq!(actual, [(2339, 32, 11), (6133, 104, 3)]);
+    assert_eq!(actual, [(2339, 32, 11), (6196, 105, 1)]);
 }
 
 // ---- m4-review S6/A12 pins (oracle: vendored tsc 6.0.3, noLib,

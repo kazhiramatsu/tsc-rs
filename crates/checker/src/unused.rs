@@ -300,10 +300,8 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
-    /// tsc-port: checkUnusedInferTypeParameter @6.0.3
-    /// tsc-hash: 5361f1034a082554254b852b09d2e7ae434d6e951b2527c0f511d91b1b7483e6
-    /// tsc-span: _tsc.js:83039-83044
-    /// d2: d2:1a7c9df7149acc8d3c6e6cc251f8528c50f63dacedad718d7f5bfff2b4783063
+    /// tsgo-port: checkUnusedInferTypeParameter @7.1 (checker.go:7452-7457):
+    /// TS6196 at the type parameter's name.
     fn check_unused_infer_type_parameter(&mut self, node: NodeId) -> CheckResult<()> {
         let type_parameter = match self.data_of(node) {
             NodeData::InferType(data) => data.type_parameter,
@@ -315,36 +313,76 @@ impl<'a> CheckerState<'a> {
         if !self.is_type_parameter_unused(type_parameter)? {
             return Ok(());
         }
-        let name = self
-            .name_of_node(type_parameter)
+        let name_node = self.name_of_node(type_parameter);
+        let name = name_node
             .and_then(|name| self.identifier_text_of(name))
             .unwrap_or_default()
             .to_owned();
         self.add_unused_diagnostic_at(
             node,
             UnusedIdentifierKind::Parameter,
-            Some(node),
-            &diagnostics::_0_is_declared_but_its_value_is_never_read,
+            name_node.or(Some(type_parameter)),
+            &diagnostics::_0_is_declared_but_never_used,
             &[&name],
         );
         Ok(())
     }
 
-    /// tsc-port: checkUnusedTypeParameters @6.0.3
-    /// tsc-hash: c6294c45ceb55de9dfec242db2e34ba86ac499530e73b118fbefe0e41acf73fe
-    /// tsc-span: _tsc.js:83045-83066
-    /// d2: d2:6cbef847d0eda39c3a2178516c958e766146c3da957e1c890aacaecb5e78c48c
+    /// tsgo-port: checkUnusedTypeParameters @7.1 (checker.go:7459-7480).
+    /// Every declaration whose symbol's declarations share one source file is
+    /// checked (tsc 6.0 checked only the last declaration; merged interface
+    /// type parameters share one symbol, overload type parameters do not).
+    /// More than one type parameter, all unreferenced, is one TS6205 over the
+    /// `<…>` range; any other unreferenced type parameter is TS6196 at its
+    /// own node.
     fn check_unused_type_parameters(&mut self, node: NodeId) -> CheckResult<()> {
         let symbol = self.get_symbol_of_declaration(node)?;
-        let declarations = self.binder.symbol(symbol).declarations.clone();
-        if declarations.last().copied() != Some(node) {
+        if !self.all_declarations_in_same_source_file(symbol) {
             return Ok(());
         }
-
         let type_parameters = self.type_parameter_declarations_of(node);
-        let mut seen_parents_with_every_unused = Vec::new();
-        for type_parameter in type_parameters {
-            if !self.is_type_parameter_unused(type_parameter)? {
+        if type_parameters.is_empty() {
+            return Ok(());
+        }
+        let mut unreferenced = Vec::with_capacity(type_parameters.len());
+        for &type_parameter in &type_parameters {
+            unreferenced.push(self.is_type_parameter_unused(type_parameter)?);
+        }
+        if type_parameters.len() > 1 && unreferenced.iter().all(|&unused| unused) {
+            // tsgo `rangeOfTypeParameters`: from the character before the list
+            // to the one after the last parameter's trailing trivia. JSDoc
+            // `@template` parameters are reparsed into a list positioned at the
+            // first tag, so a list that came from a tag starts there.
+            let source = self.binder.source_of_node(node);
+            let first = type_parameters[0];
+            let last = source
+                .arena
+                .node(type_parameters[type_parameters.len() - 1]);
+            let list_start = match self.parent_of(first) {
+                Some(tag) if self.kind_of(tag) == SyntaxKind::JSDocTemplateTag => {
+                    source.arena.node(tag).pos
+                }
+                _ => match self.type_parameter_declaration_list_of(node) {
+                    Some(list) => source.arena.node_array(list).pos,
+                    None => source.arena.node(first).pos,
+                },
+            };
+            let start_byte = (list_start as usize).saturating_sub(1);
+            let end_byte = tsc_syntax::skip_trivia(source.text(), last.end as usize)
+                .saturating_add(1)
+                .min(source.text().len());
+            self.add_unused_diagnostic_at_byte_range(
+                node,
+                UnusedIdentifierKind::Parameter,
+                start_byte,
+                end_byte,
+                &diagnostics::All_type_parameters_are_unused,
+                &[],
+            );
+            return Ok(());
+        }
+        for (&type_parameter, &unused) in type_parameters.iter().zip(&unreferenced) {
+            if !unused {
                 continue;
             }
             let name = self
@@ -352,99 +390,30 @@ impl<'a> CheckerState<'a> {
                 .and_then(|name| self.identifier_text_of(name))
                 .unwrap_or_default()
                 .to_owned();
-            let Some(parent) = self.parent_of(type_parameter) else {
-                continue;
-            };
-            let parent_type_parameters = match self.data_of(parent) {
-                NodeData::JSDocTemplateTag(data) => self.nodes_of(data.type_parameters),
-                _ => self
-                    .type_parameter_declaration_list_of(parent)
-                    .map_or_else(Vec::new, |list| self.nodes_of(Some(list))),
-            };
-            let every_unused = self.kind_of(parent) != SyntaxKind::InferType
-                && !parent_type_parameters.is_empty()
-                && {
-                    let mut all_unused = true;
-                    for &candidate in &parent_type_parameters {
-                        if !self.is_type_parameter_unused(candidate)? {
-                            all_unused = false;
-                            break;
-                        }
-                    }
-                    all_unused
-                };
-            if every_unused {
-                if seen_parents_with_every_unused.contains(&parent) {
-                    continue;
-                }
-                seen_parents_with_every_unused.push(parent);
-                let (start_byte, end_byte) = if self.kind_of(parent) == SyntaxKind::JSDocTemplateTag
-                {
-                    let source = self.binder.source_of_node(parent);
-                    let parent_node = source.arena.node(parent);
-                    (
-                        tsc_syntax::skip_trivia(source.text(), parent_node.pos as usize),
-                        parent_node.end.max(parent_node.pos) as usize,
-                    )
-                } else {
-                    let Some(list) = self.type_parameter_declaration_list_of(parent) else {
-                        continue;
-                    };
-                    self.range_of_type_parameters(parent, list)
-                };
-                if parent_type_parameters.len() == 1 {
-                    self.add_unused_diagnostic_at_byte_range(
-                        type_parameter,
-                        UnusedIdentifierKind::Parameter,
-                        start_byte,
-                        end_byte,
-                        &diagnostics::_0_is_declared_but_its_value_is_never_read,
-                        &[&name],
-                    );
-                } else {
-                    self.add_unused_diagnostic_at_byte_range(
-                        type_parameter,
-                        UnusedIdentifierKind::Parameter,
-                        start_byte,
-                        end_byte,
-                        &diagnostics::All_type_parameters_are_unused,
-                        &[],
-                    );
-                }
-            } else {
-                let name = self
-                    .name_of_node(type_parameter)
-                    .and_then(|name| self.identifier_text_of(name))
-                    .unwrap_or_default()
-                    .to_owned();
-                self.add_unused_diagnostic_at(
-                    type_parameter,
-                    UnusedIdentifierKind::Parameter,
-                    Some(type_parameter),
-                    &diagnostics::_0_is_declared_but_its_value_is_never_read,
-                    &[&name],
-                );
-            }
+            self.add_unused_diagnostic_at(
+                node,
+                UnusedIdentifierKind::Parameter,
+                Some(type_parameter),
+                &diagnostics::_0_is_declared_but_never_used,
+                &[&name],
+            );
         }
         Ok(())
     }
 
-    /// tsc-port: rangeOfTypeParameters @6.0.3
-    /// tsc-hash: 201db1995ff249c9a5f5edd046bc4a5992d8ca3a0d3615ed541f48a9ffa3af66
-    /// tsc-span: _tsc.js:18872-18876
-    /// d2: d2:63108413387c5421cc26a36984cfc811a2f88a143617830fcd738599c0238ad5
-    fn range_of_type_parameters(
-        &self,
-        node: NodeId,
-        list: tsc_syntax::NodeArrayId,
-    ) -> (usize, usize) {
-        let source = self.binder.source_of_node(node);
-        let array = source.arena.node_array(list);
-        let start = (array.pos as usize).saturating_sub(1);
-        let end = tsc_syntax::skip_trivia(source.text(), array.end as usize)
-            .saturating_add(1)
-            .min(source.text().len());
-        (start, end)
+    /// tsgo-port: allDeclarationsInSameSourceFile @7.1 (utilities.go:1633-1645)
+    fn all_declarations_in_same_source_file(&self, symbol: tsc_types::SymbolId) -> bool {
+        let declarations = &self.binder.symbol(symbol).declarations;
+        let mut first: Option<&tsc_syntax::SourceFile> = None;
+        for &declaration in declarations.iter() {
+            let source = self.binder.source_of_node(declaration);
+            match first {
+                None => first = Some(source),
+                Some(seen) if !std::ptr::eq(seen, source) => return false,
+                Some(_) => {}
+            }
+        }
+        true
     }
 
     /// tsc-port: isTypeParameterUnused @6.0.3
