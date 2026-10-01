@@ -288,10 +288,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 340ae10ba18f958d1611de0ef44f287f188beac9ac63f810afef4b80d64e29b2
     /// tsc-span: _tsc.js:75501-75517
     ///
-    /// The property-side suggester — NOT suggestion-budget gated
-    /// (oracle-pinned: 2551 fires freely in noLib while the name side
-    /// is exhausted). The node-flavored caller filters candidates by
-    /// completion validity (accessibility probe without reporting).
+    /// The property-side suggester. The node-flavored caller filters
+    /// candidates by completion validity (accessibility probe without
+    /// reporting).
     pub(crate) fn get_suggested_symbol_for_nonexistent_property<'n>(
         &mut self,
         name_node: Option<tsc_syntax::NodeId>,

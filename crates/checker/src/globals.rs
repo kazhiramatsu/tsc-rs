@@ -179,18 +179,16 @@ impl<'a> CheckerState<'a> {
         if found.is_none() {
             if let Some(message) = diagnostic {
                 // A resolveName WITH nameNotFoundMessage runs onFailed on
-                // a miss (19797): locationless, the guard short-circuits
-                // and the tail emits the global diagnostic; the
-                // lib-suggestion probe and the budget-gated spelling
-                // attempt both target the same locationless diagnostic —
-                // never a per-file sink — so only the emission and the
-                // unconditional suggestionCount++ (48152) are observable.
+                // a miss: locationless, the guard short-circuits and the
+                // tail emits the global diagnostic; the lib-suggestion
+                // probe and the spelling attempt both target the same
+                // locationless diagnostic — never a per-file sink — so
+                // only the emission is observable.
                 self.error_at(
                     None,
                     message,
                     &[tsc_syntax::unescape_leading_underscores(name)],
                 );
-                self.suggestion_count += 1;
             }
         }
         Ok(found)
@@ -222,28 +220,19 @@ impl<'a> CheckerState<'a> {
     ///
     /// The reportErrors=true getGlobalType calls, SYMBOL-probed eagerly
     /// in tsc's order. Type materialization stays lazy (the 5.0
-    /// deviation) — but the probes cannot: each noLib failure burns one
-    /// suggestionCount slot, and the burn must precede every file-level
-    /// resolution failure or the name-side 2552/2304 selection diverges
-    /// (risk #1; oracle-pinned via strictBindCallApply:false). The lazy
-    /// getters consume this memo so each name keeps exactly one
-    /// resolveName-with-message, like tsc.
+    /// deviation); the lazy getters consume this memo so each name keeps
+    /// exactly one resolveName-with-message, like tsc.
     pub(crate) fn run_init_global_type_probes(&mut self) {
         for (name, live) in self.init_global_type_probe_names() {
             if !live {
                 continue;
             }
-            // Symbol probe + budget consumption ONLY. tsc also emits
-            // the locationless 2318 here; ours stays with the lazy
-            // getter's first demand (pre-5.5d surface) — locationless
-            // diagnostics never reach a per-file sink (lib.rs drops
-            // them), so the timing difference is unobservable, while
-            // the COUNT must happen now (the name-side 2552/2304
-            // selection reads it).
+            // Symbol probe only. tsc also emits the locationless 2318
+            // here; ours stays with the lazy getter's first demand —
+            // locationless diagnostics never reach a per-file sink
+            // (lib.rs drops them), so the timing difference is
+            // unobservable.
             let symbol = self.get_global_symbol_for_init_probe(name, SymbolFlags::TYPE);
-            if symbol.is_none() {
-                self.suggestion_count += 1;
-            }
             self.init_global_type_probes.insert(name, symbol);
         }
     }

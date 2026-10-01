@@ -557,8 +557,6 @@ fn never_intersection_elaborates_reduction_reason() {
     });
 }
 
-// ---- name-side suggestion budget (noLib burn) ----
-
 // ---- element-access ladder (risk-#1 order; oracle re-probed
 // with named receivers 2026-07-12) ----
 
@@ -769,24 +767,25 @@ fn string_index_signature_hit_is_silent() {
     );
 }
 
+// ---- name-side suggestions (noLib; TypeScript 7.1 has no
+// suggestion budget) ----
+
 #[test]
-fn nolib_burn_exhausts_name_suggestions() {
-    // Bootstrap burns all 10 slots: near-miss names degrade to
-    // plain 2304 (oracle-pinned; the LIB-LOADED 2552 flavor is
-    // conformance-gated).
-    assert_eq!(checked_rows("const hello = 1;\nhelo;\n"), [(2304, 17, 4)]);
+fn nolib_near_miss_suggests_without_a_budget() {
+    // tsgo's `onFailedToResolveSymbol` has no suggestion budget: tsc
+    // 6.0's `maximumSuggestionCount` let the noLib bootstrap probes
+    // consume all ten slots, so this row was a plain 2304. Row probed
+    // with tsc-19dadef8 (`--noLib` plus the global types).
+    assert_eq!(checked_rows("const hello = 1;\nhelo;\n"), [(2552, 17, 4)]);
 }
 
 #[test]
-fn strict_bind_call_apply_off_frees_two_slots() {
-    // burn=8 ⇒ suggestions #9/#10 live, #11 degrades (the full
-    // budget mechanics in one noLib pin).
-    let options = CompilerOptions {
-        strict_bind_call_apply: Some(false),
-        ..CompilerOptions::default()
-    };
+fn every_near_miss_suggests() {
+    // Three near misses after the bootstrap probes all suggest; tsc
+    // 6.0's budget mechanics (eight slots burnt, the eleventh
+    // suggestion degraded) are gone.
     let text = "const hello = 1;\nconst world = 1;\nconst tiger = 1;\nhelo;\nworl;\ntige;\n";
-    with_program_state(&[("a.ts", text)], &options, |state| {
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
         state.check_source_file(0);
         let codes: Vec<u32> = state
             .diagnostics
@@ -794,22 +793,18 @@ fn strict_bind_call_apply_off_frees_two_slots() {
             .filter(|d| d.file_name.is_some())
             .map(|d| d.code())
             .collect();
-        assert_eq!(codes, [2552, 2552, 2304]);
+        assert_eq!(codes, [2552, 2552, 2552]);
     });
 }
 
 #[test]
-fn guard_arm_2693_does_not_consume_budget() {
+fn guard_arm_2693_precedes_the_suggestion_lookup() {
     // A guard-chain arm (the primitive-name 2693 flavor; the
     // 2662/2663 MissingPrefix arms need class-body checking, 5.8)
-    // returns BEFORE the budget block — both later near-misses
-    // still suggest (oracle-pinned under strictBindCallApply:false).
-    let options = CompilerOptions {
-        strict_bind_call_apply: Some(false),
-        ..CompilerOptions::default()
-    };
+    // returns before the suggestion lookup, and the later near
+    // misses still suggest.
     let text = "const hello = 1;\nconst world = 1;\nstring;\nhelo;\nworl;\n";
-    with_program_state(&[("a.ts", text)], &options, |state| {
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
         state.check_source_file(0);
         let codes: Vec<u32> = state
             .diagnostics
@@ -822,13 +817,9 @@ fn guard_arm_2693_does_not_consume_budget() {
 }
 
 #[test]
-fn no_suggestion_failure_still_consumes_budget() {
-    let options = CompilerOptions {
-        strict_bind_call_apply: Some(false),
-        ..CompilerOptions::default()
-    };
+fn a_name_without_a_suggestion_leaves_later_near_misses_suggesting() {
     let text = "const hello = 1;\nconst world = 1;\nxyzzy;\nhelo;\nworl;\n";
-    with_program_state(&[("a.ts", text)], &options, |state| {
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
         state.check_source_file(0);
         let codes: Vec<u32> = state
             .diagnostics
@@ -836,7 +827,7 @@ fn no_suggestion_failure_still_consumes_budget() {
             .filter(|d| d.file_name.is_some())
             .map(|d| d.code())
             .collect();
-        assert_eq!(codes, [2304, 2552, 2304]);
+        assert_eq!(codes, [2304, 2552, 2552]);
     });
 }
 

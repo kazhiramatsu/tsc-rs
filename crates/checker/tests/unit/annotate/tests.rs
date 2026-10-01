@@ -455,7 +455,6 @@ fn resolved_conditional_and_unresolved_name_shapes_are_sound() {
             // alias-bearing error intrinsics.
             let annotation =
                 find_probe_annotation(state.binder.source(0), "c").expect("annotation");
-            let suggestion_count = state.suggestion_count;
             let ty = state
                 .get_type_from_type_node(annotation)
                 .expect("unresolved names type as an alias-bearing error");
@@ -474,17 +473,11 @@ fn resolved_conditional_and_unresolved_name_shapes_are_sound() {
                 state.type_to_string(ty).expect("unresolved alias display"),
                 "Missing"
             );
-            assert_eq!(state.suggestion_count, suggestion_count + 1);
             assert_eq!(
                 state
                     .get_type_from_type_node(annotation)
                     .expect("negative type reference resolution is cached"),
                 ty
-            );
-            assert_eq!(
-                state.suggestion_count,
-                suggestion_count + 1,
-                "cached unresolved annotations do not reburn suggestion budget"
             );
             assert!(matches!(
                 state.links.node(annotation).resolved_symbol.get(),

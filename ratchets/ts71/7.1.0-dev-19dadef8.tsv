@@ -1003,6 +1003,7 @@ compiler/commonJsExportTypeDeclarationError(target=es2015)	full	none
 compiler/commonJsImportClassExpression	full	js
 compiler/commonJsIsolatedModules	full	js
 compiler/commonJsUnusedLocals	full	js
+compiler/commonMissingSemicolons	full	js
 compiler/commonSourceDir1	full	js
 compiler/commonSourceDir2	full	js
 compiler/commonSourceDir3	full	js
@@ -4151,6 +4152,7 @@ compiler/matchReturnTypeInAllBranches	full	js
 compiler/matchingOfObjectLiteralConstraints	full	js
 compiler/maxConstraints	full	js
 compiler/maxNodeModuleJsDepthDefaultsToZero	full	js
+compiler/maximum10SpellingSuggestions	full	js
 compiler/memberAccessMustUseModuleInstances	full	js
 compiler/memberAccessOnConstructorType	full	js
 compiler/memberOverride	full	js
@@ -10995,11 +10997,18 @@ conformance/parserPropertySignature9	full	js
 conformance/parserPublicBreak1	full	none
 conformance/parserRealSource1	full	js
 conformance/parserRealSource10	full	none
+conformance/parserRealSource11	full	none
+conformance/parserRealSource12	full	js
+conformance/parserRealSource13	full	js
 conformance/parserRealSource14	full	js
 conformance/parserRealSource2	full	js
 conformance/parserRealSource3	full	js
 conformance/parserRealSource4	full	none
 conformance/parserRealSource5	full	js
+conformance/parserRealSource6	full	js
+conformance/parserRealSource7	full	none
+conformance/parserRealSource8	full	js
+conformance/parserRealSource9	full	none
 conformance/parserRegularExpression1	full	js
 conformance/parserRegularExpression2	full	js
 conformance/parserRegularExpression3	full	js
@@ -11022,6 +11031,7 @@ conformance/parserS12.11_A3_T4	full	none
 conformance/parserS7.2_A1.5_T2	full	js
 conformance/parserS7.3_A1.1_T2	full	js
 conformance/parserS7.6.1.1_A1.10	full	js
+conformance/parserS7.6_A4.2_T1	full	js
 conformance/parserS7.9_A5.7_T1	full	none
 conformance/parserSbp_7.9_A9_T3	full	js
 conformance/parserSetAccessorWithTypeAnnotation1(target=es2015)	full	none
@@ -11174,6 +11184,8 @@ conformance/parser_duplicateLabel1	full	js
 conformance/parser_duplicateLabel2	full	js
 conformance/parser_duplicateLabel3	full	js
 conformance/parser_duplicateLabel4	full	js
+conformance/parserharness	category	js
+conformance/parserindenter	full	js
 conformance/parservoidInQualifiedName0	full	js
 conformance/parservoidInQualifiedName1	full	js
 conformance/parservoidInQualifiedName2	full	js
@@ -11494,6 +11506,7 @@ conformance/scannerNumericLiteral9(target=es2015)	full	none
 conformance/scannerS7.2_A1.5_T2	full	js
 conformance/scannerS7.3_A1.1_T2	full	js
 conformance/scannerS7.4_A2_T2	full	none
+conformance/scannerS7.6_A4.2_T1	full	js
 conformance/scannerS7.8.3_A6.1_T1	full	none
 conformance/scannerS7.8.4_A7.1_T4	full	js
 conformance/scannerStringLiteralWithContainingNullCharacter1	full	js
