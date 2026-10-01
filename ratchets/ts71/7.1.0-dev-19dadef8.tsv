@@ -278,12 +278,14 @@ compiler/assignToInvalidLHS	full
 compiler/assignToModule	full
 compiler/assignToObjectTypeWithPrototypeProperty	full
 compiler/assignToPrototype1	full
+compiler/assigningFromObjectToAnythingElse	full
 compiler/assigningFunctionToTupleIssuesError	full
 compiler/assignmentCompat1	full
 compiler/assignmentCompatBug2	full
 compiler/assignmentCompatBug3	full
 compiler/assignmentCompatBug5	full
 compiler/assignmentCompatForEnums	full
+compiler/assignmentCompatFunctionsWithOptionalArgs	full
 compiler/assignmentCompatInterfaceWithStringIndexSignature	full
 compiler/assignmentCompatOnNew	full
 compiler/assignmentCompatWithOverloads	text
@@ -333,6 +335,8 @@ compiler/assignmentCompatability6	full
 compiler/assignmentCompatability7	full
 compiler/assignmentCompatability8	full
 compiler/assignmentCompatability9	full
+compiler/assignmentCompatability_checking-apply-member-off-of-function-interface	full
+compiler/assignmentCompatability_checking-call-member-off-of-function-interface	full
 compiler/assignmentCompatibilityForConstrainedTypeParameters	full
 compiler/assignmentIndexedToPrimitives	full
 compiler/assignmentNestedInLiterals	full
@@ -731,6 +735,7 @@ compiler/classImplementingInterfaceIndexer	full
 compiler/classImplementsClass1	full
 compiler/classImplementsClass2	full
 compiler/classImplementsClass3	full
+compiler/classImplementsClass4	full
 compiler/classImplementsClass5	full
 compiler/classImplementsClass6	full
 compiler/classImplementsClass7	full
@@ -1038,6 +1043,7 @@ compiler/computedPropertiesInDestructuring2_ES6	full
 compiler/computedPropertiesNarrowed	full
 compiler/computedPropertiesTransformedInOtherwiseNonTSClasses	full
 compiler/computedPropertiesWithSetterAssignment	full
+compiler/computedPropertyBindingElementDeclarationNoCrash1	full
 compiler/computedPropertyNameAndTypeParameterConflict	full
 compiler/computedPropertyNameWithImportedKey	full
 compiler/computedTypesKeyofNoIndexSignatureType	full
@@ -1140,6 +1146,7 @@ compiler/constraintOfRecursivelyMappedTypeWithConditionalIsResolvable	full
 compiler/constraintPropagationThroughReturnTypes	full
 compiler/constraintReferencingTypeParameterFromSameTypeParameterList	full
 compiler/constraintWithIndexedAccess	full
+compiler/constraints0	full
 compiler/constraintsThatReferenceOtherContstraints1	full
 compiler/constraintsUsedInPrototypeProperty	full
 compiler/constructSignatureWithInferReturnType	full
@@ -1939,6 +1946,7 @@ compiler/detachedCommentAtStartOfLambdaFunction2	full
 compiler/didYouMeanElaborationsForExpressionsWhichCouldBeCalled	full
 compiler/didYouMeanStringLiteral	full
 compiler/didYouMeanSuggestionErrors	full
+compiler/differentTypesWithSameName	full
 compiler/disallowedBlockScopedInPresenceOfParseErrors1	full
 compiler/discriminableUnionWithIntersectedMembers	full
 compiler/discriminantElementAccessCheck	full
@@ -2546,6 +2554,7 @@ compiler/exportDefaultParenthesizeES6	full
 compiler/exportDefaultProperty	full
 compiler/exportDefaultProperty2	full
 compiler/exportDefaultQualifiedNameNoError	full
+compiler/exportDefaultStripsFreshness	full
 compiler/exportDefaultTypeAndClass	full
 compiler/exportDefaultTypeAndFunctionOverloads	full
 compiler/exportDefaultTypeClassAndValue	full
@@ -2937,6 +2946,7 @@ compiler/genericCloneReturnTypes2	full
 compiler/genericCombinators2	full
 compiler/genericConditionalConstrainedToUnknownNotAssignableToConcreteObject	full
 compiler/genericConstraint1	full
+compiler/genericConstraint2	full
 compiler/genericConstraint3	full
 compiler/genericConstraintDeclaration	full
 compiler/genericConstraintOnExtendedBuiltinTypes	full
@@ -3030,6 +3040,7 @@ compiler/genericTypeAssertions3	full
 compiler/genericTypeAssertions4	full
 compiler/genericTypeAssertions5	full
 compiler/genericTypeAssertions6	full
+compiler/genericTypeConstraints	full
 compiler/genericTypeParameterEquivalence2	full
 compiler/genericTypeReferencesRequireTypeArgs	full
 compiler/genericTypeUsedWithoutTypeArguments1	full
@@ -3048,11 +3059,14 @@ compiler/genericWithIndexerOfTypeParameterType2	full
 compiler/genericWithNoConstraintComparableWithCurlyCurly	full
 compiler/genericWithOpenTypeParameters1	full
 compiler/generics0	full
+compiler/generics1	full
 compiler/generics1NoError	full
+compiler/generics2	full
 compiler/generics2NoError	full
 compiler/generics3	full
 compiler/generics4	full
 compiler/generics4NoError	full
+compiler/generics5	full
 compiler/genericsAndHigherOrderFunctions	full
 compiler/genericsManyTypeParameters	full
 compiler/genericsWithDuplicateTypeParameters1	full
@@ -3352,6 +3366,7 @@ compiler/inferTupleFromBindingPattern	full
 compiler/inferTypeArgumentsInSignatureWithRestParameters	full
 compiler/inferTypeConstraintInstantiationCircularity	full
 compiler/inferTypeParameterConstraints	full
+compiler/inferTypePredicates	full
 compiler/inferTypesWithFixedTupleExtendsAtVariadicPosition	full
 compiler/inferenceAndHKTs	full
 compiler/inferenceAndSelfReferentialConstraint	full
@@ -3365,6 +3380,7 @@ compiler/inferenceErasedSignatures	full
 compiler/inferenceExactOptionalProperties1	full
 compiler/inferenceExactOptionalProperties2	full
 compiler/inferenceFromGenericClassNoCrash1	full
+compiler/inferenceFromIncompleteSource	full
 compiler/inferenceFromParameterlessLambda	full
 compiler/inferenceLimit	full
 compiler/inferenceOfNullableObjectTypesWithCommonBase	full
@@ -3417,6 +3433,7 @@ compiler/inheritSameNamePrivatePropertiesFromSameOrigin	full
 compiler/inheritSameNamePropertiesWithDifferentOptionality	full
 compiler/inheritSameNamePropertiesWithDifferentVisibility	full
 compiler/inheritance	full
+compiler/inheritance1	full
 compiler/inheritanceGrandParentPrivateMemberCollision	full
 compiler/inheritanceGrandParentPrivateMemberCollisionWithPublicMember	full
 compiler/inheritanceGrandParentPublicMemberCollisionWithPrivateMember	full
@@ -3496,6 +3513,7 @@ compiler/instantiatedBaseTypeConstraints2	full
 compiler/instantiatedReturnTypeContravariance	full
 compiler/instantiatedTypeAliasDisplay	full
 compiler/instantiationExpressionErrorNoCrash	full
+compiler/intTypeCheck	full
 compiler/interMixingModulesInterfaces0	full
 compiler/interMixingModulesInterfaces1	full
 compiler/interMixingModulesInterfaces2	full
@@ -3875,6 +3893,7 @@ compiler/jsxChildWrongType	full
 compiler/jsxChildrenGenericContextualTypes	full
 compiler/jsxChildrenIndividualErrorElaborations	full
 compiler/jsxChildrenSingleChildConfusableWithMultipleChildrenNoError	full
+compiler/jsxClassAttributeResolution	full
 compiler/jsxComplexSignatureHasApplicabilityError	full
 compiler/jsxComponentTypeErrors	full
 compiler/jsxContainsOnlyTriviaWhiteSpacesNotCountedAsChild	full
@@ -4086,6 +4105,7 @@ compiler/mapUpsert	full
 compiler/mappedArrayTupleIntersections	full
 compiler/mappedToToIndexSignatureInference	full
 compiler/mappedTypeAndIndexSignatureRelation	full
+compiler/mappedTypeAsStringTemplate	full
 compiler/mappedTypeCircularReferenceInAccessor	full
 compiler/mappedTypeContextualTypesApplied	full
 compiler/mappedTypeGenericIndexedAccess	full
@@ -4417,7 +4437,7 @@ compiler/multipleInferenceContexts	full
 compiler/multipleInheritance	full
 compiler/multivar	full
 compiler/mutrec	full
-compiler/mutuallyRecursiveCallbacks	text
+compiler/mutuallyRecursiveCallbacks	full
 compiler/mutuallyRecursiveGenericBaseTypes1	full
 compiler/mutuallyRecursiveGenericBaseTypes2	full
 compiler/mutuallyRecursiveInterfaceDeclaration	full
@@ -4642,6 +4662,7 @@ compiler/noIterationTypeErrorsInCFA	full
 compiler/noLibAndNoUncheckedIndexedAccessDestructuringArray	full
 compiler/noMappedGetSet	full
 compiler/noObjectKeysToKeyofT	full
+compiler/noParameterReassignmentJSIIFE	full
 compiler/noReachabilityErrorsOnEmptyStatement	full
 compiler/noRepeatedPropertyNames	full
 compiler/noSelfOnVars	full
@@ -4779,6 +4800,8 @@ compiler/objectLiteralDeclarationGeneration1	full
 compiler/objectLiteralEnumPropertyNames	full
 compiler/objectLiteralExcessProperties	full
 compiler/objectLiteralFreshnessWithSpread	full
+compiler/objectLiteralFunctionArgContextualTyping	full
+compiler/objectLiteralFunctionArgContextualTyping2	full
 compiler/objectLiteralIndexerErrors	full
 compiler/objectLiteralIndexerNoImplicitAny	full
 compiler/objectLiteralIndexers	full
@@ -4789,6 +4812,7 @@ compiler/objectLiteralMemberWithoutBlock1	full
 compiler/objectLiteralParameterResolution	full
 compiler/objectLiteralPropertyImplicitlyAny	full
 compiler/objectLiteralReferencingInternalProperties	full
+compiler/objectLiteralThisWidenedOnUse	full
 compiler/objectLiteralWithGetAccessorInsideFunction	full
 compiler/objectLiteralWithNumericPropertyName	full
 compiler/objectLiteralWithSemicolons1	full
@@ -5196,6 +5220,7 @@ compiler/readonlyInDeclarationFile(target=es2015)	full
 compiler/readonlyInNonPropertyParameters(target=es2015)	full
 compiler/readonlyMembers(target=es2015)	full
 compiler/readonlyPropertySubtypeRelationDirected	full
+compiler/readonlyTupleAndArrayElaboration	full
 compiler/reboundBaseClassSymbol	full
 compiler/reboundIdentifierOnImportAlias	full
 compiler/rectype	full
@@ -5212,6 +5237,7 @@ compiler/recursiveBaseConstructorCreation2	full
 compiler/recursiveBaseConstructorCreation3	full
 compiler/recursiveClassBaseType	full
 compiler/recursiveClassInstantiationsWithDefaultConstructors	full
+compiler/recursiveClassReferenceTest	full
 compiler/recursiveCloduleReference	full
 compiler/recursiveComplicatedClasses	full
 compiler/recursiveConditionalCrash1	full
@@ -5438,6 +5464,7 @@ compiler/selfReferentialFunctionType	full
 compiler/semicolonsInModuleDeclarations	full
 compiler/separate1-1	full
 compiler/separate1-2	full
+compiler/setMethods	full
 compiler/setterBeforeGetter	full
 compiler/setterWithReturn	full
 compiler/shadowPrivateMembers	full
@@ -5678,6 +5705,7 @@ compiler/stradac	full
 compiler/strictBestCommonSupertype	full
 compiler/strictBooleanMemberAssignability	full
 compiler/strictFunctionTypes1	full
+compiler/strictFunctionTypesErrors	full
 compiler/strictModeEnumMemberNameReserved	full
 compiler/strictModeInConstructor	full
 compiler/strictModeReservedWord	full
@@ -5864,6 +5892,9 @@ compiler/templateLiteralTypeTooComplex	full
 compiler/templateLiteralsAndDecoratorMetadata	full
 compiler/templateLiteralsInTypes	full
 compiler/templateLiteralsSourceMap	full
+compiler/templateStringsArrayTypeDefinedInES5Mode(target=es2015)	full
+compiler/templateStringsArrayTypeNotDefinedES5Mode(target=es2015)	full
+compiler/templateStringsArrayTypeRedefinedInES6Mode	full
 compiler/temporal	full
 compiler/ternaryExpressionSourceMap	full
 compiler/testContainerList	full
@@ -6000,6 +6031,7 @@ compiler/typeArgumentDefaultUsesConstraintOnCircularDefault	full
 compiler/typeArgumentInferenceApparentType1	full
 compiler/typeArgumentInferenceApparentType2	full
 compiler/typeArgumentInferenceOrdering	full
+compiler/typeArgumentInferenceWithConstraintAsCommonRoot	full
 compiler/typeArgumentInferenceWithRecursivelyReferencedTypeAliasToTypeLiteral01	full
 compiler/typeArgumentInferenceWithRecursivelyReferencedTypeAliasToTypeLiteral02	full
 compiler/typeArgumentsInFunctionExpressions	full
@@ -6064,6 +6096,7 @@ compiler/typeOfThisInStatics	full
 compiler/typeOfYieldWithUnionInContextualReturnType	full
 compiler/typeOnlyExportAsIfBody	full
 compiler/typeOnlyExportImportAliasElidesNamespaceImport	full
+compiler/typeParamExtendsOtherTypeParam	full
 compiler/typeParameterAndArgumentOfSameName1	full
 compiler/typeParameterArgumentEquivalence	full
 compiler/typeParameterArgumentEquivalence2	full
@@ -7274,11 +7307,13 @@ conformance/checkJsdocOptionalParamOrder	full
 conformance/checkJsdocParamTag1	full
 conformance/checkJsdocReturnTag1	full
 conformance/checkJsdocReturnTag2	full
+conformance/checkJsdocSatisfiesTag1	text
 conformance/checkJsdocSatisfiesTag10	full
 conformance/checkJsdocSatisfiesTag13	full
 conformance/checkJsdocSatisfiesTag15	full
 conformance/checkJsdocSatisfiesTag2	full
 conformance/checkJsdocSatisfiesTag3	full
+conformance/checkJsdocSatisfiesTag4	text
 conformance/checkJsdocSatisfiesTag5	full
 conformance/checkJsdocSatisfiesTag6	full
 conformance/checkJsdocSatisfiesTag7	full
@@ -7708,7 +7743,7 @@ conformance/conditionalOperatorConditoinIsStringType	full
 conformance/conditionalOperatorWithIdenticalBCT	full
 conformance/conditionalOperatorWithoutIdenticalBCT	full
 conformance/conditionalTypes1	full
-conformance/conditionalTypes2	text
+conformance/conditionalTypes2	full
 conformance/conditionalTypesExcessProperties	full
 conformance/conflictingCommonJSES2015Exports	full
 conformance/constAssertionOnEnum	full
@@ -7838,7 +7873,7 @@ conformance/correctlyMarkAliasAsReferences1	full
 conformance/correctlyMarkAliasAsReferences2	full
 conformance/correctlyMarkAliasAsReferences3	full
 conformance/correctlyMarkAliasAsReferences4	full
-conformance/covariantCallbacks	text
+conformance/covariantCallbacks	full
 conformance/customConditions(resolvepackagejsonexports=false)	full
 conformance/customConditions(resolvepackagejsonexports=true)	full
 conformance/declarationEmitIdentifierPredicates01	full
@@ -7919,7 +7954,7 @@ conformance/decoratorOnClassConstructorParameter4(target=es2015)	full
 conformance/decoratorOnClassConstructorParameter5	full
 conformance/decoratorOnClassMethod1(target=es2015)	full
 conformance/decoratorOnClassMethod1.es6	full
-conformance/decoratorOnClassMethod10(target=es2015)	text
+conformance/decoratorOnClassMethod10(target=es2015)	full
 conformance/decoratorOnClassMethod11(target=es2015)	full
 conformance/decoratorOnClassMethod12(target=es2015)	full
 conformance/decoratorOnClassMethod13	full
@@ -8055,9 +8090,11 @@ conformance/destructuringParameterDeclaration10(strict=false)	full
 conformance/destructuringParameterDeclaration10(strict=true)	full
 conformance/destructuringParameterDeclaration1ES5	full
 conformance/destructuringParameterDeclaration1ES6	full
+conformance/destructuringParameterDeclaration2	full
 conformance/destructuringParameterDeclaration3ES5	full
 conformance/destructuringParameterDeclaration3ES6	full
 conformance/destructuringParameterDeclaration4	full
+conformance/destructuringParameterDeclaration5	full
 conformance/destructuringParameterDeclaration6	full
 conformance/destructuringParameterDeclaration7ES5(target=es2015)	full
 conformance/destructuringParameterDeclaration8	full
@@ -8285,6 +8322,7 @@ conformance/errorSuperPropertyAccess(target=es2015)	full
 conformance/es2016IntlAPIs	full
 conformance/es2017DateAPIs	full
 conformance/es2018IntlAPIs	full
+conformance/es2020IntlAPIs	full
 conformance/es2021LocalesObjectArgument	full
 conformance/es2022IntlAPIs	full
 conformance/es2022LocalesObjectArgument	full
@@ -8835,6 +8873,8 @@ conformance/genericCallWithObjectTypeArgs2	full
 conformance/genericCallWithObjectTypeArgsAndConstraints	full
 conformance/genericCallWithObjectTypeArgsAndConstraints2	full
 conformance/genericCallWithObjectTypeArgsAndConstraints3	full
+conformance/genericCallWithObjectTypeArgsAndConstraints4	full
+conformance/genericCallWithObjectTypeArgsAndConstraints5	full
 conformance/genericCallWithObjectTypeArgsAndIndexers	full
 conformance/genericCallWithObjectTypeArgsAndIndexersErrors	full
 conformance/genericCallWithObjectTypeArgsAndInitializers	full
@@ -8858,6 +8898,7 @@ conformance/genericRestArity	full
 conformance/genericRestArityStrict	full
 conformance/genericRestParameters1	full
 conformance/genericRestParameters2	full
+conformance/genericRestParameters3	full
 conformance/genericSetterInClassType	full
 conformance/genericSetterInClassTypeJsDoc	full
 conformance/genericTypeAliases	full
@@ -9091,7 +9132,7 @@ conformance/instancePropertiesInheritedIntoClassType	full
 conformance/instancePropertyInClassType	full
 conformance/instanceofOperatorWithAny	full
 conformance/instanceofOperatorWithInvalidOperands	full
-conformance/instanceofOperatorWithInvalidOperands.es2015	text
+conformance/instanceofOperatorWithInvalidOperands.es2015	full
 conformance/instanceofOperatorWithInvalidStaticToString	full
 conformance/instanceofOperatorWithLHSIsObject	full
 conformance/instanceofOperatorWithLHSIsTypeParameter	full
@@ -9137,6 +9178,7 @@ conformance/interfaceWithStringIndexerHidingBaseTypeIndexer2	full
 conformance/interfaceWithStringIndexerHidingBaseTypeIndexer3	full
 conformance/interfacesWithPredefinedTypesAsNames	full
 conformance/intersectionAndUnionTypes	full
+conformance/intersectionAsWeakTypeSource	full
 conformance/intersectionIncludingPropFromGlobalAugmentation	full
 conformance/intersectionMemberOfUnionNarrowsCorrectly	full
 conformance/intersectionNarrowing	full
@@ -9209,6 +9251,9 @@ conformance/iterableArrayPattern13	full
 conformance/iterableArrayPattern14	full
 conformance/iterableArrayPattern15	full
 conformance/iterableArrayPattern16	full
+conformance/iterableArrayPattern17	full
+conformance/iterableArrayPattern18	full
+conformance/iterableArrayPattern19	full
 conformance/iterableArrayPattern2	full
 conformance/iterableArrayPattern20	full
 conformance/iterableArrayPattern21	full
@@ -9380,6 +9425,7 @@ conformance/jsonParseWithSource	full
 conformance/jsonRawJSON1	full
 conformance/jsonRawJSON2	full
 conformance/jsonRawJSON3	full
+conformance/jsonRawJSON4	full
 conformance/jsxAndTypeAssertion	full
 conformance/jsxAttributeInitializer(jsx=preserve)	full
 conformance/jsxAttributeInitializer(jsx=react)	full
@@ -9530,6 +9576,7 @@ conformance/mappedTypeAsClauseRelationships	full
 conformance/mappedTypeAsClauses	full
 conformance/mappedTypeConstraints	full
 conformance/mappedTypeConstraints2	text
+conformance/mappedTypeErrors	full
 conformance/mappedTypeErrors2	full
 conformance/mappedTypeIndexSignatureModifiers	full
 conformance/mappedTypeInferenceErrors	full
@@ -9647,6 +9694,7 @@ conformance/narrowExceptionVariableInCatchClause	full
 conformance/narrowFromAnyWithInstanceof	full
 conformance/narrowFromAnyWithTypePredicate	full
 conformance/narrowingConstrainedTypeVariable	full
+conformance/narrowingGenericTypeFromInstanceof01	full
 conformance/negateOperatorInvalidOperations	full
 conformance/negateOperatorWithAnyOtherType	full
 conformance/negateOperatorWithBooleanType	full
@@ -9677,6 +9725,7 @@ conformance/newWithSpread	full
 conformance/newWithSpreadES5(target=es2015)	full
 conformance/newWithSpreadES6	full
 conformance/noDuplicateJsdoc1	full
+conformance/noInfer	full
 conformance/noInferRedeclaration	full
 conformance/noPropertyAccessFromIndexSignature1	full
 conformance/noUncheckedIndexedAccess	full
@@ -9994,6 +10043,7 @@ conformance/nonPrimitiveAccessProperty	full
 conformance/nonPrimitiveAndEmptyObject	full
 conformance/nonPrimitiveAndTypeVariables	full
 conformance/nonPrimitiveAsProperty	full
+conformance/nonPrimitiveAssignError	full
 conformance/nonPrimitiveConstraintOfIndexAccessType	full
 conformance/nonPrimitiveInFunction	full
 conformance/nonPrimitiveInGeneric	full
@@ -10064,6 +10114,7 @@ conformance/objectLiteralShorthandPropertiesErrorFromNoneExistingIdentifier	full
 conformance/objectLiteralShorthandPropertiesErrorFromNotUsingIdentifier	full
 conformance/objectLiteralShorthandPropertiesErrorWithModule	full
 conformance/objectLiteralShorthandPropertiesFunctionArgument	full
+conformance/objectLiteralShorthandPropertiesFunctionArgument2	full
 conformance/objectLiteralShorthandPropertiesWithModule	full
 conformance/objectLiteralShorthandPropertiesWithModuleES6	full
 conformance/objectLiteralWidened	full
@@ -10090,6 +10141,7 @@ conformance/objectSpreadStrictNull	full
 conformance/objectTypeHidingMembersOfExtendedObject	full
 conformance/objectTypeHidingMembersOfObject	full
 conformance/objectTypeHidingMembersOfObjectAssignmentCompat	full
+conformance/objectTypeHidingMembersOfObjectAssignmentCompat2	full
 conformance/objectTypeLiteralSyntax	full
 conformance/objectTypeLiteralSyntax2	full
 conformance/objectTypePropertyAccess	full
@@ -10105,6 +10157,7 @@ conformance/objectTypeWithNumericProperty	full
 conformance/objectTypeWithRecursiveWrappedProperty	full
 conformance/objectTypeWithRecursiveWrappedProperty2	full
 conformance/objectTypeWithRecursiveWrappedPropertyCheckedNominally	full
+conformance/objectTypeWithStringAndNumberIndexSignatureToAny	full
 conformance/objectTypeWithStringIndexerHidingObjectIndexer	full
 conformance/objectTypeWithStringNamedNumericProperty(target=es2015)	full
 conformance/objectTypeWithStringNamedPropertyOfIllegalCharacters	full
@@ -11226,6 +11279,7 @@ conformance/privateNamesNotAllowedAsParameters	full
 conformance/privateNamesNotAllowedInVariableDeclarations	full
 conformance/privateNamesUnique-1	full
 conformance/privateNamesUnique-2	full
+conformance/privateNamesUnique-4	full
 conformance/privateNamesUnique-5	full
 conformance/privateNamesUseBeforeDef	full
 conformance/privateProtectedMembersAreNotAccessibleDestructuring	full
@@ -11514,7 +11568,10 @@ conformance/subtypingWithConstructSignaturesWithSpecializedSignatures	full
 conformance/subtypingWithGenericCallSignaturesWithOptionalParameters	full
 conformance/subtypingWithGenericConstructSignaturesWithOptionalParameters	full
 conformance/subtypingWithNumericIndexer	full
-conformance/subtypingWithNumericIndexer5	text
+conformance/subtypingWithNumericIndexer2	full
+conformance/subtypingWithNumericIndexer3	full
+conformance/subtypingWithNumericIndexer4	full
+conformance/subtypingWithNumericIndexer5	full
 conformance/subtypingWithObjectMembers	full
 conformance/subtypingWithObjectMembers2	full
 conformance/subtypingWithObjectMembers3	full
@@ -11528,6 +11585,9 @@ conformance/subtypingWithObjectMembersOptionality3	full
 conformance/subtypingWithObjectMembersOptionality4	full
 conformance/subtypingWithOptionalProperties	text
 conformance/subtypingWithStringIndexer	full
+conformance/subtypingWithStringIndexer2	full
+conformance/subtypingWithStringIndexer3	full
+conformance/subtypingWithStringIndexer4	full
 conformance/superCallBeforeThisAccessing1	full
 conformance/superCallBeforeThisAccessing2	full
 conformance/superCallBeforeThisAccessing3	full
@@ -11666,6 +11726,8 @@ conformance/taggedTemplateStringsWithIncompatibleTypedTags	full
 conformance/taggedTemplateStringsWithIncompatibleTypedTagsES6	full
 conformance/taggedTemplateStringsWithManyCallAndMemberExpressions	full
 conformance/taggedTemplateStringsWithManyCallAndMemberExpressionsES6	full
+conformance/taggedTemplateStringsWithOverloadResolution1	text
+conformance/taggedTemplateStringsWithOverloadResolution1_ES6	text
 conformance/taggedTemplateStringsWithOverloadResolution2	full
 conformance/taggedTemplateStringsWithOverloadResolution2_ES6	full
 conformance/taggedTemplateStringsWithTagNamedDeclare	full
@@ -11871,6 +11933,7 @@ conformance/thisTypeInFunctions	full
 conformance/thisTypeInFunctions2	full
 conformance/thisTypeInFunctions3	full
 conformance/thisTypeInFunctions4	full
+conformance/thisTypeInFunctionsNegative	full
 conformance/thisTypeInInterfaces	full
 conformance/thisTypeInObjectLiterals	full
 conformance/thisTypeInObjectLiterals2(target=es2015)	full
@@ -12292,11 +12355,14 @@ conformance/typeQueryOnClass	full
 conformance/typeQueryWithReservedWords	full
 conformance/typeReferenceRelatedFiles	full
 conformance/typeRelationships	full
+conformance/typeSatisfaction	full
+conformance/typeSatisfactionWithDefaultExport	full
 conformance/typeSatisfaction_asConstArrays	full
 conformance/typeSatisfaction_contextualTyping1	full
 conformance/typeSatisfaction_contextualTyping2	full
 conformance/typeSatisfaction_contextualTyping3	full
 conformance/typeSatisfaction_ensureInterfaceImpl	full
+conformance/typeSatisfaction_errorLocations1	full
 conformance/typeSatisfaction_js	full
 conformance/typeSatisfaction_optionalMemberConformance	full
 conformance/typeSatisfaction_propNameConstraining	full
@@ -12319,6 +12385,7 @@ conformance/typedefDuplicateTypeDeclaration	full
 conformance/typedefModuleExportsIndirect1	full
 conformance/typedefModuleExportsIndirect2	full
 conformance/typedefModuleExportsIndirect3	full
+conformance/typedefMultipleTypeParameters	full
 conformance/typedefOnSemicolonClassElement	full
 conformance/typedefOnStatements	full
 conformance/typedefScope1	full
@@ -12459,6 +12526,7 @@ conformance/unionTypeCallSignatures2	full
 conformance/unionTypeCallSignatures3	full
 conformance/unionTypeCallSignatures4	full
 conformance/unionTypeCallSignatures5	full
+conformance/unionTypeCallSignatures6	full
 conformance/unionTypeCallSignatures7	full
 conformance/unionTypeConstructSignatures	text
 conformance/unionTypeEquivalence	full
@@ -12513,6 +12581,7 @@ conformance/usingDeclarations.11(target=es2015)	full
 conformance/usingDeclarations.12(usedefineforclassfields=false)	full
 conformance/usingDeclarations.12(usedefineforclassfields=true)	full
 conformance/usingDeclarations.13	full
+conformance/usingDeclarations.14	full
 conformance/usingDeclarations.15	full
 conformance/usingDeclarations.16	full
 conformance/usingDeclarations.17	full
@@ -12603,6 +12672,7 @@ conformance/usingDeclarationsWithESClassDecorators.9(module=commonjs,target=esne
 conformance/usingDeclarationsWithESClassDecorators.9(module=esnext,target=es2015)	full
 conformance/usingDeclarationsWithESClassDecorators.9(module=esnext,target=esnext)	full
 conformance/usingDeclarationsWithImportHelpers	full
+conformance/usingDeclarationsWithIteratorObject	full
 conformance/usingDeclarationsWithLegacyClassDecorators.1(module=commonjs,target=es2015)	full
 conformance/usingDeclarationsWithLegacyClassDecorators.1(module=commonjs,target=esnext)	full
 conformance/usingDeclarationsWithLegacyClassDecorators.1(module=esnext,target=es2015)	full

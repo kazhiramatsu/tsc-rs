@@ -308,6 +308,14 @@ choose between them, tsc-rs follows TypeScript 7.1:
   previews; see [Stable type ordering](#stable-type-ordering).
 - Diagnostic messages use TypeScript 7.1's catalog, including the texts it
   reworded (TS1344, TS5090, TS8030 and TS9019 among others).
+- A relation failure is reported by the row that names it when that row
+  directly follows the head for the same source and target: a missing
+  property (TS2741, TS2739, TS2740), a readonly array or tuple assigned
+  to a mutable one (TS4104) or excessive complexity (TS2859). TypeScript
+  7.1 drops the `Argument of type ...` (TS2345), `... does not satisfy
+  the constraint ...` (TS2344), `satisfies` (TS1360) and `this` context
+  (TS2684) heads that tsc 6.0.3 kept above such rows, and keeps a head
+  whose detail names another pair, which tsc 6.0.3 dropped.
 
 The options TypeScript 6.0 deprecated and 7.x removed (`target: "es5"`,
 `outFile`, the `amd`, `umd` and `system` module kinds, the `node10` and

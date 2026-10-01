@@ -944,7 +944,12 @@ fn lib_bundle_key_projects_to_bind_observables() {
         "declare const bundleKeyProbe: number;\n".to_owned(),
     );
     let libs = [&lib];
-    let base = CompilerOptions::default();
+    // The ES2025 language version pinned below is tsc 6.0.3's default
+    // target; the 7.1 profile defaults to ES2026.
+    let base = CompilerOptions {
+        reference_profile: tsc_types::ReferenceProfile::TypeScript603,
+        ..CompilerOptions::default()
+    };
     let shared = lib_bundle(&libs, &base);
     assert_eq!(
         shared.documents[0].source().language_version,
@@ -7158,6 +7163,9 @@ fn order_guard_replays_last_union_member_inference_at_every_width() {
         no_emit: Some(true),
         strict: Some(true),
         skip_lib_check: Some(true),
+        // The guard scenario is tsc 6.0.3's creation order (type-id order
+        // of the union members).
+        stable_type_ordering: Some(false),
         ..CompilerOptions::default()
     };
     let run_with = |checkers: usize, order_replay: bool| {
@@ -7411,6 +7419,9 @@ fn assert_order_guard_shape(
         strict: Some(true),
         skip_lib_check: Some(true),
         target: Some(9), // ScriptTarget.ES2022, as in the CLI controls
+        // The guard scenario is tsc 6.0.3's creation order (type-id order
+        // of the union members).
+        stable_type_ordering: Some(false),
         ..CompilerOptions::default()
     };
     let run = |checkers: usize| {

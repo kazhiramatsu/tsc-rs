@@ -19,7 +19,8 @@ use tsc_diagnostics::{
 };
 use tsc_types::{
     ConditionalRootId, EscapedName, ExpandingFlags, IntersectionState, ObjectFlags, RecursionFlags,
-    RelationComparisonResult, SymbolFlags, Ternary, TypeData, TypeFlags, TypeId, UnionReduction,
+    ReferenceProfile, RelationComparisonResult, SymbolFlags, Ternary, TypeData, TypeFlags, TypeId,
+    UnionReduction,
 };
 
 use tsc_syntax::NodeId;
@@ -1107,12 +1108,36 @@ pub(crate) struct RelationErrorState {
     /// reportUnmatchedProperty's closure-level `shouldSkipElaboration`.
     /// It is false only for the two class-implements head messages.
     should_skip_elaboration: bool,
+    /// The arguments of the row at the head of `error_info`, kept beside
+    /// the formatted chain for the TypeScript 7.1 relation-head rule
+    /// (`Relater.chainArgsMatch` in relater.go): the 7.1 reference
+    /// drops a relation head only when the row directly under it names
+    /// the same source and target. Every site that replaces the chain
+    /// head keeps this in step (a row inserted without arguments
+    /// clears it, which never matches).
+    chain_head_args: Vec<JsString>,
     /// tsc's closure-local mutable errorNode, owned as a copyable arena id.
     error_node: Option<tsc_syntax::NodeId>,
     /// W2c display-class order-sensitivity of the elaboration being built;
     /// saved and reset with the rest of the error state, so a discarded
     /// branch's displays never reach a published diagnostic.
     order_sensitive: u32,
+}
+
+/// tsgo-port: isConversionOrInterfaceImplementationMessage @7.1
+/// (relater.go). These heads keep a missing-property row beneath them
+/// instead of being replaced by it.
+fn is_conversion_or_interface_implementation_message(message: &'static DiagnosticMessage) -> bool {
+    [
+        &diagnostics::Class_0_incorrectly_implements_interface_1,
+        &diagnostics::Class_0_incorrectly_implements_class_1_Did_you_mean_to_extend_1_and_inherit_its_members_as_a_subclass,
+        &diagnostics::Conversion_of_type_0_to_type_1_may_be_a_mistake_because_neither_type_sufficiently_overlaps_with_the_other_If_this_was_intentional_convert_the_expression_to_unknown_first,
+        &diagnostics::Its_instance_type_0_is_not_a_valid_JSX_element,
+        &diagnostics::Its_return_type_0_is_not_a_valid_JSX_element,
+        &diagnostics::Its_element_type_0_is_not_a_valid_JSX_element,
+    ]
+    .iter()
+    .any(|candidate| std::ptr::eq(*candidate, message))
 }
 
 fn count_message_chain_breadth(info: &[MessageChain]) -> usize {
@@ -1806,6 +1831,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             Some(next) => head.with_next(vec![next]),
             None => head,
         });
+        self.error_state.chain_head_args = args;
         self.error_state.error_info_revision = self.error_state.error_info_revision.wrapping_add(1);
     }
 
@@ -1854,8 +1880,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         if let Some(selected) = indexed_access_error_info_selection(original, &self.error_state) {
             let error_info = selected.error_info.clone();
             let revision = selected.error_info_revision;
+            let head_args = selected.chain_head_args.clone();
             self.error_state.error_info = error_info;
             self.error_state.error_info_revision = revision;
+            self.error_state.chain_head_args = head_args;
         }
     }
 
@@ -1878,8 +1906,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         let selected = variance_error_info_selection(original, &self.error_state, saved);
         let error_info = selected.error_info.clone();
         let revision = selected.error_info_revision;
+        let head_args = selected.chain_head_args.clone();
         self.error_state.error_info = error_info;
         self.error_state.error_info_revision = revision;
+        self.error_state.chain_head_args = head_args;
     }
 
     /// tsc-port: reportIncompatibleError @6.0.3
@@ -2129,6 +2159,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 )?;
             } else {
                 self.error_state.error_info = None;
+                self.error_state.chain_head_args.clear();
                 self.error_state.error_info_revision =
                     self.error_state.error_info_revision.wrapping_add(1);
                 self.report_error_js(
@@ -2168,11 +2199,70 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 &diagnostics::Type_0_is_not_assignable_to_type_1
             });
         }
-        self.report_error_js(
-            message.expect("relation error has a selected head"),
-            vec![(generalized_source_text), (target_text)],
-        )?;
+        let message = message.expect("relation error has a selected head");
+        if self.st.options.reference_profile == ReferenceProfile::TypeScript71
+            && self.chain_head_suppresses_relation_head(
+                message,
+                &generalized_source_text,
+                &target_text,
+            )
+        {
+            return Ok(());
+        }
+        self.report_error_js(message, vec![(generalized_source_text), (target_text)])?;
         Ok(())
+    }
+
+    /// tsgo-port: Relater.reportRelationError @7.1 (relater.go), the
+    /// suppression switch before its final `reportError`.
+    ///
+    /// TypeScript 7.1 reports a relation failure by the row that names
+    /// it when that row sits directly under the head for the same
+    /// source and target: a missing-property row (2741, 2739, 2740), a
+    /// readonly-versus-mutable row (4104) or an excessive-complexity
+    /// row (2859). The head is dropped even when it is an explicit
+    /// head message such as 2345 (argument), 2344 (constraint), 1360
+    /// (satisfies) or 2684 (this context), which tsc 6.0.3 always kept
+    /// above the chain. Conversion and interface-implementation heads
+    /// keep their missing-property detail beneath them, as in 6.0.3.
+    /// The comparison is on the row's arguments, so a row that names
+    /// another pair (the single-base substitute, an apparent type, a
+    /// constituent) leaves the head in place. The excess-property row
+    /// is not listed: tsc 6.0.3's parent-skipped report already drops
+    /// the head that follows it.
+    fn chain_head_suppresses_relation_head(
+        &self,
+        message: &'static DiagnosticMessage,
+        source_text: &JsString,
+        target_text: &JsString,
+    ) -> bool {
+        let Some(head) = self.error_state.error_info.as_ref() else {
+            return false;
+        };
+        let args = &self.error_state.chain_head_args;
+        let arg_is = |index: usize, expected: &JsString| args.get(index) == Some(expected);
+        let code = head.code;
+        if code == diagnostics::Excessive_complexity_comparing_types_0_and_1.code
+            || code
+                == diagnostics::The_type_0_is_readonly_and_cannot_be_assigned_to_the_mutable_type_1
+                    .code
+        {
+            return arg_is(0, source_text) && arg_is(1, target_text);
+        }
+        if is_conversion_or_interface_implementation_message(message) {
+            return false;
+        }
+        if code == diagnostics::Property_0_is_missing_in_type_1_but_required_in_type_2.code {
+            return arg_is(1, source_text) && arg_is(2, target_text);
+        }
+        if code == diagnostics::Type_0_is_missing_the_following_properties_from_type_1_2.code
+            || code
+                == diagnostics::Type_0_is_missing_the_following_properties_from_type_1_2_and_3_more
+                    .code
+        {
+            return arg_is(0, source_text) && arg_is(1, target_text);
+        }
+        false
     }
 
     /// tsc-port: tryElaborateErrorsForPrimitivesAndObjects @6.0.3
@@ -2294,10 +2384,24 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 elaboration.next.push(existing);
             }
             self.error_state.error_info = Some(elaboration);
+            self.error_state.chain_head_args.clear();
             self.error_state.error_info_revision =
                 self.error_state.error_info_revision.wrapping_add(1);
         }
-        if head_message.is_none() && maybe_suppress {
+        // tsc 6.0.3 skips the generic head here whenever this level armed
+        // overrideNextErrorInfo (65296-65300). TypeScript 7.1 has no such
+        // counter: `Relater.reportErrorResults` always reaches
+        // reportRelationError, which drops the head only when the row
+        // under it names the same pair (`chain_head_suppresses_relation_head`).
+        // Under the 7.1 profile the 6.0.3 skip therefore remains only
+        // while an incompatible stack is pending, where it is the
+        // deferral that lets reportIncompatibleStack place the stack's
+        // rows before this head.
+        let defer_generic_head = head_message.is_none()
+            && maybe_suppress
+            && (self.st.options.reference_profile == ReferenceProfile::TypeScript603
+                || !self.error_state.incompatible_stack.is_empty());
+        if defer_generic_head {
             let saved_error_state = self.capture_error_calculation_state();
             self.report_relation_error(None, source, target)?;
             self.reset_error_info(&saved_error_state);

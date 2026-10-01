@@ -776,7 +776,7 @@ fn generic_rest_missing_property_keeps_declaration_related_info() {
             let diagnostic = state
                 .diagnostics
                 .iter()
-                .find(|diagnostic| diagnostic.code() == 2345)
+                .find(|diagnostic| diagnostic.code() == 2741)
                 .expect("generic rest mismatch");
             fn flatten(chain: &tsc_diagnostics::MessageChain, codes: &mut Vec<u32>) {
                 codes.push(chain.code);
@@ -802,7 +802,9 @@ fn generic_rest_missing_property_keeps_declaration_related_info() {
                 .collect::<Vec<_>>();
             (codes, related)
         });
-    assert_eq!(codes, [2345, 2741]);
+    // The 7.1 profile reports the missing-property row in place of the
+    // 2345 head; the declaration related information stays attached.
+    assert_eq!(codes, [2741]);
     assert_eq!(related, [(2728, "'required' is declared here.".to_owned())]);
 }
 
@@ -1723,9 +1725,12 @@ fn array_literal_args_against_non_array_params_contain() {
     // the head (args '{}' vs 'I'; re-probed probe75d.mjs). The
     // element contextual read runs the live §4 Element probe
     // (silently None on I).
+    // TypeScript 7.1 reports the missing-property row itself at the
+    // literal (relater.go reportRelationError drops the 2345 head
+    // when the row directly under it names the same pair).
     assert_eq!(
         checked_rows("interface I { p: string }\ndeclare function el(a: I): void;\nel([1]);\n"),
-        [(2345, 62, 3)]
+        [(2741, 62, 3)]
     );
     // Tuple targets check the elements fine; the plain head now
     // renders through the 9.3a tuple renderer. Oracle: (2345, 45,

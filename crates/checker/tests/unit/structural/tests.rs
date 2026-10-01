@@ -933,9 +933,11 @@ class ImplementsViaBase extends Base implements Required {}
             // The private-identifier arm precedes missing-property
             // enumeration and never arms the override counter.
             vec![2322, 18015],
-            // The class-implements closure head is the explicit
-            // exception: its nested generic relation row remains.
-            vec![2420, 2326, 2322, 2741],
+            // TypeScript 7.1 (relater.go reportRelationError) replaces
+            // the nested generic row under a class-implements head too:
+            // its exception covers only the head itself. tsc 6.0.3 kept
+            // the nested row ([2420, 2326, 2322, 2741]).
+            vec![2420, 2326, 2741],
         ]
     );
 }
@@ -2013,6 +2015,8 @@ fn relation_reporting_keeps_union_keyof_and_class_member_failure_levels() {
         strict: Some(true),
         strict_null_checks: Some(true),
         target: Some(tsc_types::ScriptTarget::ES2015.bits()),
+        // The pinned union and member faces are tsc 6.0.3's creation order.
+        stable_type_ordering: Some(false),
         ..CompilerOptions::default()
     };
     assert_eq!(

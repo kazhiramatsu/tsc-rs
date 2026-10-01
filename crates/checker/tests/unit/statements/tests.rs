@@ -213,19 +213,27 @@ fn inherited_private_of_augmenting_subclass_keeps_2741() {
 fn empty_subclass_missing_property_reports_base_display() {
     // The 2741 walk and display run over the substituted BASE
     // ('A'); only the plain relation head keeps the original name
-    // (reportErrorResults 65250-65253).
+    // (reportErrorResults 65250-65253). Because the detail then names
+    // another pair, TypeScript 7.1 keeps the head above it (tsc 6.0.3
+    // replaced the head).
     let text = "class A { z = 1; }\nclass B extends A { }\nclass C { y = 0; }\ndeclare const b: B;\nconst c: C = b;\n";
-    assert_eq!(checked_rows(text), [(2741, 86, 1)]);
+    assert_eq!(checked_rows(text), [(2322, 86, 1)]);
     with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
         state.check_source_file(0);
-        let message = &state.diagnostics.last().expect("2741 row").message;
-        assert!(
-            message.text.contains("in type 'A'"),
-            "substituted display: {}",
+        let message = &state.diagnostics.last().expect("2322 row").message;
+        assert_eq!(
             message
                 .text
                 .as_str()
-                .expect("scalar diagnostic observation")
+                .expect("scalar diagnostic observation"),
+            "Type 'B' is not assignable to type 'C'."
+        );
+        let detail = message.next.first().expect("2741 detail");
+        assert_eq!(detail.code, 2741);
+        assert!(
+            detail.text.contains("in type 'A'"),
+            "substituted display: {}",
+            detail.text.as_str().expect("scalar diagnostic observation")
         );
     });
 }
@@ -264,6 +272,8 @@ fn checked_js_empty_container_includes_later_expando_exports() {
             allow_js: true,
             check_js: Some(true),
             target: Some(2),
+            // The pinned member order is tsc 6.0.3's creation order.
+            stable_type_ordering: Some(false),
             ..CompilerOptions::default()
         },
     );
@@ -1300,12 +1310,24 @@ fn import_type_assert_form_reports_2880_and_with_form_stays_silent() {
     // exactly-one-resolution-mode-key rows (oracle probe58d p5;
     // the 2307 is the import-type resolution seam, LIVE since
     // 5.9d's getTypeFromImportTypeNode).
+    // The exactly-one-resolution-mode-key row (1456) is a tsc 6.0.3
+    // rule; the 7.1 profile only looks the key up.
+    let six_oh_three = CompilerOptions {
+        reference_profile: tsc_types::ReferenceProfile::TypeScript603,
+        ..CompilerOptions::default()
+    };
     assert_eq!(
-        checked_rows("type T = typeof import(\"./m\", { assert: {} });\n"),
+        checked_rows_with(
+            "type T = typeof import(\"./m\", { assert: {} });\n",
+            &six_oh_three
+        ),
         [(2880, 40, 1), (1456, 40, 2), (2307, 23, 5)]
     );
     assert_eq!(
-        checked_rows("type U = typeof import(\"./m\", { with: {} });\n"),
+        checked_rows_with(
+            "type U = typeof import(\"./m\", { with: {} });\n",
+            &six_oh_three
+        ),
         [(1464, 38, 2), (2307, 23, 5)]
     );
 }
