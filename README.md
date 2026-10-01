@@ -802,10 +802,12 @@ the same comparison against `tsc --stableTypeOrdering` gave identical
 diagnostics on every project at every checker count tried (1, 6, 8 and 12
 on Effect, where both compilers report the two Schema errors that
 TypeScript 7 also reports), identical declaration files for zod,
-Playwright and Next.js, and two differing declaration files for Effect:
-`Runtime.d.ts` (the `A_1`/`A_2` naming above) and
-`ai/internal/mcpProtocol/v2026_07_28.d.ts`, where one union of three
-mapped types is printed in a different member order.
+Playwright and Next.js, and for Effect one differing declaration file
+with a single checker, `Runtime.d.ts` (the `A_1`/`A_2` naming above), plus
+`ai/internal/mcpProtocol/v2026_07_28.d.ts` with several checkers. In that
+file one union of three mapped types compares equal up to the comparison's
+final tiebreak, the type id, which with several checkers is a checker-local
+creation id; TypeScript 7 keeps the same tiebreak.
 
 ### Reproducing
 
