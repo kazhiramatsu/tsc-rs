@@ -867,132 +867,73 @@ supported, and cold-cache, Linux and Windows timings were not measured.
 
 ## Run CI
 
-The compiler is checked against TypeScript 7.1's conformance baselines,
-TypeScript 6.0.3 reference results and targeted regression tests. You can
-run these checks locally or inspect their GitHub Actions logs.
+The compiler is checked against TypeScript 7.1's conformance baselines and
+the workspace's Rust tests. You can run these checks locally or inspect
+their GitHub Actions logs.
 
 ### What CI verifies
 
 | Check | What it verifies |
 | --- | --- |
-| **TypeScript 7.1 conformance** (`conformance-ts71`) | Runs the `compiler` and `conformance` test cases vendored from TypeScript 7.1 through the native test runner's configuration expansion, on one checker, and compares the resulting `.errors.txt` with the vendored reference baselines byte for byte (`scripts/conformance_ts71.py --check`). A sharded control (`--checkers 4`) is compared with the one-checker report by `scripts/conformance_ts71_compare.py`; the design packet records the configurations where they differ. Cases that use an option TypeScript 6.0 deprecated are not compared here; they stay with the tsc 6.0.3 results below. The ratchet `ratchets/ts71/` records the tier each configuration has reached and rejects regressions. |
-| **Acceptance** (`ci`) | Runs the upstream TypeScript 6.0.3 diagnostic corpus and the supported compilation cases. Compares diagnostics and compiler output with recorded TypeScript results, and rejects regressions in the accepted diagnostic cases. GitHub splits this suite into `early`, `wide`, and `late` groups. |
-| **Witness tests** (`witnesses`) | Checks focused regressions in JavaScript and declaration output, source maps, decorators, comments, Unicode handling, configuration, and file access. Includes comparisons with TypeScript reference results and tests of the Rust APIs. |
-| **Rust checks** (local only) | Checks formatting, runs Clippy, and executes the workspace's unit and integration tests and other Cargo test targets. The hosted workflows do not run these three workspace-wide commands. |
+| **TypeScript 7.1 conformance** (`conformance (TypeScript 7.1)`) | Runs the `compiler` and `conformance` test cases vendored from TypeScript 7.1 through the native test runner's configuration expansion, on one checker, and compares the diagnostics (`.errors.txt`) and the emitted JavaScript, declaration files and source maps (`.js`, `.js.map`) with the vendored reference baselines byte for byte (`scripts/conformance_ts71.py --check`). The ratchet `ratchets/ts71/` records the error tier and the emit tier each configuration has reached and rejects regressions. A sharded control (`--checkers 4`) is compared with the one-checker report by `scripts/conformance_ts71_compare.py`; the design packet records the configurations where they differ. Cases that use an option TypeScript 7 removed are not compared. |
+| **Rust checks** (`rust`) | Checks formatting, runs Clippy over every target of the workspace, and executes the unit and integration tests of the types, diagnostics, syntax, binder, host, checker, program, emitter, compiler, harness and conformance crates (`python3 .github/ci/replay.py rust`). |
 
-For a recorded full run on commit
-[`d8e0b2f56`](https://github.com/kazhiramatsu/tsc-rs/commit/d8e0b2f5667f881ab06b0aaae29a6016a421d7d1),
-the head of the pull request merged into `main` as
-[`112924652`](https://github.com/kazhiramatsu/tsc-rs/commit/1129246526e2f2985a579796b84f3c0f215d0f27)
-with the same source tree, see the successful
-[acceptance run](https://github.com/kazhiramatsu/tsc-rs/actions/runs/36494313517)
-and [witness run](https://github.com/kazhiramatsu/tsc-rs/actions/runs/36494313524)
-from September 28, 2026 (UTC): all 22 test jobs and both aggregate checks
-passed.
+The `gates` check requires both jobs to succeed; a change that touches only
+`docs/`, this file, `CONTRIBUTING.md` or `LICENSE` selects neither.
 
 These results demonstrate the behavior covered by those tests. Some cases
-have explicitly recorded differences or unsupported outcomes; a passing
-run does not imply complete TypeScript compatibility. See the
+have recorded differences from the reference; a passing run does not imply
+complete TypeScript compatibility. See the
 [current limitations](#current-limitations) for the user-facing restrictions.
 
 ### Run locally
 
 Run these commands from the repository root using a POSIX shell (for example,
 Bash or Zsh). In addition to the [build prerequisites](#build), install
-Python 3.11 or newer, the Node.js version pinned in
-[.node-version](.node-version), and the `zstd` command for reading compressed
-test data. Rustup selects the Rust version and tools from
-[rust-toolchain.toml](rust-toolchain.toml). The TypeScript reference, test
-inputs, and expected results are checked in; no npm install is needed.
+Python 3.11 or newer. Rustup selects the Rust version and tools from
+[rust-toolchain.toml](rust-toolchain.toml). The TypeScript test inputs and
+reference baselines are checked in; no npm install is needed.
 
-Use the GitHub Actions build settings and acceptance worker limits:
+Use the GitHub Actions build settings:
 
 ```sh
 export CARGO_BUILD_JOBS=2
 export CARGO_INCREMENTAL=0
 export CARGO_PROFILE_TEST_DEBUG=0
 export RUSTC_WRAPPER=
-# Worker limits for acceptance tests:
-export TSRS_H2_5G_WORKERS=2
-export TSRS_CONFORMANCE_WORKERS=2
 ```
 
-Run the complete acceptance suite:
+Run the Rust checks (formatting, Clippy and the test targets):
 
 ```sh
-cargo xtask acceptance
+python3 .github/ci/replay.py rust
 ```
 
-This executes the test sequence covered by all three hosted acceptance
-groups. To run just one group, use `early`, `wide`, or `late`, for example:
+Run the TypeScript 7.1 conformance comparison (about twenty minutes with
+four workers):
 
 ```sh
-python3 .github/ci/replay.py acceptance late
+cargo build --release -p tsc-rs-conformance --bin conformance-ts71
+python3 scripts/conformance_ts71.py --workers 4 --check
 ```
 
-Run all registered witness suites through the same runner used by GitHub
-Actions. The first command reads the suite list so new suites are included
-automatically:
+To compare one case and keep tsc-rs's rendering of the differing baselines:
 
 ```sh
-export WITNESS_SUITES="$(
-  PYTHONPATH=scripts python3 -c 'import json, witness; print(json.dumps(witness.SUITES))'
-)"
-python3 .github/ci/replay.py witnesses
+./target/release/conformance-ts71 --case compiler/2dArrays.ts --no-report --dump target/conformance-dump
 ```
 
-To run only a specific witness suite, provide its name instead:
-
-```sh
-WITNESS_SUITES='["declaration-maps"]' python3 .github/ci/replay.py witnesses
-```
-
-For the additional Rust checks:
-
-```sh
-cargo fmt --all -- --check
-cargo clippy --workspace --all-targets -- -D warnings
-RUST_TEST_THREADS=2 cargo test --workspace --all-targets
-```
-
-Each command reports its own result and returns a nonzero exit status on
-failure. Full acceptance and witness runs can take substantial time,
-especially on the first build; local runs execute the groups sequentially
-instead of using separate hosted runners. For case selection and failure
-investigation, see the [witness testing guide](docs/witness-testing.md).
+The report of a full run is `target/conformance-ts71/<profile>/report.json`.
+After an intentional change, `scripts/conformance_ts71.py --workers 4
+--update` records the new tiers in the ratchet without lowering any.
 
 ### GitHub Actions
 
-CI runs automatically when you open or update a pull request. Check the
-results in the pull request's **Checks** tab. The workflows select tests
-based on the changed files, so a documentation-only update may skip test
-jobs. The `gates` and `witness-gates` checks require every selected job to
-succeed.
-
-To run CI manually, open the repository's **Actions** tab, choose **ci** or
-**witnesses**, select **Run workflow**, and choose the branch. Run both
-workflows to execute all registered acceptance and witness groups. Select
-a run to view its progress and logs.
-
-Alternatively, with GitHub CLI (`gh`) installed and authenticated to an
-account that can run workflows, run these commands from the cloned
-repository. Replace `your-branch` with a branch already pushed to GitHub:
-
-```sh
-gh workflow run ci.yml --ref your-branch
-gh workflow run witness.yml --ref your-branch
-gh run list --branch your-branch
-```
-
-Use a run ID from the list to watch a workflow or rerun its failed jobs:
-
-```sh
-gh run watch RUN_ID --exit-status
-gh run rerun RUN_ID --failed
-```
-
-Replace `RUN_ID` with the relevant numeric ID. A rerun uses the original
-commit; push fixes to the pull request branch to validate the updated code.
+`.github/workflows/ci.yml` runs on pull requests, merge groups and pushes
+to `main`: the `plan` job selects the jobs from the changed paths, the
+`rust` and `conformance (TypeScript 7.1)` jobs run with two Cargo build
+workers, and `gates` requires every selected job to succeed. The workflow's
+runs are listed under the repository's Actions tab.
 
 ## Current limitations
 

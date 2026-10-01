@@ -1,3 +1,11 @@
+> **Retired (2026-10-02).** The witness suites and the hosted `witnesses`
+> workflow compared tsc-rs with tsc 6.0.3 observations. With the
+> [TypeScript 7.1 cutover](design/greenfield/slices/ts71-cutover/README.md)
+> the hosted checks are `rust` and `conformance (TypeScript 7.1)` in
+> `.github/workflows/ci.yml`; the suites below stay in the tree only until
+> P3-3 of the cutover deletes them and are not run or maintained. Their last
+> maintained state is tag `v0.1.0`.
+
 # Focused witnesses and hosted replay
 
 ## Batch implementation before hosted CI

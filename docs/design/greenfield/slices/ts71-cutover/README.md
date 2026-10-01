@@ -188,3 +188,26 @@ emitの第2 sessionで従来の784秒から約1.6倍）。errors tierは変更�
 
 これらはP3-5でclassごとに直す。emit errorの大半（parse error後のemit）はroadmapのH2.9（emit recovery）そのもので、
 7.1 baselineがそのoracleになる。
+
+## P3-2 gateの切替（2026-10-02）
+
+- hosted CIを`.github/workflows/ci.yml`の一本にした：`plan`（変更pathから選択）→`rust`（`cargo fmt --check`、
+  `cargo clippy --workspace --all-targets -- -D warnings`、自己完結のRust test target：types／diagnostics／syntax／
+  binder／host／checker／program(lib)／emitter／compiler(lib)／harness(lib＋native test)／conformance(ts71)）と
+  `conformance (TypeScript 7.1)`（release buildの`scripts/conformance_ts71.py --workers 4 --check`、errors＋emit）→
+  `gates`（選択されたjobの成功を要求）。aggregateの名前を`gates`のまま保ったので、branch protectionの
+  required check（`gates`）は変更不要。`witness-gates`と`conformance-ts71-gates`はなくなる。
+- `.github/ci/replay.py`は小さなplannerに書き直した（docs/・root README.md・CONTRIBUTING.md・LICENSEだけの変更は
+  何も選ばない、それ以外は両job）。`test_replay.py`はその契約だけを検査する。
+- 削除：`witness.yml`、`conformance-ts71.yml`（ci.ymlへ統合）、`h1-noemit-performance.yml`／`l0-performance.yml`／
+  `l1-performance.yml`、`.github/ci/qualification.mjs`とpolicy・pin-index・plans・slice-readiness・
+  fci／gate-tax／artifact-schemaのtest。`.github/ci/contracts/`のschemaはharnessのh1／h2 integration testが
+  `include_str!`で読むので、そのtestと一緒にP3-3で消す。xtaskの旧commandが参照するfileは実行時にのみ読むので、
+  xtaskもP3-3まで残る（hostedのrust jobはxtaskのtestを走らせない）。
+- CLAUDE.md：検証方針を本packetの文案で置き換え、branch workflowの3／4／6／7／8を書き換え、9（pin）を削除、
+  quick referenceとhistorical toolingを「Retired tooling」に置き換えた。README「Run CI」を新しいjobで書き直し、
+  `docs/witness-testing.md`に退役の注記を置いた。
+- `rust` jobが走らせないもの：`crates/compiler/tests/*`（witness suite）、harnessのh1／h2 profile、programと
+  conformanceの6.0.3 contract、xtask／fuzz／oracle。P3-3で削除した後に`cargo test --workspace`へ切り替える。
+
+RUN_RECORD

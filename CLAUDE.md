@@ -1,7 +1,9 @@
 # tsc-rs
 
-A Rust port of the TypeScript compiler (tsc 6.0.3). The Oxc-style virtual
-Cargo workspace at the repository root is the only codebase: `Cargo.toml`
+A Rust port of the TypeScript compiler. Its reference is TypeScript 7.1 (the
+native compiler, `tsgo`, at the vendored commit); the tsc 6.0.3 line ended
+with release v0.1.0 (tag `v0.1.0`, branch `release/6.0.3`). The Oxc-style
+virtual Cargo workspace at the repository root is the only codebase: `Cargo.toml`
 owns the members under `crates/`, each member has its own `src/`, and no
 top-level `src/` exists. The paused v1 codebase is preserved at tag
 `v1-final` (check out that tag to resume it; `scripts/bootstrap.sh` there
@@ -22,45 +24,48 @@ the planned follow-on work and links its packets. The completed H1/H2 slice
 packets and the M-stage guides are historical records of how the port was
 qualified, not instructions for new work.
 
-Repository-owned verification artifacts belong under `ratchets/`, with M8
-files in `ratchets/m8/`; see [the location guide](ratchets/README.md). Keep new
-project-specific generated data out of the repository root. Historical
-records retain their original paths and hashes; relocating a file does not
-authorize regenerating or requalifying those records.
+The TypeScript 7.1 ratchet lives in `ratchets/ts71/`; the other `ratchets/`
+artifacts are retired tsc 6.0.3 records that P3-3 of the cutover removes.
+Keep new project-specific generated data out of the repository root.
 
 ## Current verification policy
 
-The full local CI (`cargo xtask ci`) and the reference-hash chain walk were
-retired on 2026-09-09. Hosted acceptance and witness jobs replaced them in
-[PR #524](https://github.com/kazhiramatsu/tsc-rs/pull/524) (merge
-`bb2d51c89`), and the [witness guide](docs/witness-testing.md) owns the
-current commands, groups and timings. These rules supersede the
-walk/full-local merge requirements recorded in older packets.
+The compiler follows TypeScript 7.1 at the vendored native profile
+(`vendor/typescript-native/<profile>`); tsgo built from the same commit is
+the reference implementation (`scripts/typescript7.py` holds the checkout and
+`go -C tsc build ./cmd/tsc` builds it). tsc 6.0.3 compatibility ended with
+release v0.1.0 (tag `v0.1.0` at `ed173ea36`, branch `release/6.0.3`): `main`
+keeps no 6.0.3 behavior, record or oracle, and no change is required to keep
+6.0.3 output. The
+[cutover packet](docs/design/greenfield/slices/ts71-cutover/README.md)
+records the decisions, the retired surfaces and the remaining steps.
 
-- During implementation, use fresh complete TypeScript observations for the
-  changed behavior, focused native comparisons, adjacent regression tests,
-  and relevant formatting/Clippy checks.
-- Batch compatible changes on one integration branch. Send the final candidate
-  to the relevant hosted acceptance and witness jobs. Keep their selected
-  coverage, exact comparisons, worker limits and time budgets intact.
-- Do not run `cargo xtask ci`, `scripts/chain-walk.sh`, the reference-hash
-  regeneration chain, full-corpus invariants, or legacy escape/ledger gates
-  as routine edit, handoff, finalization or merge prerequisites. Final
-  integration is not an exception. These legacy tools are opt-in only when
-  the user explicitly requests the particular operation. Requests to work
-  carefully, audit thoroughly or finish the task do not reactivate them.
-- Heavy full-suite and full-witness replays normally run on hosted CI. Do not
-  repeat them locally when the selected hosted jobs already cover them.
-  Fix a hosted failure with its focused local reproducer and rerun the
-  affected hosted coverage at the updated candidate.
-- Preserve frozen fixtures, historical qualification records, and known
-  failure evidence. Do not re-sign a historical record, alter a comparison,
-  or omit a selected test to make a result green. A stale legacy certificate
-  is not a reason to restart the retired chain. Keep its historical scope
-  explicit; use current focused and hosted evidence for the new candidate.
+- Merge criteria: the hosted `gates` check of `.github/workflows/ci.yml`
+  succeeds for the final candidate. It requires the jobs
+  `.github/ci/replay.py plan` selected: `rust` (formatting, Clippy and the
+  Rust test targets) and `conformance-ts71` (the TypeScript 7.1 error and
+  emit baselines on one checker, checked against `ratchets/ts71/`). A
+  change under `docs/` or to the root `README.md`, `CONTRIBUTING.md` or
+  `LICENSE` selects neither; any other change selects both. The PR body
+  records the commands, source identity, results and remaining bounded
+  limitations.
+- During implementation, run the affected conformance cases locally
+  (`target/release/conformance-ts71 --case <suite>/<path> --dump <dir>`,
+  `scripts/conformance_ts71.py --filter <text> --check`), probe tsgo for the
+  exact behavior, add adjacent unit tests pinned to tsgo's output, and keep
+  formatting and Clippy clean.
+- The ratchet must report 0 regressions (`scripts/conformance_ts71.py
+  --workers 4 --check`, release build); raise it with `--update` at the
+  final bytes. Lowering a row is a reviewed edit recorded in the owning
+  packet with the 7.1 evidence.
+- After a checker change, run the parallel control (`--checkers 4` and
+  `scripts/conformance_ts71_compare.py`); differences beyond the recorded
+  partition-dependent cases are defects to fix or to record.
+- Compare the README corpora with tsgo (speed, peak memory and output)
+  before a release and after a slice that touches the checker or the
+  emitter; a regression is fixed before the work is called done.
 - Report only checks actually performed, with their source identity and
-  scope. An omitted or interrupted legacy gate is not a passing result.
-  The Functional-CI framework migration remains paused.
+  scope. An omitted or interrupted check is not a passing result.
 
 ## Branch workflow (trunk-based)
 
@@ -74,14 +79,12 @@ walk/full-local merge requirements recorded in older packets.
    not separate PRs and repeated full replay cycles. Finish compatible ready
    implementation before starting hosted validation.
 3. **Merge criteria:** relevant focused local checks pass for the final
-   implementation, and every hosted job selected for that final candidate
-   succeeds. The PR body records the actual commands, source identity,
-   results, and remaining bounded limitations. Earlier-head results do not
-   qualify changed behavior. No legacy full-local or chain-walk certificate
-   is required.
+   implementation, and the hosted `gates` check succeeds on it. The PR body
+   records the actual commands, source identity, results, and remaining
+   bounded limitations. Earlier-head results do not qualify changed
+   behavior.
 4. **Merge via GitHub PR** (`gh` CLI): publish the combined candidate and
-   monitor its selected acceptance/witness jobs. Fix failures on the same
-   branch. Once required checks succeed and the PR is mergeable, merge
+   monitor its hosted jobs. Fix failures on the same branch. Once required checks succeed and the PR is mergeable, merge
    automatically with `gh pr merge --merge --delete-branch`; do not request
    another approval. Use a **merge commit only, never squash/rebase** because
    evidence and design records reference the original commits. Verify the
@@ -90,36 +93,24 @@ walk/full-local merge requirements recorded in older packets.
    comparable expansion of scope may need approval. Ordinary authorized
    implementation, focused evidence updates, PR creation, CI fixes and
    successful PR merges do not. Existing user authorization takes priority.
-6. Change `ratchets/ratchet.toml` only with a reviewed accepted-state change; change
-   `ratchets/STAGE` only when its milestone closes. Neither is updated merely to
-   obtain a successful validation result.
+6. Change `ratchets/ts71/` only through `scripts/conformance_ts71.py
+   --update` at the final bytes, or by a reviewed lowering recorded in the
+   owning packet. The ratchet is never edited merely to obtain a successful
+   validation result.
 7. **Markdown-only changes:** when all changed paths relative to the trusted
-   base end in `.md` and the generated `STATUS` block in
-   `docs/verification-status.md` (historically `README.md`) is unchanged, run
-   no local Cargo/Node/full-corpus CI. Review the rendered diff, run
-   `git diff --check`, and verify changed relative links/anchors and generated
-   block boundaries. Simple process/docs-only changes may land directly on
-   `main`. Hosted selection is a separate path-based rule: after accounting
-   for explicitly registered witness inputs, the planner skips `docs/**`, root
-   `README.md`, `CONTRIBUTING.md` and `LICENSE`. Other unmatched paths,
-   including `CLAUDE.md`, select the full hosted acceptance/witness
-   coverage even when they end in `.md`. Follow the planner's actual selection;
-   do not infer a hosted skip from the local Markdown-only rule. A workflow,
-   schema, golden, generated artifact or generated-status change follows the
-   relevant focused/hosted path; it is not a documentation-only exception.
-8. **Hosted execution:** `.github/workflows/ci.yml` runs the affected
-   acceptance groups (`early`, `wide`, `late`) selected by
-   `.github/ci/replay.py`; `.github/workflows/witness.yml` runs the selected
-   witness groups. The `gates` and `witness-gates` aggregates require every
-   selected job to succeed. Cargo build workers stay capped at two. Do not
-   replace or reduce this coverage, or run the full acceptance command
-   locally just because the command remains available. Stress and performance
-   measurements are separate explicitly scoped work.
-9. **Pinned sources:** `.github/ci/qualification-policy.v2.json` pins the
-   SHA-256 of the acceptance Rust sources (`rust_source_sha256`) and of the CI
-   execution sources (`execution_source_sha256`). A change to a pinned file
-   also updates its pin; `node .github/ci/qualification.mjs check-policy`
-   reports a stale pin, and the hosted `plan` job fails on one.
+   base end in `.md`, run no local Cargo CI. Review the rendered diff, run
+   `git diff --check`, and verify changed relative links and anchors. Simple
+   process/docs-only changes may land directly on `main`. Hosted selection
+   is a separate path-based rule: `docs/**`, root `README.md`,
+   `CONTRIBUTING.md` and `LICENSE` select no job; every other path,
+   including `CLAUDE.md`, workflows, scripts, `vendor/` and `ratchets/`,
+   selects both hosted jobs even when it ends in `.md`. Follow the planner's
+   actual selection.
+8. **Hosted execution:** `.github/workflows/ci.yml` runs `plan`, then the
+   selected `rust` and `conformance (TypeScript 7.1)` jobs, then the `gates`
+   aggregate that requires every selected job to succeed. Cargo build
+   workers stay capped at two. Do not reduce this coverage. Stress and
+   performance measurements are separate explicitly scoped work.
 
 ## Isolation and work during waits
 
@@ -138,10 +129,10 @@ ritual.
 ## Collaboration and ownership
 
 When independent lanes are used, the integrator is the single writer of
-shared integration files: `plan.rs`, `execute.rs`, `ratchets/`,
-`crates/oracle/*.mjs`, `h2_2c_acceptance.rs`, pin surfaces (including
-`.github/ci/qualification-policy.v2.json`), `contracts.rs` registrations and
-integration documentation.
+shared integration files: `ratchets/ts71/`, `vendor/typescript-native/`,
+`.github/workflows/ci.yml`, `.github/ci/replay.py`,
+`scripts/conformance_ts71*.py`, the conformance runner
+(`crates/conformance/src/ts71*`) and integration documentation.
 
 Each lane's ticket fixes its base SHA, case IDs, permitted non-overlapping
 paths, expected results, focused tests, and stop conditions. Verify changed
@@ -158,8 +149,6 @@ independent task, not merely an available agent slot.
 
 ## Verification quick reference
 
-- Use [the witness guide](docs/witness-testing.md) to list/select current
-  cases and inspect the relevant hosted groups before running a local test.
 - Run checks directly to a log and inspect their real exit status. Never pipe
   a gating command through `tail`, `head` or `grep`: the last pipeline command
   can hide the test's failure. Read/filter the saved log only after recording
@@ -169,52 +158,19 @@ independent task, not merely an available agent slot.
   Wall-clock performance measurements need a separately recorded, unloaded,
   consistent priority setting; demoted development timings are not benchmark
   results. Never raise a performance ceiling to compensate for interference.
-- The historical tools listed below remain available for explicitly requested,
-  scoped investigation. This list is not a merge checklist and does not
-  authorize a full local gate, corpus sweep or hash-chain regeneration.
-  If a legacy walk is explicitly requested, use its maintained driver rather
-  than a handwritten loop, and keep interrupted runs unqualified.
+- The local equivalents of the hosted jobs are `python3 .github/ci/replay.py
+  rust` and, after `cargo build --release -p tsc-rs-conformance --bin
+  conformance-ts71`, `python3 scripts/conformance_ts71.py --workers 4
+  --check`; the README's "Run CI" section describes both.
 
-## Historical tooling
+## Retired tooling
 
-These commands were built for the M8, H0–H2 and L0/L1 qualification
-milestones. They are not maintained against the current tree, so a failure
-may mean a stale tool rather than a regression; an old result is not current
-evidence.
-
-- Frozen H1/H2 evidence: `node crates/oracle/h1-owner-inventory.mjs --check`,
-  `node crates/oracle/h2-transition.mjs --check` and
-  `node crates/oracle/h2-baseline.mjs --check` compare their inventories or
-  evidence with the recorded artifacts under `ratchets/`. The H2 baseline can
-  no longer be minted: its `--compare` mode ran a qualification example that
-  reported the removed runtime-activity counters. The H1 no-emit/emit
-  performance artifacts are immutable lineage as well.
-- Conformance: `cargo xtask conformance [--band all|2xxx|syntactic]` runs
-  the upstream diagnostic corpus and enforces the accepted-set ratchet
-  (partial `--files`/`--limit` runs gate only the executed fixtures).
-  `cargo xtask conformance-diff <before.json> <after.json>` compares two
-  `--out-json` reports; it does not update or enforce a ratchet.
-- Accepted-set and registry audits: `cargo xtask ratchet check [--baseline
-  origin/main]` verifies the `ratchets/` artifacts and their lineage, and
-  `cargo xtask ratchet update` re-measures and only adds identities (never
-  run it to hide a regression). `cargo xtask scope audit`, `cargo xtask
-  host-resolution check`, `cargo xtask families check|report` and
-  `cargo xtask escapes --stale $(cat ratchets/STAGE)` audit
-  `ratchets/m8/m8-scope.json`, the H0 host-owner registry,
-  `ratchets/diag-families.json` and `ratchets/escapes.toml`; after adding or
-  retiring an escape, `cargo xtask escapes --write-manifest` regenerates the
-  manifest for review.
-- Slice evidence: before a change, `cargo xtask slice-evidence snapshot
-  --slice <name> --targets <csv> --band <all|2xxx|syntactic> --out-dir
-  <new-before-dir>`; after it, `cargo xtask slice-evidence verify --before-dir
-  <before-dir> --out-dir <new-after-dir> --baseline origin/main`. The
-  report-only verify rejects false positives, tier losses, universe drift and
-  stale before evidence. Both directories must be new and outside the Git
-  worktree.
-- Completion report: `cargo xtask completion` writes the definition-of-done
-  rows to `target/completion/report.json`; `--require-done` fails while any
-  row is pending.
-- One-fixture TypeScript diagnostics: `cargo xtask expand <fixture> --out-dir
-  <dir>` writes the fixture's program JSON, and `node crates/oracle/driver.mjs`
-  reads `{"id":…,"programJsonPath":…}` lines on stdin and prints the vendored
-  TypeScript diagnostics for each.
+The tsc 6.0.3-era tools (`cargo xtask acceptance`, `conformance`, `ratchet`,
+`escapes`, `ledger`, `slice-evidence`, `completion`, the H0–H2 and L0/L1
+qualification commands, `crates/oracle/*.mjs`, `ratchets/` outside `ts71/`,
+`scripts/witness.py` and the witness suites, `ts-tests/`) are retired with
+the TypeScript 7.1 cutover. They stay in the tree only until P3-3 of the
+[cutover packet](docs/design/greenfield/slices/ts71-cutover/README.md)
+deletes them, are not maintained, and are never a merge prerequisite or
+current evidence; their last maintained state is tag `v0.1.0` (branch
+`release/6.0.3`).
