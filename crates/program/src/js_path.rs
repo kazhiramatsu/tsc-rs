@@ -425,3 +425,108 @@ fn relative_api_names_match_typescript_normalize_path() {
         );
     }
 }
+
+/// tsgo-port: tspath.GetPathComponents and reducePathComponents @7.1
+/// (path.go:134-147, 287-315): the root (empty for a relative path) followed
+/// by the non-empty, non-`.` segments, with `..` folding the preceding
+/// segment.
+fn reduced_path_components(path: JsStr<'_>) -> Vec<JsStr<'_>> {
+    let (root, rest) = path
+        .split_at_byte(root_end_byte(path))
+        .expect("root boundary is canonical");
+    let mut reduced = vec![root];
+    for component in rest.split_ascii(b'/') {
+        if component.is_empty() || component == "." {
+            continue;
+        }
+        if component == ".." {
+            if reduced.len() > 1 {
+                if reduced[reduced.len() - 1] != ".." {
+                    reduced.pop();
+                    continue;
+                }
+            } else if !reduced[0].is_empty() {
+                continue;
+            }
+        }
+        reduced.push(component);
+    }
+    reduced
+}
+
+/// tsgo-port: tspath.GetPathFromPathComponents @7.1 (path.go:270-281)
+fn path_from_components(components: &[JsStr<'_>]) -> JsString {
+    let Some((root, rest)) = components.split_first() else {
+        return JsString::new();
+    };
+    let mut path = JsString::new();
+    if !root.is_empty() {
+        path.push_js(*root);
+        if !path.ends_with("/") {
+            path.push('/');
+        }
+    }
+    for (index, component) in rest.iter().enumerate() {
+        if index != 0 {
+            path.push('/');
+        }
+        path.push_js(*component);
+    }
+    path
+}
+
+/// The path of `to` relative to the directory `from_directory`, both
+/// absolute. The roots compare case-insensitively and the remaining
+/// components follow the host's file-name case sensitivity; paths with
+/// different roots keep `to` as it is.
+///
+/// tsgo-port: tspath.GetRelativePathFromDirectory and
+/// GetPathComponentsRelativeTo @7.1 (path.go:765-815)
+pub(crate) fn relative_path_from_directory(
+    from_directory: JsStr<'_>,
+    to: JsStr<'_>,
+    use_case_sensitive_file_names: bool,
+) -> JsString {
+    let from = reduced_path_components(from_directory);
+    let to = reduced_path_components(to);
+    let mut start = 0;
+    while start < from.len().min(to.len()) {
+        let equal = if start == 0 || !use_case_sensitive_file_names {
+            eq_ignore_case(from[start], to[start])
+        } else {
+            from[start] == to[start]
+        };
+        if !equal {
+            break;
+        }
+        start += 1;
+    }
+    if start == 0 {
+        return path_from_components(&to);
+    }
+    let mut components = vec![JsStr::from("")];
+    components.extend(std::iter::repeat_n(JsStr::from(".."), from.len() - start));
+    components.extend_from_slice(&to[start..]);
+    path_from_components(&components)
+}
+
+#[test]
+fn relative_path_from_directory_matches_tsgo() {
+    for (from, to, case_sensitive, expected) in [
+        ("/b", "/b", true, ""),
+        ("/b", "/", true, ".."),
+        ("/b", "/b/deep", true, "deep"),
+        ("/a/b", "/a/c/d", true, "../c/d"),
+        ("/a/B", "/a/b/c", true, "../b/c"),
+        ("/a/B", "/a/b/c", false, "c"),
+        ("c:/a", "c:/b", true, "../b"),
+        ("C:/a", "c:/b", true, "../b"),
+        ("c:/a", "d:/b", true, "d:/b"),
+    ] {
+        assert_eq!(
+            relative_path_from_directory(from.into(), to.into(), case_sensitive),
+            expected,
+            "{from} -> {to} (case sensitive: {case_sensitive})"
+        );
+    }
+}

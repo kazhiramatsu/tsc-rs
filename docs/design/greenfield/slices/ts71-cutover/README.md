@@ -290,7 +290,53 @@ supervisorの`deprecated`は`skipped`に改名。README「Run CI」の「比較�
 - 次（P3-5の最初のclass）：削除済みoptionの診断。tsgo `program.go` `verifyCompilerOptions`「Removed in TS7」は
   `baseUrl`（tsconfigがあれば`"paths": {"*": ["./…/*"]}`の`Use_0_instead`付き）、`outFile`、`target: ES5`、
   `module: AMD／System／UMD`、`moduleResolution: Classic／node10`、`alwaysStrict: false`、`esModuleInterop: false`、
-  `allowSyntheticDefaultImports: false`、`downlevelIteration`（値を問わず）をTS5102／TS5104で報告し、
+  `allowSyntheticDefaultImports: false`、`downlevelIteration`（値を問わず）をTS5102／TS5108で報告し、
   `ignoreDeprecations`は検証も抑止もしない（TS5103／TS5101／TS5107は7.1に存在しない経路）。tsc-rsの
   `crates/program/src/config.rs`（tsconfig）と`crates/compiler/src/lib.rs`（programmatic／CLI）の6.0経路を
   これに置き換え、programのh2-8b config-diagnostics fixtureとREADME「Reference」の非推奨optionの説明を更新する。
+
+## P3-5a 削除済みoptionの診断（2026-10-02）
+
+tsgo `program.go` `verifyCompilerOptions` の「Removed in TS7」blockを移植し、6.0の非推奨経路
+（TS5101／TS5107、`ignoreDeprecations`の検証TS5103と抑止、`aka.ms/ts6`のchain、`module: none`の行）を消した。
+
+- tsconfig経路 `crates/program/src/config.rs` `removed_option_diagnostics`、programmatic／CLI経路
+  `crates/compiler/src/lib.rs` `programmatic_option_diagnostics`：`baseUrl`（tsconfigがあれば
+  `tspath.GetRelativePathFromFile`＋Goの`encoding/json`quoteで`Use '"paths": {"*": ["./…/*"]}' instead.`を
+  chainに付ける。`removed_base_url_paths_suggestion`、`js_path::relative_path_from_directory`）、`outFile`、
+  `downlevelIteration`（名前の位置、TS5102）、`target=ES5`、`module=AMD／System／UMD`、
+  `moduleResolution=Classic／node10`、`alwaysStrict=false`、`esModuleInterop=false`、
+  `allowSyntheticDefaultImports=false`（値の位置、TS5108）。`ignoreDeprecations`はcatalogに残り、値は読まれない。
+- 位置の規則をtsgoに合わせた：`tsoptions.ForEachPropertyAssignment`は名前が一致する最初のpropertyで止まる。
+  6.0.3（と旧tsc-rs）は重複keyや2名のrow（TS5052／5053／5069／5091…の`option1`／`option2`）を一致するproperty
+  ごとに出していたが、7.1は文書順で最初の1件だけ。configの`emit_option_validation_diagnostic_for_properties`と
+  programmaticの`push_programmatic_option_diagnostic`を1件に。
+- 非致命の分類 `is_non_fatal_option_diagnostic`：5101／5107→5102／5108。tsgoは削除済みoptionの行を出しながら
+  checkもemitもする（`tsgo -p`で`a.js`が書かれる）。CLIはtsgoと同じく、option診断があればsemantic診断を出さない。
+- checkerの`assert`（TS2880）：`ignoreDeprecations: "6.0"`による抑止を外し無条件に（`calls.rs`のdynamic import
+  option、`modules.rs`のimport／export attributes、`check.rs`のimport type）。報告位置はparserへ移していない
+  （P3-5のTS2880 classのまま）。
+- fixture：programの`h2-8b-config-diagnostics`（76 case）と`h2-8b-config-entity-names`（36 case）をtsc-rsの
+  出力で記録し直し、tsgo（vendored commitのbuild）で検算した。方法：各caseのfile／configを一時dirに展開し
+  `tsgo -p <config> --pretty false`、`.json`に位置する行とfileなしの行（5xxx／6xxx／18xxx、TS5011はprogram load
+  の行なので除外）のfile／line／column／code／message chainを比較（lengthはtsgoが出力しない）。結果：
+  entity-names 36/36（2 caseはmessage内の改行を検算scriptが切った見かけの差）、config-diagnostics 56/76。
+  差の20 caseはすべて7.1が削除したoption／値に関わる行で、次のclass（P3-5b）に送る：
+  - 7.1に無い関係row：`outFile`×`isolatedModules`／`verbatimModuleSyntax`／`declarationDir`（TS5053）と
+    `outFile`＋commonjs（TS6082）、`verbatimModuleSyntax`＋AMD／UMD／System（TS5105）、`resolveJsonModule`＋classic
+    （TS5070）／system（TS5071）、`resolvePackageJsonExports`／`Imports`／`customConditions`＋classic（TS5098）、
+    node16／node18／node20／nodenext＋classic（TS5109）、`isolatedModules`＋`module: none`＋低target（TS5047）、
+    複数`*`のpattern後のsubstitution型row（TS5064）。
+  - 7.1のdefault `moduleResolution`はnode16／nodenext以外のすべてのmoduleでbundler：amd／umd／system／noneに
+    TS5095（`Option 'bundler' can only be used when 'module' is set to 'preserve', 'commonjs', or 'es2015' or later.`）。
+  - `module: none`と`target: es3`は7.1の値集合に無い（TS6046、listは`'commonjs', 'es6', 'es2015', 'es2020',
+    'es2022', 'esnext', 'node16', 'node18', 'node20', 'nodenext', 'preserve'`／`'es6'…'es2025', 'esnext'`）。
+  - 5.5で削除されたoption名（`charset`、`out`、`keyofStringsOnly`、`noImplicitUseStrict`、`noStrictGenericChecks`、
+    `suppressExcessPropertyErrors`、`suppressImplicitAnyIndexErrors`、`importsNotUsedAsValues`、
+    `preserveValueImports`）はTS5023 Unknown compiler option。tsc-rsのTS5102／5108 rowとCompilerOptionsの
+    fieldは残置。
+- test：programのloader／paths／option-validation、compilerのsession／emit／cli／filesystem、checkerのcallsを
+  7.1の行に再pin。node10のauthoritative resolution testはnode10のまま、semantic行は`run_for_native_harness`の
+  ungated union（`consume_ungated`）から読む（CLIのbucketはoption診断で閉じる）。
+- conformance（release、`--workers 4 --check`）：15,228 configuration、lane A 13,467（変化なし）、full 12,641→12,666（+25）、text 114、category 21、mismatch 646→622、harness error 45→44、emit full 12,411。lane Aに上がったのはP3-4で予告した`downlevelIteration`の23構成（errorsがTS5102で一致）と`importAssertionsDeprecatedIgnored`（`@ignoreDeprecations: 6.0`が無効になりTS2880 3件が一致）の計24件。ratchet：0 regressions、`--update`相当（report記録）で24行追加。`compiler/intersectionConstructorReductionCrash`は今回fullだったが、P3-1以降の計測ではharness error（stress case、負荷で結果が変わる）だったので行を追加しない（安定したら追加）。
+- hosted：HOSTED_RECORD

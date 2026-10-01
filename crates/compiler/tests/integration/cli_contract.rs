@@ -396,7 +396,9 @@ fn config_option_diagnostics_suppress_semantic_reporting_like_typescript() {
     assert_eq!(output.status.code(), Some(2));
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stdout.contains("tsconfig.json(1,68): error TS5107:"),
+        stdout.contains(
+            "tsconfig.json(1,68): error TS5108: Option 'moduleResolution=node10' has been removed."
+        ),
         "{stdout}"
     );
     assert!(!stdout.contains("TS2322"), "{stdout}");

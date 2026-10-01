@@ -148,9 +148,8 @@ fn config_diagnostics_matches_fresh_typescript_observations() {
     let oracle: Value =
         serde_json::from_slice(include_bytes!("../fixtures/h2-8b-config-diagnostics.json"))
             .expect("frozen config observations");
-    assert_eq!(oracle["typescript"], "6.0.3");
+    assert_eq!(oracle["typescript"], "7.1.0-dev-19dadef8");
     assert_eq!(oracle["repetitions"], 2);
-    assert_eq!(oracle["program_executions"], 152);
     let cases = inputs["cases"].as_array().expect("input cases");
     let expected = oracle["cases"].as_array().expect("observed cases");
     assert_eq!(cases.len(), 76);

@@ -27,8 +27,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::js_path::{
-    file_name_key, normalize_slashes, normalized_config_dir_value_path,
-    normalized_config_value_path, root_parts, starts_with_config_dir_template,
+    combine_paths, directory_name, file_name_key, normalize_slashes, normalized_absolute_path,
+    normalized_config_dir_value_path, normalized_config_value_path, relative_path_from_directory,
+    root_parts, starts_with_config_dir_template,
 };
 use crate::json_value::{JsonObject as Map, JsonValue as Value};
 use tsc_diagnostics::{
@@ -1513,10 +1514,12 @@ fn validate_config_plan_for_mode(
 }
 
 /// Whether an option diagnostic is reportable while the program still enters
-/// the checker. TypeScript 6.0 deprecation rows are non-fatal; malformed
-/// values and structural option errors remain a source-loading gate.
+/// the checker. The removed-option rows (TS5102, TS5108) and the source-map
+/// relationship rows are program diagnostics that TypeScript 7.1 reports
+/// while it still checks and emits; malformed values and structural option
+/// errors remain a source-loading gate.
 pub fn is_non_fatal_option_diagnostic(diagnostic: &Diagnostic) -> bool {
-    matches!(diagnostic.code(), 5051 | 5053 | 5069 | 5101 | 5107)
+    matches!(diagnostic.code(), 5051 | 5053 | 5069 | 5102 | 5108)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1784,7 +1787,12 @@ fn parse_config_root_plan_inner(
         module_resolution_options.program_options(),
     );
     option_diagnostics.extend(no_lib_lib_option_diagnostics(&node.options, &node.source));
-    option_diagnostics.extend(deprecation_option_diagnostics(&node.options, &node.source));
+    option_diagnostics.extend(removed_option_diagnostics(
+        &node.options,
+        &node.source,
+        config_file_name.as_js(),
+        host.use_case_sensitive_file_names(),
+    ));
     option_diagnostics.extend(option_relationship_diagnostics(&node.options, &node.source));
     sort_and_dedupe_diagnostics(&mut option_diagnostics);
     let phase_started = std::time::Instant::now();
@@ -3283,74 +3291,45 @@ fn no_lib_lib_option_diagnostics(
         .collect()
 }
 
-/// Produce the non-fatal TypeScript 6.0 option-deprecation diagnostics owned
-/// by `getOptionsDiagnostics`.  These diagnostics must remain attached to the
-/// immutable config plan even though they do not prevent a no-emit program
-/// from being constructed.
+/// Produce the option diagnostics TypeScript 7.1 reports for the options
+/// TypeScript 7 removed. tsgo reports them as program diagnostics next to the
+/// other option rows and still builds, checks and emits the program, so they
+/// stay attached to the config plan as non-fatal rows (see
+/// `is_non_fatal_option_diagnostic`). `ignoreDeprecations` is parsed but has
+/// no effect in 7.1: it neither silences a row nor is validated.
 ///
-/// tsc-port: verifyDeprecatedCompilerOptions @6.0.3
-/// tsc-hash: b6d09b278ef2bfb9854fcd27e61627d116411742e757e3113a5338df88bcb08d
-/// tsc-span: _tsc.js:129942-130078
-fn deprecation_option_diagnostics(
+/// The rows for the options TypeScript 5.5 removed (`charset`, `out`,
+/// `keyofStringsOnly`, ...) remain until the option catalog follows 7.1,
+/// where those names are unknown options (TS5023).
+///
+/// tsgo-port: verifyCompilerOptions "Removed in TS7" @7.1 (program.go:951-1008)
+fn removed_option_diagnostics(
     options: &ConfigOptionBag,
     source: &ConfigSourceText,
+    config_file_name: JsStr<'_>,
+    use_case_sensitive_file_names: bool,
 ) -> Vec<Diagnostic> {
     let parsed =
         tsc_syntax::parse_json_text_from_snapshot(&source.file_name, Arc::clone(source.snapshot()));
     let compiler_properties = config_compiler_option_properties(&parsed);
     let fallback = config_property(&parsed, "compilerOptions")
         .and_then(|property| config_location(&parsed, property.name_node));
-    let ignore_state = options.typed_value_state("ignoreDeprecations");
-    let ignore = match ignore_state {
-        ConfigOptionValueState::Value(Value::String(value)) => Some(value.as_js()),
-        _ => None,
-    };
-    let ignore_invalid = match ignore_state {
-        ConfigOptionValueState::Absent => false,
-        ConfigOptionValueState::Value(Value::String(value)) => {
-            !matches!(value.as_str(), Some("5.0" | "6.0"))
-        }
-        ConfigOptionValueState::Value(_)
-        | ConfigOptionValueState::Undefined
-        | ConfigOptionValueState::List(_)
-        | ConfigOptionValueState::Object(_)
-        | ConfigOptionValueState::PositiveInfinity
-        | ConfigOptionValueState::NegativeInfinity => true,
-    };
     let mut diagnostics = Vec::new();
-
-    if ignore_invalid {
-        emit_option_diagnostic_for_properties(
+    let mut removed = |name: &str, value: Option<&str>, use_instead: Option<JsStr<'_>>| {
+        emit_removed_option_diagnostic(
             &mut diagnostics,
             &parsed,
             &compiler_properties,
             &fallback,
-            "ignoreDeprecations",
-            false,
-            &gen::Invalid_value_for_ignoreDeprecations,
-            &[],
+            name,
+            value,
+            use_instead,
         );
-    }
-
-    // A deprecation can be silenced only by the matching 6.0 suppression
-    // version. `"5.0"` remains a valid value, but intentionally does not
-    // silence options deprecated in 6.0.
-    let silences_ts6 = ignore.is_some_and(|value| value == "6.0");
+    };
 
     let target = config_option_i32(options, "target");
     if target == Some(0) {
-        // ES3 was removed in 5.5, so ignoreDeprecations cannot silence this
-        // row even when it is set to the current 6.0 version.
-        emit_option_diagnostic_for_properties(
-            &mut diagnostics,
-            &parsed,
-            &compiler_properties,
-            &fallback,
-            "target",
-            false,
-            &gen::Option_0_1_has_been_removed_Please_remove_it_from_your_configuration,
-            &["target".to_owned(), "ES3".to_owned()],
-        );
+        removed("target", Some("ES3"), None);
     }
     for name in [
         "noImplicitUseStrict",
@@ -3360,167 +3339,140 @@ fn deprecation_option_diagnostics(
         "noStrictGenericChecks",
     ] {
         if config_option_bool(options, name) == Some(true) {
-            emit_removed_option_name(
-                &mut diagnostics,
-                &parsed,
-                &compiler_properties,
-                &fallback,
-                name,
-                None,
-            );
+            removed(name, None, None);
         }
     }
     for name in ["charset", "out"] {
         if config_option_string(options, name).is_some_and(|value| !value.is_empty()) {
-            emit_removed_option_name(
-                &mut diagnostics,
-                &parsed,
-                &compiler_properties,
-                &fallback,
-                name,
-                None,
-            );
+            removed(name, None, None);
         }
     }
     if config_option_i32(options, "importsNotUsedAsValues").is_some_and(|value| value != 0) {
-        emit_removed_option_name(
-            &mut diagnostics,
-            &parsed,
-            &compiler_properties,
-            &fallback,
+        removed(
             "importsNotUsedAsValues",
-            Some("verbatimModuleSyntax"),
+            None,
+            Some("verbatimModuleSyntax".into()),
         );
     }
     if config_option_bool(options, "preserveValueImports") == Some(true) {
-        emit_removed_option_name(
-            &mut diagnostics,
-            &parsed,
-            &compiler_properties,
-            &fallback,
+        removed(
             "preserveValueImports",
-            Some("verbatimModuleSyntax"),
+            None,
+            Some("verbatimModuleSyntax".into()),
         );
     }
-    if !silences_ts6 {
-        if target == Some(1) {
-            emit_option_deprecation_5107(
-                &mut diagnostics,
-                &parsed,
-                &compiler_properties,
-                &fallback,
-                "target",
-                "ES5",
-                false,
-            );
+
+    // Removed in TS7. The typed `baseUrl` value is already absolute.
+    if let Some(base_url) = config_option_string(options, "baseUrl") {
+        let use_instead = removed_base_url_paths_suggestion(
+            config_file_name,
+            base_url.as_js(),
+            JsStr::from(""),
+            use_case_sensitive_file_names,
+        );
+        removed("baseUrl", None, Some(use_instead.as_js()));
+    }
+    if config_option_string(options, "outFile").is_some() {
+        removed("outFile", None, None);
+    }
+    if target == Some(1) {
+        removed("target", Some("ES5"), None);
+    }
+    let module_name = match config_option_i32(options, "module") {
+        Some(2) => Some("AMD"),
+        Some(4) => Some("System"),
+        Some(3) => Some("UMD"),
+        _ => None,
+    };
+    if let Some(module_name) = module_name {
+        removed("module", Some(module_name), None);
+    }
+    let module_resolution = config_option_i32(options, "moduleResolution");
+    if module_resolution == Some(1) {
+        removed("moduleResolution", Some("Classic"), None);
+    }
+    for name in [
+        "alwaysStrict",
+        "esModuleInterop",
+        "allowSyntheticDefaultImports",
+    ] {
+        if config_option_bool(options, name) == Some(false) {
+            removed(name, Some("false"), None);
         }
-        if config_option_bool(options, "alwaysStrict") == Some(false) {
-            emit_option_deprecation_5107(
-                &mut diagnostics,
-                &parsed,
-                &compiler_properties,
-                &fallback,
-                "alwaysStrict",
-                "false",
-                false,
-            );
-        }
-        if config_option_i32(options, "moduleResolution") == Some(1) {
-            emit_option_deprecation_5107(
-                &mut diagnostics,
-                &parsed,
-                &compiler_properties,
-                &fallback,
-                "moduleResolution",
-                "classic",
-                false,
-            );
-        } else if config_option_i32(options, "moduleResolution") == Some(2) {
-            emit_option_deprecation_5107(
-                &mut diagnostics,
-                &parsed,
-                &compiler_properties,
-                &fallback,
-                "moduleResolution",
-                "node10",
-                true,
-            );
-        }
-        if options.typed_value("baseUrl").is_some() {
-            emit_option_deprecation_name(
-                &mut diagnostics,
-                &parsed,
-                &compiler_properties,
-                &fallback,
-                "baseUrl",
-                true,
-            );
-        }
-        if config_option_bool(options, "esModuleInterop") == Some(false) {
-            emit_option_deprecation_5107(
-                &mut diagnostics,
-                &parsed,
-                &compiler_properties,
-                &fallback,
-                "esModuleInterop",
-                "false",
-                false,
-            );
-        }
-        if config_option_bool(options, "allowSyntheticDefaultImports") == Some(false) {
-            emit_option_deprecation_5107(
-                &mut diagnostics,
-                &parsed,
-                &compiler_properties,
-                &fallback,
-                "allowSyntheticDefaultImports",
-                "false",
-                false,
-            );
-        }
-        if options.typed_value("outFile").is_some() {
-            emit_option_deprecation_name(
-                &mut diagnostics,
-                &parsed,
-                &compiler_properties,
-                &fallback,
-                "outFile",
-                false,
-            );
-        }
-        if config_option_bool(options, "downlevelIteration").is_some() {
-            emit_option_deprecation_name(
-                &mut diagnostics,
-                &parsed,
-                &compiler_properties,
-                &fallback,
-                "downlevelIteration",
-                false,
-            );
-        }
-        let module = config_option_i32(options, "module");
-        let module_name = match module {
-            Some(0) => Some("None"),
-            Some(2) => Some("AMD"),
-            Some(3) => Some("UMD"),
-            Some(4) => Some("System"),
-            _ => None,
-        };
-        if let Some(module_name) = module_name {
-            emit_option_deprecation_5107(
-                &mut diagnostics,
-                &parsed,
-                &compiler_properties,
-                &fallback,
-                "module",
-                module_name,
-                false,
-            );
-        }
+    }
+    if module_resolution == Some(2) {
+        removed("moduleResolution", Some("node10"), None);
+    }
+    if config_option_bool(options, "downlevelIteration").is_some() {
+        removed("downlevelIteration", None, None);
     }
 
     sort_and_dedupe_diagnostics(&mut diagnostics);
     diagnostics
+}
+
+/// The `Use '"paths": {"*": ["./…/*"]}' instead.` suggestion TypeScript 7.1
+/// attaches to the removed `baseUrl` option when a config file exists: the
+/// base URL relative to the config file's directory, quoted as Go's
+/// `encoding/json` does.
+///
+/// tsgo-port: verifyCompilerOptions (baseUrl) @7.1 (program.go:953-966),
+/// tspath.GetRelativePathFromFile and tspath.EnsurePathIsNonModuleName
+/// (path.go:817-819, 974-979)
+pub fn removed_base_url_paths_suggestion(
+    config_file_name: JsStr<'_>,
+    base_url: JsStr<'_>,
+    current_directory: JsStr<'_>,
+    use_case_sensitive_file_names: bool,
+) -> JsString {
+    let base_url = normalized_absolute_path(base_url, current_directory);
+    let directory = directory_name(config_file_name);
+    let mut relative = relative_path_from_directory(
+        directory.as_js(),
+        base_url.as_js(),
+        use_case_sensitive_file_names,
+    );
+    if !path_is_absolute(relative.as_js()) && !path_is_relative(relative.as_js()) {
+        relative = prefixed_path("./", relative.as_js());
+    }
+    if !(relative.starts_with("./") || relative.starts_with("../")) {
+        relative = prefixed_path("./", relative.as_js());
+    }
+    let suggestion = combine_paths(relative.as_js(), JsStr::from("*"));
+    let mut text = JsString::from("\"paths\": {\"*\": [");
+    text.push_str(&go_json_string(suggestion.as_js()));
+    text.push_str("]}");
+    text
+}
+
+fn prefixed_path(prefix: &str, path: JsStr<'_>) -> JsString {
+    let mut prefixed = JsString::from(prefix);
+    prefixed.push_js(path);
+    prefixed
+}
+
+/// `encoding/json.Marshal` of a string: Go's default escaping, including the
+/// HTML-safe `<`, `>` and `&` forms and `�` for an
+/// unpaired surrogate.
+fn go_json_string(text: JsStr<'_>) -> String {
+    use std::fmt::Write as _;
+    let mut quoted = String::from("\"");
+    for unit in char::decode_utf16(text.code_units()) {
+        match unit {
+            Ok('"') => quoted.push_str("\\\""),
+            Ok('\\') => quoted.push_str("\\\\"),
+            Ok('\n') => quoted.push_str("\\n"),
+            Ok('\r') => quoted.push_str("\\r"),
+            Ok('\t') => quoted.push_str("\\t"),
+            Ok(ch @ ('<' | '>' | '&' | '\u{2028}' | '\u{2029}' | '\0'..='\u{1f}')) => {
+                let _ = write!(quoted, "\\u{:04x}", u32::from(ch));
+            }
+            Ok(ch) => quoted.push(ch),
+            Err(_) => quoted.push_str("\\ufffd"),
+        }
+    }
+    quoted.push('"');
+    quoted
 }
 
 /// Produce option-combination diagnostics which TypeScript evaluates after
@@ -3632,16 +3584,13 @@ fn emit_option_validation_diagnostic_for_properties(
             )
         })
         .collect::<Vec<_>>();
+    // tsoptions.ForEachPropertyAssignment (tsconfigparsing.go:1777-1791)
+    // stops at the first property, in document order, that one of the
+    // violation's names matches: a second name or a duplicate key adds no
+    // row. Without a match the row goes to the `compilerOptions` name.
     locations.sort_unstable_by_key(|location| location.start);
-    if locations.is_empty() {
-        diagnostics.push(config_diagnostic_from_chain(message, fallback.clone()));
-    } else {
-        diagnostics.extend(
-            locations
-                .into_iter()
-                .map(|location| config_diagnostic_from_chain(message.clone(), Some(location))),
-        );
-    }
+    let location = locations.into_iter().next().or_else(|| fallback.clone());
+    diagnostics.push(config_diagnostic_from_chain(message, location));
 }
 
 fn config_compiler_option_properties(source: &SourceFile) -> Vec<ConfigPropertyNode> {
@@ -3656,128 +3605,54 @@ fn config_compiler_option_properties(source: &SourceFile) -> Vec<ConfigPropertyN
         .collect()
 }
 
-fn emit_option_deprecation_5107(
+/// Report a removed option at the first `compilerOptions` property with that
+/// name (the property name for a name-only row, the value otherwise), else at
+/// the `compilerOptions` property name, else without a location.
+///
+/// tsgo-port: createRemovedOptionDiagnostic @7.1 (program.go:934-949),
+/// createDiagnosticForOption and createOptionDiagnosticInObjectLiteralSyntax
+/// (program.go:893-921) over tsoptions.ForEachPropertyAssignment
+/// (tsconfigparsing.go:1777-1791), which stops at the first matching property.
+fn emit_removed_option_diagnostic(
     diagnostics: &mut Vec<Diagnostic>,
     source: &SourceFile,
     properties: &[ConfigPropertyNode],
     fallback: &Option<ConfigLocation>,
     name: &str,
-    value: &str,
-    related: bool,
+    value: Option<&str>,
+    use_instead: Option<JsStr<'_>>,
 ) {
-    let start = diagnostics.len();
-    emit_option_diagnostic_for_properties(
-        diagnostics,
-        source,
-        properties,
-        fallback,
-        name,
-        false,
-        &gen::Option_0_1_is_deprecated_and_will_stop_functioning_in_TypeScript_2_Specify_compilerOption_ignoreDeprecations_3_to_silence_this_error,
-        &[
-            name.to_owned(),
-            value.to_owned(),
-            "7.0".to_owned(),
-            "6.0".to_owned(),
-        ],
-    );
-    if related {
-        // Replace only the rows created by this call. Other 5107 rows may
-        // precede it in the same option pass (for example `module=AMD`).
-        for diagnostic in &mut diagnostics[start..] {
-            diagnostic.message = diagnostic.message.clone().with_next(vec![MessageChain::new(
-                &gen::Visit_https_aka_ms_ts6_for_migration_information,
-                &[],
-            )]);
-        }
-    }
-}
-
-fn emit_removed_option_name(
-    diagnostics: &mut Vec<Diagnostic>,
-    source: &SourceFile,
-    properties: &[ConfigPropertyNode],
-    fallback: &Option<ConfigLocation>,
-    name: &str,
-    use_instead: Option<&str>,
-) {
-    let start = diagnostics.len();
-    emit_option_diagnostic_for_properties(
-        diagnostics,
-        source,
-        properties,
-        fallback,
-        name,
-        true,
-        &gen::Option_0_has_been_removed_Please_remove_it_from_your_configuration,
-        &[name.to_owned()],
-    );
+    let mut message = match value {
+        Some(value) => MessageChain::new(
+            &gen::Option_0_1_has_been_removed_Please_remove_it_from_your_configuration,
+            &[name.to_owned(), value.to_owned()],
+        ),
+        None => MessageChain::new(
+            &gen::Option_0_has_been_removed_Please_remove_it_from_your_configuration,
+            &[name.to_owned()],
+        ),
+    };
     if let Some(use_instead) = use_instead {
-        for diagnostic in &mut diagnostics[start..] {
-            diagnostic.message = diagnostic.message.clone().with_next(vec![MessageChain::new(
-                &gen::Use_0_instead,
-                &[use_instead.to_owned()],
-            )]);
-        }
+        message = message.with_next(vec![MessageChain::new_js(
+            &gen::Use_0_instead,
+            &[use_instead.to_owned()],
+        )]);
     }
-}
-
-fn emit_option_deprecation_name(
-    diagnostics: &mut Vec<Diagnostic>,
-    source: &SourceFile,
-    properties: &[ConfigPropertyNode],
-    fallback: &Option<ConfigLocation>,
-    name: &str,
-    related: bool,
-) {
-    let start = diagnostics.len();
-    emit_option_diagnostic_for_properties(
-        diagnostics,
-        source,
-        properties,
-        fallback,
-        name,
-        true,
-        &gen::Option_0_is_deprecated_and_will_stop_functioning_in_TypeScript_1_Specify_compilerOption_ignoreDeprecations_2_to_silence_this_error,
-        &[name.to_owned(), "7.0".to_owned(), "6.0".to_owned()],
-    );
-    if related {
-        for diagnostic in &mut diagnostics[start..] {
-            diagnostic.message = diagnostic.message.clone().with_next(vec![MessageChain::new(
-                &gen::Visit_https_aka_ms_ts6_for_migration_information,
-                &[],
-            )]);
-        }
-    }
-}
-
-#[allow(clippy::too_many_arguments)] // Mirrors createOptionDiagnostic's location/message tuple.
-fn emit_option_diagnostic_for_properties(
-    diagnostics: &mut Vec<Diagnostic>,
-    source: &SourceFile,
-    properties: &[ConfigPropertyNode],
-    fallback: &Option<ConfigLocation>,
-    name: &str,
-    on_key: bool,
-    message: &'static DiagnosticMessage,
-    arguments: &[String],
-) {
-    let mut emitted = false;
-    for property in properties.iter().filter(|property| property.name == name) {
-        let location = config_location(
-            source,
-            if on_key {
-                property.name_node
-            } else {
-                property.initializer
-            },
-        );
-        diagnostics.push(config_diagnostic(message, arguments, location));
-        emitted = true;
-    }
-    if !emitted {
-        diagnostics.push(config_diagnostic(message, arguments, fallback.clone()));
-    }
+    let location = properties
+        .iter()
+        .find(|property| property.name == name)
+        .and_then(|property| {
+            config_location(
+                source,
+                if value.is_some() {
+                    property.initializer
+                } else {
+                    property.name_node
+                },
+            )
+        })
+        .or_else(|| fallback.clone());
+    diagnostics.push(config_diagnostic_from_chain(message, location));
 }
 
 fn pending_paths_option_violations(

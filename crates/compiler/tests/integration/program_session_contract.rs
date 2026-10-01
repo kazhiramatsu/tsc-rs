@@ -2,7 +2,9 @@ use tsc_checker::{
     check_program_with_owned_libs_at, AuthoritativeModuleFailure, AuthoritativeModuleLookupFailure,
     InputFile, UnsupportedAuthoritativeResolution,
 };
-use tsc_compiler::{CheckerBudget, DriverError, NoEmitOutcome, ProgramSession};
+use tsc_compiler::{
+    CheckerBudget, DriverError, NativeHarnessCollection, NoEmitOutcome, ProgramSession,
+};
 use tsc_diagnostics::{Diagnostic, DiagnosticCategory, MessageChain};
 use tsc_host::MemoryCompilerHost;
 use tsc_program::{
@@ -210,6 +212,44 @@ fn consume(session: ProgramSession) -> NoEmitOutcome {
     session.run().expect("one-shot session")
 }
 
+/// The semantic rows of a program whose options carry a removed-option row.
+/// TypeScript 7.1 reports `moduleResolution=node10` (TS5108) and, like its
+/// command line, gates the semantic bucket behind that row; the native
+/// harness union is ungated, like `getPreEmitDiagnostics`.
+struct UngatedOutcome {
+    semantic: Vec<Diagnostic>,
+}
+
+impl UngatedOutcome {
+    fn semantic_diagnostics(&self) -> &[Diagnostic] {
+        &self.semantic
+    }
+}
+
+fn consume_ungated(session: ProgramSession) -> UngatedOutcome {
+    let outcome = session
+        .run_for_native_harness(NativeHarnessCollection {
+            capture_suggestions: false,
+            output_path_check: false,
+        })
+        .expect("one-shot session");
+    assert_eq!(
+        codes(outcome.options_diagnostics()),
+        [5108],
+        "{:?}",
+        outcome.options_diagnostics()
+    );
+    assert!(outcome.syntactic_diagnostics().is_empty());
+    assert!(outcome.semantic_diagnostics().is_empty());
+    let semantic = outcome
+        .native_harness_diagnostics()
+        .iter()
+        .filter(|diagnostic| diagnostic.file_name.is_some())
+        .cloned()
+        .collect();
+    UngatedOutcome { semantic }
+}
+
 fn assert_one_cached_library_saved_work(
     owned: &NoEmitOutcome,
     cached: &NoEmitOutcome,
@@ -316,33 +356,28 @@ fn no_emit_reports_both_owners_of_a_default_library_global_conflict() {
 }
 
 #[test]
-fn programmatic_base_url_deprecation_is_fileless_and_suppressible() {
-    let deprecated = consume(ProgramSession::new(with_minimal_lib(
-        &[("main.ts", "export {};\n")],
-        PreparationDiagnostics::default(),
-        |options| options.base_url = Some("/Display/Project".to_owned().into()),
-    )));
-    let [diagnostic] = deprecated.options_diagnostics() else {
-        panic!("expected one baseUrl option diagnostic");
-    };
-    assert_eq!(diagnostic.code(), 5101);
-    assert_eq!(diagnostic.file_name, None);
-    assert_eq!(diagnostic.start, None);
-    assert_eq!(diagnostic.length, None);
-    assert_eq!(diagnostic.message.next.len(), 1);
-    assert_eq!(diagnostic.message.next[0].code, 5111);
-    assert!(deprecated.global_diagnostics().is_empty());
-    assert!(deprecated.semantic_diagnostics().is_empty());
-
-    let silenced = consume(ProgramSession::new(with_minimal_lib(
-        &[("main.ts", "export {};\n")],
-        PreparationDiagnostics::default(),
-        |options| {
-            options.base_url = Some("/Display/Project".to_owned().into());
-            options.ignore_deprecations = Some("6.0".to_owned().into());
-        },
-    )));
-    assert!(silenced.options_diagnostics().is_empty());
+fn programmatic_base_url_removal_is_fileless_and_ignores_ignore_deprecations() {
+    for silence in [None, Some("6.0")] {
+        let outcome = consume(ProgramSession::new(with_minimal_lib(
+            &[("main.ts", "export {};\n")],
+            PreparationDiagnostics::default(),
+            |options| {
+                options.base_url = Some("/Display/Project".to_owned().into());
+                options.ignore_deprecations = silence.map(|value| value.to_owned().into());
+            },
+        )));
+        let [diagnostic] = outcome.options_diagnostics() else {
+            panic!("expected one baseUrl option diagnostic");
+        };
+        assert_eq!(diagnostic.code(), 5102);
+        assert_eq!(diagnostic.file_name, None);
+        assert_eq!(diagnostic.start, None);
+        assert_eq!(diagnostic.length, None);
+        // Without a config file there is no `paths` suggestion to attach.
+        assert!(diagnostic.message.next.is_empty());
+        assert!(outcome.global_diagnostics().is_empty());
+        assert!(outcome.semantic_diagnostics().is_empty());
+    }
 }
 
 #[test]
@@ -385,36 +420,31 @@ fn programmatic_lib_and_no_lib_conflict_is_fileless() {
 }
 
 #[test]
-fn programmatic_amd_and_umd_deprecations_are_fileless_and_suppressible() {
-    for (module, name) in [(2, "AMD"), (3, "UMD")] {
-        let deprecated = consume(ProgramSession::new(with_minimal_lib(
-            &[("main.ts", "export {};\n")],
-            PreparationDiagnostics::default(),
-            |options| options.module = Some(module),
-        )));
-        let [diagnostic] = deprecated.options_diagnostics() else {
-            panic!("expected one module={name} option diagnostic");
-        };
-        assert_eq!(diagnostic.code(), 5107);
-        assert_eq!(diagnostic.file_name, None);
-        assert_eq!(diagnostic.start, None);
-        assert_eq!(diagnostic.length, None);
-        assert_eq!(
-            diagnostic.message_text().as_str().expect("scalar diagnostic observation"),
-            format!(
-                "Option 'module={name}' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
-            )
-        );
-
-        let silenced = consume(ProgramSession::new(with_minimal_lib(
-            &[("main.ts", "export {};\n")],
-            PreparationDiagnostics::default(),
-            |options| {
-                options.module = Some(module);
-                options.ignore_deprecations = Some("6.0".to_owned().into());
-            },
-        )));
-        assert!(silenced.options_diagnostics().is_empty());
+fn programmatic_amd_and_umd_removals_are_fileless_and_ignore_ignore_deprecations() {
+    for (module, name) in [(2, "AMD"), (3, "UMD"), (4, "System")] {
+        for silence in [None, Some("6.0")] {
+            let outcome = consume(ProgramSession::new(with_minimal_lib(
+                &[("main.ts", "export {};\n")],
+                PreparationDiagnostics::default(),
+                |options| {
+                    options.module = Some(module);
+                    options.ignore_deprecations = silence.map(|value| value.to_owned().into());
+                },
+            )));
+            let [diagnostic] = outcome.options_diagnostics() else {
+                panic!("expected one module={name} option diagnostic");
+            };
+            assert_eq!(diagnostic.code(), 5108);
+            assert_eq!(diagnostic.file_name, None);
+            assert_eq!(diagnostic.start, None);
+            assert_eq!(diagnostic.length, None);
+            assert_eq!(
+                diagnostic.message_text().as_str().expect("scalar diagnostic observation"),
+                format!(
+                    "Option 'module={name}' has been removed. Please remove it from your configuration."
+                )
+            );
+        }
     }
 }
 
@@ -522,7 +552,7 @@ fn program_owned_config_option_diagnostics_use_effective_values_and_syntax_locat
             })
             .collect::<Vec<_>>(),
         [
-            (5107, Some("/foo/tsconfig.json"), Some(45), Some(5)),
+            (5108, Some("/foo/tsconfig.json"), Some(45), Some(5)),
             (5102, Some("/foo/tsconfig.json"), Some(85), Some(21)),
             (5102, Some("/foo/tsconfig.json"), Some(122), Some(18)),
             (5102, Some("/foo/tsconfig.json"), Some(156), Some(30)),
@@ -548,14 +578,14 @@ fn programmatic_node_module_resolution_relationships_keep_exact_module_names() {
             |options| {
                 options.module = Some(module);
                 options.module_resolution = Some(1);
-                options.ignore_deprecations = Some("6.0".to_owned().into());
             },
         )));
         let diagnostics = outcome.options_diagnostics();
+        // TypeScript 7.1 adds the removed `moduleResolution=Classic` row.
         let expected_codes: &[u32] = if matches!(module, 102 | 199) {
-            &[5070, 5109]
+            &[5070, 5108, 5109]
         } else {
-            &[5109]
+            &[5108, 5109]
         };
         assert_eq!(codes(diagnostics), expected_codes, "module {module}");
         if matches!(module, 102 | 199) {
@@ -922,14 +952,12 @@ fn conformance_harness_lib_cache_preserves_authoritative_diagnostics() {
             &[1],
             CompilerOptions {
                 module: Some(1),
-                module_resolution: Some(2),
-                ignore_deprecations: Some("6.0".to_owned().into()),
                 ..CompilerOptions::default()
             },
             |builder, ids| {
                 builder
                     .add_module_resolution(
-                        module_key("/main.ts", "./dep", ResolutionMode::Unspecified),
+                        module_key("/main.ts", "./dep", ResolutionMode::CommonJs),
                         Ok(source_resolution(ids[0], "/dep.ts", ModuleExtension::Ts)),
                     )
                     .expect("add authoritative source resolution");
@@ -1049,7 +1077,6 @@ fn authoritative_not_found_does_not_fall_through_to_a_relative_probe_hit() {
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
-            ignore_deprecations: Some("6.0".to_owned().into()),
             ..CompilerOptions::default()
         },
         |builder, _| {
@@ -1062,7 +1089,7 @@ fn authoritative_not_found_does_not_fall_through_to_a_relative_probe_hit() {
         },
     );
 
-    let outcome = consume(ProgramSession::new(prepared));
+    let outcome = consume_ungated(ProgramSession::new(prepared));
     assert_eq!(
         outcome
             .semantic_diagnostics()
@@ -1092,7 +1119,6 @@ fn authoritative_resolution_selects_the_recorded_source_not_the_probe_candidate(
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
-            ignore_deprecations: Some("6.0".to_owned().into()),
             ..CompilerOptions::default()
         },
         |builder, ids| {
@@ -1109,7 +1135,7 @@ fn authoritative_resolution_selects_the_recorded_source_not_the_probe_candidate(
         },
     );
 
-    let outcome = consume(ProgramSession::new(prepared));
+    let outcome = consume_ungated(ProgramSession::new(prepared));
     assert_eq!(
         outcome
             .semantic_diagnostics()
@@ -1263,7 +1289,6 @@ fn authoritative_ts_extension_fact_controls_non_relative_rewrite_diagnostic() {
             CompilerOptions {
                 module: Some(1),
                 module_resolution: Some(2),
-                ignore_deprecations: Some("6.0".to_owned().into()),
                 rewrite_relative_import_extensions: Some(true),
                 ..CompilerOptions::default()
             },
@@ -1291,12 +1316,12 @@ fn authoritative_ts_extension_fact_controls_non_relative_rewrite_diagnostic() {
         );
 
         let owned = consume(ProgramSession::new(prepared.clone()));
-        let cached = ProgramSession::new(prepared)
+        let cached = ProgramSession::new(prepared.clone())
             .run_for_harness_with_lib_cache()
             .expect("cached authoritative rewrite session");
         assert_eq!(owned, cached, "{} cache mode", case.name);
         assert_one_cached_library_saved_work(&owned, &cached, MINIMAL_GLOBALS.len());
-        let outcome = owned;
+        let outcome = consume_ungated(ProgramSession::new(prepared));
         let diagnostics = outcome
             .semantic_diagnostics()
             .iter()
@@ -1456,7 +1481,6 @@ fn synthetic_tslib_uses_the_same_fail_closed_authoritative_table() {
             CompilerOptions {
                 module: Some(1),
                 module_resolution: Some(2),
-                ignore_deprecations: Some("6.0".to_owned().into()),
                 import_helpers: Some(true),
                 ..CompilerOptions::default()
             },
@@ -1489,7 +1513,7 @@ fn synthetic_tslib_uses_the_same_fail_closed_authoritative_table() {
     assert_eq!(missing.specifier(), "tslib");
     assert_eq!(missing.mode(), ResolutionMode::Unspecified);
 
-    let outcome = consume(ProgramSession::new(make_program(true)));
+    let outcome = consume_ungated(ProgramSession::new(make_program(true)));
     assert!(codes(outcome.semantic_diagnostics()).contains(&2354));
 }
 
@@ -2062,7 +2086,6 @@ fn authoritative_not_found_preserves_node10_alternate_result_chain() {
         &[0],
         CompilerOptions {
             module_resolution: Some(2),
-            ignore_deprecations: Some("6.0".to_owned().into()),
             ..CompilerOptions::default()
         },
         |builder, _| {
@@ -2075,7 +2098,7 @@ fn authoritative_not_found_preserves_node10_alternate_result_chain() {
         },
     );
 
-    let outcome = consume(ProgramSession::new(prepared));
+    let outcome = consume_ungated(ProgramSession::new(prepared));
     let diagnostics = outcome.semantic_diagnostics();
     assert_eq!(codes(diagnostics), [2307]);
     let diagnostic = &diagnostics[0];
@@ -2302,7 +2325,6 @@ fn authoritative_untyped_module_augmentation_reports_2665() {
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
-            ignore_deprecations: Some("6.0".to_owned().into()),
             allow_js: true,
             ..CompilerOptions::default()
         },
@@ -2325,7 +2347,7 @@ fn authoritative_untyped_module_augmentation_reports_2665() {
         },
     );
 
-    let outcome = consume(ProgramSession::new(prepared));
+    let outcome = consume_ungated(ProgramSession::new(prepared));
     assert_eq!(codes(outcome.semantic_diagnostics()), [2665]);
     assert!(outcome.semantic_diagnostics()[0]
         .message_text()
@@ -2342,7 +2364,6 @@ fn authoritative_relative_untyped_module_ignores_inapplicable_package_details() 
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
-            ignore_deprecations: Some("6.0".to_owned().into()),
             no_implicit_any: Some(true),
             ..CompilerOptions::default()
         },
@@ -2364,7 +2385,7 @@ fn authoritative_relative_untyped_module_ignores_inapplicable_package_details() 
         },
     );
 
-    let outcome = consume(ProgramSession::new(prepared));
+    let outcome = consume_ungated(ProgramSession::new(prepared));
     let diagnostics = outcome.semantic_diagnostics();
     assert_eq!(codes(diagnostics), [7016]);
     let mut chain_codes = vec![diagnostics[0].message.code];
@@ -2386,7 +2407,6 @@ fn unloaded_jsx_with_an_active_jsx_mode_reports_7016() {
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
-            ignore_deprecations: Some("6.0".to_owned().into()),
             allow_js: true,
             no_implicit_any: Some(true),
             jsx: Some(1),
@@ -2410,7 +2430,7 @@ fn unloaded_jsx_with_an_active_jsx_mode_reports_7016() {
         },
     );
 
-    let outcome = consume(ProgramSession::new(prepared));
+    let outcome = consume_ungated(ProgramSession::new(prepared));
     assert_eq!(codes(outcome.semantic_diagnostics()), [7016]);
 }
 
@@ -2422,7 +2442,6 @@ fn allow_js_unloaded_javascript_after_default_node_modules_depth_is_authoritativ
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
-            ignore_deprecations: Some("6.0".to_owned().into()),
             allow_js: true,
             no_implicit_any: Some(true),
             ..CompilerOptions::default()
@@ -2446,7 +2465,7 @@ fn allow_js_unloaded_javascript_after_default_node_modules_depth_is_authoritativ
         },
     );
 
-    let outcome = consume(ProgramSession::new(prepared));
+    let outcome = consume_ungated(ProgramSession::new(prepared));
     assert_eq!(codes(outcome.semantic_diagnostics()), [7016]);
     assert!(outcome.semantic_diagnostics()[0]
         .message_text()
@@ -2463,7 +2482,6 @@ fn unloaded_jsx_without_mode_reports_6142() {
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
-            ignore_deprecations: Some("6.0".to_owned().into()),
             allow_js: true,
             ..CompilerOptions::default()
         },
@@ -2485,7 +2503,7 @@ fn unloaded_jsx_without_mode_reports_6142() {
         },
     );
 
-    let outcome = consume(ProgramSession::new(prepared));
+    let outcome = consume_ungated(ProgramSession::new(prepared));
     assert_eq!(codes(outcome.semantic_diagnostics()), [6142]);
     assert!(outcome.semantic_diagnostics()[0]
         .message_text()
@@ -2502,7 +2520,6 @@ fn unloaded_arbitrary_declaration_reports_6263() {
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
-            ignore_deprecations: Some("6.0".to_owned().into()),
             ..CompilerOptions::default()
         },
         |builder, _| {
@@ -2522,7 +2539,7 @@ fn unloaded_arbitrary_declaration_reports_6263() {
         },
     );
 
-    let outcome = consume(ProgramSession::new(prepared));
+    let outcome = consume_ungated(ProgramSession::new(prepared));
     assert_eq!(codes(outcome.semantic_diagnostics()), [6263]);
     assert!(outcome.semantic_diagnostics()[0]
         .message_text()
@@ -2542,7 +2559,6 @@ fn augmentation_only_arbitrary_declaration_still_reports_6263_first() {
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
-            ignore_deprecations: Some("6.0".to_owned().into()),
             ..CompilerOptions::default()
         },
         |builder, _| {
@@ -2562,7 +2578,7 @@ fn augmentation_only_arbitrary_declaration_still_reports_6263_first() {
         },
     );
 
-    let outcome = consume(ProgramSession::new(prepared));
+    let outcome = consume_ungated(ProgramSession::new(prepared));
     assert_eq!(codes(outcome.semantic_diagnostics()), [6263]);
 }
 
@@ -2611,7 +2627,6 @@ fn enabled_arbitrary_augmentation_uses_the_ordinary_missing_module_diagnostic() 
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
-            ignore_deprecations: Some("6.0".to_owned().into()),
             allow_arbitrary_extensions: Some(true),
             ..CompilerOptions::default()
         },
@@ -2632,7 +2647,7 @@ fn enabled_arbitrary_augmentation_uses_the_ordinary_missing_module_diagnostic() 
         },
     );
 
-    let outcome = consume(ProgramSession::new(prepared));
+    let outcome = consume_ungated(ProgramSession::new(prepared));
     assert_eq!(codes(outcome.semantic_diagnostics()), [2664]);
 }
 
@@ -2650,7 +2665,6 @@ fn owned_jsx_without_mode_reports_6142_and_keeps_the_resolved_symbol() {
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
-            ignore_deprecations: Some("6.0".to_owned().into()),
             allow_js: true,
             ..CompilerOptions::default()
         },
@@ -2671,7 +2685,7 @@ fn owned_jsx_without_mode_reports_6142_and_keeps_the_resolved_symbol() {
         },
     );
 
-    let outcome = consume(ProgramSession::new(prepared));
+    let outcome = consume_ungated(ProgramSession::new(prepared));
     assert_eq!(codes(outcome.semantic_diagnostics()), [6142, 2322]);
     assert!(outcome.semantic_diagnostics()[0]
         .message_text()
