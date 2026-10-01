@@ -553,6 +553,139 @@ fn anonymous_or_mapped_mapper(
     }
 }
 
+/// tsgo-port: slices.SortStableFunc @go1.26 (`stableCmpFunc` in
+/// `slices/zsortanyfunc.go`): insertion sort of 20-element blocks, then
+/// SymMerge passes. tsgo sorts a union's members with it
+/// (`addTypesToUnion`), and `compareTypes` is not a total order in every
+/// case (two same-named aliases compare by their members, which can cycle
+/// with the alias-argument comparison), so the same algorithm gives the
+/// same order as tsgo where a different stable sort could not, and never
+/// panics on an inconsistent comparison as the standard sorts may.
+pub fn sort_types_like_tsgo<T: Copy>(data: &mut [T], mut less: impl FnMut(T, T) -> bool) {
+    let n = data.len();
+    let mut block = 20;
+    let (mut a, mut b) = (0, block);
+    while b <= n {
+        insertion_sort(data, a, b, &mut less);
+        a = b;
+        b += block;
+    }
+    insertion_sort(data, a, n, &mut less);
+    while block < n {
+        let (mut a, mut b) = (0, 2 * block);
+        while b <= n {
+            sym_merge(data, a, a + block, b, &mut less);
+            a = b;
+            b += 2 * block;
+        }
+        let m = a + block;
+        if m < n {
+            sym_merge(data, a, m, n, &mut less);
+        }
+        block *= 2;
+    }
+}
+
+fn insertion_sort<T: Copy>(
+    data: &mut [T],
+    a: usize,
+    b: usize,
+    less: &mut impl FnMut(T, T) -> bool,
+) {
+    for i in a + 1..b {
+        let mut j = i;
+        while j > a && less(data[j], data[j - 1]) {
+            data.swap(j, j - 1);
+            j -= 1;
+        }
+    }
+}
+
+fn sym_merge<T: Copy>(
+    data: &mut [T],
+    a: usize,
+    m: usize,
+    b: usize,
+    less: &mut impl FnMut(T, T) -> bool,
+) {
+    if m - a == 1 {
+        // Insert data[a] into data[m..b]: the lowest i with data[i] >= data[a].
+        let (mut i, mut j) = (m, b);
+        while i < j {
+            let h = (i + j) >> 1;
+            if less(data[h], data[a]) {
+                i = h + 1;
+            } else {
+                j = h;
+            }
+        }
+        for k in a..i.saturating_sub(1) {
+            data.swap(k, k + 1);
+        }
+        return;
+    }
+    if b - m == 1 {
+        // Insert data[m] into data[a..m]: the lowest i with data[i] > data[m].
+        let (mut i, mut j) = (a, m);
+        while i < j {
+            let h = (i + j) >> 1;
+            if !less(data[m], data[h]) {
+                i = h + 1;
+            } else {
+                j = h;
+            }
+        }
+        let mut k = m;
+        while k > i {
+            data.swap(k, k - 1);
+            k -= 1;
+        }
+        return;
+    }
+    let mid = (a + b) >> 1;
+    let n = mid + m;
+    let (mut start, mut r) = if m > mid { (n - b, mid) } else { (a, m) };
+    let p = n - 1;
+    while start < r {
+        let c = (start + r) >> 1;
+        if !less(data[p - c], data[c]) {
+            start = c + 1;
+        } else {
+            r = c;
+        }
+    }
+    let end = n - start;
+    if start < m && m < end {
+        rotate(data, start, m, end);
+    }
+    if a < start && start < mid {
+        sym_merge(data, a, start, mid, less);
+    }
+    if mid < end && end < b {
+        sym_merge(data, mid, end, b, less);
+    }
+}
+
+fn rotate<T: Copy>(data: &mut [T], a: usize, m: usize, b: usize) {
+    let (mut i, mut j) = (m - a, b - m);
+    while i != j {
+        if i > j {
+            swap_range(data, m - i, m, j);
+            i -= j;
+        } else {
+            swap_range(data, m - i, m + j - i, i);
+            j -= i;
+        }
+    }
+    swap_range(data, m - i, m, i);
+}
+
+fn swap_range<T: Copy>(data: &mut [T], a: usize, b: usize, n: usize) {
+    for i in 0..n {
+        data.swap(a + i, b + i);
+    }
+}
+
 /// Where `ty` sits in `types`, which is sorted by `order`: tsc's
 /// `binarySearch(types, type, getTypeId, compareValues)` with the option
 /// off and `binarySearch(types, type, identity, compareTypes)` with it on.
@@ -593,3 +726,7 @@ pub fn insert_type(
     }
     false
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/type_order/tests.rs"]
+mod tests;

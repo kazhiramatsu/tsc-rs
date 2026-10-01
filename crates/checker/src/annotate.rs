@@ -7957,7 +7957,7 @@ impl<'a> CheckerState<'a> {
             return None;
         }
         let members = (**self.binder.symbol(symbol).exports()).clone();
-        let properties = members.values().copied().collect();
+        let properties: Vec<SymbolId> = members.values().copied().collect();
         let ty = self.create_resolved_empty_anonymous_type(Some(symbol));
         self.tables.type_mut(ty).object_flags = ObjectFlags::from_bits(
             self.tables.object_flags_of(ty).bits() | ObjectFlags::JS_LITERAL.bits(),
