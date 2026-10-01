@@ -373,4 +373,5 @@ go.workの要求どおりgo1.27.1）でprobeし、option catalog・計算値・�
   `module_resolution_contract`等のnode10前提のtest（30件超）の再pin／削除が要るので別PR。P3-6（旧resolver退役）と
   同じ流れ。
 - conformance（release、`--workers 4 --check`）：15,228 configuration、lane A 13,467（変化なし）、full 12,666→12,671、text 114、category 21、mismatch 622→616、harness error 44→45（`compiler/intersectionConstructorReductionCrash`がP3-5a時のfullからharness errorへ戻った。負荷依存のstress caseでratchet行は入れていない）、emit full 12,411→12,410（同じcase）。fullに上がったのは`compiler/deprecatedCompilerOptions1`〜`6`の6構成（tsconfigの削除済み／5.5削除optionの行がTS5023等で一致、各8行）。ratchet：0 regressions、6行追加。
-- hosted：HOSTED_RECORD
+- hosted：PR #620（head `06ce2a074`、merge `df5b75156`）、run 36926416348 — `plan` 31s、`rust` 9m54s、`conformance (TypeScript 7.1)` 17m12s、`gates` 12s。
+- perf（README corpora、`--noEmit`、nice 20、release build対tsgo 7.1.0-dev）：3 roundsの初回計測ではhono 0.82／TypeScript `src/compiler` 1.08がP3-5a（0.71／0.98）より悪く見えたが、main（P3-5a、`4b2c383cb`）と本branchのbinaryを同条件で5 rounds A/Bすると同値（median wall ms、main→本branch：hono 116→116、`src/compiler` 323→326、zod 514→511；peak RSS MB 310→289、291→292、1301→1300）で、tsgo比はhono 0.73、`src/compiler` 0.95、zod 0.56。初回の差は計測ノイズ（release build直後）で、退行なし。他のcorporaは初回計測でP3-5aと同じ帯（Playwright 0.59、Next.js 0.59、Effect 0.65、VS Code 0.76；peak memory同等以下）。
