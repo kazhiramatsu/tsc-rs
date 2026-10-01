@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
 pub use tsc_checker::{check_program, CheckResult, CompilerOptions, InputFile};
-use tsc_program::ModuleSuffix;
+use tsc_program::{ModuleSuffix, ReferenceProfile};
 
 pub fn check_empty_program() -> CheckResult {
     check_program(&[], &CompilerOptions::default())
@@ -310,6 +310,9 @@ fn project_compiler_options(options: &BTreeMap<String, OptionValue>) -> Compiler
     let module_detection = enum_option("moduleDetection", module_detection_option_value);
     let new_line = enum_option("newLine", new_line_option_value);
     CompilerOptions {
+        // The fixture corpora this projection serves are tsc 6.0.3's; a Program
+        // loaded through a TypeScript 7.1 catalog takes that catalog's profile.
+        reference_profile: ReferenceProfile::TypeScript603,
         allow_js: bool_option("allowJs").unwrap_or_else(|| bool_option("checkJs").unwrap_or(false)),
         force_consistent_casing_in_file_names: bool_option("forceConsistentCasingInFileNames"),
         max_node_module_js_depth: number_option("maxNodeModuleJsDepth"),
@@ -576,6 +579,7 @@ fn target_option_value(value: &str) -> Option<i32> {
         "es2023" => 10,
         "es2024" => 11,
         "es2025" => 12,
+        "es2026" => 13,
         "esnext" => 99,
         _ => return None,
     })

@@ -79,8 +79,15 @@ RETAINED_ONLY = {
 }
 
 
+# The TypeScript 7.1 conformance comparison (scripts/conformance_ts71.py)
+# runs whenever the early acceptance group, which carries the 6.0.3
+# conformance slice, is selected.
+CONFORMANCE_TS71_WORKERS = "4"
+
+
 def full_selection(reason):
-    return {"acceptance": list(GROUPS), "witnesses": list(witness.SUITES), "reason": reason}
+    return {"acceptance": list(GROUPS), "witnesses": list(witness.SUITES),
+            "conformance_ts71": True, "reason": reason}
 
 
 def selection(paths):
@@ -176,6 +183,7 @@ def selection(paths):
     return {
         "acceptance": [group for group in GROUPS if group in acceptance],
         "witnesses": [suite for suite in witness.SUITES if suite in witnesses],
+        "conformance_ts71": "early" in acceptance,
         "reason": "explicit disconnected or owning-input rules",
     }
 
@@ -238,15 +246,33 @@ def matrices(plan):
     }
 
 
+# The jobs each aggregate gate requires, with the plan output that selects them.
+GATE_JOBS = {
+    "acceptance": {"acceptance": "has_acceptance"},
+    "witnesses": {"witnesses": "has_witnesses"},
+    "conformance-ts71": {"conformance-ts71": "has_conformance_ts71"},
+}
+
+
 def verify_gate(needs, kind):
-    if set(needs) != {"plan", kind} or needs["plan"].get("result") != "success":
+    jobs = GATE_JOBS[kind]
+    if set(needs) != {"plan", *jobs} or needs["plan"].get("result") != "success":
         raise ValueError("replay planning did not succeed")
-    selected = needs["plan"].get("outputs", {}).get(f"has_{kind}")
-    if selected not in ("true", "false"):
-        raise ValueError("missing replay selection")
-    expected = "success" if selected == "true" else "skipped"
-    if needs[kind].get("result") != expected:
-        raise ValueError(f"{kind}: expected {expected}, got {needs[kind].get('result')}")
+    for job, output in jobs.items():
+        selected = needs["plan"].get("outputs", {}).get(output)
+        if selected not in ("true", "false"):
+            raise ValueError("missing replay selection")
+        expected = "success" if selected == "true" else "skipped"
+        if needs[job].get("result") != expected:
+            raise ValueError(f"{job}: expected {expected}, got {needs[job].get('result')}")
+
+
+def conformance_ts71():
+    """Build the release runner and compare lane A with the vendored 7.1 baselines."""
+    subprocess.run(["cargo", "build", "--release", "-p", "tsc-rs-conformance", "--bin", "conformance-ts71"],
+                   cwd=ROOT, check=True)
+    subprocess.run([sys.executable, "scripts/conformance_ts71.py", "--workers", CONFORMANCE_TS71_WORKERS,
+                    "--check"], cwd=ROOT, check=True)
 
 
 def printer_witnesses():
@@ -281,7 +307,7 @@ def printer_witnesses():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("plan", "acceptance", "witnesses", "gate"))
+    parser.add_argument("command", choices=("plan", "acceptance", "witnesses", "conformance-ts71", "gate"))
     parser.add_argument("value", nargs="?")
     args = parser.parse_args()
     if args.command == "plan":
@@ -301,6 +327,7 @@ def main():
             for kind in ("acceptance", "witnesses"):
                 output.write(f"has_{kind}={str(bool(plan[kind])).lower()}\n")
                 output.write(f"{kind}_matrix={json.dumps(matrix[kind], separators=(',', ':'))}\n")
+            output.write(f"has_conformance_ts71={str(bool(plan['conformance_ts71'])).lower()}\n")
     elif args.command == "acceptance":
         validate_partition()
         if args.value not in GROUPS:
@@ -308,6 +335,8 @@ def main():
         for item in GROUPS[args.value]:
             print(f"acceptance slice: {item}", flush=True)
             subprocess.run(["cargo", "xtask", "acceptance-slice", item], cwd=ROOT, check=True)
+    elif args.command == "conformance-ts71":
+        conformance_ts71()
     elif args.command == "witnesses":
         suites = json.loads(os.environ["WITNESS_SUITES"])
         if not isinstance(suites, list) or not suites or len(set(suites)) != len(suites) or any(suite not in witness.SUITES for suite in suites):
@@ -330,8 +359,8 @@ def main():
             _, env = witness.invocation(foundations[0], [])
             witness.foundation_witnesses.run(foundations, env)
     else:
-        if args.value not in ("acceptance", "witnesses"):
-            parser.error("gate requires acceptance or witnesses")
+        if args.value not in GATE_JOBS:
+            parser.error("gate requires acceptance, witnesses or conformance-ts71")
         verify_gate(json.loads(os.environ["REPLAY_NEEDS"]), args.value)
         print(f"{args.value} replay gate passed")
 

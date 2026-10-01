@@ -19,7 +19,8 @@ use std::sync::Mutex;
 
 use errors_baseline::remove_test_path_prefixes;
 use serde::Serialize;
-use tsc_compiler::{NativeHarnessCollection, ProgramSession};
+use sha2::Digest as _;
+use tsc_compiler::{CheckerBudget, NativeHarnessCollection, ProgramSession};
 use tsc_diagnostics::{Diagnostic, PositionIndex};
 use tsc_harness::upstream_suites::execution::{
     load_native_compiler_program, native_compiler_fixture, native_compiler_plan,
@@ -278,6 +279,8 @@ fn agreement(expected: &[BaselineDiagnostic], actual: &[BaselineDiagnostic]) -> 
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(tag = "status", rename_all = "kebab-case")]
+// One result per configuration; the compared variant's size is immaterial.
+#[allow(clippy::large_enum_variant)]
 pub enum Outcome {
     /// Lane A, compared.
     Compared {
@@ -288,6 +291,11 @@ pub enum Outcome {
         /// reported one the baseline lacks, on the location tier.
         missing: Option<BaselineDiagnostic>,
         unexpected: Option<BaselineDiagnostic>,
+        /// SHA-256 of tsc-rs's rendered error baseline (the empty string when
+        /// it reports nothing); `None` for a `@pretty` configuration. Two runs
+        /// with the same digest produced the same diagnostics in the same
+        /// order, whatever their tier.
+        rendered_sha256: Option<String>,
     },
     /// Lane A, but tsc-rs could not build or check the Program.
     HarnessError { reason: String },
@@ -314,6 +322,10 @@ pub struct RunOptions {
     /// Keep only this `<suite>/<path>` case.
     pub case: Option<String>,
     pub threads: usize,
+    /// Checkers per configuration. The conformance comparison runs on one
+    /// checker, the exact reference; a sharded run is the parallel control
+    /// that must agree with it up to member order.
+    pub checkers: usize,
     /// Write the rendered error baseline of every lane-A configuration that
     /// differs from its reference to `<dump>/<suite>/<stem>.errors.txt` (an
     /// empty file when tsc-rs reports nothing), for diffing.
@@ -385,6 +397,7 @@ fn run_lane_a(
     (configuration, stem): (&NativeConfiguration, &str),
     plan: &CompilerExecutionPlan,
     dump: Option<&Path>,
+    checkers: usize,
 ) -> Outcome {
     let flag = |name: &str| {
         configuration
@@ -398,7 +411,14 @@ fn run_lane_a(
         output_path_check: !flag("suppressoutputpathcheck"),
     };
     let test_library = profile.test_library_root();
-    let prepared = match load_native_compiler_program(workspace, plan, limits(), &test_library) {
+    let standard_library = profile.bundled_libraries_root();
+    let prepared = match load_native_compiler_program(
+        workspace,
+        plan,
+        limits(),
+        &test_library,
+        &standard_library,
+    ) {
         Ok(prepared) => prepared,
         Err(error) => {
             return Outcome::HarnessError {
@@ -406,7 +426,12 @@ fn run_lane_a(
             }
         }
     };
-    let outcome = match ProgramSession::new(prepared).run_for_native_harness(collection) {
+    let budget =
+        std::num::NonZeroUsize::new(checkers).map_or(CheckerBudget::serial(), CheckerBudget::new);
+    let outcome = match ProgramSession::new(prepared)
+        .with_checker_budget(budget)
+        .run_for_native_harness(collection)
+    {
         Ok(outcome) => outcome,
         Err(error) => {
             return Outcome::HarnessError {
@@ -430,15 +455,20 @@ fn run_lane_a(
         .map(parse_errors_baseline)
         .unwrap_or_default();
     let mut agreement = agreement(&expected, &actual);
-    if !pretty && (agreement == Agreement::Text || dump.is_some()) {
+    let mut rendered_sha256 = None;
+    if !pretty {
         let inputs: Vec<_> = files
             .iter()
             .map(|(name, content)| errors_baseline::InputFile { name, content })
             .collect();
         let rendered = errors_baseline::render(diagnostics, &inputs);
-        if rendered == expected_text {
+        rendered_sha256 = Some(format!(
+            "{:x}",
+            sha2::Sha256::digest(rendered.as_deref().unwrap_or_default().as_bytes())
+        ));
+        if agreement == Agreement::Text && rendered == expected_text {
             agreement = Agreement::Full;
-        } else if let Some(directory) = dump {
+        } else if let Some(directory) = dump.filter(|_| rendered != expected_text) {
             let path = directory
                 .join(suite.name())
                 .join(format!("{stem}.errors.txt"));
@@ -464,6 +494,7 @@ fn run_lane_a(
         actual: actual.len(),
         missing,
         unexpected,
+        rendered_sha256,
     }
 }
 
@@ -534,6 +565,7 @@ pub fn run(workspace: &Path, options: &RunOptions) -> Result<Vec<ConfigurationRe
                         case,
                         &[],
                         options.dump.as_deref(),
+                        options.checkers,
                         &mut |_, _| {},
                         &mut |result| {
                             case_results.push(result);
@@ -561,7 +593,12 @@ pub fn run(workspace: &Path, options: &RunOptions) -> Result<Vec<ConfigurationRe
 /// out, and reports each step on stdout: `case <key>` before a case,
 /// `begin <json>` with the configuration and stem before a lane-A
 /// configuration runs, and `result <json>` for every configuration.
-pub fn run_worker(workspace: &Path, profile: &str, cases_file: &Path) -> Result<(), String> {
+pub fn run_worker(
+    workspace: &Path,
+    profile: &str,
+    cases_file: &Path,
+    checkers: usize,
+) -> Result<(), String> {
     let profile = NativeProfile::load(workspace, profile).map_err(|e| e.to_string())?;
     let listed = std::fs::read_to_string(cases_file)
         .map_err(|e| format!("{}: {e}", cases_file.display()))?;
@@ -582,6 +619,7 @@ pub fn run_worker(workspace: &Path, profile: &str, cases_file: &Path) -> Result<
                         &case,
                         &leave_out,
                         None,
+                        checkers,
                         &mut |configuration, stem| {
                             let begin = serde_json::json!({
                                 "configuration": configuration.name,
@@ -618,12 +656,14 @@ fn report_line(line: &str) {
 /// stems in `leave_out`. `starting` hears of each lane-A configuration just
 /// before it runs, the only step that can overflow the stack or run away;
 /// `finished` receives every configuration's result. See [`RunOptions::dump`].
+#[allow(clippy::too_many_arguments)]
 fn run_case(
     workspace: &Path,
     profile: &NativeProfile,
     case: &NativeCase,
     leave_out: &[&str],
     dump: Option<&Path>,
+    checkers: usize,
     starting: &mut dyn FnMut(&NativeConfiguration, &str),
     finished: &mut dyn FnMut(ConfigurationResult),
 ) {
@@ -679,6 +719,7 @@ fn run_case(
                                     (&configuration, &stem),
                                     &plan,
                                     dump,
+                                    checkers,
                                 )
                             }))
                             .unwrap_or_else(|panic| {

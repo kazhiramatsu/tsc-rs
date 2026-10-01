@@ -72,6 +72,51 @@ fn typescript_6_0_3_catalog_pins_aliases_counts_and_target_defaults() {
 }
 
 #[test]
+fn typescript_7_1_catalog_pins_aliases_counts_and_target_defaults() {
+    let catalog = LibraryCatalog::typescript_7_1("/vendor/lib");
+    assert_eq!(
+        catalog.reference_profile(),
+        tsc_types::ReferenceProfile::TypeScript71
+    );
+    assert_eq!(catalog.logical_entry_count(), 115);
+    assert_eq!(catalog.distinct_file_count(), 99);
+    assert_eq!(catalog.option_file_name("es2026"), Some("lib.es2026.d.ts"));
+    assert_eq!(
+        catalog.option_file_name("esnext.array"),
+        Some("lib.es2026.array.d.ts")
+    );
+    assert_eq!(
+        catalog.option_file_name("esnext.iterator"),
+        Some("lib.es2026.iterator.d.ts")
+    );
+    assert_eq!(
+        LibraryCatalog::typescript_6_0_3("/vendor/lib").option_file_name("es2026"),
+        None
+    );
+    assert!(catalog.contains_file_name("lib.es2026.full.d.ts"));
+    assert!(
+        !LibraryCatalog::typescript_6_0_3("/vendor/lib").contains_file_name("lib.es2026.full.d.ts")
+    );
+    assert_eq!(
+        catalog.default_file_name(&CompilerOptions::default()),
+        "lib.es2026.full.d.ts"
+    );
+    assert_eq!(
+        catalog.default_file_name(&CompilerOptions {
+            target: Some(12),
+            ..CompilerOptions::default()
+        }),
+        "lib.es2025.full.d.ts"
+    );
+    // The 6.0.3 catalog answers for its own profile whatever the options say.
+    assert_eq!(
+        LibraryCatalog::typescript_6_0_3("/vendor/lib")
+            .default_file_name(&CompilerOptions::default()),
+        "lib.es2025.full.d.ts"
+    );
+}
+
+#[test]
 fn priorities_and_spelling_suggestions_match_the_pinned_order() {
     let catalog = LibraryCatalog::typescript_6_0_3("/vendor/lib");
     assert_eq!(catalog.file_name_priority("lib.es6.d.ts"), 0);

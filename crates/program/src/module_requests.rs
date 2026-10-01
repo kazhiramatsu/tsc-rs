@@ -8,7 +8,7 @@ use tsc_syntax::{
     LanguageVariant, NodeData, NodeId, ParseOptions, SourceFile, SyntaxKind,
     TypeReferenceDirectiveResolutionMode,
 };
-use tsc_types::{CompilerOptions, NodeFlags};
+use tsc_types::{CompilerOptions, NodeFlags, ReferenceProfile};
 
 use crate::module_resolution::is_external_module_name_relative;
 use crate::prepared::{PreparedSourceFile, PreparsedSourceFile, PreparsedSyntax};
@@ -345,6 +345,7 @@ fn plan_module_requests_worker(
     options: &CompilerOptions,
     expanded: bool,
 ) -> Result<(SourceRequestPlan, PreparsedSourceFile), ResolutionError> {
+    let profile = options.reference_profile;
     let module_kind = options.emit_module_kind();
     if (!expanded && !(100..=199).contains(&module_kind))
         || (expanded && !matches!(module_kind, 0..=7 | 99 | 100..=200))
@@ -441,6 +442,7 @@ fn plan_module_requests_worker(
     let mut augmentation_occurrences = Vec::new();
     let mut unpreprocessed_module_requests = BTreeSet::new();
     collect_static_module_references(StaticModuleReferenceContext {
+        profile,
         parsed: &parsed,
         source,
         expanded,
@@ -498,7 +500,7 @@ fn plan_module_requests_worker(
                             let literal = parsed.arena.node(literal);
                             if let NodeData::StringLiteral(literal_data) = &literal.data {
                                 let mode_override = import_type.attributes.and_then(|attributes| {
-                                    resolution_mode_override(&parsed, attributes)
+                                    resolution_mode_override(profile, &parsed, attributes)
                                 });
                                 let mode = mode_override.unwrap_or(static_mode);
                                 dynamic_occurrences.push(ModuleRequestOccurrence {
@@ -562,7 +564,9 @@ fn plan_module_requests_worker(
                     if let NodeData::StringLiteral(literal) = &module_specifier.data {
                         let mode = import
                             .attributes
-                            .and_then(|attributes| resolution_mode_override(&parsed, attributes))
+                            .and_then(|attributes| {
+                                resolution_mode_override(profile, &parsed, attributes)
+                            })
                             .unwrap_or(static_mode);
                         if !literal.text.is_empty() {
                             dynamic_occurrences.push(ModuleRequestOccurrence {
@@ -869,6 +873,7 @@ struct ModuleRequestOccurrence {
 }
 
 struct StaticModuleReferenceContext<'a> {
+    profile: ReferenceProfile,
     parsed: &'a SourceFile,
     source: &'a PreparedSourceFile,
     expanded: bool,
@@ -889,6 +894,7 @@ fn collect_static_module_references(
     context: StaticModuleReferenceContext<'_>,
 ) -> Result<(), ResolutionError> {
     let StaticModuleReferenceContext {
+        profile,
         parsed,
         source,
         expanded,
@@ -906,6 +912,7 @@ fn collect_static_module_references(
         .map(|statements| parsed.arena.node_array(statements).nodes)
         .unwrap_or_default();
     collect_static_module_reference_statements(
+        profile,
         parsed,
         statements,
         source,
@@ -920,7 +927,9 @@ fn collect_static_module_references(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)]
 fn collect_static_module_reference_statements(
+    profile: ReferenceProfile,
     parsed: &SourceFile,
     statements: &[NodeId],
     source: &PreparedSourceFile,
@@ -953,7 +962,7 @@ fn collect_static_module_reference_statements(
                                             NodeData::ImportClause(clause) if clause.is_type_only
                                         )
                                     })?;
-                                    resolution_mode_override(parsed, attributes)
+                                    resolution_mode_override(profile, parsed, attributes)
                                 })
                                 .unwrap_or(static_mode);
                             static_occurrences.push(ModuleRequestOccurrence {
@@ -1066,6 +1075,7 @@ fn collect_static_module_reference_statements(
                     // asking the host to resolve syntax which tsc never
                     // publishes in `SourceFile.imports`.
                     collect_unpreprocessed_module_requests(
+                        profile,
                         parsed,
                         module.body,
                         source,
@@ -1104,6 +1114,7 @@ fn collect_static_module_reference_statements(
                         });
                     }
                     collect_unpreprocessed_module_requests(
+                        profile,
                         parsed,
                         module.body,
                         source,
@@ -1115,6 +1126,7 @@ fn collect_static_module_reference_statements(
                 } else if !in_ambient_module {
                     if let Some(body_statements) = module_body_statements(parsed, module.body) {
                         collect_static_module_reference_statements(
+                            profile,
                             parsed,
                             body_statements,
                             source,
@@ -1147,7 +1159,9 @@ fn module_body_statements(parsed: &SourceFile, body: Option<NodeId>) -> Option<&
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn collect_unpreprocessed_module_requests(
+    profile: ReferenceProfile,
     parsed: &SourceFile,
     body: Option<NodeId>,
     source: &PreparedSourceFile,
@@ -1162,6 +1176,7 @@ fn collect_unpreprocessed_module_requests(
     let body = parsed.arena.node(body);
     if let NodeData::ModuleDeclaration(module) = &body.data {
         collect_unpreprocessed_module_requests(
+            profile,
             parsed,
             module.body,
             source,
@@ -1201,7 +1216,7 @@ fn collect_unpreprocessed_module_requests(
                                 NodeData::ImportClause(clause) if clause.is_type_only
                             )
                         })?;
-                        resolution_mode_override(parsed, attributes)
+                        resolution_mode_override(profile, parsed, attributes)
                     })
                     .unwrap_or(static_mode);
                 requests.insert(ResolutionKey::new(
@@ -1252,6 +1267,7 @@ fn collect_unpreprocessed_module_requests(
             }
             NodeData::ModuleDeclaration(module) => {
                 collect_unpreprocessed_module_requests(
+                    profile,
                     parsed,
                     module.body,
                     source,
@@ -1266,23 +1282,43 @@ fn collect_unpreprocessed_module_requests(
     }
 }
 
-/// tsc `getResolutionModeOverride`: only the exact one-element
+/// tsc 6.0.3 `getResolutionModeOverride`: only the exact one-element
 /// `"resolution-mode": "import" | "require"` shape overrides the fallback.
-fn resolution_mode_override(parsed: &SourceFile, attributes: NodeId) -> Option<ResolutionMode> {
+/// TypeScript 7.1 (`ast.ImportAttributesNode.GetResolutionModeOverride`)
+/// finds the `resolution-mode` attribute among any others. The checker's
+/// grammar check parses the attributes the same way, so the modes the
+/// resolver prepares are the modes the checker asks for.
+fn resolution_mode_override(
+    profile: ReferenceProfile,
+    parsed: &SourceFile,
+    attributes: NodeId,
+) -> Option<ResolutionMode> {
     let NodeData::ImportAttributes(attributes) = &parsed.arena.node(attributes).data else {
         return None;
     };
     let elements = attributes.elements?;
     let elements = &parsed.arena.node_array(elements).nodes;
-    if elements.len() != 1 {
-        return None;
-    }
-    let NodeData::ImportAttribute(attribute) = &parsed.arena.node(elements[0]).data else {
-        return None;
+    let attribute = match profile {
+        ReferenceProfile::TypeScript603 => {
+            if elements.len() != 1 {
+                return None;
+            }
+            let NodeData::ImportAttribute(attribute) = &parsed.arena.node(elements[0]).data else {
+                return None;
+            };
+            if string_literal_like_text(parsed, attribute.name?)? != "resolution-mode" {
+                return None;
+            }
+            attribute
+        }
+        ReferenceProfile::TypeScript71 => elements.iter().find_map(|&element| {
+            let NodeData::ImportAttribute(attribute) = &parsed.arena.node(element).data else {
+                return None;
+            };
+            (string_literal_like_text(parsed, attribute.name?)? == "resolution-mode")
+                .then_some(attribute)
+        })?,
     };
-    if string_literal_like_text(parsed, attribute.name?)? != "resolution-mode" {
-        return None;
-    }
     match string_literal_like_text(parsed, attribute.value?)? {
         "import" => Some(ResolutionMode::EsNext),
         "require" => Some(ResolutionMode::CommonJs),

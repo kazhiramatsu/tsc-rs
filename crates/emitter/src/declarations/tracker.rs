@@ -733,7 +733,12 @@ pub(crate) fn materialize_effects(
                 add_undefined,
             } => {
                 let diagnostic = with_anchor(cx, host, &anchor, |source, node| {
-                    super::isolated::inference_error(source, node, Some(add_undefined))
+                    super::isolated::inference_error(
+                        source,
+                        node,
+                        Some(add_undefined),
+                        host.compiler_options().reference_profile,
+                    )
                 })??;
                 cx.add_diagnostic(diagnostic)?;
             }
@@ -745,7 +750,12 @@ pub(crate) fn materialize_effects(
             }
             TrackerEffect::IsolatedInference(anchor) => {
                 let diagnostic = with_anchor(cx, host, &anchor, |source, node| {
-                    super::isolated::inference_error(source, node, None)
+                    super::isolated::inference_error(
+                        source,
+                        node,
+                        None,
+                        host.compiler_options().reference_profile,
+                    )
                 })??;
                 cx.add_diagnostic(diagnostic)?;
             }

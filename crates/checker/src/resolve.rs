@@ -1365,7 +1365,8 @@ impl<'a> CheckerState<'a> {
                 .into()
             })
             .unwrap_or_else(|| tsc_binder::unescape_leading_underscores(name).to_owned());
-        let suggested_lib = get_suggested_lib_for_non_existent_name(name);
+        let suggested_lib =
+            get_suggested_lib_for_non_existent_name(self.options.reference_profile, name);
         if let Some(lib) = suggested_lib {
             self.error_at_js(error_location, message, &[display.as_js(), lib.into()]);
         } else {
@@ -3167,12 +3168,84 @@ static SCRIPT_TARGET_FEATURE_FIRST_LIB: &[(&str, &str)] = &[
     ("AsyncDisposableStack", "esnext"),
 ];
 
+/// TypeScript 7.1's `getFeatureMap` first-lib keys in source order
+/// (`IteratorConstructor`, `RawJSON` and `JSON` are new; `ErrorConstructor`
+/// and `Uint8ArrayConstructor` moved from `esnext` to `es2026`).
+static SCRIPT_TARGET_FEATURE_FIRST_LIB_7_1: &[(&str, &str)] = &[
+    ("Array", "es2015"),
+    ("Iterator", "es2015"),
+    ("IteratorConstructor", "es2026"),
+    ("RawJSON", "es2026"),
+    ("JSON", "es2026"),
+    ("AsyncIterator", "es2015"),
+    ("ArrayBuffer", "es2024"),
+    ("Atomics", "es2017"),
+    ("SharedArrayBuffer", "es2017"),
+    ("AsyncIterable", "es2018"),
+    ("AsyncIterableIterator", "es2018"),
+    ("AsyncGenerator", "es2018"),
+    ("AsyncGeneratorFunction", "es2018"),
+    ("RegExp", "es2015"),
+    ("RegExpConstructor", "es2025"),
+    ("Reflect", "es2015"),
+    ("ArrayConstructor", "es2015"),
+    ("ObjectConstructor", "es2015"),
+    ("NumberConstructor", "es2015"),
+    ("Math", "es2015"),
+    ("Map", "es2015"),
+    ("MapConstructor", "es2024"),
+    ("Set", "es2015"),
+    ("PromiseConstructor", "es2015"),
+    ("Symbol", "es2015"),
+    ("WeakMap", "es2015"),
+    ("WeakSet", "es2015"),
+    ("String", "es2015"),
+    ("StringConstructor", "es2015"),
+    ("DateTimeFormat", "es2017"),
+    ("Promise", "es2015"),
+    ("RegExpMatchArray", "es2018"),
+    ("RegExpExecArray", "es2018"),
+    ("Intl", "es2018"),
+    ("NumberFormat", "es2018"),
+    ("SymbolConstructor", "es2020"),
+    ("DataView", "es2020"),
+    ("BigInt", "es2020"),
+    ("RelativeTimeFormat", "es2020"),
+    ("Int8Array", "es2022"),
+    ("Uint8Array", "es2022"),
+    ("Uint8ClampedArray", "es2022"),
+    ("Int16Array", "es2022"),
+    ("Uint16Array", "es2022"),
+    ("Int32Array", "es2022"),
+    ("Uint32Array", "es2022"),
+    ("Float16Array", "es2025"),
+    ("Float32Array", "es2022"),
+    ("Float64Array", "es2022"),
+    ("BigInt64Array", "es2020"),
+    ("BigUint64Array", "es2020"),
+    ("Error", "es2022"),
+    ("ErrorConstructor", "es2026"),
+    ("Uint8ArrayConstructor", "es2026"),
+    ("DisposableStack", "esnext"),
+    ("AsyncDisposableStack", "esnext"),
+    ("Date", "esnext"),
+];
+
 /// tsc-port: getSuggestedLibForNonExistentName @6.0.3
 /// tsc-hash: b60265e4566246083d64e6d4fc258cac9ecc7c3e156ac3218c439b565375f46b
 /// tsc-span: _tsc.js:75476-75481
-pub(crate) fn get_suggested_lib_for_non_existent_name(name: impl NameKey) -> Option<&'static str> {
+/// TypeScript 7.1: `Checker.getSuggestedLibForNonExistentName` over its
+/// `getFeatureMap`.
+pub(crate) fn get_suggested_lib_for_non_existent_name(
+    profile: tsc_types::ReferenceProfile,
+    name: impl NameKey,
+) -> Option<&'static str> {
     let name = name.name();
-    SCRIPT_TARGET_FEATURE_FIRST_LIB
+    let first_libs = match profile {
+        tsc_types::ReferenceProfile::TypeScript603 => SCRIPT_TARGET_FEATURE_FIRST_LIB,
+        tsc_types::ReferenceProfile::TypeScript71 => SCRIPT_TARGET_FEATURE_FIRST_LIB_7_1,
+    };
+    first_libs
         .iter()
         .find(|(type_name, _)| name == *type_name)
         .map(|(_, lib)| *lib)

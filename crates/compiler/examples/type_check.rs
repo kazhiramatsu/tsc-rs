@@ -79,7 +79,7 @@ fn check_project(
     }
 
     // The Rust API reads standard library declarations from this directory.
-    let libraries = LibraryCatalog::typescript_6_0_3(std::path::absolute(library_directory)?);
+    let libraries = LibraryCatalog::typescript_7_1(std::path::absolute(library_directory)?);
     let limits = ProgramLoadLimits::new(
         1_000_000,         // source files
         2_000_000,         // import/reference edges

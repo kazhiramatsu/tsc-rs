@@ -1,6 +1,6 @@
 # TypeScript 7.1のテスト構成に合わせたconformance
 
-状態：**P1 runner 実装済み**（2026-09-29、[P1の結果](#p1の結果2026-09-29)）。挙動の移行（P2）とprofileの移行はまだ行っていない。
+状態：**P1 runner 実装済み**（2026-09-29、[P1の結果](#p1の結果2026-09-29)）、**P2-1 既定値の移行とhosted CI組込み済み**（2026-10-01、[P2-1の結果](#p2-1-既定値の移行2026-10-01)）。残るP2の修正とprofileの移行（P3）はこれから。
 親計画：[TS7の方向](../../typescript-7-direction.md)、[7.1追従設計](../../typescript-7-upstream-sync.md)、
 [移行基盤batch](../post-emitter-foundation-batch/README.md)のA2（test inventory）とA4（MAP/PIN）。
 調査記録：[SURVEY.md](SURVEY.md)（上流harnessと現行runnerの比較、数値の根拠）。
@@ -207,3 +207,127 @@ P1だけで先にhosted CIへ入れるかは、実行時間を測ってから決
 - **promotion rename**：4件は6.0.3のどちらの版とも一致しないので、blobで識別する。
 - **transpile / FourSlash / project**：本packetの対象外。transpileは25件で別runner、
   FourSlashはGoのtest、projectは7.1にcase fileがない。
+
+## P2-1 既定値の移行（2026-10-01）
+
+ユーザー指示：「tsgoの結果とマッチングさせる方向にしていきたい。まずはCIをTypeScript 7.1のconformanceで完全一致させる修正をかけていきたい」。
+conformanceは1 checker固定で走らせ、並列実行が順序以外で一致することは別に確認する。
+
+### 参照profile
+
+tsc 6.0.3とTypeScript 7.1がoptionなしに異なる点を`ReferenceProfile`（`crates/types/src/options.rs`）にまとめ、
+`CompilerOptions.reference_profile`として持たせた。`LibraryCatalog`がprofileを決め（`typescript_7_1`／`typescript_6_0_3`）、
+loaderがProgramのoptionsに写す。config parserは`ConfigParseHost::reference_profile()`で同じ値を受け取る。
+
+| 差 | 6.0.3 profile | 7.1 profile（tsc-rsの既定） |
+| --- | --- | --- |
+| lib catalog | `vendor/typescript-6.0.3/lib`の107 entry | `tsc/internal/bundled/libs`の115 entry（es2026.*、`esnext.array`等はes2026へ） |
+| 既定target | ES2025 | ES2026（`target: "es2026"`を受け付ける） |
+| unionの順序 | 生成順（`stableTypeOrdering: true`で内容順） | 内容順（`stableTypeOrdering: false`で生成順） |
+| 診断文言 | 6.0.3の`diagnosticMessages.json` | 7.1の`diagnosticMessages.json`（9件の文言変更、1463/1464の削除、87件の追加） |
+| `resolution-mode` import attribute | TS1463/TS1464の鍵と個数の検査 | 7.1どおり鍵を探すだけ（値の検査のみ） |
+| lib提案表（TS2550等） | 6.0.3の`getScriptTargetFeatures` | 7.1の`getFeatureMap` |
+
+6.0.3の文言を要する5箇所（TS1344 binder、TS8030 checker、TS9019 emitter、TS5090 program、TS1463/1464 checker）は
+生成した`gen::typescript_6_0_3`の静的データをprofileで選ぶ。`crates/diagnostics/src/gen.rs`は7.1のcatalogから生成し、
+6.0.3で文言が異なる、または7.1にない11 entryを`typescript_6_0_3` moduleに持つ。
+
+凍結した6.0.3の記録（acceptance／witness）は`LibraryCatalog::typescript_6_0_3`と6.0.3 oracleのconfig hostを通るので
+挙動が変わらない。CLI（`tsc-rs`）、Rust APIの例、native harnessは7.1 profileで動く。transpile経路（`transpile_module`／`transpile_declaration`）は
+凍結した6.0.3の観測（`h2_8c_transpile`）と比べているので、再観測するまで6.0.3 profileに留める（hosted witnessで判明：TS6046の候補一覧と既定targetが変わるため）。
+`--version`は6.0.3のまま（emitterの参照）で、READMEにその旨を記した。
+
+### 7.1側の取込み
+
+- `vendor/typescript-native/7.1.0-dev-19dadef8/`に`tsc/internal/diagnostics/diagnosticMessages.json`を1 fileのsetとして追加
+  （`git_blob_sha1`をmanifestに記録。`scripts/vendor_typescript_native.py`と`native_vendored_inputs_match_the_manifest`が検算）。
+- executableに同梱するlibを7.1の113 fileに替えた（`crates/compiler/build.rs`）。
+
+### 計測
+
+`python3 scripts/conformance_ts71.py --workers 4`（release build、`taskpolicy -b nice -n 20`、開発機の参考時間）。
+
+| 区分 | 変更前（main `ed173ea36`） | 変更後 |
+| --- | ---: | ---: |
+| lane A | 13,444 | 13,444 |
+| 　T3：`.errors.txt`が完全一致 | 12,467 | 12,569（93.5%） |
+| 　T2 | 124 | 116 |
+| 　T1 | 100 | 21 |
+| 　不一致 | 696 | 693 |
+| 　harness error | 57 | 45 |
+| ratchet | 0 regressions | 104件を上げ、2件を見直しで下げた（下記）。`--update`後の`--check`は0 regressions |
+
+同じbytesで1 checkerの全件を2回走らせ、`scripts/conformance_ts71_compare.py`で`rendered_sha256`まで比べて
+15,228 configurationすべてが同一だった（713秒と733秒）。
+
+tierの推移（変更前→変更後、configuration数）：T1→T3 78（7.1の文言、主にTS1344）、harness error→T3 11（ES2026のtargetとlib）、
+T2→T3 9、不一致→T3 5（es2026 libの member）、T3→不一致 2、不一致→harness error 1
+（`compiler/importAttributeTypeOnlyImports`：7.xの`declare module "x" with { ... }`。import attributes classの一部）。
+`resolution-mode` attributeはloader側（`crates/program/src/module_requests.rs`）もcheckerと同じ7.1の規則に直した。
+直さないとloaderが用意しない解決modeをcheckerが求め、"authoritative Module resolution is missing"になる。
+
+T3→不一致の2件は、7.1がtsc 6.0.3の`--stableTypeOrdering`とも異なる推論の修正で、ratchetの行を見直しのうえ下げた
+（`compiler/implicitEmptyObjectType`：Go issue 1563、`unknown || {}`のunion縮約で残るmember；
+`compiler/nestedGenericTypeInference`：Go issue 1789、`T[] | T[][]`へのunion引数の推論）。
+tsc 6.0.3は生成順でそれぞれ一致・不一致、`--stableTypeOrdering`で不一致・一致、tsgo nightly（2026-07-07）は
+7.1 baselineと同じ。tsc-rsは`--stableTypeOrdering`付きtsc 6.0.3と同じ結果になる。両方とも7.xの修正の移植が要る。
+
+### 並列実行の対照
+
+conformanceの比較は1 checkerで行う（`ProgramSession`の既定、`CheckerBudget::serial()`）。並列実行が順序以外で一致するかは、
+同じbytesで`scripts/conformance_ts71.py --workers 4 --checkers 4`（各configurationを4 checkerで検査、2 file以上のcaseはfileごとに
+shardされる）を走らせ、1 checkerのreportと`conformance_ts71_compare.py`で比べた。
+
+- 15,228 configurationのうち15,223が同一（outcome・tier・描画した`.errors.txt`の digestまで）。
+- 5件が順序以外で異なる。いずれも型の順序ではなく、partitionに依存した挙動の欠陥で、別PRで直す：
+
+| configuration | 1 checker | 4 checkers | 見立て |
+| --- | --- | --- | --- |
+| `compiler/exportAssignmentMembersVisibleInAugmentation` | 不一致（TS4060を出さない） | T3 | serialがaugmentationの可視性を見落とす。並列が正しい |
+| `compiler/tslibMissingHelper` | 不一致（TS2343を2件中1件） | T3 | serialはhelperの欠落をprogramで1回しか報告しない。tscはfileごと |
+| `conformance/jsDeclarationsCrossfileMerge(target=es2015)` | 不一致（2件中1件） | 不一致（0件） | JS宣言のfile横断mergeの診断がpartitionに依存 |
+| `compiler/declarationEmitAugmentationUsesCorrectSourceFile` | T3 | harness error | declaration transformerのcontract "late visibility alias belongs to another source" |
+| `compiler/declarationEmitComputedPropertyNameSymbol2` | T3 | harness error | 同上 |
+
+READMEのcorpus（hono、zod、Playwright、TypeScript `src/compiler`、Next.js、Effect、VS Code）でも、同じbinaryを
+`TSRS_CHECKERS=1`／8／12で走らせた：`--noEmit`の診断は7 corpusすべてで同一、declaration出力はzod・Playwright・Next.jsで
+同一、Effectは496 fileのうち`ai/internal/mcpProtocol/v2026_07_28.d.ts`の1 file（既知の型ID tiebreak、順序のみ）。
+1 checkerの結果は7 corpusすべてで`tsc --stableTypeOrdering`（6.0.3）と診断・`.d.ts`とも同一だった。
+
+### hosted CI
+
+`.github/workflows/conformance-ts71.yml`（plan → `conformance (TypeScript 7.1)` → `conformance-ts71-gates`）を追加した。
+`replay.py plan`が`has_conformance_ts71`を出し、早期group（`early`）が選ばれる変更で走る。jobはrelease buildの
+`conformance-ts71`を`scripts/conformance_ts71.py --workers 4 --check`で動かし、ratchetの後退で失敗する。
+`ci.yml`は変えていない（`qualification.mjs`がその構成を固定しているため、witnessと同じく別workflowにした）。
+branch protectionの必須checkに`conformance-ts71-gates`を加えるのはrepository設定の作業。
+
+### 残り
+
+不一致693件の最初に食い違うcode（missing=7.1だけが出す、unexpected=tsc-rsだけが出す）の上位：
+
+| 件数 | missing | unexpected | 見立て |
+| ---: | --- | --- | --- |
+| 27+14+6 | TS2741 | TS2345／TS2344／TS2322 | 7.1は引数の不一致を直接の原因（TS2741等）で報告する（elaboration） |
+| 26+8 | TS6196 | TS6133 | 未使用の型引数は7.1でTS6196 |
+| 24+5 | TS2683 | – | JSの`this`の暗黙any |
+| 23+12 | TS2300 | – | 重複識別子の報告位置・件数 |
+| 20 | TS2339 | – | 存在しないpropertyの報告（lib・JS関連） |
+| 20 | TS2769 | TS2769 | overload解決の失敗の報告（"The last overload gave the following error"の鎖） |
+| 18+7 | TS2309 | – | export assignmentと他のexportの衝突 |
+| 17 | TS2304 | – | 名前解決 |
+| 17 | TS2749 | – | 値を型として使った報告 |
+| 14 | TS6504 | – | JS fileの`--allowJs`なし |
+| 13 | TS2552 | TS2304 | 綴り候補 |
+| 12 | TS2303 | – | circular definition of import alias |
+| 10+6 | TS2307 | TS1479 | module解決（node16/nodenext） |
+| 8+6 | – | TS2857／TS2856 | import attributes（7.1は型のみimportの検査を飛ばす） |
+| 5 | TS6046 | TS5108 | 7.1は削除optionの値をTS5108で報告 |
+| 残り | 多数の小class | | |
+
+harness error 45件：load 16（`runExternalCode`／`deduplicatePackages`等の7.x option、`tsBuildInfoFile`経路）、
+crash 15（stack overflow）、timeout 6、check 5、panic 2、memory 1。
+T2以下137件：chainの差（7.1の"The last overload gave the following error"等）、related情報の位置、union・property順の残り。
+
+次の一手は件数順に、elaboration（TS2741）、TS6196、JSの`this`、TS2300、overload chainの順で、各classを独立したPRにする。
+lane Bは引き続き旧runnerが6.0.3 goldenで守る（P3で6.0.3 oracleを`--stableTypeOrdering`付きで取り直した成果物に移す）。

@@ -692,8 +692,16 @@ pub fn validate_paths_option_diagnostics(
                 {
                     continue;
                 }
+                // TypeScript 7.1 reworded TS5090 (`baseUrl` is gone).
                 MessageChain::new_js(
-                    &gen::Non_relative_paths_are_not_allowed_when_baseUrl_is_not_set_Did_you_forget_a_leading,
+                    match options.reference_profile {
+                        tsc_types::ReferenceProfile::TypeScript603 => {
+                            &gen::typescript_6_0_3::Non_relative_paths_are_not_allowed_when_baseUrl_is_not_set_Did_you_forget_a_leading
+                        }
+                        tsc_types::ReferenceProfile::TypeScript71 => {
+                            &gen::Non_relative_paths_are_not_allowed_Did_you_forget_a_leading
+                        }
+                    },
                     &[],
                 )
             }

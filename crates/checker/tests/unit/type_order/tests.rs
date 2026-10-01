@@ -45,10 +45,11 @@ fn messages(result: &CheckResult) -> Vec<String> {
 
 const BOX: &str = "interface Box<out A> { readonly box: (_: never) => A }\n";
 
-/// tsc's default order is the type creation order; `stableTypeOrdering`
-/// (tsc 6.0.3's preview of the TypeScript 7 order) ranks the two references
-/// by their type arguments, `string` (TypeFlags 32) before `number` (64),
-/// whichever was created first.
+/// tsc 6.0.3's default order is the type creation order; `stableTypeOrdering`
+/// (tsc 6.0.3's preview of the TypeScript 7 order, which tsc-rs's own
+/// TypeScript 7.1 profile applies unless the option is set to false) ranks
+/// the two references by their type arguments, `string` (TypeFlags 32)
+/// before `number` (64), whichever was created first.
 #[test]
 fn stable_type_ordering_orders_union_members_by_content_not_by_creation() {
     for (declarations, default_order) in [
@@ -66,21 +67,26 @@ fn stable_type_ordering_orders_union_members_by_content_not_by_creation() {
         );
         let files = [InputFile::new("/main.ts", text)];
 
-        let default = messages(&check(&files, None));
+        let creation_order = messages(&check(&files, Some(false)));
         assert_eq!(
-            default,
+            creation_order,
             [format!(
                 "Type '{default_order}' is not assignable to type 'never'."
             )],
-            "default order for {declarations:?}"
+            "creation order for {declarations:?}"
         );
 
-        let stable = messages(&check(&files, Some(true)));
-        assert_eq!(
-            stable,
-            ["Type 'Box<string> | Box<number>' is not assignable to type 'never'.".to_owned()],
-            "stable order for {declarations:?}"
-        );
+        for configured in [Some(true), None] {
+            let stable = messages(&check(&files, configured));
+            assert_eq!(
+                stable,
+                [
+                    "Type 'Box<string> | Box<number>' is not assignable to type 'never'."
+                        .to_owned()
+                ],
+                "stable order for {declarations:?} with {configured:?}"
+            );
+        }
     }
 }
 
@@ -130,8 +136,11 @@ fn stable_type_ordering_makes_inference_independent_of_file_order() {
 
     // tsc 6.0.3 without the option: clean with the declaration first, the
     // creation-order error with it last.
-    assert_eq!(messages(&check(&void_first, None)), Vec::<String>::new());
-    let default_void_last = messages(&check(&void_last, None));
+    assert_eq!(
+        messages(&check(&void_first, Some(false))),
+        Vec::<String>::new()
+    );
+    let default_void_last = messages(&check(&void_last, Some(false)));
     assert_eq!(default_void_last.len(), 1, "{default_void_last:?}");
     assert!(
         default_void_last[0].starts_with(
@@ -140,15 +149,18 @@ fn stable_type_ordering_makes_inference_independent_of_file_order() {
         "{default_void_last:?}"
     );
 
-    // tsc 6.0.3 --stableTypeOrdering: clean in both orders.
-    assert_eq!(
-        messages(&check(&void_first, Some(true))),
-        Vec::<String>::new()
-    );
-    assert_eq!(
-        messages(&check(&void_last, Some(true))),
-        Vec::<String>::new()
-    );
+    // tsc 6.0.3 --stableTypeOrdering, and tsc-rs's default: clean in both
+    // orders.
+    for configured in [Some(true), None] {
+        assert_eq!(
+            messages(&check(&void_first, configured)),
+            Vec::<String>::new()
+        );
+        assert_eq!(
+            messages(&check(&void_last, configured)),
+            Vec::<String>::new()
+        );
+    }
 }
 
 /// createTypeofType (50137): the option sorts the `typeof` facts.
@@ -159,11 +171,45 @@ fn stable_type_ordering_sorts_the_typeof_union() {
         "declare const value: unknown\nconst t: never = typeof value\n",
     )];
     assert_eq!(
-        messages(&check(&files, None)),
+        messages(&check(&files, Some(false))),
         ["Type '\"string\" | \"number\" | \"bigint\" | \"boolean\" | \"symbol\" | \"undefined\" | \"object\" | \"function\"' is not assignable to type 'never'.".to_owned()]
     );
+    for configured in [Some(true), None] {
+        assert_eq!(
+            messages(&check(&files, configured)),
+            ["Type '\"bigint\" | \"boolean\" | \"function\" | \"number\" | \"object\" | \"string\" | \"symbol\" | \"undefined\"' is not assignable to type 'never'.".to_owned()]
+        );
+    }
+}
+
+/// The tsc 6.0.3 reference profile keeps the creation order unless the
+/// option is set; tsc-rs's own profile orders by content unless it is set to
+/// false.
+#[test]
+fn reference_profile_selects_the_default_type_order() {
+    use tsc_types::ReferenceProfile;
+    let files = [InputFile::new(
+        "/main.ts",
+        "declare const value: unknown\nconst t: never = typeof value\n",
+    )];
+    let libs = [focused_default_library()];
+    let run = |profile: ReferenceProfile, stable_type_ordering: Option<bool>| {
+        let options = CompilerOptions {
+            strict: Some(true),
+            stable_type_ordering,
+            reference_profile: profile,
+            ..CompilerOptions::default()
+        };
+        messages(&check_program_with_libs_at(&libs, &files, &options, "/"))
+    };
+    let creation = "Type '\"string\" | \"number\" | \"bigint\" | \"boolean\" | \"symbol\" | \"undefined\" | \"object\" | \"function\"' is not assignable to type 'never'.";
+    let content = "Type '\"bigint\" | \"boolean\" | \"function\" | \"number\" | \"object\" | \"string\" | \"symbol\" | \"undefined\"' is not assignable to type 'never'.";
+    assert_eq!(run(ReferenceProfile::TypeScript603, None), [creation]);
+    assert_eq!(run(ReferenceProfile::TypeScript603, Some(true)), [content]);
+    assert_eq!(run(ReferenceProfile::TypeScript71, None), [content]);
+    assert_eq!(run(ReferenceProfile::TypeScript71, Some(false)), [creation]);
     assert_eq!(
-        messages(&check(&files, Some(true))),
-        ["Type '\"bigint\" | \"boolean\" | \"function\" | \"number\" | \"object\" | \"string\" | \"symbol\" | \"undefined\"' is not assignable to type 'never'.".to_owned()]
+        CompilerOptions::default().reference_profile,
+        ReferenceProfile::TypeScript71
     );
 }

@@ -1,10 +1,10 @@
 //! Run the TypeScript 7.1 conformance lanes over a vendored native profile.
 //!
 //! usage: conformance-ts71 [--profile <name>] [--filter <path substring>]
-//!                         [--case <suite>/<path>] [--threads <n>] [--no-report]
-//!                         [--dump <directory>]
+//!                         [--case <suite>/<path>] [--threads <n>] [--checkers <n>]
+//!                         [--no-report] [--dump <directory>]
 //!        conformance-ts71 [--profile <name>] [--filter <path substring>] --list
-//!        conformance-ts71 [--profile <name>] --worker <cases file>
+//!        conformance-ts71 [--profile <name>] [--checkers <n>] --worker <cases file>
 //!
 //! By default runs the selected cases on threads of this process, writes
 //! target/conformance-ts71/<profile>/report.json (unless --no-report) and
@@ -12,7 +12,8 @@
 //! configuration that differs from its reference. A case that overflows the
 //! stack aborts the process, so the whole corpus runs through
 //! scripts/conformance_ts71.py, which lists the cases with --list and runs
-//! them in restartable --worker processes.
+//! them in restartable --worker processes. Every configuration checks on one
+//! checker unless --checkers asks for the sharded control.
 
 use std::path::PathBuf;
 
@@ -24,6 +25,7 @@ fn main() {
         filter: None,
         case: None,
         threads: std::thread::available_parallelism().map_or(2, |n| n.get().min(8)),
+        checkers: 1,
         dump: None,
     };
     let mut write_report = true;
@@ -37,6 +39,9 @@ fn main() {
             "--filter" => options.filter = Some(value()),
             "--case" => options.case = Some(value()),
             "--threads" => options.threads = value().parse().expect("--threads takes a number"),
+            "--checkers" => {
+                options.checkers = value().parse().expect("--checkers takes a number");
+            }
             "--no-report" => write_report = false,
             "--list" => list_only = true,
             "--worker" => worker = Some(PathBuf::from(value())),
@@ -46,7 +51,7 @@ fn main() {
     }
     let workspace = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     if let Some(cases_file) = worker {
-        run_worker(&workspace, &options.profile, &cases_file)
+        run_worker(&workspace, &options.profile, &cases_file, options.checkers)
             .unwrap_or_else(|error| panic!("{error}"));
         return;
     }

@@ -70,6 +70,7 @@ pub fn load_compiler_no_emit(
         CompilerProgramMode::NoEmit,
         EmitOptionFloor::Established,
         None,
+        None,
     )
 }
 
@@ -114,6 +115,7 @@ pub fn native_compiler_fixture(
         parsed_units,
         config_offset,
         links,
+        tsc_program::ReferenceProfile::TypeScript71,
     )
     .map(Arc::new)
 }
@@ -170,6 +172,7 @@ pub fn load_native_compiler_program(
     plan: &CompilerExecutionPlan,
     limits: ProgramLoadLimits,
     test_library: &Path,
+    standard_library: &Path,
 ) -> HarnessResult<PreparedProgram> {
     load_compiler_program(
         workspace,
@@ -178,6 +181,7 @@ pub fn load_native_compiler_program(
         CompilerProgramMode::NativeHarness,
         EmitOptionFloor::Native,
         Some(test_library),
+        Some(standard_library),
     )
 }
 
@@ -223,6 +227,7 @@ pub fn load_compiler_emit(
         CompilerProgramMode::Emit,
         EmitOptionFloor::Established,
         None,
+        None,
     )
 }
 
@@ -240,6 +245,7 @@ pub fn load_compiler_emit_with_option_floor(
         limits,
         CompilerProgramMode::Emit,
         floor,
+        None,
         None,
     )
 }
@@ -581,6 +587,9 @@ fn read_test_library(root: &Path) -> HarnessResult<Vec<(String, Arc<str>)>> {
     Ok(files)
 }
 
+/// `standard_library` selects the native profile's `lib.*.d.ts` catalog
+/// (TypeScript 7.1); without it the Program loads tsc 6.0.3's.
+#[allow(clippy::too_many_arguments)]
 fn load_compiler_program(
     workspace: &Path,
     plan: &CompilerExecutionPlan,
@@ -588,6 +597,7 @@ fn load_compiler_program(
     mode: CompilerProgramMode,
     floor: EmitOptionFloor,
     test_library: Option<&Path>,
+    standard_library: Option<&Path>,
 ) -> HarnessResult<PreparedProgram> {
     let current_directory = plan.current_directory.as_ref();
     let mut host_builder = MemoryCompilerHost::builder(current_directory)
@@ -751,7 +761,16 @@ fn load_compiler_program(
             plan.fixture.source.relative_path
         ))
     })?;
-    let library_directory = workspace.join("vendor/typescript-6.0.3/lib");
+    let (library_directory, library_profile) = match standard_library {
+        Some(directory) => (
+            directory.to_path_buf(),
+            tsc_program::ReferenceProfile::TypeScript71,
+        ),
+        None => (
+            workspace.join("vendor/typescript-6.0.3/lib"),
+            tsc_program::ReferenceProfile::TypeScript603,
+        ),
+    };
     let host = CompilerSuiteHost::new(
         workspace,
         fixture_host,
@@ -772,7 +791,7 @@ fn load_compiler_program(
         compiler_options.no_emit = Some(true);
     }
     let roots = compiler_root_paths(plan)?;
-    let catalog = LibraryCatalog::typescript_6_0_3(library_directory);
+    let catalog = LibraryCatalog::for_profile(library_profile, library_directory);
     let loaded = match mode {
         CompilerProgramMode::NativeHarness if compiler_options.no_emit != Some(true) => {
             load_emitting_program(
@@ -1605,6 +1624,7 @@ fn parse_target(value: &str) -> HarnessResult<i32> {
         "es2023" => Ok(10),
         "es2024" => Ok(11),
         "es2025" => Ok(12),
+        "es2026" => Ok(13),
         "esnext" => Ok(99),
         _ => Err(error(format!("unsupported compiler target {value:?}"))),
     }
@@ -2205,11 +2225,13 @@ fn build_compiler_fixture(
         parsed_units,
         config_offset,
         links,
+        tsc_program::ReferenceProfile::TypeScript603,
     )
 }
 
 /// Units, tsconfig root plan and links of one compiler-runner fixture, shared
 /// by the recorded 6.0.3 fixtures and the native profiles.
+#[allow(clippy::too_many_arguments)]
 fn compiler_fixture_from_parts(
     source: Arc<VerifiedSource>,
     settings: Vec<OrderedSetting>,
@@ -2217,6 +2239,7 @@ fn compiler_fixture_from_parts(
     parsed_units: Vec<super::compiler::ParsedUnit>,
     config_offset: Option<usize>,
     links: Vec<super::CompilerLink>,
+    profile: tsc_program::ReferenceProfile,
 ) -> HarnessResult<CompilerFixtureInput> {
     let current_directory = compiler_current_directory(&settings)?;
     let original_fixture_path = Arc::clone(&source.upstream_path);
@@ -2248,7 +2271,7 @@ fn compiler_fixture_from_parts(
                     source.relative_path
                 ))
             })?;
-            let host = CompilerFixtureConfigHost::new(&units);
+            let host = CompilerFixtureConfigHost::new(&units, profile);
             let parsed = parse_config_root_plan(
                 &host,
                 ConfigRootPlanRequest {
@@ -2437,13 +2460,17 @@ fn build_compiler_unit(
 struct CompilerFixtureConfigHost<'a> {
     units: &'a [CompilerUnitInput],
     log: RefCell<Vec<tsc_program::JsonValue>>,
+    /// The suite's reference: tsc 6.0.3 for the recorded compiler-runner
+    /// fixtures, TypeScript 7.1 for the native profile's cases.
+    profile: tsc_program::ReferenceProfile,
 }
 
 impl<'a> CompilerFixtureConfigHost<'a> {
-    fn new(units: &'a [CompilerUnitInput]) -> Self {
+    fn new(units: &'a [CompilerUnitInput], profile: tsc_program::ReferenceProfile) -> Self {
         Self {
             units,
             log: RefCell::new(Vec::new()),
+            profile,
         }
     }
 
@@ -2460,6 +2487,10 @@ impl<'a> CompilerFixtureConfigHost<'a> {
 }
 
 impl ConfigParseHost for CompilerFixtureConfigHost<'_> {
+    fn reference_profile(&self) -> tsc_program::ReferenceProfile {
+        self.profile
+    }
+
     fn use_case_sensitive_file_names(&self) -> bool {
         false
     }
