@@ -657,6 +657,7 @@ compiler/circularInferredTypeOfVariable	full	js
 compiler/circularInlineMappedGenericTupleTypeNoCrash	full	js
 compiler/circularInstantiationExpression	full	js
 compiler/circularMappedTypeConstraint	full	js
+compiler/circularModuleImports	full	js
 compiler/circularObjectLiteralAccessors(target=es2015)	full	js
 compiler/circularOptionalityRemoval	full	js
 compiler/circularReferenceInImport	full	js
@@ -1765,6 +1766,8 @@ compiler/declarationEmitTypeofDefaultExport	full	js
 compiler/declarationEmitTypeofIndexedAccessNoParens	full	js
 compiler/declarationEmitTypeofRest	full	js
 compiler/declarationEmitTypeofThisInClass	full	js
+compiler/declarationEmitUnknownImport(target=es2015)	full	js
+compiler/declarationEmitUnknownImport2(target=es2015)	full	none
 compiler/declarationEmitUnnessesaryTypeReferenceNotAdded(target=es2015)	full	js
 compiler/declarationEmitUnsafeImportSymbolName	full	js
 compiler/declarationEmitUsingAlternativeContainingModules1	full	js
@@ -2503,6 +2506,7 @@ compiler/explicitMembersBeforeInherited	full	js
 compiler/exportAlreadySeen	full	js
 compiler/exportArrayBindingPattern	full	js
 compiler/exportAsNamespace.d	full	js
+compiler/exportAsNamespaceConflict	full	js
 compiler/exportAsNamespace_augment	text	js
 compiler/exportAssignClassAndModule	full	js
 compiler/exportAssignNamedImport	full	js
@@ -5264,6 +5268,12 @@ compiler/recursiveConditionalEvaluationNonInfinite	full	js
 compiler/recursiveConditionalTypes	full	js
 compiler/recursiveConditionalTypes2	full	js
 compiler/recursiveExcessPropertyChecks	full	js
+compiler/recursiveExportAssignmentAndFindAliasedType1	full	js
+compiler/recursiveExportAssignmentAndFindAliasedType2	full	js
+compiler/recursiveExportAssignmentAndFindAliasedType3	full	js
+compiler/recursiveExportAssignmentAndFindAliasedType4	full	js
+compiler/recursiveExportAssignmentAndFindAliasedType5	full	js
+compiler/recursiveExportAssignmentAndFindAliasedType6	full	js
 compiler/recursiveExportAssignmentAndFindAliasedType7	full	js
 compiler/recursiveFieldSetting	full	js
 compiler/recursiveFunctionTypes	text	js
@@ -7404,7 +7414,9 @@ conformance/checkJsxUnionSFXContextualTypeInferredCorrectly	full	js
 conformance/checkObjectDefineProperty	full	js
 conformance/checkOtherObjectAssignProperty	full	js
 conformance/checkSpecialPropertyAssignments	full	js
+conformance/circular1	full	js
 conformance/circular2	full	js
+conformance/circular3	full	js
 conformance/circular4	full	js
 conformance/circularImportAlias	full	js
 conformance/circularIndexedAccessErrors	full	js

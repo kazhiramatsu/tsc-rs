@@ -2172,9 +2172,88 @@ fn module_keyword_and_quoted_name_rows_1540_1035() {
 }
 
 #[test]
-fn circular_import_alias_reports_2303() {
+fn circular_import_alias_reports_2303_at_every_alias_of_the_cycle() {
+    // tsgo (TypeScript 7.1) resolves the alias target through the
+    // type-resolution stack, so both aliases report; tsc 6.0 reported
+    // only `import A = B;`. Rows probed with tsc-19dadef8.
     let files = [("c.ts", "import A = B;\nimport B = A;\nA; B;\nexport {};\n")];
-    assert_eq!(rows(&files), [("c.ts".to_owned(), 2303, 0, 13)]);
+    assert_eq!(
+        rows(&files),
+        [
+            ("c.ts".to_owned(), 2303, 0, 13),
+            ("c.ts".to_owned(), 2303, 14, 13),
+        ]
+    );
+}
+
+#[test]
+fn circular_export_assignment_aliases_report_2303_in_each_module() {
+    // `import self = require(...)` and `export = self` are both
+    // aliases of the cycle: four rows for two ambient modules (tsgo
+    // tsc-19dadef8; tsc 6.0 reported one row).
+    let files = [
+        ("/defs.d.ts", "declare module \"moduleC\" {\n    import self = require(\"moduleD\");\n    export = self;\n}\ndeclare module \"moduleD\" {\n    import self = require(\"moduleC\");\n    export = self;\n}\n"),
+        ("/a.ts", "import moduleC = require(\"moduleC\");\nexport var b: moduleC;\n"),
+    ];
+    let options = CompilerOptions {
+        module: Some(tsc_types::ModuleKind::COMMON_JS.bits()),
+        ..CompilerOptions::default()
+    };
+    assert_eq!(
+        program_rows(&files, &options),
+        [
+            ("/defs.d.ts".to_owned(), 2303, 31, 33),
+            ("/defs.d.ts".to_owned(), 2303, 69, 14),
+            ("/defs.d.ts".to_owned(), 2303, 117, 33),
+            ("/defs.d.ts".to_owned(), 2303, 155, 14),
+        ]
+    );
+}
+
+#[test]
+fn circular_type_only_re_exports_report_2303_in_both_files() {
+    // conformance/circular1: `export type { A } from './b'` in each
+    // file; tsgo reports the export specifier of both files.
+    let files = [
+        ("/a.ts", "export type { A } from './b';\n"),
+        ("/b.ts", "export type { A } from './a';\n"),
+    ];
+    assert_eq!(
+        rows(&files),
+        [
+            ("/a.ts".to_owned(), 2303, 14, 1),
+            ("/b.ts".to_owned(), 2303, 14, 1),
+        ]
+    );
+}
+
+#[test]
+fn circular_export_assignment_alias_prints_its_written_name() {
+    // tsgo's symbolToString (getNameOfSymbolAsWritten) prints the
+    // expression identifier of `export = self`, not the internal
+    // `export=` name; tsc-19dadef8 reports 'self' for all four aliases.
+    let inputs = vec![
+        InputFile::new(
+            "/defs.d.ts".to_owned(),
+            "declare module \"moduleC\" {\n    import self = require(\"moduleD\");\n    export = self;\n}\ndeclare module \"moduleD\" {\n    import self = require(\"moduleC\");\n    export = self;\n}\n".to_owned(),
+        ),
+        InputFile::new(
+            "/a.ts".to_owned(),
+            "import moduleC = require(\"moduleC\");\nexport var b: moduleC;\n".to_owned(),
+        ),
+    ];
+    let result = check_program(
+        &inputs,
+        &CompilerOptions {
+            module: Some(tsc_types::ModuleKind::COMMON_JS.bits()),
+            ..CompilerOptions::default()
+        },
+    );
+    let messages: Vec<String> = targeted_rows(&result, &[2303])
+        .into_iter()
+        .map(|row| row.4)
+        .collect();
+    assert_eq!(messages, ["Circular definition of import alias 'self'."; 4]);
 }
 
 /// Static and dynamic imports in an .mts file use Node's ESM

@@ -3143,6 +3143,9 @@ impl TypeSystemPropertyName {
     pub const WRITE_TYPE: Self = Self(7);
     /// tsc TypeSystemPropertyName.ParameterInitializerContainsUndefined
     pub const PARAMETER_INITIALIZER_CONTAINS_UNDEFINED: Self = Self(8);
+    /// tsgo TypeSystemPropertyName.AliasTarget (TypeScript 7.1; tsc 6.0's
+    /// resolveAlias used the resolvingSymbol sentinel instead).
+    pub const ALIAS_TARGET: Self = Self(9);
 
     pub const fn from_bits(bits: i32) -> Self {
         Self(bits)
