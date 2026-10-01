@@ -77,6 +77,12 @@ instead of retroactively creating a packet; this exception ends with H2.5g.
   native test-layout alignment and semi-automated feature adoption after the
   emitter milestone, from roadmap and specification research through actual Go
   traces to Rust implementation.
+- [greenfield/slices/ts71-cutover/README.md](greenfield/slices/ts71-cutover/README.md):
+  the 2026-10-01 decision to end tsc 6.0.3 compatibility with release v0.1.0
+  and follow TypeScript 7.1 only: the inventory of 6.0.3-dependent surfaces,
+  the replacement gates (conformance-ts71 with emit, Rust checks), the PR
+  order and the CLAUDE.md policy text. It continues the
+  [conformance-ts71 packet](greenfield/slices/conformance-ts71/README.md).
 - [greenfield/](greenfield/README.md): the execution companion to the
   five M/core documents above, plus the entry route for active post-H1 work.
   Its M0-M9 step guides are completed or paused history; its post-H1 route

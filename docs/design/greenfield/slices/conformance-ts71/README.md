@@ -1,6 +1,6 @@
 # TypeScript 7.1のテスト構成に合わせたconformance
 
-状態：**P1 runner 実装済み**（2026-09-29、[P1の結果](#p1の結果2026-09-29)）、**P2-1 既定値の移行とhosted CI組込み済み**（2026-10-01、[P2-1の結果](#p2-1-既定値の移行2026-10-01)）、**P2-2 relation headの置換済み**（2026-10-01、[P2-2](#p2-2-relation-headの置換2026-10-01)）。残るP2のclassとprofileの移行（P3）はこれから。
+状態：**P1 runner 実装済み**（2026-09-29、[P1の結果](#p1の結果2026-09-29)）、**P2-1 既定値の移行とhosted CI組込み済み**（2026-10-01、[P2-1の結果](#p2-1-既定値の移行2026-10-01)）、**P2-2 relation headの置換済み**（2026-10-01、[P2-2](#p2-2-relation-headの置換2026-10-01)）。残るP2のclassとprofileの移行（P3）はこれから。**2026-10-01追記**：ユーザー決定により6.0.3互換はrelease [v0.1.0](https://github.com/kazhiramatsu/tsc-rs/releases/tag/v0.1.0)で区切り、以後は7.1だけを追う。P3の内容は[ts71-cutover](../ts71-cutover/README.md)が引き継ぐ（二重profileとlane Bは廃止）。
 親計画：[TS7の方向](../../typescript-7-direction.md)、[7.1追従設計](../../typescript-7-upstream-sync.md)、
 [移行基盤batch](../post-emitter-foundation-batch/README.md)のA2（test inventory）とA4（MAP/PIN）。
 調査記録：[SURVEY.md](SURVEY.md)（上流harnessと現行runnerの比較、数値の根拠）。
