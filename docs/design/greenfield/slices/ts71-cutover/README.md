@@ -339,4 +339,5 @@ tsgo `program.go` `verifyCompilerOptions` の「Removed in TS7」blockを移植�
   7.1の行に再pin。node10のauthoritative resolution testはnode10のまま、semantic行は`run_for_native_harness`の
   ungated union（`consume_ungated`）から読む（CLIのbucketはoption診断で閉じる）。
 - conformance（release、`--workers 4 --check`）：15,228 configuration、lane A 13,467（変化なし）、full 12,641→12,666（+25）、text 114、category 21、mismatch 646→622、harness error 45→44、emit full 12,411。lane Aに上がったのはP3-4で予告した`downlevelIteration`の23構成（errorsがTS5102で一致）と`importAssertionsDeprecatedIgnored`（`@ignoreDeprecations: 6.0`が無効になりTS2880 3件が一致）の計24件。ratchet：0 regressions、`--update`相当（report記録）で24行追加。`compiler/intersectionConstructorReductionCrash`は今回fullだったが、P3-1以降の計測ではharness error（stress case、負荷で結果が変わる）だったので行を追加しない（安定したら追加）。
-- hosted：HOSTED_RECORD
+- hosted：PR #619（head `6ca8d017f`、merge `47c4bd309`）、run 36918572262 — `plan` 32s、`rust` 9m34s、`conformance (TypeScript 7.1)` 21m49s、`gates` 11s。
+- perf（README corpora、`--noEmit`、3 rounds、nice 20、本branchのrelease build対tsgo 7.1.0-dev、median wall／peak RSSのtsc-rs÷tsgo）：hono 0.71／0.86、zod 0.57／0.72、Playwright 0.60／0.72、TypeScript `src/compiler` 0.98／0.71、Next.js 0.60／0.77、Effect 0.67／0.86、VS Code 0.75／0.79。#615後の計測と同じ帯（READMEの比率＋記録済みのstable ordering 2〜6%）で、peak memoryは同等以下。checkerのhot pathに触れない変更なので退行なし。
