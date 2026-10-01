@@ -76,7 +76,7 @@ fn main() {
         .expect("write report");
     }
     println!(
-        "{} configurations in {:.1}s: lane A {} (full {}, text {}, category {}, location {}, mismatch {}, emit {}/{}/{}, maps {}/{}, harness errors {}), deprecated {}, not run {}",
+        "{} configurations in {:.1}s: lane A {} (full {}, text {}, category {}, location {}, mismatch {}, emit {}/{}/{}, maps {}/{}, harness errors {}), skipped {}, not run {}",
         summary.configurations,
         started.elapsed().as_secs_f64(),
         summary.lane_a,
@@ -91,7 +91,7 @@ fn main() {
         summary.map_full,
         summary.map_mismatch,
         summary.harness_errors,
-        summary.deprecated,
+        summary.skipped,
         summary.not_run,
     );
     if write_report {

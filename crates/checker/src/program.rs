@@ -551,7 +551,7 @@ impl DocumentRegistry {
 
 impl Default for DocumentRegistry {
     fn default() -> Self {
-        Self::new("typescript-6.0.3")
+        Self::new("tsc-rs")
     }
 }
 

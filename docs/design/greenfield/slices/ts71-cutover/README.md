@@ -270,4 +270,27 @@ harness crateに`[lints] workspace = true`を足した（`iter_over_hash_type`�
   TypeScript `src/compiler` 341.6（291）／345.2（408）0.99、Next.js 770.6（1,325）／1,344.5（1,636）0.57、
   Effect 533.5（1,037）／798.6（1,203）0.67、VS Code 3,477（5,477）／4,563（7,002）0.76。#615の比（0.76／0.57／0.61／
   0.95／0.59／0.70／0.75）と差はrun間のばらつきの範囲で、退行なし（P3-3が消したのはcold branchだけ）。
-- hosted：本PRの`plan`／`rust`（`cargo test --workspace`）／`conformance (TypeScript 7.1)`／`gates`。
+- hosted：PR #617（head `b27eb13bb`）、run 36909154991 — `plan` 35s、`rust`（`cargo test --workspace`）10m46s、
+  `conformance (TypeScript 7.1)` 17m26s、`gates` 12s、すべて成功。
+
+## P3-4 lane Bの7.1化（2026-10-02）
+
+runnerのlane判定から`deprecated_option`（6.0で非推奨になったoptionを使う構成をlane Bへ送る自前の表）を外し、
+Goのrule（`SkipUnsupportedCompilerOptions`＝skip、`failOnUnsupportedCompilerOptions`／`skippedTests`／未知の
+directive＝not run）だけで決めるようにした。`Outcome::Deprecated`は`Outcome::Skipped { rule }`に、report／
+supervisorの`deprecated`は`skipped`に改名。README「Run CI」の「比較しない構成」の説明をGoのruleの列挙に差し替え。
+`DocumentRegistry::default()`のnamespace labelを`tsc-rs`に。
+
+- 内訳（15,228 configuration）：lane A 13,467（＝Goの実行数 15,228 − skipped 1,719 − not run 42）、
+  full 12,641、text 114、category 21、mismatch 646、harness error 45（変化なし）。lane Aに移ったのは
+  `downlevelIteration`の23構成だけ（他の旧lane B 1,719はGoもskipする）。23件はすべてemit一致、errorsは
+  tsc-rsがTS5101（6.0の非推奨）を、7.1がTS5102（削除済み）を報告する1行差で不一致。
+- ratchet：0 regressions。`compiler/comparisonSameNamedAliases`のemit tierを`none`→`js`に上げた（#615の
+  tsgo同形stable sortで一致するようになっていたが、#615は`--check`だけだった）。新規行なし（23件はmismatch）。
+- 次（P3-5の最初のclass）：削除済みoptionの診断。tsgo `program.go` `verifyCompilerOptions`「Removed in TS7」は
+  `baseUrl`（tsconfigがあれば`"paths": {"*": ["./…/*"]}`の`Use_0_instead`付き）、`outFile`、`target: ES5`、
+  `module: AMD／System／UMD`、`moduleResolution: Classic／node10`、`alwaysStrict: false`、`esModuleInterop: false`、
+  `allowSyntheticDefaultImports: false`、`downlevelIteration`（値を問わず）をTS5102／TS5104で報告し、
+  `ignoreDeprecations`は検証も抑止もしない（TS5103／TS5101／TS5107は7.1に存在しない経路）。tsc-rsの
+  `crates/program/src/config.rs`（tsconfig）と`crates/compiler/src/lib.rs`（programmatic／CLI）の6.0経路を
+  これに置き換え、programのh2-8b config-diagnostics fixtureとREADME「Reference」の非推奨optionの説明を更新する。

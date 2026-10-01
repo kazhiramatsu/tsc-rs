@@ -3,12 +3,15 @@
 //!
 //! Every case is expanded with the native runner's own rules
 //! (`tsc_harness::upstream_suites::native`). A configuration the native runner
-//! executes, and that uses no option TypeScript 6.0 deprecated, is lane A:
-//! tsc-rs checks it through the Program path and the diagnostics the native
-//! runner collects are compared with the profile's `.errors.txt` (an absent
-//! file means none). Every other configuration is lane B: tsc-rs keeps the
-//! 6.0.3 behavior for the deprecated options, and those cases stay with the
-//! 6.0.3 conformance goldens for now.
+//! executes is lane A: tsc-rs checks it through the Program path and the
+//! diagnostics the native runner collects are compared with the profile's
+//! `.errors.txt` (an absent file means none), then its emit with the `.js`
+//! and `.js.map` baselines. A configuration the runner's
+//! `SkipUnsupportedCompilerOptions` leaves out (an option TypeScript 7
+//! removed: ES5, UMD and System, node10 and classic, `baseUrl`,
+//! `esModuleInterop: false`, `alwaysStrict: false`) is skipped, and one it
+//! never produces baselines for (`skippedTests`, an unknown directive, the
+//! fatal AMD and `outFile`) is not run.
 
 mod emit_baseline;
 mod errors_baseline;
@@ -34,70 +37,6 @@ use tsc_harness::upstream_suites::native::{
     expand_case, NativeCase, NativeConfiguration, NativeProfile, NativeSkip, NativeSuite,
 };
 use tsc_program::ProgramLoadLimits;
-
-/// Options TypeScript 6.0 deprecated and 7.x removed; a configuration using
-/// any of them is lane B. Checked on the effective directive values.
-fn deprecated_option(configuration: &NativeConfiguration) -> Option<&'static str> {
-    let value = |name: &str| {
-        configuration
-            .settings
-            .get(name)
-            .map(|value| value.trim().to_ascii_lowercase())
-    };
-    let set = |name: &str| value(name).is_some_and(|value| !value.is_empty());
-    if matches!(value("target").as_deref(), Some("es3" | "es5")) {
-        return Some("target=es5");
-    }
-    if matches!(
-        value("module").as_deref(),
-        Some("none" | "amd" | "umd" | "system")
-    ) {
-        return Some("module");
-    }
-    if matches!(
-        value("moduleresolution").as_deref(),
-        Some("node" | "node10" | "classic")
-    ) {
-        return Some("moduleResolution");
-    }
-    for (name, reason) in [
-        ("outfile", "outFile"),
-        ("out", "out"),
-        ("baseurl", "baseUrl"),
-        ("downleveliteration", "downlevelIteration"),
-        ("charset", "charset"),
-        ("importsnotusedasvalues", "importsNotUsedAsValues"),
-        ("keyofstringsonly", "keyofStringsOnly"),
-        ("noimplicitusestrict", "noImplicitUseStrict"),
-        ("nostrictgenericchecks", "noStrictGenericChecks"),
-        ("preservevalueimports", "preserveValueImports"),
-        (
-            "suppressexcesspropertyerrors",
-            "suppressExcessPropertyErrors",
-        ),
-        (
-            "suppressimplicitanyindexerrors",
-            "suppressImplicitAnyIndexErrors",
-        ),
-    ] {
-        if set(name) {
-            return Some(reason);
-        }
-    }
-    for (name, reason) in [
-        ("esmoduleinterop", "esModuleInterop=false"),
-        (
-            "allowsyntheticdefaultimports",
-            "allowSyntheticDefaultImports=false",
-        ),
-        ("alwaysstrict", "alwaysStrict=false"),
-    ] {
-        if value(name).as_deref() == Some("false") {
-            return Some(reason);
-        }
-    }
-    None
-}
 
 /// One diagnostic as the native error baseline's summary line records it.
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize)]
@@ -382,8 +321,9 @@ pub enum Outcome {
     },
     /// Lane A, but tsc-rs could not build or check the Program.
     HarnessError { reason: String },
-    /// Lane B: an option TypeScript 6.0 deprecated.
-    Deprecated { option: String },
+    /// The native runner's `SkipUnsupportedCompilerOptions` skips it: an
+    /// option TypeScript 7 removed.
+    Skipped { rule: String },
     /// The native runner does not produce baselines for it.
     NotRun { reason: String },
 }
@@ -921,14 +861,10 @@ fn run_case(
         if leave_out.contains(&stem.as_str()) {
             continue;
         }
-        let outcome = if let Some(option) = deprecated_option(&configuration) {
-            Outcome::Deprecated {
-                option: option.to_owned(),
-            }
-        } else if let Some(skip) = skip {
+        let outcome = if let Some(skip) = skip {
             match skip {
-                NativeSkip::Unsupported(rule) => Outcome::Deprecated {
-                    option: rule.to_owned(),
+                NativeSkip::Unsupported(rule) => Outcome::Skipped {
+                    rule: rule.to_owned(),
                 },
                 other => Outcome::NotRun {
                     reason: format!("{other:?}"),
@@ -1001,7 +937,7 @@ pub struct Summary {
     pub map_full: usize,
     pub map_mismatch: usize,
     pub harness_errors: usize,
-    pub deprecated: usize,
+    pub skipped: usize,
     pub not_run: usize,
 }
 
@@ -1042,7 +978,7 @@ pub fn summarize(results: &[ConfigurationResult]) -> Summary {
                 summary.lane_a += 1;
                 summary.harness_errors += 1;
             }
-            Outcome::Deprecated { .. } => summary.deprecated += 1,
+            Outcome::Skipped { .. } => summary.skipped += 1,
             Outcome::NotRun { .. } => summary.not_run += 1,
         }
     }
