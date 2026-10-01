@@ -1337,6 +1337,7 @@ impl TypeTables {
     /// The getUnionTypeWorker TAIL (61558-61585): named-union origin
     /// denormalization + objectFlags computation + interning. Shared
     /// with the checker-side Subtype-capable twin (stage 4.8).
+    #[allow(clippy::too_many_arguments)]
     pub fn finish_union_type_set(
         &mut self,
         order: TypeOrder<'_>,

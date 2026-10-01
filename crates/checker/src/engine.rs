@@ -4127,7 +4127,6 @@ impl<'a> CheckerState<'a> {
             properties.push(member);
         }
         let source_members = self.members_of(resolved);
-        let mut properties = properties;
         self.order_named_members_if_stable(&mut properties, self.tables.type_of(ty).symbol);
         let members_id = self.alloc_members(crate::state::ResolvedMembers {
             members: self.member_table(&members),

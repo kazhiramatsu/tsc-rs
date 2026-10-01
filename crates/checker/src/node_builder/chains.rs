@@ -2178,10 +2178,15 @@ fn type_parameter_shadows_other_type_parameter_in_scope(
         .and_then(|locals| locals.get(&escaped_name))
         .copied()
     {
-        return Ok(checker
+        // A type-parameter local of the fake scopes answers the lookup; a
+        // parameter local is a value, which resolveName skips for the Type
+        // meaning before walking the real scopes.
+        if checker
             .symbol_flags(resolved)
             .intersects(SymbolFlags::TYPE_PARAMETER)
-            && checker.tables.type_of(r#type).symbol != Some(resolved));
+        {
+            return Ok(checker.tables.type_of(r#type).symbol != Some(resolved));
+        }
     }
     let resolved = checker
         .resolve_name(

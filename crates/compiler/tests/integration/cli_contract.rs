@@ -1546,6 +1546,15 @@ export declare function pick<T>(value: T): { [K in keyof T]: T[K] }
 export const picked = pick({ b: 1, a: 'x' })
 export const spread = { ...{ b: 1 }, a: 2 }
 export const tuple: [b: number, a: string] = [1, 'x']
+export interface Eff<A, E> { readonly _: [A, E] }
+export const makeRunMain = (
+  f: <E, A>(options: { readonly fiber: Eff<A, E> }) => void
+): {
+  (options?: { readonly x?: boolean }): <E, A>(effect: Eff<A, E>) => void
+  <E, A>(effect: Eff<A, E>, options?: { readonly x?: boolean }): void
+} => null as any
+export const siblings = (f: <E, A>(x: Eff<A, E>) => void, g: <E, A>(x: Eff<A, E>) => void): void => {}
+export const nested = <T,>(f: <U, V>(x: Eff<U, V>) => T, g: <U, V>(x: Eff<U, V>) => T): T => null!
 ";
 
 fn write_stable_ordering_program(tree: &TempTree, stable_type_ordering: Option<bool>) {

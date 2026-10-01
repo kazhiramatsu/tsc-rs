@@ -368,7 +368,6 @@ impl<'a> CheckerState<'a> {
         self.tables.type_mut(result).object_flags =
             ObjectFlags::from_bits(ObjectFlags::ANONYMOUS.bits() | carried);
         self.tables.type_mut(result).symbol = symbol;
-        let mut properties = properties;
         self.order_named_members_if_stable(&mut properties, symbol);
         let members_id = self.alloc_members(crate::state::ResolvedMembers {
             members: self.member_table(&members),

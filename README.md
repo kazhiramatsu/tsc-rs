@@ -789,12 +789,10 @@ JavaScript source maps were identical on every configuration. The
 declaration files that differ contain the same declarations: the order of
 union constituents and of the properties of inferred object types differs,
 because tsc-rs derives that order from the type identities of its parallel
-checkers, and in Effect's `Runtime.d.ts` two type parameters that tsc
-prints as `A` are printed as `A_1` and `A_2`. The order is stable for a
-given machine and checker count, and `TSRS_CHECKERS=1` (a single checker,
-the exact serial mode) reproduces tsc's order at the cost of the parallel
-speed-up. Declaration maps differ only for a declaration file that itself
-differs.
+checkers. The order is stable for a given machine and checker count, and
+`TSRS_CHECKERS=1` (a single checker, the exact serial mode) reproduces
+tsc's order at the cost of the parallel speed-up. Declaration maps differ
+only for a declaration file that itself differs.
 
 [Stable type ordering](#stable-type-ordering) removes the dependence on
 the checker partition. With `stableTypeOrdering` enabled on both sides,
@@ -802,12 +800,12 @@ the same comparison against `tsc --stableTypeOrdering` gave identical
 diagnostics on every project at every checker count tried (1, 6, 8 and 12
 on Effect, where both compilers report the two Schema errors that
 TypeScript 7 also reports), identical declaration files for zod,
-Playwright and Next.js, and for Effect one differing declaration file
-with a single checker, `Runtime.d.ts` (the `A_1`/`A_2` naming above), plus
-`ai/internal/mcpProtocol/v2026_07_28.d.ts` with several checkers. In that
-file one union of three mapped types compares equal up to the comparison's
-final tiebreak, the type id, which with several checkers is a checker-local
-creation id; TypeScript 7 keeps the same tiebreak.
+Playwright and Next.js, and for Effect identical declaration files with a
+single checker. With several checkers one Effect file,
+`ai/internal/mcpProtocol/v2026_07_28.d.ts`, prints one union of three
+mapped types in a different member order: the three compare equal up to
+the comparison's final tiebreak, the type id, which with several checkers
+is a checker-local creation id. TypeScript 7 keeps the same tiebreak.
 
 ### Reproducing
 

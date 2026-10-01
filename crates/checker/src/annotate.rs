@@ -11324,7 +11324,6 @@ impl<'a> CheckerState<'a> {
             .tables
             .create_type(TypeFlags::OBJECT, tsc_types::TypeData::Object);
         self.tables.type_mut(id).object_flags = ObjectFlags::ANONYMOUS | object_flags;
-        let mut properties = properties;
         self.order_named_members_if_stable(&mut properties, None);
         let members_id = self.alloc_members(crate::state::ResolvedMembers {
             members: self.member_table(&members),

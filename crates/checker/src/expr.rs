@@ -3650,7 +3650,6 @@ impl<'a> CheckerState<'a> {
             .create_type(TypeFlags::OBJECT, tsc_types::TypeData::Object);
         self.tables.type_mut(id).object_flags = source_object_flags;
         self.tables.type_mut(id).symbol = symbol;
-        let mut properties = properties;
         self.order_named_members_if_stable(&mut properties, symbol);
         let members_id = self.alloc_members(crate::state::ResolvedMembers {
             members: self.member_table(&members),
