@@ -9,12 +9,13 @@ vendor/typescript-native/<profile>/upstream/:
   tsc/testdata/tests/cases/{compiler,conformance}   every case file
   tsc/testdata/tests/lib                            the harness's /.lib files
   tsc/internal/bundled/libs                         the embedded standard libraries
+  tsc/internal/diagnostics/diagnosticMessages.json  the diagnostic message catalog
   tsc/testdata/baselines/reference/{compiler,conformance}/*.errors.txt
 
 and writes vendor/typescript-native/<profile>/manifest.json with the commit,
-each set's Git tree id (or, for the filtered baseline set, its blob
-inventory), file and byte counts, and the sorted names of *all* compiler and
-conformance reference baselines (a configuration that ran without errors has
+each set's Git tree id (a single file's blob id; the filtered baseline set
+records only its blob inventory), file and byte counts, and the sorted names of
+*all* compiler and conformance reference baselines (a configuration that ran without errors has
 other baselines but no .errors.txt; a skipped one has none).
 
 The upstream checkout lives under target/typescript-native/<commit>/ and is a
@@ -39,6 +40,9 @@ TREES = [
     "tsc/testdata/tests/cases/conformance",
     "tsc/testdata/tests/lib",
     "tsc/internal/bundled/libs",
+]
+FILES = [
+    "tsc/internal/diagnostics/diagnosticMessages.json",
 ]
 BASELINE_DIRS = [
     "tsc/testdata/baselines/reference/compiler",
@@ -90,7 +94,8 @@ def blob_sha1(data):
 
 def fetch_blobs(checkout, commit):
     """Check out only the vendored paths; the partial clone fetches their blobs in one batch."""
-    patterns = [f"/{path}/" for path in TREES] + [f"/{path}/*{ERRORS_SUFFIX}" for path in BASELINE_DIRS]
+    patterns = ([f"/{path}/" for path in TREES] + [f"/{path}" for path in FILES]
+                + [f"/{path}/*{ERRORS_SUFFIX}" for path in BASELINE_DIRS])
     subprocess.run(["git", "-C", str(checkout), "sparse-checkout", "init", "--no-cone"], check=True)
     (checkout / ".git/info/sparse-checkout").write_text("\n".join(patterns) + "\n")
     subprocess.run(["git", "-C", str(checkout), "checkout", "-q", "--detach", commit], check=True)
@@ -129,6 +134,12 @@ def vendor(commit, profile):
         sets.append({"path": path, "git_tree_sha1": git(checkout, "rev-parse", f"{commit}:{path}"),
                      "rows": rows})
         selected.extend(rows)
+    for path in FILES:
+        rows = ls_tree(checkout, commit, path)
+        if len(rows) != 1 or rows[0][2] != path:
+            raise SystemExit(f"{path}: expected exactly one blob, found {len(rows)}")
+        sets.append({"path": path, "git_blob_sha1": rows[0][1], "rows": rows})
+        selected.extend(rows)
     names = []
     for path in BASELINE_DIRS:
         rows = ls_tree(checkout, commit, path)
@@ -159,6 +170,7 @@ def vendor(commit, profile):
                 "path": item["path"],
                 **({"filter": item["filter"]} if "filter" in item else {}),
                 **({"git_tree_sha1": item["git_tree_sha1"]} if "git_tree_sha1" in item else {}),
+                **({"git_blob_sha1": item["git_blob_sha1"]} if "git_blob_sha1" in item else {}),
                 "blob_inventory_sha256": inventory_digest(item["rows"]),
                 "files": len(item["rows"]),
                 "bytes": sum((upstream / name).stat().st_size for _, _, name in item["rows"]),
@@ -188,16 +200,21 @@ def check(profile):
     for item in manifest["sets"]:
         base = upstream / item["path"]
         rows = []
-        for directory, _, files in os.walk(base):
-            for file in files:
-                full = Path(directory) / file
-                name = str(full.relative_to(upstream))
-                if "filter" in item and not name.endswith(ERRORS_SUFFIX):
-                    continue
-                data = full.read_bytes()
-                mode = "100755" if os.access(full, os.X_OK) else "100644"
-                rows.append((mode, blob_sha1(data), name))
-                expected_files.add(name)
+        if base.is_file():
+            candidates = [base]
+        else:
+            candidates = [Path(directory) / file
+                          for directory, _, files in os.walk(base) for file in files]
+        for full in candidates:
+            name = str(full.relative_to(upstream))
+            if "filter" in item and not name.endswith(ERRORS_SUFFIX):
+                continue
+            data = full.read_bytes()
+            mode = "100755" if os.access(full, os.X_OK) else "100644"
+            rows.append((mode, blob_sha1(data), name))
+            expected_files.add(name)
+        if "git_blob_sha1" in item and [row[1] for row in rows] != [item["git_blob_sha1"]]:
+            raise SystemExit(f"{item['path']}: vendored file differs from its recorded blob")
         rows.sort(key=lambda row: row[2])
         if len(rows) != item["files"] or inventory_digest(rows) != item["blob_inventory_sha256"]:
             raise SystemExit(f"{item['path']}: vendored files differ from the manifest")

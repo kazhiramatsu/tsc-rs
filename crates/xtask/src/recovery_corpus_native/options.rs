@@ -60,6 +60,7 @@ pub(super) fn snapshot(program: &PreparedProgram) -> Value {
         emit_declaration_only: _,
         isolated_declarations: _,
         stable_type_ordering: _,
+        reference_profile: _,
         declaration_dir: _,
         strip_internal: _,
         out_file: _,

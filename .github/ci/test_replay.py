@@ -648,6 +648,17 @@ class SelectionTests(unittest.TestCase):
         plan = replay.selection(["docs/design/a.md", "README.md"])
         self.assertEqual(plan["acceptance"], [])
         self.assertEqual(plan["witnesses"], [])
+        self.assertFalse(plan["conformance_ts71"])
+
+    def test_conformance_ts71_runs_with_the_early_acceptance_group(self):
+        self.assertTrue(replay.selection(["crates/checker/src/state.rs"])["conformance_ts71"])
+        self.assertTrue(replay.selection(["ratchets/ts71/7.1.0-dev-19dadef8.tsv"])["conformance_ts71"])
+        self.assertTrue(replay.selection(None)["conformance_ts71"])
+        late_only = replay.selection(["crates/compiler/tests/integration/h2_7e_original_corpus_shared.rs"])
+        self.assertEqual(late_only["acceptance"], ["late"])
+        self.assertFalse(late_only["conformance_ts71"])
+        self.assertFalse(replay.selection(
+            ["crates/compiler/tests/fixtures/decorator-super-followup2.json.zst"])["conformance_ts71"])
 
     def test_followup_fixture_only_runs_its_collection(self):
         plan = replay.selection(["crates/compiler/tests/fixtures/decorator-super-followup2.json.zst"])
@@ -919,20 +930,26 @@ class SelectionTests(unittest.TestCase):
             self.assertIsNone(replay.changed_paths("push", {"before": "f" * 40}, root))
 
     def test_gate_fails_closed_for_missing_cancelled_or_skipped_selected_jobs(self):
-        for selected in ("true", "false"):
-            expected = "success" if selected == "true" else "skipped"
-            needs = {"plan": {"result": "success", "outputs": {"has_acceptance": selected}},
-                     "acceptance": {"result": expected}}
-            replay.verify_gate(needs, "acceptance")
-            for result in ("failure", "cancelled", "skipped" if selected == "true" else "success"):
-                needs["acceptance"]["result"] = result
+        for kind, job in (("acceptance", "acceptance"), ("witnesses", "witnesses"),
+                          ("conformance-ts71", "conformance-ts71")):
+            for selected in ("true", "false"):
+                expected = "success" if selected == "true" else "skipped"
+                needs = {"plan": {"result": "success", "outputs": {f"has_{job.replace('-', '_')}": selected}},
+                         job: {"result": expected}}
+                replay.verify_gate(needs, kind)
+                for result in ("failure", "cancelled", "skipped" if selected == "true" else "success"):
+                    needs[job]["result"] = result
+                    with self.assertRaises(ValueError):
+                        replay.verify_gate(needs, kind)
+                needs["plan"]["result"] = "failure"
                 with self.assertRaises(ValueError):
-                    replay.verify_gate(needs, "acceptance")
-            needs["plan"]["result"] = "failure"
+                    replay.verify_gate(needs, kind)
             with self.assertRaises(ValueError):
-                replay.verify_gate(needs, "acceptance")
+                replay.verify_gate({}, kind)
+        # A gate never accepts another workflow's job in place of its own.
         with self.assertRaises(ValueError):
-            replay.verify_gate({}, "acceptance")
+            replay.verify_gate({"plan": {"result": "success", "outputs": {"has_acceptance": "true"}},
+                                "conformance-ts71": {"result": "success"}}, "acceptance")
 
 
 class WitnessTests(unittest.TestCase):

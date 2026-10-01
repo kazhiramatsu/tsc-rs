@@ -101,18 +101,20 @@ fn embedded_library_overlay_owns_the_pinned_catalog_bytes() {
         .current_directory()
         .expect("read current directory");
     let host = CliCompilerHost::new(filesystem, &current_directory);
-    assert_eq!(embedded_libraries::TYPESCRIPT_6_0_3_LIBRARIES.len(), 108);
+    assert_eq!(embedded_libraries::EMBEDDED_LIBRARIES.len(), 113);
 
     let embedded_path = host.library_directory().join("lib.es5.d.ts");
     let embedded = host
         .read_file(&embedded_path)
         .expect("read embedded library")
         .expect("embedded ES5 library exists");
-    let vendored = std::fs::read(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../vendor/typescript-6.0.3/lib/lib.es5.d.ts"),
-    )
+    let vendored = std::fs::read(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(
+        "../../vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/internal/bundled/libs/lib.es5.d.ts",
+    ))
     .expect("read pinned ES5 library");
+    assert!(host
+        .file_exists(&host.library_directory().join("lib.es2026.full.d.ts"))
+        .expect("query embedded ES2026 library"));
     assert_eq!(embedded, vendored);
     assert!(host
         .file_exists(&embedded_path)
@@ -124,7 +126,7 @@ fn embedded_library_overlay_owns_the_pinned_catalog_bytes() {
         host.read_directory(host.library_directory())
             .expect("list embedded library directory")
             .len(),
-        108
+        113
     );
 }
 

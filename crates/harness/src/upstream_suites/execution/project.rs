@@ -1105,6 +1105,10 @@ impl CompilerHost for MountedProjectHost {
 }
 
 impl ConfigParseHost for MountedProjectHost {
+    fn reference_profile(&self) -> tsc_program::ReferenceProfile {
+        tsc_program::ReferenceProfile::TypeScript603
+    }
+
     fn use_case_sensitive_file_names(&self) -> bool {
         true
     }

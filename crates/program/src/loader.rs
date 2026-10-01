@@ -803,6 +803,12 @@ fn load_program_worker(
     limits: ProgramLoadLimits,
     root_reasons: Option<&[RootFileReason]>,
 ) -> Result<PreparedProgram, ProgramLoadError> {
+    // The standard-library catalog fixes the reference profile of every
+    // Program that loads libraries through it (see `ReferenceProfile`).
+    let mut compiler_options = compiler_options;
+    if let Some(catalog) = library_catalog {
+        compiler_options.reference_profile = catalog.reference_profile();
+    }
     validate_admitted_options(
         mode,
         &compiler_options,
@@ -5830,6 +5836,7 @@ fn script_target_name(options: &CompilerOptions) -> &'static str {
         10 => "es2023",
         11 => "es2024",
         12 => "es2025",
+        13 => "es2026",
         99 => "esnext",
         100 => "json",
         _ => "unknown",

@@ -126,10 +126,16 @@ fn native_expansion_reproduces_the_reference_baseline_configurations() {
 }
 
 /// Every vendored file, with its Git blob id and mode, under `root/path`
-/// (only `*.errors.txt` when the set is filtered), sorted by upstream path.
+/// (only `*.errors.txt` when the set is filtered; the file itself when the
+/// set vendors one file), sorted by upstream path.
 fn inventory(upstream: &Path, path: &str, errors_only: bool) -> Vec<(String, String, String)> {
     let mut files = Vec::new();
-    let mut stack = vec![upstream.join(path)];
+    let mut stack = Vec::new();
+    if upstream.join(path).is_file() {
+        files.push(upstream.join(path));
+    } else {
+        stack.push(upstream.join(path));
+    }
     while let Some(directory) = stack.pop() {
         for entry in std::fs::read_dir(&directory).expect("vendored directory") {
             let entry = entry.expect("directory entry");
@@ -204,9 +210,24 @@ fn native_vendored_inputs_match_the_manifest() {
             "{}: blob inventory",
             set.path
         );
+        if let Some(blob) = &set.git_blob_sha1 {
+            assert_eq!(
+                rows.iter()
+                    .map(|(_, blob, _)| blob.as_str())
+                    .collect::<Vec<_>>(),
+                [blob.as_str()],
+                "{}: single-file set",
+                set.path
+            );
+        }
         vendored += rows.len();
     }
-    assert_eq!(vendored, 20_187);
+    assert_eq!(vendored, 20_188);
+    assert!(profile.diagnostic_messages_path().is_file());
+    assert!(profile
+        .bundled_libraries_root()
+        .join("lib.es2026.d.ts")
+        .is_file());
     let names = profile.baseline_names().expect("baseline names");
     assert_eq!(names.len() as u64, manifest.baseline_names.entries);
     let text: String = names.iter().map(|name| format!("{name}\n")).collect();

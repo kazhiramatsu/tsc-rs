@@ -1,0 +1,60 @@
+name: conformance-ts71
+
+on:
+  pull_request:
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: conformance-ts71-${{ github.event.pull_request.number || github.event.merge_group.head_sha || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      has_conformance_ts71: ${{ steps.plan.outputs.has_conformance_ts71 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - id: plan
+        name: Select affected replay groups
+        run: python3 .github/ci/replay.py plan
+
+  conformance-ts71:
+    name: conformance (TypeScript 7.1)
+    needs: plan
+    if: needs.plan.outputs.has_conformance_ts71 == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      CARGO_BUILD_JOBS: "2"
+      CARGO_INCREMENTAL: "0"
+      RUSTC_WRAPPER: ""
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Compare lane A with the vendored TypeScript 7.1 baselines
+        run: python3 .github/ci/replay.py conformance-ts71
+
+  conformance-ts71-gates:
+    name: conformance-ts71-gates
+    needs: [plan, conformance-ts71]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      REPLAY_NEEDS: ${{ toJSON(needs) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Require the selected comparison to succeed
+        run: python3 .github/ci/replay.py gate conformance-ts71

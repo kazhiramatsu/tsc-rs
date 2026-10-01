@@ -8,6 +8,7 @@
 use std::collections::{BTreeSet, VecDeque};
 use tsc_diagnostics::{JsStr, JsString};
 use tsc_host::{CompilerHost, DirectoryListingEntry, DirectoryListingKind, HostError};
+use tsc_types::ReferenceProfile;
 
 use crate::config::{ConfigHostError, ConfigHostOperation, ConfigParseHost};
 use crate::config_matcher::{ConfigFilePattern, InputComponent, MatchInput};
@@ -34,11 +35,25 @@ type Listings = rustc_hash::FxHashMap<JsString, Vec<DirectoryListingEntry>>;
 #[derive(Clone, Copy)]
 pub struct CompilerConfigHost<'a> {
     host: &'a dyn CompilerHost,
+    profile: ReferenceProfile,
 }
 
 impl<'a> CompilerConfigHost<'a> {
+    /// A config host on tsc-rs's own reference profile (TypeScript 7.1).
     pub const fn new(host: &'a dyn CompilerHost) -> Self {
-        Self { host }
+        Self {
+            host,
+            profile: ReferenceProfile::TypeScript71,
+        }
+    }
+
+    /// A config host whose option values and messages follow `profile`; the
+    /// catalog the Program loads with should belong to the same profile.
+    pub const fn with_reference_profile(
+        host: &'a dyn CompilerHost,
+        profile: ReferenceProfile,
+    ) -> Self {
+        Self { host, profile }
     }
 
     fn host_error(
@@ -262,6 +277,10 @@ impl<'a> CompilerConfigHost<'a> {
 }
 
 impl ConfigParseHost for CompilerConfigHost<'_> {
+    fn reference_profile(&self) -> ReferenceProfile {
+        self.profile
+    }
+
     fn use_case_sensitive_file_names(&self) -> bool {
         self.host.use_case_sensitive_file_names()
     }

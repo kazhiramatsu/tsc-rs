@@ -3,7 +3,7 @@
 
 usage: conformance_ts71.py [--profile <name>] [--workers <n>] [--timeout <seconds>]
                            [--max-rss-mib <n>] [--filter <path substring>]
-                           [--check | --update]
+                           [--checkers <n>] [--check | --update]
 
 Some cases make tsc-rs (like TypeScript 6.0.3) recurse without bound or expand
 types without end: a stack overflow aborts the process, and a runaway case
@@ -17,6 +17,11 @@ configuration it was running (or, outside one, its case) as a harness error
 and restarts the worker after it. The merged report is written to
 target/conformance-ts71/<profile>/report.json, and each shard's stderr to
 shard-<n>.stderr beside it.
+
+Every configuration checks on one checker, the exact reference. `--checkers <n>`
+runs the sharded control instead, whose report is compared with the
+one-checker report by hand (scripts/conformance_ts71_compare.py); it neither
+checks nor updates the ratchet.
 
 The ratchet ratchets/ts71/<profile>.tsv lists every lane-A configuration that
 agrees with its baseline at least on locations, with the deepest tier it
@@ -89,7 +94,8 @@ class Shard:
             "".join("\t".join([key, *leave_out]) + "\n" for key, leave_out in self.remaining)
         )
         process = subprocess.Popen(
-            [str(BINARY), "--profile", self.args.profile, "--worker", str(cases_file)],
+            [str(BINARY), "--profile", self.args.profile, "--checkers", str(self.args.checkers),
+             "--worker", str(cases_file)],
             cwd=ROOT, stdout=subprocess.PIPE, stderr=stderr,
             text=True, encoding="utf-8", errors="replace", bufsize=1,
         )
@@ -234,6 +240,7 @@ def main():
     parser.add_argument("--timeout", type=float, default=120.0)
     parser.add_argument("--max-rss-mib", type=int, default=3072)
     parser.add_argument("--filter")
+    parser.add_argument("--checkers", type=int, default=1)
     ratchet_mode = parser.add_mutually_exclusive_group()
     ratchet_mode.add_argument("--check", action="store_true")
     ratchet_mode.add_argument("--update", action="store_true")
@@ -246,7 +253,11 @@ def main():
     listed = subprocess.run(listing, cwd=ROOT, check=True, capture_output=True,
                             text=True, encoding="utf-8").stdout
     keys = [key for key in listed.split("\n") if key]
+    if args.checkers != 1 and (args.check or args.update):
+        sys.exit("--check/--update apply to the one-checker run only")
     out_dir = ROOT / "target/conformance-ts71" / args.profile
+    if args.checkers != 1:
+        out_dir = out_dir / f"checkers-{args.checkers}"
     out_dir.mkdir(parents=True, exist_ok=True)
     stop = threading.Event()
     shards = [Shard(index, keys[index::args.workers], args, out_dir, stop)

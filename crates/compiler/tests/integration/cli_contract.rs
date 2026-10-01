@@ -1582,7 +1582,25 @@ fn assert_stable_ordering_matches_typescript(
     expected_fragment: &str,
     checker_counts: &[&str],
 ) {
-    let typescript = run_typescript(tree, arguments);
+    assert_stable_ordering_matches_typescript_with(
+        tree,
+        arguments,
+        arguments,
+        expected_fragment,
+        checker_counts,
+    );
+}
+
+/// `typescript_arguments` run tsc 6.0.3 and `arguments` run tsc-rs on the
+/// same tree; the outputs must agree.
+fn assert_stable_ordering_matches_typescript_with(
+    tree: &TempTree,
+    typescript_arguments: &[&str],
+    arguments: &[&str],
+    expected_fragment: &str,
+    checker_counts: &[&str],
+) {
+    let typescript = run_typescript(tree, typescript_arguments);
     let expected = String::from_utf8_lossy(&typescript.stdout).into_owned();
     assert!(expected.contains(expected_fragment), "{expected}");
     let expected_files = snapshot_files(&tree.path("out"));
@@ -1614,26 +1632,44 @@ fn assert_stable_ordering_matches_typescript(
 }
 
 /// `stableTypeOrdering` (tsc 6.0.3's preview of the TypeScript 7 type
-/// order): the diagnostics and the declaration output match TypeScript's at
-/// every checker count, including the union member order in messages and
-/// declarations, the property order of merged classes, spreads, mapped and
-/// tuple types, and the inference that depends on the member order (the
-/// `void` candidate of effect's Stream.ts). Without the option the one-checker
-/// run reports tsc's creation-order error.
+/// order, tsc-rs's default): the diagnostics and the declaration output
+/// match TypeScript's at every checker count, including the union member
+/// order in messages and declarations, the property order of merged
+/// classes, spreads, mapped and tuple types, and the inference that depends
+/// on the member order (the `void` candidate of effect's Stream.ts). A
+/// configuration without the option matches `tsc --stableTypeOrdering`;
+/// with the option set to false the one-checker run reports tsc's
+/// creation-order error.
 #[test]
 fn stable_type_ordering_matches_typescript_at_every_checker_count() {
     let tree = TempTree::new();
     let arguments = ["--pretty", "false", "-p", "tsconfig.json"];
+    let content_order = "Type 'Box<string> | Box<number>' is not assignable to type 'never'.";
 
     write_stable_ordering_program(&tree, Some(true));
     assert_stable_ordering_matches_typescript(
         &tree,
         &arguments,
-        "Type 'Box<string> | Box<number>' is not assignable to type 'never'.",
+        content_order,
         &["1", "2", "3", "5"],
     );
 
     write_stable_ordering_program(&tree, None);
+    assert_stable_ordering_matches_typescript_with(
+        &tree,
+        &[
+            "--pretty",
+            "false",
+            "--stableTypeOrdering",
+            "-p",
+            "tsconfig.json",
+        ],
+        &arguments,
+        content_order,
+        &["1", "2", "3", "5"],
+    );
+
+    write_stable_ordering_program(&tree, Some(false));
     assert_stable_ordering_matches_typescript(
         &tree,
         &arguments,

@@ -9480,6 +9480,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getResolutionModeOverride @6.0.3
     /// tsc-hash: f0ea3a3d8ef697c105c16f448009971c3a984cfd14a871dbee5d15e5d18c597d
     /// tsc-span: _tsc.js:122309-122333
+    /// TypeScript 7.1 (`ast.ImportAttributesNode.GetResolutionModeOverride`)
+    /// reads the `resolution-mode` attribute among any others and reports only
+    /// an invalid value: the cardinality and key checks (TS1463/TS1464 for
+    /// attributes, TS1454/TS1455 for assertions) are 6.0.3's.
     ///
     /// Returns whether a valid resolution-mode override is present;
     /// the same parser feeds host resolution so grammar checking and
@@ -9494,7 +9498,7 @@ impl<'a> CheckerState<'a> {
             ResolutionModeOverrideParse::WrongCardinality { token } => {
                 if report {
                     let message = if token == SyntaxKind::WithKeyword {
-                        &diagnostics::Type_import_attributes_should_have_exactly_one_key_resolution_mode_with_value_import_or_require
+                        &diagnostics::typescript_6_0_3::Type_import_attributes_should_have_exactly_one_key_resolution_mode_with_value_import_or_require
                     } else {
                         &diagnostics::Type_import_assertions_should_have_exactly_one_key_resolution_mode_with_value_import_or_require
                     };
@@ -9505,7 +9509,7 @@ impl<'a> CheckerState<'a> {
             ResolutionModeOverrideParse::InvalidName { token, name } => {
                 if report {
                     let message = if token == SyntaxKind::WithKeyword {
-                        &diagnostics::resolution_mode_is_the_only_valid_key_for_type_import_attributes
+                        &diagnostics::typescript_6_0_3::resolution_mode_is_the_only_valid_key_for_type_import_attributes
                     } else {
                         &diagnostics::resolution_mode_is_the_only_valid_key_for_type_import_assertions
                     };
@@ -9533,23 +9537,54 @@ impl<'a> CheckerState<'a> {
             _ => return ResolutionModeOverrideParse::Missing,
         };
         let elements: Vec<NodeId> = self.nodes_of(elements);
-        if elements.len() != 1 {
-            return ResolutionModeOverrideParse::WrongCardinality { token };
-        }
-        let (name, value) = match self.data_of(elements[0]) {
-            NodeData::ImportAttribute(data) => (data.name, data.value),
-            _ => return ResolutionModeOverrideParse::Missing,
+        let attribute_name_text = |attribute: NodeId| -> Option<(NodeId, Option<&str>)> {
+            let NodeData::ImportAttribute(data) = self.data_of(attribute) else {
+                return None;
+            };
+            let name = data.name?;
+            // An identifier cannot spell the hyphenated key.
+            let text = match self.data_of(name) {
+                NodeData::StringLiteral(data) => data.text.as_str(),
+                _ => return None,
+            };
+            Some((name, text))
         };
-        let Some(name) = name else {
-            return ResolutionModeOverrideParse::Missing;
+        let value = match self.options.reference_profile {
+            tsc_types::ReferenceProfile::TypeScript603 => {
+                if elements.len() != 1 {
+                    return ResolutionModeOverrideParse::WrongCardinality { token };
+                }
+                let (name, value) = match self.data_of(elements[0]) {
+                    NodeData::ImportAttribute(data) => (data.name, data.value),
+                    _ => return ResolutionModeOverrideParse::Missing,
+                };
+                let Some(name) = name else {
+                    return ResolutionModeOverrideParse::Missing;
+                };
+                let name_text = match self.data_of(name) {
+                    NodeData::StringLiteral(data) => data.text.as_str(),
+                    _ => return ResolutionModeOverrideParse::Missing,
+                };
+                if name_text != Some("resolution-mode") {
+                    return ResolutionModeOverrideParse::InvalidName { token, name };
+                }
+                value
+            }
+            tsc_types::ReferenceProfile::TypeScript71 => {
+                // `core.Find(attributes, name == "resolution-mode")`: other
+                // attributes are neither counted nor reported here.
+                let Some(attribute) = elements.iter().copied().find(|attribute| {
+                    attribute_name_text(*attribute)
+                        .is_some_and(|(_, text)| text == Some("resolution-mode"))
+                }) else {
+                    return ResolutionModeOverrideParse::Missing;
+                };
+                let NodeData::ImportAttribute(data) = self.data_of(attribute) else {
+                    return ResolutionModeOverrideParse::Missing;
+                };
+                data.value
+            }
         };
-        let name_text = match self.data_of(name) {
-            NodeData::StringLiteral(data) => data.text.as_str(),
-            _ => return ResolutionModeOverrideParse::Missing,
-        };
-        if name_text != Some("resolution-mode") {
-            return ResolutionModeOverrideParse::InvalidName { token, name };
-        }
         let Some(value) = value else {
             return ResolutionModeOverrideParse::Missing;
         };

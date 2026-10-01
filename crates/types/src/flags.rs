@@ -2163,14 +2163,19 @@ impl ScriptTarget {
     pub const ES2024: Self = Self(11);
     /// tsc ScriptTarget.ES2025
     pub const ES2025: Self = Self(12);
+    /// TypeScript 7.1 ScriptTargetES2026 (`core/compileroptions.go`); tsc
+    /// 6.0.3 has no such target.
+    pub const ES2026: Self = Self(13);
     /// tsc ScriptTarget.ESNext
     pub const ES_NEXT: Self = Self(99);
     /// tsc ScriptTarget.JSON
     pub const JSON: Self = Self(100);
     /// tsc ScriptTarget.Latest
     pub const LATEST: Self = Self(99);
-    /// tsc ScriptTarget.LatestStandard
-    pub const LATEST_STANDARD: Self = Self(12);
+    /// TypeScript 7.1 ScriptTargetLatestStandard (ES2026); tsc 6.0.3's
+    /// LatestStandard is ES2025, see
+    /// [`ReferenceProfile::default_script_target`](crate::ReferenceProfile::default_script_target).
+    pub const LATEST_STANDARD: Self = Self(13);
 
     pub const fn from_bits(bits: i32) -> Self {
         Self(bits)

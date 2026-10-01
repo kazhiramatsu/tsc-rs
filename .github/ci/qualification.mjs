@@ -1886,7 +1886,7 @@ export function validatePolicy(policy) {
   // These bytes define impact selection, dispatch and aggregation. The full
   // Rust acceptance body and its owner-control boundary remain pinned below.
   const executionSources = [
-    ".github/workflows/ci.yml", ".github/workflows/witness.yml",
+    ".github/workflows/ci.yml", ".github/workflows/witness.yml", ".github/workflows/conformance-ts71.yml",
     ".github/ci/replay.py", ".github/ci/test_replay.py", "scripts/witness.py", "scripts/foundation_witnesses.py", "scripts/emitter_final_witnesses.py",
     "crates/xtask/src/acceptance_plan.rs", "crates/xtask/src/acceptance_slices.rs",
   ];

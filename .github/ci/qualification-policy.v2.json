@@ -17,7 +17,7 @@
     ],
     "only_acceptance_tests": true,
     "rust_source_sha256": {
-      "crates/xtask/src/main.rs": "4ac6a786de131429352f9f6c13f09ce71aba81d0ffcefa70e2ba3c0709c0febf",
+      "crates/xtask/src/main.rs": "b12b5e374cc18de929ef17bc4624ecede8baacd926ef61d6446de7f43fdb88ea",
       "crates/xtask/src/bounded_pipeline.rs": "0c28a1734791196646b869db5d22b9c6f34da617a250bfc99e23997bd3c0e3db",
       "crates/xtask/src/codegen_common.rs": "8b2b94db85251e8386da7d2fe45b3a0a5a02382338dcdda7b7bc198a8b48840b",
       "crates/xtask/src/h1_emit_acceptance.rs": "cc0e8560874ef0a8439ac940d6efda538e01523893f567a5659be25a4f2a3814",
@@ -52,13 +52,14 @@
     "execution_source_sha256": {
       ".github/workflows/ci.yml": "de915626e641960446a9d08a62203069d27e43819b6429ac1a5154c182f2759e",
       ".github/workflows/witness.yml": "8129be519010f24cda84669491b747ca410cb04c9f72118beb61743c20686614",
-      ".github/ci/replay.py": "79d1d9a5386321a2c341a43a91eb1bbc5851707389e3baa9555c4965897d0a6e",
+      ".github/workflows/conformance-ts71.yml": "065ad57b3a0951fdb66bedc08a5e33e4bc2b11bdb0a1c8510f65d5952f26714b",
+      ".github/ci/replay.py": "c0c92777f15b425bf2089e9e457a414cb5e9efc1eb41f71fe452103d9083851d",
+      ".github/ci/test_replay.py": "cb0e4c8cd1bfca8247c43e9bcfffc9b1a13795de9b7fd09570397ab6cd270b0c",
       "scripts/witness.py": "d3c3f601c87f02f372b0de43319c34bcb62ad55d059658b76aa2c7f0f96434bf",
-      "crates/xtask/src/acceptance_plan.rs": "b8d6d492420bff1814eb81ff08fa2725f75070d746c1fd959f8f6a9eea5a97e6",
-      "crates/xtask/src/acceptance_slices.rs": "93a4eefa18ebe006ecc75a472c678322954bb99a69b7c096b1f75b509287c7fa",
-      ".github/ci/test_replay.py": "e966675788bb006842e3047b3782e8f1a1f4dcf5464f006e79422203986b1c74",
       "scripts/foundation_witnesses.py": "d96836287984d1dd6dc095a3004148a84a5c4add2764af330fafc03ccab0928f",
-      "scripts/emitter_final_witnesses.py": "3ac4ca2410c779acdb8e04f85bc64e77abcb548f7b5f0203c02cc20733568015"
+      "scripts/emitter_final_witnesses.py": "3ac4ca2410c779acdb8e04f85bc64e77abcb548f7b5f0203c02cc20733568015",
+      "crates/xtask/src/acceptance_plan.rs": "b8d6d492420bff1814eb81ff08fa2725f75070d746c1fd959f8f6a9eea5a97e6",
+      "crates/xtask/src/acceptance_slices.rs": "93a4eefa18ebe006ecc75a472c678322954bb99a69b7c096b1f75b509287c7fa"
     }
   },
   "local_full_gate": {

@@ -35,6 +35,13 @@
       "bytes": 3791746
     },
     {
+      "path": "tsc/internal/diagnostics/diagnosticMessages.json",
+      "git_blob_sha1": "edc52a66cb04a3ee8b2e8b206fd797804080b523",
+      "blob_inventory_sha256": "f96b36f1432be1badd98cd75b183c3665ce8b9883cf36876e84f5dade573c47e",
+      "files": 1,
+      "bytes": 311006
+    },
+    {
       "path": "tsc/testdata/baselines/reference/compiler",
       "filter": "*.errors.txt",
       "blob_inventory_sha256": "35f3e8b51301e1e4dfce0a6dbe21a3441c5e0f4aa497bd8b50840fa9eb284ce3",

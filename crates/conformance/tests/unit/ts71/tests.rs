@@ -16,6 +16,7 @@ fn the_tuple_sample_reproduces_its_error_baselines() {
         filter: Some("types/tuple/".to_owned()),
         case: None,
         threads: 2,
+        checkers: 1,
         dump: None,
     };
     let results = run(&workspace(), &options).unwrap();
@@ -63,6 +64,7 @@ fn a_case_runs_every_configuration_except_those_left_out() {
         &case,
         &["functionAssignabilityWithArrayLike01(strict=false)"],
         None,
+        1,
         &mut |configuration, stem| started.push((configuration.name.clone(), stem.to_owned())),
         &mut |result| finished.push(result),
     );

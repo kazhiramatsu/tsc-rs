@@ -388,6 +388,9 @@ pub struct NativeSet {
     pub filter: Option<String>,
     #[serde(default)]
     pub git_tree_sha1: Option<String>,
+    /// The blob id of a set that vendors one file.
+    #[serde(default)]
+    pub git_blob_sha1: Option<String>,
     pub blob_inventory_sha256: String,
     pub files: u64,
     pub bytes: u64,
@@ -463,6 +466,20 @@ impl NativeProfile {
     /// `tests/lib`, which the runner mounts at `/.lib`.
     pub fn test_library_root(&self) -> PathBuf {
         self.upstream_root().join("tsc/testdata/tests/lib")
+    }
+
+    /// The standard libraries the native compiler embeds
+    /// (`tsc/internal/bundled/libs`): the profile's `lib.*.d.ts` catalog.
+    pub fn bundled_libraries_root(&self) -> PathBuf {
+        self.upstream_root().join("tsc/internal/bundled/libs")
+    }
+
+    /// The profile's diagnostic message catalog
+    /// (`tsc/internal/diagnostics/diagnosticMessages.json`), the source of
+    /// `crates/diagnostics/src/gen.rs`.
+    pub fn diagnostic_messages_path(&self) -> PathBuf {
+        self.upstream_root()
+            .join("tsc/internal/diagnostics/diagnosticMessages.json")
     }
 
     /// Every `.ts`/`.tsx` file of both suites, as `TestLocal` enumerates them

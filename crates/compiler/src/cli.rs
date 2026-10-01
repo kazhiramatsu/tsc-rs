@@ -38,7 +38,7 @@ use tsc_program::{
 use crate::{CheckerBudget, EmitFileSystem, FsOutputSink, NoEmitWorkCounters, ProgramSession};
 
 mod embedded_libraries {
-    include!(concat!(env!("OUT_DIR"), "/typescript_6_0_3_libraries.rs"));
+    include!(concat!(env!("OUT_DIR"), "/embedded_libraries.rs"));
 }
 
 const EXIT_SUCCESS: i32 = 0;
@@ -47,6 +47,9 @@ const EXIT_DIAGNOSTIC: i32 = 2;
 const EXIT_FAILURE: i32 = 2;
 const CONFIG_FILE_NAME: &str = "tsconfig.json";
 const TYPESCRIPT_VERSION: &str = "6.0.3";
+/// The vendored TypeScript profile whose standard libraries the executable
+/// embeds and whose behavior it follows (see `tsc_types::ReferenceProfile`).
+const EMBEDDED_LIBRARY_PROFILE: &str = "7.1.0-dev-19dadef8";
 type DiagnosticSourceMap = BTreeMap<JsString, Arc<TextSnapshot>>;
 const DEFAULT_LIMITS: ProgramLoadLimits = ProgramLoadLimits::new(
     1_000_000,
@@ -289,7 +292,7 @@ impl CliCompilerHost {
             filesystem,
             library_directory: current_directory
                 .join(".tsc-rs-embedded-569177652966bd52")
-                .join(TYPESCRIPT_VERSION)
+                .join(EMBEDDED_LIBRARY_PROFILE)
                 .join("lib"),
         }
     }
@@ -306,10 +309,10 @@ impl CliCompilerHost {
 
     fn embedded_bytes(&self, path: &Path) -> Option<&'static [u8]> {
         let name = self.embedded_file_name(path)?;
-        embedded_libraries::TYPESCRIPT_6_0_3_LIBRARIES
+        embedded_libraries::EMBEDDED_LIBRARIES
             .binary_search_by_key(&name, |(candidate, _)| *candidate)
             .ok()
-            .map(|index| embedded_libraries::TYPESCRIPT_6_0_3_LIBRARIES[index].1)
+            .map(|index| embedded_libraries::EMBEDDED_LIBRARIES[index].1)
     }
 }
 
@@ -361,7 +364,7 @@ impl CompilerHost for CliCompilerHost {
             .as_str()
             .is_some_and(|path| Path::new(path) == self.library_directory)
         {
-            return Ok(embedded_libraries::TYPESCRIPT_6_0_3_LIBRARIES
+            return Ok(embedded_libraries::EMBEDDED_LIBRARIES
                 .iter()
                 .map(|(name, _)| {
                     let mut entry = path.to_owned();
@@ -381,7 +384,7 @@ impl CompilerHost for CliCompilerHost {
             .as_str()
             .is_some_and(|path| Path::new(path) == self.library_directory)
         {
-            return Ok(embedded_libraries::TYPESCRIPT_6_0_3_LIBRARIES
+            return Ok(embedded_libraries::EMBEDDED_LIBRARIES
                 .iter()
                 .map(|(name, _)| {
                     let mut entry = path.to_owned();
@@ -449,7 +452,7 @@ impl CompilerHost for CliCompilerHost {
 
     fn read_directory(&self, path: &Path) -> Result<Vec<PathBuf>, HostError> {
         if path == self.library_directory {
-            return Ok(embedded_libraries::TYPESCRIPT_6_0_3_LIBRARIES
+            return Ok(embedded_libraries::EMBEDDED_LIBRARIES
                 .iter()
                 .map(|(name, _)| path.join(name))
                 .collect());
@@ -573,7 +576,7 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
     };
     let current_directory = filesystem.current_directory().map_err(host_error)?;
     let host = CliCompilerHost::new(filesystem, &current_directory);
-    let catalog = LibraryCatalog::typescript_6_0_3(host.library_directory());
+    let catalog = LibraryCatalog::typescript_7_1(host.library_directory());
     tsc_types::trace::mark("cli: arguments, host, catalog", prologue_started);
 
     if let Some(project) = command_line.project.as_ref() {

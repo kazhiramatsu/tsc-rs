@@ -89,7 +89,7 @@ pub(super) const VARY_BY: [&str; 77] = [
 ];
 
 const BOOLEAN_VALUES: [(&str, i32); 2] = [("true", 1), ("false", 0)];
-const TARGET_VALUES: [(&str, i32); 15] = [
+const TARGET_VALUES: [(&str, i32); 16] = [
     ("es3", 0),
     ("es5", 1),
     ("es6", 2),
@@ -104,6 +104,7 @@ const TARGET_VALUES: [(&str, i32); 15] = [
     ("es2023", 10),
     ("es2024", 11),
     ("es2025", 12),
+    ("es2026", 13),
     ("esnext", 99),
 ];
 const MODULE_VALUES: [(&str, i32); 15] = [

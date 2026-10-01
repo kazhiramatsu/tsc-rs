@@ -2744,11 +2744,16 @@ impl<'a> CheckerState<'a> {
             let location = self
                 .jsdoc_type_expression_type(Some(type_expression))
                 .unwrap_or(type_expression);
-            self.error_at(
-                Some(location),
-                &diagnostics::The_type_of_a_function_declaration_must_match_the_function_s_signature,
-                &[],
-            );
+            // TypeScript 7.1 reworded TS8030.
+            let message = match self.options.reference_profile {
+                tsc_types::ReferenceProfile::TypeScript603 => {
+                    &diagnostics::typescript_6_0_3::The_type_of_a_function_declaration_must_match_the_function_s_signature
+                }
+                tsc_types::ReferenceProfile::TypeScript71 => {
+                    &diagnostics::A_JSDoc_type_tag_on_a_function_must_have_a_signature_with_the_correct_number_of_arguments
+                }
+            };
+            self.error_at(Some(location), message, &[]);
         }
         Ok(())
     }
