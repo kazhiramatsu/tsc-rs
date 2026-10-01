@@ -162,10 +162,6 @@ fn validate_options(
         // and reads `verbatim_module_syntax` for alias elision on every
         // route, and the checker owns both options' diagnostics
         // (H2.8a-A-RES-EMITTER-FINAL EF3 / EF7-VERBATIM-GATE).
-        (
-            options.stable_type_ordering == Some(true),
-            "stableTypeOrdering",
-        ),
         // `incremental` and `composite` select the builder's build info,
         // which only the file emit would write; the declaration diagnostics
         // getter reads neither (a --noEmit check of a composite project

@@ -1188,6 +1188,9 @@ pub enum ConfigProgramLoadError {
 /// config value merely by constructing the override object.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct ConfigEmitOptionOverrides {
+    /// `--stableTypeOrdering`: a checker option, so it is not an emit-profile
+    /// override (`is_empty` ignores it) and the no-emit route accepts it.
+    pub stable_type_ordering: Option<bool>,
     pub target: Option<i32>,
     pub module: Option<i32>,
     pub use_define_for_class_fields: Option<bool>,
@@ -1211,6 +1214,9 @@ impl ConfigEmitOptionOverrides {
     }
 
     fn apply(self, compiler_options: &mut CompilerOptions, program_options: &mut ProgramOptions) {
+        if let Some(value) = self.stable_type_ordering {
+            compiler_options.stable_type_ordering = Some(value);
+        }
         if let Some(value) = self.target {
             compiler_options.target = Some(value);
         }
@@ -1334,13 +1340,50 @@ pub fn load_config_program_with_no_emit_override(
     library_catalog: &LibraryCatalog,
     limits: ProgramLoadLimits,
 ) -> Result<PreparedProgram, ConfigProgramLoadError> {
+    load_config_program_with_no_emit_override_and_overrides(
+        host,
+        plan,
+        library_catalog,
+        limits,
+        ConfigEmitOptionOverrides::default(),
+    )
+}
+
+/// The `--noEmit` route with the checker overrides a command line may carry
+/// (`--stableTypeOrdering`); emit-profile overrides are the caller's to
+/// reject on this route.
+pub fn load_config_program_with_no_emit_override_and_overrides(
+    host: &dyn CompilerHost,
+    plan: &ConfigRootPlan,
+    library_catalog: &LibraryCatalog,
+    limits: ProgramLoadLimits,
+    overrides: ConfigEmitOptionOverrides,
+) -> Result<PreparedProgram, ConfigProgramLoadError> {
     load_config_program_inner(
         host,
         plan,
         library_catalog,
         limits,
         ConfigProgramMode::NoEmit { force: true },
-        ConfigEmitOptionOverrides::default(),
+        overrides,
+    )
+}
+
+/// `load_config_program` with the checker overrides a command line may carry.
+pub fn load_config_program_with_overrides(
+    host: &dyn CompilerHost,
+    plan: &ConfigRootPlan,
+    library_catalog: &LibraryCatalog,
+    limits: ProgramLoadLimits,
+    overrides: ConfigEmitOptionOverrides,
+) -> Result<PreparedProgram, ConfigProgramLoadError> {
+    load_config_program_inner(
+        host,
+        plan,
+        library_catalog,
+        limits,
+        ConfigProgramMode::NoEmit { force: false },
+        overrides,
     )
 }
 
@@ -2255,7 +2298,14 @@ const LANGUAGE_SERVICE_CONFIG_OPTIONS: &[&str] = &["plugins"];
 /// selects the checker's TS1294 rows (enums, instantiated namespaces,
 /// parameter properties, `import =`/`export =`, angle-bracket assertions),
 /// which a `--noEmit` check of Effect's base tsconfig reports like tsc.
-const H0_NO_EMIT_CHECKER_CONFIG_OPTIONS: &[&str] = &["emitDecoratorMetadata", "erasableSyntaxOnly"];
+/// `stableTypeOrdering` selects the checker's stable type order (tsc 6.0.3's
+/// preview of the TypeScript 7 order), which changes union member and
+/// property order in diagnostics and declarations but no file set.
+const H0_NO_EMIT_CHECKER_CONFIG_OPTIONS: &[&str] = &[
+    "emitDecoratorMetadata",
+    "erasableSyntaxOnly",
+    "stableTypeOrdering",
+];
 
 /// Root config scopes tsc parses for editors only: `compileOnSave` reaches
 /// ParsedCommandLine.compileOnSave (convertCompileOnSaveOptionFromJson,

@@ -293,7 +293,7 @@ impl<'a> CheckerState<'a> {
                 };
                 let inner = data.r#type.expect("JSDoc optional operand");
                 let ty = self.get_type_from_type_node(inner)?;
-                Ok(self.tables.add_optionality(ty, /*is_property*/ false, true))
+                Ok(self.add_optionality(ty, /*is_property*/ false, true))
             }
             SyntaxKind::UnionType => self.get_type_from_union_type_node(node),
             SyntaxKind::IntersectionType => self.get_type_from_intersection_type_node(node),
@@ -367,7 +367,7 @@ impl<'a> CheckerState<'a> {
                 }) {
                     self.create_array_type(ty, false)
                 } else {
-                    Ok(self.tables.add_optionality(ty, /*is_property*/ false, true))
+                    Ok(self.add_optionality(ty, /*is_property*/ false, true))
                 }
             }
             SyntaxKind::FunctionType
@@ -447,7 +447,7 @@ impl<'a> CheckerState<'a> {
             return Ok(cached);
         }
         let fresh = self.check_literal_expression(literal)?;
-        let regular = self.tables.get_regular_type_of_literal_type(fresh);
+        let regular = self.regular_type_of_literal_type(fresh);
         self.links.set_node_resolved_type(
             self.speculation_depth,
             node,
@@ -869,7 +869,7 @@ impl<'a> CheckerState<'a> {
                     last_optional_or_rest_index = expanded_flags.len() as isize;
                 }
                 let pushed = if flags.intersects(ElementFlags::OPTIONAL) {
-                    state.tables.add_optionality(ty, /*is_property*/ true, true)
+                    state.add_optionality(ty, /*is_property*/ true, true)
                 } else {
                     ty
                 };
@@ -1025,20 +1025,18 @@ impl<'a> CheckerState<'a> {
         // getTupleTargetType's single-rest collapse (61146-61148) needs
         // the checker-owned global array targets, so it lives here like
         // create_tuple_type_forced's copy.
-        let tuple_target = if expanded_flags.len() == 1
-            && expanded_flags[0].intersects(ElementFlags::REST)
-        {
-            if data.readonly {
-                self.global_readonly_array_type()?
+        let tuple_target =
+            if expanded_flags.len() == 1 && expanded_flags[0].intersects(ElementFlags::REST) {
+                if data.readonly {
+                    self.global_readonly_array_type()?
+                } else {
+                    self.global_array_type()?
+                }
             } else {
-                self.global_array_type()?
-            }
-        } else {
-            let flags = TupleTargetFlags::new(&expanded_flags)
-                .expect("single-rest tuple targets collapse in the checker twin");
-            self.tables
-                .get_tuple_target_type(flags, data.readonly, Some(&expanded_declarations))
-        };
+                let flags = TupleTargetFlags::new(&expanded_flags)
+                    .expect("single-rest tuple targets collapse in the checker twin");
+                self.tuple_target_type(flags, data.readonly, Some(&expanded_declarations))
+            };
         Ok(if tuple_target == self.empty_generic_type {
             self.empty_object_type
         } else if !expanded_flags.is_empty() {
@@ -1087,9 +1085,7 @@ impl<'a> CheckerState<'a> {
             .collect();
         let flags = TupleTargetFlags::new(&element_flags)
             .expect("single-rest tuple nodes resolve through the Array target");
-        Ok(self
-            .tables
-            .get_tuple_target_type(flags, readonly, Some(&named)))
+        Ok(self.tuple_target_type(flags, readonly, Some(&named)))
     }
 
     fn is_named_tuple_member(&self, node: NodeId) -> bool {
@@ -1178,9 +1174,7 @@ impl<'a> CheckerState<'a> {
             .r#type
             .expect("parser invariant: OptionalType operand always parsed");
         let inner_type = self.get_type_from_type_node(inner)?;
-        Ok(self
-            .tables
-            .add_optionality(inner_type, /*is_property*/ true, true))
+        Ok(self.add_optionality(inner_type, /*is_property*/ true, true))
     }
 
     /// tsc-port: getTypeFromJSDocNullableTypeNode @6.0.3
@@ -1236,7 +1230,7 @@ impl<'a> CheckerState<'a> {
             self.get_type_from_type_node(unwrapped)?
         } else {
             let inner_type = self.get_type_from_type_node(inner)?;
-            self.tables.add_optionality(
+            self.add_optionality(
                 inner_type,
                 /*is_property*/ true,
                 data.question_token.is_some(),
@@ -2418,7 +2412,7 @@ impl<'a> CheckerState<'a> {
             return Ok(if !self.check_no_type_arguments(node, Some(symbol)) {
                 self.tables.intrinsics.error
             } else {
-                self.tables.get_regular_type_of_literal_type(declared)
+                self.regular_type_of_literal_type(declared)
             });
         }
         if flags.intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE) {
@@ -2435,7 +2429,7 @@ impl<'a> CheckerState<'a> {
             return Ok(if !self.check_no_type_arguments(node, Some(symbol)) {
                 self.tables.intrinsics.error
             } else {
-                self.tables.get_regular_type_of_literal_type(declared)
+                self.regular_type_of_literal_type(declared)
             });
         }
         if flags.intersects(SymbolFlags::ENUM_MEMBER) {
@@ -2443,7 +2437,7 @@ impl<'a> CheckerState<'a> {
             return Ok(if !self.check_no_type_arguments(node, Some(symbol)) {
                 self.tables.intrinsics.error
             } else {
-                self.tables.get_regular_type_of_literal_type(declared)
+                self.regular_type_of_literal_type(declared)
             });
         }
         if flags.intersects(SymbolFlags::ALIAS) {
@@ -2454,7 +2448,7 @@ impl<'a> CheckerState<'a> {
             return Ok(if !self.check_no_type_arguments(node, Some(symbol)) {
                 self.tables.intrinsics.error
             } else {
-                self.tables.get_regular_type_of_literal_type(declared)
+                self.regular_type_of_literal_type(declared)
             });
         }
         if flags.intersects(SymbolFlags::VALUE) && self.is_jsdoc_type_reference(node) {
@@ -2870,11 +2864,8 @@ impl<'a> CheckerState<'a> {
         let resolved = match template_node {
             Some(template_node) => {
                 let template = self.get_type_from_type_node(template_node)?;
-                let template = self.tables.add_optionality(
-                    template,
-                    /*is_property*/ true,
-                    include_optional,
-                );
+                let template =
+                    self.add_optionality(template, /*is_property*/ true, include_optional);
                 self.instantiate_type(template, mapped.mapper)?
             }
             None => self.tables.intrinsics.error,
@@ -3727,7 +3718,7 @@ impl<'a> CheckerState<'a> {
         }
         let ty = self.check_expression_with_type_arguments(node)?;
         let widened = self.get_widened_type(ty)?;
-        let resolved = self.tables.get_regular_type_of_literal_type(widened);
+        let resolved = self.regular_type_of_literal_type(widened);
         // First write wins: the entity resolution above can re-enter
         // this node (5.8a declaration-site forcing) and fill the slot;
         // tsc's raw assignment silently overwrites with the identical
@@ -4369,7 +4360,8 @@ impl<'a> CheckerState<'a> {
                 );
                 members.insert(source_symbol.escaped_name, inferred);
             }
-            let properties = members.values().copied().collect();
+            let mut properties: Vec<SymbolId> = members.values().copied().collect();
+            state.order_named_members_if_stable(&mut properties, None);
             Ok(ResolvedMembers {
                 members: state.member_table(&members),
                 properties,
@@ -4544,7 +4536,7 @@ impl<'a> CheckerState<'a> {
             .expect("class/interface targets carry their declaring symbol");
         let declared = self.get_members_of_symbol(symbol)?;
         let members = self.member_table(&declared);
-        let properties = self.get_named_members(&members)?;
+        let properties = self.get_named_members(&members, Some(symbol))?;
         // tsc resolveDeclaredMembers publishes declaredProperties
         // FIRST and fills signatures/index infos into the type in
         // place (57772-57781): a nested reader reached through the
@@ -4674,7 +4666,8 @@ impl<'a> CheckerState<'a> {
                 members = table;
             }
             // Early write (57829): partial members become observable.
-            let properties = self.get_named_members(&members)?;
+            let container = self.tables.type_of(ty).symbol;
+            let properties = self.get_named_members(&members, container)?;
             let id = self.alloc_members(ResolvedMembers {
                 members: members.clone(),
                 properties,
@@ -4742,7 +4735,8 @@ impl<'a> CheckerState<'a> {
         } else {
             None
         };
-        let properties = self.get_named_members(&members)?;
+        let container = self.tables.type_of(ty).symbol;
+        let properties = self.get_named_members(&members, container)?;
         let resolved = ResolvedMembers {
             members,
             properties,
@@ -7242,7 +7236,8 @@ impl<'a> CheckerState<'a> {
                     state.instantiate_signature_list(&target_constructs, mapper)?;
                 let target_index_infos = state.get_index_infos_of_type(target)?;
                 let index_infos = state.instantiate_index_info_list(&target_index_infos, mapper)?;
-                let properties = state.get_named_members(&members)?;
+                let container = state.tables.type_of(ty).symbol;
+                let properties = state.get_named_members(&members, container)?;
                 return Ok(ResolvedMembers {
                     members,
                     properties,
@@ -7263,7 +7258,8 @@ impl<'a> CheckerState<'a> {
                     Some(state.publish_anonymous_members_stage(ty, ResolvedMembers::default()));
                 let declared = state.get_members_of_symbol(symbol)?;
                 let members = state.member_table(&declared);
-                let properties = state.get_named_members(&members)?;
+                let container = state.tables.type_of(ty).symbol;
+                let properties = state.get_named_members(&members, container)?;
                 let call_signatures = state.get_signatures_of_symbol(
                     members.get(&state.binder, InternalSymbolName::CALL),
                 )?;
@@ -7324,7 +7320,8 @@ impl<'a> CheckerState<'a> {
                     },
                 );
                 active_id = Some(stage_id);
-                let pre_merge_properties = state.get_named_members(&members)?;
+                let container = state.tables.type_of(ty).symbol;
+                let pre_merge_properties = state.get_named_members(&members, container)?;
                 state.members_mut(stage_id).properties = pre_merge_properties.clone();
                 let mut base_constructor_index_info: Option<IndexInfo> = None;
                 if flags.intersects(SymbolFlags::CLASS) {
@@ -7336,7 +7333,7 @@ impl<'a> CheckerState<'a> {
                     ) {
                         // 58359-58360: copy named+index members, then
                         // inherit the base's STATIC side.
-                        let named = state.get_named_members(&members)?;
+                        let named = state.get_named_members(&members, Some(symbol))?;
                         let mut table = MemberTable::from_symbols(&state.binder, &named);
                         if let Some(index_symbol) =
                             members.get(&state.binder, InternalSymbolName::INDEX)
@@ -7440,7 +7437,8 @@ impl<'a> CheckerState<'a> {
                             state.get_default_construct_signatures(class_type)?;
                     }
                 }
-                let properties = state.get_named_members(&members)?;
+                let container = state.tables.type_of(ty).symbol;
+                let properties = state.get_named_members(&members, container)?;
                 Ok(ResolvedMembers {
                     members,
                     properties,
@@ -7509,6 +7507,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_named_members(
         &mut self,
         members: &MemberTable,
+        container: Option<SymbolId>,
     ) -> CheckResult<Vec<SymbolId>> {
         // Names are only tested for the reserved prefix and the symbols kept
         // for the value check, so no name is copied.
@@ -7524,6 +7523,9 @@ impl<'a> CheckerState<'a> {
                 named.push(symbol);
             }
         }
+        // stableTypeOrdering (50155-50175): the container's own members
+        // first, each group sorted by compareSymbols.
+        self.order_named_members_if_stable(&mut named, container);
         Ok(named)
     }
 
@@ -7964,6 +7966,8 @@ impl<'a> CheckerState<'a> {
             .links
             .read_ty(ty, |links| links.resolved_members.resolved())
             .expect("fresh anonymous type has resolved members");
+        let mut properties = properties;
+        self.order_named_members_if_stable(&mut properties, self.tables.type_of(ty).symbol);
         *self.members_mut(members_id) = ResolvedMembers {
             members: self.member_table(&members),
             properties,
@@ -8671,7 +8675,7 @@ impl<'a> CheckerState<'a> {
             }));
         }
         if let Some(declared) = declared_type {
-            return Ok(Some(self.tables.add_optionality(
+            return Ok(Some(self.add_optionality(
                 declared,
                 is_property,
                 is_optional,
@@ -8779,7 +8783,7 @@ impl<'a> CheckerState<'a> {
                 self.get_contextually_typed_parameter_type(declaration)?
             };
             if let Some(contextual) = contextual {
-                return Ok(Some(self.tables.add_optionality(
+                return Ok(Some(self.add_optionality(
                     contextual,
                     /*is_property*/ false,
                     is_optional,
@@ -8821,7 +8825,7 @@ impl<'a> CheckerState<'a> {
                 self.check_declaration_initializer(declaration, check_mode, None)?;
             let widened =
                 self.widen_type_inferred_from_initializer(declaration, initializer_type)?;
-            return Ok(Some(self.tables.add_optionality(
+            return Ok(Some(self.add_optionality(
                 widened,
                 is_property,
                 is_optional,
@@ -8849,8 +8853,7 @@ impl<'a> CheckerState<'a> {
                     None
                 };
                 return Ok(ty.map(|ty| {
-                    self.tables
-                        .add_optionality(ty, /*is_property*/ true, is_optional)
+                    self.add_optionality(ty, /*is_property*/ true, is_optional)
                 }));
             } else {
                 let static_blocks: Vec<NodeId> = match self.data_of(class) {
@@ -8880,8 +8883,7 @@ impl<'a> CheckerState<'a> {
                     None
                 };
                 return Ok(ty.map(|ty| {
-                    self.tables
-                        .add_optionality(ty, /*is_property*/ true, is_optional)
+                    self.add_optionality(ty, /*is_property*/ true, is_optional)
                 }));
             }
         }
@@ -9177,7 +9179,7 @@ impl<'a> CheckerState<'a> {
                                         )
                                     });
                         if is_direct_export {
-                            self.tables.get_regular_type_of_literal_type(checked)
+                            self.regular_type_of_literal_type(checked)
                         } else {
                             self.get_widened_literal_type(checked)?
                         }
@@ -9420,7 +9422,10 @@ impl<'a> CheckerState<'a> {
             }
         }
 
-        let properties = self.get_named_members(&members)?;
+        let anonymous_symbol = (initial_size == members.len())
+            .then_some(self.tables.type_of(ty).symbol)
+            .flatten();
+        let properties = self.get_named_members(&members, anonymous_symbol)?;
         let source_object_flags = self.tables.object_flags_of(ty);
         let copied_object_flags = self
             .tables
@@ -9432,9 +9437,7 @@ impl<'a> CheckerState<'a> {
                         | ObjectFlags::OBJECT_LITERAL.bits()),
             );
         let result = self.make_resolved_anonymous_type(
-            (initial_size == members.len())
-                .then_some(self.tables.type_of(ty).symbol)
-                .flatten(),
+            anonymous_symbol,
             members,
             properties,
             resolved.index_infos,
@@ -10163,7 +10166,7 @@ impl<'a> CheckerState<'a> {
                         LinkSlot::Resolved(member_type),
                     );
                 }
-                member_type_list.push(self.tables.get_regular_type_of_literal_type(member_type));
+                member_type_list.push(self.regular_type_of_literal_type(member_type));
             }
         }
         let enum_type = if !member_type_list.is_empty() {
@@ -10293,9 +10296,7 @@ impl<'a> CheckerState<'a> {
                     if data.question_token.is_some() || data.initializer.is_some()
             )
         });
-        Ok(self
-            .tables
-            .add_optionality(declared, /*is_property*/ false, is_optional))
+        Ok(self.add_optionality(declared, /*is_property*/ false, is_optional))
     }
 
     // ---- signatures ----
@@ -11233,7 +11234,7 @@ impl<'a> CheckerState<'a> {
             )?;
             let widened =
                 self.get_widened_literal_type_for_initializer(element, initializer_type)?;
-            return Ok(self.tables.add_optionality(
+            return Ok(self.add_optionality(
                 widened, /*is_property*/ false, /*is_optional*/ true,
             ));
         }
@@ -11323,6 +11324,8 @@ impl<'a> CheckerState<'a> {
             .tables
             .create_type(TypeFlags::OBJECT, tsc_types::TypeData::Object);
         self.tables.type_mut(id).object_flags = ObjectFlags::ANONYMOUS | object_flags;
+        let mut properties = properties;
+        self.order_named_members_if_stable(&mut properties, None);
         let members_id = self.alloc_members(crate::state::ResolvedMembers {
             members: self.member_table(&members),
             properties,

@@ -89,7 +89,9 @@ fn typeof_annotated_var_resolves_to_declared_type() {
                 .flags_of(resolved)
                 .intersects(TypeFlags::STRING_LITERAL));
             assert_eq!(
-                state.tables.get_regular_type_of_literal_type(resolved),
+                state
+                    .tables
+                    .get_regular_type_of_literal_type(None, resolved),
                 resolved
             );
         },

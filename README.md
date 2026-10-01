@@ -290,6 +290,28 @@ project can be checked at any point with `tsc-rs --noEmit -p .`, including
 after adding the source map and [declaration](#declaration-files) settings
 below.
 
+### Stable type ordering
+
+TypeScript 6.0 added the `stableTypeOrdering` compiler option, which orders
+union members, object properties and other internal lists by their content
+instead of by the order in which the checker created them. TypeScript 7
+always uses this order, and tsgo's output follows it. tsc-rs implements the
+option: set `"stableTypeOrdering": true` in `tsconfig.json`, or pass
+`--stableTypeOrdering` on the command line (`--stableTypeOrdering false`
+turns a configured option off). It applies to both `--noEmit` checks and
+builds.
+
+The option matters most for tsc-rs because it checks files on several
+parallel checkers, each with its own creation order. Without the option
+the order of union members in diagnostics and declaration files follows
+the checker that produced them, and the few inferences that depend on that
+order can differ between checker counts (see the
+[output comparison](#output-comparison)). With the option the result is
+the same for every checker count and matches `tsc --stableTypeOrdering`.
+The option is off by default, as in tsc 6.0, so default runs still match
+tsc 6.0.3's default output; a project that wants the TypeScript 7 behavior
+enables it.
+
 ## Compiler API for Rust projects (experimental)
 
 **The Rust API is experimental and still under development. Its interfaces
@@ -753,12 +775,17 @@ Diagnostics were identical on every configuration except Effect, where
 tsc-rs with its default eight checkers reports two errors in
 `src/Stream.ts` (TS2375 at line 5009 and TS2345 at line 5059, both about
 an `Effect<void, never, never>` union constituent under
-`exactOptionalPropertyTypes`) that tsc does not report. With six or fewer
-checkers (`TSRS_CHECKERS=6`) tsc-rs's diagnostics on Effect are identical
-to tsc's: the difference depends on how the files are partitioned among
-the checkers and is under investigation. (The tsgo preview also reports
-two errors on Effect that tsc does not, in other files.) JavaScript files
-and JavaScript source maps were identical on every configuration. The
+`exactOptionalPropertyTypes`) that tsc does not report. The inference
+behind them picks the first member of a union, and tsc orders union
+members by the order in which its single checker created the types; a
+parallel checker that checks `Stream.ts` without having created
+`Effect<void, never, never>` before orders the union differently. tsc
+itself reports the same two errors when the `void` declaration is checked
+after its use. The difference depends on how the files are partitioned
+among the checkers: with six or fewer checkers (`TSRS_CHECKERS=6`) the
+diagnostics are identical to tsc's. (The tsgo preview also reports errors
+on Effect that tsc does not, in other files.) JavaScript files and
+JavaScript source maps were identical on every configuration. The
 declaration files that differ contain the same declarations: the order of
 union constituents and of the properties of inferred object types differs,
 because tsc-rs derives that order from the type identities of its parallel
@@ -768,6 +795,17 @@ given machine and checker count, and `TSRS_CHECKERS=1` (a single checker,
 the exact serial mode) reproduces tsc's order at the cost of the parallel
 speed-up. Declaration maps differ only for a declaration file that itself
 differs.
+
+[Stable type ordering](#stable-type-ordering) removes the dependence on
+the checker partition. With `stableTypeOrdering` enabled on both sides,
+the same comparison against `tsc --stableTypeOrdering` gave identical
+diagnostics on every project at every checker count tried (1, 6, 8 and 12
+on Effect, where both compilers report the two Schema errors that
+TypeScript 7 also reports), identical declaration files for zod,
+Playwright and Next.js, and two differing declaration files for Effect:
+`Runtime.d.ts` (the `A_1`/`A_2` naming above) and
+`ai/internal/mcpProtocol/v2026_07_28.d.ts`, where one union of three
+mapped types is printed in a different member order.
 
 ### Reproducing
 
@@ -921,15 +959,17 @@ commit; push fixes to the pull request branch to validate the updated code.
 - Peak memory grows with the checker count (eight by default, twelve when
   writing declaration files); see [peak memory](#peak-memory). A lower
   `TSRS_CHECKERS` count reduces it at some cost in speed.
-- The diagnostics of a program can depend on how its files are partitioned
-  among the checkers: on Effect, the default eight checkers report two
-  errors that `tsc` and a run with six or fewer checkers do not; see the
-  [output comparison](#output-comparison).
-- In emitted declaration files, the order of union constituents and of the
-  properties of inferred object types follows the parallel checkers rather
-  than `tsc`. The declarations themselves are the same; set
-  `TSRS_CHECKERS=1` when a byte-identical `.d.ts` matters more than the
-  parallel speed-up.
+- Without `stableTypeOrdering`, the diagnostics of a program can depend on
+  how its files are partitioned among the checkers: on Effect, the default
+  eight checkers report two errors that `tsc` and a run with six or fewer
+  checkers do not; see the [output comparison](#output-comparison).
+- Without `stableTypeOrdering`, the order of union constituents and of the
+  properties of inferred object types in emitted declaration files follows
+  the parallel checkers rather than `tsc`. The declarations themselves are
+  the same. Enable [stable type ordering](#stable-type-ordering), which
+  matches `tsc --stableTypeOrdering` and TypeScript 7, or set
+  `TSRS_CHECKERS=1` when a byte-identical `.d.ts` in tsc 6.0's default
+  order matters more than the parallel speed-up.
 
 If a command reports an unsupported option, first check whether the option
 belongs in `tsconfig.json`.

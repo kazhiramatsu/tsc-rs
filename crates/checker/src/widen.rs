@@ -116,7 +116,7 @@ impl<'a> CheckerState<'a> {
             let widened = self.get_widened_literal_type(ty)?;
             ty = self.get_widened_unique_es_symbol_type(widened)?;
         }
-        Ok(self.tables.get_regular_type_of_literal_type(ty))
+        Ok(self.regular_type_of_literal_type(ty))
     }
 
     /// tsc-port: getWidenedLiteralLikeTypeForContextualReturnTypeIfNeeded @6.0.3
@@ -368,6 +368,8 @@ impl<'a> CheckerState<'a> {
         self.tables.type_mut(result).object_flags =
             ObjectFlags::from_bits(ObjectFlags::ANONYMOUS.bits() | carried);
         self.tables.type_mut(result).symbol = symbol;
+        let mut properties = properties;
+        self.order_named_members_if_stable(&mut properties, symbol);
         let members_id = self.alloc_members(crate::state::ResolvedMembers {
             members: self.member_table(&members),
             properties,

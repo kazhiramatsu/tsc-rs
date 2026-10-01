@@ -2604,7 +2604,7 @@ impl<'a> CheckerState<'a> {
                         ),
                     );
                 types.push(if has_primitive_contextual_type {
-                    self.tables.get_regular_type_of_literal_type(arg_type)
+                    self.regular_type_of_literal_type(arg_type)
                 } else {
                     self.get_widened_literal_type(arg_type)?
                 });

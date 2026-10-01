@@ -2457,10 +2457,7 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
             .checker
             .get_type_of_expression(expression)
             .map_err(|abort| checker_abort_error(self.checker, context, abort))?;
-        let regular = self
-            .checker
-            .tables
-            .get_regular_type_of_literal_type(expression_type);
+        let regular = self.checker.regular_type_of_literal_type(expression_type);
         let widened = self
             .checker
             .get_widened_type(regular)

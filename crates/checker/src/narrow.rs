@@ -1888,7 +1888,7 @@ impl<'a> CheckerState<'a> {
             };
             if let Some(expression) = expression {
                 let ty = self.get_type_of_expression(expression)?;
-                return Ok(self.tables.get_regular_type_of_literal_type(ty));
+                return Ok(self.regular_type_of_literal_type(ty));
             }
         }
         Ok(self.tables.intrinsics.never)
@@ -2093,7 +2093,7 @@ impl<'a> CheckerState<'a> {
                 undefined
             } else {
                 let unit = state.extract_unit_type(t);
-                state.tables.get_regular_type_of_literal_type(unit)
+                state.regular_type_of_literal_type(unit)
             };
             for &switch_type in &switch_types {
                 if state.is_unit_type(switch_type)
@@ -2402,7 +2402,7 @@ impl<'a> CheckerState<'a> {
         let mapped = self
             .map_type(
                 ty,
-                &mut |state, t| Ok(Some(state.tables.get_regular_type_of_literal_type(t))),
+                &mut |state, t| Ok(Some(state.regular_type_of_literal_type(t))),
                 false,
             )?
             .expect("mapper is total");

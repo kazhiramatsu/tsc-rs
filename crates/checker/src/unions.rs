@@ -125,7 +125,11 @@ impl<'a> CheckerState<'a> {
         origin: Option<TypeId>,
     ) -> CheckResult<TypeId> {
         let mut type_set: Vec<TypeId> = Vec::new();
-        let includes = self.tables.add_types_to_union(&mut type_set, 0, types);
+        let includes = {
+            let ctx = crate::type_order::order_ctx!(self);
+            self.tables
+                .add_types_to_union(ctx.order(), &mut type_set, 0, types)
+        };
         if reduction != UnionReduction::None {
             if includes & TypeFlags::ANY_OR_UNKNOWN.bits() != 0 {
                 return Ok(if includes & TypeFlags::ANY.bits() != 0 {
@@ -157,7 +161,9 @@ impl<'a> CheckerState<'a> {
                 || (includes & TypeFlags::VOID.bits() != 0
                     && includes & TypeFlags::UNDEFINED.bits() != 0)
             {
+                let ctx = crate::type_order::order_ctx!(self);
                 self.tables.remove_redundant_literal_types(
+                    ctx.order(),
                     &mut type_set,
                     includes,
                     /*reduce_void_undefined*/ reduction == UnionReduction::Subtype,
@@ -199,7 +205,9 @@ impl<'a> CheckerState<'a> {
                 });
             }
         }
+        let ctx = crate::type_order::order_ctx!(self);
         Ok(self.tables.finish_union_type_set(
+            ctx.order(),
             type_set,
             includes,
             types,
@@ -259,7 +267,13 @@ impl<'a> CheckerState<'a> {
             for &t in types.iter() {
                 if let Some((candidate, primitive)) = constrained_members(self, t) {
                     if candidate == type_variable {
-                        tsc_types::tables::insert_type(&mut primitives, primitive);
+                        let ctx = crate::type_order::order_ctx!(self);
+                        tsc_types::type_order::insert_type(
+                            &self.tables,
+                            ctx.order(),
+                            &mut primitives,
+                            primitive,
+                        );
                     }
                 }
             }
@@ -270,8 +284,10 @@ impl<'a> CheckerState<'a> {
             let constraint = self
                 .get_base_constraint_of_type(type_variable)?
                 .expect("IsConstrainedTypeVariable implies a base constraint");
-            if self.every_type(constraint, |_, t| {
-                tsc_types::tables::contains_type(&primitives, t)
+            let ctx = crate::type_order::order_ctx!(self);
+            let order = ctx.order();
+            if self.every_type(constraint, |state, t| {
+                tsc_types::type_order::contains_type(&state.tables, order, &primitives, t)
             }) {
                 let mut i = types.len();
                 while i > 0 {
@@ -279,13 +295,18 @@ impl<'a> CheckerState<'a> {
                     let t = types[i];
                     if let Some((candidate, primitive)) = constrained_members(self, t) {
                         if candidate == type_variable
-                            && tsc_types::tables::contains_type(&primitives, primitive)
+                            && tsc_types::type_order::contains_type(
+                                &self.tables,
+                                order,
+                                &primitives,
+                                primitive,
+                            )
                         {
                             types.remove(i);
                         }
                     }
                 }
-                tsc_types::tables::insert_type(types, type_variable);
+                tsc_types::type_order::insert_type(&self.tables, order, types, type_variable);
             }
         }
         Ok(())
@@ -416,7 +437,7 @@ impl<'a> CheckerState<'a> {
                         let prop_type = self.get_type_of_symbol(prop)?;
                         if self.is_unit_type(prop_type) {
                             let name = self.binder.symbol(prop).escaped_name;
-                            let regular = self.tables.get_regular_type_of_literal_type(prop_type);
+                            let regular = self.regular_type_of_literal_type(prop_type);
                             found = Some((name, regular));
                             break;
                         }
@@ -454,7 +475,7 @@ impl<'a> CheckerState<'a> {
                         {
                             if let Some(t) = self.get_type_of_property_of_type(target, key_name)? {
                                 if self.is_unit_type(t)
-                                    && self.tables.get_regular_type_of_literal_type(t) != *key_type
+                                    && self.regular_type_of_literal_type(t) != *key_type
                                 {
                                     continue;
                                 }
@@ -639,8 +660,9 @@ impl<'a> CheckerState<'a> {
         } else {
             vec![ty, undefined, null]
         };
+        let ctx = crate::type_order::order_ctx!(self);
         self.tables
-            .get_union_type(&members, UnionReduction::Literal)
+            .get_union_type(ctx.order(), &members, UnionReduction::Literal)
     }
 
     /// tsc-port: extractRedundantTemplateLiterals @6.0.3

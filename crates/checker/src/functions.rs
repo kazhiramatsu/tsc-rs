@@ -450,8 +450,7 @@ impl<'a> CheckerState<'a> {
                 let annotated = self.get_type_from_type_node(type_node)?;
                 let is_optional = self.is_optional_declaration(declaration);
                 let source =
-                    self.tables
-                        .add_optionality(annotated, /*is_property*/ false, is_optional);
+                    self.add_optionality(annotated, /*is_property*/ false, is_optional);
                 let target = self.get_type_at_position(context_signature, index)?;
                 let inferences = self.inference_context(inference_context).inferences.clone();
                 self.infer_types(
@@ -537,7 +536,7 @@ impl<'a> CheckerState<'a> {
         let is_optional = declaration.is_some_and(|declaration| {
             self.initializer_of(declaration).is_none() && self.is_optional_declaration(declaration)
         });
-        let mut ty = self.tables.add_optionality(base, false, is_optional);
+        let mut ty = self.add_optionality(base, false, is_optional);
         self.links.set_symbol_type_contextual(
             self.speculation_depth,
             parameter,
@@ -636,7 +635,7 @@ impl<'a> CheckerState<'a> {
                 CheckMode::from_bits(check_mode.bits() & !CheckMode::SKIP_GENERIC_FUNCTIONS.bits());
             let mut ty = self.check_expression_cached(body, inner_mode)?;
             if self.is_const_context(body)? {
-                ty = self.tables.get_regular_type_of_literal_type(ty);
+                ty = self.regular_type_of_literal_type(ty);
             }
             if is_async {
                 let checked = self.check_awaited_type(
@@ -853,9 +852,8 @@ impl<'a> CheckerState<'a> {
             };
             if let Some(expression) = expression {
                 if self.is_const_context(expression)? {
-                    yield_expression_type = self
-                        .tables
-                        .get_regular_type_of_literal_type(yield_expression_type);
+                    yield_expression_type =
+                        self.regular_type_of_literal_type(yield_expression_type);
                 }
             }
             let any = self.tables.intrinsics.any;
@@ -1053,7 +1051,7 @@ impl<'a> CheckerState<'a> {
                 has_return_of_type_never = true;
             }
             let pushed = if self.is_const_context(expr)? {
-                self.tables.get_regular_type_of_literal_type(ty)
+                self.regular_type_of_literal_type(ty)
             } else {
                 ty
             };

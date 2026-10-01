@@ -184,7 +184,10 @@ fn literal_type_nodes_yield_regular_literals() {
     with_state("declare var a: 1;\ndeclare var b: \"x\";\n", |state| {
         let one = annotation_type(state, "a");
         assert!(!state.tables.is_fresh_literal_type(one));
-        assert_eq!(state.tables.get_regular_type_of_literal_type(one), one);
+        assert_eq!(
+            state.tables.get_regular_type_of_literal_type(None, one),
+            one
+        );
         let x = annotation_type(state, "b");
         assert!(state
             .tables
@@ -378,9 +381,11 @@ fn intersection_normalization_matches_tsc() {
             let f = annotation_type(state, "f");
             let a_lit = state.tables.get_string_literal_type("a");
             let b_lit = state.tables.get_string_literal_type("b");
-            let expected = state
-                .tables
-                .get_union_type(&[a_lit, b_lit], tsc_types::UnionReduction::Literal);
+            let expected = state.tables.get_union_type(
+                None,
+                &[a_lit, b_lit],
+                tsc_types::UnionReduction::Literal,
+            );
             assert_eq!(f, expected);
             // The undefined pull-out: (string|undefined) & (number|undefined)
             // = (string & number) | undefined = undefined.
