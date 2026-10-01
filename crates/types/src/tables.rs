@@ -13,6 +13,7 @@
 // Interning tables keyed by compiler-assigned ids or by canonical key
 // strings; never iterated, so the lookup-only hasher applies.
 use rustc_hash::FxHashMap as HashMap;
+use std::cmp::Ordering;
 
 use crate::flags::{AccessFlags, ElementFlags, ObjectFlags, TypeFlags};
 use crate::ty::{
@@ -1470,7 +1471,35 @@ impl TypeTables {
     /// tsc-port: addTypesToUnion @6.0.3
     /// tsc-hash: 14b6eea2a85c949d2f78fa0e81a934b7a2168d3e5c42fb693dbcbdee0e65192c
     /// tsc-span: _tsc.js:61358-61367
+    ///
+    /// With stable ordering the members are collected first and sorted
+    /// once, as tsgo's `addTypesToUnion` does (`slices.SortStableFunc` then
+    /// a dedupe): the set is the same as tsc's one-by-one `insertType`,
+    /// whose comparator is a total order with the type id as its last key,
+    /// but a flattened union of sorted members costs a near-linear sort
+    /// instead of a binary search per member.
     pub fn add_types_to_union(
+        &mut self,
+        order: TypeOrder<'_>,
+        type_set: &mut Vec<TypeId>,
+        includes: i32,
+        types: &[TypeId],
+    ) -> i32 {
+        let Some(ctx) = order else {
+            return self.add_types_to_union_in_place(order, type_set, includes, types);
+        };
+        let includes = self.add_types_to_union_in_place(None, type_set, includes, types);
+        crate::type_order::sort_types_like_tsgo(type_set, |a, b| {
+            crate::type_order::compare_types(self, ctx, a, b) == Ordering::Less
+        });
+        type_set.dedup();
+        includes
+    }
+
+    /// The one-by-one `addTypesToUnion` (61358-61367): each member is
+    /// inserted at its place (`order` on) or appended / inserted by id
+    /// (`order` off).
+    fn add_types_to_union_in_place(
         &mut self,
         order: TypeOrder<'_>,
         type_set: &mut Vec<TypeId>,
@@ -1486,7 +1515,7 @@ impl TypeTables {
                     else {
                         unreachable!("union flag implies union data");
                     };
-                    self.add_types_to_union(
+                    self.add_types_to_union_in_place(
                         order,
                         type_set,
                         includes | (if named { TypeFlags::UNION.bits() } else { 0 }),

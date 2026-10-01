@@ -16,6 +16,25 @@ use std::iter::FusedIterator;
 #[derive(Clone, Default, Eq, PartialEq, Ord, PartialOrd)]
 pub struct JsString(Storage);
 
+/// The length of the common byte prefix of two slices, compared eight
+/// bytes at a time.
+fn common_prefix_len(left: &[u8], right: &[u8]) -> usize {
+    let limit = left.len().min(right.len());
+    let mut index = 0;
+    while index + 8 <= limit {
+        let a = u64::from_le_bytes(left[index..index + 8].try_into().expect("eight bytes"));
+        let b = u64::from_le_bytes(right[index..index + 8].try_into().expect("eight bytes"));
+        if a != b {
+            return index + ((a ^ b).trailing_zeros() / 8) as usize;
+        }
+        index += 8;
+    }
+    while index < limit && left[index] == right[index] {
+        index += 1;
+    }
+    index
+}
+
 /// A safe, zero-copy borrowed view of canonical WTF-8.
 ///
 /// This view is passed by value; it needs no unsized reference casts or unsafe
@@ -370,7 +389,7 @@ impl<'a> JsStr<'a> {
     /// `U+D7FF` in UTF-16 but above it in UTF-8.
     pub fn cmp_utf16(self, other: JsStr<'_>) -> Ordering {
         let (left, right) = (self.bytes, other.bytes);
-        let common = left.iter().zip(right).take_while(|(a, b)| a == b).count();
+        let common = common_prefix_len(left, right);
         if common == left.len() || common == right.len() {
             // One side is a byte prefix of the other, hence a code-unit
             // prefix: the shorter sorts first, equal lengths are equal.
@@ -379,6 +398,15 @@ impl<'a> JsStr<'a> {
         let mut start = common;
         while start > 0 && (left[start] & 0xC0) == 0x80 {
             start -= 1;
+        }
+        // Below U+D800 (lead bytes under 0xED) a code point is its own code
+        // unit and UTF-8 byte order is code-point order, so the sequences
+        // at the first difference order the strings by their bytes. A
+        // surrogate (0xED), a BMP code point from U+E000 (0xEE, 0xEF) or an
+        // astral sequence (0xF0..) can order differently in UTF-16 and is
+        // decoded.
+        if left[start] < 0xED && right[start] < 0xED {
+            return left[common].cmp(&right[common]);
         }
         JsStr {
             bytes: &left[start..],

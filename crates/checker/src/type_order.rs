@@ -104,6 +104,73 @@ impl<'s, 'a> OrderCtx<'s, 'a> {
             TypeMapper::Merged { .. } => 5,
         }
     }
+
+    /// The position part of a symbol's `compareSymbols` key: declared
+    /// symbols first, by the Program file index and position of their first
+    /// declaration (`compareNodes`); undeclared symbols after them.
+    fn symbol_key(&self, symbol: SymbolId) -> SymbolKey {
+        match self.binder.symbol(symbol).declarations.first() {
+            Some(&declaration) => {
+                let (file, pos) = self.node_position(declaration);
+                SymbolKey {
+                    undeclared: false,
+                    file,
+                    pos,
+                    symbol,
+                }
+            }
+            None => SymbolKey {
+                undeclared: true,
+                file: 0,
+                pos: 0,
+                symbol,
+            },
+        }
+    }
+
+    /// `compareSymbols` on two precomputed keys: the declaration position,
+    /// then the name (UTF-16 code units) and the arena index on ties, as
+    /// [`TypeOrderContext::compare_symbols`] decides them.
+    fn compare_keys(&self, a: &SymbolKey, b: &SymbolKey) -> Ordering {
+        if a.symbol == b.symbol {
+            return Ordering::Equal;
+        }
+        a.undeclared
+            .cmp(&b.undeclared)
+            .then(a.file.cmp(&b.file))
+            .then(a.pos.cmp(&b.pos))
+            .then_with(|| self.compare_symbol_names(a.symbol, b.symbol))
+            .then_with(|| a.symbol.index().cmp(&b.symbol.index()))
+    }
+
+    /// Sort `symbols` by `compareSymbols`. The declaration position of each
+    /// symbol is looked up once, not once per comparison: the member lists
+    /// of every resolved object type pass through here, so the lookups
+    /// (which route through the owning file's node slice) dominated the
+    /// cost of stable ordering.
+    pub(crate) fn sort_symbols(&self, symbols: &mut [SymbolId]) {
+        if symbols.len() < 2 {
+            return;
+        }
+        let mut keys: Vec<SymbolKey> = symbols
+            .iter()
+            .map(|&symbol| self.symbol_key(symbol))
+            .collect();
+        keys.sort_by(|a, b| self.compare_keys(a, b));
+        for (slot, key) in symbols.iter_mut().zip(&keys) {
+            *slot = key.symbol;
+        }
+    }
+}
+
+/// A symbol's precomputed `compareSymbols` position (see
+/// [`OrderCtx::symbol_key`]).
+#[derive(Clone, Copy)]
+struct SymbolKey {
+    undeclared: bool,
+    file: usize,
+    pos: u32,
+    symbol: SymbolId,
 }
 
 impl TypeOrderContext for OrderCtx<'_, '_> {
@@ -134,12 +201,14 @@ impl TypeOrderContext for OrderCtx<'_, '_> {
         } else if !declarations2.is_empty() {
             return Ordering::Greater;
         }
-        let c = symbol1
-            .escaped_name
-            .as_js()
-            .cmp_utf16(symbol2.escaped_name.as_js());
-        if c != Ordering::Equal {
-            return c;
+        if symbol1.escaped_name != symbol2.escaped_name {
+            let c = symbol1
+                .escaped_name
+                .as_js()
+                .cmp_utf16(symbol2.escaped_name.as_js());
+            if c != Ordering::Equal {
+                return c;
+            }
         }
         // tsc falls back to getSymbolId, assigned on first use; the arena
         // index is the creation order instead (transient symbols after the
@@ -148,11 +217,13 @@ impl TypeOrderContext for OrderCtx<'_, '_> {
     }
 
     fn compare_symbol_names(&self, s1: SymbolId, s2: SymbolId) -> Ordering {
-        self.binder
-            .symbol(s1)
-            .escaped_name
-            .as_js()
-            .cmp_utf16(self.binder.symbol(s2).escaped_name.as_js())
+        let name1 = self.binder.symbol(s1).escaped_name;
+        let name2 = self.binder.symbol(s2).escaped_name;
+        // Interned names: the same text is the same key.
+        if name1 == name2 {
+            return Ordering::Equal;
+        }
+        name1.as_js().cmp_utf16(name2.as_js())
     }
 
     /// tsc-port: compareNodes @6.0.3
@@ -298,8 +369,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:90575-90580
     pub(crate) fn sort_symbols_if_stable(&self, symbols: &mut [SymbolId]) {
         if self.stable_type_ordering {
-            let ctx = order_ctx!(self);
-            symbols.sort_by(|&a, &b| ctx.compare_symbols(Some(a), Some(b)));
+            order_ctx!(self).sort_symbols(symbols);
         }
     }
 
@@ -308,12 +378,16 @@ impl<'a> CheckerState<'a> {
     /// one of its declarations come first; each group is sorted by
     /// `compareSymbols`. With the option off the list is left in its
     /// insertion order, as tsc's default path returns it.
+    ///
+    /// One sort over keys that carry the group as their first component is
+    /// the two sorted groups concatenated; the container's declaration
+    /// ranges are read once rather than once per member.
     pub(crate) fn order_named_members_if_stable(
         &self,
-        members: &mut Vec<SymbolId>,
+        members: &mut [SymbolId],
         container: Option<SymbolId>,
     ) {
-        if !self.stable_type_ordering || members.is_empty() {
+        if !self.stable_type_ordering || members.len() < 2 {
             return;
         }
         let ctx = order_ctx!(self);
@@ -323,32 +397,38 @@ impl<'a> CheckerState<'a> {
                 .flags
                 .intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE)
         });
-        if let Some(container) = class_or_interface {
-            let (mut contained, mut non_contained): (Vec<SymbolId>, Vec<SymbolId>) = members
+        // getNamedMembers' `isDeclarationContainedBy` (50178-50188): the
+        // symbol's value declaration lies within one of the container's
+        // declarations (positions compared as tsc does, without a file check).
+        let container_ranges: Vec<(u32, u32)> = class_or_interface
+            .map(|container| {
+                let declarations: &[NodeId] = &self.binder.symbol(container).declarations;
+                declarations
+                    .iter()
+                    .map(|&declaration| (self.pos_of(declaration), self.end_of(declaration)))
+                    .collect()
+            })
+            .unwrap_or_default();
+        let outside_container = |symbol: SymbolId| -> bool {
+            if container_ranges.is_empty() {
+                return false;
+            }
+            let Some(declaration) = self.binder.symbol(symbol).value_declaration else {
+                return true;
+            };
+            let (pos, end) = (self.pos_of(declaration), self.end_of(declaration));
+            !container_ranges
                 .iter()
-                .partition(|&&symbol| self.is_declaration_contained_by(symbol, container));
-            contained.sort_by(|&a, &b| ctx.compare_symbols(Some(a), Some(b)));
-            non_contained.sort_by(|&a, &b| ctx.compare_symbols(Some(a), Some(b)));
-            contained.append(&mut non_contained);
-            *members = contained;
-        } else {
-            members.sort_by(|&a, &b| ctx.compare_symbols(Some(a), Some(b)));
-        }
-    }
-
-    /// getNamedMembers' `isDeclarationContainedBy` (50178-50188): the
-    /// symbol's value declaration lies within one of the container's
-    /// declarations (positions compared as tsc does, without a file check).
-    fn is_declaration_contained_by(&self, symbol: SymbolId, container: SymbolId) -> bool {
-        let Some(declaration) = self.binder.symbol(symbol).value_declaration else {
-            return false;
+                .any(|&(start, stop)| start <= pos && stop >= end)
         };
-        let declaration_pos = self.pos_of(declaration);
-        let declaration_end = self.end_of(declaration);
-        let container_declarations: &[NodeId] = &self.binder.symbol(container).declarations;
-        container_declarations.iter().any(|&candidate| {
-            self.pos_of(candidate) <= declaration_pos && self.end_of(candidate) >= declaration_end
-        })
+        let mut keys: Vec<(bool, SymbolKey)> = members
+            .iter()
+            .map(|&symbol| (outside_container(symbol), ctx.symbol_key(symbol)))
+            .collect();
+        keys.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| ctx.compare_keys(&a.1, &b.1)));
+        for (slot, key) in members.iter_mut().zip(&keys) {
+            *slot = key.1.symbol;
+        }
     }
 
     // ---- table twins that take this checker's order ----
