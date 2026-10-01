@@ -112,8 +112,9 @@ mod workers;
 
 pub use config::{
     compiler_option_named_choices, is_non_fatal_option_diagnostic, load_config_program,
-    load_config_program_with_no_emit_override, load_emitting_config_program,
-    load_emitting_config_program_with_no_emit_override,
+    load_config_program_with_no_emit_override,
+    load_config_program_with_no_emit_override_and_overrides, load_config_program_with_overrides,
+    load_emitting_config_program, load_emitting_config_program_with_no_emit_override,
     load_emitting_config_program_with_no_emit_override_and_overrides,
     load_emitting_config_program_with_overrides, parse_config_root_plan,
     parse_config_root_plan_with_cache, validate_config_plan, ConfigDiscoveryOptions,

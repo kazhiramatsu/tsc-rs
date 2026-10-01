@@ -20,6 +20,7 @@ use crate::ty::{
     MapperId, PseudoBigInt, ReverseMappedTypeData, SubstitutionTypeData, SymbolId, TemplateText,
     TupleTargetData, Type, TypeData, TypeId,
 };
+use crate::type_order::TypeOrder;
 
 /// The named intrinsic/derived types created at checker construction,
 /// in tsc's exact allocation order (_tsc.js 47011-47111). Conditional
@@ -686,7 +687,14 @@ impl TypeTables {
             self.type_mut(regular).regular_type = Some(regular);
             self.type_mut(regular).fresh_type = Some(fresh);
         }
-        let boolean = self.get_union_type(&[false_regular, true_regular], UnionReduction::Literal);
+        // The intrinsic unions below read the same under both orders: the
+        // stable comparator ranks these intrinsics by TypeFlags value in their
+        // creation order, so the id order is passed.
+        let boolean = self.get_union_type(
+            None,
+            &[false_regular, true_regular],
+            UnionReduction::Literal,
+        );
 
         let es_symbol = self.create_intrinsic_type(TypeFlags::ES_SYMBOL, "symbol", none, None);
         let void = self.create_intrinsic_type(TypeFlags::VOID, "void", none, None);
@@ -699,16 +707,19 @@ impl TypeTables {
             self.create_intrinsic_type(TypeFlags::NEVER, "never", none, Some("unreachable"));
         let non_primitive =
             self.create_intrinsic_type(TypeFlags::NON_PRIMITIVE, "object", none, None);
-        let string_or_number = self.get_union_type(&[string, number], UnionReduction::Literal);
+        let string_or_number =
+            self.get_union_type(None, &[string, number], UnionReduction::Literal);
         let string_number_symbol =
-            self.get_union_type(&[string, number, es_symbol], UnionReduction::Literal);
-        let number_or_bigint = self.get_union_type(&[number, bigint], UnionReduction::Literal);
+            self.get_union_type(None, &[string, number, es_symbol], UnionReduction::Literal);
+        let number_or_bigint =
+            self.get_union_type(None, &[number, bigint], UnionReduction::Literal);
         let template_constraint = self.get_union_type(
+            None,
             &[string, number, boolean, bigint, null, undefined],
             UnionReduction::Literal,
         );
         let numeric_string =
-            self.get_template_literal_type(&[String::new(), String::new()], &[number]);
+            self.get_template_literal_type(None, &[String::new(), String::new()], &[number]);
         let unique_literal =
             self.create_intrinsic_type(TypeFlags::NEVER, "never", none, Some("unique literal"));
 
@@ -798,7 +809,7 @@ impl TypeTables {
     /// tsc-port: getRegularTypeOfLiteralType @6.0.3
     /// tsc-hash: 6fadff11dcdf0b9ab35cdbe7d059e1fb44a9b8752fe2bb9a5041ce54797ba276
     /// tsc-span: _tsc.js:63077-63079
-    pub fn get_regular_type_of_literal_type(&mut self, id: TypeId) -> TypeId {
+    pub fn get_regular_type_of_literal_type(&mut self, order: TypeOrder<'_>, id: TypeId) -> TypeId {
         let flags = self.flags_of(id);
         if flags.intersects(TypeFlags::FRESHABLE) {
             return self
@@ -815,7 +826,7 @@ impl TypeTables {
             };
             let mapped: Vec<TypeId> = types
                 .iter()
-                .map(|&member| self.get_regular_type_of_literal_type(member))
+                .map(|&member| self.get_regular_type_of_literal_type(order, member))
                 .collect();
             // mapType's no-change identity (70050): an all-regular
             // union — an enum declared type in particular — is its own
@@ -824,7 +835,7 @@ impl TypeTables {
             let regular = if mapped.iter().zip(types.iter()).all(|(a, b)| a == b) {
                 id
             } else {
-                self.get_union_type(&mapped, UnionReduction::Literal)
+                self.get_union_type(order, &mapped, UnionReduction::Literal)
             };
             self.type_mut(id).regular_type = Some(regular);
             return regular;
@@ -1136,7 +1147,12 @@ impl TypeTables {
     /// Alias parameters (aliasSymbol/aliasTypeArguments) arrive with M4
     /// aliases; getAliasId is the empty string until then, so the
     /// unionOfUnionTypes fast-path key is `{smallerId}{infix}{largerId}`.
-    pub fn get_union_type(&mut self, types: &[TypeId], reduction: UnionReduction) -> TypeId {
+    pub fn get_union_type(
+        &mut self,
+        order: TypeOrder<'_>,
+        types: &[TypeId],
+        reduction: UnionReduction,
+    ) -> TypeId {
         // Subtype reduction needs the relation engine (removeSubtypes
         // 61368) — the checker-side get_union_type_ex handles it; the
         // tables twin serves the pure construction callers, which are
@@ -1145,7 +1161,7 @@ impl TypeTables {
             reduction != UnionReduction::Subtype,
             "Subtype union reduction goes through CheckerState::get_union_type_ex"
         );
-        self.get_union_type_with_origin(types, reduction, None)
+        self.get_union_type_with_origin(order, types, reduction, None)
     }
 
     /// The origin-carrying getUnionType entry (the `origin` parameter
@@ -1153,6 +1169,7 @@ impl TypeTables {
     /// denormalized intersection origin through here.
     pub fn get_union_type_with_origin(
         &mut self,
+        order: TypeOrder<'_>,
         types: &[TypeId],
         reduction: UnionReduction,
         origin: Option<TypeId>,
@@ -1183,11 +1200,11 @@ impl TypeTables {
                 crate::perf::bump(crate::perf::PerfCounter::UnionOfUnionHits);
                 return id;
             }
-            let id = self.get_union_type_worker(types, reduction, None);
+            let id = self.get_union_type_worker(order, types, reduction, None);
             self.union_of_union_types.insert(key, id);
             return id;
         }
-        self.get_union_type_worker(types, reduction, origin)
+        self.get_union_type_worker(order, types, reduction, origin)
     }
 
     /// unionOfUnionTypes fast-path cache access for the checker-side
@@ -1231,12 +1248,13 @@ impl TypeTables {
     ///   in getIntersectionType step 6 (M4 type variables).
     fn get_union_type_worker(
         &mut self,
+        order: TypeOrder<'_>,
         types: &[TypeId],
         reduction: UnionReduction,
         origin: Option<TypeId>,
     ) -> TypeId {
         let mut type_set: Vec<TypeId> = Vec::new();
-        let includes = self.add_types_to_union(&mut type_set, 0, types);
+        let includes = self.add_types_to_union(order, &mut type_set, 0, types);
         if reduction != UnionReduction::None {
             if includes & TypeFlags::ANY_OR_UNKNOWN.bits() != 0 {
                 return if includes & TypeFlags::ANY.bits() != 0 {
@@ -1271,6 +1289,7 @@ impl TypeTables {
                 // reduceVoidUndefined = !!(unionReduction & Subtype):
                 // false until 4.8 activates real Subtype reduction.
                 self.remove_redundant_literal_types(
+                    order,
                     &mut type_set,
                     includes,
                     /*reduce_void_undefined*/ false,
@@ -1312,7 +1331,7 @@ impl TypeTables {
                 };
             }
         }
-        self.finish_union_type_set(type_set, includes, types, None, None, origin)
+        self.finish_union_type_set(order, type_set, includes, types, None, None, origin)
     }
 
     /// The getUnionTypeWorker TAIL (61558-61585): named-union origin
@@ -1320,6 +1339,7 @@ impl TypeTables {
     /// with the checker-side Subtype-capable twin (stage 4.8).
     pub fn finish_union_type_set(
         &mut self,
+        order: TypeOrder<'_>,
         type_set: Vec<TypeId>,
         includes: i32,
         types: &[TypeId],
@@ -1337,7 +1357,7 @@ impl TypeTables {
                     let TypeData::Union { types: members, .. } = &self.type_of(union).data else {
                         unreachable!("named unions are unions");
                     };
-                    contains_type(members, t)
+                    crate::type_order::contains_type(self, order, members, t)
                 });
                 if !in_named {
                     reduced_types.push(t);
@@ -1357,7 +1377,7 @@ impl TypeTables {
                 .sum();
             if named_types_count + reduced_types.len() == type_set.len() {
                 for &union in &named_unions {
-                    insert_type(&mut reduced_types, union);
+                    crate::type_order::insert_type(self, order, &mut reduced_types, union);
                 }
                 origin = Some(
                     self.create_origin_union_or_intersection_type(TypeFlags::UNION, reduced_types),
@@ -1392,6 +1412,7 @@ impl TypeTables {
     /// append fast path (61350).
     pub fn add_type_to_union(
         &mut self,
+        order: TypeOrder<'_>,
         type_set: &mut Vec<TypeId>,
         mut includes: i32,
         ty: TypeId,
@@ -1423,10 +1444,19 @@ impl TypeTables {
                     includes |= TypeFlags::INCLUDES_NON_WIDENING_TYPE.bits();
                 }
             } else {
-                match type_set.last() {
-                    Some(&last) if ty.index() > last.index() => type_set.push(ty),
-                    _ => {
-                        if let Err(index) = type_set.binary_search(&ty) {
+                match order {
+                    None => match type_set.last() {
+                        Some(&last) if ty.index() > last.index() => type_set.push(ty),
+                        _ => {
+                            if let Err(index) = type_set.binary_search(&ty) {
+                                type_set.insert(index, ty);
+                            }
+                        }
+                    },
+                    Some(ctx) => {
+                        if let Err(index) = type_set.binary_search_by(|&candidate| {
+                            crate::type_order::compare_types(self, ctx, candidate, ty)
+                        }) {
                             type_set.insert(index, ty);
                         }
                     }
@@ -1441,6 +1471,7 @@ impl TypeTables {
     /// tsc-span: _tsc.js:61358-61367
     pub fn add_types_to_union(
         &mut self,
+        order: TypeOrder<'_>,
         type_set: &mut Vec<TypeId>,
         mut includes: i32,
         types: &[TypeId],
@@ -1455,12 +1486,13 @@ impl TypeTables {
                         unreachable!("union flag implies union data");
                     };
                     self.add_types_to_union(
+                        order,
                         type_set,
                         includes | (if named { TypeFlags::UNION.bits() } else { 0 }),
                         &members,
                     )
                 } else {
-                    self.add_type_to_union(type_set, includes, ty)
+                    self.add_type_to_union(order, type_set, includes, ty)
                 };
                 last_type = Some(ty);
             }
@@ -1473,6 +1505,7 @@ impl TypeTables {
     /// tsc-span: _tsc.js:61422-61433
     pub fn remove_redundant_literal_types(
         &mut self,
+        order: TypeOrder<'_>,
         types: &mut Vec<TypeId>,
         includes: i32,
         reduce_void_undefined: bool,
@@ -1498,7 +1531,9 @@ impl TypeTables {
                     && flags & TypeFlags::UNDEFINED.bits() != 0
                     && includes & TypeFlags::VOID.bits() != 0)
                 || (self.is_fresh_literal_type(t)
-                    && contains_type(
+                    && crate::type_order::contains_type(
+                        self,
+                        order,
                         types,
                         self.type_of(t)
                             .regular_type
@@ -1683,7 +1718,12 @@ impl TypeTables {
     /// tsc-port: getOptionalType @6.0.3
     /// tsc-hash: bb5a73a698a53842f916c77432005c59701edb3812c2a8886b2ff40155bcdc4b
     /// tsc-span: _tsc.js:67852-67856
-    pub fn get_optional_type(&mut self, id: TypeId, is_property: bool) -> TypeId {
+    pub fn get_optional_type(
+        &mut self,
+        order: TypeOrder<'_>,
+        id: TypeId,
+        is_property: bool,
+    ) -> TypeId {
         debug_assert!(self.strict_null_checks);
         let missing_or_undefined = if is_property {
             self.intrinsics.undefined_or_missing
@@ -1701,15 +1741,21 @@ impl TypeTables {
                 return id;
             }
         }
-        self.get_union_type(&[id, missing_or_undefined], UnionReduction::Literal)
+        self.get_union_type(order, &[id, missing_or_undefined], UnionReduction::Literal)
     }
 
     /// tsc-port: addOptionality @6.0.3
     /// tsc-hash: 2802085ebd92adbd4005f16c9656c306440c1d540776e43f5c0153c5bc3af21b
     /// tsc-span: _tsc.js:56029-56031
-    pub fn add_optionality(&mut self, id: TypeId, is_property: bool, is_optional: bool) -> TypeId {
+    pub fn add_optionality(
+        &mut self,
+        order: TypeOrder<'_>,
+        id: TypeId,
+        is_property: bool,
+        is_optional: bool,
+    ) -> TypeId {
         if self.strict_null_checks && is_optional {
-            self.get_optional_type(id, is_property)
+            self.get_optional_type(order, id, is_property)
         } else {
             id
         }
@@ -1768,19 +1814,34 @@ impl TypeTables {
     /// tsc-port: eachUnionContains @6.0.3
     /// tsc-hash: dd8bbe6c4f8b46240e483f5e92565e69ef3d3f801012640f7468c767851bcb05
     /// tsc-span: _tsc.js:61697-61713
-    fn each_union_contains(&self, union_types: &[TypeId], ty: TypeId) -> bool {
+    fn each_union_contains(
+        &self,
+        order: TypeOrder<'_>,
+        union_types: &[TypeId],
+        ty: TypeId,
+    ) -> bool {
         for &union in union_types {
             let TypeData::Union { types: members, .. } = &self.type_of(union).data else {
                 unreachable!("primitive unions are unions");
             };
-            if contains_type(members, ty) {
+            if crate::type_order::contains_type(self, order, members, ty) {
                 continue;
             }
             if ty == self.intrinsics.missing {
-                return contains_type(members, self.intrinsics.undefined);
+                return crate::type_order::contains_type(
+                    self,
+                    order,
+                    members,
+                    self.intrinsics.undefined,
+                );
             }
             if ty == self.intrinsics.undefined {
-                return contains_type(members, self.intrinsics.missing);
+                return crate::type_order::contains_type(
+                    self,
+                    order,
+                    members,
+                    self.intrinsics.missing,
+                );
             }
             let flags = self.flags_of(ty);
             let primitive = if flags.intersects(TypeFlags::STRING_LITERAL) {
@@ -1797,7 +1858,8 @@ impl TypeTables {
                 None
             };
             match primitive {
-                Some(primitive) if contains_type(members, primitive) => {}
+                Some(primitive)
+                    if crate::type_order::contains_type(self, order, members, primitive) => {}
                 _ => return false,
             }
         }
@@ -1807,7 +1869,11 @@ impl TypeTables {
     /// tsc-port: intersectUnionsOfPrimitiveTypes @6.0.3
     /// tsc-hash: 3a0d9554ee46b79147e66ba642df88c96207d15f0df796034c3dbab9e17c4ccf
     /// tsc-span: _tsc.js:61737-61776
-    pub fn intersect_unions_of_primitive_types(&mut self, types: &mut Vec<TypeId>) -> bool {
+    pub fn intersect_unions_of_primitive_types(
+        &mut self,
+        order: TypeOrder<'_>,
+        types: &mut Vec<TypeId>,
+    ) -> bool {
         let Some(index) = types.iter().position(|&t| {
             self.object_flags_of(t)
                 .intersects(ObjectFlags::PRIMITIVE_UNION)
@@ -1846,7 +1912,9 @@ impl TypeTables {
             })
             .collect();
         for t in all_members {
-            if insert_type(&mut checked, t) && self.each_union_contains(&union_types, t) {
+            if crate::type_order::insert_type(self, order, &mut checked, t)
+                && self.each_union_contains(order, &union_types, t)
+            {
                 if t == self.intrinsics.undefined
                     && result.first() == Some(&self.intrinsics.missing)
                 {
@@ -1858,7 +1926,7 @@ impl TypeTables {
                     result[0] = self.intrinsics.missing;
                     continue;
                 }
-                insert_type(&mut result, t);
+                crate::type_order::insert_type(self, order, &mut result, t);
             }
         }
         types[index] = self.get_union_type_from_sorted_list(
@@ -2163,6 +2231,7 @@ impl TypeTables {
     ///
     pub fn get_tuple_target_type(
         &mut self,
+        order: TypeOrder<'_>,
         element_flags: TupleTargetFlags<'_>,
         readonly: bool,
         named_member_declarations: Option<&[Option<u32>]>,
@@ -2205,7 +2274,7 @@ impl TypeTables {
         if let Some(&id) = self.tuple_types.get(&key) {
             return id;
         }
-        let id = self.create_tuple_target_type(element_flags, readonly, named);
+        let id = self.create_tuple_target_type(order, element_flags, readonly, named);
         self.tuple_types.insert(key, id);
         id
     }
@@ -2219,6 +2288,7 @@ impl TypeTables {
     /// length literals before the tuple target object (61177-61186).
     fn create_tuple_target_type(
         &mut self,
+        order: TypeOrder<'_>,
         element_flags: &[ElementFlags],
         readonly: bool,
         named_member_declarations: Option<&[Option<u32>]>,
@@ -2249,7 +2319,7 @@ impl TypeTables {
             let literals: Vec<TypeId> = (min_length..=arity)
                 .map(|length| self.get_number_literal_type(length as f64))
                 .collect();
-            self.get_union_type(&literals, UnionReduction::Literal)
+            self.get_union_type(order, &literals, UnionReduction::Literal)
         };
         let target = self.create_type(
             TypeFlags::OBJECT,
@@ -2310,6 +2380,7 @@ impl TypeTables {
     #[cfg(test)]
     pub fn create_tuple_type(
         &mut self,
+        order: TypeOrder<'_>,
         element_types: &[TypeId],
         element_flags: Option<&[ElementFlags]>,
         readonly: bool,
@@ -2324,11 +2395,11 @@ impl TypeTables {
             }
         };
         let flags = TupleTargetFlags::new(element_flags)?;
-        let target = self.get_tuple_target_type(flags, readonly, named_member_declarations);
+        let target = self.get_tuple_target_type(order, flags, readonly, named_member_declarations);
         if element_types.is_empty() {
             return Some(target);
         }
-        self.create_normalized_type_reference(target, element_types)
+        self.create_normalized_type_reference(order, target, element_types)
     }
 
     /// tsc-port: createNormalizedTypeReference @6.0.3
@@ -2337,11 +2408,12 @@ impl TypeTables {
     #[cfg(test)]
     pub fn create_normalized_type_reference(
         &mut self,
+        order: TypeOrder<'_>,
         target: TypeId,
         type_arguments: &[TypeId],
     ) -> Option<TypeId> {
         if self.object_flags_of(target).intersects(ObjectFlags::TUPLE) {
-            self.create_normalized_tuple_type(target, type_arguments)
+            self.create_normalized_tuple_type(order, target, type_arguments)
         } else {
             Some(self.create_type_reference(target, type_arguments))
         }
@@ -2361,6 +2433,7 @@ impl TypeTables {
     #[cfg(test)]
     pub fn create_normalized_tuple_type(
         &mut self,
+        order: TypeOrder<'_>,
         target: TypeId,
         element_types: &[TypeId],
     ) -> Option<TypeId> {
@@ -2421,7 +2494,7 @@ impl TypeTables {
                     last_optional_or_rest_index = expanded_flags.len() as isize;
                 }
                 let pushed = if flags.intersects(ElementFlags::OPTIONAL) {
-                    tables.add_optionality(ty, /*is_property*/ true, true)
+                    tables.add_optionality(order, ty, /*is_property*/ true, true)
                 } else {
                     ty
                 };
@@ -2546,7 +2619,7 @@ impl TypeTables {
                 unreachable!("variadic-in-rest-window collapse lives in the checker twin (L-TWIN)");
             }
             let window: Vec<TypeId> = expanded_types[first..=last].to_vec();
-            expanded_types[first] = self.get_union_type(&window, UnionReduction::Literal);
+            expanded_types[first] = self.get_union_type(order, &window, UnionReduction::Literal);
             expanded_types.drain(first + 1..=last);
             expanded_flags.drain(first + 1..=last);
             expanded_declarations.drain(first + 1..=last);
@@ -2556,7 +2629,7 @@ impl TypeTables {
             .any(Option::is_some)
             .then_some(expanded_declarations.as_slice());
         let flags = TupleTargetFlags::new(&expanded_flags)?;
-        let tuple_target = self.get_tuple_target_type(flags, data.readonly, named);
+        let tuple_target = self.get_tuple_target_type(order, flags, data.readonly, named);
         if expanded_flags.is_empty() {
             Some(tuple_target)
         } else {
@@ -2637,18 +2710,24 @@ impl TypeTables {
     /// The checker-owned entry reports the >=1e5 cross-product 2590;
     /// this diagnostic-free construction/cache twin still guards
     /// recursive and types-only callers by yielding errorType.
-    pub fn get_template_literal_type(&mut self, texts: &[String], types: &[TypeId]) -> TypeId {
+    pub fn get_template_literal_type(
+        &mut self,
+        order: TypeOrder<'_>,
+        texts: &[String],
+        types: &[TypeId],
+    ) -> TypeId {
         let texts = texts
             .iter()
             .map(|text| TemplateText::from_utf8(text))
             .collect::<Vec<_>>();
-        self.get_template_literal_type_from_texts(&texts, types)
+        self.get_template_literal_type_from_texts(order, &texts, types)
     }
 
     /// Lossless UTF-16 entry used by parsed template fragments and by
     /// transformations of existing template literal types.
     pub fn get_template_literal_type_from_texts(
         &mut self,
+        order: TypeOrder<'_>,
         texts: &[TemplateText],
         types: &[TypeId],
     ) -> TypeId {
@@ -2674,9 +2753,9 @@ impl TypeTables {
             for &m in members.iter() {
                 let mut replaced = types.to_vec();
                 replaced[union_index] = m;
-                mapped.push(self.get_template_literal_type_from_texts(texts, &replaced));
+                mapped.push(self.get_template_literal_type_from_texts(order, texts, &replaced));
             }
-            return self.get_union_type(&mapped, UnionReduction::Literal);
+            return self.get_union_type(order, &mapped, UnionReduction::Literal);
         }
         if types.contains(&self.intrinsics.wildcard) {
             return self.intrinsics.wildcard;

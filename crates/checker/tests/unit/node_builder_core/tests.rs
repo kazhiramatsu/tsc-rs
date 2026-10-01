@@ -831,6 +831,7 @@ fn node_builder_save_restore_and_expansion_helpers_restore_all_owned_state() {
 
         let empty_flags = [];
         let tuple = checker.tables.get_tuple_target_type(
+            None,
             TupleTargetFlags::new(&empty_flags).expect("empty tuple flags"),
             false,
             None,

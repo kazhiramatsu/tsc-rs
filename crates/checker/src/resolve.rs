@@ -175,6 +175,7 @@ impl<'a> CheckerState<'a> {
                     ));
                 }
                 candidates.extend(values);
+                self.sort_symbols_if_stable(&mut candidates);
                 self.get_spelling_suggestion_for_name(
                     tsc_binder::unescape_leading_underscores(name),
                     &candidates,

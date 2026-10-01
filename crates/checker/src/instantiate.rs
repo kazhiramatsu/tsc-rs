@@ -65,6 +65,13 @@ pub struct MapperList {
     len: u32,
 }
 
+impl MapperList {
+    /// The list's range in `CheckerState::mapper_lists`.
+    pub(crate) fn range(self) -> std::ops::Range<usize> {
+        self.start as usize..(self.start + self.len) as usize
+    }
+}
+
 /// tsc-port: makeFunctionTypeMapper @6.0.3
 /// tsc-hash: 8b8b3a8e91724e911f8633efe97f52806c560c58307f03995886eb93b37185fb
 /// tsc-span: _tsc.js:63365-63367

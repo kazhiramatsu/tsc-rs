@@ -7902,7 +7902,7 @@ impl<'a> CheckerState<'a> {
         let resolved = self.members_of(members_id);
         let member_table = resolved.members.clone();
         let index_infos = resolved.index_infos.clone();
-        let properties = self.get_named_members(&member_table)?;
+        let properties = self.get_named_members(&member_table, Some(result))?;
         let anonymous = self.make_resolved_anonymous_type(
             Some(result),
             member_table,
@@ -9603,7 +9603,7 @@ impl<'a> CheckerState<'a> {
                 .create_symbol(SymbolFlags::PROPERTY, member_name);
             self.binder.symbol_mut(member).parent = Some(object_symbol);
             let value_type = self.check_expression_cached(value, CheckMode::NORMAL)?;
-            let member_type = self.tables.get_regular_type_of_literal_type(value_type);
+            let member_type = self.regular_type_of_literal_type(value_type);
             self.links
                 .set_fresh_symbol_type(member, crate::links::LinkSlot::Resolved(member_type));
             self.links

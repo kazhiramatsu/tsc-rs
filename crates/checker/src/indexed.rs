@@ -403,7 +403,7 @@ impl<'a> CheckerState<'a> {
             }
             NodeData::ComputedPropertyName(_) => {
                 let ty = self.check_computed_property_name(name)?;
-                Ok(self.tables.get_regular_type_of_literal_type(ty))
+                Ok(self.regular_type_of_literal_type(ty))
             }
             NodeData::Identifier(data) => {
                 Ok(self
@@ -427,7 +427,7 @@ impl<'a> CheckerState<'a> {
             // kind parses today).
             _ => {
                 let ty = self.check_expression(name, tsc_types::CheckMode::NORMAL)?;
-                Ok(self.tables.get_regular_type_of_literal_type(ty))
+                Ok(self.regular_type_of_literal_type(ty))
             }
         }
     }

@@ -123,7 +123,7 @@ impl<'a> CheckerState<'a> {
         types: &[TypeId],
     ) -> CheckResult<i32> {
         for &ty in types {
-            let regular = self.tables.get_regular_type_of_literal_type(ty);
+            let regular = self.regular_type_of_literal_type(ty);
             includes = self.add_type_to_intersection(type_set, includes, regular)?;
         }
         Ok(includes)
@@ -406,7 +406,11 @@ impl<'a> CheckerState<'a> {
         alias_type_arguments: Option<&[TypeId]>,
         original_arity: usize,
     ) -> CheckResult<TypeId> {
-        if self.tables.intersect_unions_of_primitive_types(type_set) {
+        let ctx = crate::type_order::order_ctx!(self);
+        if self
+            .tables
+            .intersect_unions_of_primitive_types(ctx.order(), type_set)
+        {
             return self.get_intersection_type_ex(
                 &type_set.clone(),
                 flags,

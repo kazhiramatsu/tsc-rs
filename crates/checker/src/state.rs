@@ -316,6 +316,9 @@ pub struct CheckerState<'a> {
     pub tables: TypeTables,
     /// tsc strictFunctionTypes via getStrictOptionValue.
     pub strict_function_types: bool,
+    /// tsc `stableTypeOrdering` (46478): union members and property lists
+    /// follow the content order of `compareTypes` instead of type ids.
+    pub stable_type_ordering: bool,
     pub links: LinksTables,
     pub signatures: Vec<Signature>,
     /// tsc signature.instantiations (getSignatureInstantiationWithout
@@ -1379,6 +1382,7 @@ impl<'a> CheckerState<'a> {
     fn from_program_binder(mut binder: ProgramBinder<'a>, options: &'a CompilerOptions) -> Self {
         let strict_null_checks = options.strict_option_value(options.strict_null_checks);
         let strict_function_types = options.strict_option_value(options.strict_function_types);
+        let stable_type_ordering = options.stable_type_ordering == Some(true);
         let exact_optional = options.exact_optional_property_types.unwrap_or(false);
         let tables = TypeTables::new(strict_null_checks, exact_optional);
 
@@ -1422,6 +1426,7 @@ impl<'a> CheckerState<'a> {
             child_scratch: Vec::new(),
             tables,
             strict_function_types,
+            stable_type_ordering,
             links: LinksTables::with_capacity_hint(program_nodes, program_symbols),
             signatures: Vec::new(),
             signature_instantiations: rustc_hash::FxHashMap::default(),
@@ -1750,7 +1755,8 @@ impl<'a> CheckerState<'a> {
         // tsc-span: _tsc.js:50136-50138
         // (typeofNEFacts insertion order, 46376-46385.)
         state.typeof_type = {
-            let members: Vec<TypeId> = [
+            // stableTypeOrdering sorts the typeofNEFacts keys (50137).
+            let insertion_order = [
                 "string",
                 "number",
                 "bigint",
@@ -1759,7 +1765,22 @@ impl<'a> CheckerState<'a> {
                 "undefined",
                 "object",
                 "function",
-            ]
+            ];
+            let sorted_order = [
+                "bigint",
+                "boolean",
+                "function",
+                "number",
+                "object",
+                "string",
+                "symbol",
+                "undefined",
+            ];
+            let members: Vec<TypeId> = if state.stable_type_ordering {
+                sorted_order
+            } else {
+                insertion_order
+            }
             .iter()
             .map(|name| state.tables.get_string_literal_type(*name))
             .collect();

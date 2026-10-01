@@ -48,7 +48,7 @@ fn template_constraint_and_numeric_string_shapes() {
         other => panic!("numeric_string should be a template literal: {other:?}"),
     }
     let number = t.intrinsics.number;
-    let again = t.get_template_literal_type(&[String::new(), String::new()], &[number]);
+    let again = t.get_template_literal_type(None, &[String::new(), String::new()], &[number]);
     assert_eq!(again, t.intrinsics.numeric_string);
 }
 
@@ -109,7 +109,7 @@ fn literal_types_intern_by_value_and_wire_freshness() {
     assert!(!t.is_fresh_literal_type(one_a));
     assert_eq!(t.get_fresh_type_of_literal_type(one_a), fresh);
     assert_eq!(t.get_fresh_type_of_literal_type(fresh), fresh);
-    assert_eq!(t.get_regular_type_of_literal_type(fresh), one_a);
+    assert_eq!(t.get_regular_type_of_literal_type(None, fresh), one_a);
 
     let a = t.get_string_literal_type("a");
     assert_eq!(t.get_string_literal_type("a"), a);
@@ -131,15 +131,18 @@ fn unions_intern_by_sorted_member_list() {
     let mut t = tables();
     let one = t.get_number_literal_type(1.0);
     let two = t.get_number_literal_type(2.0);
-    let a = t.get_union_type(&[one, two], UnionReduction::Literal);
-    let b = t.get_union_type(&[two, one], UnionReduction::Literal);
+    let a = t.get_union_type(None, &[one, two], UnionReduction::Literal);
+    let b = t.get_union_type(None, &[two, one], UnionReduction::Literal);
     assert_eq!(a, b);
     // Flattening: (1 | 2) | 2 == 1 | 2.
-    assert_eq!(t.get_union_type(&[a, two], UnionReduction::Literal), a);
-    // Singletons collapse; empties are never.
-    assert_eq!(t.get_union_type(&[one], UnionReduction::Literal), one);
     assert_eq!(
-        t.get_union_type(&[], UnionReduction::Literal),
+        t.get_union_type(None, &[a, two], UnionReduction::Literal),
+        a
+    );
+    // Singletons collapse; empties are never.
+    assert_eq!(t.get_union_type(None, &[one], UnionReduction::Literal), one);
+    assert_eq!(
+        t.get_union_type(None, &[], UnionReduction::Literal),
         t.intrinsics.never
     );
 }
@@ -151,21 +154,21 @@ fn union_literal_reduction_drops_subsumed_literals() {
     let a = t.get_string_literal_type("a");
     // "a" | string reduces to string; 1 | number reduces to number.
     assert_eq!(
-        t.get_union_type(&[a, t.intrinsics.string], UnionReduction::Literal),
+        t.get_union_type(None, &[a, t.intrinsics.string], UnionReduction::Literal),
         t.intrinsics.string
     );
     assert_eq!(
-        t.get_union_type(&[one, t.intrinsics.number], UnionReduction::Literal),
+        t.get_union_type(None, &[one, t.intrinsics.number], UnionReduction::Literal),
         t.intrinsics.number
     );
     // Fresh literal folds into its regular partner.
     let fresh = t.get_fresh_type_of_literal_type(one);
     assert_eq!(
-        t.get_union_type(&[fresh, one], UnionReduction::Literal),
+        t.get_union_type(None, &[fresh, one], UnionReduction::Literal),
         one
     );
     // UnionReduction::None keeps the subsumed literal.
-    let unreduced = t.get_union_type(&[a, t.intrinsics.string], UnionReduction::None);
+    let unreduced = t.get_union_type(None, &[a, t.intrinsics.string], UnionReduction::None);
     let TypeData::Union { types, .. } = &t.type_of(unreduced).data else {
         panic!("unreduced union stays a union");
     };
@@ -177,24 +180,32 @@ fn union_any_unknown_absorption() {
     let mut t = tables();
     let string = t.intrinsics.string;
     assert_eq!(
-        t.get_union_type(&[t.intrinsics.any, string], UnionReduction::Literal),
+        t.get_union_type(None, &[t.intrinsics.any, string], UnionReduction::Literal),
         t.intrinsics.any
     );
     assert_eq!(
-        t.get_union_type(&[t.intrinsics.unknown, string], UnionReduction::Literal),
+        t.get_union_type(
+            None,
+            &[t.intrinsics.unknown, string],
+            UnionReduction::Literal
+        ),
         t.intrinsics.unknown
     );
     assert_eq!(
-        t.get_union_type(&[t.intrinsics.wildcard, string], UnionReduction::Literal),
+        t.get_union_type(
+            None,
+            &[t.intrinsics.wildcard, string],
+            UnionReduction::Literal
+        ),
         t.intrinsics.wildcard
     );
     assert_eq!(
-        t.get_union_type(&[t.intrinsics.error, string], UnionReduction::Literal),
+        t.get_union_type(None, &[t.intrinsics.error, string], UnionReduction::Literal),
         t.intrinsics.error
     );
     // never members vanish.
     assert_eq!(
-        t.get_union_type(&[t.intrinsics.never, string], UnionReduction::Literal),
+        t.get_union_type(None, &[t.intrinsics.never, string], UnionReduction::Literal),
         string
     );
 }
@@ -206,29 +217,34 @@ fn union_folds_nullable_members_without_strict_null_checks() {
     let null = loose.intrinsics.null;
     // number | null collapses to number at construction (61347-61349).
     assert_eq!(
-        loose.get_union_type(&[number, null], UnionReduction::Literal),
+        loose.get_union_type(None, &[number, null], UnionReduction::Literal),
         number
     );
     // All-nullable sets fold to the (non-)widening singletons.
-    assert_eq!(loose.get_union_type(&[null], UnionReduction::Literal), null);
+    assert_eq!(
+        loose.get_union_type(None, &[null], UnionReduction::Literal),
+        null
+    );
     // A widening null plus a NON-widening undefined: the
     // IncludesNonWideningType bit is global, so the null branch
     // returns the non-widening nullType (61566-61568).
     let widening = loose.intrinsics.null_widening;
     assert_eq!(
         loose.get_union_type(
+            None,
             &[widening, loose.intrinsics.undefined],
             UnionReduction::Literal
         ),
         loose.intrinsics.null
     );
     assert_eq!(
-        loose.get_union_type(&[widening, widening], UnionReduction::Literal),
+        loose.get_union_type(None, &[widening, widening], UnionReduction::Literal),
         widening
     );
     // Under strictNullChecks nullable members stay.
     let mut strict = tables();
     let strict_union = strict.get_union_type(
+        None,
         &[strict.intrinsics.number, strict.intrinsics.null],
         UnionReduction::Literal,
     );
@@ -244,7 +260,7 @@ fn union_dedups_missing_against_undefined() {
     assert_ne!(missing, undefined);
     // undefined | missing folds to undefined (61540-61544).
     assert_eq!(
-        t.get_union_type(&[undefined, missing], UnionReduction::Literal),
+        t.get_union_type(None, &[undefined, missing], UnionReduction::Literal),
         undefined
     );
 }
@@ -255,11 +271,11 @@ fn two_union_fast_path_caches_by_reduction() {
     let one = t.get_number_literal_type(1.0);
     let two = t.get_number_literal_type(2.0);
     let string = t.intrinsics.string;
-    let union = t.get_union_type(&[one, two], UnionReduction::Literal);
-    let first = t.get_union_type(&[union, string], UnionReduction::Literal);
-    let second = t.get_union_type(&[union, string], UnionReduction::Literal);
+    let union = t.get_union_type(None, &[one, two], UnionReduction::Literal);
+    let first = t.get_union_type(None, &[union, string], UnionReduction::Literal);
+    let second = t.get_union_type(None, &[union, string], UnionReduction::Literal);
     assert_eq!(first, second);
-    let reversed = t.get_union_type(&[string, union], UnionReduction::Literal);
+    let reversed = t.get_union_type(None, &[string, union], UnionReduction::Literal);
     // Same worker result; the cache key is order-normalized.
     assert_eq!(first, reversed);
 }
@@ -269,12 +285,12 @@ fn named_union_members_denormalize_into_origin() {
     let mut t = tables();
     let one = t.get_number_literal_type(1.0);
     let two = t.get_number_literal_type(2.0);
-    let named = t.get_union_type(&[one, two], UnionReduction::Literal);
+    let named = t.get_union_type(None, &[one, two], UnionReduction::Literal);
     // Synthesize an alias (M4 machinery) to make the union "named".
     t.type_mut(named).alias_symbol = Some(crate::ty::SymbolId::new(0));
     // A union containing ONLY the named union returns it unchanged.
     let string = t.intrinsics.string;
-    let widened = t.get_union_type(&[named, string], UnionReduction::Literal);
+    let widened = t.get_union_type(None, &[named, string], UnionReduction::Literal);
     let TypeData::Union { types, origin } = &t.type_of(widened).data else {
         panic!("union expected");
     };
@@ -315,9 +331,9 @@ fn tuple_targets_intern_by_flags_and_readonly() {
     let mut t = tables();
     let req = [ElementFlags::REQUIRED, ElementFlags::OPTIONAL];
     let req_flags = TupleTargetFlags::new(&req).expect("not single-rest");
-    let a = t.get_tuple_target_type(req_flags, false, None);
-    let b = t.get_tuple_target_type(req_flags, false, None);
-    let readonly = t.get_tuple_target_type(req_flags, true, None);
+    let a = t.get_tuple_target_type(None, req_flags, false, None);
+    let b = t.get_tuple_target_type(None, req_flags, false, None);
+    let readonly = t.get_tuple_target_type(None, req_flags, true, None);
     assert_eq!(a, b);
     assert_ne!(a, readonly);
     let TypeData::TupleTarget(data) = &t.type_of(a).data else {
@@ -329,6 +345,7 @@ fn tuple_targets_intern_by_flags_and_readonly() {
 
     let rest = [ElementFlags::REQUIRED, ElementFlags::REST];
     let with_rest = t.get_tuple_target_type(
+        None,
         TupleTargetFlags::new(&rest).expect("not single-rest"),
         false,
         None,
@@ -354,7 +371,7 @@ fn tuple_length_types_exist_before_member_queries() {
         for readonly in [false, true] {
             let mut t = tables();
             let flags = TupleTargetFlags::new(&flags).expect("fixed tuple shape");
-            let target = t.get_tuple_target_type(flags, readonly, None);
+            let target = t.get_tuple_target_type(None, flags, readonly, None);
             let TypeData::TupleTarget(data) = &t.type_of(target).data else {
                 panic!("tuple target");
             };
@@ -367,15 +384,16 @@ fn tuple_length_types_exist_before_member_queries() {
             assert!(literals.iter().all(|literal| *literal < target));
             assert_eq!(
                 length_type,
-                t.get_union_type(&literals, UnionReduction::Literal)
+                t.get_union_type(None, &literals, UnionReduction::Literal)
             );
-            assert_eq!(target, t.get_tuple_target_type(flags, readonly, None));
+            assert_eq!(target, t.get_tuple_target_type(None, flags, readonly, None));
         }
     }
     for tail in [ElementFlags::REST, ElementFlags::VARIADIC] {
         let mut t = tables();
         let flags = [ElementFlags::REQUIRED, tail];
-        let target = t.get_tuple_target_type(TupleTargetFlags::new(&flags).unwrap(), false, None);
+        let target =
+            t.get_tuple_target_type(None, TupleTargetFlags::new(&flags).unwrap(), false, None);
         let TypeData::TupleTarget(data) = &t.type_of(target).data else {
             panic!("tuple target");
         };
@@ -398,20 +416,21 @@ fn normalized_tuples_splice_variadic_tuples() {
     let boolean = t.intrinsics.boolean;
     // [string, boolean]
     let inner = t
-        .create_tuple_type(&[string, boolean], None, false, None)
+        .create_tuple_type(None, &[string, boolean], None, false, None)
         .expect("inner tuple");
     // [number, ...[string, boolean]] normalizes to [number, string, boolean].
     let outer_flags = [ElementFlags::REQUIRED, ElementFlags::VARIADIC];
     let outer_target = t.get_tuple_target_type(
+        None,
         TupleTargetFlags::new(&outer_flags).expect("not single-rest"),
         false,
         None,
     );
     let outer = t
-        .create_normalized_tuple_type(outer_target, &[number, inner])
+        .create_normalized_tuple_type(None, outer_target, &[number, inner])
         .expect("normalized");
     let direct = t
-        .create_tuple_type(&[number, string, boolean], None, false, None)
+        .create_tuple_type(None, &[number, string, boolean], None, false, None)
         .expect("direct tuple");
     assert_eq!(outer, direct);
 }
@@ -422,21 +441,23 @@ fn template_literal_types_fold_and_intern() {
     let string = t.intrinsics.string;
     let number = t.intrinsics.number;
     // `a${string}` interns by texts+types.
-    let a1 = t.get_template_literal_type(&["a".into(), "".into()], &[string]);
-    let a2 = t.get_template_literal_type(&["a".into(), "".into()], &[string]);
+    let a1 = t.get_template_literal_type(None, &["a".into(), "".into()], &[string]);
+    let a2 = t.get_template_literal_type(None, &["a".into(), "".into()], &[string]);
     assert_eq!(a1, a2);
     // All-literal spans fold to a plain string literal (62071-62073).
     let one = t.get_number_literal_type(1.0);
-    let folded = t.get_template_literal_type(&["a".into(), "b".into()], &[one]);
+    let folded = t.get_template_literal_type(None, &["a".into(), "b".into()], &[one]);
     assert_eq!(folded, t.get_string_literal_type("a1b"));
     // The all-literal fold stays in the JavaScript UTF-16 domain:
     // a lone surrogate is not interned as U+FFFD.
     let suffix = t.get_string_literal_type("x");
     let folded_surrogate = t.get_template_literal_type_from_texts(
+        None,
         &[TemplateText::from_utf16(&[0xD800]), TemplateText::default()],
         &[suffix],
     );
     let folded_replacement = t.get_template_literal_type_from_texts(
+        None,
         &[TemplateText::from_utf16(&[0xFFFD]), TemplateText::default()],
         &[suffix],
     );
@@ -448,10 +469,10 @@ fn template_literal_types_fold_and_intern() {
         }
     );
     // `${string}` with empty texts collapses to string (62075-62078).
-    let s = t.get_template_literal_type(&["".into(), "".into()], &[string]);
+    let s = t.get_template_literal_type(None, &["".into(), "".into()], &[string]);
     assert_eq!(s, string);
     // `${number}` stays a pattern template.
-    let n = t.get_template_literal_type(&["".into(), "".into()], &[number]);
+    let n = t.get_template_literal_type(None, &["".into(), "".into()], &[number]);
     assert!(t.flags_of(n).intersects(TypeFlags::TEMPLATE_LITERAL));
     assert!(t.is_pattern_literal_type(n));
 
@@ -459,10 +480,12 @@ fn template_literal_types_fold_and_intern() {
     // unpaired surrogate stays distinct from U+FFFD, while a
     // valid pair is the same text as its scalar UTF-8 spelling.
     let surrogate = t.get_template_literal_type_from_texts(
+        None,
         &[TemplateText::from_utf16(&[0xD800]), TemplateText::default()],
         &[number],
     );
     let replacement = t.get_template_literal_type_from_texts(
+        None,
         &[TemplateText::from_utf16(&[0xFFFD]), TemplateText::default()],
         &[number],
     );
@@ -598,14 +621,14 @@ fn distinct_anonymous_object_types_never_intern() {
 fn optionality_follows_strict_null_checks() {
     let mut t = tables();
     let number = t.intrinsics.number;
-    let optional = t.add_optionality(number, /*is_property*/ true, true);
+    let optional = t.add_optionality(None, number, /*is_property*/ true, true);
     let TypeData::Union { types, .. } = &t.type_of(optional).data else {
         panic!("optional property type must union undefined");
     };
     assert!(types.contains(&t.intrinsics.undefined));
-    assert_eq!(t.add_optionality(number, true, false), number);
+    assert_eq!(t.add_optionality(None, number, true, false), number);
 
     let mut loose = TypeTables::new(false, false);
     let number = loose.intrinsics.number;
-    assert_eq!(loose.add_optionality(number, true, true), number);
+    assert_eq!(loose.add_optionality(None, number, true, true), number);
 }

@@ -2589,7 +2589,7 @@ impl<'a> CheckerState<'a> {
                     &[],
                 );
             }
-            return Ok(self.tables.get_regular_type_of_literal_type(expr_type));
+            return Ok(self.regular_type_of_literal_type(expr_type));
         }
         self.links
             .set_node_assertion_expression_type(self.speculation_depth, node, expr_type);
@@ -2951,6 +2951,8 @@ impl<'a> CheckerState<'a> {
                 self.tables.type_mut(result).object_flags = tsc_types::ObjectFlags::ANONYMOUS
                     | tsc_types::ObjectFlags::INSTANTIATION_EXPRESSION_TYPE;
                 self.tables.type_mut(result).symbol = Some(symbol);
+                let mut properties = properties;
+                self.order_named_members_if_stable(&mut properties, Some(symbol));
                 let members_id = self.alloc_members(crate::state::ResolvedMembers {
                     members,
                     properties,

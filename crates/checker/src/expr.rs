@@ -3465,7 +3465,7 @@ impl<'a> CheckerState<'a> {
                 let instantiated =
                     state.instantiate_contextual_type_for_node(Some(contextual_type), node)?;
                 if state.is_literal_of_contextual_type(ty, instantiated)? {
-                    return Ok(state.tables.get_regular_type_of_literal_type(ty));
+                    return Ok(state.regular_type_of_literal_type(ty));
                 }
             }
             Ok(ty)
@@ -3650,6 +3650,8 @@ impl<'a> CheckerState<'a> {
             .create_type(TypeFlags::OBJECT, tsc_types::TypeData::Object);
         self.tables.type_mut(id).object_flags = source_object_flags;
         self.tables.type_mut(id).symbol = symbol;
+        let mut properties = properties;
+        self.order_named_members_if_stable(&mut properties, symbol);
         let members_id = self.alloc_members(crate::state::ResolvedMembers {
             members: self.member_table(&members),
             properties,
@@ -4086,7 +4088,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<TypeId> {
         let ty = self.check_expression_with_force_tuple(node, check_mode, force_tuple)?;
         if self.is_const_context(node)? || self.is_common_js_exported_expression(node) {
-            return Ok(self.tables.get_regular_type_of_literal_type(ty));
+            return Ok(self.regular_type_of_literal_type(ty));
         }
         if self.is_type_assertion_expr(node) {
             return Ok(ty);

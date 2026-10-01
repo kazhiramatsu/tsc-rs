@@ -10,6 +10,7 @@ pub mod perf;
 pub mod tables;
 pub mod trace;
 pub mod ty;
+pub mod type_order;
 mod version;
 
 pub use escaped_name::EscapedName;
@@ -30,4 +31,5 @@ pub use ty::{
     MappedTypeModifiers, MapperId, PseudoBigInt, ReverseMappedTypeData, SubstitutionTypeData,
     SymbolId, TemplateText, TupleTargetData, Type, TypeData, TypeId,
 };
+pub use type_order::{TypeOrder, TypeOrderContext};
 pub use version::compiler_version_satisfies;

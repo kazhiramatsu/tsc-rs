@@ -1495,3 +1495,166 @@ fn no_emit_declaration_diagnostics_join_the_report_from_every_checker_budget() {
         );
     }
 }
+
+const STABLE_ORDERING_EFFECT_TS: &str = "interface Variance<A, E, R> {
+  _A: (_: never) => A
+  _E: (_: never) => E
+  _R: (_: never) => R
+}
+interface Effect<out A, out E = never, out R = never> {
+  readonly effect: Variance<A, E, R>
+}
+interface Stream<out A, out E = never, out R = never> {
+  readonly stream: Variance<A, E, R>
+}
+declare function tapError<A, E, R, A2, E2, R2>(
+  self: Stream<A, E, R>,
+  f: (error: E) => Effect<A2, E2, R2>
+): Stream<A, E | E2, R | R2>
+";
+
+const STABLE_ORDERING_USE_TS: &str = "const tapErrorIf = <A, E, R, A1, E1, R1>(
+  self: Stream<A, E, R>,
+  f: (e: E) => Effect<A1, E1, R1>,
+  p: (e: E) => boolean
+): Stream<A, E | E1, R | R1> =>
+  tapError(self, (error) => p(error) ? f(error) : voidEffect)
+";
+
+const STABLE_ORDERING_VOID_TS: &str = "declare const voidEffect: Effect<void>\n";
+
+const STABLE_ORDERING_UNION_TS: &str =
+    "export interface Box<out A> { readonly box: (_: never) => A }
+declare const cond: boolean
+declare const n: Box<number>
+declare const s: Box<string>
+declare const b: Box<boolean>
+export const first = cond ? n : s
+export const second = cond ? b : n
+export const third = cond ? (cond ? s : b) : n
+export const wrong: never = first
+export const literals = cond ? (cond ? 'y' : 'x') : (cond ? 2 : 1)
+export const typeofs = typeof first
+export const names = { b: 1, a: 2, ...{ c: 3 } }
+";
+
+const STABLE_ORDERING_MEMBERS_TS: &str = "export interface Merged { z: number }
+export class Merged { a = 1; static s = 2; m() {} }
+export class Derived extends Merged { y = 3; static t = 4 }
+export const derived = new Derived()
+export declare function pick<T>(value: T): { [K in keyof T]: T[K] }
+export const picked = pick({ b: 1, a: 'x' })
+export const spread = { ...{ b: 1 }, a: 2 }
+export const tuple: [b: number, a: string] = [1, 'x']
+";
+
+fn write_stable_ordering_program(tree: &TempTree, stable_type_ordering: Option<bool>) {
+    fs::write(tree.path("effect.ts"), STABLE_ORDERING_EFFECT_TS).expect("write source");
+    fs::write(tree.path("use.ts"), STABLE_ORDERING_USE_TS).expect("write source");
+    fs::write(tree.path("void.ts"), STABLE_ORDERING_VOID_TS).expect("write source");
+    fs::write(tree.path("union.ts"), STABLE_ORDERING_UNION_TS).expect("write source");
+    fs::write(tree.path("members.ts"), STABLE_ORDERING_MEMBERS_TS).expect("write source");
+    let option = match stable_type_ordering {
+        Some(value) => format!("\"stableTypeOrdering\":{value},"),
+        None => String::new(),
+    };
+    fs::write(
+        tree.path("tsconfig.json"),
+        format!(
+            r#"{{"compilerOptions":{{"strict":true,{option}"declaration":true,"outDir":"out","module":"commonjs","target":"es2015","lib":["es5"],"types":[]}},"files":["effect.ts","use.ts","void.ts","union.ts","members.ts"]}}"#
+        ),
+    )
+    .expect("write config");
+}
+
+fn assert_stable_ordering_matches_typescript(
+    tree: &TempTree,
+    arguments: &[&str],
+    expected_fragment: &str,
+    checker_counts: &[&str],
+) {
+    let typescript = run_typescript(tree, arguments);
+    let expected = String::from_utf8_lossy(&typescript.stdout).into_owned();
+    assert!(expected.contains(expected_fragment), "{expected}");
+    let expected_files = snapshot_files(&tree.path("out"));
+    assert!(
+        expected_files.iter().any(|(name, _)| name == "union.d.ts"),
+        "declaration output missing"
+    );
+    fs::remove_dir_all(tree.path("out")).expect("remove TypeScript output");
+    for checkers in checker_counts {
+        let rust = run_with_env(tree, arguments, &[("TSRS_CHECKERS", checkers)]);
+        assert_eq!(
+            rust.status.code(),
+            typescript.status.code(),
+            "checkers={checkers}"
+        );
+        assert_eq!(
+            String::from_utf8_lossy(&rust.stdout),
+            expected,
+            "checkers={checkers}"
+        );
+        assert!(rust.stderr.is_empty(), "checkers={checkers}");
+        assert_eq!(
+            snapshot_files(&tree.path("out")),
+            expected_files,
+            "checkers={checkers}"
+        );
+        fs::remove_dir_all(tree.path("out")).expect("remove tsc-rs output");
+    }
+}
+
+/// `stableTypeOrdering` (tsc 6.0.3's preview of the TypeScript 7 type
+/// order): the diagnostics and the declaration output match TypeScript's at
+/// every checker count, including the union member order in messages and
+/// declarations, the property order of merged classes, spreads, mapped and
+/// tuple types, and the inference that depends on the member order (the
+/// `void` candidate of effect's Stream.ts). Without the option the one-checker
+/// run reports tsc's creation-order error.
+#[test]
+fn stable_type_ordering_matches_typescript_at_every_checker_count() {
+    let tree = TempTree::new();
+    let arguments = ["--pretty", "false", "-p", "tsconfig.json"];
+
+    write_stable_ordering_program(&tree, Some(true));
+    assert_stable_ordering_matches_typescript(
+        &tree,
+        &arguments,
+        "Type 'Box<string> | Box<number>' is not assignable to type 'never'.",
+        &["1", "2", "3", "5"],
+    );
+
+    write_stable_ordering_program(&tree, None);
+    assert_stable_ordering_matches_typescript(
+        &tree,
+        &arguments,
+        "Type 'Effect<A1, E1, R1> | Effect<void, never, never>' is not assignable to type 'Effect<A1, E1, R1>'.",
+        &["1"],
+    );
+}
+
+/// `--stableTypeOrdering` on the command line selects the option like tsc.
+#[test]
+fn stable_type_ordering_command_line_flag_matches_typescript() {
+    let tree = TempTree::new();
+    write_stable_ordering_program(&tree, None);
+    assert_stable_ordering_matches_typescript(
+        &tree,
+        &[
+            "--pretty",
+            "false",
+            "--stableTypeOrdering",
+            "-p",
+            "tsconfig.json",
+        ],
+        "Type 'Box<string> | Box<number>' is not assignable to type 'never'.",
+        &["1", "2"],
+    );
+    write_stable_ordering_program(&tree, Some(true));
+    assert_stable_ordering_matches_typescript(
+        &tree,
+        &["--pretty", "false", "--stableTypeOrdering", "false", "-p", "tsconfig.json"],
+        "Type 'Effect<A1, E1, R1> | Effect<void, never, never>' is not assignable to type 'Effect<A1, E1, R1>'.",
+        &["1"],
+    );
+}

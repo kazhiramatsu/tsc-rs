@@ -25,8 +25,8 @@ use tsc_diagnostics::{
 use tsc_diagnostics::{gen, JsStr, JsString};
 use tsc_host::{CompilerHost, FsCompilerHost, HostError, ParallelSourceReader};
 use tsc_program::{
-    decode_host_text, is_non_fatal_option_diagnostic, load_config_program,
-    load_config_program_with_no_emit_override,
+    decode_host_text, is_non_fatal_option_diagnostic,
+    load_config_program_with_no_emit_override_and_overrides, load_config_program_with_overrides,
     load_emitting_config_program_with_no_emit_override_and_overrides,
     load_emitting_config_program_with_overrides, load_emitting_program, load_program,
     parse_config_root_plan_with_cache, CompilerConfigHost, CompilerOptions,
@@ -707,6 +707,7 @@ fn config_command_line_overrides(command_line: &CommandLine) -> ConfigCommandLin
     ConfigCommandLineOverrides {
         no_emit: options.no_emit,
         emit: ConfigEmitOptionOverrides {
+            stable_type_ordering: options.stable_type_ordering,
             target: options.target,
             module: options.module,
             use_define_for_class_fields: options.use_define_for_class_fields,
@@ -748,6 +749,16 @@ fn parse_arguments(args: &[String]) -> Result<CommandLine, CliError> {
             }
             value if value.starts_with("--noEmit=") => {
                 command_line.compiler_options.no_emit = Some(parse_inline_boolean(value)?);
+                index += 1;
+            }
+            "--stableTypeOrdering" => {
+                let (value, next_index) = consume_boolean_value(args, index, true);
+                command_line.compiler_options.stable_type_ordering = Some(value);
+                index = next_index;
+            }
+            value if value.starts_with("--stableTypeOrdering=") => {
+                command_line.compiler_options.stable_type_ordering =
+                    Some(parse_inline_boolean(value)?);
                 index += 1;
             }
             "--target" => {
@@ -999,7 +1010,13 @@ fn execute_config(
     let limits = cli_limits();
     let load_started = std::time::Instant::now();
     let prepared = match overrides.no_emit {
-        Some(true) => load_config_program_with_no_emit_override(host, plan, catalog, limits),
+        Some(true) => load_config_program_with_no_emit_override_and_overrides(
+            host,
+            plan,
+            catalog,
+            limits,
+            overrides.emit,
+        ),
         Some(false) => load_emitting_config_program_with_no_emit_override_and_overrides(
             host,
             plan,
@@ -1008,7 +1025,7 @@ fn execute_config(
             overrides.emit,
         ),
         None if plan.compiler_options().no_emit == Some(true) => {
-            load_config_program(host, plan, catalog, limits)
+            load_config_program_with_overrides(host, plan, catalog, limits, overrides.emit)
         }
         None => {
             load_emitting_config_program_with_overrides(host, plan, catalog, limits, overrides.emit)

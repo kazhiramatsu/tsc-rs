@@ -4894,12 +4894,9 @@ fn format_union_types(
                 {
                     let count = base_types.len();
                     if count > 0 && index + count <= types.len() {
-                        let run_last = checker
-                            .tables
-                            .get_regular_type_of_literal_type(types[index + count - 1]);
-                        let base_last = checker
-                            .tables
-                            .get_regular_type_of_literal_type(base_types[count - 1]);
+                        let run_last =
+                            checker.regular_type_of_literal_type(types[index + count - 1]);
+                        let base_last = checker.regular_type_of_literal_type(base_types[count - 1]);
                         if run_last == base_last {
                             result.push(base);
                             index += count;

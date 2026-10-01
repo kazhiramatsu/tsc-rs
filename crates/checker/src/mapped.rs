@@ -292,7 +292,7 @@ impl<'a> CheckerState<'a> {
             } else {
                 self.could_access_optional_property(object_type, index)?
             };
-        Ok(self.tables.add_optionality(
+        Ok(self.add_optionality(
             instantiated_template,
             /*is_property*/ true,
             is_optional,
@@ -520,7 +520,8 @@ impl<'a> CheckerState<'a> {
                     )?;
                 }
             }
-            let properties = members.values().copied().collect();
+            let mut properties: Vec<SymbolId> = members.values().copied().collect();
+            state.order_named_members_if_stable(&mut properties, state.tables.type_of(ty).symbol);
             Ok(ResolvedMembers {
                 members: state.member_table(&members),
                 properties,

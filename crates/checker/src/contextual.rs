@@ -2441,8 +2441,18 @@ impl<'a> CheckerState<'a> {
                                 let has_both_boolean_literals =
                                     match &self.tables.type_of(instantiated).data {
                                         TypeData::Union { types, .. } => {
-                                            crate::engine::contains_type(types, false_regular)
-                                                && crate::engine::contains_type(types, true_regular)
+                                            let ctx = crate::type_order::order_ctx!(self);
+                                            tsc_types::type_order::contains_type(
+                                                &self.tables,
+                                                ctx.order(),
+                                                types,
+                                                false_regular,
+                                            ) && tsc_types::type_order::contains_type(
+                                                &self.tables,
+                                                ctx.order(),
+                                                types,
+                                                true_regular,
+                                            )
                                         }
                                         _ => unreachable!("union flag implies union data"),
                                     };

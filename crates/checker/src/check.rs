@@ -9168,6 +9168,8 @@ impl<'a> CheckerState<'a> {
                 let remainder = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
                 self.tables.type_mut(remainder).object_flags = ObjectFlags::ANONYMOUS;
                 self.tables.type_mut(remainder).symbol = source_symbol;
+                let mut properties = properties;
+                self.order_named_members_if_stable(&mut properties, source_symbol);
                 let remainder_members = self.alloc_members(crate::state::ResolvedMembers {
                     members: member_table,
                     properties,
@@ -10647,7 +10649,7 @@ impl<'a> CheckerState<'a> {
         // expression type, regularize literals, widen, then apply the current
         // signature mapper before rendering in the existing display context.
         let ty = self.get_type_of_expression(expression)?;
-        let regular = self.tables.get_regular_type_of_literal_type(ty);
+        let regular = self.regular_type_of_literal_type(ty);
         let widened = self.get_widened_type(regular)?;
         let mapper = self.display_mappers.last().copied();
         let instantiated = self.instantiate_type(widened, mapper)?;
@@ -13414,9 +13416,7 @@ impl<'a> CheckerState<'a> {
 
         let expression_type =
             self.check_expression_cached(expression, tsc_types::CheckMode::NORMAL)?;
-        let expression_type = self
-            .tables
-            .get_regular_type_of_literal_type(expression_type);
+        let expression_type = self.regular_type_of_literal_type(expression_type);
         let literal = match &self.tables.type_of(expression_type).data {
             TypeData::Literal {
                 value: tsc_types::LiteralValue::String(value),
@@ -13785,12 +13785,8 @@ impl<'a> CheckerState<'a> {
                     };
                     let count = base_types.len();
                     if count > 0 && i + count <= types.len() {
-                        let run_last = self
-                            .tables
-                            .get_regular_type_of_literal_type(types[i + count - 1]);
-                        let base_last = self
-                            .tables
-                            .get_regular_type_of_literal_type(base_types[count - 1]);
+                        let run_last = self.regular_type_of_literal_type(types[i + count - 1]);
+                        let base_last = self.regular_type_of_literal_type(base_types[count - 1]);
                         if run_last == base_last {
                             result.push(base);
                             i += count;

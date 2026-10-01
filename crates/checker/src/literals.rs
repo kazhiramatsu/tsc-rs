@@ -279,7 +279,7 @@ impl<'a> CheckerState<'a> {
                 } else {
                     let ty =
                         state.check_expression_for_mutable_location(e, check_mode, force_tuple)?;
-                    let with_optionality = state.tables.add_optionality(
+                    let with_optionality = state.add_optionality(
                         ty,
                         /*is_property*/ true,
                         has_omitted_expression,
@@ -1453,6 +1453,8 @@ impl<'a> CheckerState<'a> {
         // structured tail).
         self.tables.type_mut(id).object_flags = object_flags | ObjectFlags::ANONYMOUS;
         self.tables.type_mut(id).symbol = symbol;
+        let mut properties = properties;
+        self.order_named_members_if_stable(&mut properties, symbol);
         let members_id = self.alloc_members(crate::state::ResolvedMembers {
             members,
             properties,
@@ -1643,8 +1645,7 @@ impl<'a> CheckerState<'a> {
                     self.tables.intrinsics.undefined
                 } else {
                     let prop_type = self.get_type_of_symbol(prop)?;
-                    self.tables
-                        .add_optionality(prop_type, /*is_property*/ true, true)
+                    self.add_optionality(prop_type, /*is_property*/ true, true)
                 };
                 self.links
                     .set_fresh_symbol_type(result, crate::links::LinkSlot::Resolved(result_type));
@@ -1688,7 +1689,7 @@ impl<'a> CheckerState<'a> {
         if !self.check_cross_product_union(types) {
             return self.tables.intrinsics.error;
         }
-        self.tables.get_template_literal_type(texts, types)
+        self.template_literal_type_tables(texts, types)
     }
 
     /// tsc-port: getTemplateLiteralType @6.0.3
@@ -1705,8 +1706,9 @@ impl<'a> CheckerState<'a> {
         if !self.check_cross_product_union(types) {
             return self.tables.intrinsics.error;
         }
+        let ctx = crate::type_order::order_ctx!(self);
         self.tables
-            .get_template_literal_type_from_texts(texts, types)
+            .get_template_literal_type_from_texts(ctx.order(), texts, types)
     }
 
     /// tsc-port: checkCrossProductUnion @6.0.3

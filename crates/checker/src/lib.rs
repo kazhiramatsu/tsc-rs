@@ -138,6 +138,7 @@ pub mod state;
 pub mod statements;
 pub mod structural;
 mod syntactic_type_node_builder;
+pub(crate) mod type_order;
 pub mod unions;
 mod unused;
 pub mod variance;
@@ -2998,7 +2999,9 @@ fn run_checker_shard<'a>(
     // so the driver can replay the check serially; the default mode keeps
     // the sharded result and records nothing.
     let init_boundary = state.tables.len();
-    if replay_on_order {
+    // With stableTypeOrdering the member order no longer follows the
+    // shard-local ids, so there is no order to guard.
+    if replay_on_order && !state.stable_type_ordering {
         state.order_guard.arm(init_boundary);
     }
     if tsc_types::trace::enabled() {

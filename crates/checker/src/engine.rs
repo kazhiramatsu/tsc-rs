@@ -64,15 +64,6 @@ fn enum_relation_value_text(value: &EvalValue) -> JsString {
     }
 }
 
-/// stableTypeOrdering off: binary search keyed by type id over the
-/// id-sorted member list (tsc containsType 61327).
-/// tsc-port: containsType @6.0.3
-/// tsc-hash: eb85169b6f340700fb536db728d227aa1b9585f36371df6db5f7fd8270934d9d
-/// tsc-span: _tsc.js:61327-61329
-pub(crate) fn contains_type(types: &[TypeId], ty: TypeId) -> bool {
-    types.binary_search(&ty).is_ok()
-}
-
 /// tsrs-native: bitflag composition for tsc's inline Ternary
 /// arithmetic; there is no standalone tsc function.
 pub(crate) fn ternary_and(left: Ternary, right: Ternary) -> Ternary {
@@ -1351,6 +1342,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
 
     /// tsrs-native: owned-list projection for tsc's direct
     /// union/intersection `type.types` property access.
+    /// containsType over a member list kept in this checker's order.
+    pub(crate) fn contains_type_ordered(&self, types: &[TypeId], ty: TypeId) -> bool {
+        let ctx = crate::type_order::order_ctx!(self.st);
+        tsc_types::type_order::contains_type(&self.st.tables, ctx.order(), types, ty)
+    }
+
     pub(crate) fn union_members(&self, ty: TypeId) -> Vec<TypeId> {
         match &self.st.tables.type_of(ty).data {
             TypeData::Union { types, .. } | TypeData::Intersection { types } => types.to_vec(),
@@ -3051,7 +3048,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     ) -> CheckResult<Ternary> {
         let target_types = self.union_members(target);
         if self.flags(target).intersects(TypeFlags::UNION) {
-            if contains_type(&target_types, source) {
+            if self.contains_type_ordered(&target_types, source) {
                 return Ok(Ternary::TRUE);
             }
             let source_flags = self.flags(source).bits();
@@ -3086,8 +3083,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 } else {
                     None
                 };
-                let matched = primitive.is_some_and(|p| contains_type(&target_types, p))
-                    || alternate_form.is_some_and(|a| contains_type(&target_types, a));
+                let matched = primitive
+                    .is_some_and(|p| self.contains_type_ordered(&target_types, p))
+                    || alternate_form.is_some_and(|a| self.contains_type_ordered(&target_types, a));
                 return Ok(if matched {
                     Ternary::TRUE
                 } else {
@@ -3189,7 +3187,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         intersection_state: IntersectionState,
     ) -> CheckResult<Ternary> {
         let source_types = self.union_members(source);
-        if self.flags(source).intersects(TypeFlags::UNION) && contains_type(&source_types, target) {
+        if self.flags(source).intersects(TypeFlags::UNION)
+            && self.contains_type_ordered(&source_types, target)
+        {
             return Ok(Ternary::TRUE);
         }
         let len = source_types.len();
@@ -3986,7 +3986,10 @@ impl<'a> CheckerState<'a> {
             else {
                 unreachable!("union flag implies union data");
             };
-            return Ok(source_types.iter().all(|&t| contains_type(target_types, t)));
+            let ctx = crate::type_order::order_ctx!(self);
+            return Ok(source_types.iter().all(|&t| {
+                tsc_types::type_order::contains_type(&self.tables, ctx.order(), target_types, t)
+            }));
         }
         if self
             .tables
@@ -4003,7 +4006,13 @@ impl<'a> CheckerState<'a> {
         else {
             unreachable!("union flag implies union data");
         };
-        Ok(contains_type(target_types, source))
+        let ctx = crate::type_order::order_ctx!(self);
+        Ok(tsc_types::type_order::contains_type(
+            &self.tables,
+            ctx.order(),
+            target_types,
+            source,
+        ))
     }
 
     /// tsc-port: isEmptyObjectType @6.0.3
@@ -4118,6 +4127,8 @@ impl<'a> CheckerState<'a> {
             properties.push(member);
         }
         let source_members = self.members_of(resolved);
+        let mut properties = properties;
+        self.order_named_members_if_stable(&mut properties, self.tables.type_of(ty).symbol);
         let members_id = self.alloc_members(crate::state::ResolvedMembers {
             members: self.member_table(&members),
             properties,
@@ -4249,7 +4260,7 @@ impl<'a> CheckerState<'a> {
                     vec![discriminant]
                 };
                 for t in constituents {
-                    let regular = self.tables.get_regular_type_of_literal_type(t);
+                    let regular = self.regular_type_of_literal_type(t);
                     match map.get(&regular).copied() {
                         None => {
                             map.insert(regular, ty);
@@ -4546,7 +4557,7 @@ impl<'a> CheckerState<'a> {
         union: TypeId,
         key_type: TypeId,
     ) -> CheckResult<Option<TypeId>> {
-        let key = self.tables.get_regular_type_of_literal_type(key_type);
+        let key = self.regular_type_of_literal_type(key_type);
         let unknown = self.tables.intrinsics.unknown;
         let result = self
             .links

@@ -114,7 +114,7 @@ fn binding_pattern_initializers_get_the_pattern_type() {
             // under the default strictNullChecks.
             let number = state.tables.intrinsics.number;
             let expected = state.tables.add_optionality(
-                number, /*is_property*/ false, /*is_optional*/ true,
+                None, number, /*is_property*/ false, /*is_optional*/ true,
             );
             assert_eq!(member, expected);
             // SkipBindingPatterns answers None instead.
@@ -149,7 +149,7 @@ fn contextually_typed_parameter_reads_the_annotated_signature() {
             // the default strictNullChecks.
             let string = state.tables.intrinsics.string;
             let expected = state.tables.add_optionality(
-                string, /*is_property*/ false, /*is_optional*/ true,
+                None, string, /*is_property*/ false, /*is_optional*/ true,
             );
             assert_eq!(contextual, Some(expected));
         },
@@ -196,7 +196,7 @@ fn fresh_literals_widen_without_a_matching_context() {
             .get_widened_literal_like_type_for_contextual_type(fresh, None)
             .expect("in slice");
         assert_eq!(widened, state.tables.intrinsics.string);
-        let regular = state.tables.get_regular_type_of_literal_type(fresh);
+        let regular = state.tables.get_regular_type_of_literal_type(None, fresh);
         let kept = state
             .get_widened_literal_like_type_for_contextual_type(fresh, Some(regular))
             .expect("in slice");

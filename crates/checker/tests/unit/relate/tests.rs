@@ -106,6 +106,7 @@ fn generic_reference_keys_use_backrefs() {
         // its synthesized (unconstrained) type parameters — the
         // one M3-constructible generic-reference shape.
         let target = state.tables.get_tuple_target_type(
+            None,
             TupleTargetFlags::new(&[ElementFlags::REQUIRED, ElementFlags::OPTIONAL])
                 .expect("required/optional tuple is not single-rest"),
             false,

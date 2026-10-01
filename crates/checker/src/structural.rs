@@ -2089,11 +2089,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 .get_check_flags(target_prop)
                 .intersects(CheckFlags::PARTIAL);
         let non_missing = self.st.get_non_missing_type_of_symbol(target_prop)?;
-        let effective_target = self.st.tables.add_optionality(
-            non_missing,
-            /*is_property*/ false,
-            target_is_optional,
-        );
+        let effective_target =
+            self.st
+                .add_optionality(non_missing, /*is_property*/ false, target_is_optional);
         let any_mask = if self.relation == RelationKind::StrictSubtype {
             TypeFlags::ANY
         } else {
@@ -4698,6 +4696,9 @@ impl<'a> CheckerState<'a> {
                 break;
             }
         }
+        // stableTypeOrdering: getNamedMembers(members, type.symbol) sorts the
+        // combined properties (58741); union and intersection types have no symbol.
+        self.order_named_members_if_stable(&mut result, None);
         self.links
             .set_type_resolved_properties(ty, result.clone().into_boxed_slice());
         Ok(result)
@@ -4838,7 +4839,7 @@ impl<'a> CheckerState<'a> {
         let Some(prop_type) = self.get_applicable_index_info_for_name(ty, name)? else {
             return Ok(None);
         };
-        Ok(Some(self.tables.add_optionality(
+        Ok(Some(self.add_optionality(
             prop_type, /*is_property*/ true, /*is_optional*/ true,
         )))
     }
@@ -6032,8 +6033,8 @@ impl<'a> CheckerState<'a> {
                         {
                             let source_type = self.get_type_of_symbol(source_prop)?;
                             if !(self.tables.flags_of(source_type).intersects(TypeFlags::ANY)
-                                || self.tables.get_regular_type_of_literal_type(source_type)
-                                    == self.tables.get_regular_type_of_literal_type(target_type))
+                                || self.regular_type_of_literal_type(source_type)
+                                    == self.regular_type_of_literal_type(target_type))
                             {
                                 return Ok(Some(target_prop));
                             }
@@ -8024,7 +8025,7 @@ impl<'a> CheckerState<'a> {
             let rest_array = self.get_rest_array_type_of_tuple_type(ty)?;
             return match rest_array {
                 Some(array) => Ok(array),
-                None => Ok(self.tables.get_tuple_target_type(
+                None => Ok(self.tuple_target_type(
                     TupleTargetFlags::new(&[]).expect("empty tuple is not single-rest"),
                     false,
                     None,
@@ -8087,9 +8088,7 @@ impl<'a> CheckerState<'a> {
         }
         let flags = TupleTargetFlags::new(flags)
             .expect("single-rest tuples collapse before tuple-target construction");
-        let target = self
-            .tables
-            .get_tuple_target_type(flags, readonly, named_member_declarations);
+        let target = self.tuple_target_type(flags, readonly, named_member_declarations);
         if element_types.is_empty() {
             return Ok(target);
         }

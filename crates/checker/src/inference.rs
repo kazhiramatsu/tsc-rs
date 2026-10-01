@@ -1144,7 +1144,7 @@ impl<'a> CheckerState<'a> {
         let base_candidates = if primitive_constraint {
             candidates
                 .iter()
-                .map(|&t| self.tables.get_regular_type_of_literal_type(t))
+                .map(|&t| self.regular_type_of_literal_type(t))
                 .collect::<Vec<_>>()
         } else if widen_literal_types {
             let mut widened = Vec::with_capacity(candidates.len());

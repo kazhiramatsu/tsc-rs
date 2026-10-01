@@ -263,7 +263,8 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         };
         let exports = self.get_exports_of_module(target_module)?;
-        let candidates: Vec<SymbolId> = exports.values().copied().collect();
+        let mut candidates: Vec<SymbolId> = exports.values().copied().collect();
+        self.sort_symbols_if_stable(&mut candidates);
         Ok(self.get_spelling_suggestion_for_name(
             &name_text,
             &candidates,
