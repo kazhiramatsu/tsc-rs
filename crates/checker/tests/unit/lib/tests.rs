@@ -5426,10 +5426,11 @@ fn checked_js_valid_template_nested_prototype_read_is_parse_all_crash_guard() {
             ))
             .collect::<Vec<_>>(),
         [(
-            6133,
-            source.find("@template").expect("unused template tag") as u32,
-            12,
-            "'T' is declared but its value is never read.",
+            6196,
+            source.find("@template T").expect("unused template tag") as u32
+                + "@template ".len() as u32,
+            1,
+            "'T' is declared but never used.",
         )]
     );
     assert!(
@@ -5466,7 +5467,7 @@ fn checked_js_outer_template_display_crash_does_not_stop_later_errors() {
         result
             .diagnostics
             .iter()
-            .filter(|diagnostic| matches!(diagnostic.code(), 2339 | 6133))
+            .filter(|diagnostic| matches!(diagnostic.code(), 2339 | 6196))
             .map(|diagnostic| (
                 diagnostic.code(),
                 diagnostic.start.unwrap_or(u32::MAX),
@@ -5475,9 +5476,10 @@ fn checked_js_outer_template_display_crash_does_not_stop_later_errors() {
             .collect::<Vec<_>>(),
         [
             (
-                6133,
-                source.find("@template").expect("unused template tag") as u32,
-                12,
+                6196,
+                source.find("@template T").expect("unused template tag") as u32
+                    + "@template ".len() as u32,
+                1,
             ),
             (
                 2339,
@@ -5517,7 +5519,7 @@ fn checked_js_outer_template_display_crash_consumes_preceding_expect_error_range
             .iter()
             .map(|diagnostic| diagnostic.code())
             .collect::<Vec<_>>(),
-        [6133],
+        [6196],
         "the contained oracle crash must consume the directive without fabricating TS2578"
     );
     assert!(result.partial_checks.is_empty());

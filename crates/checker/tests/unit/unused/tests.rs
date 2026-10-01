@@ -169,11 +169,11 @@ fn merged_type_and_value_parameter_references_keep_their_meaning_masks() {
     assert_eq!(
         unused_rows(value_only, &options),
         [(
-            6133,
+            6196,
             DiagnosticCategory::Error,
-            value_only.find("<T>").expect("type parameter range") as u32,
-            3,
-            "'T' is declared but its value is never read.".to_owned(),
+            value_only.find("<T>").expect("type parameter range") as u32 + 1,
+            1,
+            "'T' is declared but never used.".to_owned(),
         )],
         "a value-meaning read must not mark the merged type-parameter face"
     );
@@ -303,17 +303,19 @@ fn unused_type_parameters_cover_every_ts_owner_and_exact_spans() {
     let rows = unused_rows(text, &CompilerOptions::default());
     assert_eq!(rows.len(), 19);
     assert_eq!(rows.iter().filter(|row| row.0 == 6205).count(), 3);
-    assert_eq!(rows.iter().filter(|row| row.0 == 6133).count(), 16);
+    assert_eq!(rows.iter().filter(|row| row.0 == 6196).count(), 16);
     assert!(rows
         .iter()
         .all(|row| row.1 == DiagnosticCategory::Suggestion));
 
-    let single_start = text.find("<T> {}").expect("single class list") as u32;
+    // TypeScript 7.1 reports a lone unused type parameter at its own node
+    // (tsc 6.0 reported it over the `<T>` list).
+    let single_start = text.find("<T> {}").expect("single class list") as u32 + 1;
     assert!(rows.iter().any(|row| {
-        row.0 == 6133
+        row.0 == 6196
             && row.2 == single_start
-            && row.3 == 3
-            && row.4 == "'T' is declared but its value is never read."
+            && row.3 == 1
+            && row.4 == "'T' is declared but never used."
     }));
     let multiple_start = text.find("<T, U> {}").expect("multiple class list") as u32;
     assert!(rows.iter().any(|row| {
@@ -325,10 +327,10 @@ fn unused_type_parameters_cover_every_ts_owner_and_exact_spans() {
     let partial_start =
         text.find("ClassPartial<T, U>").expect("partial class") + "ClassPartial<T, ".len();
     assert!(rows.iter().any(|row| {
-        row.0 == 6133
+        row.0 == 6196
             && row.2 == partial_start as u32
             && row.3 == 1
-            && row.4 == "'U' is declared but its value is never read."
+            && row.4 == "'U' is declared but never used."
     }));
 
     let local_mode_rows = unused_rows(
@@ -356,7 +358,10 @@ fn unused_type_parameters_cover_every_ts_owner_and_exact_spans() {
 }
 
 #[test]
-fn unused_type_parameters_honor_trivia_underscores_and_last_merged_declaration() {
+fn unused_type_parameters_honor_trivia_underscores_and_every_same_file_declaration() {
+    // TypeScript 7.1 checks every declaration (tsc 6.0 only the last one):
+    // merged interface type parameters share one symbol, so a use in either
+    // declaration counts; each overload's type parameter is its own symbol.
     let text = "export class Trivia<T /* kept in aggregate span */> {}\n\
                     export interface LastUnused<T> { value: T; }\n\
                     export interface LastUnused<T> { other: number; }\n\
@@ -368,49 +373,47 @@ fn unused_type_parameters_honor_trivia_underscores_and_last_merged_declaration()
                     export function OverloadLastUsed<T>(value: T): T { return value; }\n\
                     export type Ignored<_T, _U> = number;\n";
     let rows = unused_rows(text, &CompilerOptions::default());
-    assert_eq!(rows.len(), 2);
-
-    let trivia = "<T /* kept in aggregate span */>";
-    let trivia_start = text.find(trivia).expect("trivia type parameter list") as u32;
+    let trivia_start = text.find("<T /* kept").expect("trivia type parameter") as u32 + 1;
+    let last_unused_start = (text
+        .find("OverloadLastUnused<T>(value: number)")
+        .expect("unused overload")
+        + "OverloadLastUnused<".len()) as u32;
+    let last_used_start = (text
+        .find("OverloadLastUsed<T>(value: number)")
+        .expect("unused overload of a used function")
+        + "OverloadLastUsed<".len()) as u32;
     assert_eq!(
-        (&rows[0].0, &rows[0].2, &rows[0].3, rows[0].4.as_str()),
-        (
-            &6133,
-            &trivia_start,
-            &(trivia.len() as u32),
-            "'T' is declared but its value is never read.",
-        )
-    );
-
-    let last_unused = "OverloadLastUnused<T>(value: number)";
-    let last_unused_start = text
-        .find(last_unused)
-        .expect("last merged overload declaration")
-        + "OverloadLastUnused".len();
-    assert_eq!(
-        (&rows[1].0, &rows[1].2, &rows[1].3, rows[1].4.as_str()),
-        (
-            &6133,
-            &(last_unused_start as u32),
-            &3,
-            "'T' is declared but its value is never read.",
-        )
+        rows.iter()
+            .map(|row| (row.0, row.2, row.3, row.4.as_str()))
+            .collect::<Vec<_>>(),
+        [
+            (6196, trivia_start, 1, "'T' is declared but never used."),
+            (
+                6196,
+                last_unused_start,
+                1,
+                "'T' is declared but never used."
+            ),
+            (6196, last_used_start, 1, "'T' is declared but never used."),
+        ]
     );
 }
 
 #[test]
-fn unused_infer_type_parameters_follow_node_spans_and_parameter_mode() {
+fn unused_infer_type_parameters_follow_name_spans_and_parameter_mode() {
+    // TypeScript 7.1 reports an unused `infer` type parameter at its name.
     let text = "export type Used<T> = T extends infer U ? U : never;\n\
                     export type Unused<T> = T extends infer U ? string : never;\n\
                     export type Underscore<T> = T extends infer _U ? string : never;\n\
                     export type Repeated<T> = T extends { left: infer U; right: infer U } ? string : never;\n\
                     export type Outside = infer U;\n";
     let expected_starts = [
-        text.find("infer U ? string").expect("single unused infer"),
-        text.find("infer U; right").expect("first repeated infer"),
+        text.find("infer U ? string").expect("single unused infer") + "infer ".len(),
+        text.find("infer U; right").expect("first repeated infer") + "infer ".len(),
         text.find("infer U } ? string")
-            .expect("second repeated infer"),
-        text.rfind("infer U").expect("outside infer"),
+            .expect("second repeated infer")
+            + "infer ".len(),
+        text.rfind("infer U").expect("outside infer") + "infer ".len(),
     ];
     for (options, category) in [
         (CompilerOptions::default(), DiagnosticCategory::Suggestion),
@@ -438,11 +441,11 @@ fn unused_infer_type_parameters_follow_node_spans_and_parameter_mode() {
             expected_starts
                 .iter()
                 .map(|start| (
-                    6133,
+                    6196,
                     category,
                     *start as u32,
-                    7,
-                    "'U' is declared but its value is never read.",
+                    1,
+                    "'U' is declared but never used.",
                 ))
                 .collect::<Vec<_>>()
         );
