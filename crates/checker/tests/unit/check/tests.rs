@@ -1,6 +1,8 @@
 use tsc_binder::node_util;
 use tsc_syntax::{NodeData, SyntaxKind};
-use tsc_types::{CompilerOptions, ObjectFlags, ScriptTarget, SymbolFlags, TypeData, TypeFlags};
+use tsc_types::{
+    CompilerOptions, ObjectFlags, ReferenceProfile, ScriptTarget, SymbolFlags, TypeData, TypeFlags,
+};
 
 use crate::state::test_support::{with_program_state, with_program_state_allow_parse_diagnostics};
 use crate::state::CheckerState;
@@ -238,7 +240,56 @@ fn diag_rows(state: &CheckerState) -> Vec<(u32, u32, u32, String)> {
 }
 
 fn checked_chain_codes(text: &str) -> Vec<Vec<u32>> {
+    checked_chain_codes_with(text, &CompilerOptions::default())
+}
+
+/// tsc 6.0.3's creation order for unions and object members: the
+/// tests whose pins depend on that order (recorded from the 6.0.3
+/// oracle) select it explicitly, since the 7.1 profile orders by
+/// content by default.
+fn creation_order_options() -> CompilerOptions {
+    CompilerOptions {
+        stable_type_ordering: Some(false),
+        ..CompilerOptions::default()
+    }
+}
+
+/// Every error diagnostic's chain as `(code, text)` rows, head first.
+fn checked_chain_texts(text: &str) -> Vec<Vec<(u32, String)>> {
     with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        state.check_source_file(0);
+        state
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| {
+                diagnostic.file_name.is_some()
+                    && diagnostic.category() == tsc_diagnostics::DiagnosticCategory::Error
+            })
+            .map(|diagnostic| {
+                fn visit(chain: &tsc_diagnostics::MessageChain, rows: &mut Vec<(u32, String)>) {
+                    rows.push((
+                        chain.code,
+                        chain
+                            .text
+                            .as_str()
+                            .expect("scalar diagnostic observation")
+                            .to_owned(),
+                    ));
+                    for next in &chain.next {
+                        visit(next, rows);
+                    }
+                }
+
+                let mut rows = Vec::new();
+                visit(&diagnostic.message, &mut rows);
+                rows
+            })
+            .collect()
+    })
+}
+
+fn checked_chain_codes_with(text: &str, options: &CompilerOptions) -> Vec<Vec<u32>> {
+    with_program_state(&[("a.ts", text)], options, |state| {
         state.check_source_file(0);
         state
             .diagnostics
@@ -405,15 +456,17 @@ fn no_infer_relation_reports_use_the_write_normalized_target() {
     );
     let messages = rows
         .into_iter()
-        .filter(|row| matches!(row.0, 2345 | 2353))
+        .filter(|row| matches!(row.0, 2741 | 2353))
         .map(|row| (row.0, row.3))
         .collect::<Vec<_>>();
     assert_eq!(
             messages,
             [
+                // The 7.1 profile reports the missing property in place of
+                // the 2345 head; the write-normalized target still prints.
                 (
-                    2345,
-                    "Argument of type '{ x: number; }' is not assignable to parameter of type '{ x: number; y: number; }'."
+                    2741,
+                    "Property 'y' is missing in type '{ x: number; }' but required in type '{ x: number; y: number; }'."
                         .to_owned(),
                 ),
                 (
@@ -2249,7 +2302,9 @@ fn jsdoc_satisfies_semantics_reports_named_primitive_and_function_targets() {
         let diagnostics = state
             .diagnostics
             .iter()
-            .filter(|diagnostic| diagnostic.code() == 1360)
+            // The object target reports its missing property in place of
+            // the 1360 head under the 7.1 profile.
+            .filter(|diagnostic| matches!(diagnostic.code(), 1360 | 2741))
             .map(|diagnostic| {
                 (
                     diagnostic.start.expect("TS1360 start"),
@@ -2273,7 +2328,8 @@ fn jsdoc_satisfies_semantics_reports_named_primitive_and_function_targets() {
                     (
                         tags[0].0,
                         tags[0].1,
-                        "Type '{}' does not satisfy the expected type 'Required'.".to_owned(),
+                        "Property 'value' is missing in type '{}' but required in type 'Required'."
+                            .to_owned(),
                     ),
                     (
                         tags[1].0,
@@ -2352,8 +2408,10 @@ fn jsdoc_satisfies_missing_property_keeps_relation_chain_and_declaration() {
         let diagnostic = state
             .diagnostics
             .iter()
-            .find(|diagnostic| diagnostic.code() == 1360)
-            .expect("TS1360");
+            // TypeScript 7.1 reports the missing-property row in place
+            // of the 1360 head.
+            .find(|diagnostic| diagnostic.code() == 2741)
+            .expect("TS2741");
         fn flatten(chain: &tsc_diagnostics::MessageChain, codes: &mut Vec<u32>) {
             codes.push(chain.code);
             for child in &chain.next {
@@ -2362,7 +2420,7 @@ fn jsdoc_satisfies_missing_property_keeps_relation_chain_and_declaration() {
         }
         let mut codes = Vec::new();
         flatten(&diagnostic.message, &mut codes);
-        assert_eq!(codes, [1360, 2741]);
+        assert_eq!(codes, [2741]);
         let related = diagnostic.related.first().expect("TS2728");
         assert_eq!(diagnostic.related.len(), 1);
         assert_eq!(
@@ -6049,8 +6107,8 @@ fn union_target_object_members_keep_the_union_head() {
 #[test]
 fn global_object_head_selection_distinguishes_members_from_signatures() {
     assert_eq!(
-            checked_diags(
-                "interface Object { toString(): string }\n\
+        checked_diags(
+            "interface Object { toString(): string }\n\
                  interface I { toString(): number }\n\
                  interface Callable { (): void }\n\
                  declare let o: Object;\n\
@@ -6058,23 +6116,25 @@ fn global_object_head_selection_distinguishes_members_from_signatures() {
                  declare let c: Callable;\n\
                  i = o;\n\
                  c = o;\n"
+        ),
+        [
+            // TypeScript 7.1 keeps the generic head above the 2696
+            // row (tsc 6.0.3 replaced it): the row under the head is
+            // 2696, not a missing-property row.
+            (
+                2322,
+                173,
+                1,
+                "Type 'Object' is not assignable to type 'I'.".to_owned()
             ),
-            [
-                (
-                    2696,
-                    173,
-                    1,
-                    "The 'Object' type is assignable to very few other types. Did you mean to use the 'any' type instead?"
-                        .to_owned()
-                ),
-                (
-                    2322,
-                    180,
-                    1,
-                    "Type 'Object' is not assignable to type 'Callable'.".to_owned()
-                )
-            ]
-        );
+            (
+                2322,
+                180,
+                1,
+                "Type 'Object' is not assignable to type 'Callable'.".to_owned()
+            )
+        ]
+    );
     assert_eq!(
         checked_chain_codes(
             "interface Object { toString(): string }\n\
@@ -6090,8 +6150,10 @@ fn global_object_head_selection_distinguishes_members_from_signatures() {
                  c = o;\n"
         ),
         [
-            vec![2696, 2201, 2322],
-            vec![2696, 2741],
+            // The 7.1 profile keeps the generic head above every 2696
+            // row; tsc 6.0.3 replaced it in the first two chains.
+            vec![2322, 2696, 2201, 2322],
+            vec![2322, 2696, 2741],
             vec![2322, 2696, 2658],
         ]
     );
@@ -6784,17 +6846,39 @@ fn multi_missing_source_uses_the_structural_relation_face() {
                     type Brand<T> = number & { __brand: T };\n\
                     declare const b: Brand<{ view: number; styleMedia: string }>;\n\
                     const c: Obj = b;\n";
-    let rows: Vec<_> = checked_diags(text)
-        .into_iter()
-        .filter(|row| row.0 == 2739)
-        .collect();
+    // TypeScript 7.1 keeps the generic head here: the 2739 detail names
+    // the structural face (the interface reference, the intersection)
+    // while the head names the alias, so the pair differs
+    // (relater.go chainArgsMatch). tsc 6.0.3 replaced the head
+    // unconditionally.
     assert_eq!(
-            rows.iter().map(|row| row.3.as_str()).collect::<Vec<_>>(),
-            [
-                "Type 'NumberTo<number>' is missing the following properties from type 'Obj': hello, world",
-                "Type 'Number & { __brand: { view: number; styleMedia: string; }; }' is missing the following properties from type 'Obj': hello, world",
-            ]
-        );
+        checked_chain_texts(text),
+        [
+            vec![
+                (
+                    2322,
+                    "Type 'NumberToNumber' is not assignable to type 'Obj'.".to_owned(),
+                ),
+                (
+                    2739,
+                    "Type 'NumberTo<number>' is missing the following properties from type 'Obj': hello, world"
+                        .to_owned(),
+                ),
+            ],
+            vec![
+                (
+                    2322,
+                    "Type 'Brand<{ view: number; styleMedia: string; }>' is not assignable to type 'Obj'."
+                        .to_owned(),
+                ),
+                (
+                    2739,
+                    "Type 'Number & { __brand: { view: number; styleMedia: string; }; }' is missing the following properties from type 'Obj': hello, world"
+                        .to_owned(),
+                ),
+            ],
+        ]
+    );
 }
 
 #[test]
@@ -6908,17 +6992,32 @@ fn merged_declaration_initializer_elaborates_member_rows() {
 #[test]
 fn non_primitive_source_walks_as_the_empty_object_face() {
     // structuredTypeRelatedTo apparent-izes `object` in place —
-    // the missing-property face renders '{}'.
+    // the missing-property face renders '{}'. Because that face differs
+    // from the head's 'object', TypeScript 7.1 keeps the generic head
+    // above the row (tsc 6.0.3 replaced it).
+    let text = "var y2 = { foo: 'bar' };\ndeclare var o: object;\ny2 = o;\n";
     assert_eq!(
-        checked_diags("var y2 = { foo: 'bar' };\ndeclare var o: object;\ny2 = o;\n"),
+        checked_diags(text),
         [(
-            2741,
+            2322,
             48,
             2,
-            "Property 'foo' is missing in type '{}' but required in type \
-                 '{ foo: string; }'."
-                .to_owned()
+            "Type 'object' is not assignable to type '{ foo: string; }'.".to_owned()
         )]
+    );
+    assert_eq!(
+        checked_chain_texts(text),
+        [vec![
+            (
+                2322,
+                "Type 'object' is not assignable to type '{ foo: string; }'.".to_owned(),
+            ),
+            (
+                2741,
+                "Property 'foo' is missing in type '{}' but required in type '{ foo: string; }'."
+                    .to_owned(),
+            ),
+        ]]
     );
 }
 
@@ -9321,4 +9420,106 @@ fn template_text_escape_tables_cover_the_map() {
         super::template_text_utf16_raw(&[0xD800, b'a' as u16, 0xDC00]),
         "\\uD800a\\uDC00"
     );
+}
+
+/// TypeScript 7.1 (relater.go `reportRelationError`) reports a relation
+/// failure by the row that names it when that row sits directly under
+/// the head for the same source and target, even under an explicit
+/// head message. tsc 6.0.3 kept 2345 (argument), 2344 (constraint)
+/// and 1360 (satisfies) above the missing-property row; the 6.0.3
+/// profile still does.
+const RELATION_HEAD_FIXTURE: &str = "interface A { a: number; }\n\
+     interface B { b: string; }\n\
+     interface AB { a: number; b: number; }\n\
+     declare function f(x: A): void;\n\
+     declare function g(x: AB): void;\n\
+     declare var b: B;\n\
+     f(b);\n\
+     f({});\n\
+     g({});\n\
+     interface C<T extends A> { x: T; }\n\
+     declare var v: C<B>;\n\
+     const t = {} satisfies A;\n";
+
+/// The rows come in check order: the type-argument constraint of
+/// `C<B>` is a lazy diagnostic and lands after the `satisfies` row.
+#[test]
+fn ts71_profile_reports_missing_property_rows_in_place_of_relation_heads() {
+    assert_eq!(
+        checked_chain_codes(RELATION_HEAD_FIXTURE),
+        [vec![2741], vec![2741], vec![2739], vec![2741], vec![2741]]
+    );
+    let rows = checked_diags(RELATION_HEAD_FIXTURE);
+    assert_eq!(
+        rows.iter().map(|row| row.3.as_str()).collect::<Vec<_>>(),
+        [
+            "Property 'a' is missing in type 'B' but required in type 'A'.",
+            "Property 'a' is missing in type '{}' but required in type 'A'.",
+            "Type '{}' is missing the following properties from type 'AB': a, b",
+            "Property 'a' is missing in type '{}' but required in type 'A'.",
+            "Property 'a' is missing in type 'B' but required in type 'A'.",
+        ]
+    );
+}
+
+#[test]
+fn ts603_profile_keeps_relation_heads_above_missing_property_rows() {
+    let options = CompilerOptions {
+        reference_profile: ReferenceProfile::TypeScript603,
+        ..CompilerOptions::default()
+    };
+    assert_eq!(
+        checked_chain_codes_with(RELATION_HEAD_FIXTURE, &options),
+        [
+            vec![2345, 2741],
+            vec![2345, 2741],
+            vec![2345, 2739],
+            vec![1360, 2741],
+            vec![2344, 2741],
+        ]
+    );
+}
+
+/// The 7.1 rule compares the row's arguments with the head's faces: a
+/// row that names another pair (the apparent `{}` of `object`) leaves
+/// the generic head in place, and the conversion and
+/// class-implements heads always keep their detail beneath them.
+#[test]
+fn ts71_profile_keeps_heads_whose_detail_names_another_pair_or_an_implementation() {
+    let text = "interface A { a: number; }\n\
+         declare var o: object;\n\
+         var y: { foo: string } = o;\n\
+         class C implements A {}\n\
+         declare var s: { b: string };\n\
+         var c = s as A;\n";
+    assert_eq!(
+        checked_chain_codes(text),
+        [vec![2322, 2741], vec![2420, 2741], vec![2352, 2741]]
+    );
+    let rows = checked_diags(text);
+    assert_eq!(
+        rows[0].3,
+        "Type 'object' is not assignable to type '{ foo: string; }'."
+    );
+}
+
+/// The readonly-versus-mutable row (4104) replaces the argument head
+/// under 7.1 and stays beneath it under 6.0.3.
+#[test]
+fn readonly_tuple_argument_row_replaces_the_argument_head_only_under_ts71() {
+    let text = "interface Array<T> { length: number; [n: number]: T; }\n\
+         interface ReadonlyArray<T> { readonly length: number; readonly [n: number]: T; }\n\
+         declare function f(x: [number, number]): void;\n\
+         declare const t: readonly [3, 4];\n\
+         f(t);\n";
+    assert_eq!(checked_chain_codes(text), [vec![4104]]);
+    assert_eq!(
+        checked_diags(text)[0].3,
+        "The type 'readonly [3, 4]' is 'readonly' and cannot be assigned to the mutable type '[number, number]'."
+    );
+    let options = CompilerOptions {
+        reference_profile: ReferenceProfile::TypeScript603,
+        ..CompilerOptions::default()
+    };
+    assert_eq!(checked_chain_codes_with(text, &options), [vec![2345, 4104]]);
 }

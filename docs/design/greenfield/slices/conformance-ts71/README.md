@@ -1,6 +1,6 @@
 # TypeScript 7.1のテスト構成に合わせたconformance
 
-状態：**P1 runner 実装済み**（2026-09-29、[P1の結果](#p1の結果2026-09-29)）、**P2-1 既定値の移行とhosted CI組込み済み**（2026-10-01、[P2-1の結果](#p2-1-既定値の移行2026-10-01)）。残るP2の修正とprofileの移行（P3）はこれから。
+状態：**P1 runner 実装済み**（2026-09-29、[P1の結果](#p1の結果2026-09-29)）、**P2-1 既定値の移行とhosted CI組込み済み**（2026-10-01、[P2-1の結果](#p2-1-既定値の移行2026-10-01)）、**P2-2 relation headの置換済み**（2026-10-01、[P2-2](#p2-2-relation-headの置換2026-10-01)）。残るP2のclassとprofileの移行（P3）はこれから。
 親計画：[TS7の方向](../../typescript-7-direction.md)、[7.1追従設計](../../typescript-7-upstream-sync.md)、
 [移行基盤batch](../post-emitter-foundation-batch/README.md)のA2（test inventory）とA4（MAP/PIN）。
 調査記録：[SURVEY.md](SURVEY.md)（上流harnessと現行runnerの比較、数値の根拠）。
@@ -308,7 +308,7 @@ branch protectionの必須checkに`conformance-ts71-gates`を加えるのはrepo
 
 | 件数 | missing | unexpected | 見立て |
 | ---: | --- | --- | --- |
-| 27+14+6 | TS2741 | TS2345／TS2344／TS2322 | 7.1は引数の不一致を直接の原因（TS2741等）で報告する（elaboration） |
+| 27+14+6 | TS2741 | TS2345／TS2344／TS2322 | 7.1は引数の不一致を直接の原因（TS2741等）で報告する（elaboration）→ [P2-2](#p2-2-relation-headの置換2026-10-01)で移行済み |
 | 26+8 | TS6196 | TS6133 | 未使用の型引数は7.1でTS6196 |
 | 24+5 | TS2683 | – | JSの`this`の暗黙any |
 | 23+12 | TS2300 | – | 重複識別子の報告位置・件数 |
@@ -331,3 +331,63 @@ T2以下137件：chainの差（7.1の"The last overload gave the following error
 
 次の一手は件数順に、elaboration（TS2741）、TS6196、JSの`this`、TS2300、overload chainの順で、各classを独立したPRにする。
 lane Bは引き続き旧runnerが6.0.3 goldenで守る（P3で6.0.3 oracleを`--stableTypeOrdering`付きで取り直した成果物に移す）。
+
+## P2-2 relation headの置換（2026-10-01）
+
+P2-1の「残り」の最上位、7.1が引数の不一致を直接の原因で報告するclass（TS2741／TS2739／TS2740がmissing、
+TS2345／TS2344／TS1360／TS2684がunexpected）を移した。
+
+### 原因
+
+tsc 6.0.3は`reportUnmatchedProperty`が`overrideNextErrorInfo`を立て、`reportErrorResults`が
+`!headMessage && maybeSuppress`のときだけ汎用headを飛ばす（65296-65300）。明示のhead message
+（引数のTS2345、制約のTS2344、`satisfies`のTS1360、`this`文脈のTS2684）は常に鎖の上に残る。
+TypeScript 7.1（`tsc/internal/checker/relater.go`の`Relater.reportRelationError`）にはこのcounterがなく、
+headを出す直前にerror chainの先頭を見る：先頭がTS2741／TS2739／TS2740（conversionとclass-implements、
+JSX要素型のheadを除く）、TS4104（readonly配列→mutable）、TS2859（excessive complexity）で、
+その引数がheadの（一般化した）source・targetの表示名と一致するとき、headを出さない（`chainArgsMatch`）。
+headの有無は問わないので明示headも落ちる。逆に、6.0.3が無条件に落としていた汎用headも、
+先頭の行が別の対（single-baseの置換で`A`、`object`の見かけの`{}`、aliasに対する構造の面）を
+名指すときは7.1では残る（`classImplementsClass4`、`inheritance1`、`nonPrimitiveAssignError`など6件）。
+
+### 移植
+
+`crates/checker/src/engine.rs`に、7.1 profileだけで効く判定を足した。6.0.3 profileの経路は変えていない。
+
+- `RelationErrorState.chain_head_args`：chain先頭行の引数。`report_error_unelided_js`が設定し、
+  chainを差し替える箇所（indexed-access／variance の復元、never-intersection行の挿入、型引数制約の
+  先頭消去）が追従する。`MessageChain`は整形済み文言だけを持つので、引数は別に保持する。
+- `report_relation_error`：headを選んだ後、`chain_head_suppresses_relation_head`が上記の規則で
+  抑制を決める（`is_conversion_or_interface_implementation_message`は7.1の6 message）。
+- `report_error_results`：6.0.3のcounterによる早期returnは、7.1 profileではincompatible stackが
+  保留中のとき（`reportIncompatibleStack`がstackの行をheadより先に並べるための遅延）だけ残す。
+  それ以外は`report_relation_error`に進み、chainで決める。
+
+tsgoの実挙動は、`scripts/typescript7.py`のcheckout（`target/typescript7/upstream`、pin `1f70213d`。
+`relater.go`のこの部分は`19dadef8`と同一）から`go -C tsc build ./cmd/tsc`で作ったbinaryで、
+unit testのfixtureごとに確かめた（noLibでは`globals.ts`に空のglobal interfaceを置かないと
+TS2318でsemantic診断が出ない）。
+
+### 計測
+
+`python3 scripts/conformance_ts71.py --workers 4 --check`（release build、`taskpolicy -b nice -n 20`、784秒）。
+
+| 区分 | 変更前（main `d3231c2fe`） | 変更後 |
+| --- | ---: | ---: |
+| 　T3 | 12,569 | 12,641（94.0%） |
+| 　T2 | 116 | 114 |
+| 　T1 | 21 | 21 |
+| 　不一致 | 693 | 623 |
+| 　harness error | 45 | 45 |
+| ratchet | | 0 regressions、76件を上げた（不一致→T3 66、T2→T3 6、不一致→T2 4）。下げた行なし |
+
+T2に留まる4件は別class：`taggedTemplateStringsWithOverloadResolution1`（`_ES6`も）は7.1の
+"The last overload gave the following error"の鎖、`checkJsdocSatisfiesTag1`／`4`は`@typedef`の
+propertyのrelated情報（TS2728）の位置。同じtierのまま描画が変わった5件は、最初の差が次のclass
+（overload chain、JSDocの`arguments`／`@template`、JSX childrenの`new`提案）へ移っただけ。
+harness errorの内訳で`templateLiteralTypeExcessiveLength`がmemory limit→timeoutに変わったのは
+同じ失敗の資源側の揺れ。
+
+checkerのunit test（hosted CIにはない`cargo test -p tsc-rs-checker --lib`）は、このclassの10件を7.1の形に
+更新した。同じsuiteでP2-1の既定値（安定順序、ES2026、resolution-modeの7.1規則）が壊していた14件は、
+6.0.3の観測を固定するtestなので`stable_type_ordering: Some(false)`または6.0.3 profileを明示して直した。
