@@ -2739,9 +2739,12 @@ fn jsdoc_accessibility_rejects_non_attached_and_non_tag_comments() {
 
 #[test]
 fn jsdoc_import_tag_bare_with_reports_parser_and_checker_diagnostics() {
+    // TS1464 (the resolution-mode key count) is a tsc 6.0.3 rule; the
+    // 7.1 profile only looks the key up.
     let options = CompilerOptions {
         allow_js: true,
         check_js: Some(true),
+        reference_profile: ReferenceProfile::TypeScript603,
         ..CompilerOptions::default()
     };
     let text = "/** @import * as f from \"./foo\" with */";
@@ -4375,7 +4378,8 @@ fn reused_simple_type_nodes_recover_at_indexed_access_and_keyof_boundaries() {
     let keyof = "const c = class Hidden { static p = 1; \
                      m = (x: keyof typeof Hidden | any) => {}; }; \
                      const i = new c(); let n: number = i.m;";
-    let rows = checked_diags(keyof)
+    // The pinned union face is tsc 6.0.3's creation order.
+    let rows = checked_diags_with(keyof, &creation_order_options())
         .into_iter()
         .filter(|row| row.0 == 2322)
         .collect::<Vec<_>>();
@@ -6791,9 +6795,10 @@ fn late_bound_multi_missing_list_prints_source_verbatim() {
     // through the property enclosing (`[B.sym]`) and sorts the
     // late-bound member after the early ones.
     assert_eq!(
-        checked_diags(
+        checked_diags_with(
             "declare namespace B { const sym: unique symbol }\ndeclare const a8: {};\nlet \
-                 b8: { [ B . sym ]: number; other: string } = a8;\n"
+                 b8: { [ B . sym ]: number; other: string } = a8;\n",
+            &creation_order_options()
         ),
         [(
             2739,

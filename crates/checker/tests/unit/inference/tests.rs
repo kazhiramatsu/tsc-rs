@@ -1773,7 +1773,11 @@ fn plain_string_against_keyof_builds_index_signature_shape() {
 fn literal_union_against_keyof_filters_and_escapes_members() {
     with_program_state(
         &[("a.ts", GENERIC_SRC)],
-        &CompilerOptions::default(),
+        &CompilerOptions {
+            // The pinned member order is tsc 6.0.3's creation order.
+            stable_type_ordering: Some(false),
+            ..CompilerOptions::default()
+        },
         |state| {
             let t = declared_type_parameter(state, "T");
             let info = detached_info(state, t);

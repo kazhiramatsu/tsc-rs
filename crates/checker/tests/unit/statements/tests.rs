@@ -272,6 +272,8 @@ fn checked_js_empty_container_includes_later_expando_exports() {
             allow_js: true,
             check_js: Some(true),
             target: Some(2),
+            // The pinned member order is tsc 6.0.3's creation order.
+            stable_type_ordering: Some(false),
             ..CompilerOptions::default()
         },
     );
@@ -1308,12 +1310,24 @@ fn import_type_assert_form_reports_2880_and_with_form_stays_silent() {
     // exactly-one-resolution-mode-key rows (oracle probe58d p5;
     // the 2307 is the import-type resolution seam, LIVE since
     // 5.9d's getTypeFromImportTypeNode).
+    // The exactly-one-resolution-mode-key row (1456) is a tsc 6.0.3
+    // rule; the 7.1 profile only looks the key up.
+    let six_oh_three = CompilerOptions {
+        reference_profile: tsc_types::ReferenceProfile::TypeScript603,
+        ..CompilerOptions::default()
+    };
     assert_eq!(
-        checked_rows("type T = typeof import(\"./m\", { assert: {} });\n"),
+        checked_rows_with(
+            "type T = typeof import(\"./m\", { assert: {} });\n",
+            &six_oh_three
+        ),
         [(2880, 40, 1), (1456, 40, 2), (2307, 23, 5)]
     );
     assert_eq!(
-        checked_rows("type U = typeof import(\"./m\", { with: {} });\n"),
+        checked_rows_with(
+            "type U = typeof import(\"./m\", { with: {} });\n",
+            &six_oh_three
+        ),
         [(1464, 38, 2), (2307, 23, 5)]
     );
 }

@@ -269,7 +269,11 @@ fn relation_error_suggests_nearby_string_literal_union_member() {
                 const t3: T3 = \"strong\";\n";
     crate::state::test_support::with_program_state(
         &[("a.ts", text)],
-        &CompilerOptions::default(),
+        &CompilerOptions {
+            // The pinned union faces are tsc 6.0.3's creation order.
+            stable_type_ordering: Some(false),
+            ..CompilerOptions::default()
+        },
         |state| {
             state.check_source_file(0);
             let diagnostics = state

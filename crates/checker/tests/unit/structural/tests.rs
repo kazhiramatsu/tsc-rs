@@ -2015,6 +2015,8 @@ fn relation_reporting_keeps_union_keyof_and_class_member_failure_levels() {
         strict: Some(true),
         strict_null_checks: Some(true),
         target: Some(tsc_types::ScriptTarget::ES2015.bits()),
+        // The pinned union and member faces are tsc 6.0.3's creation order.
+        stable_type_ordering: Some(false),
         ..CompilerOptions::default()
     };
     assert_eq!(
