@@ -23,6 +23,10 @@ runs the sharded control instead, whose report is compared with the
 one-checker report by hand (scripts/conformance_ts71_compare.py); it neither
 checks nor updates the ratchet.
 
+A configuration the native runner executes is lane A and is compared; the
+ones its SkipUnsupportedCompilerOptions rules leave out are reported as
+skipped, the ones it never produces baselines for as not run.
+
 The ratchet ratchets/ts71/<profile>.tsv lists every lane-A configuration that
 agrees with its baseline at least on locations, with the deepest tier it
 reached (location < category < text < full) and, in a third column, its emit
@@ -166,7 +170,7 @@ class Shard:
 def summarize(results):
     summary = {"configurations": len(results), "lane_a": 0, "full": 0, "text": 0, "category": 0,
                "location": 0, "mismatch": 0, "emit_full": 0, "emit_mismatch": 0,
-               "emit_not_assessed": 0, "harness_errors": 0, "deprecated": 0, "not_run": 0}
+               "emit_not_assessed": 0, "harness_errors": 0, "skipped": 0, "not_run": 0}
     tiers = {"Full": "full", "Text": "text", "Category": "category", "Location": "location",
              "None": "mismatch"}
     for result in results:
@@ -179,8 +183,8 @@ def summarize(results):
         elif status == "harness-error":
             summary["lane_a"] += 1
             summary["harness_errors"] += 1
-        elif status == "deprecated":
-            summary["deprecated"] += 1
+        elif status == "skipped":
+            summary["skipped"] += 1
         else:
             summary["not_run"] += 1
     return summary

@@ -143,33 +143,6 @@ fn agreement_reports_the_deepest_matching_tier() {
 }
 
 #[test]
-fn deprecated_options_route_to_lane_b() {
-    let configuration = |pairs: &[(&str, &str)]| NativeConfiguration {
-        name: String::new(),
-        settings: pairs
-            .iter()
-            .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))
-            .collect(),
-    };
-    assert_eq!(
-        deprecated_option(&configuration(&[("target", "ES5")])),
-        Some("target=es5")
-    );
-    assert_eq!(
-        deprecated_option(&configuration(&[("downleveliteration", "true")])),
-        Some("downlevelIteration")
-    );
-    assert_eq!(
-        deprecated_option(&configuration(&[("esmoduleinterop", "false")])),
-        Some("esModuleInterop=false")
-    );
-    assert_eq!(
-        deprecated_option(&configuration(&[("target", "es2015"), ("strict", "true")])),
-        None
-    );
-}
-
-#[test]
 fn the_js_baseline_lists_sources_then_javascript_then_declarations() {
     use super::emit_baseline::{render_js, Emission, EmittedFile};
     let sources = [

@@ -1017,7 +1017,7 @@ compiler/comparisonAnonymousMappedTypes	full	none
 compiler/comparisonBigIntLiterals	full	none
 compiler/comparisonOfPartialDeepAndIndexedAccessTerminatesWithoutError	full	js
 compiler/comparisonReverseMappedTypes	full	none
-compiler/comparisonSameNamedAliases	full	none
+compiler/comparisonSameNamedAliases	full	js
 compiler/compilerOptionsDeclarationAndNoEmit	full	js
 compiler/compilerOptionsOutDirAndNoEmit	full	js
 compiler/complexClassRelationships(target=es2015)	full	js
