@@ -849,9 +849,9 @@ class SelectionTests(unittest.TestCase):
         command, env = witness.invocation("resolution-cache", [], {})
         self.assertIn("--lib", command)
         self.assertIn("resolution_cache_contract", command)
-        good = "\n".join(f"test result: ok. {n} passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;" for n in (62, 11))
+        good = "\n".join(f"test result: ok. {n} passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;" for n in (63, 11))
         for output in (good, good.split("\n")[0], good.replace("11 passed", "0 passed"),
-                       good.replace("62 passed", "61 passed"),
+                       good.replace("63 passed", "62 passed"),
                        good.replace("0 ignored", "1 ignored", 1), good.replace("0 filtered", "1 filtered", 1)):
             with patch.object(witness.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, output)) as run:
                 if output == good:
