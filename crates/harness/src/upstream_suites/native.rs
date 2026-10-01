@@ -540,10 +540,30 @@ impl NativeProfile {
     }
 
     pub fn errors_baseline_path(&self, suite: NativeSuite, stem: &str) -> PathBuf {
+        self.baseline_path(suite, &format!("{stem}.errors.txt"))
+    }
+
+    /// The JavaScript emit baseline (`DoJSEmitBaseline`): the inputs and the
+    /// emitted JavaScript and declaration files of one configuration.
+    pub fn js_baseline_path(&self, suite: NativeSuite, stem: &str) -> PathBuf {
+        self.baseline_path(suite, &format!("{stem}.js"))
+    }
+
+    /// The raw source maps of one configuration (`DoSourcemapBaseline`).
+    pub fn js_map_baseline_path(&self, suite: NativeSuite, stem: &str) -> PathBuf {
+        self.baseline_path(suite, &format!("{stem}.js.map"))
+    }
+
+    /// The source-map record of one configuration (`DoSourcemapRecordBaseline`).
+    pub fn sourcemap_baseline_path(&self, suite: NativeSuite, stem: &str) -> PathBuf {
+        self.baseline_path(suite, &format!("{stem}.sourcemap.txt"))
+    }
+
+    fn baseline_path(&self, suite: NativeSuite, file_name: &str) -> PathBuf {
         self.upstream_root()
             .join("tsc/testdata/baselines/reference")
             .join(suite.name())
-            .join(format!("{stem}.errors.txt"))
+            .join(file_name)
     }
 }
 

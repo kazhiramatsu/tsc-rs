@@ -128,7 +128,17 @@ fn native_expansion_reproduces_the_reference_baseline_configurations() {
 /// Every vendored file, with its Git blob id and mode, under `root/path`
 /// (only `*.errors.txt` when the set is filtered; the file itself when the
 /// set vendors one file), sorted by upstream path.
-fn inventory(upstream: &Path, path: &str, errors_only: bool) -> Vec<(String, String, String)> {
+/// The vendored baseline kinds, longest suffix first so `.js.map` is not
+/// taken for `.js`.
+const BASELINE_SUFFIXES: [&str; 4] = [".sourcemap.txt", ".errors.txt", ".js.map", ".js"];
+
+fn baseline_kind(name: &str) -> Option<&'static str> {
+    BASELINE_SUFFIXES
+        .into_iter()
+        .find(|suffix| name.ends_with(suffix))
+}
+
+fn inventory(upstream: &Path, path: &str, filter: Option<&str>) -> Vec<(String, String, String)> {
     let mut files = Vec::new();
     let mut stack = Vec::new();
     if upstream.join(path).is_file() {
@@ -142,7 +152,9 @@ fn inventory(upstream: &Path, path: &str, errors_only: bool) -> Vec<(String, Str
             let full = entry.path();
             if full.is_dir() {
                 stack.push(full);
-            } else if !errors_only || full.to_string_lossy().ends_with(".errors.txt") {
+            } else if filter.is_none_or(|filter| {
+                baseline_kind(&full.to_string_lossy()) == Some(filter.trim_start_matches('*'))
+            }) {
                 files.push(full);
             }
         }
@@ -198,7 +210,7 @@ fn native_vendored_inputs_match_the_manifest() {
     let upstream = profile.upstream_root();
     let mut vendored = 0;
     for set in &manifest.sets {
-        let rows = inventory(&upstream, &set.path, set.filter.is_some());
+        let rows = inventory(&upstream, &set.path, set.filter.as_deref());
         let text: String = rows
             .iter()
             .map(|(mode, blob, name)| format!("{mode} {blob} {name}\n"))
@@ -222,7 +234,7 @@ fn native_vendored_inputs_match_the_manifest() {
         }
         vendored += rows.len();
     }
-    assert_eq!(vendored, 20_188);
+    assert_eq!(vendored, 32_680);
     assert!(profile.diagnostic_messages_path().is_file());
     assert!(profile
         .bundled_libraries_root()
