@@ -2763,14 +2763,24 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
                             .synthetic_scope_locals
                             .as_ref()
                             .and_then(|locals| locals.get(&data.escaped_text).copied());
+                        let old_was_type_parameter = context
+                            .synthetic_type_param_names
+                            .contains(&data.escaped_text);
                         cleanup.record_type_parameter_local(
                             data.escaped_text.identifier_text(),
                             old_symbol,
+                            old_was_type_parameter,
                         );
                         context
                             .synthetic_scope_locals
                             .get_or_insert_with(rustc_hash::FxHashMap::default)
                             .insert(data.escaped_text, symbol);
+                        if !context
+                            .synthetic_type_param_names
+                            .contains(&data.escaped_text)
+                        {
+                            context.synthetic_type_param_names.push(data.escaped_text);
+                        }
                     }
                 }
                 if context.enclosing_declaration.is_some()
@@ -2780,6 +2790,7 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
                         .is_some_and(|parameters| !parameters.is_empty())
                 {
                     context.enclosing_declaration_is_synthetic = true;
+                    context.synthetic_type_params_scope_active = true;
                 }
             }
         } else {
@@ -2818,18 +2829,29 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
                             .synthetic_scope_locals
                             .as_ref()
                             .and_then(|locals| locals.get(&data.escaped_text).copied());
+                        let old_was_type_parameter = context
+                            .synthetic_type_param_names
+                            .contains(&data.escaped_text);
                         cleanup.record_type_parameter_local(
                             data.escaped_text.identifier_text(),
                             old_symbol,
+                            old_was_type_parameter,
                         );
                         context
                             .synthetic_scope_locals
                             .get_or_insert_with(rustc_hash::FxHashMap::default)
                             .insert(data.escaped_text, symbol);
+                        if !context
+                            .synthetic_type_param_names
+                            .contains(&data.escaped_text)
+                        {
+                            context.synthetic_type_param_names.push(data.escaped_text);
+                        }
                     }
                 }
                 if context.enclosing_declaration.is_some() && !type_parameters.is_empty() {
                     context.enclosing_declaration_is_synthetic = true;
+                    context.synthetic_type_params_scope_active = true;
                 }
             }
         }

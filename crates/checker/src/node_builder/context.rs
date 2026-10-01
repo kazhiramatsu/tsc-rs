@@ -74,6 +74,14 @@ pub(crate) struct NodeBuilderContext<'tracker> {
     /// Rust keeps the owning parse declaration separately, so preserve the
     /// lookup overlay explicitly.
     pub(crate) synthetic_scope_locals: Option<HashMap<tsc_types::EscapedName, SymbolId>>,
+    /// The names in `synthetic_scope_locals` that hold type-parameter
+    /// locals (tsc's "typeParams" fake scope; the rest are the "params"
+    /// fake scope's locals and the module overlay).
+    pub(crate) synthetic_type_param_names: Vec<tsc_types::EscapedName>,
+    /// Whether an enclosing generic signature's "typeParams" fake scope is
+    /// in the chain, which a nested signature reuses (enterNewScope's
+    /// pushFakeScope reuses only a fake scope of the same kind).
+    pub(crate) synthetic_type_params_scope_active: bool,
     /// Kind of the synthesized declaration represented by the overlay.
     /// Upstream observes this through `context.enclosingDeclaration.kind`.
     pub(crate) synthetic_scope_kind: Option<SyntaxKind>,
@@ -167,6 +175,8 @@ pub(crate) fn with_context<'program, 'tracker, T>(
         type_parameter_names_by_text: None,
         type_parameter_names_by_text_next_name_count: None,
         synthetic_scope_locals: None,
+        synthetic_type_param_names: Default::default(),
+        synthetic_type_params_scope_active: false,
         synthetic_scope_kind: None,
         enclosing_symbol_types: HashMap::default(),
         mapper: None,

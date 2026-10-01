@@ -1201,8 +1201,13 @@ impl<'a> CheckerState<'a> {
         let result = if source_object_flags.intersects(ObjectFlags::MAPPED) {
             let type_parameter = self.get_type_parameter_from_mapped_type(ty)?;
             let fresh_type_parameter = self.clone_type_parameter(type_parameter);
-            let fresh_mapper =
-                self.prepend_type_mapping(type_parameter, fresh_type_parameter, Some(mapper));
+            // 63645: combineTypeMappers(makeUnaryTypeMapper(orig, fresh), mapper)
+            // builds a Composite mapper. prependTypeMapping would build a Merged
+            // one, equivalent for a unary first mapper but a different kind for
+            // compareTypeMappers, which orders Merged mappers by content and
+            // leaves Composite ones to the type id.
+            let unary = self.make_unary_type_mapper(type_parameter, fresh_type_parameter);
+            let fresh_mapper = self.combine_type_mappers(Some(unary), mapper);
             self.links.set_type_parameter_mapper(
                 self.speculation_depth,
                 fresh_type_parameter,

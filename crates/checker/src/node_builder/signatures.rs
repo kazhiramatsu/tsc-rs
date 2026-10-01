@@ -862,6 +862,8 @@ pub(crate) struct ScopeRestore {
     type_parameter_names_by_text: Option<HashSet<String>>,
     type_parameter_names_by_text_next_name_count: Option<HashMap<String, u32>>,
     synthetic_scope_locals: Option<HashMap<tsc_types::EscapedName, SymbolId>>,
+    synthetic_type_param_names: Vec<tsc_types::EscapedName>,
+    synthetic_type_params_scope_active: bool,
     synthetic_scope_kind: Option<SyntaxKind>,
 }
 
@@ -890,6 +892,8 @@ pub(crate) fn enter_new_scope(
             .type_parameter_names_by_text_next_name_count
             .clone(),
         synthetic_scope_locals: context.synthetic_scope_locals.clone(),
+        synthetic_type_param_names: context.synthetic_type_param_names.clone(),
+        synthetic_type_params_scope_active: context.synthetic_type_params_scope_active,
         synthetic_scope_kind: context.synthetic_scope_kind,
     };
     context.must_create_type_parameter_symbol_list = true;
@@ -964,9 +968,16 @@ pub(crate) fn prime_type_parameter_names_for_scope(
                 .synthetic_scope_locals
                 .get_or_insert_with(HashMap::default)
                 .insert(data.escaped_text, symbol);
+            if !context
+                .synthetic_type_param_names
+                .contains(&data.escaped_text)
+            {
+                context.synthetic_type_param_names.push(data.escaped_text);
+            }
         }
     }
     context.enclosing_declaration_is_synthetic = true;
+    context.synthetic_type_params_scope_active = true;
     Ok(())
 }
 
@@ -984,6 +995,8 @@ pub(crate) fn exit_new_scope(context: &mut NodeBuilderContext<'_>, restore: Scop
     context.type_parameter_names_by_text_next_name_count =
         restore.type_parameter_names_by_text_next_name_count;
     context.synthetic_scope_locals = restore.synthetic_scope_locals;
+    context.synthetic_type_param_names = restore.synthetic_type_param_names;
+    context.synthetic_type_params_scope_active = restore.synthetic_type_params_scope_active;
     context.synthetic_scope_kind = restore.synthetic_scope_kind;
 }
 

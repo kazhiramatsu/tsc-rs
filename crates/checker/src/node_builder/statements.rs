@@ -3104,6 +3104,13 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                 ),
                 synthetic_scope_kind: self.context.synthetic_scope_kind.take(),
                 synthetic_scope_locals: self.context.synthetic_scope_locals.take(),
+                synthetic_type_param_names: std::mem::take(
+                    &mut self.context.synthetic_type_param_names,
+                ),
+                synthetic_type_params_scope_active: std::mem::replace(
+                    &mut self.context.synthetic_type_params_scope_active,
+                    false,
+                ),
             };
             let sanitized = (|| -> BuildResult<Option<TransformNode>> {
                 let NodeData::ExpressionWithTypeArguments(data) = self.checker.data_of(element)
