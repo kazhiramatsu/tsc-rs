@@ -406,4 +406,5 @@ compilation」のchain付き）で報告する。tsc-rsのharnessは旧tscの`is
 `resolvesWithoutExportsDiagnostic1`×2、`nodeModulesExportsBlocksTypesVersions`×4、`jsFileCompilationWithMapFileAsJs*`×3、
 `bundlerImportTsExtensions`×4）は全てfull（loaderの`load_root`が既にchain付きのTS6504／TS6054を出していた）。
 - conformance：15,228 configuration、lane A 13,467（変化なし）、full 12,671→12,719（+48）、text 114、category 21、mismatch 616→568、harness error 45、emit full 12,410。fullに上がったのは未使用type parameterの27構成（上記26＋`unusedTypeParameters8`）とharness root選択の21構成。ratchet：0 regressions、48行追加。`unusedTypeParameters_templateTag2`は残る（C1／C3の`/** @type {T} */ this.p;`を7.1は宣言と見ず、TS2339とTS6205になる——JSのexpando／`this` class）。
-- hosted：HOSTED_RECORD
+- hosted：PR #621（head `095b95311`、merge `675452004`）、run 36933021735 — `plan` 25s、`rust` 9m28s、`conformance (TypeScript 7.1)` 21m57s、`gates` 11s。
+- perf（README corpora、`--noEmit`、3 rounds、nice 20、main `68043e837`と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 121→120、zod 529→518、Playwright 345→341、TypeScript `src/compiler` 355→345、Next.js 781→789、Effect 545→514、VS Code 3,472→3,503。tsc-rs÷tsgoは0.57〜0.98で従来どおり、peak memoryは同等（MB main→本branch：307→306、1,298→1,304、759→745、291→292、1,329→1,332、1,049→1,039、5,500→5,473）。退行なし。
