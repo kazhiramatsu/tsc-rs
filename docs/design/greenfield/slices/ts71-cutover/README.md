@@ -137,3 +137,54 @@ P3-1をP3-2より先にするのは、emitの退行検知を途切れさせな�
   tsc-rsも受理して無視し、6.0.3の生成順経路を削除する案をP3-3で採る。READMEのStable type orderingの節を書き換える。
 - **hostedの所要時間**：conformance-ts71は今15分。emit比較の増分はP3-1で測る。
 - **tsgoのbuild**：GoのtoolchainがhostedでもあればREADME corpora比較を自動化できるが、まずは手動。
+
+## P3-1 emit baseline（2026-10-02）
+
+### 取込みと描画
+
+- `scripts/vendor_typescript_native.py`を、runnerが比較するbaseline種別（`*.errors.txt`、`*.js`、`*.js.map`、
+  `*.sourcemap.txt`）ごとにmanifestのsetを作る形に一般化した。`19dadef8`のvendor treeは20,188 fileから32,680 fileになる
+  （`.js` 6,167＋6,018、`.js.map` 130＋20、`.sourcemap.txt` 137＋20）。`--check`とharnessの
+  `native_vendored_inputs_match_the_manifest`が検算し、`NativeProfile`に各種別のpath helperを足した。
+- `crates/conformance/src/ts71/emit_baseline.rs`がGoの`DoJSEmitBaseline`（header、`otherFiles`→`toBeCompiled`の
+  入力、JavaScript file、declaration file。`@fullEmitPaths`とBOMを含む）と`DoSourcemapBaseline`（raw mapと
+  visualization link）を描画する。再現しないのは`[DtsFileErrors]`区画（出力したd.tsを再compileした診断、参照23件）と
+  `noCheck` emitの比較（2件）で、これらの参照は不一致として数える。
+- runnerはlane Aの各configurationでdiagnosticsの後に第2 sessionを走らせてemitする（`ProgramSession::emit`、
+  memory sink）。Goの`compileFilesWithHost`も診断用とemit用の2つのProgramを作るので、同じ形。reportに`emit`／
+  `emit_detail`／`emit_sha256`（`.js`）と`map`／`map_detail`（`.js.map`）が加わり、`--dump`は差分の`.js`／`.js.map`も
+  書く。`skippedEmitTests`の8 caseは`NotAssessed`。
+- ratchet（`ratchets/ts71/<profile>.tsv`）は第3列にemit tier（`js`＝`.js` baselineがbyte一致、それ以外`none`）を持つ。
+  `--check`はerrors tierとemit tierのどちらの後退でも失敗し、`--update`はどちらも上げる。
+  `conformance_ts71_compare.py`はemitのdigestも比べる。
+
+### 計測
+
+`python3 scripts/conformance_ts71.py --workers 4 --check`（release build、`taskpolicy -b nice -n 20`、1,230秒。
+emitの第2 sessionで従来の784秒から約1.6倍）。errors tierは変更なし（T3 12,641、不一致 623、0 regressions）。
+
+| 区分 | configuration |
+| --- | ---: |
+| lane Aで比較 | 13,399 |
+| 　`.js` baseline一致（emit tier `js`） | 12,386（92.4%） |
+| 　`.js` 不一致 | 1,005 |
+| 　評価外（`skippedEmitTests`） | 8 |
+| 　`.js.map` 一致（参照なし同士を含む） | 12,847 |
+| 　`.js.map` 不一致 | 552（うち出力の差 37、残りはemit error） |
+| ratchet | emit tierを全行に記録（`js` 11,908行、`none` 868行）。errors tierの後退なし |
+
+### 不一致のclass（初回、`.js` 1,010件）
+
+| 件数 | class | 内容 |
+| ---: | --- | --- |
+| 515 | emit error | tsc-rsのemitterがparse errorのある入力のemitを拒む（"emit recovery … is deferred to H2.9"、500件超）。`composite`／`incremental`／`tsBuildInfoFile`のunsupported 11件、transformの失敗3件 |
+| 453 | 出力の差 | JS fileのdeclaration emitと`arguments`の扱い 245（7.xはexpandoをobject型で出す、`...args`を補わない等）、declaration emit 84（型nodeの引用符の保存、arrow aliasの`function`化、`export =`の位置、literal型の`declare const x = "..."`、unionの順序）、module／export assignmentのmerge 47、class 10（`in`／`out` modifierの残留、accessibility）、async／decorator／template／enumなど |
+| 23 | `[DtsFileErrors]` | 再現しない区画 |
+| 12 | 出力なし | `noEmitOnError`の2件（7.1はemitする）、JSDocのcase 10件 |
+| 7 | 参照なし | うち5件は`skippedEmitTests`（NotAssessedへ）、`pathMappingInheritedBaseUrl`、`isolatedDeclarationsJsThisPropertyAssignmentInference` |
+
+`.js.map`は、emit errorを除くと37件が差（declaration mapのmappingと上と同じclass）。
+`.sourcemap.txt`（source-map record、`GetSourceMapRecord`＝`harnessutil.go`の約500行）はP3-1bで移植する。
+
+これらはP3-5でclassごとに直す。emit errorの大半（parse error後のemit）はroadmapのH2.9（emit recovery）そのもので、
+7.1 baselineがそのoracleになる。
