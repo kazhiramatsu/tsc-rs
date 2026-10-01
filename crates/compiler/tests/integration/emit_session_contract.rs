@@ -415,7 +415,9 @@ fn commonjs_erased_final_import_retains_statement_list_tail_comments() {
 }
 
 #[test]
-fn module_none_selects_transform_modules_commonjs_delegate() {
+fn module_kind_none_is_unspecified_and_follows_the_target() {
+    // TypeScript 7.1 has no `module: none`: 0 is the unspecified value, so
+    // target ES2015 selects ES2015 module emit.
     let prepared = prepared_with_sources_and_minimal_lib(
         CompilerOptions {
             no_emit: Some(false),
@@ -428,19 +430,13 @@ fn module_none_selects_transform_modules_commonjs_delegate() {
     let mut sink = MemoryOutputSink::new();
     let (_, diagnostics) = ProgramSession::new(prepared)
         .emit_with_reported_diagnostics_for_harness(&mut sink)
-        .expect("module=None CommonJS-delegate emit");
+        .expect("module=0 emit");
 
-    // TypeScript 7.1 has no diagnostic for a programmatic `module: None`.
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     assert_eq!(sink.writes().len(), 1);
     assert_eq!(
         sink.writes()[0].callback_text(),
-        concat!(
-            "\"use strict\";\n",
-            "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
-            "exports.value = void 0;\n",
-            "exports.value = 1;\n",
-        )
+        "export const value = 1;\n"
     );
 }
 
@@ -1383,13 +1379,14 @@ fn h2_3d_json_without_distinct_output_location_is_not_written() {
 
 #[test]
 fn h2_3d_resolve_json_module_option_diagnostics_match_typescript_and_gate_no_emit_on_error() {
-    // TypeScript 7.1 adds the removed-option rows (`moduleResolution=Classic`,
-    // `module=UMD`/`module=System` and `moduleResolution=node10`) next to the
-    // resolveJsonModule relationship row.
+    // TypeScript 7.1 has no resolveJsonModule relationship rows; the removed
+    // values (`moduleResolution=Classic`, `module=UMD`/`module=System` and
+    // `moduleResolution=node10`) report TS5108 and still gate the emit under
+    // noEmitOnError.
     for (module, module_resolution, expected_codes) in [
-        (200, 1, &[5070, 5108][..]),
-        (3, 2, &[5071, 5108, 5108][..]),
-        (4, 2, &[5071, 5108, 5108][..]),
+        (200, 1, &[5108][..]),
+        (3, 2, &[5108, 5108][..]),
+        (4, 2, &[5108, 5108][..]),
     ] {
         for no_emit_on_error in [false, true] {
             let prepared = prepared_with_sources_and_minimal_lib(

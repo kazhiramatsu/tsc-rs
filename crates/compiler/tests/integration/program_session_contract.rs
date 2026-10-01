@@ -431,9 +431,13 @@ fn programmatic_amd_and_umd_removals_are_fileless_and_ignore_ignore_deprecations
                     options.ignore_deprecations = silence.map(|value| value.to_owned().into());
                 },
             )));
-            let [diagnostic] = outcome.options_diagnostics() else {
-                panic!("expected one module={name} option diagnostic");
+            // The default moduleResolution for these kinds is bundler in
+            // TypeScript 7.1, whose relationship row (TS5095) precedes the
+            // removed-value row.
+            let [bundler, diagnostic] = outcome.options_diagnostics() else {
+                panic!("expected two module={name} option diagnostics");
             };
+            assert_eq!(bundler.code(), 5095);
             assert_eq!(diagnostic.code(), 5108);
             assert_eq!(diagnostic.file_name, None);
             assert_eq!(diagnostic.start, None);
@@ -464,41 +468,6 @@ fn program_owned_config_option_diagnostics_use_effective_values_and_syntax_locat
         "target",
         ProgramConfigSpan::new(60, 8),
         ProgramConfigSpan::new(70, 5),
-    )
-    .with_compiler_option_location(
-        "noImplicitUseStrict",
-        ProgramConfigSpan::new(85, 21),
-        ProgramConfigSpan::new(108, 4),
-    )
-    .with_compiler_option_location(
-        "keyofStringsOnly",
-        ProgramConfigSpan::new(122, 18),
-        ProgramConfigSpan::new(142, 4),
-    )
-    .with_compiler_option_location(
-        "suppressExcessPropertyErrors",
-        ProgramConfigSpan::new(156, 30),
-        ProgramConfigSpan::new(188, 4),
-    )
-    .with_compiler_option_location(
-        "suppressImplicitAnyIndexErrors",
-        ProgramConfigSpan::new(202, 32),
-        ProgramConfigSpan::new(236, 4),
-    )
-    .with_compiler_option_location(
-        "noStrictGenericChecks",
-        ProgramConfigSpan::new(250, 23),
-        ProgramConfigSpan::new(275, 4),
-    )
-    .with_compiler_option_location(
-        "charset",
-        ProgramConfigSpan::new(289, 9),
-        ProgramConfigSpan::new(300, 6),
-    )
-    .with_compiler_option_location(
-        "out",
-        ProgramConfigSpan::new(316, 5),
-        ProgramConfigSpan::new(323, 9),
     );
     let mut builder = PreparedProgram::builder(
         PathContext::new(current_directory(), true),
@@ -507,13 +476,7 @@ fn program_owned_config_option_diagnostics_use_effective_values_and_syntax_locat
             // The harness override wins over the config's written ES3 value.
             target: Some(2),
             module: Some(2),
-            no_implicit_use_strict: Some(true),
-            keyof_strings_only: Some(true),
-            suppress_excess_property_errors: Some(true),
-            suppress_implicit_any_index_errors: Some(true),
-            no_strict_generic_checks: Some(true),
-            charset: Some("utf8".to_owned().into()),
-            out: Some("dist.js".to_owned().into()),
+            // Parsed but without effect in TypeScript 7.1.
             ignore_deprecations: Some("5.0".to_owned().into()),
             ..CompilerOptions::default()
         },
@@ -535,6 +498,10 @@ fn program_owned_config_option_diagnostics_use_effective_values_and_syntax_locat
     let outcome = consume(ProgramSession::new(
         builder.build().expect("build prepared program"),
     ));
+    // `module=AMD` is a removed value (TS5108 at its value); TypeScript 7.1's
+    // default `moduleResolution` for it is bundler, whose relationship row
+    // (TS5095) has no `moduleResolution` syntax to land on and falls back to
+    // the `compilerOptions` name.
     assert_eq!(
         outcome
             .options_diagnostics()
@@ -552,14 +519,8 @@ fn program_owned_config_option_diagnostics_use_effective_values_and_syntax_locat
             })
             .collect::<Vec<_>>(),
         [
+            (5095, Some("/foo/tsconfig.json"), Some(1), Some(17)),
             (5108, Some("/foo/tsconfig.json"), Some(45), Some(5)),
-            (5102, Some("/foo/tsconfig.json"), Some(85), Some(21)),
-            (5102, Some("/foo/tsconfig.json"), Some(122), Some(18)),
-            (5102, Some("/foo/tsconfig.json"), Some(156), Some(30)),
-            (5102, Some("/foo/tsconfig.json"), Some(202), Some(32)),
-            (5102, Some("/foo/tsconfig.json"), Some(250), Some(23)),
-            (5102, Some("/foo/tsconfig.json"), Some(289), Some(9)),
-            (5102, Some("/foo/tsconfig.json"), Some(316), Some(5)),
         ]
     );
 }
@@ -581,22 +542,12 @@ fn programmatic_node_module_resolution_relationships_keep_exact_module_names() {
             },
         )));
         let diagnostics = outcome.options_diagnostics();
-        // TypeScript 7.1 adds the removed `moduleResolution=Classic` row.
-        let expected_codes: &[u32] = if matches!(module, 102 | 199) {
-            &[5070, 5108, 5109]
-        } else {
-            &[5108, 5109]
-        };
+        // TypeScript 7.1 adds the removed `moduleResolution=Classic` row and
+        // has no resolveJsonModule/classic row. (tsgo also maps an explicit
+        // classic to the default resolution, which removes the TS5109 row;
+        // that mapping is the next class.)
+        let expected_codes: &[u32] = &[5108, 5109];
         assert_eq!(codes(diagnostics), expected_codes, "module {module}");
-        if matches!(module, 102 | 199) {
-            assert_eq!(
-                diagnostics[0]
-                    .message_text()
-                    .as_str()
-                    .expect("scalar diagnostic observation"),
-                "Option '--resolveJsonModule' cannot be specified when 'moduleResolution' is set to 'classic'."
-            );
-        }
         for diagnostic in diagnostics {
             assert!(diagnostic.file_name.is_none());
             assert!(diagnostic.start.is_none());

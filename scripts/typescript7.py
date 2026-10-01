@@ -18,9 +18,9 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 WORK = ROOT / "target/typescript7"
 UPSTREAM = WORK / "upstream"
-PIN = "1f70213d4922b434345f639b441681e470c7cfc1"
+PIN = "19dadef8888ba5b27d8b9f622480745cf623e020"
 REMOTE = "https://github.com/microsoft/TypeScript.git"
-TOOLCHAIN = "go1.26.0"
+TOOLCHAIN = "go1.27.1"
 
 
 def git(*args):
@@ -51,6 +51,23 @@ def setup():
             ["git", "clone", "--filter=blob:none", "--no-checkout", "--depth", "1",
              "--single-branch", REMOTE, str(UPSTREAM)], check=True
         )
+        found = subprocess.run(
+            ["git", "-C", str(UPSTREAM), "cat-file", "-e", PIN + "^{commit}"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+        if found.returncode:
+            subprocess.run(
+                ["git", "-C", str(UPSTREAM), "fetch", "--depth", "1", "origin", PIN],
+                check=True,
+            )
+        subprocess.run(
+            ["git", "-C", str(UPSTREAM), "checkout", "--detach", PIN], check=True
+        )
+    elif git("rev-parse", "HEAD") != PIN:
+        # The pin moved with the vendored profile: bring a clean checkout
+        # along instead of asking for a second one.
+        if git("status", "--porcelain"):
+            raise ValueError(f"Reference HEAD differs from {PIN} and has local changes; preserve them and use a separate checkout.")
         found = subprocess.run(
             ["git", "-C", str(UPSTREAM), "cat-file", "-e", PIN + "^{commit}"],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,

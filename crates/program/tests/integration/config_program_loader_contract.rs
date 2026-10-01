@@ -424,7 +424,9 @@ fn config_plan_loads_no_emit_program_without_reparsing_options() {
 }
 
 #[test]
-fn conflicting_lib_and_no_lib_are_option_diagnostics_at_both_names() {
+fn conflicting_lib_and_no_lib_report_at_the_first_of_the_two_names() {
+    // TypeScript 7.1 reports the row once, at whichever of `lib`/`noLib`
+    // comes first in the config (tsc 6.0 reported it at both).
     let host = host();
     let adapter = ConfigHostAdapter::new(&host);
     let plan = parse_config_root_plan(
@@ -440,7 +442,7 @@ fn conflicting_lib_and_no_lib_are_option_diagnostics_at_both_names() {
             .iter()
             .map(|diagnostic| (diagnostic.code(), diagnostic.start, diagnostic.length))
             .collect::<Vec<_>>(),
-        vec![(5053, Some(34), Some(7)), (5053, Some(47), Some(5))]
+        vec![(5053, Some(34), Some(7))]
     );
     assert_eq!(
         plan.option_diagnostics()[0]
@@ -853,14 +855,13 @@ fn config_plan_retains_h1_printer_options_without_broadening_h0_loader() {
     let plan = parse_config_root_plan(
         &adapter,
         request(
-            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"newLine":"crlf","removeComments":true,"noImplicitUseStrict":false,"noEmitHelpers":true},"files":["main.ts"]}"#,
+            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"newLine":"crlf","removeComments":true,"noEmitHelpers":true},"files":["main.ts"]}"#,
         ),
     )
     .expect("parse H1 printer option projection plan");
 
     assert_eq!(plan.compiler_options().new_line, Some(0));
     assert_eq!(plan.compiler_options().remove_comments, Some(true));
-    assert_eq!(plan.compiler_options().no_implicit_use_strict, Some(false));
     assert_eq!(plan.compiler_options().no_emit_helpers, Some(true));
 
     // Emitter-only options change no diagnostic of a no-emit check, so the
@@ -1314,25 +1315,34 @@ fn removed_options_are_reported_without_blocking_no_emit_loading() {
         );
     }
 
-    // The options TypeScript 5.5 removed keep their rows until the option
-    // catalog follows 7.1, where they are unknown options.
+    // `es3` is not a target value in TypeScript 7.1: a config error (TS6046
+    // listing the values without the deprecated `es5`), not an option row.
     let removed = parse_config_root_plan(
         &adapter,
         request(
             r#"{"compilerOptions":{"noEmit":true,"noLib":true,"target":"ES3"},"files":["main.ts"]}"#,
         ),
     )
-    .expect("parse removed-target plan");
+    .expect("parse es3 target plan");
+    assert!(removed.option_diagnostics().is_empty());
+    let [diagnostic] = removed.diagnostics().collect::<Vec<_>>()[..] else {
+        panic!("expected one config diagnostic");
+    };
+    assert_eq!(diagnostic.code(), 6046);
     assert_eq!(
-        removed
-            .option_diagnostics()
-            .iter()
-            .map(|diagnostic| diagnostic.code())
-            .collect::<Vec<_>>(),
-        [5108]
+        diagnostic
+            .message_text()
+            .as_str()
+            .expect("scalar diagnostic observation"),
+        "Argument for '--target' option must be: 'es6', 'es2015', 'es2016', 'es2017', 'es2018', 'es2019', 'es2020', 'es2021', 'es2022', 'es2023', 'es2024', 'es2025', 'es2026', 'esnext'."
     );
-    load_config_program(&host, &removed, &catalog, LIMITS)
-        .expect("removed-option rows are program diagnostics, not a loading gate");
+    let error = load_config_program(&host, &removed, &catalog, LIMITS)
+        .expect_err("an invalid option value stops program construction");
+    let ConfigProgramLoadError::Diagnostics { config, options } = error else {
+        panic!("expected separated config/option diagnostics");
+    };
+    assert_eq!(config[0].code(), 6046);
+    assert!(options.is_empty());
 }
 
 #[test]
@@ -1418,9 +1428,11 @@ fn module_option_relationship_diagnostics_match_the_effective_kinds() {
         codes(r#""customConditions":[],"moduleResolution":"classic""#),
         [5098, 5108]
     );
+    // TypeScript 7.1 has no verbatimModuleSyntax/amd row; the default
+    // moduleResolution for amd is bundler, whose relationship row remains.
     assert_eq!(
         codes(r#""verbatimModuleSyntax":true,"module":"amd""#),
-        [5105, 5108]
+        [5095, 5108]
     );
 }
 

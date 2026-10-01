@@ -6132,7 +6132,9 @@ fn module_transformer_selection_absent_host_and_missing_format_keep_distinct_bou
             ..CompilerOptions::default()
         };
         let host = ModuleFactoryHost::new(options.clone(), None);
-        let implied = !matches!(module, 0 | 2 | 3 | 4 | 200);
+        // `module: 0` is the unspecified value in TypeScript 7.1; with target
+        // ESNext it emits ES modules, which need the implied format.
+        let implied = !matches!(module, 2 | 3 | 4 | 200);
         let without_host = get_script_transformers(&options, &host);
         if implied {
             assert!(

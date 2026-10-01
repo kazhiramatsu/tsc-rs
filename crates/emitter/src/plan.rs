@@ -607,17 +607,6 @@ pub fn preflight_emit(
     let mut blocked_outputs = BTreeSet::new();
     let mut diagnostics = Vec::new();
     let options = host.compiler_options();
-    if options.resolve_json_module_effective() {
-        if options.emit_module_resolution_kind() == 1 {
-            diagnostics.push(option_diagnostic(
-                &gen::Option_resolveJsonModule_cannot_be_specified_when_moduleResolution_is_set_to_classic,
-            ));
-        } else if matches!(options.emit_module_kind(), 0 | 3 | 4) {
-            diagnostics.push(option_diagnostic(
-                &gen::Option_resolveJsonModule_cannot_be_specified_when_module_is_set_to_none_system_or_umd,
-            ));
-        }
-    }
     // `suppressOutputPathCheck` is intentionally absent from the typed option
     // surface. Its upstream gate therefore reduces to `!noEmit` here, plus
     // the typed transpile routes which force the option (typescript.js:146040).
@@ -859,10 +848,6 @@ fn compiler_diagnostic(
         None,
         MessageChain::new_js(message, &[path.to_owned()]),
     )
-}
-
-fn option_diagnostic(message: &'static tsc_diagnostics::DiagnosticMessage) -> Diagnostic {
-    Diagnostic::new(None, None, None, MessageChain::new(message, &[]))
 }
 
 fn overwrite_input_diagnostic(host: &dyn EmitHost, path: JsStr<'_>) -> Diagnostic {

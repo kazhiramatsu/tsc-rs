@@ -822,13 +822,9 @@ const fn jsconfig_option(
     }
 }
 
-/// TypeScript 7.1's `targetOptionMap` with tsc 6.0.3's `es3` entry kept in
-/// front: `es2026` (13) joins before `esnext`.
+/// TypeScript 7.1's `targetOptionMap` order; `es5` is its deprecated key
+/// (accepted, TS5108, absent from TS6046).
 const TARGET_VALUES_7_1: &[CompilerOptionNamedValue] = &[
-    CompilerOptionNamedValue {
-        name: "es3",
-        value: 0,
-    },
     CompilerOptionNamedValue {
         name: "es5",
         value: 1,
@@ -892,10 +888,6 @@ const TARGET_VALUES_7_1: &[CompilerOptionNamedValue] = &[
 ];
 
 const MODULE_VALUES: &[CompilerOptionNamedValue] = &[
-    CompilerOptionNamedValue {
-        name: "none",
-        value: 0,
-    },
     CompilerOptionNamedValue {
         name: "commonjs",
         value: 1,
@@ -977,34 +969,9 @@ const JSX_VALUES: &[CompilerOptionNamedValue] = &[
     },
 ];
 
-const IMPORTS_NOT_USED_AS_VALUES: &[CompilerOptionNamedValue] = &[
-    CompilerOptionNamedValue {
-        name: "remove",
-        value: 0,
-    },
-    CompilerOptionNamedValue {
-        name: "preserve",
-        value: 1,
-    },
-    CompilerOptionNamedValue {
-        name: "error",
-        value: 2,
-    },
-];
-
+/// TypeScript 7.1 `moduleResolutionOptionMap` order; `classic`, `node` and
+/// `node10` are its deprecated keys (accepted, TS5108, absent from TS6046).
 const MODULE_RESOLUTION_VALUES: &[CompilerOptionNamedValue] = &[
-    CompilerOptionNamedValue {
-        name: "node10",
-        value: 2,
-    },
-    CompilerOptionNamedValue {
-        name: "node",
-        value: 2,
-    },
-    CompilerOptionNamedValue {
-        name: "classic",
-        value: 1,
-    },
     CompilerOptionNamedValue {
         name: "node16",
         value: 3,
@@ -1016,6 +983,18 @@ const MODULE_RESOLUTION_VALUES: &[CompilerOptionNamedValue] = &[
     CompilerOptionNamedValue {
         name: "bundler",
         value: 100,
+    },
+    CompilerOptionNamedValue {
+        name: "classic",
+        value: 1,
+    },
+    CompilerOptionNamedValue {
+        name: "node",
+        value: 2,
+    },
+    CompilerOptionNamedValue {
+        name: "node10",
+        value: 2,
     },
 ];
 
@@ -1114,10 +1093,6 @@ pub static COMPILER_OPTION_DECLARATIONS: &[CompilerOptionDeclaration] = &[
     file_option("tsBuildInfoFile", CompilerOptionValueKind::String),
     option("removeComments", CompilerOptionValueKind::Boolean),
     option("importHelpers", CompilerOptionValueKind::Boolean),
-    option(
-        "importsNotUsedAsValues",
-        CompilerOptionValueKind::Named(IMPORTS_NOT_USED_AS_VALUES),
-    ),
     option("downlevelIteration", CompilerOptionValueKind::Boolean),
     option("isolatedModules", CompilerOptionValueKind::Boolean),
     option("verbatimModuleSyntax", CompilerOptionValueKind::Boolean),
@@ -1137,13 +1112,13 @@ pub static COMPILER_OPTION_DECLARATIONS: &[CompilerOptionDeclaration] = &[
         "strictBuiltinIteratorReturn",
         CompilerOptionValueKind::Boolean,
     ),
-    option("stableTypeOrdering", CompilerOptionValueKind::Boolean),
     option("noImplicitThis", CompilerOptionValueKind::Boolean),
     option(
         "useUnknownInCatchVariables",
         CompilerOptionValueKind::Boolean,
     ),
     option("alwaysStrict", CompilerOptionValueKind::Boolean),
+    option("stableTypeOrdering", CompilerOptionValueKind::Boolean),
     option("noUnusedLocals", CompilerOptionValueKind::Boolean),
     option("noUnusedParameters", CompilerOptionValueKind::Boolean),
     option(
@@ -1228,10 +1203,8 @@ pub static COMPILER_OPTION_DECLARATIONS: &[CompilerOptionDeclaration] = &[
     option("jsxImportSource", CompilerOptionValueKind::String),
     option("resolveJsonModule", CompilerOptionValueKind::Boolean),
     option("allowArbitraryExtensions", CompilerOptionValueKind::Boolean),
-    option("out", CompilerOptionValueKind::String),
     option("reactNamespace", CompilerOptionValueKind::String),
     option("skipDefaultLibCheck", CompilerOptionValueKind::Boolean),
-    option("charset", CompilerOptionValueKind::String),
     option("emitBOM", CompilerOptionValueKind::Boolean),
     option("newLine", CompilerOptionValueKind::Named(NEW_LINE_VALUES)),
     option("noErrorTruncation", CompilerOptionValueKind::Boolean),
@@ -1248,7 +1221,6 @@ pub static COMPILER_OPTION_DECLARATIONS: &[CompilerOptionDeclaration] = &[
         "disableReferencedProjectLoad",
         CompilerOptionValueKind::Boolean,
     ),
-    option("noImplicitUseStrict", CompilerOptionValueKind::Boolean),
     option("noEmitHelpers", CompilerOptionValueKind::Boolean),
     option("noEmitOnError", CompilerOptionValueKind::Boolean),
     option("preserveConstEnums", CompilerOptionValueKind::Boolean),
@@ -1261,14 +1233,6 @@ pub static COMPILER_OPTION_DECLARATIONS: &[CompilerOptionDeclaration] = &[
     option("allowUnusedLabels", CompilerOptionValueKind::Boolean),
     option("allowUnreachableCode", CompilerOptionValueKind::Boolean),
     option(
-        "suppressExcessPropertyErrors",
-        CompilerOptionValueKind::Boolean,
-    ),
-    option(
-        "suppressImplicitAnyIndexErrors",
-        CompilerOptionValueKind::Boolean,
-    ),
-    option(
         "forceConsistentCasingInFileNames",
         CompilerOptionValueKind::Boolean,
     ),
@@ -1277,10 +1241,7 @@ pub static COMPILER_OPTION_DECLARATIONS: &[CompilerOptionDeclaration] = &[
         CompilerOptionValueKind::Number,
         JsConfigDefaultValue::Number(2),
     ),
-    option("noStrictGenericChecks", CompilerOptionValueKind::Boolean),
     option("useDefineForClassFields", CompilerOptionValueKind::Boolean),
-    option("preserveValueImports", CompilerOptionValueKind::Boolean),
-    option("keyofStringsOnly", CompilerOptionValueKind::Boolean),
     tsconfig_option(
         "plugins",
         CompilerOptionValueKind::List(PLUGINS_LIST_DESCRIPTOR),

@@ -1900,6 +1900,12 @@ compiler/dependencyViaImportAlias	full	js
 compiler/dependentDestructuringBindingElementInitializer	full	js
 compiler/dependentDestructuringDeferredCallback	full	js
 compiler/deprecatedBool	full	js
+compiler/deprecatedCompilerOptions1	full	js
+compiler/deprecatedCompilerOptions2	full	js
+compiler/deprecatedCompilerOptions3	full	js
+compiler/deprecatedCompilerOptions4	full	js
+compiler/deprecatedCompilerOptions5	full	js
+compiler/deprecatedCompilerOptions6	full	js
 compiler/derivedClassConstructorWithExplicitReturns01(target=es2015)	full	js
 compiler/derivedClassOverridesPrivateFunction1	full	js
 compiler/derivedClasses	full	js

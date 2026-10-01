@@ -757,11 +757,6 @@ pub(crate) enum PathsOptionViolationKind {
         pattern: JsString,
         substitution: JsString,
     },
-    SubstitutionHasIncorrectType {
-        pattern: JsString,
-        substitution: JsString,
-        actual_type: String,
-    },
     /// Emission remains conditional until the final effective `baseUrl` is
     /// known. `pathsBasePath` anchors resolution but does not suppress TS5090.
     NonRelativeSubstitutionWithoutBaseUrl,
