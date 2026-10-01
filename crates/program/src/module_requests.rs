@@ -927,7 +927,6 @@ fn collect_static_module_references(
 }
 
 #[allow(clippy::too_many_arguments)]
-#[allow(clippy::too_many_arguments)]
 fn collect_static_module_reference_statements(
     profile: ReferenceProfile,
     parsed: &SourceFile,
