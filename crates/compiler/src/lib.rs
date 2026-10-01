@@ -3465,9 +3465,8 @@ fn emit_session_diagnostics(
 /// tsc-hash: 27def76917aef23a76e4b9d8b2036c28d04e47b44ef525ac578c6a1d48518e2d
 /// tsc-span: _tsc.js:125007-125017
 ///
-/// tsgo-port: verifyCompilerOptions "Removed in TS7" @7.1 (program.go:951-1008).
-/// `ignoreDeprecations` is parsed but has no effect in 7.1. The rows for the
-/// options TypeScript 5.5 removed remain until the option catalog follows 7.1.
+/// tsgo-port: verifyCompilerOptions "Removed in TS7" @7.1 (program.go:976-1033).
+/// `ignoreDeprecations` is parsed but has no effect in 7.1.
 fn programmatic_option_diagnostics(prepared: &PreparedProgram) -> DiagnosticList {
     let options = prepared.compiler_options();
     let external_config_option_diagnostics = prepared
@@ -3514,74 +3513,6 @@ fn programmatic_option_diagnostics(prepared: &PreparedProgram) -> DiagnosticList
                 ),
             );
         }
-    }
-
-    if options.target == Some(0) {
-        push_programmatic_removed_option_value(prepared, &mut diagnostics, "target", "ES3");
-    }
-    for (enabled, name) in [
-        (
-            options.no_implicit_use_strict == Some(true),
-            "noImplicitUseStrict",
-        ),
-        (options.keyof_strings_only == Some(true), "keyofStringsOnly"),
-        (
-            options.suppress_excess_property_errors == Some(true),
-            "suppressExcessPropertyErrors",
-        ),
-        (
-            options.suppress_implicit_any_index_errors == Some(true),
-            "suppressImplicitAnyIndexErrors",
-        ),
-        (
-            options.no_strict_generic_checks == Some(true),
-            "noStrictGenericChecks",
-        ),
-    ] {
-        if enabled {
-            push_programmatic_removed_option_name(prepared, &mut diagnostics, name, None);
-        }
-    }
-    for (present, name) in [
-        (
-            options
-                .charset
-                .as_ref()
-                .map(JsString::as_js)
-                .is_some_and(|value| !value.is_empty()),
-            "charset",
-        ),
-        (
-            options
-                .out
-                .as_ref()
-                .map(JsString::as_js)
-                .is_some_and(|value| !value.is_empty()),
-            "out",
-        ),
-    ] {
-        if present {
-            push_programmatic_removed_option_name(prepared, &mut diagnostics, name, None);
-        }
-    }
-    if options
-        .imports_not_used_as_values
-        .is_some_and(|value| value != 0)
-    {
-        push_programmatic_removed_option_name(
-            prepared,
-            &mut diagnostics,
-            "importsNotUsedAsValues",
-            Some("verbatimModuleSyntax".into()),
-        );
-    }
-    if options.preserve_value_imports == Some(true) {
-        push_programmatic_removed_option_name(
-            prepared,
-            &mut diagnostics,
-            "preserveValueImports",
-            Some("verbatimModuleSyntax".into()),
-        );
     }
 
     // Removed in TS7. `ignoreDeprecations` is parsed but has no effect.

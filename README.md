@@ -321,6 +321,17 @@ Please remove it from your configuration.", with the `paths` suggestion for
 `baseUrl`), and the program is still checked and emitted with the option in
 effect. Like `tsc`, the command line reports no semantic errors while such
 an option error exists. `ignoreDeprecations` is accepted but has no effect.
+The option catalog is TypeScript 7.1's: the options TypeScript 5.5 removed
+(`charset`, `out`, `keyofStringsOnly`, `noImplicitUseStrict`,
+`noStrictGenericChecks`, `suppressExcessPropertyErrors`,
+`suppressImplicitAnyIndexErrors`, `importsNotUsedAsValues`,
+`preserveValueImports`) are unknown options (TS5023), `module: "none"` and
+`target: "es3"` are not accepted values (TS6046), a programmatic `module`
+of 0 means unspecified, and the default `moduleResolution` is `bundler`
+for every module kind except `node16`, `node18`, `node20` and `nodenext`
+(so `amd`, `umd` and `system` also report TS5095). An explicit `classic`
+or `node10` still selects that resolver here, whereas TypeScript 7.1 maps
+it to the default one; that difference is the next step of the cutover.
 The behavior of the removed options themselves is not verified against a
 reference (the TypeScript 7.1 conformance skips those configurations). The
 tsc 6.0.3 compatible line ended with release v0.1.0 (tag `v0.1.0`, branch

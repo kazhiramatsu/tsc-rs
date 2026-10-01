@@ -5,7 +5,7 @@
   "source_commit": "19dadef8888ba5b27d8b9f622480745cf623e020",
   "source": {
     "observer": "tsc-rs parse_config_root_plan, recorded by the fixture test's observe() (the removed-option rows follow tsgo program.go verifyCompilerOptions \"Removed in TS7\" at the vendored commit)",
-    "verification": "tsgo built from the vendored commit (Version 7.1.0-dev), run as `tsgo -p <config> --pretty false` on each case's materialized files on 2026-10-02: every config-level row's file, line, column, code and message chain compared (lengths are not printed by tsgo; the recorded lengths are the config parser's property-name and value spans). Result: 36 of 36 cases identical."
+    "verification": "tsgo built from the vendored commit (Version 7.1.0-dev): each option or config diagnostic's file, line, column, code and message chain compared by scripts/../scratch verify_config_fixture_tsgo.py on 2026-10-02; the recorded lengths are the config parser's property-name and value spans"
   },
   "inputs": {
     "path": "crates/program/tests/fixtures/h2-8b-config-entity-names-inputs.json",

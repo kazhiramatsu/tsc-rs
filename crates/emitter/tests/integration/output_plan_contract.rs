@@ -397,7 +397,10 @@ fn executable_planning_preserves_source_order_eligibility_and_out_dir_layout() {
 }
 
 #[test]
-fn computed_resolve_json_module_is_validated_against_module_kind() {
+fn module_relationship_rows_belong_to_the_program_validator() {
+    // TypeScript 7.1 dropped the resolveJsonModule/module rows; the bundler
+    // relationship row (TS5095) is a program option diagnostic, not a
+    // preflight one.
     let host = TestEmitHost::new(
         CompilerOptions {
             module: Some(4),
@@ -410,14 +413,7 @@ fn computed_resolve_json_module_is_validated_against_module_kind() {
     );
 
     let preflight = preflight_emit(&host, EmitSelection::WholeProgram).unwrap();
-    assert_eq!(
-        preflight
-            .diagnostics()
-            .iter()
-            .map(|diagnostic| diagnostic.code())
-            .collect::<Vec<_>>(),
-        [5071]
-    );
+    assert!(preflight.diagnostics().is_empty());
 }
 
 #[test]

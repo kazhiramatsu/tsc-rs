@@ -341,3 +341,36 @@ tsgo `program.go` `verifyCompilerOptions` の「Removed in TS7」blockを移植�
 - conformance（release、`--workers 4 --check`）：15,228 configuration、lane A 13,467（変化なし）、full 12,641→12,666（+25）、text 114、category 21、mismatch 646→622、harness error 45→44、emit full 12,411。lane Aに上がったのはP3-4で予告した`downlevelIteration`の23構成（errorsがTS5102で一致）と`importAssertionsDeprecatedIgnored`（`@ignoreDeprecations: 6.0`が無効になりTS2880 3件が一致）の計24件。ratchet：0 regressions、`--update`相当（report記録）で24行追加。`compiler/intersectionConstructorReductionCrash`は今回fullだったが、P3-1以降の計測ではharness error（stress case、負荷で結果が変わる）だったので行を追加しない（安定したら追加）。
 - hosted：PR #619（head `6ca8d017f`、merge `47c4bd309`）、run 36918572262 — `plan` 32s、`rust` 9m34s、`conformance (TypeScript 7.1)` 21m49s、`gates` 11s。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、本branchのrelease build対tsgo 7.1.0-dev、median wall／peak RSSのtsc-rs÷tsgo）：hono 0.71／0.86、zod 0.57／0.72、Playwright 0.60／0.72、TypeScript `src/compiler` 0.98／0.71、Next.js 0.60／0.77、Effect 0.67／0.86、VS Code 0.75／0.79。#615後の計測と同じ帯（READMEの比率＋記録済みのstable ordering 2〜6%）で、peak memoryは同等以下。checkerのhot pathに触れない変更なので退行なし。
+
+## P3-5b option catalogと関係rowの7.1化（2026-10-02）
+
+tsgo（vendored commit `19dadef8`で`scripts/typescript7.py build`したもの。PINを`1f70213d`から更新、Go toolchainは
+go.workの要求どおりgo1.27.1）でprobeし、option catalog・計算値・関係rowを7.1に合わせた。
+
+- catalog（`crates/program/src/config_options.rs`）：5.5で削除された9 option（`charset`、`out`、`keyofStringsOnly`、
+  `noImplicitUseStrict`、`noStrictGenericChecks`、`suppressExcessPropertyErrors`、`suppressImplicitAnyIndexErrors`、
+  `importsNotUsedAsValues`、`preserveValueImports`）を外した（tsgo同様TS5023 Unknown compiler option、
+  suggestionなし）。`CompilerOptions`のfieldも削除（checker／emitterは読んでいなかった。harness directiveは
+  unknown→not run、Goの`SetOptionsFromTestConfig`も`Fatalf`）。`module: none`と`target: es3`を値集合から外した
+  （TS6046。list文面はP2-1の`config_named_option_choices`のまま一致）。`moduleResolution`の値順をtsgoの
+  `moduleResolutionOptionMap`順に、`stableTypeOrdering`の宣言位置を`alwaysStrict`の次に（tsgoの宣言順）。
+- 計算値（`crates/types/src/options.rs`）：`emit_module_kind`は`Some(0)`を未指定扱い（tsgo `GetEmitModuleKind`は
+  `ModuleKindNone`＝未指定）。`emit_module_resolution_kind`の既定はnode16／nodenext以外すべてbundler
+  （6.0はamd／umd／system／noneをclassicにしていた）。明示のclassic／node10は従来どおりそのresolverを選ぶ
+  （tsgoは`GetModuleResolutionKind`で既定へ写像する——下記P3-5c）。
+- 関係row（`option_validation.rs`、emitterの`plan.rs`の重複も）：7.1に無い`outFile`×`isolatedModules`／
+  `verbatimModuleSyntax`／`declarationDir`（TS5053）、`outFile`＋非amd/system（TS6082）、`verbatimModuleSyntax`＋
+  AMD/UMD/System（TS5105）、`resolveJsonModule`＋classic（TS5070）／none・system・umd（TS5071）、`isolatedModules`＋
+  `module: none`（TS5047）を削除。`paths`の非文字列substitutionはtsgoが変換時に落とすので行を出さず、全要素が
+  非文字列ならTS5066（空配列）。`lib`×`noLib`も文書順で最初のproperty 1件に。
+- fixture：`h2-8b-config-diagnostics`を再記録しvendored commitのtsgoで検算（方法はP3-5a）：56→63/76。
+  entity-names 36/36（P3-5aと同じ見かけの差2件）。残り13 caseは全てP3-5c（明示classic／node10の写像）：
+  classic＋`resolvePackageJsonExports`／`Imports`／`customConditions`のTS5098 3件、node16〜nodenext＋classicの
+  TS5109 4件、amd／system＋`moduleResolution: node`でtsgoだけが出すTS5095 6件。
+- test：program（catalog順、loader、paths 5064→5066、scaling、module_request）、compiler（session／emit）、
+  emitter（builtins module 0、bundle printer fixtureの`module: none` caseはskip、output plan）を7.1に再pin。
+- 次（P3-5c）：明示`classic`／`node10`をtsgoどおり既定へ写像する。resolverのclassic／node10経路が死に、
+  `module_resolution_contract`等のnode10前提のtest（30件超）の再pin／削除が要るので別PR。P3-6（旧resolver退役）と
+  同じ流れ。
+- conformance（release、`--workers 4 --check`）：15,228 configuration、lane A 13,467（変化なし）、full 12,666→12,671、text 114、category 21、mismatch 622→616、harness error 44→45（`compiler/intersectionConstructorReductionCrash`がP3-5a時のfullからharness errorへ戻った。負荷依存のstress caseでratchet行は入れていない）、emit full 12,411→12,410（同じcase）。fullに上がったのは`compiler/deprecatedCompilerOptions1`〜`6`の6構成（tsconfigの削除済み／5.5削除optionの行がTS5023等で一致、各8行）。ratchet：0 regressions、6行追加。
+- hosted：HOSTED_RECORD

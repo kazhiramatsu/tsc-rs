@@ -235,6 +235,12 @@ fn global_script_bundles_match_complete_typescript_output_bytes_twice() {
     assert_eq!(fixture["cases"].as_array().unwrap().len(), 28);
     let mut failures = Vec::new();
     for case in fixture["cases"].as_array().unwrap() {
+        // TypeScript 7.1 has no `module: none`: 0 is the unspecified value and
+        // follows the target, so the tsc 6.0.3 global-script bundle observation
+        // has no counterpart.
+        if case["options"]["module"] == 0 {
+            continue;
+        }
         for repetition in 0..2 {
             match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| compare_case(case))) {
                 Ok(Ok(())) => {}

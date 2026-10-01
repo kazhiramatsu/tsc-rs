@@ -429,8 +429,9 @@ fn official_paths_validation_shapes_are_options_diagnostics_not_parse_errors() {
             vec![5063],
         ),
         (
+            // A non-string substitution is dropped, which leaves the list empty.
             r#"{"compilerOptions":{"baseUrl":".","paths":{"*":[1]}}}"#,
-            vec![5064],
+            vec![5066],
         ),
         (
             r#"{"compilerOptions":{"baseUrl":".","paths":{"foo":[]}}}"#,
@@ -758,8 +759,11 @@ fn absolute_and_relative_substitutions_do_not_require_base_url() {
 }
 
 #[test]
-fn non_string_substitutions_remain_diagnostic_instead_of_panicking() {
-    let text = r#"{"compilerOptions":{"paths":{"x":[null,true,{"nested":1},["a",null,"b"]]}},"files":["a.ts"]}"#;
+fn non_string_substitutions_are_dropped_like_typescript() {
+    // tsgo converts the list to strings first: every element here is dropped
+    // and the pattern reports an empty substitution list (tsc 6.0 reported
+    // TS5064 per element).
+    let text = r#"{"compilerOptions":{"paths":{"x":[null,true,{"nested":1},["a",null,"b"]],"y":[1,"./ok"]}},"files":["a.ts"]}"#;
     let plan = parse_config_root_plan(
         &MemoryConfigHost::default(),
         request("/project/tsconfig.json", text),
@@ -768,21 +772,19 @@ fn non_string_substitutions_remain_diagnostic_instead_of_panicking() {
     assert_eq!(
         plan.option_diagnostics()
             .iter()
-            .map(|diagnostic| diagnostic.code())
+            .map(|diagnostic| (
+                diagnostic.code(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation")
+                    .to_owned()
+            ))
             .collect::<Vec<_>>(),
-        [5064, 5064, 5064, 5064]
-    );
-    assert_eq!(
-        plan.option_diagnostics()
-            .iter()
-            .map(|diagnostic| diagnostic.message_text().as_str().expect("scalar diagnostic observation"))
-            .collect::<Vec<_>>(),
-        [
-            "Substitution 'null' for pattern 'x' has incorrect type, expected 'string', got 'object'.",
-            "Substitution 'true' for pattern 'x' has incorrect type, expected 'string', got 'boolean'.",
-            "Substitution '[object Object]' for pattern 'x' has incorrect type, expected 'string', got 'object'.",
-            "Substitution 'a,,b' for pattern 'x' has incorrect type, expected 'string', got 'object'.",
-        ]
+        [(
+            5066,
+            "Substitutions for pattern 'x' shouldn't be an empty array.".to_owned()
+        )]
     );
 }
 

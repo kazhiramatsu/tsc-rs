@@ -5,7 +5,7 @@
   "source_commit": "19dadef8888ba5b27d8b9f622480745cf623e020",
   "source": {
     "observer": "tsc-rs parse_config_root_plan, recorded by the fixture test's observe() (the removed-option rows follow tsgo program.go verifyCompilerOptions \"Removed in TS7\" at the vendored commit)",
-    "verification": "tsgo built from the vendored commit (Version 7.1.0-dev), run as `tsgo -p <config> --pretty false` on each case's materialized files on 2026-10-02: every config-level row's file, line, column, code and message chain compared (lengths are not printed by tsgo; the recorded lengths are the config parser's property-name and value spans). Result: 56 of 76 cases identical; the 20 others differ only in rows for options or values TypeScript 7 removed (outFile/classic/system/none relationship rows, the bundler default for the removed module kinds, module none and target es3 as TS6046), recorded in docs/design/greenfield/slices/ts71-cutover/README.md (P3-5a) for the next class."
+    "verification": "tsgo built from the vendored commit (scripts/typescript7.py build, Version 7.1.0-dev), run as `tsgo -p <config> --pretty false` on each case's materialized files on 2026-10-02: every config-level row's file, line, column, code and message chain compared (lengths are not printed by tsgo; the recorded lengths are the config parser's property-name and value spans). Result: 63 of 76 cases identical; the 13 others differ only because tsgo maps an explicit `classic`/`node10` moduleResolution to the default resolution (its TS5095 for amd/system with node10, no TS5098/TS5109 with classic), recorded in docs/design/greenfield/slices/ts71-cutover/README.md (P3-5b) as the next class."
   },
   "inputs": {
     "path": "crates/program/tests/fixtures/h2-8b-config-diagnostics-inputs.json",
@@ -1180,15 +1180,6 @@
             "related_information": []
           },
           {
-            "code": 5053,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 130,
-            "length": 17,
-            "message": "Option 'outFile' cannot be specified with option 'isolatedModules'.",
-            "related_information": []
-          },
-          {
             "code": 5102,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -1433,24 +1424,6 @@
             "related_information": []
           },
           {
-            "code": 5053,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 130,
-            "length": 22,
-            "message": "Option 'outFile' cannot be specified with option 'verbatimModuleSyntax'.",
-            "related_information": []
-          },
-          {
-            "code": 5105,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 130,
-            "length": 22,
-            "message": "Option 'verbatimModuleSyntax' cannot be used when 'module' is set to 'UMD', 'AMD', or 'System'.",
-            "related_information": []
-          },
-          {
             "code": 5102,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -1692,24 +1665,6 @@
             "start": 75,
             "length": 6,
             "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
-            "related_information": []
-          },
-          {
-            "code": 5053,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 156,
-            "length": 22,
-            "message": "Option 'outFile' cannot be specified with option 'verbatimModuleSyntax'.",
-            "related_information": []
-          },
-          {
-            "code": 5105,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 156,
-            "length": 22,
-            "message": "Option 'verbatimModuleSyntax' cannot be used when 'module' is set to 'UMD', 'AMD', or 'System'.",
             "related_information": []
           },
           {
@@ -5240,15 +5195,6 @@
             "related_information": []
           },
           {
-            "code": 5053,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 130,
-            "length": 16,
-            "message": "Option 'declarationDir' cannot be specified with option 'outFile'.",
-            "related_information": []
-          },
-          {
             "code": 5102,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -5728,15 +5674,6 @@
             "length": 7,
             "message": "Option 'lib' cannot be specified with option 'noLib'.",
             "related_information": []
-          },
-          {
-            "code": 5053,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 133,
-            "length": 5,
-            "message": "Option 'lib' cannot be specified with option 'noLib'.",
-            "related_information": []
           }
         ],
         "raw": {
@@ -5954,15 +5891,6 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
-            "code": 5047,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 20,
-            "length": 8,
-            "message": "Option 'isolatedModules' can only be used when either option '--module' is provided or option 'target' is 'ES2015' or higher.",
-            "related_information": []
-          },
-          {
             "code": 5108,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -6009,8 +5937,7 @@
           },
           {
             "name": "module",
-            "state": "value",
-            "value": 0
+            "state": "undefined"
           },
           {
             "name": "moduleResolution",
@@ -6187,8 +6114,28 @@
           }
         ],
         "root_parse_diagnostics": [],
-        "parsed_errors": [],
-        "config_diagnostics": []
+        "parsed_errors": [
+          {
+            "code": 6046,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 44,
+            "length": 6,
+            "message": "Argument for '--module' option must be: 'commonjs', 'es6', 'es2015', 'es2020', 'es2022', 'esnext', 'node16', 'node18', 'node20', 'nodenext', 'preserve'.",
+            "related_information": []
+          }
+        ],
+        "config_diagnostics": [
+          {
+            "code": 6046,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 44,
+            "length": 6,
+            "message": "Argument for '--module' option must be: 'commonjs', 'es6', 'es2015', 'es2020', 'es2022', 'esnext', 'node16', 'node18', 'node20', 'nodenext', 'preserve'.",
+            "related_information": []
+          }
+        ]
       }
     },
     {
@@ -6233,8 +6180,7 @@
           },
           {
             "name": "module",
-            "state": "value",
-            "value": 0
+            "state": "undefined"
           },
           {
             "name": "moduleResolution",
@@ -6411,8 +6357,28 @@
           }
         ],
         "root_parse_diagnostics": [],
-        "parsed_errors": [],
-        "config_diagnostics": []
+        "parsed_errors": [
+          {
+            "code": 6046,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 47,
+            "length": 6,
+            "message": "Argument for '--module' option must be: 'commonjs', 'es6', 'es2015', 'es2020', 'es2022', 'esnext', 'node16', 'node18', 'node20', 'nodenext', 'preserve'.",
+            "related_information": []
+          }
+        ],
+        "config_diagnostics": [
+          {
+            "code": 6046,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 47,
+            "length": 6,
+            "message": "Argument for '--module' option must be: 'commonjs', 'es6', 'es2015', 'es2020', 'es2022', 'esnext', 'node16', 'node18', 'node20', 'nodenext', 'preserve'.",
+            "related_information": []
+          }
+        ]
       }
     },
     {
@@ -6889,15 +6855,6 @@
       "case_id": "h2-8b-config-diagnostics/outfile-commonjs",
       "typescript_observation": {
         "option_diagnostics": [
-          {
-            "code": 6082,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 38,
-            "length": 8,
-            "message": "Only 'amd' and 'system' modules are supported alongside --outFile.",
-            "related_information": []
-          },
           {
             "code": 5108,
             "category": "error",
@@ -7376,15 +7333,6 @@
             "length": 9,
             "message": "Option 'moduleResolution=Classic' has been removed. Please remove it from your configuration.",
             "related_information": []
-          },
-          {
-            "code": 5070,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 136,
-            "length": 19,
-            "message": "Option '--resolveJsonModule' cannot be specified when 'moduleResolution' is set to 'classic'.",
-            "related_information": []
           }
         ],
         "raw": {
@@ -7601,15 +7549,6 @@
       "case_id": "h2-8b-config-diagnostics/json-system",
       "typescript_observation": {
         "option_diagnostics": [
-          {
-            "code": 5071,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 38,
-            "length": 8,
-            "message": "Option '--resolveJsonModule' cannot be specified when 'module' is set to 'none', 'system', or 'umd'.",
-            "related_information": []
-          },
           {
             "code": 5108,
             "category": "error",
@@ -11359,15 +11298,6 @@
             "length": 6,
             "message": "Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.",
             "related_information": []
-          },
-          {
-            "code": 5105,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 130,
-            "length": 22,
-            "message": "Option 'verbatimModuleSyntax' cannot be used when 'module' is set to 'UMD', 'AMD', or 'System'.",
-            "related_information": []
           }
         ],
         "raw": {
@@ -11622,8 +11552,7 @@
           },
           {
             "name": "module",
-            "state": "value",
-            "value": 0
+            "state": "undefined"
           },
           {
             "name": "moduleResolution",
@@ -11800,8 +11729,28 @@
           }
         ],
         "root_parse_diagnostics": [],
-        "parsed_errors": [],
-        "config_diagnostics": []
+        "parsed_errors": [
+          {
+            "code": 6046,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 47,
+            "length": 6,
+            "message": "Argument for '--module' option must be: 'commonjs', 'es6', 'es2015', 'es2020', 'es2022', 'esnext', 'node16', 'node18', 'node20', 'nodenext', 'preserve'.",
+            "related_information": []
+          }
+        ],
+        "config_diagnostics": [
+          {
+            "code": 6046,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 47,
+            "length": 6,
+            "message": "Argument for '--module' option must be: 'commonjs', 'es6', 'es2015', 'es2020', 'es2022', 'esnext', 'node16', 'node18', 'node20', 'nodenext', 'preserve'.",
+            "related_information": []
+          }
+        ]
       }
     },
     {
@@ -14561,15 +14510,6 @@
       "typescript_observation": {
         "option_diagnostics": [
           {
-            "code": 5070,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 1,
-            "length": 17,
-            "message": "Option '--resolveJsonModule' cannot be specified when 'moduleResolution' is set to 'classic'.",
-            "related_information": []
-          },
-          {
             "code": 5108,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -14800,15 +14740,6 @@
       "case_id": "h2-8b-config-diagnostics/nodenext-classic",
       "typescript_observation": {
         "option_diagnostics": [
-          {
-            "code": 5070,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 1,
-            "length": 17,
-            "message": "Option '--resolveJsonModule' cannot be specified when 'moduleResolution' is set to 'classic'.",
-            "related_information": []
-          },
           {
             "code": 5108,
             "category": "error",
@@ -15527,15 +15458,6 @@
             "start": 158,
             "length": 5,
             "message": "Non-relative paths are not allowed. Did you forget a leading './'?",
-            "related_information": []
-          },
-          {
-            "code": 5064,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 164,
-            "length": 5,
-            "message": "Substitution 'false' for pattern 'bad**' has incorrect type, expected 'string', got 'boolean'.",
             "related_information": []
           },
           {

@@ -1389,8 +1389,38 @@ fn node10_amd_projects_plan_static_imports_and_javascript_requires() {
 }
 
 #[test]
+fn module_kind_none_plans_requests_like_an_unspecified_module() {
+    // `module: 0` is the unspecified value in TypeScript 7.1.
+    let source = source_at(
+        "/index.ts",
+        "import \"dependency\";\nimport(\"dynamic\");\n",
+        None,
+    );
+    let unspecified = plan_source_requests(&source, &CompilerOptions::default()).expect("plan");
+    let none = plan_source_requests(
+        &source,
+        &CompilerOptions {
+            module: Some(0),
+            ..CompilerOptions::default()
+        },
+    )
+    .expect("plan");
+    assert_eq!(
+        none.module_requests()
+            .iter()
+            .map(|request| request.mode())
+            .collect::<Vec<_>>(),
+        unspecified
+            .module_requests()
+            .iter()
+            .map(|request| request.mode())
+            .collect::<Vec<_>>()
+    );
+}
+
+#[test]
 fn legacy_emit_module_kinds_keep_static_requests_unspecified() {
-    for module in [0, 2, 3, 4] {
+    for module in [2, 3, 4] {
         let options = CompilerOptions {
             module: Some(module),
             // Use a modern resolution kind to exercise the emit-syntax mode

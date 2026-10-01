@@ -239,7 +239,6 @@ fn transpile_worker(
     options.out_file = None;
     options.composite = None;
     options.ts_build_info_file = None;
-    options.out = None;
     options.no_emit_on_error = None;
     options.declaration_dir = None;
     // suppressOutputPathCheck is selected by the emit route. The internal
@@ -578,7 +577,6 @@ fn assign_option(
         "moduleDetection" => options.module_detection = i32_value()?,
         "jsx" => options.jsx = i32_value()?,
         "newLine" => options.new_line = i32_value()?,
-        "importsNotUsedAsValues" => options.imports_not_used_as_values = i32_value()?,
         "allowJs" => options.allow_js = bool_value()?.unwrap_or(false),
         "experimentalDecorators" => {
             options.experimental_decorators = bool_value()?.unwrap_or(false);
@@ -619,7 +617,6 @@ fn assign_option(
         "skipDefaultLibCheck" => options.skip_default_lib_check = bool_value()?,
         "noErrorTruncation" => options.no_error_truncation = bool_value()?,
         "resolveJsonModule" => options.resolve_json_module = bool_value()?,
-        "noImplicitUseStrict" => options.no_implicit_use_strict = bool_value()?,
         "alwaysStrict" => options.always_strict = bool_value()?,
         "incremental" => options.incremental = bool_value()?,
         "composite" => options.composite = bool_value()?,

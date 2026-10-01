@@ -247,27 +247,15 @@ pub struct CompilerOptions {
     pub stable_type_ordering: Option<bool>,
     pub declaration_dir: Option<JsString>,
     pub strip_internal: Option<bool>,
-    /// Dormant bundle aliases retained as distinct raw option spellings.
+    /// The removed `outFile` option (TS5102); it still selects the bundle
+    /// emit.
     pub out_file: Option<JsString>,
-    pub out: Option<JsString>,
     /// Dormant build-info options retained for preflight and the typed output
     /// topology; H1 never constructs a build-info artifact.
     pub incremental: Option<bool>,
     pub composite: Option<bool>,
     pub assume_changes_only_affect_direct_dependencies: Option<bool>,
     pub ts_build_info_file: Option<JsString>,
-    /// Legacy/import and decorator controls whose transformer branches are
-    /// outside the first executable profile.
-    pub imports_not_used_as_values: Option<i32>,
-    pub preserve_value_imports: Option<bool>,
-    /// Removed pre-6.0 options are retained as raw program inputs so the
-    /// option-diagnostic boundary can report TS5102 exactly. They no longer
-    /// alter binder, checker, or emitter behavior.
-    pub keyof_strings_only: Option<bool>,
-    pub suppress_excess_property_errors: Option<bool>,
-    pub suppress_implicit_any_index_errors: Option<bool>,
-    pub no_strict_generic_checks: Option<bool>,
-    pub charset: Option<JsString>,
     pub emit_decorator_metadata: Option<bool>,
     /// tsc `NewLineKind` value used by the JavaScript writer
     /// (CarriageReturnLineFeed=0, LineFeed=1). H0 retains but never reads it;
@@ -276,9 +264,6 @@ pub struct CompilerOptions {
     /// Suppresses source comments in emitted JavaScript. This is emit-only
     /// state and is deliberately absent from parsed nodes and checker links.
     pub remove_comments: Option<bool>,
-    /// Disables the transformer's implicit strict-mode prologue. The H1
-    /// bootstrap profile retains the raw value for transformer selection.
-    pub no_implicit_use_strict: Option<bool>,
     /// Prevents helper text from being emitted. Helper requests remain
     /// transformation-session state rather than persistent syntax state.
     pub no_emit_helpers: Option<bool>,
@@ -453,7 +438,9 @@ impl CompilerOptions {
     /// ES2022 → ES2022(7), ≥ ES2020 → ES2020(6), ≥ ES2015 → ES2015(5),
     /// else CommonJS(1). Both default targets compute ES2022.
     pub fn emit_module_kind(&self) -> i32 {
-        if let Some(module) = self.module {
+        // tsgo `GetEmitModuleKind` @7.1 (core/compileroptions.go): `None`
+        // (0) is the unspecified value, not a module kind of its own.
+        if let Some(module) = self.module.filter(|module| *module != 0) {
             return module;
         }
         let target = self.emit_script_target();
@@ -526,8 +513,12 @@ impl CompilerOptions {
         if let Some(module_resolution) = self.module_resolution {
             return module_resolution;
         }
+        // tsgo `GetModuleResolutionKind` @7.1 (core/compileroptions.go): the
+        // default is node16/nodenext for those module kinds and bundler for
+        // every other one (TypeScript 6.0 defaulted amd/umd/system to
+        // classic). An explicit classic/node10 value still selects that
+        // resolver here; 7.1 maps it to the default as well (next class).
         match self.emit_module_kind() {
-            0 | 2 | 3 | 4 => 1,
             199 => 99,
             100..=198 => 3,
             _ => 100,

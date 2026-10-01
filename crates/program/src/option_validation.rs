@@ -34,12 +34,8 @@ pub enum CompilerOptionValidationLocation {
 pub enum CompilerOptionViolation {
     StrictPropertyInitializationRequiresStrictNullChecks,
     ExactOptionalPropertyTypesRequiresStrictNullChecks,
-    OutFileConflictsWithIsolation {
-        verbatim: bool,
-    },
     CompositeRequiresDeclaration,
     CompositeRequiresIncremental,
-    IsolatedModulesRequiresModuleOrEs2015,
     PreserveConstEnumsRequiredByIsolation {
         verbatim: bool,
     },
@@ -49,11 +45,7 @@ pub enum CompilerOptionViolation {
     IsolatedDeclarationsRequiresDeclaration,
     EmitDeclarationOnlyRequiresDeclaration,
     DeclarationDirectoryRequiresDeclaration,
-    DeclarationDirectoryConflictsWithOutFile,
     DeclarationMapRequiresDeclaration,
-    ResolveJsonModuleConflictsWithClassicResolution,
-    ResolveJsonModuleConflictsWithModule,
-    OutFileRequiresAmdOrSystemModule,
     ReactNamespaceConflictsWithJsxFactory,
     JsxFactoryConflictsWithAutomaticRuntime {
         jsx: &'static str,
@@ -80,7 +72,6 @@ pub enum CompilerOptionViolation {
     MapRootConflictsWithInlineSourceMap,
     SourceMapConflictsWithInlineSourceMap,
     MapRootRequiresSourceMapOrDeclarationMap,
-    VerbatimModuleRequiresSupportedModule,
     AllowImportingTsExtensionsRequiresEmitMode,
     PackageJsonExportsRequiresModernResolution,
     PackageJsonImportsRequiresModernResolution,
@@ -96,12 +87,11 @@ pub enum CompilerOptionViolation {
 }
 
 impl CompilerOptionViolation {
-    /// Option spellings inspected by `createDiagnosticForOption`. When more
-    /// than one is present in retained config syntax, TypeScript reports the
-    /// same relationship at every matching property in source order.
+    /// Option spellings inspected by `createDiagnosticForOption`; the row
+    /// lands on the first of them present in the config syntax, in document
+    /// order (tsgo `tsoptions.ForEachPropertyAssignment`).
     pub const fn option_names(&self) -> &'static [&'static str] {
         match self {
-            Self::VerbatimModuleRequiresSupportedModule => &["verbatimModuleSyntax"],
             Self::AllowImportingTsExtensionsRequiresEmitMode => &["allowImportingTsExtensions"],
             Self::PackageJsonExportsRequiresModernResolution => &["resolvePackageJsonExports"],
             Self::PackageJsonImportsRequiresModernResolution => &["resolvePackageJsonImports"],
@@ -110,18 +100,11 @@ impl CompilerOptionViolation {
                 &["moduleResolution"]
             }
             Self::NodeResolutionRequiresNodeModule { .. } => &["module"],
-            Self::OutFileConflictsWithIsolation { verbatim: true } => {
-                &["outFile", "verbatimModuleSyntax"]
-            }
-            Self::OutFileConflictsWithIsolation { verbatim: false } => {
-                &["outFile", "isolatedModules"]
-            }
             // verifyCompilerOptions deliberately locates the incremental
             // violation on declaration as well (_tsc.js:124783).
             Self::CompositeRequiresDeclaration | Self::CompositeRequiresIncremental => {
                 &["declaration"]
             }
-            Self::IsolatedModulesRequiresModuleOrEs2015 => &["isolatedModules", "target"],
             Self::PreserveConstEnumsRequiredByIsolation { verbatim: true } => {
                 &["verbatimModuleSyntax", "preserveConstEnums"]
             }
@@ -144,11 +127,7 @@ impl CompilerOptionViolation {
             }
             Self::EmitDeclarationOnlyRequiresDeclaration => &["emitDeclarationOnly", "declaration"],
             Self::DeclarationDirectoryRequiresDeclaration => &["declarationDir", "declaration"],
-            Self::DeclarationDirectoryConflictsWithOutFile => &["declarationDir", "outFile"],
             Self::DeclarationMapRequiresDeclaration => &["declarationMap", "declaration"],
-            Self::ResolveJsonModuleConflictsWithClassicResolution => &["resolveJsonModule"],
-            Self::ResolveJsonModuleConflictsWithModule => &["resolveJsonModule", "module"],
-            Self::OutFileRequiresAmdOrSystemModule => &["outFile", "module"],
             Self::ReactNamespaceConflictsWithJsxFactory => &["reactNamespace", "jsxFactory"],
             Self::JsxFactoryConflictsWithAutomaticRuntime { .. }
             | Self::InvalidJsxFactory { .. } => &["jsxFactory"],
@@ -181,9 +160,6 @@ impl CompilerOptionViolation {
 
     pub fn message(&self) -> MessageChain {
         match self {
-            Self::VerbatimModuleRequiresSupportedModule => MessageChain::new(
-                &gen::Option_verbatimModuleSyntax_cannot_be_used_when_module_is_set_to_UMD_AMD_or_System, &[],
-            ),
             Self::AllowImportingTsExtensionsRequiresEmitMode => MessageChain::new(
                 &gen::Option_allowImportingTsExtensions_can_only_be_used_when_one_of_noEmit_emitDeclarationOnly_or_rewriteRelativeImportExtensions_is_set, &[],
             ),
@@ -203,15 +179,8 @@ impl CompilerOptionViolation {
                 &gen::Option_module_must_be_set_to_0_when_option_moduleResolution_is_set_to_1,
                 &[(*resolution).to_owned(), (*resolution).to_owned()],
             ),
-            Self::OutFileConflictsWithIsolation { verbatim } => MessageChain::new(
-                &gen::Option_0_cannot_be_specified_with_option_1,
-                &["outFile".to_owned(), if *verbatim { "verbatimModuleSyntax" } else { "isolatedModules" }.to_owned()],
-            ),
             Self::CompositeRequiresDeclaration => MessageChain::new(&gen::Composite_projects_may_not_disable_declaration_emit, &[]),
             Self::CompositeRequiresIncremental => MessageChain::new(&gen::Composite_projects_may_not_disable_incremental_compilation, &[]),
-            Self::IsolatedModulesRequiresModuleOrEs2015 => MessageChain::new(
-                &gen::Option_isolatedModules_can_only_be_used_when_either_option_module_is_provided_or_option_target_is_ES2015_or_higher, &[],
-            ),
             Self::PreserveConstEnumsRequiredByIsolation { verbatim } => MessageChain::new(
                 &gen::Option_preserveConstEnums_cannot_be_disabled_when_0_is_enabled,
                 &[if *verbatim { "verbatimModuleSyntax" } else { "isolatedModules" }.to_owned()],
@@ -262,25 +231,9 @@ impl CompilerOptionViolation {
                 &gen::Option_0_cannot_be_specified_without_specifying_option_1_or_option_2,
                 &["declarationDir".to_owned(), "declaration".to_owned(), "composite".to_owned()],
             ),
-            Self::DeclarationDirectoryConflictsWithOutFile => MessageChain::new(
-                &gen::Option_0_cannot_be_specified_with_option_1,
-                &["declarationDir".to_owned(), "outFile".to_owned()],
-            ),
             Self::DeclarationMapRequiresDeclaration => MessageChain::new(
                 &gen::Option_0_cannot_be_specified_without_specifying_option_1_or_option_2,
                 &["declarationMap".to_owned(), "declaration".to_owned(), "composite".to_owned()],
-            ),
-            Self::OutFileRequiresAmdOrSystemModule => MessageChain::new(
-                &gen::Only_amd_and_system_modules_are_supported_alongside_0,
-                &["outFile".to_owned()],
-            ),
-            Self::ResolveJsonModuleConflictsWithClassicResolution => MessageChain::new(
-                &gen::Option_resolveJsonModule_cannot_be_specified_when_moduleResolution_is_set_to_classic,
-                &[],
-            ),
-            Self::ResolveJsonModuleConflictsWithModule => MessageChain::new(
-                &gen::Option_resolveJsonModule_cannot_be_specified_when_module_is_set_to_none_system_or_umd,
-                &[],
             ),
             Self::ReactNamespaceConflictsWithJsxFactory => MessageChain::new(
                 &gen::Option_0_cannot_be_specified_with_option_1,
@@ -349,8 +302,12 @@ impl CompilerOptionViolation {
     }
 }
 
-/// Validate the option relationships in their TypeScript 6.0.3
-/// `verifyCompilerOptions` order.
+/// Validate the option relationships in their `verifyCompilerOptions` order.
+/// TypeScript 7.1 (tsgo program.go) dropped the rows that named the removed
+/// options (`outFile` with isolation or `declarationDir`, `outFile` with a
+/// non-amd/system module, `verbatimModuleSyntax` with amd/umd/system,
+/// `resolveJsonModule` with classic or none/system/umd, `isolatedModules`
+/// with `module: none`); the remaining rows are unchanged.
 ///
 /// tsc-port: verifyCompilerOptions @6.0.3 (strict/isolated block)
 /// tsc-hash: 2553c0a4e50ebd81142e6a0ef445ce7731ef7a91741f2c604a460c839d033ab9
@@ -386,14 +343,6 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
     }
     let verbatim = options.verbatim_module_syntax == Some(true);
     let isolated = options.isolated_modules == Some(true);
-    if (isolated || verbatim)
-        && options
-            .out_file
-            .as_ref()
-            .is_some_and(|path| !path.is_empty())
-    {
-        violations.push(CompilerOptionViolation::OutFileConflictsWithIsolation { verbatim });
-    }
     if options.isolated_declarations == Some(true) {
         if options.allow_js {
             violations.push(CompilerOptionViolation::IsolatedDeclarationsConflictsWithAllowJs);
@@ -445,22 +394,14 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
     if map_root && !(source_map || options.declaration_map == Some(true)) {
         violations.push(CompilerOptionViolation::MapRootRequiresSourceMapOrDeclarationMap);
     }
-    // verifyCompilerOptions (:124866-124872) reports these independently.
     if options
         .declaration_dir
         .as_ref()
         .is_some_and(|directory| !directory.is_empty())
+        && options.declaration != Some(true)
+        && options.composite != Some(true)
     {
-        if options.declaration != Some(true) && options.composite != Some(true) {
-            violations.push(CompilerOptionViolation::DeclarationDirectoryRequiresDeclaration);
-        }
-        if options
-            .out_file
-            .as_ref()
-            .is_some_and(|path| !path.is_empty())
-        {
-            violations.push(CompilerOptionViolation::DeclarationDirectoryConflictsWithOutFile);
-        }
+        violations.push(CompilerOptionViolation::DeclarationDirectoryRequiresDeclaration);
     }
     if options.declaration_map == Some(true)
         && options.declaration != Some(true)
@@ -468,42 +409,9 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
     {
         violations.push(CompilerOptionViolation::DeclarationMapRequiresDeclaration);
     }
-    if isolated || verbatim {
-        if isolated
-            && options.module == Some(0)
-            && options.emit_script_target() < tsc_types::ScriptTarget::ES2015
-        {
-            violations.push(CompilerOptionViolation::IsolatedModulesRequiresModuleOrEs2015);
-        }
-        if options.preserve_const_enums == Some(false) {
-            violations
-                .push(CompilerOptionViolation::PreserveConstEnumsRequiredByIsolation { verbatim });
-        }
-    }
-    // verifyCompilerOptions (:124891-124894) tests the raw module option,
-    // including JavaScript falsiness of None=0. An absent module instead
-    // belongs to the source-dependent TS6131 branch, not this relation.
-    if options
-        .out_file
-        .as_ref()
-        .is_some_and(|path| !path.is_empty())
-        && options.emit_declaration_only != Some(true)
-        && options
-            .module
-            .is_some_and(|module| !matches!(module, 0 | 2 | 4))
-    {
-        violations.push(CompilerOptionViolation::OutFileRequiresAmdOrSystemModule);
-    }
-    // verifyCompilerOptions (:124901-124907) uses the computed options.
-    // Classic resolution takes precedence over unsupported JSON emit modules.
-    // This relationship is independent of outFile and emitDeclarationOnly.
-    if options.resolve_json_module_effective() {
-        if options.emit_module_resolution_kind() == 1 {
-            violations
-                .push(CompilerOptionViolation::ResolveJsonModuleConflictsWithClassicResolution);
-        } else if matches!(options.emit_module_kind(), 0 | 3 | 4) {
-            violations.push(CompilerOptionViolation::ResolveJsonModuleConflictsWithModule);
-        }
+    if (isolated || verbatim) && options.preserve_const_enums == Some(false) {
+        violations
+            .push(CompilerOptionViolation::PreserveConstEnumsRequiredByIsolation { verbatim });
     }
     if options.check_js == Some(true) && !options.allow_js {
         violations.push(CompilerOptionViolation::CheckJsRequiresAllowJs);
@@ -588,9 +496,6 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
     // createProgram, including effective defaults and key/value locations.
     let module = options.emit_module_kind();
     let resolution = options.emit_module_resolution_kind();
-    if verbatim && matches!(module, 2..=4) {
-        violations.push(CompilerOptionViolation::VerbatimModuleRequiresSupportedModule);
-    }
     if options.allow_importing_ts_extensions == Some(true)
         && options.no_emit != Some(true)
         && options.emit_declaration_only != Some(true)
@@ -671,18 +576,6 @@ pub fn validate_paths_option_diagnostics(
             } => MessageChain::new_js(
                 &gen::Substitution_0_in_pattern_1_can_have_at_most_one_character,
                 &[substitution.clone(), pattern.clone()],
-            ),
-            PathsOptionViolationKind::SubstitutionHasIncorrectType {
-                pattern,
-                substitution,
-                actual_type,
-            } => MessageChain::new_js(
-                &gen::Substitution_0_for_pattern_1_has_incorrect_type_expected_string_got_2,
-                &[
-                    substitution.clone(),
-                    pattern.clone(),
-                    actual_type.clone().into(),
-                ],
             ),
             PathsOptionViolationKind::NonRelativeSubstitutionWithoutBaseUrl => {
                 if options

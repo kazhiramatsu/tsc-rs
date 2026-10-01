@@ -2355,22 +2355,13 @@ const H1_EMIT_PROJECTED_CONFIG_OPTIONS: &[&str] = &[
     "stableTypeOrdering",
     "stripInternal",
     "outFile",
-    "out",
     "incremental",
     "composite",
     "assumeChangesOnlyAffectDirectDependencies",
     "tsBuildInfoFile",
-    "importsNotUsedAsValues",
-    "preserveValueImports",
-    "keyofStringsOnly",
-    "suppressExcessPropertyErrors",
-    "suppressImplicitAnyIndexErrors",
-    "noStrictGenericChecks",
-    "charset",
     "emitDecoratorMetadata",
     "newLine",
     "removeComments",
-    "noImplicitUseStrict",
     "noEmitHelpers",
 ];
 
@@ -3233,14 +3224,11 @@ fn paths_option_validation_plan(
 }
 
 /// Validate the `lib`/`noLib` option pair at the same post-conversion
-/// boundary as TypeScript's `verifyCompilerOptions`. The two properties are
-/// both diagnosed (rather than only the second one) and locations are tied to
-/// every effective root-syntax occurrence, matching
-/// `createOptionDiagnosticInObjectLiteralSyntax`.
+/// boundary as `verifyCompilerOptions`. The row lands on the first of the two
+/// properties in document order, as tsgo's `createDiagnosticForOptionName`
+/// over `tsoptions.ForEachPropertyAssignment` does (tsc 6.0 reported both).
 ///
-/// tsc-port: verifyCompilerOptions @6.0.3 (lib/noLib block)
-/// tsc-hash: 6cc5d6e4258b1645ed0788fb31322db101b9e6b9ae34f203e749610f23e48fb3
-/// tsc-span: _tsc.js:124888-124890
+/// tsgo-port: verifyCompilerOptions (lib/noLib) @7.1 (program.go:1184-1186)
 fn no_lib_lib_option_diagnostics(
     options: &ConfigOptionBag,
     source: &ConfigSourceText,
@@ -3272,23 +3260,15 @@ fn no_lib_lib_option_diagnostics(
             }
         }
     }
-    if locations.iter().all(Option::is_none) {
-        locations.push(
-            config_property(&parsed, "compilerOptions")
-                .and_then(|property| config_location(&parsed, property.name_node)),
-        );
-    }
-
-    locations
-        .into_iter()
-        .map(|location| {
-            config_diagnostic(
-                &gen::Option_0_cannot_be_specified_with_option_1,
-                &["lib".to_owned(), "noLib".to_owned()],
-                location,
-            )
-        })
-        .collect()
+    let location = locations.into_iter().flatten().next().or_else(|| {
+        config_property(&parsed, "compilerOptions")
+            .and_then(|property| config_location(&parsed, property.name_node))
+    });
+    vec![config_diagnostic(
+        &gen::Option_0_cannot_be_specified_with_option_1,
+        &["lib".to_owned(), "noLib".to_owned()],
+        location,
+    )]
 }
 
 /// Produce the option diagnostics TypeScript 7.1 reports for the options
@@ -3298,11 +3278,7 @@ fn no_lib_lib_option_diagnostics(
 /// `is_non_fatal_option_diagnostic`). `ignoreDeprecations` is parsed but has
 /// no effect in 7.1: it neither silences a row nor is validated.
 ///
-/// The rows for the options TypeScript 5.5 removed (`charset`, `out`,
-/// `keyofStringsOnly`, ...) remain until the option catalog follows 7.1,
-/// where those names are unknown options (TS5023).
-///
-/// tsgo-port: verifyCompilerOptions "Removed in TS7" @7.1 (program.go:951-1008)
+/// tsgo-port: verifyCompilerOptions "Removed in TS7" @7.1 (program.go:976-1033)
 fn removed_option_diagnostics(
     options: &ConfigOptionBag,
     source: &ConfigSourceText,
@@ -3327,41 +3303,6 @@ fn removed_option_diagnostics(
         );
     };
 
-    let target = config_option_i32(options, "target");
-    if target == Some(0) {
-        removed("target", Some("ES3"), None);
-    }
-    for name in [
-        "noImplicitUseStrict",
-        "keyofStringsOnly",
-        "suppressExcessPropertyErrors",
-        "suppressImplicitAnyIndexErrors",
-        "noStrictGenericChecks",
-    ] {
-        if config_option_bool(options, name) == Some(true) {
-            removed(name, None, None);
-        }
-    }
-    for name in ["charset", "out"] {
-        if config_option_string(options, name).is_some_and(|value| !value.is_empty()) {
-            removed(name, None, None);
-        }
-    }
-    if config_option_i32(options, "importsNotUsedAsValues").is_some_and(|value| value != 0) {
-        removed(
-            "importsNotUsedAsValues",
-            None,
-            Some("verbatimModuleSyntax".into()),
-        );
-    }
-    if config_option_bool(options, "preserveValueImports") == Some(true) {
-        removed(
-            "preserveValueImports",
-            None,
-            Some("verbatimModuleSyntax".into()),
-        );
-    }
-
     // Removed in TS7. The typed `baseUrl` value is already absolute.
     if let Some(base_url) = config_option_string(options, "baseUrl") {
         let use_instead = removed_base_url_paths_suggestion(
@@ -3375,7 +3316,7 @@ fn removed_option_diagnostics(
     if config_option_string(options, "outFile").is_some() {
         removed("outFile", None, None);
     }
-    if target == Some(1) {
+    if config_option_i32(options, "target") == Some(1) {
         removed("target", Some("ES5"), None);
     }
     let module_name = match config_option_i32(options, "module") {
@@ -3683,7 +3624,12 @@ fn pending_paths_option_violations(
             });
             continue;
         };
-        if substitutions.is_empty() {
+        // tsgo converts the substitutions to a string list first, so a list
+        // whose elements are all non-strings is an empty one (TS5066) and a
+        // non-string element reports nothing on its own.
+        if !substitutions.iter().any(|substitution| {
+            matches!(substitution, ConfigTypedJsonValue::Json(Value::String(_)))
+        }) {
             violations.push(PendingConfigPathsViolation {
                 key,
                 target: ConfigPathsDiagnosticLocation::Value,
@@ -3711,16 +3657,6 @@ fn pending_paths_option_violations(
                         kind: PathsOptionViolationKind::NonRelativeSubstitutionWithoutBaseUrl,
                     });
                 }
-            } else {
-                violations.push(PendingConfigPathsViolation {
-                    key,
-                    target: ConfigPathsDiagnosticLocation::Element(index),
-                    kind: PathsOptionViolationKind::SubstitutionHasIncorrectType {
-                        pattern: key.to_owned(),
-                        substitution: config_typed_json_to_js_string(substitution),
-                        actual_type: config_typed_json_typeof(substitution).to_owned(),
-                    },
-                });
             }
         }
     }
@@ -3782,63 +3718,6 @@ fn config_paths_violation_location(
         syntax.file_name.clone()?,
         ProgramConfigSpan::new(span.start, span.length),
     ))
-}
-
-fn config_typed_json_typeof(value: &ConfigTypedJsonValue) -> &'static str {
-    match value {
-        ConfigTypedJsonValue::Json(Value::Null | Value::Array(_) | Value::Object(_))
-        | ConfigTypedJsonValue::Array(_)
-        | ConfigTypedJsonValue::Object(_) => "object",
-        ConfigTypedJsonValue::Json(Value::Bool(_)) => "boolean",
-        ConfigTypedJsonValue::Json(Value::Number(_)) => "number",
-        ConfigTypedJsonValue::Json(Value::String(_)) => "string",
-    }
-}
-
-fn config_typed_json_to_js_string(value: &ConfigTypedJsonValue) -> JsString {
-    // Retain the existing recoverable ToString behavior for diagnosed invalid
-    // option shapes, including string values nested in arrays.
-    match value {
-        ConfigTypedJsonValue::Json(value) => json_value_to_js_string(value),
-        ConfigTypedJsonValue::Array(values) => {
-            let mut result = JsString::new();
-            for (index, value) in values.iter().enumerate() {
-                if index != 0 {
-                    result.push(',');
-                }
-                if !matches!(value, ConfigTypedJsonValue::Json(Value::Null)) {
-                    result.push_js(config_typed_json_to_js_string(value).as_js());
-                }
-            }
-            result
-        }
-        ConfigTypedJsonValue::Object(_) => "[object Object]".into(),
-    }
-}
-
-fn json_value_to_js_string(value: &Value) -> JsString {
-    match value {
-        Value::Null => "null".into(),
-        Value::Bool(value) => value.to_string().into(),
-        Value::Number(value) => js_number_to_string(
-            json_number_as_f64(value).expect("config JSON numbers have a JavaScript projection"),
-        )
-        .into(),
-        Value::String(value) => value.clone(),
-        Value::Array(values) => {
-            let mut result = JsString::new();
-            for (index, value) in values.iter().enumerate() {
-                if index != 0 {
-                    result.push(',');
-                }
-                if !matches!(value, Value::Null) {
-                    result.push_js(json_value_to_js_string(value).as_js());
-                }
-            }
-            result
-        }
-        Value::Object(_) => "[object Object]".into(),
-    }
 }
 
 fn config_location(source: &SourceFile, node: NodeId) -> Option<ConfigLocation> {
@@ -4932,7 +4811,6 @@ fn config_module_resolution_options<'j0>(
         declaration_dir: config_option_string(options, "declarationDir"),
         strip_internal: config_option_bool(options, "stripInternal"),
         out_file: config_option_string(options, "outFile"),
-        out: config_option_string(options, "out"),
         incremental: config_option_bool(options, "incremental"),
         composite: config_option_bool(options, "composite"),
         assume_changes_only_affect_direct_dependencies: config_option_bool(
@@ -4940,23 +4818,9 @@ fn config_module_resolution_options<'j0>(
             "assumeChangesOnlyAffectDirectDependencies",
         ),
         ts_build_info_file: config_option_string(options, "tsBuildInfoFile"),
-        imports_not_used_as_values: config_option_i32(options, "importsNotUsedAsValues"),
-        preserve_value_imports: config_option_bool(options, "preserveValueImports"),
-        keyof_strings_only: config_option_bool(options, "keyofStringsOnly"),
-        suppress_excess_property_errors: config_option_bool(
-            options,
-            "suppressExcessPropertyErrors",
-        ),
-        suppress_implicit_any_index_errors: config_option_bool(
-            options,
-            "suppressImplicitAnyIndexErrors",
-        ),
-        no_strict_generic_checks: config_option_bool(options, "noStrictGenericChecks"),
-        charset: config_option_string(options, "charset"),
         emit_decorator_metadata: config_option_bool(options, "emitDecoratorMetadata"),
         new_line: config_option_i32(options, "newLine"),
         remove_comments: config_option_bool(options, "removeComments"),
-        no_implicit_use_strict: config_option_bool(options, "noImplicitUseStrict"),
         no_emit_helpers: config_option_bool(options, "noEmitHelpers"),
         no_resolve: config_option_bool(options, "noResolve"),
         import_helpers: config_option_bool(options, "importHelpers"),

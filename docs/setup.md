@@ -25,9 +25,12 @@ builds and verifies with no bootstrap step.
   (`scripts/conformance_ts71.py`), its sharded-control comparison and the
   vendoring script.
 - **Go** — only to build the reference compiler, `tsgo`, from the vendored
-  commit with `scripts/typescript7.py` (`go -C tsc build ./cmd/tsc` in its
-  checkout) when a behavior question needs the reference's answer. Neither
-  Go nor Node.js is needed to build, test or run tsc-rs.
+  commit with `scripts/typescript7.py` (`setup` fetches the pinned commit
+  into `target/typescript7/upstream`, moving an existing clean checkout to
+  the pin; `build` runs `go -C tsc build ./cmd/tsc` there with the Go
+  toolchain the script pins, which Go downloads on first use) when a
+  behavior question needs the reference's answer. Neither Go nor Node.js is
+  needed to build, test or run tsc-rs.
 
 ## Verification
 

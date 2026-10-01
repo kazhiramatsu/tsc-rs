@@ -796,30 +796,6 @@ fn apply_compiler_setting(
             compiler_options.use_unknown_in_catch_variables = Some(boolean()?)
         }
         "alwaysstrict" => compiler_options.always_strict = Some(boolean()?),
-        "noimplicitusestrict" => compiler_options.no_implicit_use_strict = Some(boolean()?),
-        "keyofstringsonly" => compiler_options.keyof_strings_only = Some(boolean()?),
-        "suppressexcesspropertyerrors" => {
-            compiler_options.suppress_excess_property_errors = Some(boolean()?)
-        }
-        "suppressimplicitanyindexerrors" => {
-            compiler_options.suppress_implicit_any_index_errors = Some(boolean()?)
-        }
-        "nostrictgenericchecks" => compiler_options.no_strict_generic_checks = Some(boolean()?),
-        "preservevalueimports" => compiler_options.preserve_value_imports = Some(boolean()?),
-        "importsnotusedasvalues" => {
-            compiler_options.imports_not_used_as_values =
-                Some(match value.to_ascii_lowercase().as_str() {
-                    "remove" => 0,
-                    "preserve" => 1,
-                    "error" => 2,
-                    _ => value.parse::<i32>().map_err(|_| {
-                        error(format!(
-                            "compiler option importsNotUsedAsValues has invalid value {value:?}"
-                        ))
-                    })?,
-                })
-        }
-        "charset" => compiler_options.charset = Some(value.to_owned().into()),
         "noerrortruncation" => compiler_options.no_error_truncation = Some(boolean()?),
         "importhelpers" => compiler_options.import_helpers = Some(boolean()?),
         "downleveliteration" => compiler_options.downlevel_iteration = Some(boolean()?),
