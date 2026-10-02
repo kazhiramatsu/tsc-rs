@@ -740,4 +740,5 @@ aliasを作らない、名前の無いtypedefの2つのTS1003、`@augments`の�
   型nodeを検査し、TS8024／TS8028／TS8029／TS8032を削除、TS8030／TS8020をtsgoに合わせる。P3-5p（JSDocの型構文）＝Closureの
   `function(...)`型・単独の`?`・`!`の優先順位・`module:` namepathの削除、名前の欠落の報告（`parseJSDocIdentifierName`、
   messageが無ければ報告しない）、`@`がtagを始める条件とfenced code block、`@see`の名前。
-- hosted：HOSTED_RECORD
+- hosted：PR #632（head `a94bb3235`、merge `066c24253`）、run 37025092097 — `plan` 27s、`rust` 9m45s、`conformance (TypeScript 7.1)` 22m0s、`gates` 14s。
+- perf（README corpora、`--noEmit`、3 rounds、nice 20、main `3bd8fee84`と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 127→120、zod 557→540、Playwright 360→372、TypeScript `src/compiler` 374→361、Next.js 850→860、Effect 538→560、VS Code 3,792→3,810。tsc-rs÷tsgoは0.58〜0.98で従来の幅、peak memoryは同等以下（MB main→本branch：287→296、1,299→1,298、758→757、291→292、1,328→1,329、1,035→1,037、5,455→5,127）。Effect・Playwright・Next.jsは同条件の5 rounds A/B（本branch／main）で、medianは599／592、372／386、784／827、minは517／528、356／358、777／783、CPU時間は3,447／3,500、2,487／2,537、4,786／4,765 msなのでノイズ。退行なし。測定scriptは前のsessionのscratchpadから消えていたので同じ方式（交互実行、wall／CPU／peak RSS、bench-corporaの`tsconfig.bench-noemit.json`、VS Codeは`src/tsconfig.bench-stable.json`）で作り直し、honoでP3-5mの測定と同程度の値（tsgo 162、tsc-rs 119 ms；P3-5mでは165、125 ms）になることを確かめた。
