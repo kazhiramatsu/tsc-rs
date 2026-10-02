@@ -442,4 +442,5 @@ tsgoの2行に再pinし、ambient moduleの循環（4行）と`export type { A }
 加えてそれに合わせた（`recursiveExportAssignmentAndFindAliasedType*`6構成、`exportAsNamespaceConflict`、
 `declarationEmitUnknownImport2`がcategoryで止まっていた原因）。
 - conformance：15,228 configuration、lane A 13,467（変化なし）、full 12,731→12,743（+12）、text 114、category 22、mismatch 555→543、harness error 45、emit full 12,410。fullに上がったのはTS2303 classの12構成すべて（`circular1`／`circular3`、`recursiveExportAssignmentAndFindAliasedType1`〜`6`、`declarationEmitUnknownImport`／`2`（target=es2015）、`circularModuleImports`、`exportAsNamespaceConflict`）。ratchet：0 regressions、12行追加。
-- hosted：HOSTED_RECORD
+- hosted：PR #623（head `ac2a31657`、merge `f946e0cf8`）、run 36942229574 — `plan` 31s、`rust` 9m47s、`conformance (TypeScript 7.1)` 21m45s、`gates` 12s。
+- perf（README corpora、`--noEmit`、3 rounds、nice 20、main `02d078f30`と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 121→119、zod 528→524、Playwright 340→350（min 337→330）、TypeScript `src/compiler` 355→346、Next.js 826→792、Effect 546→506、VS Code 3,480→3,513。tsc-rs÷tsgoは0.59〜1.01で従来どおり、peak memoryは同等（MB main→本branch：284→312（honoは日中の計測でも284〜312の幅）、1,302→1,294、760→760、292→292、1,325→1,328、1,051→1,032、5,478→5,484）。退行なし。
