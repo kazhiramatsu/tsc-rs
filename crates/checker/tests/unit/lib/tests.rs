@@ -2721,7 +2721,7 @@ fn node18_json_default_import_requires_type_attribute() {
 }
 
 #[test]
-fn import_attributes_on_cjs_emit_report_2856_with_priority() {
+fn import_attributes_on_cjs_emit_report_2856_except_for_type_only() {
     // tsc checkImportAttributes: the CommonJS-require row (2856)
     // rides the specifier's emit syntax and takes priority over
     // the type-only (2857) and resolution-mode (1454) rows. The
@@ -2765,9 +2765,12 @@ fn import_attributes_on_cjs_emit_report_2856_with_priority() {
         .iter()
         .map(|diagnostic| diagnostic.code())
         .collect();
+    // TypeScript 7.1 (tsgo checkImportAttributes): a type-only import with
+    // attributes gets only the resolution-mode override check, so neither
+    // the CommonJS-require row nor the type-only row is reported.
     assert!(
-        codes.contains(&2856) && !codes.contains(&2857),
-        "the CommonJS-require row outranks the type-only row: {:#?}",
+        !codes.contains(&2856) && !codes.contains(&2857),
+        "no grammar row for a type-only import with attributes: {:#?}",
         type_only.diagnostics
     );
 }

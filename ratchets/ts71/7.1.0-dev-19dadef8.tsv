@@ -3262,6 +3262,8 @@ compiler/importOnAliasedIdentifiers	full	js
 compiler/importPropertyFromMappedType	full	js
 compiler/importShadowsGlobalName	full	js
 compiler/importShouldNotBeElidedInDeclarationEmit	full	js
+compiler/importTypeAssertionDeprecation	full	js
+compiler/importTypeAssertionDeprecationIgnored	full	js
 compiler/importTypeGenericArrowTypeParenthesized	full	none
 compiler/importTypeResolutionJSDocEOF	full	js
 compiler/importTypeTypeofClassStaticLookup	full	js
@@ -9044,6 +9046,8 @@ conformance/importAssertion1(module=esnext)	full	none
 conformance/importAssertion2(module=commonjs)	full	none
 conformance/importAssertion2(module=es2015)	full	none
 conformance/importAssertion2(module=esnext)	full	none
+conformance/importAssertion3(module=es2015)	full	none
+conformance/importAssertion3(module=esnext)	full	none
 conformance/importAssertion4	full	none
 conformance/importAssertion5	full	none
 conformance/importAttributes1(module=commonjs)	full	none
@@ -9054,6 +9058,8 @@ conformance/importAttributes11	full	js
 conformance/importAttributes2(module=commonjs)	full	none
 conformance/importAttributes2(module=es2015)	full	none
 conformance/importAttributes2(module=esnext)	full	none
+conformance/importAttributes3(module=es2015)	full	none
+conformance/importAttributes3(module=esnext)	full	none
 conformance/importAttributes4	full	none
 conformance/importAttributes5	full	none
 conformance/importAttributes6(module=node18)	full	js
@@ -9146,6 +9152,8 @@ conformance/importTag1	full	js
 conformance/importTag10	full	js
 conformance/importTag11	full	js
 conformance/importTag12	full	js
+conformance/importTag15(module=es2015)	full	none
+conformance/importTag15(module=esnext)	full	none
 conformance/importTag16	full	none
 conformance/importTag17	full	js
 conformance/importTag18	full	none
@@ -10005,6 +10013,10 @@ conformance/nodeModulesImportAttributesModeDeclarationEmit2(module=node16)	full	
 conformance/nodeModulesImportAttributesModeDeclarationEmit2(module=node18)	full	js
 conformance/nodeModulesImportAttributesModeDeclarationEmit2(module=node20)	full	js
 conformance/nodeModulesImportAttributesModeDeclarationEmit2(module=nodenext)	full	js
+conformance/nodeModulesImportAttributesModeDeclarationEmitErrors(module=node16)	full	none
+conformance/nodeModulesImportAttributesModeDeclarationEmitErrors(module=node18)	full	none
+conformance/nodeModulesImportAttributesModeDeclarationEmitErrors(module=node20)	full	none
+conformance/nodeModulesImportAttributesModeDeclarationEmitErrors(module=nodenext)	full	none
 conformance/nodeModulesImportAttributesTypeModeDeclarationEmit(module=node16)	full	js
 conformance/nodeModulesImportAttributesTypeModeDeclarationEmit(module=node18)	full	js
 conformance/nodeModulesImportAttributesTypeModeDeclarationEmit(module=node20)	full	js
@@ -10037,6 +10049,10 @@ conformance/nodeModulesImportModeDeclarationEmit2(module=node16)	full	js
 conformance/nodeModulesImportModeDeclarationEmit2(module=node18)	full	js
 conformance/nodeModulesImportModeDeclarationEmit2(module=node20)	full	js
 conformance/nodeModulesImportModeDeclarationEmit2(module=nodenext)	full	js
+conformance/nodeModulesImportModeDeclarationEmitErrors1(module=node16)	full	none
+conformance/nodeModulesImportModeDeclarationEmitErrors1(module=node18)	full	none
+conformance/nodeModulesImportModeDeclarationEmitErrors1(module=node20)	full	none
+conformance/nodeModulesImportModeDeclarationEmitErrors1(module=nodenext)	full	none
 conformance/nodeModulesImportResolutionIntoExport(module=node16)	full	js
 conformance/nodeModulesImportResolutionIntoExport(module=node18)	full	js
 conformance/nodeModulesImportResolutionIntoExport(module=node20)	full	js
@@ -10049,6 +10065,14 @@ conformance/nodeModulesImportTypeModeDeclarationEmit1(module=node16)	full	js
 conformance/nodeModulesImportTypeModeDeclarationEmit1(module=node18)	full	js
 conformance/nodeModulesImportTypeModeDeclarationEmit1(module=node20)	full	js
 conformance/nodeModulesImportTypeModeDeclarationEmit1(module=nodenext)	full	js
+conformance/nodeModulesImportTypeModeDeclarationEmitErrors1(module=node16)	full	none
+conformance/nodeModulesImportTypeModeDeclarationEmitErrors1(module=node18)	full	none
+conformance/nodeModulesImportTypeModeDeclarationEmitErrors1(module=node20)	full	none
+conformance/nodeModulesImportTypeModeDeclarationEmitErrors1(module=nodenext)	full	none
+conformance/nodeModulesJson(module=node16)	full	js
+conformance/nodeModulesJson(module=node18)	full	js
+conformance/nodeModulesJson(module=node20)	full	js
+conformance/nodeModulesJson(module=nodenext)	full	js
 conformance/nodeModulesNoDirectoryModule	full	js
 conformance/nodeModulesPackageExports(module=node16)	full	js
 conformance/nodeModulesPackageExports(module=node18)	full	js

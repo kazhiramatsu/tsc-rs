@@ -954,6 +954,20 @@ impl<'text> Parser<'text> {
         );
     }
 
+    /// A TypeScript 7.1 deprecation the parser reports on a complete tree
+    /// (the `assert` form of import attributes): a parse diagnostic whose
+    /// recovery record is report-only, so emit is not deferred.
+    fn parse_deprecation_at_current_token(&mut self, message: &'static DiagnosticMessage) {
+        self.push_parse_diagnostic(
+            self.scanner.token_start(),
+            self.scanner.pos() - self.scanner.token_start(),
+            message,
+            Vec::new(),
+            ParseDiagnosticOrigin::Deprecation,
+        );
+        self.parse_error_before_next_finished_node = true;
+    }
+
     /// The result-bearing face of parseErrorAtCurrentToken used by
     /// parseExpectedMatchingBrackets. tsc attaches related information
     /// only when parseErrorAtPosition actually created a new primary
@@ -8366,6 +8380,14 @@ impl<'text> Parser<'text> {
                 self.token(),
                 SyntaxKind::WithKeyword | SyntaxKind::AssertKeyword
             ) {
+                // tsgo parseImportType (TypeScript 7.1): the `assert` form is a
+                // parse error at the keyword (tsc 6.0: checkImportType, at the
+                // attributes' `{`).
+                if keyword == SyntaxKind::AssertKeyword {
+                    self.parse_deprecation_at_current_token(
+                        &gen::Import_assertions_have_been_replaced_by_import_attributes_Use_with_instead_of_assert,
+                    );
+                }
                 self.next_token();
             } else {
                 self.parse_error_at_current_token(
@@ -8403,6 +8425,13 @@ impl<'text> Parser<'text> {
     fn parse_import_attributes(&mut self, keyword: SyntaxKind, skip_keyword: bool) -> NodeId {
         let pos = self.node_pos();
         if !skip_keyword {
+            // tsgo parseImportAttributes (TypeScript 7.1): the `assert` form is a
+            // parse error at the keyword (tsc 6.0 reported it from the checker).
+            if keyword == SyntaxKind::AssertKeyword {
+                self.parse_deprecation_at_current_token(
+                    &gen::Import_assertions_have_been_replaced_by_import_attributes_Use_with_instead_of_assert,
+                );
+            }
             self.parse_expected(keyword, None);
         }
         let open_brace_position = self.scanner.token_start();
@@ -10226,7 +10255,8 @@ impl<'text> Parser<'text> {
                 ParseDiagnosticOrigin::ScannerToken(_) => self.scanner.token_start(),
                 ParseDiagnosticOrigin::Parser => self.recovery_statement_start.unwrap_or(start),
                 ParseDiagnosticOrigin::ScannerTrivia(_)
-                | ParseDiagnosticOrigin::ReferenceDirective => start,
+                | ParseDiagnosticOrigin::ReferenceDirective
+                | ParseDiagnosticOrigin::Deprecation => start,
             }),
         });
         (diagnostic_index, event_index)

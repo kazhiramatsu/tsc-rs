@@ -5144,9 +5144,13 @@ fn reused_type_arguments_parenthesize_a_leading_generic_function() {
 }
 
 #[test]
-fn reused_import_assert_recovers_semantically_without_reentry() {
-    let source =
-        "let f = (x: import(\"./m\", { assert: { type: \"json\" } }).Q) => {}; let n: number = f;";
+fn reused_import_attributes_recovers_semantically_without_reentry() {
+    // The `assert` form is a parse error in TypeScript 7.1 (TS2880 at the
+    // keyword, see the parser tests), so an empty `with` list carries the
+    // reuse path here (a `type: "json"` attribute would change the
+    // module's resolution). tsgo prints the reused import type as written
+    // in the message (tsc-19dadef8), as it does without attributes.
+    let source = "let f = (x: import(\"./m\", { with: {} }).Q) => {}; let n: number = f;";
     let rows = program_diags(&[
         ("m.ts", "export interface Q { q: string }\n"),
         ("a.ts", source),
@@ -5161,7 +5165,8 @@ fn reused_import_assert_recovers_semantically_without_reentry() {
             2322,
             (source.rfind("let n").expect("failing declaration") + 4) as u32,
             1,
-            "Type '(x: Q) => void' is not assignable to type 'number'.".to_owned(),
+            "Type '(x: import(\"./m\", { with: {} }).Q) => void' is not assignable to type 'number'."
+                .to_owned(),
         )]
     );
 }

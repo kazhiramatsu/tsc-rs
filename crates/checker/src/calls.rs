@@ -6443,8 +6443,11 @@ impl<'a> CheckerState<'a> {
                     if self.kind_of(name) == SyntaxKind::Identifier
                         && self.identifier_text_of(name) == Some("assert")
                     {
-                        self.grammar_error_on_node(
-                            name,
+                        // tsgo checkImportCallExpression reports this as an
+                        // ordinary error (not a grammar error suppressed by
+                        // the file's parse diagnostics).
+                        self.error_at(
+                            Some(name),
                             &diagnostics::Import_assertions_have_been_replaced_by_import_attributes_Use_with_instead_of_assert,
                             &[],
                         );

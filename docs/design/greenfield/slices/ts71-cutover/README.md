@@ -509,3 +509,24 @@ textもindexに入れ、native runnerと同じ`react18/react18.d.ts:478:9`を出
 - conformance：15,228 configuration、lane A 13,467（変化なし）、full 12,750→12,807（+57）、text 114→83、category 22、mismatch 536→510、harness error 45、emit full 12,410。上がったのは61構成（overload失敗のcompiler／conformance case、`unusedImports*`／`unusedDestructuringParameters`、JSX children、tagged template、union signatureなど）：57がfull、4がtext。ratchet：0 regressions、26行追加・35行をtext→fullに上げた。local full runは今回から`--workers 2`（798 s）。
 - hosted：PR #625（head `f07421dcf`、merge `1afe0317b`）、run 36953157844 — `plan` 27s、`rust` 7m20s、`conformance (TypeScript 7.1)` 17m2s、`gates` 12s。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main `0985315a7`と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 126→129、zod 548→565、Playwright 371→371、TypeScript `src/compiler` 356→360、Next.js 828→818、Effect 545→557、VS Code 3,685→3,712（この回もtsgoを含め全体が朝の計測より遅く、machineの負荷差）。tsc-rs÷tsgoは0.58〜1.01で従来どおり、peak memoryは同等（MB main→本branch：287→286、1,298→1,299、742→759、292→292、1,331→1,330、1,039→1,035、5,484→5,479）。honoとzodのmedian差は同条件の5 rounds A/B（hono 本branch 118／main 120、zod 508／515）で本branchの方が速く、ノイズ。退行なし。
+
+## P3-5h import attributesの文法row（2026-10-02）
+
+P3-5g後の集計でunexpected TS2857が8、TS2823が6、TS2856が6構成（計20、すべてtype-only import／exportまたはimport typeに
+attributesが付くもの）、(missing TS2880, unexpected TS2880)が6構成。tsc 6.0の`checkImportAttributes`はtype-onlyでも
+resolution-mode override以外の文法row（module optionのTS2823、CommonJS requireのTS2856、type-onlyのTS2857）を報告した
+が、tsgoの`checkImportAttributes`（checker.go:5537-5565）は`isExclusivelyTypeOnlyImportOrExport || isImportTypeNode`なら
+overrideの検査だけで戻る。tsc-rsも同じ早期returnにした。TS2880「Import assertions have been replaced by import
+attributes」は、tsgoではparserが`assert` keywordの位置に出す（parser.go:2552／2619／3093）。import／export宣言はtsc-rsも
+attributesの先頭token＝`assert`で一致するが、import typeは`{ assert: {...} }`の内側の`{`に出していた（6構成）ので、
+TS2880をparserへ移した：`parse_import_attributes`（宣言、keyword位置）と`parse_import_type`（`{`の次の`assert`）で
+report-only originの`parse_deprecation_at_current_token`で報告し、checkerの`check_import_type`／
+`check_import_attributes`の2880 armは削除。dynamic `import()` callの`{ assert: … }`はtsgoもcheckerがproperty名に
+出すが、tsgoは通常の`error`なので（6.0移植はgrammar error＝fileにparse diagnosticがあると抑制）`error_at`に変えた。
+parse diagnosticが付くとtsc-rsのemit preflightはrecovery未対応として出力を止めていた（`importAssertionsDeprecated`の
+emit baselineが退行）ので、`ParseDiagnosticOrigin::Deprecation`（木は完全で何も補わない）をliteral-only扱いにして
+tsgoと同じくemitする。tsgoと同じくparse errorになるのでCLIでは`assert`を含むfileのsemantic rowが抑制される。unit test：parser（`import_assertions_report_2880_at_the_keyword`、
+offset 20／70）を追加、checkのreuse testは`with`形に、libのCommonJS優先testはtype-only側を「rowなし」に再pin、
+statementsの注記を更新。
+- conformance：15,228 configuration、lane A 13,467（変化なし）、full 12,807→12,832（+25）、text 83、category 22、mismatch 510→486、harness error 45→44、emit full 12,410→12,411（増分はload依存の`intersectionConstructorReductionCrash`がこの回fullになったもので、P3-5aの判断どおりratchetには載せない）。上がったのはimport attributes classの20構成（`importAssertion3`／`importAttributes3`／`importTag15`の各module、`nodeModulesJson`、`nodeModulesImportAttributesModeDeclarationEmitErrors`、`nodeModulesImportModeDeclarationEmitErrors1`、`nodeModulesImportTypeModeDeclarationEmitErrors1`の各module）とTS2880 classの`importTypeAssertionDeprecation`／`Ignored`（`nodeModulesImportTypeModeDeclarationEmitErrors1`の4構成は両classに属する）。ratchet：0 regressions、24行追加。localの検証は2026-10-02のlocal-load方針どおり：fmt、syntax／checker／compiler／conformance crateのclippyとtest、release build、2 workerのfull run 1回（794 s）。
+- hosted：HOSTED_RECORD

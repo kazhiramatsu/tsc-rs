@@ -265,6 +265,28 @@ fn regex_literal_stores_only_true_unterminated_state() {
     );
 }
 
+/// tsgo parseImportAttributes / parseImportType (TypeScript 7.1): the
+/// `assert` form of import attributes is a parse error at the keyword,
+/// on an import declaration and inside an import type's `{ assert: … }`
+/// (tsc 6.0 reported it from the checker). Rows probed with tsc-19dadef8.
+#[test]
+fn import_assertions_report_2880_at_the_keyword() {
+    let text = "import x from \"./m\" assert { type: \"json\" };\n\
+                type A = import(\"./m\", { assert: { type: \"json\" } }).q;\n";
+    let source = parse_source_file("a.ts".into(), text.into(), ParseOptions::default(), None);
+    let rows: Vec<(u32, Option<u32>, Option<u32>)> = source
+        .parse_diagnostics
+        .iter()
+        .map(|diagnostic| (diagnostic.code(), diagnostic.start, diagnostic.length))
+        .collect();
+    assert_eq!(
+        rows,
+        [(2880, Some(20), Some(6)), (2880, Some(70), Some(6))],
+        "{:?}",
+        source.parse_diagnostics
+    );
+}
+
 /// tsc parseHeritageClause (34277): the clause token is stored on
 /// the node (createHeritageClause 24106), extends vs implements.
 #[test]

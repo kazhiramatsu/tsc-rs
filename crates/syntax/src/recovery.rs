@@ -13,9 +13,16 @@ pub enum ParseDiagnosticOrigin {
     ScannerTrivia(SyntaxKind),
     Parser,
     ReferenceDirective,
+    /// A report-only diagnostic on a complete tree: TypeScript 7.1's
+    /// parser reports the `assert` form of import attributes (TS2880) at
+    /// the keyword without skipping or synthesizing anything, so the
+    /// record stays emit-safe like a literal-only one.
+    Deprecation,
 }
 
 impl ParseDiagnosticOrigin {
+    /// Report-only origins: a scanner literal error or a deprecation leaves
+    /// the tree complete, so the record admits emit.
     fn is_literal(self) -> bool {
         matches!(
             self,
@@ -25,7 +32,7 @@ impl ParseDiagnosticOrigin {
                     | SyntaxKind::TemplateHead
                     | SyntaxKind::TemplateMiddle
                     | SyntaxKind::TemplateTail
-            )
+            ) | Self::Deprecation
         )
     }
 }
