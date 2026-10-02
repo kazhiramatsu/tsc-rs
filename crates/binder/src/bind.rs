@@ -9,8 +9,7 @@
 use crate::assignment::{
     access_expression_of, get_assignment_declaration_kind,
     get_assignment_declaration_property_access_kind, get_element_or_property_access_name,
-    get_right_most_assigned_expression, is_exports_identifier, is_module_exports_access_expression,
-    AssignmentDeclarationKind,
+    is_exports_identifier, is_module_exports_access_expression, AssignmentDeclarationKind,
 };
 use crate::containers::{get_container_flags, ContainerFlags};
 #[cfg(test)]
@@ -47,8 +46,12 @@ impl<'a> BinderWorker<'a> {
     pub fn bind_source_file(&mut self) {
         self.in_strict_mode = self.bind_in_strict_mode();
         self.bind(Some(self.source.root));
-        self.bind_deferred_expando_assignments();
+        // tsgo bindContainer's source-file tail (TypeScript 7.1): the JSDoc
+        // type aliases first, then the CommonJS variables and the type
+        // exports promoted onto `export=`; expandos bind after the file.
         self.delayed_bind_jsdoc_typedef_tags();
+        self.bind_common_js_file_tail();
+        self.bind_deferred_expando_assignments();
         self.bind_jsdoc_imports();
     }
 
@@ -146,13 +149,13 @@ impl<'a> BinderWorker<'a> {
                     }
                 }
                 // tsgo bindWorker (TypeScript 7.1) binds no special property
-                // declarations (JSDoc-typed `this.p;` statements).
-                self.bind_common_js_module_symbol(node);
+                // declarations (JSDoc-typed `this.p;` statements); CommonJS
+                // `module` / `exports` are declared at the end of the file.
             }
             SyntaxKind::BinaryExpression => {
                 match self.get_assignment_declaration_kind(node) {
                     AssignmentDeclarationKind::ExportsProperty => {
-                        self.bind_exports_property_assignment(node)
+                        self.bind_exports_or_object_define_property(node)
                     }
                     AssignmentDeclarationKind::ModuleExports => {
                         self.bind_module_exports_assignment(node)
@@ -161,11 +164,7 @@ impl<'a> BinderWorker<'a> {
                         self.bind_this_property_assignment(node)
                     }
                     AssignmentDeclarationKind::Property => {
-                        if self.is_common_js_alias_property_assignment(node) {
-                            self.bind_exports_property_assignment(node)
-                        } else {
-                            self.bind_expando_property_assignment(node)
-                        }
+                        self.bind_expando_property_assignment(node)
                     }
                     AssignmentDeclarationKind::None => {}
                     _ => debug_assert!(
@@ -292,7 +291,7 @@ impl<'a> BinderWorker<'a> {
                     self.bind_expando_property_assignment(node)
                 }
                 AssignmentDeclarationKind::ObjectDefinePropertyExports => {
-                    self.bind_object_define_property_export(node)
+                    self.bind_exports_or_object_define_property(node)
                 }
                 // bindWorker: `if (isInJSFile(node)) bindCallExpression(node)`
                 // — only a JavaScript file's `require()` call makes it a
@@ -1174,26 +1173,6 @@ impl<'a> BinderWorker<'a> {
             .push((node, self.container, self.block_scope_container));
     }
 
-    /// CommonJS bridge kept until the CommonJS port (tsc 6.0
-    /// bindSpecialPropertyAssignment's alias arm): in a JavaScript file, a
-    /// top-level `util.p = ...` where `util` aliases `exports` or
-    /// `module.exports` declares an export, as `exports.p = ...` does. tsgo
-    /// binds no such alias; its CommonJS module typing differs as a whole.
-    fn is_common_js_alias_property_assignment(&self, node: NodeId) -> bool {
-        if !self.is_in_js_file() || self.container != Some(self.source.root) {
-            return false;
-        }
-        let NodeData::BinaryExpression(data) = &self.source.arena.node(node).data else {
-            return false;
-        };
-        data.left
-            .and_then(|left| access_expression_of(self.source, left))
-            .is_some_and(|expression| {
-                kind_of(self.source, expression) == SyntaxKind::Identifier
-                    && self.is_exports_or_module_exports_or_alias(expression)
-            })
-    }
-
     /// tsgo-port: bindDeferredExpandoAssignments @7.1 (binder.go:1035-1041).
     fn bind_deferred_expando_assignments(&mut self) {
         let assignments = std::mem::take(&mut self.expando_assignments);
@@ -1393,42 +1372,9 @@ impl<'a> BinderWorker<'a> {
         self.node_symbol.get(&self.source.root).copied()
     }
 
-    fn bind_exports_property_assignment(&mut self, node: NodeId) {
-        if !self.set_common_js_module_indicator(node) {
-            return;
-        }
-        let (left, right) = match &self.source.arena.node(node).data {
-            NodeData::BinaryExpression(data) => (data.left, data.right),
-            _ => (None, None),
-        };
-        let (Some(left), Some(right)) = (left, right) else {
-            return;
-        };
-        let Some(entity_name) = access_expression_of(self.source, left) else {
-            return;
-        };
-        let Some(symbol) = self.bind_existing_entity_name_as_module(entity_name, None) else {
-            return;
-        };
-        let is_alias = self.is_aliasable_expression(right)
-            && (is_exports_identifier(self.source, entity_name)
-                || is_module_exports_access_expression(self.source, entity_name));
-        let flags = if is_alias {
-            SymbolFlags::ALIAS
-        } else {
-            SymbolFlags::PROPERTY | SymbolFlags::EXPORT_VALUE
-        };
-        self.declare_symbol(
-            TableRef::Exports(symbol),
-            Some(symbol),
-            left,
-            flags,
-            SymbolFlags::NONE,
-            false,
-            false,
-        );
-    }
-
+    /// tsgo-port: bindModuleExportsAssignment @7.1 (binder.go:1018-1025):
+    /// `module.exports = X` declares the file's `export=`, an alias when X is
+    /// an entity name or class expression and a property otherwise.
     fn bind_module_exports_assignment(&mut self, node: NodeId) {
         if !self.set_common_js_module_indicator(node) {
             return;
@@ -1442,26 +1388,16 @@ impl<'a> BinderWorker<'a> {
         }) else {
             return;
         };
-        let assigned = get_right_most_assigned_expression(self.source, right);
-        if self.is_empty_object_literal(assigned)
-            || self.container == Some(self.source.root)
-                && self.is_exports_or_module_exports_or_alias(assigned)
-        {
-            return;
-        }
-        if self.bind_export_assigned_shorthand_object(assigned, file_symbol) {
-            return;
-        }
         let flags = if self.is_aliasable_expression(right) {
             SymbolFlags::ALIAS
         } else {
-            SymbolFlags::PROPERTY | SymbolFlags::EXPORT_VALUE | SymbolFlags::VALUE_MODULE
+            SymbolFlags::PROPERTY
         };
         let symbol = self.declare_symbol(
             TableRef::Exports(file_symbol),
             Some(file_symbol),
             node,
-            flags | SymbolFlags::ASSIGNMENT,
+            flags,
             SymbolFlags::NONE,
             false,
             false,
@@ -1469,38 +1405,127 @@ impl<'a> BinderWorker<'a> {
         self.set_value_declaration(symbol, node);
     }
 
-    fn bind_export_assigned_shorthand_object(
-        &mut self,
-        expression: NodeId,
-        file_symbol: SymbolId,
-    ) -> bool {
-        let NodeData::ObjectLiteralExpression(data) = &self.source.arena.node(expression).data
-        else {
-            return false;
+    /// tsgo-port: bindExportsOrObjectDefineProperty @7.1 (binder.go:1088-1094):
+    /// `exports.p = X`, `module.exports.p = X` and
+    /// `Object.defineProperty(exports, "p", ...)` declare `p` on the file's
+    /// exports, an alias when X is an entity name or class expression and a
+    /// function-scoped variable otherwise; the assignment (or call) is the
+    /// declaration.
+    fn bind_exports_or_object_define_property(&mut self, node: NodeId) {
+        if !self.set_common_js_module_indicator(node) {
+            return;
+        }
+        let Some(file_symbol) = self.file_symbol() else {
+            return;
         };
-        let Some(properties) = data.properties else {
-            return false;
+        let is_alias = match &self.source.arena.node(node).data {
+            NodeData::BinaryExpression(data) => data
+                .right
+                .is_some_and(|right| self.is_aliasable_expression(right)),
+            _ => false,
         };
-        let properties = self.source.arena.node_array(properties).nodes.to_vec();
-        if properties.is_empty()
-            || !properties.iter().all(|&property| {
-                kind_of(self.source, property) == SyntaxKind::ShorthandPropertyAssignment
-            })
+        let flags = if is_alias {
+            SymbolFlags::ALIAS
+        } else {
+            SymbolFlags::FUNCTION_SCOPED_VARIABLE
+        };
+        self.declare_symbol(
+            TableRef::Exports(file_symbol),
+            Some(file_symbol),
+            node,
+            flags,
+            SymbolFlags::FUNCTION_SCOPED_VARIABLE_EXCLUDES,
+            false,
+            false,
+        );
+    }
+
+    /// tsgo bindContainer's source-file tail (binder.go:1607-1622): a
+    /// JavaScript file with a CommonJS indicator declares `module` and
+    /// `exports` (declareCommonJSVariable); an external or CommonJS module
+    /// promotes its type and namespace exports onto its `export=`
+    /// (bindCommonJSTypeExports).
+    fn bind_common_js_file_tail(&mut self) {
+        if self.is_in_js_file() && self.common_js_module_indicator.is_some() {
+            self.declare_common_js_variable("module");
+            self.declare_common_js_variable("exports");
+        }
+        if self.source.external_module_indicator.is_some()
+            || self.common_js_module_indicator.is_some()
         {
-            return false;
+            if let Some(file_symbol) = self.file_symbol() {
+                self.bind_common_js_type_exports(file_symbol);
+            }
         }
-        for property in properties {
-            self.declare_symbol(
-                TableRef::Exports(file_symbol),
-                Some(file_symbol),
-                property,
-                SymbolFlags::ALIAS | SymbolFlags::ASSIGNMENT,
-                SymbolFlags::NONE,
-                false,
-                false,
+    }
+
+    /// tsgo-port: declareCommonJSVariable @7.1 (binder.go:1628-1644): unless
+    /// the file declares it, `module` / `exports` is a function-scoped
+    /// ModuleExports variable whose declaration is the source file; `module`
+    /// has an `exports` member of the same kind.
+    fn declare_common_js_variable(&mut self, name: &'static str) {
+        let root = self.source.root;
+        self.ensure_locals(root);
+        let escaped = EscapedName::internal(name);
+        if self
+            .locals
+            .get(&root)
+            .is_some_and(|locals| locals.get(escaped).is_some())
+        {
+            return;
+        }
+        let symbol = self.symbols.alloc(
+            SymbolFlags::FUNCTION_SCOPED_VARIABLE | SymbolFlags::MODULE_EXPORTS,
+            escaped,
+        );
+        {
+            let data = self.symbols.symbol_mut(symbol);
+            data.declarations.push(root);
+            data.value_declaration = Some(root);
+        }
+        if name == "module" {
+            let exports_name = EscapedName::internal("exports");
+            let exports = self.symbols.alloc(
+                SymbolFlags::MODULE_EXPORTS | SymbolFlags::PROPERTY,
+                exports_name,
             );
+            {
+                let data = self.symbols.symbol_mut(exports);
+                data.declarations.push(root);
+                data.value_declaration = Some(root);
+                data.parent = Some(symbol);
+            }
+            std::sync::Arc::make_mut(self.symbols.symbol_mut(symbol).members_mut())
+                .insert(exports_name, exports);
         }
-        true
+        self.locals
+            .get_mut(&root)
+            .expect("ensured above")
+            .insert(escaped, symbol);
+    }
+
+    /// tsgo-port: bindCommonJSTypeExports @7.1 (binder.go:1043-1056): with an
+    /// `export=`, every other export with a type or namespace meaning is also
+    /// an export of the `export=` symbol, which becomes a namespace module.
+    pub(crate) fn bind_common_js_type_exports(&mut self, module_symbol: SymbolId) {
+        let exports = std::sync::Arc::clone(self.symbols.symbol(module_symbol).exports());
+        let Some(&export_equals) = exports.get(InternalSymbolName::EXPORT_EQUALS) else {
+            return;
+        };
+        for (&name, &symbol) in exports.iter() {
+            if symbol == export_equals
+                || !self
+                    .symbols
+                    .symbol(symbol)
+                    .flags
+                    .intersects(SymbolFlags::TYPE | SymbolFlags::NAMESPACE)
+            {
+                continue;
+            }
+            std::sync::Arc::make_mut(self.symbols.symbol_mut(export_equals).exports_mut())
+                .insert(name, symbol);
+            self.symbols.symbol_mut(export_equals).flags |= SymbolFlags::NAMESPACE_MODULE;
+        }
     }
 
     fn bind_this_property_assignment(&mut self, node: NodeId) {
@@ -1658,40 +1683,6 @@ impl<'a> BinderWorker<'a> {
         namespace_symbol
     }
 
-    fn bind_object_define_property_export(&mut self, node: NodeId) {
-        if !self.set_common_js_module_indicator(node) {
-            return;
-        }
-        let Some(target) = self.object_define_target(node) else {
-            return;
-        };
-        let Some(symbol) = self.bind_existing_entity_name_as_module(target, None) else {
-            return;
-        };
-        self.declare_symbol(
-            TableRef::Exports(symbol),
-            Some(symbol),
-            node,
-            SymbolFlags::PROPERTY | SymbolFlags::EXPORT_VALUE,
-            SymbolFlags::NONE,
-            false,
-            false,
-        );
-    }
-
-    fn object_define_target(&self, node: NodeId) -> Option<NodeId> {
-        let NodeData::CallExpression(data) = &self.source.arena.node(node).data else {
-            return None;
-        };
-        let arguments = data.arguments?;
-        self.source
-            .arena
-            .node_array(arguments)
-            .nodes
-            .first()
-            .copied()
-    }
-
     fn bind_call_expression(&mut self, node: NodeId) {
         if self.common_js_module_indicator.is_some() {
             return;
@@ -1707,73 +1698,6 @@ impl<'a> BinderWorker<'a> {
             .is_some_and(|arguments| self.source.arena.node_array(arguments).nodes.len() == 1);
         if has_one_argument && id_text(self.source, expression) == Some("require") {
             self.set_common_js_module_indicator(node);
-        }
-    }
-
-    fn bind_common_js_module_symbol(&mut self, node: NodeId) {
-        if !self.is_in_js_file()
-            || self.common_js_module_indicator.is_none()
-            || !is_module_exports_access_expression(self.source, node)
-        {
-            return;
-        }
-        let Some(module_name) = access_expression_of(self.source, node) else {
-            return;
-        };
-        let Some(block_scope) = self.block_scope_container else {
-            return;
-        };
-        if self.lookup_symbol_for_name(block_scope, "module").is_some() {
-            return;
-        }
-        self.ensure_locals(self.source.root);
-        self.declare_symbol(
-            TableRef::Locals(self.source.root),
-            None,
-            module_name,
-            SymbolFlags::FUNCTION_SCOPED_VARIABLE | SymbolFlags::MODULE_EXPORTS,
-            SymbolFlags::FUNCTION_SCOPED_VARIABLE_EXCLUDES,
-            false,
-            false,
-        );
-    }
-
-    fn bind_existing_entity_name_as_module(
-        &mut self,
-        entity_name: NodeId,
-        parent_symbol: Option<SymbolId>,
-    ) -> Option<SymbolId> {
-        if self.is_exports_or_module_exports_or_alias(entity_name) {
-            return self.file_symbol();
-        }
-        match &self.source.arena.node(entity_name).data {
-            NodeData::Identifier(_) => {
-                let symbol = self.lookup_symbol_for_property_access(entity_name)?;
-                self.add_declaration_to_symbol(
-                    symbol,
-                    entity_name,
-                    SymbolFlags::MODULE | SymbolFlags::ASSIGNMENT,
-                );
-                Some(symbol)
-            }
-            NodeData::PropertyAccessExpression(_) | NodeData::ElementAccessExpression(_) => {
-                let expression = access_expression_of(self.source, entity_name)?;
-                let parent = self.bind_existing_entity_name_as_module(expression, parent_symbol)?;
-                let name = get_element_or_property_access_name(self.source, entity_name)?;
-                let symbol = self.symbols.symbol(parent).exports().get(name).copied()?;
-                let name_node =
-                    crate::assignment::get_element_or_property_access_argument_expression_or_name(
-                        self.source,
-                        entity_name,
-                    )?;
-                self.add_declaration_to_symbol(
-                    symbol,
-                    name_node,
-                    SymbolFlags::MODULE | SymbolFlags::ASSIGNMENT,
-                );
-                Some(symbol)
-            }
-            _ => parent_symbol,
         }
     }
 
@@ -1931,16 +1855,6 @@ impl<'a> BinderWorker<'a> {
             }
         }
         false
-    }
-
-    fn is_empty_object_literal(&self, node: NodeId) -> bool {
-        matches!(
-            &self.source.arena.node(node).data,
-            NodeData::ObjectLiteralExpression(data)
-                if data.properties.is_none_or(|properties| {
-                    self.source.arena.node_array(properties).nodes.is_empty()
-                })
-        )
     }
 
     /// tsc-port: lookupSymbolForName @6.0.3

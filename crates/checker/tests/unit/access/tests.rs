@@ -198,6 +198,10 @@ function sum({ a, b }) { return a + b; }\n";
 
 #[test]
 fn checked_js_jsdoc_commonjs_optional_export_publishes_18048() {
+    // TypeScript 7.1 (tsgo, tsc-19dadef8): the two `module.exports`
+    // assignments declare one `export=` property, so the `Baz` typedef and
+    // the `Baz` member never meet as duplicates (no TS2300), and `mod.Baz`
+    // reads the union of both object literals.
     let mod_text = "/** @typedef {number} Baz */\n\
 module.exports = { Baz: class {} };\n\
 /** @typedef {number} Quack */\n\
@@ -229,26 +233,12 @@ module.exports = { Quack: 2 };\n";
                 diagnostic.length.unwrap_or(u32::MAX),
             ))
             .collect::<Vec<_>>(),
-        [
-            (
-                Some("mod1.js"),
-                2300,
-                mod_text.find("Baz").unwrap() as u32,
-                "Baz".len() as u32,
-            ),
-            (
-                Some("mod1.js"),
-                2300,
-                mod_text.rfind("Baz").unwrap() as u32,
-                "Baz".len() as u32,
-            ),
-            (
-                Some("use.js"),
-                18048,
-                use_text.find("mod.Baz").unwrap() as u32,
-                "mod.Baz".len() as u32,
-            ),
-        ]
+        [(
+            Some("use.js"),
+            18048,
+            use_text.find("mod.Baz").unwrap() as u32,
+            "mod.Baz".len() as u32,
+        )]
     );
 }
 

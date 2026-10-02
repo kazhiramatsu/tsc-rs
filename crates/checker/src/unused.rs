@@ -466,7 +466,12 @@ impl<'a> CheckerState<'a> {
                 {
                     continue;
                 }
-            } else if !referenced.is_empty() || symbol.export_symbol.is_some() {
+            } else if !referenced.is_empty()
+                || symbol.export_symbol.is_some()
+                // tsgo checkUnusedLocalsAndParameters (TypeScript 7.1): the
+                // CommonJS `module` / `exports` variables are never unused.
+                || symbol.flags.intersects(SymbolFlags::MODULE_EXPORTS)
+            {
                 continue;
             }
             let declarations = symbol.declarations.clone();

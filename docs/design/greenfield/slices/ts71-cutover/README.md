@@ -664,3 +664,39 @@ namespace無し、遅延TS2339で循環なし、`super`経由のTS2855の判定�
 - conformance：15,228 configuration、lane A 13,467（変化なし）、full 12,906→12,967（+61）、text 98→99、category 26→21、mismatch 393→336、harness error 44、emit full 12,413→12,414。上がったのは63構成（full 61、text 2）：expando・prototype代入・this代入のJavaScript群（`typeFromPropertyAssignment`系14、`typeFromPrototypeAssignment`1〜3、`jsContainerMergeTsDeclaration`1〜3、`expandoFunctionNestedAssigments`、`jsExpandoObjectDefineProperty`、`lateBoundClassMemberAssignmentJS`／`2`、`jsdocTypeFromChainedAssignment`、`declarationEmitExpandoPropertyPrivateName`…）。ratchet：0 regressions、57行追加・6行raise（`intersectionConstructorReductionCrash`は従来どおり載せない）。最初のfull runでは`compiler/classFieldSuperAccessibleJs1`が退行し（余分なTS2855）、`isClassInstanceProperty`の移植で解消して最終bytesで2回目を実行した。localはbinderの変更なのでworkspace全体のclippyとtest（70 targets、3,627 passed）、2 workerのfull run（796 s）。
 - hosted：PR #630（head `fc4d0801e`、merge `7749efb2e`）、run 37005000503 — `plan` 28s、`rust` 10m33s、`conformance (TypeScript 7.1)` 21m52s、`gates` 13s。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main `621084854`と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 122→129、zod 532→546、Playwright 358→353、TypeScript `src/compiler` 354→346、Next.js 801→759、Effect 538→509、VS Code 3,644→3,611。tsc-rs÷tsgoは0.57〜0.95で従来どおり、peak memoryは同等以下（MB main→本branch：284→296、1,288→1,294、756→758、292→292、1,326→1,320、1,037→1,027、5,478→5,283）。honoとzodは同条件の5 rounds A/B（本branch／main）で、medianは123／121、513／521、minは114／115、510／507、CPU時間は613／615、3,444／3,505 msなのでノイズ。退行なし。
+
+## P3-5m JavaScriptのCommonJS exportをtsgoの方式で束縛・型付けする（2026-10-02）
+
+P3-5kの第3段（最終段）。tsgo 7.1のCommonJSは束縛も型付けもtsc 6.0より単純で、moduleは`export=`の解決先そのものになる：
+- binder（`bind.rs`、`containers.rs`）：`module.exports = X`はファイルのexportsに`export=`を宣言し（Xがentity name・class式なら
+  Alias、それ以外はProperty、宣言ノードは代入；`bindModuleExportsAssignment`、binder.go:1018-1025）、`exports.p = X`／
+  `module.exports.p = X`／`Object.defineProperty(exports, "p", …)`はファイルのexportsにFunctionScopedVariable（代入でXが
+  aliasableならAlias）を宣言する（`bindExportsOrObjectDefineProperty`、1088-1094）。CommonJS indicatorのあるJavaScript
+  ファイルは末尾で`module`／`exports`をlocalに宣言し（`declareCommonJSVariable`：FunctionScopedVariable|ModuleExports、宣言は
+  source file、`module`は同じ種類の`exports` memberを持つ）、moduleのsource fileとambient moduleは型・namespaceのexportを
+  `export=`のexportsにも載せて`export=`をNamespaceModuleにする（`bindCommonJSTypeExports`、1043-1056；ambient moduleは
+  `bindContainer`の末尾、1607-1622）。tsc 6.0の`exports`別名の振り替え、entity nameからのnamespace作成、
+  `module.exports = {}`／`module.exports = exports`の除外、shorthand object literalのexport化を削除した。
+- checker：`resolveExternalModuleSymbol`は`export=`の解決先だけを返す（tsc 6.0の`getCommonJsExportEquals`のmergeは無い、
+  checker.go:15875-15883）。`exports`の型は解決したmoduleの型、`module`の型はmemberの匿名型（16919-16924）、CommonJSの
+  file symbolの型は解決先の型（`getTypeOfFuncClassEnumModuleWorker`）、CommonJS exportの代入宣言の型は右端の値のregular型
+  （18452-18478）。重複CommonJS exportのflow型と`any`の境界（`getFlowTypeFromCommonJSExport`、`isDuplicatedCommonJSExport`）、
+  `module.exports = {…}`へのexportのmember合成（`getInitializerTypeFromAssignmentDeclaration`のCommonJS枝）、
+  `checkAssignmentDeclaration`を削除。
+- TS2309は`checkExternalModuleExports`（5858-5870）どおり、value exportがあるか`export=`がnamespaceを影にする
+  （`hasShadowedNamespace`）ときで、JavaScriptの除外は無い。TS2323は`exports.p = …`だけで宣言された名前を除く。
+- `resolveEntityName`はmeaningを持つsymbolが出るまでalias chainを辿る（`export=`がAlias|NamespaceModuleならもう1段）。
+  import typeのmeaning、TS18042、`checkAliasSymbol`は`getSymbolFlags`で判定する。
+- CommonJSファイルのtop-levelの`this`は`typeof globalThis`（`tryGetThisTypeAt`）、未使用の検査は`module`／`exports`を除き
+  （ModuleExports）、`exports`起点の代入と関数の`this`の文脈型はModuleExportsの変数で判定する。
+- P3-5lが残したCommonJSの橋渡し（`exports`別名の`util.p = …`、`module.exports = <object>`の検査省略、左辺のCommonJS宣言）は
+  無くなった。tsc 6.0の宣言emitterが使うexpandoのalias判定は残る（emitterの側で扱う）。JSDoc typedefの束縛
+  （`delayedBindJSDocTypedefTag`、ドット名のnamespace、`jsGlobalAugmentations`）はtsc 6.0のままで、tsgoのreparseした
+  type aliasの束縛への置き換えは別のclass。
+unit testはbinder 2件、checker 9件をtsgoの行に再pin（`tsc-19dadef8`、noLibのglobalsで照合：CommonJSのexportは
+FunctionScopedVariable、`module.exports = F`はAlias、`exports`別名への代入は何も宣言しない、TS2309のJavaScript行、`module.exports.p`は
+`export=`の型を読む、先頭の`undefined`だけ除く宣言型、top-levelの`this`はTS7017）、削除した`getFlowTypeFromCommonJSExport`の
+test 2件を削除、tsgoの行にpinした新しいtest 3件（`export=`への型exportの昇格、ambient moduleのTS2309と`import { I }`、
+requireの別名からのalias chain）を追加。
+- conformance：15,228 configuration、lane A 13,467（変化なし）、full 12,967→13,023（+56）、text 99→94、category 21→20、mismatch 336→286、harness error 44、emit full 12,414→12,415。上がったのは58構成（errorのfull 56、category 1、emit 1）：CommonJSの`module.exports`／`exports`群（`moduleExportAlias`系6、`moduleExportAssignment`系4、`moduleExportWithExportPropertyAssignment`1〜4、`moduleExportDuplicateAlias`／`3`、`moduleExportPropertyAssignmentDefault`、`commonjsAccessExports`…）、JavaScriptの宣言emitの`jsDeclarations`系12、`typedefCrossModule`1〜4、`jsExportMemberMergedWithModuleAugmentation`1〜3、TypeScriptの`export=`と型exportの`exportAssignmentMerging`1／2／3／7／10、`incompatibleExports1`／`2`、`importDeclWithExportModifierAndExportAssignmentInAmbientContext`（emitは`importDeclWithExportModifierAndExportAssignment`）。ratchet：0 regressions、50行追加・8行raise（`intersectionConstructorReductionCrash`は従来どおり載せない）。localはbinderとcheckerとその逆依存（compiler、conformance）のclippyとtest（14 targets、2,031 passed）、2 workerのfull run（800 s）で、workspace全体のtestとclippyはhostedの`rust` job。full runの後に変えたのはtsgoの行番号を引くコメント6か所だけで、fmtとbinder／checkerのclippyを再実行した。`--checkers 4`の並列対照はlocalの負荷の方針（full runはsliceごとに1回）により実行していない。
+- hosted：HOSTED_RECORD

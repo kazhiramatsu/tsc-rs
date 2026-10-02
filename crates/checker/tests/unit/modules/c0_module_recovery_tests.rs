@@ -1,6 +1,6 @@
 use tsc_binder::bind_source_file;
 use tsc_syntax::{
-    parse_source_file, LanguageVariant, NodeData, NodeId, ParseOptions, SourceFile, SyntaxKind,
+    parse_source_file, LanguageVariant, NodeData, ParseOptions, SourceFile, SyntaxKind,
 };
 use tsc_types::{CompilerOptions, SymbolFlags};
 
@@ -25,109 +25,6 @@ fn parse_js(text: &str) -> SourceFile {
         source.parse_diagnostics
     );
     source
-}
-
-fn property_access_with_text(source: &SourceFile, expected: &str) -> NodeId {
-    source
-        .arena
-        .node_ids()
-        .find(|&node| {
-            let raw = source.arena.node(node);
-            let start = tsc_syntax::skip_trivia(source.text(), raw.pos as usize);
-            raw.kind == SyntaxKind::PropertyAccessExpression
-                && &source.text()[start..raw.end as usize] == expected
-        })
-        .unwrap_or_else(|| panic!("property access {expected:?}"))
-}
-
-#[test]
-fn common_js_flow_recovery_values_leave_the_ordinary_flow_query_live() {
-    let source = parse_js("obj.x = 1;\nexports.x = 1;\nexports.x = 2;\n");
-    let obj_access = property_access_with_text(&source, "obj.x");
-    let exports_accesses = source
-        .arena
-        .node_ids()
-        .filter(|&node| {
-            let raw = source.arena.node(node);
-            let start = tsc_syntax::skip_trivia(source.text(), raw.pos as usize);
-            raw.kind == SyntaxKind::PropertyAccessExpression
-                && &source.text()[start..raw.end as usize] == "exports.x"
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(exports_accesses.len(), 2);
-    let options = CompilerOptions {
-        allow_js: true,
-        check_js: Some(true),
-        ..CompilerOptions::default()
-    };
-    let binder = bind_source_file(&source, &options);
-    let mut state = CheckerState::new(&source, &binder, &options);
-
-    let declarationless = state.binder.create_symbol(
-        SymbolFlags::PROPERTY,
-        tsc_types::EscapedName::from_escaped_value(("none".to_owned()).into()),
-    );
-    let missing_source = state
-        .get_flow_type_from_common_js_export(declarationless)
-        .expect("declarationless export recovers");
-    assert!(state.tables.is_error_type(missing_source));
-
-    let non_exports = state.binder.create_symbol(
-        SymbolFlags::PROPERTY,
-        tsc_types::EscapedName::from_escaped_value(("x".to_owned()).into()),
-    );
-    state.binder.symbol_mut(non_exports).declarations = vec![obj_access].into();
-    assert_eq!(
-        state
-            .get_flow_type_from_common_js_export(non_exports)
-            .expect("synthetic exports reference cannot match"),
-        state.tables.intrinsics.undefined
-    );
-
-    let ordinary = state.binder.create_symbol(
-        SymbolFlags::PROPERTY,
-        tsc_types::EscapedName::from_escaped_value(("x".to_owned()).into()),
-    );
-    state.binder.symbol_mut(ordinary).declarations = exports_accesses.into();
-    let invocations = state.flow_invocation_count;
-    let result = state
-        .get_flow_type_from_common_js_export(ordinary)
-        .expect("ordinary exports flow remains live");
-    assert!(!state.tables.is_error_type(result));
-    assert!(
-        state.flow_invocation_count > invocations,
-        "the ordinary sibling must enter the flow walker"
-    );
-}
-
-#[test]
-fn missing_common_js_end_flow_returns_auto_without_starting_a_flow_walk() {
-    let source = parse_js("exports.x = 1;\n");
-    let access = property_access_with_text(&source, "exports.x");
-    let options = CompilerOptions {
-        allow_js: true,
-        check_js: Some(true),
-        ..CompilerOptions::default()
-    };
-    let mut binder = bind_source_file(&source, &options);
-    assert!(
-        binder.node_end_flow.remove(&source.root).is_some(),
-        "valid sibling normally has a source-file end flow"
-    );
-    let mut state = CheckerState::new(&source, &binder, &options);
-    let symbol = state.binder.create_symbol(
-        SymbolFlags::PROPERTY,
-        tsc_types::EscapedName::from_escaped_value(("x".to_owned()).into()),
-    );
-    state.binder.symbol_mut(symbol).declarations = vec![access].into();
-    let invocations = state.flow_invocation_count;
-    assert_eq!(
-        state
-            .get_flow_type_from_common_js_export(symbol)
-            .expect("missing end flow uses getFlowTypeOfReference fallback"),
-        state.tables.intrinsics.auto
-    );
-    assert_eq!(state.flow_invocation_count, invocations);
 }
 
 #[test]

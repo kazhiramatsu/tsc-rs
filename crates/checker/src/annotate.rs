@@ -2249,7 +2249,13 @@ impl<'a> CheckerState<'a> {
                 target_meaning,
                 type_arguments,
             )?
-        } else if self.symbol_flags(module_symbol).intersects(target_meaning) {
+        } else if self
+            .get_symbol_flags_of(module_symbol)?
+            .intersects(target_meaning)
+        {
+            // tsgo getTypeFromImportTypeNode (TypeScript 7.1): the meaning
+            // check reads getSymbolFlags (an `export=` alias merged with the
+            // promoted type exports includes its target's meanings).
             self.resolve_import_symbol_type(node, module_symbol, target_meaning, type_arguments)?
         } else {
             let message = if target_meaning == SymbolFlags::VALUE {
@@ -7815,54 +7821,6 @@ impl<'a> CheckerState<'a> {
             return Ok(resolved);
         }
         let declaration = self.binder.symbol(symbol).value_declaration;
-        if self
-            .symbol_flags(symbol)
-            .intersects(SymbolFlags::MODULE_EXPORTS)
-        {
-            if let Some(declaration) = declaration {
-                let source = self.binder.source_of_node(declaration);
-                if let Some(file_symbol) = self.binder.node_symbol(source.root) {
-                    let file = self.binder.symbol(file_symbol);
-                    let flags = file.flags;
-                    let declarations = file.declarations.clone();
-                    let value_declaration = file.value_declaration;
-                    let members = file.members().clone();
-                    let exports = file.exports().clone();
-                    let result = self.binder.create_symbol(
-                        flags,
-                        tsc_types::EscapedName::from_identifier_escaped_text("exports"),
-                    );
-                    {
-                        let result_symbol = self.binder.symbol_mut(result);
-                        result_symbol.declarations = declarations;
-                        result_symbol.parent = Some(symbol);
-                        result_symbol.value_declaration = value_declaration;
-                        *result_symbol.members_mut() = members;
-                        *result_symbol.exports_mut() = exports;
-                    }
-                    self.links
-                        .set_symbol_target(self.speculation_depth, result, file_symbol);
-                    let mut module_members = tsc_binder::SymbolTable::default();
-                    module_members.insert(
-                        tsc_types::EscapedName::from_identifier_escaped_text("exports"),
-                        result,
-                    );
-                    let resolved = self.make_resolved_anonymous_type(
-                        Some(symbol),
-                        self.member_table(&module_members),
-                        vec![result],
-                        Vec::new(),
-                        ObjectFlags::ANONYMOUS,
-                    );
-                    self.links.set_symbol_type(
-                        self.speculation_depth,
-                        symbol,
-                        LinkSlot::Resolved(resolved),
-                    );
-                    return Ok(resolved);
-                }
-            }
-        }
         if let Some(declaration) = declaration {
             if self.kind_of(declaration) == SyntaxKind::SourceFile
                 && self
@@ -7944,6 +7902,35 @@ impl<'a> CheckerState<'a> {
                 // standard errorType instead of unwinding its source file.
                 return Ok(state.tables.intrinsics.error);
             };
+            // tsgo getTypeOfVariableOrParameterOrPropertyWorker (TypeScript
+            // 7.1, checker.go:16919-16924): CommonJS `exports` (the variable
+            // or `module.exports`) has the type of the resolved module, and
+            // `module` is the anonymous type of its members.
+            if state
+                .symbol_flags(symbol)
+                .intersects(SymbolFlags::MODULE_EXPORTS)
+            {
+                if state.binder.symbol(symbol).escaped_name == "exports" {
+                    let file_symbol = state
+                        .binder
+                        .node_symbol(declaration)
+                        .map(|file| state.get_merged_symbol(file));
+                    let resolved = state.resolve_external_module_symbol(file_symbol, false)?;
+                    return match resolved {
+                        Some(resolved) => state.get_type_of_symbol(resolved),
+                        None => Ok(state.tables.intrinsics.error),
+                    };
+                }
+                let members = std::sync::Arc::clone(state.binder.symbol(symbol).members());
+                let properties = members.values().copied().collect();
+                return Ok(state.make_resolved_anonymous_type(
+                    Some(symbol),
+                    state.member_table(&members),
+                    properties,
+                    Vec::new(),
+                    ObjectFlags::ANONYMOUS,
+                ));
+            }
             // getTypeOfVariableOrParameterOrPropertyWorker dispatch
             // (56680-56711): Prototype, the bounded ModuleExports
             // head, and JSON sources have already returned; the
@@ -7975,7 +7962,7 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::PropertyAccessExpression
                 | SyntaxKind::ElementAccessExpression
                 | SyntaxKind::CallExpression => {
-                    state.get_widened_type_for_assignment_declaration(symbol, None)
+                    state.get_widened_type_for_assignment_declaration(symbol)
                 }
                 SyntaxKind::Identifier
                 | SyntaxKind::StringLiteral
@@ -7994,7 +7981,7 @@ impl<'a> CheckerState<'a> {
                         .parent_of(declaration)
                         .is_some_and(|parent| state.kind_of(parent) == SyntaxKind::BinaryExpression)
                     {
-                        state.get_widened_type_for_assignment_declaration(symbol, None)
+                        state.get_widened_type_for_assignment_declaration(symbol)
                     } else {
                         Ok(state
                             .try_get_type_from_effective_type_node(declaration)?
@@ -8844,15 +8831,9 @@ impl<'a> CheckerState<'a> {
     /// CommonJS export with several declarations ignored; `| undefined`
     /// under strictNullChecks for a method-declared member). The result is
     /// widened, and an all-nullable JavaScript member is an implicit `any`.
-    ///
-    /// tsc-rs binds the CommonJS export assignments on the left side, as tsc
-    /// 6.0 did; such a declaration stands for its assignment, and a
-    /// `module.exports = { ... }` replacement still combines direct export
-    /// assignments into the object until the CommonJS port.
     fn get_widened_type_for_assignment_declaration(
         &mut self,
         symbol: SymbolId,
-        resolved_symbol: Option<SymbolId>,
     ) -> CheckResult<TypeId> {
         let (this_kind, location) = self.this_assignment_declaration_kind(symbol)?;
         let mut ty = match (this_kind, location) {
@@ -8874,15 +8855,6 @@ impl<'a> CheckerState<'a> {
             for (index, declaration) in declarations.into_iter().enumerate() {
                 let expression = match self.kind_of(declaration) {
                     SyntaxKind::BinaryExpression | SyntaxKind::CallExpression => declaration,
-                    SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
-                        match self
-                            .parent_of(declaration)
-                            .filter(|&parent| self.kind_of(parent) == SyntaxKind::BinaryExpression)
-                        {
-                            Some(parent) => parent,
-                            None => continue,
-                        }
-                    }
                     _ => continue,
                 };
                 if self.kind_of(expression) == SyntaxKind::BinaryExpression {
@@ -8891,11 +8863,7 @@ impl<'a> CheckerState<'a> {
                         break;
                     }
                 }
-                let Some(assigned) = self.assignment_declaration_initializer_type(
-                    expression,
-                    symbol,
-                    resolved_symbol,
-                )?
+                let Some(assigned) = self.assignment_declaration_initializer_type(expression)?
                 else {
                     continue;
                 };
@@ -9054,8 +9022,6 @@ impl<'a> CheckerState<'a> {
     fn assignment_declaration_initializer_type(
         &mut self,
         node: NodeId,
-        symbol: SymbolId,
-        resolved_symbol: Option<SymbolId>,
     ) -> CheckResult<Option<TypeId>> {
         match self.data_of(node) {
             NodeData::BinaryExpression(data) => {
@@ -9068,24 +9034,11 @@ impl<'a> CheckerState<'a> {
                 let ty = match kind {
                     tsc_binder::AssignmentDeclarationKind::ModuleExports
                     | tsc_binder::AssignmentDeclarationKind::ExportsProperty => {
-                        let assigned = match resolved_symbol {
-                            Some(resolved_symbol) => self.get_type_of_symbol(resolved_symbol)?,
-                            None => {
-                                let rightmost =
-                                    tsc_binder::assignment::get_right_most_assigned_expression(
-                                        source, node,
-                                    );
-                                let checked =
-                                    self.check_expression_cached(rightmost, CheckMode::NORMAL)?;
-                                self.regular_type_of_literal_type(checked)
-                            }
-                        };
-                        self.combine_common_js_export_members(
-                            assigned,
-                            symbol,
-                            resolved_symbol,
-                            node,
-                        )?
+                        let rightmost = tsc_binder::assignment::get_right_most_assigned_expression(
+                            source, node,
+                        );
+                        let checked = self.check_expression_cached(rightmost, CheckMode::NORMAL)?;
+                        self.regular_type_of_literal_type(checked)
                     }
                     _ => {
                         if kind == tsc_binder::AssignmentDeclarationKind::ThisProperty {
@@ -9182,185 +9135,6 @@ impl<'a> CheckerState<'a> {
             }
         }
         Ok(self.tables.intrinsics.any)
-    }
-
-    /// tsc-port: getInitializerTypeFromAssignmentDeclaration @6.0.3
-    /// tsc-hash: 9e23e3cbf38ef08a8fa25529eaf36a4c7796bfa243d6f2ad834907e8cf5c5f5b
-    /// tsc-span: _tsc.js:56348-56446
-    ///
-    /// CommonJS object-combination branch: a `module.exports = <object>` export-equals
-    /// assignment exposes both the checked object's members and the
-    /// source file's direct CommonJS export-property assignments.
-    ///
-    /// The latter live on the merged export-equals symbol. When both
-    /// sides publish the same value member, tsc synthesizes a property
-    /// whose type is their union instead of letting either declaration
-    /// win by table insertion order.
-    fn combine_common_js_export_members(
-        &mut self,
-        ty: TypeId,
-        symbol: SymbolId,
-        resolved_symbol: Option<SymbolId>,
-        expression: NodeId,
-    ) -> CheckResult<TypeId> {
-        if !self.tables.flags_of(ty).intersects(TypeFlags::OBJECT)
-            || self.binder.symbol(symbol).escaped_name != InternalSymbolName::EXPORT_EQUALS
-            || tsc_binder::assignment::get_assignment_declaration_kind(
-                self.binder.source_of_node(expression),
-                expression,
-            ) != tsc_binder::AssignmentDeclarationKind::ModuleExports
-        {
-            return Ok(ty);
-        }
-
-        let resolved_id = self.resolve_structured_type_members(ty)?;
-        let resolved = self.members_of(resolved_id).clone();
-        let mut members = resolved.members;
-        let initial_size = members.len();
-        let exports = self
-            .binder
-            .symbol(resolved_symbol.unwrap_or(symbol))
-            .exports()
-            .clone();
-        for (name, &export_member) in exports.iter() {
-            let Some(object_member) = members.get(&self.binder, name) else {
-                members.insert(&self.binder, export_member);
-                continue;
-            };
-            if object_member == export_member
-                || self
-                    .symbol_flags(export_member)
-                    .intersects(SymbolFlags::ALIAS)
-            {
-                members.insert(&self.binder, export_member);
-                continue;
-            }
-            if self
-                .symbol_flags(export_member)
-                .intersects(SymbolFlags::VALUE)
-                && self
-                    .symbol_flags(object_member)
-                    .intersects(SymbolFlags::VALUE)
-            {
-                if let (Some(export_declaration), Some(object_declaration)) = (
-                    self.binder.symbol(export_member).value_declaration,
-                    self.binder.symbol(object_member).value_declaration,
-                ) {
-                    if self.binder.file_index_of_node(export_declaration)
-                        != self.binder.file_index_of_node(object_declaration)
-                    {
-                        let object_name = self
-                            .name_of_named_declaration(object_declaration)
-                            .unwrap_or(object_declaration);
-                        let display = tsc_binder::unescape_leading_underscores(name);
-                        let object_related = self.related_info_for_node_js(
-                            object_name,
-                            &diagnostics::_0_was_also_declared_here,
-                            &[display],
-                        );
-                        self.error_at_with_related_js(
-                            Some(export_declaration),
-                            &diagnostics::Duplicate_identifier_0,
-                            &[display],
-                            vec![object_related],
-                        );
-                        let export_related = self.related_info_for_node_js(
-                            export_declaration,
-                            &diagnostics::_0_was_also_declared_here,
-                            &[display],
-                        );
-                        self.error_at_with_related_js(
-                            Some(object_name),
-                            &diagnostics::Duplicate_identifier_0,
-                            &[display],
-                            vec![export_related],
-                        );
-                    }
-                }
-                let flags = self.symbol_flags(export_member) | self.symbol_flags(object_member);
-                let union_member = self.binder.create_symbol(flags, *name);
-                let export_type = self.get_type_of_symbol(export_member)?;
-                let object_type = self.get_type_of_symbol(object_member)?;
-                let union_type =
-                    self.get_union_type_ex(&[export_type, object_type], UnionReduction::Literal)?;
-                let value_declaration = self.binder.symbol(object_member).value_declaration;
-                let mut declarations = self.binder.symbol(object_member).declarations.clone();
-                declarations.extend(
-                    self.binder
-                        .symbol(export_member)
-                        .declarations
-                        .iter()
-                        .copied(),
-                );
-                {
-                    let union = self.binder.symbol_mut(union_member);
-                    union.value_declaration = value_declaration;
-                    union.declarations = declarations;
-                }
-                self.links
-                    .set_fresh_symbol_type(union_member, LinkSlot::Resolved(union_type));
-                members.insert(&self.binder, union_member);
-            } else {
-                let merged =
-                    self.merge_symbol(export_member, object_member, /*unidirectional*/ false);
-                members.insert(&self.binder, merged);
-            }
-        }
-
-        let anonymous_symbol = (initial_size == members.len())
-            .then_some(self.tables.type_of(ty).symbol)
-            .flatten();
-        let properties = self.get_named_members(&members, anonymous_symbol)?;
-        let source_object_flags = self.tables.object_flags_of(ty);
-        let copied_object_flags = self
-            .tables
-            .get_propagating_flags_of_types(&[ty], TypeFlags::from_bits(0))
-            | ObjectFlags::from_bits(
-                source_object_flags.bits()
-                    & (ObjectFlags::JS_LITERAL.bits()
-                        | ObjectFlags::ARRAY_LITERAL.bits()
-                        | ObjectFlags::OBJECT_LITERAL.bits()),
-            );
-        let result = self.make_resolved_anonymous_type(
-            anonymous_symbol,
-            members,
-            properties,
-            resolved.index_infos,
-            copied_object_flags,
-        );
-        let result_members = self
-            .links
-            .read_ty(result, |links| links.resolved_members.resolved())
-            .expect("fresh anonymous type has resolved members");
-        let output = self.members_mut(result_members);
-        output.call_signatures = resolved.call_signatures;
-        output.construct_signatures = resolved.construct_signatures;
-        if initial_size == output.members.len() {
-            let alias_symbol = self.tables.type_of(ty).alias_symbol;
-            let alias_type_arguments = self.tables.type_of(ty).alias_type_arguments.clone();
-            self.tables.type_mut(result).alias_symbol = alias_symbol;
-            self.tables.type_mut(result).alias_type_arguments = alias_type_arguments;
-            if source_object_flags.intersects(ObjectFlags::REFERENCE) {
-                // getInitializerTypeFromAssignmentDeclaration preserves a
-                // reference's name/arguments on an unchanged CommonJS clone.
-                // Otherwise exporting an array expands all of Array's members.
-                let alias_symbol = self.tables.type_of(ty).symbol;
-                let arguments = self.get_type_arguments(ty)?;
-                self.tables.type_mut(result).alias_symbol = alias_symbol;
-                self.tables.type_mut(result).alias_type_arguments =
-                    (!arguments.is_empty()).then(|| arguments.into());
-            }
-        }
-        if let Some(result_symbol) = self.tables.type_of(result).symbol {
-            if self
-                .symbol_flags(result_symbol)
-                .intersects(SymbolFlags::CLASS)
-                && ty == self.get_declared_type_of_class_or_interface(result_symbol)?
-            {
-                self.tables.type_mut(result).object_flags |= ObjectFlags::IS_CLASS_INSTANCE_CLONE;
-            }
-        }
-        Ok(result)
     }
 
     /// tsc-port: getAnnotatedTypeForAssignmentDeclaration @6.0.3
@@ -9634,7 +9408,7 @@ impl<'a> CheckerState<'a> {
                 .symbol_flags(symbol)
                 .intersects(SymbolFlags::ASSIGNMENT)
         {
-            let resolved = self.get_widened_type_for_assignment_declaration(symbol, None)?;
+            let resolved = self.get_widened_type_for_assignment_declaration(symbol)?;
             self.links.set_symbol_type_func_class_enum_module(
                 self.speculation_depth,
                 symbol,
@@ -9670,43 +9444,10 @@ impl<'a> CheckerState<'a> {
             let resolved_module = self
                 .resolve_external_module_symbol(Some(symbol), false)?
                 .expect("resolveExternalModuleSymbol(Some) is Some");
+            // tsgo getTypeOfFuncClassEnumModuleWorker (TypeScript 7.1): a
+            // CommonJS module with an `export=` has the resolved symbol's type.
             if resolved_module != symbol {
-                if !self.push_type_resolution(
-                    crate::state::ResolutionTarget::Symbol(symbol),
-                    tsc_types::TypeSystemPropertyName::TYPE,
-                ) {
-                    let error = self.tables.intrinsics.error;
-                    self.links.set_symbol_type_func_class_enum_module(
-                        self.speculation_depth,
-                        symbol,
-                        error,
-                    );
-                    return Ok(error);
-                }
-                let export_equals = self
-                    .binder
-                    .symbol(symbol)
-                    .exports()
-                    .get(InternalSymbolName::EXPORT_EQUALS)
-                    .copied()
-                    .map(|export| self.get_merged_symbol(export))
-                    .expect("a resolved CommonJS replacement has an export-equals symbol");
-                let computed = self.get_widened_type_for_assignment_declaration(
-                    export_equals,
-                    (export_equals != resolved_module).then_some(resolved_module),
-                );
-                let computed = match computed {
-                    Ok(computed) => computed,
-                    Err(err) => {
-                        self.pop_type_resolution();
-                        return Err(err);
-                    }
-                };
-                let resolved = if self.pop_type_resolution() {
-                    computed
-                } else {
-                    self.report_circularity_error(symbol)
-                };
+                let resolved = self.get_type_of_symbol(resolved_module)?;
                 self.links.set_symbol_type_func_class_enum_module(
                     self.speculation_depth,
                     symbol,

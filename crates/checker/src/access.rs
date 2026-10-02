@@ -2496,9 +2496,7 @@ impl<'a> CheckerState<'a> {
                 .intersects(SymbolFlags::VARIABLE | SymbolFlags::PROPERTY | SymbolFlags::ACCESSOR);
             let union_method = flags.intersects(SymbolFlags::METHOD)
                 && self.tables.flags_of(prop_type).intersects(TypeFlags::UNION);
-            let duplicated_common_js =
-                self.is_duplicated_common_js_export(&self.binder.symbol(prop_symbol).declarations);
-            if !narrowable_kind && !union_method && !duplicated_common_js {
+            if !narrowable_kind && !union_method {
                 return Ok(prop_type);
             }
         }
@@ -2578,24 +2576,11 @@ impl<'a> CheckerState<'a> {
                         assume_uninitialized = true;
                     }
                 }
-            } else {
-                // tsc-rs binds a CommonJS `exports.p = ...` on its left side
-                // (as tsc 6.0 did); that access stands for its assignment.
-                let assignment = match self.data_of(declaration) {
-                    NodeData::BinaryExpression(_) => Some(declaration),
-                    NodeData::PropertyAccessExpression(_) => self.parent_of(declaration).filter(
-                        |&parent| matches!(self.data_of(parent), NodeData::BinaryExpression(data) if data.left == Some(declaration)),
-                    ),
-                    _ => None,
-                };
-                let property_access_target = assignment.is_some_and(|assignment| {
-                    matches!(
-                        self.data_of(assignment),
-                        NodeData::BinaryExpression(data)
-                            if data.left.is_some_and(|left| self.kind_of(left) == SyntaxKind::PropertyAccessExpression)
-                    )
-                });
-                if property_access_target {
+            } else if let NodeData::BinaryExpression(data) = self.data_of(declaration) {
+                if data
+                    .left
+                    .is_some_and(|left| self.kind_of(left) == SyntaxKind::PropertyAccessExpression)
+                {
                     assume_uninitialized = self.get_control_flow_container(node)
                         == self.get_control_flow_container(declaration);
                 }

@@ -372,6 +372,15 @@ impl<'a> BinderWorker<'a> {
             self.bind_children(node);
         }
 
+        // tsgo bindContainer (TypeScript 7.1): an ambient module promotes its
+        // type and namespace exports onto its `export=`, as a module source
+        // file does at its tail (bind_common_js_file_tail).
+        if is_ambient_module(self.source, node) {
+            if let Some(&symbol) = self.node_symbol.get(&node) {
+                self.bind_common_js_type_exports(symbol);
+            }
+        }
+
         self.in_return_position = saved_in_return_position;
         self.container = save_container;
         self.this_parent_container = save_this_parent_container;

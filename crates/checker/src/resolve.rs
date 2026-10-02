@@ -2553,12 +2553,26 @@ impl<'a> CheckerState<'a> {
                 None,
             )?;
         }
-        // The resolveAlias tail (49392).
-        if self.binder.symbol(symbol).flags.intersects(meaning) || dont_resolve_alias {
-            Ok(Some(symbol))
-        } else {
-            Ok(Some(self.resolve_alias(symbol)?))
+        // tsgo resolveEntityName (TypeScript 7.1): a symbol with the meaning
+        // exists along the alias chain, so resolve until it is found (an
+        // `export=` alias merged with promoted type exports is one more hop;
+        // tsc 6.0 resolved once).
+        let mut symbol = symbol;
+        while !dont_resolve_alias
+            && !self.binder.symbol(symbol).flags.intersects(meaning)
+            && self
+                .binder
+                .symbol(symbol)
+                .flags
+                .intersects(SymbolFlags::ALIAS)
+        {
+            let next = self.resolve_alias(symbol)?;
+            if next == symbol {
+                break;
+            }
+            symbol = next;
         }
+        Ok(Some(symbol))
     }
 
     /// tsc-port: tryGetQualifiedNameAsValue @6.0.3

@@ -2070,7 +2070,14 @@ impl<'a> CheckerState<'a> {
                         _ => false,
                     };
                 }
-                if kind != tsc_binder::AssignmentDeclarationKind::ModuleExports {
+                // tsgo IsAliasSymbolDeclaration (TypeScript 7.1): a
+                // `module.exports = X` or `exports.p = X` assignment whose X is
+                // an entity name or class expression (ExpressionIsAlias).
+                if !matches!(
+                    kind,
+                    tsc_binder::AssignmentDeclarationKind::ModuleExports
+                        | tsc_binder::AssignmentDeclarationKind::ExportsProperty
+                ) {
                     return false;
                 }
                 match self.data_of(node) {
@@ -2080,23 +2087,6 @@ impl<'a> CheckerState<'a> {
                     }),
                     _ => false,
                 }
-            }
-            SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
-                let Some(parent) = self.parent_of(node) else {
-                    return false;
-                };
-                let NodeData::BinaryExpression(data) = self.data_of(parent) else {
-                    return false;
-                };
-                if data.left != Some(node)
-                    || data
-                        .operator_token
-                        .is_none_or(|operator| self.kind_of(operator) != SyntaxKind::EqualsToken)
-                {
-                    return false;
-                }
-                data.right
-                    .is_some_and(|expression| self.is_aliasable_or_js_expression(expression))
             }
             SyntaxKind::ShorthandPropertyAssignment => true,
             SyntaxKind::PropertyAssignment => match self.data_of(node) {
@@ -2569,18 +2559,9 @@ impl<'a> CheckerState<'a> {
             }
         }
         if self.kind_of(container) == SyntaxKind::SourceFile {
+            // tsgo tryGetThisTypeAtEx (TypeScript 7.1): a CommonJS file's
+            // top-level `this` is no longer its module object.
             let file_index = self.binder.file_index_of_node(container);
-            if self
-                .binder
-                .file(file_index)
-                .common_js_module_indicator
-                .is_some()
-            {
-                if let Some(symbol) = self.node_symbol(container) {
-                    return Ok(Some(self.get_type_of_symbol(symbol)?));
-                }
-                return Ok(None);
-            }
             if self
                 .binder
                 .source(file_index)
