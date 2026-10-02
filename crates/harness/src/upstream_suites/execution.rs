@@ -107,6 +107,34 @@ pub fn native_compiler_plan(
     })
 }
 
+/// Every file under a native profile's `tests/lib` with its path relative to
+/// it (`testLibFolderMap` in harnessutil), in path order.
+pub fn read_test_library(root: &Path) -> HarnessResult<Vec<(String, Arc<str>)>> {
+    let mut files = Vec::new();
+    let mut directories = vec![root.to_path_buf()];
+    while let Some(directory) = directories.pop() {
+        let entries = fs::read_dir(&directory)
+            .map_err(|source| error(format!("{}: {source}", directory.display())))?;
+        for entry in entries {
+            let path = entry.map_err(|source| error(source.to_string()))?.path();
+            if path.is_dir() {
+                directories.push(path);
+                continue;
+            }
+            let text = fs::read_to_string(&path)
+                .map_err(|source| error(format!("{}: {source}", path.display())))?;
+            let relative = path
+                .strip_prefix(root)
+                .expect("walked under the test library")
+                .to_string_lossy()
+                .replace('\\', "/");
+            files.push((relative, Arc::from(text)));
+        }
+    }
+    files.sort_by(|left, right| left.0.cmp(&right.0));
+    Ok(files)
+}
+
 /// Load a native plan the way the native runner builds its Program: every
 /// option as configured (no implied `noEmit`; a configuration that sets
 /// `noEmit` loads through the no-emit loader, every other one through the
@@ -186,34 +214,6 @@ pub fn load_native_compiler_program(
                 entry.insert(content);
             }
         }
-    }
-
-    /// Every file under a native profile's `tests/lib` with its path relative to
-    /// it (`testLibFolderMap` in harnessutil), in path order.
-    fn read_test_library(root: &Path) -> HarnessResult<Vec<(String, Arc<str>)>> {
-        let mut files = Vec::new();
-        let mut directories = vec![root.to_path_buf()];
-        while let Some(directory) = directories.pop() {
-            let entries = fs::read_dir(&directory)
-                .map_err(|source| error(format!("{}: {source}", directory.display())))?;
-            for entry in entries {
-                let path = entry.map_err(|source| error(source.to_string()))?.path();
-                if path.is_dir() {
-                    directories.push(path);
-                    continue;
-                }
-                let text = fs::read_to_string(&path)
-                    .map_err(|source| error(format!("{}: {source}", path.display())))?;
-                let relative = path
-                    .strip_prefix(root)
-                    .expect("walked under the test library")
-                    .to_string_lossy()
-                    .replace('\\', "/");
-                files.push((relative, Arc::from(text)));
-            }
-        }
-        files.sort_by(|left, right| left.0.cmp(&right.0));
-        Ok(files)
     }
 
     // The compiler runner's VFS presents document/global symlinks through

@@ -487,3 +487,24 @@ TS2749／TS2503：`typeFromPropertyAssignment*`）、`@enum` tag（tsc-rsはtype
 - conformance：15,228 configuration、lane A 13,467（変化なし）、full 12,743→12,750（+7）、text 114、category 22、mismatch 543→536、harness error 45、emit full 12,410。fullに上がったのはTS2749 classの4構成（`jsdocTypeReferenceToValue`、`jsdocTypeNongenericInstantiationAttempt`、`jsDeclarationsJSDocRedirectedLookups`、`commonJSImportNestedClassTypeReference`）とshield撤廃で揃った3構成（`uniqueSymbolJs`、`importTag17`、`typeLookupInIIFE`）。TS2749 classの残り13構成は上記binder class。ratchet：0 regressions、7行追加。
 - hosted：PR #624（head `669dc1e83`、merge `80ec90601`）、run 36948318404 — `plan` 25s、`rust` 6m4s、`conformance (TypeScript 7.1)` 17m32s、`gates` 11s。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main `9070f5886`と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 124→125、zod 567→569、Playwright 366→366、TypeScript `src/compiler` 371→347、Next.js 831→784、Effect 548→570、VS Code 3,848→3,833（この回はtsgoを含め全体が朝の計測より5〜8%遅く、machineの負荷差）。tsc-rs÷tsgoは0.59〜0.94で従来どおり、peak memoryは同等（MB main→本branch：304→284、1,296→1,304、756→757、291→292、1,329→1,330、1,037→1,034、5,480→5,473）。Effectのmedian差は同条件の5 rounds A/B（本branch 508／main 520、min 476／513）で本branchの方が速く、ノイズ。退行なし。
+
+## P3-5g overload失敗の報告位置とunused宣言の報告位置（2026-10-02）
+
+P3-5f後の集計で(missing TS2769, unexpected TS2769)が20構成、(missing TS6133, unexpected TS6133)が8構成——どちらも位置だけの差。
+tsc 6.0の`reportCallResolutionErrors`は失敗候補が2〜3個なら各候補を「Overload N of M」のchainで再評価して
+1つのTS2769にまとめ（全部が同じspanならそこ、違えばcalleeのerror node）、1個または4個以上なら最後の候補のエラーをそのまま
+（4個以上は「No overload matches this call」→「The last overload gave the following error」のprefix付き）報告した。tsgoの
+`reportCallResolutionErrors`（checker.go:9850-9870）は常に最後の失敗候補の適用エラーをそれぞれ別のdiagnosticとして報告し
+（配列literalの要素ごとのエラーなら要素ごとにTS2769）、候補が2個以上ならprefix 2段を付けて「The last overload is declared
+here」をrelatedに、さらに`addImplementationSuccessElaboration`。tsc-rsの`report_call_resolution_failure`をこの形にした
+（`append_to_linear_tail`は不要）。unusedは、tsgoの`reportUnusedImports`が「All imports in import declaration are unused」を
+宣言名が2つ以上で全部未使用のときだけ出し、それ以外は各importを名前の位置で報告し、`reportUnusedBindingElements`が
+「All destructured elements are unused」を要素2つ以上で全部未参照のときだけ出し、それ以外は各要素を名前の位置で報告する
+（6.0は単独の未使用importを宣言全体、単独要素のpatternをpattern位置やvariable宣言のrowにまとめていた）。unused.rsの
+importとdestructuringのarmをそれに合わせた。
+新しい「The last overload is declared here」のrelated行で、conformance runnerの`.errors.txt`描画が`/.lib/`のtest library
+（`react18.d.ts`）内の位置を`1:1`に落としていた（position indexがfixture fileだけだった）ので、fixtureが`/.lib/`に
+言及するときはharnessの`read_test_library`（`load_native_compiler_program`の内側から公開関数へ）でtest libraryの
+textもindexに入れ、native runnerと同じ`react18/react18.d.ts:478:9`を出すようにした。
+- conformance：15,228 configuration、lane A 13,467（変化なし）、full 12,750→12,807（+57）、text 114→83、category 22、mismatch 536→510、harness error 45、emit full 12,410。上がったのは61構成（overload失敗のcompiler／conformance case、`unusedImports*`／`unusedDestructuringParameters`、JSX children、tagged template、union signatureなど）：57がfull、4がtext。ratchet：0 regressions、26行追加・35行をtext→fullに上げた。local full runは今回から`--workers 2`（798 s）。
+- hosted：HOSTED_RECORD

@@ -26,13 +26,20 @@ pub(super) struct InputFile<'a> {
 }
 
 /// The baseline text, or `None` when there are no diagnostics (the runner
-/// then writes no file).
-pub(super) fn render(diagnostics: &[Diagnostic], files: &[InputFile<'_>]) -> Option<String> {
+/// then writes no file). `library` holds the `/.lib/` test-library files the
+/// program loaded: they locate rows and related information (the native
+/// runner prints `react18/react18.d.ts:478:9`) but list no section.
+pub(super) fn render(
+    diagnostics: &[Diagnostic],
+    files: &[InputFile<'_>],
+    library: &[InputFile<'_>],
+) -> Option<String> {
     if diagnostics.is_empty() {
         return None;
     }
     let indexes: Indexes<'_> = files
         .iter()
+        .chain(library)
         .map(|file| (file.name, PositionIndex::new_static(file.content)))
         .collect();
 

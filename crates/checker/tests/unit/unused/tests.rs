@@ -832,17 +832,19 @@ fn function_declaration_shadowed_array_bindings_keep_tsc_spans() {
             .map(|(code, category, start, length, _)| { (*code, *category, *start, *length) })
             .collect::<Vec<_>>(),
         [
+            // TypeScript 7.1 reports a lone unused binding element at its
+            // name (tsc 6.0: on the pattern); rows probed with tsc-19dadef8.
             (6133, DiagnosticCategory::Suggestion, 51, 1),
-            (6133, DiagnosticCategory::Suggestion, 69, 3),
+            (6133, DiagnosticCategory::Suggestion, 70, 1),
             (6133, DiagnosticCategory::Suggestion, 108, 1),
-            (6133, DiagnosticCategory::Suggestion, 126, 7),
+            (6133, DiagnosticCategory::Suggestion, 127, 1),
             (6133, DiagnosticCategory::Suggestion, 162, 1),
-            (6133, DiagnosticCategory::Suggestion, 180, 6),
+            (6133, DiagnosticCategory::Suggestion, 184, 1),
             (6133, DiagnosticCategory::Suggestion, 217, 1),
-            (6133, DiagnosticCategory::Suggestion, 236, 3),
+            (6133, DiagnosticCategory::Suggestion, 237, 1),
             (6133, DiagnosticCategory::Suggestion, 282, 1),
-            (6133, DiagnosticCategory::Suggestion, 301, 3),
-            (6133, DiagnosticCategory::Suggestion, 343, 3),
+            (6133, DiagnosticCategory::Suggestion, 302, 1),
+            (6133, DiagnosticCategory::Suggestion, 344, 1),
         ]
     );
 }
