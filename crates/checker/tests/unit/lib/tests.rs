@@ -4922,11 +4922,20 @@ fn checked_js_non_js_declared_prototype_replacement_reports_assignment_type() {
                 diagnostic.length.unwrap_or(u32::MAX),
             ))
             .collect::<Vec<_>>(),
-        [(
-            2322,
-            source.find("C.bar").expect("typed assignment") as u32,
-            "C.bar".len() as u32,
-        )]
+        // tsgo (TypeScript 7.1 at 19dadef8, noLib probe): a namespace has no
+        // `prototype` (TS2339), and `C.bar = 2` is checked against `bar`.
+        [
+            (
+                2339,
+                source.find("prototype").expect("prototype") as u32,
+                "prototype".len() as u32
+            ),
+            (
+                2322,
+                source.find("C.bar").expect("typed assignment") as u32,
+                "C.bar".len() as u32,
+            ),
+        ]
     );
 }
 
@@ -5868,7 +5877,17 @@ fn checked_js_publishes_non_jsdoc_readonly_enum_expandos() {
                     .expect("scalar diagnostic observation"),
             ))
             .collect::<Vec<_>>(),
+        // tsgo (TypeScript 7.1 at 19dadef8, noLib probe): `lf.Order = {}` is
+        // checked like any assignment (TS2739), then the enum members are
+        // read-only.
         [
+            (
+                Some("enums.js"),
+                2739,
+                0,
+                "lf.Order".len() as u32,
+                "Type '{}' is missing the following properties from type 'typeof Order': ASC, DESC",
+            ),
             (
                 Some("enums.js"),
                 2540,

@@ -387,3 +387,62 @@ fn checked_js_expando_does_not_redeclare_a_static_member() {
         [(2322, 28, 3)]
     );
 }
+
+/// tsgo (TypeScript 7.1 at 19dadef8, noLib probe): an expando member's
+/// type is the union of its assignments (read here after the `"s"`
+/// assignment narrows it); a `const` arrow function takes expandos, a
+/// `let` one does not.
+#[test]
+fn expando_members_follow_tsgo_initializer_targets() {
+    assert_eq!(
+        checked_rows(
+            "function F() {}\nF.x = 1;\nF.x = \"s\";\nconst n: number = F.x;\nconst g = () => 0;\ng.y = true;\nconst b: string = g.y;\nlet h = () => 0;\nh.z = 1;\n",
+        ),
+        [(2322, 42, 1), (2322, 96, 1), (2339, 132, 1)]
+    );
+}
+
+/// tsgo (TypeScript 7.1 at 19dadef8, noLib probe): a JSDoc `@type` on an
+/// expando assignment decides the member's type; the deferred binding finds
+/// a class declared later; no namespace is created for a missing entity or
+/// a missing nested member.
+#[test]
+fn checked_js_expandos_bind_after_the_file_without_namespaces() {
+    let options = CompilerOptions {
+        allow_js: true,
+        check_js: Some(true),
+        ..CompilerOptions::default()
+    };
+    assert_eq!(
+        checked_rows_with_options(
+            "a.js",
+            "const o = {};\n/** @type {number} */\no.p = 1;\no.p = \"s\";\nC.b = 2;\nclass C {}\nmissing.c = 3;\nconst f = function () {};\nf.nested.d = 4;\n",
+            &options,
+        ),
+        [(2322, 45, 3), (2449, 56, 1), (2304, 76, 7), (2339, 119, 6)]
+    );
+}
+
+/// tsgo isClassInstanceProperty (TypeScript 7.1 at 19dadef8, noLib probe):
+/// a JavaScript assignment declaration is judged by its left side, so the
+/// static expando `C.blah2 = 456` is no instance field (only TS2565 for its
+/// read before the assignment), while a base constructor's `this.f = 1` is
+/// one (TS2855 through `super`).
+#[test]
+fn checked_js_super_access_judges_assignment_declarations_by_their_left_side() {
+    let options = CompilerOptions {
+        allow_js: true,
+        check_js: Some(true),
+        strict: Some(true),
+        target: Some(99),
+        ..CompilerOptions::default()
+    };
+    assert_eq!(
+        checked_rows_with_options(
+            "index.js",
+            "class C {\n  static blah1 = 123;\n}\nC.blah2 = 456;\nclass D extends C {\n  static {\n    super.blah1;\n    super.blah2;\n  }\n}\nclass E {\n  constructor() { this.f = 1; }\n}\nclass G extends E {\n  m() { return super.f; }\n}\n",
+            &options,
+        ),
+        [(2565, 107, 5), (2855, 205, 1)]
+    );
+}

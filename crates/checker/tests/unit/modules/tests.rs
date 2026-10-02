@@ -3478,17 +3478,20 @@ fn checked_js_mixed_common_js_exports_publish_redeclarations() {
                 offset("module.exports.bothBefore"),
                 "module.exports.bothBefore".len() as u32,
             ),
+            // An expando's declaration is the assignment itself (tsgo), so
+            // these CommonJS-only rows span the whole assignment until the
+            // CommonJS port replaces them.
             (
                 "/mod1.js".to_owned(),
                 2323,
                 offset("A.bothBefore"),
-                "A.bothBefore".len() as u32,
+                "A.bothBefore = 2".len() as u32,
             ),
             (
                 "/mod1.js".to_owned(),
                 2323,
                 offset("A.bothAfter"),
-                "A.bothAfter".len() as u32,
+                "A.bothAfter = 3".len() as u32,
             ),
             // TypeScript 7.1: `A` is no constructor (TS2683 for its `this`,
             // as tsgo reports). tsgo's CommonJS rows differ from these TS2323

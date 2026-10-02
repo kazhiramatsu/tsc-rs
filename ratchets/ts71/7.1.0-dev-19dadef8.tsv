@@ -50,6 +50,7 @@ compiler/accessorDeclarationEmitJs	full	none
 compiler/accessorDeclarationEmitVisibilityErrors	full	js
 compiler/accessorDeclarationOrder	full	js
 compiler/accessorInAmbientContextES5(target=es2015)	full	js
+compiler/accessorInferredReturnTypeErrorInReturnStatement	full	js
 compiler/accessorParameterAccessibilityModifier(target=es2015)	full	js
 compiler/accessorWithInitializer(target=es2015)	full	js
 compiler/accessorWithLineTerminator(target=es2015)	full	js
@@ -642,6 +643,7 @@ compiler/checkSwitchStatementIfCaseTypeIsString	full	js
 compiler/checkTypePredicateForRedundantProperties	full	js
 compiler/checkerInitializationCrash	full	js
 compiler/checkingObjectDefinePropertyOnFunctionNonexistentPropertyNoCrash1	full	none
+compiler/checkingObjectWithThisInNamePositionNoCrash	full	js
 compiler/circularAccessorAnnotations	full	js
 compiler/circularBaseConstraint	full	js
 compiler/circularBaseTypes	full	js
@@ -673,6 +675,7 @@ compiler/circularlySimplifyingConditionalTypesNoCrash	full	js
 compiler/cjsExportClassExpressionNameConflict	full	none
 compiler/cjsExportGenericTypes	full	js
 compiler/cjsExportNamedClassExpressionNoAssignment	full	none
+compiler/cjsExportsDuplication	full	none
 compiler/class2	full	none
 compiler/classAccessorInitializationInferenceWithElementAccess1	full	js
 compiler/classAttributeInferenceTemplate	full	js
@@ -1203,6 +1206,7 @@ compiler/contextualParameterAndSelfReferentialConstraint1	full	js
 compiler/contextualPropertyOfGenericFilteringMappedType	full	js
 compiler/contextualPropertyOfGenericMappedType	full	js
 compiler/contextualReturnTypeOfIIFE	full	js
+compiler/contextualReturnTypeOfIIFE2	full	js
 compiler/contextualReturnTypeOfIIFE3	full	js
 compiler/contextualSigInstantiationRestParams	full	js
 compiler/contextualSignatureConditionalTypeInstantiationUsingDefault	full	js
@@ -1374,7 +1378,7 @@ compiler/controlFlowForIndexSignatures	full	js
 compiler/controlFlowForStatementContinueIntoIncrementor1	full	js
 compiler/controlFlowFunctionLikeCircular1	full	js
 compiler/controlFlowInitializedDestructuringVariables	full	js
-compiler/controlFlowInstanceof	category	js
+compiler/controlFlowInstanceof	full	js
 compiler/controlFlowInstanceofWithSymbolHasInstance	full	js
 compiler/controlFlowJavascript	full	js
 compiler/controlFlowLoopAnalysis	full	js
@@ -1598,7 +1602,7 @@ compiler/declarationEmitExpandoArrowFunctionParameter	full	js
 compiler/declarationEmitExpandoFunction	full	none
 compiler/declarationEmitExpandoFunctionInNamespace	full	js
 compiler/declarationEmitExpandoOverloads	full	none
-compiler/declarationEmitExpandoPropertyPrivateName	text	js
+compiler/declarationEmitExpandoPropertyPrivateName	full	js
 compiler/declarationEmitExpandoWithGenericConstraint	full	none
 compiler/declarationEmitExportAliasVisibiilityMarking	full	none
 compiler/declarationEmitExportAssignedNamespaceNoTripleSlashTypesReference	full	js
@@ -2209,6 +2213,7 @@ compiler/emptyThenWarning	full	js
 compiler/emptyThenWithoutWarning	full	js
 compiler/emptyTypeArgumentList	full	js
 compiler/emptyTypeArgumentListWithNew	full	js
+compiler/ensureNoCrashExportAssignmentDefineProperrtyPotentialMerge	full	js
 compiler/enumAssignmentCompat	full	js
 compiler/enumAssignmentCompat2	full	js
 compiler/enumAssignmentCompat3	full	js
@@ -2514,11 +2519,13 @@ compiler/expandoFunctionContextualTypesJs	full	js
 compiler/expandoFunctionContextualTypesNoValue	full	js
 compiler/expandoFunctionExpressionsWithDynamicNames	full	none
 compiler/expandoFunctionExpressionsWithDynamicNames2	full	js
-compiler/expandoFunctionNestedAssigments	category	none
+compiler/expandoFunctionNestedAssigments	full	none
 compiler/expandoFunctionNestedAssigmentsDeclared	full	js
 compiler/expandoFunctionNullishProperty	full	js
 compiler/expandoFunctionSymbolProperty	full	js
 compiler/expandoFunctionSymbolPropertyJs	full	none
+compiler/expandoNoInferredIndex	full	js
+compiler/expandoObjectIndexSignatures	full	js
 compiler/expandoPropertyEmptyArrayWidening	full	js
 compiler/experimentalDecoratorMetadataUnresolvedTypeObjectInEmit	full	js
 compiler/explicitAnyAfterSpreadNoImplicitAnyError	full	js
@@ -3814,6 +3821,7 @@ compiler/jsDocTypedefTagNamespace	full	js
 compiler/jsDocTypedefWithThisTag	full	js
 compiler/jsEnumFunctionLocalNoCrash	full	js
 compiler/jsExpandoAssignmentElementAccess	full	none
+compiler/jsExpandoObjectDefineProperty	full	js
 compiler/jsExportsImportedIntoTsxLosesTypeInfo	full	js
 compiler/jsFileAlternativeUseOfOverloadTag	full	none
 compiler/jsFileClassPropertyInitalizationInObjectLiteral	full	js
@@ -3824,6 +3832,7 @@ compiler/jsFileClassSelfReferencedProperty	full	js
 compiler/jsFileCompilationAbstractModifier	full	js
 compiler/jsFileCompilationAmbientVarDeclarationSyntax	full	js
 compiler/jsFileCompilationAwaitModifier	full	js
+compiler/jsFileCompilationBindDeepExportsAssignment	full	js
 compiler/jsFileCompilationBindDuplicateIdentifier	full	js
 compiler/jsFileCompilationBindErrors	full	js
 compiler/jsFileCompilationBindMultipleDefaultExports	full	js
@@ -6013,6 +6022,7 @@ compiler/thisInTypeQuery	full	js
 compiler/thisIndexOnExistingReadonlyFieldIsNotNever	full	js
 compiler/thisKeyword	full	js
 compiler/thisPredicateInObjectLiteral	full	js
+compiler/thisPropertyAssignmentTyping	full	js
 compiler/thisReferencedInFunctionInsideArrowFunction1	full	js
 compiler/thisShadowingErrorSpans	full	js
 compiler/thisTypeAsConstraint	full	js
@@ -6624,6 +6634,7 @@ compiler/wellKnownSymbolExpando	full	js
 compiler/whileStatementInnerComments	full	js
 compiler/widenToAny1	full	js
 compiler/widenToAny2	full	js
+compiler/widenedThisPropertyAssignment	full	js
 compiler/widenedTypes	full	js
 compiler/widenedTypes1	full	js
 compiler/wideningWithTopLevelTypeParameter	full	js
@@ -6992,6 +7003,7 @@ conformance/asiPreventsParsingAsNamespace05	full	js
 conformance/asiPreventsParsingAsTypeAlias01	full	js
 conformance/asiPreventsParsingAsTypeAlias02	full	js
 conformance/assertionTypePredicates1	full	js
+conformance/assertionTypePredicates2	full	js
 conformance/assertionsAndNonReturningFunctions	full	js
 conformance/assignAnyToEveryType	full	js
 conformance/assignEveryTypeToAny	full	js
@@ -7049,6 +7061,7 @@ conformance/assignmentGenericLookupTypeNarrowing	full	js
 conformance/assignmentLHSIsReference	full	js
 conformance/assignmentLHSIsValue	full	none
 conformance/assignmentToParenthesizedIdentifiers	full	js
+conformance/assignmentToVoidZero1	full	none
 conformance/assignmentTypeNarrowing	full	js
 conformance/assignments	full	js
 conformance/asyncAliasReturnType_es5(target=es2015)	full	js
@@ -7435,6 +7448,7 @@ conformance/chained	full	js
 conformance/chained2	full	js
 conformance/chainedPrototypeAssignment	text	js
 conformance/checkExportsObjectAssignProperty	full	js
+conformance/checkExportsObjectAssignPrototypeProperty	text	js
 conformance/checkJsdocOnEndOfFile	full	js
 conformance/checkJsdocOptionalParamOrder	full	none
 conformance/checkJsdocParamTag1	full	none
@@ -7442,6 +7456,7 @@ conformance/checkJsdocReturnTag1	full	js
 conformance/checkJsdocReturnTag2	full	js
 conformance/checkJsdocSatisfiesTag1	text	js
 conformance/checkJsdocSatisfiesTag10	full	js
+conformance/checkJsdocSatisfiesTag12	text	js
 conformance/checkJsdocSatisfiesTag13	full	js
 conformance/checkJsdocSatisfiesTag15	full	none
 conformance/checkJsdocSatisfiesTag2	full	js
@@ -7484,6 +7499,7 @@ conformance/circular3	full	js
 conformance/circular4	full	js
 conformance/circularImportAlias	full	js
 conformance/circularIndexedAccessErrors	full	js
+conformance/circularMultipleAssignmentDeclaration	full	js
 conformance/circularReference	full	js
 conformance/circularTypeAliasForUnionWithClass	full	js
 conformance/circularTypeAliasForUnionWithInterface	full	js
@@ -7913,6 +7929,7 @@ conformance/constructSignaturesWithOverloads2	full	js
 conformance/constructSignaturesWithOverloadsThatDifferOnlyByReturnType	full	js
 conformance/constructableDecoratorOnClass01	full	js
 conformance/constructorDefaultValuesReferencingThis	full	js
+conformance/constructorFunctionMergeWithClass	full	js
 conformance/constructorFunctionMethodTypeParameters	full	js
 conformance/constructorFunctionTypeIsAssignableToBaseType	full	js
 conformance/constructorFunctionTypeIsAssignableToBaseType2	full	js
@@ -7948,6 +7965,7 @@ conformance/contextualTypeWithUnionTypeCallSignatures	full	js
 conformance/contextualTypeWithUnionTypeIndexSignatures	full	js
 conformance/contextualTypeWithUnionTypeMembers	full	js
 conformance/contextualTypeWithUnionTypeObjectLiteral	full	js
+conformance/contextualTypedSpecialAssignment	full	js
 conformance/contextuallyTypeAsyncFunctionAwaitOperand	full	js
 conformance/contextuallyTypeAsyncFunctionReturnType	full	js
 conformance/contextuallyTypeCommaOperator01	full	js
@@ -8160,6 +8178,7 @@ conformance/defaultExportsCannotMerge02(target=es2015)	full	js
 conformance/defaultExportsCannotMerge03(target=es2015)	full	js
 conformance/defaultExportsCannotMerge04(target=es2015)	full	none
 conformance/defaultExportsGetExportedCommonjs	full	js
+conformance/defaultPropertyAssignedClassWithPrototype	full	js
 conformance/defineProperty(target=esnext)	full	js
 conformance/definiteAssignmentAssertions	full	js
 conformance/definiteAssignmentAssertionsWithObjectShortHand	full	none
@@ -8458,6 +8477,7 @@ conformance/enumIsNotASubtypeOfAnythingButNumber	full	js
 conformance/enumLiteralTypes1	full	js
 conformance/enumLiteralTypes2	full	js
 conformance/enumLiteralTypes3	full	js
+conformance/enumMergeWithExpando	full	js
 conformance/enumMerging	full	js
 conformance/enumMergingErrors	full	js
 conformance/enumShadowedInfinityNaN	full	js
@@ -8768,6 +8788,7 @@ conformance/exportNamespace7	full	js
 conformance/exportNamespace8	full	js
 conformance/exportNamespace9	full	js
 conformance/exportNamespace_js	full	none
+conformance/exportNestedNamespaces	full	js
 conformance/exportNestedNamespaces2	full	js
 conformance/exportNonInitializedVariablesCommonJS	full	js
 conformance/exportNonInitializedVariablesES6	full	js
@@ -9070,6 +9091,7 @@ conformance/globalThisAmbientModules	full	js
 conformance/globalThisBlockscopedProperties	full	js
 conformance/globalThisCollision	full	js
 conformance/globalThisGlobalExportAsGlobal	full	js
+conformance/globalThisPropertyAssignment	full	js
 conformance/globalThisReadonlyProperties	full	js
 conformance/globalThisTypeIndexAccess	full	js
 conformance/globalThisUnknown	full	js
@@ -9466,12 +9488,16 @@ conformance/iteratorSpreadInCall7	full	js
 conformance/iteratorSpreadInCall8	full	js
 conformance/iteratorSpreadInCall9	full	js
 conformance/jsContainerMergeJsContainer	full	js
+conformance/jsContainerMergeTsDeclaration	full	js
+conformance/jsContainerMergeTsDeclaration2	full	js
+conformance/jsContainerMergeTsDeclaration3	full	js
 conformance/jsDeclarationsClassAccessor	full	none
 conformance/jsDeclarationsClassImplementsGenericsSerialization(target=es2015)	full	none
 conformance/jsDeclarationsClassLeadingOptional(target=es2015)	full	none
 conformance/jsDeclarationsClassLikeHeuristic(target=es2015)	full	js
 conformance/jsDeclarationsClassMethod	full	none
 conformance/jsDeclarationsClassStatic2	full	none
+conformance/jsDeclarationsClassStaticMethodAugmentation(target=es2015)	full	none
 conformance/jsDeclarationsClasses(target=es2015)	full	none
 conformance/jsDeclarationsCommonjsRelativePath	full	none
 conformance/jsDeclarationsComputedNames(target=es2015)	full	none
@@ -9497,8 +9523,10 @@ conformance/jsDeclarationsFunctionJSDoc(target=es2015)	full	none
 conformance/jsDeclarationsFunctionKeywordProp(target=es2015)	full	none
 conformance/jsDeclarationsFunctionKeywordPropExhaustive(target=es2015)	full	none
 conformance/jsDeclarationsFunctionLikeClasses(target=es2015)	full	none
+conformance/jsDeclarationsFunctionLikeClasses2(target=es2015)	full	none
 conformance/jsDeclarationsFunctionPrototypeStatic(target=es2015)	full	none
 conformance/jsDeclarationsFunctionWithDefaultAssignedMember	full	js
+conformance/jsDeclarationsFunctionsCjs	full	none
 conformance/jsDeclarationsGetterSetter	full	none
 conformance/jsDeclarationsImportAliasExposedWithinNamespaceCjs	full	none
 conformance/jsDeclarationsImportNamespacedType	full	none
@@ -9524,6 +9552,7 @@ conformance/jsDeclarationsTypeAliases	full	none
 conformance/jsDeclarationsTypeReassignmentFromDeclaration	full	js
 conformance/jsDeclarationsTypeReferences(target=es2015)	full	none
 conformance/jsDeclarationsTypeReferences2(target=es2015)	full	none
+conformance/jsDeclarationsTypeReferences3(target=es2015)	full	none
 conformance/jsDeclarationsTypedefAndImportTypes	full	none
 conformance/jsDeclarationsTypedefAndLatebound	full	js
 conformance/jsDeclarationsTypedefDescriptionsPreserved	full	none
@@ -9583,8 +9612,8 @@ conformance/jsdocSignatureOnReturnedFunction	full	js
 conformance/jsdocTemplateConstructorFunction	full	js
 conformance/jsdocTemplateConstructorFunction2	full	js
 conformance/jsdocTemplateTag2	full	js
-conformance/jsdocTemplateTag4	category	js
-conformance/jsdocTemplateTag5	category	js
+conformance/jsdocTemplateTag4	full	js
+conformance/jsdocTemplateTag5	full	js
 conformance/jsdocTemplateTag6	full	js
 conformance/jsdocTemplateTag7	full	js
 conformance/jsdocTemplateTag8	full	js
@@ -9592,9 +9621,10 @@ conformance/jsdocTemplateTagDefault	full	none
 conformance/jsdocTemplateTagNameResolution	full	none
 conformance/jsdocTwoLineTypedef	full	js
 conformance/jsdocTypeDefAtStartOfFile	full	js
-conformance/jsdocTypeFromChainedAssignment	category	js
+conformance/jsdocTypeFromChainedAssignment	full	js
 conformance/jsdocTypeFromChainedAssignment2	full	js
 conformance/jsdocTypeReferenceToImportOfClassExpression	full	js
+conformance/jsdocTypeReferenceToMergedClass	full	js
 conformance/jsdocTypeReferenceToValue	full	js
 conformance/jsdocTypeReferenceUseBeforeDef	full	js
 conformance/jsdocTypeTag	full	none
@@ -9663,6 +9693,8 @@ conformance/lateBoundAssignmentDeclarationSupport4	full	js
 conformance/lateBoundAssignmentDeclarationSupport5	full	js
 conformance/lateBoundAssignmentDeclarationSupport6	full	js
 conformance/lateBoundAssignmentDeclarationSupport7	full	js
+conformance/lateBoundClassMemberAssignmentJS	full	none
+conformance/lateBoundClassMemberAssignmentJS2	full	none
 conformance/lateBoundClassMemberAssignmentJS3	full	none
 conformance/leaveOptionalParameterAsWritten	full	js
 conformance/legacyDecorators-contextualTypes	full	js
@@ -9831,8 +9863,10 @@ conformance/moduleExportAliasExports	full	js
 conformance/moduleExportAssignment3	full	js
 conformance/moduleExportAssignment6	full	js
 conformance/moduleExportDuplicateAlias2	full	none
+conformance/moduleExportNestedNamespaces	full	js
 conformance/moduleExportsAliasLoop1	full	js
 conformance/moduleExportsAliasLoop2	full	js
+conformance/moduleExportsElementAccessAssignment	full	none
 conformance/moduleExportsElementAccessAssignment2	full	js
 conformance/moduleResolutionWithExtensions	full	js
 conformance/moduleResolutionWithoutExtension1	full	js
@@ -11514,6 +11548,7 @@ conformance/privateStaticNameShadowing	full	js
 conformance/privateStaticNotAccessibleInClodule	full	js
 conformance/privateStaticNotAccessibleInClodule2	full	js
 conformance/privateWriteOnlyAccessorRead	full	js
+conformance/propertiesOfGenericConstructorFunctions	full	js
 conformance/propertyAccess	full	js
 conformance/propertyAccessChain	full	js
 conformance/propertyAccessChain.2	full	js
@@ -11560,6 +11595,7 @@ conformance/protectedStaticClassPropertyAccessibleWithinSubclass	full	js
 conformance/protectedStaticClassPropertyAccessibleWithinSubclass2(target=es2015)	full	js
 conformance/protectedStaticNotAccessibleInClodule	full	js
 conformance/prototypePropertyAssignmentMergeAcrossFiles	full	js
+conformance/prototypePropertyAssignmentMergeAcrossFiles2	full	js
 conformance/prototypePropertyAssignmentMergedTypeReference	full	js
 conformance/publicIndexer	full	js
 conformance/quotedConstructors	full	js
@@ -12152,7 +12188,9 @@ conformance/thisAndSuperInStaticMembers4(target=es2015)	full	js
 conformance/thisInInstanceMemberInitializer	full	js
 conformance/thisInInvalidContexts	full	js
 conformance/thisInInvalidContextsExternalModule(target=es2015)	full	js
+conformance/thisInObjectLiterals	full	js
 conformance/thisMethodCall	full	js
+conformance/thisPropertyAssignment	full	js
 conformance/thisPropertyAssignmentCircular	full	none
 conformance/thisPropertyAssignmentComputed	full	js
 conformance/thisPropertyAssignmentInherited	full	none
@@ -12427,6 +12465,7 @@ conformance/typeArgumentsWithStringLiteralTypes01	full	js
 conformance/typeAssertions	full	none
 conformance/typeAssertionsWithIntersectionTypes01	full	js
 conformance/typeAssertionsWithUnionTypes01	full	js
+conformance/typeFromContextualThisType	full	js
 conformance/typeFromJSConstructor	full	js
 conformance/typeFromJSInitializer	full	js
 conformance/typeFromJSInitializer2	full	js
@@ -12435,34 +12474,51 @@ conformance/typeFromJSInitializer4	full	js
 conformance/typeFromParamTagForFunction	text	js
 conformance/typeFromPrivatePropertyAssignment	full	js
 conformance/typeFromPrivatePropertyAssignmentJs	full	js
+conformance/typeFromPropertyAssignment	full	js
+conformance/typeFromPropertyAssignment10	full	js
+conformance/typeFromPropertyAssignment10_1	full	js
 conformance/typeFromPropertyAssignment11	full	js
+conformance/typeFromPropertyAssignment12	full	js
 conformance/typeFromPropertyAssignment13	full	js
+conformance/typeFromPropertyAssignment14	full	js
+conformance/typeFromPropertyAssignment15	full	js
+conformance/typeFromPropertyAssignment16	full	js
 conformance/typeFromPropertyAssignment17	full	js
 conformance/typeFromPropertyAssignment18	full	js
 conformance/typeFromPropertyAssignment19	full	js
+conformance/typeFromPropertyAssignment2	full	js
 conformance/typeFromPropertyAssignment20	full	js
 conformance/typeFromPropertyAssignment21	full	js
 conformance/typeFromPropertyAssignment22	full	js
 conformance/typeFromPropertyAssignment23	full	js
+conformance/typeFromPropertyAssignment24	full	js
 conformance/typeFromPropertyAssignment25	full	js
 conformance/typeFromPropertyAssignment26	full	js
 conformance/typeFromPropertyAssignment27	full	js
 conformance/typeFromPropertyAssignment28	full	js
 conformance/typeFromPropertyAssignment29	full	none
+conformance/typeFromPropertyAssignment3	full	js
 conformance/typeFromPropertyAssignment30	full	js
 conformance/typeFromPropertyAssignment31	full	js
 conformance/typeFromPropertyAssignment32	full	js
 conformance/typeFromPropertyAssignment33	full	js
 conformance/typeFromPropertyAssignment34	full	js
+conformance/typeFromPropertyAssignment35	full	js
 conformance/typeFromPropertyAssignment36	full	js
 conformance/typeFromPropertyAssignment37	full	js
 conformance/typeFromPropertyAssignment38	full	js
 conformance/typeFromPropertyAssignment39	full	none
+conformance/typeFromPropertyAssignment4	full	js
 conformance/typeFromPropertyAssignment40	full	js
+conformance/typeFromPropertyAssignment5	full	js
 conformance/typeFromPropertyAssignment7	full	js
 conformance/typeFromPropertyAssignment8	full	js
 conformance/typeFromPropertyAssignment8_1	full	js
+conformance/typeFromPropertyAssignmentOutOfOrder(target=es2015)	full	js
 conformance/typeFromPropertyAssignmentWithExport	full	js
+conformance/typeFromPrototypeAssignment	full	js
+conformance/typeFromPrototypeAssignment2	full	js
+conformance/typeFromPrototypeAssignment3	full	js
 conformance/typeFromPrototypeAssignment4	full	none
 conformance/typeGuardEnums	full	js
 conformance/typeGuardFunction	full	js
@@ -12623,6 +12679,7 @@ conformance/typeSatisfaction_propertyValueConformance2(nouncheckedindexedaccess=
 conformance/typeSatisfaction_propertyValueConformance2(nouncheckedindexedaccess=true)	full	js
 conformance/typeSatisfaction_propertyValueConformance3	full	js
 conformance/typeSatisfaction_vacuousIntersectionOfContextualTypes	full	js
+conformance/typeTagCircularReferenceOnConstructorFunction	full	js
 conformance/typeTagForMultipleVariableDeclarations	full	js
 conformance/typeTagModuleExports	full	js
 conformance/typeTagNoErasure	full	none

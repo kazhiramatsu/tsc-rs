@@ -156,7 +156,7 @@ fn jsdoc_readonly_this_assignment_is_writable_in_class_and_js_constructors() {
 }
 
 #[test]
-fn named_js_module_declarations_keep_their_module_face() {
+fn nested_module_exports_element_targets_declare_no_expandos() {
     let result = check_program(
         &[
             InputFile::new("/mod1.js".to_owned(), "exports.a = { x: \"x\" };\nmodule[\"exports\"][\"d\"] = {};\nmodule[\"exports\"][\"d\"].e = 0;\n"
@@ -173,12 +173,28 @@ fn named_js_module_declarations_keep_their_module_face() {
             ..CompilerOptions::default()
         },
     );
-    assert!(
+    // tsgo (TypeScript 7.1 at 19dadef8, noLib probe): `module["exports"]["d"]`
+    // is no expando target, so `d` stays `{}` and both reads of `e` miss;
+    // `foo["baz"]` on the empty JavaScript object literal binds as expandos.
+    assert_eq!(
         result
             .diagnostics
             .iter()
-            .all(|diagnostic| !matches!(diagnostic.code(), 2339 | 7053)),
-        "{:?}",
-        result.diagnostics
+            .filter(|diagnostic| matches!(diagnostic.code(), 2339 | 7053))
+            .map(|diagnostic| (
+                diagnostic.file_name.as_ref().map(|value| value
+                    .as_js()
+                    .as_str()
+                    .expect("scalar name observation")
+                    .to_owned()),
+                diagnostic.code(),
+                diagnostic.start.unwrap_or(u32::MAX),
+                diagnostic.length.unwrap_or(u32::MAX),
+            ))
+            .collect::<Vec<_>>(),
+        [
+            (Some("/mod1.js".to_owned()), 2339, 76, 1),
+            (Some("/mod2.js".to_owned()), 2339, 55, 1),
+        ]
     );
 }

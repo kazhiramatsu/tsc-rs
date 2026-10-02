@@ -529,7 +529,7 @@ fn jsdoc_template_prototype_index_carriers_keep_their_annotations() {
 }
 
 #[test]
-fn checked_js_late_bound_class_member_stays_private() {
+fn checked_js_dynamic_this_member_late_binds_on_the_static_side() {
     let result = check_program(
         &[InputFile::new(
             "a.js".to_owned(),
@@ -547,10 +547,21 @@ fn checked_js_late_bound_class_member_stays_private() {
             ..CompilerOptions::default()
         },
     );
-    assert!(result
-        .diagnostics
-        .iter()
-        .all(|diagnostic| diagnostic.code() != 7053));
+    // tsgo (TypeScript 7.1 at 19dadef8, noLib probe): a dynamic `this[key]`
+    // assignment late-binds on the class's static side, so both instance
+    // accesses report TS7053.
+    assert_eq!(
+        result
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 7053)
+            .map(|diagnostic| (
+                diagnostic.start.unwrap_or(u32::MAX),
+                diagnostic.length.unwrap_or(u32::MAX)
+            ))
+            .collect::<Vec<_>>(),
+        [(48, 9), (81, 9)]
+    );
 }
 
 #[test]

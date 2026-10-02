@@ -77,6 +77,10 @@ pub struct BinderWorker<'a> {
     pub container: Option<NodeId>,
     pub this_parent_container: Option<NodeId>,
     pub block_scope_container: Option<NodeId>,
+    /// tsgo Binder.expandoAssignments (TypeScript 7.1): Property and
+    /// Object.defineProperty assignment declarations with the container and
+    /// block-scope container they were seen in, bound after the whole file.
+    pub expando_assignments: Vec<(NodeId, Option<NodeId>, Option<NodeId>)>,
     pub last_container: Option<NodeId>,
     /// tsc container.nextContainer chain (addToContainerChain).
     pub next_container: FxHashMap<NodeId, NodeId>,
@@ -354,6 +358,7 @@ impl<'a> BinderWorker<'a> {
             container: None,
             this_parent_container: None,
             block_scope_container: None,
+            expando_assignments: Vec::new(),
             last_container: None,
             next_container: FxHashMap::default(),
             node_flags_mut: BinderNodeFlags::new(&source.arena),
@@ -1292,6 +1297,7 @@ impl BinderWorker<'_> {
             container: _,
             this_parent_container: _,
             block_scope_container: _,
+            expando_assignments: _,
             last_container: _,
             next_container: _,
             node_flags_mut: _,
@@ -1540,6 +1546,7 @@ impl BinderWorker<'_> {
             container: _,
             this_parent_container: _,
             block_scope_container: _,
+            expando_assignments: _,
             last_container: _,
             next_container,
             node_flags_mut,

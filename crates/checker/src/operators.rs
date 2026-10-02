@@ -878,23 +878,16 @@ impl<'a> CheckerState<'a> {
                         )
                     });
                 self.check_assignment_declaration(declaration_kind, right_type)?;
-                if self.is_assignment_declaration_worker(declaration_kind, left, right) {
-                    let right_is_object = self
+                // CommonJS bridge until the CommonJS port: tsc-rs still types a
+                // module as tsc 6.0 did (its object merges `exports.p`
+                // members), so a `module.exports = <object>` replacement is
+                // not checked against it and has the module's type.
+                if declaration_kind == tsc_binder::AssignmentDeclarationKind::ModuleExports {
+                    if !self
                         .tables
                         .flags_of(right_type)
-                        .intersects(TypeFlags::OBJECT);
-                    let object_can_supply_assignment_declaration = right_is_object
-                        && (matches!(
-                            declaration_kind,
-                            tsc_binder::AssignmentDeclarationKind::ModuleExports
-                                | tsc_binder::AssignmentDeclarationKind::Prototype
-                        ) || self.is_empty_object_type(right_type)?
-                            || self.is_function_object_type(right_type)?
-                            || self
-                                .tables
-                                .object_flags_of(right_type)
-                                .intersects(tsc_types::ObjectFlags::CLASS));
-                    if !object_can_supply_assignment_declaration {
+                        .intersects(TypeFlags::OBJECT)
+                    {
                         self.check_assignment_operator(
                             left,
                             operator_token,
@@ -903,17 +896,13 @@ impl<'a> CheckerState<'a> {
                             right_type,
                         )?;
                     }
-                    Ok(left_type)
-                } else {
-                    self.check_assignment_operator(
-                        left,
-                        operator_token,
-                        right,
-                        left_type,
-                        right_type,
-                    )?;
-                    Ok(right_type)
+                    return Ok(left_type);
                 }
+                // tsgo checkBinaryLikeExpressionWorker (TypeScript 7.1): every
+                // `=` is checked for assignability, an assignment declaration
+                // included, and the expression has the right side's type.
+                self.check_assignment_operator(left, operator_token, right, left_type, right_type)?;
+                Ok(right_type)
             }
             SyntaxKind::CommaToken => {
                 if !self.options.allow_unreachable_code.unwrap_or(false)
@@ -988,39 +977,6 @@ impl<'a> CheckerState<'a> {
             );
         }
         Ok(())
-    }
-
-    /// tsc-port: isAssignmentDeclaration @6.0.3
-    /// tsc-hash: 3ef6382442624f2ab23f2a5e2bff71731c55316e24582fa8ca6aeed23e68efd0
-    /// tsc-span: _tsc.js:80350-80365
-    fn is_assignment_declaration_worker(
-        &self,
-        kind: tsc_binder::AssignmentDeclarationKind,
-        left: NodeId,
-        right: NodeId,
-    ) -> bool {
-        match kind {
-            tsc_binder::AssignmentDeclarationKind::ModuleExports => true,
-            tsc_binder::AssignmentDeclarationKind::ExportsProperty
-            | tsc_binder::AssignmentDeclarationKind::Property
-            | tsc_binder::AssignmentDeclarationKind::Prototype
-            | tsc_binder::AssignmentDeclarationKind::PrototypeProperty
-            | tsc_binder::AssignmentDeclarationKind::ThisProperty => {
-                let Some(symbol) = self.node_symbol(left) else {
-                    return false;
-                };
-                let symbol = self.get_merged_symbol(symbol);
-                let Some(initializer) = tsc_binder::assignment::get_assigned_expando_initializer(
-                    self.binder.source_of_node(right),
-                    right,
-                ) else {
-                    return false;
-                };
-                self.kind_of(initializer) == SyntaxKind::ObjectLiteralExpression
-                    && !self.binder.symbol(symbol).exports().is_empty()
-            }
-            _ => false,
-        }
     }
 
     /// tsc-port: checkInstanceOfExpression @6.0.3
@@ -1583,6 +1539,30 @@ impl<'a> CheckerState<'a> {
         let operator = self.operator_kind(operator_token);
         if !node_util::is_assignment_operator(operator) {
             return Ok(());
+        }
+        // tsgo checkAssignmentOperator (TypeScript 7.1): an `undefined`
+        // assigned to a CommonJS export with more than one assignment
+        // declaration is not checked.
+        let assignment = self
+            .parent_of(left)
+            .filter(|&parent| self.kind_of(parent) == SyntaxKind::BinaryExpression);
+        if assignment.is_some_and(|assignment| {
+            tsc_binder::get_assignment_declaration_kind(
+                self.binder.source_of_node(assignment),
+                assignment,
+            ) == tsc_binder::AssignmentDeclarationKind::ExportsProperty
+        }) {
+            let resolved = self
+                .links
+                .read_node(left, |links| links.resolved_symbol.resolved());
+            if resolved.is_some_and(|symbol| self.binder.symbol(symbol).declarations.len() > 1)
+                && self
+                    .tables
+                    .flags_of(value_type)
+                    .intersects(TypeFlags::UNDEFINED)
+            {
+                return Ok(());
+            }
         }
         if operator == SyntaxKind::EqualsToken {
             self.report_primitive_module_exports_property_assignment(left)?;

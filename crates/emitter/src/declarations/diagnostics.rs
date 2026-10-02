@@ -837,6 +837,16 @@ fn direct_name_of_declaration(source: &SourceFile, node: NodeId) -> Option<NodeI
         NodeData::VariableDeclaration(data) => data.name,
         NodeData::JSDocCallbackTag(data) => data.name,
         NodeData::JSDocTypedefTag(data) => data.name,
+        // tsgo GetNameOfDeclaration (TypeScript 7.1): an assignment
+        // declaration (an expando's declaration node) is named by its target
+        // property, an Object.defineProperty call by its key argument.
+        NodeData::BinaryExpression(data) => data
+            .left
+            .and_then(|left| access_expression_name(source, left)),
+        NodeData::CallExpression(data) => data.arguments.and_then(|arguments| {
+            let arguments = &source.arena.node_array(arguments).nodes;
+            (arguments.len() == 3).then(|| arguments[1])
+        }),
         _ => None,
     }
 }

@@ -1049,13 +1049,16 @@ fn checked_js_global_this_assignment_uses_the_merged_augmentation() {
         target: Some(ScriptTarget::ES2015.bits()),
         ..CompilerOptions::default()
     };
+    // tsgo (TypeScript 7.1 at 19dadef8, noLib probe): `globalThis.alpha = 4`
+    // declares nothing (globalThis is no expando target), so both accesses
+    // report TS7017.
     let clean = "globalThis.alpha = 4;\nglobalThis.alpha;\n";
     assert_eq!(
         with_program_state(&[("a.js", clean)], &options, |state| {
             state.check_source_file(0);
             rows(state)
         }),
-        []
+        [(7017, 11, 5), (7017, 33, 5)]
     );
 
     let siblings = "globalThis.missing;\nlet scoped = 1;\nglobalThis.scoped;\n";

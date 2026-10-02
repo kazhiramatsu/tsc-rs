@@ -1031,6 +1031,12 @@ impl<'a> CheckerState<'a> {
             unreachable!("kind/data agree");
         };
         let (left, operator_token, right) = (data.left, data.operator_token, data.right);
+        // tsgo getContextualTypeForBinaryOperand (TypeScript 7.1): the `@type`
+        // of a JavaScript assignment declaration (reparsed into the binary
+        // expression's type) types its operands.
+        if let Some(type_node) = self.assignment_declaration_type_node(binary) {
+            return Ok(Some(self.get_type_from_type_node(type_node)?));
+        }
         let operator = operator_token.map(|t| self.kind_of(t));
         match operator {
             Some(
@@ -1039,11 +1045,26 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::BarBarEqualsToken
                 | SyntaxKind::QuestionQuestionEqualsToken,
             ) => {
-                if Some(node) == right {
-                    self.get_contextual_type_for_assignment_declaration(binary)
-                } else {
-                    Ok(None)
+                if Some(node) != right {
+                    return Ok(None);
                 }
+                // No contextual type when the target is rooted at
+                // `module`/`exports` resolving to the CommonJS module object.
+                let target = left.map(|left| self.leftmost_assignment_target(left));
+                if let Some(target) =
+                    target.filter(|&target| self.kind_of(target) == SyntaxKind::Identifier)
+                {
+                    let module_exports = self.get_resolved_symbol(target)?.is_some_and(|symbol| {
+                        self.binder
+                            .symbol(symbol)
+                            .flags
+                            .intersects(SymbolFlags::MODULE_EXPORTS)
+                    });
+                    if module_exports {
+                        return Ok(None);
+                    }
+                }
+                self.get_contextual_type_for_assignment_expression(binary)
             }
             Some(SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken) => {
                 // When an || expression has a contextual type, the RHS
@@ -1055,9 +1076,9 @@ impl<'a> CheckerState<'a> {
                 if Some(node) == right {
                     let has_pattern =
                         ty.is_some_and(|t| self.links.type_cold().pattern.get(t).is_some());
-                    let no_context_non_expando =
-                        ty.is_none() && !self.is_defaulted_expando_initializer(binary);
-                    if has_pattern || no_context_non_expando {
+                    // tsgo: no exception for a defaulted expando
+                    // initializer (`ns.p = ns.p || {}`).
+                    if has_pattern || ty.is_none() {
                         let left = left.expect("binary has a left operand");
                         return Ok(Some(self.get_type_of_expression(left)?));
                     }
@@ -1075,262 +1096,194 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsc-port: isDefaultedExpandoInitializer @6.0.3
-    /// tsc-hash: 46127311127c6759fe62ca2b7684bd0221f0a54e2161a3a8ea3bf50e8233934c
-    /// tsc-span: _tsc.js:15010-15013
-    fn is_defaulted_expando_initializer(&self, node: NodeId) -> bool {
-        let NodeData::BinaryExpression(data) = self.data_of(node) else {
-            return false;
-        };
-        let (Some(left), Some(right)) = (data.left, data.right) else {
-            return false;
-        };
-        let Some(parent) = self.parent_of(node) else {
-            return false;
-        };
-        let name = match self.data_of(parent) {
-            NodeData::VariableDeclaration(data) => data.name,
-            NodeData::BinaryExpression(data)
-                if data
-                    .operator_token
-                    .is_some_and(|operator| self.kind_of(operator) == SyntaxKind::EqualsToken) =>
-            {
-                data.left
-            }
-            _ => None,
-        };
-        let Some(name) = name else { return false };
-        let source = self.binder.source_of_node(node);
-        tsc_binder::assignment::get_expando_initializer(
-            source,
-            right,
-            tsc_binder::assignment::is_prototype_access(source, name),
-        )
-        .is_some()
-            && tsc_binder::assignment::is_bindable_static_name_expression(source, name, false)
-            && tsc_binder::assignment::is_same_entity_name(source, name, left)
-    }
-
-    /// tsc-port: getSymbolForExpression @6.0.3
-    /// tsc-hash: cc13b2e3c5958fca3589c74248091883cb95c0d39a97794192a3ee6e0674a3d6
-    /// tsc-span: _tsc.js:72955-72979
-    fn get_symbol_for_expression(&mut self, e: NodeId) -> CheckResult<Option<SymbolId>> {
-        if let Some(symbol) = self.node_symbol(e) {
-            return Ok(Some(symbol));
-        }
-        match self.data_of(e) {
-            NodeData::Identifier(_) => self.get_resolved_symbol(e),
-            NodeData::PropertyAccessExpression(data) => {
-                let (expression, name) = (data.expression, data.name);
-                let expression = expression.expect("access has an expression");
-                let name = name.expect("access has a name");
-                let lhs_type = self.get_type_of_expression(expression)?;
-                if self.kind_of(name) == SyntaxKind::PrivateIdentifier {
-                    // tryGetPrivateIdentifierPropertyOfType (72975-72978).
-                    let Some(name_text) = self.identifier_text_of(name).map(str::to_owned) else {
-                        return Ok(None);
-                    };
-                    let lexically_scoped =
-                        self.lookup_symbol_for_private_identifier_declaration(&name_text, name)?;
-                    let Some(lexically_scoped) = lexically_scoped else {
-                        return Ok(None);
-                    };
-                    return self
-                        .get_private_identifier_property_of_type(lhs_type, lexically_scoped);
-                }
-                let Some(name_text) = self.identifier_text_of(name).map(str::to_owned) else {
-                    return Ok(None);
-                };
-                self.get_property_of_type_full(lhs_type, &name_text)
-            }
-            NodeData::ElementAccessExpression(data) => {
-                let (expression, argument) = (data.expression, data.argument_expression);
-                let expression = expression.expect("access has an expression");
-                let Some(argument) = argument else {
-                    return Ok(None);
-                };
-                let prop_type =
-                    self.check_expression_cached(argument, tsc_types::CheckMode::NORMAL)?;
-                let Some(name_text) = self.property_name_from_type_usable(prop_type) else {
-                    return Ok(None);
-                };
-                let lhs_type = self.get_type_of_expression(expression)?;
-                self.get_property_of_type_full(lhs_type, name_text)
-            }
-            _ => Ok(None),
+    /// tsgo GetLeftmostExpression(node, false) over an assignment target.
+    fn leftmost_assignment_target(&self, mut node: NodeId) -> NodeId {
+        loop {
+            let next = match self.data_of(node) {
+                NodeData::PostfixUnaryExpression(data) => data.operand,
+                NodeData::BinaryExpression(data) => data.left,
+                NodeData::ConditionalExpression(data) => data.condition,
+                NodeData::TaggedTemplateExpression(data) => data.tag,
+                NodeData::CallExpression(data) => data.expression,
+                NodeData::AsExpression(data) => data.expression,
+                NodeData::SatisfiesExpression(data) => data.expression,
+                NodeData::ElementAccessExpression(data) => data.expression,
+                NodeData::PropertyAccessExpression(data) => data.expression,
+                NodeData::NonNullExpression(data) => data.expression,
+                NodeData::PartiallyEmittedExpression(data) => data.expression,
+                _ => None,
+            };
+            let Some(next) = next else {
+                return node;
+            };
+            node = next;
         }
     }
 
-    /// tsc-port: getContextualTypeForAssignmentDeclaration @6.0.3
-    /// tsc-hash: 8ab1d325cd62ac8ae1977531d737fddfbc18d36415268f97afa6801f97b02eb2
-    /// tsc-span: _tsc.js:72980-73052
+    /// tsgo-port: getContextualTypeForAssignmentExpression @7.1
+    /// (checker.go:30327-30400).
     ///
-    /// The effective annotation reads remain inert for untagged JS,
-    /// while the assignment-kind and ordinary symbol/type paths are
-    /// shared with TS.
-    fn get_contextual_type_for_assignment_declaration(
+    /// The right side of `E.p = x` / `E[k] = x` is contextually typed by the
+    /// left side's type, except: `module.exports = x` has none; an
+    /// assignment declaration on an identifier (`F.p = x`) takes the
+    /// property of F's annotated variable type, else none; an assignment
+    /// declaration on a property access has none; `this.p = x` has none
+    /// when `p` is an unannotated, uninitialized property, or when the
+    /// assignment declares an unannotated member.
+    ///
+    /// tsc-rs binds the CommonJS export assignments (`exports.p = x`) on the
+    /// left side, as tsc 6.0 did, so either node's symbol marks an
+    /// assignment declaration.
+    fn get_contextual_type_for_assignment_expression(
         &mut self,
-        binary_expression: NodeId,
+        binary: NodeId,
     ) -> CheckResult<Option<TypeId>> {
-        let NodeData::BinaryExpression(data) = self.data_of(binary_expression) else {
+        let NodeData::BinaryExpression(data) = self.data_of(binary) else {
             unreachable!("kind/data agree");
         };
         let left = data.left.expect("assignment has a left side");
-        let source = self.binder.source_of_node(binary_expression);
-        let kind = tsc_binder::get_assignment_declaration_kind(source, binary_expression);
-        match kind {
-            tsc_binder::AssignmentDeclarationKind::None
-            | tsc_binder::AssignmentDeclarationKind::ThisProperty => {
-                let lhs_symbol = self.get_symbol_for_expression(left)?;
-                let decl =
-                    lhs_symbol.and_then(|symbol| self.binder.symbol(symbol).value_declaration);
-                if let Some(decl) = decl {
-                    if matches!(
-                        self.kind_of(decl),
-                        SyntaxKind::PropertyDeclaration | SyntaxKind::PropertySignature
-                    ) {
-                        if let Some(annotation) = self.effective_type_annotation_node(decl) {
-                            let annotated = self.get_type_from_type_node(annotation)?;
-                            let mapper = self
-                                .links
-                                .symbol(lhs_symbol.expect("decl implies symbol"))
-                                .mapper;
-                            return Ok(Some(self.instantiate_type(annotated, mapper)?));
-                        }
-                        if self.kind_of(decl) == SyntaxKind::PropertyDeclaration {
-                            let has_initializer = matches!(
-                                self.data_of(decl),
-                                NodeData::PropertyDeclaration(data) if data.initializer.is_some()
-                            );
-                            if has_initializer {
-                                return Ok(Some(self.get_type_of_expression(left)?));
-                            }
-                        }
+        let declaration_symbol = self.node_symbol(binary).or_else(|| self.node_symbol(left));
+        let (expression, is_property_access) = match self.data_of(left) {
+            NodeData::PropertyAccessExpression(access) => (access.expression, true),
+            NodeData::ElementAccessExpression(access) => (access.expression, false),
+            _ => (None, false),
+        };
+        if let Some(expression) = expression {
+            match self.kind_of(expression) {
+                SyntaxKind::Identifier => {
+                    let resolved = self.get_resolved_symbol(expression)?;
+                    let symbol = resolved
+                        .map(|symbol| self.get_export_symbol_of_value_symbol_if_exported(symbol));
+                    if symbol.is_some_and(|symbol| {
+                        self.binder
+                            .symbol(symbol)
+                            .flags
+                            .intersects(SymbolFlags::MODULE_EXPORTS)
+                    }) {
                         return Ok(None);
                     }
-                }
-                if kind == tsc_binder::AssignmentDeclarationKind::None {
-                    Ok(Some(self.get_type_of_expression(left)?))
-                } else {
-                    self.get_contextual_type_for_this_property_assignment(binary_expression)
-                }
-            }
-            tsc_binder::AssignmentDeclarationKind::Property => {
-                if self.node_symbol(left).is_none() {
-                    return Ok(Some(self.get_type_of_expression(left)?));
-                }
-                let symbol = self.node_symbol(left).expect("guarded above");
-                let Some(decl) = self.binder.symbol(symbol).value_declaration else {
-                    return Ok(None);
-                };
-                if let Some(annotation) = self.effective_type_annotation_node(decl) {
-                    return Ok(Some(self.get_type_from_type_node(annotation)?));
-                }
-                let NodeData::PropertyAccessExpression(access) = self.data_of(left) else {
-                    // Element-access Property assignments carry the
-                    // same tail; the identifier probe below only
-                    // applies to property accesses in tsc, so fall
-                    // through to the final arm.
-                    return Ok(if self.is_in_js_file(decl) || decl == left {
-                        None
-                    } else {
-                        Some(self.get_type_of_expression(left)?)
-                    });
-                };
-                let lhs_expression = access.expression.expect("access has an expression");
-                if let Some(id_text) = self.identifier_text_of(lhs_expression).map(str::to_owned) {
-                    let parent_symbol =
-                        self.resolve_value_name_no_report(lhs_expression, &id_text)?;
-                    if let Some(parent_symbol) = parent_symbol {
-                        let annotated = self
-                            .binder
-                            .symbol(parent_symbol)
-                            .value_declaration
-                            .and_then(|d| self.effective_type_annotation_node(d));
-                        if let Some(annotated) = annotated {
-                            let name_str = self.element_or_property_access_name(left);
-                            if let Some(name_str) = name_str {
-                                let annotated_type = self.get_type_from_type_node(annotated)?;
+                    if declaration_symbol.is_some() {
+                        let variable = symbol
+                            .and_then(|symbol| self.binder.symbol(symbol).value_declaration)
+                            .filter(|&declaration| {
+                                self.kind_of(declaration) == SyntaxKind::VariableDeclaration
+                            });
+                        if let Some(type_node) = variable.and_then(|declaration| {
+                            self.effective_type_annotation_node(declaration)
+                        }) {
+                            let annotated = self.get_type_from_type_node(type_node)?;
+                            if is_property_access {
+                                let Some(name) = self.element_or_property_access_name(left) else {
+                                    return Ok(None);
+                                };
                                 return self.get_type_of_property_of_contextual_type(
-                                    annotated_type,
-                                    name_str,
-                                    None,
+                                    annotated, name, None,
                                 );
                             }
+                            let argument = match self.data_of(left) {
+                                NodeData::ElementAccessExpression(access) => {
+                                    access.argument_expression
+                                }
+                                _ => None,
+                            };
+                            if let Some(argument) = argument {
+                                let name_type = self.check_expression_cached(
+                                    argument,
+                                    tsc_types::CheckMode::NORMAL,
+                                )?;
+                                if self.is_type_usable_as_property_name(name_type) {
+                                    let name = self
+                                        .get_property_name_from_type(name_type)
+                                        .expect("usable as a property name");
+                                    return self.get_type_of_property_of_contextual_type(
+                                        annotated,
+                                        name,
+                                        Some(name_type),
+                                    );
+                                }
+                            }
+                            return Ok(Some(self.get_type_of_expression(left)?));
                         }
                         return Ok(None);
                     }
                 }
-                Ok(if self.is_in_js_file(decl) || decl == left {
-                    None
-                } else {
-                    Some(self.get_type_of_expression(left)?)
-                })
-            }
-            tsc_binder::AssignmentDeclarationKind::ExportsProperty
-            | tsc_binder::AssignmentDeclarationKind::PrototypeProperty
-            | tsc_binder::AssignmentDeclarationKind::ModuleExports
-            | tsc_binder::AssignmentDeclarationKind::Prototype => {
-                let value_declaration = self
-                    .node_symbol(left)
-                    .and_then(|symbol| self.binder.symbol(symbol).value_declaration)
-                    .or_else(|| {
-                        self.node_symbol(binary_expression)
-                            .and_then(|symbol| self.binder.symbol(symbol).value_declaration)
-                    });
-                let annotation =
-                    value_declaration.and_then(|decl| self.effective_type_annotation_node(decl));
-                match annotation {
-                    Some(annotation) => Ok(Some(self.get_type_from_type_node(annotation)?)),
-                    None => Ok(None),
+                SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
+                    if declaration_symbol.is_some() {
+                        return Ok(None);
+                    }
                 }
+                SyntaxKind::ThisKeyword => {
+                    let this_type = self.get_type_of_expression(expression)?;
+                    let property = match self.data_of(left) {
+                        NodeData::PropertyAccessExpression(access) => {
+                            let name = access.name.expect("property access has a name");
+                            if self.kind_of(name) == SyntaxKind::PrivateIdentifier {
+                                let text = self.text_of_node(name)?;
+                                self.lookup_symbol_for_private_identifier_declaration(&text, left)?
+                            } else {
+                                match self.element_or_property_access_name(left) {
+                                    Some(name) => {
+                                        self.get_property_of_type_full(this_type, name)?
+                                    }
+                                    None => None,
+                                }
+                            }
+                        }
+                        NodeData::ElementAccessExpression(access) => {
+                            match access.argument_expression {
+                                Some(argument) => {
+                                    let property_type = self.check_expression_cached(
+                                        argument,
+                                        tsc_types::CheckMode::NORMAL,
+                                    )?;
+                                    match self
+                                        .is_type_usable_as_property_name(property_type)
+                                        .then(|| self.get_property_name_from_type(property_type))
+                                        .flatten()
+                                    {
+                                        Some(name) => {
+                                            self.get_property_of_type_full(this_type, name)?
+                                        }
+                                        None => None,
+                                    }
+                                }
+                                None => None,
+                            }
+                        }
+                        _ => None,
+                    };
+                    if let Some(declaration) =
+                        property.and_then(|property| self.binder.symbol(property).value_declaration)
+                    {
+                        let unannotated_property = match self.data_of(declaration) {
+                            NodeData::PropertyDeclaration(data) => {
+                                data.r#type.is_none() && data.initializer.is_none()
+                            }
+                            NodeData::PropertySignature(data) => {
+                                data.r#type.is_none() && data.initializer.is_none()
+                            }
+                            _ => false,
+                        };
+                        if unannotated_property {
+                            return Ok(None);
+                        }
+                    }
+                    let unannotated_declaration = declaration_symbol
+                        .and_then(|symbol| self.binder.symbol(symbol).value_declaration)
+                        .is_some_and(|declaration| {
+                            self.effective_type_annotation_node(declaration).is_none()
+                        });
+                    if unannotated_declaration {
+                        // tsgo returns no contextual type here, for an object
+                        // literal method too (`// !!! contextual typing for
+                        // `this` in object literals`).
+                        return Ok(None);
+                    }
+                }
+                _ => {}
             }
-            tsc_binder::AssignmentDeclarationKind::ObjectDefinePropertyValue
-            | tsc_binder::AssignmentDeclarationKind::ObjectDefinePropertyExports
-            | tsc_binder::AssignmentDeclarationKind::ObjectDefinePrototypeProperty => Ok(None),
         }
-    }
-
-    /// tsc-port: getContextualTypeForThisPropertyAssignment @6.0.3
-    /// tsc-hash: 18cd72ce11a1945199994ac5754b2cb64e790ccb844c5c89bfb5bb21f6048a64
-    /// tsc-span: _tsc.js:73074-73098
-    fn get_contextual_type_for_this_property_assignment(
-        &mut self,
-        binary_expression: NodeId,
-    ) -> CheckResult<Option<TypeId>> {
-        let NodeData::BinaryExpression(data) = self.data_of(binary_expression) else {
-            return Ok(None);
-        };
-        let Some(left) = data.left else {
-            return Ok(None);
-        };
-        let Some(symbol) = self.node_symbol(binary_expression) else {
-            return Ok(Some(self.get_type_of_expression(left)?));
-        };
-        if let Some(value_declaration) = self.binder.symbol(symbol).value_declaration {
-            if let Some(annotation) = self.effective_type_annotation_node(value_declaration) {
-                return Ok(Some(self.get_type_from_type_node(annotation)?));
-            }
-        }
-        let receiver = match self.data_of(left) {
-            NodeData::PropertyAccessExpression(data) => data.expression,
-            NodeData::ElementAccessExpression(data) => data.expression,
-            _ => None,
-        };
-        let Some(receiver) = receiver else {
-            return Ok(None);
-        };
-        let source = self.binder.source_of_node(receiver);
-        let container =
-            node_util::get_this_container(source, receiver, /*include_arrow_functions*/ false);
-        if !container.is_some_and(|container| self.is_object_literal_method(container)) {
-            return Ok(None);
-        }
-        let this_type = self.check_this_expression(receiver)?;
-        let Some(name) = self.element_or_property_access_name(left) else {
-            return Ok(None);
-        };
-        self.get_type_of_property_of_contextual_type(this_type, name, None)
+        Ok(Some(self.get_type_of_expression(left)?))
     }
 
     /// tsc getElementOrPropertyAccessName (15134-15145): the identifier
@@ -1357,23 +1310,6 @@ impl<'a> CheckerState<'a> {
             }
             _ => None,
         }
-    }
-
-    /// resolveName(Value, no-report, isUse) — the kind-5 parent-symbol
-    /// probe (73020-73030).
-    fn resolve_value_name_no_report(
-        &mut self,
-        location: NodeId,
-        name: &str,
-    ) -> CheckResult<Option<SymbolId>> {
-        self.resolve_name(
-            Some(location),
-            name,
-            SymbolFlags::VALUE,
-            /*name_not_found_message*/ None,
-            /*is_use*/ true,
-            /*exclude_globals*/ false,
-        )
     }
 }
 

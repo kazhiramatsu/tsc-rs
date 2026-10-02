@@ -2954,9 +2954,13 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsc-port: isDeclarationWithExplicitTypeAnnotation @6.0.3
-    /// tsc-hash: 1ce22ff5fa71bee60fc931c39179d1552c778f61d4e1fecaba74c9f4a9c54b63
-    /// tsc-span: _tsc.js:70118-70120
+    /// tsgo-port: isDeclarationWithExplicitTypeAnnotation @7.1
+    /// (flow.go:2197-2209): an annotated variable, property, property
+    /// signature or parameter (a JavaScript `@type` counts), or an expando
+    /// assignment of a function with a declared return type
+    /// (isExpandoPropertyFunctionWithReturnTypeAnnotation). tsc 6.0's
+    /// JavaScript arm for a variable initialized with an annotated function
+    /// is gone.
     fn is_declaration_with_explicit_type_annotation(&self, node: NodeId) -> bool {
         let is_variable_like = matches!(
             self.kind_of(node),
@@ -2965,22 +2969,16 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::PropertySignature
                 | SyntaxKind::Parameter
         );
-        if !is_variable_like {
-            return false;
+        if is_variable_like {
+            return self.effective_type_annotation_node(node).is_some();
         }
-        if self.effective_type_annotation_node(node).is_some() {
-            return true;
+        match self.data_of(node) {
+            NodeData::BinaryExpression(data) => data.right.is_some_and(|right| {
+                node_util::is_function_like_kind(self.kind_of(right))
+                    && self.effective_return_type_node(right).is_some()
+            }),
+            _ => false,
         }
-        if !self.is_in_js_file(node) {
-            return false;
-        }
-        let Some(initializer) = self.initializer_of(node) else {
-            return false;
-        };
-        matches!(
-            self.kind_of(initializer),
-            SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
-        ) && self.effective_return_type_node(initializer).is_some()
     }
 
     /// tsc-port: getExplicitTypeOfSymbol @6.0.3

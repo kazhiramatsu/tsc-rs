@@ -179,65 +179,6 @@ impl<'a> CheckerState<'a> {
         result
     }
 
-    /// tsc-port: mergeJSSymbols @6.0.3
-    /// tsc-hash: b89c5c9776a5cd3750f08d0a16209f7a403adaf64f3b6ce7454009e3597c34ef
-    /// tsc-span: _tsc.js:77523-77543
-    ///
-    /// Function-expression and assigned-class types keep the target
-    /// symbol face while acquiring exports/members from the source
-    /// symbol. A transient target is augmented in place; a normal
-    /// target goes through cloneSymbol, including its merged-symbol
-    /// redirection, exactly like tsc.
-    pub(crate) fn merge_js_symbols(&mut self, target: SymbolId, source: SymbolId) -> SymbolId {
-        if let Some(inferred) = self
-            .links
-            .symbol_cold()
-            .inferred_class_symbols
-            .get(source)
-            .get(&target)
-            .copied()
-        {
-            return inferred;
-        }
-        let original = self.binder.symbol(target);
-        let flags = original.flags;
-        let source_class_flags = self.binder.symbol(source).flags & SymbolFlags::CLASS;
-        let inferred = if flags.intersects(SymbolFlags::TRANSIENT) {
-            target
-        } else {
-            self.clone_symbol(target)
-        };
-        self.binder.symbol_mut(inferred).flags |= source_class_flags;
-
-        let source_exports = self.binder.symbol(source).exports().clone();
-        if !source_exports.is_empty() {
-            let mut inferred_exports =
-                std::mem::take(self.binder.symbol_mut(inferred).exports_mut());
-            self.merge_symbol_table(
-                std::sync::Arc::make_mut(&mut inferred_exports),
-                &source_exports,
-                /*unidirectional*/ false,
-                Some(inferred),
-            );
-            *self.binder.symbol_mut(inferred).exports_mut() = inferred_exports;
-        }
-        let source_members = self.binder.symbol(source).members().clone();
-        if !source_members.is_empty() {
-            let mut inferred_members =
-                std::mem::take(self.binder.symbol_mut(inferred).members_mut());
-            self.merge_symbol_table(
-                std::sync::Arc::make_mut(&mut inferred_members),
-                &source_members,
-                /*unidirectional*/ false,
-                None,
-            );
-            *self.binder.symbol_mut(inferred).members_mut() = inferred_members;
-        }
-        self.links
-            .set_symbol_inferred_class_symbol(self.speculation_depth, source, inferred);
-        inferred
-    }
-
     /// tsc-port: setValueDeclaration @6.0.3
     /// tsc-hash: a59d9538fb29e56c3a8225e23c78e2a2c0e3570f1bbc442be1dcc2ed93436dac
     /// tsc-span: _tsc.js:15190-15195

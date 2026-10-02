@@ -917,6 +917,46 @@ impl<'a> CheckerState<'a> {
         Ok(false)
     }
 
+    /// tsgo-port: checkObjectLiteral's expando arm @7.1 (checker.go:13351-13360):
+    /// an object literal with no properties whose symbol received expando
+    /// members (`var a = {}; a.x = 1` in JavaScript) is the anonymous type of
+    /// those exports, a JS literal in JavaScript (not JSON); it has no
+    /// property children to check.
+    fn expando_object_literal_type(&mut self, node: NodeId) -> Option<TypeId> {
+        let NodeData::ObjectLiteralExpression(data) = self.data_of(node) else {
+            return None;
+        };
+        if !self.nodes_of(data.properties).is_empty() {
+            return None;
+        }
+        let symbol = self.node_symbol(node)?;
+        let exports = std::sync::Arc::clone(self.binder.symbol(symbol).exports());
+        if exports.is_empty() {
+            return None;
+        }
+        let ty = self.create_resolved_empty_anonymous_type(Some(symbol));
+        let in_json = self.node_flags(node) & tsc_types::NodeFlags::JSON_FILE.bits() != 0;
+        if self.is_in_js_file(node) && !in_json {
+            self.tables.type_mut(ty).object_flags = ObjectFlags::from_bits(
+                self.tables.object_flags_of(ty).bits() | ObjectFlags::JS_LITERAL.bits(),
+            );
+        }
+        let members_id = self
+            .links
+            .read_ty(ty, |links| links.resolved_members.resolved())
+            .expect("fresh anonymous type has resolved members");
+        let mut properties: Vec<SymbolId> = exports.values().copied().collect();
+        self.order_named_members_if_stable(&mut properties, Some(symbol));
+        *self.members_mut(members_id) = crate::state::ResolvedMembers {
+            members: self.member_table(&exports),
+            properties,
+            call_signatures: Vec::new(),
+            construct_signatures: Vec::new(),
+            index_infos: Vec::new(),
+        };
+        Some(ty)
+    }
+
     /// tsc-port: checkObjectLiteral @6.0.3
     /// tsc-hash: c78231c4fb699497a2e5eaf135a9a290add889608f13083434a3d68a31b03d78
     /// tsc-span: _tsc.js:74135-74299
@@ -934,6 +974,9 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         check_mode: CheckMode,
     ) -> CheckResult<TypeId> {
+        if let Some(expando) = self.expando_object_literal_type(node) {
+            return Ok(expando);
+        }
         let source = self.binder.source_of_node(node);
         let in_destructuring_pattern = node_util::is_assignment_target(source, node);
         self.check_grammar_object_literal_expression(node, in_destructuring_pattern)?;

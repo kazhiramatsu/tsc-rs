@@ -665,7 +665,9 @@ fn assignment_declarations_bind_oracle_pinned_symbol_faces() {
     // Function expandos, descriptor members, CommonJS named exports and
     // export=. TypeScript 7.1 has no constructor functions or prototype
     // members: `this.i`, `F.prototype.p` and the `F.prototype` descriptor
-    // declare nothing, so F has no Class flag and no members.
+    // declare nothing, so F has no Class flag and no members. tsgo declares
+    // every expando Property|Assignment after the file is bound, and creates
+    // no namespace, so F keeps its Function flag alone.
     let source = parse_named(
         "a.js",
         "\
@@ -686,7 +688,7 @@ module.exports = F;
     let root_locals = &binder.locals[&source.root];
     let f = root_locals["F"];
     let f_symbol = binder.symbols.symbol(f);
-    assert_eq!(f_symbol.flags.bits(), 67_110_416);
+    assert_eq!(f_symbol.flags, SymbolFlags::FUNCTION);
     assert!(f_symbol.members().is_empty());
     assert_eq!(
         f_symbol
@@ -698,7 +700,7 @@ module.exports = F;
     );
     assert_eq!(
         binder.symbols.symbol(f_symbol.exports()["s"]).flags.bits(),
-        67_117_056
+        67_108_868
     );
     assert_eq!(
         binder.symbols.symbol(f_symbol.exports()["b"]).flags.bits(),
@@ -714,7 +716,7 @@ module.exports = F;
     );
     assert_eq!(
         binder.symbols.symbol(f_symbol.exports()["d"]).flags.bits(),
-        67_117_056
+        67_108_868
     );
 
     let file = binder.node_symbol[&source.root];
@@ -937,7 +939,7 @@ fn forced_external_module_still_accepts_common_js_assignments() {
 }
 
 #[test]
-fn nested_expando_initializer_shapes_match_tsc() {
+fn nested_expando_initializer_shapes_match_tsgo() {
     let source = parse_named(
         "a.js",
         "\
@@ -954,29 +956,33 @@ function outer() {
 ",
         true,
     );
+    // tsgo getInitializerSymbol (TypeScript 7.1): the empty object
+    // literal's own symbol takes `x`; a non-empty literal, a defaulted
+    // `x || {}` initializer and an IIFE take no expandos.
     let binder = bind(&source);
     let outer = find_nodes(&source, SyntaxKind::FunctionDeclaration)[0];
     let locals = &binder.locals[&outer];
+    let empty_literal = find_nodes(&source, SyntaxKind::ObjectLiteralExpression)[0];
     assert!(binder
         .symbols
-        .symbol(locals["empty"])
+        .symbol(binder.node_symbol[&empty_literal])
         .exports()
         .contains_key("x"));
-    assert!(!binder
-        .symbols
-        .symbol(locals["rich"])
-        .exports()
-        .contains_key("y"));
-    assert!(binder
-        .symbols
-        .symbol(locals["defaulted"])
-        .exports()
-        .contains_key("z"));
-    assert!(binder
-        .symbols
-        .symbol(locals["called"])
-        .exports()
-        .contains_key("w"));
+    for (name, member) in [
+        ("empty", "x"),
+        ("rich", "y"),
+        ("defaulted", "z"),
+        ("called", "w"),
+    ] {
+        assert!(
+            !binder
+                .symbols
+                .symbol(locals[name])
+                .exports()
+                .contains_key(member),
+            "{name}.{member}"
+        );
+    }
 }
 
 #[test]
@@ -1161,10 +1167,12 @@ fn jsdoc_template_callback_and_class_tags_use_effective_hosts() {
         .members()
         .contains_key(InternalSymbolName::CALL));
 
+    // TypeScript 7.1 has no constructor functions: `@class` no longer adds
+    // the Class flag.
     let class_function = binder.locals[&source.root]["C"];
     let flags = binder.symbols.symbol(class_function).flags;
     assert!(flags.intersects(SymbolFlags::FUNCTION));
-    assert!(flags.intersects(SymbolFlags::CLASS));
+    assert!(!flags.intersects(SymbolFlags::CLASS));
 }
 
 #[test]
@@ -1221,4 +1229,39 @@ fn function_in_block_es5_strict_reports_1250_family() {
     binder.bind_source_file();
     // Oracle-pinned: 1250 @ (11,1) (the function name g).
     assert_eq!(diag_pins(&binder), [(1250, 11, 1)]);
+}
+
+#[test]
+fn expandos_bind_on_initializer_symbols_after_the_file() {
+    // tsgo bindDeferredExpandoAssignment (TypeScript 7.1): a const (or
+    // JavaScript) variable hands its expando members to the initializer's
+    // own symbol; the lookup runs after the whole file, so a later class is
+    // found; a missing entity creates no namespace or global augmentation.
+    let source = parse_named(
+        "a.js",
+        "const f = function () {};\nf.a = 1;\nC.b = 2;\nclass C {}\nmissing.c = 3;\nf.nested.d = 4;\n",
+        true,
+    );
+    let binder = bind(&source);
+    let locals = &binder.locals[&source.root];
+    let function_expression = find_nodes(&source, SyntaxKind::FunctionExpression)[0];
+    let function_symbol = binder
+        .symbols
+        .symbol(binder.node_symbol[&function_expression]);
+    assert_eq!(
+        function_symbol
+            .exports()
+            .keys()
+            .map(|name| name.as_str().expect("these test names are scalar"))
+            .collect::<Vec<_>>(),
+        ["a"]
+    );
+    assert!(binder.symbols.symbol(locals["f"]).exports().is_empty());
+    assert!(binder
+        .symbols
+        .symbol(locals["C"])
+        .exports()
+        .contains_key("b"));
+    assert!(!locals.contains_key("missing"));
+    assert!(binder.js_global_augmentations.is_empty());
 }

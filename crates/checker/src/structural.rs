@@ -5604,31 +5604,14 @@ impl<'a> CheckerState<'a> {
         common.is_some()
     }
 
-    /// tsc-port: isPrototypeProperty @6.0.3
-    /// tsc-hash: 207ce788baf9b71475e96f8eb9766636491049cf22405208a4f9d3587c69dbd8
-    /// tsc-span: _tsc.js:74862-74870
+    /// tsgo-port: isPrototypeProperty @7.1 (checker.go:22033-22035): a
+    /// method or a synthetic method; tsc 6.0's JavaScript
+    /// `C.prototype.m = ...` arm is gone.
     pub(crate) fn is_prototype_property(&self, prop: SymbolId) -> bool {
-        if self.symbol_flags(prop).intersects(SymbolFlags::METHOD)
+        self.symbol_flags(prop).intersects(SymbolFlags::METHOD)
             || self
                 .get_check_flags(prop)
                 .intersects(CheckFlags::SYNTHETIC_METHOD)
-        {
-            return true;
-        }
-        let Some(value_declaration) = self.binder.symbol(prop).value_declaration else {
-            return false;
-        };
-        if !self.is_in_js_file(value_declaration) {
-            return false;
-        }
-        let Some(parent) = self.parent_of(value_declaration) else {
-            return false;
-        };
-        self.kind_of(parent) == SyntaxKind::BinaryExpression
-            && tsc_binder::assignment::get_assignment_declaration_kind(
-                self.binder.source_of_node(parent),
-                parent,
-            ) == tsc_binder::AssignmentDeclarationKind::PrototypeProperty
     }
 
     fn is_literal_type_public(&self, ty: TypeId) -> bool {

@@ -620,3 +620,46 @@ tsgoの行にpinした。
 - conformance：15,228 configuration、lane A 13,467（変化なし）、full 12,873→12,906（+33）、text 93→98、category 21→26、mismatch 436→393、harness error 44、emit full 12,412→12,413。上がったのは43構成：constructor function・prototype代入・`this`代入のJavaScript群がfull 33（`constructorFunctions3`、`constructorFunctionsStrict`、`typeFromJSConstructor`、`inferringClassMembersFromAssignments2`／`6`／`7`、`prototypePropertyAssignmentMergeAcrossFiles`、`topLevelThisAssignment`、`lateBoundAssignmentDeclarationSupport4`〜`6`…）、text 5、category 5。ratchet：0 regressions、43行追加・1行raise（emit、`jsDeclarationsClassLikeHeuristic`）（`intersectionConstructorReductionCrash`は従来どおり載せない）。最初のfull runで`compiler/targetTypeTest1`が退行し、上記のexpandoの規則とclass宣言型のmerge削除で解消した。localはbinderの変更なのでworkspace全体のclippyとtest（70 targets、3,622 passed）、2 workerのfull run（801 s）。Clippyの指摘2件（不要な借用、挙動は変わらない）はfull runの後に直し、workspace clippyとbinderのtest（74 passed）を再実行した。
 - hosted：PR #629（head `7467f5876`、merge `97d186da0`）、run 36988318740 — `plan` 26s、`rust` 9m58s、`conformance (TypeScript 7.1)` 21m36s、`gates` 11s。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main `e3b12d215`と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 132→134、zod 528→537、Playwright 364→380、TypeScript `src/compiler` 356→353、Next.js 808→788、Effect 536→525、VS Code 3,574→3,552。tsc-rs÷tsgoは0.59〜0.96で従来どおり、peak memoryは同等（MB main→本branch：310→291、1,303→1,301、755→774、293→292、1,326→1,322、1,041→1,036、5,456→5,439）。zod・Playwright・honoは同条件の5 rounds A/B（本branch／main）で、medianは529／521、341／338、120／124、minは503／505、320／332、116／118、CPU時間は3,515／3,522、2,391／2,389、639／617 ms（3 roundsでは637／657）なのでノイズ。退行なし。
+
+## P3-5l JavaScriptのexpando宣言をtsgoの方式で束縛・型付けする（2026-10-02）
+
+P3-5kの第2段。tsgo 7.1のexpando（`F.p = …`、`Object.defineProperty(F, "p", …)`）は、tsc 6.0と束縛先・時機・宣言ノードが
+すべて違う：`GetAssignmentDeclarationKind`（ast/utilities.go:1547-1579）はentity nameへの代入をすべてPropertyにし（`void 0`の
+除外なし、任意のelement access）、binderは`bindExpandoPropertyAssignment`で全部をファイルの束縛後まで延期し
+（binder.go:1027-1076）、`lookupEntity`（1274-1304）でsymbolを作らずに対象を引き、`getInitializerSymbol`（1096-1121）が返す
+symbol——function宣言、JavaScriptのclass宣言、`const`（JavaScriptでは任意の）変数のexpando initializer（function／arrow、
+JavaScriptのclass式・型なしの空object literal）の**initializer自身のsymbol**——のexportsに、同名の非expando宣言が無いときだけ
+Property|Assignmentを宣言する。宣言ノードは代入（またはcall）そのもので、暗黙のnamespaceもMethod／accessorのflagも作らない。
+- binder（`assignment.rs`、`bind.rs`）：分類をtsgoの関数そのものに置き換え、PrototypeProperty／Prototype／
+  ObjectDefinePrototypeProperty の種類を列挙から削除。Property／ObjectDefinePropertyValueはファイル末尾で束縛し
+  （`bind_deferred_expando_assignment`、`lookup_entity`、`lookup_name`、`get_initializer_symbol`、`is_expando_initializer`）、
+  tsc 6.0のspecial property assignment・暗黙namespace・prototype束縛の一式を削除。延期した束縛時には`this` containerが
+  無いので`this.a.b = …`は何も束縛しない（tsgoと同じ）。JSDocの`@class`／`@constructor`はClassを付けない（tsgoにJSDoc class
+  tagの束縛は無い）。
+- checker：`getWidenedTypeForAssignmentDeclaration`をtsgo版に移植（this代入のTyped／Constructor／Method、最初の`@type`、
+  代入型のunion、CommonJS exportの先頭`undefined`の除外、JavaScriptの全nullableはimplicit any、
+  `getAssignmentDeclarationInitializerType`／`containsSameNamedThisProperty`／`hasParentWithTypeAnnotation`／
+  `getTypeFromPropertyDescriptor`）。expandoはinitializerのsymbolにあるので`getSymbolOfExpando`／`mergeJSSymbols`を削除
+  （関数・class型、call式）、空object literalの型はexportsから作る（`checkObjectLiteral`のexpando arm）。代入の文脈型は
+  `getContextualTypeForAssignmentExpression`／`getContextualTypeForBinaryOperand`（reparseされた`@type`、`module`／
+  `exports`起点の代入は文脈型なし、`ns.p = ns.p || {}`の例外なし）。`=`はtsgoと同じく常に代入可能性を検査して右辺の型を
+  返す（CommonJS exportへの`undefined`だけ除外）。JavaScriptのprototype・constructor function向けの残りの腕
+  （`getThisType`、`tryGetThisTypeAt`、`getOuterTypeParameters`、JSDocのprototype host、`isPrototypeProperty`、late-bound
+  代入のinstance側、node builderのprototype range）を削除し、`isClassInstanceProperty`は代入宣言を左辺で判定する
+  （tsgo、`C.p = …`はinstance fieldでない；最初のfull runで`classFieldSuperAccessibleJs1`に余分なTS2855が出ていた）。`isDeclarationWithExplicitTypeAnnotation`と`x.p = …`宣言の
+  assume-uninitialized（TS2565）もtsgoに合わせた。
+- tsgoは「存在しないproperty」のエラー（TS2339）を`addDeferredDiagnostic`でファイル検査の最後まで遅らせる
+  （checker.go:11547「must be deferred because reporting this error can cause us to materialize the containing type
+  completely (to print it), leading to erroneous circularity errors」）。tsc-rsでも同じ遅延を入れ、expando関数の型を印字する
+  途中で関数の戻り値型を再解決して出ていた偽のTS7023（`jsdocTypeFromChainedAssignment`など）を解消した。
+- emitter：宣言のaccessibility診断で代入宣言を対象propertyの名前で呼ぶ（tsgo `GetNameOfDeclaration`、TS4032の引数）。
+- CommonJSの束縛と型付けは第3段なので、そこまでの橋渡しを3つ残した：`exports`／`module.exports`の別名への
+  `util.p = …`はexportとして束縛し、`module.exports = <object>`は従来どおり検査を省いてmoduleの型を返し、`x.p = …`形の
+  CommonJS宣言（tsc-rsでは左辺が宣言ノード）は代入宣言として扱う。tsc 6.0の宣言emitterが使うalias判定では、
+  aliasableな右辺を持つexpando代入をaliasとみなす（`foo.foo = foo`は`export { foo }`、tsgoのtransformerと同じ出力）。
+unit testはbinder 5件、checker 17件を再pin（`tsc-19dadef8`、noLibのglobalsで照合。16件はtsgoの行で、うち6件は遅延した
+TS2339がsinkの後ろに来る順序だけの変更；CommonJSの再宣言TS2323の1件はtsgoに無い行で、宣言ノードが代入になった分だけ
+spanを更新し第3段まで残す）、tsgoの行にpinした新しいtest 5件（expandoの型とinitializer、JavaScriptの延期束縛と
+namespace無し、遅延TS2339で循環なし、`super`経由のTS2855の判定、binderの構造）を追加。
+- conformance：15,228 configuration、lane A 13,467（変化なし）、full 12,906→12,967（+61）、text 98→99、category 26→21、mismatch 393→336、harness error 44、emit full 12,413→12,414。上がったのは63構成（full 61、text 2）：expando・prototype代入・this代入のJavaScript群（`typeFromPropertyAssignment`系14、`typeFromPrototypeAssignment`1〜3、`jsContainerMergeTsDeclaration`1〜3、`expandoFunctionNestedAssigments`、`jsExpandoObjectDefineProperty`、`lateBoundClassMemberAssignmentJS`／`2`、`jsdocTypeFromChainedAssignment`、`declarationEmitExpandoPropertyPrivateName`…）。ratchet：0 regressions、57行追加・6行raise（`intersectionConstructorReductionCrash`は従来どおり載せない）。最初のfull runでは`compiler/classFieldSuperAccessibleJs1`が退行し（余分なTS2855）、`isClassInstanceProperty`の移植で解消して最終bytesで2回目を実行した。localはbinderの変更なのでworkspace全体のclippyとtest（70 targets、3,627 passed）、2 workerのfull run（796 s）。
+- hosted：HOSTED_RECORD
