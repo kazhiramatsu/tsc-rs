@@ -162,10 +162,11 @@ function Point(x) {\n\
 }\n\
 /** @param {Point} p */\n\
 function magnitude(p) { return p.x ** 2; }\n";
-    let point = constructor.rfind("p.x").unwrap() as u32;
+    // TypeScript 7.1 (tsgo, tsc-19dadef8): `Point` is no constructor, so its
+    // `this` is TS2683, `new Point(x)` TS7009 and `@param {Point}` TS2749.
     assert_eq!(
         published_js_rows(constructor, Some(true)),
-        [(18048, point, 3)]
+        [(2683, 51, 4), (7009, 82, 12), (2683, 96, 4), (2749, 122, 5)]
     );
 
     let destructuring = "/**\n\

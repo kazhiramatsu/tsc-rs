@@ -454,14 +454,16 @@ fn checked_js_empty_this_assignment_uses_widened_index_error_face() {
             )
         })
         .collect::<Vec<_>>();
+    // TypeScript 7.1 (tsgo, tsc-19dadef8): a top-level `this["known"] = …`
+    // declares nothing, so both element accesses index `typeof
+    // globalThis`.
+    let message = "Element implicitly has an 'any' type because expression of type '\"known\"' can't be used to index type 'typeof globalThis'.";
     assert_eq!(
         rows,
-        [(
-            Some(20),
-            Some(24),
-            "Element implicitly has an 'any' type because expression of type '\"missing\"' can't be used to index type '{}'."
-                .to_owned(),
-        )]
+        [
+            (Some(0), Some(13), message.to_owned()),
+            (Some(20), Some(13), message.to_owned()),
+        ]
     );
 }
 

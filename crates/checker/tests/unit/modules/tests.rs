@@ -3490,6 +3490,17 @@ fn checked_js_mixed_common_js_exports_publish_redeclarations() {
                 offset("A.bothAfter"),
                 "A.bothAfter".len() as u32,
             ),
+            // TypeScript 7.1: `A` is no constructor (TS2683 for its `this`,
+            // as tsgo reports). tsgo's CommonJS rows differ from these TS2323
+            // rows (TS2322 at both `bothBefore`/`bothAfter` exports, TS2309 at
+            // `module.exports = A`, TS2339 at `justProperty`); that is the
+            // CommonJS export binding of the JavaScript declarations port.
+            (
+                "/mod1.js".to_owned(),
+                2683,
+                offset("this.p"),
+                "this".len() as u32,
+            ),
             (
                 "/mod1.js".to_owned(),
                 2323,

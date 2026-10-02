@@ -350,3 +350,40 @@ fn class_modifier_error_suppresses_heritage_grammar() {
         [(1042, 30, 5)]
     );
 }
+
+/// tsgo (TypeScript 7.1 at 19dadef8, noLib probe) reports only the
+/// implicit-any rows: getDeclaredTypeOfClassOrInterface merges no
+/// `Point.prototype = { ... }` object literal into the class (tsc 6.0's
+/// getAssignedClassSymbol is gone), and the binder declares no expando
+/// over the class's synthetic `prototype`, so `add` is not duplicated.
+#[test]
+fn prototype_object_assignment_is_not_merged_into_a_function_merged_class() {
+    assert_eq!(
+        checked_rows(
+            "declare class Point {\n  constructor(x: number, y: number);\n  public x: number;\n  public add(dx: number, dy: number): Point;\n}\nfunction Point(x, y) {\n  this.x = x;\n}\nPoint.prototype = {\n  x: 0,\n  add: function(dx, dy) { return new Point(this.x + dx, 0); }\n};\n",
+        ),
+        [(7006, 141, 1), (7006, 144, 1), (2683, 151, 4)]
+    );
+}
+
+/// tsgo bindDeferredExpandoAssignment declares an expando only when no
+/// non-expando declaration has the name: `C.x = "s"` is a plain assignment
+/// to the static property (TS2322 at the target), while the two `C.y`
+/// assignments declare one expando whose type admits both values (tsgo
+/// noLib probe at 19dadef8).
+#[test]
+fn checked_js_expando_does_not_redeclare_a_static_member() {
+    let options = CompilerOptions {
+        allow_js: true,
+        check_js: Some(true),
+        ..CompilerOptions::default()
+    };
+    assert_eq!(
+        checked_rows_with_options(
+            "a.js",
+            "class C {\n  static x = 1;\n}\nC.x = \"s\";\nC.y = 2;\nC.y = \"t\";\nlet n = C.x;\nlet m = C.y;\n",
+            &options,
+        ),
+        [(2322, 28, 3)]
+    );
+}

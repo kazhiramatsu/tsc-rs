@@ -1059,9 +1059,11 @@ fn arrow_function_registration_preserves_expression_bodies_and_parameter_exempti
 }
 
 #[test]
-fn arrow_function_checked_js_assignment_local_uses_property_name_anchor() {
+fn arrow_function_checked_js_top_level_this_assignment_declares_nothing() {
+    // TypeScript 7.1: the source file is not a `this` container, so a
+    // top-level `this.n = 1` (here inside an arrow function) declares no
+    // local and reports no unused row (tsc 6.0 declared `n`).
     let text = "class D {}\nD.prototype.foo = () => {\n    this.n = 1;\n};\n";
-    let expected_start = text.find("n = 1").expect("property name") as u32;
     assert_eq!(
         unused_rows_for_files(
             &[("a.js", text)],
@@ -1071,13 +1073,7 @@ fn arrow_function_checked_js_assignment_local_uses_property_name_anchor() {
                 ..CompilerOptions::default()
             },
         ),
-        [(
-            6133,
-            DiagnosticCategory::Suggestion,
-            expected_start,
-            1,
-            "'n' is declared but its value is never read.".to_owned(),
-        )]
+        []
     );
 }
 

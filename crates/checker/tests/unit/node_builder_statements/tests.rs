@@ -988,7 +988,9 @@ fn declaration_comment_range_g4b_absent_signature_has_no_property_fallback() {
         with_program_state(
             &[(
                 "/project/main.js",
-                "function C() {} C.prototype.m = function(value) { return value; };",
+                // TypeScript 7.1 declares no prototype members, so the method
+                // symbol comes from a class.
+                "class C { m(value) { return value; } }",
             )],
             &CompilerOptions {
                 allow_js: true,

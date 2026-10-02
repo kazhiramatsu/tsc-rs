@@ -3818,14 +3818,9 @@ impl<'a> CheckerState<'a> {
         } else {
             ObjectFlags::INTERFACE
         };
-        let assigned_class = match self.binder.symbol(symbol).value_declaration {
-            Some(declaration) => self.get_assigned_class_symbol(declaration)?,
-            None => None,
-        };
-        let symbol = match assigned_class {
-            Some(assigned_class) => self.merge_js_symbols(symbol, assigned_class),
-            None => symbol,
-        };
+        // tsgo getDeclaredTypeOfClassOrInterface (TypeScript 7.1) merges no
+        // `X.prototype = { ... }` object literal into the class: tsc 6.0's
+        // mergeJSSymbols(symbol, getAssignedClassSymbol(...)) is gone.
         let outer_type_parameters = self
             .get_outer_type_parameters_of_class_or_interface(symbol)?
             .unwrap_or_default();
@@ -9631,42 +9626,12 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsc-port: isJSConstructor @6.0.3
-    /// tsc-hash: 2a4b224adc5ee0e71bbb9d76fc1977d89afd7eeac454c0a2c2da58e0b2687613
-    /// tsc-span: _tsc.js:77509-77522
-    pub(crate) fn is_js_constructor(&self, node: NodeId) -> bool {
-        if !self.is_in_js_file(node) {
-            return false;
-        }
-        let func = match self.data_of(node) {
-            NodeData::FunctionDeclaration(_) | NodeData::FunctionExpression(_) => Some(node),
-            NodeData::VariableDeclaration(data) => data
-                .initializer
-                .filter(|&initializer| self.kind_of(initializer) == SyntaxKind::FunctionExpression),
-            NodeData::PropertyAssignment(data) => data
-                .initializer
-                .filter(|&initializer| self.kind_of(initializer) == SyntaxKind::FunctionExpression),
-            _ => None,
-        };
-        let Some(func) = func else {
-            return false;
-        };
-        if self
-            .first_jsdoc_tag(node, SyntaxKind::JSDocClassTag)
-            .is_some()
-        {
-            return true;
-        }
-        if self
-            .parent_of(func)
-            .map(|parent| self.walk_up_parenthesized_expressions(parent))
-            .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::PropertyAssignment)
-        {
-            return false;
-        }
-        self.node_symbol(func)
-            .map(|symbol| self.get_merged_symbol(symbol))
-            .is_some_and(|symbol| !self.binder.symbol(symbol).members().is_empty())
+    /// TypeScript 7.1 has no JavaScript constructor functions: tsgo's checker
+    /// has no isJSConstructor, so a JavaScript function, `@class`-tagged or
+    /// not, is never a constructor. The callers keep their tsc 6.0 shape
+    /// until the JavaScript declarations port removes them.
+    pub(crate) fn is_js_constructor(&self, _node: NodeId) -> bool {
+        false
     }
 
     fn create_js_constructor_signature(
@@ -9795,59 +9760,6 @@ impl<'a> CheckerState<'a> {
         }
         self.node_symbol(declaration)
             .map(|symbol| self.get_merged_symbol(symbol))
-    }
-
-    /// tsc-port: getAssignedJSPrototype @6.0.3
-    /// tsc-hash: 3c9ae40cbd98f0fe6a7fd1168f9de8e7341b25efc8978311dea89bcc6dc15ccb
-    /// tsc-span: _tsc.js:77594-77606
-    fn get_assigned_js_prototype(&self, node: NodeId) -> Option<NodeId> {
-        let mut parent = self.parent_of(node)?;
-        while self.kind_of(parent) == SyntaxKind::PropertyAccessExpression {
-            parent = self.parent_of(parent)?;
-        }
-        let NodeData::BinaryExpression(data) = self.data_of(parent) else {
-            return None;
-        };
-        let (Some(left), Some(operator)) = (data.left, data.operator_token) else {
-            return None;
-        };
-        let right = tsc_binder::assignment::get_initializer_of_binary_expression(
-            self.binder.source_of_node(parent),
-            parent,
-        );
-        (self.kind_of(operator) == SyntaxKind::EqualsToken
-            && tsc_binder::assignment::is_prototype_access(self.binder.source_of_node(left), left)
-            && self.kind_of(right) == SyntaxKind::ObjectLiteralExpression)
-            .then_some(right)
-    }
-
-    /// tsc-port: getAssignedClassSymbol @6.0.3
-    /// tsc-hash: 7a5b7d0a69d65b2d780b951666b01f46e8e2e9ab5aa1752d1d511c23dbb220e1
-    /// tsc-span: _tsc.js:77544-77554
-    fn get_assigned_class_symbol(&mut self, declaration: NodeId) -> CheckResult<Option<SymbolId>> {
-        let Some(assignment_symbol) =
-            self.get_symbol_of_expando_worker(declaration, /*allow_declaration*/ true)
-        else {
-            return Ok(None);
-        };
-        let Some(prototype) = self
-            .binder
-            .symbol(assignment_symbol)
-            .exports()
-            .get("prototype")
-            .copied()
-        else {
-            return Ok(None);
-        };
-        let Some(initializer) = self
-            .binder
-            .symbol(prototype)
-            .value_declaration
-            .and_then(|declaration| self.get_assigned_js_prototype(declaration))
-        else {
-            return Ok(None);
-        };
-        self.get_symbol_of_declaration(initializer).map(Some)
     }
 
     /// tsc-port: getTypeOfFuncClassEnumModule @6.0.3

@@ -30,8 +30,9 @@ fn js_nullable_assignment_reports_after_widening() {
         Vec::<u32>::new()
     );
 
-    // The strict-null sibling remains nullable after widening and
-    // therefore keeps the two suggestion-category 7043 rows.
+    // TypeScript 7.1: `Module.prototype.identifier = undefined` declares
+    // nothing (tsgo reports TS2339 for both assignments, tsc-19dadef8), so
+    // the strict-null sibling has no implicit-any suggestion either.
     assert_eq!(
         implicit_any_codes(CompilerOptions {
             allow_js: true,
@@ -40,7 +41,7 @@ fn js_nullable_assignment_reports_after_widening() {
             strict_null_checks: Some(true),
             ..CompilerOptions::default()
         }),
-        [7043, 7043]
+        Vec::<u32>::new()
     );
 }
 
