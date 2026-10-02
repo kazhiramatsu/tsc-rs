@@ -384,3 +384,17 @@ fn checked_js_reports_cross_file_block_scoped_redeclarations() {
         },
     );
 }
+
+/// tsgo (TypeScript 7.1 at 19dadef8, noLib probe): an assignment to a
+/// function's namespace export is not an expando declaration (the name
+/// already has a non-expando declaration), and a namespace is no expando
+/// target, so both assignments are checked against `number`.
+#[test]
+fn expando_assignment_does_not_redeclare_a_namespace_export() {
+    assert_eq!(
+        checked_rows(
+            "namespace N {\n  export var x = 1;\n}\nfunction F() {}\nnamespace F {\n  export var x = 1;\n}\nF.x = \"s\";\nN.x = \"s\";\n",
+        ),
+        [(2322, 88, 3), (2322, 99, 3)]
+    );
+}

@@ -160,7 +160,11 @@ fn checked_js_alias_declaration_predicates_match_tsc_boundaries() {
                 })
                 .collect::<std::collections::HashMap<_, _>>();
             assert!(!state.is_alias_symbol_declaration(access_aliases["plain"]));
-            assert!(state.is_alias_symbol_declaration(access_aliases["ctor"]));
+            // TypeScript 7.1 has no JavaScript constructor functions, so a
+            // `@constructor` function expression is not an aliasable export
+            // (tsgo IsAliasSymbolDeclaration: entity names and class
+            // expressions only).
+            assert!(!state.is_alias_symbol_declaration(access_aliases["ctor"]));
         },
     );
 }
@@ -819,14 +823,14 @@ fn commonjs_source_file_this_uses_module_export_type() {
 
 #[test]
 fn js_constructor_prototype_method_uses_the_instance_this_type() {
-    // The raw checker sink also contains the noLib `prototype`
-    // lookup row. The load-bearing assertion is the 2322 inside
-    // the assigned method: `this` has C's instance type.
+    // TypeScript 7.1 (tsgo, tsc-19dadef8 with the same noLib globals): `C`
+    // is no constructor, so its `this` is TS2683, and `C.prototype` is a
+    // TS2339 miss on the plain function type.
     assert_eq!(
         checked_js_rows(
             "function C() { this.x = 0; }\nC.prototype.m = function () { this.x = 'bad'; };\n"
         ),
-        [(2339, 31, 9), (2322, 59, 6)]
+        [(2683, 15, 4), (2339, 31, 9)]
     );
 }
 

@@ -10,9 +10,8 @@ use crate::assignment::{
     access_expression_of, get_assigned_expando_initializer, get_assignment_declaration_kind,
     get_assignment_declaration_property_access_kind, get_element_or_property_access_name,
     get_expando_initializer, get_right_most_assigned_expression,
-    is_bindable_object_define_property_call, is_bindable_static_access_expression,
-    is_exports_identifier, is_literal_like_element_access, is_module_exports_access_expression,
-    is_prototype_access, AssignmentDeclarationKind,
+    is_bindable_object_define_property_call, is_exports_identifier,
+    is_module_exports_access_expression, is_prototype_access, AssignmentDeclarationKind,
 };
 use crate::containers::{get_container_flags, ContainerFlags};
 #[cfg(test)]
@@ -146,9 +145,8 @@ impl<'a> BinderWorker<'a> {
                         self.node_flow.insert(node, current_flow);
                     }
                 }
-                if self.is_special_property_declaration(node) {
-                    self.bind_special_property_declaration(node);
-                }
+                // tsgo bindWorker (TypeScript 7.1) binds no special property
+                // declarations (JSDoc-typed `this.p;` statements).
                 self.bind_common_js_module_symbol(node);
             }
             SyntaxKind::BinaryExpression => {
@@ -167,33 +165,10 @@ impl<'a> BinderWorker<'a> {
                         self.bind_this_property_assignment(node)
                     }
                     AssignmentDeclarationKind::Property => {
-                        let receiver = match &self.source.arena.node(node).data {
-                            NodeData::BinaryExpression(data) => data
-                                .left
-                                .and_then(|left| access_expression_of(self.source, left)),
-                            _ => None,
-                        };
-                        let is_aliased_this = self.is_in_js_file()
-                            && receiver.is_some_and(|receiver| {
-                                let NodeData::Identifier(data) =
-                                    &self.source.arena.node(receiver).data
-                                else {
-                                    return false;
-                                };
-                                self.block_scope_container
-                                    .and_then(|container| {
-                                        self.lookup_symbol_for_name(container, data.escaped_text)
-                                    })
-                                    .and_then(|symbol| {
-                                        self.symbols.symbol(symbol).value_declaration
-                                    })
-                                    .is_some_and(|declaration| {
-                                        self.is_this_initialized_declaration(declaration)
-                                    })
-                            });
-                        if is_aliased_this {
-                            self.bind_this_property_assignment(node);
-                        } else {
+                        // tsgo (TypeScript 7.1): no aliased-`this` redirection,
+                        // and an assignment through `.prototype` finds no
+                        // `prototype` symbol to bind on.
+                        if !self.assignment_targets_prototype(node) {
                             self.bind_special_property_assignment(node);
                         }
                     }
@@ -319,7 +294,9 @@ impl<'a> BinderWorker<'a> {
             }
             SyntaxKind::CallExpression => match self.get_assignment_declaration_kind(node) {
                 AssignmentDeclarationKind::ObjectDefinePropertyValue => {
-                    self.bind_object_define_property_assignment(node)
+                    if !self.assignment_targets_prototype(node) {
+                        self.bind_object_define_property_assignment(node)
+                    }
                 }
                 AssignmentDeclarationKind::ObjectDefinePropertyExports => {
                     self.bind_object_define_property_export(node)
@@ -1253,6 +1230,36 @@ impl<'a> BinderWorker<'a> {
         }
     }
 
+    /// Whether a Property / Object.defineProperty assignment declaration's
+    /// target entity goes through a `prototype` access (`F.prototype.m = x`,
+    /// `Object.defineProperty(F.prototype, ...)`). tsgo (TypeScript 7.1)
+    /// looks the entity up without creating symbols and finds no `prototype`
+    /// symbol there, so such an assignment declares nothing.
+    fn assignment_targets_prototype(&self, node: NodeId) -> bool {
+        let target = match &self.source.arena.node(node).data {
+            NodeData::BinaryExpression(data) => data
+                .left
+                .and_then(|left| access_expression_of(self.source, left)),
+            NodeData::CallExpression(data) => data.arguments.and_then(|arguments| {
+                self.source
+                    .arena
+                    .node_array(arguments)
+                    .nodes
+                    .first()
+                    .copied()
+            }),
+            _ => None,
+        };
+        let mut current = target;
+        while let Some(expression) = current {
+            if is_prototype_access(self.source, expression) {
+                return true;
+            }
+            current = access_expression_of(self.source, expression);
+        }
+        false
+    }
+
     fn is_function_symbol(&self, symbol: Option<SymbolId>) -> bool {
         let Some(symbol) = symbol else { return false };
         let Some(declaration) = self.symbols.symbol(symbol).value_declaration else {
@@ -1453,78 +1460,9 @@ impl<'a> BinderWorker<'a> {
             return;
         };
         match kind_of(self.source, this_container) {
-            SyntaxKind::FunctionDeclaration | SyntaxKind::FunctionExpression => {
-                let mut constructor_symbol = self.node_symbol.get(&this_container).copied();
-                if kind_of(self.source, this_container) == SyntaxKind::FunctionExpression {
-                    if let Some(parent) = parent_of(self.source, this_container) {
-                        if let NodeData::BinaryExpression(data) =
-                            &self.source.arena.node(parent).data
-                        {
-                            if data.operator_token.is_some_and(|token| {
-                                kind_of(self.source, token) == SyntaxKind::EqualsToken
-                            }) {
-                                if let Some(left) = data.left {
-                                    if is_bindable_static_access_expression(
-                                        self.source,
-                                        left,
-                                        false,
-                                    ) && access_expression_of(self.source, left).is_some_and(
-                                        |expression| is_prototype_access(self.source, expression),
-                                    ) {
-                                        if let Some(prototype) =
-                                            access_expression_of(self.source, left)
-                                        {
-                                            if let Some(constructor) =
-                                                access_expression_of(self.source, prototype)
-                                            {
-                                                constructor_symbol = self
-                                                    .lookup_symbol_for_property_access(constructor);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                let Some(constructor_symbol) = constructor_symbol else {
-                    return;
-                };
-                if self
-                    .symbols
-                    .symbol(constructor_symbol)
-                    .value_declaration
-                    .is_none()
-                {
-                    return;
-                }
-                if has_dynamic_name(self.source, node) {
-                    self.bind_dynamically_named_this_property_assignment(
-                        node,
-                        constructor_symbol,
-                        TableRef::Members(constructor_symbol),
-                    );
-                } else {
-                    self.declare_symbol(
-                        TableRef::Members(constructor_symbol),
-                        Some(constructor_symbol),
-                        node,
-                        SymbolFlags::PROPERTY | SymbolFlags::ASSIGNMENT,
-                        SymbolFlags::NONE,
-                        true,
-                        false,
-                    );
-                }
-                if let Some(value_declaration) =
-                    self.symbols.symbol(constructor_symbol).value_declaration
-                {
-                    self.add_declaration_to_symbol(
-                        constructor_symbol,
-                        value_declaration,
-                        SymbolFlags::CLASS,
-                    );
-                }
-            }
+            // tsgo bindThisPropertyAssignment (TypeScript 7.1): a plain
+            // function is not a constructor (`// !!! constructor functions`).
+            SyntaxKind::FunctionDeclaration | SyntaxKind::FunctionExpression => {}
             SyntaxKind::Constructor
             | SyntaxKind::PropertyDeclaration
             | SyntaxKind::MethodDeclaration
@@ -1562,31 +1500,9 @@ impl<'a> BinderWorker<'a> {
                     );
                 }
             }
-            SyntaxKind::SourceFile => {
-                if has_dynamic_name(self.source, node) {
-                    return;
-                }
-                if let Some(file_symbol) = self
-                    .common_js_module_indicator
-                    .and_then(|_| self.file_symbol())
-                {
-                    self.declare_symbol(
-                        TableRef::Exports(file_symbol),
-                        Some(file_symbol),
-                        node,
-                        SymbolFlags::PROPERTY | SymbolFlags::EXPORT_VALUE,
-                        SymbolFlags::NONE,
-                        false,
-                        false,
-                    );
-                } else {
-                    self.declare_symbol_and_add_to_symbol_table(
-                        node,
-                        SymbolFlags::FUNCTION_SCOPED_VARIABLE,
-                        SymbolFlags::FUNCTION_SCOPED_VARIABLE_EXCLUDES,
-                    );
-                }
-            }
+            // tsgo: the source file is not a this-container, so a top-level
+            // `this.x = ...` declares nothing.
+            SyntaxKind::SourceFile => {}
             SyntaxKind::ModuleDeclaration => {}
             _ => {}
         }
@@ -1627,16 +1543,6 @@ impl<'a> BinderWorker<'a> {
         }
     }
 
-    fn is_this_initialized_declaration(&self, node: NodeId) -> bool {
-        matches!(
-            &self.source.arena.node(node).data,
-            NodeData::VariableDeclaration(data)
-                if data.initializer.is_some_and(|initializer| {
-                    kind_of(self.source, initializer) == SyntaxKind::ThisKeyword
-                })
-        )
-    }
-
     fn get_this_container(&self, node: NodeId) -> Option<NodeId> {
         let mut current = parent_of(self.source, node);
         while let Some(candidate) = current {
@@ -1664,42 +1570,6 @@ impl<'a> BinderWorker<'a> {
             return;
         };
         self.bind_property_assignment(expression, node, false, false);
-    }
-
-    /// tsc-port: isSpecialPropertyDeclaration @6.0.3
-    /// tsc-hash: 8ee17fc5daafcf687ae616150fffcdd63a110af227d1ef43923211f8bf65034e
-    /// tsc-span: _tsc.js:15187-15189
-    fn is_special_property_declaration(&self, node: NodeId) -> bool {
-        self.is_in_js_file()
-            && parent_of(self.source, node).is_some_and(|parent| {
-                kind_of(self.source, parent) == SyntaxKind::ExpressionStatement
-            })
-            && (kind_of(self.source, node) != SyntaxKind::ElementAccessExpression
-                || is_literal_like_element_access(self.source, node))
-            && parent_of(self.source, node)
-                .is_some_and(|statement| get_jsdoc_type_tag(self.source, statement).is_some())
-    }
-
-    /// tsc-port: bindSpecialPropertyDeclaration @6.0.3
-    /// tsc-hash: 1bdbe3df071447471f5c52641d071c810a6fd87f1920ebe432da6548df81223a
-    /// tsc-span: _tsc.js:44752-44762
-    fn bind_special_property_declaration(&mut self, node: NodeId) {
-        let Some(expression) = access_expression_of(self.source, node) else {
-            return;
-        };
-        if kind_of(self.source, expression) == SyntaxKind::ThisKeyword {
-            self.bind_this_property_assignment(node);
-        } else if is_bindable_static_access_expression(self.source, node, false)
-            && parent_of(self.source, node)
-                .and_then(|statement| parent_of(self.source, statement))
-                .is_some_and(|parent| kind_of(self.source, parent) == SyntaxKind::SourceFile)
-        {
-            if is_prototype_access(self.source, expression) {
-                self.bind_prototype_property_access(node);
-            } else {
-                self.bind_static_property_assignment(node);
-            }
-        }
     }
 
     fn bind_property_assignment(
@@ -1776,12 +1646,32 @@ impl<'a> BinderWorker<'a> {
         if !self.is_expando_symbol(namespace_symbol) {
             return;
         }
-        let (includes, excludes) = self.expando_member_flags(declaration);
         let table = if is_prototype_property {
             TableRef::Members(namespace_symbol)
         } else {
             TableRef::Exports(namespace_symbol)
         };
+        // tsgo bindDeferredExpandoAssignment (TypeScript 7.1): an expando
+        // is declared only when no non-expando declaration has that name
+        // (the synthetic `prototype` of a class, a static member, a
+        // namespace export).
+        if let Some(name) = self.get_declaration_name(declaration) {
+            let existing = match table {
+                TableRef::Members(symbol) => self.symbols.symbol(symbol).members().get(name),
+                TableRef::Exports(symbol) => self.symbols.symbol(symbol).exports().get(name),
+                _ => None,
+            };
+            if existing.is_some_and(|&existing| {
+                !self
+                    .symbols
+                    .symbol(existing)
+                    .flags
+                    .intersects(SymbolFlags::ASSIGNMENT)
+            }) {
+                return;
+            }
+        }
+        let (includes, excludes) = self.expando_member_flags(declaration);
         self.declare_symbol(
             table,
             Some(namespace_symbol),

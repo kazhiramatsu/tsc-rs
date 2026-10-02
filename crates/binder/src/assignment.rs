@@ -106,12 +106,9 @@ fn get_assignment_declaration_kind_worker(
         {
             return AssignmentDeclarationKind::ObjectDefinePropertyExports;
         }
-        if is_bindable_static_access_expression(source, entity_name, false)
-            && get_element_or_property_access_name(source, entity_name)
-                .is_some_and(|name| name == "prototype")
-        {
-            return AssignmentDeclarationKind::ObjectDefinePrototypeProperty;
-        }
+        // tsgo GetAssignmentDeclarationKind (TypeScript 7.1) has no
+        // ObjectDefinePrototypeProperty kind: a `prototype` target is a
+        // plain ObjectDefinePropertyValue.
         return AssignmentDeclarationKind::ObjectDefinePropertyValue;
     }
 
@@ -134,15 +131,8 @@ fn get_assignment_declaration_kind_worker(
     {
         return AssignmentDeclarationKind::None;
     }
-    let left_expression = access_expression_of(source, left);
-    if left_expression
-        .is_some_and(|expression| is_bindable_static_name_expression(source, expression, true))
-        && get_element_or_property_access_name(source, left).is_some_and(|name| name == "prototype")
-        && kind_of(source, get_initializer_of_binary_expression(source, expr))
-            == SyntaxKind::ObjectLiteralExpression
-    {
-        return AssignmentDeclarationKind::Prototype;
-    }
+    // tsgo GetAssignmentDeclarationKind (TypeScript 7.1) has no Prototype
+    // kind: `F.prototype = { ... }` is a plain Property assignment.
     get_assignment_declaration_property_access_kind(source, left)
 }
 
@@ -160,9 +150,8 @@ pub fn get_assignment_declaration_property_access_kind(
         return AssignmentDeclarationKind::ModuleExports;
     }
     if is_bindable_static_name_expression(source, lhs_expression, true) {
-        if is_prototype_access(source, lhs_expression) {
-            return AssignmentDeclarationKind::PrototypeProperty;
-        }
+        // tsgo (TypeScript 7.1) has no PrototypeProperty kind: `F.prototype.m
+        // = x` is a plain Property assignment on the entity `F.prototype`.
         let mut next_to_last = lhs;
         while let Some(expression) = access_expression_of(source, next_to_last) {
             if kind_of(source, expression) == SyntaxKind::Identifier {

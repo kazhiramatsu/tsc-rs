@@ -502,7 +502,9 @@ fn js_prototype_placeholder_is_a_prototype_property_override() {
             checked_js_rows(
                 "class Module {}\nModule.prototype.identifier = undefined;\nclass NormalModule extends Module { identifier() { return \"normal\"; } }\n"
             ),
-            []
+            // TypeScript 7.1 (tsgo, tsc-19dadef8): the prototype assignment
+            // declares nothing, so it is a TS2339 miss and the override is clean.
+            [(2339, 33, 10)]
         );
 
     let ordinary =

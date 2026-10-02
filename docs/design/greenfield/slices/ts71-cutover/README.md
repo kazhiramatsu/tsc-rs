@@ -590,3 +590,32 @@ semantic rowなし（configのTS5108はprogram側）。
 - conformance：15,228 configuration、lane A 13,467（変化なし）、full 12,864→12,873（+9）、text 93、category 21、mismatch 445→436、harness error 44、emit full 12,412。fullに上がったのはTS2497 classの9構成すべて。ratchet：0 regressions、9行追加（`intersectionConstructorReductionCrash`は従来どおり載せない）。localは型crateの変更なのでworkspace全体のclippyとtest（70 targets、3,619 passed）、2 workerのfull run（800 s）。
 - hosted：PR #628（head `c98387daf`、merge `df43b0048`）、run 36978413299 — `plan` 28s、`rust` 9m36s、`conformance (TypeScript 7.1)` 21m45s、`gates` 15s。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main `7e466a148`と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 125→123、zod 535→551、Playwright 359→363、TypeScript `src/compiler` 360→353、Next.js 829→798、Effect 553→547、VS Code 3,732→3,725。tsc-rs÷tsgoは0.59〜0.99で従来どおり、peak memoryは同等（MB main→本branch：285→305、1,296→1,296、760→770、293→291、1,331→1,327、1,038→1,044、5,471→5,429）。zodとPlaywrightは同条件の5 rounds A/Bで、medianは本branch 548／main 543、364／355だがminは本branchが低く（529／531、344／349）、CPU時間も同等以下（3,586／3,634、2,503／2,500 ms）なのでノイズ。退行なし。
+
+## P3-5k JavaScriptのconstructor functionとprototype代入は宣言でない（2026-10-02）
+
+P3-5j後の集計で最大の残りはJavaScriptの一群（missing TS2683 23＋5、TS2309 18＋7、TS2339 16＋4、TS2749 9＋7…）。根は
+tsgo 7.1がJavaScriptのconstructor functionとprototype代入の宣言を持たないこと：checkerに`isJSConstructor`が無く
+（nodebuilderimpl.go:2949にコメントで残るだけ）、`GetAssignmentDeclarationKind`（ast/utilities.go:1547-1579）の種類は
+None／ModuleExports／ExportsProperty／ThisProperty／Property／ObjectDefinePropertyValue／ObjectDefinePropertyExportsの
+7つだけ（`F.prototype.m = x`はentity `F.prototype`へのProperty expandoで、`prototype` symbolが無いので何も束縛しない）、
+binderの`bindThisPropertyAssignment`はclass memberの中だけで束縛し（function containerは`// !!! constructor functions`、
+source fileはthis containerでない）、bindWorkerにspecial property declaration（JSDoc型付きの`this.p;`文）も無い。
+JavaScriptの宣言の移植は3段に分け、このPRは第1段：
+- 分類：tsc 6.0のPrototype／PrototypeProperty／ObjectDefinePrototypeProperty（`assignment.rs`）を返さない（tsgoと同じく
+  Property／ObjectDefinePropertyValue）。
+- 束縛（`bind.rs`）：`.prototype`を通る代入はtsgoのlookupと同じく何も束縛しない、別名`this`（`var self = this; self.x`）
+  の振り替えを削除、`this.x = …`はclass memberの中だけ（普通の関数とsource fileでは宣言なし）、special property
+  declarationを削除。expandoは同名の非expando宣言が無いときだけ宣言する（tsgoの`bindDeferredExpandoAssignment`）ので、
+  `X.prototype = {…}`がclassの合成`prototype`に付かず、`C.x = …`がstatic memberやnamespace exportを再宣言しない。
+- checker：`is_js_constructor`は常にfalse（呼び出し側の整理は後段）。class・interfaceの宣言型に`X.prototype = {…}`の
+  object literalをmergeしない（tsc 6.0の`getAssignedClassSymbol`。tsgoの`getDeclaredTypeOfClassOrInterface`には無い）。
+  最初のfull実行で出た`compiler/targetTypeTest1`の後退（`declare class`と`function`のmergeで、prototypeのobject
+  literalのmemberが`Duplicate identifier 'add'`）はこの2点で解消した。
+expandoの宣言先（tsgoは初期化子のsymbol、tsc-rsは変数のsymbol）と暗黙namespaceの廃止は第2段、CommonJSのexportsの束縛は
+第3段。unit test 25件をtsgoの行に再pin（`tsc-19dadef8`、noLibのglobalsで照合）：constructor functionの`this`はTS2683、
+`new`はTS7009、prototype代入は宣言にならない（classの`prototype`経由はTS2339）など。tsgoの表示とまだ違う2件（expando
+functionの型表示、CommonJSのTS2323行）は現在の行を残し、tsgoの行を注記した。新しいunit test 3件（function merge
+したclassへのprototype object代入、JavaScriptのstatic memberと同名のexpando、namespace exportと同名のexpando）も
+tsgoの行にpinした。
+- conformance：15,228 configuration、lane A 13,467（変化なし）、full 12,873→12,906（+33）、text 93→98、category 21→26、mismatch 436→393、harness error 44、emit full 12,412→12,413。上がったのは43構成：constructor function・prototype代入・`this`代入のJavaScript群がfull 33（`constructorFunctions3`、`constructorFunctionsStrict`、`typeFromJSConstructor`、`inferringClassMembersFromAssignments2`／`6`／`7`、`prototypePropertyAssignmentMergeAcrossFiles`、`topLevelThisAssignment`、`lateBoundAssignmentDeclarationSupport4`〜`6`…）、text 5、category 5。ratchet：0 regressions、43行追加・1行raise（emit、`jsDeclarationsClassLikeHeuristic`）（`intersectionConstructorReductionCrash`は従来どおり載せない）。最初のfull runで`compiler/targetTypeTest1`が退行し、上記のexpandoの規則とclass宣言型のmerge削除で解消した。localはbinderの変更なのでworkspace全体のclippyとtest（70 targets、3,622 passed）、2 workerのfull run（801 s）。Clippyの指摘2件（不要な借用、挙動は変わらない）はfull runの後に直し、workspace clippyとbinderのtest（74 passed）を再実行した。
+- hosted：HOSTED_RECORD

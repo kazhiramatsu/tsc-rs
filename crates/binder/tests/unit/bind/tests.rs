@@ -662,9 +662,10 @@ fn set_value_declaration_ambient_displacement_reads_root_js_flag() {
 
 #[test]
 fn assignment_declarations_bind_oracle_pinned_symbol_faces() {
-    // Oracle: TypeScript 6.0.3, allowJs/checkJs/noLib. This single
-    // canary covers function expandos, instance/prototype members,
-    // descriptor members, CommonJS named exports and export=.
+    // Function expandos, descriptor members, CommonJS named exports and
+    // export=. TypeScript 7.1 has no constructor functions or prototype
+    // members: `this.i`, `F.prototype.p` and the `F.prototype` descriptor
+    // declare nothing, so F has no Class flag and no members.
     let source = parse_named(
         "a.js",
         "\
@@ -685,15 +686,8 @@ module.exports = F;
     let root_locals = &binder.locals[&source.root];
     let f = root_locals["F"];
     let f_symbol = binder.symbols.symbol(f);
-    assert_eq!(f_symbol.flags.bits(), 67_110_448);
-    assert_eq!(
-        f_symbol
-            .members()
-            .keys()
-            .map(|name| name.as_str().expect("these test names are scalar"))
-            .collect::<Vec<_>>(),
-        ["i", "p", "g"]
-    );
+    assert_eq!(f_symbol.flags.bits(), 67_110_416);
+    assert!(f_symbol.members().is_empty());
     assert_eq!(
         f_symbol
             .exports()
@@ -701,18 +695,6 @@ module.exports = F;
             .map(|name| name.as_str().expect("these test names are scalar"))
             .collect::<Vec<_>>(),
         ["s", "b", "prototype", "d"]
-    );
-    assert_eq!(
-        binder.symbols.symbol(f_symbol.members()["i"]).flags.bits(),
-        67_108_868
-    );
-    assert_eq!(
-        binder.symbols.symbol(f_symbol.members()["p"]).flags.bits(),
-        67_108_868
-    );
-    assert_eq!(
-        binder.symbols.symbol(f_symbol.members()["g"]).flags.bits(),
-        67_141_636
     );
     assert_eq!(
         binder.symbols.symbol(f_symbol.exports()["s"]).flags.bits(),
@@ -779,11 +761,10 @@ module.exports = F;
 }
 
 #[test]
-fn aliased_this_and_dynamic_assignments_bind_the_constructor_owner() {
-    // bindWorker 44358-44365 routes `var self = this; self.x = ...`
-    // through bindThisPropertyAssignment. Its dynamic-name twin and
-    // bindSpecialPropertyAssignment 44840-44850 both record the
-    // declaration in the owning symbol's late-bound assignment map.
+fn aliased_this_assignments_bind_nothing_and_dynamic_expandos_stay_late_bound() {
+    // TypeScript 7.1 (tsgo) has no constructor functions and no aliased-`this`
+    // routing: `var self = this; self.x = ...` declares nothing on F, and only
+    // the top-level `F[key] = 3` expando records a late-bound assignment.
     let source = parse_named(
         "a.js",
         "\
@@ -806,12 +787,12 @@ F[key] = 3;
     let f = root_locals["F"];
     let g = root_locals["G"];
     let f_symbol = binder.symbols.symbol(f);
-    assert!(f_symbol.flags.intersects(SymbolFlags::CLASS));
-    assert!(f_symbol.members().contains_key("x"));
-    assert!(f_symbol
+    assert!(!f_symbol.flags.intersects(SymbolFlags::CLASS));
+    assert!(!f_symbol.members().contains_key("x"));
+    assert!(!f_symbol
         .members()
         .contains_key(InternalSymbolName::COMPUTED));
-    assert_eq!(f_symbol.extras().assignment_declaration_members.len(), 2);
+    assert_eq!(f_symbol.extras().assignment_declaration_members.len(), 1);
     assert!(
         !binder.symbols.symbol(g).members().contains_key("y"),
         "an object-valued local with the same spelling is not a this alias"
@@ -1187,7 +1168,9 @@ fn jsdoc_template_callback_and_class_tags_use_effective_hosts() {
 }
 
 #[test]
-fn jsdoc_type_special_property_uses_materialized_ast_tag() {
+fn jsdoc_type_bare_property_access_declares_nothing() {
+    // TypeScript 7.1 binds no special property declarations: a JSDoc-typed
+    // `F.count;` statement is an expression, not a declaration of `count`.
     let source = parse_named(
         "a.js",
         "function F() {}\n\
@@ -1197,12 +1180,11 @@ fn jsdoc_type_special_property_uses_materialized_ast_tag() {
     );
     let binder = bind(&source);
     let function = binder.locals[&source.root]["F"];
-    let count = binder.symbols.symbol(function).exports()["count"];
-    assert!(binder
+    assert!(!binder
         .symbols
-        .symbol(count)
-        .flags
-        .intersects(SymbolFlags::PROPERTY | SymbolFlags::ASSIGNMENT));
+        .symbol(function)
+        .exports()
+        .contains_key("count"));
 }
 
 #[test]

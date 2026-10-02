@@ -28,7 +28,10 @@ fn kinds(text: &str, javascript_file: bool) -> Vec<AssignmentDeclarationKind> {
 }
 
 #[test]
-fn assignment_kind_matrix_matches_tsc_6_0_3() {
+fn assignment_kind_matrix_matches_tsgo() {
+    // tsgo GetAssignmentDeclarationKind (TypeScript 7.1): no prototype kinds;
+    // `C.prototype.x = …` and `C.prototype = …` are Property assignments and
+    // `Object.defineProperty(C.prototype, …)` an ObjectDefinePropertyValue.
     let text = "\
 exports.x = 1;
 module.exports = {};
@@ -45,16 +48,25 @@ Object.defineProperty(C.prototype, \"x\", { value: 1 });
         [
             AssignmentDeclarationKind::ExportsProperty,
             AssignmentDeclarationKind::ModuleExports,
-            AssignmentDeclarationKind::PrototypeProperty,
+            AssignmentDeclarationKind::Property,
             AssignmentDeclarationKind::ThisProperty,
             AssignmentDeclarationKind::Property,
-            AssignmentDeclarationKind::Prototype,
+            AssignmentDeclarationKind::Property,
             AssignmentDeclarationKind::ObjectDefinePropertyValue,
             AssignmentDeclarationKind::ObjectDefinePropertyExports,
-            AssignmentDeclarationKind::ObjectDefinePrototypeProperty,
+            AssignmentDeclarationKind::ObjectDefinePropertyValue,
         ]
     );
-    assert_eq!(kinds(text, false), [AssignmentDeclarationKind::Property]);
+    // In a TypeScript file only the Property kind applies, and tsgo gives it
+    // to every entity-name target: `C.prototype.x`, `F.x` and `C.prototype`.
+    assert_eq!(
+        kinds(text, false),
+        [
+            AssignmentDeclarationKind::Property,
+            AssignmentDeclarationKind::Property,
+            AssignmentDeclarationKind::Property,
+        ]
+    );
 }
 
 #[test]

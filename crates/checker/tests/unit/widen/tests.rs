@@ -308,7 +308,10 @@ fn checked_js_publishes_constructor_flow_implicit_any_members() {
             )
         })
         .collect::<Vec<_>>();
-    assert_eq!(rows.len(), 3);
+    // TypeScript 7.1: `A` is no constructor, so its `this` assignments declare
+    // no members and no TS7008 is reported (tsgo, tsc-19dadef8: TS2683 and
+    // TS7009 instead).
+    assert_eq!(rows.len(), 0);
 
     let sibling = check_program(
         &[InputFile::new(
