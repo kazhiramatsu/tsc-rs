@@ -421,3 +421,25 @@ annotate／speculateのunit testから上限の観測を外した。noLibで上�
 - conformance：15,228 configuration、lane A 13,467（変化なし）、full 12,719→12,731（+12）、text 114、category 21→22、mismatch 568→555、harness error 45、emit full 12,410。(missing TS2552, unexpected TS2304)の13構成がすべて上がった：fullが12（`commonMissingSemicolons`、`maximum10SpellingSuggestions`、`parserindenter`、`parserRealSource6`〜`9`／`11`〜`13`、`parserS7.6_A4.2_T1`、`scannerS7.6_A4.2_T1`）、`parserharness`はcategory（位置・code・categoryは一致し、残る差はTS6053 "File '{0}' not found."の引数——tsgoは`/// <reference path="../compiler/io.ts" />`の記述どおり`'../compiler/io.ts'`、tsc-rsは解決後の`'/compiler/io.ts'`。別classとして次の集計に残す）。ratchet：0 regressions、13行追加。
 - hosted：PR #622（head `1a4df1aa5`、merge `32a9f718f`）、run 36938033235 — `plan` 23s、`rust` 9m43s、`conformance (TypeScript 7.1)` 21m50s、`gates` 12s。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main `7d10f2141`と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 121→129、zod 523→515、Playwright 342→356、TypeScript `src/compiler` 359→341、Next.js 810→770、Effect 546→524、VS Code 3,482→3,505。tsc-rs÷tsgoは0.57〜0.99で従来どおり、peak memoryは同等（MB main→本branch：290→301、1,302→1,302、747→769、292→292、1,326→1,336、1,044→1,041、5,484→5,482）。honoとPlaywrightのmedian差は同条件のA/Bで再計測：5 roundsでPlaywright 324→324、hono 116→122（CPU時間は同じ）、binaryの順序を入れ替えた10 roundsでhono main 116／本branch 117（min 112／113）となり、最初の差は計測順序のノイズ。退行なし。
+
+## P3-5e 循環import aliasのTS2303（2026-10-02）
+
+P3-5d後の集計でmissing TS2303が12構成（`circular1`／`circular3`、`recursiveExportAssignmentAndFindAliasedType1`〜`6`、
+`declarationEmitUnknownImport`／`2`、`circularModuleImports`、`exportAsNamespaceConflict`）。tsc 6.0の`resolveAlias`は
+`resolvingSymbol` sentinelで循環を検出し、内側のaliasを黙ってunknownに潰して最外のalias 1件だけにTS2303を報告した。tsgoの
+`resolveAlias`（checker.go:16585-16611）はalias targetを型解決stackのproperty `AliasTarget`として`pushTypeResolution`／
+`popTypeResolution`で解決するので、循環の再入はslotを書かずにunknownSymbolを返し、循環に属するすべてのaliasが自分のframeの
+popでTS2303を報告する（`import self = require(...)`と`export = self`は別々のaliasなので、ambient module 2つの循環で4行、
+3つで6行）。`try_resolve_alias`も`findResolutionCycleStartIndex(symbol, AliasTarget)`で判定する（checker.go:16622-16628）。
+tsc-rsでは`TypeSystemPropertyName::ALIAS_TARGET`を追加し、`resolve_alias`／`try_resolve_alias`をこの形に置き換え、
+sentinel専用だった`revert_symbol_alias_target`を削除した。`get_target_of_*`の構造（6.0の`dontRecursivelyResolve`引数）は
+変えない：tsgoは`getTargetOfExportSpecifier`等を即時targetで止めて`resolveIndirectionAlias`で再帰するが、再帰はどちらも
+`resolve_alias`のframeを通るので循環の報告は同じになる。modulesのunit test（`circular_import_alias_reports_2303`）を
+tsgoの2行に再pinし、ambient moduleの循環（4行）と`export type { A } from`の2 file循環（`circular1`、2行）を追加した
+（`tsc-19dadef8`で確認）。TS2303の引数はtsgoの`symbolToString`＝`getNameOfSymbolAsWritten`（nodebuilderimpl.go:973-1025）で、
+`export = self`／`export default Foo`のaliasは式のidentifier（`'self'`／`'Foo'`）を出す。6.0移植はescaped name
+（`'export='`／`'default'`）を出していたので、alias用の`alias_name_as_written`（最初の名前付き宣言の名前、無ければsymbol name）を
+加えてそれに合わせた（`recursiveExportAssignmentAndFindAliasedType*`6構成、`exportAsNamespaceConflict`、
+`declarationEmitUnknownImport2`がcategoryで止まっていた原因）。
+- conformance：15,228 configuration、lane A 13,467（変化なし）、full 12,731→12,743（+12）、text 114、category 22、mismatch 555→543、harness error 45、emit full 12,410。fullに上がったのはTS2303 classの12構成すべて（`circular1`／`circular3`、`recursiveExportAssignmentAndFindAliasedType1`〜`6`、`declarationEmitUnknownImport`／`2`（target=es2015）、`circularModuleImports`、`exportAsNamespaceConflict`）。ratchet：0 regressions、12行追加。
+- hosted：HOSTED_RECORD

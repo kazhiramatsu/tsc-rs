@@ -1600,15 +1600,34 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsc-port: resolveAlias @6.0.3
-    /// tsc-hash: 7216b589d571727923ff9e9abac7f5ea468fc3b1a53cbb1d83257d47b21632b9
-    /// tsc-span: _tsc.js:49116-49133
+    /// tsgo-port: getNameOfSymbolAsWritten @7.1 (nodebuilderimpl.go:973-1025),
+    /// the declaration-name arm as `symbolToString(aliasSymbol)` reaches it
+    /// with no enclosing declaration: an alias prints the name of its first
+    /// named declaration (the expression identifier of `export =` and
+    /// `export default`, the name of `export as namespace`), otherwise its
+    /// symbol name (`export=` for `export = <expression>`).
+    fn alias_name_as_written(&self, symbol: SymbolId) -> tsc_types::JsString {
+        for &declaration in self.binder.symbol(symbol).declarations.iter() {
+            let source = self.binder.source_of_node(declaration);
+            if let Some(name) = node_util::get_name_of_declaration(source, declaration) {
+                return tsc_types::JsString::from(node_util::declaration_name_to_string(
+                    source,
+                    Some(name),
+                ));
+            }
+        }
+        self.symbol_display_name(symbol)
+    }
+
+    /// tsgo-port: resolveAlias @7.1 (checker.go:16585-16611).
     ///
-    /// SymbolLinks.alias_target protocol (the resolvedSignature twin):
-    /// Vacant→Resolving on entry, Resolving→Resolved for the tail
-    /// write AND the sentinel-on-entry cycle collapse; a re-entrant
-    /// Resolved observed by the outer frame reports 5303 without
-    /// writing. Err-unwind reverts the sentinel this frame wrote.
+    /// TypeScript 7.1 resolves the alias target as a type-resolution
+    /// property (`AliasTarget`) instead of tsc 6.0's resolvingSymbol
+    /// sentinel: a cycle re-entry returns unknownSymbol without writing
+    /// the slot, the frame that owns the slot writes it once, and every
+    /// alias of the cycle reports TS2303 when its own frame pops (tsc 6.0
+    /// reported only the outermost alias and collapsed the inner one
+    /// silently). The CheckAbort unwind pops the frame this call pushed.
     pub(crate) fn resolve_alias(&mut self, symbol: SymbolId) -> CheckResult<SymbolId> {
         debug_assert!(
             self.binder
@@ -1617,28 +1636,22 @@ impl<'a> CheckerState<'a> {
                 .intersects(SymbolFlags::ALIAS),
             "Should only get Alias here."
         );
-        match self.links.symbol_cold().alias_target.get(symbol).clone() {
-            LinkSlot::Resolved(target) => return Ok(target),
-            LinkSlot::Resolving => {
-                perf::bump(PerfCounter::SentinelAliasResolving);
-                // Sentinel found ON ENTRY: cycle collapse to unknown.
-                let unknown = self.unknown_symbol;
-                self.links.set_symbol_alias_target(
-                    self.speculation_depth,
-                    symbol,
-                    LinkSlot::Resolved(unknown),
-                );
-                return Ok(unknown);
-            }
-            LinkSlot::Vacant => {}
+        if let Some(target) = self.links.symbol_cold().alias_target.get(symbol).resolved() {
+            return Ok(target);
         }
-        self.links
-            .set_symbol_alias_target(self.speculation_depth, symbol, LinkSlot::Resolving);
+        if !self.push_type_resolution(
+            crate::state::ResolutionTarget::Symbol(symbol),
+            tsc_types::TypeSystemPropertyName::ALIAS_TARGET,
+        ) {
+            perf::bump(PerfCounter::SentinelAliasResolving);
+            return Ok(self.unknown_symbol);
+        }
         let Some(node) = self.get_declaration_of_alias_symbol(symbol) else {
             // tsc Debug.fail() is a binder invariant: real Alias symbols
             // always have an alias declaration. Give a checker-synthetic
             // recovery alias the same stable miss sentinel used by failed
             // and cyclic alias resolution.
+            self.pop_type_resolution();
             let unknown = self.unknown_symbol;
             self.links.set_symbol_alias_target(
                 self.speculation_depth,
@@ -1650,49 +1663,46 @@ impl<'a> CheckerState<'a> {
         let target = match self.get_target_of_alias_declaration(node, false) {
             Ok(target) => target,
             Err(abort) => {
-                self.links.revert_symbol_alias_target(symbol);
+                self.pop_type_resolution();
                 return Err(abort);
             }
         };
-        if self
-            .links
-            .symbol_cold()
-            .alias_target
-            .get(symbol)
-            .is_resolving()
-        {
-            let resolved = target.unwrap_or(self.unknown_symbol);
-            self.links.set_symbol_alias_target(
-                self.speculation_depth,
-                symbol,
-                LinkSlot::Resolved(resolved),
-            );
-        } else {
-            // A re-entrant frame resolved (or collapsed) the slot
-            // while our getTargetOfAliasDeclaration ran.
-            let name = self.symbol_display_name(symbol);
+        let mut resolved = target.unwrap_or(self.unknown_symbol);
+        if !self.pop_type_resolution() {
+            let name = self.alias_name_as_written(symbol);
             self.error_at_js(
                 Some(node),
                 &diagnostics::Circular_definition_of_import_alias_0,
                 &[(&name).into()],
             );
+            resolved = self.unknown_symbol;
         }
-        match self.links.symbol_cold().alias_target.get(symbol).clone() {
-            LinkSlot::Resolved(resolved) => Ok(resolved),
-            _ => unreachable!("resolveAlias tail leaves the slot Resolved"),
-        }
+        self.links.set_symbol_alias_target(
+            self.speculation_depth,
+            symbol,
+            LinkSlot::Resolved(resolved),
+        );
+        Ok(resolved)
     }
 
-    /// tsc-port: tryResolveAlias @6.0.3
-    /// tsc-hash: bab6b09fe2dcce72699b3e3f0194e26d2f371b115c231c9a18e46b2bd6d81c8f
-    /// tsc-span: _tsc.js:49134-49140
+    /// tsgo-port: tryResolveAlias @7.1 (checker.go:16622-16628).
+    ///
+    /// Resolves unless the alias is on the resolution stack (a cycle in
+    /// progress), in which case `None`.
     pub(crate) fn try_resolve_alias(&mut self, symbol: SymbolId) -> CheckResult<Option<SymbolId>> {
         if self
             .links
             .symbol_cold()
             .alias_target
             .get(symbol)
-            .is_resolving()
+            .resolved()
+            .is_none()
+            && self
+                .find_resolution_cycle_start_index(
+                    crate::state::ResolutionTarget::Symbol(symbol),
+                    tsc_types::TypeSystemPropertyName::ALIAS_TARGET,
+                )
+                .is_some()
         {
             return Ok(None);
         }

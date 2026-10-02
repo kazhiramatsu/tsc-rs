@@ -2142,6 +2142,18 @@ impl<'a> CheckerState<'a> {
                     .get(node)
                     .is_some()
             }
+            TypeSystemPropertyName::ALIAS_TARGET => {
+                let ResolutionTarget::Symbol(symbol) = target else {
+                    unreachable!("AliasTarget resolution targets are symbols");
+                };
+                // tsgo `aliasSymbolLinks.Get(target).aliasTarget != nil`.
+                self.links
+                    .symbol_cold()
+                    .alias_target
+                    .get(symbol)
+                    .resolved()
+                    .is_some()
+            }
             _ => unreachable!(
                 "no pushTypeResolution call site passes {property_name:?} yet (owning stage per M4 doc)"
             ),

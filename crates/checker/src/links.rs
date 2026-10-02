@@ -4207,11 +4207,9 @@ impl LinksTables {
     /// protocol writer (the tsc counterpart is the inline assignment
     /// family inside resolveAlias 49118-49134).
     ///
-    /// The resolvedSignature twin — Vacant→Resolving on entry,
-    /// resolvedSignature twin — Vacant→Resolving on entry,
-    /// Resolving→Resolved for both the normal tail write and the
-    /// re-entrant cycle collapse (the outer frame then observes
-    /// Resolved and reports 5303 without writing).
+    /// The alias-target memo: written once, by the resolveAlias frame
+    /// that owns the symbol's `AliasTarget` resolution (a cycle
+    /// re-entry returns unknownSymbol without writing).
     pub fn set_symbol_alias_target(
         &mut self,
         speculation_depth: u32,
@@ -4228,16 +4226,6 @@ impl LinksTables {
     /// together; no pre-existing cache entry is published.
     pub fn set_fresh_symbol_alias_target(&mut self, id: SymbolId, value: LinkSlot<SymbolId>) {
         Self::write_slot(self.symbol_cold.alias_target.slot(id), value);
-    }
-
-    /// tsrs-native: links accessor — Err-unwind twin for the alias
-    /// protocol; only the frame that wrote the sentinel reverts
-    /// (Resolved memos stay).
-    pub fn revert_symbol_alias_target(&mut self, id: SymbolId) {
-        if self.symbol_cold.alias_target.get(id).is_resolving() {
-            note_resolving_transition(true, false);
-            self.symbol_cold.alias_target.clear(id);
-        }
     }
 
     /// tsrs-native: links accessor — links.typeOnlyDeclaration writes
