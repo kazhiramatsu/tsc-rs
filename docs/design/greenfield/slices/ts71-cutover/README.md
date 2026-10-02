@@ -588,4 +588,5 @@ TS2497 2箇所（`export =`がmodule／variableでないときと、node16〜nod
 unit testは1件を再pin：`esModuleInterop: false`でのnode20の`module.exports` default importはtsgo（`tsc-19dadef8`）と同じく
 semantic rowなし（configのTS5108はprogram側）。
 - conformance：15,228 configuration、lane A 13,467（変化なし）、full 12,864→12,873（+9）、text 93、category 21、mismatch 445→436、harness error 44、emit full 12,412。fullに上がったのはTS2497 classの9構成すべて。ratchet：0 regressions、9行追加（`intersectionConstructorReductionCrash`は従来どおり載せない）。localは型crateの変更なのでworkspace全体のclippyとtest（70 targets、3,619 passed）、2 workerのfull run（800 s）。
-- hosted：HOSTED_RECORD
+- hosted：PR #628（head `c98387daf`、merge `df43b0048`）、run 36978413299 — `plan` 28s、`rust` 9m36s、`conformance (TypeScript 7.1)` 21m45s、`gates` 15s。
+- perf（README corpora、`--noEmit`、3 rounds、nice 20、main `7e466a148`と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 125→123、zod 535→551、Playwright 359→363、TypeScript `src/compiler` 360→353、Next.js 829→798、Effect 553→547、VS Code 3,732→3,725。tsc-rs÷tsgoは0.59〜0.99で従来どおり、peak memoryは同等（MB main→本branch：285→305、1,296→1,296、760→770、293→291、1,331→1,327、1,038→1,044、5,471→5,429）。zodとPlaywrightは同条件の5 rounds A/Bで、medianは本branch 548／main 543、364／355だがminは本branchが低く（529／531、344／349）、CPU時間も同等以下（3,586／3,634、2,503／2,500 ms）なのでノイズ。退行なし。
