@@ -18,11 +18,16 @@ pub enum ParseDiagnosticOrigin {
     /// the keyword without skipping or synthesizing anything, so the
     /// record stays emit-safe like a literal-only one.
     Deprecation,
+    /// A report-only diagnostic of tsgo's JSDoc reparse (a JavaScript
+    /// `@typedef` without a name, TS1003): the source tree is complete, so
+    /// the record stays emit-safe like a literal-only one.
+    Reparse,
 }
 
 impl ParseDiagnosticOrigin {
-    /// Report-only origins: a scanner literal error or a deprecation leaves
-    /// the tree complete, so the record admits emit.
+    /// Report-only origins: a scanner literal error, a deprecation or a
+    /// JSDoc reparse error leaves the tree complete, so the record admits
+    /// emit.
     fn is_literal(self) -> bool {
         matches!(
             self,
@@ -33,6 +38,7 @@ impl ParseDiagnosticOrigin {
                     | SyntaxKind::TemplateMiddle
                     | SyntaxKind::TemplateTail
             ) | Self::Deprecation
+                | Self::Reparse
         )
     }
 }

@@ -243,7 +243,6 @@ pub(crate) const fn can_produce_diagnostics(kind: SyntaxKind) -> bool {
             | SyntaxKind::BinaryExpression
             | SyntaxKind::JSDocTypedefTag
             | SyntaxKind::JSDocCallbackTag
-            | SyntaxKind::JSDocEnumTag
     )
 }
 
@@ -456,8 +455,7 @@ fn template_for_node(
         ),
         SyntaxKind::TypeAliasDeclaration
         | SyntaxKind::JSDocTypedefTag
-        | SyntaxKind::JSDocCallbackTag
-        | SyntaxKind::JSDocEnumTag => {
+        | SyntaxKind::JSDocCallbackTag => {
             let (error, name) = if kind == SyntaxKind::TypeAliasDeclaration {
                 let NodeData::TypeAliasDeclaration(data) = &source.arena.node(node).data else {
                     return Err(DeclarationTransformer::contract(
@@ -802,11 +800,8 @@ pub(crate) fn name_of_declaration(source: &SourceFile, node: NodeId) -> Option<N
                 (source.arena.node(left).kind == SyntaxKind::Identifier).then_some(left)
             })
         }),
-        NodeData::JSDocTypedefTag(data) => data
-            .name
-            .or_else(|| name_for_nameless_jsdoc_alias(source, node)),
+        NodeData::JSDocTypedefTag(data) => data.name,
         NodeData::JSDocCallbackTag(data) => data.name,
-        NodeData::JSDocEnumTag(_) => name_for_nameless_jsdoc_alias(source, node),
         _ => None,
     }
 }
@@ -859,46 +854,10 @@ fn access_expression_name(source: &SourceFile, node: NodeId) -> Option<NodeId> {
     }
 }
 
-fn name_for_nameless_jsdoc_alias(source: &SourceFile, node: NodeId) -> Option<NodeId> {
-    let host = parent(source, node).and_then(|doc| parent(source, doc))?;
-    if let Some(name) = direct_name_of_declaration(source, host) {
-        return (source.arena.node(name).kind == SyntaxKind::Identifier).then_some(name);
-    }
-    match &source.arena.node(host).data {
-        NodeData::VariableStatement(data) => {
-            let declaration = data.declaration_list.and_then(|list| {
-                let NodeData::VariableDeclarationList(data) = &source.arena.node(list).data else {
-                    return None;
-                };
-                data.declarations.and_then(|declarations| {
-                    source.arena.node_array(declarations).nodes.first().copied()
-                })
-            })?;
-            direct_name_of_declaration(source, declaration)
-                .filter(|name| source.arena.node(*name).kind == SyntaxKind::Identifier)
-        }
-        NodeData::ExpressionStatement(data) => {
-            let mut expression = data.expression?;
-            if let NodeData::BinaryExpression(binary) = &source.arena.node(expression).data {
-                if binary
-                    .operator_token
-                    .is_some_and(|token| source.arena.node(token).kind == SyntaxKind::EqualsToken)
-                {
-                    expression = binary.left?;
-                }
-            }
-            access_expression_name(source, expression)
-                .filter(|name| source.arena.node(*name).kind == SyntaxKind::Identifier)
-        }
-        _ => None,
-    }
-}
-
 fn jsdoc_type_expression(source: &SourceFile, node: NodeId) -> Option<NodeId> {
     match &source.arena.node(node).data {
         NodeData::JSDocTypedefTag(data) => data.type_expression,
         NodeData::JSDocCallbackTag(data) => data.type_expression,
-        NodeData::JSDocEnumTag(data) => data.type_expression,
         _ => None,
     }
 }

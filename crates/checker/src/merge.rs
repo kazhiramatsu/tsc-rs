@@ -832,13 +832,6 @@ impl<'a> CheckerState<'a> {
                     self.merge_entries_into_globals(&locals, false);
                 }
             }
-            // file.jsGlobalAugmentations (88751-88753): top-level
-            // JavaScript namespace/prototype assignments merge into
-            // the same globals table as declarations from script files.
-            let js_global_augmentations = self.binder.file(index).js_global_augmentations.clone();
-            if !js_global_augmentations.is_empty() {
-                self.merge_into_globals(&js_global_augmentations, /*unidirectional*/ false);
-            }
             // file.patternAmbientModules concatenation (88754-88756).
             let pattern_modules = self.binder.file(index).pattern_ambient_modules.clone();
             self.pattern_ambient_modules.extend(pattern_modules);
@@ -1230,8 +1223,7 @@ fn is_type_declaration(state: &CheckerState, node: NodeId) -> bool {
         | SyntaxKind::TypeAliasDeclaration
         | SyntaxKind::EnumDeclaration
         | SyntaxKind::JSDocTypedefTag
-        | SyntaxKind::JSDocCallbackTag
-        | SyntaxKind::JSDocEnumTag => true,
+        | SyntaxKind::JSDocCallbackTag => true,
         SyntaxKind::ImportClause => matches!(
             &arena.node(node).data,
             tsc_syntax::NodeData::ImportClause(data) if data.is_type_only

@@ -45,7 +45,7 @@ pub fn is_jsdoc_construct_signature(source: &SourceFile, node: NodeId) -> bool {
 pub fn is_jsdoc_type_alias(source: &SourceFile, node: NodeId) -> bool {
     matches!(
         kind_of(source, node),
-        SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocCallbackTag | SyntaxKind::JSDocEnumTag
+        SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocCallbackTag
     )
 }
 
@@ -60,7 +60,6 @@ pub fn jsdoc_full_name(source: &SourceFile, node: NodeId) -> Option<NodeId> {
 pub fn jsdoc_type_expression(source: &SourceFile, node: NodeId) -> Option<NodeId> {
     match &source.arena.node(node).data {
         NodeData::JSDocCallbackTag(data) => data.type_expression,
-        NodeData::JSDocEnumTag(data) => data.type_expression,
         NodeData::JSDocOverloadTag(data) => data.type_expression,
         NodeData::JSDocParameterTag(data) => data.type_expression,
         NodeData::JSDocPropertyTag(data) => data.type_expression,
@@ -781,63 +780,6 @@ pub fn is_declaration(source: &SourceFile, node: NodeId) -> bool {
     )
 }
 
-fn get_declaration_identifier(source: &SourceFile, node: NodeId) -> Option<NodeId> {
-    get_name_of_declaration(source, node)
-        .filter(|&name| kind_of(source, name) == SyntaxKind::Identifier)
-}
-
-/// tsc-port: nameForNamelessJSDocTypedef @6.0.3
-/// tsc-hash: 1b1cad41dcb89eba97157c6673e3b16f10c71fe6676dc8f6b77a86630a264592
-/// tsc-span: _tsc.js:11458-11497
-pub fn name_for_nameless_jsdoc_typedef(source: &SourceFile, declaration: NodeId) -> Option<NodeId> {
-    let host = parent_of(source, declaration).and_then(|doc| parent_of(source, doc))?;
-    if is_declaration(source, host) {
-        return get_declaration_identifier(source, host);
-    }
-    match &source.arena.node(host).data {
-        NodeData::VariableStatement(data) => {
-            let declaration =
-                data.declaration_list
-                    .and_then(|list| match &source.arena.node(list).data {
-                        NodeData::VariableDeclarationList(data) => {
-                            data.declarations.and_then(|declarations| {
-                                source.arena.node_array(declarations).nodes.first().copied()
-                            })
-                        }
-                        _ => None,
-                    })?;
-            get_declaration_identifier(source, declaration)
-        }
-        NodeData::ExpressionStatement(data) => {
-            let mut expression = data.expression?;
-            if let NodeData::BinaryExpression(binary) = &source.arena.node(expression).data {
-                if binary
-                    .operator_token
-                    .is_some_and(|token| kind_of(source, token) == SyntaxKind::EqualsToken)
-                {
-                    expression = binary.left?;
-                }
-            }
-            match &source.arena.node(expression).data {
-                NodeData::PropertyAccessExpression(data) => data.name,
-                NodeData::ElementAccessExpression(data) => data
-                    .argument_expression
-                    .filter(|&argument| kind_of(source, argument) == SyntaxKind::Identifier),
-                _ => None,
-            }
-        }
-        NodeData::ParenthesizedExpression(data) => data
-            .expression
-            .and_then(|node| get_declaration_identifier(source, node)),
-        NodeData::LabeledStatement(data) => data.statement.and_then(|statement| {
-            (is_declaration(source, statement) || is_expression_node(source, statement))
-                .then(|| get_declaration_identifier(source, statement))
-                .flatten()
-        }),
-        _ => None,
-    }
-}
-
 /// tsc-port: getNonAssignedNameOfDeclaration @6.0.3
 /// tsc-hash: 382ebe3aca3c5b65c264f1177b6f9ed47454cdc918c228f8469456fb504d617b
 /// tsc-span: _tsc.js:11517-11561
@@ -858,10 +800,7 @@ pub fn get_non_assigned_name_of_declaration(source: &SourceFile, id: NodeId) -> 
         SyntaxKind::CallExpression | SyntaxKind::BinaryExpression => {
             crate::assignment::get_assignment_declaration_name(source, id)
         }
-        SyntaxKind::JSDocTypedefTag => {
-            name_field_of(source, id).or_else(|| name_for_nameless_jsdoc_typedef(source, id))
-        }
-        SyntaxKind::JSDocEnumTag => name_for_nameless_jsdoc_typedef(source, id),
+        SyntaxKind::JSDocTypedefTag => name_field_of(source, id),
         SyntaxKind::ExportAssignment => match &source.arena.node(id).data {
             NodeData::ExportAssignment(data) => data
                 .expression

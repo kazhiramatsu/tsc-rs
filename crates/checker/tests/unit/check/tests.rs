@@ -190,7 +190,7 @@ fn jsdoc_parse_diag_rows(
     text: &str,
     options: &CompilerOptions,
 ) -> Vec<(u32, u32, u32, String)> {
-    with_program_state(&[(file_name, text)], options, |state| {
+    with_program_state_allow_parse_diagnostics(&[(file_name, text)], options, |state| {
         state
             .binder
             .source(0)
@@ -630,7 +630,10 @@ fn circularity_and_unassigned_property_diagnostics_use_written_names() {
 // ---- checked-JS checkJSDocTypeAliasTag AST path ----
 
 #[test]
-fn jsdoc_typedef_template_before_properties_reports_8021_on_the_name() {
+fn jsdoc_typedef_template_before_properties_reports_8039_and_drops_it() {
+    // TypeScript 7.1 (tsgo, tsc-19dadef8): a `@template` among a typedef's
+    // child tags is TS8039 at its tag name and is dropped, so the typedef
+    // keeps its `@property` and `T` is TS2304 there; there is no TS8021.
     let text = "/**\n\
                     * @typedef Oops\n\
                     * @template T\n\
@@ -643,23 +646,39 @@ fn jsdoc_typedef_template_before_properties_reports_8021_on_the_name() {
         strict: Some(true),
         ..CompilerOptions::default()
     };
-    let rows: Vec<_> = checked_file_diags_with("a.js", text, &options)
+    let mut rows: Vec<_> = jsdoc_parse_diag_rows("a.js", text, &options)
         .into_iter()
-        .filter(|row| row.0 == 8021)
+        .filter(|row| row.0 == 8039)
         .collect();
+    rows.extend(
+        checked_file_diags_with("a.js", text, &options)
+            .into_iter()
+            .filter(|row| matches!(row.0, 8021 | 2304)),
+    );
     assert_eq!(
-            rows,
-            [(
-                8021,
-                text.find("Oops").unwrap() as u32,
-                4,
-                "JSDoc '@typedef' tag should either have a type annotation or be followed by '@property' or '@member' tags.".to_owned(),
-            )]
-        );
+        rows,
+        [
+            (
+                8039,
+                text.find("template").unwrap() as u32,
+                "template".len() as u32,
+                "A JSDoc '@template' tag may not follow a '@typedef', '@callback', or '@overload' tag"
+                    .to_owned(),
+            ),
+            (
+                2304,
+                text.find("{T}").unwrap() as u32 + 1,
+                1,
+                "Cannot find name 'T'.".to_owned(),
+            ),
+        ]
+    );
 }
 
 #[test]
 fn jsdoc_typedef_type_and_property_siblings_do_not_report_8021() {
+    // TypeScript 7.1 (tsgo, tsc-19dadef8): no TS8021 at all; the nested
+    // typedef's `@template` is TS8039 (asserted in the test above).
     let text = "/** @typedef {(x: number) => string} Explicit */\n\
                     /**\n\
                     * @typedef ObjectLike\n\
@@ -1000,35 +1019,22 @@ fn jsdoc_callback_overload_and_nested_property_report_8039() {
                 )
             })
             .collect::<Vec<_>>();
+        // TypeScript 7.1 (tsgo, templateInsideCallback.errors.txt): every
+        // `@template` child of a typedef, callback or overload is TS8039, and
+        // parsing goes on after it.
+        const MESSAGE: &str =
+            "A JSDoc '@template' tag may not follow a '@typedef', '@callback', or '@overload' tag";
         assert_eq!(
-                rows,
-                [
-                    (
-                        Some(104),
-                        Some(8),
-                        "A JSDoc '@template' tag may not follow a '@typedef', '@callback', or '@overload' tag",
-                        0,
-                    ),
-                    (
-                        Some(299),
-                        Some(8),
-                        "A JSDoc '@template' tag may not follow a '@typedef', '@callback', or '@overload' tag",
-                        0,
-                    ),
-                    (
-                        Some(370),
-                        Some(8),
-                        "A JSDoc '@template' tag may not follow a '@typedef', '@callback', or '@overload' tag",
-                        0,
-                    ),
-                    (
-                        Some(496),
-                        Some(8),
-                        "A JSDoc '@template' tag may not follow a '@typedef', '@callback', or '@overload' tag",
-                        0,
-                    ),
-                ]
-            );
+            rows,
+            [
+                (Some(25), Some(8), MESSAGE, 0),
+                (Some(104), Some(8), MESSAGE, 0),
+                (Some(299), Some(8), MESSAGE, 0),
+                (Some(370), Some(8), MESSAGE, 0),
+                (Some(385), Some(8), MESSAGE, 0),
+                (Some(496), Some(8), MESSAGE, 0),
+            ]
+        );
     });
 }
 
@@ -1699,7 +1705,10 @@ fn jsdoc_identifier_name_recovery_preserves_valid_wrapping_and_non_tags() {
 // ---- M7 8.1x JSDoc satisfies required-brace grammar ----
 
 #[test]
-fn jsdoc_satisfies_type_expression_requires_braces() {
+fn jsdoc_satisfies_type_expression_requires_an_opening_brace() {
+    // TypeScript 7.1 (tsgo, tsc-19dadef8): parseJSDocTypeExpression expects
+    // the closing brace only after an opening one, so each tag is a single
+    // TS1005 '{' expected.
     let options = CompilerOptions {
         allow_js: true,
         check_js: Some(true),
@@ -1727,19 +1736,13 @@ fn jsdoc_satisfies_type_expression_requires_braces() {
             })
             .collect::<Vec<_>>();
         diagnostics.sort_by_key(|diagnostic| diagnostic.0);
-        let comment_closes = text
-            .match_indices("*/")
-            .map(|(start, _)| start)
-            .collect::<Vec<_>>();
         let first_type =
             text.find("@satisfies T1").expect("multiline satisfies tag") + "@satisfies ".len();
         let second_type =
             text.find("@satisfies T2").expect("inline satisfies tag") + "@satisfies ".len();
         let expected = [
             (first_type, "T1".len(), "'{' expected."),
-            (comment_closes[0], 0, "'}' expected."),
             (second_type, "T2".len(), "'{' expected."),
-            (comment_closes[1], 0, "'}' expected."),
         ];
         assert_eq!(
             diagnostics,
@@ -2082,7 +2085,20 @@ fn jsdoc_expected_close_brace_reports_exact_recovery_tokens() {
         " */\n",
         "function f(a, b, c, d) {}\n",
     );
-    with_program_state(&[("a.js", text)], &options, |state| {
+    with_program_state_allow_parse_diagnostics(&[("a.js", text)], &options, |state| {
+        // TypeScript 7.1 (tsgo, tsc-19dadef8): the typedef's name is missing
+        // after the unclosed `{C~A`, so its reparse reports TS1003 one
+        // character before the name.
+        assert_eq!(
+            state
+                .binder
+                .source(0)
+                .parse_diagnostics
+                .iter()
+                .map(|diagnostic| (diagnostic.start, diagnostic.length, diagnostic.code()))
+                .collect::<Vec<_>>(),
+            [(Some(95), Some(1), 1003)]
+        );
         let mut diagnostics = state
             .binder
             .source(0)
@@ -9542,5 +9558,105 @@ fn deferred_missing_property_report_prints_without_a_circularity() {
             "Property 'x' does not exist on type '{ (): void; s: (m: number) => any; }'."
                 .to_owned()
         )]
+    );
+}
+
+// ---- JSDoc tags and typedefs as in tsgo (P3-5n) ----
+
+fn checked_js_es2015() -> CompilerOptions {
+    CompilerOptions {
+        allow_js: true,
+        check_js: Some(true),
+        target: Some(2),
+        ..CompilerOptions::default()
+    }
+}
+
+fn sorted_rows(mut rows: Vec<(u32, u32, u32, String)>) -> Vec<(u32, u32, u32)> {
+    rows.sort_by_key(|row| (row.1, row.0));
+    rows.into_iter().map(|row| (row.0, row.1, row.2)).collect()
+}
+
+#[test]
+fn jsdoc_enum_tag_leaves_the_variable_a_value() {
+    // TypeScript 7.1 (tsgo, tsc-19dadef8): `@enum` is an unknown tag
+    // (parser/jsdoc.go:471-528), so `{E}` names a value: TS2749.
+    let text = "/** @enum {string} */\nconst E = { A: \"a\", B: 1 };\n/** @type {E} */\nlet x;\n";
+    assert_eq!(
+        sorted_rows(checked_file_diags_with("a.js", text, &checked_js_es2015())),
+        [(2749, text.find("{E}").unwrap() as u32 + 1, 1)]
+    );
+}
+
+#[test]
+fn jsdoc_typedef_without_a_type_declares_no_alias() {
+    // TypeScript 7.1 (tsgo, tsc-19dadef8): a typedef with neither a type nor
+    // property tags is not reparsed into a type alias (reparser.go:76-80), so
+    // `T` is TS2304 and nothing reports TS8021.
+    let text = "/** @typedef T */\nvar a = 1;\n/** @type {T} */\nvar b;\n";
+    assert_eq!(
+        sorted_rows(checked_file_diags_with("a.js", text, &checked_js_es2015())),
+        [(2304, text.find("{T}").unwrap() as u32 + 1, 1)]
+    );
+}
+
+#[test]
+fn jsdoc_nameless_typedef_reports_1003_at_and_before_the_missing_name() {
+    // TypeScript 7.1 (tsgo, tsc-19dadef8; jsEnumCrossFileExport.errors.txt):
+    // parseTypedefTag reports TS1003 at the token where the name should be (a
+    // JSDoc diagnostic), and the reparser's checkNonIdentifierName reports a
+    // parse TS1003 on the character before the missing name.
+    let text = "/**\n * @typedef {string}\n */\nvar a = 1;\n";
+    let close_brace = text.find('}').unwrap() as u32;
+    with_program_state_allow_parse_diagnostics(&[("a.js", text)], &checked_js_es2015(), |state| {
+        let source = state.binder.source(0);
+        let rows = |diagnostics: &[tsc_diagnostics::Diagnostic]| {
+            diagnostics
+                .iter()
+                .map(|diagnostic| (diagnostic.code(), diagnostic.start, diagnostic.length))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            rows(&source.parse_diagnostics),
+            [(1003, Some(close_brace), Some(1))]
+        );
+        assert_eq!(
+            rows(&source.js_doc_diagnostics),
+            [(1003, Some(close_brace + 1), Some(1))]
+        );
+    });
+}
+
+#[test]
+fn jsdoc_augments_gives_type_arguments_only_to_a_matching_extends() {
+    // TypeScript 7.1 (tsgo, tsc-19dadef8): the reparser copies the type
+    // arguments of `@augments {G<string>}` into `extends G`
+    // (reparser.go:582-600); a tag naming another entity leaves `extends G`
+    // without them (TS8026) and is TS8023 because its type differs from the
+    // base type (checkJSDocAugmentsTagMatchesExtends); a tag on the variable
+    // of a class expression applies to nothing.
+    let text = "/** @template T */\nclass G {\n  /** @param {T} t */\n  m(t) {}\n}\n\
+                /** @augments {G<string>} */\nclass H extends G {}\nnew H().m(1);\n\
+                /** @augments {Other<string>} */\nclass I extends G {}\nnew I().m(1);\n\
+                /** @augments {G<string>} */\nconst J = class extends G {};\nnew J().m(1);\n";
+    let other = text.find("Other").unwrap() as u32;
+    let at = |needle: &str| text.find(needle).unwrap() as u32;
+    assert_eq!(
+        sorted_rows(checked_file_diags_with("a.js", text, &checked_js_es2015())),
+        [
+            (2345, at("new H().m(1)") + "new H().m(".len() as u32, 1),
+            (2304, other, "Other".len() as u32),
+            (8023, other, "Other".len() as u32),
+            (
+                8026,
+                at("class I extends G") + "class I extends ".len() as u32,
+                1
+            ),
+            (
+                8026,
+                at("class extends G") + "class extends ".len() as u32,
+                1
+            ),
+        ]
     );
 }

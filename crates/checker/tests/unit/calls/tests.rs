@@ -1407,7 +1407,9 @@ fn jsdoc_function_type_models_this_and_new_parameters() {
 }
 
 #[test]
-fn jsdoc_class_tag_requires_new() {
+fn jsdoc_class_tag_does_not_require_new() {
+    // TypeScript 7.1 (tsgo, tsc-19dadef8): `@class` / `@constructor` is an
+    // unknown tag, so calling the function is no TS2348.
     let rows = checked_js_rows(
         "/** @constructor */\nfunction Dependency(j) { return j; }\nDependency({});\n",
     );
@@ -1415,7 +1417,7 @@ fn jsdoc_class_tag_requires_new() {
         rows.into_iter()
             .filter(|(code, _, _)| *code == 2348)
             .collect::<Vec<_>>(),
-        [(2348, 57, 14)]
+        []
     );
 }
 

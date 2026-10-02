@@ -5656,31 +5656,6 @@ impl<'a> CheckerState<'a> {
                 return Ok(self.resolving_signature);
             }
         }
-        // 77043-77046: a callable declaration carrying JSDoc
-        // `@class`/`@constructor` must be invoked with `new`.
-        let mut has_jsdoc_class_signature = false;
-        for &signature in &call_signatures {
-            let Some(declaration) = self.signature_of(signature).declaration else {
-                continue;
-            };
-            if self.is_in_js_file(declaration)
-                && self
-                    .first_jsdoc_tag(declaration, SyntaxKind::JSDocClassTag)
-                    .is_some()
-            {
-                has_jsdoc_class_signature = true;
-                break;
-            }
-        }
-        if has_jsdoc_class_signature {
-            let display = self.type_to_string(func_type)?;
-            self.error_at_js(
-                Some(node),
-                &diagnostics::Value_of_type_0_is_not_callable_Did_you_mean_to_include_new,
-                &[(&display).into()],
-            );
-            return self.resolve_error_call(node);
-        }
         self.resolve_call(node, &call_signatures, check_mode, call_chain_flags, None)
     }
 

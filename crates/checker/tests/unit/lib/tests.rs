@@ -6033,7 +6033,12 @@ fn checked_js_does_not_treat_other_jsdoc_tags_as_type() {
 }
 
 #[test]
-fn checked_js_jsdoc_augments_reports_only_effective_hosts() {
+fn checked_js_jsdoc_augments_reports_only_mismatched_base_types() {
+    // TypeScript 7.1 (tsgo, tsc-19dadef8): `@augments` / `@extends` is checked
+    // only against the base type of a class with an `extends` clause
+    // (checkJSDocAugmentsTagMatchesExtends): the empty classes A and B are
+    // identical types, so only the nameless tag on D is TS8023; a tag on a
+    // function or a detached tag is no TS8022.
     let source = "/** @extends {A} */\n\
                       /** @constructor */\n\
                       class A {}\n\
@@ -6074,59 +6079,26 @@ fn checked_js_jsdoc_augments_reports_only_effective_hosts() {
             )
         })
         .collect::<Vec<_>>();
-    let function_name = source.find("f()").expect("function name") as u32;
-    let mismatch_name = (source
-        .find("@augments A */\nclass C")
-        .expect("mismatch tag")
-        + "@augments ".len()) as u32;
     let missing_name =
         (source.find("@augments */").expect("missing tag") + "@augments".len()) as u32;
     assert_eq!(
         rows,
-        [
-            (
-                None,
-                None,
-                None,
-                8022,
-                "JSDoc '@extends' is not attached to a class.",
-            ),
-            (
-                Some("a.js"),
-                Some(function_name),
-                Some(1),
-                8022,
-                "JSDoc '@augments' is not attached to a class.",
-            ),
-            (
-                Some("a.js"),
-                Some(mismatch_name),
-                Some(1),
-                8023,
-                "JSDoc '@augments A' does not match the 'extends B' clause.",
-            ),
-            (
-                Some("a.js"),
-                Some(missing_name),
-                Some(0),
-                8023,
-                "JSDoc '@augments ' does not match the 'extends A' clause.",
-            ),
-            (
-                Some("a.js"),
-                Some(source.len() as u32),
-                Some(0),
-                8022,
-                "JSDoc '@extends' is not attached to a class.",
-            ),
-        ],
+        [(
+            Some("a.js"),
+            Some(missing_name),
+            Some(0),
+            8023,
+            "JSDoc '@augments ' does not match the 'extends A' clause.",
+        )],
         "{:#?}",
         result.diagnostics
     );
 }
 
 #[test]
-fn checked_js_detached_augments_document_keeps_fileless_8022() {
+fn checked_js_detached_augments_document_reports_nothing() {
+    // TypeScript 7.1 (tsgo, tsc-19dadef8): there is no TS8022; a detached
+    // `@extends` document has no host to apply to.
     let source = "class A {}\n\
                       /** @extends {A} */\n\
                       \n\
@@ -6160,21 +6132,13 @@ fn checked_js_detached_augments_document_keeps_fileless_8022() {
             )
         })
         .collect::<Vec<_>>();
-    assert_eq!(
-        rows,
-        [(
-            None,
-            None,
-            None,
-            "JSDoc '@extends' is not attached to a class.",
-        )],
-        "{:#?}",
-        result.diagnostics
-    );
+    assert_eq!(rows, [], "{:#?}", result.diagnostics);
 }
 
 #[test]
-fn checked_js_detached_implements_document_keeps_fileless_8022() {
+fn checked_js_detached_implements_document_reports_nothing() {
+    // TypeScript 7.1 (tsgo, tsc-19dadef8): there is no TS8022; `@implements`
+    // applies only to the class it documents.
     let source = "class A {}\n\
                       /** @implements {A} */\n\
                       /** @constructor */\n\
@@ -6209,17 +6173,7 @@ fn checked_js_detached_implements_document_keeps_fileless_8022() {
             )
         })
         .collect::<Vec<_>>();
-    assert_eq!(
-        rows,
-        [(
-            None,
-            None,
-            None,
-            "JSDoc '@implements' is not attached to a class.",
-        )],
-        "{:#?}",
-        result.diagnostics
-    );
+    assert_eq!(rows, [], "{:#?}", result.diagnostics);
 }
 
 #[test]

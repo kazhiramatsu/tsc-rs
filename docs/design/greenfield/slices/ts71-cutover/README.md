@@ -701,3 +701,43 @@ requireの別名からのalias chain）を追加。
 - conformance：15,228 configuration、lane A 13,467（変化なし）、full 12,967→13,023（+56）、text 99→94、category 21→20、mismatch 336→286、harness error 44、emit full 12,414→12,415。上がったのは58構成（errorのfull 56、category 1、emit 1）：CommonJSの`module.exports`／`exports`群（`moduleExportAlias`系6、`moduleExportAssignment`系4、`moduleExportWithExportPropertyAssignment`1〜4、`moduleExportDuplicateAlias`／`3`、`moduleExportPropertyAssignmentDefault`、`commonjsAccessExports`…）、JavaScriptの宣言emitの`jsDeclarations`系12、`typedefCrossModule`1〜4、`jsExportMemberMergedWithModuleAugmentation`1〜3、TypeScriptの`export=`と型exportの`exportAssignmentMerging`1／2／3／7／10、`incompatibleExports1`／`2`、`importDeclWithExportModifierAndExportAssignmentInAmbientContext`（emitは`importDeclWithExportModifierAndExportAssignment`）。ratchet：0 regressions、50行追加・8行raise（`intersectionConstructorReductionCrash`は従来どおり載せない）。localはbinderとcheckerとその逆依存（compiler、conformance）のclippyとtest（14 targets、2,031 passed）、2 workerのfull run（800 s）で、workspace全体のtestとclippyはhostedの`rust` job。full runの後に変えたのはtsgoの行番号を引くコメント6か所だけで、fmtとbinder／checkerのclippyを再実行した。`--checkers 4`の並列対照はlocalの負荷の方針（full runはsliceごとに1回）により実行していない。
 - hosted：PR #631（head `ed33b8911`、merge `ff7c4b0c5`）、run 37015472485 — `plan` 27s、`rust` 9m59s、`conformance (TypeScript 7.1)` 16m51s、`gates` 13s。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main `1d39cabd6`と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 123→125、zod 529→545、Playwright 355→344、TypeScript `src/compiler` 353→340、Next.js 792→769、Effect 536→538、VS Code 3,588→3,625。tsc-rs÷tsgoは0.60〜0.94で従来どおり、peak memoryは同等（MB main→本branch：290→312、1,300→1,294、755→752、292→292、1,323→1,327、1,039→1,044、5,468→5,419）。hono・zod・VS Codeは同条件の5 rounds A/B（本branch／main）で、medianは122／126、526／533、3,674／3,642、minは121／120、517／510、3,594／3,502、CPU時間は657／661、3,585／3,558、25,030／24,989 ms（3 roundsではVS Codeのminが3,537／3,545）なのでノイズ。退行なし。
+
+## P3-5n JSDocのtagとtypedefをtsgoの方式で扱う（2026-10-02）
+
+P3-5m後の不一致の約半分（286中146）がJavaScript／JSDocで、その根はtsgo 7.1のJSDocの扱い全体にある：tsgoはJSDocを
+parseしたあとreparser（parser/reparser.go）でtagを普通のTS構文に作り替え、`@typedef`／`@callback`（type expressionが
+あるときだけ）はhostの文の直前に置くtype alias文、`@type`／`@param`／`@return`／`@template`／`@this`などはhostの型注釈・
+型parameter・`this` parameterになり、checkerはtag自体を検査しない（checker.go:2295-2303はJSDocの`@link`名を解決するだけ）。
+JSDocのparse diagnosticは従来どおりcheckJsのファイルだけで報告される（jsdoc.go:171-175、program.go:1525-1528）が、reparserの
+誤りは普通のparse diagnosticになる。これを3段に分け（設計メモはこの節の末尾）、このPRは第1段のtagとtypedef：
+- parser（`parser/jsdoc.rs`、`parser.rs`、`recovery.rs`）：`@author`、`@class`／`@constructor`、`@enum`はunknown tag
+  （jsdoc.go:471-528）。名前の無い`@typedef`／`@callback`は欠落identifier（TS1003、JSDoc diagnostic）を名前に持ち、type
+  expressionのあるtypedefではreparserの`checkNonIdentifierName`（reparser.go:41-56）と同じく名前の1文字前にTS1003を
+  parse diagnosticとして出す（treeは完全なので、TS2880と同じくemitを妨げないreport-onlyの`Reparse` origin）。typedef／
+  callback／overloadの子tagの`@template`はTS8039でparseを続け（jsdoc.go:873、1044、1114）、2つ目の`@type`もparseを止めない。
+  typedefのtype literalは最初のproperty tagから始まり、終端・callbackのsignatureの開始もtsgoの位置。`}`は`{`があったときだけ
+  期待する（jsdoc.go:106-123、`@satisfies T`は`'{' expected`だけ）。dotted nameの`.`はJSDoc scannerで読み、bodyの無い
+  namespaceはそれ自身がaliasの名前。子tagの`@type`とsignatureの`@returns`は前のtagを見ない（TS1223）。
+- binder（`bind.rs`、`containers.rs`、`declare.rs`、`node_util.rs`）：typedef／callbackはtype expressionがあるときだけ
+  block-scopedに束縛し、名前の無いtypedefや`@enum`を次の宣言に結び付けない（tsc 6.0の
+  `delayedBindJSDocTypedefTag`の分岐、`bindPotentiallyMissingNamespaces`、`jsGlobalAugmentations`、
+  `nameForNamelessJSDocTypedef`を削除）。JSDocのtype aliasとdotted nameのnamespaceはmodule memberとしてexportする
+  （`IsImplicitlyExportedJSDocDeclaration`、ast/utilities.go:4226-4236、内側のnamespaceにはreparserがexportを付ける）。
+- checker：typedefはtype aliasとして検査し（`checkTypeAliasDeclaration`の順、TS8021なし、未使用の検査に登録）、TS8022・
+  TS8025と`@class`のTS2348を削除。TS8023は`@augments`の型とbase型の同一性で判定する
+  （`checkJSDocAugmentsTagMatchesExtends`、checker.go:4424-4447、class検査から）。base type nodeは`extends`要素で、classの
+  最後のJSDoc commentの同名の`@augments`だけが型引数の無い`extends`に型引数を与える（reparser.go:582-600）。JavaScriptの
+  object literalは文脈型が無くJSONファイルでなければJS literal（`@enum`の条件なし、checker.go:13413-13415）。`@enum`の
+  型付けと死んだ`JSDocEnumTag`／`JSDocClassTag`の腕（binder・checker・emitter）を削除。
+unit testはbinder 1件、checker 9件をtsgoの行に再pin（`tsc-19dadef8`とtsgoのbaseline：`@enum`はtypeでなく循環もない、
+`@class`は`new`不要、`@template`の子はTS8039でpropertyはその後も続く、templateInsideCallbackのTS8039は6件、名前の無い
+typedefのreparse TS1003、`@satisfies`は`'{' expected`だけ、`@augments`はbase型と同じ型なら報告なし、宙に浮いた
+`@extends`／`@implements`は何も報告しない）、tsgoの行にpinした新しいtest 4件（`@enum`の変数は値、型の無いtypedefは
+aliasを作らない、名前の無いtypedefの2つのTS1003、`@augments`の型引数と同一性）を追加。
+- conformance：15,228 configuration、lane A 13,467（変化なし）、full 13,023→13,042（+19）、text 94→95、category 20、mismatch 286→266、harness error 44、emit full 12,415（変化なし）。上がったのは20構成（full 19、text 1）：`@enum`の群（`enumTag`、`enumTagCircularReference`、`enumTagUseBeforeDefCrash`、`exportedEnumTypeAndValue`、`jsEnumTagOnObjectFrozen`、`jsEnumCrossFileExport`、`jsDeclarationsEnumTag`）、`@class`（`callOfPropertylessConstructorFunction`、`constructorFunctions`）、typedef（`jsdocTypedefMissingType`、`jsdocTypedefNoCrash`／`2`、`misspelledJsDocTypedefTags`、`checkJsdocTypedefOnlySourceFile`）、`@augments`／`@extends`（`extendsTag2`／`4`、`jsdocAugments_nameMismatch`、`jsdocAugments_notAClass`、`jsdocAugmentsMissingType`はtext）、`checkJsdocSatisfiesTag14`。下がった構成はemitを含めて無い。ratchet：0 regressions、20行追加（`intersectionConstructorReductionCrash`は従来どおり載せない）。localはsyntaxとその逆依存（binder、checker、compiler、conformance、emitter、harness、program）のclippyとtest（60 targets、3,511 passed）、2 workerのfull run（792 s）で、workspace全体のtestとclippyはhostedの`rust` job。filterの段階で各tierをP3-5mのreportと比べ、reparserのTS1003を普通のparse diagnosticにすると`jsdocTypedefNoCrash`／`2`のemitがFullからNoneに落ちる（ratchetに無い行なので`--check`では見えない）ことを見つけ、report-onlyのoriginで直した。`--checkers 4`の並列対照は実行していない。
+- 残りのJSDocは2段：P3-5o（hostされるtag）＝reparseHostedの規則（`@type`はVariableStatementの最初の型無し宣言、
+  `@param`は名前か位置で一致、`@this`／`@return`／`@template`、修飾子tagはmember・constructor・binary expressionの修飾子）で
+  型nodeを検査し、TS8024／TS8028／TS8029／TS8032を削除、TS8030／TS8020をtsgoに合わせる。P3-5p（JSDocの型構文）＝Closureの
+  `function(...)`型・単独の`?`・`!`の優先順位・`module:` namepathの削除、名前の欠落の報告（`parseJSDocIdentifierName`、
+  messageが無ければ報告しない）、`@`がtagを始める条件とfenced code block、`@see`の名前。
+- hosted：HOSTED_RECORD

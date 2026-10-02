@@ -87,6 +87,8 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::FunctionType
                 | SyntaxKind::ConstructorType
                 | SyntaxKind::TypeAliasDeclaration
+                | SyntaxKind::JSDocTypedefTag
+                | SyntaxKind::JSDocCallbackTag
                 | SyntaxKind::InterfaceDeclaration => self.check_unused_type_parameters(node),
                 SyntaxKind::InferType => self.check_unused_infer_type_parameter(node),
                 // registerForUnusedIdentifiersCheck is shape-driven in
@@ -742,8 +744,7 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::TypeAliasDeclaration
             | SyntaxKind::EnumDeclaration
             | SyntaxKind::JSDocTypedefTag
-            | SyntaxKind::JSDocCallbackTag
-            | SyntaxKind::JSDocEnumTag => true,
+            | SyntaxKind::JSDocCallbackTag => true,
             SyntaxKind::ImportClause => {
                 matches!(self.data_of(declaration), NodeData::ImportClause(data) if data.is_type_only)
             }
@@ -786,7 +787,6 @@ impl<'a> CheckerState<'a> {
             self.kind_of(declaration),
             SyntaxKind::JSDocTypedefTag
                 | SyntaxKind::JSDocCallbackTag
-                | SyntaxKind::JSDocEnumTag
                 | SyntaxKind::JSDocPropertyTag
                 | SyntaxKind::JSDocParameterTag
         ) {

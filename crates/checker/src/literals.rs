@@ -682,7 +682,6 @@ struct ObjectLiteralAcc {
     in_const_context: bool,
     check_flags: CheckFlags,
     is_in_javascript: bool,
-    enum_tag: Option<NodeId>,
     is_js_object_literal: bool,
     object_flags: ObjectFlags,
     pattern_with_computed_properties: bool,
@@ -991,7 +990,6 @@ impl<'a> CheckerState<'a> {
             in_const_context: false,
             check_flags: CheckFlags::from_bits(0),
             is_in_javascript: false,
-            enum_tag: None,
             is_js_object_literal: false,
             object_flags: ObjectFlags::FRESH_LITERAL,
             pattern_with_computed_properties: false,
@@ -1073,12 +1071,12 @@ impl<'a> CheckerState<'a> {
             CheckFlags::from_bits(0)
         };
         acc.is_in_javascript = self.is_in_js_file(node);
-        acc.enum_tag = acc
-            .is_in_javascript
-            .then(|| self.first_jsdoc_tag(node, SyntaxKind::JSDocEnumTag))
-            .flatten();
-        acc.is_js_object_literal =
-            acc.contextual_type.is_none() && acc.is_in_javascript && acc.enum_tag.is_none();
+        // tsgo checkObjectLiteral (TypeScript 7.1, checker.go:13413-13415): a
+        // JavaScript (not JSON) object literal without a contextual type is a
+        // JS literal; there is no `@enum` tag.
+        acc.is_js_object_literal = acc.contextual_type.is_none()
+            && acc.is_in_javascript
+            && self.node_flags(node) & tsc_types::NodeFlags::JSON_FILE.bits() == 0;
         // Pre-pass: force every computed name (74159-74163).
         for &member_decl in &properties {
             if let Some(name) = self.name_of_named_declaration(member_decl) {
@@ -1158,21 +1156,6 @@ impl<'a> CheckerState<'a> {
                             &diagnostics::Type_0_is_not_assignable_to_type_1,
                         )?;
                         ty = jsdoc_type;
-                    } else {
-                        let enum_type_expression =
-                            acc.enum_tag.and_then(|tag| match self.data_of(tag) {
-                                NodeData::JSDocEnumTag(data) => data.type_expression,
-                                _ => None,
-                            });
-                        if let Some(enum_type_expression) = enum_type_expression {
-                            let enum_type = self.get_type_from_type_node(enum_type_expression)?;
-                            self.check_type_assignable_to(
-                                ty,
-                                enum_type,
-                                Some(member_decl),
-                                &diagnostics::Type_0_is_not_assignable_to_type_1,
-                            )?;
-                        }
                     }
                 }
                 acc.object_flags |=

@@ -968,6 +968,24 @@ impl<'text> Parser<'text> {
         self.parse_error_before_next_finished_node = true;
     }
 
+    /// tsgo's reparser errors (parseErrorAtRange from checkNonIdentifierName):
+    /// a report-only parse diagnostic on a complete tree.
+    fn parse_reparse_error_at(
+        &mut self,
+        start: usize,
+        end: usize,
+        message: &'static DiagnosticMessage,
+    ) {
+        self.push_parse_diagnostic(
+            start,
+            end.saturating_sub(start),
+            message,
+            Vec::new(),
+            ParseDiagnosticOrigin::Reparse,
+        );
+        self.parse_error_before_next_finished_node = true;
+    }
+
     /// The result-bearing face of parseErrorAtCurrentToken used by
     /// parseExpectedMatchingBrackets. tsc attaches related information
     /// only when parseErrorAtPosition actually created a new primary
@@ -10256,7 +10274,8 @@ impl<'text> Parser<'text> {
                 ParseDiagnosticOrigin::Parser => self.recovery_statement_start.unwrap_or(start),
                 ParseDiagnosticOrigin::ScannerTrivia(_)
                 | ParseDiagnosticOrigin::ReferenceDirective
-                | ParseDiagnosticOrigin::Deprecation => start,
+                | ParseDiagnosticOrigin::Deprecation
+                | ParseDiagnosticOrigin::Reparse => start,
             }),
         });
         (diagnostic_index, event_index)
