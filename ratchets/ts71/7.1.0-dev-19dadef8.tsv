@@ -1090,6 +1090,8 @@ compiler/conditionalTypesASI	full	js
 compiler/conditionalTypesSimplifyWhenTrivial	full	js
 compiler/conditionallyDuplicateOverloadsCausedByOverloadResolution	full	js
 compiler/configFileExtendsAsList	full	js
+compiler/conflictingDeclarationsImportFromNamespace1	full	js
+compiler/conflictingDeclarationsImportFromNamespace2	full	js
 compiler/conflictingMemberTypesInBases	full	js
 compiler/conflictingTypeAnnotatedVar	full	js
 compiler/conflictingTypeParameterSymbolTransfer	full	js
@@ -2386,6 +2388,7 @@ compiler/es6ExportDefaultFunctionDeclaration	full	js
 compiler/es6ExportDefaultFunctionDeclaration2	full	js
 compiler/es6ExportDefaultIdentifier	full	js
 compiler/es6ExportEquals	full	js
+compiler/es6ExportEqualsInterop	full	js
 compiler/es6ImportDefaultBinding	full	js
 compiler/es6ImportDefaultBindingDts(target=es2015)	full	js
 compiler/es6ImportDefaultBindingFollowedWithNamedImport	full	js
@@ -2410,6 +2413,8 @@ compiler/es6ImportDefaultBindingNoDefaultProperty	full	js
 compiler/es6ImportDefaultBindingWithExport(target=es2015)	full	js
 compiler/es6ImportEqualsDeclaration	full	js
 compiler/es6ImportEqualsDeclaration2	full	js
+compiler/es6ImportEqualsExportModuleCommonJsError	full	js
+compiler/es6ImportEqualsExportModuleEs2015Error	full	js
 compiler/es6ImportNameSpaceImport	full	js
 compiler/es6ImportNameSpaceImportDts	full	js
 compiler/es6ImportNameSpaceImportInEs5(target=es2015)	full	js
@@ -3266,9 +3271,13 @@ compiler/importInTypePosition	full	js
 compiler/importInsideModule	full	js
 compiler/importNonExportedMember	full	js
 compiler/importNonExportedMember1	full	js
+compiler/importNonExportedMember11	full	js
 compiler/importNonExportedMember12	full	js
 compiler/importNonExportedMember2	full	js
 compiler/importNonExportedMember3	full	js
+compiler/importNonExportedMember5	full	js
+compiler/importNonExportedMember7	full	js
+compiler/importNonExportedMember9	full	js
 compiler/importNotElidedWhenNotFound	full	js
 compiler/importOnAliasedIdentifiers	full	js
 compiler/importPropertyFromMappedType	full	js

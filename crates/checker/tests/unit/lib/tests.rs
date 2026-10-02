@@ -2842,7 +2842,10 @@ fn node20_commonjs_default_import_uses_module_exports_export() {
 }
 
 #[test]
-fn node20_module_exports_default_import_requires_explicit_interop_when_disabled() {
+fn node20_module_exports_default_import_ignores_es_module_interop_false() {
+    // TypeScript 7.1 always enables esModuleInterop (`false` is a removed
+    // value, TS5108 from the config); tsgo (tsc-19dadef8) reports no
+    // semantic row for this default import (tsc 6.0: TS1259).
     let result = check_program(
         &[
             InputFile::new(
@@ -2867,7 +2870,7 @@ fn node20_module_exports_default_import_requires_explicit_interop_when_disabled(
             .iter()
             .map(|diagnostic| diagnostic.code())
             .collect::<Vec<_>>(),
-        [1259],
+        [] as [u32; 0],
         "{:#?}",
         result.diagnostics
     );

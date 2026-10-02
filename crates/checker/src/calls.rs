@@ -6467,7 +6467,6 @@ impl<'a> CheckerState<'a> {
                 Some(module_symbol),
                 specifier,
                 /*dont_resolve_alias*/ true,
-                /*suppress_interop_error*/ false,
             )?;
             if let Some(es_module_symbol) = es_module_symbol {
                 let module_type = self.get_type_of_symbol(es_module_symbol)?;
