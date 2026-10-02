@@ -571,3 +571,21 @@ methodに置き換えられうるJavaScriptの`this[sym] = …`からMethodを�
 - conformance：15,228 configuration、lane A 13,467（変化なし）、full 12,832→12,864（+32）、text 83→93、category 22→21、mismatch 486→445、harness error 44、emit full 12,411→12,412。上がったのは43構成：重複宣言classの32構成がfull（`duplicateClassElements`、`numericClassMembers1`、`numericNamedPropertyDuplicates`、`propertyAndAccessorMerging`、`constructorParameterProperties2`、`privateNameDuplicateField`、`autoAccessor11`、`objectLiteralErrors`…）、`@pretty`の10構成がtext、1構成がcategory→full。ratchet：0 regressions、42行追加・1行raise（`intersectionConstructorReductionCrash`は従来どおり載せない）。最初のfull runでは4構成が退行し、上記2つの例外の移植で解消した。localは型crateの変更なのでworkspace全体のclippyとtest（70 targets、3,619 passed）、2 workerのfull run（792 s）。
 - hosted：PR #627（head `0a4e0c9df`、merge `c74559509`）、run 36974432705 — `plan` 31s、`rust` 8m29s、`conformance (TypeScript 7.1)` 21m34s、`gates` 14s。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main `45f6024cd`と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 132→131、zod 576→559、Playwright 386→382、TypeScript `src/compiler` 360→355、Next.js 837→801、Effect 551→519、VS Code 3,762→3,750（この回もtsgoを含め全体が朝より遅い）。tsc-rs÷tsgoは0.58〜0.99で従来どおり、peak memoryは同等以下（MB main→本branch：313→294、1,303→1,298、768→755、291→293、1,327→1,328、1,046→1,028、5,470→5,302）。退行なし。
+
+## P3-5j `esModuleInterop`／`allowSyntheticDefaultImports`は常にon（2026-10-02）
+
+P3-5i後の集計でunexpected TS2497「This module can only be referenced with ECMAScript imports/exports by turning on
+the '{0}' flag and referencing its default export」が9構成（`conflictingDeclarationsImportFromNamespace1`／`2`、
+`es6ExportEqualsInterop`、`es6ImportEqualsExportModuleCommonJsError`／`Es2015Error`、`importNonExportedMember5`／`7`／`9`／`11`）。
+tsgoは2つのoptionをdeprecatedなtristateとしてだけ持ち、`false`はremoved値（TS5108、P3-5a）で、それ以外ではどこからも
+読まない：checkerはinteropを常にonとして扱い（checker.go:14780「With `esModuleInterop` (always enabled)」）、CommonJS
+transformはinterop helperを常に出し、`resolveESModuleSymbol`にはTS2497の報告が無い。tsc-rsの`es_module_interop_effective`／
+`allow_synthetic_default_imports_effective`は明示の`false`を尊重していたので常に`true`にし、`resolve_es_module_symbol`の
+TS2497 2箇所（`export =`がmodule／variableでないときと、node16〜nodenextの`module.exports` arm）と、それだけに使われていた
+`suppress_interop_error`引数を削除した。
+同じ理由でTS1259「Module '{0}' can only be default-imported using the '{1}' flag」の2箇所（node20〜nodenextの
+`module.exports` default importと、`export =` moduleのdefault import）も到達しなくなったので削除した（tsgoにTS1259は無い）。
+unit testは1件を再pin：`esModuleInterop: false`でのnode20の`module.exports` default importはtsgo（`tsc-19dadef8`）と同じく
+semantic rowなし（configのTS5108はprogram側）。
+- conformance：15,228 configuration、lane A 13,467（変化なし）、full 12,864→12,873（+9）、text 93、category 21、mismatch 445→436、harness error 44、emit full 12,412。fullに上がったのはTS2497 classの9構成すべて。ratchet：0 regressions、9行追加（`intersectionConstructorReductionCrash`は従来どおり載せない）。localは型crateの変更なのでworkspace全体のclippyとtest（70 targets、3,619 passed）、2 workerのfull run（800 s）。
+- hosted：HOSTED_RECORD

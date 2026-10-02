@@ -525,17 +525,17 @@ impl CompilerOptions {
         }
     }
 
-    /// tsc _computedOptions.esModuleInterop.computeValue (18079-region):
-    /// explicit value wins; TS6 defaults TRUE.
+    /// Always true in TypeScript 7.1: tsgo keeps `esModuleInterop` only as a
+    /// deprecated option whose `false` value is removed (TS5108), and never
+    /// reads it otherwise (interop is always enabled).
     pub fn es_module_interop_effective(&self) -> bool {
-        self.es_module_interop.unwrap_or(true)
+        true
     }
 
-    /// tsc _computedOptions.allowSyntheticDefaultImports.computeValue
-    /// (18088-region): explicit value wins; TS6 defaults TRUE (the TS5
-    /// esModuleInterop/System derivation is gone).
+    /// Always true in TypeScript 7.1, like `es_module_interop_effective`
+    /// (`allowSyntheticDefaultImports: false` is a removed value, TS5108).
     pub fn allow_synthetic_default_imports_effective(&self) -> bool {
-        self.allow_synthetic_default_imports.unwrap_or(true)
+        true
     }
 
     pub fn resolve_json_module_effective(&self) -> bool {

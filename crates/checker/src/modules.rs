@@ -2289,15 +2289,8 @@ impl<'a> CheckerState<'a> {
                         Some(node),
                         dont_resolve_alias,
                     )? {
-                        if !self.options.es_module_interop_effective() {
-                            let module_name = self.symbol_display_name(module_symbol);
-                            self.error_at_js(
-                                self.name_of_import_binding(node).or(Some(node)),
-                                &diagnostics::Module_0_can_only_be_default_imported_using_the_1_flag,
-                                &[(&module_name).into(), ("esModuleInterop").into()],
-                            );
-                            return Ok(None);
-                        }
+                        // tsgo: esModuleInterop is always on, so the transpiled
+                        // default import works (no TS1259).
                         self.mark_symbol_of_alias_declaration_if_type_only(
                             Some(node),
                             Some(module_exports),
@@ -2329,38 +2322,10 @@ impl<'a> CheckerState<'a> {
             Some(specifier),
         )?;
         if export_default_symbol.is_none() && !has_synthetic_default && !has_default_only {
-            if self.has_export_assignment_symbol(module_symbol)
-                && !self.options.allow_synthetic_default_imports_effective()
-            {
-                let compiler_option_name = if self.options.emit_module_kind() >= 5 {
-                    "allowSyntheticDefaultImports"
-                } else {
-                    "esModuleInterop"
-                };
-                let export_equals_symbol = self
-                    .binder
-                    .symbol(module_symbol)
-                    .exports()
-                    .get(InternalSymbolName::EXPORT_EQUALS)
-                    .copied();
-                let export_assignment = export_equals_symbol
-                    .and_then(|symbol| self.binder.symbol(symbol).value_declaration);
-                let module_name = self.symbol_display_name(module_symbol);
-                let error_node = self.name_of_import_binding(node).or(Some(node));
-                let related = export_assignment.map(|assignment| {
-                    self.related_info_for_node_js(
-                        assignment,
-                        &diagnostics::This_module_is_declared_with_export_and_can_only_be_used_with_a_default_import_when_using_the_0_flag,
-                        &[(compiler_option_name).into()],
-                    )
-                });
-                self.error_at_with_related_js(
-                    error_node,
-                    &diagnostics::Module_0_can_only_be_default_imported_using_the_1_flag,
-                    &[(&module_name).into(), (compiler_option_name).into()],
-                    related.into_iter().collect(),
-                );
-            } else if self.kind_of(node) == SyntaxKind::ImportClause {
+            // tsgo (TypeScript 7.1): allowSyntheticDefaultImports is always on,
+            // so an `export =` module has no "can only be default-imported
+            // using the flag" row (TS1259).
+            if self.kind_of(node) == SyntaxKind::ImportClause {
                 self.report_non_default_export(module_symbol, node)?;
             } else {
                 let name = match self.data_of(node) {
@@ -2541,12 +2506,8 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         };
         let immediate = self.resolve_external_module_name(node, module_specifier, false)?;
-        let resolved = self.resolve_es_module_symbol(
-            immediate,
-            module_specifier,
-            dont_resolve_alias,
-            /*suppress_interop_error*/ false,
-        )?;
+        let resolved =
+            self.resolve_es_module_symbol(immediate, module_specifier, dont_resolve_alias)?;
         self.mark_symbol_of_alias_declaration_if_type_only(
             Some(node),
             immediate,
@@ -2584,12 +2545,8 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         };
         let immediate = self.resolve_external_module_name(node, module_specifier, false)?;
-        let resolved = self.resolve_es_module_symbol(
-            immediate,
-            module_specifier,
-            dont_resolve_alias,
-            /*suppress_interop_error*/ false,
-        )?;
+        let resolved =
+            self.resolve_es_module_symbol(immediate, module_specifier, dont_resolve_alias)?;
         self.mark_symbol_of_alias_declaration_if_type_only(
             Some(node),
             immediate,
@@ -2755,13 +2712,10 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         }
         let name_text = self.module_export_name_text_escaped(name);
-        let suppress_interop_error = name_text == InternalSymbolName::DEFAULT
-            && self.options.allow_synthetic_default_imports_effective();
         let target_symbol = self.resolve_es_module_symbol(
             module_symbol,
             module_specifier,
             /*dont_resolve_alias*/ false,
-            suppress_interop_error,
         )?;
         let Some(target_symbol) = target_symbol else {
             return Ok(None);
@@ -7578,7 +7532,6 @@ impl<'a> CheckerState<'a> {
         module_symbol: Option<SymbolId>,
         referencing_location: NodeId,
         dont_resolve_alias: bool,
-        suppress_interop_error: bool,
     ) -> CheckResult<Option<SymbolId>> {
         let symbol = self.resolve_external_module_symbol(module_symbol, dont_resolve_alias)?;
         let Some(symbol) = symbol else {
@@ -7587,29 +7540,9 @@ impl<'a> CheckerState<'a> {
         if dont_resolve_alias {
             return Ok(Some(symbol));
         }
-        let symbol_flags = self.binder.symbol(symbol).flags;
-        let has_source_file_declaration = self
-            .binder
-            .symbol(symbol)
-            .declarations
-            .iter()
-            .any(|&declaration| self.kind_of(declaration) == SyntaxKind::SourceFile);
-        if !suppress_interop_error
-            && !symbol_flags.intersects(SymbolFlags::MODULE | SymbolFlags::VARIABLE)
-            && !has_source_file_declaration
-        {
-            let compiler_option_name = if self.options.emit_module_kind() >= 5 {
-                "allowSyntheticDefaultImports"
-            } else {
-                "esModuleInterop"
-            };
-            self.error_at_js(
-                Some(referencing_location),
-                &diagnostics::This_module_can_only_be_referenced_with_ECMAScript_imports_exports_by_turning_on_the_0_flag_and_referencing_its_default_export,
-                &[(compiler_option_name).into()],
-            );
-            return Ok(Some(symbol));
-        }
+        // tsgo resolveESModuleSymbol (TypeScript 7.1) has no "turn on
+        // esModuleInterop / allowSyntheticDefaultImports" report (TS2497):
+        // both options are always on.
         if let Some(reference_parent) = self.parent_of(referencing_location) {
             let namespace_import =
                 if self.kind_of(reference_parent) == SyntaxKind::ImportDeclaration {
@@ -7649,16 +7582,6 @@ impl<'a> CheckerState<'a> {
                             Some(namespace_import),
                             dont_resolve_alias,
                         )? {
-                            if !suppress_interop_error
-                                && !symbol_flags
-                                    .intersects(SymbolFlags::MODULE | SymbolFlags::VARIABLE)
-                            {
-                                self.error_at_js(
-                                    Some(referencing_location),
-                                    &diagnostics::This_module_can_only_be_referenced_with_ECMAScript_imports_exports_by_turning_on_the_0_flag_and_referencing_its_default_export,
-                                    &[("esModuleInterop").into()],
-                                );
-                            }
                             if self.options.es_module_interop_effective()
                                 && self.has_interop_signatures(ty)?
                             {
@@ -8265,17 +8188,6 @@ impl<'a> CheckerState<'a> {
             .iter()
             .find(|&&declaration| self.kind_of(declaration) == SyntaxKind::SourceFile)
             .map(|&declaration| self.binder.file_index_of_node(declaration))
-    }
-
-    /// The import-binding NAME the 2594-family rows point at
-    /// (node.name of an ImportClause/ImportSpecifier/ExportSpecifier).
-    fn name_of_import_binding(&self, node: NodeId) -> Option<NodeId> {
-        match self.data_of(node) {
-            NodeData::ImportClause(data) => data.name,
-            NodeData::ImportSpecifier(data) => data.name,
-            NodeData::ExportSpecifier(data) => data.name,
-            _ => None,
-        }
     }
 
     /// isRightSideOfQualifiedNameOrPropertyAccess for the
