@@ -667,7 +667,9 @@ fn assignment_declarations_bind_oracle_pinned_symbol_faces() {
     // members: `this.i`, `F.prototype.p` and the `F.prototype` descriptor
     // declare nothing, so F has no Class flag and no members. tsgo declares
     // every expando Property|Assignment after the file is bound, and creates
-    // no namespace, so F keeps its Function flag alone.
+    // no namespace, so F keeps its Function flag alone. The CommonJS named
+    // exports are FunctionScopedVariables in the file's exports, and
+    // `module.exports = F` is an Alias (its right side is an entity name).
     let source = parse_named(
         "a.js",
         "\
@@ -731,28 +733,19 @@ module.exports = F;
         ["x", "y", InternalSymbolName::EXPORT_EQUALS]
     );
     assert_eq!(
-        binder
-            .symbols
-            .symbol(file_symbol.exports()["x"])
-            .flags
-            .bits(),
-        1_048_580
+        binder.symbols.symbol(file_symbol.exports()["x"]).flags,
+        SymbolFlags::FUNCTION_SCOPED_VARIABLE
     );
     assert_eq!(
-        binder
-            .symbols
-            .symbol(file_symbol.exports()["y"])
-            .flags
-            .bits(),
-        1_048_580
+        binder.symbols.symbol(file_symbol.exports()["y"]).flags,
+        SymbolFlags::FUNCTION_SCOPED_VARIABLE
     );
     assert_eq!(
         binder
             .symbols
             .symbol(file_symbol.exports()[InternalSymbolName::EXPORT_EQUALS])
-            .flags
-            .bits(),
-        69_206_016
+            .flags,
+        SymbolFlags::ALIAS
     );
     assert!(binder.common_js_module_indicator.is_some());
     assert!(binder
@@ -834,10 +827,11 @@ const { V: local } = ordinary;
 }
 
 #[test]
-fn common_js_aliases_follow_initializers_without_treating_every_alias_as_exports() {
-    // Oracle: TypeScript 6.0.3. Aliases initialized from exports or
-    // module.exports feed named exports, while an unrelated entity
-    // name on the right of module.exports remains an export= alias.
+fn common_js_aliases_of_exports_declare_nothing() {
+    // TypeScript 7.1 (tsgo): `e.x = …` on an alias of `exports` or
+    // `module.exports` is an expando of a variable whose initializer is no
+    // function, class or empty object literal, so it declares nothing; the
+    // entity name on the right of module.exports makes export= an Alias.
     let source = parse_named(
         "a.js",
         "\
@@ -860,16 +854,64 @@ module.exports = imported;
             .keys()
             .map(|name| name.as_str().expect("these test names are scalar"))
             .collect::<Vec<_>>(),
-        ["x", "y", InternalSymbolName::EXPORT_EQUALS]
+        [InternalSymbolName::EXPORT_EQUALS]
     );
     assert_eq!(
         binder
             .symbols
             .symbol(file_symbol.exports()[InternalSymbolName::EXPORT_EQUALS])
-            .flags
-            .bits(),
-        69_206_016
+            .flags,
+        SymbolFlags::ALIAS
     );
+}
+
+#[test]
+fn export_equals_takes_the_type_exports_of_its_module() {
+    // TypeScript 7.1 (tsgo bindCommonJSTypeExports, binder.go:1043-1054):
+    // beside an `export=`, the type and namespace exports of a module source
+    // file or an ambient module are also exports of the `export=` symbol,
+    // which becomes a namespace module; value exports stay where they are.
+    let ambient = parse_named(
+        "a.d.ts",
+        "declare module \"m\" {\n\
+             function f(): void;\n\
+             export = f;\n\
+             export interface I {}\n\
+             export const v: number;\n\
+         }\n",
+        false,
+    );
+    let module_file = parse_named(
+        "m.ts",
+        "function f() {}\nexport = f;\nexport type I = number;\nexport const v = 1;\n",
+        false,
+    );
+    for (source, module) in [
+        (
+            &ambient,
+            find_nodes(&ambient, SyntaxKind::ModuleDeclaration)[0],
+        ),
+        (&module_file, module_file.root),
+    ] {
+        let binder = bind(source);
+        let module_symbol = binder.symbols.symbol(binder.node_symbol[&module]);
+        let export_equals = binder
+            .symbols
+            .symbol(module_symbol.exports()[InternalSymbolName::EXPORT_EQUALS]);
+        assert_eq!(
+            export_equals.flags,
+            SymbolFlags::ALIAS | SymbolFlags::NAMESPACE_MODULE
+        );
+        assert_eq!(
+            export_equals
+                .exports()
+                .keys()
+                .map(|name| name.as_str().expect("these test names are scalar"))
+                .collect::<Vec<_>>(),
+            ["I"]
+        );
+        assert_eq!(export_equals.exports()["I"], module_symbol.exports()["I"]);
+    }
 }
 
 #[test]

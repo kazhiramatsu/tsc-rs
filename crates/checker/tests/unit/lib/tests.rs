@@ -5672,7 +5672,12 @@ fn checked_js_publishes_class_this_miss_from_jsdoc_this_annotated_arrow() {
 
 #[test]
 fn checked_js_publishes_primitive_module_exports_assignment_misses() {
+    // TypeScript 7.1 (tsgo, tsc-19dadef8): an export assignment beside an
+    // exported property is TS2309 whatever its value, and
+    // `module.exports.p` reads the assigned value's type, so the empty
+    // object literal misses `allowed` as the number misses `missing`.
     let primitive = "module.exports = 1;\nmodule.exports.missing = 1;\n";
+    let object = "module.exports = {};\nmodule.exports.allowed = 1;\n";
     let result = check_program(
         &[
             InputFile::new(
@@ -5680,10 +5685,7 @@ fn checked_js_publishes_primitive_module_exports_assignment_misses() {
                 "declare var module: { exports: any };\n".to_owned(),
             ),
             InputFile::new("primitive.js".to_owned(), primitive.to_owned()),
-            InputFile::new(
-                "object.js".to_owned(),
-                "module.exports = {};\nmodule.exports.allowed = 1;\n".to_owned(),
-            ),
+            InputFile::new("object.js".to_owned(), object.to_owned()),
         ],
         &CompilerOptions {
             allow_js: true,
@@ -5705,22 +5707,57 @@ fn checked_js_publishes_primitive_module_exports_assignment_misses() {
                 diagnostic.length.unwrap_or(u32::MAX),
             ))
             .collect::<Vec<_>>(),
-        [(
-            Some("primitive.js"),
-            2339,
-            primitive.find("missing").expect("missing property") as u32,
-            "missing".len() as u32,
-        )]
+        [
+            (
+                Some("object.js"),
+                2309,
+                0,
+                "module.exports = {}".len() as u32,
+            ),
+            (
+                Some("object.js"),
+                2339,
+                object.find("allowed").expect("allowed property") as u32,
+                "allowed".len() as u32,
+            ),
+            (
+                Some("primitive.js"),
+                2309,
+                0,
+                "module.exports = 1".len() as u32,
+            ),
+            (
+                Some("primitive.js"),
+                2339,
+                primitive.find("missing").expect("missing property") as u32,
+                "missing".len() as u32,
+            ),
+        ]
     );
 }
 
 #[test]
-fn checked_js_common_js_object_replacement_unions_direct_export_members() {
+fn checked_js_common_js_object_replacement_types_the_module() {
+    // TypeScript 7.1 (tsgo, tsc-19dadef8): the module is the export
+    // assignment's object literal alone (no union with the exported
+    // properties), so the string assignments to its members are TS2322,
+    // `justProperty` is TS2339 in both files, and the export assignment
+    // beside the exported properties is TS2309.
+    let mod1 = "module.exports.bothBefore = 'string';\n\
+                module.exports = {\n\
+                    justExport: 1,\n\
+                    bothBefore: 2,\n\
+                    bothAfter: 3,\n\
+                };\n\
+                module.exports.bothAfter = 'string';\n\
+                module.exports.justProperty = 'string';\n";
     let source = "const mod1 = require('./mod1');\n\
                       mod1.justExport.toFixed();\n\
                       mod1.bothBefore.toFixed();\n\
                       mod1.bothAfter.toFixed();\n\
                       mod1.justProperty.length;\n";
+    const MISSING: &str = "Property 'justProperty' does not exist on type '{ justExport: number; bothBefore: number; bothAfter: number; }'.";
+    const NOT_NUMBER: &str = "Type 'string' is not assignable to type 'number'.";
     let result = check_program_with_libs(
         &[es5_lib()],
         &[
@@ -5730,18 +5767,7 @@ fn checked_js_common_js_object_replacement_unions_direct_export_members() {
                            declare function require(name: string): any;\n"
                     .to_owned(),
             ),
-            InputFile::new(
-                "mod1.js".to_owned(),
-                "module.exports.bothBefore = 'string';\n\
-                           module.exports = {\n\
-                               justExport: 1,\n\
-                               bothBefore: 2,\n\
-                               bothAfter: 3,\n\
-                           };\n\
-                           module.exports.bothAfter = 'string';\n\
-                           module.exports.justProperty = 'string';\n"
-                    .to_owned(),
-            ),
+            InputFile::new("mod1.js".to_owned(), mod1.to_owned()),
             InputFile::new("a.js".to_owned(), source.to_owned()),
         ],
         &CompilerOptions {
@@ -5778,20 +5804,43 @@ fn checked_js_common_js_object_replacement_unions_direct_export_members() {
             (
                 Some("a.js".to_owned()),
                 2339,
-                source.find("bothBefore.toFixed").expect("before access") as u32
-                    + "bothBefore.".len() as u32,
-                "toFixed".len() as u32,
-                "Property 'toFixed' does not exist on type 'number | \"string\"'.".to_owned(),
-                Some("Property 'toFixed' does not exist on type '\"string\"'.".to_owned()),
+                source.find("justProperty").expect("property access") as u32,
+                "justProperty".len() as u32,
+                MISSING.to_owned(),
+                None,
             ),
             (
-                Some("a.js".to_owned()),
+                Some("mod1.js".to_owned()),
+                2322,
+                0,
+                "module.exports.bothBefore".len() as u32,
+                NOT_NUMBER.to_owned(),
+                None,
+            ),
+            (
+                Some("mod1.js".to_owned()),
+                2309,
+                mod1.find("module.exports = {").expect("export assignment") as u32,
+                "module.exports = {\njustExport: 1,\nbothBefore: 2,\nbothAfter: 3,\n}".len() as u32,
+                "An export assignment cannot be used in a module with other exported elements."
+                    .to_owned(),
+                None,
+            ),
+            (
+                Some("mod1.js".to_owned()),
+                2322,
+                mod1.find("module.exports.bothAfter").expect("after export") as u32,
+                "module.exports.bothAfter".len() as u32,
+                NOT_NUMBER.to_owned(),
+                None,
+            ),
+            (
+                Some("mod1.js".to_owned()),
                 2339,
-                source.find("bothAfter.toFixed").expect("after access") as u32
-                    + "bothAfter.".len() as u32,
-                "toFixed".len() as u32,
-                "Property 'toFixed' does not exist on type 'number | \"string\"'.".to_owned(),
-                Some("Property 'toFixed' does not exist on type '\"string\"'.".to_owned()),
+                mod1.find("justProperty").expect("property export") as u32,
+                "justProperty".len() as u32,
+                MISSING.to_owned(),
+                None,
             ),
         ]
     );

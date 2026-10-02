@@ -1281,7 +1281,7 @@ fn checked_js_require_contains_cross_file_duplicate_export_flow() {
 }
 
 #[test]
-fn checked_js_duplicate_commonjs_export_alias_uses_exporting_file_end_flow() {
+fn checked_js_duplicate_commonjs_export_alias_reads_the_declared_union() {
     let files = [
         (
             "/lib.d.ts",
@@ -1305,6 +1305,9 @@ fn checked_js_duplicate_commonjs_export_alias_uses_exporting_file_end_flow() {
                  const result = apply.toFixed();\n",
         ),
     ];
+    // TypeScript 7.1 (tsgo, tsc-19dadef8): the importing alias reads the
+    // declared type of the export, the union of its assignments (only the
+    // first, `undefined`, is dropped), not the exporting file's end flow.
     assert_eq!(
         program_rows(
             &files,
@@ -1316,8 +1319,10 @@ fn checked_js_duplicate_commonjs_export_alias_uses_exporting_file_end_flow() {
                 ..CompilerOptions::default()
             },
         ),
-        [],
-        "the importing alias sees the final number assignment, not the export's union"
+        [
+            ("/main.js".to_owned(), 18048, 51, "apply".len() as u32),
+            ("/main.js".to_owned(), 2339, 57, "toFixed".len() as u32),
+        ]
     );
 }
 
@@ -1737,7 +1742,11 @@ fn jsdoc_import_aliases_resolve_named_namespace_and_default_targets() {
 }
 
 #[test]
-fn checked_js_imported_jsdoc_namespace_resolves_to_its_type_only_face() {
+fn checked_js_imported_jsdoc_namespace_merges_with_its_const() {
+    // TypeScript 7.1 (tsgo, tsc-19dadef8): the dotted typedef wraps its
+    // alias in an exported JSDoc namespace that merges with the `myTypes`
+    // const, so the import resolves to a symbol with a value face and
+    // reports nothing (no TS18042).
     let declaration = "/**\n\
                            * @namespace myTypes\n\
                            * @global\n\
@@ -1781,23 +1790,13 @@ fn checked_js_imported_jsdoc_namespace_resolves_to_its_type_only_face() {
             assert_eq!(target, exported);
         },
     );
-    let result = check_program(
-        &[
-            InputFile::new("/types.js".to_owned(), declaration.to_owned()),
-            InputFile::new("/main.js".to_owned(), source.to_owned()),
-        ],
-        &options,
-    );
     assert_eq!(
-            targeted_rows(&result, &[18042]),
-            [(
-                "/main.js".to_owned(),
-                18042,
-                source.find("myTypes").expect("imported namespace") as u32,
-                "myTypes".len() as u32,
-                "'myTypes' is a type and cannot be imported in JavaScript files. Use 'import(\"./types.js\").myTypes' in a JSDoc type annotation.".to_owned(),
-            )]
-        );
+        program_rows(
+            &[("/types.js", declaration), ("/main.js", source)],
+            &options
+        ),
+        []
+    );
 }
 
 #[test]
@@ -2990,40 +2989,65 @@ fn checked_js_destructured_require_aliases_preserve_bare_class_and_accessed_valu
 }
 
 #[test]
-fn destructured_require_sees_named_members_merged_onto_commonjs_export_equals() {
-    // getCommonJsExportEquals 49691-49714 merges the file's named
-    // exports onto the resolved export= target before the binding
-    // element selects its module member.
-    let files = [
-        (
-            "/commonJSAliasedExport.js",
-            "const donkey = ast => ast;\n\
-                 function funky(declaration) { return false; }\n\
-                 module.exports = donkey;\n\
-                 module.exports.funky = funky;\n",
-        ),
-        (
-            "/bug43713.js",
-            "const { funky } = require('./commonJSAliasedExport');\n\
-                 /** @type {boolean} */\n\
-                 var diddy;\n\
-                 var diddy = funky(1);\n",
-        ),
-    ];
-    let rows = program_rows(
-        &files,
-        &CompilerOptions {
-            allow_js: true,
-            check_js: Some(true),
-            ..CompilerOptions::default()
-        },
-    );
+fn destructured_require_misses_named_exports_beside_commonjs_export_equals() {
+    // TypeScript 7.1 (tsgo, tsc-19dadef8): the module resolves to its
+    // export= target alone (no getCommonJsExportEquals merge), so `funky`
+    // is no member of the module (TS2305) and `module.exports.funky` misses
+    // on the function type (TS2339); the export assignment beside the
+    // exported property is TS2309.
+    let exporting = "const donkey = ast => ast;\n\
+                     function funky(declaration) { return false; }\n\
+                     module.exports = donkey;\n\
+                     module.exports.funky = funky;\n";
+    let importing = "const { funky } = require('./commonJSAliasedExport');\n\
+                     /** @type {boolean} */\n\
+                     var diddy;\n\
+                     var diddy = funky(1);\n";
+    let at = |text: &str, needle: &str| text.find(needle).expect("fixture needle") as u32;
     assert_eq!(
-        rows.into_iter()
-            .filter(|(_, code, _, _)| *code == 2339)
-            .map(|(file, code, _, _)| (file, code))
-            .collect::<Vec<_>>(),
-        []
+        program_rows(
+            &[
+                ("/commonJSAliasedExport.js", exporting),
+                ("/bug43713.js", importing),
+            ],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        ),
+        [
+            (
+                "/bug43713.js".to_owned(),
+                2305,
+                at(importing, "funky"),
+                "funky".len() as u32,
+            ),
+            (
+                "/commonJSAliasedExport.js".to_owned(),
+                7006,
+                at(exporting, "ast"),
+                "ast".len() as u32,
+            ),
+            (
+                "/commonJSAliasedExport.js".to_owned(),
+                7006,
+                at(exporting, "declaration"),
+                "declaration".len() as u32,
+            ),
+            (
+                "/commonJSAliasedExport.js".to_owned(),
+                2309,
+                at(exporting, "module.exports = donkey"),
+                "module.exports = donkey".len() as u32,
+            ),
+            (
+                "/commonJSAliasedExport.js".to_owned(),
+                2339,
+                at(exporting, "funky = funky"),
+                "funky".len() as u32,
+            ),
+        ]
     );
 }
 
@@ -3443,7 +3467,89 @@ fn declaration_import_suggestion_uses_usage_emit_mode() {
 }
 
 #[test]
-fn checked_js_mixed_common_js_exports_publish_redeclarations() {
+fn export_equals_beside_type_exports_reports_only_a_shadowed_namespace() {
+    // TypeScript 7.1 (tsgo, tsc-19dadef8 with the same noLib globals): an
+    // ambient module's type exports are also exports of its `export=`
+    // (bindCommonJSTypeExports), so `import { I }` finds them, and TS2309
+    // needs a value export or an `export=` target whose namespace exports
+    // types of its own (hasShadowedNamespace).
+    let allowed = "declare module \"m\" {\n\
+                   function f(): void;\n\
+                   export = f;\n\
+                   export interface I { x: number }\n\
+                   }\n";
+    let shadowed = "declare module \"m\" {\n\
+                    function f(): void;\n\
+                    namespace f { interface J {} }\n\
+                    export = f;\n\
+                    export interface I { x: number }\n\
+                    }\n";
+    let importer = "import { I } from \"m\";\nlet i: I = { x: 1 };\nexport {};\n";
+    let options = CompilerOptions {
+        module: Some(1),
+        ..CompilerOptions::default()
+    };
+    assert_eq!(
+        program_rows(&[("/a.d.ts", allowed), ("/b.ts", importer)], &options),
+        []
+    );
+    assert_eq!(
+        program_rows(&[("/a.d.ts", shadowed), ("/b.ts", importer)], &options),
+        [(
+            "/a.d.ts".to_owned(),
+            2309,
+            shadowed.find("export =").expect("export assignment") as u32,
+            "export = f;".len() as u32,
+        )]
+    );
+}
+
+#[test]
+fn checked_js_require_alias_resolves_through_a_namespace_export_equals() {
+    // TypeScript 7.1 (tsgo, tsc-19dadef8): the typedef makes set.js's
+    // `export=` an Alias|NamespaceModule, so resolveEntityName follows the
+    // alias chain from `Set` until a symbol has the meaning asked for: the
+    // class for `Set<string>`, the promoted typedef for
+    // `Set.SomeUnrelatedGeneric`. Only the final assignment is an error.
+    let set =
+        "/**\n * @template D\n * @typedef {(a: D, b: D) => number} SomeUnrelatedGeneric\n */\n\
+               /**\n * @template T\n */\n\
+               class SomeGenericClass {}\n\
+               module.exports = SomeGenericClass;\n";
+    let index = "const Set = require(\"./set\");\n\
+                 /** @typedef {Set<string>} MyDefinedType */\n\
+                 /** @type {MyDefinedType} */\n\
+                 var x = new Set();\n\
+                 /** @type {Set.SomeUnrelatedGeneric<number>} */\n\
+                 var g = (a, b) => a - b;\n\
+                 /** @type {number} */\n\
+                 var bad = x;\n";
+    assert_eq!(
+        program_rows(
+            &[("/set.js", set), ("/index.js", index)],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                target: Some(2),
+                ..CompilerOptions::default()
+            },
+        ),
+        [(
+            "/index.js".to_owned(),
+            2322,
+            index.find("bad").expect("final variable") as u32,
+            "bad".len() as u32,
+        )]
+    );
+}
+
+#[test]
+fn checked_js_mixed_common_js_exports_check_against_the_export_assignment() {
+    // TypeScript 7.1 (tsgo, tsc-19dadef8): `module.exports.p` reads the
+    // type of `module.exports = A` (`typeof A` with its expandos), so the
+    // string assignments are TS2322 and `justProperty` is TS2339; the
+    // export assignment beside the exported properties is TS2309, and `A`
+    // is no constructor (TS2683 for its `this`).
     let source = "module.exports.bothBefore = 'string';\n\
                       A.justExport = 4;\n\
                       A.bothBefore = 2;\n\
@@ -3474,30 +3580,16 @@ fn checked_js_mixed_common_js_exports_publish_redeclarations() {
         [
             (
                 "/mod1.js".to_owned(),
-                2323,
+                2322,
                 offset("module.exports.bothBefore"),
                 "module.exports.bothBefore".len() as u32,
             ),
-            // An expando's declaration is the assignment itself (tsgo), so
-            // these CommonJS-only rows span the whole assignment until the
-            // CommonJS port replaces them.
             (
                 "/mod1.js".to_owned(),
-                2323,
-                offset("A.bothBefore"),
-                "A.bothBefore = 2".len() as u32,
+                2309,
+                offset("module.exports = A"),
+                "module.exports = A".len() as u32,
             ),
-            (
-                "/mod1.js".to_owned(),
-                2323,
-                offset("A.bothAfter"),
-                "A.bothAfter = 3".len() as u32,
-            ),
-            // TypeScript 7.1: `A` is no constructor (TS2683 for its `this`,
-            // as tsgo reports). tsgo's CommonJS rows differ from these TS2323
-            // rows (TS2322 at both `bothBefore`/`bothAfter` exports, TS2309 at
-            // `module.exports = A`, TS2339 at `justProperty`); that is the
-            // CommonJS export binding of the JavaScript declarations port.
             (
                 "/mod1.js".to_owned(),
                 2683,
@@ -3506,9 +3598,15 @@ fn checked_js_mixed_common_js_exports_publish_redeclarations() {
             ),
             (
                 "/mod1.js".to_owned(),
-                2323,
+                2322,
                 offset("module.exports.bothAfter"),
                 "module.exports.bothAfter".len() as u32,
+            ),
+            (
+                "/mod1.js".to_owned(),
+                2339,
+                offset("justProperty"),
+                "justProperty".len() as u32,
             ),
         ]
     );
@@ -3553,13 +3651,16 @@ fn export_equals_keeps_broader_common_js_source_type_contained() {
 }
 
 #[test]
-fn duplicated_common_js_export_alias_uses_assignment_flow() {
+fn duplicated_common_js_export_drops_its_first_undefined_assignment() {
+    // TypeScript 7.1 (tsgo, tsc-19dadef8): the export's declared type
+    // leaves out the first assignment of `undefined`, so it is the
+    // function type alone, which an assignment cannot narrow (it is no
+    // union): the first call is no TS2722.
     let source = "exports.apply = undefined;\n\
                       function a() {}\n\
                       exports.apply()\n\
                       exports.apply = a;\n\
                       exports.apply()\n";
-    let first_call = source.find("exports.apply()").expect("fixture call") as u32;
     assert_eq!(
         program_rows(
             &[("/mod.js", source)],
@@ -3570,12 +3671,7 @@ fn duplicated_common_js_export_alias_uses_assignment_flow() {
                 ..CompilerOptions::default()
             },
         ),
-        [(
-            "/mod.js".to_owned(),
-            2722,
-            first_call,
-            "exports.apply".len() as u32,
-        )]
+        []
     );
 }
 

@@ -813,12 +813,14 @@ fn commonjs_exported_expression_preserves_literal_type() {
 }
 
 #[test]
-fn commonjs_source_file_this_uses_module_export_type() {
-    let actual = checked_js_rows("exports.x = 1;\nthis.x.bad;\n")
-        .into_iter()
-        .filter(|row| row.0 == 2339)
-        .collect::<Vec<_>>();
-    assert_eq!(actual, [(2339, 22, 3)]);
+fn commonjs_source_file_this_is_global_this() {
+    // TypeScript 7.1 (tsgo, tsc-19dadef8 with the same noLib globals):
+    // tryGetThisTypeAt gives a source file without an ES module indicator
+    // `typeof globalThis`, CommonJS or not, so `this.x` is TS7017.
+    assert_eq!(
+        checked_js_rows("exports.x = 1;\nthis.x.bad;\n"),
+        [(7017, 20, 1)]
+    );
 }
 
 #[test]

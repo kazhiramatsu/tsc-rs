@@ -868,36 +868,6 @@ impl<'a> CheckerState<'a> {
                 Ok(result_type)
             }
             SyntaxKind::EqualsToken => {
-                let declaration_kind = self
-                    .parent_of(left)
-                    .filter(|&parent| self.kind_of(parent) == SyntaxKind::BinaryExpression)
-                    .map_or(tsc_binder::AssignmentDeclarationKind::None, |assignment| {
-                        tsc_binder::get_assignment_declaration_kind(
-                            self.binder.source_of_node(assignment),
-                            assignment,
-                        )
-                    });
-                self.check_assignment_declaration(declaration_kind, right_type)?;
-                // CommonJS bridge until the CommonJS port: tsc-rs still types a
-                // module as tsc 6.0 did (its object merges `exports.p`
-                // members), so a `module.exports = <object>` replacement is
-                // not checked against it and has the module's type.
-                if declaration_kind == tsc_binder::AssignmentDeclarationKind::ModuleExports {
-                    if !self
-                        .tables
-                        .flags_of(right_type)
-                        .intersects(TypeFlags::OBJECT)
-                    {
-                        self.check_assignment_operator(
-                            left,
-                            operator_token,
-                            right,
-                            left_type,
-                            right_type,
-                        )?;
-                    }
-                    return Ok(left_type);
-                }
                 // tsgo checkBinaryLikeExpressionWorker (TypeScript 7.1): every
                 // `=` is checked for assignability, an assignment declaration
                 // included, and the expression has the right side's type.
@@ -920,63 +890,6 @@ impl<'a> CheckerState<'a> {
             }
             _ => unreachable!("parser operator domain is closed (tsc Debug.fail)"),
         }
-    }
-
-    /// tsc-port: checkAssignmentDeclaration @6.0.3
-    /// tsc-hash: 1daea1c4ab15e44151d23835b48f2a4c89eb86dae278cbc47b5753c6eae555b8
-    /// tsc-span: _tsc.js:80273-80295
-    fn check_assignment_declaration(
-        &mut self,
-        kind: tsc_binder::AssignmentDeclarationKind,
-        right_type: TypeId,
-    ) -> CheckResult<()> {
-        if kind != tsc_binder::AssignmentDeclarationKind::ModuleExports {
-            return Ok(());
-        }
-        for property in self.get_properties_of_object_type_owned(right_type)? {
-            let property_type = self.get_type_of_symbol(property)?;
-            let Some(property_type_symbol) = self.tables.type_of(property_type).symbol else {
-                continue;
-            };
-            if !self
-                .binder
-                .symbol(property_type_symbol)
-                .flags
-                .intersects(SymbolFlags::CLASS)
-            {
-                continue;
-            }
-            let name = self.binder.symbol(property).escaped_name;
-            let location = self.binder.symbol(property).value_declaration;
-            let Some(symbol) =
-                self.resolve_name(location, name, SymbolFlags::TYPE, None, false, false)?
-            else {
-                continue;
-            };
-            if !self
-                .binder
-                .symbol(symbol)
-                .declarations
-                .iter()
-                .any(|&declaration| self.kind_of(declaration) == SyntaxKind::JSDocTypedefTag)
-            {
-                continue;
-            }
-            let display = name.unescape();
-            self.add_duplicate_declaration_errors_for_symbols(
-                symbol,
-                &tsc_diagnostics::gen::Duplicate_identifier_0,
-                display,
-                property,
-            );
-            self.add_duplicate_declaration_errors_for_symbols(
-                property,
-                &tsc_diagnostics::gen::Duplicate_identifier_0,
-                display,
-                symbol,
-            );
-        }
-        Ok(())
     }
 
     /// tsc-port: checkInstanceOfExpression @6.0.3
@@ -1468,66 +1381,6 @@ impl<'a> CheckerState<'a> {
         Ok(true)
     }
 
-    fn report_primitive_module_exports_property_assignment(
-        &mut self,
-        access_expression: NodeId,
-    ) -> CheckResult<()> {
-        if self.kind_of(access_expression) != SyntaxKind::PropertyAccessExpression
-            || !self.is_in_js_file(access_expression)
-            || !node_util::is_assignment_target(
-                self.binder.source_of_node(access_expression),
-                access_expression,
-            )
-        {
-            return Ok(());
-        }
-        let NodeData::PropertyAccessExpression(access) = self.data_of(access_expression) else {
-            return Ok(());
-        };
-        let (Some(receiver), Some(name)) = (access.expression, access.name) else {
-            return Ok(());
-        };
-        if !tsc_binder::assignment::is_module_exports_access_expression(
-            self.binder.source_of_node(receiver),
-            receiver,
-        ) {
-            return Ok(());
-        }
-
-        // The receiver expression is temporarily errorType while its
-        // assignment LHS is being checked. The source-file export=
-        // symbol owns the completed replacement type.
-        let receiver_type = self.get_type_of_expression(receiver)?;
-        let mut receiver_type = self.get_widened_type(receiver_type)?;
-        if receiver_type == self.tables.intrinsics.error {
-            let export_equals = {
-                let source = self.binder.source_of_node(access_expression);
-                self.binder
-                    .node_symbol(source.root)
-                    .map(|symbol| self.get_merged_symbol(symbol))
-                    .and_then(|symbol| {
-                        self.binder
-                            .symbol(symbol)
-                            .exports()
-                            .get(tsc_types::InternalSymbolName::EXPORT_EQUALS)
-                            .copied()
-                    })
-            };
-            if let Some(export_equals) = export_equals {
-                receiver_type = self.get_type_of_symbol(export_equals)?;
-                receiver_type = self.get_widened_type(receiver_type)?;
-            }
-        }
-        if !self
-            .tables
-            .flags_of(receiver_type)
-            .intersects(TypeFlags::PRIMITIVE)
-        {
-            return Ok(());
-        }
-        self.report_nonexistent_property(name, receiver_type, false)
-    }
-
     fn check_assignment_operator(
         &mut self,
         left: NodeId,
@@ -1563,9 +1416,6 @@ impl<'a> CheckerState<'a> {
             {
                 return Ok(());
             }
-        }
-        if operator == SyntaxKind::EqualsToken {
-            self.report_primitive_module_exports_property_assignment(left)?;
         }
         let mut assignee_type = left_type;
         if Self::is_compound_assignment(operator)

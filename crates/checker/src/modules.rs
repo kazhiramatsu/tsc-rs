@@ -3651,14 +3651,9 @@ impl<'a> CheckerState<'a> {
         Ok(target)
     }
 
-    /// tsc-port: getTypeOfAlias @6.0.3
-    /// tsc-hash: 5c80fbb8a3f77b883164000d53b9c225931e458723582d7eeb69e47b95ca997d
-    /// tsc-span: _tsc.js:56864-56884
-    ///
-    /// Duplicated CommonJS access exports use their source-file end
-    /// flow when reached through an alias, while the export symbol
-    /// itself remains auto-typed. The export=-type-annotation arm
-    /// remains behind the broader JS source-type boundary.
+    /// tsgo-port: getTypeOfAlias @7.1: the type of the alias's value target
+    /// (errorType for a type-only target), with the resolution stack
+    /// reporting a circularity.
     pub(crate) fn get_type_of_alias(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
         if let Some(cached) = self
             .links
@@ -3673,7 +3668,6 @@ impl<'a> CheckerState<'a> {
             return Ok(self.tables.intrinsics.error);
         }
         let computed = (|state: &mut Self| -> CheckResult<(TypeId, Option<SymbolId>)> {
-            let declarations = state.binder.symbol(symbol).declarations.clone();
             let target_symbol = state.resolve_alias(symbol)?;
             let export_symbol = match state.get_declaration_of_alias_symbol(symbol) {
                 Some(declaration) => state.get_target_of_alias_declaration(
@@ -3686,37 +3680,10 @@ impl<'a> CheckerState<'a> {
                 // determines its type.
                 None => None,
             };
-            let declared_type = if let Some(export_symbol) = export_symbol {
-                let export_declarations = state.binder.symbol(export_symbol).declarations.clone();
-                let mut declared_type = None;
-                for declaration in export_declarations {
-                    if state.kind_of(declaration) == SyntaxKind::ExportAssignment {
-                        if let Some(ty) =
-                            state.try_get_type_from_effective_type_node(declaration)?
-                        {
-                            declared_type = Some(ty);
-                            break;
-                        }
-                    }
-                }
-                declared_type
-            } else {
-                None
-            };
-            let ty = if export_symbol.is_some_and(|export_symbol| {
-                state.is_duplicated_common_js_export(
-                    &state.binder.symbol(export_symbol).declarations,
-                )
-            }) && !declarations.is_empty()
-            {
-                state.get_flow_type_from_common_js_export(
-                    export_symbol.expect("guarded Some above"),
-                )?
-            } else if state.is_duplicated_common_js_export(&declarations) {
-                state.tables.intrinsics.auto
-            } else if let Some(declared_type) = declared_type {
-                declared_type
-            } else if state
+            // tsgo getTypeOfAlias (TypeScript 7.1): a value target's type, else
+            // errorType (tsc 6.0's `export=` type annotation and duplicated
+            // CommonJS export arms are gone).
+            let ty = if state
                 .get_symbol_flags_of(target_symbol)?
                 .intersects(SymbolFlags::VALUE)
             {
@@ -3747,70 +3714,6 @@ impl<'a> CheckerState<'a> {
         self.links
             .set_symbol_type(self.speculation_depth, symbol, LinkSlot::Resolved(computed));
         Ok(computed)
-    }
-
-    /// tsc-port: getFlowTypeFromCommonJSExport @6.0.3
-    /// tsc-hash: d4f9f5ae9dc097efb3e47b44e0cd3144298f502bf28b17cf9f1e034aa353d8f2
-    /// tsc-span: _tsc.js:56180-56192
-    ///
-    /// tsc creates a synthetic `exports.name` (or
-    /// `module.exports.name` when every declaration uses that form),
-    /// parents it to the source file, and starts at `file.endFlowNode`.
-    /// A matching real declaration access is structurally equivalent
-    /// for the immutable Rust arena and supplies the same reference
-    /// identity to the flow walk.
-    fn get_flow_type_from_common_js_export(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
-        let declarations = self.binder.symbol(symbol).declarations.clone();
-        let Some(first) = declarations.first().copied() else {
-            // tsc's synthetic reference needs the first declaration for its
-            // source file.  With no declaration there is no flow graph or
-            // source identity to query.
-            return Ok(self.tables.intrinsics.error);
-        };
-        let receiver_of = |state: &Self, declaration: NodeId| match state.data_of(declaration) {
-            NodeData::PropertyAccessExpression(data) => data.expression,
-            NodeData::ElementAccessExpression(data) => data.expression,
-            _ => None,
-        };
-        let are_all_module_exports = declarations.iter().all(|&declaration| {
-            if !self.is_in_js_file(declaration) {
-                return false;
-            }
-            receiver_of(self, declaration).is_some_and(|receiver| {
-                tsc_binder::assignment::is_module_exports_access_expression(
-                    self.binder.source_of_node(receiver),
-                    receiver,
-                )
-            })
-        });
-        let reference = if are_all_module_exports {
-            first
-        } else if let Some(reference) = declarations.iter().copied().find(|&declaration| {
-            receiver_of(self, declaration).is_some_and(|receiver| {
-                tsc_binder::assignment::is_exports_identifier(
-                    self.binder.source_of_node(receiver),
-                    receiver,
-                )
-            })
-        }) {
-            reference
-        } else {
-            // tsc would query a synthetic `exports.name`.  If no real
-            // declaration has an `exports` receiver, that reference cannot
-            // match an assignment in this declaration set and therefore
-            // remains at the query's initial undefined type.
-            return Ok(self.tables.intrinsics.undefined);
-        };
-        let file = self.binder.file_index_of_node(first);
-        let root = self.binder.source_of_node(first).root;
-        let end_flow = self.binder.file(file).node_end_flow.get(&root).copied();
-        self.get_flow_type_of_reference_with_flow(
-            reference,
-            self.tables.intrinsics.auto,
-            self.tables.intrinsics.undefined,
-            None,
-            end_flow,
-        )
     }
 
     /// tsc-port: getSymbolIfSameReference @6.0.3
@@ -7396,9 +7299,9 @@ impl<'a> CheckerState<'a> {
     // Module symbol resolution + exports
     // ================================================================
 
-    /// tsc-port: resolveExternalModuleSymbol @6.0.3
-    /// tsc-hash: 9709dc0b3cc0d5fe0c9562a970e1f60f17e1c6dd8d492c8d18833b7a9f43bd3c
-    /// tsc-span: _tsc.js:49683-49690
+    /// tsgo-port: resolveExternalModuleSymbol @7.1 (checker.go:15875-15883):
+    /// the module's resolved `export=` when it has one (tsc 6.0's
+    /// getCommonJsExportEquals merge of CommonJS exports is gone).
     pub(crate) fn resolve_external_module_symbol(
         &mut self,
         module_symbol: Option<SymbolId>,
@@ -7416,10 +7319,11 @@ impl<'a> CheckerState<'a> {
             .get(InternalSymbolName::EXPORT_EQUALS)
             .copied();
         let export_equals = self.resolve_symbol_ex(export_equals, dont_resolve_alias)?;
-        let merged_export = export_equals.map(|symbol| self.get_merged_symbol(symbol));
-        let merged_module = self.get_merged_symbol(module_symbol);
-        let exported = self.get_common_js_export_equals(merged_export, merged_module)?;
-        Ok(Some(exported.unwrap_or(module_symbol)))
+        Ok(Some(
+            export_equals
+                .map(|symbol| self.get_merged_symbol(symbol))
+                .unwrap_or(module_symbol),
+        ))
     }
 
     /// tsc-port: resolveExternalModuleTypeByLiteral @6.0.3
@@ -7431,97 +7335,9 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<TypeId> {
         let module_symbol = self.resolve_external_module_name(name, name, false)?;
         if let Some(resolved) = self.resolve_external_module_symbol(module_symbol, false)? {
-            let resolved = self.get_merged_symbol(resolved);
-            // A duplicated `exports.x = ...` symbol is typed through
-            // assignment flow. That flow is source-local today; using
-            // its auto/undefined seed through a cross-file require can
-            // fabricate nullable diagnostics in the importer. Preserve
-            // the former any boundary until the cross-file flow answer
-            // itself is ported.
-            if self
-                .binder
-                .symbol(resolved)
-                .exports()
-                .values()
-                .any(|&export| {
-                    self.is_duplicated_common_js_export(&self.binder.symbol(export).declarations)
-                })
-            {
-                return Ok(self.tables.intrinsics.any);
-            }
-            let ty = self.get_type_of_symbol(resolved)?;
-            return Ok(ty);
+            return self.get_type_of_symbol(resolved);
         }
         Ok(self.tables.intrinsics.any)
-    }
-
-    /// tsc-port: getCommonJsExportEquals @6.0.3
-    /// tsc-hash: 396ba5dc8bf645b06b1a048e0ebabf2bac9dd3ae94b486d6e50cd2ccb0f72b5e
-    /// tsc-span: _tsc.js:49691-49714
-    fn get_common_js_export_equals(
-        &mut self,
-        exported: Option<SymbolId>,
-        module_symbol: SymbolId,
-    ) -> CheckResult<Option<SymbolId>> {
-        let Some(exported) = exported else {
-            return Ok(None);
-        };
-        if exported == self.unknown_symbol
-            || exported == module_symbol
-            || self.binder.symbol(module_symbol).exports().len() == 1
-            || self
-                .binder
-                .symbol(exported)
-                .flags
-                .intersects(SymbolFlags::ALIAS)
-        {
-            return Ok(Some(exported));
-        }
-        if let Some(merged) = *self.links.symbol_cold().cjs_export_merged.get(exported) {
-            return Ok(Some(merged));
-        }
-        let merged = if self
-            .binder
-            .symbol(exported)
-            .flags
-            .intersects(SymbolFlags::TRANSIENT)
-        {
-            exported
-        } else {
-            self.clone_symbol(exported)
-        };
-        {
-            let symbol = self.binder.symbol_mut(merged);
-            symbol.flags |= SymbolFlags::VALUE_MODULE;
-        }
-        let module_exports: Vec<(EscapedName, SymbolId)> = self
-            .binder
-            .symbol(module_symbol)
-            .exports()
-            .iter()
-            .map(|(name, &symbol)| (*name, symbol))
-            .collect();
-        for (name, source_symbol) in module_exports {
-            if name == InternalSymbolName::EXPORT_EQUALS {
-                continue;
-            }
-            let existing = self.binder.symbol(merged).exports().get(name).copied();
-            let value = match existing {
-                Some(existing) => self.merge_symbol(existing, source_symbol, false),
-                None => source_symbol,
-            };
-            std::sync::Arc::make_mut(self.binder.symbol_mut(merged).exports_mut())
-                .insert(name, value);
-        }
-        if merged == exported {
-            // tsc resets the memoized member/export resolutions after
-            // mutating the transient in place.
-            self.links.revert_symbol_resolved_exports(merged);
-            self.links.revert_symbol_resolved_members(merged);
-        }
-        self.links.set_symbol_cjs_export_merged(merged, merged);
-        self.links.set_symbol_cjs_export_merged(exported, merged);
-        Ok(Some(merged))
     }
 
     /// tsc-port: resolveESModuleSymbol @6.0.3
@@ -8848,13 +8664,12 @@ impl<'a> CheckerState<'a> {
         if target == self.unknown_symbol {
             return Ok(());
         }
-        // tsc intentionally tests the target's declared flags before
-        // getSymbolFlags follows aliases and merged symbol faces.
+        // tsgo checkAliasSymbol (TypeScript 7.1): the target's meanings are
+        // getSymbolFlags(target), which follows an `export=` alias merged with
+        // promoted type exports to its value.
         let checked_js_type_alias = self.is_in_js_file(node)
             && !self
-                .binder
-                .symbol(target)
-                .flags
+                .get_symbol_flags_of(target)?
                 .intersects(SymbolFlags::VALUE);
         if checked_js_type_alias && !self.is_type_only_import_or_export_declaration(node) {
             let export_symbol = self.binder.symbol(symbol).export_symbol.unwrap_or(symbol);
@@ -10357,15 +10172,21 @@ impl<'a> CheckerState<'a> {
             .exports()
             .get(InternalSymbolName::EXPORT_EQUALS)
             .copied();
+        // tsgo checkExternalModuleExports (TypeScript 7.1, checker.go:5858-5870):
+        // an `export=` is in error beside other VALUE exports, or when it
+        // aliases a namespace that exports types or namespaces the module
+        // also declares (hasShadowedNamespace); type-only exports are
+        // promoted onto it by the binder. JavaScript files are no longer
+        // exempt.
         if let Some(export_equals_symbol) = export_equals_symbol {
-            if self.has_exported_members(module_symbol) {
+            if self.has_exported_members_of_kind(module_symbol, SymbolFlags::VALUE)?
+                || self.has_shadowed_namespace(export_equals_symbol)?
+            {
                 let declaration = self
                     .get_declaration_of_alias_symbol(export_equals_symbol)
                     .or(self.binder.symbol(export_equals_symbol).value_declaration);
                 if let Some(declaration) = declaration {
-                    if !self.is_top_level_in_external_module_augmentation(declaration)
-                        && !self.is_in_js_file(declaration)
-                    {
+                    if !self.is_top_level_in_external_module_augmentation(declaration) {
                         self.error_at_js(
                             Some(declaration),
                             &diagnostics::An_export_assignment_cannot_be_used_in_a_module_with_other_exported_elements,
@@ -10396,9 +10217,15 @@ impl<'a> CheckerState<'a> {
             if flags.intersects(SymbolFlags::TYPE_ALIAS) && exported_declarations_count <= 2 {
                 continue;
             }
-            if exported_declarations_count > 1
-                && !self.is_duplicated_common_js_export(&declarations)
-            {
+            // tsgo: names declared only by `exports.p = ...` assignments may
+            // repeat.
+            let all_exports_properties = declarations.iter().all(|&declaration| {
+                tsc_binder::get_assignment_declaration_kind(
+                    self.binder.source_of_node(declaration),
+                    declaration,
+                ) == tsc_binder::AssignmentDeclarationKind::ExportsProperty
+            });
+            if exported_declarations_count > 1 && !all_exports_properties {
                 for &declaration in &declarations {
                     if self.is_not_overload(declaration) {
                         self.error_at_js(
@@ -10414,39 +10241,42 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
-    /// tsc-port: isDuplicatedCommonJSExport @6.0.3
-    /// tsc-hash: c8f1e229671e33b36726d797e987576d7efd64765b496872521ea563d6bf4437
-    /// tsc-span: _tsc.js:86543-86545
-    pub(crate) fn is_duplicated_common_js_export(&self, declarations: &[NodeId]) -> bool {
-        declarations.len() > 1
-            && declarations.iter().all(|&declaration| {
-                if !self.is_in_js_file(declaration) {
-                    return false;
-                }
-                let expression = match self.data_of(declaration) {
-                    NodeData::PropertyAccessExpression(data) => data.expression,
-                    NodeData::ElementAccessExpression(data) => data.expression,
-                    _ => None,
-                };
-                expression.is_some_and(|expression| {
-                    let source = self.binder.source_of_node(expression);
-                    tsc_binder::assignment::is_exports_identifier(source, expression)
-                        || tsc_binder::assignment::is_module_exports_access_expression(
-                            source, expression,
-                        )
-                })
-            })
+    /// tsgo-port: hasExportedMembersOfKind @7.1: an export other than
+    /// `export=` whose (alias-resolved) flags meet `kind`.
+    fn has_exported_members_of_kind(
+        &mut self,
+        module_symbol: SymbolId,
+        kind: SymbolFlags,
+    ) -> CheckResult<bool> {
+        let exports = std::sync::Arc::clone(self.binder.symbol(module_symbol).exports());
+        for (id, &symbol) in exports.iter() {
+            if id != InternalSymbolName::EXPORT_EQUALS
+                && self.get_symbol_flags_of(symbol)?.intersects(kind)
+            {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
-    /// tsc-port: hasExportedMembers @6.0.3
-    /// tsc-hash: 2c3014a8e3dca95c995088d8049662c89a71a6a202029c56415a030dbd32bc94
-    /// tsc-span: _tsc.js:86502-86504
-    fn has_exported_members(&self, module_symbol: SymbolId) -> bool {
-        self.binder
-            .symbol(module_symbol)
-            .exports()
-            .keys()
-            .any(|id| id != InternalSymbolName::EXPORT_EQUALS)
+    /// tsgo-port: hasShadowedNamespace @7.1: an `export=` alias (merged with
+    /// a namespace) whose namespace target exports types or namespaces.
+    fn has_shadowed_namespace(&mut self, symbol: SymbolId) -> CheckResult<bool> {
+        let flags = self.binder.symbol(symbol).flags;
+        if !flags.intersects(SymbolFlags::NAMESPACE_MODULE) || !flags.intersects(SymbolFlags::ALIAS)
+        {
+            return Ok(false);
+        }
+        let target = self.resolve_alias(symbol)?;
+        if !self
+            .binder
+            .symbol(target)
+            .flags
+            .intersects(SymbolFlags::NAMESPACE)
+        {
+            return Ok(false);
+        }
+        self.has_exported_members_of_kind(target, SymbolFlags::TYPE | SymbolFlags::NAMESPACE)
     }
 
     /// tsc isNotOverload: not a bodiless function/method declaration.

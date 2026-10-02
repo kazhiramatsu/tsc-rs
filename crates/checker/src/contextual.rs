@@ -342,11 +342,17 @@ impl<'a> CheckerState<'a> {
                                         .file(file_index)
                                         .common_js_module_indicator
                                         .is_some();
-                                    let source_symbol =
-                                        self.node_symbol(self.binder.source(file_index).root);
-                                    if has_common_js_indicator
-                                        && self.get_resolved_symbol(expression)? == source_symbol
-                                    {
+                                    // tsgo (TypeScript 7.1): `exports` resolves to
+                                    // the CommonJS ModuleExports variable.
+                                    let module_exports = self
+                                        .get_resolved_symbol(expression)?
+                                        .is_some_and(|symbol| {
+                                            self.binder
+                                                .symbol(symbol)
+                                                .flags
+                                                .intersects(SymbolFlags::MODULE_EXPORTS)
+                                        });
+                                    if has_common_js_indicator && module_exports {
                                         return Ok(None);
                                     }
                                 }
@@ -1130,10 +1136,6 @@ impl<'a> CheckerState<'a> {
     /// declaration on a property access has none; `this.p = x` has none
     /// when `p` is an unannotated, uninitialized property, or when the
     /// assignment declares an unannotated member.
-    ///
-    /// tsc-rs binds the CommonJS export assignments (`exports.p = x`) on the
-    /// left side, as tsc 6.0 did, so either node's symbol marks an
-    /// assignment declaration.
     fn get_contextual_type_for_assignment_expression(
         &mut self,
         binary: NodeId,
@@ -1142,7 +1144,7 @@ impl<'a> CheckerState<'a> {
             unreachable!("kind/data agree");
         };
         let left = data.left.expect("assignment has a left side");
-        let declaration_symbol = self.node_symbol(binary).or_else(|| self.node_symbol(left));
+        let declaration_symbol = self.node_symbol(binary);
         let (expression, is_property_access) = match self.data_of(left) {
             NodeData::PropertyAccessExpression(access) => (access.expression, true),
             NodeData::ElementAccessExpression(access) => (access.expression, false),
