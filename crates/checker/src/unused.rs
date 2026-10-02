@@ -578,29 +578,17 @@ impl<'a> CheckerState<'a> {
                 continue;
             };
             let n_declarations = self.import_clause_declaration_count(import_clause);
-            if n_declarations == unuseds.len() {
-                if unuseds.len() == 1 {
-                    let unused = unuseds[0];
-                    let display = self
-                        .name_of_node(unused)
-                        .map(|name| self.declaration_name_display(name))
-                        .unwrap_or_default();
-                    self.add_unused_diagnostic_at_js(
-                        import_decl,
-                        UnusedIdentifierKind::Local,
-                        Some(import_decl),
-                        &diagnostics::_0_is_declared_but_its_value_is_never_read,
-                        &[(&display).into()],
-                    );
-                } else {
-                    self.add_unused_diagnostic_at(
-                        import_decl,
-                        UnusedIdentifierKind::Local,
-                        Some(import_decl),
-                        &diagnostics::All_imports_in_import_declaration_are_unused,
-                        &[],
-                    );
-                }
+            // tsgo reportUnusedImports (TypeScript 7.1): the whole-declaration
+            // row needs more than one declared name; a lone unused import
+            // reports at its name (tsc 6.0 reported it on the declaration).
+            if n_declarations > 1 && n_declarations == unuseds.len() {
+                self.add_unused_diagnostic_at(
+                    import_decl,
+                    UnusedIdentifierKind::Local,
+                    Some(import_decl),
+                    &diagnostics::All_imports_in_import_declaration_are_unused,
+                    &[],
+                );
             } else {
                 for unused in unuseds {
                     let Some(symbol) = self.binder.node_symbol(unused) else {
@@ -620,49 +608,28 @@ impl<'a> CheckerState<'a> {
             }
             let kind = self.unused_binding_pattern_kind(binding_pattern);
             let elements = self.unused_binding_pattern_elements(binding_pattern);
-            if elements.len() == binding_elements.len() {
-                let single_variable = binding_elements.len() == 1
-                    && self.parent_of(binding_pattern).is_some_and(|parent| {
-                        self.kind_of(parent) == SyntaxKind::VariableDeclaration
-                            && self.parent_of(parent).is_some_and(|list| {
-                                self.kind_of(list) == SyntaxKind::VariableDeclarationList
-                            })
-                    });
-                if single_variable {
-                    let declaration = self.parent_of(binding_pattern).expect("checked above");
-                    let list = self.parent_of(declaration).expect("checked above");
-                    add_to_unused_group(&mut unused_variables, list, declaration);
-                } else if binding_elements.len() == 1 {
-                    let display = self
-                        .name_of_node(binding_elements[0])
-                        .map(|name| self.unused_binding_name_text(name))
-                        .unwrap_or_default();
-                    self.add_unused_diagnostic_at_js(
-                        binding_pattern,
-                        kind,
-                        Some(binding_pattern),
-                        &diagnostics::_0_is_declared_but_its_value_is_never_read,
-                        &[(&display).into()],
-                    );
-                } else {
-                    self.add_unused_diagnostic_at(
-                        binding_pattern,
-                        kind,
-                        Some(binding_pattern),
-                        &diagnostics::All_destructured_elements_are_unused,
-                        &[],
-                    );
-                }
+            // tsgo reportUnusedBindingElements (TypeScript 7.1): the
+            // whole-pattern row needs more than one element; otherwise each
+            // unused element reports at its name (tsc 6.0 put a lone element
+            // on the pattern, or on the variable declaration list).
+            if elements.len() > 1 && elements.len() == binding_elements.len() {
+                self.add_unused_diagnostic_at(
+                    binding_pattern,
+                    kind,
+                    Some(binding_pattern),
+                    &diagnostics::All_destructured_elements_are_unused,
+                    &[],
+                );
             } else {
                 for element in binding_elements {
-                    let display = self
-                        .name_of_node(element)
+                    let name = self.name_of_node(element);
+                    let display = name
                         .map(|name| self.unused_binding_name_text(name))
                         .unwrap_or_default();
                     self.add_unused_diagnostic_at_js(
                         element,
                         kind,
-                        Some(element),
+                        name.or(Some(element)),
                         &diagnostics::_0_is_declared_but_its_value_is_never_read,
                         &[(&display).into()],
                     );

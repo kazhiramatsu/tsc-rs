@@ -102,7 +102,7 @@ fn a_baseline_renders_like_the_native_runner() {
         chain(2304, "Cannot find name.", vec![]),
     );
     let global = diagnostic(None, 0, 0, chain(2318, "Cannot find global type.", vec![]));
-    let rendered = render(&[global, located, spanning], &files).expect("diagnostics");
+    let rendered = render(&[global, located, spanning], &files, &[]).expect("diagnostics");
     let expected = [
         "error TS2318: Cannot find global type.",
         "a.ts(1,5): error TS2322: Type 'number' is not assignable.",
@@ -131,5 +131,5 @@ fn a_baseline_renders_like_the_native_runner() {
 
 #[test]
 fn no_diagnostics_means_no_baseline() {
-    assert_eq!(render(&[], &[]), None);
+    assert_eq!(render(&[], &[], &[]), None);
 }

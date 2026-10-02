@@ -69,8 +69,9 @@ fn const_null_keeps_the_null_type_and_reports_implicit_any_bands() {
                 (7031, 114, 1),
                 (7031, 120, 1),
                 (6133, 70, 1),
-                (6133, 112, 5),
-                (6133, 119, 3),
+                // TypeScript 7.1: lone binding elements report at their names.
+                (6133, 114, 1),
+                (6133, 120, 1),
             ]
         );
 }

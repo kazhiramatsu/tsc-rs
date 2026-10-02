@@ -1483,24 +1483,28 @@ fn mapped_destructuring_context_keeps_rest_parameters_as_tuples() {
 // ---- overload failure chains (2769 band) ----
 
 #[test]
-fn two_failed_overloads_report_2769_at_the_shared_span() {
+fn two_failed_overloads_report_the_last_overload_error_at_its_span() {
+    // tsgo (TypeScript 7.1) reports the last failed candidate's error under
+    // "No overload matches this call" / "The last overload gave the
+    // following error"; tsc 6.0 merged both candidates' errors under
+    // "Overload N of M" chains. Chain probed with tsc-19dadef8.
     let text =
         "declare function o(a: number): void;\ndeclare function o(a: string): void;\no(true);\n";
     assert_eq!(checked_rows(text), [(2769, 76, 4)]);
     let (codes, texts) = checked_chain(text, 2769);
-    assert_eq!(codes, [2769, 2772, 2345, 2772, 2345]);
+    assert_eq!(codes, [2769, 2770, 2345]);
+    assert_eq!(texts[1], "The last overload gave the following error.");
     assert_eq!(
-        texts[1],
-        "Overload 1 of 2, '(a: number): void', gave the following error."
-    );
-    assert_eq!(
-        texts[3],
-        "Overload 2 of 2, '(a: string): void', gave the following error."
+        texts[2],
+        "Argument of type 'boolean' is not assignable to parameter of type 'string'."
     );
 }
 
 #[test]
-fn two_failed_overloads_preserve_present_empty_related_information() {
+fn two_failed_overloads_relate_the_last_overload_declaration() {
+    // tsgo relates "The last overload is declared here." (TS2771) when more
+    // than one candidate failed; tsc 6.0's merged diagnostic carried an
+    // empty related list.
     let text =
         "declare function o(a: number): void;\ndeclare function o(a: string): void;\no(true);\n";
     with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
@@ -1509,9 +1513,15 @@ fn two_failed_overloads_preserve_present_empty_related_information() {
             .diagnostics
             .iter()
             .find(|diagnostic| diagnostic.code() == 2769)
-            .expect("the overload aggregate is reported");
-        assert!(diagnostic.related_information_present);
-        assert!(diagnostic.related.is_empty());
+            .expect("the overload failure is reported");
+        let related: Vec<(u32, Option<u32>)> = diagnostic
+            .related
+            .iter()
+            .map(|related| (related.message.code, related.start))
+            .collect();
+        // The related row sits on the last declaration's name (`o` of the
+        // second overload), the error span of a function declaration.
+        assert_eq!(related, [(2771, Some(54))]);
     });
 }
 

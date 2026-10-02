@@ -30,7 +30,7 @@ use tsc_compiler::{
 };
 use tsc_diagnostics::{Diagnostic, PositionIndex};
 use tsc_harness::upstream_suites::execution::{
-    load_native_compiler_program, native_compiler_fixture, native_compiler_plan,
+    load_native_compiler_program, native_compiler_fixture, native_compiler_plan, read_test_library,
     CompilerExecutionPlan, CompilerRootSelection,
 };
 use tsc_harness::upstream_suites::native::{
@@ -536,6 +536,26 @@ fn run_lane_a(
         }
     };
     let files = baseline_input_files(plan);
+    // A fixture that mentions `/.lib/` compiles the profile's test library
+    // too (the loader mounts it), and the native baseline locates rows and
+    // related information in those files (`react18.d.ts:478:9`): their
+    // texts feed the position index, without a section of their own.
+    let library: Vec<(String, String)> = if files
+        .iter()
+        .any(|(_, content)| content.contains("/.lib/"))
+    {
+        read_test_library(&test_library)
+            .map(|library| {
+                library
+                    .into_iter()
+                    .map(|(relative, content)| (format!("/.lib/{relative}"), content.to_string()))
+                    .filter(|(name, _)| !files.iter().any(|(existing, _)| existing == name))
+                    .collect()
+            })
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
     let texts: BTreeMap<String, String> = files.iter().cloned().collect();
     let mut indexes = BTreeMap::new();
     let diagnostics = outcome.native_harness_diagnostics();
@@ -557,7 +577,11 @@ fn run_lane_a(
             .iter()
             .map(|(name, content)| errors_baseline::InputFile { name, content })
             .collect();
-        let rendered = errors_baseline::render(diagnostics, &inputs);
+        let library_inputs: Vec<_> = library
+            .iter()
+            .map(|(name, content)| errors_baseline::InputFile { name, content })
+            .collect();
+        let rendered = errors_baseline::render(diagnostics, &inputs, &library_inputs);
         rendered_sha256 = Some(format!(
             "{:x}",
             sha2::Sha256::digest(rendered.as_deref().unwrap_or_default().as_bytes())

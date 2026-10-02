@@ -770,7 +770,10 @@ fn rejected_jsx_overload_keeps_an_implicit_any_from_its_completed_contextual_che
          declare function MainButton(props: ButtonProps): JSX.Element;\n\
          declare function MainButton(props: LinkProps): JSX.Element;\n\
          (<MainButton to=\"/some/path\" onClick={e => {}} />);\n";
-    let tag = source.find("<MainButton").expect("JSX opening tag") as u32 + 1;
+    // tsgo (TypeScript 7.1) reports the last failed overload's error at
+    // its own node, the excess `onClick` attribute; tsc 6.0's merged
+    // diagnostic sat on the tag name (probed with tsc-19dadef8).
+    let on_click = source.find("onClick=").expect("excess attribute") as u32;
     let parameter = source.find("e =>").expect("arrow parameter") as u32;
     let mut rows = checked_rows_with(
         source,
@@ -784,7 +787,7 @@ fn rejected_jsx_overload_keeps_an_implicit_any_from_its_completed_contextual_che
     .filter(|row| matches!(row.0, 2769 | 7006))
     .collect::<Vec<_>>();
     rows.sort_by_key(|row| row.1);
-    assert_eq!(rows, [(2769, tag, 10), (7006, parameter, 1)]);
+    assert_eq!(rows, [(2769, on_click, 7), (7006, parameter, 1)]);
 }
 
 #[test]

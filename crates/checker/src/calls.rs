@@ -55,11 +55,9 @@ pub(crate) struct DiagSpan {
     pub(crate) length: u32,
 }
 
-/// One applicability failure: the span of the diagnostic tsc would
-/// create, its related rows, and (in Report mode) the fully built
-/// head diagnostic.
+/// One applicability failure: its related rows and (in Report mode)
+/// the fully built head diagnostic.
 struct ApplicabilityError {
-    span: DiagSpan,
     related: Vec<RelatedInfo>,
     diagnostic: Option<Diagnostic>,
 }
@@ -1739,35 +1737,6 @@ impl<'a> CheckerState<'a> {
         }
         self.diag_span_of_node(node)
     }
-
-    /// tsc-port: getErrorNodeForCallNode @6.0.3
-    /// tsc-hash: 296f56daeae9679cbab125c26d8d8e36bd611c9158598787c53d530e3b40b169
-    /// tsc-span: _tsc.js:76395-76406
-    fn get_error_node_for_call_node(&self, node: NodeId) -> NodeId {
-        let (expression, is_tag) = match self.data_of(node) {
-            NodeData::CallExpression(data) => (data.expression, false),
-            NodeData::NewExpression(data) => (data.expression, false),
-            NodeData::TaggedTemplateExpression(data) => (data.tag, true),
-            _ => (None, false),
-        };
-        let _ = is_tag;
-        let Some(expression) = expression else {
-            // JSX opening-likes answer tagName; everything else the
-            // node itself.
-            let tag_name = match self.data_of(node) {
-                NodeData::JsxOpeningElement(data) => data.tag_name,
-                NodeData::JsxSelfClosingElement(data) => data.tag_name,
-                _ => None,
-            };
-            return tag_name.unwrap_or(node);
-        };
-        match self.data_of(expression) {
-            NodeData::PropertyAccessExpression(access) => access.name.unwrap_or(expression),
-            _ => expression,
-        }
-    }
-
-    // ---- untyped/error calls ----
 
     /// tsc-port: resolveUntypedCall @6.0.3
     /// tsc-hash: 379ef51c9ae1f6439afc5576f00e8dc816ee64ddb144f6aa41939d34a64eec13
@@ -3493,7 +3462,6 @@ impl<'a> CheckerState<'a> {
             _ => None,
         };
         Ok(Some(ApplicabilityError {
-            span,
             related,
             diagnostic,
         }))
@@ -3654,21 +3622,8 @@ impl<'a> CheckerState<'a> {
         diagnostics
             .into_iter()
             .map(|diagnostic| {
-                let span = DiagSpan {
-                    file_name: diagnostic
-                        .file_name
-                        .clone()
-                        .expect("applicability-owned rows have a source file"),
-                    start: diagnostic
-                        .start
-                        .expect("applicability-owned rows have a source start"),
-                    length: diagnostic
-                        .length
-                        .expect("applicability-owned rows have a source length"),
-                };
                 let related = diagnostic.related.clone();
                 ApplicabilityError {
-                    span,
                     related,
                     diagnostic: (mode == ApplicabilityMode::Report).then_some(diagnostic),
                 }
@@ -3741,7 +3696,6 @@ impl<'a> CheckerState<'a> {
                         .map(|diagnostic| diagnostic.related.clone())
                         .unwrap_or_default();
                     return Ok(Some(vec![ApplicabilityError {
-                        span,
                         related,
                         diagnostic,
                     }]));
@@ -3865,7 +3819,6 @@ impl<'a> CheckerState<'a> {
                     _ => None,
                 };
                 return Ok(Some(vec![ApplicabilityError {
-                    span,
                     related,
                     diagnostic,
                 }]));
@@ -3923,7 +3876,6 @@ impl<'a> CheckerState<'a> {
                     _ => None,
                 };
                 return Ok(Some(vec![ApplicabilityError {
-                    span,
                     related,
                     diagnostic,
                 }]));
@@ -4205,182 +4157,69 @@ impl<'a> CheckerState<'a> {
         signatures: &[SignatureId],
         head_message: Option<&'static DiagnosticMessage>,
     ) -> CheckResult<()> {
-        fn append_to_linear_tail(mut prefix: MessageChain, detail: MessageChain) -> MessageChain {
-            let mut tail = &mut prefix;
-            while tail.next.len() == 1 {
-                tail = &mut tail.next[0];
-            }
-            debug_assert!(tail.next.is_empty(), "overload prefix is linear");
-            tail.next_present = true;
-            tail.next.push(detail);
-            prefix
-        }
-
         if let Some(candidates_for_argument_error) = ctx.candidates_for_argument_error.take() {
             ctx.candidates_for_argument_error = Some(candidates_for_argument_error.clone());
-            if candidates_for_argument_error.len() == 1 || candidates_for_argument_error.len() > 3 {
-                let last = *candidates_for_argument_error
-                    .last()
-                    .expect("non-empty by construction");
-                let over_three = candidates_for_argument_error.len() > 3;
-                let args = ctx.args.clone();
-                let mut prefix = over_three.then(|| {
-                    MessageChain::new(&diagnostics::No_overload_matches_this_call, &[]).with_next(
-                        vec![MessageChain::new(
-                            &diagnostics::The_last_overload_gave_the_following_error,
-                            &[],
-                        )],
-                    )
-                });
-                if let Some(head) = head_message {
-                    prefix = Some(
-                        MessageChain::new(head, &[])
-                            .with_next(prefix.into_iter().collect::<Vec<_>>()),
-                    );
-                }
-                let errors = match self.get_signature_applicability_error(
-                    node,
-                    &args,
-                    last,
-                    RelationKind::Assignable,
-                    CheckMode::NORMAL,
-                    ApplicabilityMode::Report,
-                    prefix,
-                ) {
-                    Ok(errors) => errors.unwrap_or_else(|| {
-                        panic!(
-                            "No error for last overload signature @{:?}",
-                            self.binder.source_of_node(node).file_name
-                        )
-                    }),
-                    Err(err) => {
-                        // tsc still runs the post-report
-                        // implementation probe before an unrenderable
-                        // diagnostic unwinds; preserve its contextual
-                        // burn/pin side effects.
-                        let _ = self.implementation_success_elaboration(ctx, last);
-                        return Err(err);
-                    }
-                };
-                for error in errors {
-                    let mut diagnostic = error.diagnostic.expect("Report mode builds diagnostics");
-                    if over_three {
-                        if let Some(declaration) = self.signature_of(last).declaration {
-                            diagnostic.related.push(self.related_info_for_node(
-                                declaration,
-                                &diagnostics::The_last_overload_is_declared_here,
-                                &[],
-                            ));
-                        }
-                    }
-                    if let Some(related) = self.implementation_success_elaboration(ctx, last)? {
-                        diagnostic.related.push(related);
-                    }
-                    self.push_error_diagnostic(diagnostic);
-                }
-            } else {
-                // 76667-76722: 2-3 failed candidates — each re-runs
-                // under an `Overload N of M` chain. When any candidate
-                // produced MORE than one error, only the min-error
-                // candidate's diags feed the 2769 (last min wins, tsc
-                // `diags.length <= min`); otherwise all candidates'
-                // diagnostics flatten. One 2769 lands at the chosen
-                // diagnostics' shared span, else at the callee error
-                // node.
-                let args = ctx.args.clone();
-                let mut all_diagnostics: Vec<Vec<ApplicabilityError>> = Vec::new();
-                let mut max = 0usize;
-                let mut min = usize::MAX;
-                let mut min_index = 0usize;
-                for (i, &candidate) in candidates_for_argument_error.iter().enumerate() {
-                    let mut errors = match self.get_signature_applicability_error(
-                        node,
-                        &args,
-                        candidate,
-                        RelationKind::Assignable,
-                        CheckMode::NORMAL,
-                        ApplicabilityMode::Report,
-                        None,
-                    ) {
-                        Ok(errors) => errors.unwrap_or_else(|| {
-                            panic!(
-                                "No error for 3 or fewer overload signatures @{:?}",
-                                self.binder.source_of_node(node).file_name
-                            )
-                        }),
-                        Err(err) => {
-                            // T2 containment side-effect parity — see
-                            // the over_three arm (probe target is
-                            // candidatesForArgumentError[0], 76724).
-                            let _ = self.implementation_success_elaboration(
-                                ctx,
-                                candidates_for_argument_error[0],
-                            );
-                            return Err(err);
-                        }
-                    };
-                    let signature_text = self.signature_to_string_for_overload_error(candidate)?;
-                    for error in &mut errors {
-                        let diagnostic = error
-                            .diagnostic
-                            .as_mut()
-                            .expect("Report mode builds diagnostics");
-                        let overload = MessageChain::new_js(
-                            &diagnostics::Overload_0_of_1_2_gave_the_following_error,
-                            &[
-                                ((i + 1).to_string()).into(),
-                                (ctx.candidates.len().to_string()).into(),
-                                (signature_text.clone()),
-                            ],
-                        );
-                        diagnostic.message =
-                            append_to_linear_tail(overload, diagnostic.message.clone());
-                    }
-                    if errors.len() <= min {
-                        min = errors.len();
-                        min_index = i;
-                    }
-                    max = std::cmp::max(max, errors.len());
-                    all_diagnostics.push(errors);
-                }
-                let chosen: Vec<ApplicabilityError> = if max > 1 {
-                    all_diagnostics.swap_remove(min_index)
-                } else {
-                    all_diagnostics.into_iter().flatten().collect()
-                };
-                debug_assert!(
-                    !chosen.is_empty(),
-                    "No errors reported for 3 or fewer overload signatures"
+            // tsgo reportCallResolutionErrors (TypeScript 7.1): the LAST
+            // failed candidate reports its applicability errors, each as
+            // its own diagnostic; more than one failed candidate wraps
+            // them in "No overload matches this call" / "The last
+            // overload gave the following error" and relates the last
+            // overload's declaration. tsc 6.0 re-ran up to three
+            // candidates under "Overload N of M" chains and merged them
+            // into one diagnostic at their shared span or the callee.
+            let last = *candidates_for_argument_error
+                .last()
+                .expect("non-empty by construction");
+            let several = candidates_for_argument_error.len() > 1;
+            let args = ctx.args.clone();
+            let mut prefix = several.then(|| {
+                MessageChain::new(&diagnostics::No_overload_matches_this_call, &[]).with_next(vec![
+                    MessageChain::new(
+                        &diagnostics::The_last_overload_gave_the_following_error,
+                        &[],
+                    ),
+                ])
+            });
+            if let Some(head) = head_message {
+                prefix = Some(
+                    MessageChain::new(head, &[]).with_next(prefix.into_iter().collect::<Vec<_>>()),
                 );
-                let details = chosen
-                    .iter()
-                    .map(|error| {
-                        error
-                            .diagnostic
-                            .as_ref()
-                            .expect("Report mode builds diagnostics")
-                            .message
-                            .clone()
-                    })
-                    .collect();
-                let mut chain = MessageChain::new(&diagnostics::No_overload_matches_this_call, &[])
-                    .with_next(details);
-                if let Some(head) = head_message {
-                    chain = MessageChain::new(head, &[]).with_next(vec![chain]);
+            }
+            let errors = match self.get_signature_applicability_error(
+                node,
+                &args,
+                last,
+                RelationKind::Assignable,
+                CheckMode::NORMAL,
+                ApplicabilityMode::Report,
+                prefix,
+            ) {
+                Ok(errors) => errors.unwrap_or_else(|| {
+                    panic!(
+                        "No error for last overload signature @{:?}",
+                        self.binder.source_of_node(node).file_name
+                    )
+                }),
+                Err(err) => {
+                    // The post-report implementation probe still runs
+                    // before an unrenderable diagnostic unwinds; preserve
+                    // its contextual burn/pin side effects.
+                    let _ = self.implementation_success_elaboration(ctx, last);
+                    return Err(err);
                 }
-                let shared_span = chosen.iter().all(|error| error.span == chosen[0].span);
-                let mut diagnostic = if shared_span {
-                    self.diagnostic_at_span(&chosen[0].span, chain)
-                } else {
-                    let error_node = self.get_error_node_for_call_node(node);
-                    let span = self.diag_span_of_node(error_node);
-                    self.diagnostic_at_span(&span, chain)
-                };
-                diagnostic.related_information_present = true;
-                diagnostic.related = chosen.into_iter().flat_map(|error| error.related).collect();
-                if let Some(related) =
-                    self.implementation_success_elaboration(ctx, candidates_for_argument_error[0])?
-                {
+            };
+            for error in errors {
+                let mut diagnostic = error.diagnostic.expect("Report mode builds diagnostics");
+                if several {
+                    if let Some(declaration) = self.signature_of(last).declaration {
+                        diagnostic.related.push(self.related_info_for_node(
+                            declaration,
+                            &diagnostics::The_last_overload_is_declared_here,
+                            &[],
+                        ));
+                    }
+                }
+                if let Some(related) = self.implementation_success_elaboration(ctx, last)? {
                     diagnostic.related.push(related);
                 }
                 self.push_error_diagnostic(diagnostic);
