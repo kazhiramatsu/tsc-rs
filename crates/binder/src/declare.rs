@@ -794,13 +794,18 @@ impl<'a> BinderWorker<'a> {
                             let symbol = self.create_symbol(SymbolFlags::NONE, name);
                             self.table_mut(table).insert(name, symbol);
                             symbol
-                        } else if !(includes.intersects(SymbolFlags::VARIABLE)
-                            && self
-                                .symbols
-                                .symbol(existing)
-                                .flags
-                                .intersects(SymbolFlags::ASSIGNMENT))
-                        {
+                        } else if !{
+                            // tsgo declareSymbol (TypeScript 7.1): an assignment
+                            // declaration merges with a variable in either order
+                            // (tsc 6.0 only allowed a variable after an
+                            // assignment; tsgo's PropertyExcludes now includes
+                            // variables, so the other order matters too).
+                            let existing_flags = self.symbols.symbol(existing).flags;
+                            (includes.intersects(SymbolFlags::VARIABLE)
+                                && existing_flags.intersects(SymbolFlags::ASSIGNMENT))
+                                || (includes.intersects(SymbolFlags::ASSIGNMENT)
+                                    && existing_flags.intersects(SymbolFlags::VARIABLE))
+                        } {
                             self.report_duplicate(existing, node, includes, is_default_export);
                             // The FRESH symbol is detached — the table
                             // keeps the original, so later duplicates

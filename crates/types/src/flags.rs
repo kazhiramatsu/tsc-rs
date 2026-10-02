@@ -2425,8 +2425,11 @@ impl SymbolFlags {
     pub const BLOCK_SCOPED_VARIABLE_EXCLUDES: Self = Self(111551);
     /// tsc SymbolFlags.ParameterExcludes
     pub const PARAMETER_EXCLUDES: Self = Self(111551);
-    /// tsc SymbolFlags.PropertyExcludes
-    pub const PROPERTY_EXCLUDES: Self = Self(0);
+    /// tsgo SymbolFlagsPropertyExcludes (TypeScript 7.1): Value & ~(Property |
+    /// Accessor). tsc 6.0's was None; a property now conflicts with a method,
+    /// function or variable of the same name in the binder, and a property
+    /// beside an accessor is left to checkObjectTypeForDuplicateDeclarations.
+    pub const PROPERTY_EXCLUDES: Self = Self(13243);
     /// tsc SymbolFlags.EnumMemberExcludes
     pub const ENUM_MEMBER_EXCLUDES: Self = Self(900095);
     /// tsc SymbolFlags.FunctionExcludes
@@ -2445,12 +2448,15 @@ impl SymbolFlags {
     pub const NAMESPACE_MODULE_EXCLUDES: Self = Self(0);
     /// tsc SymbolFlags.MethodExcludes
     pub const METHOD_EXCLUDES: Self = Self(103359);
-    /// tsc SymbolFlags.GetAccessorExcludes
-    pub const GET_ACCESSOR_EXCLUDES: Self = Self(46015);
-    /// tsc SymbolFlags.SetAccessorExcludes
-    pub const SET_ACCESSOR_EXCLUDES: Self = Self(78783);
-    /// tsc SymbolFlags.AccessorExcludes
-    pub const ACCESSOR_EXCLUDES: Self = Self(13247);
+    /// tsgo SymbolFlagsGetAccessorExcludes (TypeScript 7.1): Value &
+    /// ~(SetAccessor | Property); tsc 6.0's also excluded properties.
+    pub const GET_ACCESSOR_EXCLUDES: Self = Self(46011);
+    /// tsgo SymbolFlagsSetAccessorExcludes (TypeScript 7.1): Value &
+    /// ~(GetAccessor | Property); tsc 6.0's also excluded properties.
+    pub const SET_ACCESSOR_EXCLUDES: Self = Self(78779);
+    /// tsgo SymbolFlagsAccessorExcludes (TypeScript 7.1): Value & ~Property,
+    /// for an auto-accessor (`accessor x`); tsc 6.0's was Value & ~Accessor.
+    pub const ACCESSOR_EXCLUDES: Self = Self(111547);
     /// tsc SymbolFlags.TypeParameterExcludes
     pub const TYPE_PARAMETER_EXCLUDES: Self = Self(526824);
     /// tsc SymbolFlags.TypeAliasExcludes

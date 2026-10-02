@@ -56,6 +56,9 @@ pub struct BaselineDiagnostic {
 /// one `[<file>(<line>,<col>): ]<category> TS<code>: <text>` header per
 /// diagnostic, chain lines indented below it, ending at the first blank line.
 pub fn parse_errors_baseline(text: &str) -> Vec<BaselineDiagnostic> {
+    if text.contains("\x1b[") {
+        return parse_pretty_errors_baseline(text);
+    }
     let mut diagnostics = Vec::new();
     for line in text.split("\r\n") {
         if line.is_empty() {
@@ -69,6 +72,78 @@ pub fn parse_errors_baseline(text: &str) -> Vec<BaselineDiagnostic> {
         }
     }
     diagnostics
+}
+
+/// A `@pretty` baseline (`FormatDiagnosticsWithColorAndContext`): ANSI
+/// colors, one `[<file>:<line>:<col> - ]<category> TS<code>: <text>` header
+/// per diagnostic followed by its code frame, chain lines and related rows
+/// (all indented or framed, so only the headers parse), and a trailing
+/// `Found N errors` summary. Blank lines separate diagnostics here.
+fn parse_pretty_errors_baseline(text: &str) -> Vec<BaselineDiagnostic> {
+    let plain = strip_ansi(text);
+    plain
+        .split('\n')
+        .map(|line| line.trim_end_matches('\r'))
+        .filter(|line| !line.is_empty() && !line.starts_with(' '))
+        .filter_map(parse_pretty_header)
+        .collect()
+}
+
+fn strip_ansi(text: &str) -> String {
+    let mut plain = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(start) = rest.find("\x1b[") {
+        plain.push_str(&rest[..start]);
+        let after = &rest[start + 2..];
+        let end = after
+            .find(|c: char| c.is_ascii_alphabetic())
+            .map_or(after.len(), |end| end + 1);
+        rest = &after[end..];
+    }
+    plain.push_str(rest);
+    plain
+}
+
+fn parse_pretty_header(line: &str) -> Option<BaselineDiagnostic> {
+    const CATEGORIES: [&str; 4] = ["error", "warning", "suggestion", "message"];
+    let (location, rest) = match line.split_once(" - ") {
+        Some((location, rest))
+            if CATEGORIES
+                .iter()
+                .any(|category| rest.starts_with(&format!("{category} TS"))) =>
+        {
+            (Some(location), rest)
+        }
+        _ if CATEGORIES
+            .iter()
+            .any(|category| line.starts_with(&format!("{category} TS"))) =>
+        {
+            (None, line)
+        }
+        _ => return None,
+    };
+    let (category, rest) = rest.split_once(" TS")?;
+    let (code, text) = rest.split_once(": ")?;
+    let (file, line_number, column) = match location {
+        None => (None, None, None),
+        Some(location) => {
+            let (file_and_line, column) = location.rsplit_once(':')?;
+            let (file, line_number) = file_and_line.rsplit_once(':')?;
+            (
+                Some(file.to_owned()),
+                line_number.parse().ok(),
+                column.parse().ok(),
+            )
+        }
+    };
+    Some(BaselineDiagnostic {
+        file,
+        line: line_number,
+        column,
+        code: code.parse().ok()?,
+        category: category.to_owned(),
+        text: text.to_owned(),
+    })
 }
 
 fn parse_summary_line(line: &str) -> Option<BaselineDiagnostic> {

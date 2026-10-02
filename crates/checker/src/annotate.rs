@@ -5052,10 +5052,24 @@ impl<'a> CheckerState<'a> {
             }
         };
         let early_symbol = early.get(member_name).copied();
-        let parent_is_class = self.symbol_flags(parent).intersects(SymbolFlags::CLASS);
-        let excluded = get_excluded_symbol_flags(symbol_flags);
-        if !parent_is_class && self.binder.symbol(late_symbol).flags.intersects(excluded) {
-            // 57676-57681: duplicate late-bound member.
+        let mut excluded = get_excluded_symbol_flags(symbol_flags);
+        // tsgo getExcludedSymbolFlags: a JavaScript `this` assignment that a
+        // method may replace does not exclude methods (tsgo's PropertyExcludes
+        // includes Method; tsc 6.0's was empty).
+        if self
+            .binder
+            .symbol(decl_symbol)
+            .extras()
+            .is_replaceable_by_method
+        {
+            excluded = SymbolFlags::from_bits(excluded.bits() & !SymbolFlags::METHOD.bits());
+        }
+        // tsgo lateBindMember (TypeScript 7.1): a conflicting late-bound
+        // member reports TS2300 at every declaration of the name, in
+        // classes too (tsc 6.0 skipped classes, whose duplicates its
+        // checkClassForDuplicateDeclarations reported, and used TS2733 /
+        // TS2718).
+        if self.binder.symbol(late_symbol).flags.intersects(excluded) {
             let declarations: Vec<NodeId> = early_symbol
                 .map(|s| self.binder.symbol(s).declarations.clone())
                 .unwrap_or_default()
@@ -5079,15 +5093,22 @@ impl<'a> CheckerState<'a> {
                 .unwrap_or(declaration);
                 self.error_at_js(
                     Some(error_node),
-                    &diagnostics::Property_0_was_also_declared_here,
+                    &diagnostics::Duplicate_identifier_0,
                     &[(&display).into()],
                 );
             }
             self.error_at_js(
                 Some(decl_name),
-                &diagnostics::Duplicate_property_0,
+                &diagnostics::Duplicate_identifier_0,
                 &[(&display).into()],
             );
+            // tsgo: a late symbol holding one accessor kind that meets a
+            // different member gains both accessor flags.
+            let late_accessor = self.binder.symbol(late_symbol).flags & SymbolFlags::ACCESSOR;
+            if !late_accessor.is_empty() && late_accessor != (symbol_flags & SymbolFlags::ACCESSOR)
+            {
+                self.binder.symbol_mut(late_symbol).flags |= SymbolFlags::ACCESSOR;
+            }
             // 57680: only the LOCAL binding is replaced — the late
             // table keeps the FIRST symbol (member types resolve
             // first-wins); the detached fresh symbol just carries this

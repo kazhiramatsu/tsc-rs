@@ -788,6 +788,7 @@ compiler/classUpdateTests	full	none
 compiler/classUsedBeforeInitializedVariables(target=es2015)	full	js
 compiler/classVarianceCircularity	full	js
 compiler/classVarianceResolveCircularity1	full	js
+compiler/classWithDuplicateIdentifier	full	js
 compiler/classWithEmptyTypeParameter	full	js
 compiler/classWithMultipleBaseClasses	full	js
 compiler/classWithOverloadImplementationOfWrongName	full	js
@@ -1857,6 +1858,7 @@ compiler/deepKeysIndexing	full	js
 compiler/deeplyDependentLargeArrayMutation	full	js
 compiler/deeplyDependentLargeArrayMutation2	full	js
 compiler/deeplyNestedAssignabilityErrorsCombined	full	js
+compiler/deeplyNestedAssignabilityIssue	text	js
 compiler/deeplyNestedCheck	full	js
 compiler/deeplyNestedConditionalTypes	full	js
 compiler/deeplyNestedConstraints	full	js
@@ -2053,6 +2055,7 @@ compiler/downlevelLetConst9	full	js
 compiler/dtsEmitTripleSlashAvoidUnnecessaryResolutionMode	full	js
 compiler/duplicateAnonymousInners1	full	js
 compiler/duplicateAnonymousModuleClasses	full	js
+compiler/duplicateClassElements	full	js
 compiler/duplicateConstructSignature	full	js
 compiler/duplicateConstructSignature2	full	js
 compiler/duplicateConstructorOverloadSignature	full	js
@@ -2064,9 +2067,15 @@ compiler/duplicateErrorNameNotFound	full	js
 compiler/duplicateFunctionImplementationInJsFile	full	js
 compiler/duplicateIdentifierBindingElementInParameterDeclaration1(target=es2015)	full	js
 compiler/duplicateIdentifierBindingElementInParameterDeclaration2(target=es2015)	full	js
+compiler/duplicateIdentifierComputedName	full	js
 compiler/duplicateIdentifierDifferentModifiers	full	js
+compiler/duplicateIdentifierDifferentSpelling	full	js
 compiler/duplicateIdentifierEnum	full	js
 compiler/duplicateIdentifierInCatchBlock	full	js
+compiler/duplicateIdentifierRelatedSpans1	text	js
+compiler/duplicateIdentifierRelatedSpans3	text	js
+compiler/duplicateIdentifierRelatedSpans5	text	js
+compiler/duplicateIdentifierRelatedSpans6	text	js
 compiler/duplicateIdentifierRelatedSpans_moduleAugmentation	text	js
 compiler/duplicateIdentifierShouldNotShortCircuitBaseTypeBinding	full	js
 compiler/duplicateIdentifiersAcrossContainerBoundaries	full	js
@@ -2097,7 +2106,7 @@ compiler/duplicatePackage_subModule	full	js
 compiler/duplicatePackage_withErrors	full	js
 compiler/duplicatePropertiesInStrictMode	full	js
 compiler/duplicatePropertyAndAccessor	full	js
-compiler/duplicateStringNamedProperty1	category	js
+compiler/duplicateStringNamedProperty1	full	js
 compiler/duplicateSymbolsExportMatching	full	js
 compiler/duplicateTypeParameters1	full	js
 compiler/duplicateTypeParameters2	full	js
@@ -2114,6 +2123,7 @@ compiler/dynamicImportTrailingComma	full	js
 compiler/dynamicImportsDeclaration	full	none
 compiler/dynamicModuleTypecheckError	full	js
 compiler/dynamicNames	full	js
+compiler/dynamicNamesErrors	full	js
 compiler/dynamicRequire	full	js
 compiler/elaboratedErrors	full	js
 compiler/elaboratedErrorsOnNullableTargets01	full	js
@@ -2452,6 +2462,7 @@ compiler/esModuleInteropImportDefaultWhenAllNamedAreDefaultAlias	full	js
 compiler/esModuleInteropImportNamespace	full	js
 compiler/esModuleInteropImportTSLibHasImport	full	js
 compiler/esModuleInteropNamedDefaultImports	full	js
+compiler/esModuleInteropPrettyErrorRelatedInformation	text	js
 compiler/esModuleInteropUsesExportStarWhenDefaultPlusNames	full	js
 compiler/esModuleInteropWithExportStar(target=es2015)	full	js
 compiler/esModuleIntersectionCrash	full	js
@@ -3102,6 +3113,7 @@ compiler/getterSetterSubtypeAssignment	full	js
 compiler/getterThatThrowsShouldNotNeedReturn	full	js
 compiler/gettersAndSetters	full	js
 compiler/gettersAndSettersAccessibility	full	js
+compiler/gettersAndSettersErrors	full	none
 compiler/gettersAndSettersTypesAgree	full	js
 compiler/giant	full	js
 compiler/global	full	js
@@ -4214,6 +4226,7 @@ compiler/methodChainError	full	js
 compiler/methodContainingLocalFunction(target=es2015)	full	js
 compiler/methodInAmbientClass1	full	js
 compiler/methodSignatureDeclarationEmit1	full	js
+compiler/methodSignatureHandledDeclarationKindForSymbol	full	js
 compiler/mismatchedClassConstructorVariable	full	js
 compiler/mismatchedExplicitTypeParameterAndArgumentType	full	js
 compiler/mismatchedGenericArguments1	full	js
@@ -4449,6 +4462,7 @@ compiler/multiCallOverloads	full	js
 compiler/multiExtendsSplitInterfaces1	full	js
 compiler/multiExtendsSplitInterfaces2	full	js
 compiler/multiImportExport	full	js
+compiler/multiLineContextDiagnosticWithPretty	text	js
 compiler/multiLineErrors	full	js
 compiler/multiModuleClodule1	full	js
 compiler/multiModuleFundule1	full	js
@@ -4781,6 +4795,7 @@ compiler/numberLiteralsWithLeadingZeros	full	none
 compiler/numberOnLeftSideOfInExpression	full	js
 compiler/numberToString	full	js
 compiler/numberVsBigIntOperations	full	js
+compiler/numericClassMembers1	full	js
 compiler/numericEnumMappedType	full	js
 compiler/numericExportNameDeclaration	full	none
 compiler/numericIndexExpressions	full	js
@@ -4974,6 +4989,7 @@ compiler/parameterDestructuringObjectLiteral	full	js
 compiler/parameterListAsTupleType	full	js
 compiler/parameterNamesInTypeParameterList	full	js
 compiler/parameterPropertyInConstructor1	full	js
+compiler/parameterPropertyInConstructor2	full	js
 compiler/parameterPropertyInConstructor3	full	js
 compiler/parameterPropertyInConstructor4	full	js
 compiler/parameterPropertyInConstructorWithPrologues	full	js
@@ -5056,6 +5072,8 @@ compiler/prefixIncrementAsOperandOfPlusExpression	full	js
 compiler/prefixedNumberLiteralAssignToNumberLiteralType	full	js
 compiler/preserveConstEnums	full	js
 compiler/prespecializedGenericMembers1	full	js
+compiler/prettyContextNotDebugAssertion	text	none
+compiler/prettyFileWithErrorsAndTabs	text	js
 compiler/primaryExpressionMods	full	js
 compiler/primitiveConstraints1	full	js
 compiler/primitiveConstraints2	full	js
@@ -5170,6 +5188,7 @@ compiler/propertyAccessOfReadonlyIndexSignature	full	js
 compiler/propertyAccessOnObjectLiteral	full	js
 compiler/propertyAccessibility1	full	js
 compiler/propertyAccessibility2	full	js
+compiler/propertyAndAccessorMerging	full	js
 compiler/propertyAssignment	full	js
 compiler/propertyIdentityWithPrivacyMismatch	full	js
 compiler/propertyNamesWithStringLiteral	full	js
@@ -5255,6 +5274,7 @@ compiler/readonlyInNonPropertyParameters(target=es2015)	full	js
 compiler/readonlyMembers(target=es2015)	full	js
 compiler/readonlyPropertySubtypeRelationDirected	full	js
 compiler/readonlyTupleAndArrayElaboration	full	js
+compiler/reassignStaticProp	full	js
 compiler/reboundBaseClassSymbol	full	js
 compiler/reboundIdentifierOnImportAlias	full	js
 compiler/rectype	full	js
@@ -5731,6 +5751,7 @@ compiler/staticMethodReferencingTypeArgument1	full	js
 compiler/staticMethodWithTypeParameterExtendsClauseDeclFile	full	js
 compiler/staticMethodsReferencingClassTypeParameters	full	js
 compiler/staticMismatchBecauseOfPrototype	full	js
+compiler/staticModifierAlreadySeen	full	none
 compiler/staticMustPrecedePublic	full	js
 compiler/staticOffOfInstance1	full	js
 compiler/staticOffOfInstance2	full	js
@@ -7151,6 +7172,7 @@ conformance/autoAccessor1(target=es2015)	full	js
 conformance/autoAccessor1(target=es2022)	full	js
 conformance/autoAccessor1(target=esnext)	full	js
 conformance/autoAccessor10	full	js
+conformance/autoAccessor11	full	js
 conformance/autoAccessor2(target=es2015)	full	js
 conformance/autoAccessor2(target=es2022)	full	js
 conformance/autoAccessor2(target=esnext)	full	js
@@ -7373,6 +7395,7 @@ conformance/callSignaturesWithDuplicateParameters	full	js
 conformance/callSignaturesWithOptionalParameters	full	js
 conformance/callSignaturesWithOptionalParameters2	full	js
 conformance/callSignaturesWithParameterInitializers	full	js
+conformance/callSignaturesWithParameterInitializers2	full	none
 conformance/callWithMissingVoid	full	js
 conformance/callWithMissingVoidUndefinedUnknownAnyInJs(strict=true)	full	js
 conformance/callWithSpread	full	js
@@ -7864,6 +7887,7 @@ conformance/constructSignatureAssignabilityInInheritance4	full	js
 conformance/constructSignatureAssignabilityInInheritance5	full	js
 conformance/constructSignatureAssignabilityInInheritance6	full	js
 conformance/constructSignatureWithAccessibilityModifiersOnParameters	full	js
+conformance/constructSignatureWithAccessibilityModifiersOnParameters2	full	js
 conformance/constructSignaturesWithIdenticalOverloads	full	js
 conformance/constructSignaturesWithOverloads	full	js
 conformance/constructSignaturesWithOverloads2	full	js
@@ -7882,6 +7906,7 @@ conformance/constructorNameInObjectLiteralAccessor	full	js
 conformance/constructorOverloadsWithDefaultValues	full	js
 conformance/constructorOverloadsWithOptionalParameters	full	js
 conformance/constructorParameterProperties	full	js
+conformance/constructorParameterProperties2	full	js
 conformance/constructorParameterShadowsOuterScopes	full	js
 conformance/constructorParameterShadowsOuterScopes2	full	js
 conformance/constructorTagOnClassConstructor	full	js
@@ -8238,6 +8263,7 @@ conformance/duplicateExportAssignments	full	js
 conformance/duplicateNumericIndexers	full	js
 conformance/duplicatePropertiesInTypeAssertions01	full	js
 conformance/duplicatePropertiesInTypeAssertions02	full	js
+conformance/duplicatePropertyNames	full	js
 conformance/duplicateStringIndexers	full	js
 conformance/dynamicImportDefer(module=commonjs)	full	js
 conformance/dynamicImportDefer(module=es2015)	full	js
@@ -9701,6 +9727,7 @@ conformance/mappedTypeIndexSignatureModifiers	full	js
 conformance/mappedTypeInferenceErrors	full	js
 conformance/mappedTypeModifiers	full	js
 conformance/mappedTypeOverlappingStringEnumKeys	full	js
+conformance/mappedTypeProperties	full	js
 conformance/mappedTypeRelationships	full	js
 conformance/mappedTypeWithAny	full	js
 conformance/mappedTypes1	full	js
@@ -10234,7 +10261,9 @@ conformance/numericIndexingResults	full	js
 conformance/numericLiteralTypes1	full	js
 conformance/numericLiteralTypes2	full	js
 conformance/numericLiteralTypes3	full	js
+conformance/numericNamedPropertyDuplicates	full	none
 conformance/numericStringLiteralTypes	full	js
+conformance/numericStringNamedPropertyEquivalence	full	js
 conformance/objectBindingPatternKeywordIdentifiers01	full	none
 conformance/objectBindingPatternKeywordIdentifiers02	full	none
 conformance/objectBindingPatternKeywordIdentifiers03	full	none
@@ -10242,6 +10271,7 @@ conformance/objectBindingPatternKeywordIdentifiers04	full	none
 conformance/objectBindingPatternKeywordIdentifiers05	full	js
 conformance/objectBindingPatternKeywordIdentifiers06	full	js
 conformance/objectLiteralContextualTyping	full	js
+conformance/objectLiteralErrors(target=es2015)	full	js
 conformance/objectLiteralGettersAndSetters	full	js
 conformance/objectLiteralNormalization	full	js
 conformance/objectLiteralShorthandProperties(target=es2015)	full	js
@@ -10293,6 +10323,7 @@ conformance/objectTypeWithConstructSignatureAppearsToBeFunctionType	full	js
 conformance/objectTypeWithConstructSignatureHidingMembersOfExtendedFunction	full	js
 conformance/objectTypeWithConstructSignatureHidingMembersOfFunction	full	js
 conformance/objectTypeWithConstructSignatureHidingMembersOfFunctionAssignmentCompat	full	js
+conformance/objectTypeWithDuplicateNumericProperty	full	js
 conformance/objectTypeWithNumericProperty	full	js
 conformance/objectTypeWithRecursiveWrappedProperty	full	js
 conformance/objectTypeWithRecursiveWrappedProperty2	full	js
@@ -10476,6 +10507,7 @@ conformance/parser.numericSeparators.hexNegative	full	none
 conformance/parser.numericSeparators.octal	full	js
 conformance/parser.numericSeparators.octalNegative	full	none
 conformance/parser.numericSeparators.unicodeEscape	full	js
+conformance/parser0_004152	full	none
 conformance/parser10.1.1-8gs	full	js
 conformance/parser15.4.4.14-9-2	full	js
 conformance/parser509534	full	js
@@ -11317,6 +11349,7 @@ conformance/privateNameConstructorReserved	full	js
 conformance/privateNameConstructorSignature	full	js
 conformance/privateNameDeclaration	full	js
 conformance/privateNameDeclarationMerging	full	js
+conformance/privateNameDuplicateField	full	js
 conformance/privateNameES5Ban(target=es2015)	full	js
 conformance/privateNameEmitHelpers	full	js
 conformance/privateNameEnum	full	js
@@ -11430,6 +11463,7 @@ conformance/privateNamesNotAllowedAsParameters	full	none
 conformance/privateNamesNotAllowedInVariableDeclarations	full	none
 conformance/privateNamesUnique-1	full	js
 conformance/privateNamesUnique-2	full	js
+conformance/privateNamesUnique-3	full	js
 conformance/privateNamesUnique-4	full	js
 conformance/privateNamesUnique-5	full	js
 conformance/privateNamesUseBeforeDef	full	js
@@ -11659,6 +11693,7 @@ conformance/stringLiteralTypesAsTags03	full	js
 conformance/stringLiteralTypesAsTypeParameterConstraint01	full	js
 conformance/stringLiteralTypesAsTypeParameterConstraint02	full	js
 conformance/stringLiteralTypesInImplementationSignatures	full	js
+conformance/stringLiteralTypesInImplementationSignatures2	full	js
 conformance/stringLiteralTypesInUnionTypes01	full	js
 conformance/stringLiteralTypesInUnionTypes02	full	js
 conformance/stringLiteralTypesInUnionTypes03	full	js
@@ -11695,6 +11730,7 @@ conformance/stringMappingDeferralInConditionalTypes	full	js
 conformance/stringMappingOverPatternLiterals	full	js
 conformance/stringMappingReduction	full	js
 conformance/stringNamedPropertyAccess	full	js
+conformance/stringNamedPropertyDuplicates	full	none
 conformance/stringPropertyAccess	full	js
 conformance/stringPropertyAccessWithError	full	js
 conformance/subtypesOfAny	full	js
@@ -11779,6 +11815,7 @@ conformance/switchWithConstrainedTypeVariable	full	js
 conformance/symbolDeclarationEmit1	full	js
 conformance/symbolDeclarationEmit10	full	js
 conformance/symbolDeclarationEmit11	full	js
+conformance/symbolDeclarationEmit12	full	js
 conformance/symbolDeclarationEmit13	full	js
 conformance/symbolDeclarationEmit14	full	js
 conformance/symbolDeclarationEmit2	full	js
@@ -11819,6 +11856,7 @@ conformance/symbolProperty33	full	js
 conformance/symbolProperty34	full	js
 conformance/symbolProperty35	full	js
 conformance/symbolProperty36	full	js
+conformance/symbolProperty37	full	js
 conformance/symbolProperty38	full	js
 conformance/symbolProperty39	full	js
 conformance/symbolProperty4	full	js
@@ -11826,6 +11864,7 @@ conformance/symbolProperty40	full	js
 conformance/symbolProperty41	full	js
 conformance/symbolProperty42	full	js
 conformance/symbolProperty43	full	js
+conformance/symbolProperty44	full	js
 conformance/symbolProperty45	full	js
 conformance/symbolProperty46	full	js
 conformance/symbolProperty47	full	js
@@ -12541,6 +12580,7 @@ conformance/typeTagOnPropertyAssignment	full	js
 conformance/typeTagPrototypeAssignment	full	js
 conformance/typeTagWithGenericSignature	full	js
 conformance/typeValueMerge1	full	js
+conformance/typedefCrossModule5	text	js
 conformance/typedefDuplicateTypeDeclaration	full	js
 conformance/typedefModuleExportsIndirect1	full	none
 conformance/typedefModuleExportsIndirect2	full	none
@@ -12709,6 +12749,7 @@ conformance/uniqueSymbolsDeclarationsErrors	full	js
 conformance/uniqueSymbolsDeclarationsInJs	full	js
 conformance/uniqueSymbolsDeclarationsInJsErrors	full	js
 conformance/uniqueSymbolsErrors	full	js
+conformance/uniqueSymbolsPropertyNames	full	js
 conformance/unknownControlFlow	full	js
 conformance/unknownType1	full	js
 conformance/unknownType2	full	js

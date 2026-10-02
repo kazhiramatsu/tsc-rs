@@ -3141,7 +3141,9 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        self.check_object_type_for_duplicate_declarations(node)?;
+        self.check_object_type_for_duplicate_declarations(
+            node, /*check_private_names*/ false,
+        )?;
         for heritage_element in self.interface_base_type_nodes(node) {
             let expression = match self.data_of(heritage_element) {
                 NodeData::ExpressionWithTypeArguments(data) => data.expression,
@@ -3547,7 +3549,9 @@ impl<'a> CheckerState<'a> {
             self.check_index_constraints(ty, symbol, /*is_static_index*/ false)?;
         }
         self.check_type_for_duplicate_index_signatures(node)?;
-        self.check_object_type_for_duplicate_declarations(node)?;
+        self.check_object_type_for_duplicate_declarations(
+            node, /*check_private_names*/ false,
+        )?;
         Ok(())
     }
 

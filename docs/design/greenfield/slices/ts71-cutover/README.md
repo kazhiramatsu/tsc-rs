@@ -531,3 +531,42 @@ statementsの注記を更新。
 - conformance：15,228 configuration、lane A 13,467（変化なし）、full 12,807→12,832（+25）、text 83、category 22、mismatch 510→486、harness error 45→44、emit full 12,410→12,411（増分はload依存の`intersectionConstructorReductionCrash`がこの回fullになったもので、P3-5aの判断どおりratchetには載せない）。上がったのはimport attributes classの20構成（`importAssertion3`／`importAttributes3`／`importTag15`の各module、`nodeModulesJson`、`nodeModulesImportAttributesModeDeclarationEmitErrors`、`nodeModulesImportModeDeclarationEmitErrors1`、`nodeModulesImportTypeModeDeclarationEmitErrors1`の各module）とTS2880 classの`importTypeAssertionDeprecation`／`Ignored`（`nodeModulesImportTypeModeDeclarationEmitErrors1`の4構成は両classに属する）。ratchet：0 regressions、24行追加。localの検証は2026-10-02のlocal-load方針どおり：fmt、syntax／checker／compiler／conformance crateのclippyとtest、release build、2 workerのfull run 1回（794 s）。
 - hosted：PR #626（head `e48700253`、merge `6374743d8`）。最初のhead `c3c8ace4e`のrun 36956869370は`rust`が失敗：emitterの`import_type_attributes_contract`のfixtureが`assert` caseのnode flagをparse errorなしで記録していた（import typeとattributesは今parse-error flagを持つ；flagだけの差でemit hookとprintは同じ）。localの軽量chainはsyntax／checker／compiler／conformanceだけでemitterのtestを回していなかった。fixtureを再pinした`e48700253`のrun 36958330916 — `plan` 34s、`rust` 9m32s、`conformance (TypeScript 7.1)` 22m11s、`gates` 13s。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main `5f7b51da6`と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 123→120、zod 519→521、Playwright 357→352、TypeScript `src/compiler` 351→349、Next.js 787→765、Effect 528→536（CPU時間は3,369→3,325 msで減、run間の幅の内）、VS Code 3,508→3,504。tsc-rs÷tsgoは0.59〜0.99で従来どおり、peak memoryは同等（MB main→本branch：306→311、1,290→1,302、753→753、292→292、1,329→1,339、1,040→1,021、5,466→5,474）。退行なし。
+
+## P3-5i `@pretty` baselineの比較とmember重複宣言の報告（2026-10-02）
+
+P3-5h後の集計で、`@pretty: true`の14 case（`duplicateIdentifierRelatedSpans1`〜`7`、
+`esModuleInteropPrettyErrorRelatedInformation`、`manyCompilerErrorsInTheTwoFiles`、`multiLineContextDiagnosticWithPretty`、
+`prettyContextNotDebugAssertion`、`prettyFileWithErrorsAndTabs`、`deeplyNestedAssignabilityIssue`、`typedefCrossModule5`）が
+すべてmismatchだった。native runnerの`@pretty` baselineはANSI色付きの`file:line:col - category TScode: text`形式
+（`FormatDiagnosticsWithColorAndContext`：code frame、chain行、related行、末尾の`Found N errors`）で、runnerの
+`parse_errors_baseline`は要約形式しか読めず期待行が0になり、tsc-rsの行がすべて「unexpected」になっていた。
+ANSI escapeを外してheader行だけを読む`parse_pretty_errors_baseline`を加えた（Full tierは従来どおり`@pretty`では評価しない）。
+`@pretty`の10構成は期待行が読めるようになり、text tierに上がった（Full tierは`@pretty`では評価しない）。
+もう1つ、missing TS2300の23構成（`duplicateClassElements`、`numericClassMembers1`、`numericNamedPropertyDuplicates`、
+`stringNamedPropertyDuplicates`、`objectTypeWithDuplicateNumericProperty`、`constructorParameterProperties2`、
+`parameterPropertyInConstructor2`、`symbolProperty37`／`44`、`duplicatePropertyNames`…）。scannerは数値名を正規化済みで、差は
+報告の形：tsgoの`checkObjectTypeForDuplicateDeclarations`（checker.go:3190-3259、class／interface／type literal共通）は
+member名ごとの状態（1＝property、2＝accessor、3＝報告済み）で、2つ目のpropertyかpropertyとaccessorの併存を見つけると
+`reportDuplicateMemberErrors`でその名前の全memberに報告し（引数はsymbolの書かれた名前：`0`と`0.0`なら`'0'`）、parameter
+propertyはinstance propertyとして数え、private名のinstance／static共用はclass bodyだけで報告する。tsc-rsの6.0移植は
+class用とinterface／type literal用の2関数で、後の宣言だけにその宣言自身のtext（`''0''`）で報告していた。tsgoの1関数に
+置き換え（引数はmerge.rsの`symbol_name_as_written`＝getNameOfSymbolAsWrittenの移植）、`checkClassForDuplicateDeclarations`は削除。
+late-boundのmember（computed nameが定数で解決するもの）もtsgoの`lateBindMember`に合わせた：衝突するflagを持つ
+late-bound memberは名前の全宣言にTS2300（6.0はTS2733「was also declared here」とTS2718「Duplicate property」）、
+classも対象（6.0はclassを`checkClassForDuplicateDeclarations`に任せて除外していた）、accessor同士でないmemberとの衝突で
+late symbolが両accessor flagを得る。tsgoで確かめた例：`interface I { [k]: number; [k](): void; [k]: boolean; }`は
+TS2300 'x'×2、TS2300 '[k]'×3、TS2717。unit testの再pin：late binding 2件、classの空文字列member（tsgoは`""`同士も
+TS2300、6.0は報告しなかった）。
+binderの除外maskもtsgoに合わせた（4つだけが6.0と違う）：PropertyExcludes＝Value & ~(Property | Accessor)（6.0はNone）、
+GetAccessorExcludes／SetAccessorExcludesからPropertyを外し、auto-accessorのAccessorExcludes＝Value & ~Property
+（6.0はValue & ~Accessor）。propertyとaccessorの併存はbinderではなく宣言ごとの`checkObjectTypeForDuplicateDeclarations`
+が見るので、別々のinterface宣言やclass＋interfaceにまたがるmerge（`propertyAndAccessorMerging`）は報告しない。
+新しいPropertyExcludesはvariableとmethodも除外するので、tsgoが同時に入れた2つの例外も移植した：binderの
+`declareSymbol`はassignment宣言とvariableのmergeを両方向で許し（6.0はvariableが後のときだけ；TSのexpando
+`f.p = …`と`namespace f { export const p }`の組でTS2300／TS2451が出ていた）、`getExcludedSymbolFlags`は
+methodに置き換えられうるJavaScriptの`this[sym] = …`からMethodを外す（`[sym]()`との組でlate-boundのTS2300が
+出ていた）。最初のfull runで退行した`expandoFunctionNestedAssigmentsDeclared`、
+`jsDeclarationEmitThisAssignmentDuplicatingMethod`、`lateBoundMethodNameAssigmentJS`、`typeFromPropertyAssignment31`が
+その2つ。
+- conformance：15,228 configuration、lane A 13,467（変化なし）、full 12,832→12,864（+32）、text 83→93、category 22→21、mismatch 486→445、harness error 44、emit full 12,411→12,412。上がったのは43構成：重複宣言classの32構成がfull（`duplicateClassElements`、`numericClassMembers1`、`numericNamedPropertyDuplicates`、`propertyAndAccessorMerging`、`constructorParameterProperties2`、`privateNameDuplicateField`、`autoAccessor11`、`objectLiteralErrors`…）、`@pretty`の10構成がtext、1構成がcategory→full。ratchet：0 regressions、42行追加・1行raise（`intersectionConstructorReductionCrash`は従来どおり載せない）。最初のfull runでは4構成が退行し、上記2つの例外の移植で解消した。localは型crateの変更なのでworkspace全体のclippyとtest（70 targets、3,619 passed）、2 workerのfull run（792 s）。
+- hosted：HOSTED_RECORD
