@@ -3895,6 +3895,7 @@ compiler/jsdocSatisfiesTagWithParamTag	full	none
 compiler/jsdocThisTagWithThisParameter	full	js
 compiler/jsdocTypeCast	full	js
 compiler/jsdocTypeGenericInstantiationAttempt	full	js
+compiler/jsdocTypeNongenericInstantiationAttempt	full	js
 compiler/jsdocTypecastNoTypeNoCrash	full	js
 compiler/jsdocTypedefBeforeParenthesizedExpression	full	js
 compiler/jsdocTypedef_propertyWithNoType	full	js
@@ -6317,6 +6318,7 @@ compiler/unionTypeWithRecursiveSubtypeReduction3	full	js
 compiler/unionWithIndexSignature	full	js
 compiler/uniqueSymbolAllowsIndexInObjectWithIndexSignature	full	js
 compiler/uniqueSymbolAssignmentOnGlobalAugmentationSuceeds	full	js
+compiler/uniqueSymbolJs	full	js
 compiler/uniqueSymbolJs2	full	js
 compiler/uniqueSymbolPropertyDeclarationEmit	full	js
 compiler/unknownLikeUnionObjectFlagsNotPropagated	full	js
@@ -7614,6 +7616,7 @@ conformance/commentEmittingInPreserveJsx1	full	js
 conformance/commonJSImportAsPrimaryExpression	full	js
 conformance/commonJSImportClassTypeReference	full	none
 conformance/commonJSImportExportedClassExpression	full	none
+conformance/commonJSImportNestedClassTypeReference	full	none
 conformance/commonJSImportNotAsPrimaryExpression	full	js
 conformance/commonJSReexport	full	js
 conformance/commonJsImportBindingElementNarrowType	full	js
@@ -9124,6 +9127,7 @@ conformance/importTag10	full	js
 conformance/importTag11	full	js
 conformance/importTag12	full	js
 conformance/importTag16	full	none
+conformance/importTag17	full	js
 conformance/importTag18	full	none
 conformance/importTag19	full	none
 conformance/importTag2	full	js
@@ -9416,6 +9420,7 @@ conformance/jsDeclarationsGetterSetter	full	none
 conformance/jsDeclarationsImportAliasExposedWithinNamespaceCjs	full	none
 conformance/jsDeclarationsImportNamespacedType	full	none
 conformance/jsDeclarationsInterfaces(target=es2015)	full	none
+conformance/jsDeclarationsJSDocRedirectedLookups	full	none
 conformance/jsDeclarationsJson(target=es2015)	full	none
 conformance/jsDeclarationsMissingGenerics(target=es2015)	full	js
 conformance/jsDeclarationsMultipleExportFromMerge(target=es2015)	full	none
@@ -9500,6 +9505,7 @@ conformance/jsdocTwoLineTypedef	full	js
 conformance/jsdocTypeDefAtStartOfFile	full	js
 conformance/jsdocTypeFromChainedAssignment2	full	js
 conformance/jsdocTypeReferenceToImportOfClassExpression	full	js
+conformance/jsdocTypeReferenceToValue	full	js
 conformance/jsdocTypeReferenceUseBeforeDef	full	js
 conformance/jsdocTypeTag	full	none
 conformance/jsdocTypeTagOnParameter1	full	js
@@ -12379,6 +12385,7 @@ conformance/typeGuardsWithInstanceOf	full	js
 conformance/typeGuardsWithInstanceOfByConstructorSignature	full	js
 conformance/typeGuardsWithInstanceOfBySymbolHasInstance	full	js
 conformance/typeInferenceWithTupleType	full	js
+conformance/typeLookupInIIFE	full	js
 conformance/typeOfThisGeneral	full	js
 conformance/typeOfThisInAccessor	full	js
 conformance/typeOfThisInConstructorParamList	full	js

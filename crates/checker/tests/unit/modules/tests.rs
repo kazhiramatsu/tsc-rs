@@ -2981,11 +2981,11 @@ fn checked_js_destructured_require_aliases_preserve_bare_class_and_accessed_valu
             .filter(|(_, code, _, _)| *code == 2339)
             .map(|(file, code, _, _)| (file, code))
             .collect::<Vec<_>>(),
-        [
-            ("/accessed.js".to_owned(), 2339),
-            ("/accessed.js".to_owned(), 2339),
-            ("/main.js".to_owned(), 2339),
-        ]
+        // TypeScript 7.1: `NestedK` (the object-literal property symbol of
+        // the accessed require) is a value and reports TS2749 instead of
+        // exposing a face; the bare require still aliases the class (tsgo
+        // tsc-19dadef8).
+        [("/main.js".to_owned(), 2339)]
     );
 }
 

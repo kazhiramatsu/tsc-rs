@@ -444,3 +444,45 @@ tsgoの2行に再pinし、ambient moduleの循環（4行）と`export type { A }
 - conformance：15,228 configuration、lane A 13,467（変化なし）、full 12,731→12,743（+12）、text 114、category 22、mismatch 555→543、harness error 45、emit full 12,410。fullに上がったのはTS2303 classの12構成すべて（`circular1`／`circular3`、`recursiveExportAssignmentAndFindAliasedType1`〜`6`、`declarationEmitUnknownImport`／`2`（target=es2015）、`circularModuleImports`、`exportAsNamespaceConflict`）。ratchet：0 regressions、12行追加。
 - hosted：PR #623（head `ac2a31657`、merge `f946e0cf8`）、run 36942229574 — `plan` 31s、`rust` 9m47s、`conformance (TypeScript 7.1)` 21m45s、`gates` 12s。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main `02d078f30`と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 121→119、zod 528→524、Playwright 340→350（min 337→330）、TypeScript `src/compiler` 355→346、Next.js 826→792、Effect 546→506、VS Code 3,480→3,513。tsc-rs÷tsgoは0.59〜1.01で従来どおり、peak memoryは同等（MB main→本branch：284→312（honoは日中の計測でも284〜312の幅）、1,302→1,294、760→760、292→292、1,325→1,328、1,051→1,032、5,478→5,484）。退行なし。
+
+## P3-5f JavaScriptのvalue-as-type fallback撤廃（TS2749／TS2503）（2026-10-02）
+
+P3-5e後の集計でmissing TS2749が17構成（`jsdocTypeReferenceToValue`、`typeFromPropertyAssignment`／`2`／`3`／`40`、
+`jsDeclarationsEnumTag`、`jsEnumTagOnObjectFrozen`、`enumTagUseBeforeDefCrash`、`exportedEnumTypeAndValue`、
+`jsdocTypeReferenceExports`／`ToImport`、`commonJSImportNestedClassTypeReference`、
+`prototypePropertyAssignmentMergedTypeReference`、`typeTagCircularReferenceOnConstructorFunction`、
+`jsDeclarationsJSDocRedirectedLookups`、`jsDeclarationsReferenceToClassInstanceCrossFile`、
+`jsdocTypeNongenericInstantiationAttempt`）。tsc 6.0の`getTypeFromTypeReference`はJSDocの型参照を
+`Type`で引けないとき`Type|Value`で引き直し、`getTypeReferenceType`が`getExpandoSymbol`（初期化子のclass／function faceの
+merge）と`getTypeFromJSDocValueReference`（値の型をそのまま型として使う）で値を型に変換していた。tsgoの
+`getTypeFromTypeReference`（checker.go:23425-23438）は`getIntendedTypeFromJSDocTypeReference`の後、
+`getSymbolFromTypeReference`（meaning `Type`のみ）→`getTypeReferenceType`で、後者にはexpando mergeも値の変換も無く
+（`// !!! Resolving values as types for JS`でerrorType）、JSDocで値を参照するとTypeScriptと同じTS2749
+「'X' refers to a value, but is being used as a type here.」（qualified nameの左側はTS2503）になる。tsc-rsは
+`get_type_from_type_reference`の`Type|Value`再解決と`get_type_reference_type`のexpando merge／JS value armを削り、
+`get_expando_symbol`／`get_type_from_jsdoc_value_reference`を削除した。qualified nameの左側は6.0がJavaScriptでは
+`Namespace|Value`で引いていたが、tsgoの`resolveQualifiedName`は`Namespace`だけで引く（`@type {NS.Inner}`の`NS`が
+変数ならTS2503「Cannot find namespace」）ので`resolve_entity_name`の`namespace_meaning`もそれに合わせた。6.0の
+`resolveEntityNameFromAssignmentDeclaration`（JSDoc型参照の二次location解決）はtsgoに無いが、tsc-rsではJSDoc
+`@template`の既定値や`@overload`のtype parameter解決がこれに依っている（外すと`jsdocTemplateTagDefault`／
+`jsdocVariadicInOverload`がTS2304に退行）ため残す——tsgoは`resolveName`のcontainer walkで解くので、JSDoc scopeの
+移植時に外す。もう1つ、tsc-rs固有の「JavaScriptの全meaning shield」（`on_failed_to_resolve_symbol`で、JSでは名前が
+別のmeaningで存在すれば未解決エラーを出さない——binderのvalue／namespace mergeの未実装を隠すための逸脱）が
+`@type {NS.Inner}`のTS2503を飲み込んでいたので外し、`check_and_report_error_for_using_type_as_namespace`の
+JS `Namespace|Value`比較も`Namespace`にした（tsgoにはどちらも無い）。jsdoc 458／salsa 199／checkJs 77／commonjs 24
+構成のfilterで退行0。P3-5dで残っていた`resolve.rs`のsuggestion budgetコメントも書き換えた。unit testはtsgoの行に
+再pin（`tsc-19dadef8`で確認）：check
+（`jsdoc_value_references_report_2749_and_2503_like_tsgo`：TS2749＋TS2503；declaration emitのreuse testのJS側は
+`(x: V | string)`と値の名前で表示）、functions（`@type {Self}`にTS8030がもう1件）、modules（accessed requireの
+`NestedK`はTS2749で面を持たない）、unused（`import("./MC")`の値は型にならず（tsgo TS1340）cross-file登録が無い）、
+compilerの`jsdoc_import_resolution_mode_overrides_select_distinct_rows`（`@import`した値を`@returns`の型に使っていた
+のでfixtureを`export type`に）。
+残る差はbinderのclass（tsgoのbinderは`// !!! constructor functions`で未実装）：JavaScriptのconstructor function
+（`function MyClass() {}`＋`MyClass.prototype = …`、`f.prototype.x = …`）や`require`で束縛したclassにtsc-rsのbinderは
+class faceを与えるので`@type {MyClass}`が型として解決してTS2749が出ない（`typeTagCircularReferenceOnConstructorFunction`、
+`prototypePropertyAssignmentMergedTypeReference`、`jsDeclarationsReferenceToClassInstanceCrossFile`）、`var Outer = {}`＋
+`Outer.Inner = …`のexpando（`Outer`にnamespace faceが付きTS2709／`Outer.Inner`のTS2749になるが、tsgoは素のvarとして
+TS2749／TS2503：`typeFromPropertyAssignment*`）、`@enum` tag（tsc-rsはtype aliasとしてbindするがtsgoは値のまま：
+`jsDeclarationsEnumTag`、`jsEnumTagOnObjectFrozen`、`enumTagUseBeforeDefCrash`、`exportedEnumTypeAndValue`）。
+- conformance：15,228 configuration、lane A 13,467（変化なし）、full 12,743→12,750（+7）、text 114、category 22、mismatch 543→536、harness error 45、emit full 12,410。fullに上がったのはTS2749 classの4構成（`jsdocTypeReferenceToValue`、`jsdocTypeNongenericInstantiationAttempt`、`jsDeclarationsJSDocRedirectedLookups`、`commonJSImportNestedClassTypeReference`）とshield撤廃で揃った3構成（`uniqueSymbolJs`、`importTag17`、`typeLookupInIIFE`）。TS2749 classの残り13構成は上記binder class。ratchet：0 regressions、7行追加。
+- hosted：HOSTED_RECORD

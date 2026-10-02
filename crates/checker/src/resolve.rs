@@ -1325,14 +1325,8 @@ impl<'a> CheckerState<'a> {
         // under a different meaning. Falling through is tsc's ordinary
         // missing-name/namespace tail even when an unrelated-meaning
         // symbol exists (for example `import v = V` where V is a
-        // value). JavaScript still has unmaterialized value/namespace
-        // merges; preserve the old all-meanings shield there only.
-        if error_location.is_some_and(|location| self.is_in_js_file(location)) {
-            match self.resolve_name(error_location, name, SymbolFlags::ALL, None, false, false) {
-                Ok(Some(_)) | Err(_) => return,
-                Ok(None) => {}
-            }
-        }
+        // value), in JavaScript too: tsgo (TypeScript 7.1) reports a
+        // variable used as a namespace (TS2503) like TypeScript.
         // The remaining JavaScript-only unresolved-name exemptions are
         // value constructs: prototype assignment roots and implicit
         // `require`. JSDoc aliases are ordinary binder symbols.
@@ -1344,11 +1338,8 @@ impl<'a> CheckerState<'a> {
             return;
         }
         // getSuggestedLibForNonExistentName is static lib metadata, so
-        // the 2583/2584-family lib arm is exact. The SPELLING branch
-        // (48123-48151) is budget-gated: suggestionCount < 10, where
-        // the noLib bootstrap burns all 10 (run_init_global_type_probes)
-        // — oracle-pinned via strictBindCallApply:false. Every failure
-        // reaching this tail consumes one slot, suggestion or not.
+        // the 2583/2584-family lib arm is exact; the spelling branch
+        // follows (tsgo has no suggestion budget).
         let display: JsString = error_location
             .filter(|&location| {
                 self.kind_of(location) == SyntaxKind::Identifier
@@ -1458,11 +1449,9 @@ impl<'a> CheckerState<'a> {
         name: EscapedName,
         meaning: SymbolFlags,
     ) -> CheckResult<bool> {
-        let namespace_meaning = if self.is_in_js_file(error_location) {
-            SymbolFlags::NAMESPACE | SymbolFlags::VALUE
-        } else {
-            SymbolFlags::NAMESPACE
-        };
+        // tsgo (TypeScript 7.1) compares with the Namespace meaning alone;
+        // tsc 6.0 added Value in JavaScript files.
+        let namespace_meaning = SymbolFlags::NAMESPACE;
         if meaning != namespace_meaning {
             return Ok(false);
         }
@@ -2336,12 +2325,10 @@ impl<'a> CheckerState<'a> {
         if node_util::node_is_missing(self.binder.source_of_node(name), Some(name)) {
             return Ok(None);
         }
-        let namespace_meaning = SymbolFlags::NAMESPACE
-            | if self.is_in_js_file(name) {
-                meaning & SymbolFlags::VALUE
-            } else {
-                SymbolFlags::NONE
-            };
+        // tsgo resolveQualifiedName (TypeScript 7.1) resolves the left
+        // side with the Namespace meaning alone; tsc 6.0 added the Value
+        // meaning in JavaScript files.
+        let namespace_meaning = SymbolFlags::NAMESPACE;
         let symbol = match self.kind_of(name) {
             SyntaxKind::Identifier => {
                 let Some(text) = self.identifier_name_of(name) else {

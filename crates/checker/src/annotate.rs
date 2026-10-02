@@ -1519,34 +1519,15 @@ impl<'a> CheckerState<'a> {
                 return Ok(resolved);
             }
         }
+        // tsgo getTypeFromTypeReference (TypeScript 7.1): a JSDoc
+        // reference takes the intended lib type when it has one and is
+        // otherwise resolved like a TypeScript type reference, with the
+        // Type meaning only (getSymbolFromTypeReference); tsc 6.0 retried
+        // with Type|Value and converted the value to a type.
         let mut symbol = None;
         let mut resolved = None;
         if self.is_jsdoc_type_reference(node) {
             resolved = self.get_intended_type_from_jsdoc_type_reference(node)?;
-            if resolved.is_none() {
-                let mut resolved_symbol = self.resolve_type_reference_name(
-                    node,
-                    SymbolFlags::TYPE,
-                    /*ignore_errors*/ true,
-                )?;
-                if resolved_symbol == self.unknown_symbol {
-                    resolved_symbol = self.resolve_type_reference_name(
-                        node,
-                        SymbolFlags::TYPE | SymbolFlags::VALUE,
-                        /*ignore_errors*/ false,
-                    )?;
-                } else {
-                    // The non-quiet lookup performs tsc's ordinary
-                    // reporting/deprecation side effects.
-                    let _ = self.resolve_type_reference_name(
-                        node,
-                        SymbolFlags::TYPE,
-                        /*ignore_errors*/ false,
-                    )?;
-                }
-                symbol = Some(resolved_symbol);
-                resolved = Some(self.get_type_reference_type(node, resolved_symbol)?);
-            }
         }
         if resolved.is_none() {
             let resolved_symbol = self.resolve_type_reference_name(
@@ -2402,7 +2383,6 @@ impl<'a> CheckerState<'a> {
             // 60381-60383.
             return Ok(self.tables.intrinsics.error);
         }
-        let symbol = self.get_expando_symbol(symbol)?.unwrap_or(symbol);
         let flags = self.symbol_flags(symbol);
         if flags.intersects(SymbolFlags::TYPE_PARAMETER) {
             // tryGetDeclaredTypeOfSymbol arm (60400-60403): a
@@ -2451,93 +2431,11 @@ impl<'a> CheckerState<'a> {
                 self.regular_type_of_literal_type(declared)
             });
         }
-        if flags.intersects(SymbolFlags::VALUE) && self.is_jsdoc_type_reference(node) {
-            return self.get_type_from_jsdoc_value_reference(node, symbol);
-        }
+        // tsgo (TypeScript 7.1) has no JavaScript value-as-type arm here
+        // (`// !!! Resolving values as types for JS`): a JSDoc reference to
+        // a value is the error type, and the Type-meaning lookup reported
+        // TS2749/TS2503 for it.
         Ok(self.tables.intrinsics.error)
-    }
-
-    /// tsc-port: getExpandoSymbol @6.0.3
-    /// tsc-hash: e7225e791e662f10b03f79f1f7568ea3c96d128d80c16315878c643e051b7d30
-    /// tsc-span: _tsc.js:49448-49464
-    ///
-    /// A JSDoc type name can resolve to a JS variable/assignment symbol
-    /// whose initializer owns the callable or class face. Merge the
-    /// initializer symbol with the expando declarations before the
-    /// type-reference kind dispatch, preserving tsc's target/source
-    /// order.
-    fn get_expando_symbol(&mut self, symbol: SymbolId) -> CheckResult<Option<SymbolId>> {
-        let Some(declaration) = self.binder.symbol(symbol).value_declaration else {
-            return Ok(None);
-        };
-        if !self.is_in_js_file(declaration)
-            || self
-                .symbol_flags(symbol)
-                .intersects(SymbolFlags::TYPE_ALIAS)
-        {
-            return Ok(None);
-        }
-        let source = self.binder.source_of_node(declaration);
-        if tsc_binder::assignment::get_expando_initializer(
-            source,
-            declaration,
-            /*is_prototype_assignment*/ false,
-        )
-        .is_some()
-        {
-            return Ok(None);
-        }
-        let initializer = if self.kind_of(declaration) == SyntaxKind::VariableDeclaration {
-            tsc_binder::assignment::get_declared_expando_initializer(source, declaration)
-        } else {
-            tsc_binder::assignment::get_assigned_expando_initializer(source, declaration)
-        };
-        let Some(initializer) = initializer else {
-            return Ok(None);
-        };
-        let Some(initializer_symbol) = self.node_symbol(initializer) else {
-            return Ok(None);
-        };
-        let initializer_symbol = self.get_late_bound_symbol(initializer_symbol)?;
-        let initializer_symbol = self.get_merged_symbol(initializer_symbol);
-        Ok(Some(self.merge_js_symbols(initializer_symbol, symbol)))
-    }
-
-    /// tsc-port: getTypeFromJSDocValueReference @6.0.3
-    /// tsc-hash: 9b65b6747c93f3ddf3bc8b021573cb430b301fd2b0c70297943e21580bb0b7b3
-    /// tsc-span: _tsc.js:60406-60419
-    fn get_type_from_jsdoc_value_reference(
-        &mut self,
-        node: NodeId,
-        symbol: SymbolId,
-    ) -> CheckResult<TypeId> {
-        if let Some(cached) = self
-            .links
-            .node_cold()
-            .resolved_jsdoc_type
-            .get(node)
-            .resolved()
-        {
-            return Ok(cached);
-        }
-        let value_type = self.get_type_of_symbol(symbol)?;
-        let mut type_type = value_type;
-        if self.binder.symbol(symbol).value_declaration.is_some() {
-            let import_with_qualifier = matches!(
-                self.data_of(node),
-                NodeData::ImportType(data) if data.qualifier.is_some()
-            );
-            if import_with_qualifier {
-                if let Some(type_symbol) = self.tables.type_of(value_type).symbol {
-                    if type_symbol != symbol {
-                        type_type = self.get_type_reference_type(node, type_symbol)?;
-                    }
-                }
-            }
-        }
-        self.links
-            .overwrite_node_resolved_jsdoc_type(self.speculation_depth, node, type_type);
-        Ok(type_type)
     }
 
     /// tsc-port: getEffectiveTypeArguments @6.0.3
