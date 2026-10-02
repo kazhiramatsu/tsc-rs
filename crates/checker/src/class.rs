@@ -382,56 +382,209 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
-    /// tsc-port: checkObjectTypeForDuplicateDeclarations @6.0.3
-    /// tsc-hash: ba5ee7b242949d34efce258e3c7127820130f32f9b8b7e7d594ff5ea22b96375
-    /// tsc-span: _tsc.js:81449-81474
+    /// tsgo-port: checkObjectTypeForDuplicateDeclarations @7.1
+    /// (checker.go:3190-3259), for classes, interfaces and type literals.
     ///
-    /// BOTH spans report: the first declaration's name (through the
-    /// member symbol's valueDeclaration) and the duplicate's own name.
+    /// One state per member name (1 = property, 2 = accessor, 3 = reported):
+    /// a second property, or a property beside an accessor, reports every
+    /// member of that name (`report_duplicate_member_errors`), parameter
+    /// properties count as instance properties, and a private name shared by
+    /// an instance and a static member reports the static/instance row (class
+    /// bodies only). tsc 6.0's two checks reported only the later declaration
+    /// with its own text; tsgo names every row after the symbol.
     pub(crate) fn check_object_type_for_duplicate_declarations(
         &mut self,
         node: NodeId,
+        check_private_names: bool,
     ) -> CheckResult<()> {
         let members = match self.data_of(node) {
-            NodeData::TypeLiteral(data) => data.members,
+            NodeData::ClassDeclaration(data) => data.members,
+            NodeData::ClassExpression(data) => data.members,
             NodeData::InterfaceDeclaration(data) => data.members,
+            NodeData::TypeLiteral(data) => data.members,
             _ => None,
         };
         let members = self.nodes_of(members);
-        let mut names: rustc_hash::FxHashSet<JsString> =
-            rustc_hash::FxHashSet::with_capacity_and_hasher(members.len(), Default::default());
-        for member in members {
-            if self.kind_of(member) != SyntaxKind::PropertySignature {
+        let mut instance_names: rustc_hash::FxHashMap<EscapedName, u8> = Default::default();
+        let mut static_names: rustc_hash::FxHashMap<EscapedName, u8> = Default::default();
+        let mut private_names: rustc_hash::FxHashMap<EscapedName, u8> = Default::default();
+        for &member in &members {
+            if self.kind_of(member) == SyntaxKind::Constructor {
+                let parameters = match self.data_of(member) {
+                    NodeData::Constructor(data) => data.parameters,
+                    _ => None,
+                };
+                for parameter in self.nodes_of(parameters) {
+                    let binding_pattern = self.name_of_node(parameter).is_some_and(|name| {
+                        matches!(
+                            self.kind_of(name),
+                            SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
+                        )
+                    });
+                    if self.is_parameter_property_declaration(parameter) && !binding_pattern {
+                        let Ok(symbol) = self.get_symbol_of_declaration(parameter) else {
+                            continue;
+                        };
+                        self.check_duplicate_property_or_accessor(
+                            node,
+                            symbol,
+                            1,
+                            false,
+                            &mut instance_names,
+                            &mut static_names,
+                        )?;
+                    }
+                }
                 continue;
             }
-            let Some(name) = self.name_of_node(member) else {
+            let Ok(symbol) = self.get_symbol_of_declaration(member) else {
                 continue;
             };
-            let member_name = match self.data_of(name) {
-                NodeData::StringLiteral(data) => data.text.clone(),
-                NodeData::NumericLiteral(data) => data.text.clone().into(),
-                NodeData::Identifier(data) => data.text().into(),
-                _ => continue,
-            };
-            if names.contains(&member_name) {
-                let value_declaration = self
-                    .get_symbol_of_declaration(member)
-                    .ok()
-                    .and_then(|symbol| self.binder.symbol(symbol).value_declaration);
-                let first_name =
-                    value_declaration.and_then(|declaration| self.name_of_node(declaration));
-                self.error_at_js(
-                    first_name,
-                    &diagnostics::Duplicate_identifier_0,
-                    &[member_name.as_js()],
-                );
-                self.error_at_js(
-                    Some(name),
-                    &diagnostics::Duplicate_identifier_0,
-                    &[member_name.as_js()],
-                );
+            let is_static = self.has_static_modifier(member);
+            let kind = self.kind_of(member);
+            let accessor_modifier = kind == SyntaxKind::PropertyDeclaration
+                && tsc_binder::node_util::get_effective_modifier_flags(
+                    self.binder.source_of_node(member),
+                    member,
+                )
+                .intersects(tsc_types::ModifierFlags::ACCESSOR);
+            let member_kind = if kind == SyntaxKind::PropertySignature
+                || (kind == SyntaxKind::PropertyDeclaration && !accessor_modifier)
+            {
+                Some(1)
+            } else if matches!(kind, SyntaxKind::GetAccessor | SyntaxKind::SetAccessor)
+                || accessor_modifier
+            {
+                Some(2)
             } else {
-                names.insert(member_name);
+                None
+            };
+            if let Some(member_kind) = member_kind {
+                self.check_duplicate_property_or_accessor(
+                    node,
+                    symbol,
+                    member_kind,
+                    is_static,
+                    &mut instance_names,
+                    &mut static_names,
+                )?;
+            }
+            if check_private_names {
+                let private = self
+                    .name_of_node(member)
+                    .is_some_and(|name| self.kind_of(name) == SyntaxKind::PrivateIdentifier);
+                if private {
+                    let name = self.binder.symbol(symbol).escaped_name;
+                    let flags = private_names.get(&name).copied().unwrap_or(0);
+                    if flags != 3 {
+                        let flags = flags | if self.is_static_element(member) { 2 } else { 1 };
+                        private_names.insert(name, flags);
+                        if flags == 3 {
+                            self.report_duplicate_member_errors(
+                                node,
+                                name,
+                                false,
+                                false,
+                                &diagnostics::Duplicate_identifier_0_Static_and_instance_elements_cannot_share_the_same_private_name,
+                            )?;
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// `checkPropertyOrAccessor` of tsgo's
+    /// checkObjectTypeForDuplicateDeclarations: the per-name state machine.
+    #[allow(clippy::too_many_arguments)]
+    fn check_duplicate_property_or_accessor(
+        &mut self,
+        node: NodeId,
+        symbol: SymbolId,
+        kind: u8,
+        is_static: bool,
+        instance_names: &mut rustc_hash::FxHashMap<EscapedName, u8>,
+        static_names: &mut rustc_hash::FxHashMap<EscapedName, u8>,
+    ) -> CheckResult<()> {
+        if self.binder.symbol(symbol).declarations.len() <= 1 {
+            return Ok(());
+        }
+        let name = self.binder.symbol(symbol).escaped_name;
+        let names = if is_static {
+            static_names
+        } else {
+            instance_names
+        };
+        let state = names.get(&name).copied().unwrap_or(0);
+        if state == 0 {
+            names.insert(name, kind);
+        } else if state == 1 || (state == 2 && kind != 2) {
+            self.report_duplicate_member_errors(
+                node,
+                name,
+                true,
+                is_static,
+                &diagnostics::Duplicate_identifier_0,
+            )?;
+            names.insert(name, 3);
+        }
+        Ok(())
+    }
+
+    /// tsgo-port: reportDuplicateMemberErrors @7.1 (checker.go:3261-3276):
+    /// every member of the object type (and parameter property) whose symbol
+    /// has `name` reports `message` at its name, with the symbol's written
+    /// name as the argument.
+    fn report_duplicate_member_errors(
+        &mut self,
+        node: NodeId,
+        name: EscapedName,
+        check_static: bool,
+        is_static: bool,
+        message: &'static tsc_diagnostics::DiagnosticMessage,
+    ) -> CheckResult<()> {
+        let members = match self.data_of(node) {
+            NodeData::ClassDeclaration(data) => data.members,
+            NodeData::ClassExpression(data) => data.members,
+            NodeData::InterfaceDeclaration(data) => data.members,
+            NodeData::TypeLiteral(data) => data.members,
+            _ => None,
+        };
+        for member in self.nodes_of(members) {
+            if self.kind_of(member) == SyntaxKind::Constructor {
+                let parameters = match self.data_of(member) {
+                    NodeData::Constructor(data) => data.parameters,
+                    _ => None,
+                };
+                for parameter in self.nodes_of(parameters) {
+                    let binding_pattern = self.name_of_node(parameter).is_some_and(|name| {
+                        matches!(
+                            self.kind_of(name),
+                            SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
+                        )
+                    });
+                    if !self.is_parameter_property_declaration(parameter) || binding_pattern {
+                        continue;
+                    }
+                    let Ok(symbol) = self.get_symbol_of_declaration(parameter) else {
+                        continue;
+                    };
+                    if self.binder.symbol(symbol).escaped_name == name {
+                        let display = self.symbol_name_as_written(symbol);
+                        self.error_at_js(self.name_of_node(parameter), message, &[display.as_js()]);
+                    }
+                }
+                continue;
+            }
+            let Ok(symbol) = self.get_symbol_of_declaration(member) else {
+                continue;
+            };
+            if self.binder.symbol(symbol).escaped_name == name
+                && (!check_static || is_static == self.is_static_element(member))
+            {
+                let display = self.symbol_name_as_written(symbol);
+                self.error_at_js(self.name_of_node(member), message, &[display.as_js()]);
             }
         }
         Ok(())
@@ -737,7 +890,7 @@ impl<'a> CheckerState<'a> {
         let static_type = self.get_type_of_symbol(symbol)?;
         self.check_type_parameter_lists_identical(symbol)?;
         self.check_function_or_constructor_symbol(symbol)?;
-        self.check_class_for_duplicate_declarations(node)?;
+        self.check_object_type_for_duplicate_declarations(node, /*check_private_names*/ true)?;
         // The parser does not stamp NodeFlags::AMBIENT from a `declare`
         // modifier — read the modifier alongside (5.8b precedent).
         let node_in_ambient_context = self.node_flags(node) & NodeFlags::AMBIENT.bits() != 0
@@ -1349,139 +1502,6 @@ impl<'a> CheckerState<'a> {
                 )
             })
             .collect()
-    }
-
-    /// tsc-port: checkClassForDuplicateDeclarations @6.0.3
-    /// tsc-hash: 203191affdef6230598a72198c7c99cfa972dc0a6be8205f0a1149e2f2c7df70
-    /// tsc-span: _tsc.js:81363-81424
-    pub(crate) fn check_class_for_duplicate_declarations(
-        &mut self,
-        node: NodeId,
-    ) -> CheckResult<()> {
-        const GET_ACCESSOR: u32 = 1;
-        const SET_ACCESSOR: u32 = 2;
-        const GET_OR_SET_ACCESSOR: u32 = GET_ACCESSOR | SET_ACCESSOR;
-        const METHOD: u32 = 8;
-        const PRIVATE_STATIC: u32 = 16;
-        let mut instance_names: rustc_hash::FxHashMap<EscapedName, u32> = Default::default();
-        let mut static_names: rustc_hash::FxHashMap<EscapedName, u32> = Default::default();
-        let mut private_identifiers: rustc_hash::FxHashMap<EscapedName, u32> = Default::default();
-        // addName (81402-81423): the meaning-merge lattice.
-        fn add_name(
-            state: &mut CheckerState<'_>,
-            names: &mut rustc_hash::FxHashMap<EscapedName, u32>,
-            location: NodeId,
-            name: EscapedName,
-            meaning: u32,
-        ) -> CheckResult<()> {
-            match names.get(&name).copied() {
-                Some(prev) => {
-                    if (prev & PRIVATE_STATIC) != (meaning & PRIVATE_STATIC) {
-                        let text = state.text_of_node(location)?;
-                        state.error_at(
-                            Some(location),
-                            &diagnostics::Duplicate_identifier_0_Static_and_instance_elements_cannot_share_the_same_private_name,
-                            &[&text],
-                        );
-                    } else {
-                        let prev_is_method = prev & METHOD != 0;
-                        let is_method = meaning & METHOD != 0;
-                        if prev_is_method || is_method {
-                            if prev_is_method != is_method {
-                                let text = state.text_of_node(location)?;
-                                state.error_at(
-                                    Some(location),
-                                    &diagnostics::Duplicate_identifier_0,
-                                    &[&text],
-                                );
-                            }
-                        } else if prev & meaning & !PRIVATE_STATIC != 0 {
-                            let text = state.text_of_node(location)?;
-                            state.error_at(
-                                Some(location),
-                                &diagnostics::Duplicate_identifier_0,
-                                &[&text],
-                            );
-                        } else {
-                            names.insert(name, prev | meaning);
-                        }
-                    }
-                }
-                None => {
-                    names.insert(name, meaning);
-                }
-            }
-            Ok(())
-        }
-        let members = match self.data_of(node) {
-            NodeData::ClassDeclaration(data) => data.members,
-            NodeData::ClassExpression(data) => data.members,
-            _ => None,
-        };
-        for member in self.nodes_of(members) {
-            if self.kind_of(member) == SyntaxKind::Constructor {
-                let parameters = match self.data_of(member) {
-                    NodeData::Constructor(data) => data.parameters,
-                    _ => None,
-                };
-                for param in self.nodes_of(parameters) {
-                    if self.is_parameter_property_declaration(param) {
-                        let param_name = match self.data_of(param) {
-                            NodeData::Parameter(data) => data.name,
-                            _ => None,
-                        };
-                        if let Some(param_name) = param_name {
-                            if let NodeData::Identifier(name_data) = self.data_of(param_name) {
-                                let text = name_data.escaped_text;
-                                add_name(
-                                    self,
-                                    &mut instance_names,
-                                    param_name,
-                                    text,
-                                    GET_OR_SET_ACCESSOR,
-                                )?;
-                            }
-                        }
-                    }
-                }
-            } else {
-                let is_static_member = self.is_static_element(member);
-                let Some(name) = self.name_of_node(member) else {
-                    continue;
-                };
-                let is_private = self.kind_of(name) == SyntaxKind::PrivateIdentifier;
-                let private_static_flags = if is_private && is_static_member {
-                    PRIVATE_STATIC
-                } else {
-                    0
-                };
-                let member_name = self.effective_property_name_for_property_name_node(name)?;
-                if let Some(member_name) = member_name.filter(|name| !name.as_js().is_empty()) {
-                    let meaning = match self.kind_of(member) {
-                        SyntaxKind::GetAccessor => GET_ACCESSOR,
-                        SyntaxKind::SetAccessor => SET_ACCESSOR,
-                        SyntaxKind::PropertyDeclaration => GET_OR_SET_ACCESSOR,
-                        SyntaxKind::MethodDeclaration => METHOD,
-                        _ => continue,
-                    };
-                    let names = if is_private {
-                        &mut private_identifiers
-                    } else if is_static_member {
-                        &mut static_names
-                    } else {
-                        &mut instance_names
-                    };
-                    add_name(
-                        self,
-                        names,
-                        name,
-                        member_name,
-                        meaning | private_static_flags,
-                    )?;
-                }
-            }
-        }
-        Ok(())
     }
 
     /// tsc-port: checkClassForStaticPropertyNameConflicts @6.0.3

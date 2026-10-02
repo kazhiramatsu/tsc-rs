@@ -116,6 +116,35 @@ lib.es5.d.ts(--,--): error TS2300: Duplicate identifier 'x'.\r\n\
     assert_eq!(parsed[3].category, "warning");
 }
 
+/// A `@pretty: true` baseline carries ANSI colors, `file:line:col - error
+/// TSnnnn: text` headers, code frames and related rows; only the headers
+/// are diagnostics (the native runner's pretty output for
+/// `duplicateIdentifierRelatedSpans1`).
+#[test]
+fn parse_errors_baseline_reads_pretty_headers() {
+    let text = "\x1b[96mfile1.ts\x1b[0m:\x1b[93m1\x1b[0m:\x1b[93m7\x1b[0m - \x1b[91merror\x1b[0m\x1b[90m TS2300: \x1b[0mDuplicate identifier 'Foo'.\r\n\
+\r\n\
+\x1b[7m1\x1b[0m class Foo { }\r\n\
+\x1b[7m \x1b[0m \x1b[91m      ~~~\x1b[0m\r\n\
+\r\n\
+  \x1b[96mfile2.ts\x1b[0m:\x1b[93m1\x1b[0m:\x1b[93m6\x1b[0m - 'Foo' was also declared here.\r\n\
+    \x1b[7m1\x1b[0m type Foo = number;\r\n\
+\r\n\
+\x1b[91merror\x1b[0m\x1b[90m TS5102: \x1b[0mOption 'downlevelIteration' has been removed.\r\n\
+\r\n\
+\r\n\
+Found 2 errors in 2 files.\r\n";
+    let parsed = parse_errors_baseline(text);
+    assert_eq!(parsed.len(), 2, "{parsed:?}");
+    assert_eq!(parsed[0].file.as_deref(), Some("file1.ts"));
+    assert_eq!((parsed[0].line, parsed[0].column), (Some(1), Some(7)));
+    assert_eq!(parsed[0].code, 2300);
+    assert_eq!(parsed[0].category, "error");
+    assert_eq!(parsed[0].text, "Duplicate identifier 'Foo'.");
+    assert_eq!(parsed[1].file, None);
+    assert_eq!(parsed[1].code, 5102);
+}
+
 #[test]
 fn agreement_reports_the_deepest_matching_tier() {
     let diagnostic = |category: &str, text: &str| BaselineDiagnostic {

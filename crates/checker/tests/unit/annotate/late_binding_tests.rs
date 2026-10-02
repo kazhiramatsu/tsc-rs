@@ -71,7 +71,8 @@ fn checked_rows(text: &str) -> Vec<(u32, u32, u32)> {
 
 #[test]
 fn duplicate_late_bound_member_type_is_first_wins() {
-    // The dup arm reports 2733+2718 and the table keeps the FIRST
+    // The dup arm reports TS2300 at both declarations (tsgo; tsc 6.0:
+    // 2733+2718) and the table keeps the FIRST
     // symbol (i.x = number, verified via get_type_of_symbol; the
     // tail assignment itself escapes as a recorded partial, so no
     // assignability row appears either way).
@@ -79,19 +80,31 @@ fn duplicate_late_bound_member_type_is_first_wins() {
         checked_rows(
             "const k = \"x\" as const;\ninterface I { [k]: number; [k](): void; }\ndeclare const i: I;\nconst n: number = i.x;\n"
         ),
-        [(2733, 38, 3), (2718, 51, 3)]
+        [(2300, 38, 3), (2300, 51, 3)]
     );
 }
 
 #[test]
 fn triple_duplicate_late_bound_member_reports_against_the_first() {
     // The third (boolean) declaration merges into and compares
-    // against number — the FIRST symbol — for 2717.
+    // against number — the FIRST symbol — for 2717. tsgo (tsc-19dadef8)
+    // also reports the late-bound conflict as TS2300 'x' at the first two
+    // declarations and the merged property as TS2300 '[k]' at all three
+    // members named `x` (checkObjectTypeForDuplicateDeclarations).
     assert_eq!(
         checked_rows(
             "const k = \"x\" as const;\ninterface I { [k]: number; [k](): void; [k]: boolean; }\ndeclare const i: I;\nconst n: number = i.x;\n"
         ),
-        [(2733, 38, 3), (2718, 51, 3), (2717, 64, 3)]
+        [
+            // Report order: the late-bound rows first, then the member
+            // check's (tsgo prints the same rows sorted by position).
+            (2300, 38, 3),
+            (2300, 51, 3),
+            (2300, 38, 3),
+            (2300, 51, 3),
+            (2300, 64, 3),
+            (2717, 64, 3)
+        ]
     );
 }
 

@@ -312,10 +312,12 @@ fn interface_multi_extends_mismatch_reports_2320_at_name() {
 }
 
 #[test]
-fn empty_string_class_members_do_not_conflict() {
+fn empty_string_class_members_report_duplicates_like_tsgo() {
+    // tsgo (tsc-19dadef8) reports both `""` properties as TS2300 and the
+    // second one's type as TS2717; tsc 6.0's class check skipped them.
     assert_eq!(
         checked_rows("class C { \"\": number; \"\": string; }\n"),
-        [(2717, 22, 2)]
+        [(2300, 10, 2), (2300, 22, 2), (2717, 22, 2)]
     );
 }
 
