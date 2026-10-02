@@ -680,7 +680,14 @@ fn jsdoc_typedef_type_and_property_siblings_do_not_report_8021() {
 }
 
 #[test]
-fn jsdoc_value_references_use_the_initializer_expando_symbol() {
+fn jsdoc_value_references_report_2749_and_2503_like_tsgo() {
+    // TypeScript 7.1 (tsgo) has no JavaScript value-as-type fallback: a
+    // JSDoc reference to a value reports TS2749 ("refers to a value"),
+    // and the qualifier of `NS.Inner` reports TS2503 ("Cannot find
+    // namespace": tsgo resolves it with the Namespace meaning alone,
+    // tsc 6.0 added Value in JavaScript); tsc 6.0 merged the initializer's class/function face
+    // into the symbol instead. Rows probed with tsc-19dadef8 (--allowJs
+    // --checkJs --target es2015 --strict false).
     let options = CompilerOptions {
         allow_js: true,
         check_js: Some(true),
@@ -689,35 +696,36 @@ fn jsdoc_value_references_use_the_initializer_expando_symbol() {
         ..CompilerOptions::default()
     };
     let class_text = "var Outer = class O {\n\
-                              m(x, y) { }\n\
-                          }\n\
-                          Outer.Inner = class I {\n\
-                              n(a, b) { }\n\
-                          }\n\
-                          /** @type {Outer} */\n\
-                          var outer\n\
-                          outer.m\n\
-                          /** @type {Outer.Inner} */\n\
-                          var inner\n\
-                          inner.n\n";
+                      m(x, y) { }\n\
+                      }\n\
+                      var NS = 1\n\
+                      /** @type {Outer} */\n\
+                      var outer\n\
+                      outer.m\n\
+                      /** @type {NS.Inner} */\n\
+                      var inner\n\
+                      inner.n\n";
     let function_text = "var Outer = function O() {\n\
-                                 this.y = 2\n\
-                             }\n\
-                             Outer.Inner = class I {\n\
-                                 constructor() { this.x = 1 }\n\
-                             }\n\
-                             /** @type {Outer} */\n\
-                             var outer\n\
-                             outer.y\n\
-                             /** @type {Outer.Inner} */\n\
-                             var inner\n\
-                             inner.x\n";
-    for text in [class_text, function_text] {
-        let diagnostics = checked_file_diags_with("a.js", text, &options);
-        assert!(
-            diagnostics.iter().all(|row| row.0 != 2339),
-            "JSDoc value references must expose initializer instance members: {diagnostics:?}"
-        );
+                         this.y = 2\n\
+                         }\n\
+                         var NS = 1\n\
+                         /** @type {Outer} */\n\
+                         var outer\n\
+                         outer.y\n\
+                         /** @type {NS.Inner} */\n\
+                         var inner\n\
+                         inner.x\n";
+    for (text, expected) in [
+        (class_text, [(2749, 58, 5), (2503, 97, 2)]),
+        (function_text, [(2749, 62, 5), (2503, 101, 2)]),
+    ] {
+        let all = checked_file_diags_with("a.js", text, &options);
+        let rows: Vec<(u32, u32, u32)> = all
+            .iter()
+            .filter(|row| matches!(row.0, 2749 | 2503))
+            .map(|row| (row.0, row.1, row.2))
+            .collect();
+        assert_eq!(rows, expected, "{text}\nall rows: {all:?}");
     }
 }
 
@@ -5065,7 +5073,7 @@ fn reused_nested_jsdoc_references_honor_can_reuse_type_node() {
                 2322,
                 (source.find("let n").expect("first failing declaration") + 4) as u32,
                 1,
-                "Type '(x: { p: string; } | string) => void' is not assignable to type \
+                "Type '(x: V | string) => void' is not assignable to type \
                      'number'."
                     .to_owned(),
             ),
@@ -5130,7 +5138,7 @@ fn reused_type_arguments_parenthesize_a_leading_generic_function() {
             2322,
             (source.rfind("let n").expect("failing declaration") + 4) as u32,
             1,
-            "Type '(x: Box<(<T>() => T)>) => void' is not assignable to type 'number'.".to_owned(),
+            "Type '(x: Box<V>) => void' is not assignable to type 'number'.".to_owned(),
         )]
     );
 }

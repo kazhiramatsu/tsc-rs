@@ -1878,11 +1878,13 @@ fn jsdoc_import_resolution_mode_overrides_select_distinct_rows() {
         &[
             (
                 "/types/import.d.mts",
-                "export declare const Import: \"module\";\n",
+                // TypeScript 7.1 reports a value used as a JSDoc type (TS2749),
+                // so the rows export types.
+                "export type Import = \"module\";\n",
             ),
             (
                 "/types/require.d.cts",
-                "export declare const Require: \"script\";\n",
+                "export type Require = \"script\";\n",
             ),
             (
                 "/main.js",

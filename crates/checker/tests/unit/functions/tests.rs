@@ -1110,6 +1110,10 @@ fn checked_js_function_type_tag_reports_8030_at_the_type_node() {
             (8030, text.find("(a: number) => number").unwrap() as u32, 21),
             (8030, text.find("() => void").unwrap() as u32, 10),
             (8030, text.rfind("{G}").unwrap() as u32 + 1, 1),
+            // TypeScript 7.1: `@type {Self}` names a value (TS2749), so the
+            // tag's type is the error type and the signature check reports
+            // 8030 there as well (tsgo tsc-19dadef8).
+            (8030, text.rfind("{Self}").unwrap() as u32 + 1, 4),
         ]
     );
 }

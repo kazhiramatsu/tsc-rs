@@ -2172,8 +2172,8 @@ module.exports = function MC() {
                 .potentially_unused_identifiers
                 .get(&mc_root)
                 .map(|nodes| nodes.len()),
-            Some(1),
-            "a cross-file forced registration belongs to MC.js"
+            None,
+            "TypeScript 7.1 does not resolve the `import(\"./MC\")` value as a type (tsgo TS1340), so no cross-file registration is forced"
         );
 
         state.check_source_file(1);
