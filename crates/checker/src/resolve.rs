@@ -686,7 +686,6 @@ impl<'a> CheckerState<'a> {
                 }
                 SyntaxKind::JSDocTypedefTag
                 | SyntaxKind::JSDocCallbackTag
-                | SyntaxKind::JSDocEnumTag
                 | SyntaxKind::JSDocImportTag => {
                     if let Some(hop) = self
                         .get_jsdoc_root(loc)

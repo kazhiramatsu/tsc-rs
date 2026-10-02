@@ -2107,7 +2107,6 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
             jsdoc_alias.map_or((None, None), |alias| match self.checker.data_of(alias) {
                 NodeData::JSDocTypedefTag(data) => (data.type_expression, data.comment.clone()),
                 NodeData::JSDocCallbackTag(data) => (data.type_expression, data.comment.clone()),
-                NodeData::JSDocEnumTag(data) => (data.type_expression, data.comment.clone()),
                 _ => (None, None),
             });
         let comment = alias_comment.or_else(|| {

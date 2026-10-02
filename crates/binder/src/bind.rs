@@ -7,9 +7,8 @@
 //! owned by 9.8b/9.8c.
 
 use crate::assignment::{
-    access_expression_of, get_assignment_declaration_kind,
-    get_assignment_declaration_property_access_kind, get_element_or_property_access_name,
-    is_exports_identifier, is_module_exports_access_expression, AssignmentDeclarationKind,
+    access_expression_of, get_assignment_declaration_kind, get_element_or_property_access_name,
+    AssignmentDeclarationKind,
 };
 use crate::containers::{get_container_flags, ContainerFlags};
 #[cfg(test)]
@@ -19,17 +18,16 @@ use crate::flow::FlowId;
 use crate::node_util::{
     can_have_flow_node, declaration_name_to_string, get_containing_class, get_error_span_for_node,
     get_host_signature_from_jsdoc, get_jsdoc_host, get_jsdoc_type_tag, has_dynamic_name, id_text,
-    is_assignment_expression_simple, is_assignment_operator, is_async_function,
-    is_auto_accessor_property_declaration, is_binding_pattern, is_block_or_catch_scoped,
-    is_destructuring_assignment, is_entity_name_expression, is_function_like_kind,
-    is_identifier_name, is_in_top_level_context, is_jsdoc_type_alias, is_narrowable_operand,
-    is_narrowable_reference, is_narrowing_expression, is_object_literal_method,
-    is_object_literal_or_class_expression_method_or_accessor, is_parameter_property_declaration,
-    is_part_of_parameter_declaration, is_part_of_type_query, is_potentially_executable_node,
-    is_property_access_entity_name_expression, jsdoc_full_name, jsdoc_type_expression, kind_of,
-    name_field_of, parent_of, statements_of,
+    is_assignment_operator, is_async_function, is_auto_accessor_property_declaration,
+    is_binding_pattern, is_block_or_catch_scoped, is_destructuring_assignment,
+    is_entity_name_expression, is_function_like_kind, is_identifier_name, is_in_top_level_context,
+    is_jsdoc_type_alias, is_narrowable_operand, is_narrowable_reference, is_narrowing_expression,
+    is_object_literal_method, is_object_literal_or_class_expression_method_or_accessor,
+    is_parameter_property_declaration, is_part_of_parameter_declaration, is_part_of_type_query,
+    is_potentially_executable_node, jsdoc_full_name, jsdoc_type_expression, kind_of, name_field_of,
+    parent_of, statements_of,
 };
-use crate::symbols::{InternalSymbolName, NameKey, SymbolId};
+use crate::symbols::{InternalSymbolName, SymbolId};
 use tsc_diagnostics::{gen as diagnostics, DiagnosticArgument, DiagnosticMessage};
 use tsc_syntax::{for_each_child, NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsc_types::{
@@ -347,10 +345,9 @@ impl<'a> BinderWorker<'a> {
                 }
             }
             SyntaxKind::JSDocPropertyTag => self.bind_jsdoc_property_like_tag(node),
-            SyntaxKind::JSDocClassTag => self.bind_jsdoc_class_tag(node),
-            SyntaxKind::JSDocTypedefTag
-            | SyntaxKind::JSDocCallbackTag
-            | SyntaxKind::JSDocEnumTag => self.delayed_type_aliases.push(node),
+            SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocCallbackTag => {
+                self.delayed_type_aliases.push(node)
+            }
             SyntaxKind::JSDocOverloadTag => self.bind(jsdoc_type_expression(self.source, node)),
             SyntaxKind::JSDocImportTag => self.js_doc_imports.push(node),
             SyntaxKind::ImportEqualsDeclaration
@@ -1653,36 +1650,6 @@ impl<'a> BinderWorker<'a> {
         None
     }
 
-    fn bind_potentially_missing_namespaces(
-        &mut self,
-        mut namespace_symbol: Option<SymbolId>,
-        entity_name: NodeId,
-        is_toplevel: bool,
-        is_prototype_property: bool,
-        container_is_class: bool,
-    ) -> Option<SymbolId> {
-        if namespace_symbol.is_some_and(|symbol| {
-            self.symbols
-                .symbol(symbol)
-                .flags
-                .intersects(SymbolFlags::ALIAS)
-        }) {
-            return namespace_symbol;
-        }
-        if is_toplevel && !is_prototype_property {
-            namespace_symbol =
-                self.bind_or_create_entity_name_modules(entity_name, None, namespace_symbol);
-        }
-        if container_is_class {
-            if let Some(symbol) = namespace_symbol {
-                if let Some(value_declaration) = self.symbols.symbol(symbol).value_declaration {
-                    self.add_declaration_to_symbol(symbol, value_declaration, SymbolFlags::CLASS);
-                }
-            }
-        }
-        namespace_symbol
-    }
-
     fn bind_call_expression(&mut self, node: NodeId) {
         if self.common_js_module_indicator.is_some() {
             return;
@@ -1701,206 +1668,9 @@ impl<'a> BinderWorker<'a> {
         }
     }
 
-    fn bind_or_create_entity_name_modules(
-        &mut self,
-        entity_name: NodeId,
-        parent_symbol: Option<SymbolId>,
-        known_symbol: Option<SymbolId>,
-    ) -> Option<SymbolId> {
-        if self.is_exports_or_module_exports_or_alias(entity_name) {
-            return self.file_symbol();
-        }
-        match &self.source.arena.node(entity_name).data {
-            NodeData::Identifier(data) => {
-                if let Some(symbol) =
-                    known_symbol.or_else(|| self.lookup_symbol_for_property_access(entity_name))
-                {
-                    self.add_declaration_to_symbol(
-                        symbol,
-                        entity_name,
-                        SymbolFlags::MODULE | SymbolFlags::ASSIGNMENT,
-                    );
-                    return Some(symbol);
-                }
-                let name = data.escaped_text;
-                let symbol = if let Some(parent) = parent_symbol {
-                    self.declare_symbol(
-                        TableRef::Exports(parent),
-                        Some(parent),
-                        entity_name,
-                        SymbolFlags::MODULE | SymbolFlags::ASSIGNMENT,
-                        SymbolFlags::from_bits(
-                            SymbolFlags::VALUE_MODULE_EXCLUDES.bits()
-                                & !SymbolFlags::ASSIGNMENT.bits(),
-                        ),
-                        false,
-                        false,
-                    )
-                } else {
-                    let existing = self.js_global_augmentations.get(name).copied();
-                    if let Some(existing) = existing {
-                        self.add_declaration_to_symbol(
-                            existing,
-                            entity_name,
-                            SymbolFlags::MODULE | SymbolFlags::ASSIGNMENT,
-                        );
-                        existing
-                    } else {
-                        let symbol = self.symbols.alloc(SymbolFlags::NONE, name);
-                        self.js_global_augmentations.insert(name, symbol);
-                        self.add_declaration_to_symbol(
-                            symbol,
-                            entity_name,
-                            SymbolFlags::MODULE | SymbolFlags::ASSIGNMENT,
-                        );
-                        symbol
-                    }
-                };
-                Some(symbol)
-            }
-            NodeData::PropertyAccessExpression(_) | NodeData::ElementAccessExpression(_) => {
-                let expression = access_expression_of(self.source, entity_name)?;
-                let parent =
-                    self.bind_or_create_entity_name_modules(expression, parent_symbol, None)?;
-                let name_node =
-                    crate::assignment::get_element_or_property_access_argument_expression_or_name(
-                        self.source,
-                        entity_name,
-                    )?;
-                let name = get_element_or_property_access_name(self.source, entity_name)?;
-                if let Some(&symbol) = self.symbols.symbol(parent).exports().get(name) {
-                    self.add_declaration_to_symbol(
-                        symbol,
-                        name_node,
-                        SymbolFlags::MODULE | SymbolFlags::ASSIGNMENT,
-                    );
-                    Some(symbol)
-                } else {
-                    Some(self.declare_symbol(
-                        TableRef::Exports(parent),
-                        Some(parent),
-                        name_node,
-                        SymbolFlags::MODULE | SymbolFlags::ASSIGNMENT,
-                        SymbolFlags::from_bits(
-                            SymbolFlags::VALUE_MODULE_EXCLUDES.bits()
-                                & !SymbolFlags::ASSIGNMENT.bits(),
-                        ),
-                        false,
-                        false,
-                    ))
-                }
-            }
-            _ => known_symbol,
-        }
-    }
-
-    pub(crate) fn is_top_level_namespace_assignment(&self, node: NodeId) -> bool {
-        let mut current = node;
-        while let Some(parent) = parent_of(self.source, current) {
-            if kind_of(self.source, parent) == SyntaxKind::BinaryExpression {
-                current = parent;
-            } else {
-                current = parent;
-                break;
-            }
-        }
-        parent_of(self.source, current)
-            .is_some_and(|parent| kind_of(self.source, parent) == SyntaxKind::SourceFile)
-    }
-
     fn is_aliasable_expression(&self, node: NodeId) -> bool {
         is_entity_name_expression(self.source, node)
             || kind_of(self.source, node) == SyntaxKind::ClassExpression
-    }
-
-    fn is_exports_or_module_exports_or_alias(&self, node: NodeId) -> bool {
-        let mut queue = vec![node];
-        let mut index = 0;
-        while index < queue.len() && index < 100 {
-            let node = queue[index];
-            index += 1;
-            if is_exports_identifier(self.source, node)
-                || is_module_exports_access_expression(self.source, node)
-            {
-                return true;
-            }
-            let Some(name) = id_text(self.source, node) else {
-                continue;
-            };
-            let Some(symbol) = self.lookup_symbol_for_name(self.source.root, name) else {
-                continue;
-            };
-            let Some(declaration) = self.symbols.symbol(symbol).value_declaration else {
-                continue;
-            };
-            let NodeData::VariableDeclaration(data) = &self.source.arena.node(declaration).data
-            else {
-                continue;
-            };
-            let Some(initializer) = data.initializer else {
-                continue;
-            };
-            queue.push(initializer);
-            if is_assignment_expression_simple(self.source, initializer) {
-                let NodeData::BinaryExpression(data) = &self.source.arena.node(initializer).data
-                else {
-                    unreachable!("assignment expression must be binary")
-                };
-                if let Some(left) = data.left {
-                    queue.push(left);
-                }
-                if let Some(right) = data.right {
-                    queue.push(right);
-                }
-            }
-        }
-        false
-    }
-
-    /// tsc-port: lookupSymbolForName @6.0.3
-    /// tsc-hash: dae249c103758584c4ea6f4bfc83facec94aa163b279cfa2a91db53cae556a9a
-    /// tsc-span: _tsc.js:45202-45216
-    ///
-    fn lookup_symbol_for_name(&self, container: NodeId, name: impl NameKey) -> Option<SymbolId> {
-        let name = name.name();
-        if let Some(locals) = self.locals.get(&container) {
-            if let Some(&local) = locals.get(name) {
-                return Some(self.symbols.symbol(local).export_symbol.unwrap_or(local));
-            }
-        }
-        if kind_of(self.source, container) == SyntaxKind::SourceFile {
-            if let Some(&symbol) = self.js_global_augmentations.get(name) {
-                return Some(symbol);
-            }
-        }
-        let container_symbol = self.node_symbol.get(&container).copied()?;
-        self.symbols
-            .symbol(container_symbol)
-            .exports()
-            .get(name)
-            .copied()
-    }
-
-    fn lookup_symbol_for_property_access(&self, node: NodeId) -> Option<SymbolId> {
-        match &self.source.arena.node(node).data {
-            NodeData::Identifier(data) => {
-                let name = data.escaped_text;
-                self.block_scope_container
-                    .and_then(|container| self.lookup_symbol_for_name(container, name))
-                    .or_else(|| {
-                        self.container
-                            .and_then(|container| self.lookup_symbol_for_name(container, name))
-                    })
-                    .or_else(|| self.lookup_symbol_for_name(self.source.root, name))
-            }
-            NodeData::PropertyAccessExpression(_) | NodeData::ElementAccessExpression(_) => {
-                let parent = self
-                    .lookup_symbol_for_property_access(access_expression_of(self.source, node)?)?;
-                let name = get_element_or_property_access_name(self.source, node)?;
-                self.symbols.symbol(parent).exports().get(name).copied()
-            }
-            _ => None,
-        }
     }
 
     // ---- strict-mode + contextual checks ----
@@ -2433,9 +2203,9 @@ impl<'a> BinderWorker<'a> {
             }
             SyntaxKind::CallExpression => self.bind_call_expression_flow(node),
             SyntaxKind::NonNullExpression => self.bind_non_null_expression_flow(node),
-            SyntaxKind::JSDocTypedefTag
-            | SyntaxKind::JSDocCallbackTag
-            | SyntaxKind::JSDocEnumTag => self.bind_jsdoc_type_alias(node),
+            SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocCallbackTag => {
+                self.bind_jsdoc_type_alias(node)
+            }
             SyntaxKind::JSDocImportTag => self.bind_jsdoc_import_tag(node),
             SyntaxKind::SourceFile => {
                 let (statements, end_of_file_token) = match &self.source.arena.node(node).data {
@@ -2498,21 +2268,10 @@ impl<'a> BinderWorker<'a> {
                 data.tag_name,
                 data.comment.as_ref().and_then(|comment| comment.nodes()),
             ),
-            NodeData::JSDocEnumTag(data) => (
-                data.tag_name,
-                data.comment.as_ref().and_then(|comment| comment.nodes()),
-            ),
             _ => (None, None),
         };
         self.bind(tag_name);
         self.bind_each(comment);
-    }
-
-    /// A JSDoc `@class` / `@constructor` tag binds its children only: tsgo
-    /// (TypeScript 7.1) has no constructor functions, so the tag no longer
-    /// makes its host function a class (tsc 6.0 bindJSDocClassTag).
-    fn bind_jsdoc_class_tag(&mut self, node: NodeId) {
-        self.bind_each_child(node);
     }
 
     /// tsc-port: bindJSDocImportTag @6.0.3
@@ -2584,9 +2343,15 @@ impl<'a> BinderWorker<'a> {
         }
     }
 
-    /// tsc-port: delayedBindJSDocTypedefTag @6.0.3
-    /// tsc-hash: 81918f8d6ca2b8ac860ef667494925641d30f765f62fb8515aa81cb3271fe57e
-    /// tsc-span: _tsc.js:43999-44072
+    /// tsgo (TypeScript 7.1) reparses a `@typedef` / `@callback` that has a
+    /// type expression into a type alias statement before its host statement
+    /// (reparser.go:74-125; parser.go:610-642 moves it out to the enclosing
+    /// statement list) and binds it as a block-scoped declaration
+    /// (binder.go:1246-1259; top-level JavaScript aliases after the file,
+    /// 1607-1616). A dotted name declares nested namespaces. Without a type
+    /// expression there is no alias, and neither a nameless typedef nor
+    /// `@enum` anchors to the next declaration (tsc 6.0
+    /// delayedBindJSDocTypedefTag).
     fn delayed_bind_jsdoc_typedef_tags(&mut self) {
         let aliases = std::mem::take(&mut self.delayed_type_aliases);
         if aliases.is_empty() {
@@ -2597,6 +2362,9 @@ impl<'a> BinderWorker<'a> {
         let save_block_scope_container = self.block_scope_container;
         let save_current_flow = self.current_flow;
         for type_alias in aliases {
+            let Some(type_expression) = jsdoc_type_expression(self.source, type_alias) else {
+                continue;
+            };
             let Some(host) =
                 parent_of(self.source, type_alias).and_then(|doc| parent_of(self.source, doc))
             else {
@@ -2616,102 +2384,16 @@ impl<'a> BinderWorker<'a> {
                 None,
             ));
 
-            self.bind(jsdoc_type_expression(self.source, type_alias));
-            let decl_name = crate::node_util::get_name_of_declaration(self.source, type_alias);
-            let full_name = jsdoc_full_name(self.source, type_alias);
-            let is_enum = kind_of(self.source, type_alias) == SyntaxKind::JSDocEnumTag;
-            let property_access = decl_name
-                .and_then(|name| parent_of(self.source, name))
-                .filter(|&parent| is_property_access_entity_name_expression(self.source, parent));
-
-            if let Some(property_access) =
-                property_access.filter(|_| is_enum || full_name.is_none())
-            {
-                let is_top_level = self.is_top_level_namespace_assignment(property_access);
-                if is_top_level {
-                    let mut ancestor = Some(decl_name.expect("property name"));
-                    let mut is_prototype_property = false;
-                    while let Some(candidate) = ancestor {
-                        if kind_of(self.source, candidate) == SyntaxKind::PropertyAccessExpression
-                            && name_field_of(self.source, candidate)
-                                .and_then(|name| id_text(self.source, name))
-                                == Some("prototype")
-                        {
-                            is_prototype_property = true;
-                            break;
-                        }
-                        ancestor = parent_of(self.source, candidate);
-                    }
-                    self.bind_potentially_missing_namespaces(
-                        self.file_symbol(),
-                        property_access,
-                        is_top_level,
-                        is_prototype_property,
-                        false,
-                    );
-
-                    let old_container = self.container;
-                    let access_expression = access_expression_of(self.source, property_access);
-                    self.container = match get_assignment_declaration_property_access_kind(
-                        self.source,
-                        property_access,
-                    ) {
-                        AssignmentDeclarationKind::ExportsProperty
-                        | AssignmentDeclarationKind::ModuleExports => {
-                            (self.source.external_module_indicator.is_some()
-                                || self.common_js_module_indicator.is_some())
-                            .then_some(self.source.root)
-                        }
-                        AssignmentDeclarationKind::ThisProperty => access_expression,
-                        AssignmentDeclarationKind::Property => {
-                            access_expression.map(|expression| {
-                                if self.is_exports_or_module_exports_or_alias(expression) {
-                                    self.source.root
-                                } else if kind_of(self.source, expression)
-                                    == SyntaxKind::PropertyAccessExpression
-                                {
-                                    name_field_of(self.source, expression).unwrap_or(expression)
-                                } else {
-                                    expression
-                                }
-                            })
-                        }
-                        AssignmentDeclarationKind::None => {
-                            debug_assert!(
-                                false,
-                                "typedef/enum property name must classify as an assignment"
-                            );
-                            None
-                        }
-                        _ => {
-                            debug_assert!(
-                                false,
-                                "unexpected JSDoc typedef assignment declaration kind"
-                            );
-                            None
-                        }
-                    };
-                    if self.container.is_some() {
-                        self.declare_module_member(
-                            type_alias,
-                            SymbolFlags::TYPE_ALIAS,
-                            SymbolFlags::TYPE_ALIAS_EXCLUDES,
-                        );
-                    }
-                    self.container = old_container;
+            self.bind(Some(type_expression));
+            match jsdoc_full_name(self.source, type_alias) {
+                Some(full_name) if kind_of(self.source, full_name) != SyntaxKind::Identifier => {
+                    self.bind(Some(full_name));
                 }
-            } else if is_enum
-                || full_name.is_none()
-                || full_name
-                    .is_some_and(|name| kind_of(self.source, name) == SyntaxKind::Identifier)
-            {
-                self.bind_block_scoped_declaration(
+                _ => self.bind_block_scoped_declaration(
                     type_alias,
                     SymbolFlags::TYPE_ALIAS,
                     SymbolFlags::TYPE_ALIAS_EXCLUDES,
-                );
-            } else {
-                self.bind(full_name);
+                ),
             }
         }
         self.container = save_container;

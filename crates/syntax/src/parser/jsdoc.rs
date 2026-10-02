@@ -1,15 +1,15 @@
 use super::{token_is_identifier_or_keyword, Parser};
 use crate::nodes::{
-    ExpressionWithTypeArgumentsData, IdentifierData, JSDocAugmentsTagData, JSDocAuthorTagData,
-    JSDocCallbackTagData, JSDocClassTagData, JSDocComment, JSDocData, JSDocDeprecatedTagData,
-    JSDocEnumTagData, JSDocImplementsTagData, JSDocImportTagData, JSDocLinkCodeData, JSDocLinkData,
-    JSDocLinkPlainData, JSDocMemberNameData, JSDocNameReferenceData, JSDocOverloadTagData,
-    JSDocOverrideTagData, JSDocParameterTagData, JSDocPrivateTagData, JSDocPropertyTagData,
-    JSDocProtectedTagData, JSDocPublicTagData, JSDocReadonlyTagData, JSDocReturnTagData,
-    JSDocSatisfiesTagData, JSDocSeeTagData, JSDocSignatureData, JSDocTagData, JSDocTemplateTagData,
-    JSDocTextData, JSDocThisTagData, JSDocThrowsTagData, JSDocTypeExpressionData,
-    JSDocTypeLiteralData, JSDocTypeTagData, JSDocTypedefTagData, ModuleDeclarationData, NodeData,
-    NodeId, PropertyAccessExpressionData, QualifiedNameData, TypeParameterData,
+    ExpressionWithTypeArgumentsData, IdentifierData, JSDocAugmentsTagData, JSDocCallbackTagData,
+    JSDocComment, JSDocData, JSDocDeprecatedTagData, JSDocImplementsTagData, JSDocImportTagData,
+    JSDocLinkCodeData, JSDocLinkData, JSDocLinkPlainData, JSDocMemberNameData,
+    JSDocNameReferenceData, JSDocOverloadTagData, JSDocOverrideTagData, JSDocParameterTagData,
+    JSDocPrivateTagData, JSDocPropertyTagData, JSDocProtectedTagData, JSDocPublicTagData,
+    JSDocReadonlyTagData, JSDocReturnTagData, JSDocSatisfiesTagData, JSDocSeeTagData,
+    JSDocSignatureData, JSDocTagData, JSDocTemplateTagData, JSDocTextData, JSDocThisTagData,
+    JSDocThrowsTagData, JSDocTypeExpressionData, JSDocTypeLiteralData, JSDocTypeTagData,
+    JSDocTypedefTagData, ModuleDeclarationData, NodeData, NodeId, PropertyAccessExpressionData,
+    QualifiedNameData, TypeParameterData,
 };
 use crate::SyntaxKind;
 use tsc_diagnostics::{gen, DiagnosticMessage, RelatedInfo};
@@ -377,7 +377,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                 SyntaxKind::AtToken => {
                     Self::remove_trailing_whitespace(&mut comments);
                     comments_pos.get_or_insert(self.node_pos());
-                    let tag = self.parse_tag(indent);
+                    let tag = self.parse_tag(indent, true);
                     self.add_tag(tag);
                     state = CommentState::BeginningOfLine;
                     margin = None;
@@ -793,7 +793,10 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         )
     }
 
-    fn parse_tag(&mut self, margin: usize) -> NodeId {
+    /// `root_tags`: whether the tags parsed so far count as previous tags
+    /// (tsgo passes them only from the comment's own tag loop; a callback
+    /// signature's `@returns` sees none, parser/jsdoc.go:1127).
+    fn parse_tag(&mut self, margin: usize, root_tags: bool) -> NodeId {
         debug_assert_eq!(self.token(), SyntaxKind::AtToken);
         let start = self.token_start();
         self.next_token_jsdoc();
@@ -803,21 +806,11 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             .unwrap_or_default()
             .to_owned();
         let indent_text = self.skip_whitespace_or_asterisk();
+        // tsgo parseTag (TypeScript 7.1, parser/jsdoc.go:471-528): `@author`,
+        // `@class` / `@constructor` and `@enum` are unknown tags.
         match name.as_str() {
-            "author" => self.parse_author_tag(start, tag_name, margin, indent_text),
             "implements" => self.parse_implements_tag(start, tag_name, margin, indent_text),
             "augments" | "extends" => self.parse_augments_tag(start, tag_name, margin, indent_text),
-            "class" | "constructor" => {
-                let comment =
-                    self.parse_trailing_tag_comments(start, self.node_pos(), margin, indent_text);
-                self.finish_current(
-                    NodeData::JSDocClassTag(Box::new(JSDocClassTagData {
-                        tag_name: Some(tag_name),
-                        comment,
-                    })),
-                    start,
-                )
-            }
             "public" => self.parse_simple_tag(start, tag_name, margin, indent_text, 0),
             "private" => self.parse_simple_tag(start, tag_name, margin, indent_text, 1),
             "protected" => self.parse_simple_tag(start, tag_name, margin, indent_text, 2),
@@ -828,13 +821,14 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                 self.parse_simple_tag(start, tag_name, margin, indent_text, 5)
             }
             "this" => self.parse_this_tag(start, tag_name, margin, indent_text),
-            "enum" => self.parse_enum_tag(start, tag_name, margin, indent_text),
             "arg" | "argument" | "param" => {
                 self.parse_parameter_or_property_tag(start, tag_name, TARGET_PARAMETER, margin)
             }
-            "return" | "returns" => self.parse_return_tag(start, tag_name, margin, indent_text),
+            "return" | "returns" => {
+                self.parse_return_tag(start, tag_name, margin, indent_text, root_tags)
+            }
             "template" => self.parse_template_tag(start, tag_name, margin, indent_text),
-            "type" => self.parse_type_tag(start, tag_name, Some((margin, indent_text))),
+            "type" => self.parse_type_tag(start, tag_name, Some((margin, indent_text)), root_tags),
             "typedef" => self.parse_typedef_tag(start, tag_name, margin, indent_text),
             "callback" => self.parse_callback_tag(start, tag_name, margin, indent_text),
             "overload" => self.parse_overload_tag(start, tag_name, margin, indent_text),
@@ -918,7 +912,9 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             );
         }
         let r#type = self.parser.parse_jsdoc_type();
-        if !may_omit_braces || has_brace {
+        // tsgo parseJSDocTypeExpression (parser/jsdoc.go:106-123) expects the
+        // closing brace only after an opening one.
+        if has_brace {
             if self.token() == SyntaxKind::CloseBraceToken {
                 self.next_token_jsdoc();
             } else {
@@ -1162,7 +1158,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                     let indent_text = self.skip_whitespace_or_asterisk();
                     let child = match name_text.as_str() {
                         "type" if target == TARGET_PROPERTY => {
-                            Some(self.parse_type_tag(start, tag_name, None))
+                            Some(self.parse_type_tag(start, tag_name, None, false))
                         }
                         "prop" | "property" if target & TARGET_PROPERTY != 0 => Some(
                             self.parse_parameter_or_property_tag(start, tag_name, target, indent),
@@ -1251,8 +1247,9 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         tag_name: NodeId,
         indent: usize,
         indent_text: String,
+        root_tags: bool,
     ) -> NodeId {
-        if self.has_root_tag_kind(SyntaxKind::JSDocReturnTag) {
+        if root_tags && self.has_root_tag_kind(SyntaxKind::JSDocReturnTag) {
             let name = self
                 .identifier_text(tag_name)
                 .unwrap_or_default()
@@ -1281,8 +1278,9 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         start: usize,
         tag_name: NodeId,
         trailing: Option<(usize, String)>,
+        root_tags: bool,
     ) -> NodeId {
-        if self.has_root_tag_kind(SyntaxKind::JSDocTypeTag) {
+        if root_tags && self.has_root_tag_kind(SyntaxKind::JSDocTypeTag) {
             let name = self
                 .identifier_text(tag_name)
                 .unwrap_or_default()
@@ -1320,26 +1318,6 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         let comment = self.parse_trailing_tag_comments(start, self.node_pos(), margin, indent_text);
         self.finish_current(
             NodeData::JSDocThisTag(Box::new(JSDocThisTagData {
-                tag_name: Some(tag_name),
-                comment,
-                type_expression,
-            })),
-            start,
-        )
-    }
-
-    fn parse_enum_tag(
-        &mut self,
-        start: usize,
-        tag_name: NodeId,
-        margin: usize,
-        indent_text: String,
-    ) -> NodeId {
-        let type_expression = Some(self.parse_jsdoc_type_expression(true));
-        self.skip_whitespace();
-        let comment = self.parse_trailing_tag_comments(start, self.node_pos(), margin, indent_text);
-        self.finish_current(
-            NodeData::JSDocEnumTag(Box::new(JSDocEnumTagData {
                 tag_name: Some(tag_name),
                 comment,
                 type_expression,
@@ -1402,78 +1380,6 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                 tag_name: Some(tag_name),
                 comment,
                 name,
-            })),
-            start,
-        )
-    }
-
-    fn parse_author_tag(
-        &mut self,
-        start: usize,
-        tag_name: NodeId,
-        margin: usize,
-        indent_text: String,
-    ) -> NodeId {
-        let comment_start = self.node_pos();
-        let mut text = String::new();
-        let mut in_email = false;
-        while !matches!(
-            self.token(),
-            SyntaxKind::EndOfFileToken | SyntaxKind::NewLineTrivia
-        ) {
-            match self.token() {
-                SyntaxKind::LessThanToken => in_email = true,
-                SyntaxKind::AtToken if !in_email => break,
-                SyntaxKind::GreaterThanToken if in_email => {
-                    text.push_str(&self.token_text());
-                    let end = self.token_end();
-                    self.parser.scanner.reset_token_state(end);
-                    break;
-                }
-                _ => {}
-            }
-            text.push_str(&self.token_text());
-            self.next_token_jsdoc();
-        }
-        let mut text_end = self.parser.scanner.full_start_pos();
-        let trailing = self.parse_trailing_tag_comments(start, text_end, margin, indent_text);
-        let comment = match trailing {
-            Some(JSDocComment::Text(trailing)) => {
-                Some(JSDocComment::Text(format!("{text}{trailing}")))
-            }
-            Some(JSDocComment::Nodes(nodes)) => {
-                let mut all = vec![self.finish(
-                    NodeData::JSDocText(JSDocTextData { text }),
-                    comment_start,
-                    text_end,
-                )];
-                all.extend(self.parser.arena.node_array(nodes).nodes.iter().copied());
-                let array_end = self.node_pos();
-                Some(JSDocComment::Nodes(self.alloc_array(
-                    all,
-                    comment_start,
-                    array_end,
-                )))
-            }
-            None => {
-                text_end = self.node_pos();
-                let text = self.finish(
-                    NodeData::JSDocText(JSDocTextData { text }),
-                    comment_start,
-                    text_end,
-                );
-                let array_end = self.node_pos();
-                Some(JSDocComment::Nodes(self.alloc_array(
-                    vec![text],
-                    comment_start,
-                    array_end,
-                )))
-            }
-        };
-        self.finish_current(
-            NodeData::JSDocAuthorTag(Box::new(JSDocAuthorTagData {
-                tag_name: Some(tag_name),
-                comment,
             })),
             start,
         )
@@ -1569,7 +1475,9 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             return None;
         }
         let name = self.parse_identifier_name(None);
-        if self.parser.parse_optional(SyntaxKind::DotToken) {
+        // tsgo reads the `.` with the JSDoc scanner (parseOptionalJsdoc,
+        // parser/jsdoc.go:998).
+        if self.parse_optional(SyntaxKind::DotToken) {
             let body = self.parse_jsdoc_type_name_with_namespace(true);
             let flags = if nested {
                 NodeFlags::NESTED_NAMESPACE
@@ -1594,11 +1502,16 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         Some(name)
     }
 
+    /// tsgo getInnermostNameOfJSDocNamespace (parser/reparser.go:711-723): a
+    /// namespace without a body names the alias itself.
     fn jsdoc_alias_name(&self, full_name: Option<NodeId>) -> Option<NodeId> {
         let mut current = full_name?;
         loop {
             match &self.parser.arena.node(current).data {
-                NodeData::ModuleDeclaration(data) => current = data.body?,
+                NodeData::ModuleDeclaration(data) => match data.body {
+                    Some(body) => current = body,
+                    None => return data.name,
+                },
                 NodeData::Identifier(_) => return Some(current),
                 _ => return None,
             }
@@ -1614,7 +1527,12 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
     ) -> NodeId {
         let mut type_expression = self.try_parse_type_expression();
         self.skip_whitespace_or_asterisk();
-        let full_name = self.parse_jsdoc_type_name_with_namespace(false);
+        // tsgo parseTypedefTag (TypeScript 7.1, parser/jsdoc.go:1018-1100): a
+        // missing name is a missing identifier (TS1003).
+        let full_name = Some(match self.parse_jsdoc_type_name_with_namespace(false) {
+            Some(full_name) => full_name,
+            None => self.parse_identifier_name(Some(&gen::Identifier_expected)),
+        });
         let name = self.jsdoc_alias_name(full_name);
         self.skip_whitespace();
         let mut comment = self.parse_tag_comments(indent, None);
@@ -1630,11 +1548,10 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             while let Some(child) =
                 self.parse_child_parameter_or_property_tag(TARGET_PROPERTY, indent, None)
             {
-                if self.parser.arena.node(child).kind == SyntaxKind::JSDocTemplateTag {
-                    break;
-                }
                 has_children = true;
-                if self.parser.arena.node(child).kind == SyntaxKind::JSDocTypeTag {
+                if self.parser.arena.node(child).kind == SyntaxKind::JSDocTemplateTag {
+                    self.report_template_after_alias(child);
+                } else if self.parser.arena.node(child).kind == SyntaxKind::JSDocTypeTag {
                     if child_type_tag.is_some() {
                         if let Some(index) = self.parser.parse_error_at_current_token_with_index(
                             &gen::A_JSDoc_typedef_comment_may_not_contain_multiple_type_tags,
@@ -1652,9 +1569,9 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                                     ),
                                 });
                         }
-                        break;
+                    } else {
+                        child_type_tag = Some(child);
                     }
-                    child_type_tag = Some(child);
                 } else {
                     property_tags.push(child);
                 }
@@ -1679,6 +1596,10 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                 type_expression = if replacement.is_some() {
                     replacement
                 } else {
+                    // tsgo starts the literal at its first property tag.
+                    let literal_start = property_tags
+                        .first()
+                        .map_or(start, |&tag| self.parser.arena.node(tag).pos as usize);
                     let end = self.node_pos();
                     let properties = if property_tags.is_empty() {
                         None
@@ -1690,7 +1611,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                             js_doc_property_tags: properties,
                             is_array_type,
                         }),
-                        start,
+                        literal_start,
                         end,
                     ))
                 };
@@ -1699,13 +1620,13 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             }
         }
 
-        let end = if explicit_end.is_some_and(|end| end != 0) || comment.is_some() {
-            self.node_pos()
-        } else {
-            full_name
+        let end = match explicit_end {
+            Some(end) => end,
+            None if comment.is_some() => self.node_pos(),
+            None => full_name
                 .or(type_expression)
                 .unwrap_or(tag_name)
-                .pipe(|node| self.parser.arena.node(node).end as usize)
+                .pipe(|node| self.parser.arena.node(node).end as usize),
         };
         if comment.is_none() {
             comment = self.parse_trailing_tag_comments(start, end, indent, indent_text);
@@ -1723,21 +1644,29 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         )
     }
 
+    /// tsgo: a `@template` among the child tags of a typedef, callback or
+    /// overload is TS8039 at its tag name (parser/jsdoc.go:873, 1044, 1114).
+    fn report_template_after_alias(&mut self, template: NodeId) {
+        self.parser.parse_error_at_range(
+            self.tag_name_of(template).unwrap_or(template),
+            &gen::A_JSDoc_template_tag_may_not_follow_a_typedef_callback_or_overload_tag,
+            &[],
+        );
+    }
+
     fn parse_jsdoc_signature(&mut self, start: usize, indent: usize) -> NodeId {
         let parameters_pos = self.node_pos();
         let mut parameters = Vec::new();
+        // tsgo parseCallbackTagParameters (TypeScript 7.1, parser/jsdoc.go:1102-1118):
+        // a `@template` among the parameters is TS8039 and is skipped.
         while let Some(child) =
             self.parse_child_parameter_or_property_tag(TARGET_CALLBACK_PARAMETER, indent, None)
         {
             if self.parser.arena.node(child).kind == SyntaxKind::JSDocTemplateTag {
-                self.parser.parse_error_at_range(
-                    self.tag_name_of(child).unwrap_or(child),
-                    &gen::A_JSDoc_template_tag_may_not_follow_a_typedef_callback_or_overload_tag,
-                    &[],
-                );
-                break;
+                self.report_template_after_alias(child);
+            } else {
+                parameters.push(child);
             }
-            parameters.push(child);
         }
         let parameters = self.alloc_array(parameters, parameters_pos, self.node_pos());
         let state = self.parser.scanner.save();
@@ -1748,7 +1677,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             self.next_token_jsdoc();
         }
         let return_tag = if self.token() == SyntaxKind::AtToken {
-            let tag = self.parse_tag(indent);
+            let tag = self.parse_tag(indent, false);
             (self.parser.arena.node(tag).kind == SyntaxKind::JSDocReturnTag).then_some(tag)
         } else {
             None
@@ -1776,11 +1705,18 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         indent: usize,
         indent_text: String,
     ) -> NodeId {
-        let full_name = self.parse_jsdoc_type_name_with_namespace(false);
+        // tsgo parseCallbackTag (TypeScript 7.1, parser/jsdoc.go:1138-1156): a
+        // missing name is a missing identifier (TS1003), and the signature
+        // starts after the comment.
+        let full_name = Some(match self.parse_jsdoc_type_name_with_namespace(false) {
+            Some(full_name) => full_name,
+            None => self.parse_identifier_name(Some(&gen::Identifier_expected)),
+        });
         let name = self.jsdoc_alias_name(full_name);
         self.skip_whitespace();
         let mut comment = self.parse_tag_comments(indent, None);
-        let type_expression = self.parse_jsdoc_signature(start, indent);
+        let signature_start = self.node_pos();
+        let type_expression = self.parse_jsdoc_signature(signature_start, indent);
         if comment.is_none() {
             comment = self.parse_trailing_tag_comments(start, self.node_pos(), indent, indent_text);
         }
@@ -1983,5 +1919,41 @@ pub(super) fn parse_jsdoc_comment(
     parser.context_flags = saved_context;
     parser.parsing_context = saved_parsing_context;
     parser.scanner.restore(scanner_state);
+    if parser.javascript_file {
+        report_missing_typedef_names(parser, node);
+    }
     ParsedJSDoc { node, deprecated }
+}
+
+/// tsgo reparseUnhosted (TypeScript 7.1, parser/reparser.go:41-56, 74-103):
+/// the type alias a JavaScript `@typedef` with a type expression becomes
+/// needs a name, so a missing one is a regular parse error on the character
+/// before it (checkNonIdentifierName), besides the JSDoc TS1003.
+fn report_missing_typedef_names(parser: &mut Parser<'_>, jsdoc: NodeId) {
+    let NodeData::JSDoc(data) = &parser.arena.node(jsdoc).data else {
+        return;
+    };
+    let Some(tags) = data.tags else {
+        return;
+    };
+    for tag in parser.arena.node_array(tags).nodes.to_vec() {
+        let NodeData::JSDocTypedefTag(data) = &parser.arena.node(tag).data else {
+            continue;
+        };
+        let (Some(_), Some(name)) = (data.type_expression, data.name) else {
+            continue;
+        };
+        let node = parser.arena.node(name);
+        let missing = matches!(&node.data, NodeData::Identifier(id) if id.text().is_empty());
+        if !missing {
+            continue;
+        }
+        let (pos, end) = (node.pos as usize, node.end as usize);
+        let (start, end) = if end == pos {
+            (pos.saturating_sub(1), pos)
+        } else {
+            (pos, end)
+        };
+        parser.parse_reparse_error_at(start, end, &gen::Identifier_expected);
+    }
 }

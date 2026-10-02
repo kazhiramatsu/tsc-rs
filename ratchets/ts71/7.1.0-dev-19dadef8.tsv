@@ -3828,7 +3828,9 @@ compiler/jsDocOverloadNamedDefaultExport	full	js
 compiler/jsDocPrivateConstructor	full	js
 compiler/jsDocTypedefTagNamespace	full	js
 compiler/jsDocTypedefWithThisTag	full	js
+compiler/jsEnumCrossFileExport	full	js
 compiler/jsEnumFunctionLocalNoCrash	full	js
+compiler/jsEnumTagOnObjectFrozen	full	js
 compiler/jsExpandoAssignmentElementAccess	full	none
 compiler/jsExpandoObjectDefineProperty	full	js
 compiler/jsExportAssignmentNonMutableLocation	full	none
@@ -3956,6 +3958,9 @@ compiler/jsdocTypeGenericInstantiationAttempt	full	js
 compiler/jsdocTypeNongenericInstantiationAttempt	full	js
 compiler/jsdocTypecastNoTypeNoCrash	full	js
 compiler/jsdocTypedefBeforeParenthesizedExpression	full	js
+compiler/jsdocTypedefMissingType	full	js
+compiler/jsdocTypedefNoCrash	full	js
+compiler/jsdocTypedefNoCrash2	full	js
 compiler/jsdocTypedef_propertyWithNoType	full	js
 compiler/jsdocUnexpectedCharacter	full	js
 compiler/json.stringify	full	js
@@ -4294,6 +4299,7 @@ compiler/missingSemicolonInModuleSpecifier	full	js
 compiler/missingTypeArguments1	full	js
 compiler/missingTypeArguments2	full	js
 compiler/missingTypeArguments3	full	js
+compiler/misspelledJsDocTypedefTags	full	js
 compiler/misspelledNewMetaProperty	full	js
 compiler/mixedExports	full	js
 compiler/mixedStaticAndInstanceClassMembers	full	js
@@ -7423,6 +7429,7 @@ conformance/callChainWithSuper(target=esnext)	full	js
 conformance/callGenericFunctionWithIncorrectNumberOfTypeArguments	full	js
 conformance/callGenericFunctionWithZeroTypeArguments	full	js
 conformance/callNonGenericFunctionWithTypeArguments	full	js
+conformance/callOfPropertylessConstructorFunction	full	js
 conformance/callOverload	full	js
 conformance/callSignatureAssignabilityInInheritance	full	js
 conformance/callSignatureAssignabilityInInheritance2	full	js
@@ -7474,6 +7481,7 @@ conformance/checkJsdocSatisfiesTag1	text	js
 conformance/checkJsdocSatisfiesTag10	full	js
 conformance/checkJsdocSatisfiesTag12	text	js
 conformance/checkJsdocSatisfiesTag13	full	js
+conformance/checkJsdocSatisfiesTag14	full	js
 conformance/checkJsdocSatisfiesTag15	full	none
 conformance/checkJsdocSatisfiesTag2	full	js
 conformance/checkJsdocSatisfiesTag3	full	js
@@ -7488,6 +7496,7 @@ conformance/checkJsdocTypeTag4	full	js
 conformance/checkJsdocTypeTag7	full	js
 conformance/checkJsdocTypeTag8	full	js
 conformance/checkJsdocTypedefInParamTag1	full	none
+conformance/checkJsdocTypedefOnlySourceFile	full	none
 conformance/checkJsxChildrenCanBeTupleType	full	js
 conformance/checkJsxChildrenProperty1	full	js
 conformance/checkJsxChildrenProperty10	full	js
@@ -7950,6 +7959,7 @@ conformance/constructorFunctionMergeWithClass	full	js
 conformance/constructorFunctionMethodTypeParameters	full	js
 conformance/constructorFunctionTypeIsAssignableToBaseType	full	js
 conformance/constructorFunctionTypeIsAssignableToBaseType2	full	js
+conformance/constructorFunctions	full	js
 conformance/constructorFunctions2	full	js
 conformance/constructorFunctions3	full	js
 conformance/constructorFunctionsStrict	full	js
@@ -8498,8 +8508,11 @@ conformance/enumMergeWithExpando	full	js
 conformance/enumMerging	full	js
 conformance/enumMergingErrors	full	js
 conformance/enumShadowedInfinityNaN	full	js
+conformance/enumTag	full	js
+conformance/enumTagCircularReference	full	js
 conformance/enumTagOnExports	full	js
 conformance/enumTagOnExports2	full	js
+conformance/enumTagUseBeforeDefCrash	full	js
 conformance/enums	full	js
 conformance/equalityStrictNulls	full	js
 conformance/equalityWithEnumTypes	full	js
@@ -8820,6 +8833,7 @@ conformance/exportSpellingSuggestion	full	js
 conformance/exportStar(target=es2015)	full	js
 conformance/exportTypeMergedWithExportStarAsNamespace	full	js
 conformance/exportedAliasedEnumTag	full	js
+conformance/exportedEnumTypeAndValue	full	js
 conformance/exportsAndImports1	full	js
 conformance/exportsAndImports1-es6	full	js
 conformance/exportsAndImports2	full	js
@@ -8841,7 +8855,9 @@ conformance/extendNumberInterface	full	js
 conformance/extendStringInterface	full	js
 conformance/extendsClause	full	js
 conformance/extendsTag1	full	js
+conformance/extendsTag2	full	js
 conformance/extendsTag3	full	js
+conformance/extendsTag4	full	js
 conformance/extendsTag5	full	js
 conformance/extendsTag6	full	js
 conformance/extendsTagEmit	full	js
@@ -9525,6 +9541,7 @@ conformance/jsDeclarationsCrossfileMerge(target=es2015)	full	none
 conformance/jsDeclarationsDefault(target=es2015)	full	none
 conformance/jsDeclarationsDefaultsErr(target=es2015)	full	none
 conformance/jsDeclarationsDocCommentsOnConsts(target=es2015)	full	none
+conformance/jsDeclarationsEnumTag(target=es2015)	full	none
 conformance/jsDeclarationsEnums(target=es2015)	full	none
 conformance/jsDeclarationsExportAssignedClassExpression(target=es2015)	full	none
 conformance/jsDeclarationsExportAssignedClassExpressionAnonymous(target=es2015)	full	none
@@ -9591,8 +9608,11 @@ conformance/jsObjectsMarkedAsOpenEnded	full	js
 conformance/jsOverrideMap	full	js
 conformance/jsdocAccessibilityTags	full	js
 conformance/jsdocAccessibilityTagsDeclarations	full	none
+conformance/jsdocAugmentsMissingType	text	js
 conformance/jsdocAugments_errorInExtendsExpression	full	js
+conformance/jsdocAugments_nameMismatch	full	js
 conformance/jsdocAugments_noExtends	full	js
+conformance/jsdocAugments_notAClass	full	js
 conformance/jsdocAugments_qualifiedName	full	js
 conformance/jsdocAugments_withTypeParameter	full	js
 conformance/jsdocBindingInUnreachableCode	full	js

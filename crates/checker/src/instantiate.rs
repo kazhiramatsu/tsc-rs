@@ -2309,7 +2309,6 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::TypeAliasDeclaration
                 | SyntaxKind::JSDocTemplateTag
                 | SyntaxKind::JSDocTypedefTag
-                | SyntaxKind::JSDocEnumTag
                 | SyntaxKind::JSDocCallbackTag
                 | SyntaxKind::MappedType
                 | SyntaxKind::ConditionalType => {

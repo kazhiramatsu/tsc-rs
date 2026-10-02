@@ -1993,11 +1993,9 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::TemplateLiteralType => self.check_template_literal_type(node),
             SyntaxKind::ImportType => self.check_import_type(node),
             SyntaxKind::NamedTupleMember => self.check_named_tuple_member(node),
-            SyntaxKind::JSDocAugmentsTag => self.check_jsdoc_augments_tag(node),
-            SyntaxKind::JSDocImplementsTag => self.check_jsdoc_implements_tag(node),
-            SyntaxKind::JSDocTypedefTag
-            | SyntaxKind::JSDocCallbackTag
-            | SyntaxKind::JSDocEnumTag => self.check_jsdoc_type_alias_tag(node),
+            SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocCallbackTag => {
+                self.check_jsdoc_type_alias_tag(node)
+            }
             SyntaxKind::JSDocTemplateTag => self.check_jsdoc_template_tag(node),
             SyntaxKind::JSDocTypeTag => self.check_jsdoc_type_tag(node),
             SyntaxKind::JSDocLink | SyntaxKind::JSDocLinkCode | SyntaxKind::JSDocLinkPlain => {
@@ -2149,32 +2147,27 @@ impl<'a> CheckerState<'a> {
         self.child_scratch.truncate(first);
     }
 
-    /// tsc-port: checkJSDocTypeAliasTag @6.0.3.
-    /// tsc-hash: e8584035fea4768c02dfe9033860570a747273628f548991de4124fed619139d
-    /// tsc-span: _tsc.js:82792-82801
+    /// tsgo-port: checkTypeAliasDeclaration @7.1 (checker.go:7048-7071) on the
+    /// type alias tsgo's reparser makes of a `@typedef` / `@callback` with a
+    /// type expression; without one there is no alias (no TS8021).
     fn check_jsdoc_type_alias_tag(&mut self, node: NodeId) -> CheckResult<()> {
         let (name, type_expression) = match self.data_of(node) {
             NodeData::JSDocTypedefTag(data) => (data.name, data.type_expression),
             NodeData::JSDocCallbackTag(data) => (data.name, data.type_expression),
-            NodeData::JSDocEnumTag(data) => (None, data.type_expression),
             _ => unreachable!("kind/data agree"),
         };
-        let name = name.or_else(|| {
-            node_util::name_for_nameless_jsdoc_typedef(self.binder.source_of_node(node), node)
-        });
         if type_expression.is_none() {
-            self.error_at(
-                name,
-                &diagnostics::JSDoc_typedef_tag_should_either_have_a_type_annotation_or_be_followed_by_property_or_member_tags,
-                &[],
-            );
+            return Ok(());
         }
         if let Some(name) = name {
             self.check_type_name_is_reserved(name, &diagnostics::Type_alias_name_cannot_be_0);
         }
-        self.check_source_element(type_expression);
+        self.check_exports_on_merged_declarations(node)?;
         let type_parameters = self.type_parameter_declarations_of(node);
-        self.check_type_parameters(&type_parameters)
+        self.check_type_parameters(&type_parameters)?;
+        self.check_source_element(type_expression);
+        self.register_for_unused_identifiers_check(node);
+        Ok(())
     }
 
     /// tsc-port: checkJSDocTemplateTag @6.0.3.
@@ -2388,106 +2381,63 @@ impl<'a> CheckerState<'a> {
         self.check_import_attributes_of(node)
     }
 
-    /// tsc's `error(classLike, ...)` is a global diagnostic when the
-    /// effective JSDoc host is absent. The raw checker sink retains
-    /// every locationless probe; publish only the producer-owned row
-    /// through the aggregate global-diagnostic stream.
-    fn error_jsdoc_not_attached_to_class(&mut self, class_like: Option<NodeId>, tag_text: &str) {
-        let diagnostics_before = self.diagnostics.len();
-        self.error_at(
-            class_like,
-            &diagnostics::JSDoc_0_is_not_attached_to_a_class,
-            &[tag_text],
-        );
-        if class_like.is_none() {
-            self.publish_visible_global_diagnostics_since(diagnostics_before);
-        }
-    }
-
-    /// tsc-port: checkJSDocImplementsTag @6.0.3.
-    /// tsc-hash: 44e500ddec853eafef3e591be086bd6d8b14f5ba03c88791117f60656274bcbb
-    /// tsc-span: _tsc.js:82857-82862
-    fn check_jsdoc_implements_tag(&mut self, node: NodeId) -> CheckResult<()> {
-        let tag_name = match self.data_of(node) {
-            NodeData::JSDocImplementsTag(data) => data.tag_name,
-            _ => None,
-        };
-        let host = self.get_effective_jsdoc_host(node);
-        if !host.is_some_and(|host| {
-            matches!(
-                self.kind_of(host),
-                SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
-            )
-        }) {
-            let text = tag_name
-                .and_then(|name| self.identifier_text_of(name))
-                .unwrap_or("implements")
-                .to_owned();
-            self.error_jsdoc_not_attached_to_class(host, &text);
-        }
-        Ok(())
-    }
-
-    /// tsc-port: checkJSDocAugmentsTag @6.0.3.
-    /// tsc-hash: 66091283e252c6a78b8ea20c9fd3df37d75fd8db4ab430a1c02ff07652c3ce6e
-    /// tsc-span: _tsc.js:82863-82882
-    fn check_jsdoc_augments_tag(&mut self, node: NodeId) -> CheckResult<()> {
-        let (tag_name, class) = match self.data_of(node) {
-            NodeData::JSDocAugmentsTag(data) => (data.tag_name, data.class),
-            _ => unreachable!("kind/data agree"),
-        };
-        let tag_text = tag_name
-            .and_then(|name| self.identifier_text_of(name))
-            .unwrap_or("augments")
-            .to_owned();
-        let class_like = self.get_effective_jsdoc_host(node);
-        if !class_like.is_some_and(|host| {
-            matches!(
-                self.kind_of(host),
-                SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
-            )
-        }) {
-            self.error_jsdoc_not_attached_to_class(class_like, &tag_text);
+    /// tsgo-port: checkJSDocAugmentsTagMatchesExtends @7.1 (checker.go:4424-4447):
+    /// an `@augments` tag of a JavaScript class whose type is not identical to
+    /// the class's base type is TS8023 at the tag's name.
+    pub(crate) fn check_jsdoc_augments_tag_matches_extends(
+        &mut self,
+        node: NodeId,
+        base_type: TypeId,
+    ) -> CheckResult<()> {
+        if !self.is_in_js_file(node) {
             return Ok(());
         }
-        let class_like = class_like.expect("class-like tested above");
-        let tags = self.all_jsdoc_tags(class_like, SyntaxKind::JSDocAugmentsTag);
-        if tags.len() > 1 {
-            self.error_at(
-                Some(tags[1]),
-                &diagnostics::Class_declarations_cannot_have_more_than_one_augments_or_extends_tag,
-                &[],
-            );
-        }
-
-        let target_name = class
-            .and_then(|class| match self.data_of(class) {
-                NodeData::ExpressionWithTypeArguments(data) => data.expression,
-                _ => None,
-            })
-            .and_then(|expression| self.identifier_from_entity_name_expression(expression));
-        let extends_name = self
-            .get_class_extends_heritage_element(class_like)
+        let target_name = self
+            .get_class_extends_heritage_element(node)
             .and_then(|extends| match self.data_of(extends) {
                 NodeData::ExpressionWithTypeArguments(data) => data.expression,
                 _ => None,
             })
             .and_then(|expression| self.identifier_from_entity_name_expression(expression));
-        if let (Some(target_name), Some(extends_name)) = (target_name, extends_name) {
-            let target_text = self
-                .identifier_text_of(target_name)
-                .unwrap_or_default()
-                .to_owned();
-            let extends_text = self
-                .identifier_text_of(extends_name)
-                .unwrap_or_default()
-                .to_owned();
-            if target_text != extends_text {
-                self.error_at(
-                    Some(target_name),
-                    &diagnostics::JSDoc_0_1_does_not_match_the_extends_2_clause,
-                    &[&tag_text, &target_text, &extends_text],
-                );
+        for doc in self.direct_jsdoc_documents(node) {
+            let NodeData::JSDoc(doc) = self.data_of(doc) else {
+                continue;
+            };
+            for tag in self.nodes_of(doc.tags) {
+                let NodeData::JSDocAugmentsTag(data) = self.data_of(tag) else {
+                    continue;
+                };
+                let (tag_name, Some(class)) = (data.tag_name, data.class) else {
+                    continue;
+                };
+                let source_type = self.get_type_from_type_node(class)?;
+                if self.is_type_identical_to(source_type, base_type)? {
+                    continue;
+                }
+                let source_name = match self.data_of(class) {
+                    NodeData::ExpressionWithTypeArguments(data) => data.expression,
+                    _ => None,
+                }
+                .and_then(|expression| self.identifier_from_entity_name_expression(expression));
+                if let (Some(source_name), Some(target_name)) = (source_name, target_name) {
+                    let tag_text = tag_name
+                        .and_then(|name| self.identifier_text_of(name))
+                        .unwrap_or_default()
+                        .to_owned();
+                    let source_text = self
+                        .identifier_text_of(source_name)
+                        .unwrap_or_default()
+                        .to_owned();
+                    let target_text = self
+                        .identifier_text_of(target_name)
+                        .unwrap_or_default()
+                        .to_owned();
+                    self.error_at(
+                        Some(source_name),
+                        &diagnostics::JSDoc_0_1_does_not_match_the_extends_2_clause,
+                        &[&tag_text, &source_text, &target_text],
+                    );
+                }
             }
         }
         Ok(())
@@ -3368,8 +3318,7 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::TypeAliasDeclaration
             | SyntaxKind::EnumDeclaration
             | SyntaxKind::JSDocTypedefTag
-            | SyntaxKind::JSDocCallbackTag
-            | SyntaxKind::JSDocEnumTag => true,
+            | SyntaxKind::JSDocCallbackTag => true,
             SyntaxKind::ImportClause => {
                 matches!(
                     self.data_of(declaration),
@@ -12391,9 +12340,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:55589-55674
     pub(crate) fn reused_declaration_is_visible(&self, declaration: NodeId) -> bool {
         match self.kind_of(declaration) {
-            SyntaxKind::JSDocCallbackTag
-            | SyntaxKind::JSDocTypedefTag
-            | SyntaxKind::JSDocEnumTag => self
+            SyntaxKind::JSDocCallbackTag | SyntaxKind::JSDocTypedefTag => self
                 .parent_of(declaration)
                 .and_then(|parent| self.parent_of(parent))
                 .and_then(|parent| self.parent_of(parent))

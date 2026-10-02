@@ -8,11 +8,9 @@ use crate::flow::FlowPayload;
 use crate::node_util::{
     asterisk_token_of, body_of, get_combined_modifier_flags,
     get_immediately_invoked_function_expression, get_syntactic_modifier_flags,
-    has_syntactic_modifier, is_ambient_module, is_declaration, is_function_like_kind,
-    is_jsdoc_type_alias, is_module_augmentation_external,
-    is_object_literal_or_class_expression_method_or_accessor,
-    is_property_access_entity_name_expression, jsdoc_full_name, kind_of, node_is_missing,
-    parent_of, statements_of, try_parse_pattern, ParsedPattern,
+    has_syntactic_modifier, is_ambient_module, is_function_like_kind, is_jsdoc_type_alias,
+    is_module_augmentation_external, is_object_literal_or_class_expression_method_or_accessor,
+    kind_of, node_is_missing, parent_of, statements_of, try_parse_pattern, ParsedPattern,
 };
 use crate::symbols::{SymbolId, SymbolTable};
 use rustc_hash::FxHashMap as HashMap;
@@ -622,35 +620,18 @@ impl<'a> BinderWorker<'a> {
         }
     }
 
-    /// The JSDoc-only export routing tail of declareModuleMember.
+    /// tsgo IsImplicitlyExportedJSDocDeclaration (ast/utilities.go:4226-4236)
+    /// with the reparser's export modifiers (reparser.go:74-90, 733-752): a
+    /// JavaScript type alias, and every namespace of its dotted name, is an
+    /// exported module member.
     fn jsdoc_treat_as_exported(&self, mut node: NodeId) -> bool {
-        if parent_of(self.source, node).is_some()
-            && kind_of(self.source, node) == SyntaxKind::ModuleDeclaration
-        {
-            node = parent_of(self.source, node).expect("checked parent");
+        while kind_of(self.source, node) == SyntaxKind::ModuleDeclaration {
+            let Some(parent) = parent_of(self.source, node) else {
+                return false;
+            };
+            node = parent;
         }
-        if !is_jsdoc_type_alias(self.source, node) {
-            return false;
-        }
-        if kind_of(self.source, node) != SyntaxKind::JSDocEnumTag
-            && jsdoc_full_name(self.source, node).is_some()
-        {
-            return true;
-        }
-        let Some(decl_name) = crate::node_util::get_name_of_declaration(self.source, node) else {
-            return false;
-        };
-        let Some(decl_parent) = parent_of(self.source, decl_name) else {
-            return false;
-        };
-        if is_property_access_entity_name_expression(self.source, decl_parent)
-            && self.is_top_level_namespace_assignment(decl_parent)
-        {
-            return true;
-        }
-        is_declaration(self.source, decl_parent)
-            && get_combined_modifier_flags(self.source, decl_parent)
-                .intersects(ModifierFlags::EXPORT)
+        is_jsdoc_type_alias(self.source, node)
     }
 
     /// tsc-port: hasExportDeclarations @6.0.3

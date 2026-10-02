@@ -1136,17 +1136,19 @@ fn dotted_jsdoc_typedef_merges_namespace_face_into_explicit_export_alias() {
 }
 
 #[test]
-fn nameless_jsdoc_typedef_on_property_routes_to_namespace_export() {
+fn nameless_jsdoc_typedef_anchors_to_no_declaration() {
+    // TypeScript 7.1 (tsgo): a typedef without a name is a type alias with a
+    // missing name (TS1003); it does not take the name of the next
+    // declaration (tsc 6.0 nameForNamelessJSDocTypedef), so `Types.Count`
+    // creates no namespace and no type.
     let source = parse_named("a.js", "/** @typedef {number} */\nTypes.Count;\n", true);
     let binder = bind(&source);
-    let types = binder.js_global_augmentations["Types"];
-    let count = binder.symbols.symbol(types).exports()["Count"];
-    let count = binder.symbols.symbol(count);
-    assert!(count.flags.intersects(SymbolFlags::TYPE_ALIAS));
-    assert!(count
-        .declarations
-        .iter()
-        .any(|&declaration| kind_of(&source, declaration) == SyntaxKind::JSDocTypedefTag));
+    let locals = &binder.locals[&source.root];
+    assert!(!locals.contains_key("Types"));
+    assert!(!locals.contains_key("Count"));
+    let typedef = find_nodes(&source, SyntaxKind::JSDocTypedefTag)[0];
+    let alias = binder.symbols.symbol(binder.node_symbol[&typedef]);
+    assert_eq!(alias.flags, SymbolFlags::TYPE_ALIAS);
 }
 
 #[test]
@@ -1305,5 +1307,4 @@ fn expandos_bind_on_initializer_symbols_after_the_file() {
         .exports()
         .contains_key("b"));
     assert!(!locals.contains_key("missing"));
-    assert!(binder.js_global_augmentations.is_empty());
 }

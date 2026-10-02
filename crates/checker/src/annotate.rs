@@ -3305,7 +3305,6 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::TypeAliasDeclaration
                 | SyntaxKind::JSDocTypedefTag
                 | SyntaxKind::JSDocCallbackTag
-                | SyntaxKind::JSDocEnumTag
         ) {
             // getSymbolOfDeclaration (62913).
             self.node_symbol(host).map(|s| self.get_merged_symbol(s))
@@ -3606,7 +3605,6 @@ impl<'a> CheckerState<'a> {
                     SyntaxKind::TypeAliasDeclaration
                         | SyntaxKind::JSDocTypedefTag
                         | SyntaxKind::JSDocCallbackTag
-                        | SyntaxKind::JSDocEnumTag
                 )
             });
         let computed = (|state: &mut Self| -> CheckResult<TypeId> {
@@ -3621,7 +3619,6 @@ impl<'a> CheckerState<'a> {
                 NodeData::TypeAliasDeclaration(data) => data.r#type,
                 NodeData::JSDocTypedefTag(data) => data.type_expression,
                 NodeData::JSDocCallbackTag(data) => data.type_expression,
-                NodeData::JSDocEnumTag(data) => data.type_expression,
                 _ => unreachable!("type-alias declaration kind implies payload"),
             };
             match type_node {
@@ -3663,12 +3660,8 @@ impl<'a> CheckerState<'a> {
             }
         } else {
             // 57426-57432: the cycle came from a deeper frame.
-            let error_node = declaration.and_then(|declaration| match self.data_of(declaration) {
-                NodeData::JSDocEnumTag(data) => {
-                    self.jsdoc_type_expression_type(data.type_expression)
-                }
-                _ => self.name_of_node(declaration).or(Some(declaration)),
-            });
+            let error_node = declaration
+                .map(|declaration| self.name_of_node(declaration).unwrap_or(declaration));
             let name = self.symbol_display_name(symbol);
             self.error_at_js(
                 error_node,
@@ -5636,19 +5629,85 @@ impl<'a> CheckerState<'a> {
 
     // ---- class bases (5.3e) ----
 
-    /// tsc-port: getEffectiveBaseTypeNode @6.0.3
-    /// tsc-hash: da96d8064300687fe60b12ee93d3bea150a4853704a0a06d844e8d06ecc0cc72
-    /// tsc-span: _tsc.js:15742-15751
+    /// The class's `extends` element: tsgo (TypeScript 7.1) has no JSDoc
+    /// base type node. In a JavaScript file its reparser gives a single
+    /// `extends` type without type arguments those of an `@augments` tag in
+    /// the class's last JSDoc comment that names the same entity
+    /// (reparser.go:582-600); the tag's type then stands for that `extends`
+    /// type here.
     pub(crate) fn get_effective_base_type_node(&self, node: NodeId) -> Option<NodeId> {
         let base_type = self.get_class_extends_heritage_element(node)?;
-        if self.is_in_js_file(node) {
-            if let Some(tag) = self.first_jsdoc_tag(node, SyntaxKind::JSDocAugmentsTag) {
-                if let NodeData::JSDocAugmentsTag(data) = self.data_of(tag) {
-                    return data.class;
+        if !self.is_in_js_file(node) {
+            return Some(base_type);
+        }
+        let NodeData::ExpressionWithTypeArguments(target) = self.data_of(base_type) else {
+            return Some(base_type);
+        };
+        let single_extends_type =
+            self.parent_of(base_type)
+                .is_some_and(|clause| match self.data_of(clause) {
+                    NodeData::HeritageClause(data) => self.nodes_of(data.types).len() == 1,
+                    _ => false,
+                });
+        if !single_extends_type || !self.nodes_of(target.type_arguments).is_empty() {
+            return Some(base_type);
+        }
+        let Some(&last_doc) = self.direct_jsdoc_documents(node).last() else {
+            return Some(base_type);
+        };
+        let NodeData::JSDoc(doc) = self.data_of(last_doc) else {
+            return Some(base_type);
+        };
+        for tag in self.nodes_of(doc.tags) {
+            let NodeData::JSDocAugmentsTag(data) = self.data_of(tag) else {
+                continue;
+            };
+            let Some(class) = data.class else {
+                continue;
+            };
+            let NodeData::ExpressionWithTypeArguments(source) = self.data_of(class) else {
+                continue;
+            };
+            if let (Some(target_expression), Some(source_expression)) =
+                (target.expression, source.expression)
+            {
+                if self.has_same_property_access_name(target_expression, source_expression)
+                    && !self.nodes_of(source.type_arguments).is_empty()
+                {
+                    return Some(class);
                 }
             }
         }
         Some(base_type)
+    }
+
+    /// tsgo-port: ast.HasSamePropertyAccessName @7.1 (ast/utilities.go:1648-1656).
+    fn has_same_property_access_name(&self, left: NodeId, right: NodeId) -> bool {
+        match (self.data_of(left), self.data_of(right)) {
+            (NodeData::Identifier(left), NodeData::Identifier(right)) => {
+                left.escaped_text == right.escaped_text
+            }
+            (
+                NodeData::PropertyAccessExpression(left),
+                NodeData::PropertyAccessExpression(right),
+            ) => {
+                let name_of = |name: Option<NodeId>| {
+                    name.and_then(|name| match self.data_of(name) {
+                        NodeData::Identifier(data) => Some(data.escaped_text),
+                        NodeData::PrivateIdentifier(data) => Some(data.escaped_text),
+                        _ => None,
+                    })
+                };
+                name_of(left.name) == name_of(right.name)
+                    && match (left.expression, right.expression) {
+                        (Some(left), Some(right)) => {
+                            self.has_same_property_access_name(left, right)
+                        }
+                        _ => false,
+                    }
+            }
+            _ => false,
+        }
     }
 
     /// tsc-port: getBaseTypeNodeOfClass @6.0.3

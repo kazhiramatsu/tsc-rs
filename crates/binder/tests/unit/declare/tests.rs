@@ -37,10 +37,6 @@ fn bind_relocation_matches_direct_nonzero_symbols_and_private_serials() {
     assert_eq!(relocated.node_symbol, direct.node_symbol);
     assert_eq!(relocated.node_local_symbol, direct.node_local_symbol);
     assert_eq!(relocated.locals, direct.locals);
-    assert_eq!(
-        relocated.js_global_augmentations,
-        direct.js_global_augmentations
-    );
     assert_eq!(relocated.classifiable_names, direct.classifiable_names);
     assert_eq!(relocated.assigned_symbol_ids, direct.assigned_symbol_ids);
     assert_eq!(relocated.next_symbol_id, direct.next_symbol_id);

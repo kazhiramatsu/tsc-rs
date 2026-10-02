@@ -563,9 +563,7 @@ impl CheckerState<'_> {
 
     fn emit_determine_declaration_is_visible(&mut self, declaration: NodeId) -> CheckResult<bool> {
         match self.kind_of(declaration) {
-            SyntaxKind::JSDocCallbackTag
-            | SyntaxKind::JSDocTypedefTag
-            | SyntaxKind::JSDocEnumTag => Ok(self
+            SyntaxKind::JSDocCallbackTag | SyntaxKind::JSDocTypedefTag => Ok(self
                 .parent_of(declaration)
                 .and_then(|parent| self.parent_of(parent))
                 .and_then(|parent| self.parent_of(parent))

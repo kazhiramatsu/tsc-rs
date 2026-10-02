@@ -40,7 +40,10 @@ fn circular_type_alias_reports_2456_and_yields_error_type() {
 }
 
 #[test]
-fn jsdoc_enum_circular_alias_reports_2456_on_the_enum_type() {
+fn jsdoc_enum_tag_declares_no_type_alias() {
+    // TypeScript 7.1 (tsgo, tsc-19dadef8): `@enum` is an unknown tag, so
+    // `E` is only a value and `{E}` inside the tag is never resolved (no
+    // TS2456 circularity).
     let source = "\n/** @enum {E} */\nconst E = { x: 0 };\n";
     let result = check_program(
         &[InputFile::new("a.js".to_owned(), source.to_owned())],
@@ -65,7 +68,7 @@ fn jsdoc_enum_circular_alias_reports_2456_on_the_enum_type() {
             )
         })
         .collect::<Vec<_>>();
-    assert_eq!(rows, [(Some("a.js"), Some(12), Some(1))]);
+    assert_eq!(rows, []);
 }
 
 #[test]

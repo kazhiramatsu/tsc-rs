@@ -936,6 +936,7 @@ impl<'a> CheckerState<'a> {
             let base_types = self.get_base_types(ty)?;
             if !base_types.is_empty() {
                 let base_type = base_types[0];
+                self.check_jsdoc_augments_tag_matches_extends(node, base_type)?;
                 let base_constructor_type = self.get_base_constructor_type_of_class(ty)?;
                 let static_base_type = self.get_apparent_type(base_constructor_type)?;
                 self.check_base_type_accessibility(static_base_type, base_type_node)?;

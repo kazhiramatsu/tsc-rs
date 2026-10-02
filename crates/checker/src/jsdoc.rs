@@ -542,7 +542,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn is_jsdoc_type_alias(&self, node: NodeId) -> bool {
         matches!(
             self.kind_of(node),
-            SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocCallbackTag | SyntaxKind::JSDocEnumTag
+            SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocCallbackTag
         )
     }
 

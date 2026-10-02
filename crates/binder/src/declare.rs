@@ -60,9 +60,6 @@ pub struct BinderWorker<'a> {
     pub node_local_symbol: FxHashMap<NodeId, SymbolId>,
     /// tsc container.locals, keyed by the scope-owning node.
     pub locals: FxHashMap<NodeId, SymbolTable>,
-    /// tsc SourceFile.jsGlobalAugmentations: namespaces introduced by
-    /// top-level JavaScript property assignments before checker merge.
-    pub js_global_augmentations: SymbolTable,
     pub bind_diagnostics: DiagnosticList,
     /// tsc file.classifiableNames (insertion-ordered Set).
     pub classifiable_names: EscapedNameSet,
@@ -154,7 +151,6 @@ pub struct BindData {
     pub node_symbol: NodeSymbolMap,
     pub node_local_symbol: FxHashMap<NodeId, SymbolId>,
     pub locals: FxHashMap<NodeId, SymbolTable>,
-    pub js_global_augmentations: SymbolTable,
     pub bind_diagnostics: DiagnosticList,
     pub classifiable_names: EscapedNameSet,
     pub assigned_symbol_ids: FxHashMap<SymbolId, u32>,
@@ -249,7 +245,6 @@ impl BindData {
             node_symbol: binder.node_symbol.clone(),
             node_local_symbol: binder.node_local_symbol.clone(),
             locals: binder.locals.clone(),
-            js_global_augmentations: binder.js_global_augmentations.clone(),
             bind_diagnostics: binder.bind_diagnostics.clone(),
             classifiable_names: binder.classifiable_names.clone(),
             assigned_symbol_ids: binder.assigned_symbol_ids.clone(),
@@ -348,7 +343,6 @@ impl<'a> BinderWorker<'a> {
             node_symbol: NodeSymbolMap::with_len(source.arena.node_base(), node_count),
             node_local_symbol: FxHashMap::default(),
             locals: FxHashMap::with_capacity_and_hasher(node_count / 32, Default::default()),
-            js_global_augmentations: SymbolTable::default(),
             bind_diagnostics: Vec::new(),
             classifiable_names: EscapedNameSet::new(),
             assigned_symbol_ids: FxHashMap::default(),
@@ -1287,7 +1281,6 @@ impl BinderWorker<'_> {
             node_symbol,
             node_local_symbol,
             locals,
-            js_global_augmentations,
             bind_diagnostics: _,
             classifiable_names,
             assigned_symbol_ids,
@@ -1366,16 +1359,10 @@ impl BinderWorker<'_> {
             locals.values_mut().try_for_each(|table| {
                 relocate_symbol_table(table, &symbol_relocation, &serial_relocation)
             })?;
-            relocate_symbol_table(
-                js_global_augmentations,
-                &symbol_relocation,
-                &serial_relocation,
-            )?;
         } else {
             locals
                 .values_mut()
                 .try_for_each(|table| relocate_symbol_table_values(table, &symbol_relocation))?;
-            relocate_symbol_table_values(js_global_augmentations, &symbol_relocation)?;
         }
 
         let old_assigned = std::mem::take(assigned_symbol_ids);
@@ -1536,7 +1523,6 @@ impl BinderWorker<'_> {
             node_symbol,
             node_local_symbol,
             locals,
-            js_global_augmentations,
             bind_diagnostics,
             classifiable_names,
             assigned_symbol_ids,
@@ -1587,7 +1573,6 @@ impl BinderWorker<'_> {
             node_symbol,
             node_local_symbol,
             locals,
-            js_global_augmentations,
             bind_diagnostics,
             classifiable_names,
             assigned_symbol_ids,
