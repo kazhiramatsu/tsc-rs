@@ -58,10 +58,14 @@ Object.defineProperty(C.prototype, \"x\", { value: 1 });
         ]
     );
     // In a TypeScript file only the Property kind applies, and tsgo gives it
-    // to every entity-name target: `C.prototype.x`, `F.x` and `C.prototype`.
+    // to every entity-name target: `exports.x`, `module.exports`,
+    // `C.prototype.x`, `F.x` and `C.prototype` (`this` is no entity name
+    // there).
     assert_eq!(
         kinds(text, false),
         [
+            AssignmentDeclarationKind::Property,
+            AssignmentDeclarationKind::Property,
             AssignmentDeclarationKind::Property,
             AssignmentDeclarationKind::Property,
             AssignmentDeclarationKind::Property,
@@ -70,8 +74,14 @@ Object.defineProperty(C.prototype, \"x\", { value: 1 });
 }
 
 #[test]
-fn void_zero_and_dynamic_export_edges_match_tsc() {
-    assert!(kinds("F.x = void 0;", true).is_empty());
+fn void_zero_and_dynamic_export_edges_match_tsgo() {
+    // tsgo has no `void 0` exclusion, and any element access on an entity
+    // name is a Property assignment (a dynamic one when the key is not a
+    // literal).
+    assert_eq!(
+        kinds("F.x = void 0;", true),
+        [AssignmentDeclarationKind::Property]
+    );
     assert_eq!(
         kinds("F[key] = 1;", true),
         [AssignmentDeclarationKind::Property]

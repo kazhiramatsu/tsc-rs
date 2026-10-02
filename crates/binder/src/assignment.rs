@@ -14,36 +14,121 @@ use tsc_syntax::{NodeData, NodeId, SourceFile, SyntaxKind};
 use tsc_types::NodeFlags;
 use tsc_types::{EscapedName, JsStr, JsString};
 
-/// tsc AssignmentDeclarationKind.
+/// tsgo JSDeclarationKind (TypeScript 7.1): tsc 6.0's PrototypeProperty,
+/// Prototype and ObjectDefinePrototypeProperty kinds are gone.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
 pub enum AssignmentDeclarationKind {
     None = 0,
     ExportsProperty = 1,
     ModuleExports = 2,
-    PrototypeProperty = 3,
     ThisProperty = 4,
     Property = 5,
-    Prototype = 6,
     ObjectDefinePropertyValue = 7,
     ObjectDefinePropertyExports = 8,
-    ObjectDefinePrototypeProperty = 9,
 }
 
-/// tsc-port: getAssignmentDeclarationKind @6.0.3
-/// tsc-hash: 86ed418c050973f93d14271122ba9f948961e1e038e6c338eb6df19543402bd2
-/// tsc-span: _tsc.js:15055-15058
+/// tsgo-port: GetAssignmentDeclarationKind @7.1 (ast/utilities.go:1547-1579).
+///
+/// A `=` assignment to an access expression: in JavaScript,
+/// `module.exports = x` (unless `x` is `exports`), `exports.p` /
+/// `module.exports.p`, and `this.p`; in either language, `E.p` or `E[x]`
+/// where `E` is an entity name expression (in JavaScript `this` and
+/// literal element accesses count). A JavaScript `Object.defineProperty`
+/// call with a bindable target. tsc 6.0's `void 0` exclusion is gone.
 pub fn get_assignment_declaration_kind(
     source: &SourceFile,
     expr: NodeId,
 ) -> AssignmentDeclarationKind {
-    let special = get_assignment_declaration_kind_worker(source, expr);
-    if special == AssignmentDeclarationKind::Property
-        || node_flags(source, source.root).intersects(NodeFlags::JAVA_SCRIPT_FILE)
-    {
-        special
-    } else {
-        AssignmentDeclarationKind::None
+    let in_js = node_flags(source, source.root).intersects(NodeFlags::JAVA_SCRIPT_FILE);
+    match &source.arena.node(expr).data {
+        NodeData::BinaryExpression(data) => {
+            let (Some(left), Some(operator)) = (data.left, data.operator_token) else {
+                return AssignmentDeclarationKind::None;
+            };
+            if kind_of(source, operator) != SyntaxKind::EqualsToken {
+                return AssignmentDeclarationKind::None;
+            }
+            let Some(left_expression) = access_expression_of(source, left) else {
+                return AssignmentDeclarationKind::None;
+            };
+            if in_js {
+                if is_module_exports_access_expression(source, left)
+                    && !data
+                        .right
+                        .is_some_and(|right| is_exports_identifier(source, right))
+                {
+                    return AssignmentDeclarationKind::ModuleExports;
+                }
+                if (is_module_exports_access_expression(source, left_expression)
+                    || is_exports_identifier(source, left_expression))
+                    && get_element_or_property_access_name(source, left).is_some()
+                {
+                    return AssignmentDeclarationKind::ExportsProperty;
+                }
+                if kind_of(source, left_expression) == SyntaxKind::ThisKeyword {
+                    return AssignmentDeclarationKind::ThisProperty;
+                }
+            }
+            let is_property = match &source.arena.node(left).data {
+                NodeData::PropertyAccessExpression(access) => {
+                    access
+                        .name
+                        .is_some_and(|name| kind_of(source, name) == SyntaxKind::Identifier)
+                        && is_entity_name_expression_ex(source, left_expression, in_js)
+                }
+                NodeData::ElementAccessExpression(_) => {
+                    is_entity_name_expression_ex(source, left_expression, in_js)
+                }
+                _ => false,
+            };
+            if is_property {
+                AssignmentDeclarationKind::Property
+            } else {
+                AssignmentDeclarationKind::None
+            }
+        }
+        NodeData::CallExpression(data) => {
+            if !in_js || !is_bindable_object_define_property_call(source, expr) {
+                return AssignmentDeclarationKind::None;
+            }
+            let arguments = data.arguments.expect("checked by predicate");
+            let entity_name = source.arena.node_array(arguments).nodes[0];
+            if is_exports_identifier(source, entity_name)
+                || is_module_exports_access_expression(source, entity_name)
+            {
+                AssignmentDeclarationKind::ObjectDefinePropertyExports
+            } else {
+                AssignmentDeclarationKind::ObjectDefinePropertyValue
+            }
+        }
+        _ => AssignmentDeclarationKind::None,
+    }
+}
+
+/// tsgo-port: IsEntityNameExpressionEx @7.1 (ast/utilities.go:1624-1636):
+/// an identifier or a dotted identifier chain; with `allow_js`, also
+/// `this` and string/numeric literal element accesses.
+pub fn is_entity_name_expression_ex(source: &SourceFile, node: NodeId, allow_js: bool) -> bool {
+    match &source.arena.node(node).data {
+        NodeData::Identifier(_) => true,
+        NodeData::PropertyAccessExpression(data) => {
+            data.name
+                .is_some_and(|name| kind_of(source, name) == SyntaxKind::Identifier)
+                && data.expression.is_some_and(|expression| {
+                    is_entity_name_expression_ex(source, expression, allow_js)
+                })
+        }
+        NodeData::ElementAccessExpression(data) => {
+            allow_js
+                && data
+                    .argument_expression
+                    .is_some_and(|argument| is_string_or_numeric_literal_like(source, argument))
+                && data.expression.is_some_and(|expression| {
+                    is_entity_name_expression_ex(source, expression, allow_js)
+                })
+        }
+        _ => allow_js && kind_of(source, node) == SyntaxKind::ThisKeyword,
     }
 }
 
@@ -68,16 +153,14 @@ pub fn get_assignment_declaration_name(source: &SourceFile, declaration: NodeId)
     match get_assignment_declaration_kind(source, declaration) {
         AssignmentDeclarationKind::ExportsProperty
         | AssignmentDeclarationKind::ThisProperty
-        | AssignmentDeclarationKind::Property
-        | AssignmentDeclarationKind::PrototypeProperty => {
+        | AssignmentDeclarationKind::Property => {
             let NodeData::BinaryExpression(data) = &source.arena.node(declaration).data else {
                 return None;
             };
             get_element_or_property_access_argument_expression_or_name(source, data.left?)
         }
         AssignmentDeclarationKind::ObjectDefinePropertyValue
-        | AssignmentDeclarationKind::ObjectDefinePropertyExports
-        | AssignmentDeclarationKind::ObjectDefinePrototypeProperty => {
+        | AssignmentDeclarationKind::ObjectDefinePropertyExports => {
             let NodeData::CallExpression(data) = &source.arena.node(declaration).data else {
                 return None;
             };
@@ -86,54 +169,6 @@ pub fn get_assignment_declaration_name(source: &SourceFile, declaration: NodeId)
         }
         _ => None,
     }
-}
-
-/// tsc-port: getAssignmentDeclarationKindWorker @6.0.3
-/// tsc-hash: 748a8d0ff34b41c4230a22f31b31e87e5752191e17183fafd67e39f4e2773d51
-/// tsc-span: _tsc.js:15095-15120
-fn get_assignment_declaration_kind_worker(
-    source: &SourceFile,
-    expr: NodeId,
-) -> AssignmentDeclarationKind {
-    if let NodeData::CallExpression(data) = &source.arena.node(expr).data {
-        if !is_bindable_object_define_property_call(source, expr) {
-            return AssignmentDeclarationKind::None;
-        }
-        let arguments = data.arguments.expect("checked by predicate");
-        let entity_name = source.arena.node_array(arguments).nodes[0];
-        if is_exports_identifier(source, entity_name)
-            || is_module_exports_access_expression(source, entity_name)
-        {
-            return AssignmentDeclarationKind::ObjectDefinePropertyExports;
-        }
-        // tsgo GetAssignmentDeclarationKind (TypeScript 7.1) has no
-        // ObjectDefinePrototypeProperty kind: a `prototype` target is a
-        // plain ObjectDefinePropertyValue.
-        return AssignmentDeclarationKind::ObjectDefinePropertyValue;
-    }
-
-    let NodeData::BinaryExpression(data) = &source.arena.node(expr).data else {
-        return AssignmentDeclarationKind::None;
-    };
-    let operator = data
-        .operator_token
-        .map(|token| kind_of(source, token))
-        .unwrap_or(SyntaxKind::Unknown);
-    let Some(left) = data.left else {
-        return AssignmentDeclarationKind::None;
-    };
-    if operator != SyntaxKind::EqualsToken
-        || !matches!(
-            kind_of(source, left),
-            SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
-        )
-        || is_void_zero(source, get_right_most_assigned_expression(source, expr))
-    {
-        return AssignmentDeclarationKind::None;
-    }
-    // tsgo GetAssignmentDeclarationKind (TypeScript 7.1) has no Prototype
-    // kind: `F.prototype = { ... }` is a plain Property assignment.
-    get_assignment_declaration_property_access_kind(source, left)
 }
 
 pub fn get_assignment_declaration_property_access_kind(
@@ -343,18 +378,6 @@ pub fn get_right_most_assigned_expression(source: &SourceFile, mut node: NodeId)
             Some(right) => node = right,
             None => return node,
         }
-    }
-}
-
-fn is_void_zero(source: &SourceFile, node: NodeId) -> bool {
-    match &source.arena.node(node).data {
-        NodeData::VoidExpression(data) => data.expression.is_some_and(|expression| {
-            matches!(
-                &source.arena.node(expression).data,
-                NodeData::NumericLiteral(data) if data.text == "0"
-            )
-        }),
-        _ => false,
     }
 }
 

@@ -5113,19 +5113,9 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                         question_token: question,
                     }),
                 )?;
-                let signature_declaration = self.checker.signature_of(signature).declaration;
-                let location = signature_declaration.map(|declaration| {
-                    self.checker
-                        .parent_of(declaration)
-                        .filter(|&parent| {
-                            self.checker.kind_of(parent) == SyntaxKind::BinaryExpression
-                                && get_assignment_declaration_kind(
-                                    self.checker.binder.source_of_node(parent),
-                                    parent,
-                                ) == AssignmentDeclarationKind::PrototypeProperty
-                        })
-                        .unwrap_or(declaration)
-                });
+                // tsc 6.0 ranged a `C.prototype.m = function` member on the
+                // assignment; TypeScript 7.1 has no prototype members.
+                let location = self.checker.signature_of(signature).declaration;
                 nodes.push(self.range_member(declaration, location)?);
             }
             return Ok(nodes);

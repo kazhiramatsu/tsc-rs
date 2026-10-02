@@ -2056,9 +2056,21 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::BinaryExpression => {
                 let source = self.binder.source_of_node(node);
-                if tsc_binder::get_assignment_declaration_kind(source, node)
-                    != tsc_binder::AssignmentDeclarationKind::ModuleExports
-                {
+                let kind = tsc_binder::get_assignment_declaration_kind(source, node);
+                if kind == tsc_binder::AssignmentDeclarationKind::Property {
+                    // An expando's declaration is now the assignment itself;
+                    // tsc 6.0's arm for the assignment's left side (an
+                    // aliasable right side) carries over, which the tsc 6.0
+                    // declaration emitter relies on (`foo.foo = foo` emits
+                    // `export { foo }`, as tsgo's transformer does).
+                    return match self.data_of(node) {
+                        NodeData::BinaryExpression(data) => data.right.is_some_and(|expression| {
+                            self.is_aliasable_or_js_expression(expression)
+                        }),
+                        _ => false,
+                    };
+                }
+                if kind != tsc_binder::AssignmentDeclarationKind::ModuleExports {
                     return false;
                 }
                 match self.data_of(node) {
@@ -2525,34 +2537,8 @@ impl<'a> CheckerState<'a> {
                     self.get_flow_type_of_reference(node, this_type, this_type, None)?,
                 ));
             }
-            if self.is_in_js_file(node) {
-                let constructor_symbol = if let Some(class_name) =
-                    self.get_class_name_from_prototype_method(container)
-                {
-                    let class_value_type = self.get_type_of_expression(class_name)?;
-                    self.tables
-                        .type_of(class_value_type)
-                        .symbol
-                        .map(|symbol| self.get_merged_symbol(symbol))
-                        .filter(|&symbol| {
-                            self.symbol_flags(symbol).intersects(SymbolFlags::FUNCTION)
-                                && !self.binder.symbol(symbol).members().is_empty()
-                        })
-                } else if self.is_js_constructor(container) {
-                    self.node_symbol(container)
-                        .map(|symbol| self.get_merged_symbol(symbol))
-                } else {
-                    None
-                };
-                if let Some(symbol) = constructor_symbol {
-                    let declared = self.get_declared_type_of_class_or_interface(symbol)?;
-                    if let Some(this_type) = self.this_type_of_class_or_interface(declared) {
-                        return Ok(Some(
-                            self.get_flow_type_of_reference(node, this_type, this_type, None)?,
-                        ));
-                    }
-                }
-            }
+            // tsgo tryGetThisTypeAtEx (TypeScript 7.1): no prototype-method
+            // or constructor-function arm in JavaScript.
             if let Some(this_type) = self.get_contextual_this_parameter_type(container)? {
                 return Ok(Some(
                     self.get_flow_type_of_reference(node, this_type, this_type, None)?,
@@ -2635,62 +2621,6 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         };
         self.get_this_type_of_signature(signature)
-    }
-
-    /// tsc-port: getClassNameFromPrototypeMethod @6.0.3
-    /// tsc-hash: c63adc3e9d9af5fc6afa433ab8b87fe0f90556e1e2685b1bd80f536f19816f7c
-    /// tsc-span: _tsc.js:72483-72495
-    ///
-    /// The non-JSDoc prototype-assignment shapes.
-    pub(crate) fn get_class_name_from_prototype_method(&self, container: NodeId) -> Option<NodeId> {
-        let source = self.binder.source_of_node(container);
-        let access_receiver = |node: NodeId| match self.data_of(node) {
-            NodeData::PropertyAccessExpression(data) => data.expression,
-            NodeData::ElementAccessExpression(data) => data.expression,
-            _ => None,
-        };
-        let class_name_from_assignment = |assignment: NodeId| {
-            if tsc_binder::get_assignment_declaration_kind(source, assignment)
-                != tsc_binder::AssignmentDeclarationKind::Prototype
-            {
-                return None;
-            }
-            let NodeData::BinaryExpression(data) = self.data_of(assignment) else {
-                return None;
-            };
-            access_receiver(data.left?)
-        };
-        match self.kind_of(container) {
-            SyntaxKind::FunctionExpression => {
-                let parent = self.parent_of(container)?;
-                if self.kind_of(parent) == SyntaxKind::BinaryExpression
-                    && tsc_binder::get_assignment_declaration_kind(source, parent)
-                        == tsc_binder::AssignmentDeclarationKind::PrototypeProperty
-                {
-                    let NodeData::BinaryExpression(data) = self.data_of(parent) else {
-                        return None;
-                    };
-                    let prototype = access_receiver(data.left?)?;
-                    return access_receiver(prototype);
-                }
-                if self.kind_of(parent) == SyntaxKind::PropertyAssignment {
-                    let object = self.parent_of(parent)?;
-                    if self.kind_of(object) == SyntaxKind::ObjectLiteralExpression {
-                        return class_name_from_assignment(self.parent_of(object)?);
-                    }
-                }
-                None
-            }
-            SyntaxKind::MethodDeclaration => {
-                let object = self.parent_of(container)?;
-                if self.kind_of(object) == SyntaxKind::ObjectLiteralExpression {
-                    class_name_from_assignment(self.parent_of(object)?)
-                } else {
-                    None
-                }
-            }
-            _ => None,
-        }
     }
 
     /// tryGetThisTypeAt's default-argument form (container defaults to

@@ -744,7 +744,9 @@ fn library_managed_attributes_drive_contextual_typing() {
             "interface V { m: number }\ndeclare namespace JSX { interface Element { e: 1 } type LibraryManagedAttributes<C, P> = { cb?: (v: V) => void }; }\ndeclare var React: any;\ndeclare function F(props: { a?: string }): JSX.Element;\n(<F cb={v => v.bad} />);\n",
             &jsx(1),
         ),
-        [(2339, 237, 3), (6205, 106, 6)]
+        // The missing-property report is deferred to the end of the file
+        // check (tsgo addDeferredDiagnostic), so it follows the other rows.
+        [(6205, 106, 6), (2339, 237, 3)]
     );
 }
 
@@ -801,7 +803,9 @@ fn declared_jsx_namespace_with_jsx_option_reports_no_intrinsics_7026() {
             "declare namespace JSX { interface Element { x: number } }\ndeclare var React: any;\n(<div a=\"1\" />);\n(<>text</>);\n(\"x\".bad);\n",
             &jsx(1),
         ),
-        [(2339, 117, 3), (7026, 83, 13)]
+        // The missing-property report is deferred to the end of the file
+        // check (tsgo addDeferredDiagnostic), so it follows the other rows.
+        [(7026, 83, 13), (2339, 117, 3)]
     );
 }
 

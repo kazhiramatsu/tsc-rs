@@ -295,13 +295,32 @@ fn checked_js_empty_container_includes_later_expando_exports() {
                     .expect("scalar diagnostic observation"),
             ))
             .collect::<Vec<_>>(),
-        [(
-            Some("b.js"),
-            2739,
-            6,
-            1,
-            "Type '{}' is missing the following properties from type 'typeof A': prototype, d",
-        )]
+        // tsgo (TypeScript 7.1 at 19dadef8, noLib probe): the class and the
+        // const collide as block-scoped globals, and `A.d = { }` declares no
+        // expando on a class from a declaration file.
+        [
+            (
+                Some("a.d.ts"),
+                2451,
+                14,
+                1,
+                "Cannot redeclare block-scoped variable 'A'.",
+            ),
+            (
+                Some("b.js"),
+                2451,
+                6,
+                1,
+                "Cannot redeclare block-scoped variable 'A'.",
+            ),
+            (
+                Some("b.js"),
+                2339,
+                17,
+                1,
+                "Property 'd' does not exist on type 'typeof A'.",
+            ),
+        ]
     );
 }
 

@@ -884,28 +884,31 @@ impl<'a> CheckerState<'a> {
             })
     }
 
-    /// tsc-port: isClassInstanceProperty @6.0.3
-    /// tsc-hash: 23e17175464d30e2bc154426a18df24b8c5ee1319551ad5bced0feff6ebcde79
-    /// tsc-span: _tsc.js:12049-12058
-    ///
+    /// tsgo-port: isClassInstanceProperty @7.1 (checker/utilities.go:1060-1067):
+    /// a JavaScript assignment declaration (IsExpandoPropertyDeclaration: a
+    /// binary expression) is an instance property unless its LEFT side is a
+    /// static entity access (`C.p`, `C.prototype.p` aside); otherwise a
+    /// non-accessor class property declaration.
     fn is_class_instance_property(&self, node: NodeId) -> bool {
         let source = self.binder.source_of_node(node);
-        if self.is_in_js_file(node)
-            && matches!(
-                self.kind_of(node),
-                SyntaxKind::PropertyAccessExpression
-                    | SyntaxKind::ElementAccessExpression
-                    | SyntaxKind::BinaryExpression
-            )
-        {
-            let bindable_static_access =
-                tsc_binder::assignment::is_bindable_static_access_expression(source, node, false);
-            let prototype_access = tsc_binder::assignment::access_expression_of(source, node)
-                .is_some_and(|expression| {
-                    tsc_binder::assignment::is_prototype_access(source, expression)
-                });
-            return (!bindable_static_access || !prototype_access)
-                && !tsc_binder::assignment::is_bindable_static_name_expression(source, node, true);
+        if self.is_in_js_file(node) {
+            if let NodeData::BinaryExpression(data) = self.data_of(node) {
+                let Some(left) = data.left else {
+                    return false;
+                };
+                let bindable_static_access =
+                    tsc_binder::assignment::is_bindable_static_access_expression(
+                        source, left, false,
+                    );
+                let prototype_access = tsc_binder::assignment::access_expression_of(source, left)
+                    .is_some_and(|expression| {
+                        tsc_binder::assignment::is_prototype_access(source, expression)
+                    });
+                return (!bindable_static_access || !prototype_access)
+                    && !tsc_binder::assignment::is_bindable_static_name_expression(
+                        source, left, true,
+                    );
+            }
         }
         let Some(parent) = self.parent_of(node) else {
             return false;
@@ -2303,7 +2306,14 @@ impl<'a> CheckerState<'a> {
                     } else {
                         left_type
                     };
-                    self.report_nonexistent_property(right, report_target, is_unchecked_js)?;
+                    // tsgo defers this report ("reporting this error can cause
+                    // us to materialize the containing type completely (to print
+                    // it), leading to erroneous circularity errors").
+                    self.deferred_nonexistent_properties.push((
+                        right,
+                        report_target,
+                        is_unchecked_js,
+                    ));
                 }
                 return Ok(self.tables.intrinsics.error);
             };
@@ -2520,66 +2530,75 @@ impl<'a> CheckerState<'a> {
                 .is_some_and(|e| self.kind_of(e) == SyntaxKind::ThisKeyword),
             _ => false,
         };
-        if strict_null_checks
-            && strict_property_initialization
-            && node_is_access
-            && receiver_is_this
-        {
-            let declaration = prop.and_then(|prop| self.binder.symbol(prop).value_declaration);
-            if let Some(declaration) = declaration {
-                // isPropertyWithoutInitializer (85499): abstract
-                // properties and definite-assignment assertions (`a!`)
-                // opt OUT of the assume-uninitialized 2565 arm.
-                let is_property_without_initializer = self.kind_of(declaration)
-                    == SyntaxKind::PropertyDeclaration
-                    && !tsc_binder::node_util::has_syntactic_modifier(
-                        self.binder.source_of_node(declaration),
-                        declaration,
-                        ModifierFlags::ABSTRACT,
-                    )
-                    && match self.data_of(declaration) {
-                        NodeData::PropertyDeclaration(data) => {
-                            data.initializer.is_none() && data.exclamation_token.is_none()
-                        }
-                        _ => false,
-                    };
-                if is_property_without_initializer {
-                    let is_static = tsc_binder::node_util::get_combined_modifier_flags(
-                        self.binder.source_of_node(declaration),
-                        declaration,
-                    )
-                    .intersects(ModifierFlags::STATIC);
-                    if !is_static {
-                        let flow_container = self.get_control_flow_container(node);
-                        let source = self.binder.source_of_node(declaration);
-                        let is_ambient = node_util::node_flags(source, declaration)
-                            .intersects(NodeFlags::AMBIENT);
-                        if let Some(flow_container) = flow_container {
-                            if self.kind_of(flow_container) == SyntaxKind::Constructor
-                                && self.parent_of(flow_container) == self.parent_of(declaration)
-                                && !is_ambient
-                            {
-                                assume_uninitialized = true;
-                            }
-                        }
+        // tsgo getFlowTypeOfAccessExpression (TypeScript 7.1): a `this.p` read
+        // in the constructor of the class declaring the uninitialized,
+        // non-static property `p`; otherwise any property whose value
+        // declaration is a `x.p = ...` assignment in the same flow container.
+        let value_declaration = if strict_null_checks {
+            prop.and_then(|prop| self.binder.symbol(prop).value_declaration)
+        } else {
+            None
+        };
+        if let Some(declaration) = value_declaration {
+            // isPropertyWithoutInitializer (85499): abstract properties and
+            // definite-assignment assertions (`a!`) opt out.
+            let is_property_without_initializer = self.kind_of(declaration)
+                == SyntaxKind::PropertyDeclaration
+                && !tsc_binder::node_util::has_syntactic_modifier(
+                    self.binder.source_of_node(declaration),
+                    declaration,
+                    ModifierFlags::ABSTRACT,
+                )
+                && match self.data_of(declaration) {
+                    NodeData::PropertyDeclaration(data) => {
+                        data.initializer.is_none() && data.exclamation_token.is_none()
+                    }
+                    _ => false,
+                };
+            let is_static = tsc_binder::node_util::get_combined_modifier_flags(
+                self.binder.source_of_node(declaration),
+                declaration,
+            )
+            .intersects(ModifierFlags::STATIC);
+            if strict_property_initialization
+                && node_is_access
+                && receiver_is_this
+                && is_property_without_initializer
+                && !is_static
+            {
+                let flow_container = self.get_control_flow_container(node);
+                let source = self.binder.source_of_node(declaration);
+                let is_ambient =
+                    node_util::node_flags(source, declaration).intersects(NodeFlags::AMBIENT);
+                if let Some(flow_container) = flow_container {
+                    if self.kind_of(flow_container) == SyntaxKind::Constructor
+                        && self.parent_of(flow_container) == self.parent_of(declaration)
+                        && !is_ambient
+                    {
+                        assume_uninitialized = true;
                     }
                 }
-            }
-        } else if strict_null_checks {
-            let assignment_declaration = prop
-                .and_then(|prop| self.binder.symbol(prop).value_declaration)
-                .filter(|&declaration| {
-                    self.kind_of(declaration) == SyntaxKind::PropertyAccessExpression
-                })
-                .filter(|&declaration| {
-                    tsc_binder::get_assignment_declaration_property_access_kind(
-                        self.binder.source_of_node(declaration),
-                        declaration,
-                    ) != tsc_binder::AssignmentDeclarationKind::None
+            } else {
+                // tsc-rs binds a CommonJS `exports.p = ...` on its left side
+                // (as tsc 6.0 did); that access stands for its assignment.
+                let assignment = match self.data_of(declaration) {
+                    NodeData::BinaryExpression(_) => Some(declaration),
+                    NodeData::PropertyAccessExpression(_) => self.parent_of(declaration).filter(
+                        |&parent| matches!(self.data_of(parent), NodeData::BinaryExpression(data) if data.left == Some(declaration)),
+                    ),
+                    _ => None,
+                };
+                let property_access_target = assignment.is_some_and(|assignment| {
+                    matches!(
+                        self.data_of(assignment),
+                        NodeData::BinaryExpression(data)
+                            if data.left.is_some_and(|left| self.kind_of(left) == SyntaxKind::PropertyAccessExpression)
+                    )
                 });
-            if let Some(declaration) = assignment_declaration {
-                assume_uninitialized = self.get_control_flow_container(node)
-                    == self.get_control_flow_container(declaration);
+                if property_access_target {
+                    assume_uninitialized = self.get_control_flow_container(node)
+                        == self.get_control_flow_container(declaration);
+                }
             }
         }
         // The assume-uninitialized initial type (2565's trigger):

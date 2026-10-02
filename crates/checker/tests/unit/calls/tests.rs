@@ -2514,7 +2514,9 @@ fn es_method_decorator_arity_overflow_reports_1241_and_1270() {
 #[test]
 fn es_decorator_arrow_receives_contextual_call_signature() {
     let text = "@((value, context) => { context.nonexistent; return value; })\nclass C {}\ninterface ClassDecoratorContext<T> {}\n";
-    assert_eq!(checked_rows(text), [(2339, 32, 11), (6196, 105, 1)]);
+    // The missing-property report is deferred to the end of the file check
+    // (tsgo addDeferredDiagnostic), so it follows the other rows in the sink.
+    assert_eq!(checked_rows(text), [(6196, 105, 1), (2339, 32, 11)]);
 }
 
 #[test]
@@ -2564,7 +2566,9 @@ fn es_decorator_contextual_signature_cache_is_order_independent() {
         state.check_source_file(0);
         rows(state)
     });
-    assert_eq!(actual, [(2339, 32, 11), (6196, 105, 1)]);
+    // The missing-property report is deferred to the end of the file check
+    // (tsgo addDeferredDiagnostic), so it follows the other rows in the sink.
+    assert_eq!(actual, [(6196, 105, 1), (2339, 32, 11)]);
 }
 
 // ---- m4-review S6/A12 pins (oracle: vendored tsc 6.0.3, noLib,

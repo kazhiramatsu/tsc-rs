@@ -2289,40 +2289,8 @@ impl<'a> CheckerState<'a> {
                 return Ok(None);
             };
             node = next;
-            if self.kind_of(node) == SyntaxKind::BinaryExpression {
-                let assignment_kind = tsc_binder::get_assignment_declaration_kind(
-                    self.binder.source_of_node(node),
-                    node,
-                );
-                if matches!(
-                    assignment_kind,
-                    tsc_binder::AssignmentDeclarationKind::Prototype
-                        | tsc_binder::AssignmentDeclarationKind::PrototypeProperty
-                ) {
-                    let left = match self.data_of(node) {
-                        NodeData::BinaryExpression(data) => data.left,
-                        _ => None,
-                    };
-                    let container_declaration = left
-                        .and_then(|left| self.get_symbol_of_declaration_opt(left))
-                        .and_then(|symbol| self.binder.symbol(symbol).parent)
-                        .and_then(|parent| self.binder.symbol(parent).value_declaration);
-                    if let Some(container_declaration) = container_declaration {
-                        let mut ancestor = Some(container_declaration);
-                        let mut assignment_contains_container = false;
-                        while let Some(current) = ancestor {
-                            if current == node {
-                                assignment_contains_container = true;
-                                break;
-                            }
-                            ancestor = self.parent_of(current);
-                        }
-                        if !assignment_contains_container {
-                            node = container_declaration;
-                        }
-                    }
-                }
-            }
+            // tsgo getOuterTypeParameters (TypeScript 7.1) has no JavaScript
+            // prototype-assignment arm.
             let kind = self.kind_of(node);
             match kind {
                 SyntaxKind::ClassDeclaration

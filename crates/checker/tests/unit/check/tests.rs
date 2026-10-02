@@ -122,9 +122,11 @@ fn completed_getter_trials_preserve_real_circularity_diagnostics() {
 
 #[test]
 fn computed_return_diagnostics_follow_syntactic_expression_inference() {
-    // Complete messages oracle-checked against vendored tsc 6.0.3,
-    // strict/noLib/ESNext. Supported literal properties keep the semantic
-    // return fallback; unsupported computed names infer the expression.
+    // Complete messages pinned to tsgo (TypeScript 7.1 at 19dadef8),
+    // strict/noLib/ESNext. tsgo defers the missing-property report to the
+    // end of the file check, so printing `this`'s type resolves `doit`'s
+    // return type outside its own resolution: no TS7023, and the return
+    // type is fully inferred.
     for (expression, return_type) in [
         ("{ [this.a]: \"\" }", "{ [x: number]: string; }"),
         ("({ [this.a]: \"\" })", "{ [x: number]: string; }"),
@@ -132,28 +134,30 @@ fn computed_return_diagnostics_follow_syntactic_expression_inference() {
             "({ [this.a]: \"\" } as const)",
             "{ readonly [x: number]: \"\"; }",
         ),
-        ("{ a: this.a }", "any"),
-        ("{ [+1]: this.a }", "any"),
-        ("{ [-1]: this.a }", "any"),
+        ("{ a: this.a }", "{ a: any; }"),
+        ("{ [+1]: this.a }", "{ 1: any; }"),
+        ("{ [-1]: this.a }", "{ [-1]: any; }"),
         ("{ ...this.a }", "any"),
+        // tsgo prints `any[]` with a lib; this lib-less program has no
+        // global Array, so the array literal's type prints `{}`.
         ("[this.a]", "{}"),
     ] {
         let source = format!("export const thing = {{ doit() {{ return {expression}; }} }};");
         let rows = checked_diags(&source);
-        let mut codes = rows.iter().map(|row| row.0).collect::<Vec<_>>();
-        codes.sort_unstable();
-        assert_eq!(codes, [2339, 7023], "{source}");
+        let codes = rows.iter().map(|row| row.0).collect::<Vec<_>>();
+        assert_eq!(codes, [2339], "{source}");
         assert_eq!(
             rows.iter().find(|row| row.0 == 2339).unwrap().3,
             format!("Property 'a' does not exist on type '{{ doit(): {return_type}; }}'."),
             "{source}"
         );
     }
+    // tsgo prints the inferred return type here too (deferred report).
     let contextual = "declare function call<T>(f:T):T; export const thing=call({doit(){return {[this.a]: \"\"};}});";
     let rows = checked_diags(contextual);
     assert_eq!(
         rows.iter().find(|row| row.0 == 2339).unwrap().3,
-        "Property 'a' does not exist on type '{ doit(): any; }'."
+        "Property 'a' does not exist on type '{ doit(): { [x: number]: string; }; }'."
     );
 }
 
@@ -3896,10 +3900,9 @@ fn checked_js_function_type_tag_relations_render_function_signatures() {
 
 #[test]
 fn checked_js_constructor_keeps_the_symbol_value_face() {
-    // Nearest non-firing sibling: @class makes the function an
-    // actual isJSConstructor. It must not fall through to `() =>
-    // void`; createAnonymousTypeNode renders symbolToTypeNode
-    // under Value meaning.
+    // tsgo (TypeScript 7.1 at 19dadef8, noLib probe): `@class` no longer
+    // makes the function a class (no constructor functions), so its value
+    // prints as the function type.
     let text = "/** @class */\nfunction C() {}\nlet target = \"\";\ntarget = C;\n";
     let options = CompilerOptions {
         allow_js: true,
@@ -3916,7 +3919,7 @@ fn checked_js_constructor_keeps_the_symbol_value_face() {
             2322,
             text.rfind("target").expect("failing assignment") as u32,
             "target".len() as u32,
-            "Type 'typeof C' is not assignable to type 'string'.".to_owned(),
+            "Type '() => void' is not assignable to type 'string'.".to_owned(),
         )]
     );
 }
@@ -5988,33 +5991,33 @@ fn class_static_assignments_still_report_2339() {
 
 #[test]
 fn expando_resolution_is_name_precise() {
-    // Only the assigned member resolves; other names miss in tsc
-    // too — y/q report 2339, "z" reports 7053, and the expando'd
-    // declaration symbol displays `typeof foo` (oracle-probed byte
-    // rows).
+    // Only the assigned member resolves; other names miss — y/q report
+    // 2339, "z" reports 7053, and the expando function prints as its
+    // object type (tsgo at 19dadef8, noLib probe). The missing-property
+    // reports are deferred to the end of the file check.
     assert_eq!(
             checked_diags(
                 "function foo() {}\nfoo.x = 1;\nfoo.y;\nfoo[\"z\"];\nconst alias = foo;\nalias.q;\nvar ok: number = foo.x;\n"
             ),
             [
                 (
-                    2339,
-                    33,
-                    1,
-                    "Property 'y' does not exist on type 'typeof foo'.".to_owned()
-                ),
-                (
                     7053,
                     36,
                     8,
-                    "Element implicitly has an 'any' type because expression of type '\"z\"' can't be used to index type 'typeof foo'."
+                    "Element implicitly has an 'any' type because expression of type '\"z\"' can't be used to index type '{ (): void; x: number; }'."
                         .to_owned()
+                ),
+                (
+                    2339,
+                    33,
+                    1,
+                    "Property 'y' does not exist on type '{ (): void; x: number; }'.".to_owned()
                 ),
                 (
                     2339,
                     71,
                     1,
-                    "Property 'q' does not exist on type 'typeof foo'.".to_owned()
+                    "Property 'q' does not exist on type '{ (): void; x: number; }'.".to_owned()
                 )
             ]
         );
@@ -6033,7 +6036,7 @@ fn expando_template_key_records_like_string_literal() {
             2339,
             63,
             1,
-            "Property 'y' does not exist on type 'typeof foo'.".to_owned()
+            "Property 'y' does not exist on type '{ (): void; x: number; }'.".to_owned()
         )]
     );
 }
@@ -7464,7 +7467,15 @@ fn namespace_value_faces_print_typeof_unqualified() {
             checked_diags(
                 "namespace Outer {\n    export namespace Inner {\n        export const x = 1;\n    }\n}\nOuter.NoSuch;\nOuter.Inner.NoSuch;\nlet n: number = Outer.Inner;\n"
             ),
+            // The missing-property reports are deferred to the end of the
+            // file check (tsgo addDeferredDiagnostic).
             [
+                (
+                    2322,
+                    121,
+                    1,
+                    "Type 'typeof Inner' is not assignable to type 'number'.".to_owned()
+                ),
                 (
                     2339,
                     89,
@@ -7476,12 +7487,6 @@ fn namespace_value_faces_print_typeof_unqualified() {
                     109,
                     6,
                     "Property 'NoSuch' does not exist on type 'typeof Inner'.".to_owned()
-                ),
-                (
-                    2322,
-                    121,
-                    1,
-                    "Type 'typeof Inner' is not assignable to type 'number'.".to_owned()
                 )
             ]
         );
@@ -9515,5 +9520,27 @@ fn readonly_tuple_argument_row_replaces_the_argument_head() {
     assert_eq!(
         checked_diags(text)[0].3,
         "The type 'readonly [3, 4]' is 'readonly' and cannot be assigned to the mutable type '[number, number]'."
+    );
+}
+
+/// tsgo (TypeScript 7.1 at 19dadef8, noLib probe): the missing-property
+/// report is deferred to the end of the file check
+/// (addDeferredDiagnostic), so printing `this`'s type (the expando function
+/// type) resolves `g`'s return type outside its own resolution: one TS2339
+/// and no TS7023.
+#[test]
+fn deferred_missing_property_report_prints_without_a_circularity() {
+    let rows = checked_diags(
+        "function A() {}\nA.s = function g(m: number) {\n    return m + this.x;\n};\n",
+    );
+    assert_eq!(
+        rows,
+        [(
+            2339,
+            66,
+            1,
+            "Property 'x' does not exist on type '{ (): void; s: (m: number) => any; }'."
+                .to_owned()
+        )]
     );
 }

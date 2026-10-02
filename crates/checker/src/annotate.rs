@@ -8,8 +8,8 @@ use tsc_diagnostics::{gen as diagnostics, DiagnosticCategory, JsStr, JsString};
 use tsc_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsc_types::{
     CheckFlags, CheckMode, ConditionalRootData, ElementFlags, IntersectionFlags, LiteralValue,
-    MappedTypeData, MappedTypeModifiers, ModifierFlags, NodeFlags, ObjectFlags, PseudoBigInt,
-    SignatureFlags, SymbolFlags, TupleTargetFlags, TypeData, TypeFlags, TypeId, UnionReduction,
+    MappedTypeData, MappedTypeModifiers, ModifierFlags, ObjectFlags, PseudoBigInt, SignatureFlags,
+    SymbolFlags, TupleTargetFlags, TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
 use crate::evaluate::EvalValue;
@@ -1828,83 +1828,9 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        if let Some(parent) = parent {
-            if self.kind_of(parent) == SyntaxKind::ObjectLiteralExpression {
-                if let Some(assignment) = self.parent_of(parent) {
-                    if self.kind_of(assignment) == SyntaxKind::BinaryExpression
-                        && tsc_binder::get_assignment_declaration_kind(
-                            self.binder.source_of_node(assignment),
-                            assignment,
-                        ) == tsc_binder::AssignmentDeclarationKind::Prototype
-                    {
-                        if let NodeData::BinaryExpression(data) = self.data_of(assignment) {
-                            if let Some(class_symbol) = data
-                                .left
-                                .and_then(|left| self.node_symbol(left))
-                                .map(|symbol| self.get_merged_symbol(symbol))
-                                .and_then(|symbol| self.binder.symbol(symbol).parent)
-                            {
-                                let declared =
-                                    self.get_declared_type_of_class_or_interface(class_symbol)?;
-                                if let Some(this_type) =
-                                    self.this_type_of_class_or_interface(declared)
-                                {
-                                    return Ok(this_type);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        let host = (self.node_flags(node) & NodeFlags::JS_DOC.bits() != 0)
-            .then(|| self.get_host_signature_from_jsdoc(node))
-            .flatten();
-        if let Some(host) = host {
-            if self.kind_of(host) == SyntaxKind::FunctionExpression {
-                if let Some(assignment) = self.parent_of(host) {
-                    if self.kind_of(assignment) == SyntaxKind::BinaryExpression
-                        && tsc_binder::get_assignment_declaration_kind(
-                            self.binder.source_of_node(assignment),
-                            assignment,
-                        ) == tsc_binder::AssignmentDeclarationKind::PrototypeProperty
-                    {
-                        if let NodeData::BinaryExpression(data) = self.data_of(assignment) {
-                            if let Some(class_symbol) = data
-                                .left
-                                .and_then(|left| self.node_symbol(left))
-                                .map(|symbol| self.get_merged_symbol(symbol))
-                                .and_then(|symbol| self.binder.symbol(symbol).parent)
-                            {
-                                let declared =
-                                    self.get_declared_type_of_class_or_interface(class_symbol)?;
-                                if let Some(this_type) =
-                                    self.this_type_of_class_or_interface(declared)
-                                {
-                                    return Ok(this_type);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        if let Some(container) = container {
-            if self.is_js_constructor(container)
-                && node_util::body_of(self.binder.source_of_node(container), container)
-                    .is_some_and(|body| self.is_node_descendant_of(node, body))
-            {
-                if let Some(symbol) = self
-                    .node_symbol(container)
-                    .map(|symbol| self.get_merged_symbol(symbol))
-                {
-                    let declared = self.get_declared_type_of_class_or_interface(symbol)?;
-                    if let Some(this_type) = self.this_type_of_class_or_interface(declared) {
-                        return Ok(this_type);
-                    }
-                }
-            }
-        }
+        // tsgo getThisType (TypeScript 7.1) has no JavaScript arms: no
+        // `x.prototype = { ... }` object literal, no `x.prototype.m = function`
+        // host and no constructor function supplies a `this` type.
         self.error_at(
             Some(node),
             &diagnostics::A_this_type_is_available_only_in_a_non_static_member_of_a_class_or_interface,
@@ -4788,30 +4714,24 @@ impl<'a> CheckerState<'a> {
                     }
                 }
             }
-            let assignment_owner = state.get_function_expression_parent_symbol_or_symbol(symbol)?;
-            let assignments = state
-                .binder
-                .symbol(assignment_owner)
-                .extras()
-                .assignment_declaration_members
-                .values()
-                .copied()
-                .collect::<Vec<_>>();
+            // tsgo getResolvedMembersOrExportsOfSymbol (TypeScript 7.1): the
+            // symbol's own late-bound assignment declarations (expandos live
+            // on the initializer symbol) all bind on the static side, a
+            // dynamic `this[k] = ...` in a class member included.
+            let assignments = if is_static {
+                state
+                    .binder
+                    .symbol(symbol)
+                    .extras()
+                    .assignment_declaration_members
+                    .values()
+                    .copied()
+                    .collect::<Vec<_>>()
+            } else {
+                Vec::new()
+            };
             for member in assignments {
-                let assignment_kind = tsc_binder::get_assignment_declaration_kind(
-                    state.binder.source_of_node(member),
-                    member,
-                );
-                let is_instance_member = assignment_kind
-                    == tsc_binder::AssignmentDeclarationKind::PrototypeProperty
-                    || (state.kind_of(member) == SyntaxKind::BinaryExpression
-                        && state.is_possibly_aliased_this_property(member, assignment_kind)?)
-                    || matches!(
-                        assignment_kind,
-                        tsc_binder::AssignmentDeclarationKind::ObjectDefinePrototypeProperty
-                            | tsc_binder::AssignmentDeclarationKind::Prototype
-                    );
-                if is_static == is_instance_member || !state.has_late_bindable_name(member)? {
+                if !state.has_late_bindable_name(member)? {
                     continue;
                 }
                 if state
@@ -7845,53 +7765,6 @@ impl<'a> CheckerState<'a> {
         Ok(instantiated)
     }
 
-    /// tsc-port: getJSContainerObjectType @6.0.3
-    /// tsc-hash: 6201f248dd5b3faeff53f29dca564a141a1707283aacd2d8f5fb008c0967aa95
-    /// tsc-span: _tsc.js:56296-56314
-    ///
-    /// Variable-declaration face. The program binder has already
-    /// merged the declaration/assignment symbol and its export table,
-    /// so the upstream node-symbol ancestor merge is represented by
-    /// the merged symbol's exports. An empty checked-JS object
-    /// initializer is a container whose apparent members include
-    /// later expando assignments and merged class exports.
-    fn get_js_container_object_type(
-        &mut self,
-        declaration: NodeId,
-        symbol: SymbolId,
-        initializer: NodeId,
-    ) -> Option<TypeId> {
-        if !self.is_in_js_file(declaration) {
-            return None;
-        }
-        let NodeData::ObjectLiteralExpression(data) = self.data_of(initializer) else {
-            return None;
-        };
-        if !self.nodes_of(data.properties).is_empty() {
-            return None;
-        }
-        let members = (**self.binder.symbol(symbol).exports()).clone();
-        let properties: Vec<SymbolId> = members.values().copied().collect();
-        let ty = self.create_resolved_empty_anonymous_type(Some(symbol));
-        self.tables.type_mut(ty).object_flags = ObjectFlags::from_bits(
-            self.tables.object_flags_of(ty).bits() | ObjectFlags::JS_LITERAL.bits(),
-        );
-        let members_id = self
-            .links
-            .read_ty(ty, |links| links.resolved_members.resolved())
-            .expect("fresh anonymous type has resolved members");
-        let mut properties = properties;
-        self.order_named_members_if_stable(&mut properties, self.tables.type_of(ty).symbol);
-        *self.members_mut(members_id) = ResolvedMembers {
-            members: self.member_table(&members),
-            properties,
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_infos: Vec::new(),
-        };
-        Some(ty)
-    }
-
     /// tsc-port: getTypeOfVariableOrParameterOrProperty @6.0.3
     /// tsc-hash: 3401237074b42af69c2ceace5255cc0e405c373c4ab621f0c3e9f253791356bd
     /// tsc-span: _tsc.js:56631-56641
@@ -8714,27 +8587,6 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::EnumMember
         ) && self.initializer_of(declaration).is_some();
         if has_expression_initializer {
-            if self.is_in_js_file(declaration) && kind != SyntaxKind::Parameter {
-                // getJSContainerObjectType is part of the ordinary
-                // hasOnlyExpressionInitializer path for every
-                // non-parameter JS declaration. In particular, an
-                // empty nested PropertyAssignment receives expando
-                // members that the binder attached to its symbol.
-                if let Some(symbol) = self.get_symbol_of_declaration_opt(declaration) {
-                    let source = self.binder.source_of_node(declaration);
-                    if let Some(container) =
-                        tsc_binder::assignment::get_declared_expando_initializer(
-                            source,
-                            declaration,
-                        )
-                        .and_then(|initializer| {
-                            self.get_js_container_object_type(declaration, symbol, initializer)
-                        })
-                    {
-                        return Ok(Some(container));
-                    }
-                }
-            }
             let initializer_type =
                 self.check_declaration_initializer(declaration, check_mode, None)?;
             let widened =
@@ -8981,236 +8833,355 @@ impl<'a> CheckerState<'a> {
         data.r#type
     }
 
-    /// Assignment-declaration initializer and widening path from tsc
-    /// getWidenedTypeForAssignmentDeclaration /
-    /// getInitializerTypeFromAssignmentDeclaration. The binder now
-    /// publishes assignment members, so resolving those real symbols
-    /// must type their initializer instead of tripping the former
-    /// producer-missing curtain. A `module.exports = { ... }`
-    /// replacement also combines the object's own members with direct
-    /// CommonJS export-property assignments; same-named value members
-    /// carry the union of both initializer types. Effective
-    /// annotations and JS-constructor classification share the AST
-    /// helpers used by ordinary declarations.
+    /// tsgo-port: getWidenedTypeForAssignmentDeclaration @7.1
+    /// (checker.go:18399-18450).
+    ///
+    /// A `this.p = ...` member declared only by this-assignments takes its
+    /// JSDoc type, else its flow type at the end of the declaring
+    /// constructor, else (declared in methods) the base class property's
+    /// type. Otherwise the first assignment with a JSDoc `@type` decides,
+    /// else the union of the assigned types (an initial `undefined` of a
+    /// CommonJS export with several declarations ignored; `| undefined`
+    /// under strictNullChecks for a method-declared member). The result is
+    /// widened, and an all-nullable JavaScript member is an implicit `any`.
+    ///
+    /// tsc-rs binds the CommonJS export assignments on the left side, as tsc
+    /// 6.0 did; such a declaration stands for its assignment, and a
+    /// `module.exports = { ... }` replacement still combines direct export
+    /// assignments into the object until the CommonJS port.
     fn get_widened_type_for_assignment_declaration(
         &mut self,
         symbol: SymbolId,
         resolved_symbol: Option<SymbolId>,
     ) -> CheckResult<TypeId> {
-        let value_declaration = self.binder.symbol(symbol).value_declaration;
-        let assigned_container = value_declaration.and_then(|declaration| {
-            tsc_binder::assignment::get_assigned_expando_initializer(
-                self.binder.source_of_node(declaration),
-                declaration,
-            )
-        });
-        if let Some(container) = assigned_container {
-            if self.is_in_js_file(container) {
-                if let Some(tag) = self.first_jsdoc_tag(container, SyntaxKind::JSDocTypeTag) {
-                    if let NodeData::JSDocTypeTag(data) = self.data_of(tag) {
-                        if let Some(type_expression) = data.type_expression {
-                            return self.get_type_from_type_node(type_expression);
+        let (this_kind, location) = self.this_assignment_declaration_kind(symbol)?;
+        let mut ty = match (this_kind, location) {
+            (ThisAssignmentDeclarationKind::Typed, Some(type_node)) => {
+                Some(self.get_type_from_type_node(type_node)?)
+            }
+            (ThisAssignmentDeclarationKind::Constructor, Some(constructor)) => {
+                self.get_flow_type_in_constructor(symbol, constructor)?
+            }
+            (ThisAssignmentDeclarationKind::Method, _) => {
+                self.get_type_of_property_in_base_class(symbol)?
+            }
+            _ => None,
+        };
+        if ty.is_none() {
+            let declarations = self.binder.symbol(symbol).declarations.clone();
+            let declaration_count = declarations.len();
+            let mut types: Vec<TypeId> = Vec::new();
+            for (index, declaration) in declarations.into_iter().enumerate() {
+                let expression = match self.kind_of(declaration) {
+                    SyntaxKind::BinaryExpression | SyntaxKind::CallExpression => declaration,
+                    SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
+                        match self
+                            .parent_of(declaration)
+                            .filter(|&parent| self.kind_of(parent) == SyntaxKind::BinaryExpression)
+                        {
+                            Some(parent) => parent,
+                            None => continue,
                         }
                     }
+                    _ => continue,
+                };
+                if self.kind_of(expression) == SyntaxKind::BinaryExpression {
+                    if let Some(type_node) = self.assignment_declaration_type_node(expression) {
+                        ty = Some(self.get_type_from_type_node(type_node)?);
+                        break;
+                    }
                 }
-            }
-            if let Some(container_object_type) = value_declaration.and_then(|declaration| {
-                self.get_js_container_object_type(declaration, symbol, container)
-            }) {
-                return Ok(container_object_type);
-            }
-            let checked = self.check_expression_cached(container, CheckMode::NORMAL)?;
-            return self.get_widened_literal_type(checked);
-        }
-        if let Some(constructor) = self.constructor_declaring_assignment_property(symbol)? {
-            if let Some(flow_type) = self.get_flow_type_in_constructor(symbol, constructor)? {
-                return Ok(flow_type);
-            }
-        }
-        let declarations = self.binder.symbol(symbol).declarations.clone();
-        let mut jsdoc_type = None;
-        let mut types = Vec::new();
-        let mut constructor_types = Vec::new();
-        let mut defined_in_constructor = false;
-        let mut defined_in_method = false;
-        for declaration in declarations {
-            let expression = match self.kind_of(declaration) {
-                SyntaxKind::BinaryExpression | SyntaxKind::CallExpression => Some(declaration),
-                SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => Some(
-                    self.parent_of(declaration)
-                        .filter(|&parent| self.kind_of(parent) == SyntaxKind::BinaryExpression)
-                        .unwrap_or(declaration),
-                ),
-                _ => None,
-            };
-            let Some(expression) = expression else {
-                continue;
-            };
-            let is_this_property = self.assignment_is_this_property(expression);
-            let in_constructor = is_this_property && self.assignment_is_in_constructor(expression);
-            if is_this_property {
-                if in_constructor {
-                    defined_in_constructor = true;
-                } else {
-                    defined_in_method = true;
-                }
-            }
-            if self.kind_of(expression) != SyntaxKind::CallExpression {
-                jsdoc_type = self.get_annotated_type_for_assignment_declaration(
-                    jsdoc_type,
+                let Some(assigned) = self.assignment_declaration_initializer_type(
                     expression,
                     symbol,
-                    declaration,
-                )?;
-            }
-            if jsdoc_type.is_some() {
-                continue;
-            }
-            let initializer_type = match self.data_of(expression) {
-                NodeData::BinaryExpression(data) => {
-                    let widened = if let Some(resolved_symbol) = resolved_symbol {
-                        self.get_type_of_symbol(resolved_symbol)?
-                    } else {
-                        let Some(right) = data.right else {
-                            continue;
-                        };
-                        let checked = self.check_expression_cached(right, CheckMode::NORMAL)?;
-                        let source = self.binder.source_of_node(expression);
-                        let is_direct_export =
-                            tsc_binder::assignment::get_assignment_declaration_kind(
-                                source, expression,
-                            ) == tsc_binder::AssignmentDeclarationKind::ExportsProperty
-                                && data
-                                    .left
-                                    .and_then(|left| {
-                                        tsc_binder::assignment::access_expression_of(source, left)
-                                    })
-                                    .is_some_and(|receiver| {
-                                        tsc_binder::assignment::is_module_exports_access_expression(
-                                            source, receiver,
-                                        ) || tsc_binder::assignment::is_exports_identifier(
-                                            source, receiver,
-                                        )
-                                    });
-                        if is_direct_export {
-                            self.regular_type_of_literal_type(checked)
-                        } else {
-                            self.get_widened_literal_type(checked)?
-                        }
-                    };
-                    let widened = if self.is_empty_array_literal_type(widened)? {
-                        let any_array = self.any_array_type()?;
-                        self.report_implicit_any(expression, any_array, None)?;
-                        any_array
-                    } else {
-                        widened
-                    };
-                    self.combine_common_js_export_members(
-                        widened,
-                        symbol,
-                        resolved_symbol,
-                        expression,
-                    )?
-                }
-                NodeData::CallExpression(data) => {
-                    if let Some(resolved_symbol) = resolved_symbol {
-                        self.get_type_of_symbol(resolved_symbol)?
-                    } else {
-                        let Some(arguments) = data.arguments else {
-                            continue;
-                        };
-                        let arguments = self.nodes_of(Some(arguments));
-                        let Some(&descriptor) = arguments.get(2) else {
-                            continue;
-                        };
-                        let descriptor_type =
-                            self.check_expression_cached(descriptor, CheckMode::NORMAL)?;
-                        if let Some(value) =
-                            self.get_type_of_property_of_type(descriptor_type, "value")?
-                        {
-                            value
-                        } else if let Some(getter) =
-                            self.get_type_of_property_of_type(descriptor_type, "get")?
-                        {
-                            match self.get_single_call_signature(getter)? {
-                                Some(signature) => self.get_return_type_of_signature(signature)?,
-                                None => self.tables.intrinsics.any,
-                            }
-                        } else if let Some(setter) =
-                            self.get_type_of_property_of_type(descriptor_type, "set")?
-                        {
-                            match self.get_single_call_signature(setter)? {
-                                Some(signature)
-                                    if !self.signature_of(signature).parameters.is_empty() =>
-                                {
-                                    self.get_type_at_position(signature, 0)?
-                                }
-                                _ => self.tables.intrinsics.any,
-                            }
-                        } else {
-                            self.tables.intrinsics.any
-                        }
-                    }
-                }
-                _ => continue,
-            };
-            if in_constructor {
-                constructor_types.push(initializer_type);
-            }
-            types.push(initializer_type);
-        }
-        let mut ty = if let Some(jsdoc_type) = jsdoc_type {
-            jsdoc_type
-        } else {
-            if types.is_empty() {
-                return Ok(self.tables.intrinsics.error);
-            }
-            if defined_in_method {
-                if let Some(base_property_type) = self.get_type_of_property_in_base_class(symbol)? {
-                    constructor_types.push(base_property_type);
-                    defined_in_constructor = true;
-                }
-            }
-            let source_types = if constructor_types.iter().any(|&ty| {
-                !self.every_type(ty, |state, member| {
-                    state
+                    resolved_symbol,
+                )?
+                else {
+                    continue;
+                };
+                let kind = tsc_binder::get_assignment_declaration_kind(
+                    self.binder.source_of_node(expression),
+                    expression,
+                );
+                let kept = kind != tsc_binder::AssignmentDeclarationKind::ExportsProperty
+                    || index != 0
+                    || declaration_count == 1
+                    || !self
                         .tables
-                        .flags_of(member)
-                        .intersects(TypeFlags::NULLABLE)
-                })
-            }) {
-                &constructor_types
-            } else {
-                &types
-            };
-            if source_types.len() == 1 {
-                source_types[0]
-            } else {
-                self.get_union_type_ex(source_types, tsc_types::UnionReduction::Literal)?
+                        .flags_of(assigned)
+                        .intersects(TypeFlags::UNDEFINED);
+                if kept && !types.contains(&assigned) {
+                    types.push(assigned);
+                }
             }
-        };
-        if self.tables.strict_null_checks && defined_in_method && !defined_in_constructor {
-            ty = self.get_optional_type(ty, /*is_property*/ false)?;
+            if this_kind == ThisAssignmentDeclarationKind::Method
+                && !types.is_empty()
+                && self.tables.strict_null_checks
+            {
+                let undefined_or_missing = self.tables.intrinsics.undefined_or_missing;
+                if !types.contains(&undefined_or_missing) {
+                    types.push(undefined_or_missing);
+                }
+            }
+            if ty.is_none() {
+                ty = Some(match types.len() {
+                    0 => self.tables.intrinsics.any,
+                    1 => types[0],
+                    _ => self.get_union_type_ex(&types, tsc_types::UnionReduction::Literal)?,
+                });
+            }
         }
+        let ty = ty.expect("assigned above");
         let widened = self.get_widened_type(ty)?;
         let non_nullable = self.tables.filter_type(widened, |tables, member| {
             tables.flags_of(member).bits() & !TypeFlags::NULLABLE.bits() != 0
         });
         let value_declaration = self.binder.symbol(symbol).value_declaration;
-        if value_declaration.is_some_and(|declaration| self.is_in_js_file(declaration))
-            && non_nullable == self.tables.intrinsics.never
-        {
-            let any = self.tables.intrinsics.any;
-            if let Some(value_declaration) = value_declaration {
-                // tsc getWidenedTypeForAssignmentDeclaration reports the
-                // all-nullable JS assignment member before replacing its
-                // public type with `any`. Chained `exports.x = ... =
-                // undefined` declarations each own one exact 7005 row.
+        if let Some(value_declaration) = value_declaration {
+            if self.is_in_js_file(value_declaration) && non_nullable == self.tables.intrinsics.never
+            {
+                let any = self.tables.intrinsics.any;
                 self.report_implicit_any(value_declaration, any, None)?;
+                return Ok(any);
             }
-            return Ok(any);
         }
         Ok(widened)
+    }
+
+    /// tsgo-port: isConstructorDeclaredThisProperty @7.1 (checker.go:18518-18564):
+    /// a symbol whose declarations are all `this.p = ...` assignments (an
+    /// element access only with a literal argument) is Typed by the last
+    /// JSDoc type among them, else Constructor (declared in a class
+    /// constructor) or Method.
+    fn this_assignment_declaration_kind(
+        &mut self,
+        symbol: SymbolId,
+    ) -> CheckResult<(ThisAssignmentDeclarationKind, Option<NodeId>)> {
+        let none = (ThisAssignmentDeclarationKind::None, None);
+        let Some(value_declaration) = self.binder.symbol(symbol).value_declaration else {
+            return Ok(none);
+        };
+        if self.kind_of(value_declaration) != SyntaxKind::BinaryExpression {
+            return Ok(none);
+        }
+        let mut type_annotation = None;
+        for declaration in self.binder.symbol(symbol).declarations.clone() {
+            let NodeData::BinaryExpression(data) = self.data_of(declaration) else {
+                return Ok(none);
+            };
+            let left = data.left;
+            let kind = tsc_binder::get_assignment_declaration_kind(
+                self.binder.source_of_node(declaration),
+                declaration,
+            );
+            let literal_or_property = left.is_some_and(|left| match self.data_of(left) {
+                NodeData::ElementAccessExpression(access) => {
+                    access.argument_expression.is_some_and(|argument| {
+                        node_util::is_string_or_numeric_literal_like(
+                            self.binder.source_of_node(argument),
+                            argument,
+                        )
+                    })
+                }
+                _ => true,
+            });
+            if kind != tsc_binder::AssignmentDeclarationKind::ThisProperty || !literal_or_property {
+                return Ok(none);
+            }
+            if let Some(type_node) = self.assignment_declaration_type_node(declaration) {
+                type_annotation = Some(type_node);
+            }
+        }
+        if type_annotation.is_some() {
+            return Ok((ThisAssignmentDeclarationKind::Typed, type_annotation));
+        }
+        Ok(match self.declaring_class_constructor(symbol) {
+            Some(constructor) => (
+                ThisAssignmentDeclarationKind::Constructor,
+                Some(constructor),
+            ),
+            None => (ThisAssignmentDeclarationKind::Method, None),
+        })
+    }
+
+    /// tsgo getDeclaringConstructor @7.1: the first declaration whose `this`
+    /// container is a class constructor.
+    fn declaring_class_constructor(&self, symbol: SymbolId) -> Option<NodeId> {
+        self.binder
+            .symbol(symbol)
+            .declarations
+            .iter()
+            .find_map(|&declaration| {
+                let source = self.binder.source_of_node(declaration);
+                node_util::get_this_container(source, declaration, false)
+                    .filter(|&container| self.kind_of(container) == SyntaxKind::Constructor)
+            })
+    }
+
+    /// tsgo `binary.Type` (TypeScript 7.1): the reparser moves the JSDoc
+    /// `@type` of a JavaScript expression statement onto its binary
+    /// expression when that is an assignment declaration.
+    pub(crate) fn assignment_declaration_type_node(&self, assignment: NodeId) -> Option<NodeId> {
+        if !self.is_in_js_file(assignment)
+            || self.kind_of(assignment) != SyntaxKind::BinaryExpression
+            || self
+                .parent_of(assignment)
+                .is_none_or(|parent| self.kind_of(parent) != SyntaxKind::ExpressionStatement)
+        {
+            return None;
+        }
+        let source = self.binder.source_of_node(assignment);
+        if tsc_binder::get_assignment_declaration_kind(source, assignment)
+            == tsc_binder::AssignmentDeclarationKind::None
+        {
+            return None;
+        }
+        let tag = node_util::get_jsdoc_type_tag(source, assignment)?;
+        let expression = node_util::jsdoc_type_expression(source, tag)?;
+        match self.data_of(expression) {
+            NodeData::JSDocTypeExpression(data) => data.r#type,
+            _ => None,
+        }
+    }
+
+    /// tsgo-port: getAssignmentDeclarationInitializerType @7.1
+    /// (checker.go:18452-18478): a CommonJS export's assignment has the
+    /// regular type of its rightmost value; a `this.p` assignment whose value
+    /// reads the same `this.p` contributes nothing; any other assignment has
+    /// the mutable-location type of its right side; an empty array literal
+    /// is an implicit `any[]` unless the host function's variable is
+    /// annotated. An Object.defineProperty call has its descriptor's type.
+    fn assignment_declaration_initializer_type(
+        &mut self,
+        node: NodeId,
+        symbol: SymbolId,
+        resolved_symbol: Option<SymbolId>,
+    ) -> CheckResult<Option<TypeId>> {
+        match self.data_of(node) {
+            NodeData::BinaryExpression(data) => {
+                let (left, right) = (data.left, data.right);
+                let Some(right) = right else {
+                    return Ok(None);
+                };
+                let source = self.binder.source_of_node(node);
+                let kind = tsc_binder::get_assignment_declaration_kind(source, node);
+                let ty = match kind {
+                    tsc_binder::AssignmentDeclarationKind::ModuleExports
+                    | tsc_binder::AssignmentDeclarationKind::ExportsProperty => {
+                        let assigned = match resolved_symbol {
+                            Some(resolved_symbol) => self.get_type_of_symbol(resolved_symbol)?,
+                            None => {
+                                let rightmost =
+                                    tsc_binder::assignment::get_right_most_assigned_expression(
+                                        source, node,
+                                    );
+                                let checked =
+                                    self.check_expression_cached(rightmost, CheckMode::NORMAL)?;
+                                self.regular_type_of_literal_type(checked)
+                            }
+                        };
+                        self.combine_common_js_export_members(
+                            assigned,
+                            symbol,
+                            resolved_symbol,
+                            node,
+                        )?
+                    }
+                    _ => {
+                        if kind == tsc_binder::AssignmentDeclarationKind::ThisProperty {
+                            if let Some(left) = left {
+                                if self.contains_same_named_this_property(left, right)? {
+                                    return Ok(None);
+                                }
+                            }
+                        }
+                        self.check_expression_for_mutable_location(right, CheckMode::NORMAL, false)?
+                    }
+                };
+                if self.is_empty_array_literal_type(ty)?
+                    && !self.has_parent_with_type_annotation(self.node_symbol(node))
+                {
+                    let any_array = self.any_array_type()?;
+                    self.report_implicit_any(node, any_array, None)?;
+                    return Ok(Some(any_array));
+                }
+                Ok(Some(ty))
+            }
+            NodeData::CallExpression(data) => {
+                let descriptor = self.nodes_of(data.arguments).get(2).copied();
+                let Some(descriptor) = descriptor else {
+                    return Ok(None);
+                };
+                Ok(Some(self.get_type_from_property_descriptor(descriptor)?))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// tsgo hasParentWithTypeAnnotation @7.1: the assignment declares a member
+    /// of a function or arrow expression whose variable is annotated.
+    fn has_parent_with_type_annotation(&self, symbol: Option<SymbolId>) -> bool {
+        let Some(parent) = symbol.and_then(|symbol| self.binder.symbol(symbol).parent) else {
+            return false;
+        };
+        let Some(value_declaration) = self.binder.symbol(parent).value_declaration else {
+            return false;
+        };
+        if !matches!(
+            self.kind_of(value_declaration),
+            SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
+        ) {
+            return false;
+        }
+        self.parent_of(value_declaration)
+            .and_then(|host| self.node_symbol(host))
+            .and_then(|host_symbol| self.binder.symbol(host_symbol).value_declaration)
+            .is_some_and(|declaration| match self.data_of(declaration) {
+                NodeData::VariableDeclaration(data) => data.r#type.is_some(),
+                _ => false,
+            })
+    }
+
+    /// tsgo containsSameNamedThisProperty @7.1: whether `expression` reads
+    /// the assigned `this.p` outside nested functions.
+    fn contains_same_named_this_property(
+        &mut self,
+        this_property: NodeId,
+        expression: NodeId,
+    ) -> CheckResult<bool> {
+        if self.is_matching_reference(this_property, expression)? {
+            return Ok(true);
+        }
+        if node_util::is_function_like_kind(self.kind_of(expression)) {
+            return Ok(false);
+        }
+        for child in self.children_of(expression) {
+            if self.contains_same_named_this_property(this_property, child)? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    /// tsgo-port: getTypeFromPropertyDescriptor @7.1: the descriptor's
+    /// `value`, else its getter's return type, else its setter's first
+    /// parameter type, else `any`.
+    fn get_type_from_property_descriptor(&mut self, descriptor: NodeId) -> CheckResult<TypeId> {
+        let object_type = self.check_expression_cached(descriptor, CheckMode::NORMAL)?;
+        if let Some(value) = self.get_type_of_property_of_type(object_type, "value")? {
+            return Ok(value);
+        }
+        if let Some(getter) = self.get_type_of_property_of_type(object_type, "get")? {
+            if let Some(signature) = self.get_single_call_signature(getter)? {
+                return self.get_return_type_of_signature(signature);
+            }
+        }
+        if let Some(setter) = self.get_type_of_property_of_type(object_type, "set")? {
+            if let Some(signature) = self.get_single_call_signature(setter)? {
+                return self.get_type_at_position(signature, 0);
+            }
+        }
+        Ok(self.tables.intrinsics.any)
     }
 
     /// tsc-port: getInitializerTypeFromAssignmentDeclaration @6.0.3
@@ -9468,28 +9439,6 @@ impl<'a> CheckerState<'a> {
         Ok(self.get_merged_symbol(parent_symbol))
     }
 
-    fn assignment_is_this_property(&self, expression: NodeId) -> bool {
-        let NodeData::BinaryExpression(data) = self.data_of(expression) else {
-            return false;
-        };
-        let Some(left) = data.left else {
-            return false;
-        };
-        match self.data_of(left) {
-            NodeData::PropertyAccessExpression(data) => data
-                .expression
-                .is_some_and(|receiver| self.kind_of(receiver) == SyntaxKind::ThisKeyword),
-            NodeData::ElementAccessExpression(data) => data
-                .expression
-                .is_some_and(|receiver| self.kind_of(receiver) == SyntaxKind::ThisKeyword),
-            _ => false,
-        }
-    }
-
-    fn assignment_is_in_constructor(&self, expression: NodeId) -> bool {
-        self.assignment_constructor_container(expression).is_some()
-    }
-
     /// tsrs-native: per-assignment projection of tsc's closure-local
     /// getDeclaringConstructor walk; Rust callers already own the
     /// declaration iteration and need the matched container.
@@ -9613,19 +9562,6 @@ impl<'a> CheckerState<'a> {
         Ok(result)
     }
 
-    /// tsrs-native: result-bearing adapter for the exact
-    /// isConstructorDeclaredProperty/getDeclaringConstructor pair.
-    pub(crate) fn constructor_declaring_assignment_property(
-        &mut self,
-        symbol: SymbolId,
-    ) -> CheckResult<Option<NodeId>> {
-        if self.is_constructor_declared_property(symbol)? {
-            Ok(self.get_declaring_constructor(symbol))
-        } else {
-            Ok(None)
-        }
-    }
-
     /// TypeScript 7.1 has no JavaScript constructor functions: tsgo's checker
     /// has no isJSConstructor, so a JavaScript function, `@class`-tagged or
     /// not, is never a constructor. The callers keep their tsc 6.0 shape
@@ -9664,104 +9600,6 @@ impl<'a> CheckerState<'a> {
         })
     }
 
-    /// tsrs-native: fixed-argument adapter for the exact
-    /// getSymbolOfExpando worker below; checker consumers use only
-    /// tsc's allowDeclaration=false face.
-    ///
-    /// tsc getSymbolOfExpando(node, false), the non-JSDoc symbol
-    /// association used by getTypeOfFuncClassEnumModule. Assignment
-    /// members are bound on the containing variable/assignment
-    /// symbol, while the callable type is created from the function
-    /// expression symbol; mergeJSSymbols joins those two normal symbol
-    /// faces before the anonymous type is created.
-    pub(crate) fn get_symbol_of_expando(&self, node: NodeId) -> Option<SymbolId> {
-        self.get_symbol_of_expando_worker(node, /*allow_declaration*/ false)
-    }
-
-    /// tsc-port: getSymbolOfExpando @6.0.3
-    /// tsc-hash: d826d4dc565299c22096d151cc150c0106e6fec83fb70c7940264e95b40fd933
-    /// tsc-span: _tsc.js:77555-77593
-    fn get_symbol_of_expando_worker(
-        &self,
-        node: NodeId,
-        allow_declaration: bool,
-    ) -> Option<SymbolId> {
-        let source = self.binder.source_of_node(node);
-        let parent = self.parent_of(node)?;
-        let (name, declaration) = if allow_declaration
-            && self.kind_of(node) == SyntaxKind::FunctionDeclaration
-        {
-            let NodeData::FunctionDeclaration(data) = self.data_of(node) else {
-                unreachable!("kind/data agree");
-            };
-            (data.name?, node)
-        } else {
-            match self.data_of(parent) {
-                NodeData::VariableDeclaration(data) if data.initializer == Some(node) => {
-                    if !(self.is_in_js_file(node)
-                        || self.is_var_const_like(parent)
-                            && node_util::is_function_like_kind(self.kind_of(node)))
-                    {
-                        return None;
-                    }
-                    (data.name?, parent)
-                }
-                NodeData::BinaryExpression(data)
-                    if data.operator_token.is_some_and(|operator| {
-                        self.kind_of(operator) == SyntaxKind::EqualsToken
-                    }) && (allow_declaration || data.right == Some(node)) =>
-                {
-                    let name = data.left?;
-                    (name, name)
-                }
-                NodeData::BinaryExpression(data)
-                    if data.operator_token.is_some_and(|operator| {
-                        matches!(
-                            self.kind_of(operator),
-                            SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken
-                        )
-                    }) =>
-                {
-                    let left = data.left?;
-                    let grandparent = self.parent_of(parent)?;
-                    let (name, declaration) = match self.data_of(grandparent) {
-                        NodeData::VariableDeclaration(variable)
-                            if variable.initializer == Some(parent) =>
-                        {
-                            (variable.name?, grandparent)
-                        }
-                        NodeData::BinaryExpression(assignment)
-                            if assignment.operator_token.is_some_and(|operator| {
-                                self.kind_of(operator) == SyntaxKind::EqualsToken
-                            }) && (allow_declaration || assignment.right == Some(parent)) =>
-                        {
-                            let name = assignment.left?;
-                            (name, name)
-                        }
-                        _ => return None,
-                    };
-                    if !tsc_binder::assignment::is_bindable_static_name_expression(
-                        source, name, false,
-                    ) || !tsc_binder::assignment::is_same_entity_name(source, name, left)
-                    {
-                        return None;
-                    }
-                    (name, declaration)
-                }
-                _ => return None,
-            }
-        };
-        if !allow_declaration {
-            tsc_binder::assignment::get_expando_initializer(
-                source,
-                node,
-                tsc_binder::assignment::is_prototype_access(source, name),
-            )?;
-        }
-        self.node_symbol(declaration)
-            .map(|symbol| self.get_merged_symbol(symbol))
-    }
-
     /// tsc-port: getTypeOfFuncClassEnumModule @6.0.3
     /// tsc-hash: 079629bbc8a29f3e85c4f2c38c64b0c6ecd7f8e5253a87f56bef8c1749dc8dfa
     /// tsc-span: _tsc.js:56808-56827
@@ -9776,17 +9614,12 @@ impl<'a> CheckerState<'a> {
             perf::bump(PerfCounter::TypeOfSymbolHits);
             return Ok(cached);
         }
-        let type_symbol = self
-            .binder
-            .symbol(symbol)
-            .value_declaration
-            .and_then(|declaration| self.get_symbol_of_expando(declaration))
-            .filter(|&expando| expando != symbol)
-            .map(|expando| self.merge_js_symbols(symbol, expando))
-            .unwrap_or(symbol);
+        // tsgo getTypeOfFuncClassEnumModule (TypeScript 7.1) merges no expando
+        // symbol: expando members are declared on the initializer's own
+        // symbol (tsc 6.0's getSymbolOfExpando + mergeJSSymbols are gone).
         if self
             .binder
-            .symbol(type_symbol)
+            .symbol(symbol)
             .value_declaration
             .is_some_and(|declaration| {
                 matches!(
@@ -9798,17 +9631,10 @@ impl<'a> CheckerState<'a> {
                 )
             })
             && self
-                .symbol_flags(type_symbol)
+                .symbol_flags(symbol)
                 .intersects(SymbolFlags::ASSIGNMENT)
         {
-            let resolved = self.get_widened_type_for_assignment_declaration(type_symbol, None)?;
-            if type_symbol != symbol {
-                self.links.set_symbol_type_func_class_enum_module(
-                    self.speculation_depth,
-                    type_symbol,
-                    resolved,
-                );
-            }
+            let resolved = self.get_widened_type_for_assignment_declaration(symbol, None)?;
             self.links.set_symbol_type_func_class_enum_module(
                 self.speculation_depth,
                 symbol,
@@ -9819,17 +9645,15 @@ impl<'a> CheckerState<'a> {
         // getTypeOfFuncClassEnumModuleWorker (56828-56860):
         // shorthand ambient modules (`declare module "x";`) type as
         // any (56832-56834).
-        if self
-            .symbol_flags(type_symbol)
-            .intersects(SymbolFlags::MODULE)
-            && self.is_shorthand_ambient_module_symbol(type_symbol)
+        if self.symbol_flags(symbol).intersects(SymbolFlags::MODULE)
+            && self.is_shorthand_ambient_module_symbol(symbol)
         {
             let any = self.tables.intrinsics.any;
             self.links
                 .set_symbol_type(self.speculation_depth, symbol, LinkSlot::Resolved(any));
             return Ok(any);
         }
-        let value_declaration = self.binder.symbol(type_symbol).value_declaration;
+        let value_declaration = self.binder.symbol(symbol).value_declaration;
         let is_common_js_source = value_declaration.is_some_and(|declaration| {
             self.kind_of(declaration) == SyntaxKind::SourceFile
                 && self
@@ -9839,16 +9663,16 @@ impl<'a> CheckerState<'a> {
                     .is_some()
         });
         if self
-            .symbol_flags(type_symbol)
+            .symbol_flags(symbol)
             .intersects(SymbolFlags::VALUE_MODULE)
             && is_common_js_source
         {
             let resolved_module = self
-                .resolve_external_module_symbol(Some(type_symbol), false)?
+                .resolve_external_module_symbol(Some(symbol), false)?
                 .expect("resolveExternalModuleSymbol(Some) is Some");
-            if resolved_module != type_symbol {
+            if resolved_module != symbol {
                 if !self.push_type_resolution(
-                    crate::state::ResolutionTarget::Symbol(type_symbol),
+                    crate::state::ResolutionTarget::Symbol(symbol),
                     tsc_types::TypeSystemPropertyName::TYPE,
                 ) {
                     let error = self.tables.intrinsics.error;
@@ -9861,7 +9685,7 @@ impl<'a> CheckerState<'a> {
                 }
                 let export_equals = self
                     .binder
-                    .symbol(type_symbol)
+                    .symbol(symbol)
                     .exports()
                     .get(InternalSymbolName::EXPORT_EQUALS)
                     .copied()
@@ -9881,7 +9705,7 @@ impl<'a> CheckerState<'a> {
                 let resolved = if self.pop_type_resolution() {
                     computed
                 } else {
-                    self.report_circularity_error(type_symbol)
+                    self.report_circularity_error(symbol)
                 };
                 self.links.set_symbol_type_func_class_enum_module(
                     self.speculation_depth,
@@ -9893,23 +9717,18 @@ impl<'a> CheckerState<'a> {
         }
         let id = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
         self.tables.type_mut(id).object_flags = ObjectFlags::ANONYMOUS;
-        self.tables.type_mut(id).symbol = Some(type_symbol);
-        let resolved = if self
-            .symbol_flags(type_symbol)
-            .intersects(SymbolFlags::CLASS)
-        {
+        self.tables.type_mut(id).symbol = Some(symbol);
+        let resolved = if self.symbol_flags(symbol).intersects(SymbolFlags::CLASS) {
             // 56849-56852: mixin-extending classes intersect with the
             // base type variable.
-            match self.get_base_type_variable_of_class(type_symbol)? {
+            match self.get_base_type_variable_of_class(symbol)? {
                 Some(base_type_variable) => {
                     self.get_intersection_type(&[id, base_type_variable], IntersectionFlags::NONE)?
                 }
                 None => id,
             }
         } else if self.tables.strict_null_checks
-            && self
-                .symbol_flags(type_symbol)
-                .intersects(SymbolFlags::OPTIONAL)
+            && self.symbol_flags(symbol).intersects(SymbolFlags::OPTIONAL)
         {
             // 56853-56857: OPTIONAL METHODS route here — `m?(): any`
             // reads as `(() => any) | undefined` under strictNullChecks
@@ -9923,13 +9742,6 @@ impl<'a> CheckerState<'a> {
         // get_base_type_variable_of_class and fills the slot mid-flight;
         // the outer write wins (write-once would panic — the
         // classExtendsItself conformance fixture is the pin).
-        if type_symbol != symbol {
-            self.links.set_symbol_type_func_class_enum_module(
-                self.speculation_depth,
-                type_symbol,
-                resolved,
-            );
-        }
         self.links
             .set_symbol_type_func_class_enum_module(self.speculation_depth, symbol, resolved);
         Ok(resolved)
@@ -11348,3 +11160,12 @@ mod js_assignment_widening_tests;
 #[cfg(test)]
 #[path = "../tests/unit/annotate/bigint_annotation_tests.rs"]
 mod bigint_annotation_tests;
+
+/// tsgo thisAssignmentDeclarationKind (TypeScript 7.1).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ThisAssignmentDeclarationKind {
+    None,
+    Typed,
+    Constructor,
+    Method,
+}

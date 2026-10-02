@@ -12,9 +12,8 @@ use tsc_diagnostics::{
 use tsc_syntax::nodes::{JsxOpeningElementData, JsxSelfClosingElementData};
 use tsc_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsc_types::{
-    CheckMode, ContextFlags, ElementFlags, InferenceFlags, InferencePriority, IntersectionFlags,
-    ModifierFlags, NodeFlags, ObjectFlags, SignatureFlags, SymbolFlags, TypeData, TypeFlags,
-    TypeId, UnionReduction,
+    CheckMode, ContextFlags, ElementFlags, InferenceFlags, InferencePriority, ModifierFlags,
+    NodeFlags, SignatureFlags, SymbolFlags, TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
 use crate::elaboration::ElaborationDiagnosticSink;
@@ -6850,25 +6849,8 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        if self.is_in_js_file(node) {
-            if let Some(js_symbol) = self.get_symbol_of_expando(node) {
-                let exports = std::sync::Arc::clone(self.binder.symbol(js_symbol).exports());
-                if !exports.is_empty() {
-                    let properties = exports.values().copied().collect();
-                    let js_assignment_type = self.make_resolved_anonymous_type(
-                        Some(js_symbol),
-                        self.member_table(&exports),
-                        properties,
-                        Vec::new(),
-                        ObjectFlags::JS_LITERAL,
-                    );
-                    return self.get_intersection_type(
-                        &[return_type, js_assignment_type],
-                        IntersectionFlags::NONE,
-                    );
-                }
-            }
-        }
+        // tsgo checkCallExpression (TypeScript 7.1) intersects no JavaScript
+        // expando members into a call's type.
         Ok(return_type)
     }
 

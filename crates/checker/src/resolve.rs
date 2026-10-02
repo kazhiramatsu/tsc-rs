@@ -2665,105 +2665,14 @@ impl<'a> CheckerState<'a> {
             ancestor = self.parent_of(current);
         }
 
-        let host = self.get_jsdoc_host(node);
-        if let Some(host) = host {
-            if let NodeData::ExpressionStatement(data) = self.data_of(host) {
-                if let Some(expression) = data.expression {
-                    if tsc_binder::get_assignment_declaration_kind(
-                        self.binder.source_of_node(expression),
-                        expression,
-                    ) == tsc_binder::AssignmentDeclarationKind::PrototypeProperty
-                    {
-                        if let NodeData::BinaryExpression(data) = self.data_of(expression) {
-                            if let Some(location) =
-                                data.left.and_then(|left| self.node_symbol(left)).and_then(
-                                    |symbol| self.declaration_of_js_prototype_container(symbol),
-                                )
-                            {
-                                return Some(location);
-                            }
-                        }
-                    }
-                }
-            }
-            if self.kind_of(host) == SyntaxKind::FunctionExpression {
-                if let Some(assignment) = self.parent_of(host) {
-                    if tsc_binder::get_assignment_declaration_kind(
-                        self.binder.source_of_node(assignment),
-                        assignment,
-                    ) == tsc_binder::AssignmentDeclarationKind::PrototypeProperty
-                        && self.parent_of(assignment).is_some_and(|statement| {
-                            self.kind_of(statement) == SyntaxKind::ExpressionStatement
-                        })
-                    {
-                        if let NodeData::BinaryExpression(data) = self.data_of(assignment) {
-                            if let Some(location) =
-                                data.left.and_then(|left| self.node_symbol(left)).and_then(
-                                    |symbol| self.declaration_of_js_prototype_container(symbol),
-                                )
-                            {
-                                return Some(location);
-                            }
-                        }
-                    }
-                }
-            }
-            if matches!(
-                self.kind_of(host),
-                SyntaxKind::MethodDeclaration | SyntaxKind::PropertyAssignment
-            ) {
-                if let Some(assignment) = self
-                    .parent_of(host)
-                    .and_then(|parent| self.parent_of(parent))
-                {
-                    if self.kind_of(assignment) == SyntaxKind::BinaryExpression
-                        && tsc_binder::get_assignment_declaration_kind(
-                            self.binder.source_of_node(assignment),
-                            assignment,
-                        ) == tsc_binder::AssignmentDeclarationKind::Prototype
-                    {
-                        if let NodeData::BinaryExpression(data) = self.data_of(assignment) {
-                            if let Some(location) =
-                                data.left.and_then(|left| self.node_symbol(left)).and_then(
-                                    |symbol| self.declaration_of_js_prototype_container(symbol),
-                                )
-                            {
-                                return Some(location);
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        // tsgo (TypeScript 7.1) has no `F.prototype.m = function` /
+        // `F.prototype = { ... }` JSDoc hosts that resolve in F's scope.
         let signature = self.get_effective_jsdoc_host(node)?;
         if node_util::is_function_like_kind(self.kind_of(signature)) {
             let symbol = self.node_symbol(signature)?;
             return self.binder.symbol(symbol).value_declaration;
         }
         None
-    }
-
-    /// tsc-port: getDeclarationOfJSPrototypeContainer @6.0.3
-    /// tsc-hash: fea290776e329848fc5b82dda21205c6927386b7b8c915ee8fced6fd1ae9282a
-    /// tsc-span: _tsc.js:49440-49447
-    fn declaration_of_js_prototype_container(&self, symbol: SymbolId) -> Option<NodeId> {
-        let declaration = self
-            .binder
-            .symbol(symbol)
-            .parent
-            .and_then(|parent| self.binder.symbol(parent).value_declaration)?;
-        let source = self.binder.source_of_node(declaration);
-        let initializer = if tsc_binder::declare::is_assignment_declaration(source, declaration) {
-            tsc_binder::assignment::get_assigned_expando_initializer(source, declaration)
-        } else {
-            self.initializer_of(declaration).and_then(|initializer| {
-                let name = self.name_of_node(declaration);
-                let is_prototype = name
-                    .is_some_and(|name| tsc_binder::assignment::is_prototype_access(source, name));
-                tsc_binder::assignment::get_expando_initializer(source, initializer, is_prototype)
-            })
-        };
-        initializer.or(Some(declaration))
     }
 
     /// tsc-port: getCannotFindNameDiagnosticForName @6.0.3

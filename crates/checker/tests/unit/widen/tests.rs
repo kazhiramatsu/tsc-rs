@@ -51,7 +51,9 @@ fn auto_family_renders_no_false_relations() {
             checked_rows(
                 "let b = null;\nb = 5;\nb.toFixed();\nlet c = [];\nc[0] = 1;\nexport let v1;\nv1;\ndeclare let d1;\nd1;\n"
             ),
-            [(2339, 23, 7), (7053, 46, 4), (7005, 67, 2), (7005, 87, 2)]
+            // The missing-property report is deferred to the end of the
+            // file check (tsgo addDeferredDiagnostic).
+            [(7053, 46, 4), (7005, 67, 2), (7005, 87, 2), (2339, 23, 7)]
         );
 }
 

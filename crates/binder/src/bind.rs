@@ -7,11 +7,10 @@
 //! owned by 9.8b/9.8c.
 
 use crate::assignment::{
-    access_expression_of, get_assigned_expando_initializer, get_assignment_declaration_kind,
+    access_expression_of, get_assignment_declaration_kind,
     get_assignment_declaration_property_access_kind, get_element_or_property_access_name,
-    get_expando_initializer, get_right_most_assigned_expression,
-    is_bindable_object_define_property_call, is_exports_identifier,
-    is_module_exports_access_expression, is_prototype_access, AssignmentDeclarationKind,
+    get_right_most_assigned_expression, is_exports_identifier, is_module_exports_access_expression,
+    AssignmentDeclarationKind,
 };
 use crate::containers::{get_container_flags, ContainerFlags};
 #[cfg(test)]
@@ -48,6 +47,7 @@ impl<'a> BinderWorker<'a> {
     pub fn bind_source_file(&mut self) {
         self.in_strict_mode = self.bind_in_strict_mode();
         self.bind(Some(self.source.root));
+        self.bind_deferred_expando_assignments();
         self.delayed_bind_jsdoc_typedef_tags();
         self.bind_jsdoc_imports();
     }
@@ -157,19 +157,14 @@ impl<'a> BinderWorker<'a> {
                     AssignmentDeclarationKind::ModuleExports => {
                         self.bind_module_exports_assignment(node)
                     }
-                    AssignmentDeclarationKind::PrototypeProperty => {
-                        self.bind_prototype_property_assignment(node)
-                    }
-                    AssignmentDeclarationKind::Prototype => self.bind_prototype_assignment(node),
                     AssignmentDeclarationKind::ThisProperty => {
                         self.bind_this_property_assignment(node)
                     }
                     AssignmentDeclarationKind::Property => {
-                        // tsgo (TypeScript 7.1): no aliased-`this` redirection,
-                        // and an assignment through `.prototype` finds no
-                        // `prototype` symbol to bind on.
-                        if !self.assignment_targets_prototype(node) {
-                            self.bind_special_property_assignment(node);
+                        if self.is_common_js_alias_property_assignment(node) {
+                            self.bind_exports_property_assignment(node)
+                        } else {
+                            self.bind_expando_property_assignment(node)
                         }
                     }
                     AssignmentDeclarationKind::None => {}
@@ -294,15 +289,10 @@ impl<'a> BinderWorker<'a> {
             }
             SyntaxKind::CallExpression => match self.get_assignment_declaration_kind(node) {
                 AssignmentDeclarationKind::ObjectDefinePropertyValue => {
-                    if !self.assignment_targets_prototype(node) {
-                        self.bind_object_define_property_assignment(node)
-                    }
+                    self.bind_expando_property_assignment(node)
                 }
                 AssignmentDeclarationKind::ObjectDefinePropertyExports => {
                     self.bind_object_define_property_export(node)
-                }
-                AssignmentDeclarationKind::ObjectDefinePrototypeProperty => {
-                    self.bind_object_define_prototype_property(node)
                 }
                 // bindWorker: `if (isInJSFile(node)) bindCallExpression(node)`
                 // — only a JavaScript file's `require()` call makes it a
@@ -1176,67 +1166,58 @@ impl<'a> BinderWorker<'a> {
         get_assignment_declaration_kind(self.source, expr)
     }
 
-    /// tsc bindSpecialPropertyAssignment (44821).
-    fn bind_special_property_assignment(&mut self, node: NodeId) {
-        let source = self.source;
-        let left = match &source.arena.node(node).data {
-            NodeData::BinaryExpression(data) => data.left,
-            _ => None,
-        };
-        let Some(left) = left else { return };
-        let Some(left_expression) = access_expression_of(source, left) else {
-            return;
-        };
-        let parent_symbol = self.lookup_symbol_for_property_access(left_expression);
-        if !self.is_in_js_file() && !self.is_function_symbol(parent_symbol) {
-            return;
-        }
-        let root = self.leftmost_access_expression(left);
-        let root_is_alias = id_text(source, root).is_some_and(|name| {
-            self.container.is_some_and(|container| {
-                self.lookup_symbol_for_name(container, name)
-                    .is_some_and(|symbol| {
-                        self.symbols
-                            .symbol(symbol)
-                            .flags
-                            .intersects(SymbolFlags::ALIAS)
-                    })
-            })
-        });
-        if root_is_alias {
-            return;
-        }
-        if kind_of(source, left_expression) == SyntaxKind::Identifier
-            && self.container == Some(source.root)
-            && self.is_exports_or_module_exports_or_alias(left_expression)
-        {
-            self.bind_exports_property_assignment(node);
-        } else if has_dynamic_name(source, node) {
-            self.bind_anonymous_declaration(
-                node,
-                SymbolFlags::PROPERTY | SymbolFlags::ASSIGNMENT,
-                EscapedName::internal(InternalSymbolName::COMPUTED),
-            );
-            let symbol = self.bind_potentially_missing_namespaces(
-                parent_symbol,
-                left_expression,
-                self.is_top_level_namespace_assignment(left),
-                false,
-                false,
-            );
-            self.add_late_bound_assignment_declaration_to_symbol(node, symbol);
-        } else {
-            self.bind_static_property_assignment(left);
-        }
+    /// tsgo-port: bindExpandoPropertyAssignment @7.1 (binder.go:1027-1033):
+    /// a Property or Object.defineProperty assignment declaration binds after
+    /// the whole file, in the container it was seen in.
+    fn bind_expando_property_assignment(&mut self, node: NodeId) {
+        self.expando_assignments
+            .push((node, self.container, self.block_scope_container));
     }
 
-    /// Whether a Property / Object.defineProperty assignment declaration's
-    /// target entity goes through a `prototype` access (`F.prototype.m = x`,
-    /// `Object.defineProperty(F.prototype, ...)`). tsgo (TypeScript 7.1)
-    /// looks the entity up without creating symbols and finds no `prototype`
-    /// symbol there, so such an assignment declares nothing.
-    fn assignment_targets_prototype(&self, node: NodeId) -> bool {
-        let target = match &self.source.arena.node(node).data {
+    /// CommonJS bridge kept until the CommonJS port (tsc 6.0
+    /// bindSpecialPropertyAssignment's alias arm): in a JavaScript file, a
+    /// top-level `util.p = ...` where `util` aliases `exports` or
+    /// `module.exports` declares an export, as `exports.p = ...` does. tsgo
+    /// binds no such alias; its CommonJS module typing differs as a whole.
+    fn is_common_js_alias_property_assignment(&self, node: NodeId) -> bool {
+        if !self.is_in_js_file() || self.container != Some(self.source.root) {
+            return false;
+        }
+        let NodeData::BinaryExpression(data) = &self.source.arena.node(node).data else {
+            return false;
+        };
+        data.left
+            .and_then(|left| access_expression_of(self.source, left))
+            .is_some_and(|expression| {
+                kind_of(self.source, expression) == SyntaxKind::Identifier
+                    && self.is_exports_or_module_exports_or_alias(expression)
+            })
+    }
+
+    /// tsgo-port: bindDeferredExpandoAssignments @7.1 (binder.go:1035-1041).
+    fn bind_deferred_expando_assignments(&mut self) {
+        let assignments = std::mem::take(&mut self.expando_assignments);
+        let save_container = self.container;
+        let save_block_scope_container = self.block_scope_container;
+        for (node, container, block_scope_container) in assignments {
+            self.container = container;
+            self.block_scope_container = block_scope_container;
+            self.bind_deferred_expando_assignment(node);
+        }
+        self.container = save_container;
+        self.block_scope_container = save_block_scope_container;
+    }
+
+    /// tsgo-port: bindDeferredExpandoAssignment @7.1 (binder.go:1058-1076).
+    ///
+    /// The target entity is looked up without creating symbols (no implicit
+    /// namespaces) and must have an initializer symbol (getInitializerSymbol).
+    /// A dynamic name is late bound; otherwise a Property|Assignment member
+    /// is declared on the initializer symbol's exports, only when no
+    /// non-expando declaration has that name. The declaration is the
+    /// assignment (or call) itself.
+    fn bind_deferred_expando_assignment(&mut self, node: NodeId) {
+        let parent = match &self.source.arena.node(node).data {
             NodeData::BinaryExpression(data) => data
                 .left
                 .and_then(|left| access_expression_of(self.source, left)),
@@ -1250,30 +1231,145 @@ impl<'a> BinderWorker<'a> {
             }),
             _ => None,
         };
-        let mut current = target;
-        while let Some(expression) = current {
-            if is_prototype_access(self.source, expression) {
-                return true;
-            }
-            current = access_expression_of(self.source, expression);
+        let Some(parent) = parent else { return };
+        let symbol = self
+            .block_scope_container
+            .and_then(|container| self.lookup_entity(parent, container))
+            .or_else(|| {
+                self.container
+                    .and_then(|container| self.lookup_entity(parent, container))
+            });
+        let Some(symbol) = self.get_initializer_symbol(symbol) else {
+            return;
+        };
+        if has_dynamic_name(self.source, node) {
+            self.bind_anonymous_declaration(
+                node,
+                SymbolFlags::PROPERTY | SymbolFlags::ASSIGNMENT,
+                EscapedName::internal(InternalSymbolName::COMPUTED),
+            );
+            self.add_late_bound_assignment_declaration_to_symbol(node, Some(symbol));
+            return;
         }
-        false
+        let Some(name) = self.get_declaration_name(node) else {
+            return;
+        };
+        let existing = self.symbols.symbol(symbol).exports().get(name).copied();
+        if existing.is_none_or(|existing| {
+            self.symbols
+                .symbol(existing)
+                .flags
+                .intersects(SymbolFlags::ASSIGNMENT)
+        }) {
+            self.declare_symbol(
+                TableRef::Exports(symbol),
+                Some(symbol),
+                node,
+                SymbolFlags::PROPERTY | SymbolFlags::ASSIGNMENT,
+                SymbolFlags::PROPERTY_EXCLUDES,
+                false,
+                false,
+            );
+        }
     }
 
-    fn is_function_symbol(&self, symbol: Option<SymbolId>) -> bool {
-        let Some(symbol) = symbol else { return false };
-        let Some(declaration) = self.symbols.symbol(symbol).value_declaration else {
-            return false;
-        };
-        if kind_of(self.source, declaration) == SyntaxKind::FunctionDeclaration {
-            return true;
+    /// tsgo-port: lookupEntity @7.1 (binder.go:1274-1292), as the deferred
+    /// pass sees it: an identifier is looked up in `container` alone; a
+    /// `this.p` target finds nothing (the pass runs with no `this`
+    /// container); `E.p` is the `p` export of E's initializer symbol.
+    fn lookup_entity(&self, node: NodeId, container: NodeId) -> Option<SymbolId> {
+        if let NodeData::Identifier(data) = &self.source.arena.node(node).data {
+            return self.lookup_name(data.escaped_text, container);
         }
+        let expression = access_expression_of(self.source, node)?;
+        if kind_of(self.source, expression) == SyntaxKind::ThisKeyword {
+            return None;
+        }
+        let symbol = self.get_initializer_symbol(self.lookup_entity(expression, container))?;
+        let name = get_element_or_property_access_name(self.source, node)?;
+        self.symbols.symbol(symbol).exports().get(name).copied()
+    }
+
+    /// tsgo-port: lookupName @7.1 (binder.go:1294-1304): the container's
+    /// local (its export symbol when it has one), else the export of that
+    /// name on the container's own symbol.
+    fn lookup_name(&self, name: EscapedName, container: NodeId) -> Option<SymbolId> {
+        if let Some(&local) = self
+            .locals
+            .get(&container)
+            .and_then(|locals| locals.get(name))
+        {
+            return Some(self.symbols.symbol(local).export_symbol.unwrap_or(local));
+        }
+        let container_symbol = self.node_symbol.get(&container).copied()?;
+        self.symbols
+            .symbol(container_symbol)
+            .exports()
+            .get(name)
+            .copied()
+    }
+
+    /// tsgo-port: getInitializerSymbol @7.1 (binder.go:1096-1121): the
+    /// symbol that receives expando members. A function declaration (or a
+    /// JavaScript class declaration) is its own; a `const` (or JavaScript)
+    /// variable, or a JavaScript assignment declaration, hands over to its
+    /// expando initializer's symbol; anything else (a TypeScript class, a
+    /// namespace, an enum, a `let`) takes no expandos.
+    fn get_initializer_symbol(&self, symbol: Option<SymbolId>) -> Option<SymbolId> {
+        let declaration = self.symbols.symbol(symbol?).value_declaration?;
+        let in_js = self.is_in_js_file();
         match &self.source.arena.node(declaration).data {
-            NodeData::VariableDeclaration(data) => data.initializer.is_some_and(|initializer| {
-                is_function_like_kind(kind_of(self.source, initializer))
-            }),
+            NodeData::FunctionDeclaration(_) => symbol,
+            NodeData::ClassDeclaration(_) if in_js => symbol,
+            NodeData::VariableDeclaration(data) => {
+                let is_const = parent_of(self.source, declaration).is_some_and(|list| {
+                    crate::node_util::node_flags(self.source, list).intersects(NodeFlags::CONST)
+                });
+                if !is_const && !in_js {
+                    return None;
+                }
+                let initializer = data.initializer?;
+                self.is_expando_initializer(declaration, initializer)
+                    .then(|| self.node_symbol.get(&initializer).copied())
+                    .flatten()
+            }
+            NodeData::BinaryExpression(data) if in_js => {
+                let initializer = data.right?;
+                self.is_expando_initializer(declaration, initializer)
+                    .then(|| self.node_symbol.get(&initializer).copied())
+                    .flatten()
+            }
+            _ => None,
+        }
+    }
+
+    /// tsgo-port: IsExpandoInitializer @7.1 (ast/utilities.go:4178-4189): a
+    /// function expression or arrow function; in JavaScript also a class
+    /// expression, or an empty object literal when the declaration has no
+    /// type (a JSDoc `@type` counts, as tsgo reparses it into the type).
+    fn is_expando_initializer(&self, declaration: NodeId, initializer: NodeId) -> bool {
+        match &self.source.arena.node(initializer).data {
+            NodeData::FunctionExpression(_) | NodeData::ArrowFunction(_) => true,
+            _ if !self.is_in_js_file() => false,
+            NodeData::ClassExpression(_) => true,
+            NodeData::ObjectLiteralExpression(data) => {
+                data.properties.is_none_or(|properties| {
+                    self.source.arena.node_array(properties).nodes.is_empty()
+                }) && !self.declaration_has_type(declaration)
+            }
             _ => false,
         }
+    }
+
+    /// tsgo `declaration.Type()` for an expando host: its type annotation,
+    /// where a JavaScript `@type` tag counts (tsgo reparses the tag into the
+    /// declaration's type).
+    fn declaration_has_type(&self, declaration: NodeId) -> bool {
+        matches!(
+            &self.source.arena.node(declaration).data,
+            NodeData::VariableDeclaration(data) if data.r#type.is_some()
+        ) || (self.is_in_js_file()
+            && crate::node_util::get_jsdoc_type_tag(self.source, declaration).is_some())
     }
 
     fn set_common_js_module_indicator(&mut self, node: NodeId) -> bool {
@@ -1407,39 +1503,6 @@ impl<'a> BinderWorker<'a> {
         true
     }
 
-    fn bind_prototype_assignment(&mut self, node: NodeId) {
-        let Some(left) = (match &self.source.arena.node(node).data {
-            NodeData::BinaryExpression(data) => data.left,
-            _ => None,
-        }) else {
-            return;
-        };
-        let Some(constructor) = access_expression_of(self.source, left) else {
-            return;
-        };
-        self.bind_property_assignment(constructor, left, false, true);
-    }
-
-    fn bind_prototype_property_assignment(&mut self, node: NodeId) {
-        let Some(left) = (match &self.source.arena.node(node).data {
-            NodeData::BinaryExpression(data) => data.left,
-            _ => None,
-        }) else {
-            return;
-        };
-        self.bind_prototype_property_access(left);
-    }
-
-    fn bind_prototype_property_access(&mut self, left: NodeId) {
-        let Some(class_prototype) = access_expression_of(self.source, left) else {
-            return;
-        };
-        let Some(constructor) = access_expression_of(self.source, class_prototype) else {
-            return;
-        };
-        self.bind_property_assignment(constructor, left, true, true);
-    }
-
     fn bind_this_property_assignment(&mut self, node: NodeId) {
         let has_private_identifier = match &self.source.arena.node(node).data {
             NodeData::BinaryExpression(data) => data.left.is_some_and(|left| {
@@ -1565,45 +1628,6 @@ impl<'a> BinderWorker<'a> {
         None
     }
 
-    fn bind_static_property_assignment(&mut self, node: NodeId) {
-        let Some(expression) = access_expression_of(self.source, node) else {
-            return;
-        };
-        self.bind_property_assignment(expression, node, false, false);
-    }
-
-    fn bind_property_assignment(
-        &mut self,
-        name: NodeId,
-        property_access: NodeId,
-        is_prototype_property: bool,
-        container_is_class: bool,
-    ) {
-        let mut namespace_symbol = self
-            .block_scope_container
-            .and_then(|container| self.lookup_symbol_for_property_access_in(name, container))
-            .or_else(|| {
-                self.container.and_then(|container| {
-                    self.lookup_symbol_for_property_access_in(name, container)
-                })
-            });
-        let Some(entity_name) = access_expression_of(self.source, property_access) else {
-            return;
-        };
-        namespace_symbol = self.bind_potentially_missing_namespaces(
-            namespace_symbol,
-            entity_name,
-            self.is_top_level_namespace_assignment(property_access),
-            is_prototype_property,
-            container_is_class,
-        );
-        self.bind_potentially_new_expando_member(
-            property_access,
-            namespace_symbol,
-            is_prototype_property,
-        );
-    }
-
     fn bind_potentially_missing_namespaces(
         &mut self,
         mut namespace_symbol: Option<SymbolId>,
@@ -1634,194 +1658,6 @@ impl<'a> BinderWorker<'a> {
         namespace_symbol
     }
 
-    fn bind_potentially_new_expando_member(
-        &mut self,
-        declaration: NodeId,
-        namespace_symbol: Option<SymbolId>,
-        is_prototype_property: bool,
-    ) {
-        let Some(namespace_symbol) = namespace_symbol else {
-            return;
-        };
-        if !self.is_expando_symbol(namespace_symbol) {
-            return;
-        }
-        let table = if is_prototype_property {
-            TableRef::Members(namespace_symbol)
-        } else {
-            TableRef::Exports(namespace_symbol)
-        };
-        // tsgo bindDeferredExpandoAssignment (TypeScript 7.1): an expando
-        // is declared only when no non-expando declaration has that name
-        // (the synthetic `prototype` of a class, a static member, a
-        // namespace export).
-        if let Some(name) = self.get_declaration_name(declaration) {
-            let existing = match table {
-                TableRef::Members(symbol) => self.symbols.symbol(symbol).members().get(name),
-                TableRef::Exports(symbol) => self.symbols.symbol(symbol).exports().get(name),
-                _ => None,
-            };
-            if existing.is_some_and(|&existing| {
-                !self
-                    .symbols
-                    .symbol(existing)
-                    .flags
-                    .intersects(SymbolFlags::ASSIGNMENT)
-            }) {
-                return;
-            }
-        }
-        let (includes, excludes) = self.expando_member_flags(declaration);
-        self.declare_symbol(
-            table,
-            Some(namespace_symbol),
-            declaration,
-            includes | SymbolFlags::ASSIGNMENT,
-            SymbolFlags::from_bits(excludes.bits() & !SymbolFlags::ASSIGNMENT.bits()),
-            false,
-            false,
-        );
-    }
-
-    fn expando_member_flags(&self, declaration: NodeId) -> (SymbolFlags, SymbolFlags) {
-        if self
-            .assigned_expando_initializer(declaration)
-            .is_some_and(|initializer| is_function_like_kind(kind_of(self.source, initializer)))
-        {
-            return (SymbolFlags::METHOD, SymbolFlags::METHOD_EXCLUDES);
-        }
-        if is_bindable_object_define_property_call(self.source, declaration) {
-            let mut includes = SymbolFlags::NONE;
-            let mut excludes = SymbolFlags::NONE;
-            if let Some(descriptor) = self.object_define_descriptor(declaration) {
-                let (has_get, has_set) = self.descriptor_accessors(descriptor);
-                if has_set {
-                    includes |= SymbolFlags::SET_ACCESSOR | SymbolFlags::PROPERTY;
-                    excludes |= SymbolFlags::SET_ACCESSOR_EXCLUDES;
-                }
-                if has_get {
-                    includes |= SymbolFlags::GET_ACCESSOR | SymbolFlags::PROPERTY;
-                    excludes |= SymbolFlags::GET_ACCESSOR_EXCLUDES;
-                }
-            }
-            if includes != SymbolFlags::NONE {
-                return (includes, excludes);
-            }
-        }
-        (SymbolFlags::PROPERTY, SymbolFlags::PROPERTY_EXCLUDES)
-    }
-
-    fn assigned_expando_initializer(&self, declaration: NodeId) -> Option<NodeId> {
-        match &self.source.arena.node(declaration).data {
-            NodeData::BinaryExpression(data) => {
-                get_assigned_expando_initializer(self.source, data.left?)
-            }
-            _ => get_assigned_expando_initializer(self.source, declaration),
-        }
-    }
-
-    fn object_define_descriptor(&self, call: NodeId) -> Option<NodeId> {
-        let NodeData::CallExpression(data) = &self.source.arena.node(call).data else {
-            return None;
-        };
-        let arguments = data.arguments?;
-        self.source
-            .arena
-            .node_array(arguments)
-            .nodes
-            .get(2)
-            .copied()
-    }
-
-    fn descriptor_accessors(&self, descriptor: NodeId) -> (bool, bool) {
-        let NodeData::ObjectLiteralExpression(data) = &self.source.arena.node(descriptor).data
-        else {
-            return (false, false);
-        };
-        let Some(properties) = data.properties else {
-            return (false, false);
-        };
-        let mut has_get = false;
-        let mut has_set = false;
-        for &property in self.source.arena.node_array(properties).nodes {
-            let name = name_field_of(self.source, property);
-            has_get |= name.is_some_and(|name| id_text(self.source, name) == Some("get"));
-            has_set |= name.is_some_and(|name| id_text(self.source, name) == Some("set"));
-        }
-        (has_get, has_set)
-    }
-
-    fn is_expando_symbol(&self, symbol: SymbolId) -> bool {
-        let flags = self.symbols.symbol(symbol).flags;
-        if flags
-            .intersects(SymbolFlags::FUNCTION | SymbolFlags::CLASS | SymbolFlags::NAMESPACE_MODULE)
-        {
-            return true;
-        }
-        let Some(declaration) = self.symbols.symbol(symbol).value_declaration else {
-            return false;
-        };
-        if kind_of(self.source, declaration) == SyntaxKind::CallExpression {
-            return self.assigned_expando_initializer(declaration).is_some();
-        }
-        let initializer = match &self.source.arena.node(declaration).data {
-            NodeData::VariableDeclaration(data) => data.initializer,
-            NodeData::BinaryExpression(data) => data.right,
-            NodeData::PropertyAccessExpression(_) | NodeData::ElementAccessExpression(_) => {
-                parent_of(self.source, declaration).and_then(|parent| {
-                    match &self.source.arena.node(parent).data {
-                        NodeData::BinaryExpression(data) => data.right,
-                        _ => None,
-                    }
-                })
-            }
-            _ => None,
-        };
-        let Some(initializer) = initializer else {
-            return false;
-        };
-        let initializer = get_right_most_assigned_expression(self.source, initializer);
-        let assignment_name = match &self.source.arena.node(declaration).data {
-            NodeData::VariableDeclaration(data) => data.name,
-            NodeData::BinaryExpression(data) => data.left,
-            NodeData::PropertyAccessExpression(_) | NodeData::ElementAccessExpression(_) => {
-                Some(declaration)
-            }
-            _ => None,
-        };
-        let is_prototype_assignment =
-            assignment_name.is_some_and(|name| is_prototype_access(self.source, name));
-        let initializer = match &self.source.arena.node(initializer).data {
-            NodeData::BinaryExpression(data)
-                if data.operator_token.is_some_and(|token| {
-                    matches!(
-                        kind_of(self.source, token),
-                        SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken
-                    )
-                }) =>
-            {
-                data.right.unwrap_or(initializer)
-            }
-            _ => initializer,
-        };
-        get_expando_initializer(self.source, initializer, is_prototype_assignment).is_some()
-    }
-
-    fn bind_object_define_property_assignment(&mut self, node: NodeId) {
-        let Some(target) = self.object_define_target(node) else {
-            return;
-        };
-        let mut namespace = self.lookup_symbol_for_property_access(target);
-        namespace = self.bind_potentially_missing_namespaces(
-            namespace,
-            target,
-            self.is_top_level_namespace_assignment(node),
-            false,
-            false,
-        );
-        self.bind_potentially_new_expando_member(node, namespace, false);
-    }
-
     fn bind_object_define_property_export(&mut self, node: NodeId) {
         if !self.set_common_js_module_indicator(node) {
             return;
@@ -1841,22 +1677,6 @@ impl<'a> BinderWorker<'a> {
             false,
             false,
         );
-    }
-
-    fn bind_object_define_prototype_property(&mut self, node: NodeId) {
-        let Some(target) = self.object_define_target(node) else {
-            return;
-        };
-        let Some(constructor) = access_expression_of(self.source, target) else {
-            return;
-        };
-        let namespace = self.lookup_symbol_for_property_access(constructor);
-        if let Some(symbol) = namespace {
-            if let Some(value_declaration) = self.symbols.symbol(symbol).value_declaration {
-                self.add_declaration_to_symbol(symbol, value_declaration, SymbolFlags::CLASS);
-            }
-        }
-        self.bind_potentially_new_expando_member(node, namespace, true);
     }
 
     fn object_define_target(&self, node: NodeId) -> Option<NodeId> {
@@ -2064,13 +1884,6 @@ impl<'a> BinderWorker<'a> {
             .is_some_and(|parent| kind_of(self.source, parent) == SyntaxKind::SourceFile)
     }
 
-    fn leftmost_access_expression(&self, mut node: NodeId) -> NodeId {
-        while let Some(expression) = access_expression_of(self.source, node) {
-            node = expression;
-        }
-        node
-    }
-
     fn is_aliasable_expression(&self, node: NodeId) -> bool {
         is_entity_name_expression(self.source, node)
             || kind_of(self.source, node) == SyntaxKind::ClassExpression
@@ -2167,31 +1980,6 @@ impl<'a> BinderWorker<'a> {
                     .or_else(|| self.lookup_symbol_for_name(self.source.root, name))
             }
             NodeData::PropertyAccessExpression(_) | NodeData::ElementAccessExpression(_) => {
-                let parent = self
-                    .lookup_symbol_for_property_access(access_expression_of(self.source, node)?)?;
-                let name = get_element_or_property_access_name(self.source, node)?;
-                self.symbols.symbol(parent).exports().get(name).copied()
-            }
-            _ => None,
-        }
-    }
-
-    /// tsc-port: lookupSymbolForPropertyAccess @6.0.3
-    /// tsc-hash: 8b98a232ba4f6f8a57a27b1af0f59eff73024239686bc4fe8c3abc2ac4efd3c6
-    /// tsc-span: _tsc.js:44948-44954
-    fn lookup_symbol_for_property_access_in(
-        &self,
-        node: NodeId,
-        container: NodeId,
-    ) -> Option<SymbolId> {
-        match &self.source.arena.node(node).data {
-            NodeData::Identifier(data) => {
-                let name = data.escaped_text;
-                self.lookup_symbol_for_name(container, name)
-            }
-            NodeData::PropertyAccessExpression(_) | NodeData::ElementAccessExpression(_) => {
-                // Upstream omits the explicit container on recursive prefix
-                // lookup; retain the established default-scope projection.
                 let parent = self
                     .lookup_symbol_for_property_access(access_expression_of(self.source, node)?)?;
                 let name = get_element_or_property_access_name(self.source, node)?;
@@ -2806,20 +2594,11 @@ impl<'a> BinderWorker<'a> {
         self.bind_each(comment);
     }
 
-    /// tsc-port: bindJSDocClassTag @6.0.3
-    /// tsc-hash: f359647efc406bad6897db5d5e378d2ec520d62db51c45f7a5a9909bba796885
-    /// tsc-span: _tsc.js:43729-43735
+    /// A JSDoc `@class` / `@constructor` tag binds its children only: tsgo
+    /// (TypeScript 7.1) has no constructor functions, so the tag no longer
+    /// makes its host function a class (tsc 6.0 bindJSDocClassTag).
     fn bind_jsdoc_class_tag(&mut self, node: NodeId) {
         self.bind_each_child(node);
-        let Some(host) = get_host_signature_from_jsdoc(self.source, node) else {
-            return;
-        };
-        if kind_of(self.source, host) == SyntaxKind::MethodDeclaration {
-            return;
-        }
-        if let Some(&symbol) = self.node_symbol.get(&host) {
-            self.add_declaration_to_symbol(symbol, host, SymbolFlags::CLASS);
-        }
     }
 
     /// tsc-port: bindJSDocImportTag @6.0.3
@@ -2970,8 +2749,6 @@ impl<'a> BinderWorker<'a> {
                             .then_some(self.source.root)
                         }
                         AssignmentDeclarationKind::ThisProperty => access_expression,
-                        AssignmentDeclarationKind::PrototypeProperty => access_expression
-                            .and_then(|expression| name_field_of(self.source, expression)),
                         AssignmentDeclarationKind::Property => {
                             access_expression.map(|expression| {
                                 if self.is_exports_or_module_exports_or_alias(expression) {

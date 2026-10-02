@@ -264,6 +264,19 @@ impl<'a> CheckerState<'a> {
         for node in reflect_collisions {
             self.check_reflect_collision(node);
         }
+        // tsgo produceDeferredDiagnostics (TypeScript 7.1): the missing-property
+        // reports deferred while checking the file.
+        let deferred = std::mem::take(&mut self.deferred_nonexistent_properties);
+        for (prop_node, containing_type, is_unchecked_js) in deferred {
+            if let Err(err) =
+                self.report_nonexistent_property(prop_node, containing_type, is_unchecked_js)
+            {
+                self.mark_oracle_crash_range(prop_node, err);
+            }
+        }
+        // Reports queued while producing these (printing a type can check
+        // more expressions) are dropped, as tsgo resets its callback list.
+        self.deferred_nonexistent_properties.clear();
         // File-boundary unwind invariant: between files every
         // transient stack is EMPTY (not merely restored) and no
         // Resolving sentinel is open — the per-element guards bound
