@@ -507,4 +507,5 @@ importとdestructuringのarmをそれに合わせた。
 言及するときはharnessの`read_test_library`（`load_native_compiler_program`の内側から公開関数へ）でtest libraryの
 textもindexに入れ、native runnerと同じ`react18/react18.d.ts:478:9`を出すようにした。
 - conformance：15,228 configuration、lane A 13,467（変化なし）、full 12,750→12,807（+57）、text 114→83、category 22、mismatch 536→510、harness error 45、emit full 12,410。上がったのは61構成（overload失敗のcompiler／conformance case、`unusedImports*`／`unusedDestructuringParameters`、JSX children、tagged template、union signatureなど）：57がfull、4がtext。ratchet：0 regressions、26行追加・35行をtext→fullに上げた。local full runは今回から`--workers 2`（798 s）。
-- hosted：HOSTED_RECORD
+- hosted：PR #625（head `f07421dcf`、merge `1afe0317b`）、run 36953157844 — `plan` 27s、`rust` 7m20s、`conformance (TypeScript 7.1)` 17m2s、`gates` 12s。
+- perf（README corpora、`--noEmit`、3 rounds、nice 20、main `0985315a7`と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 126→129、zod 548→565、Playwright 371→371、TypeScript `src/compiler` 356→360、Next.js 828→818、Effect 545→557、VS Code 3,685→3,712（この回もtsgoを含め全体が朝の計測より遅く、machineの負荷差）。tsc-rs÷tsgoは0.58〜1.01で従来どおり、peak memoryは同等（MB main→本branch：287→286、1,298→1,299、742→759、292→292、1,331→1,330、1,039→1,035、5,484→5,479）。honoとzodのmedian差は同条件の5 rounds A/B（hono 本branch 118／main 120、zod 508／515）で本branchの方が速く、ノイズ。退行なし。
