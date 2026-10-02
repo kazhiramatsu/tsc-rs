@@ -1305,9 +1305,8 @@ fn comma_in_computed_property_name_reports_1171() {
 /// clause of an import type (tsgo at the vendored profile reports nothing
 /// for `typeof import("./m", { with: {} })`); the 2307 is the import-type
 /// resolution seam. The `assert` form's TS2880 is a parser diagnostic on
-/// the `assert` keyword in 7.1 (`parser.go` `parseImportType`), which
-/// tsc-rs still reports from the checker at tsc 6.0's position; that
-/// class moves with the P3-5 migration of the cutover packet.
+/// the `assert` keyword in 7.1 (`parser.go` `parseImportType`); tsc-rs
+/// reports it from the parser too since P3-5h (see the parser tests).
 #[test]
 fn import_type_with_form_reports_only_the_resolution_row() {
     assert_eq!(

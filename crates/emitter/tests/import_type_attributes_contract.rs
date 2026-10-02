@@ -93,6 +93,10 @@ impl Transformer for AttributeHooks {
 fn import_type_attributes_matches_typescript() {
     let artifact: serde_json::Value =
         serde_json::from_slice(include_bytes!("fixtures/import-type-attributes.json")).unwrap();
+    // The `assert` cases' node flags carry the aggregated parse-error bit
+    // (1048576): TypeScript 7.1 reports the `assert` form as a parse error at
+    // the keyword (P3-5h), so the import type and its attributes contain an
+    // error; the emit hooks and the printed text are unchanged.
     assert_eq!(artifact["typescript"], "6.0.3");
     assert_eq!(artifact["route"], "direct-factory-and-printer");
     assert_eq!(artifact["repetitions"], 2);

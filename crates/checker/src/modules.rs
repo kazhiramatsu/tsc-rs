@@ -9366,14 +9366,20 @@ impl<'a> CheckerState<'a> {
                 )?;
             }
         }
-        let valid_for_type_attributes = self.is_exclusively_type_only_import_or_export(declaration);
+        // tsgo checkImportAttributes (TypeScript 7.1): a type-only import or
+        // export, or an import type, gets only the resolution-mode override
+        // check; the module-kind, CommonJS and type-only grammar errors do
+        // not apply to it (tsc 6.0 reported TS2823/TS2856/TS2857 unless the
+        // attributes were a resolution-mode override).
+        let valid_for_type_attributes = self.is_exclusively_type_only_import_or_export(declaration)
+            || self.kind_of(declaration) == SyntaxKind::ImportType;
         let overridden = self.get_resolution_mode_override(node, valid_for_type_attributes)?;
         let (token, _) = match self.data_of(node) {
             NodeData::ImportAttributes(data) => (data.token, data.elements),
             _ => (SyntaxKind::WithKeyword, None),
         };
         let is_import_attributes = token == SyntaxKind::WithKeyword;
-        if valid_for_type_attributes && overridden {
+        if valid_for_type_attributes {
             return Ok(());
         }
         let module_kind = self.options.emit_module_kind();
@@ -9388,21 +9394,8 @@ impl<'a> CheckerState<'a> {
             self.grammar_error_on_node_js(node, message, &[]);
             return Ok(());
         }
-        if (102..=199).contains(&module_kind) && !is_import_attributes {
-            self.grammar_error_on_first_token(
-                node,
-                &diagnostics::Import_assertions_have_been_replaced_by_import_attributes_Use_with_instead_of_assert,
-                &[],
-            );
-            return Ok(());
-        }
-        if !is_import_attributes {
-            self.grammar_error_on_first_token(
-                node,
-                &diagnostics::Import_assertions_have_been_replaced_by_import_attributes_Use_with_instead_of_assert,
-                &[],
-            );
-        }
+        // The `assert` form's TS2880 is the parser's (TypeScript 7.1
+        // parseImportAttributes reports it at the keyword).
         // CommonJS-require row: an attribute on a statement whose
         // specifier EMITS as a require call. Takes priority over the
         // type-only and resolution-mode rows below (tsc order).

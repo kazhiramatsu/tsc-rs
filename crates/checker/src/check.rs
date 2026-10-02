@@ -3921,21 +3921,8 @@ impl<'a> CheckerState<'a> {
         let (argument, attributes) = (data.argument, data.attributes);
         self.check_source_element(argument);
         if let Some(attributes) = attributes {
-            // node.attributes.token: the parser threads the consumed
-            // with/assert keyword into ImportAttributesData (the
-            // source form is unrecoverable after the parse — review
-            // find, PR #5).
-            let token = match self.data_of(attributes) {
-                NodeData::ImportAttributes(data) => data.token,
-                _ => SyntaxKind::WithKeyword,
-            };
-            if token != SyntaxKind::WithKeyword {
-                self.grammar_error_on_first_token(
-                    attributes,
-                    &diagnostics::Import_assertions_have_been_replaced_by_import_attributes_Use_with_instead_of_assert,
-                    &[],
-                );
-            }
+            // The `assert` form's TS2880 is the parser's (TypeScript 7.1
+            // parseImportType reports it at the keyword).
             // getResolutionModeOverride (5.8d): import-type nodes are
             // TYPE context, so the resolution-mode grammar rows report
             // unconditionally (tsc checkImportType passes
