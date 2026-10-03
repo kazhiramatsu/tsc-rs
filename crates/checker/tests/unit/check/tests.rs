@@ -10136,3 +10136,20 @@ fn arrow_return_elaboration_suggests_async_like_tsgo() {
         )]
     );
 }
+
+#[test]
+fn deep_instantiations_name_the_circular_type_like_tsgo() {
+    // tsgo (checker.go:22502-22564): at the depth limit the types that
+    // recur on the instantiation stack are named, here one (TS5114) at the
+    // reference (limitDeepInstantiations.ts, tsc-19dadef8).
+    let rows = checked_diags(
+        "type Foo<T extends \"true\", B> = { \"true\": Foo<T, Foo<T, B>> }[T];\nlet f1: Foo<\"true\", {}>;\n",
+    );
+    assert!(
+        rows.iter().any(|row| row.0 == 5114
+            && row.1 == 74
+            && row.3 == "Instantiations of type 'Foo' appear infinitely circular."),
+        "{rows:?}"
+    );
+    assert!(!rows.iter().any(|row| row.0 == 2589), "{rows:?}");
+}

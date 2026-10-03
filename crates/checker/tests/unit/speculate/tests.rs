@@ -200,7 +200,7 @@ fn mutate_everything(state: &mut CheckerState) {
         .insert((0, FlowId::new(1)), vec![FlowId::new(2)]);
     state.exhaustive_switch_computing.insert(root);
     // B: counters / flags.
-    state.instantiation_depth += 5;
+    state.instantiation_stack.extend([string; 5]);
     state.inline_level += 2;
     state.in_variance_computation = true;
     state.variance_type_parameter = Some(string);
@@ -293,7 +293,7 @@ fn observe(state: &CheckerState) -> Observed {
         shared_flow: state.shared_flow.len(),
         reduce_label_overrides: state.reduce_label_overrides.len(),
         exhaustive_switch_computing: state.exhaustive_switch_computing.len(),
-        instantiation_depth: state.instantiation_depth,
+        instantiation_depth: state.instantiation_stack.len() as u32,
         inline_level: state.inline_level,
         in_variance_computation: state.in_variance_computation,
         variance_type_parameter: state.variance_type_parameter,

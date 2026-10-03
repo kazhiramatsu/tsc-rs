@@ -384,7 +384,7 @@ impl CheckerState<'_> {
             tsc_eager_iteration_capture_depth: self.tsc_eager_iteration_capture_depth,
             reduce_label_overrides: self.reduce_label_overrides.clone(),
             exhaustive_switch_computing: self.exhaustive_switch_computing.clone(),
-            instantiation_depth: self.instantiation_depth,
+            instantiation_depth: self.instantiation_stack.len() as u32,
             inline_level: self.inline_level,
             in_variance_computation: self.in_variance_computation,
             variance_type_parameter: self.variance_type_parameter,
@@ -512,7 +512,7 @@ impl CheckerState<'_> {
                     checkpoint.tsc_eager_iteration_capture_depth,
                 ),
                 (
-                    self.instantiation_depth as usize,
+                    self.instantiation_stack.len(),
                     checkpoint.instantiation_depth as usize,
                 ),
                 (self.inline_level as usize, checkpoint.inline_level as usize),
@@ -644,7 +644,8 @@ impl CheckerState<'_> {
             std::mem::take(&mut checkpoint.exhaustive_switch_computing);
 
         // B: counters / flags.
-        self.instantiation_depth = checkpoint.instantiation_depth;
+        self.instantiation_stack
+            .truncate(checkpoint.instantiation_depth as usize);
         self.inline_level = checkpoint.inline_level;
         self.in_variance_computation = checkpoint.in_variance_computation;
         self.variance_type_parameter = checkpoint.variance_type_parameter;
