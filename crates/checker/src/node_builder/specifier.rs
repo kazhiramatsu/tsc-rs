@@ -14,7 +14,7 @@ use tsc_emitter::{EmitModuleSpecifierHost, EmitResolutionMode, EmitResolverNode}
 use tsc_program::SourceFileId;
 use tsc_program::{package_json_own_entries, package_json_property, JsonValue as Value};
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
-use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget, SymbolFlags};
+use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget, SymbolFlags, TypeId};
 use tsc_types::{JsStr, JsString};
 
 use crate::state::{CheckResult, CheckerState};
@@ -148,6 +148,27 @@ pub(crate) struct ModuleSpecifiersWithCacheInfo {
     pub(crate) kind: Option<ModuleSpecifierKind>,
     pub(crate) module_specifiers: Vec<JsString>,
     pub(crate) computed_without_cache: bool,
+    /// tsgo ModuleSpecifiersResult.AmbientModuleSymbol: the ambient
+    /// module that named the specifier, whose import attributes an import
+    /// type writes.
+    pub(crate) ambient_module_symbol: Option<SymbolId>,
+}
+
+/// tsgo moduleSpecifierResult (nodebuilderimpl.go): a module's specifier
+/// and the import attributes type an import type writes with it.
+#[derive(Clone, Debug)]
+pub(crate) struct ModuleSpecifierResult {
+    pub(crate) specifier: JsString,
+    pub(crate) import_attributes_type: Option<TypeId>,
+}
+
+impl ModuleSpecifierResult {
+    fn bare(specifier: JsString) -> Self {
+        Self {
+            specifier,
+            import_attributes_type: None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -205,6 +226,11 @@ pub(crate) struct NodeModulePathParts {
 /// tsc-port: getSpecifierForModuleSymbol @6.0.3
 /// tsc-hash: cc081ccc9162d99c71cfb5013a0786210de8d66472567a9ee1d6eab90f686463
 /// tsc-span: _tsc.js:53060-53109
+///
+/// tsgo (nodebuilderimpl.go:1249-1335) also gives the import attributes
+/// type an import type writes, and names a module without a source file
+/// by its first string-literal declaration name: an ambient module with
+/// import attributes has a unique internal symbol name.
 pub(crate) fn get_specifier_for_module_symbol(
     state: &mut CheckerState<'_>,
     module_symbol: SymbolId,
@@ -213,9 +239,17 @@ pub(crate) fn get_specifier_for_module_symbol(
     enclosing_declaration: Option<NodeId>,
     bundled: bool,
     override_import_mode: Option<EmitResolutionMode>,
-) -> CheckResult<JsString> {
+) -> CheckResult<ModuleSpecifierResult> {
     let override_import_mode =
         override_import_mode.filter(|mode| *mode != EmitResolutionMode::None);
+    let original_module_specifier = enclosing_declaration
+        .filter(|&node| can_have_module_specifier(state, node))
+        .and_then(|node| try_get_module_specifier_from_declaration(state, node));
+    let original_import_attributes_type = match original_module_specifier {
+        Some(specifier) => state.import_attributes_type_for_module_specifier(specifier)?,
+        None => None,
+    };
+    let attributes_location = enclosing_declaration.or(enclosing_file);
     let mut source_file_declaration =
         state.get_declaration_of_kind(module_symbol, SyntaxKind::SourceFile);
     if source_file_declaration.is_none() {
@@ -241,27 +275,43 @@ pub(crate) fn get_specifier_for_module_symbol(
     if let Some(module_name) = source_file_declaration
         .and_then(|file| state.binder.source_of_node(file).module_name.as_ref())
     {
-        return Ok(module_name.clone());
+        return Ok(ModuleSpecifierResult::bare(module_name.clone()));
     }
 
-    if source_file_declaration.is_none() && ambient_symbol_name(state, module_symbol).is_some() {
-        return no_host_specifier_for_module_symbol(state, module_symbol);
+    if source_file_declaration.is_none() {
+        if let Some(specifier) = state.string_literal_module_declaration_name(module_symbol) {
+            let import_attributes_type =
+                Some(state.get_type_of_module_import_attributes(module_symbol)?);
+            let import_attributes_type = state.module_specifier_result_attributes(
+                module_symbol,
+                specifier.as_js(),
+                import_attributes_type,
+                original_import_attributes_type,
+                attributes_location,
+            )?;
+            return Ok(ModuleSpecifierResult {
+                specifier,
+                import_attributes_type,
+            });
+        }
+        if ambient_symbol_name(state, module_symbol).is_some() {
+            return no_host_specifier_for_module_symbol(state, module_symbol)
+                .map(ModuleSpecifierResult::bare);
+        }
     }
 
     let (Some(host), Some(enclosing_file)) = (host, enclosing_file) else {
         // Reuse disposition: the display slice is the decision authority for
         // this branch. Its method is module-private, so this dormant channel
         // transcribes the same predicate and path normalization explicitly.
-        return no_host_specifier_for_module_symbol(state, module_symbol);
+        return no_host_specifier_for_module_symbol(state, module_symbol)
+            .map(ModuleSpecifierResult::bare);
     };
 
     let importing_index = state.binder.file_index_of_node(enclosing_file);
     let importing_root = state.binder.source(importing_index).root;
     let importing_node = emit_resolver_node_for_file(state, importing_index, importing_root);
 
-    let original_module_specifier = enclosing_declaration
-        .filter(|&node| can_have_module_specifier(state, node))
-        .and_then(|node| try_get_module_specifier_from_declaration(state, node));
     let original_mode = original_module_specifier
         .and_then(|literal| module_specifier_index(state, importing_index, literal))
         .map(|index| host.get_mode_for_resolution_at_index(importing_node, index))
@@ -273,17 +323,27 @@ pub(crate) fn get_specifier_for_module_symbol(
 
     let context_path = canonical_host_path(&state.binder.source(importing_index).file_name, host);
     let cache_key = create_mode_aware_cache_key(&context_path, resolution_mode);
-    if let Some(specifier) = state
+    if let Some((specifier, import_attributes_type)) = state
         .links
         .symbol_cold()
         .specifier_cache
         .get(module_symbol)
         .as_ref()
         .and_then(|cache| cache.get(&cache_key))
-        .filter(|specifier| !specifier.is_empty())
+        .filter(|(specifier, _)| !specifier.is_empty())
         .cloned()
     {
-        return Ok(specifier);
+        let import_attributes_type = state.module_specifier_result_attributes(
+            module_symbol,
+            specifier.as_js(),
+            import_attributes_type,
+            original_import_attributes_type,
+            attributes_location,
+        )?;
+        return Ok(ModuleSpecifierResult {
+            specifier,
+            import_attributes_type,
+        });
     }
 
     let mut specifier_options = SpecifierCompilerOptions::new(state.options);
@@ -314,7 +374,7 @@ pub(crate) fn get_specifier_for_module_symbol(
     let module_options = ModuleSpecifierOptions {
         override_import_mode,
     };
-    let specifier = get_module_specifiers(
+    let specifiers = get_module_specifiers_with_cache_info(
         state,
         module_symbol,
         &specifier_options,
@@ -323,18 +383,35 @@ pub(crate) fn get_specifier_for_module_symbol(
         host,
         &user_preferences,
         &module_options,
-    )?
-    .into_iter()
-    .next()
-    .expect("a source-file module has at least one relative module specifier");
+        false,
+    )?;
+    let specifier = specifiers
+        .module_specifiers
+        .into_iter()
+        .next()
+        .expect("a source-file module has at least one relative module specifier");
+    let import_attributes_type = match specifiers.ambient_module_symbol {
+        Some(ambient_module) => Some(state.get_type_of_module_import_attributes(ambient_module)?),
+        None => None,
+    };
 
     state.links.set_symbol_specifier_cache_entry(
         state.speculation_depth,
         module_symbol,
         cache_key,
-        specifier.clone(),
+        (specifier.clone(), import_attributes_type),
     );
-    Ok(specifier)
+    let import_attributes_type = state.module_specifier_result_attributes(
+        module_symbol,
+        specifier.as_js(),
+        import_attributes_type,
+        original_import_attributes_type,
+        attributes_location,
+    )?;
+    Ok(ModuleSpecifierResult {
+        specifier,
+        import_attributes_type,
+    })
 }
 
 /// Reused-anchor disposition: this is the exact checker display decision
@@ -508,6 +585,8 @@ pub(crate) fn try_get_module_specifier_from_declaration(
     }
 }
 
+/// tsgo (nodebuilderimpl.go:1203-1210) also takes an import call's
+/// specifier.
 fn find_require_call_argument(
     state: &CheckerState<'_>,
     initializer: Option<NodeId>,
@@ -515,7 +594,7 @@ fn find_require_call_argument(
 ) -> Option<NodeId> {
     let mut current = initializer;
     while let Some(node) = current {
-        if state.is_require_call(node, true) {
+        if state.is_require_call(node, true) || state.is_import_call(node) {
             if let NodeData::CallExpression(data) = state.data_of(node) {
                 return state.nodes_of(data.arguments).first().copied();
             }
@@ -876,34 +955,6 @@ pub(crate) fn try_get_module_specifiers_from_cache_worker(
     }
 }
 
-/// tsc-port: getModuleSpecifiers @6.0.3
-/// tsc-hash: e5ecc2f7960d98bef2b0cb27402157333d2535845136f779b0aee130a3253f09
-/// tsc-span: _tsc.js:45447-45459
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn get_module_specifiers(
-    state: &mut CheckerState<'_>,
-    module_symbol: SymbolId,
-    compiler_options: &SpecifierCompilerOptions,
-    importing_file: NodeId,
-    importing_node: EmitResolverNode,
-    host: &dyn EmitModuleSpecifierHost,
-    user_preferences: &ModuleSpecifierUserPreferences,
-    options: &ModuleSpecifierOptions,
-) -> CheckResult<Vec<JsString>> {
-    Ok(get_module_specifiers_with_cache_info(
-        state,
-        module_symbol,
-        compiler_options,
-        importing_file,
-        importing_node,
-        host,
-        user_preferences,
-        options,
-        false,
-    )?
-    .module_specifiers)
-}
-
 /// tsc-port: getModuleSpecifiersWithCacheInfo @6.0.3
 /// tsc-hash: 35ef7120889a0b9161f440010f8c801ca4715f4f982e9e16317bf991c83e022c
 /// tsc-span: _tsc.js:45460-45492
@@ -919,8 +970,9 @@ pub(crate) fn get_module_specifiers_with_cache_info(
     options: &ModuleSpecifierOptions,
     for_auto_import: bool,
 ) -> CheckResult<ModuleSpecifiersWithCacheInfo> {
-    if let Some(ambient) = try_get_module_name_from_ambient_module(state, module_symbol)?
-        .filter(|name| !name.is_empty())
+    if let Some((ambient, ambient_module_symbol)) =
+        try_get_module_name_from_ambient_module(state, module_symbol)?
+            .filter(|(name, _)| !name.is_empty())
     {
         let module_specifiers = if for_auto_import
             && is_excluded_by_regex(
@@ -935,6 +987,7 @@ pub(crate) fn get_module_specifiers_with_cache_info(
             kind: Some(ModuleSpecifierKind::Ambient),
             module_specifiers,
             computed_without_cache: false,
+            ambient_module_symbol: Some(ambient_module_symbol),
         });
     }
 
@@ -944,6 +997,7 @@ pub(crate) fn get_module_specifiers_with_cache_info(
             kind: cache_probe.kind,
             module_specifiers: specifiers,
             computed_without_cache: false,
+            ambient_module_symbol: None,
         });
     }
     let Some(module_source_file) = cache_probe.module_source_file else {
@@ -951,6 +1005,7 @@ pub(crate) fn get_module_specifiers_with_cache_info(
             kind: None,
             module_specifiers: Vec::new(),
             computed_without_cache: false,
+            ambient_module_symbol: None,
         });
     };
 
@@ -1042,6 +1097,7 @@ pub(crate) fn compute_module_specifiers(
                     kind: None,
                     module_specifiers: vec![specifier],
                     computed_without_cache: true,
+                    ambient_module_symbol: None,
                 });
             }
         }
@@ -1138,6 +1194,7 @@ pub(crate) fn compute_module_specifiers(
                     kind: None,
                     module_specifiers: vec![specifier.to_owned()],
                     computed_without_cache: true,
+                    ambient_module_symbol: None,
                 });
             }
         }
@@ -1176,6 +1233,7 @@ pub(crate) fn compute_module_specifiers(
                     kind: Some(ModuleSpecifierKind::NodeModules),
                     module_specifiers: node_modules_specifiers,
                     computed_without_cache: true,
+                    ambient_module_symbol: None,
                 });
             }
         }
@@ -1227,6 +1285,7 @@ pub(crate) fn compute_module_specifiers(
         kind: Some(kind),
         module_specifiers,
         computed_without_cache: true,
+        ambient_module_symbol: None,
     })
 }
 
@@ -1755,7 +1814,7 @@ pub(crate) fn get_all_module_paths_worker<'path>(
 pub(crate) fn try_get_module_name_from_ambient_module(
     state: &mut CheckerState<'_>,
     module_symbol: SymbolId,
-) -> CheckResult<Option<JsString>> {
+) -> CheckResult<Option<(JsString, SymbolId)>> {
     let declarations = state.binder.symbol(module_symbol).declarations.clone();
     for declaration in &declarations {
         let source = state.binder.source_of_node(*declaration);
@@ -1770,7 +1829,7 @@ pub(crate) fn try_get_module_name_from_ambient_module(
         if !node_util::is_module_augmentation_external(source, *declaration)
             || !is_external_module_name_relative(&name)
         {
-            return Ok(Some(name));
+            return Ok(Some((name, module_symbol)));
         }
     }
 
@@ -1825,7 +1884,8 @@ pub(crate) fn try_get_module_name_from_ambient_module(
             export_symbol = state.resolve_alias(export_symbol)?;
         }
         if state.get_symbol_of_declaration_opt(declaration) == Some(export_symbol) {
-            return Ok(module_declaration_name_text(state, ambient_declaration));
+            return Ok(module_declaration_name_text(state, ambient_declaration)
+                .map(|name| (name, ambient_symbol)));
         }
     }
     Ok(None)

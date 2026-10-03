@@ -1312,6 +1312,9 @@ pub(crate) fn relocate_node_data(
             if let Some(id) = &mut data.name {
                 relocation.node(id)?;
             }
+            if let Some(id) = &mut data.attributes {
+                relocation.node(id)?;
+            }
             if let Some(id) = &mut data.modifiers {
                 relocation.node_array(id)?;
             }
@@ -3067,6 +3070,9 @@ pub(crate) fn collect_node_data_ids(
             if let Some(id) = data.name {
                 nodes.push(id);
             }
+            if let Some(id) = data.attributes {
+                nodes.push(id);
+            }
             if let Some(id) = data.modifiers {
                 arrays.push(id);
             }
@@ -4763,6 +4769,9 @@ where
         }
         NodeData::ModuleDeclaration(data) => {
             if let Some(id) = &mut data.name {
+                *id = node(*id);
+            }
+            if let Some(id) = &mut data.attributes {
                 *id = node(*id);
             }
             if let Some(id) = &mut data.modifiers {

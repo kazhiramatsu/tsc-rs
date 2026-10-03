@@ -368,6 +368,7 @@ fn create_module_declaration(
         target,
         NodeData::ModuleDeclaration(ModuleDeclarationData {
             name: Some(name.node()),
+            attributes: None,
             modifiers: None,
             body: Some(block.node()),
         }),

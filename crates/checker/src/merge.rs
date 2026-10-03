@@ -858,6 +858,13 @@ impl<'a> CheckerState<'a> {
             let exports = self.binder.symbol(symbol).exports().clone();
             self.merge_into_globals(&exports, false);
         }
+        // tsgo (checker.go:1385): pattern modules merge before the
+        // external-module augmentations resolve.
+        if let Err(err) = self.merge_pattern_ambient_modules() {
+            if std::env::var_os("TSRS_TRACE_CONTAIN").is_some() {
+                eprintln!("contained mergePatternAmbientModules: {err}");
+            }
+        }
         // Pass 2: external-module augmentations resolve + merge.
         for augmentation in module_augmentations {
             if let Err(err) = self.merge_one_module_augmentation(augmentation) {
@@ -867,6 +874,53 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
+    }
+
+    /// tsgo: mergePatternAmbientModules (checker.go:1408-1432). Pattern
+    /// modules with the same pattern and identical import attributes types
+    /// merge into one; globals follow the merged symbols.
+    fn merge_pattern_ambient_modules(&mut self) -> CheckResult<()> {
+        let modules = self.pattern_ambient_modules.clone();
+        let mut grouped: Vec<(tsc_types::JsString, tsc_types::JsString, SymbolId)> =
+            Vec::with_capacity(modules.len());
+        let mut groups_by_pattern = rustc_hash::FxHashMap::<
+            (tsc_types::JsString, tsc_types::JsString),
+            Vec<usize>,
+        >::default();
+        for (prefix, suffix, symbol) in &modules {
+            let attributes_type = self.get_type_of_module_import_attributes(*symbol)?;
+            let key = (prefix.clone(), suffix.clone());
+            let mut group_index = None;
+            for &index in groups_by_pattern.get(&key).map_or(&[][..], Vec::as_slice) {
+                let other = self.get_type_of_module_import_attributes(grouped[index].2)?;
+                if self.is_type_identical_to(attributes_type, other)? {
+                    group_index = Some(index);
+                    break;
+                }
+            }
+            match group_index {
+                Some(index) => {
+                    let target = grouped[index].2;
+                    grouped[index].2 = self.merge_symbol(target, *symbol, false);
+                }
+                None => {
+                    groups_by_pattern
+                        .entry(key)
+                        .or_default()
+                        .push(grouped.len());
+                    grouped.push((prefix.clone(), suffix.clone(), *symbol));
+                }
+            }
+        }
+        for (_, _, symbol) in &modules {
+            let name = self.binder.symbol(*symbol).escaped_name;
+            if self.globals.get(name).is_some() {
+                let merged = self.get_merged_symbol(*symbol);
+                std::sync::Arc::make_mut(&mut self.globals).insert(name, merged);
+            }
+        }
+        self.pattern_ambient_modules = grouped;
+        Ok(())
     }
 
     /// collectModuleReferences' ModuleDeclaration arm
@@ -1000,13 +1054,18 @@ impl<'a> CheckerState<'a> {
             let is_pattern = self
                 .pattern_ambient_modules
                 .iter()
-                .any(|(_, _, symbol)| *symbol == main_module);
+                .any(|(_, _, symbol)| self.get_merged_symbol(*symbol) == main_module);
             if is_pattern {
                 let merged = self.merge_symbol(
                     augmentation_symbol,
                     main_module,
                     /*unidirectional*/ true,
                 );
+                // tsgo (checker.go:1472-1473) also records the target, so
+                // only resolutions to that pattern module take the
+                // augmentation.
+                self.pattern_ambient_module_augmentation_targets
+                    .insert(name_text.clone(), main_module);
                 self.pattern_ambient_module_augmentations
                     .insert(name_text, merged);
             } else {

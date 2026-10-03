@@ -8,6 +8,8 @@ mod automatic_type_directive_session_contract;
 mod cli_contract;
 #[path = "integration/declaration_emit_resolver_members.rs"]
 mod declaration_emit_resolver_members;
+#[path = "integration/declaration_import_attributes.rs"]
+mod declaration_import_attributes;
 #[path = "integration/emit_session_contract.rs"]
 mod emit_session_contract;
 #[path = "integration/filesystem_loader_contract.rs"]

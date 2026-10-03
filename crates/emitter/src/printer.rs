@@ -12265,6 +12265,21 @@ impl Printer {
             expression_context.for_child(ExpressionSyntaxContext::NORMAL),
             writer,
         )?;
+        // tsgo (printer.go:3841-3846): an ambient module's import
+        // attributes type; only string-named modules carry one, so no
+        // nested name follows.
+        if let Some(attributes) = data.attributes {
+            writer.write_space(" ");
+            writer.write_keyword("with");
+            writer.write_space(" ");
+            self.emit_node_id_with_context(
+                transformation,
+                node.source(),
+                attributes,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
+        }
         let Some(mut body_id) = data.body else {
             writer.write_trailing_semicolon(";");
             return Ok(());

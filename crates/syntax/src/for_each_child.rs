@@ -1385,6 +1385,9 @@ where
             if let Some(result) = visit_optional_node(data.name, &mut cb) {
                 return Some(result);
             }
+            if let Some(result) = visit_optional_node(data.attributes, &mut cb) {
+                return Some(result);
+            }
             if let Some(result) = visit_optional_node(data.body, &mut cb) {
                 return Some(result);
             }
@@ -3738,6 +3741,7 @@ where
         NodeData::ModuleDeclaration(data) => {
             map_optional_nodes(&mut data.modifiers, visitor)?;
             map_optional_node(&mut data.name, visitor)?;
+            map_optional_node(&mut data.attributes, visitor)?;
             map_optional_node(&mut data.body, visitor)?;
             Ok(())
         }
@@ -4786,6 +4790,7 @@ pub fn child_slots<V: NodeDataChildVisitor>(data: &NodeData, visitor: &V) -> Chi
         NodeData::ModuleDeclaration(data) => {
             out.push(ChildSlot::of_nodes(data.modifiers));
             out.push(ChildSlot::of_node(data.name));
+            out.push(ChildSlot::of_node(data.attributes));
             out.push(ChildSlot::of_node(data.body));
         }
         NodeData::NamedExports(data) => {
@@ -5744,6 +5749,7 @@ where
         NodeData::ModuleDeclaration(data) => {
             data.modifiers = next().nodes();
             data.name = next().node();
+            data.attributes = next().node();
             data.body = next().node();
             Ok(())
         }

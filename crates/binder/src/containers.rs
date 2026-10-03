@@ -728,6 +728,10 @@ impl<'a> BinderWorker<'a> {
                     NodeData::ModuleDeclaration(data) => data.name,
                     _ => None,
                 };
+                let attributes = match &self.source.arena.node(node).data {
+                    NodeData::ModuleDeclaration(data) => data.attributes,
+                    _ => None,
+                };
                 let mut pattern: Option<ParsedPattern> = None;
                 if let Some(name) = name {
                     if let NodeData::StringLiteral(data) = &self.source.arena.node(name).data {
@@ -739,6 +743,17 @@ impl<'a> BinderWorker<'a> {
                                 &diagnostics::Pattern_0_can_have_at_most_one_character,
                                 &[&text],
                             );
+                        } else if attributes.is_some()
+                            && matches!(pattern, Some(ParsedPattern::Whole(_)))
+                        {
+                            // tsgo (binder.go:796-798): import attributes
+                            // select among pattern modules only.
+                            let diagnostic = self.diagnostic_for_node(
+                                name,
+                                &diagnostics::An_ambient_module_declaration_with_import_attributes_must_use_a_pattern_name_with_an_character,
+                                &[],
+                            );
+                            self.bind_diagnostics.push(diagnostic);
                         }
                     }
                 }

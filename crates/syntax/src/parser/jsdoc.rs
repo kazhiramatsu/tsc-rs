@@ -1560,6 +1560,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                 NodeData::ModuleDeclaration(ModuleDeclarationData {
                     modifiers: None,
                     name: Some(name),
+                    attributes: None,
                     body,
                 }),
                 start,

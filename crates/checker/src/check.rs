@@ -7497,12 +7497,13 @@ impl<'a> CheckerState<'a> {
                 Some(enclosing) => self.specifier_for_module_symbol_at(root, enclosing)?,
                 None => self.specifier_for_module_symbol_display(root)?,
             };
+            let attributes = self.import_attributes_display_suffix(root, &specifier, enclosing)?;
             let literal = string_literal_name(&specifier, false)?;
             let type_of = if is_type_of { "typeof " } else { "" };
             self.display_add_approximate_length(Self::slice_js_length(&specifier) + 10);
             if chain.len() == 1 {
                 return Ok((
-                    crate::concat_js(&[&(type_of), &"import(", &(literal), &")"]),
+                    crate::concat_js(&[&(type_of), &"import(", &(literal), &(attributes), &")"]),
                     SliceTypeNodeKind::ImportType,
                 ));
             }
@@ -7518,6 +7519,7 @@ impl<'a> CheckerState<'a> {
                     &(type_of),
                     &"import(",
                     &(literal),
+                    &(attributes),
                     &").",
                     &(crate::join_js_texts(&qualifier, ".")),
                 ]),
@@ -7567,11 +7569,12 @@ impl<'a> CheckerState<'a> {
             // ImportTypeNode, with isTypeOf exactly under Value
             // meaning.
             let specifier = self.specifier_for_module_symbol_display(symbol)?;
+            let attributes = self.import_attributes_display_suffix(symbol, &specifier, None)?;
             let literal = string_literal_name(&specifier, false)?;
             let type_of = if is_type_of { "typeof " } else { "" };
             self.display_add_approximate_length(Self::slice_js_length(&specifier) + 10);
             return Ok((
-                crate::concat_js(&[&(type_of), &"import(", &(literal), &")"]),
+                crate::concat_js(&[&(type_of), &"import(", &(literal), &(attributes), &")"]),
                 SliceTypeNodeKind::ImportType,
             ));
         }
@@ -7597,6 +7600,7 @@ impl<'a> CheckerState<'a> {
             let root = chain[0];
             if self.symbol_has_external_module_declaration(root) {
                 let specifier = self.specifier_for_module_symbol_display(root)?;
+                let attributes = self.import_attributes_display_suffix(root, &specifier, None)?;
                 let literal = string_literal_name(&specifier, false)?;
                 let type_of = if is_type_of { "typeof " } else { "" };
                 self.display_add_approximate_length(Self::slice_js_length(&specifier) + 10);
@@ -7604,7 +7608,13 @@ impl<'a> CheckerState<'a> {
                 // leaves a length-1 chain — the bare ImportTypeNode.
                 if chain.len() == 1 {
                     return Ok((
-                        crate::concat_js(&[&(type_of), &"import(", &(literal), &")"]),
+                        crate::concat_js(&[
+                            &(type_of),
+                            &"import(",
+                            &(literal),
+                            &(attributes),
+                            &")",
+                        ]),
                         SliceTypeNodeKind::ImportType,
                     ));
                 }
@@ -7621,7 +7631,14 @@ impl<'a> CheckerState<'a> {
                 }
                 let qualifier = crate::join_js_texts(&qualifier, ".");
                 return Ok((
-                    crate::concat_js(&[&(type_of), &"import(", &(literal), &").", &(qualifier)]),
+                    crate::concat_js(&[
+                        &(type_of),
+                        &"import(",
+                        &(literal),
+                        &(attributes),
+                        &").",
+                        &(qualifier),
+                    ]),
                     SliceTypeNodeKind::ImportType,
                 ));
             }
@@ -8762,6 +8779,19 @@ impl<'a> CheckerState<'a> {
     /// getFullyQualifiedName's source-file arm.
     fn specifier_for_module_symbol_display(&self, symbol: SymbolId) -> CheckResult<JsString> {
         let data = self.binder.symbol(symbol);
+        // tsgo (nodebuilderimpl.go:1269-1276) names a module without a
+        // source file by its first string-literal declaration name: an
+        // ambient module with import attributes has a unique internal
+        // symbol name.
+        if !data
+            .declarations
+            .iter()
+            .any(|&declaration| self.kind_of(declaration) == SyntaxKind::SourceFile)
+        {
+            if let Some(name) = self.string_literal_module_declaration_name(symbol) {
+                return Ok(name);
+            }
+        }
         let escaped = data.escaped_name.as_js();
         // ambientModuleSymbolRegex (46291): /^".+"$/.
         if let Some(name) = escaped
@@ -8802,6 +8832,78 @@ impl<'a> CheckerState<'a> {
             &self.binder.source_of_node(declaration).file_name,
             &self.host_current_directory,
         ))
+    }
+
+    /// tsgo: getSpecifierForModuleSymbol's import attributes and
+    /// createImportAttributesForModuleSpecifier (nodebuilderimpl.go:
+    /// 1249-1290, 1336-1398) for the display slice. An import type of an
+    /// ambient module writes `, { with: { name: "value" } }` after the
+    /// specifier: the attributes of the enclosing declaration's import
+    /// when the specifier resolves to the module with them, else the
+    /// module's own. A source-file module writes none without an
+    /// enclosing declaration.
+    fn import_attributes_display_suffix(
+        &mut self,
+        symbol: SymbolId,
+        specifier: &JsString,
+        enclosing: Option<NodeId>,
+    ) -> CheckResult<JsString> {
+        let source_file_module = self
+            .binder
+            .symbol(symbol)
+            .declarations
+            .iter()
+            .any(|&declaration| self.kind_of(declaration) == SyntaxKind::SourceFile);
+        let import_attributes_type = if source_file_module {
+            None
+        } else if self
+            .string_literal_module_declaration_name(symbol)
+            .is_some()
+        {
+            Some(self.get_type_of_module_import_attributes(symbol)?)
+        } else {
+            return Ok(JsString::new());
+        };
+        let original_module_specifier = enclosing
+            .filter(|&node| crate::node_builder::specifier::can_have_module_specifier(self, node))
+            .and_then(|node| {
+                crate::node_builder::specifier::try_get_module_specifier_from_declaration(
+                    self, node,
+                )
+            });
+        let original_import_attributes_type = match original_module_specifier {
+            Some(specifier) => self.import_attributes_type_for_module_specifier(specifier)?,
+            None => None,
+        };
+        let import_attributes_type = self.module_specifier_result_attributes(
+            symbol,
+            specifier.as_js(),
+            import_attributes_type,
+            original_import_attributes_type,
+            enclosing,
+        )?;
+        let entries = self.import_attribute_entries(import_attributes_type)?;
+        if entries.is_empty() {
+            return Ok(JsString::new());
+        }
+        let mut attributes = Vec::with_capacity(entries.len());
+        for (name, value) in &entries {
+            let name_text: JsString = if name.as_str().is_some_and(tsc_syntax::is_identifier_text) {
+                name.clone()
+            } else {
+                self.display_add_approximate_length(2);
+                string_literal_name(name, false)?.into()
+            };
+            let value_text = string_literal_name_text(value, false)?;
+            self.display_add_approximate_length(Self::slice_js_length(name) + value.len() + 4);
+            attributes.push(crate::concat_js(&[&(name_text), &": ", &(value_text)]));
+        }
+        self.display_add_approximate_length(16 + 2 * (attributes.len() - 1));
+        Ok(crate::concat_js(&[
+            &", { with: { ",
+            &(crate::join_js_texts(&attributes, ", ")),
+            &" } }",
+        ]))
     }
 
     /// getSpecifierForModuleSymbol with an enclosing file: source-file

@@ -3714,3 +3714,167 @@ fn legacy_module_call_import_equals_reports_node_global_hint() {
     );
     assert!(rows.iter().any(|row| row.1 == 2591 && row.2 == 14));
 }
+
+/// The globals that dynamic imports and import attributes read.
+const IMPORT_ATTRIBUTES_LIB: &str = "interface Array<T> { length: number; [n: number]: T; }\n\
+     interface Boolean {}\n\
+     interface CallableFunction {}\n\
+     interface Function {}\n\
+     interface IArguments {}\n\
+     interface NewableFunction {}\n\
+     interface Number {}\n\
+     interface Object {}\n\
+     interface RegExp {}\n\
+     interface String {}\n\
+     interface Promise<T> {}\n\
+     interface ImportAttributes { [key: string]: string; }\n\
+     interface ImportCallOptions { with?: ImportAttributes; }\n\
+     interface PromiseConstructor {}\n\
+     declare var Promise: PromiseConstructor;\n";
+
+/// Error rows (file, code, start, head message) in position order, under
+/// `--module preserve --moduleResolution bundler --strict`.
+fn import_attribute_rows(files: &[(&str, &str)]) -> Vec<(String, u32, u32, String)> {
+    let libs = [InputFile::new(
+        "/lib.d.ts".to_owned(),
+        IMPORT_ATTRIBUTES_LIB.to_owned(),
+    )];
+    let inputs: Vec<InputFile> = files
+        .iter()
+        .map(|(name, text)| InputFile::new((*name).to_owned(), (*text).to_owned()))
+        .collect();
+    let options = CompilerOptions {
+        strict: Some(true),
+        target: Some(7),
+        module: Some(200),
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+    let result = check_program_with_libs_at(&libs, &inputs, &options, "/");
+    let mut rows: Vec<_> = result
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| {
+            diagnostic.file_name.is_some() && diagnostic.category() == DiagnosticCategory::Error
+        })
+        .map(|diagnostic| {
+            (
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .and_then(|name| name.as_str())
+                    .expect("scalar filename observation")
+                    .to_owned(),
+                diagnostic.code(),
+                diagnostic.start.unwrap_or(u32::MAX),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation")
+                    .to_owned(),
+            )
+        })
+        .collect();
+    rows.sort_by(|left, right| (&left.0, left.2, left.1).cmp(&(&right.0, right.2, right.1)));
+    rows
+}
+
+/// The offset of a 1-based line and column in ASCII text.
+fn offset_at(text: &str, line: usize, column: usize) -> u32 {
+    let start: usize = text
+        .split_inclusive('\n')
+        .take(line - 1)
+        .map(str::len)
+        .sum();
+    (start + column - 1) as u32
+}
+
+#[test]
+fn import_attributes_select_among_pattern_ambient_modules_like_tsgo() {
+    // tsgo 7.1: an import's attributes select the pattern module whose
+    // attributes type accepts them, and the module's type names it with
+    // its attributes. An attributes type sees the scope around the module
+    // (`Kind` is the outer alias), and the `with` object written in an
+    // import call keeps its literal types; one read from a variable does
+    // not, so it selects the module without attributes.
+    let types = "type Kind = \"text\";\n\
+                 declare module \"*.style\" with { type: \"css\" } { export const css: \"css\"; }\n\
+                 declare module \"*.style\" with { type: Kind } {\n\
+                 \x20   type Kind = \"css\";\n\
+                 \x20   export const text: \"text\";\n\
+                 }\n\
+                 declare module \"*.style\" { export const plain: \"plain\"; }\n";
+    let index = "import * as css from \"a.style\" with { type: \"css\" };\n\
+                 import * as text from \"a.style\" with { type: \"text\" };\n\
+                 import * as plain from \"a.style\";\n\
+                 css.text;\n\
+                 text.css;\n\
+                 plain.css;\n\
+                 const options = { with: { type: \"text\" } };\n\
+                 const inline: number = import(\"b.style\", { with: { type: \"text\" } });\n\
+                 const widened: number = import(\"c.style\", options);\n";
+    let row = |file: &str, text: &str, code, line, column, message: &str| {
+        (
+            file.to_owned(),
+            code,
+            offset_at(text, line, column),
+            message.to_owned(),
+        )
+    };
+    assert_eq!(
+        import_attribute_rows(&[("/types.d.ts", types), ("/index.ts", index)]),
+        [
+            row("/index.ts", index, 2339, 4, 5, "Property 'text' does not exist on type 'typeof import(\"*.style\", { with: { type: \"css\" } })'."),
+            row("/index.ts", index, 2339, 5, 6, "Property 'css' does not exist on type 'typeof import(\"*.style\", { with: { type: \"text\" } })'."),
+            row("/index.ts", index, 2339, 6, 7, "Property 'css' does not exist on type 'typeof import(\"*.style\")'."),
+            row("/index.ts", index, 2322, 8, 7, "Type 'Promise<{ text: \"text\"; default: typeof import(\"*.style\", { with: { type: \"text\" } }); }>' is not assignable to type 'number'."),
+            row("/index.ts", index, 2322, 9, 7, "Type 'Promise<{ plain: \"plain\"; default: typeof import(\"*.style\"); }>' is not assignable to type 'number'."),
+            row("/types.d.ts", types, 1555, 3, 39, "An import attributes property must have a string literal type annotation."),
+        ]
+    );
+}
+
+#[test]
+fn import_attributes_types_report_their_grammar_rows_like_tsgo() {
+    // tsgo 7.1: only a pattern ambient module takes import attributes, an
+    // augmentation takes none, and the attributes type holds required,
+    // writable properties with string literal types; it must also satisfy
+    // the global ImportAttributes.
+    let types = "declare module \"plain\" with { type: \"css\" } {}\n\
+                 declare module \"*.a\" with { readonly type: \"css\" } {}\n\
+                 declare module \"*.b\" with { type?: \"css\" } {}\n\
+                 declare module \"*.c\" with { type: string } {}\n\
+                 declare module \"*.d\" with { \"resolution-mode\": \"import\" } {}\n\
+                 declare module \"*.e\" with { type(): void } {}\n\
+                 declare module \"*.f\" with { type: 1 } {}\n";
+    let augmentation = "export {};\n\
+                        declare module \"./x\" with { type: \"css\" } {\n\
+                        \x20   export const y: number;\n\
+                        }\n";
+    let rows: Vec<_> = import_attribute_rows(&[
+        ("/types.d.ts", types),
+        ("/aug.ts", augmentation),
+        ("/x.ts", "export const x = 1;\n"),
+    ])
+    .into_iter()
+    .map(|(file, code, start, _)| (file, code, start))
+    .collect();
+    let row = |file: &str, text: &str, code, line, column| {
+        (file.to_owned(), code, offset_at(text, line, column))
+    };
+    assert_eq!(
+        rows,
+        [
+            row("/aug.ts", augmentation, 1551, 2, 27),
+            row("/types.d.ts", types, 1550, 1, 16),
+            row("/types.d.ts", types, 1558, 2, 29),
+            row("/types.d.ts", types, 1556, 3, 29),
+            row("/types.d.ts", types, 1555, 4, 35),
+            row("/types.d.ts", types, 1557, 5, 29),
+            row("/types.d.ts", types, 2322, 6, 27),
+            row("/types.d.ts", types, 1552, 6, 29),
+            row("/types.d.ts", types, 2322, 7, 27),
+            row("/types.d.ts", types, 1555, 7, 35),
+        ]
+    );
+}

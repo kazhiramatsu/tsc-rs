@@ -906,6 +906,13 @@ pub struct CheckerState<'a> {
     /// tsc patternAmbientModuleAugmentations (mergeModuleAugmentation
     /// 47865): augmentation name → the unidirectionally-merged symbol.
     pub pattern_ambient_module_augmentations: rustc_hash::FxHashMap<tsc_types::JsString, SymbolId>,
+    /// tsgo patternAmbientModuleAugmentationTargets (checker.go:773):
+    /// augmentation name → the merged pattern module it augments.
+    pub pattern_ambient_module_augmentation_targets:
+        rustc_hash::FxHashMap<tsc_types::JsString, SymbolId>,
+    /// tsgo moduleImportAttributesTypes: a module symbol's import
+    /// attributes type (getTypeOfModuleImportAttributes).
+    pub(crate) module_import_attributes_types: rustc_hash::FxHashMap<SymbolId, TypeId>,
     /// Module augmentations whose targets sat in the resolver's
     /// Suppressed band (node_modules/baseUrl machinery). Receiver
     /// provenance plus the augmentation container's own resolved
@@ -1568,6 +1575,8 @@ impl<'a> CheckerState<'a> {
             error_types: rustc_hash::FxHashMap::default(),
             pattern_ambient_modules: Vec::new(),
             pattern_ambient_module_augmentations: rustc_hash::FxHashMap::default(),
+            pattern_ambient_module_augmentation_targets: rustc_hash::FxHashMap::default(),
+            module_import_attributes_types: rustc_hash::FxHashMap::default(),
             unresolved_module_augmentations: rustc_hash::FxHashMap::default(),
             unresolved_package_root_cache: Default::default(),
             program_path_index: rustc_hash::FxHashMap::default(),

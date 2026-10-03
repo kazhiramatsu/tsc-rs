@@ -3720,6 +3720,56 @@ impl<'a> CheckerState<'a> {
     ///
     /// The isConstTypeVariable disjunct reads the contextual type and so
     /// only fires once const type parameters are constructible.
+    /// tsgo: isInlineImportAttributes (checker.go:13841-13855). The `with`
+    /// object written in an import call's options literal is a const
+    /// context, so its attribute values keep their literal types.
+    fn is_inline_import_attributes(&self, node: NodeId) -> bool {
+        if self.kind_of(node) != SyntaxKind::ObjectLiteralExpression {
+            return false;
+        }
+        let Some(property) = self.parent_of(node) else {
+            return false;
+        };
+        let NodeData::PropertyAssignment(assignment) = self.data_of(property) else {
+            return false;
+        };
+        if assignment.initializer != Some(node) {
+            return false;
+        }
+        let is_with = assignment
+            .name
+            .is_some_and(|name| match self.data_of(name) {
+                NodeData::Identifier(data) => data.escaped_text.identifier_text() == "with",
+                NodeData::StringLiteral(data) => data.text == "with",
+                NodeData::NoSubstitutionTemplateLiteral(data) => data.text == "with",
+                _ => false,
+            });
+        if !is_with {
+            return false;
+        }
+        let Some(options) = self.parent_of(property) else {
+            return false;
+        };
+        if self.kind_of(options) != SyntaxKind::ObjectLiteralExpression {
+            return false;
+        }
+        let import_call = self.find_ancestor(Some(options), |state, node| {
+            if state.is_import_call(node) {
+                Ancestor::Yes
+            } else {
+                Ancestor::No
+            }
+        });
+        import_call.is_some_and(|call| {
+            let NodeData::CallExpression(data) = self.data_of(call) else {
+                return false;
+            };
+            self.nodes_of(data.arguments)
+                .get(1)
+                .is_some_and(|&argument| self.skip_parentheses(argument) == options)
+        })
+    }
+
     pub(crate) fn is_const_context(&mut self, node: NodeId) -> CheckResult<bool> {
         let Some(parent) = self.parent_of(node) else {
             return Ok(false);
@@ -3739,6 +3789,9 @@ impl<'a> CheckerState<'a> {
                 .jsdoc_type_assertion_type_node(parent)
                 .is_some_and(|type_node| self.is_const_type_reference_node(type_node))
         {
+            return Ok(true);
+        }
+        if self.is_inline_import_attributes(node) {
             return Ok(true);
         }
         if self.is_valid_const_assertion_argument(node)? {

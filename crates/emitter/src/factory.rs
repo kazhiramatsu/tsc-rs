@@ -4365,6 +4365,7 @@ impl<'arena> NodeFactory<'arena> {
         source: TransformSourceId,
         modifiers: Option<TransformNodeArray>,
         name: TransformNode,
+        attributes: Option<TransformNode>,
         body: Option<TransformNode>,
         node_flags: NodeFlags,
     ) -> Result<TransformNode, TransformError> {
@@ -4376,6 +4377,7 @@ impl<'arena> NodeFactory<'arena> {
         } else {
             self.children_flags(modifiers)?
                 | self.child_flags(Some(name))?
+                | self.child_flags(attributes)?
                 | self.child_flags(body)?
                 | TransformFlags::CONTAINS_TYPE_SCRIPT
         } & !TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT;
@@ -4383,6 +4385,7 @@ impl<'arena> NodeFactory<'arena> {
             source,
             NodeData::ModuleDeclaration(ModuleDeclarationData {
                 name: Some(self.node_id(source, name)?),
+                attributes: self.optional_node_id(source, attributes)?,
                 modifiers: self.optional_array_id(source, modifiers)?,
                 body: self.optional_node_id(source, body)?,
             }),
@@ -4405,6 +4408,7 @@ impl<'arena> NodeFactory<'arena> {
         original: TransformNode,
         modifiers: Option<TransformNodeArray>,
         name: TransformNode,
+        attributes: Option<TransformNode>,
         body: Option<TransformNode>,
     ) -> Result<TransformNode, TransformError> {
         let record = self.arena.node(original)?.clone();
@@ -4416,6 +4420,7 @@ impl<'arena> NodeFactory<'arena> {
         };
         if data.modifiers == modifiers.map(TransformNodeArray::array)
             && data.name == Some(name.node)
+            && data.attributes == attributes.map(TransformNode::node)
             && data.body == body.map(TransformNode::node)
         {
             return Ok(original);
@@ -4424,6 +4429,7 @@ impl<'arena> NodeFactory<'arena> {
             original.source,
             modifiers,
             name,
+            attributes,
             body,
             NodeFlags::from_bits(record.flags),
         )?;
@@ -5194,6 +5200,7 @@ impl<'arena> NodeFactory<'arena> {
                     original,
                     modifiers,
                     required_child(data.name, SyntaxKind::ModuleDeclaration, "name")?,
+                    child(data.attributes),
                     child(data.body),
                 );
             }

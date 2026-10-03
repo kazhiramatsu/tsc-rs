@@ -274,6 +274,41 @@ fn empty_static_specifiers_are_ignored_while_dynamic_occurrences_are_retained() 
 }
 
 #[test]
+fn type_only_exports_take_the_resolution_mode_attribute_like_type_only_imports() {
+    // tsgo getModeForUsageLocation (fileloader.go:1049-1066): an exclusively
+    // type-only import or export declaration resolves in the mode of its
+    // `resolution-mode` attribute; any other declaration in the file's.
+    let source = source_at(
+        "/a.ts",
+        concat!(
+            "import type { A } from \"foo\" with { \"resolution-mode\": \"import\" };\n",
+            "export type { B } from \"bar\" with { \"resolution-mode\": \"import\" };\n",
+            "export { C } from \"baz\" with { \"resolution-mode\": \"import\" };\n",
+        ),
+        Some(ResolutionMode::CommonJs),
+    );
+
+    let requests = plan_module_requests(&source, &node_options()).expect("plan type-only exports");
+    assert_eq!(
+        requests
+            .iter()
+            .map(|request| (
+                request
+                    .specifier()
+                    .as_str()
+                    .expect("scalar request observation"),
+                request.mode()
+            ))
+            .collect::<Vec<_>>(),
+        [
+            ("foo", ResolutionMode::EsNext),
+            ("bar", ResolutionMode::EsNext),
+            ("baz", ResolutionMode::CommonJs),
+        ]
+    );
+}
+
+#[test]
 fn jsdoc_imports_retain_source_order_and_exact_resolution_mode_keys() {
     let source = source_at(
         "/a.js",

@@ -484,6 +484,10 @@ pub struct SymbolLinks {
 
 const _: () = assert!(std::mem::size_of::<SymbolLinks>() == 28);
 
+/// A module symbol's specifiers by mode-aware cache key, each with the
+/// import attributes type of the ambient module that named it.
+pub type ModuleSpecifierCache = std::collections::BTreeMap<JsString, (JsString, Option<TypeId>)>;
+
 /// The SymbolLinks fields few symbols set, one sparse map per field (see
 /// [`SparseLinks`]).
 #[derive(Debug, Default)]
@@ -511,11 +515,11 @@ pub struct SymbolLinksCold {
     /// vacant symbol entry is initialized.
     pub inferred_class_symbols: SparseLinks<SymbolId, FxHashMap<SymbolId, SymbolId>>,
     /// tsc links.specifierCache (getSpecifierForModuleSymbol 53088-53107):
-    /// mode-aware cache key -> computed module specifier, populated by the
-    /// dormant h2-7a-m-3 specifier synthesis and never read by the display
-    /// path.
-    pub specifier_cache:
-        SparseLinks<SymbolId, Option<std::collections::BTreeMap<JsString, JsString>>>,
+    /// mode-aware cache key -> computed module specifier and, as in tsgo,
+    /// the import attributes type of the ambient module that named it.
+    /// Populated by the dormant h2-7a-m-3 specifier synthesis and never
+    /// read by the display path.
+    pub specifier_cache: SparseLinks<SymbolId, Option<ModuleSpecifierCache>>,
     /// tsc links.extendedContainersByFile (getAlternativeContainingModules
     /// 49954-49973): per enclosing Program file, the re-exporting module
     /// chains (module, alias) found through that file's imports.
@@ -3286,7 +3290,7 @@ impl LinksTables {
         speculation_depth: u32,
         id: SymbolId,
         cache_key: JsString,
-        specifier: JsString,
+        specifier: (JsString, Option<TypeId>),
     ) {
         debug_assert_eq!(
             speculation_depth, 0,
