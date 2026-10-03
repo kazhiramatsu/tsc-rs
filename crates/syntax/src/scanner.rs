@@ -399,6 +399,9 @@ impl<'text> Scanner<'text> {
                 ':' => return self.finish_token(SyntaxKind::ColonToken, 1),
                 ';' => return self.finish_token(SyntaxKind::SemicolonToken, 1),
                 '<' => {
+                    if self.skip_conflict_marker_trivia() {
+                        continue;
+                    }
                     if self.starts_with("<<=") {
                         return self.finish_token(SyntaxKind::LessThanLessThanEqualsToken, 3);
                     }
@@ -417,6 +420,9 @@ impl<'text> Scanner<'text> {
                     return self.finish_token(SyntaxKind::LessThanToken, 1);
                 }
                 '=' => {
+                    if self.skip_conflict_marker_trivia() {
+                        continue;
+                    }
                     if self.starts_with("===") {
                         return self.finish_token(SyntaxKind::EqualsEqualsEqualsToken, 3);
                     }
@@ -428,7 +434,12 @@ impl<'text> Scanner<'text> {
                     }
                     return self.finish_token(SyntaxKind::EqualsToken, 1);
                 }
-                '>' => return self.finish_token(SyntaxKind::GreaterThanToken, 1),
+                '>' => {
+                    if self.skip_conflict_marker_trivia() {
+                        continue;
+                    }
+                    return self.finish_token(SyntaxKind::GreaterThanToken, 1);
+                }
                 '?' => {
                     if self.starts_with("?.")
                         && !self.byte_at(self.pos + 2).is_some_and(is_ascii_digit)
@@ -453,6 +464,9 @@ impl<'text> Scanner<'text> {
                 }
                 '{' => return self.finish_token(SyntaxKind::OpenBraceToken, 1),
                 '|' => {
+                    if self.skip_conflict_marker_trivia() {
+                        continue;
+                    }
                     if self.starts_with("||=") {
                         return self.finish_token(SyntaxKind::BarBarEqualsToken, 3);
                     }
@@ -1716,7 +1730,18 @@ impl<'text> Scanner<'text> {
 
         let mut first_non_whitespace = 0_isize;
         while let Some(ch) = self.current_char() {
-            if ch == '{' || ch == '<' {
+            if ch == '{' {
+                break;
+            }
+            if ch == '<' {
+                // tsgo (scanner/scanner.go:1277-1283): a conflict marker in
+                // JSX text is its own token.
+                if is_conflict_marker_trivia(self.text, self.pos) {
+                    self.report_conflict_marker();
+                    self.pos = scan_conflict_marker_trivia(self.text, self.pos);
+                    self.token = SyntaxKind::ConflictMarkerTrivia;
+                    return self.token;
+                }
                 break;
             }
             if ch == '>' {
@@ -2250,6 +2275,29 @@ impl<'text> Scanner<'text> {
         kind
     }
 
+    /// tsgo's `<`, `=`, `>` and `|` cases (scanner/scanner.go:765-871): a
+    /// merge conflict marker is reported and skipped as trivia.
+    fn skip_conflict_marker_trivia(&mut self) -> bool {
+        if !is_conflict_marker_trivia(self.text, self.pos) {
+            return false;
+        }
+        self.report_conflict_marker();
+        self.pos = scan_conflict_marker_trivia(self.text, self.pos);
+        true
+    }
+
+    /// TS1185 at the marker. The marker is trivia, so the report leaves the
+    /// tree complete.
+    fn report_conflict_marker(&mut self) {
+        self.errors.push(ScanError {
+            message: &gen::Merge_conflict_marker_encountered,
+            start: self.pos,
+            length: MERGE_CONFLICT_MARKER_LENGTH,
+            args: Vec::new(),
+            trivia_kind: Some(SyntaxKind::ConflictMarkerTrivia),
+        });
+    }
+
     fn error_at(&mut self, start: usize, length: usize, message: &'static DiagnosticMessage) {
         self.error_at_with_args(start, length, message, Vec::new());
     }
@@ -2742,8 +2790,76 @@ pub fn skip_trivia(text: &str, start: usize) -> usize {
             }
             continue;
         }
+        if matches!(ch, '<' | '|' | '=' | '>') && is_conflict_marker_trivia(text, pos) {
+            pos = scan_conflict_marker_trivia(text, pos);
+            continue;
+        }
         return pos;
     }
+}
+
+/// All conflict markers are one character repeated seven times
+/// (tsgo mergeConflictMarkerLength, scanner/scanner.go:2402-2406).
+const MERGE_CONFLICT_MARKER_LENGTH: usize = 7;
+
+/// tsgo: isConflictMarkerTrivia (scanner/scanner.go:2408-2441). A `<<<<<<<`,
+/// `|||||||` or `>>>>>>>` marker is followed by a space; `=======` by
+/// anything. The marker starts a line.
+pub(crate) fn is_conflict_marker_trivia(text: &str, pos: usize) -> bool {
+    let bytes = text.as_bytes();
+    if pos + 1 >= bytes.len() || bytes[pos + 1] != bytes[pos] {
+        return false;
+    }
+    let mut at_line_start = pos == 0 || is_line_break(char::from(bytes[pos - 1]));
+    if !at_line_start && pos >= 2 {
+        // tsgo decodes the last rune of text[:pos-2]; a cut through a
+        // character decodes as RuneError, which is no line break.
+        at_line_start = text.is_char_boundary(pos - 2)
+            && text[..pos - 2]
+                .chars()
+                .next_back()
+                .is_some_and(is_line_break);
+    }
+    if !at_line_start || pos + MERGE_CONFLICT_MARKER_LENGTH >= bytes.len() {
+        return false;
+    }
+    let ch = bytes[pos];
+    if bytes[pos..pos + MERGE_CONFLICT_MARKER_LENGTH]
+        .iter()
+        .any(|byte| *byte != ch)
+    {
+        return false;
+    }
+    ch == b'=' || bytes[pos + MERGE_CONFLICT_MARKER_LENGTH] == b' '
+}
+
+/// tsgo: scanConflictMarkerTrivia (scanner/scanner.go:2443-2470). A `<` or
+/// `>` marker runs to the end of its line; a `|` or `=` marker swallows
+/// everything up to the next `=======` or `>>>>>>>` marker.
+pub(crate) fn scan_conflict_marker_trivia(text: &str, mut pos: usize) -> usize {
+    let bytes = text.as_bytes();
+    let ch = bytes[pos];
+    if ch == b'<' || ch == b'>' {
+        while let Some(next) = text[pos..].chars().next() {
+            if is_line_break(next) {
+                break;
+            }
+            pos += next.len_utf8();
+        }
+    } else {
+        debug_assert!(ch == b'|' || ch == b'=');
+        while pos < bytes.len() {
+            let current = bytes[pos];
+            if (current == b'=' || current == b'>')
+                && current != ch
+                && is_conflict_marker_trivia(text, pos)
+            {
+                break;
+            }
+            pos += 1;
+        }
+    }
+    pos
 }
 
 /// tsc-port: isLineBreak @6.0.3

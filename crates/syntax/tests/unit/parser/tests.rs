@@ -4002,3 +4002,74 @@ fn misplaced_tokens_report_at_tsgo_spans() {
         )]
     );
 }
+
+#[test]
+fn merge_conflict_markers_are_reported_trivia_like_tsgo() {
+    // tsgo (scanner/scanner.go:2402-2470), rows from tsc-19dadef8: each
+    // marker is TS1185 at the start of its line, seven characters wide.
+    // `|||||||` and `=======` swallow the text up to the next marker, so the
+    // class keeps the first alternative. Markers are trivia, so the tree
+    // admits emit.
+    let text = "class C {\n<<<<<<< HEAD\n    v = 1;\n||||||| base\n    v = 3;\n=======\n    v = 2;\n>>>>>>> B\n}\n";
+    let source = parse_with_target(text, ScriptTarget::ES2015);
+    let rows: Vec<(u32, Option<u32>, Option<u32>)> = source
+        .parse_diagnostics
+        .iter()
+        .map(|diagnostic| (diagnostic.code(), diagnostic.start, diagnostic.length))
+        .collect();
+    assert_eq!(
+        rows,
+        [
+            (1185, Some(10), Some(7)),
+            (1185, Some(34), Some(7)),
+            (1185, Some(58), Some(7)),
+            (1185, Some(77), Some(7)),
+        ]
+    );
+    assert_eq!(
+        nodes_of_kind(&source, SyntaxKind::PropertyDeclaration).len(),
+        1
+    );
+    assert!(source.has_only_literal_recovery());
+
+    // Away from a line start, or with nothing after the seven characters,
+    // they are operators.
+    let source = parse_with_target(
+        "let y = 1 <<<<<<< 2;\nlet z = 1;\n=======",
+        ScriptTarget::ES2015,
+    );
+    assert!(source
+        .parse_diagnostics
+        .iter()
+        .all(|diagnostic| diagnostic.code() != 1185));
+    assert_eq!(crate::scanner::skip_trivia("<<<<<<< a\nx", 0), 10);
+    assert_eq!(
+        crate::scanner::skip_trivia("=======\na\n>>>>>>> b\nx", 0),
+        20
+    );
+}
+
+#[test]
+fn a_conflict_marker_in_jsx_text_ends_the_children_like_tsgo() {
+    // tsgo (scanner/scanner.go:1277-1283): the marker is a token of its own
+    // in JSX text, so the element misses its closing tag at that token.
+    let source = parse_source_file(
+        "a.tsx".into(),
+        "const x = <div>\n<<<<<<< HEAD".to_owned(),
+        ParseOptions {
+            language_variant: crate::LanguageVariant::Jsx,
+            ..ParseOptions::default()
+        },
+        None,
+    );
+    let mut rows: Vec<(u32, Option<u32>, Option<u32>)> = source
+        .parse_diagnostics
+        .iter()
+        .map(|diagnostic| (diagnostic.code(), diagnostic.start, diagnostic.length))
+        .collect();
+    rows.sort();
+    assert_eq!(
+        rows,
+        [(1005, Some(15), Some(13)), (1185, Some(16), Some(7))]
+    );
+}

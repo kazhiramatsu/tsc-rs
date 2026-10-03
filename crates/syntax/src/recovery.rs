@@ -30,9 +30,9 @@ pub enum ParseDiagnosticOrigin {
 }
 
 impl ParseDiagnosticOrigin {
-    /// Report-only origins: a scanner literal error, a deprecation or a
-    /// JSDoc reparse error leaves the tree complete, so the record admits
-    /// emit.
+    /// Report-only origins: a scanner literal error, a merge conflict
+    /// marker (trivia), a deprecation or a JSDoc reparse error leaves the
+    /// tree complete, so the record admits emit.
     fn is_literal(self) -> bool {
         matches!(
             self,
@@ -42,7 +42,8 @@ impl ParseDiagnosticOrigin {
                     | SyntaxKind::TemplateHead
                     | SyntaxKind::TemplateMiddle
                     | SyntaxKind::TemplateTail
-            ) | Self::Deprecation
+            ) | Self::ScannerTrivia(SyntaxKind::ConflictMarkerTrivia)
+                | Self::Deprecation
                 | Self::Reparse
                 | Self::Grammar
         )
