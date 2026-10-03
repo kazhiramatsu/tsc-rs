@@ -9446,19 +9446,6 @@ impl<'a> CheckerState<'a> {
         self.signature_to_string_for_diagnostic(signature, display_kind)
     }
 
-    /// tsrs-native: select the constructor-arrow printer face used by tsc's
-    /// single-constructor relation fallback.
-    ///
-    /// tsc's single-constructor relation fallback renders both signatures
-    /// with `WriteArrowStyleSignature`, even though the surrounding
-    /// signaturesRelatedTo diagnostics use declaration-style signatures.
-    pub(crate) fn signature_to_string_for_construct_assignment_error(
-        &mut self,
-        signature: SignatureId,
-    ) -> CheckResult<JsString> {
-        self.signature_to_string_for_diagnostic(signature, SliceSignatureKind::ConstructorType)
-    }
-
     /// Keep every standalone diagnostic render isolated from an
     /// enclosing typeToString slice. This mirrors tsc's fresh
     /// single-line writer per signatureToString call.

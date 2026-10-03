@@ -1214,6 +1214,23 @@ impl<'a> CheckerState<'a> {
                     if let Some(related) = self.arrow_return_elaboration_related(target_type) {
                         diagnostic.related.push(related);
                     }
+                    // tsgo (relater.go:666-668): a non-async arrow whose
+                    // return type fits as a promise.
+                    if self.get_function_flags(expression) & crate::functions::FUNCTION_FLAGS_ASYNC
+                        == 0
+                        && self
+                            .get_type_of_property_of_type(source_return, "then")?
+                            .is_none()
+                    {
+                        let promise = self.create_promise_type(source_return)?;
+                        if self.is_type_assignable_to(promise, target_return)? {
+                            diagnostic.related.push(self.related_info_for_node(
+                                expression,
+                                &diagnostics::Did_you_mean_to_mark_this_function_as_async,
+                                &[],
+                            ));
+                        }
+                    }
                 }
                 if let Some(diagnostic) = diagnostic {
                     sink.publish_relation(self, diagnostic, used_containing_message_chain);

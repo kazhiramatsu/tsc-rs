@@ -2220,10 +2220,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         if !is_true(related) {
             if report_errors {
                 let name = self.st.symbol_name_as_written(target_prop);
-                self.report_incompatible_error_js(
+                self.report_error_js(
                     &tsc_diagnostics::gen::Types_of_property_0_are_incompatible,
                     vec![name],
-                );
+                )?;
             }
             return Ok(Ternary::FALSE);
         }
@@ -2331,7 +2331,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     Some(data) => data.combined_flags.intersects(ElementFlags::REST),
                     None => true,
                 };
-                let target_has_rest_element = target_data
+                // tsgo (relater.go:4150-4151) maps positions by a rest
+                // element and bounds the arity by any variable element.
+                let target_has_rest_element =
+                    target_data.combined_flags.intersects(ElementFlags::REST);
+                let target_has_variable_element = target_data
                     .combined_flags
                     .intersects(ElementFlags::VARIABLE);
                 let source_min_length = source_data.as_ref().map_or(0, |data| data.min_length);
@@ -2345,7 +2349,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     }
                     return Ok(Ternary::FALSE);
                 }
-                if !target_has_rest_element && target_arity < source_min_length {
+                if !target_has_variable_element && target_arity < source_min_length {
                     if report_errors {
                         self.report_error(
                             &tsc_diagnostics::gen::Source_has_0_element_s_but_target_allows_only_1,
@@ -2354,7 +2358,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     }
                     return Ok(Ternary::FALSE);
                 }
-                if !target_has_rest_element && (source_rest_flag || target_arity < source_arity) {
+                if !target_has_variable_element && (source_rest_flag || target_arity < source_arity)
+                {
                     if report_errors {
                         if source_min_length < target_min_length {
                             self.report_error(
@@ -2387,22 +2392,32 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         None => ElementFlags::REST,
                     };
                     let source_position_from_end = source_arity - 1 - source_position;
-                    let target_position =
-                        if target_has_rest_element && source_position >= target_start_count {
-                            let offset = source_position_from_end.min(target_end_count);
-                            let Some(position) = target_arity.checked_sub(offset + 1) else {
-                                // A target made entirely of adjacent generic
-                                // variadics has no concrete element at this
-                                // source position. JavaScript's negative array
-                                // lookup yields `undefined`, which cannot form
-                                // a successful relation; express that verdict
-                                // without usize underflow.
-                                return Ok(Ternary::FALSE);
-                            };
-                            position
-                        } else {
-                            source_position
+                    let target_position = if target_has_rest_element
+                        && source_position >= target_start_count
+                    {
+                        let offset = source_position_from_end.min(target_end_count);
+                        let Some(position) = target_arity.checked_sub(offset + 1) else {
+                            // A target made entirely of adjacent generic
+                            // variadics has no concrete element at this
+                            // source position. JavaScript's negative array
+                            // lookup yields `undefined`, which cannot form
+                            // a successful relation; express that verdict
+                            // without usize underflow.
+                            return Ok(Ternary::FALSE);
                         };
+                        position
+                    } else {
+                        if source_position >= target_arity {
+                            if report_errors {
+                                self.report_error(
+                                        &tsc_diagnostics::gen::Target_allows_only_0_element_s_but_source_may_have_more,
+                                        vec![target_arity.to_string()],
+                                    )?;
+                            }
+                            return Ok(Ternary::FALSE);
+                        }
+                        source_position
+                    };
                     let target_flags = target_data.element_flags[target_position];
                     if target_flags.intersects(ElementFlags::VARIADIC)
                         && !source_flags.intersects(ElementFlags::VARIADIC)
@@ -2486,22 +2501,22 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                                 && source_position_from_end >= target_end_count
                                 && target_start_count != source_arity - target_end_count - 1
                             {
-                                self.report_incompatible_error(
+                                self.report_error(
                                     &tsc_diagnostics::gen::Type_at_positions_0_through_1_in_source_is_not_compatible_with_type_at_position_2_in_target,
                                     vec![
                                         target_start_count.to_string(),
                                         (source_arity - target_end_count - 1).to_string(),
                                         target_position.to_string(),
                                     ],
-                                );
+                                )?;
                             } else {
-                                self.report_incompatible_error(
+                                self.report_error(
                                     &tsc_diagnostics::gen::Type_at_position_0_in_source_is_not_compatible_with_type_at_position_1_in_target,
                                     vec![
                                         source_position.to_string(),
                                         target_position.to_string(),
                                     ],
-                                );
+                                )?;
                             }
                         }
                         return Ok(Ternary::FALSE);
@@ -2766,7 +2781,6 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 );
                 self.associate_related_info(info);
             }
-            self.override_next_error_after_unmatched_property();
             return Ok(());
         }
 
@@ -2803,7 +2817,6 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 vec![(source_text), (target_text), (names)],
             )?;
         }
-        self.override_next_error_after_unmatched_property();
         Ok(())
     }
 
@@ -3108,36 +3121,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 report_errors,
                 intersection_state,
             )?;
+            // tsgo (relater.go:4515-4522) reports no construct-signature
+            // wrapper rows here.
             if !is_true(related) {
-                let constructor_declaration = |signature: SignatureId| {
-                    self.st
-                        .signature_of(signature)
-                        .declaration
-                        .is_some_and(|declaration| {
-                            self.st.kind_of(declaration) == SyntaxKind::Constructor
-                        })
-                };
-                if report_errors
-                    && kind == SignatureKind::Construct
-                    && source_object_flags.intersects(target_object_flags)
-                    && (constructor_declaration(target_signature)
-                        || constructor_declaration(source_signature))
-                {
-                    let source_text = self
-                        .st
-                        .signature_to_string_for_construct_assignment_error(source_signature)?;
-                    let target_text = self
-                        .st
-                        .signature_to_string_for_construct_assignment_error(target_signature)?;
-                    self.report_error_js(
-                        &tsc_diagnostics::gen::Type_0_is_not_assignable_to_type_1,
-                        vec![(source_text), (target_text)],
-                    )?;
-                    self.report_error(
-                        &tsc_diagnostics::gen::Types_of_construct_signatures_are_incompatible,
-                        vec![],
-                    )?;
-                }
                 return Ok(Ternary::FALSE);
             }
             result = related;
@@ -3997,8 +3983,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     let target_text = self
                         .st
                         .type_to_string_with_error_enclosing(target_return_type)?;
-                    let no_arguments = self.st.get_parameter_count(source)? == 0
-                        && self.st.get_parameter_count(target)? == 0;
+                    // tsgo (relater.go:1658-1666): these rows are markers for
+                    // reportError's folding and are elided from the
+                    // diagnostic.
+                    let no_arguments = self.st.signature_of(source).parameters.is_empty()
+                        && self.st.signature_of(target).parameters.is_empty();
                     let message = match (kind, no_arguments) {
                         (SignatureKind::Call, false) => {
                             &tsc_diagnostics::gen::Call_signature_return_types_0_and_1_are_incompatible
@@ -4013,7 +4002,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             &tsc_diagnostics::gen::Construct_signatures_with_no_arguments_have_incompatible_return_types_0_and_1
                         }
                     };
-                    self.report_incompatible_error_js(message, vec![(source_text), (target_text)]);
+                    self.report_error_js(message, vec![(source_text), (target_text)])?;
                 }
             }
         }
@@ -5104,6 +5093,22 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
     ) -> CheckResult<Option<tsc_diagnostics::MessageChain>> {
+        Ok(self
+            .never_intersection_row_parts(ty)?
+            .map(|(message, args)| tsc_diagnostics::MessageChain::new_js(message, &args)))
+    }
+
+    /// The message and arguments of `elaborate_never_intersection_row`, for
+    /// the relation error chain (tsgo's reportErrorResults reports them).
+    pub(crate) fn never_intersection_row_parts(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult<
+        Option<(
+            &'static tsc_diagnostics::DiagnosticMessage,
+            Vec<tsc_types::JsString>,
+        )>,
+    > {
         if !self.tables.flags_of(ty).intersects(TypeFlags::INTERSECTION)
             || !self
                 .tables
@@ -5117,9 +5122,9 @@ impl<'a> CheckerState<'a> {
             if self.is_discriminant_with_never_type(prop)? {
                 let type_name = self.type_to_string_no_type_reduction(ty)?;
                 let prop_name = self.symbol_name_as_written(prop);
-                return Ok(Some(tsc_diagnostics::MessageChain::new_js(
+                return Ok(Some((
                     &tsc_diagnostics::gen::The_intersection_0_was_reduced_to_never_because_property_1_has_conflicting_types_in_some_constituents,
-                    &[type_name, prop_name],
+                    vec![type_name, prop_name],
                 )));
             }
         }
@@ -5127,9 +5132,9 @@ impl<'a> CheckerState<'a> {
             if self.is_conflicting_private_property(prop) {
                 let type_name = self.type_to_string_no_type_reduction(ty)?;
                 let prop_name = self.symbol_name_as_written(prop);
-                return Ok(Some(tsc_diagnostics::MessageChain::new_js(
+                return Ok(Some((
                     &tsc_diagnostics::gen::The_intersection_0_was_reduced_to_never_because_property_1_exists_in_multiple_constituents_and_is_private_in_some,
-                    &[type_name, prop_name],
+                    vec![type_name, prop_name],
                 )));
             }
         }

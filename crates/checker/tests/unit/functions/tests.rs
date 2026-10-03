@@ -1225,7 +1225,7 @@ fn checked_js_variable_type_tag_is_no_async_return_annotation() {
 }
 
 #[test]
-fn es5_async_constructor_relation_uses_the_tsc_compatibility_pyramid() {
+fn es5_async_constructor_relation_elides_the_construct_return_marker() {
     let lib = "declare type PromiseConstructorLike = new <T>(executor: (resolve: (value: T | PromiseLike<T>) => void, reject: (reason?: any) => void) => void) => PromiseLike<T>;\n\
                    interface PromiseLike<T> {\n\
                      then<TResult1 = T, TResult2 = never>(onfulfilled?: (value: T) => TResult1 | PromiseLike<TResult1>, onrejected?: (reason: any) => TResult2 | PromiseLike<TResult2>): PromiseLike<TResult1 | TResult2>;\n\
@@ -1246,7 +1246,9 @@ fn es5_async_constructor_relation_uses_the_tsc_compatibility_pyramid() {
         .iter()
         .find(|diagnostic| diagnostic.code() == 1055)
         .expect("the invalid ES5 promise constructor is reported");
-    assert_eq!(diagnostic.message.next[0].code, 2203);
+    // tsgo's relation chain keeps the construct return-type row (2203) only
+    // as a marker elided from the diagnostic (relater.go:400-412).
+    assert_eq!(diagnostic.message.next[0].code, 2322);
     assert_eq!(diagnostic.message.next[0].next[0].code, 2201);
     assert_eq!(diagnostic.message.next[0].next[0].next[0].code, 2322);
 }

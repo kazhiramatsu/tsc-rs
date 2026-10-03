@@ -204,6 +204,7 @@ compiler/arrayAugment	full	js
 compiler/arrayBestCommonTypes	full	js
 compiler/arrayBindingPatternOmittedExpressions	full	js
 compiler/arrayBufferIsViewNarrowsType	full	js
+compiler/arrayCast	full	js
 compiler/arrayConcat2	full	js
 compiler/arrayConcat3	full	js
 compiler/arrayConcatMap	full	js
@@ -291,7 +292,7 @@ compiler/assignmentCompatForEnums	full	js
 compiler/assignmentCompatFunctionsWithOptionalArgs	full	js
 compiler/assignmentCompatInterfaceWithStringIndexSignature	full	js
 compiler/assignmentCompatOnNew	full	js
-compiler/assignmentCompatWithOverloads	text	js
+compiler/assignmentCompatWithOverloads	full	js
 compiler/assignmentCompatability1	full	js
 compiler/assignmentCompatability10	full	js
 compiler/assignmentCompatability11	full	js
@@ -330,8 +331,8 @@ compiler/assignmentCompatability40	full	js
 compiler/assignmentCompatability41	full	js
 compiler/assignmentCompatability42	full	js
 compiler/assignmentCompatability43	full	js
-compiler/assignmentCompatability44	text	js
-compiler/assignmentCompatability45	text	js
+compiler/assignmentCompatability44	full	js
+compiler/assignmentCompatability45	full	js
 compiler/assignmentCompatability46	full	js
 compiler/assignmentCompatability5	full	js
 compiler/assignmentCompatability6	full	js
@@ -458,7 +459,7 @@ compiler/bigint64ArraySubarray	full	js
 compiler/bigintAmbientMinimal(target=es2015)	full	js
 compiler/bigintArbirtraryIdentifier	full	none
 compiler/bigintIndex	full	js
-compiler/bigintWithLib	text	js
+compiler/bigintWithLib	full	js
 compiler/bigintWithoutLib(target=es2015)	full	js
 compiler/binaryArithmatic1	full	js
 compiler/binaryArithmatic2	full	js
@@ -787,7 +788,7 @@ compiler/classPropertyInferenceFromBroaderTypeConst	full	js
 compiler/classReferencedInContextualParameterWithinItsOwnBaseExpression	full	js
 compiler/classSideInheritance1	full	js
 compiler/classSideInheritance2	full	js
-compiler/classSideInheritance3	text	js
+compiler/classSideInheritance3	full	js
 compiler/classStaticInitializersUsePropertiesBeforeDeclaration	full	js
 compiler/classStaticPropertyAccess(target=es2015)	full	js
 compiler/classStaticPropertyTypeGuard(target=es2015)	full	js
@@ -1036,7 +1037,7 @@ compiler/compilerOptionsDeclarationAndNoEmit	full	js
 compiler/compilerOptionsOutDirAndNoEmit	full	js
 compiler/complexClassRelationships(target=es2015)	full	js
 compiler/complexNarrowingWithAny	full	js
-compiler/complexRecursiveCollections	text	js
+compiler/complexRecursiveCollections	full	js
 compiler/complicatedGenericRecursiveBaseClassReference	full	js
 compiler/complicatedIndexedAccessKeyofReliesOnKeyofNeverUpperBound	full	js
 compiler/complicatedIndexesOfIntersectionsAreInferencable	full	js
@@ -2088,10 +2089,13 @@ compiler/duplicateIdentifierDifferentSpelling	full	js
 compiler/duplicateIdentifierEnum	full	js
 compiler/duplicateIdentifierInCatchBlock	full	js
 compiler/duplicateIdentifierRelatedSpans1	text	js
+compiler/duplicateIdentifierRelatedSpans2	text	js
 compiler/duplicateIdentifierRelatedSpans3	text	js
+compiler/duplicateIdentifierRelatedSpans4	text	js
 compiler/duplicateIdentifierRelatedSpans5	text	js
 compiler/duplicateIdentifierRelatedSpans6	text	js
-compiler/duplicateIdentifierRelatedSpans_moduleAugmentation	text	js
+compiler/duplicateIdentifierRelatedSpans7	text	js
+compiler/duplicateIdentifierRelatedSpans_moduleAugmentation	full	js
 compiler/duplicateIdentifierShouldNotShortCircuitBaseTypeBinding	full	js
 compiler/duplicateIdentifiersAcrossContainerBoundaries	full	js
 compiler/duplicateIdentifiersAcrossFileBoundaries	full	js
@@ -2306,8 +2310,8 @@ compiler/errorOnContextuallyTypedReturnType	full	js
 compiler/errorOnEnumReferenceInCondition	full	js
 compiler/errorOnInitializerInInterfaceProperty	full	js
 compiler/errorOnInitializerInObjectTypeLiteralProperty	full	js
-compiler/errorOnUnionVsObjectShouldDeeplyDisambiguate	text	js
-compiler/errorOnUnionVsObjectShouldDeeplyDisambiguate2	text	js
+compiler/errorOnUnionVsObjectShouldDeeplyDisambiguate	full	js
+compiler/errorOnUnionVsObjectShouldDeeplyDisambiguate2	full	js
 compiler/errorRecoveryInClassDeclaration	full	none
 compiler/errorRecoveryWithDotFollowedByNamespaceKeyword	full	none
 compiler/errorSpanForUnclosedJsxTag	full	none
@@ -2506,6 +2510,7 @@ compiler/excessPropertyCheckWithEmptyObject	full	js
 compiler/excessPropertyCheckWithMultipleDiscriminants	full	js
 compiler/excessPropertyCheckWithNestedArrayIntersection	full	js
 compiler/excessPropertyCheckWithSpread	full	js
+compiler/excessPropertyCheckWithUnions	full	js
 compiler/excessPropertyCheckingIntersectionWithConditional	full	js
 compiler/excessPropertyChecksWithNestedIntersections	full	js
 compiler/excessPropertyErrorForFunctionTypes	full	js
@@ -2540,7 +2545,7 @@ compiler/exportAlreadySeen	full	js
 compiler/exportArrayBindingPattern	full	js
 compiler/exportAsNamespace.d	full	js
 compiler/exportAsNamespaceConflict	full	js
-compiler/exportAsNamespace_augment	text	js
+compiler/exportAsNamespace_augment	full	js
 compiler/exportAssignClassAndModule	full	js
 compiler/exportAssignNamedImport	full	js
 compiler/exportAssignValueAndType	full	js
@@ -2959,7 +2964,7 @@ compiler/genericAssignmentCompatOfFunctionSignatures1	full	js
 compiler/genericAssignmentCompatWithInterfaces1	full	js
 compiler/genericBaseClassLiteralProperty	full	js
 compiler/genericBaseClassLiteralProperty2	full	js
-compiler/genericCallAtYieldExpressionInGenericCall1	text	js
+compiler/genericCallAtYieldExpressionInGenericCall1	full	js
 compiler/genericCallAtYieldExpressionInGenericCall2	full	js
 compiler/genericCallAtYieldExpressionInGenericCall3	full	js
 compiler/genericCallInferenceConditionalType1	full	js
@@ -3153,7 +3158,7 @@ compiler/globalThisDeclarationEmit2	full	js
 compiler/globalThisDeclarationEmit3	full	js
 compiler/grammarAmbiguities1	full	js
 compiler/heritageClauseTypeReferenceTypes	full	js
-compiler/heterogeneousArrayAndOverloads	text	js
+compiler/heterogeneousArrayAndOverloads	full	js
 compiler/hidingCallSignatures	full	js
 compiler/hidingConstructSignatures	full	js
 compiler/hidingIndexSignatures	full	js
@@ -3721,7 +3726,7 @@ compiler/invalidUnicodeEscapeSequance2	full	none
 compiler/invalidUnicodeEscapeSequance3	full	none
 compiler/invalidUnicodeEscapeSequance4	full	none
 compiler/invalidUseOfTypeAsNamespace	full	js
-compiler/invariantGenericErrorElaboration	text	js
+compiler/invariantGenericErrorElaboration	full	js
 compiler/invocationErrorRecovery	text	js
 compiler/invocationExpressionInFunctionParameter	full	js
 compiler/invokingNonGenericMethodWithTypeArguments1	full	js
@@ -3796,7 +3801,7 @@ compiler/isolatedModulesWithDeclarationFile	full	js
 compiler/isolatedModules_resolveJsonModule	full	js
 compiler/isolatedModules_resolveJsonModule_strict_outDir_commonJs	full	js
 compiler/iterableTReturnTNext(strictbuiltiniteratorreturn=false)	full	js
-compiler/iterableTReturnTNext(strictbuiltiniteratorreturn=true)	text	js
+compiler/iterableTReturnTNext(strictbuiltiniteratorreturn=true)	full	js
 compiler/iterableWithNeverAsUnionMember(target=esnext)	full	js
 compiler/iteratorExtraParameters	full	js
 compiler/iteratorsAndStrictNullChecks	full	js
@@ -3991,11 +3996,11 @@ compiler/jsxAttributeWithoutExpressionReact	full	js
 compiler/jsxCallElaborationCheckNoCrash1	full	js
 compiler/jsxCallbackWithDestructuring	full	js
 compiler/jsxChildWrongType	full	js
-compiler/jsxChildrenArrayWrongType(target=es2015)	text	js
+compiler/jsxChildrenArrayWrongType(target=es2015)	full	js
 compiler/jsxChildrenGenericContextualTypes	full	js
 compiler/jsxChildrenIndividualErrorElaborations	full	js
 compiler/jsxChildrenSingleChildConfusableWithMultipleChildrenNoError	full	js
-compiler/jsxChildrenWrongType	text	js
+compiler/jsxChildrenWrongType	full	js
 compiler/jsxClassAttributeResolution	full	js
 compiler/jsxComplexSignatureHasApplicabilityError	full	js
 compiler/jsxComponentTypeErrors	full	js
@@ -4645,7 +4650,7 @@ compiler/nestedBlockScopedBindings6	full	js
 compiler/nestedBlockScopedBindings7	full	js
 compiler/nestedBlockScopedBindings8	full	js
 compiler/nestedBlockScopedBindings9	full	js
-compiler/nestedCallbackErrorNotFlattened	text	js
+compiler/nestedCallbackErrorNotFlattened	full	js
 compiler/nestedExcessPropertyChecking	full	js
 compiler/nestedFreshLiteral	full	js
 compiler/nestedGenericConditionalTypeWithGenericImportType	full	js
@@ -5229,9 +5234,9 @@ compiler/promiseIdentity2	full	js
 compiler/promiseIdentityWithAny	full	js
 compiler/promiseIdentityWithAny2	full	js
 compiler/promiseIdentityWithConstraints	full	js
-compiler/promisePermutations	text	js
-compiler/promisePermutations2	text	js
-compiler/promisePermutations3	text	js
+compiler/promisePermutations	full	js
+compiler/promisePermutations2	full	js
+compiler/promisePermutations3	full	js
 compiler/promiseTest	full	js
 compiler/promiseTry	full	js
 compiler/promiseType	full	js
@@ -6248,7 +6253,7 @@ compiler/typeParameterArgumentEquivalence	full	js
 compiler/typeParameterArgumentEquivalence2	full	js
 compiler/typeParameterArgumentEquivalence3	full	js
 compiler/typeParameterArgumentEquivalence4	full	js
-compiler/typeParameterArgumentEquivalence5	text	js
+compiler/typeParameterArgumentEquivalence5	full	js
 compiler/typeParameterAsBaseClass	full	js
 compiler/typeParameterAsElementType	full	js
 compiler/typeParameterAssignmentCompat1	full	js
@@ -6656,7 +6661,7 @@ compiler/variableDeclarationInStrictMode1	full	js
 compiler/variableDeclarationInnerCommentEmit	full	js
 compiler/variableDeclarator1	full	js
 compiler/variableDeclaratorResolvedDuringContextualTyping	full	js
-compiler/variadicTupleMismatch	text	js
+compiler/variadicTupleMismatch	full	js
 compiler/varianceAnnotationValidation	full	js
 compiler/varianceCallbacksAndIndexedAccesses	full	js
 compiler/varianceCantBeStrictWhileStructureIsnt	full	js
@@ -9076,7 +9081,7 @@ conformance/generatorTypeCheck21	full	js
 conformance/generatorTypeCheck22	full	js
 conformance/generatorTypeCheck23	full	js
 conformance/generatorTypeCheck24	full	js
-conformance/generatorTypeCheck25	text	js
+conformance/generatorTypeCheck25	full	js
 conformance/generatorTypeCheck26	full	js
 conformance/generatorTypeCheck27	full	js
 conformance/generatorTypeCheck28	full	js
@@ -9117,8 +9122,8 @@ conformance/generatorTypeCheck59	full	js
 conformance/generatorTypeCheck6	full	js
 conformance/generatorTypeCheck60	full	js
 conformance/generatorTypeCheck61	full	js
-conformance/generatorTypeCheck62	text	js
-conformance/generatorTypeCheck63	text	js
+conformance/generatorTypeCheck62	full	js
+conformance/generatorTypeCheck63	full	js
 conformance/generatorTypeCheck64	full	js
 conformance/generatorTypeCheck7	full	js
 conformance/generatorTypeCheck8	full	js
@@ -9492,7 +9497,7 @@ conformance/intlDurationFormat	full	js
 conformance/intlNumberFormatES2020	full	js
 conformance/intlNumberFormatES2023	full	js
 conformance/intlNumberFormatES5UseGrouping(target=es2015)	full	js
-conformance/intraExpressionInferences	text	js
+conformance/intraExpressionInferences	full	js
 conformance/intraExpressionInferencesJsx	full	js
 conformance/intrinsicKeyword	full	js
 conformance/intrinsicTypes	full	js
@@ -9823,7 +9828,7 @@ conformance/jsxParsingError4(strict=false)	full	js
 conformance/jsxParsingError4(strict=true)	full	js
 conformance/jsxParsingErrorImmediateSpreadInAttributeValue	full	none
 conformance/jsxReactTestSuite	full	js
-conformance/jsxSpreadOverwritesAttributeStrict	text	js
+conformance/jsxSpreadOverwritesAttributeStrict	full	js
 conformance/jsxUnclosedParserRecovery	full	none
 conformance/keyofAndForIn	full	js
 conformance/keyofAndIndexedAccess	full	none
@@ -10062,7 +10067,7 @@ conformance/multipleDefaultExports01(target=es2015)	full	js
 conformance/multipleDefaultExports02(target=es2015)	full	js
 conformance/multipleDefaultExports03(target=es2015)	full	js
 conformance/multipleDefaultExports04(target=es2015)	full	js
-conformance/multipleDefaultExports05(target=es2015)	text	js
+conformance/multipleDefaultExports05(target=es2015)	full	js
 conformance/multipleExportDefault1	full	js
 conformance/multipleExportDefault2	full	js
 conformance/multipleExportDefault3	full	js
@@ -10553,7 +10558,7 @@ conformance/objectRestReadonly	full	js
 conformance/objectSpread(target=es2015)	full	js
 conformance/objectSpreadComputedProperty	full	js
 conformance/objectSpreadIndexSignature	full	js
-conformance/objectSpreadNegative(target=es2015)	text	js
+conformance/objectSpreadNegative(target=es2015)	full	js
 conformance/objectSpreadNegativeParse	full	none
 conformance/objectSpreadNoTransform	full	js
 conformance/objectSpreadRepeatedComplexity	full	js
@@ -12895,7 +12900,7 @@ conformance/typedefScope1	full	js
 conformance/typedefTagExtraneousProperty	full	js
 conformance/typedefTagNested	full	js
 conformance/typedefTagTypeResolution	full	js
-conformance/typedefTagWrapping	text	js
+conformance/typedefTagWrapping	full	js
 conformance/typeofANonExportedType	full	js
 conformance/typeofAnExportedType	full	js
 conformance/typeofClass2	full	js
@@ -12913,7 +12918,7 @@ conformance/typeofThis	full	js
 conformance/typeofThisWithImplicitThis	full	js
 conformance/typeofTypeParameter	full	js
 conformance/types.asyncGenerators.es2018.1	full	js
-conformance/types.asyncGenerators.es2018.2	text	js
+conformance/types.asyncGenerators.es2018.2	full	js
 conformance/types.forAwait.es2018.1	full	js
 conformance/types.forAwait.es2018.2	full	js
 conformance/types.forAwait.es2018.3	full	js

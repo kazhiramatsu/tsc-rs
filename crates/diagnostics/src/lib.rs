@@ -343,7 +343,33 @@ pub fn compare_diagnostics(left: &Diagnostic, right: &Diagnostic) -> Ordering {
 
 pub fn sort_and_dedupe_diagnostics(diagnostics: &mut DiagnosticList) {
     diagnostics.sort_by(compare_diagnostics);
-    diagnostics.dedup_by(|right, left| diagnostics_equal(left, right));
+    // tsgo compactAndMergeRelatedInfos (compiler/program.go:1657-1688): a
+    // run of diagnostics that differ only by related information becomes
+    // one diagnostic whose related information is sorted and deduplicated.
+    let mut kept: DiagnosticList = Vec::with_capacity(diagnostics.len());
+    let mut merged = Vec::new();
+    for mut diagnostic in std::mem::take(diagnostics) {
+        if let Some(index) = kept.len().checked_sub(1) {
+            let last = &mut kept[index];
+            if diagnostics_equal(last, &diagnostic) {
+                if last.message == diagnostic.message && last.related != diagnostic.related {
+                    last.related.append(&mut diagnostic.related);
+                    last.related_information_present = true;
+                    if merged.last() != Some(&index) {
+                        merged.push(index);
+                    }
+                }
+                continue;
+            }
+        }
+        kept.push(diagnostic);
+    }
+    for index in merged {
+        let related = &mut kept[index].related;
+        related.sort_by(compare_related_info);
+        related.dedup_by(|right, left| compare_related_info(left, right) == Ordering::Equal);
+    }
+    *diagnostics = kept;
 }
 
 fn compare_diagnostics_skip_related(left: &Diagnostic, right: &Diagnostic) -> Ordering {

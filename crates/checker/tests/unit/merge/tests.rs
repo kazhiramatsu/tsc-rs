@@ -365,7 +365,7 @@ fn checked_js_reports_cross_file_block_scoped_redeclarations() {
         &[("a.js", "class Bar {}\n"), ("b.js", "const Bar = 3;\n")],
         &options,
         |state| {
-            let pins = state
+            let mut pins = state
                 .diagnostics
                 .iter()
                 .map(|diagnostic| {
@@ -380,6 +380,8 @@ fn checked_js_reports_cross_file_block_scoped_redeclarations() {
                     )
                 })
                 .collect::<Vec<_>>();
+            // The program sorts; the sink holds the merge's report order.
+            pins.sort();
             assert_eq!(pins, [(2451, "a.js", 6), (2451, "b.js", 6)]);
         },
     );
@@ -396,5 +398,124 @@ fn expando_assignment_does_not_redeclare_a_namespace_export() {
             "namespace N {\n  export var x = 1;\n}\nfunction F() {}\nnamespace F {\n  export var x = 1;\n}\nF.x = \"s\";\nN.x = \"s\";\n",
         ),
         [(2322, 88, 3), (2322, 99, 3)]
+    );
+}
+
+/// A related row as (file, start, code).
+type RelatedRow = (String, u32, u32);
+
+/// Each cross-file conflict's rows as (file, start, code, related rows),
+/// after the program's sort and dedup.
+fn merged_conflict_rows(files: &[(&str, &str)]) -> Vec<(String, u32, u32, Vec<RelatedRow>)> {
+    with_program_state(files, &CompilerOptions::default(), |state| {
+        let mut diagnostics = state
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.file_name.is_some())
+            .cloned()
+            .collect::<Vec<_>>();
+        tsc_diagnostics::sort_and_dedupe_diagnostics(&mut diagnostics);
+        let name = |file: &Option<tsc_types::JsString>| {
+            file.as_ref()
+                .map(|value| value.to_string_lossy().into_owned())
+                .unwrap_or_default()
+        };
+        diagnostics
+            .iter()
+            .map(|diagnostic| {
+                (
+                    name(&diagnostic.file_name),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.code(),
+                    diagnostic
+                        .related
+                        .iter()
+                        .map(|related| {
+                            (
+                                name(&related.file_name),
+                                related.start.unwrap_or(u32::MAX),
+                                related.message.code,
+                            )
+                        })
+                        .collect(),
+                )
+            })
+            .collect()
+    })
+}
+
+#[test]
+fn cross_file_conflicts_report_every_declaration_like_tsgo() {
+    // tsgo (tsc-19dadef8) has no amalgamatedDuplicates: eight conflicting
+    // names across two files report TS2451 at every declaration, each with
+    // its "was also declared here" row, instead of tsc 6.0's TS6200 pair.
+    let names = ["a", "b", "c", "d", "e", "f", "g", "h"];
+    let one = names
+        .iter()
+        .map(|name| format!("declare var {name}: number;\n"))
+        .collect::<String>();
+    let two = names
+        .iter()
+        .map(|name| format!("declare let {name}: number;\n"))
+        .collect::<String>();
+    let rows = merged_conflict_rows(&[("one.ts", &one), ("two.ts", &two)]);
+    let expected = ["one.ts", "two.ts"]
+        .iter()
+        .flat_map(|file| {
+            let other = if *file == "one.ts" {
+                "two.ts"
+            } else {
+                "one.ts"
+            };
+            // `declare var x: number;` and `declare let x: number;` put
+            // every name at the same offset.
+            (0..names.len() as u32).map(move |line| {
+                let start = line * 23 + 12;
+                (
+                    (*file).to_owned(),
+                    start,
+                    2451,
+                    vec![(other.to_owned(), start, 6203)],
+                )
+            })
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(rows, expected);
+}
+
+#[test]
+fn augmentation_conflicts_merge_their_related_rows_like_tsgo() {
+    // tsgo (tsc-19dadef8): each augmentation merges, and reports,
+    // separately; the two a.ts diagnostics differ only by related
+    // information and merge into one with two leading rows (TS6203).
+    let b = "export {};\n\ndeclare module \"./a\" {\n    export const x = 0;\n}\n\ndeclare module \"../dir/a\" {\n    export const x = 0;\n}\n";
+    let rows = merged_conflict_rows(&[("/dir/a.ts", "export const x = 0;\n"), ("/dir/b.ts", b)]);
+    let first = b.find("x = 0").expect("first augmentation") as u32;
+    let second = b.rfind("x = 0").expect("second augmentation") as u32;
+    assert_eq!(
+        rows,
+        [
+            (
+                "/dir/a.ts".to_owned(),
+                13,
+                2451,
+                vec![
+                    ("/dir/b.ts".to_owned(), first, 6203),
+                    ("/dir/b.ts".to_owned(), second, 6203),
+                ],
+            ),
+            (
+                "/dir/b.ts".to_owned(),
+                first,
+                2451,
+                vec![("/dir/a.ts".to_owned(), 13, 6203)],
+            ),
+            (
+                "/dir/b.ts".to_owned(),
+                second,
+                2451,
+                vec![("/dir/a.ts".to_owned(), 13, 6203)],
+            ),
+        ]
     );
 }

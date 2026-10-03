@@ -946,20 +946,6 @@ impl<'a> CheckerState<'a> {
         error_node: Option<tsc_syntax::NodeId>,
     ) -> CheckResult<(bool, Option<RelationErrorOutput>)> {
         let relation_count = (16_000_000 - self.relations.cache(relation).len() as i64) >> 3;
-        // reportUnmatchedProperty reads checkTypeRelatedTo's closure-
-        // level `headMessage`, not the per-recursion `headMessage2`.
-        // Only the two class-implements heads retain the intermediate
-        // generic relation row; every other entry lets the missing-
-        // property row override that next row.
-        let should_skip_elaboration = !head_message.is_some_and(|message| {
-            std::ptr::eq(
-                message,
-                &tsc_diagnostics::gen::Class_0_incorrectly_implements_interface_1,
-            ) || std::ptr::eq(
-                message,
-                &tsc_diagnostics::gen::Class_0_incorrectly_implements_class_1_Did_you_mean_to_extend_1_and_inherit_its_members_as_a_subclass,
-            )
-        });
         let mut checker = RelationChecker {
             st: self,
             relation,
@@ -974,7 +960,6 @@ impl<'a> CheckerState<'a> {
             overflow: false,
             relation_count,
             error_state: RelationErrorState {
-                should_skip_elaboration,
                 error_node,
                 ..RelationErrorState::default()
             },
@@ -987,9 +972,6 @@ impl<'a> CheckerState<'a> {
             head_message,
             IntersectionState::NONE,
         )?;
-        if !checker.error_state.incompatible_stack.is_empty() {
-            checker.report_incompatible_stack()?;
-        }
         if let Some(output) = checker.overflow_error_output(source, target)? {
             // The overflow row bypasses errorInfo and the containing chain.
             // Its consumer owns publication so later related-info additions
@@ -1002,7 +984,7 @@ impl<'a> CheckerState<'a> {
         // diagnostic chain; treating that truthy verdict as "no output"
         // drops diagnostics produced during JSX child elaboration.
         let related = !is_false(result);
-        let mut message = checker.error_state.error_info.take();
+        let mut message = checker.error_state.take_diagnostic_chain();
         // W2c/W2e: the elaboration chain carries its display-class reasons;
         // it is marked BEFORE any containing chain wraps it, so a published
         // diagnostic that nests or relates it is still recognized.
@@ -1091,30 +1073,27 @@ pub(crate) struct RelationErrorOutput {
     pub(crate) used_containing_message_chain: bool,
 }
 
+/// One row of tsgo's relation error chain (`ErrorChain`,
+/// relater.go:2574-2578).
+#[derive(Clone)]
+struct ErrorChainEntry {
+    message: &'static DiagnosticMessage,
+    args: Vec<JsString>,
+}
+
 #[derive(Clone, Default)]
 pub(crate) struct RelationErrorState {
-    error_info: Option<MessageChain>,
+    /// tsgo's `errorChain`, innermost row first: the last entry is the
+    /// newest, outermost row. The signature return-type markers stay in
+    /// it for `report_error_js`'s transformations and are elided when the
+    /// diagnostic chain is built (createDiagnosticChainFromErrorChain).
+    error_chain: Vec<ErrorChainEntry>,
     related_info: Vec<RelatedInfo>,
-    incompatible_stack: Vec<(&'static DiagnosticMessage, Vec<JsString>)>,
-    last_skipped_info: Option<(TypeId, TypeId)>,
-    override_next_error_info: usize,
-    skip_parent_counter: usize,
-    /// Rust owns diagnostic chains instead of retaining tsc's object
+    /// Rust owns diagnostic chains instead of retaining tsgo's pointer
     /// identity. This revision is the identity token used by
-    /// structuredTypeRelatedTo's `errorInfo === saveErrorInfo.errorInfo`
-    /// guard: reporting advances it and resetErrorInfo restores it.
+    /// structuredTypeRelatedTo's `errorChain == saveErrorState.errorChain`
+    /// guard: reporting advances it and restoreErrorState restores it.
     error_info_revision: u64,
-    /// reportUnmatchedProperty's closure-level `shouldSkipElaboration`.
-    /// It is false only for the two class-implements head messages.
-    should_skip_elaboration: bool,
-    /// The arguments of the row at the head of `error_info`, kept beside
-    /// the formatted chain for the TypeScript 7.1 relation-head rule
-    /// (`Relater.chainArgsMatch` in relater.go): the 7.1 reference
-    /// drops a relation head only when the row directly under it names
-    /// the same source and target. Every site that replaces the chain
-    /// head keeps this in step (a row inserted without arguments
-    /// clears it, which never matches).
-    chain_head_args: Vec<JsString>,
     /// tsc's closure-local mutable errorNode, owned as a copyable arena id.
     error_node: Option<tsc_syntax::NodeId>,
     /// W2c display-class order-sensitivity of the elaboration being built;
@@ -1139,30 +1118,42 @@ fn is_conversion_or_interface_implementation_message(message: &'static Diagnosti
     .any(|candidate| std::ptr::eq(*candidate, message))
 }
 
-fn count_message_chain_breadth(info: &[MessageChain]) -> usize {
-    info.iter()
-        .map(|chain| 1 + count_message_chain_breadth(&chain.next))
-        .sum()
+impl RelationErrorState {
+    /// tsgo: createDiagnosticChainFromErrorChain (relater.go:400-412).
+    /// The rows elided in the compatibility pyramid (the signature
+    /// return-type markers) are skipped; the chain is consumed.
+    fn take_diagnostic_chain(&mut self) -> Option<MessageChain> {
+        let entries = std::mem::take(&mut self.error_chain);
+        let mut chain: Option<MessageChain> = None;
+        for entry in entries {
+            if entry.message.elided_in_compatibility_pyramid {
+                continue;
+            }
+            let head = MessageChain::new_js(entry.message, &entry.args);
+            chain = Some(match chain.take() {
+                Some(next) => head.with_next(vec![next]),
+                None => head,
+            });
+        }
+        chain
+    }
 }
 
+/// tsgo's `chainDepth` comparison in the indexed-access constraint retry
+/// (relater.go:3510-3514): the original chain is kept when it is no
+/// deeper than the retry's.
 fn indexed_access_error_info_selection<'s>(
     original: &'s RelationErrorState,
     current: &'s RelationErrorState,
 ) -> Option<&'s RelationErrorState> {
-    let (Some(original_info), Some(current_info)) =
-        (original.error_info.as_ref(), current.error_info.as_ref())
-    else {
+    if original.error_chain.is_empty() || current.error_chain.is_empty() {
         return None;
-    };
-    Some(
-        if count_message_chain_breadth(std::slice::from_ref(original_info))
-            <= count_message_chain_breadth(std::slice::from_ref(current_info))
-        {
-            original
-        } else {
-            current
-        },
-    )
+    }
+    Some(if original.error_chain.len() <= current.error_chain.len() {
+        original
+    } else {
+        current
+    })
 }
 
 fn variance_error_info_selection<'s>(
@@ -1171,9 +1162,68 @@ fn variance_error_info_selection<'s>(
     saved: &'s RelationErrorState,
 ) -> &'s RelationErrorState {
     original
-        .filter(|state| state.error_info.is_some())
-        .or_else(|| current.error_info.as_ref().map(|_| current))
+        .filter(|state| !state.error_chain.is_empty())
+        .or_else(|| (!current.error_chain.is_empty()).then_some(current))
         .unwrap_or(saved)
+}
+
+/// tsgo: getPropertyNameArg (relater.go:4958-4964).
+fn property_name_arg(arg: Option<&JsString>) -> JsString {
+    let arg = arg.cloned().unwrap_or_default();
+    if arg.starts_with("\"") || arg.starts_with("'") || arg.starts_with("`") {
+        let mut wrapped = JsString::from("[");
+        wrapped.push_js(arg.as_js());
+        wrapped.push_str("]");
+        return wrapped;
+    }
+    arg
+}
+
+/// tsgo: addToDottedName (relater.go:4912-4932).
+fn add_to_dotted_name(head: JsString, tail: &JsString) -> JsString {
+    let head = if head.starts_with("new ") {
+        let mut wrapped = JsString::from("(");
+        wrapped.push_js(head.as_js());
+        wrapped.push_str(")");
+        wrapped
+    } else {
+        head
+    };
+    let mut rest = tail.as_js();
+    let mut prefix_bytes = 0;
+    loop {
+        if let Some(after) = rest.strip_prefix("(") {
+            prefix_bytes += 1;
+            rest = after;
+        } else if let Some(after) = rest.strip_prefix("new ") {
+            prefix_bytes += 4;
+            rest = after;
+        } else {
+            break;
+        }
+    }
+    let (prefix, suffix) = tail
+        .as_js()
+        .split_at_byte(prefix_bytes)
+        .expect("the stripped prefixes are ASCII");
+    let mut dotted = JsString::new();
+    dotted.push_js(prefix);
+    dotted.push_js(head.as_js());
+    if !suffix.starts_with("[") {
+        dotted.push_str(".");
+    }
+    dotted.push_js(suffix);
+    dotted
+}
+
+fn is_excess_property_message(message: &'static DiagnosticMessage) -> bool {
+    std::ptr::eq(
+        message,
+        &diagnostics::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1,
+    ) || std::ptr::eq(
+        message,
+        &diagnostics::Object_literal_may_only_specify_known_properties_but_0_does_not_exist_in_type_1_Did_you_mean_to_write_2,
+    )
 }
 
 /// The checkTypeRelatedTo closure state (maybe stack, recursion
@@ -1658,9 +1708,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         Ok(Ternary::FALSE)
     }
 
-    /// tsc-port: reportError @6.0.3
-    /// tsc-hash: f14a9d286af01a8105c39ad41f01e22afe1f8289681fe663fdfaec45fbd7b238
-    /// tsc-span: _tsc.js:65037-65046
+    /// tsgo: Relater.reportError (relater.go:4864-4910)
     pub(crate) fn report_error(
         &mut self,
         message: &'static DiagnosticMessage,
@@ -1669,20 +1717,122 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         self.report_error_js(message, args.into_iter().map(JsString::from).collect())
     }
 
-    /// tsc-port: createTypeChecker.checkTypeRelatedTo.reportError @6.0.3
-    /// tsc-hash: a871642f2e5fcb05497d98e85f5b73f64a73926c96c9b7b595b44ce86be6b5d9
-    /// tsc-span: _tsc.js:65042-65051
-    /// JS-valued twin of `report_error`; keep their diagnostic behavior aligned.
+    /// tsgo: Relater.reportError (relater.go:4864-4910)
+    ///
+    /// A property incompatibility is suppressed under an excess-property
+    /// row, folded with a signature return-type marker two rows down
+    /// into "The types returned by 'x(...)'", and folded with a property
+    /// incompatibility two rows down into a dotted name ("The types of
+    /// 'x.y'"). The marker rows themselves stay in the chain and are
+    /// elided from the diagnostic.
     pub(crate) fn report_error_js(
         &mut self,
         message: &'static DiagnosticMessage,
-        args: Vec<JsString>,
+        mut args: Vec<JsString>,
     ) -> CheckResult<()> {
-        if !self.error_state.incompatible_stack.is_empty() {
-            self.report_incompatible_stack()?;
+        let mut message = message;
+        if std::ptr::eq(message, &diagnostics::Types_of_property_0_are_incompatible) {
+            if self
+                .chain_message(0)
+                .is_some_and(is_excess_property_message)
+            {
+                return Ok(());
+            }
+            let property = property_name_arg(args.first());
+            let returned = self.chain_message(1).and_then(|marker| {
+                let (construct, suffix) = if std::ptr::eq(
+                    marker,
+                    &diagnostics::Call_signatures_with_no_arguments_have_incompatible_return_types_0_and_1,
+                ) {
+                    (false, "()")
+                } else if std::ptr::eq(
+                    marker,
+                    &diagnostics::Construct_signatures_with_no_arguments_have_incompatible_return_types_0_and_1,
+                ) {
+                    (true, "()")
+                } else if std::ptr::eq(
+                    marker,
+                    &diagnostics::Call_signature_return_types_0_and_1_are_incompatible,
+                ) {
+                    (false, "(...)")
+                } else if std::ptr::eq(
+                    marker,
+                    &diagnostics::Construct_signature_return_types_0_and_1_are_incompatible,
+                ) {
+                    (true, "(...)")
+                } else {
+                    return None;
+                };
+                let mut arg = JsString::from(if construct { "new " } else { "" });
+                arg.push_js(property.as_js());
+                arg.push_str(suffix);
+                Some(arg)
+            });
+            if let Some(arg) = returned {
+                message =
+                    &diagnostics::The_types_returned_by_0_are_incompatible_between_these_types;
+                args = vec![arg];
+                self.pop_chain(2);
+            }
+            let folds_property = self.chain_message(1).is_some_and(|next| {
+                std::ptr::eq(next, &diagnostics::Types_of_property_0_are_incompatible)
+                    || std::ptr::eq(
+                        next,
+                        &diagnostics::The_types_of_0_are_incompatible_between_these_types,
+                    )
+                    || std::ptr::eq(
+                        next,
+                        &diagnostics::The_types_returned_by_0_are_incompatible_between_these_types,
+                    )
+            });
+            if folds_property {
+                let head = property_name_arg(args.first());
+                let tail = property_name_arg(self.chain_args(1).first());
+                let arg = add_to_dotted_name(head, &tail);
+                self.pop_chain(2);
+                if std::ptr::eq(message, &diagnostics::Types_of_property_0_are_incompatible) {
+                    message = &diagnostics::The_types_of_0_are_incompatible_between_these_types;
+                }
+                return self.report_error_js(message, vec![arg]);
+            }
         }
-        self.report_error_direct_js(message, args);
+        self.push_chain(message, args);
         Ok(())
+    }
+
+    /// tsgo: Relater.getChainMessage (relater.go:4934-4948)
+    fn chain_message(&self, index: usize) -> Option<&'static DiagnosticMessage> {
+        self.error_state
+            .error_chain
+            .iter()
+            .rev()
+            .nth(index)
+            .map(|entry| entry.message)
+    }
+
+    fn chain_args(&self, index: usize) -> &[JsString] {
+        self.error_state
+            .error_chain
+            .iter()
+            .rev()
+            .nth(index)
+            .map_or(&[][..], |entry| &entry.args)
+    }
+
+    fn push_chain(&mut self, message: &'static DiagnosticMessage, args: Vec<JsString>) {
+        self.error_state
+            .error_chain
+            .push(ErrorChainEntry { message, args });
+        self.error_state.error_info_revision = self.error_state.error_info_revision.wrapping_add(1);
+    }
+
+    /// `r.errorChain = r.errorChain.next.next` and its siblings.
+    fn pop_chain(&mut self, count: usize) {
+        let length = self.error_state.error_chain.len();
+        self.error_state
+            .error_chain
+            .truncate(length.saturating_sub(count));
+        self.error_state.error_info_revision = self.error_state.error_info_revision.wrapping_add(1);
     }
 
     /// tsc-port: isRelatedTo.commonPropertyDiagnostic @6.0.3
@@ -1809,31 +1959,6 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         Ok(())
     }
 
-    fn report_error_direct_js(&mut self, message: &'static DiagnosticMessage, args: Vec<JsString>) {
-        if message.elided_in_compatibility_pyramid {
-            return;
-        }
-        self.report_error_unelided_js(message, args);
-    }
-
-    fn report_error_unelided_js(
-        &mut self,
-        message: &'static DiagnosticMessage,
-        args: Vec<JsString>,
-    ) {
-        if self.error_state.skip_parent_counter > 0 {
-            self.error_state.skip_parent_counter -= 1;
-            return;
-        }
-        let head = MessageChain::new_js(message, &args);
-        self.error_state.error_info = Some(match self.error_state.error_info.take() {
-            Some(next) => head.with_next(vec![next]),
-            None => head,
-        });
-        self.error_state.chain_head_args = args;
-        self.error_state.error_info_revision = self.error_state.error_info_revision.wrapping_add(1);
-    }
-
     /// tsc-port: captureErrorCalculationState/resetErrorInfo @6.0.3
     /// tsc-hash: 88eb6cf35409a050372d39711513487a39760cde3bd86ffb4e41165b28677c64
     /// tsc-span: _tsc.js:64925-64941
@@ -1841,15 +1966,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         self.error_state.clone()
     }
 
-    /// Capture tsc's nullable `errorInfo` value together with the
-    /// owned revision token. A Rust snapshot with an empty chain is
-    /// not equivalent to JavaScript's falsy `undefined`.
+    /// Capture tsgo's nullable `errorChain` value together with the
+    /// owned revision token: an empty chain is tsgo's nil.
     /// tsrs-native: Option-valued projection of the owned relation-error state.
     pub(crate) fn capture_current_error_info(&self) -> Option<RelationErrorState> {
-        self.error_state
-            .error_info
-            .as_ref()
-            .map(|_| self.error_state.clone())
+        (!self.error_state.error_chain.is_empty()).then(|| self.error_state.clone())
     }
 
     /// tsrs-native: owned-state restore for tsc's closure-local
@@ -1877,12 +1998,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         original: &RelationErrorState,
     ) {
         if let Some(selected) = indexed_access_error_info_selection(original, &self.error_state) {
-            let error_info = selected.error_info.clone();
+            let error_chain = selected.error_chain.clone();
             let revision = selected.error_info_revision;
-            let head_args = selected.chain_head_args.clone();
-            self.error_state.error_info = error_info;
+            self.error_state.error_chain = error_chain;
             self.error_state.error_info_revision = revision;
-            self.error_state.chain_head_args = head_args;
         }
     }
 
@@ -1903,37 +2022,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         saved: &RelationErrorState,
     ) {
         let selected = variance_error_info_selection(original, &self.error_state, saved);
-        let error_info = selected.error_info.clone();
+        let error_chain = selected.error_chain.clone();
         let revision = selected.error_info_revision;
-        let head_args = selected.chain_head_args.clone();
-        self.error_state.error_info = error_info;
+        self.error_state.error_chain = error_chain;
         self.error_state.error_info_revision = revision;
-        self.error_state.chain_head_args = head_args;
-    }
-
-    /// tsc-port: reportIncompatibleError @6.0.3
-    /// tsc-hash: 2cce1f797b799fa60fb64403c93683596305c21563a3981cc4c08fa509f7dbd4
-    /// tsc-span: _tsc.js:64942-64947
-    pub(crate) fn report_incompatible_error(
-        &mut self,
-        message: &'static DiagnosticMessage,
-        args: Vec<String>,
-    ) {
-        self.report_incompatible_error_js(message, args.into_iter().map(JsString::from).collect());
-    }
-
-    /// tsc-port: createTypeChecker.checkTypeRelatedTo.reportIncompatibleError @6.0.3
-    /// tsc-hash: ef22e98a04b5ee9d00cec528c64967a94f296599254a0b8a5539960de323b210
-    /// tsc-span: _tsc.js:64947-64951
-    /// JS-valued twin of `report_incompatible_error`; keep their diagnostic behavior aligned.
-    pub(crate) fn report_incompatible_error_js(
-        &mut self,
-        message: &'static DiagnosticMessage,
-        args: Vec<JsString>,
-    ) {
-        self.error_state.override_next_error_info += 1;
-        self.error_state.last_skipped_info = None;
-        self.error_state.incompatible_stack.push((message, args));
     }
 
     /// tsc-port: associateRelatedInfo @6.0.3
@@ -1943,160 +2035,17 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         self.error_state.related_info.push(info);
     }
 
-    /// tsc-port: reportUnmatchedProperty @6.0.3
-    /// tsc-hash: 2273740e1e468507c9fe6968bfee394b8d0511c7fcaf96b850f3ea2795413fbd
-    /// tsc-span: _tsc.js:66708-66760
-    ///
-    /// A missing-property detail normally replaces the generic
-    /// relation row at the immediately enclosing failed relation
-    /// level. The class-implements heads are the sole exception.
-    pub(crate) fn override_next_error_after_unmatched_property(&mut self) {
-        if self.error_state.should_skip_elaboration && self.error_state.error_info.is_some() {
-            self.error_state.override_next_error_info += 1;
-        }
-    }
-
-    /// tsc-port: reportIncompatibleStack @6.0.3
-    /// tsc-hash: a1152011911131a223fd5304339b7872a283f3a6a0757347c0b3e67216a21dd2
-    /// tsc-span: _tsc.js:64948-65036
-    fn report_incompatible_stack(&mut self) -> CheckResult<()> {
-        let mut stack = std::mem::take(&mut self.error_state.incompatible_stack);
-        let skipped = self.error_state.last_skipped_info.take();
-        if stack.len() == 1 {
-            let (message, args) = stack.pop().expect("single incompatibility");
-            self.report_error_direct_js(message, args);
-            if let Some((source, target)) = skipped {
-                self.report_relation_error(None, source, target)?;
-            }
-            return Ok(());
-        }
-        let mut path = JsString::default();
-        let mut secondary_root_errors: Vec<(&'static DiagnosticMessage, Vec<JsString>)> =
-            Vec::new();
-        while let Some((message, args)) = stack.pop() {
-            match message.code {
-                code if code == diagnostics::Types_of_property_0_are_incompatible.code => {
-                    // A property appended after a constructed return value
-                    // belongs to that value, not to the constructor target:
-                    // `(new C()).p`, never `new C().p`.
-                    if path.starts_with("new ") {
-                        let mut wrapped = JsString::from("(");
-                        wrapped.push_js(path.as_js());
-                        wrapped.push_str(")");
-                        path = wrapped;
-                    }
-                    let property = args.first().cloned().unwrap_or_default();
-                    if path.is_empty() {
-                        path = property;
-                    } else if property.as_str().is_some_and(|text| text.chars().enumerate().all(|(index, ch)| {
-                        ch == '_'
-                            || ch == '$'
-                            || ch.is_alphanumeric() && (index > 0 || !ch.is_ascii_digit())
-                    })) {
-                        path.push_str(".");
-                        path.push_js(property.as_js());
-                    } else if property.starts_with("[") && property.ends_with("]") {
-                        path.push_js(property.as_js());
-                    } else {
-                        path.push_str("[");
-                        path.push_js(property.as_js());
-                        path.push_str("]");
-                    }
-                }
-                code if code
-                    == diagnostics::Call_signature_return_types_0_and_1_are_incompatible.code
-                    || code
-                        == diagnostics::Construct_signature_return_types_0_and_1_are_incompatible
-                            .code
-                    || code
-                        == diagnostics::Call_signatures_with_no_arguments_have_incompatible_return_types_0_and_1
-                            .code
-                    || code
-                        == diagnostics::Construct_signatures_with_no_arguments_have_incompatible_return_types_0_and_1
-                            .code =>
-                {
-                    if path.is_empty() {
-                        let mapped = if code
-                            == diagnostics::Call_signatures_with_no_arguments_have_incompatible_return_types_0_and_1
-                                .code
-                        {
-                            &diagnostics::Call_signature_return_types_0_and_1_are_incompatible
-                        } else if code
-                            == diagnostics::Construct_signatures_with_no_arguments_have_incompatible_return_types_0_and_1
-                                .code
-                        {
-                            &diagnostics::Construct_signature_return_types_0_and_1_are_incompatible
-                        } else {
-                            message
-                        };
-                        secondary_root_errors.insert(0, (mapped, args));
-                    } else {
-                        let construct = code
-                            == diagnostics::Construct_signature_return_types_0_and_1_are_incompatible
-                                .code
-                            || code
-                                == diagnostics::Construct_signatures_with_no_arguments_have_incompatible_return_types_0_and_1
-                                    .code;
-                        let no_arguments = code
-                            == diagnostics::Call_signatures_with_no_arguments_have_incompatible_return_types_0_and_1
-                                .code
-                            || code
-                                == diagnostics::Construct_signatures_with_no_arguments_have_incompatible_return_types_0_and_1
-                                    .code;
-                        if construct {
-                            let mut prefixed = JsString::from("new ");
-                            prefixed.push_js(path.as_js());
-                            path = prefixed;
-                        }
-                        path.push_str(if no_arguments { "()" } else { "(...)" });
-                    }
-                }
-                code if code
-                    == diagnostics::Type_at_position_0_in_source_is_not_compatible_with_type_at_position_1_in_target.code
-                    || code
-                        == diagnostics::Type_at_positions_0_through_1_in_source_is_not_compatible_with_type_at_position_2_in_target
-                            .code =>
-                {
-                    secondary_root_errors.insert(0, (message, args));
-                }
-                _ => self.report_error_direct_js(message, args),
-            }
-        }
-        if !path.is_empty() {
-            self.report_error_direct_js(
-                if path.ends_with(")") {
-                    &diagnostics::The_types_returned_by_0_are_incompatible_between_these_types
-                } else {
-                    &diagnostics::The_types_of_0_are_incompatible_between_these_types
-                },
-                vec![path],
-            );
-        } else if !secondary_root_errors.is_empty() {
-            secondary_root_errors.remove(0);
-        }
-        for (message, args) in secondary_root_errors {
-            // reportIncompatibleStack temporarily clears
-            // elidedInCompatibilityPyramid for these root rows.
-            self.report_error_unelided_js(message, args);
-        }
-        if let Some((source, target)) = skipped {
-            self.report_relation_error(None, source, target)?;
-        }
-        Ok(())
-    }
-
     /// tsc-port: reportRelationError @6.0.3
     /// tsc-hash: 45dea8d9b67f23646ebfaf1715763d15c020dc9530e26760e6352e2f3be75fcd
     /// tsc-span: _tsc.js:65064-65135
+    ///
+    /// tsgo: Relater.reportRelationError (relater.go:4783-4862).
     fn report_relation_error(
         &mut self,
         mut message: Option<&'static DiagnosticMessage>,
         source: TypeId,
         target: TypeId,
     ) -> CheckResult<()> {
-        if !self.error_state.incompatible_stack.is_empty() {
-            self.report_incompatible_stack()?;
-        }
         let mut source_text = self.st.type_to_string_with_error_enclosing(source)?;
         let mut target_text = self.st.type_to_string_with_error_enclosing(target)?;
         if source_text == target_text {
@@ -2157,8 +2106,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         }), (target_text.clone()), (constraint_text)],
                 )?;
             } else {
-                self.error_state.error_info = None;
-                self.error_state.chain_head_args.clear();
+                // `r.errorChain = nil // Only report this error once`
+                self.error_state.error_chain.clear();
                 self.error_state.error_info_revision =
                     self.error_state.error_info_revision.wrapping_add(1);
                 self.report_error_js(
@@ -2207,33 +2156,34 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         Ok(())
     }
 
-    /// tsgo-port: Relater.reportRelationError @7.1 (relater.go), the
-    /// suppression switch before its final `reportError`.
+    /// tsgo-port: Relater.reportRelationError @7.1 (relater.go:4835-4860),
+    /// the suppression switch before its final `reportError`.
     ///
     /// TypeScript 7.1 reports a relation failure by the row that names
-    /// it when that row sits directly under the head for the same
-    /// source and target: a missing-property row (2741, 2739, 2740), a
+    /// it when that row sits directly under the head: an excess-property
+    /// row always, and a missing-property row (2741, 2739, 2740), a
     /// readonly-versus-mutable row (4104) or an excessive-complexity
-    /// row (2859). The head is dropped even when it is an explicit
-    /// head message such as 2345 (argument), 2344 (constraint), 1360
-    /// (satisfies) or 2684 (this context), which tsc 6.0.3 always kept
-    /// above the chain. Conversion and interface-implementation heads
-    /// keep their missing-property detail beneath them, as in 6.0.3.
-    /// The comparison is on the row's arguments, so a row that names
-    /// another pair (the single-base substitute, an apparent type, a
-    /// constituent) leaves the head in place. The excess-property row
-    /// is not listed: tsc 6.0.3's parent-skipped report already drops
-    /// the head that follows it.
+    /// row (2859) for the same source and target. The head is dropped
+    /// even when it is an explicit head message such as 2345 (argument),
+    /// 2344 (constraint), 1360 (satisfies) or 2684 (this context).
+    /// Conversion and interface-implementation heads keep their
+    /// missing-property detail beneath them. The comparison is on the
+    /// row's arguments, so a row that names another pair (the
+    /// single-base substitute, an apparent type, a constituent) leaves
+    /// the head in place.
     fn chain_head_suppresses_relation_head(
         &self,
         message: &'static DiagnosticMessage,
         source_text: &JsString,
         target_text: &JsString,
     ) -> bool {
-        let Some(head) = self.error_state.error_info.as_ref() else {
+        let Some(head) = self.chain_message(0) else {
             return false;
         };
-        let args = &self.error_state.chain_head_args;
+        if is_excess_property_message(head) {
+            return true;
+        }
+        let args = self.chain_args(0);
         let arg_is = |index: usize, expected: &JsString| args.get(index) == Some(expected);
         let code = head.code;
         if code == diagnostics::Excessive_complexity_comparing_types_0_and_1.code
@@ -2325,18 +2275,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         {
             target = original_target;
         }
-        let mut maybe_suppress = self.error_state.override_next_error_info > 0;
-        if maybe_suppress {
-            self.error_state.override_next_error_info -= 1;
-        }
         if self.flags(source).intersects(TypeFlags::OBJECT)
             && self.flags(target).intersects(TypeFlags::OBJECT)
         {
-            let current_error_revision = self.error_state.error_info_revision;
             self.try_elaborate_array_like_errors(source, target, true)?;
-            if self.error_state.error_info_revision != current_error_revision {
-                maybe_suppress = self.error_state.error_info.is_some();
-            }
         }
         let suppress_jsx_intersection_head = if self
             .st
@@ -2370,37 +2312,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             // reportErrorResults returns here: the intrinsic constituent's
             // 2741/2739 detail is the complete diagnostic.
             return Ok(());
-        } else if let Some(mut elaboration) =
-            self.st.elaborate_never_intersection_row(original_target)?
+        } else if let Some((message, args)) =
+            self.st.never_intersection_row_parts(original_target)?
         {
-            if let Some(existing) = self.error_state.error_info.take() {
-                elaboration.next_present = true;
-                elaboration.next.push(existing);
-            }
-            self.error_state.error_info = Some(elaboration);
-            self.error_state.chain_head_args.clear();
-            self.error_state.error_info_revision =
-                self.error_state.error_info_revision.wrapping_add(1);
+            self.report_error_js(message, args)?;
         }
-        // tsc 6.0.3 skips the generic head here whenever this level armed
-        // overrideNextErrorInfo (65296-65300). TypeScript 7.1 has no such
-        // counter: `Relater.reportErrorResults` always reaches
-        // reportRelationError, which drops the head only when the row
-        // under it names the same pair (`chain_head_suppresses_relation_head`).
-        // Under the 7.1 profile the 6.0.3 skip therefore remains only
-        // while an incompatible stack is pending, where it is the
-        // deferral that lets reportIncompatibleStack place the stack's
-        // rows before this head.
-        let defer_generic_head = head_message.is_none()
-            && maybe_suppress
-            && !self.error_state.incompatible_stack.is_empty();
-        if defer_generic_head {
-            let saved_error_state = self.capture_error_calculation_state();
-            self.report_relation_error(None, source, target)?;
-            self.reset_error_info(&saved_error_state);
-            self.error_state.last_skipped_info = Some((source, target));
-            return Ok(());
-        }
+        // tsgo's reportErrorResults (relater.go:4737-4782) always reaches
+        // reportRelationError, which drops the head only under the rows its
+        // suppression switch names (`chain_head_suppresses_relation_head`).
         self.report_relation_error(head_message, source, target)?;
         self.associate_missing_type_parameter_constraint_related(source, target)
     }
@@ -2587,10 +2506,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     )?) {
                         if report_errors {
                             let name = self.st.symbol_name_as_written(prop);
-                            self.report_incompatible_error_js(
+                            self.report_error_js(
                                 &diagnostics::Types_of_property_0_are_incompatible,
                                 vec![name],
-                            );
+                            )?;
                         }
                         return Ok(ExcessPropertyOutcome::Incompatible);
                     }
@@ -2720,9 +2639,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         vec![prop_text, target_text],
                     )?,
                 }
-                // reportParentSkippedError: suppress this recursion level's
-                // generic relation row while retaining the outer caller head.
-                self.error_state.skip_parent_counter += 1;
+                // tsgo suppresses the relation head and a property
+                // incompatibility above this row by inspecting the chain
+                // (reportRelationError, reportError).
             }
         }
         Ok(())
@@ -3589,7 +3508,6 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     let source_text = self.st.type_to_string(source)?;
                     let target_text = self.st.type_to_string(target)?;
                     self.report_error_js(message, vec![source_text, target_text])?;
-                    self.error_state.override_next_error_info += 1;
                 }
                 return Ok(if entry.intersects(RelationComparisonResult::SUCCEEDED) {
                     Ternary::TRUE

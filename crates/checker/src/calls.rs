@@ -4177,6 +4177,10 @@ impl<'a> CheckerState<'a> {
                     MessageChain::new(head, &[]).with_next(prefix.into_iter().collect::<Vec<_>>()),
                 );
             }
+            // tsgo wraps each diagnostic of the last candidate separately
+            // (checker.go:9846-9853). tsc 6.0 threaded one mutable
+            // containing chain through every argument relation, so later
+            // rows were appended under the earlier ones.
             let errors = match self.get_signature_applicability_error(
                 node,
                 &args,
@@ -4184,7 +4188,7 @@ impl<'a> CheckerState<'a> {
                 RelationKind::Assignable,
                 CheckMode::NORMAL,
                 ApplicabilityMode::Report,
-                prefix,
+                /*containing_message_chain*/ None,
             ) {
                 Ok(errors) => errors.unwrap_or_else(|| {
                     panic!(
@@ -4202,6 +4206,16 @@ impl<'a> CheckerState<'a> {
             };
             for error in errors {
                 let mut diagnostic = error.diagnostic.expect("Report mode builds diagnostics");
+                if let Some(prefix) = &prefix {
+                    let mut chain = prefix.clone();
+                    let mut leaf = &mut chain;
+                    while !leaf.next.is_empty() {
+                        leaf = leaf.next.first_mut().expect("non-empty chain");
+                    }
+                    leaf.next_present = true;
+                    leaf.next.push(diagnostic.message);
+                    diagnostic.message = chain;
+                }
                 if several {
                     if let Some(declaration) = self.signature_of(last).declaration {
                         diagnostic.related.push(self.related_info_for_node(

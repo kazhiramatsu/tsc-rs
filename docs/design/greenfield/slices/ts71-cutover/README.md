@@ -956,3 +956,87 @@ P3-5q後の不一致から、tsgoが検査の順序・報告の位置・まと�
   - tsconfigの位置などharnessの行（約6）
 - hosted：PR #636（head `e7c808588`、merge `97abe471c`）、run 37109454811 — `plan` 37s、`rust` 7m30s、`conformance (TypeScript 7.1)` 14m5s、`gates` 11s。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main `47d8bc192`（P3-5qのhead `857a31272`と同じコードのrelease build）と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 152→148、zod 546→574、Playwright 405→384、TypeScript `src/compiler` 387→361、Next.js 814→826、Effect 594→572、VS Code 3,788→3,716。計測時のload averageが高く（6前後）絶対値はP3-5qの記録より大きいが、同じroundの交互実行で比べている。tsc-rs÷tsgoは0.60〜0.98、peak memory（MB main→本branch）：316→306、1,292→1,296、819→802、289→289、1,316→1,323、1,032→1,046、5,430→5,448。zodとNext.jsは同条件の5 roundsのA/B（main／本branch）でzod 583／579 ms・CPU 3,725／3,718 ms、Next.js 826／831 ms・CPU 4,880／4,848 msなのでノイズ。退行なし。
+
+## P3-5s 関係エラーのchainと診断の集約をtsgoに合わせる（2026-10-03）
+
+P3-5r後のtext tierの主なclass（関係エラーのchainの文言）と、診断の集約の違いを直した：
+- 関係エラーのchain（relater.go:2574-2620、4737-4990）：
+  - tsgoのrelaterは、tsc 6.0の`incompatibleStack`／`overrideNextErrorInfo`／`skipParentCounter`／`lastSkippedInfo`を持たない。
+    rowはすべてchainに積む。`reportError`は「Types of property 'x' are incompatible」を積むとき、chainの2つ下を見て
+    次のように畳む：
+    - signatureの戻り値型のmarkerなら「The types returned by 'x(...)'」（構築なら`new x()`、引数なしなら`x()`）にする。
+    - property incompatibilityなら「The types of 'x.y'」にする（addToDottedName）。
+    - 直下がexcess propertyのrowなら積まない。
+  - markerの4つのmessage（Call／Construct signature return types…）は`elidedInCompatibilityPyramid`で、診断を作るときに
+    飛ばす（createDiagnosticChainFromErrorChain、400-412）。tsc-rsのchainは(message, args)の列にし、診断の時に組み立てる。
+  - `reportRelationError`はchainの先頭を見てheadを落とす：excess propertyのrowは常に、missing propertyや
+    readonly・excessive complexityのrowは同じsource／targetのとき（P2-2で入れた判定にexcess propertyを加えた）。
+  - `reportErrorResults`にtsc 6.0のheadの延期は無い。1対1の構築signatureの比較に「Types of construct signatures are
+    incompatible」の行は無い（4515-4522）。
+  - indexed accessのconstraintの再試行はchainの深さで短い方を選ぶ（chainDepth）。cacheされたoverflowは
+    `Excessive complexity`を報告するだけになった。
+- tupleの関係（propertiesRelatedTo、4142-4180）：位置の対応はrest要素（Rest）で決め、長さの検査は可変要素（Variable）で
+  行う。restの無いtargetの範囲を越えたsourceの要素は「Target allows only N element(s) but source may have more」。
+- overloadの失敗（reportCallResolutionErrors、checker.go:9841-9860）：最後のcandidateの診断を1つずつ「No overload matches
+  this call」／「The last overload gave the following error」で包む。tsc 6.0は1つの可変なcontaining chainを全ての
+  引数の関係に通したので、2つ目以降の行がchainの下に重なっていた。
+- arrow functionの戻り値のelaboration（elaborateArrowFunction、661-668）：asyncでない関数の戻り値型がPromiseなら合う
+  ときに、related「Did you mean to mark this function as 'async'?」を加える。
+- 診断の集約：
+  - tsgoの`SortAndDeduplicateDiagnostics`（compiler/program.go:1651-1688）は、related infoだけが違う診断を1つにまとめ、
+    related infoを並べ替えて重複を除く。tsc 6.0は最初の1つだけを残していた。
+  - `lookupOrIssueError`はrelated infoまで等しい既存の診断だけを再利用する（ast/diagnostic.go:269-297）。
+  - tsgoには`amalgamatedDuplicates`が無い（checker.go:14437-14460）。ファイルをまたぐ重複宣言はmergeごとにすぐ報告し、
+    TS6200「Definitions of the following identifiers conflict…」の要約は無い。module augmentationもaugmentationごとに
+    報告し、2つの「'x' was also declared here」になる。
+- unit test：
+  - tsgoの行に再pin：
+    - 既存のtest 6件（`(new f()).g`と`map(...).size`の「The types returned by」、ES5のasync constructorの関係で
+      markerを飛ばすchain、型assertionのexcess propertyはTS2353だけ、構築signatureのwrapperの無いchain、
+      重複宣言の報告順）。
+    - relationのerror stateのtest 1件（chainの深さ）。
+  - tsgoの行にpinした新しいtest 5件：
+    - 関係のchain（markerの省略、「The types returned by」、tupleの範囲、overloadの包み方）
+    - arrowの`async`のrelated
+    - ファイルをまたぐ8つの重複（TS6200でなく各宣言にTS2451）
+    - augmentationの重複のrelatedの統合
+    - diagnosticsの集約でのrelated infoの統合
+- conformance：
+  - 15,228 configuration、lane A 13,467（変化なし）、803 s。
+  - full 13,209→13,241（+32）、text 57→29、category 19、mismatch 138→133、emit full 12,421（12,422から1減ったのは
+    下記のharness error）。
+  - harness error 44→45：stressの`intersectionConstructorReductionCrash`がrunnerのmemory上限（3,072 MiB）を越えた。
+    P3-5rとP3-5sのrelease CLIで同じ設定（strict）にすると、どちらもpeak 3.28 GB・約28 s・出力も同一で、上限の際に
+    あるcaseのsamplingの差（本変更による増加ではない）。従来どおりratchetには載せない。
+- 上がった36構成（fullへ33、mismatchからtextへ3）：
+  - 関係エラーのchain（20）：`arrayCast`、`assignmentCompatWithOverloads`、`assignmentCompatability44`／`45`、
+    `classSideInheritance3`、`complexRecursiveCollections`、`excessPropertyCheckWithUnions`、
+    `genericCallAtYieldExpressionInGenericCall1`、`invariantGenericErrorElaboration`、`iterableTReturnTNext`の
+    strictbuiltiniteratorreturn=true、`nestedCallbackErrorNotFlattened`、`promisePermutations`／`2`／`3`、
+    `typeParameterArgumentEquivalence5`、`generatorTypeCheck25`／`62`／`63`、`types.asyncGenerators.es2018.2`、
+    `intraExpressionInferences`。
+  - tupleの範囲（1）：`variadicTupleMismatch`。
+  - overloadの包み方（4）：`bigintWithLib`、`heterogeneousArrayAndOverloads`、`jsxChildrenWrongType`、
+    `jsxChildrenArrayWrongType`のtarget=es2015。
+  - arrowの`async`のrelated（2）：`errorOnUnionVsObjectShouldDeeplyDisambiguate`／`2`。
+  - related infoの統合（4）：`multipleDefaultExports05`と`objectSpreadNegative`のtarget=es2015、
+    `jsxSpreadOverwritesAttributeStrict`、`typedefTagWrapping`。
+  - 重複宣言（5）：`duplicateIdentifierRelatedSpans_moduleAugmentation`、`exportAsNamespace_augment`、
+    `duplicateIdentifierRelatedSpans2`／`4`／`7`（`@pretty`はtextまで）。
+- 下がった構成はemitを含めて無い。
+- ratchet：0 regressions、5行追加・31行raise（text→full）。`intersectionConstructorReductionCrash`は従来どおり載せない。
+- local：
+  - formatとworkspace全体のclippy。diagnosticsとその逆依存（types、host、syntax、binder、checker、compiler、
+    conformance、emitter、harness、program）のtest（69 targets、3,654 passed）。
+  - 2 workerのfull run（803 s）。workspace全体のtestはhostedの`rust` job。
+  - filterの段階では、baselineに連鎖した診断を持つ1,063 case、関係エラーを持つ残りの707 case、related infoか
+    重複宣言を持つ残りの615 case、tupleのcaseをP3-5rのreportとtierごとに比べた（下降0）。
+  - `--checkers 4`の並列対照は実行していない。
+- 残り（lane Aでfullでない226構成：mismatch 133、text 29、category 19、harness error 45）の主なclass：
+  - ambient moduleのimport attributes（`declare module "*.ext" with {…}`、約14）
+  - node16系のCommonJSの自己名・`#imports`・exports（TS2307／TS1479、14）
+  - 正規表現の検証（9）
+  - conflict marker（6）
+  - インスタンス化の循環（TS5114／TS5115、5）
+  - 型の表示（`mixB<typeof A>.(Anonymous class)`、TS2208のconstraint、union順）
+  - tsconfigの位置などharnessの行（約6）
