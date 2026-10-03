@@ -1226,3 +1226,77 @@ tsgoはインスタンス化の深さの上限で、tsc 6.0のTS2589の代わり
   - `composite`のemit、parse errorの後のemit
 - hosted：PR #640（head `eca775c97`、merge `d5d487b37`）、run 37123173839 — `plan` 27s、`rust` 9m22s、`conformance (TypeScript 7.1)` 23m20s、`gates` 12s。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main `694358426`（P3-5uのhead `102910e4c`と同じコードのrelease build）と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 137→135、zod 532→532、Playwright 371→372、TypeScript `src/compiler` 333→349、Next.js 796→776、Effect 526→539、VS Code 3,549→3,505。tsc-rs÷tsgoは0.59〜0.98、peak memory（MB main→本branch）：320→297、1,287→1,292、808→808、290→289、1,316→1,325、1,029→1,015、5,430→5,443。診断の出力と読み込んだdocument数は7 corpusともmainと同一。TypeScript `src/compiler`とEffectは5 roundsのA/B（main／本branch）で326／330 ms・CPU 992／993 ms、529／521 ms、`TSRS_CHECKERS=1`の命令数は15.96／15.96 G、27.96／27.96 Gなのでノイズ（インスタンス化の列のpush／popは計測に表れない）。退行なし。
+
+## P3-5x ambient moduleのimport attributes型をtsgoと同じく扱う（2026-10-03）
+
+TypeScript 7.1は`declare module "*.css" with { type: "css" } { … }`のようにpattern ambient moduleへimport attributesの型を
+持たせ、importのattributesで解決先を選ぶ（7.1の新しい構文、15構成）。tsgoに合わせた：
+- 構文：`global`でないambient moduleの名前の後では、`with`に続けて型literalを読む（parser.go:2218-2244）。
+  `ModuleDeclarationData.attributes`として名前と本体の間の子にし、factory、d.tsの変換、printer（printer.go:3841-3846）も
+  通す。
+- binder：
+  - attributesを持つpattern moduleは、宣言ごとに別の内部名（`__"<pattern>"pattern@<file>#<node>`、tsgoでは
+    `\xFE"<pattern>"pattern@<nodeId>`）で束縛する（binder.go:301-317）。
+  - patternでない名前にattributesがあればTS1550。
+- checker：
+  - 同じpatternでattributes型が同一のmoduleを1つにまとめる（mergePatternAmbientModules、checker.go:1408-1432）。
+    augmentationは対象のmoduleを記録し、その対象に解決したときだけ使う。
+  - module名の解決はimport・export・import型・`import()`のattributes型を受け取る
+    （getImportAttributesTypeForModuleSpecifier）。それを受け入れるpattern moduleから、最も厳しい型、次に最長の
+    prefixのものを選ぶ（tryResolvePatternAmbientModule、15689-15745）。attributesの無いimportは、解決済みのmoduleが
+    あればそれを使う。
+  - `import()`の引数に書いた`with`のobjectはconst contextで、literal型のまま選ぶ（isInlineImportAttributes）。
+  - attributes型の中の名前は、moduleの外側のscopeで解決する（nameresolver.go:48-50、110-112）。
+  - TS1551（augmentationのattributes）、TS1552〜TS1558（attributes型の文法）、global `ImportAttributes`への代入
+    可能性（TS2322）。
+- 表示とd.ts：
+  - source fileを持たないmoduleは、文字列の名前を持つ最初の宣言の名前で書く（`import("*.style")`）。tsc 6.0の
+    `declare module ""`のfile名へのfallbackは無くなり、`import("")`になる。
+  - import型には、そのmoduleのattributes型の文字列literalのpropertyを名前順で添える
+    （`import("*.style", { with: { type: "css" } })`）。説明している宣言自身のimportのattributesでも同じmoduleに
+    解決するなら、そちらを使う（getSpecifierForModuleSymbol・createImportAttributesForModuleSpecifier、
+    nodebuilderimpl.go:1249-1398）。診断の表示とd.tsのnode builderの両方。
+  - d.tsのimport・export宣言はattributesを書いたまま残す（transform.go:1172-1179、2478-2560）。tsc 6.0は有効な
+    `resolution-mode`だけを残した。
+  - 宣言の初期化子の`import()`もmodule specifierを持つ宣言として扱う（tryGetModuleSpecifierFromDeclaration）。
+- program：type-onlyのexport宣言も、type-onlyのimportと同じく`resolution-mode`のattributeでmodeを決める
+  （getModeForUsageLocation、fileloader.go:1049-1066）。`importAttributeTypeOnlyImports`のharness errorが消えた。
+- unit test（すべてtsgoの出力にpin）：
+  - checker：attributesによるpattern moduleの選択と`{ with: { … } }`を添えたTS2339の表示、外側のaliasを使う
+    attributes型、`import()`のinlineの`with`と変数のoptions。attributes型の文法の行（TS1550、TS1551、TS1552、
+    TS1555〜TS1558、`ImportAttributes`へのTS2322）。
+  - d.ts：attributes付きのimport型（dynamic importのmodule型を含む）、attributesを残すimport・export宣言、
+    attributes型を持つambient module宣言の出力。
+  - program：type-onlyのexportのrequestのmode。parser：`attributes`の子。
+  - `declare module ""`のtestはtsgoの`typeof import("")`に合わせた。
+- conformance：
+  - 15,228 configuration、lane A 13,467（変化なし）、800 s。
+  - full 13,275→13,291（+16）、text 29、category 19→18、mismatch 100→86、emit full 12,435→12,462、harness error
+    44→43。
+  - stressの`intersectionConstructorReductionCrash`は今回もfullで終わったが、従来どおりratchetには載せない
+    （`--update`の後に手で除いた）。
+- 上がった構成：
+  - errorがfullへ（16）：
+    - 対象の15構成すべて（`importAttributeTypeOnlyImports`はharness errorから）。
+    - `importAttributes9`（categoryから）。
+  - emitがfullへ（27）：
+    - 対象の3構成：`declarationEmitPatternAmbientModuleImportAttributes`、`importAttributesDeclarationEmit`、
+      `importAttributeTypeOnlyImports`。
+    - d.tsでattributesを残す24構成：`importAssertion1`～`3`、`importAttributes1`～`3`、
+      `nodeModulesImportAttributesModeDeclarationEmitErrors`、`nodeModulesImportModeDeclarationEmitErrors1`。
+- 下がった構成はemitを含めて無い。
+- ratchet：0 regressions、15行追加、25行引き上げ。
+- local：
+  - formatとworkspace全体のclippy。syntaxとその逆依存（binder、checker、compiler、conformance、emitter、harness、
+    program）のtest（60 targets、3,547 passed）。
+  - 2 workerのfull run（800 s）。workspace全体のtestはhostedの`rust` job。
+  - filterの段階では、import attributes・import assertion・`resolution-mode`を書いたcaseと、declaration emitの
+    `import()`を持つcase（423 case、625構成）をP3-5vのreportとtierごとに比べた（errorの上昇15、emitの上昇26、
+    下降0）。attributesによる解決と表示、文法の行、d.tsの出力はtsgoのCLIでも比べ、行と出力が一致した。
+  - `--checkers 4`の並列対照は実行していない。
+- 残り（lane Aでfullでない176構成：mismatch 86、text 29、category 18、harness error 43）の主なclass：
+  - compilerのcrashとhang（harness error約25：tsgoの修正がある`unreachableFlowAfterThrowing*`、分割代入の
+    narrowing、`for…of`の自己参照、計算されたenum memberの名前、表示の再帰など）
+  - 型の表示（`mixB<typeof A>.(Anonymous class)`、TS2208のconstraint、union順）
+  - tsconfigの位置などharnessの行（約6）
+  - `composite`のemit、parse errorの後のemit、import型のattributesの値の文法（TS2858、`importAttributes12`）
