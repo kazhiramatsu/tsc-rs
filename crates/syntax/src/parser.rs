@@ -1707,7 +1707,6 @@ impl<'text> Parser<'text> {
         self.parsing_context |= context.bit();
         let mut list = Vec::new();
         let list_pos = self.node_pos();
-        let mut comma_start = None;
 
         loop {
             if self.is_list_element(context, false) {
@@ -1722,12 +1721,10 @@ impl<'text> Parser<'text> {
                 };
                 list.push(element);
 
-                comma_start = Some(self.scanner.token_start());
                 if self.parse_optional(SyntaxKind::CommaToken) {
                     continue;
                 }
 
-                comma_start = None;
                 if self.is_list_terminator(context) {
                     break;
                 }
@@ -1759,9 +1756,17 @@ impl<'text> Parser<'text> {
         }
 
         self.parsing_context = saved_context;
+        // tsgo NodeList.HasTrailingComma (ast.go:139-145): the list ends after
+        // its last element, at a trailing comma or at a token that recovery
+        // consumed in its place, such as a semicolon between object literal
+        // members.
+        let end = self.node_pos();
+        let has_trailing_comma = list
+            .last()
+            .is_some_and(|&last| (self.arena.node(last).end as usize) < end);
         Some(
             self.arena
-                .alloc_array(&list, list_pos, self.node_pos(), comma_start.is_some()),
+                .alloc_array(&list, list_pos, end, has_trailing_comma),
         )
     }
 

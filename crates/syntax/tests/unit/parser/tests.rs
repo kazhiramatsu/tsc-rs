@@ -2293,6 +2293,33 @@ fn delimited_list_tracks_trailing_comma() {
     assert_eq!(parser.token(), SyntaxKind::CloseParenToken);
 }
 
+/// tsgo NodeList.HasTrailingComma: the list ends after its last element.
+/// A semicolon consumed as an object literal delimiter after the last member
+/// counts, one between members does not.
+#[test]
+fn delimited_list_trailing_comma_is_the_list_extending_past_its_last_element() {
+    for (text, expected) in [
+        ("x = { a: 1; };", true),
+        ("x = { a: 1; b: 2 };", false),
+        ("x = { a: 1, };", true),
+        ("x = { a: 1 };", false),
+    ] {
+        let parsed = parse_source_file("a.ts".into(), text.into(), ParseOptions::default(), None);
+        let literal = parsed
+            .arena
+            .node_ids()
+            .find(|id| parsed.arena.node(*id).kind == SyntaxKind::ObjectLiteralExpression)
+            .expect("object literal");
+        let NodeData::ObjectLiteralExpression(data) = &parsed.arena.node(literal).data else {
+            unreachable!("object literal data")
+        };
+        let properties = parsed
+            .arena
+            .node_array(data.properties.expect("properties"));
+        assert_eq!(properties.has_trailing_comma, expected, "{text}");
+    }
+}
+
 #[test]
 fn delimited_list_reports_missing_commas_and_keeps_progressing() {
     let mut parser = Parser::new("a.ts".into(), "a b)", LanguageVariant::Standard, false);

@@ -3498,7 +3498,11 @@ impl CommonJsModuleInfo {
                     else {
                         continue;
                     };
-                    let module_text = string_literal_text(arena, module_specifier)?;
+                    // tsgo generateNameForImportOrExportDeclaration: a module
+                    // name that is not a string literal (parser recovery)
+                    // generates from `module`.
+                    let module_text = string_literal_text(arena, module_specifier)
+                        .unwrap_or_else(|_| JsStr::from("module"));
                     let mut runtime_name = None;
                     let mut namespace_alias = None;
                     let mut helper = ImportHelperKind::None;
@@ -5721,8 +5725,12 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             }
         }
         for plan in import_plans {
-            let module_specifier =
-                self.external_module_name_literal(plan.declaration, plan.module_specifier_node)?;
+            let module_specifier = self
+                .external_module_name_literal(plan.declaration, plan.module_specifier_node)?
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::ImportDeclaration,
+                    field: "string module_specifier",
+                })?;
             // collectAsynchronousDependencies (_tsc.js:110461) uses the
             // external module name directly. Rewriting belongs to require /
             // import expressions; it does not apply to this dependency array.
@@ -11100,11 +11108,20 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
     /// tsc-port: getExternalModuleNameLiteral @6.0.3
     /// tsc-hash: 9a9092da7f95400d7c328345cadf68a9716abde9c36ce4199d6a1c7840646ee6
     /// tsc-span: _tsc.js:27713-27737
+    /// tsgo getExternalModuleNameLiteral: only a string-literal module name
+    /// has one (`None` for a recovered non-string specifier).
     fn external_module_name_literal(
         &mut self,
         declaration: TransformNode,
         fallback: TransformNode,
-    ) -> Result<TransformNode, TransformError> {
+    ) -> Result<Option<TransformNode>, TransformError> {
+        let Ok(text) = string_literal_text(self.context.arena(), fallback) else {
+            return Ok(None);
+        };
+        let renamed = {
+            let source = self.context.arena().source(self.source)?.syntax();
+            crate::external_module_names::try_rename_external_module(source, text)
+        };
         let module_name = crate::external_module_names::resolved_external_module_name_literal(
             self.host,
             self.resolver,
@@ -11112,38 +11129,29 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             declaration,
         )?;
         if let Some(module_name) = module_name {
-            return self.create_string_literal(&module_name);
+            return self.create_string_literal(&module_name).map(Some);
         }
         // tryRenameExternalModule (27716): API renamedDependencies apply
         // after the resolved-file branch and before the clone.
-        let renamed = string_literal_text(self.context.arena(), fallback)
-            .ok()
-            .and_then(|text| {
-                let source = self.context.arena().source(self.source).ok()?.syntax();
-                crate::external_module_names::try_rename_external_module(source, text)
-            });
         if let Some(renamed) = renamed {
-            self.create_string_literal(&renamed)
+            self.create_string_literal(&renamed).map(Some)
         } else {
-            self.context.factory()?.clone_node(fallback)
+            self.context.factory()?.clone_node(fallback).map(Some)
         }
     }
 
+    /// tsgo createRequireCall: `require()` without an argument when the
+    /// module name is not a string literal.
     fn create_require_call(
         &mut self,
         declaration: TransformNode,
         module_specifier: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let module_specifier = self.external_module_name_literal(declaration, module_specifier)?;
-        let module_specifier = self.rewrite_import_argument(module_specifier)?;
-        self.create_raw_require_call(module_specifier)
-    }
-
-    fn create_raw_require_call(
-        &mut self,
-        module_specifier: TransformNode,
-    ) -> Result<TransformNode, TransformError> {
-        self.create_raw_require_call_optional(Some(module_specifier))
+        let module_specifier = self
+            .external_module_name_literal(declaration, module_specifier)?
+            .map(|specifier| self.rewrite_import_argument(specifier))
+            .transpose()?;
+        self.create_raw_require_call_optional(module_specifier)
     }
 
     fn create_raw_require_call_optional(
@@ -12879,6 +12887,17 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
     /// tsc-port: visitModuleDeclaration/transformModuleBody @6.0.3
     /// tsc-hash: 4e04028a26c04bcd79fb483be4250bb3e90295dcc3ba6f721f917c3a69196d6d
     /// tsc-span: _tsc.js:95325-95517
+    /// tsgo getInnermostModuleDeclarationFromDottedModule(node).Body != nil.
+    fn innermost_module_has_body(&self, mut body: Option<NodeId>) -> Result<bool, TransformError> {
+        while let Some(id) = body {
+            match &self.context.arena().node(self.node(id))?.data {
+                NodeData::ModuleDeclaration(inner) => body = inner.body,
+                _ => return Ok(true),
+            }
+        }
+        Ok(false)
+    }
+
     fn visit_module_declaration(
         &mut self,
         id: NodeId,
@@ -12896,7 +12915,18 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         };
         let ambient = NodeFlags::from_bits(record.flags).contains(NodeFlags::AMBIENT)
             || self.has_modifier(data.modifiers, SyntaxKind::DeclareKeyword)?;
+        // tsgo's type eraser (typeeraser.go:122-128) also elides a module
+        // whose name is not an identifier or whose innermost dotted module
+        // has no body, as parser recovery leaves `global x` in a class body.
+        let identifier_name = data.name.is_some_and(|name| {
+            self.context
+                .arena()
+                .node(self.node(name))
+                .is_ok_and(|name| name.kind == SyntaxKind::Identifier)
+        });
         if ambient
+            || !identifier_name
+            || !self.innermost_module_has_body(data.body)?
             || !self
                 .resolver
                 .is_instantiated_module(self.resolver_node(original)?)?
@@ -15195,10 +15225,8 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         Ok(modifiers.array())
     }
 
-    /// Setter return types and type parameters are parser-recovery fields,
-    /// not part of the runtime setter factory. Visit and erase only the
-    /// runtime shape here, then let NodeFactory restore those original fields
-    /// exactly as tsc's `finishUpdateSetAccessorDeclaration` does.
+    /// tsgo's type eraser updates a setter without type parameters or a
+    /// return type (typeeraser.go:176-186).
     fn update_set_accessor_declaration(
         &mut self,
         original: TransformNode,
@@ -15214,22 +15242,17 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             original,
             runtime_data.modifiers,
             runtime_data.name,
+            runtime_data.type_parameters,
             runtime_data.parameters,
+            runtime_data.r#type,
             runtime_data.body,
             flags,
         )?;
         Ok(updated.node())
     }
 
-    /// Constructor type parameters and return types are attached by parser
-    /// recovery after `createConstructorDeclaration` has established the
-    /// runtime node shape. The public factory updater therefore accepts only
-    /// modifiers, parameters, and body, then restores those recovery fields
-    /// from the original when a runtime field changes.
-    ///
-    /// tsc-port: updateConstructorDeclaration/finishUpdateConstructorDeclaration @6.0.3
-    /// tsc-hash: 458f5a752c894ba21fc18800fe4a10be5fd7f9e837fd38e4c0f20ba1e054072e
-    /// tsc-span: _tsc.js:21982-22010
+    /// tsgo's type eraser updates a constructor without modifiers, type
+    /// parameters or a return type (typeeraser.go:148-154).
     fn update_constructor_declaration(
         &mut self,
         original: TransformNode,
@@ -15244,21 +15267,17 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         let updated = self.context.factory()?.update_constructor_declaration(
             original,
             runtime_data.modifiers,
+            runtime_data.type_parameters,
             runtime_data.parameters,
+            runtime_data.r#type,
             runtime_data.body,
             flags,
         )?;
         Ok(updated.node())
     }
 
-    /// Getter type parameters are likewise a parser-recovery extension of
-    /// the factory-owned getter shape. Its return type is a real factory
-    /// field and remains erased by transformTypeScript; only type parameters
-    /// are restored by the updater when the runtime getter changes.
-    ///
-    /// tsc-port: updateGetAccessorDeclaration/finishUpdateGetAccessorDeclaration @6.0.3
-    /// tsc-hash: c2cee5560b6c2d55d7fc907e6cef6821f93e3bfa32f5bc1e1d0c4c264dfa4ac6
-    /// tsc-span: _tsc.js:22012-22043
+    /// tsgo's type eraser updates a getter without type parameters or a
+    /// return type (typeeraser.go:164-174).
     fn update_get_accessor_declaration(
         &mut self,
         original: TransformNode,
@@ -15274,6 +15293,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             original,
             runtime_data.modifiers,
             runtime_data.name,
+            runtime_data.type_parameters,
             runtime_data.parameters,
             runtime_data.r#type,
             runtime_data.body,
@@ -16793,18 +16813,6 @@ fn preflight_source(
     allow_legacy_decorators: bool,
 ) -> Result<(), TransformError> {
     let syntax = arena.source(source)?.syntax();
-    // Recovery admission is a parser fact. The committed record includes
-    // suppressed reporting attempts and silent missing nodes; diagnostic
-    // codes and the presence/absence of retained messages are insufficient.
-    // JSDoc diagnostics have a separate parser-owned list and are outside
-    // this syntactic recovery boundary.
-    if !syntax.has_supported_emit_recovery() {
-        return Err(TransformError::ParseDiagnosticsDeferred {
-            count: syntax.parse_diagnostics.len(),
-            recovery_events: syntax.parse_recovery().events().len(),
-            owner_slice: "H2.9",
-        });
-    }
     const MAX_TRANSFORM_DEPTH: usize = 256;
     // The classification that precedes this preflight already measured the
     // parsed tree: its depth along the walk's edges (MissingDeclaration
@@ -17978,6 +17986,7 @@ fn local_transform_flags(node: &Node) -> TransformFlags {
         flags |= TransformFlags::CONTAINS_JSX;
     }
     if is_type_node(kind)
+        || is_jsdoc_type_kind(kind)
         || is_typescript_modifier(kind)
         || matches!(
             kind,
@@ -18302,9 +18311,9 @@ fn local_transform_flags(node: &Node) -> TransformFlags {
             }
         }
         NodeData::ExpressionWithTypeArguments(_) => {
-            // Unlike calls/new/tagged templates, tsc does not mark this node
-            // locally as TypeScript. Valid type arguments propagate the bit;
-            // JSDoc recovery types intentionally do not.
+            // Unlike calls/new/tagged templates, this node is not marked
+            // locally as TypeScript; its type arguments, JSDoc recovery types
+            // included, propagate the bit.
             flags |= TransformFlags::CONTAINS_ES_2015;
         }
         NodeData::EnumDeclaration(_) | NodeData::ModuleDeclaration(_) => {
@@ -18326,11 +18335,32 @@ fn local_transform_flags(node: &Node) -> TransformFlags {
     flags
 }
 
-/// JSDoc unary types are parser-recovery syntax as well as comment syntax.
-/// Their NodeFactory constructors do not propagate child transform flags, so
-/// a nested `string` keyword must not make `foo<string?>` look like ordinary
-/// TypeScript syntax to `transformTypeScript`. MissingDeclaration likewise
-/// retains its parser-attached modifiers without propagating their flags.
+/// tsgo's JSDoc type nodes are type syntax (JSDocTypeBase embeds
+/// TypeSyntaxBase, whose subtree facts are SubtreeContainsTypeScript,
+/// ast.go:1619-1621), so the type eraser removes the type arguments of
+/// `foo<string?>` in a TypeScript file. tsc 6.0 left them unmarked.
+const fn is_jsdoc_type_kind(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::JSDocTypeExpression
+            | SyntaxKind::JSDocNameReference
+            | SyntaxKind::JSDocAllType
+            | SyntaxKind::JSDocUnknownType
+            | SyntaxKind::JSDocNullableType
+            | SyntaxKind::JSDocNonNullableType
+            | SyntaxKind::JSDocOptionalType
+            | SyntaxKind::JSDocFunctionType
+            | SyntaxKind::JSDocVariadicType
+            | SyntaxKind::JSDocNamepathType
+            | SyntaxKind::JSDocTypeLiteral
+            | SyntaxKind::JSDocSignature
+    )
+}
+
+/// JSDoc unary types carry their own TypeScript flag (`is_jsdoc_type_kind`)
+/// and, like tsgo's TypeSyntaxBase, propagate nothing from their children.
+/// MissingDeclaration retains its parser-attached modifiers without
+/// propagating their flags.
 const fn propagates_transform_child_flags(kind: SyntaxKind) -> bool {
     !matches!(
         kind,
