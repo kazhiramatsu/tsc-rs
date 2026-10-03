@@ -8300,7 +8300,7 @@ impl<'a> CheckerState<'a> {
     /// control-flow analysis evolve the type — LIVE since 6.2/6.6
     /// (the flow rows 18048/2454/7034 report through the walk; the
     /// M4 anyType stand-in retired with the auto producers).
-    fn get_type_for_variable_like_declaration(
+    pub(crate) fn get_type_for_variable_like_declaration(
         &mut self,
         declaration: NodeId,
         include_optionality: bool,

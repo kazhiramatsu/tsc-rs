@@ -1685,6 +1685,33 @@ impl<'a> CheckerState<'a> {
         if !has_inferred_type(self.kind_of(declaration)) {
             return any_keyword_fallback(arena, target, method).map(Some);
         }
+        // tsgo serializeTypeForDeclaration (nodebuilderimpl.go:2263-2272): a
+        // variable named by a binding pattern has no symbol and takes
+        // getTypeForVariableLikeDeclaration's type.
+        if self.node_symbol(declaration).is_none()
+            && self.kind_of(declaration) == SyntaxKind::VariableDeclaration
+        {
+            let r#type = self
+                .get_type_for_variable_like_declaration(
+                    declaration,
+                    false,
+                    tsc_types::CheckMode::NORMAL,
+                )
+                .map_err(|abort| node_builder_abort_error(self, method, declaration, abort))?
+                .unwrap_or(self.tables.intrinsics.error);
+            return crate::node_builder::serialize_type_for_symbolless_declaration(
+                self,
+                arena,
+                target,
+                declaration,
+                r#type,
+                Some(enclosing_declaration),
+                Some(flags.union(tsc_emitter::EmitNodeBuilderFlags::MULTILINE_OBJECT_LITERALS)),
+                Some(internal_flags),
+                Some(tracker),
+                synthetic_module_scope,
+            );
+        }
         let symbol = self
             .get_symbol_of_declaration(declaration)
             .map_err(|abort| node_builder_abort_error(self, method, declaration, abort))?;

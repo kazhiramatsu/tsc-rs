@@ -592,7 +592,10 @@ fn serialize_type_for_declaration_in_context(
     mut r#type: TypeId,
     supplied_symbol: Option<SymbolId>,
 ) -> BuildResult<Option<TransformNode>> {
-    let symbol = declaration_symbol(checker, declaration, supplied_symbol, context)?;
+    // tsgo's getSymbolOfDeclaration is nil where tsc-rs answers the unknown
+    // symbol, as for a variable named by a binding pattern.
+    let symbol = declaration_symbol(checker, declaration, supplied_symbol, context)?
+        .filter(|&symbol| symbol != checker.unknown_symbol);
     let add_undefined_for_parameter = declaration.is_some_and(|declaration| {
         matches!(
             checker.kind_of(declaration),
@@ -847,6 +850,69 @@ fn into_target(
             }
         })
         .transpose()
+}
+
+/// tsgo serializeTypeForDeclaration for a declaration without a symbol, such
+/// as a variable named by a binding pattern (nodebuilderimpl.go:2263-2272):
+/// the caller supplies getTypeForVariableLikeDeclaration's type.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn serialize_type_for_symbolless_declaration(
+    checker: &mut CheckerState<'_>,
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    declaration: NodeId,
+    r#type: TypeId,
+    enclosing_declaration: Option<NodeId>,
+    flags: Option<EmitNodeBuilderFlags>,
+    internal_flags: Option<EmitInternalNodeBuilderFlags>,
+    tracker: Option<&mut dyn EmitSymbolTracker>,
+    synthetic_module_scope: Option<SyntheticModuleScope<'_>>,
+) -> BuildResult<Option<TransformNode>> {
+    let serialize = |checker: &mut CheckerState<'_>,
+                     arena: &mut TransformArena,
+                     target: TransformSourceId,
+                     context: &mut NodeBuilderContext<'_>| {
+        let result = serialize_type_for_declaration_in_context(
+            checker,
+            arena,
+            target,
+            context,
+            Some(declaration),
+            r#type,
+            None,
+        )?;
+        into_target(arena, target, result)
+    };
+    match synthetic_module_scope {
+        Some(scope) => with_context_in_synthetic_module_scope(
+            checker,
+            arena,
+            target,
+            enclosing_declaration,
+            flags,
+            internal_flags,
+            tracker,
+            None,
+            None,
+            scope,
+            serialize,
+            None,
+        ),
+        None => with_context(
+            checker,
+            arena,
+            target,
+            enclosing_declaration,
+            flags,
+            internal_flags,
+            tracker,
+            None,
+            None,
+            serialize,
+            None,
+        ),
+    }
+    .map(Option::flatten)
 }
 
 /// tsrs-native: checker-side routing seam behind the syntactic resolver member.

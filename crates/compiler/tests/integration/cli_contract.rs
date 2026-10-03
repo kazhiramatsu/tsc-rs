@@ -543,6 +543,136 @@ let Bar = 42
 }
 
 #[test]
+fn declarations_and_namespace_merges_follow_tsgo() {
+    // tsgo keeps a binding pattern without initializers whole in a `.d.ts`,
+    // typed as the whole declaration; a variable, function or class already
+    // declared in the scope takes the `var` a merging namespace or enum would
+    // declare; and a `declare import` is elided. The expected bytes are
+    // tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("patterns.ts"),
+        concat!(
+            "var [] = [1, \"hello\"];\n",
+            "var [x] = [1, \"hello\"];\n",
+            "var [x1, y1] = [1, \"hello\"];\n",
+            "var [, , z1] = [0, 1, 2];\n",
+            "var a = [1, \"hello\"];\n",
+            "var [x2] = a;\n",
+            "var { p, q: [r2] } = { p: 1, q: [true] };\n",
+            "var [d = 1] = [2];\n",
+            "var { f: { g = 2 } } = { f: { g: 3 } };\n",
+            "let [...rest] = [1, 2];\n",
+            "declare const tuple: [number, string];\n",
+            "const [t1, t2] = tuple;\n",
+        ),
+    )
+    .expect("write patterns");
+    fs::write(
+        tree.path("merges.ts"),
+        concat!(
+            "var x5 = 1;\n",
+            "namespace x5 { export var y = 2; }\n",
+            "function f() {}\n",
+            "namespace f { export var a = 1; }\n",
+            "var { p } = { p: 1 };\n",
+            "namespace p { export var b = 1; }\n",
+            "declare var q: any;\n",
+            "namespace q { export var c = 1; }\n",
+            "namespace r { export var d = 1; }\n",
+            "var r = 3;\n",
+            "let s = 1;\n",
+            "enum s { A }\n",
+        ),
+    )
+    .expect("write merges");
+    fs::write(
+        tree.path("ambient.ts"),
+        concat!("declare import a = b;\n", "var z = 1;\n",),
+    )
+    .expect("write ambient");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2015","declaration":true,"types":[],"outDir":"out"},"files":["patterns.ts","merges.ts","ambient.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        concat!(
+            "ambient.ts(1,1): error TS1079: A 'declare' modifier cannot be used with an import declaration.\n",
+            "ambient.ts(1,20): error TS2503: Cannot find namespace 'b'.\n",
+            "merges.ts(1,5): error TS2300: Duplicate identifier 'x5'.\n",
+            "merges.ts(2,11): error TS2300: Duplicate identifier 'x5'.\n",
+            "merges.ts(5,7): error TS2300: Duplicate identifier 'p'.\n",
+            "merges.ts(6,11): error TS2300: Duplicate identifier 'p'.\n",
+            "merges.ts(7,13): error TS2300: Duplicate identifier 'q'.\n",
+            "merges.ts(8,11): error TS2300: Duplicate identifier 'q'.\n",
+            "merges.ts(9,11): error TS2300: Duplicate identifier 'r'.\n",
+            "merges.ts(10,5): error TS2300: Duplicate identifier 'r'.\n",
+            "merges.ts(11,5): error TS2567: Enum declarations can only merge with namespace or other enum declarations.\n",
+            "merges.ts(12,6): error TS2567: Enum declarations can only merge with namespace or other enum declarations.\n",
+        )
+    );
+    let read = |name: &str| fs::read_to_string(tree.path(name)).expect("read output");
+    assert_eq!(
+        read("out/patterns.d.ts"),
+        concat!(
+            "declare var [x]: [number, string];\n",
+            "declare var [x1, y1]: [number, string];\n",
+            "declare var [, , z1]: [number, number, number];\n",
+            "declare var a: (string | number)[];\n",
+            "declare var [x2]: (string | number)[];\n",
+            "declare var { p, q: [r2] }: {\n",
+            "    p: number;\n",
+            "    q: [boolean];\n",
+            "};\n",
+            "declare var d: number;\n",
+            "declare var g: number;\n",
+            "declare let [...rest]: number[];\n",
+            "declare const tuple: [number, string];\n",
+            "declare const [t1, t2]: [number, string];\n",
+        )
+    );
+    assert_eq!(
+        read("out/merges.js"),
+        concat!(
+            "\"use strict\";\n",
+            "var x5 = 1;\n",
+            "(function (x5) {\n",
+            "    x5.y = 2;\n",
+            "})(x5 || (x5 = {}));\n",
+            "function f() { }\n",
+            "(function (f) {\n",
+            "    f.a = 1;\n",
+            "})(f || (f = {}));\n",
+            "var { p } = { p: 1 };\n",
+            "(function (p) {\n",
+            "    p.b = 1;\n",
+            "})(p || (p = {}));\n",
+            "var q;\n",
+            "(function (q) {\n",
+            "    q.c = 1;\n",
+            "})(q || (q = {}));\n",
+            "var r;\n",
+            "(function (r) {\n",
+            "    r.d = 1;\n",
+            "})(r || (r = {}));\n",
+            "var r = 3;\n",
+            "let s = 1;\n",
+            "(function (s) {\n",
+            "    s[s[\"A\"] = 0] = \"A\";\n",
+            "})(s || (s = {}));\n",
+        )
+    );
+    assert_eq!(
+        read("out/ambient.js"),
+        concat!("\"use strict\";\n", "var z = 1;\n",)
+    );
+}
+
+#[test]
 fn files_with_parse_errors_emit_their_recovered_trees_like_tsgo() {
     // tsgo prints the tree the parser recovered: missing nodes print as
     // nothing, a `;` between object members leaves a trailing comma, a
