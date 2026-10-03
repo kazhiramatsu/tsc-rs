@@ -1424,3 +1424,5 @@ tsc-rsのpretty出力はtsc 6.0.3の`formatDiagnosticsWithColorAndContext`の移
     content mapper（`runExternalCode`）で対象外）。
   - emitの不一致956構成で最大のclassはparse errorの後のemit（500構成。preflightが`emit recovery … deferred to
     H2.9`で断る）。
+- hosted：PR #643（head `05f4e147d`、merge `ce2a4250b`）、run 37134212482 — `plan` 26s、`rust` 9m12s、`conformance (TypeScript 7.1)` 19m21s、`gates` 11s。
+- perf（README corpora、`--noEmit`、3 rounds、nice 20、main `ae05d6b30`（P3-5yのcode `8e3d62acc`と同じcodeのrelease build）と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 146→138、zod 548→515、Playwright 365→371、TypeScript `src/compiler` 337→341、Next.js 772→750、Effect 536→522、VS Code 3,524→3,465。tsc-rs÷tsgoは0.58〜0.94、peak memory（MB main→本branch）：324→323、1,294→1,292、761→800、289→288、1,313→1,313、1,055→1,024、5,443→5,468。診断の出力と読み込んだdocument数は7 corpusともmainと同一。PlaywrightとTypeScript `src/compiler`は5 roundsのA/B（main／本branch）で359／358 ms（peak memory 811／777 MB）、322／322 ms、`TSRS_CHECKERS=1`の命令数（5回のmedian）はPlaywright 22.294／22.297 G、TypeScript `src/compiler` 15.927／15.925 Gなのでノイズ。退行なし。
