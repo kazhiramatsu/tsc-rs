@@ -3176,22 +3176,25 @@ fn legacy_module_call_import_equals_recovers_as_internal_reference() {
 }
 
 #[test]
-fn triple_slash_resolution_mode_diagnostic_uses_the_types_span() {
+fn triple_slash_resolution_mode_diagnostic_uses_the_value_span() {
+    // tsgo: a.ts(1,45) and a.ts(2,45) TS1453, the empty value included.
     let source = parse_source_file(
         "/index.ts".into(),
-        "/// <reference types=\"pkg\" resolution-mode=\"esm\"/>\nexport {};".to_owned(),
+        "/// <reference types=\"pkg\" resolution-mode=\"esm\"/>\n/// <reference types=\"pkg\" resolution-mode=\"\"/>\nexport {};".to_owned(),
         ParseOptions::default(),
         None,
     );
-    assert_eq!(source.parse_diagnostics.len(), 1);
-    let diagnostic = &source.parse_diagnostics[0];
+    let spans = source
+        .parse_diagnostics
+        .iter()
+        .map(|diagnostic| (diagnostic.code(), diagnostic.start, diagnostic.length))
+        .collect::<Vec<_>>();
+    let code = gen::resolution_mode_should_be_either_require_or_import.code;
     assert_eq!(
-        diagnostic.code(),
-        gen::resolution_mode_should_be_either_require_or_import.code
+        spans,
+        [(code, Some(44), Some(3)), (code, Some(95), Some(0))]
     );
-    assert_eq!(diagnostic.start, Some(22));
-    assert_eq!(diagnostic.length, Some(3));
-    assert_eq!(source.type_reference_directives.len(), 1);
+    assert_eq!(source.type_reference_directives.len(), 2);
     let reference = &source.type_reference_directives[0];
     assert_eq!(reference.file_name, "pkg");
     assert_eq!(reference.pos, 22);
@@ -3208,9 +3211,10 @@ fn triple_slash_reference_spans_are_utf16_offsets() {
         None,
     );
 
+    // TS1453 spans the `resolution-mode` value (tsgo parseResolutionMode).
     assert_eq!(source.parse_diagnostics.len(), 1);
-    assert_eq!(source.parse_diagnostics[0].start, Some(22));
-    assert_eq!(source.parse_diagnostics[0].length, Some(5));
+    assert_eq!(source.parse_diagnostics[0].start, Some(46));
+    assert_eq!(source.parse_diagnostics[0].length, Some(3));
     let reference = &source.type_reference_directives[0];
     assert_eq!(reference.file_name, "😀pkg");
     assert_eq!(reference.pos, 22);
@@ -3436,7 +3440,8 @@ fn triple_slash_resolution_mode_honors_pragma_precedence_and_leading_scope() {
     for text in [
         "/// <reference types=\"pkg\" resolution-mode=\"import\"/>\nexport {};",
         "/// <reference types=\"pkg\" resolution-mode=\"require\"/>\nexport {};",
-        "/// <reference types=\"pkg\" resolution-mode=\"\"/>\nexport {};",
+        // An empty value is TS1453 in tsgo; see
+        // triple_slash_resolution_mode_diagnostic_uses_the_value_span.
         "/// <reference path=\"pkg\" resolution-mode=\"esm\"/>\nexport {};",
         "/// <reference no-default-lib=\"true\" types=\"pkg\" resolution-mode=\"esm\"/>\nexport {};",
         "export {};\n/// <reference types=\"pkg\" resolution-mode=\"esm\"/>",
@@ -3948,5 +3953,52 @@ fn jsdoc_missing_names_report_at_the_current_token() {
     assert_eq!(
         jsdoc_diagnostic_rows(&source),
         [(1003, 5, 1), (1003, augments_end as u32, 1)]
+    );
+}
+
+#[test]
+fn misplaced_tokens_report_at_tsgo_spans() {
+    // tsgo (7.1 at 19dadef8): a misplaced `#!` is one Unknown token of two
+    // characters (scanner.go:912-915), so `/usr/bin` scans after it; a lone
+    // backslash is an Invalid character of length 1 (scanInvalidCharacter,
+    // 2206-2211); an optional chain after `new A` is TS1209 at `?.`, and the
+    // parse goes on (parser.go:5818-5820).
+    let rows = |text: &str| {
+        parse_source_file(
+            "/a.ts".into(),
+            text.to_owned(),
+            ParseOptions::default(),
+            None,
+        )
+        .parse_diagnostics
+        .iter()
+        .map(|diagnostic| (diagnostic.code(), diagnostic.start, diagnostic.length))
+        .collect::<Vec<_>>()
+    };
+    let shebang = "var foo = 1;\n#!/usr/bin/env node\n";
+    let at = |text: &str, needle: &str| Some(text.find(needle).expect("needle") as u32);
+    assert_eq!(
+        rows(shebang),
+        [
+            (
+                gen::can_only_be_used_at_the_start_of_a_file.code,
+                at(shebang, "#!"),
+                Some(2)
+            ),
+            (gen::_0_expected.code, at(shebang, "node"), Some(4)),
+        ]
+    );
+    assert_eq!(
+        rows("\\\n"),
+        [(gen::Invalid_character.code, Some(0), Some(1))]
+    );
+    let chain = "class A { b() {} }\nnew A?.b();\nnew A()?.b();\n";
+    assert_eq!(
+        rows(chain),
+        [(
+            gen::Invalid_optional_chain_from_new_expression_Did_you_mean_to_call_0.code,
+            at(chain, "?."),
+            Some(2),
+        )]
     );
 }

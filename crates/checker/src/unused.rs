@@ -65,7 +65,10 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::CaseBlock
                 | SyntaxKind::ForStatement
                 | SyntaxKind::ForInStatement
-                | SyntaxKind::ForOfStatement => self.check_unused_locals_and_parameters(node),
+                | SyntaxKind::ForOfStatement
+                | SyntaxKind::ClassStaticBlockDeclaration => {
+                    self.check_unused_locals_and_parameters(node)
+                }
                 SyntaxKind::FunctionDeclaration
                 | SyntaxKind::FunctionExpression
                 | SyntaxKind::ArrowFunction
@@ -441,262 +444,294 @@ impl<'a> CheckerState<'a> {
             && !self.identifier_starts_with_underscore(name))
     }
 
-    /// tsc-port: checkUnusedLocalsAndParameters @6.0.3
-    /// tsc-hash: 3ac75f66721fdf0f79ff81f8775c3d1dbb6eb2a95489e3a581a653c60696a264
-    /// tsc-span: _tsc.js:83091-83179
+    /// tsgo: checkUnusedLocalsAndParameters (checker.go:7312-7352)
     ///
-    /// M7 8.3c activates the SourceFile producer. The worker is kept
-    /// declaration-owner complete so later block/function
-    /// registrations and the 8.4 suggestion pass reuse the same
-    /// grouping semantics.
+    /// tsgo replaced tsc 6.0's grouping of unused declarations by
+    /// the declarations' owners: every variable declaration list or
+    /// function-like owning an unreferenced local is walked once, and a
+    /// list or binding pattern with more than one declaration reports
+    /// the whole when every declaration in it is unreferenced.
     fn check_unused_locals_and_parameters(&mut self, node: NodeId) -> CheckResult<()> {
         let Some(locals) = self.binder.locals_of(node) else {
             return Ok(());
         };
         let locals = locals.values().copied().collect::<Vec<_>>();
-        let mut unused_imports = Vec::<(NodeId, Vec<NodeId>)>::new();
-        let mut unused_destructures = Vec::<(NodeId, Vec<NodeId>)>::new();
-        let mut unused_variables = Vec::<(NodeId, Vec<NodeId>)>::new();
-
-        // d2: d2:d02bffc14a5b17c97eff6900de2ce867ee8b870872e10164db9d6b41407a2382
-        // tsc-hash: 978abe1ba0e43b808f1af98c0250c03f21f2b4b2c205df5dc87a163998c217c1
-        // tsc-span: _tsc.js:83095-83134
+        let mut variable_parents = Vec::<NodeId>::new();
+        let mut import_clauses = Vec::<(NodeId, Vec<NodeId>)>::new();
         for local in locals {
             let symbol = self.binder.symbol(local);
-            let referenced = self.links.read_symbol(local, |links| links.is_referenced);
-            if symbol.flags.intersects(SymbolFlags::TYPE_PARAMETER) {
-                if !symbol.flags.intersects(SymbolFlags::VARIABLE)
-                    || referenced.intersects(SymbolFlags::VARIABLE)
-                {
-                    continue;
-                }
-            } else if !referenced.is_empty()
-                || symbol.export_symbol.is_some()
-                // tsgo checkUnusedLocalsAndParameters (TypeScript 7.1): the
-                // CommonJS `module` / `exports` variables are never unused.
-                || symbol.flags.intersects(SymbolFlags::MODULE_EXPORTS)
-            {
+            let reference_kinds = self.links.read_symbol(local, |links| links.is_referenced);
+            let used = if symbol.flags.intersects(SymbolFlags::TYPE_PARAMETER) {
+                !symbol.flags.intersects(SymbolFlags::VARIABLE)
+                    || reference_kinds.intersects(SymbolFlags::VARIABLE)
+            } else {
+                !reference_kinds.is_empty()
+                    || symbol.export_symbol.is_some()
+                    || symbol.flags.intersects(SymbolFlags::MODULE_EXPORTS)
+            };
+            if used {
                 continue;
             }
             let declarations = symbol.declarations.clone();
             for declaration in declarations {
-                if self.is_recovery_only_imported_declaration(declaration) {
-                    continue;
-                }
-                if self.is_valid_unused_local_declaration(declaration) {
-                    continue;
-                }
-                if self.is_imported_declaration_for_unused(declaration) {
-                    if let Some(import_clause) =
-                        self.import_clause_from_imported_declaration(declaration)
-                    {
-                        add_to_unused_group(&mut unused_imports, import_clause, declaration);
-                    }
-                } else if self.kind_of(declaration) == SyntaxKind::BindingElement
-                    && self.parent_of(declaration).is_some_and(|parent| {
-                        self.kind_of(parent) == SyntaxKind::ObjectBindingPattern
-                    })
-                {
-                    let pattern = self.parent_of(declaration).expect("checked above");
-                    let elements = match self.data_of(pattern) {
-                        NodeData::ObjectBindingPattern(data) => self.nodes_of(data.elements),
-                        _ => Vec::new(),
-                    };
-                    let last_has_rest = elements.last().is_some_and(|last| {
-                        matches!(
-                            self.data_of(*last),
-                            NodeData::BindingElement(data) if data.dot_dot_dot_token.is_some()
-                        )
-                    });
-                    if elements.last().copied() == Some(declaration) || !last_has_rest {
-                        add_to_unused_group(&mut unused_destructures, pattern, declaration);
-                    }
-                } else if self.kind_of(declaration) == SyntaxKind::VariableDeclaration {
-                    let source = self.binder.source_of_node(declaration);
-                    let block_scope_kind = node_util::get_combined_node_flags(source, declaration)
-                        .bits()
-                        & NodeFlags::BLOCK_SCOPED.bits();
-                    let name = self.name_of_node(declaration);
-                    if !matches!(
-                        block_scope_kind,
-                        bits if bits == NodeFlags::USING.bits()
-                            || bits == NodeFlags::AWAIT_USING.bits()
-                    ) || !name.is_some_and(|name| self.identifier_starts_with_underscore(name))
-                    {
-                        if let Some(declaration_list) = self.parent_of(declaration) {
-                            add_to_unused_group(
-                                &mut unused_variables,
-                                declaration_list,
-                                declaration,
-                            );
-                        }
-                    }
-                } else {
-                    let value_declaration = self.binder.symbol(local).value_declaration;
-                    let parameter = value_declaration.map(|value| {
-                        node_util::get_root_declaration(self.binder.source_of_node(value), value)
-                    });
-                    let name = value_declaration.and_then(|value| self.name_of_node(value));
-                    if let Some(parameter) = parameter
-                        .filter(|parameter| self.kind_of(*parameter) == SyntaxKind::Parameter)
-                    {
-                        if let Some(name) = name {
-                            if !self.is_parameter_property_declaration(parameter)
-                                && !self.parameter_is_this_keyword(parameter)
-                                && !self.identifier_starts_with_underscore(name)
-                            {
-                                if self.kind_of(declaration) == SyntaxKind::BindingElement
-                                    && self.parent_of(declaration).is_some_and(|parent| {
-                                        self.kind_of(parent) == SyntaxKind::ArrayBindingPattern
-                                    })
-                                {
-                                    let pattern =
-                                        self.parent_of(declaration).expect("checked above");
-                                    add_to_unused_group(
-                                        &mut unused_destructures,
-                                        pattern,
-                                        declaration,
-                                    );
-                                } else {
-                                    let display = tsc_binder::unescape_leading_underscores(
-                                        self.binder.symbol(local).escaped_name,
-                                    )
-                                    .to_owned();
-                                    self.add_unused_diagnostic_at_js(
-                                        parameter,
-                                        UnusedIdentifierKind::Parameter,
-                                        Some(name),
-                                        &diagnostics::_0_is_declared_but_its_value_is_never_read,
-                                        &[(&display).into()],
-                                    );
-                                }
+                match self.kind_of(declaration) {
+                    SyntaxKind::VariableDeclaration
+                    | SyntaxKind::Parameter
+                    | SyntaxKind::BindingElement => {
+                        let source = self.binder.source_of_node(declaration);
+                        let root = node_util::get_root_declaration(source, declaration);
+                        if let Some(parent) = self.parent_of(root) {
+                            if !variable_parents.contains(&parent) {
+                                variable_parents.push(parent);
                             }
                         }
-                    } else {
-                        self.error_unused_local(declaration, local);
                     }
+                    SyntaxKind::ImportClause
+                    | SyntaxKind::ImportSpecifier
+                    | SyntaxKind::NamespaceImport => {
+                        let underscore = self
+                            .name_of_node(declaration)
+                            .is_some_and(|name| self.identifier_starts_with_underscore(name));
+                        if !underscore {
+                            if let Some(import_clause) =
+                                self.import_clause_from_imported_declaration(declaration)
+                            {
+                                add_to_unused_group(
+                                    &mut import_clauses,
+                                    import_clause,
+                                    declaration,
+                                );
+                            }
+                        }
+                    }
+                    // JSDoc parameter and property tags are not declarations
+                    // in tsgo, where they are reparsed into parameters and
+                    // type members.
+                    SyntaxKind::TypeParameter
+                    | SyntaxKind::JSDocParameterTag
+                    | SyntaxKind::JSDocPropertyTag => {}
+                    SyntaxKind::ModuleDeclaration
+                        if node_util::is_ambient_module(
+                            self.binder.source_of_node(declaration),
+                            declaration,
+                        ) => {}
+                    _ => self.error_unused_local(declaration, local),
                 }
             }
         }
+        for parent in variable_parents {
+            if self.kind_of(parent) == SyntaxKind::VariableDeclarationList {
+                self.report_unused_variables(parent)?;
+            } else {
+                let parameters = self.parameters_of_function(parent);
+                self.report_unused_variable_declarations(&parameters)?;
+            }
+        }
+        for (import_clause, unuseds) in import_clauses {
+            self.report_unused_imports(import_clause, unuseds);
+        }
+        Ok(())
+    }
 
-        // d2: d2:8919b2f655dc58c18f02623ad56a97c61dc9d699c539ae15aaa335cc6b8b9f48
-        // tsc-hash: b9f9aacce79c115a9368193c74ebfd2c4de226f95d8fa994d8e9998a34006e17
-        // tsc-span: _tsc.js:83135-83147
-        for (import_clause, unuseds) in unused_imports {
-            let Some(import_decl) = self.parent_of(import_clause) else {
+    /// tsgo: reportUnusedVariables (checker.go:7358-7365)
+    fn report_unused_variables(&mut self, declaration_list: NodeId) -> CheckResult<()> {
+        let declarations = match self.data_of(declaration_list) {
+            NodeData::VariableDeclarationList(data) => self.nodes_of(data.declarations),
+            _ => Vec::new(),
+        };
+        if declarations.len() > 1 && self.all_unreferenced_variable_declarations(&declarations)? {
+            self.report_unused_variable(
+                declaration_list,
+                declaration_list,
+                &diagnostics::All_variables_are_unused,
+                &[],
+            );
+            return Ok(());
+        }
+        self.report_unused_variable_declarations(&declarations)
+    }
+
+    /// tsgo: reportUnusedBindingElements (checker.go:7371-7378)
+    fn report_unused_binding_elements(&mut self, binding_pattern: NodeId) -> CheckResult<()> {
+        let elements = self.unused_binding_pattern_elements(binding_pattern);
+        if elements.len() > 1 && self.all_unreferenced_variable_declarations(&elements)? {
+            self.report_unused_variable(
+                binding_pattern,
+                binding_pattern,
+                &diagnostics::All_destructured_elements_are_unused,
+                &[],
+            );
+            return Ok(());
+        }
+        self.report_unused_variable_declarations(&elements)
+    }
+
+    /// tsgo: reportUnusedVariableDeclarations (checker.go:7380-7391)
+    fn report_unused_variable_declarations(&mut self, declarations: &[NodeId]) -> CheckResult<()> {
+        for &declaration in declarations {
+            let Some(name) = self.name_of_node(declaration) else {
                 continue;
             };
-            let n_declarations = self.import_clause_declaration_count(import_clause);
-            // tsgo reportUnusedImports (TypeScript 7.1): the whole-declaration
-            // row needs more than one declared name; a lone unused import
-            // reports at its name (tsc 6.0 reported it on the declaration).
-            if n_declarations > 1 && n_declarations == unuseds.len() {
-                self.add_unused_diagnostic_at(
-                    import_decl,
-                    UnusedIdentifierKind::Local,
-                    Some(import_decl),
-                    &diagnostics::All_imports_in_import_declaration_are_unused,
-                    &[],
-                );
-            } else {
-                for unused in unuseds {
-                    let Some(symbol) = self.binder.node_symbol(unused) else {
-                        continue;
-                    };
-                    self.error_unused_local(unused, symbol);
-                }
-            }
-        }
-
-        // d2: d2:67471b584c654abfec76a4c7c0d2694f196e6180df978c5dbb98c7be4dfbda4a
-        // tsc-hash: 719145c1c05fe3bacc72f7b46bd148754dd25e0b92d9b519debe96b9fe49c2d1
-        // tsc-span: _tsc.js:83148-83165
-        for (binding_pattern, binding_elements) in unused_destructures {
-            if binding_elements.is_empty() {
+            if self.is_parameter_property_declaration(declaration)
+                || self.kind_of(declaration) == SyntaxKind::Parameter
+                    && self.parameter_is_this_keyword(declaration)
+            {
                 continue;
             }
-            let kind = self.unused_binding_pattern_kind(binding_pattern);
-            let elements = self.unused_binding_pattern_elements(binding_pattern);
-            // tsgo reportUnusedBindingElements (TypeScript 7.1): the
-            // whole-pattern row needs more than one element; otherwise each
-            // unused element reports at its name (tsc 6.0 put a lone element
-            // on the pattern, or on the variable declaration list).
-            if elements.len() > 1 && elements.len() == binding_elements.len() {
-                self.add_unused_diagnostic_at(
-                    binding_pattern,
-                    kind,
-                    Some(binding_pattern),
-                    &diagnostics::All_destructured_elements_are_unused,
-                    &[],
+            if matches!(
+                self.kind_of(name),
+                SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
+            ) {
+                self.report_unused_binding_elements(name)?;
+            } else if self.is_unreferenced_variable_declaration(declaration)? {
+                let text = node_util::id_text(self.binder.source_of_node(name), name)
+                    .map(str::to_owned)
+                    .unwrap_or_else(|| self.declaration_name_display(name));
+                self.report_unused_variable(
+                    declaration,
+                    name,
+                    &diagnostics::_0_is_declared_but_its_value_is_never_read,
+                    &[&text],
                 );
-            } else {
-                for element in binding_elements {
-                    let name = self.name_of_node(element);
-                    let display = name
-                        .map(|name| self.unused_binding_name_text(name))
-                        .unwrap_or_default();
-                    self.add_unused_diagnostic_at_js(
-                        element,
-                        kind,
-                        name.or(Some(element)),
-                        &diagnostics::_0_is_declared_but_its_value_is_never_read,
-                        &[(&display).into()],
-                    );
-                }
-            }
-        }
-
-        // d2: d2:57b43b03c2ff6fb8e42339f24cbc495a46fcbe7854f2ac4ab16a086a1485dbda
-        // tsc-hash: b56504efa5a0e13944c2a5db705ff16d55f3f400a62a9a01f0af2e85cbb84956
-        // tsc-span: _tsc.js:83166-83178
-        for (declaration_list, declarations) in unused_variables {
-            let all_declarations = match self.data_of(declaration_list) {
-                NodeData::VariableDeclarationList(data) => self.nodes_of(data.declarations),
-                _ => Vec::new(),
-            };
-            if all_declarations.len() == declarations.len() {
-                if declarations.len() == 1 {
-                    let name = self.name_of_node(declarations[0]);
-                    let display = name
-                        .map(|name| self.unused_binding_name_text(name))
-                        .unwrap_or_default();
-                    self.add_unused_diagnostic_at_js(
-                        declaration_list,
-                        UnusedIdentifierKind::Local,
-                        name,
-                        &diagnostics::_0_is_declared_but_its_value_is_never_read,
-                        &[(&display).into()],
-                    );
-                } else {
-                    let range = self
-                        .parent_of(declaration_list)
-                        .filter(|parent| self.kind_of(*parent) == SyntaxKind::VariableStatement)
-                        .unwrap_or(declaration_list);
-                    self.add_unused_diagnostic_at(
-                        declaration_list,
-                        UnusedIdentifierKind::Local,
-                        Some(range),
-                        &diagnostics::All_variables_are_unused,
-                        &[],
-                    );
-                }
-            } else {
-                for declaration in declarations {
-                    let display = self
-                        .name_of_node(declaration)
-                        .map(|name| self.unused_binding_name_text(name))
-                        .unwrap_or_default();
-                    self.add_unused_diagnostic_at_js(
-                        declaration,
-                        UnusedIdentifierKind::Local,
-                        Some(declaration),
-                        &diagnostics::_0_is_declared_but_its_value_is_never_read,
-                        &[(&display).into()],
-                    );
-                }
             }
         }
         Ok(())
+    }
+
+    fn all_unreferenced_variable_declarations(
+        &mut self,
+        declarations: &[NodeId],
+    ) -> CheckResult<bool> {
+        for &declaration in declarations {
+            if !self.is_unreferenced_variable_declaration(declaration)? {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
+    /// tsgo: isUnreferencedVariableDeclaration (checker.go:7393-7418)
+    fn is_unreferenced_variable_declaration(&mut self, node: NodeId) -> CheckResult<bool> {
+        let Some(name) = self.name_of_node(node) else {
+            return Ok(true);
+        };
+        if matches!(
+            self.kind_of(name),
+            SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
+        ) {
+            let elements = self.unused_binding_pattern_elements(name);
+            return self.all_unreferenced_variable_declarations(&elements);
+        }
+        if let Some(symbol) = self.get_symbol_of_declaration_opt(node) {
+            if self
+                .links
+                .read_symbol(symbol, |links| links.is_referenced)
+                .intersects(SymbolFlags::VARIABLE)
+            {
+                return Ok(false);
+            }
+        }
+        let parent = self.parent_of(node);
+        let object_binding_element = self.kind_of(node) == SyntaxKind::BindingElement
+            && parent
+                .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::ObjectBindingPattern);
+        if object_binding_element {
+            // In `{ a, ...b }`, `a` is considered used since it removes a
+            // property from `b`.
+            let elements = parent.map_or_else(Vec::new, |parent| {
+                self.unused_binding_pattern_elements(parent)
+            });
+            if let Some(&last) = elements.last() {
+                let last_is_rest = matches!(
+                    self.data_of(last),
+                    NodeData::BindingElement(data) if data.dot_dot_dot_token.is_some()
+                );
+                if node != last && last_is_rest {
+                    return Ok(false);
+                }
+            }
+        }
+        let underscore_exempt = match self.kind_of(node) {
+            SyntaxKind::Parameter => true,
+            SyntaxKind::VariableDeclaration => {
+                let in_for_in_or_of =
+                    parent
+                        .and_then(|list| self.parent_of(list))
+                        .is_some_and(|statement| {
+                            matches!(
+                                self.kind_of(statement),
+                                SyntaxKind::ForInStatement | SyntaxKind::ForOfStatement
+                            )
+                        });
+                in_for_in_or_of
+                    || node_util::get_combined_node_flags(self.binder.source_of_node(node), node)
+                        .intersects(NodeFlags::USING)
+            }
+            SyntaxKind::BindingElement => {
+                let property_name = match self.data_of(node) {
+                    NodeData::BindingElement(data) => data.property_name,
+                    _ => None,
+                };
+                !(object_binding_element && property_name.is_none())
+            }
+            _ => false,
+        };
+        Ok(!(underscore_exempt && self.identifier_starts_with_underscore(name)))
+    }
+
+    /// tsgo: reportUnusedVariable (checker.go:7255-7260)
+    ///
+    /// The parse-error and ambient checks and the error kind read the
+    /// declaration that owns a binding element or pattern.
+    fn report_unused_variable(
+        &mut self,
+        location: NodeId,
+        error_node: NodeId,
+        message: &'static tsc_diagnostics::DiagnosticMessage,
+        args: &[&str],
+    ) {
+        let mut location = location;
+        while matches!(
+            self.kind_of(location),
+            SyntaxKind::BindingElement
+                | SyntaxKind::ObjectBindingPattern
+                | SyntaxKind::ArrayBindingPattern
+        ) {
+            let Some(parent) = self.parent_of(location) else {
+                break;
+            };
+            location = parent;
+        }
+        let kind = if self.kind_of(location) == SyntaxKind::Parameter {
+            UnusedIdentifierKind::Parameter
+        } else {
+            UnusedIdentifierKind::Local
+        };
+        self.add_unused_diagnostic_at(location, kind, Some(error_node), message, args);
+    }
+
+    /// tsgo: reportUnusedImports (checker.go:7420-7437)
+    fn report_unused_imports(&mut self, import_clause: NodeId, unuseds: Vec<NodeId>) {
+        let declaration_count = self.import_clause_declaration_count(import_clause);
+        if declaration_count > 1 && declaration_count == unuseds.len() {
+            let Some(import_declaration) = self.parent_of(import_clause) else {
+                return;
+            };
+            self.add_unused_diagnostic_at(
+                import_clause,
+                UnusedIdentifierKind::Local,
+                Some(import_declaration),
+                &diagnostics::All_imports_in_import_declaration_are_unused,
+                &[],
+            );
+            return;
+        }
+        for unused in unuseds {
+            let Some(symbol) = self.binder.node_symbol(unused) else {
+                continue;
+            };
+            self.error_unused_local(unused, symbol);
+        }
     }
 
     /// tsc-port: errorUnusedLocal @6.0.3
@@ -726,18 +761,8 @@ impl<'a> CheckerState<'a> {
         );
     }
 
-    fn unused_binding_pattern_kind(&self, binding_pattern: NodeId) -> UnusedIdentifierKind {
-        let source = self.binder.source_of_node(binding_pattern);
-        let root = self
-            .parent_of(binding_pattern)
-            .map(|parent| node_util::get_root_declaration(source, parent));
-        if root.is_some_and(|root| self.kind_of(root) == SyntaxKind::Parameter) {
-            UnusedIdentifierKind::Parameter
-        } else {
-            UnusedIdentifierKind::Local
-        }
-    }
-
+    /// tsgo: IsTypeDeclaration (ast/utilities.go). A JSDoc `@import` is
+    /// reparsed into a type-only import declaration.
     fn is_type_declaration_for_unused(&self, declaration: NodeId) -> bool {
         match self.kind_of(declaration) {
             SyntaxKind::TypeParameter
@@ -747,124 +772,25 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::EnumDeclaration
             | SyntaxKind::JSDocTypedefTag
             | SyntaxKind::JSDocCallbackTag => true,
-            SyntaxKind::ImportClause => {
-                matches!(self.data_of(declaration), NodeData::ImportClause(data) if data.is_type_only)
-            }
+            SyntaxKind::ImportClause => self.is_type_only_import_clause_for_unused(declaration),
             SyntaxKind::ImportSpecifier => self
                 .parent_of(declaration)
                 .and_then(|named| self.parent_of(named))
-                .is_some_and(|clause| {
-                    matches!(self.data_of(clause), NodeData::ImportClause(data) if data.is_type_only)
-                }),
+                .is_some_and(|clause| self.is_type_only_import_clause_for_unused(clause)),
             _ => false,
         }
+    }
+
+    fn is_type_only_import_clause_for_unused(&self, import_clause: NodeId) -> bool {
+        matches!(self.data_of(import_clause), NodeData::ImportClause(data) if data.is_type_only)
+            || self
+                .parent_of(import_clause)
+                .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::JSDocImportTag)
     }
 
     fn identifier_starts_with_underscore(&self, node: NodeId) -> bool {
         self.identifier_text_of(node)
             .is_some_and(|text| text.starts_with('_'))
-    }
-
-    fn is_valid_unused_local_declaration(&self, declaration: NodeId) -> bool {
-        // A JSDoc import is bound into its effective host's locals for
-        // type resolution, but the tag is not itself an
-        // external/CommonJS SourceFile unused owner in tsc
-        // (bindJSDocImports 44073-44103; SourceFile registration
-        // 87025-87027). Keep its synthetic import-clause declarations
-        // out of an enclosing recovery drain.
-        if matches!(
-            self.kind_of(declaration),
-            SyntaxKind::ImportClause | SyntaxKind::ImportSpecifier | SyntaxKind::NamespaceImport
-        ) && std::iter::successors(Some(declaration), |&node| self.parent_of(node))
-            .take(4)
-            .any(|node| self.kind_of(node) == SyntaxKind::JSDocImportTag)
-        {
-            return true;
-        }
-        // tsc does not surface ordinary unused-identifier suggestions
-        // for declarations that exist only inside attached JSDoc.
-        // Their symbols participate in type resolution, but the tags
-        // are not source-language local declarations.
-        if matches!(
-            self.kind_of(declaration),
-            SyntaxKind::JSDocTypedefTag
-                | SyntaxKind::JSDocCallbackTag
-                | SyntaxKind::JSDocPropertyTag
-                | SyntaxKind::JSDocParameterTag
-        ) {
-            return true;
-        }
-        if self.kind_of(declaration) == SyntaxKind::BindingElement {
-            let (name, property_name) = match self.data_of(declaration) {
-                NodeData::BindingElement(data) => (data.name, data.property_name),
-                _ => (None, None),
-            };
-            let object_binding = self
-                .parent_of(declaration)
-                .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::ObjectBindingPattern);
-            return if object_binding {
-                property_name.is_some()
-                    && name.is_some_and(|name| self.identifier_starts_with_underscore(name))
-            } else {
-                name.is_some_and(|name| self.identifier_starts_with_underscore(name))
-            };
-        }
-        if self.kind_of(declaration) == SyntaxKind::ModuleDeclaration
-            && node_util::is_ambient_module(self.binder.source_of_node(declaration), declaration)
-        {
-            return true;
-        }
-        let name_starts_with_underscore = self
-            .name_of_node(declaration)
-            .is_some_and(|name| self.identifier_starts_with_underscore(name));
-        if !name_starts_with_underscore {
-            return false;
-        }
-        let variable_in_for = self.kind_of(declaration) == SyntaxKind::VariableDeclaration
-            && self
-                .parent_of(declaration)
-                .and_then(|list| self.parent_of(list))
-                .is_some_and(|parent| {
-                    matches!(
-                        self.kind_of(parent),
-                        SyntaxKind::ForInStatement | SyntaxKind::ForOfStatement
-                    )
-                });
-        variable_in_for || self.is_imported_declaration_for_unused(declaration)
-    }
-
-    fn is_imported_declaration_for_unused(&self, declaration: NodeId) -> bool {
-        matches!(
-            self.kind_of(declaration),
-            SyntaxKind::ImportClause | SyntaxKind::ImportSpecifier | SyntaxKind::NamespaceImport
-        )
-    }
-
-    fn is_recovery_only_imported_declaration(&self, declaration: NodeId) -> bool {
-        let Some(import_clause) = self.import_clause_from_imported_declaration(declaration) else {
-            return false;
-        };
-        if matches!(
-            self.data_of(import_clause),
-            NodeData::ImportClause(data)
-                if data.phase_modifier == Some(SyntaxKind::DeferKeyword)
-                    && data
-                        .name
-                        .and_then(|name| self.identifier_text_of(name))
-                        == Some("type")
-        ) {
-            return true;
-        }
-        let Some(import_declaration) = self.parent_of(import_clause) else {
-            return false;
-        };
-        matches!(
-            self.data_of(import_declaration),
-            NodeData::ImportDeclaration(data)
-                if data.attributes.is_some_and(|attributes| {
-                    self.is_recovery_only_unused_declaration(attributes)
-                })
-        )
     }
 
     fn import_clause_from_imported_declaration(&self, declaration: NodeId) -> Option<NodeId> {
@@ -900,24 +826,6 @@ impl<'a> CheckerState<'a> {
             NodeData::ObjectBindingPattern(data) => self.nodes_of(data.elements),
             NodeData::ArrayBindingPattern(data) => self.nodes_of(data.elements),
             _ => Vec::new(),
-        }
-    }
-
-    /// tsc `bindingNameText` (83196-83205): grouped unused-variable
-    /// diagnostics name the first bound identifier recursively rather
-    /// than rendering the surrounding binding pattern.
-    fn unused_binding_name_text(&self, name: NodeId) -> String {
-        match self.kind_of(name) {
-            SyntaxKind::Identifier => node_util::id_text(self.binder.source_of_node(name), name)
-                .map(str::to_owned)
-                .unwrap_or_else(|| self.declaration_name_display(name)),
-            SyntaxKind::ArrayBindingPattern | SyntaxKind::ObjectBindingPattern => self
-                .unused_binding_pattern_elements(name)
-                .into_iter()
-                .find_map(|element| self.name_of_node(element))
-                .map(|nested| self.unused_binding_name_text(nested))
-                .unwrap_or_else(|| self.declaration_name_display(name)),
-            _ => self.declaration_name_display(name),
         }
     }
 }

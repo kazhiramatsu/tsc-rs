@@ -3302,7 +3302,14 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         mode: ApplicabilityMode,
     ) -> CheckResult<Option<ApplicabilityError>> {
-        // getJsxNamespaceContainerForImplicitImport: None (guarded).
+        // tsgo (jsx.go:604-606): an implicit jsx/jsxdev factory is assumed
+        // to fit, so the classic factory is not resolved (nor referenced).
+        if self
+            .get_jsx_namespace_container_for_implicit_import(node)?
+            .is_some()
+        {
+            return Ok(None);
+        }
         let tag_name = match self.data_of(node) {
             NodeData::JsxOpeningElement(data) => data.tag_name,
             NodeData::JsxSelfClosingElement(data) => data.tag_name,

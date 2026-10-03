@@ -896,3 +896,94 @@ fn utf16_intrinsic_literal_tag_names_retain_distinct_attribute_types() {
         );
     }
 }
+
+#[test]
+fn jsx_child_expression_elaborates_did_you_mean_to_call() {
+    // tsgo's elaborateError (relater.go:438-448) probes the did-you-mean
+    // elaboration for a JSX child's expression too: a.tsx(3,9) TS2322 with
+    // the TS6212 related row at `f` (tsc-rs reported at the `{`).
+    let source = [
+        JSX_ARRAY_GLOBALS,
+        "declare namespace JSX { interface Element {} interface ElementChildrenAttribute { children: {} } interface IntrinsicElements { leaf: { children: string } } }\n\
+         declare const f: () => string;\n\
+         (<leaf>{f}</leaf>);\n",
+    ]
+    .concat();
+    let callee = source.find("{f}").expect("child expression") as u32 + 1;
+    let rows = with_program_state(&[("a.tsx", source.as_str())], &jsx(1), |state| {
+        state.check_source_file(0);
+        state
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.file_name.is_some() && diagnostic.code() == 2322)
+            .map(|diagnostic| {
+                (
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                    diagnostic
+                        .related
+                        .iter()
+                        .map(|related| {
+                            (
+                                related.message.code,
+                                related.start.unwrap_or(u32::MAX),
+                                related.length.unwrap_or(u32::MAX),
+                            )
+                        })
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .collect::<Vec<_>>()
+    });
+    assert_eq!(rows, [(callee, 1, vec![(6212, callee, 1)])]);
+}
+
+#[test]
+fn implicit_jsx_runtime_skips_the_classic_factory_arity_check() {
+    // tsgo's checkTagNameDoesNotExpectTooManyArguments (jsx.go:604-606)
+    // assumes an implicit jsx/jsxdev factory fits, so `React.createElement`
+    // is neither checked (no TS6229) nor referenced: React is unused.
+    let react = "declare module \"react\" {\n\
+                     export function createElement(type: (props: {}) => {}, props: {} | null): {};\n\
+                 }\n\
+                 declare module \"react/jsx-runtime\" {\n\
+                     export namespace JSX { interface Element {} interface IntrinsicElements { div: {} } }\n\
+                 }\n";
+    let source = "import * as React from \"react\";\n\
+                  function Bar(_props: {}, _context: {}, _extra: {}) {\n    return <div />;\n}\n\
+                  export function Foo() {\n    return <Bar />;\n}\n";
+    let options = CompilerOptions {
+        jsx: Some(4),
+        module: Some(99),
+        no_unused_locals: Some(true),
+        ..CompilerOptions::default()
+    };
+    let rows = with_program_state(
+        &[
+            ("lib.d.ts", JSX_ARRAY_GLOBALS),
+            ("react.d.ts", react),
+            ("a.tsx", source),
+        ],
+        &options,
+        |state| {
+            state.check_source_file(2);
+            state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| {
+                    diagnostic.file_name.is_some()
+                        && diagnostic.category() == tsc_diagnostics::DiagnosticCategory::Error
+                })
+                .map(|diagnostic| {
+                    (
+                        diagnostic.code(),
+                        diagnostic.start.unwrap_or(u32::MAX),
+                        diagnostic.length.unwrap_or(u32::MAX),
+                    )
+                })
+                .collect::<Vec<_>>()
+        },
+    );
+    let react_name = source.find("React").expect("namespace import name") as u32;
+    assert_eq!(rows, [(6133, react_name, 5)]);
+}

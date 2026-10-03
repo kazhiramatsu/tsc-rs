@@ -4047,14 +4047,18 @@ impl<'a> CheckerState<'a> {
         self.instantiate_type_with_single_generic_call_signature(node, uninstantiated, check_mode)
     }
 
-    /// tsc-port: getReturnTypeOfSingleNonGenericCallSignature @6.0.3
-    /// tsc-hash: e303b67bb9b2a56c491ea265d4a9dcec19c2fd5a6b9b4a44f5972612ee007e1d
-    /// tsc-span: _tsc.js:80883-80888
-    fn get_return_type_of_single_non_generic_call_signature(
+    /// tsgo: getReturnTypeOfSingleNonGenericSignature (checker.go:7559-7565)
+    ///
+    /// tsc 6.0's call-only form required a type without members; tsgo
+    /// allows members, so a class's construct signature qualifies too.
+    fn get_return_type_of_single_non_generic_signature(
         &mut self,
         func_type: TypeId,
+        kind: SignatureKind,
     ) -> CheckResult<Option<TypeId>> {
-        let Some(signature) = self.get_single_call_signature(func_type)? else {
+        let Some(signature) =
+            self.get_single_signature(func_type, kind, /*allow_members*/ true)?
+        else {
             return Ok(None);
         };
         if self.signature_of(signature).type_parameters.is_some() {
@@ -4079,7 +4083,8 @@ impl<'a> CheckerState<'a> {
         };
         let func_type = self.check_expression(callee, CheckMode::NORMAL)?;
         let non_optional_type = self.get_optional_expression_type(func_type, callee)?;
-        let return_type = self.get_return_type_of_single_non_generic_call_signature(func_type)?;
+        let return_type =
+            self.get_return_type_of_single_non_generic_signature(func_type, SignatureKind::Call)?;
         match return_type {
             Some(return_type) => self
                 .propagate_optional_type_marker(return_type, expr, non_optional_type != func_type)
@@ -4155,6 +4160,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 12fa64ad550e27bc242ab7af46766acf39032fe3d50d50699bdb2a0a251a5c57
     /// tsc-span: _tsc.js:80915-80944
     ///
+    /// tsgo (checker.go:7533-7557) adds the `new` arm and reads call and
+    /// construct signatures of types with members.
+    ///
     /// The await and call arms went live once their dependencies landed
     /// (getAwaitedType @5.5f,
     /// checkNonNullExpression @5.5d, single-signature reads @5.2): a
@@ -4203,12 +4211,33 @@ impl<'a> CheckerState<'a> {
                         self.get_return_type_of_single_non_generic_signature_of_call_chain(expr)?
                     } else if let Some(callee) = callee {
                         let func_type = self.check_non_null_expression(callee)?;
-                        self.get_return_type_of_single_non_generic_call_signature(func_type)?
+                        self.get_return_type_of_single_non_generic_signature(
+                            func_type,
+                            SignatureKind::Call,
+                        )?
                     } else {
                         None
                     };
                     return Ok(ty);
                 }
+            }
+            // tsgo (checker.go:7549-7550): the type of `new C()` is the return
+            // type of C's single non-generic construct signature, even when
+            // the call itself is an error (an inaccessible or abstract
+            // constructor).
+            SyntaxKind::NewExpression => {
+                let callee = match self.data_of(expr) {
+                    NodeData::NewExpression(data) => data.expression,
+                    _ => None,
+                };
+                let Some(callee) = callee else {
+                    return Ok(None);
+                };
+                let func_type = self.check_non_null_expression(callee)?;
+                return self.get_return_type_of_single_non_generic_signature(
+                    func_type,
+                    SignatureKind::Construct,
+                );
             }
             SyntaxKind::TypeAssertionExpression | SyntaxKind::AsExpression => {
                 let type_node = match self.data_of(expr) {

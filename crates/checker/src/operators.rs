@@ -502,9 +502,9 @@ impl<'a> CheckerState<'a> {
                     None
                 };
                 if let Some(suggested) = suggested_operator {
-                    let err_node = error_node.unwrap_or(operator_token);
+                    // tsgo (checker.go:12577) reports at the operator token.
                     self.error_at(
-                        Some(err_node),
+                        Some(operator_token),
                         &tsc_diagnostics::gen::The_0_operator_is_not_allowed_for_boolean_types_Consider_using_1_instead,
                         &[token_text(operator), token_text(suggested)],
                     );

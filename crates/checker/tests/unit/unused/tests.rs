@@ -634,11 +634,12 @@ fn block_locals_preserve_reads_and_group_unused_variables() {
             "export {};\nif (true) {\n    const first = 1, second = 2;\n}\n",
             &CompilerOptions::default(),
         ),
+        // tsgo reportUnusedVariables: the row spans the declaration list.
         [(
             6199,
             DiagnosticCategory::Suggestion,
             27,
-            28,
+            27,
             "All variables are unused.".to_owned(),
         )]
     );
@@ -1907,7 +1908,9 @@ fn checked_js_reference_reconciliation_preserves_non_reads() {
 }
 
 #[test]
-fn unused_jsdoc_import_tag_does_not_become_a_source_local_diagnostic() {
+fn unused_jsdoc_import_tag_reports_like_its_reparsed_import() {
+    // tsgo reparses `@import` into a type-only import declaration whose
+    // unused name reports TS6196 (foo.js(1,13) under noUnusedLocals).
     let rows = unused_rows_for_files(
         &[
             ("types.ts", "export interface Foo { a: number; }\n"),
@@ -1920,7 +1923,16 @@ fn unused_jsdoc_import_tag_does_not_become_a_source_local_diagnostic() {
             ..CompilerOptions::default()
         },
     );
-    assert!(rows.is_empty(), "{rows:?}");
+    assert_eq!(
+        rows,
+        [(
+            6196,
+            DiagnosticCategory::Suggestion,
+            12,
+            1,
+            "'x' is declared but never used.".to_owned(),
+        )]
+    );
 }
 
 #[test]
@@ -2128,6 +2140,15 @@ var two = C.f(1)
                     3,
                     "'two' is declared but its value is never read.".to_owned(),
                 )],
+                // tsgo reports the reparsed `@import`'s unused name.
+                "importTag13" => vec![(
+                    "/foo.js".to_owned(),
+                    6196,
+                    DiagnosticCategory::Suggestion,
+                    12,
+                    1,
+                    "'x' is declared but never used.".to_owned(),
+                )],
                 _ => Vec::new(),
             };
             (rows != expected).then_some((name, expected, rows))
@@ -2253,4 +2274,96 @@ fn jsdoc_links_to_class_members_mark_the_imported_class_as_referenced() {
         },
     );
     assert!(rows.is_empty(), "{rows:?}");
+}
+
+#[test]
+fn unused_declarations_group_by_their_owners_like_tsgo() {
+    // tsgo checkUnusedLocalsAndParameters (7.1 at 19dadef8, noUnusedLocals and
+    // noUnusedParameters): a declaration list or binding pattern reports the
+    // whole only when it has more than one declaration and all are
+    // unreferenced (an omitted array element counts), each other unused
+    // declaration reports at its name, a static block's locals are checked,
+    // and a JSDoc `@import` or `@typedef` reports like the declaration tsgo
+    // reparses it into.
+    let module = "export class X {}\nexport class Y {}\n";
+    let ts = "export {};\n\
+              declare const o: any;\n\
+              const [a, , b] = o;\n\
+              const [c] = o, [d] = o;\n\
+              function f({ g }: any, [h]: any, _i: number, { j: _k }: any, { _l }: any) {}\n\
+              function g2(this: any, x: number) { return x; }\n\
+              const { m, ...rest } = o; rest;\n\
+              const { n, ...rest2 } = o;\n\
+              for (const _p of o) {}\n\
+              for (const { q } of o) {}\n\
+              export class S { static { let foo = 1; } }\n";
+    let js = "/** @import { X, Y } from \"./m\" */\n\
+              /** @import { X as Z } from \"./m\" */\n\
+              /**\n * @import * as NS from \"./m\"\n * trailing text\n */\n\
+              export function fn() {\n  /** @typedef {number} N */\n  return 1;\n}\n";
+    let options = CompilerOptions {
+        no_unused_locals: Some(true),
+        no_unused_parameters: Some(true),
+        allow_js: true,
+        check_js: Some(true),
+        target: Some(tsc_types::ScriptTarget::ES2015.bits()),
+        ..CompilerOptions::default()
+    };
+    let mut rows =
+        unused_rows_with_file_for_files(&[("m.ts", module), ("b.ts", ts), ("a.js", js)], &options)
+            .into_iter()
+            .map(|(file, code, _, start, length, message)| (file, code, start, length, message))
+            .collect::<Vec<_>>();
+    rows.sort_by(|left, right| (&left.0, left.2).cmp(&(&right.0, right.2)));
+    let row = |file: &str, code: u32, text: &str, needle: &str, length: u32, message: &str| {
+        (
+            file.to_owned(),
+            code,
+            text.find(needle).expect("needle") as u32,
+            length,
+            message.to_owned(),
+        )
+    };
+    let never_read = |name: &str| format!("'{name}' is declared but its value is never read.");
+    let never_used = |name: &str| format!("'{name}' is declared but never used.");
+    assert_eq!(
+        rows,
+        [
+            row(
+                "a.js",
+                6192,
+                js,
+                "@import { X, Y }",
+                27,
+                "All imports in import declaration are unused."
+            ),
+            row("a.js", 6196, js, "Z }", 1, &never_used("Z")),
+            row("a.js", 6133, js, "NS ", 2, &never_read("NS")),
+            row("a.js", 6196, js, "N */", 1, &never_used("N")),
+            row(
+                "b.ts",
+                6198,
+                ts,
+                "[a, , b]",
+                8,
+                "All destructured elements are unused."
+            ),
+            row(
+                "b.ts",
+                6199,
+                ts,
+                "const [c]",
+                22,
+                "All variables are unused."
+            ),
+            row("b.ts", 6133, ts, "f({", 1, &never_read("f")),
+            row("b.ts", 6133, ts, "g }", 1, &never_read("g")),
+            row("b.ts", 6133, ts, "h]", 1, &never_read("h")),
+            row("b.ts", 6133, ts, "_l }", 2, &never_read("_l")),
+            row("b.ts", 6133, ts, "g2(", 2, &never_read("g2")),
+            row("b.ts", 6133, ts, "rest2", 5, &never_read("rest2")),
+            row("b.ts", 6133, ts, "q }", 1, &never_read("q")),
+            row("b.ts", 6133, ts, "foo", 3, &never_read("foo")),
+        ]
+    );
 }

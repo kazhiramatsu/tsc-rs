@@ -1766,6 +1766,16 @@ impl<'a> CheckerState<'a> {
     /// checks its target-dependent helper requirements before its operand.
     pub(crate) fn check_yield_expression(&mut self, node: NodeId) -> CheckResult<TypeId> {
         self.check_yield_expression_grammar(node);
+        // tsgo (checker.go:11154-11161) always checks the operand, so its
+        // names resolve even when the yield is outside a generator.
+        let (expression, asterisk_token) = match self.data_of(node) {
+            NodeData::YieldExpression(data) => (data.expression, data.asterisk_token),
+            _ => (None, None),
+        };
+        let yield_expression_type = match expression {
+            Some(expression) => self.check_expression(expression, CheckMode::NORMAL)?,
+            None => self.tables.intrinsics.undefined_widening,
+        };
         let func = self.get_containing_function(node);
         let Some(func) = func else {
             return Ok(self.tables.intrinsics.any);
@@ -1775,10 +1785,6 @@ impl<'a> CheckerState<'a> {
             return Ok(self.tables.intrinsics.any);
         }
         let is_async = function_flags & FUNCTION_FLAGS_ASYNC != 0;
-        let (expression, asterisk_token) = match self.data_of(node) {
-            NodeData::YieldExpression(data) => (data.expression, data.asterisk_token),
-            _ => (None, None),
-        };
         if asterisk_token.is_some() {
             let target = self.options.emit_script_target();
             if is_async && target < tsc_types::ScriptTarget::ES2018 {
@@ -1815,10 +1821,6 @@ impl<'a> CheckerState<'a> {
         let any = self.tables.intrinsics.any;
         let signature_yield_type = iteration_types.map(|types| types.yield_type).unwrap_or(any);
         let signature_next_type = iteration_types.map(|types| types.next_type).unwrap_or(any);
-        let yield_expression_type = match expression {
-            Some(expression) => self.check_expression(expression, CheckMode::NORMAL)?,
-            None => self.tables.intrinsics.undefined_widening,
-        };
         let yielded_type = self.get_yielded_type_of_yield_expression(
             node,
             yield_expression_type,
@@ -3036,6 +3038,15 @@ impl<'a> CheckerState<'a> {
         for child in children {
             self.check_source_element(Some(child));
         }
+        // tsgo (checker.go:2861-2867) checks a static block's locals for
+        // unused declarations.
+        if self
+            .binder
+            .locals_of(node)
+            .is_some_and(|locals| !locals.is_empty())
+        {
+            self.register_for_unused_identifiers_check(node);
+        }
         Ok(())
     }
 
@@ -3474,7 +3485,7 @@ impl<'a> CheckerState<'a> {
 
     /// getEnclosingContainer (13841-13843): the nearest ancestor with
     /// the IsContainer bit.
-    fn get_enclosing_container(&self, node: NodeId) -> Option<NodeId> {
+    pub(crate) fn get_enclosing_container(&self, node: NodeId) -> Option<NodeId> {
         let source = self.binder.source_of_node(node);
         let mut current = node_util::parent_of(source, node);
         while let Some(candidate) = current {

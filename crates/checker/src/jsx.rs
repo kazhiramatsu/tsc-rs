@@ -2140,7 +2140,7 @@ impl<'a> CheckerState<'a> {
     /// react-jsxdev or an @jsxImportSource pragma — both escape in
     /// the entity guard, so the survivors always answer None (2792/
     /// 2875 module-resolution rows ride 5.8).
-    fn get_jsx_namespace_container_for_implicit_import(
+    pub(crate) fn get_jsx_namespace_container_for_implicit_import(
         &mut self,
         location: NodeId,
     ) -> CheckResult<Option<SymbolId>> {

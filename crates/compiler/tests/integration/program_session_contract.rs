@@ -3568,3 +3568,40 @@ fn sharded_session_pins_both_contextual_this_controls() {
         &[],
     );
 }
+
+#[test]
+fn misplaced_global_scope_imports_resolve_module_names_the_program_skipped() {
+    // tsgo checkExternalModuleNameInGlobalScope (checker.go:5702-5714): the
+    // program resolves only top-level module names, so an import misplaced in
+    // a block of the source file reports TS2307 even for an existing file
+    // (main.ts(2,27) in tsc-19dadef8). A side-effect import and an import in a
+    // function are not resolved.
+    let main = "{\n    import { value } from \"./dep\";\n    import \"./side\";\n}\n\
+                function f() {\n    import { other } from \"./other\";\n}\nexport {};\n";
+    let prepared = authoritative_program(
+        &[("/dep.ts", "export const value = 1;\n"), ("/main.ts", main)],
+        &[1],
+        CompilerOptions {
+            module: Some(99),
+            module_resolution: Some(100),
+            ..CompilerOptions::default()
+        },
+        |_, _| {},
+    );
+    let outcome = consume(ProgramSession::new(prepared));
+    let rows = outcome
+        .semantic_diagnostics()
+        .iter()
+        .map(|diagnostic| (diagnostic.code(), diagnostic.start, diagnostic.length))
+        .collect::<Vec<_>>();
+    let at = |needle: &str| Some(main.find(needle).expect("needle") as u32);
+    assert_eq!(
+        rows,
+        [
+            (1232, at("import { value }"), Some(6)),
+            (2307, at("\"./dep\""), Some(7)),
+            (1232, at("import \"./side\""), Some(6)),
+            (1232, at("import { other }"), Some(6)),
+        ]
+    );
+}
