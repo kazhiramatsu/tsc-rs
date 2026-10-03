@@ -954,3 +954,5 @@ P3-5q後の不一致から、tsgoが検査の順序・報告の位置・まと�
   - conflict marker（6）
   - インスタンス化の循環（TS5114／TS5115、5）
   - tsconfigの位置などharnessの行（約6）
+- hosted：PR #636（head `e7c808588`、merge `97abe471c`）、run 37109454811 — `plan` 37s、`rust` 7m30s、`conformance (TypeScript 7.1)` 14m5s、`gates` 11s。
+- perf（README corpora、`--noEmit`、3 rounds、nice 20、main `47d8bc192`（P3-5qのhead `857a31272`と同じコードのrelease build）と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 152→148、zod 546→574、Playwright 405→384、TypeScript `src/compiler` 387→361、Next.js 814→826、Effect 594→572、VS Code 3,788→3,716。計測時のload averageが高く（6前後）絶対値はP3-5qの記録より大きいが、同じroundの交互実行で比べている。tsc-rs÷tsgoは0.60〜0.98、peak memory（MB main→本branch）：316→306、1,292→1,296、819→802、289→289、1,316→1,323、1,032→1,046、5,430→5,448。zodとNext.jsは同条件の5 roundsのA/B（main／本branch）でzod 583／579 ms・CPU 3,725／3,718 ms、Next.js 826／831 ms・CPU 4,880／4,848 msなのでノイズ。退行なし。
