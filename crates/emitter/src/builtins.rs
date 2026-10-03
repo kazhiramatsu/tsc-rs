@@ -11913,6 +11913,70 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         Ok(())
     }
 
+    /// tsgo RuntimeSyntaxTransformer pushScope/recordDeclarationInScope
+    /// (runtimesyntax.go:52-67, 140-171): the names a variable statement
+    /// declares, binding patterns included, take the slot that a later
+    /// namespace or enum would otherwise declare with `var`. An ambient
+    /// statement takes none: tsgo's type eraser removes it before that pass.
+    fn record_variable_statement(
+        &mut self,
+        statement: TransformNode,
+        list: Option<NodeId>,
+        modifiers: Option<NodeArrayId>,
+    ) -> Result<(), TransformError> {
+        if NodeFlags::from_bits(self.context.arena().node(statement)?.flags)
+            .contains(NodeFlags::AMBIENT)
+            || self.has_modifier(modifiers, SyntaxKind::DeclareKeyword)?
+        {
+            return Ok(());
+        }
+        let Some(list) = list else {
+            return Ok(());
+        };
+        let declarations = match &self.context.arena().node(self.node(list))?.data {
+            NodeData::VariableDeclarationList(data) => data.declarations,
+            _ => None,
+        };
+        let mut names = Vec::new();
+        for declaration in node_array_nodes(self.context.arena(), self.source, declarations)? {
+            self.collect_declared_names(declaration, &mut names)?;
+        }
+        let scope = self.lexical_scope_owner(statement)?;
+        for name in names {
+            self.emitted_declarations.insert((scope.container(), name));
+        }
+        Ok(())
+    }
+
+    /// The identifiers a variable declaration or binding element declares.
+    fn collect_declared_names(
+        &self,
+        declaration: TransformNode,
+        names: &mut Vec<String>,
+    ) -> Result<(), TransformError> {
+        let name = match &self.context.arena().node(declaration)?.data {
+            NodeData::VariableDeclaration(data) => data.name,
+            NodeData::BindingElement(data) => data.name,
+            _ => None,
+        };
+        let Some(name) = name.map(|name| self.node(name)) else {
+            return Ok(());
+        };
+        let elements = match &self.context.arena().node(name)?.data {
+            NodeData::Identifier(_) => {
+                names.push(self.identifier_text(name.node())?.to_owned());
+                return Ok(());
+            }
+            NodeData::ArrayBindingPattern(data) => data.elements,
+            NodeData::ObjectBindingPattern(data) => data.elements,
+            _ => return Ok(()),
+        };
+        for element in node_array_nodes(self.context.arena(), self.source, elements)? {
+            self.collect_declared_names(element, names)?;
+        }
+        Ok(())
+    }
+
     /// tsrs-native: arena projection of nodeIsMissing for function bodies.
     /// Parsed zero-width recovery nodes are missing; synthesized bodies are
     /// present. Callers retain their existing TypeScript visitor flag gates.
@@ -11947,17 +12011,24 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             .ok_or_else(|| TransformError::UnknownNode(self.node(id)))?;
         // onBeforeVisitNode (recordEmittedDeclarationInScope) precedes the
         // ContainsTypeScript gate; only a node the gate admits is cloned.
-        let (kind, parent, declaration) = {
+        let (kind, parent, declaration, variables) = {
             let record = self.context.arena().node(original)?;
             let declaration = match &record.data {
                 NodeData::ClassDeclaration(data) => Some((data.name, data.modifiers)),
                 NodeData::FunctionDeclaration(data) => Some((data.name, data.modifiers)),
                 _ => None,
             };
-            (record.kind, record.parent, declaration)
+            let variables = match &record.data {
+                NodeData::VariableStatement(data) => Some((data.declaration_list, data.modifiers)),
+                _ => None,
+            };
+            (record.kind, record.parent, declaration, variables)
         };
         if let Some((name, modifiers)) = declaration {
             self.record_class_or_function_declaration(original, name, modifiers)?;
+        }
+        if let Some((list, modifiers)) = variables {
+            self.record_variable_statement(original, list, modifiers)?;
         }
         let retain_namespace_function_default = !self.namespace_stack.is_empty()
             && kind == SyntaxKind::DefaultKeyword
@@ -15422,6 +15493,16 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
     ) -> Result<Option<NodeId>, TransformError> {
         if data.is_type_only {
             return Ok(None);
+        }
+        // tsgo's type eraser elides every statement with a `declare`
+        // modifier (typeeraser.go:48-50), an invalid `declare import` too.
+        if self.has_modifier(data.modifiers, SyntaxKind::DeclareKeyword)? {
+            return Ok(Some(
+                self.context
+                    .factory()?
+                    .create_not_emitted_statement(original)?
+                    .node(),
+            ));
         }
         let module_reference = data
             .module_reference

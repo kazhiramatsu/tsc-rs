@@ -420,10 +420,13 @@ fn subtree_private_method_direct_return_preserves_upstream_enclosing_leak() {
 }
 
 #[test]
-fn subtree_binding_pattern_direct_return_preserves_upstream_diagnostic_leak() {
+fn subtree_binding_pattern_split_restores_the_diagnostic_context() {
+    // tsgo's visitDeclarationSubtree restores the diagnostic context after
+    // transformVariableDeclaration splits a pattern with an initializer
+    // (transform.go:619-620, 845-847); tsc 6.0 returned directly and left it.
     let parsed = parse_source_file(
         "fixture.ts",
-        "const { value } = source;\n",
+        "const { value = 1 } = source;\n",
         Default::default(),
         None,
     );
@@ -440,10 +443,10 @@ fn subtree_binding_pattern_direct_return_preserves_upstream_diagnostic_leak() {
     result.expect("binding-pattern probe");
     let observation = observation.borrow();
     assert!(!observation.visit_is_empty);
-    assert!(matches!(
+    assert_eq!(
         observation.diagnostic_context,
-        Some(DiagnosticContext::ForNode(node)) if node.node() == variable
-    ));
+        Some(DiagnosticContext::None)
+    );
 }
 
 #[test]

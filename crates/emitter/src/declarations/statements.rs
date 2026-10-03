@@ -1164,6 +1164,40 @@ pub(crate) fn walk_binding_pattern(
     Ok(result)
 }
 
+/// tsgo hasAnyBindingInitializers (transform.go:859-873): whether an element
+/// of the pattern, at any depth, has an initializer.
+pub(crate) fn has_any_binding_initializers(
+    context: &TransformationContext,
+    pattern: TransformNode,
+) -> Result<bool, TransformError> {
+    let elements = match &context.arena().node(pattern)?.data {
+        NodeData::ArrayBindingPattern(data) => data.elements,
+        NodeData::ObjectBindingPattern(data) => data.elements,
+        _ => None,
+    };
+    for element in source_array(context, pattern.source(), elements)? {
+        let NodeData::BindingElement(data) = &context.arena().node(element)?.data else {
+            continue;
+        };
+        if data.initializer.is_some() {
+            return Ok(true);
+        }
+        let name = data
+            .name
+            .and_then(|name| context.arena().node_ref(element.source(), name));
+        if let Some(name) = name {
+            if matches!(
+                context.arena().node(name)?.kind,
+                SyntaxKind::ArrayBindingPattern | SyntaxKind::ObjectBindingPattern
+            ) && has_any_binding_initializers(context, name)?
+            {
+                return Ok(true);
+            }
+        }
+    }
+    Ok(false)
+}
+
 /// tsc-port: recreateBindingPattern @6.0.3
 /// tsc-hash: db7dae8edbdeb2e3101a1570828b0d0baf0db0aa52a7406f7618c01d6def10a7
 /// tsc-span: _tsc.js:115721-115723

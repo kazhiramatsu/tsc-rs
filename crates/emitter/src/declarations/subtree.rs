@@ -199,20 +199,6 @@ impl DeclarationTransformer<'_> {
             self.tracker.suppress_new_diagnostic_contexts = true;
         }
 
-        if self.kind(cx, input)? == SyntaxKind::VariableDeclaration {
-            let name = declaration_name(cx, input)?
-                .ok_or_else(|| Self::contract("variable declaration has no name"))?;
-            if matches!(
-                self.kind(cx, name)?,
-                SyntaxKind::ArrayBindingPattern | SyntaxKind::ObjectBindingPattern
-            ) {
-                // Upstream's second direct return: this happens after the
-                // diagnostic context was replaced and skips cleanup,
-                // adoption, and every frame restoration.
-                return statements::recreate_binding_pattern(self, cx, name);
-            }
-        }
-
         let frame = SubtreeFrame {
             previous_enclosing,
             previous_diagnostic,
@@ -498,6 +484,21 @@ impl DeclarationTransformer<'_> {
                         )?))
                     }
                     SyntaxKind::VariableDeclaration => {
+                        let name = declaration_name(cx, input)?
+                            .ok_or_else(|| Self::contract("variable declaration has no name"))?;
+                        if matches!(
+                            self.kind(cx, name)?,
+                            SyntaxKind::ArrayBindingPattern | SyntaxKind::ObjectBindingPattern
+                        ) && statements::has_any_binding_initializers(cx, name)?
+                        {
+                            // tsgo transformVariableDeclaration
+                            // (transform.go:845-847) splits only a pattern
+                            // with an initializer into one declaration per
+                            // element, inside the frame that restores the
+                            // diagnostic context; any other pattern keeps its
+                            // shape and is typed as a whole below.
+                            return statements::recreate_binding_pattern(self, cx, name);
+                        }
                         enter_suppression = true;
                         self.tracker.suppress_new_diagnostic_contexts = true;
                         let r#type = self.ensure_type(cx, input, false)?;
