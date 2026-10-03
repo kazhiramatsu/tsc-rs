@@ -894,7 +894,7 @@ impl<'a> CheckerState<'a> {
     /// The node whose parent is the statement list tsgo's reparser places a
     /// `@typedef`, `@callback` or `@import` of `host`'s JSDoc in: the nearest
     /// source file, block or module block containing `host`.
-    fn reparsed_statement_position(&self, host: NodeId) -> NodeId {
+    pub(crate) fn reparsed_statement_position(&self, host: NodeId) -> NodeId {
         let mut node = host;
         while let Some(parent) = self.parent_of(node) {
             if matches!(

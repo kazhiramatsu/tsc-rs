@@ -773,12 +773,15 @@ fn jsdoc_implicit_any_honors_ts_check_and_ast_spans() {
             && row.1 == text.find("a =>").expect("plain Function parameter") as u32
             && row.2 == 1
     }));
-    let function_type = "function (number)";
+    // TypeScript 7.1 (tsgo at 19dadef8) has no Closure `function(…)` type:
+    // the tag is TS1005 and types `y` as `Function`, so `n` is implicitly any
+    // like `a`, and there is no TS7014.
     assert!(diagnostics.iter().any(|row| {
-        row.0 == 7014
-            && row.1 == text.find(function_type).expect("JSDoc function type") as u32
-            && row.2 == function_type.len() as u32
+        row.0 == 7006
+            && row.1 == text.find("n =>").expect("Closure-typed parameter") as u32
+            && row.2 == 1
     }));
+    assert!(diagnostics.iter().all(|row| row.0 != 7014));
 }
 
 // ---- checkUnmatchedJSDocParameters through materialized tags ----
@@ -1621,7 +1624,8 @@ fn jsdoc_identifier_name_recovery_reports_missing_and_invalid_names() {
         diagnostics.sort_by_key(|diagnostic| diagnostic.0);
         // tsgo (TypeScript 7.1 at 19dadef8): a `@param` without a name is no
         // error (parseJSDocEntityName with no message), so only the
-        // `@augments`/`@implements` class names report.
+        // `@augments`/`@implements` class names report, at the current token
+        // (the space before `*/`).
         let expected_starts = [
             text.find("@augments").expect("augments tag") + "@augments".len(),
             text.find("@implements").expect("implements tag") + "@implements".len(),
@@ -1629,7 +1633,7 @@ fn jsdoc_identifier_name_recovery_reports_missing_and_invalid_names() {
         assert_eq!(
             diagnostics,
             expected_starts
-                .map(|start| (start as u32, 0, "Identifier expected.".to_owned()))
+                .map(|start| (start as u32, 1, "Identifier expected.".to_owned()))
                 .to_vec()
         );
     });
@@ -2540,6 +2544,150 @@ fn checked_js_hosted_tags_are_checked_as_reparsed_syntax() {
     );
 }
 
+const P35P_GLOBALS: &str = "interface Array<T> {}\n\
+                            interface Boolean {}\n\
+                            interface CallableFunction {}\n\
+                            interface Function {}\n\
+                            interface IArguments {}\n\
+                            interface NewableFunction {}\n\
+                            interface Number {}\n\
+                            interface Object {}\n\
+                            interface RegExp {}\n\
+                            interface String {}\n\
+                            type Record<K extends keyof any, T> = { [P in K]: T };\n";
+
+#[test]
+fn checked_js_jsdoc_object_types_follow_tsgo() {
+    // tsgo (7.1 at 19dadef8, noLib with these globals): `object` is the
+    // non-primitive type in JavaScript too, and `Object<K, V>` is `Record<K, V>`.
+    let text = "/** @param {object} o */\n\
+                function f(o) { return o.bar; }\n\
+                /** @type {Object<string, number>} */\n\
+                var r = 1;\n";
+    let options = CompilerOptions {
+        allow_js: true,
+        check_js: Some(true),
+        strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut rows = with_program_state(
+        &[("lib.d.ts", P35P_GLOBALS), ("a.js", text)],
+        &options,
+        |state| {
+            state.check_source_file(1);
+            diag_rows(state)
+        },
+    );
+    // The deferred TS2339 joins the sink last; the program sorts by position.
+    rows.sort_by_key(|row| row.1);
+    let at = |needle: &str| text.find(needle).expect("needle") as u32;
+    assert_eq!(
+        rows,
+        [
+            (
+                2339,
+                at("bar"),
+                3,
+                "Property 'bar' does not exist on type 'object'.".to_owned(),
+            ),
+            (
+                2322,
+                at("r = 1"),
+                1,
+                "Type 'number' is not assignable to type 'Record<string, number>'.".to_owned(),
+            ),
+        ]
+    );
+}
+
+#[test]
+fn misplaced_return_still_checks_its_expression() {
+    // tsgo checkReturnStatement (checker.go:4114-4122) checks the expression
+    // before the grammar error.
+    let text = "return undeclared;\n";
+    let mut rows = checked_diags(text);
+    // The expression's error precedes the grammar error in the sink; the
+    // program sorts by position.
+    rows.sort_by_key(|row| row.1);
+    assert_eq!(
+        rows,
+        [
+            (
+                1108,
+                0,
+                "return".len() as u32,
+                "A 'return' statement can only be used within a function body.".to_owned(),
+            ),
+            (
+                2304,
+                text.find("undeclared").expect("name") as u32,
+                "undeclared".len() as u32,
+                "Cannot find name 'undeclared'.".to_owned(),
+            ),
+        ]
+    );
+}
+
+#[test]
+fn anonymous_function_expression_reports_at_its_assigned_name() {
+    // tsgo GetErrorRangeForNode uses GetNameOfDeclaration: TS7011 of an
+    // anonymous function expression lands on the variable it initializes.
+    let text = "const f = function () { return null; };\n";
+    let options = CompilerOptions {
+        no_implicit_any: Some(true),
+        strict_null_checks: Some(false),
+        ..CompilerOptions::default()
+    };
+    let rows = checked_diags_with(text, &options);
+    assert_eq!(
+        rows,
+        [(
+            7011,
+            text.find('f').expect("name") as u32,
+            1,
+            "Function expression, which lacks return-type annotation, implicitly has an 'any' return type."
+                .to_owned(),
+        )]
+    );
+}
+
+#[test]
+fn checked_js_import_tags_are_checked_as_import_declarations() {
+    // tsgo checks the import declaration reparsed from an `@import` with an
+    // import clause: a non-string module specifier is TS1141, a default
+    // import of a module without one is TS2613, and a JSDoc import may have
+    // both a default import and named bindings (no TS1363).
+    let module = "export interface Foo {}\nexport interface I {}\n";
+    let text = "/** @import x = require(\"./b\") */\n\
+                /** @import Foo, { I } from \"./b\" */\n\
+                /** @param {I} i */\n\
+                function g(i) {}\n";
+    let options = CompilerOptions {
+        allow_js: true,
+        check_js: Some(true),
+        ..CompilerOptions::default()
+    };
+    let rows = with_program_state_allow_parse_diagnostics(
+        &[("lib.d.ts", P35P_GLOBALS), ("b.ts", module), ("c.js", text)],
+        &options,
+        |state| {
+            state.check_source_file(2);
+            diag_rows(state)
+                .into_iter()
+                .map(|(code, start, length, _)| (code, start, length))
+                .collect::<Vec<_>>()
+        },
+    );
+    let at = |needle: &str| text.find(needle).expect("needle") as u32;
+    assert_eq!(
+        rows,
+        [
+            (1141, at("= require"), "= require(\"./b\")".len() as u32),
+            (2613, at("Foo, { I }"), "Foo, { I }".len() as u32),
+        ]
+    );
+}
+
 #[test]
 fn jsdoc_satisfies_callable_elaboration_and_nearest_decline_are_both_reported() {
     let options = CompilerOptions {
@@ -2721,17 +2869,17 @@ fn jsdoc_nullable_and_non_nullable_types_report_typescript_suggestions() {
 
 #[test]
 fn jsdoc_only_source_types_report_8020_at_the_upstream_spans() {
+    // TypeScript 7.1 parses no Closure `function(…)` type and no lone `?`
+    // (both are parse errors), so the JSDoc-only types left are `.<` and `*`
+    // (tsgo at 19dadef8).
     let text = "interface Array<T> {}\n\
                     var dotted: Array.<number>;\n\
-                    var callable: function(this: number, string): string;\n\
                     var all: * = 1;\n\
-                    var unknown: ? = undefined;\n\
                     var ordinary: Array<number>;\n";
     let diagnostics = checked_diags(text)
         .into_iter()
         .filter(|diagnostic| diagnostic.0 == 8020)
         .collect::<Vec<_>>();
-    let callable = "function(this: number, string): string";
     assert_eq!(
         diagnostics,
         [
@@ -2743,19 +2891,7 @@ fn jsdoc_only_source_types_report_8020_at_the_upstream_spans() {
             ),
             (
                 8020,
-                text.find(callable).expect("JSDoc function type") as u32,
-                callable.len() as u32,
-                "JSDoc types can only be used inside documentation comments.".to_owned(),
-            ),
-            (
-                8020,
                 text.find("* =").expect("JSDoc all type") as u32,
-                1,
-                "JSDoc types can only be used inside documentation comments.".to_owned(),
-            ),
-            (
-                8020,
-                text.find("? =").expect("JSDoc unknown type") as u32,
                 1,
                 "JSDoc types can only be used inside documentation comments.".to_owned(),
             ),
@@ -2773,9 +2909,7 @@ fn jsdoc_only_source_type_8020_is_silent_in_js_files() {
     let diagnostics = checked_file_diags_with(
         "a.js",
         "var dotted: Array.<number>;\n\
-             var callable: function(this: number, string): string;\n\
-             var all: * = 1;\n\
-             var unknown: ? = undefined;\n",
+             var all: * = 1;\n",
         &options,
     );
     assert!(
@@ -3824,11 +3958,11 @@ fn jsdoc_intended_object_type_rewrites_only_with_implicit_any_off() {
 }
 
 #[test]
-fn checked_js_async_arrow_argument_renders_promise_signature() {
-    // asyncArrowFunction_allowJs.ts's virtual file, byte-for-byte:
-    // the failed callback relation must display the ordinary
-    // checked-JS arrow structurally on createAnonymousTypeNode's
-    // non-isJSConstructor path.
+fn checked_js_closure_function_type_tags_do_not_fail_callback_relations() {
+    // asyncArrowFunction_allowJs.ts's virtual file, byte-for-byte. TypeScript
+    // 7.1 has no Closure `function(…)` type: each tag is TS1005 and types its
+    // variable as `Function`, so the callback relation no longer fails (tsgo
+    // at 19dadef8, asyncArrowFunction_allowJs.errors.txt).
     let text = concat!(
         "\r\n",
         "// Error (good)\r\n",
@@ -3878,17 +4012,7 @@ fn checked_js_async_arrow_argument_renders_promise_signature() {
                 .into_iter()
                 .filter(|row| row.0 == 2345)
                 .collect::<Vec<_>>();
-            assert_eq!(
-                rows,
-                [(
-                    2345,
-                    436,
-                    13,
-                    "Argument of type '() => Promise<number>' is not assignable to parameter \
-                         of type '() => string'."
-                        .to_owned(),
-                )]
-            );
+            assert_eq!(rows, []);
         },
     );
 }
@@ -4119,8 +4243,9 @@ fn reused_jsdoc_type_nodes_lower_to_typescript_nodes() {
         .to_owned()
     }
 
+    // TypeScript 7.1 parses no lone `?` and no Closure `function(…)` type
+    // (both are parse errors), so only the remaining JSDoc forms are reused.
     assert_eq!(render("*"), "any");
-    assert_eq!(render("?"), "unknown");
     assert_eq!(render("?number"), "number | null");
     assert_eq!(render("number="), "number | undefined");
     assert_eq!(render("!number"), "number");
@@ -4128,18 +4253,6 @@ fn reused_jsdoc_type_nodes_lower_to_typescript_nodes() {
     assert_eq!(render(""), "any");
     assert_eq!(render("...infer U"), "(infer U)[]");
     assert_eq!(render("keyof ?Box"), "keyof (Box | null)");
-    assert_eq!(
-        render("(function(): number)|string"),
-        "(() => number) | string"
-    );
-    assert_eq!(
-        render("(function(): number)&{p:string}"),
-        "(() => number) & { p: string; }"
-    );
-    assert_eq!(
-        render("function(number, ...string): boolean"),
-        "(arg0: number, ...args: string[]) => boolean"
-    );
 
     let literal = concat!(
         "/**\n",

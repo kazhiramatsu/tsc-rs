@@ -1167,7 +1167,7 @@ impl<'a> CheckerState<'a> {
     /// wrong-arity global Record reports 2317 and skips the widening
     /// — each once (the memo holds the unknownSymbol verdict; an
     /// a checker-abort unwind stays unmemoized).
-    fn get_global_record_symbol(&mut self) -> CheckResult<Option<SymbolId>> {
+    pub(crate) fn get_global_record_symbol(&mut self) -> CheckResult<Option<SymbolId>> {
         if let Some(memo) = self.deferred_global_record_symbol {
             return Ok(memo);
         }

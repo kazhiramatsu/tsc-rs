@@ -191,18 +191,13 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         self.parser.arena.alloc_array(&nodes, pos, end, false)
     }
 
-    /// tsc-port: parseJSDocIdentifierName @6.0.3
-    /// tsc-hash: 78215969ec15ba75b198cf8c0bb5d05364314b74a24edc2ab3673fe6da3f454f
-    /// tsc-span: _tsc.js:35782-35799
-    /// d2: d2:e9f169197af45c251fa2e5f2e93467061c25ff6cfeba65771e6fda87350e6d4f
+    /// tsgo parseJSDocIdentifierName (jsdoc.go:1341-1355): a missing name is
+    /// reported at the current token only with a message.
     fn parse_identifier_name(&mut self, message: Option<&'static DiagnosticMessage>) -> NodeId {
         if !token_is_identifier_or_keyword(self.token()) {
-            return self.parser.create_missing_node(
-                SyntaxKind::Identifier,
-                message.is_none(),
-                Some(message.unwrap_or(&gen::Identifier_expected)),
-                &[],
-            );
+            return self
+                .parser
+                .create_missing_node(SyntaxKind::Identifier, false, message, &[]);
         }
         // parseJSDocIdentifierName uses getTokenStart, not getNodePos.
         // The distinction is observable when an ordinary-parser operation
@@ -345,6 +340,20 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         }
     }
 
+    /// tsgo pushComment: the margin is the indent of the first saved text.
+    fn push_comment(
+        comments: &mut Vec<String>,
+        margin: &mut Option<usize>,
+        indent: &mut usize,
+        text: String,
+    ) {
+        if margin.is_none() {
+            *margin = Some(*indent);
+        }
+        *indent += Self::text_len(&text);
+        comments.push(text);
+    }
+
     fn add_tag(&mut self, tag: NodeId) {
         if self.tags.is_empty() {
             self.tags_pos = Some(self.parser.arena.node(tag).pos as usize);
@@ -372,8 +381,32 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             indent = 0;
         }
 
+        // tsgo parseJSDocCommentWorker (jsdoc.go:192-349): three or more
+        // consecutive backticks toggle a fenced code block, inside which
+        // nothing starts a tag or a link, and an `@` starts a tag only when
+        // CanFollowJSDocAt.
+        let mut backtick_count = 0usize;
+        let mut in_fenced_code_block = false;
         loop {
+            if self.token() != SyntaxKind::BacktickToken && backtick_count > 0 {
+                if backtick_count >= 3 {
+                    in_fenced_code_block = !in_fenced_code_block;
+                }
+                backtick_count = 0;
+            }
+            let text_state = if in_fenced_code_block {
+                CommentState::SavingBackticks
+            } else {
+                CommentState::SavingComments
+            };
             match self.token() {
+                SyntaxKind::AtToken
+                    if in_fenced_code_block || !self.parser.scanner.can_follow_jsdoc_at() =>
+                {
+                    state = text_state;
+                    let text = self.token_text();
+                    Self::push_comment(&mut comments, &mut margin, &mut indent, text);
+                }
                 SyntaxKind::AtToken => {
                     Self::remove_trailing_whitespace(&mut comments);
                     comments_pos.get_or_insert(self.node_pos());
@@ -390,13 +423,11 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                 SyntaxKind::AsteriskToken => {
                     let asterisk = self.token_text();
                     if state == CommentState::SawAsterisk {
+                        // A second asterisk ends tag parsing on this line.
                         state = CommentState::SavingComments;
-                        if margin.is_none() || margin == Some(0) {
-                            margin = Some(indent);
-                        }
-                        comments.push(asterisk.clone());
-                        indent += Self::text_len(&asterisk);
+                        Self::push_comment(&mut comments, &mut margin, &mut indent, asterisk);
                     } else {
+                        // The first asterisk on a line is ignored.
                         state = CommentState::SawAsterisk;
                         indent += Self::text_len(&asterisk);
                     }
@@ -416,13 +447,26 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                 }
                 SyntaxKind::EndOfFileToken => break,
                 SyntaxKind::JSDocCommentTextToken => {
-                    state = CommentState::SavingComments;
-                    let value = self.token_value();
-                    if margin.is_none() || margin == Some(0) {
-                        margin = Some(indent);
+                    if state != CommentState::SavingBackticks {
+                        state = text_state;
                     }
-                    indent += Self::text_len(&value);
-                    comments.push(value);
+                    let value = self.token_value();
+                    Self::push_comment(&mut comments, &mut margin, &mut indent, value);
+                }
+                SyntaxKind::BacktickToken => {
+                    backtick_count += 1;
+                    state = if state == CommentState::SavingBackticks {
+                        CommentState::SavingComments
+                    } else {
+                        CommentState::SavingBackticks
+                    };
+                    let text = self.token_text();
+                    Self::push_comment(&mut comments, &mut margin, &mut indent, text);
+                }
+                SyntaxKind::OpenBraceToken if in_fenced_code_block => {
+                    state = CommentState::SavingBackticks;
+                    let text = self.token_text();
+                    Self::push_comment(&mut comments, &mut margin, &mut indent, text);
                 }
                 SyntaxKind::OpenBraceToken => {
                     state = CommentState::SavingComments;
@@ -442,21 +486,23 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                         comments.clear();
                         link_end = Some(self.token_end());
                     } else {
-                        comments.push(self.token_text());
+                        let text = self.token_text();
+                        Self::push_comment(&mut comments, &mut margin, &mut indent, text);
                     }
                 }
                 _ => {
-                    state = CommentState::SavingComments;
-                    let text = self.token_text();
-                    if margin.is_none() || margin == Some(0) {
-                        margin = Some(indent);
+                    if state != CommentState::SavingBackticks {
+                        state = text_state;
                     }
-                    indent += Self::text_len(&text);
-                    comments.push(text);
+                    let text = self.token_text();
+                    Self::push_comment(&mut comments, &mut margin, &mut indent, text);
                 }
             }
-            if state == CommentState::SavingComments {
-                self.next_comment_text_token(false);
+            if matches!(
+                state,
+                CommentState::SavingComments | CommentState::SavingBackticks
+            ) {
+                self.next_comment_text_token(state == CommentState::SavingBackticks);
             } else {
                 self.next_token_jsdoc();
             }
@@ -509,41 +555,68 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         let mut state = CommentState::BeginningOfLine;
         let mut margin: Option<usize> = None;
         if let Some(initial) = initial_margin {
+            // Some initial indentation starts saving comments right away.
             if !initial.is_empty() {
-                margin = Some(indent);
-                indent += Self::text_len(&initial);
-                comments.push(initial);
+                Self::push_comment(&mut comments, &mut margin, &mut indent, initial);
             }
             state = CommentState::SawAsterisk;
         }
 
+        // tsgo parseTagComments (jsdoc.go:546-712): fenced code blocks and
+        // CanFollowJSDocAt as in the comment worker.
+        let mut backtick_count = 0usize;
+        let mut in_fenced_code_block = false;
         loop {
+            if self.token() != SyntaxKind::BacktickToken && backtick_count > 0 {
+                if backtick_count >= 3 {
+                    in_fenced_code_block = !in_fenced_code_block;
+                }
+                backtick_count = 0;
+            }
+            let text_state = if in_fenced_code_block {
+                CommentState::SavingBackticks
+            } else {
+                CommentState::SavingComments
+            };
             match self.token() {
                 SyntaxKind::NewLineTrivia => {
                     state = CommentState::BeginningOfLine;
+                    // Not pushComment: the margin stays.
                     comments.push(self.token_text());
                     indent = 0;
                 }
-                SyntaxKind::AtToken => {
+                SyntaxKind::AtToken
+                    if !in_fenced_code_block && self.parser.scanner.can_follow_jsdoc_at() =>
+                {
                     self.parser
                         .scanner
                         .reset_token_state(self.token_end().saturating_sub(1));
                     break;
                 }
+                SyntaxKind::AtToken => {
+                    state = text_state;
+                    let text = self.token_text();
+                    Self::push_comment(&mut comments, &mut margin, &mut indent, text);
+                }
                 SyntaxKind::EndOfFileToken => break,
                 SyntaxKind::WhitespaceTrivia => {
                     let whitespace = self.token_text();
-                    if let Some(margin) = margin {
-                        let whitespace_len = Self::text_len(&whitespace);
-                        if indent + whitespace_len > margin {
-                            comments.push(Self::slice_indent(
-                                &whitespace,
-                                margin as isize - indent as isize,
-                            ));
-                            state = CommentState::SavingComments;
-                        }
+                    let whitespace_len = Self::text_len(&whitespace);
+                    // Whitespace crossing the margin keeps the part past it.
+                    if let Some(margin) = margin.filter(|&margin| indent + whitespace_len > margin)
+                    {
+                        comments.push(Self::slice_indent(
+                            &whitespace,
+                            margin.saturating_sub(indent) as isize,
+                        ));
+                        state = text_state;
                     }
-                    indent += Self::text_len(&whitespace);
+                    indent += whitespace_len;
+                }
+                SyntaxKind::OpenBraceToken if in_fenced_code_block => {
+                    state = CommentState::SavingBackticks;
+                    let text = self.token_text();
+                    Self::push_comment(&mut comments, &mut margin, &mut indent, text);
                 }
                 SyntaxKind::OpenBraceToken => {
                     state = CommentState::SavingComments;
@@ -561,50 +634,38 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                         comments.clear();
                         link_end = Some(self.token_end());
                     } else {
-                        comments.push(self.token_text());
-                        if margin.is_none() || margin == Some(0) {
-                            margin = Some(indent);
-                        }
-                        indent += Self::text_len(&self.token_text());
+                        let text = self.token_text();
+                        Self::push_comment(&mut comments, &mut margin, &mut indent, text);
                     }
                 }
                 SyntaxKind::BacktickToken => {
+                    backtick_count += 1;
                     state = if state == CommentState::SavingBackticks {
                         CommentState::SavingComments
                     } else {
                         CommentState::SavingBackticks
                     };
-                    comments.push(self.token_text());
-                    if margin.is_none() || margin == Some(0) {
-                        margin = Some(indent);
-                    }
-                    indent += Self::text_len(&self.token_text());
+                    let text = self.token_text();
+                    Self::push_comment(&mut comments, &mut margin, &mut indent, text);
                 }
                 SyntaxKind::JSDocCommentTextToken => {
                     if state != CommentState::SavingBackticks {
-                        state = CommentState::SavingComments;
+                        state = text_state;
                     }
                     let value = self.token_value();
-                    if margin.is_none() || margin == Some(0) {
-                        margin = Some(indent);
-                    }
-                    indent += Self::text_len(&value);
-                    comments.push(value);
+                    Self::push_comment(&mut comments, &mut margin, &mut indent, value);
                 }
                 SyntaxKind::AsteriskToken if state == CommentState::BeginningOfLine => {
+                    // A leading asterisk starts recording on the next token.
                     state = CommentState::SawAsterisk;
                     indent += 1;
                 }
                 _ => {
                     if state != CommentState::SavingBackticks {
-                        state = CommentState::SavingComments;
+                        state = text_state;
                     }
                     let text = self.token_text();
-                    if margin.is_none() || margin == Some(0) {
-                        margin = Some(indent);
-                    }
-                    indent += Self::text_len(&text);
-                    comments.push(text);
+                    Self::push_comment(&mut comments, &mut margin, &mut indent, text);
                 }
             }
             if matches!(
@@ -744,19 +805,15 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
     }
 
     fn parse_jsdoc_entity_name(&mut self, missing_is_silent: bool) -> NodeId {
-        let mut entity = if missing_is_silent && !token_is_identifier_or_keyword(self.token()) {
-            self.parser
-                .create_missing_node(SyntaxKind::Identifier, false, None, &[])
-        } else {
-            self.parse_identifier_name(None)
-        };
+        let mut entity =
+            self.parse_identifier_name((!missing_is_silent).then_some(&gen::Identifier_expected));
         let pos = self.parser.arena.node(entity).pos as usize;
         if self.parser.parse_optional(SyntaxKind::OpenBracketToken) {
             self.parser
                 .parse_expected(SyntaxKind::CloseBracketToken, None);
         }
         while self.parser.parse_optional(SyntaxKind::DotToken) {
-            let right = self.parse_identifier_name(None);
+            let right = self.parse_identifier_name(Some(&gen::Identifier_expected));
             if self.parser.parse_optional(SyntaxKind::OpenBracketToken) {
                 self.parser
                     .parse_expected(SyntaxKind::CloseBracketToken, None);
@@ -805,7 +862,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         debug_assert_eq!(self.token(), SyntaxKind::AtToken);
         let start = self.token_start();
         self.next_token_jsdoc();
-        let tag_name = self.parse_identifier_name(None);
+        let tag_name = self.parse_identifier_name(Some(&gen::Identifier_expected));
         let name = self
             .identifier_text(tag_name)
             .unwrap_or_default()
@@ -1158,7 +1215,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                 SyntaxKind::AtToken if can_parse_tag => {
                     let start = self.node_pos();
                     self.next_token_jsdoc();
-                    let tag_name = self.parse_identifier_name(None);
+                    let tag_name = self.parse_identifier_name(Some(&gen::Identifier_expected));
                     let name_text = self
                         .identifier_text(tag_name)
                         .unwrap_or_default()
@@ -1379,9 +1436,16 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         margin: usize,
         indent_text: String,
     ) -> NodeId {
-        let is_markdown_or_link =
-            self.token() == SyntaxKind::OpenBracketToken || self.look_ahead_jsdoc_link_prefix();
-        let name = (!is_markdown_or_link).then(|| self.parse_jsdoc_name_reference());
+        // tsgo parseSeeTag (jsdoc.go:907-916): the tag names a reference only
+        // with an identifier not followed by `://`, or with `{` and an
+        // identifier or keyword.
+        let has_name_reference = (self.parser.is_identifier()
+            && !self.parser.source_text[self.token_end()..].starts_with("://"))
+            || (self.token() == SyntaxKind::OpenBraceToken
+                && self
+                    .parser
+                    .look_ahead(|parser| parser.next_token_is_identifier_or_keyword()));
+        let name = has_name_reference.then(|| self.parse_jsdoc_name_reference());
         let comment = self.parse_trailing_tag_comments(start, self.node_pos(), margin, indent_text);
         self.finish_current(
             NodeData::JSDocSeeTag(Box::new(JSDocSeeTagData {
@@ -1395,9 +1459,9 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
 
     fn parse_property_access_entity_name_expression(&mut self) -> NodeId {
         let pos = self.node_pos();
-        let mut expression = self.parse_identifier_name(None);
+        let mut expression = self.parse_identifier_name(Some(&gen::Identifier_expected));
         while self.parser.parse_optional(SyntaxKind::DotToken) {
-            let name = self.parse_identifier_name(None);
+            let name = self.parse_identifier_name(Some(&gen::Identifier_expected));
             expression = self.finish_current(
                 NodeData::PropertyAccessExpression(PropertyAccessExpressionData {
                     expression: Some(expression),

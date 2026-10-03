@@ -3614,15 +3614,17 @@ fn typescript_transform_erases_preserved_jsx_type_arguments() {
 
 #[test]
 fn typescript_transform_structurally_erases_jsx_recovery_type_arguments() {
+    // A lone `?` is no type in TypeScript 7.1 (parser.go
+    // parseJSDocNullableType), so the prefix form stands in for it.
     let output = transform_and_print_preserved_tsx(concat!(
-        "const unknown = <Foo<?> />;\n",
+        "const prefixed = <Foo<?string> />;\n",
         "const nullable = <Foo<string?>></Foo>;\n",
     ));
 
     assert_eq!(
         output,
         concat!(
-            "const unknown = <Foo />;\n",
+            "const prefixed = <Foo />;\n",
             "const nullable = <Foo></Foo>;\n",
         )
     );
@@ -3630,14 +3632,14 @@ fn typescript_transform_structurally_erases_jsx_recovery_type_arguments() {
 
 #[test]
 fn typescript_transform_preserves_jsdoc_recovery_type_arguments() {
+    // A lone `?` (`foo<?>`) is a parse error in TypeScript 7.1.
     let source_text = concat!(
         "function foo<T>(x: T): T { return x; }\n",
         "const ValidFoo = foo<string>;\n",
-        "const WhatFoo = foo<?>;\n",
         "const HuhFoo = foo<string?>;\n",
         "const NopeFoo = foo<?string>;\n",
         "const ComeOnFoo = foo<?string?>;\n",
-        "type Erased = typeof foo<?>;\n",
+        "type Erased = typeof foo<?string>;\n",
     );
     let parsed = parse_source_file(
         "expression-with-jsdoc-type-arguments.ts",
@@ -3671,10 +3673,11 @@ fn typescript_transform_preserves_jsdoc_recovery_type_arguments() {
     // tsc 6.0.3 erases the valid instantiation expression's type arguments
     // and prints the erased expression parenthesized (`const ValidFoo = (foo);`,
     // the same shape as the frozen `instantiationExpressions.ts` JS write);
-    // only the JSDoc recovery wrappers below are retained verbatim.
+    // only the JSDoc recovery wrappers below are retained verbatim. tsgo
+    // erases them all and prints no parentheses (`const ValidFoo = foo;`), an
+    // emit difference recorded in the cutover packet.
     assert!(output.contains("const ValidFoo = (foo);"), "{output}");
     for retained in [
-        "const WhatFoo = foo<?>;",
         "const HuhFoo = foo<?string>;",
         "const NopeFoo = foo<?string>;",
         "const ComeOnFoo = foo<??string>;",

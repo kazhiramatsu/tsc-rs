@@ -94,14 +94,17 @@ fn jsdoc_variadic_parameter_does_not_raise_the_minimum_arity() {
         .collect::<Vec<_>>()
     };
 
+    // TypeScript 7.1 has no Closure `function(…)` type, so the signatures are
+    // written as function types (tsgo at 19dadef8: no row for the rest
+    // parameter, TS2554 for the fixed one).
     assert_eq!(
-        rows("function(boolean, string, ...*):void"),
+        rows("(a: boolean, b: string, ...r: any[]) => void"),
         Vec::<u32>::new()
     );
     // A fixed third parameter is the control: without a rest
     // parameter tsc owns this as the exact-arity 2554 row, not
     // the "at least" 2555 rest-signature row.
-    assert_eq!(rows("function(boolean, string, *):void"), [2554]);
+    assert_eq!(rows("(a: boolean, b: string, c: any) => void"), [2554]);
 }
 
 #[test]

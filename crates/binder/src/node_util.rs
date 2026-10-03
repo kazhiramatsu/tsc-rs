@@ -1217,6 +1217,12 @@ pub fn get_error_span_for_node(source: &SourceFile, id: NodeId) -> (usize, usize
                     | SyntaxKind::NamespaceImport
             ) {
                 error_node = name_field_of(source, id);
+                // tsgo GetErrorRangeForNode (scanner.go:2603-2607) uses
+                // GetNameOfDeclaration: an anonymous function expression is
+                // named by what it is assigned to.
+                if error_node.is_none() && node.kind == SyntaxKind::FunctionExpression {
+                    error_node = get_assigned_name(source, id);
+                }
             }
         }
     }

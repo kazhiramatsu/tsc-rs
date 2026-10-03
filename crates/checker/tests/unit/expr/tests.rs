@@ -780,7 +780,9 @@ fn jsdoc_type_assertion_is_checked_and_drives_quick_type() {
 
 #[test]
 fn jsdoc_type_tag_signature_supplies_this_type() {
-    let text = "/** @type {function(this: { x: number }): void} */\n\
+    // TypeScript 7.1 has no Closure `function(…)` type; the function type's
+    // `this` parameter types `this` (tsgo at 19dadef8: TS2322 at `this.x`).
+    let text = "/** @type {(this: { x: number }) => void} */\n\
                 function f() { this.x = \"bad\"; }\n";
     assert!(checked_js_rows(text)
         .into_iter()

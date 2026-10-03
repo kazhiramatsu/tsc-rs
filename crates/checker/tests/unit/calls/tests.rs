@@ -1129,7 +1129,10 @@ fn checked_js_promise_resolve_without_arguments_asks_for_a_jsdoc_hint() {
 }
 
 #[test]
-fn unnamed_jsdoc_parameter_arity_related_uses_argument_index() {
+fn checked_js_type_tag_arity_related_names_the_parameter() {
+    // TypeScript 7.1 (tsgo at 19dadef8) has no Closure `function(…)` type:
+    // that tag types `f` as `Function` (after TS1005), so only `g()` reports,
+    // naming its parameter.
     let related = with_program_state(
         &[(
             "a.js",
@@ -1173,10 +1176,7 @@ fn unnamed_jsdoc_parameter_arity_related_uses_argument_index() {
     );
     assert_eq!(
         related,
-        [
-            (6210, "An argument for '0' was not provided.".to_owned()),
-            (6210, "An argument for 's' was not provided.".to_owned()),
-        ]
+        [(6210, "An argument for 's' was not provided.".to_owned())]
     );
 }
 
@@ -1439,22 +1439,6 @@ fn over_arity_reports_at_the_excess_args_range() {
     assert_eq!(
         checked_rows("declare function v(a: number): void;\nv(1, 2, 3);\n"),
         [(2554, 42, 4)]
-    );
-}
-
-#[test]
-fn jsdoc_function_type_models_this_and_new_parameters() {
-    assert_eq!(
-            checked_rows(
-                "function hof2(f: function(this: number, string): string) {\n    return f(12, 'hullo');\n}\n"
-            ),
-            [(8020, 17, 38), (2554, 76, 7)]
-        );
-    assert_eq!(
-        checked_rows(
-            "function hof(ctor: function(new: number, string)) {\n    return new ctor('hi');\n}\n"
-        ),
-        [(8020, 19, 29)]
     );
 }
 

@@ -544,6 +544,20 @@ impl<'text> Scanner<'text> {
         }
     }
 
+    /// tsgo CanFollowJSDocAt (scanner.go:1392-1398): after an `@` token, a
+    /// JSDoc tag starts only before an identifier start, whitespace or a line
+    /// break, or at the end of the text.
+    pub(crate) fn can_follow_jsdoc_at(&self) -> bool {
+        if self.pos >= self.end {
+            return true;
+        }
+        self.text[self.pos..].chars().next().is_none_or(|ch| {
+            chars::is_identifier_start(ch, tsc_types::ScriptTarget::ES_NEXT)
+                || is_single_line_whitespace(ch)
+                || is_line_break(ch)
+        })
+    }
+
     /// tsc scanJSDocCommentTextToken @6.0.3.
     pub(crate) fn scan_jsdoc_comment_text_token(&mut self, in_backticks: bool) -> SyntaxKind {
         self.full_start_pos = self.pos;

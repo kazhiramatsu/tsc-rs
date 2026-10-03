@@ -1074,7 +1074,9 @@ fn async_unresolved_alias_return_stays_on_the_error_type_bailout() {
 
 #[test]
 fn checked_js_async_function_type_tag_checks_the_contextual_return() {
-    let text = "/** @type {function(): string} */\nconst value = async () => 0;\n";
+    // TypeScript 7.1 has no Closure `function(…)` type (tsgo at 19dadef8:
+    // TS2322 at `0` for the function type).
+    let text = "/** @type {() => string} */\nconst value = async () => 0;\n";
     let options = CompilerOptions {
         allow_js: true,
         check_js: Some(true),

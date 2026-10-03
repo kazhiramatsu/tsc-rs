@@ -420,7 +420,7 @@ compiler/avoidNarrowingUsingConstVariableFromBindingElementWithLiteralInitialize
 compiler/awaitCallExpressionInSyncFunction	full	js
 compiler/awaitExpressionInnerCommentEmit	full	js
 compiler/awaitInClassInAsyncFunction	full	js
-compiler/awaitInNonAsyncFunction	text	js
+compiler/awaitInNonAsyncFunction	full	js
 compiler/awaitLiteralValues	full	js
 compiler/awaitObjectLiteral	full	js
 compiler/awaitUnionPromise	full	js
@@ -2672,6 +2672,7 @@ compiler/exportsInAmbientModules1	full	js
 compiler/exportsInAmbientModules2	full	js
 compiler/expr	full	js
 compiler/expressionTypeNodeShouldError	full	none
+compiler/expressionWithJSDocTypeArguments	full	none
 compiler/expressionsForbiddenInParameterInitializers	full	js
 compiler/extBaseClass1	full	js
 compiler/extBaseClass2	full	js
@@ -3954,6 +3955,7 @@ compiler/jsdocMultilineUnion	full	none
 compiler/jsdocNonIdentifierPropertiesAndParams	full	none
 compiler/jsdocParamTagInvalid	full	js
 compiler/jsdocParamTagOnPropertyInitializer	full	js
+compiler/jsdocParameterParsingInfiniteLoop	full	js
 compiler/jsdocParameterParsingInvalidName	full	js
 compiler/jsdocPropertyTagInvalid	full	js
 compiler/jsdocReferenceGlobalTypeInCommonJs	full	js
@@ -3972,6 +3974,7 @@ compiler/jsdocTypedefMissingType	full	js
 compiler/jsdocTypedefNoCrash	full	js
 compiler/jsdocTypedefNoCrash2	full	js
 compiler/jsdocTypedef_propertyWithNoType	full	js
+compiler/jsdocTypesWithPrefixesAndUnionTypes1	full	none
 compiler/jsdocUnexpectedCharacter	full	js
 compiler/json.stringify	full	js
 compiler/jsonFileImportChecksCallCorrectlyTwice	full	js
@@ -4520,6 +4523,7 @@ compiler/multiExtendsSplitInterfaces2	full	js
 compiler/multiImportExport	full	js
 compiler/multiLineContextDiagnosticWithPretty	text	js
 compiler/multiLineErrors	full	js
+compiler/multiLinePropertyAccessAndArrowFunctionIndent1	full	js
 compiler/multiModuleClodule1	full	js
 compiler/multiModuleFundule1	full	js
 compiler/multiSignatureTypeInference	full	js
@@ -5083,6 +5087,7 @@ compiler/parseCommaSeparatedNewlineString	full	js
 compiler/parseEntityNameWithReservedWord	full	js
 compiler/parseErrorDoubleCommaInCall	full	none
 compiler/parseErrorInHeritageClause1	full	none
+compiler/parseErrorIncorrectReturnToken	full	none
 compiler/parseGenericArrowRatherThanLeftShift	full	js
 compiler/parseImportAttributesError	full	none
 compiler/parseInvalidNames	full	none
@@ -5309,6 +5314,7 @@ compiler/reachabilityChecks9	full	js
 compiler/reachabilityChecks9_promoted	full	js
 compiler/reachabilityChecksIgnored	full	js
 compiler/reachabilityChecksIgnored_promoted	full	js
+compiler/reachabilityChecksNoCrash1	category	none
 compiler/reactDefaultPropsInferenceSuccess	full	js
 compiler/reactHOCSpreadprops	full	js
 compiler/reactImportDropped	full	js
@@ -7141,6 +7147,7 @@ conformance/asyncArrowFunctionCapturesArguments_es6	full	js
 conformance/asyncArrowFunctionCapturesThis_es2017	full	js
 conformance/asyncArrowFunctionCapturesThis_es5(target=es2015)	full	js
 conformance/asyncArrowFunctionCapturesThis_es6	full	js
+conformance/asyncArrowFunction_allowJs	full	js
 conformance/asyncAwaitIsolatedModules_es2017	full	js
 conformance/asyncAwaitIsolatedModules_es5(target=es2015)	full	js
 conformance/asyncAwaitIsolatedModules_es6	full	js
@@ -7513,12 +7520,16 @@ conformance/checkJsdocSatisfiesTag6	full	js
 conformance/checkJsdocSatisfiesTag7	full	js
 conformance/checkJsdocSatisfiesTag8	full	js
 conformance/checkJsdocSatisfiesTag9	full	js
+conformance/checkJsdocTypeTag1	full	none
+conformance/checkJsdocTypeTag2	full	none
 conformance/checkJsdocTypeTag3	full	js
 conformance/checkJsdocTypeTag4	full	js
 conformance/checkJsdocTypeTag5	full	js
 conformance/checkJsdocTypeTag6	full	js
 conformance/checkJsdocTypeTag7	full	js
 conformance/checkJsdocTypeTag8	full	js
+conformance/checkJsdocTypeTagOnObjectProperty1	full	none
+conformance/checkJsdocTypeTagOnObjectProperty2	full	none
 conformance/checkJsdocTypedefInParamTag1	full	none
 conformance/checkJsdocTypedefOnlySourceFile	full	none
 conformance/checkJsxChildrenCanBeTupleType	full	js
@@ -9249,6 +9260,7 @@ conformance/importDeferDeclaration	full	js
 conformance/importDeferFromInvalid	full	js
 conformance/importDeferInvalidDefault	full	js
 conformance/importDeferInvalidNamed	full	js
+conformance/importDeferJsdoc	full	js
 conformance/importDeferNamespace(module=commonjs)	full	js
 conformance/importDeferNamespace(module=es2015)	full	js
 conformance/importDeferNamespace(module=es2020)	full	js
@@ -9281,6 +9293,8 @@ conformance/importTag1	full	js
 conformance/importTag10	full	js
 conformance/importTag11	full	js
 conformance/importTag12	full	js
+conformance/importTag13	full	js
+conformance/importTag14	full	js
 conformance/importTag15(module=es2015)	full	none
 conformance/importTag15(module=esnext)	full	none
 conformance/importTag16	full	none
@@ -9602,10 +9616,11 @@ conformance/jsDeclarationsImportAliasExposedWithinNamespace	full	none
 conformance/jsDeclarationsImportAliasExposedWithinNamespaceCjs	full	none
 conformance/jsDeclarationsImportNamespacedType	full	none
 conformance/jsDeclarationsInterfaces(target=es2015)	full	none
-conformance/jsDeclarationsJSDocRedirectedLookups	full	none
+conformance/jsDeclarationsJSDocRedirectedLookups	full	js
 conformance/jsDeclarationsJson(target=es2015)	full	none
 conformance/jsDeclarationsMissingGenerics(target=es2015)	full	js
-conformance/jsDeclarationsMissingTypeParameters(target=es2015)	full	none
+conformance/jsDeclarationsMissingTypeParameters(target=es2015)	full	js
+conformance/jsDeclarationsModuleReferenceHasEmit(target=es2015)	full	none
 conformance/jsDeclarationsMultipleExportFromMerge(target=es2015)	full	none
 conformance/jsDeclarationsNestedParams	full	js
 conformance/jsDeclarationsNonIdentifierInferredNames	full	none
@@ -9619,6 +9634,8 @@ conformance/jsDeclarationsReexportAliases(target=es2015)	full	none
 conformance/jsDeclarationsReexportAliasesEsModuleInterop(target=es2015)	full	none
 conformance/jsDeclarationsReexportedCjsAlias(target=es2015)	full	none
 conformance/jsDeclarationsReferenceToClassInstanceCrossFile	full	none
+conformance/jsDeclarationsRestArgsWithThisTypeInJSDocFunction(target=es2015)	full	none
+conformance/jsDeclarationsReusesExistingNodesMappingJSDocTypes	full	none
 conformance/jsDeclarationsReusesExistingTypeAnnotations	full	none
 conformance/jsDeclarationsSubclassWithExplicitNoArgumentConstructor	full	none
 conformance/jsDeclarationsThisTypes	full	none
@@ -9637,7 +9654,7 @@ conformance/jsObjectsMarkedAsOpenEnded	full	js
 conformance/jsOverrideMap	full	js
 conformance/jsdocAccessibilityTags	full	js
 conformance/jsdocAccessibilityTagsDeclarations	full	none
-conformance/jsdocAugmentsMissingType	text	js
+conformance/jsdocAugmentsMissingType	full	js
 conformance/jsdocAugments_errorInExtendsExpression	full	js
 conformance/jsdocAugments_nameMismatch	full	js
 conformance/jsdocAugments_noExtends	full	js
@@ -9649,11 +9666,14 @@ conformance/jsdocCatchClauseWithTypeAnnotation	full	js
 conformance/jsdocClassNoTags	full	js
 conformance/jsdocConstructorFunctionTypeReference	full	js
 conformance/jsdocDestructuringParameterDeclaration	full	js
+conformance/jsdocDisallowedInTypescript	full	none
+conformance/jsdocFunctionType	full	js
+conformance/jsdocFunction_missingReturn	full	js
 conformance/jsdocImplementsTag	full	js
 conformance/jsdocImplements_class	full	none
 conformance/jsdocImplements_interface	full	js
 conformance/jsdocImplements_interface_multiple	full	js
-conformance/jsdocImplements_missingType	text	none
+conformance/jsdocImplements_missingType	full	none
 conformance/jsdocImplements_namespacedInterface	full	js
 conformance/jsdocImplements_properties	full	none
 conformance/jsdocImplements_signatures	full	js
@@ -9683,12 +9703,16 @@ conformance/jsdocParamTagNoName	full	js
 conformance/jsdocParamTagTypeLiteral	full	js
 conformance/jsdocParseAwait	full	js
 conformance/jsdocParseBackquotedParamName	full	js
+conformance/jsdocParseDotDotDotInJSDocFunction	full	js
 conformance/jsdocParseErrorsInTypescript	full	none
+conformance/jsdocParseHigherOrderFunction	full	js
 conformance/jsdocParseMatchingBackticks	full	js
+conformance/jsdocParseParenthesizedJSDocParameter	full	js
+conformance/jsdocParseStarEquals	full	js
 conformance/jsdocPostfixEqualsAddsOptionality	full	js
 conformance/jsdocPrefixPostfixParsing	full	js
 conformance/jsdocPrivateName1	full	js
-conformance/jsdocPrivateName2	text	js
+conformance/jsdocPrivateName2	full	js
 conformance/jsdocPrototypePropertyAccessWithType	full	js
 conformance/jsdocReadonly	full	js
 conformance/jsdocReadonlyDeclarations	full	none
@@ -9697,6 +9721,7 @@ conformance/jsdocSignatureOnReturnedFunction	full	js
 conformance/jsdocTemplateClass	full	js
 conformance/jsdocTemplateConstructorFunction	full	js
 conformance/jsdocTemplateConstructorFunction2	full	js
+conformance/jsdocTemplateTag	full	js
 conformance/jsdocTemplateTag2	full	js
 conformance/jsdocTemplateTag3	full	js
 conformance/jsdocTemplateTag4	full	js
@@ -9706,6 +9731,7 @@ conformance/jsdocTemplateTag7	full	js
 conformance/jsdocTemplateTag8	full	js
 conformance/jsdocTemplateTagDefault	full	none
 conformance/jsdocTemplateTagNameResolution	full	none
+conformance/jsdocThisType	full	js
 conformance/jsdocTwoLineTypedef	full	js
 conformance/jsdocTypeDefAtStartOfFile	full	js
 conformance/jsdocTypeFromChainedAssignment	full	js
@@ -9719,8 +9745,11 @@ conformance/jsdocTypeReferenceUseBeforeDef	full	js
 conformance/jsdocTypeTag	full	none
 conformance/jsdocTypeTagCast	full	none
 conformance/jsdocTypeTagOnParameter1	full	js
+conformance/jsdocTypeTagParameterType	full	js
+conformance/jsdocTypeTagRequiredParameters	full	js
 conformance/jsdocVariableDeclarationWithTypeAnnotation	full	js
 conformance/jsdocVariadicInOverload	full	none
+conformance/jsdocVariadicType	full	js
 conformance/jsonParseWithSource	full	js
 conformance/jsonRawJSON1	full	js
 conformance/jsonRawJSON2	full	js
@@ -10050,6 +10079,7 @@ conformance/newTargetNarrowing	full	js
 conformance/newWithSpread	full	js
 conformance/newWithSpreadES5(target=es2015)	full	js
 conformance/newWithSpreadES6	full	js
+conformance/noAssertForUnparseableTypedefs	full	js
 conformance/noDuplicateJsdoc1	full	js
 conformance/noInfer	full	js
 conformance/noInferRedeclaration	full	none
@@ -10650,6 +10680,7 @@ conformance/packageJsonMain_isNonRecursive	full	js
 conformance/paramTagBracketsAddOptionalUndefined	full	js
 conformance/paramTagNestedWithoutTopLevelObject	full	js
 conformance/paramTagNestedWithoutTopLevelObject2	full	js
+conformance/paramTagNestedWithoutTopLevelObject3	full	js
 conformance/paramTagNestedWithoutTopLevelObject4	full	js
 conformance/paramTagOnCallExpression	full	js
 conformance/paramTagOnFunctionUsingArguments	full	js
@@ -10993,6 +11024,7 @@ conformance/parserErrorRecovery_ExtendsOrImplementsClause6	full	js
 conformance/parserErrorRecovery_IncompleteMemberVariable1	full	js
 conformance/parserErrorRecovery_IncompleteMemberVariable2	full	none
 conformance/parserErrorRecovery_LeftShift1	full	none
+conformance/parserErrorRecovery_ModuleElement1	full	js
 conformance/parserErrorRecovery_ModuleElement2	full	js
 conformance/parserErrorRecovery_ObjectLiteral1	full	none
 conformance/parserErrorRecovery_ObjectLiteral2	full	none
@@ -11339,6 +11371,7 @@ conformance/parserSkippedTokens6	text	none
 conformance/parserSkippedTokens7	text	none
 conformance/parserSkippedTokens8	text	none
 conformance/parserSkippedTokens9	text	none
+conformance/parserStatementIsNotAMemberVariableDeclaration1(alwaysstrict=true)	full	js
 conformance/parserStrictMode1	full	js
 conformance/parserStrictMode10	full	js
 conformance/parserStrictMode11	full	js
@@ -12582,7 +12615,7 @@ conformance/typeFromJSInitializer	full	js
 conformance/typeFromJSInitializer2	full	js
 conformance/typeFromJSInitializer3	full	js
 conformance/typeFromJSInitializer4	full	js
-conformance/typeFromParamTagForFunction	text	js
+conformance/typeFromParamTagForFunction	full	js
 conformance/typeFromPrivatePropertyAssignment	full	js
 conformance/typeFromPrivatePropertyAssignmentJs	full	js
 conformance/typeFromPropertyAssignment	full	js
@@ -12817,6 +12850,7 @@ conformance/typedefScope1	full	js
 conformance/typedefTagExtraneousProperty	full	js
 conformance/typedefTagNested	full	js
 conformance/typedefTagTypeResolution	full	js
+conformance/typedefTagWrapping	text	js
 conformance/typeofANonExportedType	full	js
 conformance/typeofAnExportedType	full	js
 conformance/typeofClass2	full	js
