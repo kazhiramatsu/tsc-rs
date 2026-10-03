@@ -83,6 +83,10 @@ instead of retroactively creating a packet; this exception ends with H2.5g.
   the replacement gates (conformance-ts71 with emit, Rust checks), the PR
   order and the CLAUDE.md policy text. It continues the
   [conformance-ts71 packet](greenfield/slices/conformance-ts71/README.md).
+- [greenfield/slices/ts71-js-declarations/README.md](greenfield/slices/ts71-js-declarations/README.md):
+  the 2026-10-04 design for producing JavaScript `.d.ts` output the tsgo way,
+  through the shared declaration transform instead of tsc 6.0's symbol
+  serialization, in slices J1-J4.
 - [greenfield/](greenfield/README.md): the execution companion to the
   five M/core documents above, plus the entry route for active post-H1 work.
   Its M0-M9 step guides are completed or paused history; its post-H1 route
