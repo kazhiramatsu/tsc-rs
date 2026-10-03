@@ -1884,7 +1884,7 @@ compiler/deepKeysIndexing	full	js
 compiler/deeplyDependentLargeArrayMutation	full	js
 compiler/deeplyDependentLargeArrayMutation2	full	js
 compiler/deeplyNestedAssignabilityErrorsCombined	full	js
-compiler/deeplyNestedAssignabilityIssue	text	js
+compiler/deeplyNestedAssignabilityIssue	full	js
 compiler/deeplyNestedCheck	full	js
 compiler/deeplyNestedConditionalTypes	full	js
 compiler/deeplyNestedConstraints	full	js
@@ -2099,13 +2099,13 @@ compiler/duplicateIdentifierDifferentModifiers	full	js
 compiler/duplicateIdentifierDifferentSpelling	full	js
 compiler/duplicateIdentifierEnum	full	js
 compiler/duplicateIdentifierInCatchBlock	full	js
-compiler/duplicateIdentifierRelatedSpans1	text	js
-compiler/duplicateIdentifierRelatedSpans2	text	js
-compiler/duplicateIdentifierRelatedSpans3	text	js
-compiler/duplicateIdentifierRelatedSpans4	text	js
-compiler/duplicateIdentifierRelatedSpans5	text	js
-compiler/duplicateIdentifierRelatedSpans6	text	js
-compiler/duplicateIdentifierRelatedSpans7	text	js
+compiler/duplicateIdentifierRelatedSpans1	full	js
+compiler/duplicateIdentifierRelatedSpans2	full	js
+compiler/duplicateIdentifierRelatedSpans3	full	js
+compiler/duplicateIdentifierRelatedSpans4	full	js
+compiler/duplicateIdentifierRelatedSpans5	full	js
+compiler/duplicateIdentifierRelatedSpans6	full	js
+compiler/duplicateIdentifierRelatedSpans7	full	js
 compiler/duplicateIdentifierRelatedSpans_moduleAugmentation	full	js
 compiler/duplicateIdentifierShouldNotShortCircuitBaseTypeBinding	full	js
 compiler/duplicateIdentifiersAcrossContainerBoundaries	full	js
@@ -2496,7 +2496,7 @@ compiler/esModuleInteropImportDefaultWhenAllNamedAreDefaultAlias	full	js
 compiler/esModuleInteropImportNamespace	full	js
 compiler/esModuleInteropImportTSLibHasImport	full	js
 compiler/esModuleInteropNamedDefaultImports	full	js
-compiler/esModuleInteropPrettyErrorRelatedInformation	text	js
+compiler/esModuleInteropPrettyErrorRelatedInformation	full	js
 compiler/esModuleInteropUsesExportStarWhenDefaultPlusNames	full	js
 compiler/esModuleInteropWithExportStar(target=es2015)	full	js
 compiler/esModuleIntersectionCrash	full	js
@@ -3753,7 +3753,7 @@ compiler/invalidUnicodeEscapeSequance3	full	none
 compiler/invalidUnicodeEscapeSequance4	full	none
 compiler/invalidUseOfTypeAsNamespace	full	js
 compiler/invariantGenericErrorElaboration	full	js
-compiler/invocationErrorRecovery	text	js
+compiler/invocationErrorRecovery	full	js
 compiler/invocationExpressionInFunctionParameter	full	js
 compiler/invokingNonGenericMethodWithTypeArguments1	full	js
 compiler/invokingNonGenericMethodWithTypeArguments2	full	js
@@ -4231,7 +4231,7 @@ compiler/longObjectInstantiationChain1	full	js
 compiler/longObjectInstantiationChain2	full	js
 compiler/longObjectInstantiationChain3	full	js
 compiler/m7Bugs	full	js
-compiler/manyCompilerErrorsInTheTwoFiles	text	none
+compiler/manyCompilerErrorsInTheTwoFiles	full	none
 compiler/manyConstExports(target=es2015)	full	js
 compiler/mapConstructor	full	js
 compiler/mapConstructorOnReadonlyTuple	full	js
@@ -4563,7 +4563,7 @@ compiler/multiCallOverloads	full	js
 compiler/multiExtendsSplitInterfaces1	full	js
 compiler/multiExtendsSplitInterfaces2	full	js
 compiler/multiImportExport	full	js
-compiler/multiLineContextDiagnosticWithPretty	text	js
+compiler/multiLineContextDiagnosticWithPretty	full	js
 compiler/multiLineErrors	full	js
 compiler/multiLinePropertyAccessAndArrowFunctionIndent1	full	js
 compiler/multiModuleClodule1	full	js
@@ -5182,8 +5182,8 @@ compiler/prefixIncrementAsOperandOfPlusExpression	full	js
 compiler/prefixedNumberLiteralAssignToNumberLiteralType	full	js
 compiler/preserveConstEnums	full	js
 compiler/prespecializedGenericMembers1	full	js
-compiler/prettyContextNotDebugAssertion	text	none
-compiler/prettyFileWithErrorsAndTabs	text	js
+compiler/prettyContextNotDebugAssertion	full	none
+compiler/prettyFileWithErrorsAndTabs	full	js
 compiler/primaryExpressionMods	full	js
 compiler/primitiveConstraints1	full	js
 compiler/primitiveConstraints2	full	js
@@ -12955,7 +12955,7 @@ conformance/typedefCrossModule	full	js
 conformance/typedefCrossModule2	full	js
 conformance/typedefCrossModule3	full	js
 conformance/typedefCrossModule4	full	js
-conformance/typedefCrossModule5	text	js
+conformance/typedefCrossModule5	full	js
 conformance/typedefDuplicateTypeDeclaration	full	js
 conformance/typedefInnerNamepaths	full	js
 conformance/typedefModuleExportsIndirect1	full	none
