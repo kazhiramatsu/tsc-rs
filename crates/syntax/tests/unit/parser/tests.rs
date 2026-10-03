@@ -3798,3 +3798,155 @@ fn jsdoc_parsing_modes_match_tsc_script_kind_rules() {
         .expect("function declaration");
     assert!(NodeFlags::from_bits(function.flags).contains(NodeFlags::DEPRECATED));
 }
+
+fn parse_js(text: &str) -> SourceFile {
+    parse_source_file(
+        "a.js".into(),
+        text.to_owned(),
+        ParseOptions {
+            javascript_file: true,
+            ..ParseOptions::default()
+        },
+        None,
+    )
+}
+
+fn jsdoc_diagnostic_rows(source: &SourceFile) -> Vec<(u32, u32, u32)> {
+    source
+        .js_doc_diagnostics
+        .iter()
+        .map(|diagnostic| {
+            (
+                diagnostic.code(),
+                diagnostic.start.expect("start"),
+                diagnostic.length.expect("length"),
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn jsdoc_type_syntax_follows_tsgo() {
+    // tsgo (TypeScript 7.1 at 19dadef8) has no Closure `function(…)` type, no
+    // lone `?` unknown type and no `module:` namepath; a prefix `?` or `!`
+    // applies to a type operator.
+    let text = "/** @type {function(number): number} */ var a;\n\
+                /** @type {?} */ var b;\n\
+                /** @type {?number} */ var c;\n\
+                /** @type {!keyof {x: 1}} */ var d;\n\
+                /** @type {module:foo} */ var e;\n";
+    let source = parse_js(text);
+    let line_start = |line: usize| {
+        text.split_inclusive('\n')
+            .take(line - 1)
+            .map(str::len)
+            .sum::<usize>() as u32
+    };
+    assert_eq!(
+        jsdoc_diagnostic_rows(&source),
+        [
+            (1005, line_start(1) + 19, 1),
+            (1110, line_start(2) + 12, 1),
+            (1005, line_start(5) + 17, 1),
+        ]
+    );
+    for kind in [
+        SyntaxKind::JSDocFunctionType,
+        SyntaxKind::JSDocUnknownType,
+        SyntaxKind::JSDocNamepathType,
+    ] {
+        assert!(nodes_of_kind(&source, kind).is_empty(), "{kind:?}");
+    }
+    let function_name = nodes_of_kind(&source, SyntaxKind::TypeReference)
+        .into_iter()
+        .filter_map(|reference| match &source.arena.node(reference).data {
+            NodeData::TypeReference(data) => data.type_name,
+            _ => None,
+        })
+        .find(|&name| {
+            let node = source.arena.node(name);
+            &text[node.pos as usize..node.end as usize] == "function"
+        });
+    assert!(function_name.is_some());
+    let nullable = nodes_of_kind(&source, SyntaxKind::JSDocNullableType);
+    let non_nullable = nodes_of_kind(&source, SyntaxKind::JSDocNonNullableType);
+    let operand = |id: NodeId| match &source.arena.node(id).data {
+        NodeData::JSDocNullableType(data) => data.r#type,
+        NodeData::JSDocNonNullableType(data) => data.r#type,
+        _ => None,
+    };
+    let kinds = |ids: Vec<NodeId>| {
+        ids.into_iter()
+            .map(|id| operand(id).map(|operand| source.arena.node(operand).kind))
+            .collect::<Vec<_>>()
+    };
+    // `{?}` expects a type: its operand is a missing type reference.
+    assert_eq!(
+        kinds(nullable),
+        [
+            Some(SyntaxKind::TypeReference),
+            Some(SyntaxKind::NumberKeyword)
+        ]
+    );
+    assert_eq!(kinds(non_nullable), [Some(SyntaxKind::TypeOperator)]);
+}
+
+#[test]
+fn jsdoc_fenced_code_blocks_and_at_signs_follow_tsgo() {
+    // tsgo: `@` inside a fenced code block, or before a character that cannot
+    // start a tag name, is comment text; `@see` names only an identifier.
+    let text = "/**\n\
+                \x20* ```\n\
+                \x20* @param {string} x\n\
+                \x20* ```\n\
+                \x20* @1 not a tag\n\
+                \x20* @see 123\n\
+                \x20* @param {number} y\n\
+                \x20*/\n\
+                function f(x, y) {}\n";
+    let source = parse_js(text);
+    assert_eq!(jsdoc_diagnostic_rows(&source), []);
+    let function = nodes_of_kind(&source, SyntaxKind::FunctionDeclaration)[0];
+    let doc = source
+        .arena
+        .node_array(source.arena.node(function).js_doc.expect("JSDoc"))
+        .nodes[0];
+    let NodeData::JSDoc(data) = &source.arena.node(doc).data else {
+        panic!("JSDoc");
+    };
+    let tags = source.arena.node_array(data.tags.expect("tags")).nodes;
+    let summary = tags
+        .iter()
+        .map(|&tag| match &source.arena.node(tag).data {
+            NodeData::JSDocSeeTag(see) => (SyntaxKind::JSDocSeeTag, see.name.is_some()),
+            NodeData::JSDocParameterTag(param) => {
+                (SyntaxKind::JSDocParameterTag, param.name.is_some())
+            }
+            other => panic!("unexpected tag {other:?}"),
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        summary,
+        [
+            (SyntaxKind::JSDocSeeTag, false),
+            (SyntaxKind::JSDocParameterTag, true)
+        ]
+    );
+}
+
+#[test]
+fn jsdoc_missing_names_report_at_the_current_token() {
+    // tsgo parseJSDocIdentifierName reports a missing tag or class name at
+    // the current token, here the space after `@` and after `@augments`.
+    let text = "/** @ foo */\n\
+                var a;\n\
+                class D {}\n\
+                /** @augments */\n\
+                class E extends D {}\n";
+    let source = parse_js(text);
+    let augments_end = text.find("/** @augments ").expect("augments") + "/** @augments".len();
+    assert_eq!(
+        jsdoc_diagnostic_rows(&source),
+        [(1003, 5, 1), (1003, augments_end as u32, 1)]
+    );
+}

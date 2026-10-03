@@ -20,30 +20,6 @@ fn bind(source: &SourceFile) -> Binder<'_> {
 }
 
 #[test]
-fn jsdoc_function_type_binds_call_and_construct_members() {
-    for (text, member) in [
-        (
-            "let ctor: function(new: number, string);\n",
-            InternalSymbolName::NEW,
-        ),
-        (
-            "let call: function(this: number, string): string;\n",
-            InternalSymbolName::CALL,
-        ),
-    ] {
-        let source = parse(text);
-        let function_type = find_nodes(&source, SyntaxKind::JSDocFunctionType)[0];
-        assert_eq!(
-            crate::node_util::is_jsdoc_construct_signature(&source, function_type),
-            member == InternalSymbolName::NEW
-        );
-        let binder = bind(&source);
-        let symbol = binder.node_symbol[&function_type];
-        assert!(binder.symbols.symbol(symbol).members().contains_key(member));
-    }
-}
-
-#[test]
 fn jsdoc_reference_contexts_match_expression_classification() {
     let source = parse(
         "/**\n\

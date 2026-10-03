@@ -26,10 +26,10 @@ use crate::nodes::{
     HeritageClauseData, IdentifierData, IfStatementData, ImportAttributeData, ImportAttributesData,
     ImportClauseData, ImportDeclarationData, ImportEqualsDeclarationData, ImportSpecifierData,
     ImportTypeData, IndexSignatureData, IndexedAccessTypeData, InferTypeData,
-    InterfaceDeclarationData, IntersectionTypeData, JSDocFunctionTypeData,
-    JSDocNonNullableTypeData, JSDocNullableTypeData, JSDocOptionalTypeData, JSDocVariadicTypeData,
-    JsxAttributeData, JsxAttributesData, JsxClosingElementData, JsxElementData, JsxExpressionData,
-    JsxFragmentData, JsxNamespacedNameData, JsxOpeningElementData, JsxSelfClosingElementData,
+    InterfaceDeclarationData, IntersectionTypeData, JSDocNonNullableTypeData,
+    JSDocNullableTypeData, JSDocOptionalTypeData, JSDocVariadicTypeData, JsxAttributeData,
+    JsxAttributesData, JsxClosingElementData, JsxElementData, JsxExpressionData, JsxFragmentData,
+    JsxNamespacedNameData, JsxOpeningElementData, JsxSelfClosingElementData,
     JsxSpreadAttributeData, JsxTextData, LabeledStatementData, LiteralTypeData, MappedTypeData,
     MetaPropertyData, MethodDeclarationData, MethodSignatureData, ModuleBlockData,
     ModuleDeclarationData, NamedExportsData, NamedImportsData, NamedTupleMemberData,
@@ -1106,12 +1106,6 @@ impl<'text> Parser<'text> {
         if self.scanner.has_preceding_jsdoc_comment() {
             self.jsdoc_positions.insert(self.scanner.full_start_pos());
         }
-        self.drain_scanner_errors();
-        token
-    }
-
-    fn next_token_jsdoc(&mut self) -> SyntaxKind {
-        let token = self.scanner.scan_jsdoc_token();
         self.drain_scanner_errors();
         token
     }
@@ -3207,6 +3201,10 @@ impl<'text> Parser<'text> {
     fn is_external_module_reference(&mut self) -> bool {
         self.token() == SyntaxKind::RequireKeyword
             && self.look_ahead(|parser| parser.next_token_is_open_paren())
+    }
+
+    fn next_token_is_open_paren(&mut self) -> bool {
+        self.next_token() == SyntaxKind::OpenParenToken
     }
 
     fn parse_namespace_export_declaration(
@@ -6666,6 +6664,11 @@ impl<'text> Parser<'text> {
         self.parse_entity_name(true, Some(&gen::Type_expected))
     }
 
+    fn next_token_is_identifier_or_keyword(&mut self) -> bool {
+        self.next_token();
+        token_is_identifier_or_keyword(self.token())
+    }
+
     fn next_token_is_identifier_or_keyword_on_same_line(&mut self) -> bool {
         self.next_token();
         token_is_identifier_or_keyword(self.token()) && !self.scanner.has_preceding_line_break()
@@ -7624,10 +7627,12 @@ impl<'text> Parser<'text> {
         )
     }
 
+    /// tsgo parseJSDocNonNullableType (parser.go:2898-2902): a prefix `!`
+    /// applies to a type operator or higher.
     fn parse_jsdoc_non_nullable_type(&mut self) -> NodeId {
         let pos = self.node_pos();
         self.next_token();
-        let r#type = self.parse_non_array_type();
+        let r#type = self.parse_type_operator_or_higher();
         self.finish_node_data(
             NodeData::JSDocNonNullableType(JSDocNonNullableTypeData {
                 r#type: Some(r#type),
@@ -7637,132 +7642,29 @@ impl<'text> Parser<'text> {
         )
     }
 
-    fn parse_jsdoc_unknown_or_nullable_type(&mut self) -> NodeId {
+    /// tsgo parseJSDocNullableType (parser.go:2904-2909): a prefix `?`
+    /// always heads a nullable type of a type operator or higher; tsgo has no
+    /// JSDoc unknown type, so a lone `?` expects a type.
+    fn parse_jsdoc_nullable_type(&mut self) -> NodeId {
         let pos = self.node_pos();
         self.next_token();
-        if matches!(
-            self.token(),
-            SyntaxKind::CommaToken
-                | SyntaxKind::CloseBraceToken
-                | SyntaxKind::CloseParenToken
-                | SyntaxKind::GreaterThanToken
-                | SyntaxKind::EqualsToken
-                | SyntaxKind::BarToken
-        ) {
-            self.finish_node_data(
-                NodeData::JSDocUnknownType(crate::nodes::JSDocUnknownTypeData {}),
-                pos,
-            )
-        } else {
-            let r#type = self.parse_type();
-            self.finish_node_data(
-                NodeData::JSDocNullableType(JSDocNullableTypeData {
-                    r#type: Some(r#type),
-                    postfix: false,
-                }),
-                pos,
-            )
-        }
-    }
-
-    fn next_token_is_open_paren(&mut self) -> bool {
-        self.next_token() == SyntaxKind::OpenParenToken
-    }
-
-    fn parse_jsdoc_function_type(&mut self) -> NodeId {
-        let pos = self.node_pos();
-        if self.try_parse(|parser| parser.next_token_is_open_paren()) {
-            let parameters = self.parse_jsdoc_function_parameters();
-            let r#type = self.parse_return_type(SyntaxKind::ColonToken, false);
-            return self.finish_node_data(
-                NodeData::JSDocFunctionType(JSDocFunctionTypeData {
-                    parameters: Some(parameters),
-                    r#type,
-                    name: None,
-                    type_parameters: None,
-                }),
-                pos,
-            );
-        }
-        // `function` used as a plain type name.
-        let type_name = self.parse_identifier_name(None);
+        let r#type = self.parse_type_operator_or_higher();
         self.finish_node_data(
-            NodeData::TypeReference(TypeReferenceData {
-                type_name: Some(type_name),
-                type_arguments: None,
-            }),
-            pos,
-        )
-    }
-
-    /// tsc parseParameters with SignatureFlags.Type | SignatureFlags.JSDoc.
-    fn parse_jsdoc_function_parameters(&mut self) -> crate::NodeArrayId {
-        if !self.parse_expected(SyntaxKind::OpenParenToken, None) {
-            return self.arena.missing_array(self.node_pos());
-        }
-        let saved_yield_context = self.in_yield_context();
-        let saved_await_context = self.in_await_context();
-        self.set_yield_context(false);
-        self.set_await_context(false);
-        let parameters = self.parse_delimited_list(
-            ParsingContext::JSDocParameters,
-            |parser| Some(parser.parse_jsdoc_parameter()),
-            false,
-        );
-        self.set_yield_context(saved_yield_context);
-        self.set_await_context(saved_await_context);
-        self.parse_expected(SyntaxKind::CloseParenToken, None);
-        parameters
-    }
-
-    fn parse_jsdoc_parameter(&mut self) -> NodeId {
-        let pos = self.node_pos();
-        let mut name = None;
-        if matches!(
-            self.token(),
-            SyntaxKind::ThisKeyword | SyntaxKind::NewKeyword
-        ) {
-            name = Some(self.parse_identifier_name(None));
-            self.parse_expected(SyntaxKind::ColonToken, None);
-        }
-        let r#type = self.parse_jsdoc_type();
-        self.finish_node_data(
-            NodeData::Parameter(ParameterData {
-                modifiers: None,
-                dot_dot_dot_token: None,
-                name,
-                question_token: None,
+            NodeData::JSDocNullableType(JSDocNullableTypeData {
                 r#type: Some(r#type),
-                initializer: None,
+                postfix: false,
             }),
             pos,
         )
     }
 
-    /// tsc parseJSDocType. This is shared by ordinary type parsing and the
-    /// attached JSDoc parser; the scanner mode skips one leading `*` on
-    /// continuation lines while the ordinary type grammar is active.
+    /// tsgo parseJSDocType (parser.go:2911-2926). This is shared by ordinary
+    /// type parsing and the attached JSDoc parser; the scanner mode skips one
+    /// leading `*` on continuation lines while the ordinary type grammar is
+    /// active. There is no `module:` namepath.
     fn parse_jsdoc_type(&mut self) -> NodeId {
         self.scanner.set_skip_jsdoc_leading_asterisks(true);
         let pos = self.node_pos();
-        if self.parse_optional(SyntaxKind::ModuleKeyword) {
-            loop {
-                match self.token() {
-                    SyntaxKind::CloseBraceToken
-                    | SyntaxKind::EndOfFileToken
-                    | SyntaxKind::CommaToken
-                    | SyntaxKind::WhitespaceTrivia => break,
-                    _ => {
-                        self.next_token_jsdoc();
-                    }
-                }
-            }
-            self.scanner.set_skip_jsdoc_leading_asterisks(false);
-            return self.finish_node_data(
-                NodeData::JSDocNamepathType(crate::nodes::JSDocNamepathTypeData { r#type: None }),
-                pos,
-            );
-        }
         let has_dot_dot_dot = self.parse_optional(SyntaxKind::DotDotDotToken);
         let mut r#type = self.parse_type_or_type_predicate();
         self.scanner.set_skip_jsdoc_leading_asterisks(false);
@@ -8518,12 +8420,13 @@ impl<'text> Parser<'text> {
             }
             SyntaxKind::AsteriskToken => self.parse_jsdoc_all_type(),
             SyntaxKind::QuestionQuestionToken => {
-                // `??` splits into `?` heading a JSDoc unknown/nullable type.
+                // `??` splits into `?` heading a JSDoc nullable type.
                 self.scanner.re_scan_question_token();
-                self.parse_jsdoc_unknown_or_nullable_type()
+                self.parse_jsdoc_nullable_type()
             }
-            SyntaxKind::QuestionToken => self.parse_jsdoc_unknown_or_nullable_type(),
-            SyntaxKind::FunctionKeyword => self.parse_jsdoc_function_type(),
+            SyntaxKind::QuestionToken => self.parse_jsdoc_nullable_type(),
+            // tsgo has no Closure `function(…)` type: `function` is a type
+            // name (parser.go:2804-2890).
             SyntaxKind::ExclamationToken => self.parse_jsdoc_non_nullable_type(),
             SyntaxKind::NoSubstitutionTemplateLiteral
             | SyntaxKind::StringLiteral

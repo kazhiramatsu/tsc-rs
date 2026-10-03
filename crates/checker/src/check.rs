@@ -2062,7 +2062,15 @@ impl<'a> CheckerState<'a> {
                 self.check_source_element(data.r#type);
                 Ok(())
             }
-            SyntaxKind::JSDocImportTag => self.check_jsdoc_import_tag(node),
+            // tsgo checks the import declaration it reparses an `@import`
+            // with an import clause into like any other (reparser.go:123-137,
+            // checker.go:2414).
+            SyntaxKind::JSDocImportTag => match self.data_of(node) {
+                NodeData::JSDocImportTag(data) if data.import_clause.is_some() => {
+                    self.check_import_declaration(node)
+                }
+                _ => Ok(()),
+            },
             SyntaxKind::IndexedAccessType => self.check_indexed_access_type(node),
             SyntaxKind::MappedType => self.check_mapped_type(node),
             SyntaxKind::FunctionDeclaration => self.check_function_declaration(node),
@@ -2337,13 +2345,6 @@ impl<'a> CheckerState<'a> {
             self.report_implicit_any(node, self.tables.intrinsics.any, None)?;
         }
         Ok(())
-    }
-
-    /// tsc-port: checkJSDocImportTag @6.0.3.
-    /// tsc-hash: d5bedc1e5d403ebe956b54ea38ea0d9ab0726319180f4e24c61b1422882e258c
-    /// tsc-span: _tsc.js:82854-82856
-    fn check_jsdoc_import_tag(&mut self, node: NodeId) -> CheckResult<()> {
-        self.check_import_attributes_of(node)
     }
 
     /// tsgo-port: checkJSDocAugmentsTagMatchesExtends @7.1 (checker.go:4424-4447):

@@ -801,3 +801,40 @@ TS2554）、tsgoの行にpinした新しいtest 4件（hostされたtagの検査
   （TS1141）、JSDocのimport型（TS1340／TS2694）。
 - hosted：PR #633（head `7a1f5926a`、merge `47bec9f1b`）、run 37095454879 — `plan` 27s、`rust` 10m9s、`conformance (TypeScript 7.1)` 13m55s、`gates` 14s。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main `4e4f61f3e`（P3-5nのhead `a94bb3235`と同じコードのrelease build）と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 136→139、zod 574→567、Playwright 362→366、TypeScript `src/compiler` 369→350、Next.js 877→761、Effect 540→561、VS Code 3,589→3,722。tsc-rs÷tsgoは0.55〜0.93で従来の幅、peak memoryは同等以下（MB main→本branch：292→288、1,300→1,295、781→753、292→290、1,333→1,337、1,037→1,031、5,484→5,439）。VS Code・Effect・hono・Playwrightは同条件の5 rounds A/B（本branch／main）で、medianは3,499／3,593、556／563、131／127、380／375、minは3,485／3,435、534／548、126／118、341／345、CPU時間は23,990／24,546、3,388／3,476、653／657、2,463／2,602 msなのでノイズ。退行なし。測定scriptはP3-5nと同じ方式（交互実行、wall／CPU／peak RSS）で作り直した。
+
+## P3-5p JSDocの型構文とcommentの構文をtsgoに合わせる（2026-10-03）
+
+P3-5oの続き（JSDocの第3段、最終段）。tsgo 7.1のJSDocの型とcommentのparseはtsc 6.0と次の点が違う：
+- 型（`parser.rs`）：Closureの`function(…)`型は無く、`function`は型名（JavaScriptのJSDocではglobalの`Function`、
+  TypeScriptでは名前解決の対象）なので、`(`でJSDocのTS1005、TypeScriptでは回復parseになる（parser.go:2804-2890）。単独の
+  `?`（tsc 6.0のJSDoc unknown型）も無く、前置の`?`／`!`は型演算子以上を取る（parseJSDocNullableType／
+  parseJSDocNonNullableType、2898-2909）ので`{?}`はTS1110。`module:` namepathも無い（parseJSDocType、2911-2926）。
+- JSDoc comment（`parser/jsdoc.rs`、`scanner.rs`）：3つ以上のbacktickがfenced code blockを切り替え、その中では`@`がtagを、
+  `{`がlinkを始めない。`@`は直後が識別子の開始・空白・改行のときだけtagを始める（CanFollowJSDocAt、scanner.go:1392-1398）。
+  本文のmarginは最初に保存した文字の位置で、0でも置き換えない（jsdoc.go:192-349、546-712）。`@see`は`://`の続かない
+  識別子か、`{`と識別子のときだけ名前を読む（907-916）。名前の欠落（tag名、`@augments`／`@implements`のclass、
+  qualified nameの右辺）は現在のtokenに報告し、messageの無い呼び出し（`@param`の名前）は報告しない
+  （parseJSDocIdentifierName、1341-1355；tsc 6.0は長さ0でtokenのfull startに報告していた）。
+- checker：JavaScriptの`object`はnon-primitive（checker.go:23268、tsc 6.0の非noImplicitAnyでの`any`は無い）、
+  `Object<K, V>`はKが有効なindex keyなら`Record<K, V>`のalias instantiation（23514-23522）。import clauseのある`@import`は
+  reparseされたimport宣言として`checkImportDeclaration`で検査する（reparser.go:123-137、checker.go:2414）：module
+  specifierが文字列でなければTS1141、default importのTS2613、namespaceの判定は再配置先の文リスト、JSDocのimport clause
+  はdefaultとnamedを併用できる（grammarchecks.go:2103、TS1363なし）。import clauseの無い`@import`は検査しない。
+- 隣接してtsgoに合わせた点：`return`文は文法エラーより先に式を検査する（checker.go:4114-4122、誤った位置の`return`でも
+  名前を解決する）、無名のfunction式の報告位置は代入先の名前（GetErrorRangeForNodeのGetNameOfDeclaration、
+  scanner.go:2603-2607；TS7011、TS2738のrelated）、TS2613はimport clause全体に報告する（checker.go:14830）。
+- 残す点：parserが作らなくなった`JSDocFunctionType`／`JSDocUnknownType`／`JSDocNamepathType`は、node builderが
+  `JSDocFunctionType`を合成するのでkindとbinder・checker・emitterの腕を残した（撤去は宣言emitの段）。instantiation
+  expressionの型引数の消去（tsgoは`foo`、tsc-rsは`(foo)`と、JSDoc型を含むものはそのまま）はemitのclass。
+unit test：checker 11件とemitter 2件をtsgoの行に再pin（`tsc-19dadef8`、noLibのglobalsで照合）：Closureの`function(…)`型を
+使っていたtestはTypeScriptの関数型に書き換えるか（可変長と固定長のarity、`this`の型、asyncの戻り値）、7.1の行に合わせ
+（tagは`Function`を与えるのでTS7014もcallbackの関係のTS2345も無い、名前の欠落のTS1003は長さ1、TS8020は`.<`と`*`、
+TS7011は代入先の名前）、emitterの単独の`?`は前置の`?string`にした。7.1に無い構文を扱っていたtest 2件（JSDoc function型の
+call／construct memberの束縛、TypeScriptでの`function(this:…)`／`function(new:…)`）を削除し、tsgoの行にpinした新しい
+test 7件（JSDocの型構文、fenced code blockと`@`と`@see`、名前の欠落の位置、`object`と`Object<K, V>`、誤った位置の
+`return`、function式の報告位置、`@import`の検査）を追加。
+- conformance：15,228 configuration、lane A 13,467（変化なし）、full 13,095→13,132（+37）、text 91→87、category 18→19、mismatch 219→185、harness error 44、emit full 12,416→12,418。上がったのは39構成（full 37、category 1、text 1）とemitの2構成：Closureの`function(…)`型と`?`／`!`／`module:`（`jsdocFunctionType`、`jsdocParseHigherOrderFunction`、`jsdocParseParenthesizedJSDocParameter`、`jsdocParseDotDotDotInJSDocFunction`、`jsdocParseStarEquals`、`jsdocTypeTagParameterType`、`jsdocTypeTagRequiredParameters`、`checkJsdocTypeTag1`／`2`、`checkJsdocTypeTagOnObjectProperty1`／`2`、`jsdocThisType`、`jsdocTemplateTag`、`jsdocVariadicType`、`jsdocFunction_missingReturn`、`jsdocParameterParsingInfiniteLoop`、`jsdocTypesWithPrefixesAndUnionTypes1`、`asyncArrowFunction_allowJs`、`jsDeclarationsRestArgsWithThisTypeInJSDocFunction`、`jsDeclarationsModuleReferenceHasEmit`、`noAssertForUnparseableTypedefs`、`typedefTagWrapping`はtext、TypeScriptの`jsdocDisallowedInTypescript`と`expressionWithJSDocTypeArguments`）、`object`と`Record`（`paramTagNestedWithoutTopLevelObject3`、`jsDeclarationsReusesExistingNodesMappingJSDocTypes`）、`@import`（`importTag13`／`14`、`importDeferJsdoc`）、名前の欠落の位置（`jsdocAugmentsMissingType`、`jsdocImplements_missingType`、`jsdocPrivateName2`）、`return`の検査順（`parseErrorIncorrectReturnToken`、`parserErrorRecovery_ModuleElement1`、`parserStatementIsNotAMemberVariableDeclaration1`、`multiLinePropertyAccessAndArrowFunctionIndent1`、`reachabilityChecksNoCrash1`はcategory）、function式の報告位置（`typeFromParamTagForFunction`、`awaitInNonAsyncFunction`）、emitは`jsDeclarationsJSDocRedirectedLookups`と`jsDeclarationsMissingTypeParameters`。下がった構成はemitを含めて無い。ratchet：0 regressions、34行追加・7行raise（`intersectionConstructorReductionCrash`は従来どおり載せない）。localはsyntaxとその逆依存（binder、checker、compiler、conformance、emitter、harness、program）のclippyとtest（60 targets、3,520 passed）、2 workerのfull run（791 s）で、workspace全体のtestとclippyはhostedの`rust` job。filterの段階では、JavaScriptを含む1,061 caseと`jsdoc`／`parser`／`import`／`return`／`implicit`／`this`／`function`／`default`／`export`のfilterをP3-5oのreportとtierごとに比べた（下降0）。`--checkers 4`の並列対照は実行していない。
+- JavaScript／JSDocの残り（次のclass候補）：JSDocのimport型とvalue参照（TS1340 5、TS2694 4、TS2749 2）、node16系の
+  CommonJSの自己名・`#`import（TS2307／TS1479、8構成）、JavaScriptの文法エラーの位置（TS8017／TS8009／TS8010、4）、
+  宣言emitの診断（TS4023／TS9006 2、isolatedDeclarationsのTS9010／TS9013 2）、重複宣言のrelated（`typedefTagWrapping`、
+  `typedefCrossModule5`のtext）、JSONの文法（TS1327／TS1136 2）、tslib helper（TS2343 3）。

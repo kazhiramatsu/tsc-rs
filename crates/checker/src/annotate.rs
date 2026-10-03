@@ -246,17 +246,9 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::UndefinedKeyword => Ok(self.tables.intrinsics.undefined),
             SyntaxKind::NullKeyword => Ok(self.tables.intrinsics.null),
             SyntaxKind::NeverKeyword => Ok(self.tables.intrinsics.never),
-            SyntaxKind::ObjectKeyword => {
-                if self.is_in_js_file(node)
-                    && !self
-                        .options
-                        .strict_option_value(self.options.no_implicit_any)
-                {
-                    Ok(self.tables.intrinsics.any)
-                } else {
-                    Ok(self.tables.intrinsics.non_primitive)
-                }
-            }
+            // tsgo checker.go:23268-23269: `object` is the non-primitive type
+            // in JavaScript too.
+            SyntaxKind::ObjectKeyword => Ok(self.tables.intrinsics.non_primitive),
             SyntaxKind::IntrinsicKeyword => Ok(self.tables.intrinsics.intrinsic_marker),
             SyntaxKind::LiteralType => self.get_type_from_literal_type_node(node),
             SyntaxKind::TypeReference => self.get_type_from_type_reference(node),
@@ -1555,36 +1547,20 @@ impl<'a> CheckerState<'a> {
                 let any = self.tables.intrinsics.any;
                 Ok(Some(self.create_promise_type(any)?))
             }
+            // tsgo checker.go:23514-23522: `Object<K, V>` is `Record<K, V>`
+            // when K is a valid index key type.
             "Object" if type_arguments.len() == 2 => {
-                if matches!(
-                    self.kind_of(type_arguments[0]),
-                    SyntaxKind::StringKeyword | SyntaxKind::NumberKeyword
-                ) {
-                    let key = self.get_type_from_type_node(type_arguments[0])?;
-                    let value = self.get_type_from_type_node(type_arguments[1])?;
-                    let index_infos = if matches!(
-                        self.kind_of(type_arguments[0]),
-                        SyntaxKind::StringKeyword | SyntaxKind::NumberKeyword
-                    ) {
-                        vec![IndexInfo {
-                            key_type: key,
-                            value_type: value,
-                            is_readonly: false,
-                            declaration: None,
-                            components: None,
-                            is_enum_number_index_info: false,
-                            is_any_base_type_index_info: false,
-                        }]
-                    } else {
-                        Vec::new()
-                    };
-                    return Ok(Some(self.make_resolved_anonymous_type(
-                        None,
-                        Default::default(),
-                        Vec::new(),
-                        index_infos,
-                        ObjectFlags::NONE,
-                    )));
+                if let Some(record) = self.get_global_record_symbol()? {
+                    let index_type = self.get_type_from_type_node(type_arguments[0])?;
+                    if self.is_valid_index_key_type(index_type)? {
+                        let value = self.get_type_from_type_node(type_arguments[1])?;
+                        return Ok(Some(self.get_type_alias_instantiation(
+                            record,
+                            Some(&[index_type, value]),
+                            None,
+                            None,
+                        )?));
+                    }
                 }
                 Ok(Some(self.tables.intrinsics.any))
             }

@@ -2532,14 +2532,24 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkReturnStatement @6.0.3
     /// tsc-hash: c9a0f8abcefe176817b5c00491ec3ea7e140cff4d2eb807bc02a925559136718
     /// tsc-span: _tsc.js:84516-84549
+    ///
+    /// tsgo (checker.go:4114-4122) checks the return expression first, so its
+    /// names resolve even when the return statement is misplaced.
     pub(crate) fn check_return_statement(&mut self, node: NodeId) -> CheckResult<()> {
-        if self.check_grammar_statement_in_ambient_context_reported(node) {
-            return Ok(());
-        }
         let NodeData::ReturnStatement(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
         let expression = data.expression;
+        let expr_type = match expression {
+            Some(expression) if self.is_reparsed_return_assertion(expression) => {
+                self.check_assertion_worker(node, CheckMode::NORMAL)?
+            }
+            Some(expression) => self.check_expression_cached(expression, CheckMode::NORMAL)?,
+            None => self.tables.intrinsics.undefined,
+        };
+        if self.check_grammar_statement_in_ambient_context_reported(node) {
+            return Ok(());
+        }
         let container = self.get_containing_function_or_class_static_block(node);
         if container.is_some_and(|container| {
             self.kind_of(container) == SyntaxKind::ClassStaticBlockDeclaration
@@ -2571,13 +2581,6 @@ impl<'a> CheckerState<'a> {
                 .flags_of(return_type)
                 .intersects(TypeFlags::NEVER)
         {
-            let expr_type = match expression {
-                Some(expression) if self.is_reparsed_return_assertion(expression) => {
-                    self.check_assertion_worker(node, CheckMode::NORMAL)?
-                }
-                Some(expression) => self.check_expression_cached(expression, CheckMode::NORMAL)?,
-                None => self.tables.intrinsics.undefined,
-            };
             if self.kind_of(container) == SyntaxKind::SetAccessor {
                 if expression.is_some() {
                     self.error_at(Some(node), &diagnostics::Setters_cannot_return_a_value, &[]);

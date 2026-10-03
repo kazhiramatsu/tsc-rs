@@ -434,12 +434,14 @@ fn null_widening_reports_7018_and_7011() {
         ..CompilerOptions::default()
     };
     // The arr row is an ABSENCE pin: under noLib the oracle emits
-    // nothing for `const arr = [null]` (no 7005).
+    // nothing for `const arr = [null]` (no 7005). TS7011 lands on `h`: tsgo
+    // GetErrorRangeForNode names an anonymous function expression by the
+    // variable it initializes.
     assert_eq!(
             checked_rows_with(
                 "const o1 = { a: null };\no1;\nconst h = function () { return null; };\nh;\nconst k = function () { return { a: null }; };\nk;\nconst arr = [null];\narr;\n",
                 &options
             ),
-            [(7018, 13, 7), (7011, 38, 8), (7018, 104, 7)]
+            [(7018, 13, 7), (7011, 34, 1), (7018, 104, 7)]
         );
 }

@@ -2443,8 +2443,9 @@ impl<'a> CheckerState<'a> {
             let local_name = local_symbol
                 .map(|local| self.symbol_display_name(local))
                 .unwrap_or_default();
+            // tsgo checker.go:14830 reports at the import clause.
             self.error_at_js(
-                name.or(Some(node)),
+                Some(node),
                 &diagnostics::Module_0_has_no_default_export_Did_you_mean_to_use_import_1_from_0_instead,
                 &[(&module_name).into(), (&local_name).into()],
             );
@@ -8444,7 +8445,7 @@ impl<'a> CheckerState<'a> {
             );
             return Ok(false);
         }
-        let parent = self.parent_of(node);
+        let parent = self.module_element_parent(node);
         let in_ambient_external_module = parent.is_some_and(|parent| {
             self.kind_of(parent) == SyntaxKind::ModuleBlock
                 && self.parent_of(parent).is_some_and(|grand| {
@@ -8593,7 +8594,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         error_message: &'static DiagnosticMessage,
     ) -> bool {
-        let in_appropriate_context = self.parent_of(node).is_some_and(|parent| {
+        let in_appropriate_context = self.module_element_parent(node).is_some_and(|parent| {
             matches!(
                 self.kind_of(parent),
                 SyntaxKind::SourceFile | SyntaxKind::ModuleBlock | SyntaxKind::ModuleDeclaration
@@ -8603,6 +8604,19 @@ impl<'a> CheckerState<'a> {
             self.grammar_error_on_first_token(node, error_message, &[]);
         }
         !in_appropriate_context
+    }
+
+    /// The parent of an import or export declaration. tsgo reparses a JSDoc
+    /// `@import` into an import declaration of the nearest statement list
+    /// (reparser.go:123-137), whose owner is its parent.
+    fn module_element_parent(&self, node: NodeId) -> Option<NodeId> {
+        if self.kind_of(node) == SyntaxKind::JSDocImportTag {
+            let host = self
+                .parent_of(node)
+                .and_then(|document| self.parent_of(document))?;
+            return self.parent_of(self.reparsed_statement_position(host));
+        }
+        self.parent_of(node)
     }
 
     /// tsc-port: getAliasDeclarationFromName @6.0.3
@@ -9362,6 +9376,7 @@ impl<'a> CheckerState<'a> {
             let mut resolved_module = None;
             let import_clause = match self.data_of(node) {
                 NodeData::ImportDeclaration(data) => data.import_clause,
+                NodeData::JSDocImportTag(data) => data.import_clause,
                 _ => None,
             };
             if let Some(import_clause) = import_clause {
@@ -9382,10 +9397,7 @@ impl<'a> CheckerState<'a> {
                                 self.check_external_emit_helpers(node, EMIT_HELPER_IMPORT_STAR)?;
                             }
                         } else {
-                            let module_specifier = match self.data_of(node) {
-                                NodeData::ImportDeclaration(data) => data.module_specifier,
-                                _ => None,
-                            };
+                            let module_specifier = self.get_external_module_name_of(node);
                             if let Some(module_specifier) = module_specifier {
                                 resolved_module = self.resolve_external_module_name(
                                     node,
@@ -9409,10 +9421,7 @@ impl<'a> CheckerState<'a> {
                         NodeData::ImportClause(data) if data.is_type_only
                     );
                     let module_kind = self.options.emit_module_kind();
-                    let module_specifier = match self.data_of(node) {
-                        NodeData::ImportDeclaration(data) => data.module_specifier,
-                        _ => None,
-                    };
+                    let module_specifier = self.get_external_module_name_of(node);
                     let requires_json_attribute =
                         !is_type_only && (101..=199).contains(&module_kind);
                     let is_default_only = if requires_json_attribute {
@@ -9442,10 +9451,7 @@ impl<'a> CheckerState<'a> {
                     }
                 }
             } else if self.options.no_unchecked_side_effect_imports != Some(false) {
-                let module_specifier = match self.data_of(node) {
-                    NodeData::ImportDeclaration(data) => data.module_specifier,
-                    _ => None,
-                };
+                let module_specifier = self.get_external_module_name_of(node);
                 if let Some(module_specifier) = module_specifier {
                     self.resolve_external_module_name_worker(
                         node,
@@ -9468,6 +9474,7 @@ impl<'a> CheckerState<'a> {
     fn has_type_json_import_attribute(&self, declaration: NodeId) -> bool {
         let attributes = match self.data_of(declaration) {
             NodeData::ImportDeclaration(data) => data.attributes,
+            NodeData::JSDocImportTag(data) => data.attributes,
             _ => None,
         };
         let elements = attributes.and_then(|attributes| match self.data_of(attributes) {
@@ -9509,7 +9516,11 @@ impl<'a> CheckerState<'a> {
             _ => return Ok(false),
         };
         if is_type_only {
-            if name.is_some() && named_bindings.is_some() {
+            // tsgo grammarchecks.go:2103: a JSDoc `@import` may have both.
+            if self.node_flags(node) & tsc_types::NodeFlags::JS_DOC.bits() == 0
+                && name.is_some()
+                && named_bindings.is_some()
+            {
                 return Ok(self.grammar_error_on_node_js(
                     node,
                     &diagnostics::A_type_only_import_can_specify_a_default_import_or_named_bindings_but_not_both,
