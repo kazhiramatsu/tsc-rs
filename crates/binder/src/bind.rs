@@ -17,11 +17,11 @@ use crate::declare::{BinderWorker, TableRef};
 use crate::flow::FlowId;
 use crate::node_util::{
     can_have_flow_node, declaration_name_to_string, get_containing_class, get_error_span_for_node,
-    get_host_signature_from_jsdoc, get_jsdoc_host, get_jsdoc_type_tag, has_dynamic_name, id_text,
-    is_assignment_operator, is_async_function, is_auto_accessor_property_declaration,
-    is_binding_pattern, is_block_or_catch_scoped, is_destructuring_assignment,
-    is_entity_name_expression, is_function_like_kind, is_identifier_name, is_in_top_level_context,
-    is_jsdoc_type_alias, is_narrowable_operand, is_narrowable_reference, is_narrowing_expression,
+    get_jsdoc_host, get_jsdoc_type_tag, has_dynamic_name, id_text, is_assignment_operator,
+    is_async_function, is_auto_accessor_property_declaration, is_binding_pattern,
+    is_block_or_catch_scoped, is_destructuring_assignment, is_entity_name_expression,
+    is_function_like_kind, is_identifier_name, is_in_top_level_context, is_jsdoc_type_alias,
+    is_narrowable_operand, is_narrowable_reference, is_narrowing_expression,
     is_object_literal_method, is_object_literal_or_class_expression_method_or_accessor,
     is_parameter_property_declaration, is_part_of_parameter_declaration, is_part_of_type_query,
     is_potentially_executable_node, jsdoc_full_name, jsdoc_type_expression, kind_of, name_field_of,
@@ -1054,26 +1054,41 @@ impl<'a> BinderWorker<'a> {
         let parent = parent_of(self.source, node);
         if parent.is_some_and(|parent| kind_of(self.source, parent) == SyntaxKind::JSDocTemplateTag)
         {
+            // tsgo has a `@template` type parameter only where its reparser
+            // puts one: in a typedef or callback of the same comment, or in
+            // the type parameters of the function or class the comment hosts
+            // (reparser.go gatherTypeParameters). Anywhere else it is inert.
             let tag = parent.expect("checked JSDoc template parent");
-            if let Some(container) = self.effective_container_for_jsdoc_template_tag(tag) {
-                // Deliberately no addToContainerChain: tsc creates this
-                // locals table directly for JSDoc/infer type parameters.
-                self.locals.entry(container).or_default();
-                self.declare_symbol(
-                    TableRef::Locals(container),
-                    None,
-                    node,
-                    SymbolFlags::TYPE_PARAMETER,
-                    SymbolFlags::TYPE_PARAMETER_EXCLUDES,
-                    false,
-                    false,
-                );
-            } else {
-                self.declare_symbol_and_add_to_symbol_table(
-                    node,
-                    SymbolFlags::TYPE_PARAMETER,
-                    SymbolFlags::TYPE_PARAMETER_EXCLUDES,
-                );
+            match self.effective_container_for_jsdoc_template_tag(tag) {
+                Some(container)
+                    if matches!(
+                        kind_of(self.source, container),
+                        SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+                    ) =>
+                {
+                    // A class's type parameters are members, as written ones
+                    // are; the class is the binder's container here.
+                    self.declare_symbol_and_add_to_symbol_table(
+                        node,
+                        SymbolFlags::TYPE_PARAMETER,
+                        SymbolFlags::TYPE_PARAMETER_EXCLUDES,
+                    );
+                }
+                Some(container) => {
+                    // Deliberately no addToContainerChain: tsc creates this
+                    // locals table directly for JSDoc/infer type parameters.
+                    self.locals.entry(container).or_default();
+                    self.declare_symbol(
+                        TableRef::Locals(container),
+                        None,
+                        node,
+                        SymbolFlags::TYPE_PARAMETER,
+                        SymbolFlags::TYPE_PARAMETER_EXCLUDES,
+                        false,
+                        false,
+                    );
+                }
+                None => {}
             }
             return;
         }
@@ -1112,9 +1127,11 @@ impl<'a> BinderWorker<'a> {
         }
     }
 
-    /// tsc-port: getEffectiveContainerForJSDocTemplateTag @6.0.3
-    /// tsc-hash: 6604aa47d045079b7bcfd5d4eafd83467e557090119f44a885805ce1dbaa773b
-    /// tsc-span: _tsc.js:15490-15498
+    /// tsgo (TypeScript 7.1): the declaration whose type parameters a
+    /// `@template` tag's become — a `@typedef` or `@callback` of the same
+    /// comment, else the function or class the comment's tags are hosted on
+    /// when the reparser gave it the comment's template list
+    /// (reparser.go:297-344, 457-475).
     fn effective_container_for_jsdoc_template_tag(&self, node: NodeId) -> Option<NodeId> {
         let parent = parent_of(self.source, node)?;
         if let NodeData::JSDoc(data) = &self.source.arena.node(parent).data {
@@ -1132,7 +1149,8 @@ impl<'a> BinderWorker<'a> {
                 }
             }
         }
-        get_host_signature_from_jsdoc(self.source, node)
+        crate::hosted::template_tag_host(self.source, node)
+            .or_else(|| crate::hosted::overload_template_signature(self.source, node))
     }
 
     /// tsc-port: getInferTypeContainer @6.0.3
@@ -1344,8 +1362,9 @@ impl<'a> BinderWorker<'a> {
         matches!(
             &self.source.arena.node(declaration).data,
             NodeData::VariableDeclaration(data) if data.r#type.is_some()
-        ) || (self.is_in_js_file()
-            && crate::node_util::get_jsdoc_type_tag(self.source, declaration).is_some())
+        ) || crate::hosted::jsdoc_hosted(self.source)
+            .type_of(declaration)
+            .is_some()
     }
 
     fn set_common_js_module_indicator(&mut self, node: NodeId) -> bool {

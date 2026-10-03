@@ -742,3 +742,60 @@ aliasを作らない、名前の無いtypedefの2つのTS1003、`@augments`の�
   messageが無ければ報告しない）、`@`がtagを始める条件とfenced code block、`@see`の名前。
 - hosted：PR #632（head `a94bb3235`、merge `066c24253`）、run 37025092097 — `plan` 27s、`rust` 9m45s、`conformance (TypeScript 7.1)` 22m0s、`gates` 14s。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main `3bd8fee84`と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 127→120、zod 557→540、Playwright 360→372、TypeScript `src/compiler` 374→361、Next.js 850→860、Effect 538→560、VS Code 3,792→3,810。tsc-rs÷tsgoは0.58〜0.98で従来の幅、peak memoryは同等以下（MB main→本branch：287→296、1,299→1,298、758→757、291→292、1,328→1,329、1,035→1,037、5,455→5,127）。Effect・Playwright・Next.jsは同条件の5 rounds A/B（本branch／main）で、medianは599／592、372／386、784／827、minは517／528、356／358、777／783、CPU時間は3,447／3,500、2,487／2,537、4,786／4,765 msなのでノイズ。退行なし。測定scriptは前のsessionのscratchpadから消えていたので同じ方式（交互実行、wall／CPU／peak RSS、bench-corporaの`tsconfig.bench-noemit.json`、VS Codeは`src/tsconfig.bench-stable.json`）で作り直し、honoでP3-5mの測定と同程度の値（tsgo 162、tsc-rs 119 ms；P3-5mでは165、125 ms）になることを確かめた。
+
+## P3-5o JSDocのhostされるtagをtsgoのreparseの方式で扱う（2026-10-03）
+
+P3-5nの続き（JSDocの第2段）。tsgo 7.1はJavaScriptファイルのnode（host）のparseが終わるところで、その最後のJSDoc
+commentのtagをhostの構文に作り替える（parser/reparser.go reparseHosted、346-613；子が先に終わるので、parameter自身の
+`/** @type */`は関数の`@param`より先に効き、同じcommentの後のtagは前のtagの結果を見る）。checkerはtag自体を検査せず、
+作り替えた型注釈・型parameter・`this` parameter・question token・修飾子・cast・heritage clauseを普通の構文として検査する。
+tsc-rsはtreeを変えず、reparserの判断を側表に記録してcheckerがそれを読む：
+- syntax（`jsdoc_hosted.rs`、新設）：`JsDocHosted`はreparserが変えるnodeごとに、型（`@type`、`@param`、`@return`、get
+  accessorの`@type`）、FullSignature（関数全体を型付ける`@type`）、型parameter（`@template`のtagと、最初のtagの開始から
+  最後のtagの終わりまでの範囲）、question token（`[x]`か`=`型の`@param`）、`@param`が一致したparameter、`this`
+  parameter（`@this`）、修飾子tag、cast（`as`／`satisfies`）、`@implements`、`@augments`を持つ。SourceFileのcellで遅延
+  計算し（TypeScriptファイルでは空）、表はBoxに入れる：SourceFileに直接持つと`tsc-rs-program`の
+  `config_parser_and_extends_graph_have_typed_depth_limits`（256段のextends）がdebug buildでstack overflowした。
+- binder（`hosted.rs`、新設）：reparseHostedの規則の移植（post-orderの走査、最後のcommentだけ、object literalの中の
+  修飾子tagの除外、`getFunctionLikeHost`、`findMatchingParameter`（名前か位置、binding patternは位置、reparseした
+  `this`を数える）、`gatherTypeParameters`（typedef／callbackのあるcommentでは無し）、`makeQuestionIfOptional`）。
+  `@template`の型parameterはhostされたときだけ束縛し（関数はlocals、classはmember、`@overload`のsignature）、hostの
+  無い`@template`は何も宣言しない。修飾子flagはhostされた修飾子tagから（`@deprecated`は従来どおり）、JSDocのcastの判定は
+  表から。`GetRightMostAssignedExpression`は複合代入も辿る。`@overload`はfunction／method／constructor（object literal
+  の外）のoverload宣言で、tag名の範囲を持つ（reparser.go:138-142、236-240）。
+- checker：
+  - `check_attached_jsdoc`は`@typedef`／`@callback`／`@import`と、reparseされる`@overload`のsignatureだけを検査する。
+    `@template`／`@type`／`@satisfies`／`@this`／accessibility tagの検査、`@type`のfunction型の検査、TS8028（`...`の
+    位置）を削除。hostされた型はhostで型注釈として検査される。
+  - FullSignature：`getSignatureOfFullSignatureType`（JavaScriptのfunction宣言・method・function式・arrow）、検査と
+    TS8030（`getContextualCallSignature`が無いとき）、`checkAllCodePathsInNonVoidFunctionReturnOrThrow`の報告位置
+    （型注釈、FullSignature、関数の順）。文脈signatureの型tagの近道とgetterの`@type`の腕を削除。
+  - `@param`：一致したparameterの型とoptional（TS1047／TS1051はtagの位置）。`checkUnmatchedJSDocParameters`はtsgoの
+    `getAllJSDocTags`（`GetNextJSDocCommentLocation`）で名前の無いtagを除き、名前の無い`@param`にTS1003は出さない。
+    `JSDocVariadicType`は常にarray型で、callback／overloadのsignatureの`...T`だけがTのrest parameter（TS2370）。
+    JavaScriptの合成`args` rest parameter（tsc 6.0の`maybeAddJsSyntheticRestParameter`）を削除。
+  - `@this`は`this` parameterとしてsignature・`this`の型・表示に入り、constructor（TS2681）、arrow（TS2730）、
+    accessor（TS2784）の報告はtag名の位置。`@template`は型parameterとして検査し、TS1092とTS6205の範囲はtagの範囲。
+  - 修飾子tag：`checkGrammarModifiers`は構文の修飾子の後にhostされた修飾子を並べ、reparseされた修飾子には「must
+    precede」の順序エラーを出さない。
+  - cast：括弧の`@type`と`return`文の`@type`は`as`、`@satisfies`は`satisfies`（文脈型、TS2352はreparseされた型の位置、
+    checker.go:12524-12527）。空配列literalの判定はJSDocのcastを外さない。
+  - `@implements`はclassのimplements型、`@augments`は`extends`要素の型引数（`heritage_type_arguments`、TS2344）。
+  - 名前解決：typedef／callback／importは最も近いSourceFile／Block／ModuleBlockの文の位置、`@param`／`@return`はhost
+    された関数の中、`@template`は関数の型parameterの位置として扱う。tsc 6.0の代入宣言からのJSDoc名前解決
+    （`resolveEntityNameFromAssignmentDeclaration`）を削除。
+  - その他：候補の無いcallはTS2346を出さずunknownSignature、`getConstructorsForTypeArguments`のJavaScript緩和の削除、
+    JavaScriptのobject literal memberの`@type`の代入検査、`@overload`の暗黙any（TS7010にhost名）とimplementationとして
+    のhost。隣接の差として、JavaScriptの非strictでの`undefined`／`unknown`／`any`引数の省略の緩和を削除し（tsgo
+    checker.go:9362-9372）、tsc 6.0の移植で欠けていた`new Promise()`のTS2810を足した。
+- 既知の制限：castは式ごとに1つ（tsgoは`@type`と`@satisfies`を入れ子にする）、reparseした`this`を型付ける`@param`は
+  未対応、宣言emit（`syntactic_type_node_builder`）はtsc 6.0のJSDoc探索のまま、`@overload`のsignatureからhostの型
+  parameterが見える、`Outer<any>.Inner`の表示（tsgoは`Outer.Inner`、従来からの差）。
+unit testはchecker 13件をtsgoの行に再pin（`tsc-19dadef8`、noLibのglobalsで照合：TS2728は`@property`の名前、`@satisfies`
+の重複・variadicの位置・未一致の`@param`・名前の無い`@param`は報告なし、`@type`の関数型の関係、TS2355の位置、
+`@type`の変数はasyncの戻り値注釈でない、外側の`@template`、parameterの型とsuggestion、非strictのJavaScriptの引数省略は
+TS2554）、tsgoの行にpinした新しいtest 4件（hostされたtagの検査6行、TS2810、binderの表の構造、TypeScriptでは空）を追加。
+- conformance：15,228 configuration、lane A 13,467（変化なし）、full 13,042→13,095（+53）、text 95→91、category 20→18、mismatch 266→219、harness error 44、emit full 12,415→12,416。上がったのは53構成（すべてfull、emitは`argumentsPropertyNameInJsMode2`も）：`@template`と型parameterの範囲（`jsdocOuterTypeParameters1`〜`3`、`jsdocTemplateClass`、`jsdocTemplateTag3`、`jsdocTypeParameterTagConflict`、`unusedTypeParameters_templateTag2`、`templateInsideCallback`、`callbackTag2`、`jsdocIllegalTags`、`classCanExtendConstructorFunction`）、`@param`（`jsdocParamTag2`、`jsdocParamTagNoName`、`jsdocPrefixPostfixParsing`、`typedefInnerNamepaths`、`paramTagWrapping`、`syntaxErrors`、`checkJsdocParamOnVariableDeclaredFunctionExpression`、`noParameterReassignmentIIFEAnnotated`、`jsFileFunctionParametersAsOptional2`、`jsdocRestParameter`、`callbackTagVariadicType`、`jsDeclarationsFunctions`、`jsDeclarationsReusesExistingTypeAnnotations`）、合成`args`の削除（`argumentsObjectCreatesRestForJs`、`argumentsPropertyNameInJsMode2`、`argumentsReferenceInFunction1_Js`、`paramTagOnFunctionUsingArguments`）、`@type`・FullSignature・cast（`checkJsdocTypeTag5`／`6`、`jsdocTypeTagFunctionTypePredicate`、`errorOnFunctionReturnType`、`asyncFunctionDeclaration16_es5`、`checkJsdocSatisfiesTag1`／`4`／`11`／`12`、`propertyAssignmentUseParentType2`、`jsDeclarationsMissingTypeParameters`）、修飾子tag（`jsdocReadonly`、`jsdocReadonlyDeclarations`）、`@overload`（`overloadTag1`、`jsFileMethodOverloads3`）、`@augments`の型引数（`superCallInJSWithWrongBaseTypeArgumentCount1`／`2`の4構成、`jsExtendsImplicitAny`）、`@this`（`thisTypeOfConstructorFunctions`）、tsc 6.0の名前解決の削除（`typeFromPropertyAssignment6`）、TS2346の削除（`interfaceMergeWithNonGenericTypeArguments`）、隣接の2件（`callWithMissingVoidUndefinedUnknownAnyInJs`の非strict、`jsPromiseNeedsJSDocHint`）。下がった構成はemitを含めて無い。ratchet：0 regressions、47行追加・6行raise（`intersectionConstructorReductionCrash`は従来どおり載せない）。localはsyntaxとその逆依存（binder、checker、compiler、conformance、emitter、harness、program）のclippyとtest（60 targets、3,515 passed）と`cargo xtask codegen diagnostics-check`、2 workerのfull run（791 s）で、workspace全体のtestとclippyはhostedの`rust` job。filterの段階では、JavaScriptを含む1,061 case（1,244構成）をP3-5nのreportとtierごとに比べ（emitを含めて下降0）、TypeScriptの`super`／`overload`のfilterも確かめた。最初のunit testで`tsc-rs-program`のdepth limitのtestがstack overflowし（`error: 1 target failed`、FAILEDの行は出ない）、表のBox化で直した。`--checkers 4`の並列対照は実行していない。
+- JSDocの残り（P3-5p）：Closureの`function(...)`型（TS1005）、単独の`?`、`!`の優先順位、`module:` namepath、`object`は
+  JavaScriptでもnonPrimitive、名前の欠落の報告、`@`がtagを始める条件とfenced code block、`@see`、`@import`のparse
+  （TS1141）、JSDocのimport型（TS1340／TS2694）。

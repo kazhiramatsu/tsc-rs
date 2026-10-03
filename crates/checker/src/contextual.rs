@@ -2498,6 +2498,17 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::BindingElement => {
                 self.get_contextual_type_for_initializer_expression(node, context_flags)
             }
+            // tsgo: the operand of the `as` cast its reparser makes of a
+            // JavaScript `/** @type {T} */ return expr` is contextually typed
+            // by T.
+            SyntaxKind::ReturnStatement if self.is_reparsed_return_assertion(node) => {
+                let cast = self.reparsed_cast(node).expect("tested above");
+                if self.is_const_type_reference_node(cast.type_node) {
+                    self.get_contextual_type_for_return_expression(node, context_flags)
+                } else {
+                    Ok(Some(self.get_type_from_type_node(cast.type_node)?))
+                }
+            }
             SyntaxKind::ArrowFunction | SyntaxKind::ReturnStatement => {
                 self.get_contextual_type_for_return_expression(node, context_flags)
             }
@@ -2572,30 +2583,15 @@ impl<'a> CheckerState<'a> {
                 self.get_contextual_type_for_substitution_expression(template, node)
             }
             SyntaxKind::ParenthesizedExpression => {
+                // tsgo: the operand of a JavaScript `/** @type {T} */ (expr)`
+                // or `/** @satisfies {T} */ (expr)` is the operand of the
+                // reparsed `as`/`satisfies` cast.
                 if self.is_in_js_file(parent) {
-                    let satisfies_type = self
-                        .first_jsdoc_tag(parent, SyntaxKind::JSDocSatisfiesTag)
-                        .and_then(|tag| match self.data_of(tag) {
-                            NodeData::JSDocSatisfiesTag(data) => {
-                                self.jsdoc_type_expression_type(data.type_expression)
-                            }
-                            _ => None,
-                        });
-                    if let Some(satisfies_type) = satisfies_type {
-                        return Ok(Some(self.get_type_from_type_node(satisfies_type)?));
-                    }
-                    let type_tag_type = self
-                        .first_jsdoc_tag(parent, SyntaxKind::JSDocTypeTag)
-                        .and_then(|tag| match self.data_of(tag) {
-                            NodeData::JSDocTypeTag(data) => {
-                                self.jsdoc_type_expression_type(data.type_expression)
-                            }
-                            _ => None,
-                        });
-                    if let Some(type_tag_type) =
-                        type_tag_type.filter(|&ty| !self.is_const_type_reference_node(ty))
-                    {
-                        return Ok(Some(self.get_type_from_type_node(type_tag_type)?));
+                    if let Some(cast) = self.reparsed_cast(node) {
+                        if !cast.is_assertion || !self.is_const_type_reference_node(cast.type_node)
+                        {
+                            return Ok(Some(self.get_type_from_type_node(cast.type_node)?));
+                        }
                     }
                 }
                 self.get_contextual_type(parent, context_flags)
@@ -3163,9 +3159,9 @@ impl<'a> CheckerState<'a> {
             self.kind_of(node) != SyntaxKind::MethodDeclaration
                 || self.is_object_literal_method(node)
         );
-        if let Some(signature) = self.get_signature_of_type_tag(node)? {
-            return Ok(Some(signature));
-        }
+        // tsgo (checker.go:10461-10490) has no `@type` arm here: a JavaScript
+        // function's FullSignature types its parameters directly
+        // (getParameterTypeOfFullSignature).
         let Some(ty) = self.get_apparent_type_of_contextual_type(node, ContextFlags::SIGNATURE)?
         else {
             return Ok(None);
@@ -3666,15 +3662,30 @@ impl<'a> CheckerState<'a> {
             NodeData::JSDocPropertyTag(data) => {
                 self.jsdoc_type_expression_type(data.type_expression)
             }
-            NodeData::JSDocParameterTag(data) => {
-                self.jsdoc_type_expression_type(data.type_expression)
-            }
+            // tsgo reparseJSDocSignature (reparser.go:184-198): a `@callback`
+            // or `@overload` parameter typed `...T` is a rest parameter of
+            // type T.
+            NodeData::JSDocParameterTag(data) => self
+                .jsdoc_type_expression_type(data.type_expression)
+                .map(|ty| match self.data_of(ty) {
+                    NodeData::JSDocVariadicType(variadic)
+                        if self.parent_of(declaration).is_some_and(|parent| {
+                            self.kind_of(parent) == SyntaxKind::JSDocSignature
+                        }) =>
+                    {
+                        variadic.r#type.unwrap_or(ty)
+                    }
+                    _ => ty,
+                }),
             _ => None,
         };
+        // tsgo node.Type(): a JavaScript declaration's type may be the one
+        // its reparser hosts from a `@type` or `@param` tag. (A function's
+        // `@type` is its FullSignature, not a type annotation.)
         if syntactic.is_some() || !self.is_in_js_file(declaration) {
             syntactic
         } else {
-            self.get_jsdoc_type(declaration)
+            self.reparsed_type_node(declaration)
         }
     }
 
@@ -3714,9 +3725,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 59a361ad1f8c3e47696f66ca558f78d32f511ea571477db96df219a130d55c5a
     /// tsc-span: _tsc.js:59842-59871
     ///
-    /// The constructor arm returns the class declared type; a getter's
-    /// JSDoc `@type` precedes its setter's annotated parameter, and the
-    /// tail reads a parser-owned JSDoc `@type` call signature.
+    /// The constructor arm returns the class declared type; the tail reads
+    /// a JavaScript function's `@type` signature (tsgo
+    /// getReturnTypeOfFullSignature).
     pub(crate) fn get_return_type_from_annotation(
         &mut self,
         declaration: NodeId,
@@ -3774,16 +3785,11 @@ impl<'a> CheckerState<'a> {
         if let Some(type_node) = type_node {
             return Ok(Some(self.get_type_from_type_node(type_node)?));
         }
+        // (A JavaScript getter's `@type` is its reparsed return type, read
+        // above as `declaration.Type()`.)
         if self.kind_of(declaration) == SyntaxKind::GetAccessor
             && self.has_bindable_name(declaration)?
         {
-            if self.is_in_js_file(declaration) {
-                if let Some(jsdoc_type) =
-                    self.get_type_for_declaration_from_jsdoc_comment(declaration)?
-                {
-                    return Ok(Some(jsdoc_type));
-                }
-            }
             let symbol = self.get_symbol_of_declaration(declaration)?;
             let setter = self
                 .binder

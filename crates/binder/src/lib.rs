@@ -5,6 +5,7 @@ pub mod bind;
 pub mod containers;
 pub mod declare;
 pub mod flow;
+pub mod hosted;
 pub mod node_util;
 pub mod symbols;
 
@@ -16,6 +17,7 @@ pub use assignment::{
     AssignmentDeclarationKind,
 };
 pub use declare::{BindData, Binder, BinderMemory, BinderWorker, TableRef};
+pub use hosted::jsdoc_hosted;
 pub use symbols::{
     escape_leading_underscores, unescape_leading_underscores, Declarations, InternalSymbolName,
     NameKey, Symbol, SymbolArena, SymbolArenaExhausted, SymbolExtras, SymbolId, SymbolTable,

@@ -10533,6 +10533,7 @@ fn parse_source_file_from_snapshot_worker(
         has_jsx_runtime_pragma: finished.has_jsx_runtime_pragma,
         jsx_runtime_pragma: finished.jsx_runtime_pragma,
         comment_directives: finished.comment_directives,
+        jsdoc_hosted: crate::JsDocHostedCell::default(),
     };
     (source, incremental_stats)
 }
@@ -10676,6 +10677,7 @@ pub fn parse_json_text_from_snapshot_with_bases(
         has_jsx_runtime_pragma: finished.has_jsx_runtime_pragma,
         jsx_runtime_pragma: finished.jsx_runtime_pragma,
         comment_directives: finished.comment_directives,
+        jsdoc_hosted: crate::JsDocHostedCell::default(),
     }
 }
 

@@ -360,6 +360,8 @@ pub fn get_element_or_property_access_name(
     }
 }
 
+/// tsgo-port: ast.GetRightMostAssignedExpression @7.1 (ast/utilities.go:125-130):
+/// compound assignments (`??=`, `+=`, …) are followed too.
 pub fn get_right_most_assigned_expression(source: &SourceFile, mut node: NodeId) -> NodeId {
     loop {
         let NodeData::BinaryExpression(data) = &source.arena.node(node).data else {
@@ -367,7 +369,7 @@ pub fn get_right_most_assigned_expression(source: &SourceFile, mut node: NodeId)
         };
         let is_assignment = data
             .operator_token
-            .is_some_and(|token| kind_of(source, token) == SyntaxKind::EqualsToken)
+            .is_some_and(|token| crate::node_util::is_assignment_operator(kind_of(source, token)))
             && data
                 .left
                 .is_some_and(|left| is_left_hand_side_expression(source, left));

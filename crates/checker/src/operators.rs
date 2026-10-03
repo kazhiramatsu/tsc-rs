@@ -2438,6 +2438,15 @@ impl<'a> CheckerState<'a> {
             NodeData::ParenthesizedExpression(data) => {
                 (self.jsdoc_type_assertion_type_node(node), data.expression)
             }
+            // The `as` cast of a JavaScript `/** @type {T} */ return expr`.
+            NodeData::ReturnStatement(data) => (
+                data.expression.and_then(|expression| {
+                    self.reparsed_cast(expression)
+                        .filter(|cast| cast.is_assertion)
+                        .map(|cast| cast.type_node)
+                }),
+                data.expression,
+            ),
             _ => (None, None),
         };
         match (type_node, expression) {
@@ -2471,10 +2480,11 @@ impl<'a> CheckerState<'a> {
         let Some((type_node, _)) = self.assertion_type_and_expression(node) else {
             return Ok(());
         };
-        let err_node = if self.kind_of(node) == SyntaxKind::ParenthesizedExpression {
-            type_node
-        } else {
-            node
+        // A JSDoc cast is reparsed in tsgo, which reports at its (reparsed)
+        // type node (checker.go:12524-12527).
+        let err_node = match self.data_of(node) {
+            NodeData::ParenthesizedExpression(_) | NodeData::ReturnStatement(_) => type_node,
+            _ => node,
         };
         let stashed = self
             .links

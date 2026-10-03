@@ -1104,7 +1104,7 @@ fn try_get_this_parameter_declaration(
         .declaration
         .filter(|&declaration| checker.is_in_js_file(declaration))
     {
-        if let Some(this_tag) = checker.first_jsdoc_tag(declaration, SyntaxKind::JSDocThisTag) {
+        if let Some(this_tag) = checker.reparsed_this_tag(declaration) {
             if let NodeData::JSDocThisTag(data) = checker.data_of(this_tag) {
                 if let Some(type_expression) = data.type_expression {
                     let this_type = checker

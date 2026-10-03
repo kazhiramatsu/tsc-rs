@@ -5400,11 +5400,11 @@ fn checked_js_publishes_jsdoc_satisfies_object_literal_property_reads() {
 
 #[test]
 fn checked_js_valid_template_nested_prototype_read_is_parse_all_crash_guard() {
-    // TypeScript 6.0.3 with ParseAll crashes in
-    // typeToString -> lookupSymbolChainWorker while trying to
-    // format the otherwise expected 2339 for `missing`. Keep this
-    // fixture as a crash-free valid-JSDoc guard; the non-crashing
-    // oracle face for the prototype read is pinned separately.
+    // tsgo (TypeScript 7.1 at 19dadef8) reports the 2339 for `missing`
+    // (TypeScript 6.0.3 with ParseAll crashed formatting it). tsgo prints
+    // the type as 'Outer.Inner'; tsc-rs prints 'Outer<any>.Inner' for a
+    // class nested in a generic class's method in TypeScript files too (a
+    // node-builder difference outside the JSDoc reparse).
     let source = "/** @template T */\n\
                       class Outer {\n\
                         method() {\n\
@@ -5438,13 +5438,21 @@ fn checked_js_valid_template_nested_prototype_read_is_parse_all_crash_guard() {
                     .expect("scalar diagnostic observation"),
             ))
             .collect::<Vec<_>>(),
-        [(
-            6196,
-            source.find("@template T").expect("unused template tag") as u32
-                + "@template ".len() as u32,
-            1,
-            "'T' is declared but never used.",
-        )]
+        [
+            (
+                6196,
+                source.find("@template T").expect("unused template tag") as u32
+                    + "@template ".len() as u32,
+                1,
+                "'T' is declared but never used.",
+            ),
+            (
+                2339,
+                source.find("missing").expect("prototype read") as u32,
+                "missing".len() as u32,
+                "Property 'missing' does not exist on type 'Outer<any>.Inner'.",
+            ),
+        ]
     );
     assert!(
         result.partial_checks.is_empty(),
@@ -5493,6 +5501,13 @@ fn checked_js_outer_template_display_crash_does_not_stop_later_errors() {
                 source.find("@template T").expect("unused template tag") as u32
                     + "@template ".len() as u32,
                 1,
+            ),
+            // tsgo reports the nested prototype read too (see the guard
+            // above for its display).
+            (
+                2339,
+                source.find("missing").expect("prototype read") as u32,
+                "missing".len() as u32,
             ),
             (
                 2339,

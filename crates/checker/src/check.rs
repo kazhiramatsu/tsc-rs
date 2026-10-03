@@ -706,8 +706,28 @@ impl<'a> CheckerState<'a> {
         let mut flags = ModifierFlags::from_bits(0);
         let mut has_leading_decorators = false;
         let mut saw_export_before_decorators = false;
-        for &modifier in &modifiers {
-            let modifier_kind = self.kind_of(modifier);
+        // tsgo's reparser appends the modifiers of a JavaScript member's
+        // `@readonly`/`@private`/`@public`/`@protected`/`@override` tags to
+        // the written ones, each spanning its tag (reparser.go:525-566); the
+        // order rules do not apply to them.
+        let mut entries: Vec<(NodeId, SyntaxKind, bool)> = modifiers
+            .iter()
+            .map(|&modifier| (modifier, self.kind_of(modifier), false))
+            .collect();
+        if self.is_in_js_file(node) {
+            for &tag in self.reparsed_modifier_tags(node) {
+                let keyword = match self.kind_of(tag) {
+                    SyntaxKind::JSDocReadonlyTag => SyntaxKind::ReadonlyKeyword,
+                    SyntaxKind::JSDocPrivateTag => SyntaxKind::PrivateKeyword,
+                    SyntaxKind::JSDocPublicTag => SyntaxKind::PublicKeyword,
+                    SyntaxKind::JSDocProtectedTag => SyntaxKind::ProtectedKeyword,
+                    SyntaxKind::JSDocOverrideTag => SyntaxKind::OverrideKeyword,
+                    _ => continue,
+                };
+                entries.push((tag, keyword, true));
+            }
+        }
+        for (modifier, modifier_kind, reparsed) in entries {
             if modifier_kind == SyntaxKind::Decorator {
                 let grandparent = parent.and_then(|parent| self.parent_of(parent));
                 if !self.node_can_be_decorated(
@@ -846,9 +866,14 @@ impl<'a> CheckerState<'a> {
                             &["const"],
                         );
                     }
+                    // tsgo: a reparsed `@template` type parameter's parent is
+                    // the typedef/callback alias or the function or class it
+                    // is hosted on.
                     let effective_parent = if parent_kind == Some(SyntaxKind::JSDocTemplateTag) {
                         parent
-                            .and_then(|parent| self.get_effective_jsdoc_host(parent))
+                            .and_then(|parent| {
+                                self.effective_container_for_jsdoc_template_tag(parent)
+                            })
                             .or(parent)
                     } else {
                         parent
@@ -893,19 +918,19 @@ impl<'a> CheckerState<'a> {
                             &diagnostics::_0_modifier_cannot_be_used_with_1_modifier,
                             &["override", "declare"],
                         );
-                    } else if flags.intersects(ModifierFlags::READONLY) {
+                    } else if flags.intersects(ModifierFlags::READONLY) && !reparsed {
                         return self.grammar_error_on_node(
                             modifier,
                             &diagnostics::_0_modifier_must_precede_1_modifier,
                             &["override", "readonly"],
                         );
-                    } else if flags.intersects(ModifierFlags::ACCESSOR) {
+                    } else if flags.intersects(ModifierFlags::ACCESSOR) && !reparsed {
                         return self.grammar_error_on_node(
                             modifier,
                             &diagnostics::_0_modifier_must_precede_1_modifier,
                             &["override", "accessor"],
                         );
-                    } else if flags.intersects(ModifierFlags::ASYNC) {
+                    } else if flags.intersects(ModifierFlags::ASYNC) && !reparsed {
                         return self.grammar_error_on_node(
                             modifier,
                             &diagnostics::_0_modifier_must_precede_1_modifier,
@@ -924,31 +949,31 @@ impl<'a> CheckerState<'a> {
                             &diagnostics::Accessibility_modifier_already_seen,
                             &[],
                         );
-                    } else if flags.intersects(ModifierFlags::OVERRIDE) {
+                    } else if flags.intersects(ModifierFlags::OVERRIDE) && !reparsed {
                         return self.grammar_error_on_node(
                             modifier,
                             &diagnostics::_0_modifier_must_precede_1_modifier,
                             &[modifier_text, "override"],
                         );
-                    } else if flags.intersects(ModifierFlags::STATIC) {
+                    } else if flags.intersects(ModifierFlags::STATIC) && !reparsed {
                         return self.grammar_error_on_node(
                             modifier,
                             &diagnostics::_0_modifier_must_precede_1_modifier,
                             &[modifier_text, "static"],
                         );
-                    } else if flags.intersects(ModifierFlags::ACCESSOR) {
+                    } else if flags.intersects(ModifierFlags::ACCESSOR) && !reparsed {
                         return self.grammar_error_on_node(
                             modifier,
                             &diagnostics::_0_modifier_must_precede_1_modifier,
                             &[modifier_text, "accessor"],
                         );
-                    } else if flags.intersects(ModifierFlags::READONLY) {
+                    } else if flags.intersects(ModifierFlags::READONLY) && !reparsed {
                         return self.grammar_error_on_node(
                             modifier,
                             &diagnostics::_0_modifier_must_precede_1_modifier,
                             &[modifier_text, "readonly"],
                         );
-                    } else if flags.intersects(ModifierFlags::ASYNC) {
+                    } else if flags.intersects(ModifierFlags::ASYNC) && !reparsed {
                         return self.grammar_error_on_node(
                             modifier,
                             &diagnostics::_0_modifier_must_precede_1_modifier,
@@ -965,7 +990,9 @@ impl<'a> CheckerState<'a> {
                             &[modifier_text],
                         );
                     }
-                    if flags.intersects(ModifierFlags::ABSTRACT) {
+                    if flags.intersects(ModifierFlags::ABSTRACT)
+                        && (modifier_kind == SyntaxKind::PrivateKeyword || !reparsed)
+                    {
                         return self.grammar_error_on_node(
                             modifier,
                             if modifier_kind == SyntaxKind::PrivateKeyword {
@@ -1407,22 +1434,13 @@ impl<'a> CheckerState<'a> {
                     } else {
                         ModifierFlags::OUT
                     };
-                    // JSDoc template parameters are governed by their
-                    // effective host. With no host, a sibling typedef
-                    // tag is the type-alias container.
+                    // tsgo: a reparsed `@template` type parameter's parent is
+                    // the typedef/callback alias or the function or class it
+                    // is hosted on.
                     let effective_parent = if parent_kind == Some(SyntaxKind::JSDocTemplateTag) {
                         parent
                             .and_then(|template| {
-                                self.get_effective_jsdoc_host(template).or_else(|| {
-                                    self.parent_of(template).and_then(|document| {
-                                        let NodeData::JSDoc(data) = self.data_of(document) else {
-                                            return None;
-                                        };
-                                        self.nodes_of(data.tags).into_iter().find(|&tag| {
-                                            self.kind_of(tag) == SyntaxKind::JSDocTypedefTag
-                                        })
-                                    })
-                                })
+                                self.effective_container_for_jsdoc_template_tag(template)
                             })
                             .or(parent)
                     } else {
@@ -1440,6 +1458,7 @@ impl<'a> CheckerState<'a> {
                                     | SyntaxKind::ClassExpression
                                     | SyntaxKind::TypeAliasDeclaration
                                     | SyntaxKind::JSDocTypedefTag
+                                    | SyntaxKind::JSDocCallbackTag
                             )
                         })
                     {
@@ -1557,6 +1576,11 @@ impl<'a> CheckerState<'a> {
     fn report_obvious_modifier_errors(&mut self, node: NodeId) -> Option<bool> {
         let source = self.binder.source_of_node(node);
         let Some(modifiers) = node_util::modifiers_of(source, node) else {
+            // tsgo `node.Modifiers() == nil`: reparsed JavaScript modifiers
+            // count (they only occur where modifiers are legal).
+            if self.is_in_js_file(node) && !self.reparsed_modifier_tags(node).is_empty() {
+                return None;
+            }
             return Some(false);
         };
         let modifiers = self.binder.node_array(modifiers).nodes.to_vec();
@@ -1996,14 +2020,15 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocCallbackTag => {
                 self.check_jsdoc_type_alias_tag(node)
             }
-            SyntaxKind::JSDocTemplateTag => self.check_jsdoc_template_tag(node),
-            SyntaxKind::JSDocTypeTag => self.check_jsdoc_type_tag(node),
             SyntaxKind::JSDocLink | SyntaxKind::JSDocLinkCode | SyntaxKind::JSDocLinkPlain => {
                 self.check_jsdoc_link_like_tag(node)
             }
             SyntaxKind::JSDocParameterTag | SyntaxKind::JSDocPropertyTag => {
                 self.check_jsdoc_property_like_tag(node)
             }
+            // tsgo reparses a `@callback` signature into a function type of
+            // the alias (reparser.go:146-242), checked as a signature.
+            SyntaxKind::JSDocSignature => self.check_signature_declaration(node),
             SyntaxKind::JSDocFunctionType => {
                 self.check_jsdoc_function_type(node)?;
                 self.check_jsdoc_type_is_in_js_file(node)?;
@@ -2027,7 +2052,9 @@ impl<'a> CheckerState<'a> {
                 self.check_source_element_children(node);
                 Ok(())
             }
-            SyntaxKind::JSDocVariadicType => self.check_jsdoc_variadic_type(node),
+            // tsgo checks no `...T` node (checkSourceElementWorker has no
+            // JSDocVariadicType arm).
+            SyntaxKind::JSDocVariadicType => Ok(()),
             SyntaxKind::JSDocTypeExpression => {
                 let NodeData::JSDocTypeExpression(data) = self.data_of(node) else {
                     unreachable!("kind/data agree");
@@ -2035,11 +2062,6 @@ impl<'a> CheckerState<'a> {
                 self.check_source_element(data.r#type);
                 Ok(())
             }
-            SyntaxKind::JSDocPublicTag
-            | SyntaxKind::JSDocProtectedTag
-            | SyntaxKind::JSDocPrivateTag => self.check_jsdoc_accessibility_modifier(node),
-            SyntaxKind::JSDocSatisfiesTag => self.check_jsdoc_satisfies_tag(node),
-            SyntaxKind::JSDocThisTag => self.check_jsdoc_this_tag(node),
             SyntaxKind::JSDocImportTag => self.check_jsdoc_import_tag(node),
             SyntaxKind::IndexedAccessType => self.check_indexed_access_type(node),
             SyntaxKind::MappedType => self.check_mapped_type(node),
@@ -2103,8 +2125,28 @@ impl<'a> CheckerState<'a> {
             };
             for tag in tags {
                 self.check_jsdoc_comment_links(tag);
-                if in_js_file {
+                // tsgo checks no JSDoc tag (checker.go checkSourceElementWorker
+                // checks comments only). What its reparser made of the tags is
+                // checked as ordinary syntax: a `@typedef`/`@callback` is a type
+                // alias statement and an `@import` an import declaration, and a
+                // hosted tag's type is checked at the declaration it annotates.
+                if in_js_file
+                    && matches!(
+                        self.kind_of(tag),
+                        SyntaxKind::JSDocTypedefTag
+                            | SyntaxKind::JSDocCallbackTag
+                            | SyntaxKind::JSDocImportTag
+                    )
+                {
                     self.check_source_element(Some(tag));
+                }
+                // An `@overload` of a function, method or constructor outside
+                // an object literal is reparsed into an overload declaration
+                // (reparser.go:138-142), checked as a signature.
+                if in_js_file && self.is_reparsed_overload_tag(tag) {
+                    if let NodeData::JSDocOverloadTag(data) = self.data_of(tag) {
+                        self.check_source_element(data.type_expression);
+                    }
                 }
             }
         }
@@ -2167,62 +2209,6 @@ impl<'a> CheckerState<'a> {
         self.check_type_parameters(&type_parameters)?;
         self.check_source_element(type_expression);
         self.register_for_unused_identifiers_check(node);
-        Ok(())
-    }
-
-    /// tsc-port: checkJSDocTemplateTag @6.0.3.
-    /// tsc-hash: ded4243dfc2699c2c1344c2f1c8bc4df304f588dac1493cd4ebec82e76b568ef
-    /// tsc-span: _tsc.js:82802-82807
-    fn check_jsdoc_template_tag(&mut self, node: NodeId) -> CheckResult<()> {
-        let NodeData::JSDocTemplateTag(data) = self.data_of(node) else {
-            unreachable!("kind/data agree");
-        };
-        let constraint = data.constraint;
-        let type_parameters = self.nodes_of(data.type_parameters);
-        self.check_source_element(constraint);
-        for type_parameter in type_parameters {
-            self.check_source_element(Some(type_parameter));
-        }
-        Ok(())
-    }
-
-    /// tsc-port: checkJSDocTypeTag @6.0.3.
-    /// tsc-hash: 2e202c0bf55e29a7ac3d3d5a8e96aef15064b356c66ee9bd8065012026e4ceae
-    /// tsc-span: _tsc.js:82808-82810
-    fn check_jsdoc_type_tag(&mut self, node: NodeId) -> CheckResult<()> {
-        let NodeData::JSDocTypeTag(data) = self.data_of(node) else {
-            unreachable!("kind/data agree");
-        };
-        self.check_source_element(data.type_expression);
-        Ok(())
-    }
-
-    /// tsc-port: checkJSDocSatisfiesTag @6.0.3.
-    /// tsc-hash: 06ba243cd86ac0b5ccf0af74f1537067992744abd80f186d85d8ae427648070a
-    /// tsc-span: _tsc.js:82811-82823
-    fn check_jsdoc_satisfies_tag(&mut self, node: NodeId) -> CheckResult<()> {
-        let NodeData::JSDocSatisfiesTag(data) = self.data_of(node) else {
-            unreachable!("kind/data agree");
-        };
-        self.check_source_element(data.type_expression);
-        if let Some(host) = self.get_effective_jsdoc_host(node) {
-            let tags = self.all_jsdoc_tags(host, SyntaxKind::JSDocSatisfiesTag);
-            for duplicate in tags.into_iter().skip(1) {
-                let tag_name = match self.data_of(duplicate) {
-                    NodeData::JSDocSatisfiesTag(data) => data.tag_name,
-                    _ => None,
-                };
-                let text = tag_name
-                    .and_then(|name| self.identifier_text_of(name))
-                    .unwrap_or("satisfies")
-                    .to_owned();
-                self.error_at(
-                    tag_name.or(Some(duplicate)),
-                    &diagnostics::_0_tag_already_specified,
-                    &[&text],
-                );
-            }
-        }
         Ok(())
     }
 
@@ -2353,27 +2339,6 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
-    /// tsc-port: checkJSDocThisTag @6.0.3.
-    /// tsc-hash: 18946feb0425c704efe0833f43e6929eb2f252e20d79493b13c4671207604afa
-    /// tsc-span: _tsc.js:82848-82853
-    fn check_jsdoc_this_tag(&mut self, node: NodeId) -> CheckResult<()> {
-        if self
-            .get_effective_jsdoc_host(node)
-            .is_some_and(|host| self.kind_of(host) == SyntaxKind::ArrowFunction)
-        {
-            let tag_name = match self.data_of(node) {
-                NodeData::JSDocThisTag(data) => data.tag_name,
-                _ => None,
-            };
-            self.error_at(
-                tag_name.or(Some(node)),
-                &diagnostics::An_arrow_function_cannot_have_a_this_parameter,
-                &[],
-            );
-        }
-        Ok(())
-    }
-
     /// tsc-port: checkJSDocImportTag @6.0.3.
     /// tsc-hash: d5bedc1e5d403ebe956b54ea38ea0d9ab0726319180f4e24c61b1422882e258c
     /// tsc-span: _tsc.js:82854-82856
@@ -2451,96 +2416,6 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsc-port: checkJSDocAccessibilityModifiers @6.0.3.
-    /// tsc-hash: 8f6c5add520fd318d80853065eedd5d538e71dc176a67afd17360c3686578e9d
-    /// tsc-span: _tsc.js:82883-82888
-    fn check_jsdoc_accessibility_modifier(&mut self, node: NodeId) -> CheckResult<()> {
-        if let Some(host) = self.get_jsdoc_host(node) {
-            let private_identifier_class_element = matches!(
-                self.kind_of(host),
-                SyntaxKind::PropertyDeclaration
-                    | SyntaxKind::MethodDeclaration
-                    | SyntaxKind::GetAccessor
-                    | SyntaxKind::SetAccessor
-            ) && self
-                .name_of_node(host)
-                .is_some_and(|name| self.kind_of(name) == SyntaxKind::PrivateIdentifier);
-            if private_identifier_class_element {
-                self.error_at(
-                    Some(node),
-                    &diagnostics::An_accessibility_modifier_cannot_be_used_with_a_private_identifier,
-                    &[],
-                );
-            }
-        }
-        Ok(())
-    }
-
-    /// tsc-port: checkJSDocVariadicType @6.0.3.
-    /// tsc-hash: 80b3b4021eb1511dec9f975d4cf804983d70c8578727f1c38bf3b5b29948ed53
-    /// tsc-span: _tsc.js:86852-86878
-    fn check_jsdoc_variadic_type(&mut self, node: NodeId) -> CheckResult<()> {
-        self.check_jsdoc_type_is_in_js_file(node)?;
-        let NodeData::JSDocVariadicType(data) = self.data_of(node) else {
-            unreachable!("kind/data agree");
-        };
-        self.check_source_element(data.r#type);
-        let Some(parent) = self.parent_of(node) else {
-            return Ok(());
-        };
-        if self.kind_of(parent) == SyntaxKind::Parameter {
-            if let Some(function) = self.parent_of(parent) {
-                if self.kind_of(function) == SyntaxKind::JSDocFunctionType {
-                    if self.parameters_of_function(function).last().copied() != Some(parent) {
-                        self.error_at(
-                            Some(node),
-                            &diagnostics::A_rest_parameter_must_be_last_in_a_parameter_list,
-                            &[],
-                        );
-                    }
-                    return Ok(());
-                }
-            }
-        }
-        if self.kind_of(parent) != SyntaxKind::JSDocTypeExpression {
-            self.error_at(
-                Some(node),
-                &diagnostics::JSDoc_may_only_appear_in_the_last_parameter_of_a_signature,
-                &[],
-            );
-        }
-        let parameter_tag = self.parent_of(parent);
-        if !parameter_tag.is_some_and(|parameter_tag| {
-            self.kind_of(parameter_tag) == SyntaxKind::JSDocParameterTag
-        }) {
-            self.error_at(
-                Some(node),
-                &diagnostics::JSDoc_may_only_appear_in_the_last_parameter_of_a_signature,
-                &[],
-            );
-            return Ok(());
-        }
-        let parameter_tag = parameter_tag.expect("tested Some above");
-        let Some(parameter_symbol) = self.parameter_symbol_from_jsdoc(parameter_tag) else {
-            return Ok(());
-        };
-        let Some(host) = self.get_host_signature_from_jsdoc(parameter_tag) else {
-            return Ok(());
-        };
-        let last_symbol = self
-            .parameters_of_function(host)
-            .last()
-            .and_then(|&parameter| self.node_symbol(parameter));
-        if last_symbol != Some(parameter_symbol) {
-            self.error_at(
-                Some(node),
-                &diagnostics::A_rest_parameter_must_be_last_in_a_parameter_list,
-                &[],
-            );
-        }
-        Ok(())
-    }
-
     /// tsc-port: checkJSDocTypeIsInJsFile @6.0.3
     /// tsc-hash: 7444e9c93db2af328f6a313bfe8c6d8316b03b06017c82d42c38603ad1b52440
     /// tsc-span: _tsc.js:86832-86851
@@ -2602,14 +2477,20 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
-    /// tsc-port: checkUnmatchedJSDocParameters @6.0.3
-    /// tsc-hash: 24e986c3a0401df91b37f56fe493d3f88ba77f96fda7b6f3d48bc970c597b49c
-    /// tsc-span: _tsc.js:84792-84829
+    /// tsgo-port: checkUnmatchedJSDocParameters @7.1 (checker/jsdoc.go:9-84):
+    /// the `@param` tags come from tsgo's getAllJSDocTags walk, and a tag
+    /// without a name is skipped.
     pub(crate) fn check_unmatched_jsdoc_parameters(&mut self, node: NodeId) -> CheckResult<()> {
         let jsdoc_parameters: Vec<NodeId> = self
-            .get_jsdoc_tags(node)
+            .all_jsdoc_tags_tsgo(node)
             .into_iter()
-            .filter(|&tag| self.kind_of(tag) == SyntaxKind::JSDocParameterTag)
+            .filter(|&tag| match self.data_of(tag) {
+                NodeData::JSDocParameterTag(data) => !data.name.is_some_and(|name| {
+                    self.kind_of(name) == SyntaxKind::Identifier
+                        && self.identifier_text_of(name).is_some_and(str::is_empty)
+                }),
+                _ => false,
+            })
             .collect();
         if jsdoc_parameters.is_empty() {
             return Ok(());
@@ -2894,7 +2775,10 @@ impl<'a> CheckerState<'a> {
         let NodeData::TypeParameter(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
-        let (name, constraint, default) = (data.name, data.constraint, data.r#default);
+        let (name, default) = (data.name, data.r#default);
+        // A `@template {C} T` constraint belongs to its tag's first type
+        // parameter (tsgo's reparser gives it to that one).
+        let constraint = self.effective_constraint_of_type_parameter_node(node);
         self.check_source_element(constraint);
         self.check_source_element(default);
         let symbol = self.get_symbol_of_declaration(node)?;
@@ -3212,7 +3096,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn check_type_reference_node(&mut self, node: NodeId) -> CheckResult<()> {
         let (type_name, type_arguments) = match self.data_of(node) {
             NodeData::TypeReference(data) => (data.type_name, data.type_arguments),
-            NodeData::ExpressionWithTypeArguments(data) => (None, data.type_arguments),
+            NodeData::ExpressionWithTypeArguments(_) => (None, self.heritage_type_arguments(node)),
             _ => unreachable!("kind/data agree"),
         };
         self.check_grammar_type_arguments(node, type_arguments);
@@ -3445,7 +3329,7 @@ impl<'a> CheckerState<'a> {
         let type_argument_nodes = match self.data_of(node) {
             NodeData::TypeReference(data) => data.type_arguments,
             NodeData::ImportType(data) => data.type_arguments,
-            NodeData::ExpressionWithTypeArguments(data) => data.type_arguments,
+            NodeData::ExpressionWithTypeArguments(_) => self.heritage_type_arguments(node),
             _ => unreachable!("TypeReference/ImportType/heritage route here"),
         };
         let argument_nodes = self.nodes_of(type_argument_nodes);
@@ -4318,7 +4202,8 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::JsxElement => self.check_jsx_element_deferred(node),
             SyntaxKind::TypeAssertionExpression
             | SyntaxKind::AsExpression
-            | SyntaxKind::ParenthesizedExpression => self.check_assertion_deferred(node),
+            | SyntaxKind::ParenthesizedExpression
+            | SyntaxKind::ReturnStatement => self.check_assertion_deferred(node),
             SyntaxKind::VoidExpression => {
                 // checkDeferredNode's void arm (86957): checkExpression
                 // of the operand — registration is live from 5.5a
@@ -9686,7 +9571,7 @@ impl<'a> CheckerState<'a> {
         } else if let Some(declaration) =
             declaration.filter(|&declaration| self.is_in_js_file(declaration))
         {
-            if let Some(this_tag) = self.first_jsdoc_tag(declaration, SyntaxKind::JSDocThisTag) {
+            if let Some(this_tag) = self.reparsed_this_tag(declaration) {
                 if let NodeData::JSDocThisTag(data) = self.data_of(this_tag) {
                     if let Some(type_expression) = data.type_expression {
                         let ty = self.get_type_from_type_node(type_expression)?;

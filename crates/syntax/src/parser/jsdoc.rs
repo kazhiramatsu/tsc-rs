@@ -743,8 +743,13 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         Some(name)
     }
 
-    fn parse_jsdoc_entity_name(&mut self) -> NodeId {
-        let mut entity = self.parse_identifier_name(None);
+    fn parse_jsdoc_entity_name(&mut self, missing_is_silent: bool) -> NodeId {
+        let mut entity = if missing_is_silent && !token_is_identifier_or_keyword(self.token()) {
+            self.parser
+                .create_missing_node(SyntaxKind::Identifier, false, None, &[])
+        } else {
+            self.parse_identifier_name(None)
+        };
         let pos = self.parser.arena.node(entity).pos as usize;
         if self.parser.parse_optional(SyntaxKind::OpenBracketToken) {
             self.parser
@@ -932,13 +937,16 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         )
     }
 
-    fn parse_bracket_name_in_property_and_param_tag(&mut self) -> (NodeId, bool) {
+    fn parse_bracket_name_in_property_and_param_tag(&mut self, target: u8) -> (NodeId, bool) {
         let is_bracketed = self.parse_optional(SyntaxKind::OpenBracketToken);
         if is_bracketed {
             self.skip_whitespace();
         }
         let is_backquoted = self.parse_optional(SyntaxKind::BacktickToken);
-        let name = self.parse_jsdoc_entity_name();
+        // tsgo parseBracketNameInPropertyAndParamTag (TypeScript 7.1,
+        // parser/jsdoc.go:793-815): a `@param` without a name is no error (its
+        // reparse matches the parameter at the tag's position instead).
+        let name = self.parse_jsdoc_entity_name(target == TARGET_PARAMETER);
         if is_backquoted && !self.parse_optional(SyntaxKind::BacktickToken) {
             let _ = self.parser.create_missing_node(
                 SyntaxKind::BacktickToken,
@@ -993,7 +1001,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         let mut type_expression = self.try_parse_type_expression();
         let mut is_name_first = type_expression.is_none();
         self.skip_whitespace_or_asterisk();
-        let (name, is_bracketed) = self.parse_bracket_name_in_property_and_param_tag();
+        let (name, is_bracketed) = self.parse_bracket_name_in_property_and_param_tag(target);
         let indent_text = self.skip_whitespace_or_asterisk();
         if is_name_first && !self.look_ahead_jsdoc_link_prefix() {
             type_expression = self.try_parse_type_expression();

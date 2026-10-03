@@ -689,15 +689,33 @@ impl<'a> CheckerState<'a> {
                 );
                 return Ok(());
             }
+            // tsgo reparses an `@overload` into a body-less declaration of its
+            // function or method spanning the tag's name (reparser.go:236-240),
+            // so a missing `@return` is the declaration's TS7010.
             SyntaxKind::JSDocSignature => {
                 if no_implicit_any {
                     if let Some(parent) = self.parent_of(declaration) {
                         if let NodeData::JSDocOverloadTag(data) = self.data_of(parent) {
-                            self.error_at_js(
-                                data.tag_name,
-                                &diagnostics::This_overload_implicitly_returns_the_type_0_because_it_lacks_a_return_type_annotation,
-                                &[(&type_as_string).into()],
-                            );
+                            let host = self
+                                .parent_of(parent)
+                                .and_then(|document| self.parent_of(document));
+                            let name = host
+                                .filter(|&host| {
+                                    matches!(
+                                        self.kind_of(host),
+                                        SyntaxKind::FunctionDeclaration
+                                            | SyntaxKind::MethodDeclaration
+                                    )
+                                })
+                                .and_then(|host| self.name_of_node(host));
+                            if let Some(name) = name {
+                                let name = self.declaration_name_display(name);
+                                self.error_at_js(
+                                    data.tag_name,
+                                    &diagnostics::_0_which_lacks_return_type_annotation_implicitly_has_an_1_return_type,
+                                    &[(&name).into(), (&type_as_string).into()],
+                                );
+                            }
                         }
                     }
                 }

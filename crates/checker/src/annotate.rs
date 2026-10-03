@@ -7,9 +7,9 @@ use tsc_binder::{node_util, InternalSymbolName, SymbolId};
 use tsc_diagnostics::{gen as diagnostics, DiagnosticCategory, JsStr, JsString};
 use tsc_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsc_types::{
-    CheckFlags, CheckMode, ConditionalRootData, ElementFlags, IntersectionFlags, LiteralValue,
-    MappedTypeData, MappedTypeModifiers, ModifierFlags, ObjectFlags, PseudoBigInt, SignatureFlags,
-    SymbolFlags, TupleTargetFlags, TypeData, TypeFlags, TypeId, UnionReduction,
+    CheckFlags, CheckMode, ConditionalRootData, ContextFlags, ElementFlags, IntersectionFlags,
+    LiteralValue, MappedTypeData, MappedTypeModifiers, ModifierFlags, ObjectFlags, PseudoBigInt,
+    SignatureFlags, SymbolFlags, TupleTargetFlags, TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
 use crate::evaluate::EvalValue;
@@ -68,19 +68,6 @@ impl<'a> CheckerState<'a> {
     pub fn get_type_from_type_node(&mut self, node: NodeId) -> CheckResult<TypeId> {
         let ty = self.get_type_from_type_node_worker(node)?;
         self.get_conditional_flow_type_of_type(ty, node)
-    }
-
-    /// tsc-port: getTypeForDeclarationFromJSDocComment @6.0.3
-    /// tsc-hash: 88eb96572389bf7515545baa23aeb869a95d98ea705e2324e3ef297786f6afbd
-    /// tsc-span: _tsc.js:56006-56011
-    pub(crate) fn get_type_for_declaration_from_jsdoc_comment(
-        &mut self,
-        declaration: NodeId,
-    ) -> CheckResult<Option<TypeId>> {
-        match self.get_jsdoc_type(declaration) {
-            Some(jsdoc_type) => Ok(Some(self.get_type_from_type_node(jsdoc_type)?)),
-            None => Ok(None),
-        }
     }
 
     /// tsc-port: getConditionalFlowTypeOfType @6.0.3
@@ -312,63 +299,16 @@ impl<'a> CheckerState<'a> {
                 self.get_type_from_type_node(inner)
             }
             SyntaxKind::RestType => self.get_type_from_rest_type_node(node),
+            // tsgo getTypeFromTypeNodeWorker (checker.go:23244-23245): `...T`
+            // is always `T[]` (a reparsed callback parameter takes the element
+            // type and a rest token instead).
             SyntaxKind::JSDocVariadicType => {
                 let NodeData::JSDocVariadicType(data) = self.data_of(node) else {
                     unreachable!("JSDocVariadicType kind implies payload");
                 };
                 let inner = data.r#type.expect("JSDoc variadic operand");
                 let ty = self.get_type_from_type_node(inner)?;
-                let parent = self.parent_of(node);
-                let parameter_tag = parent.and_then(|parent| self.parent_of(parent));
-                if parent
-                    .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::JSDocTypeExpression)
-                    && parameter_tag
-                        .is_some_and(|tag| self.kind_of(tag) == SyntaxKind::JSDocParameterTag)
-                {
-                    let parameter_tag = parameter_tag.expect("tested Some above");
-                    let host = self.get_host_signature_from_jsdoc(parameter_tag);
-                    let callback = self
-                        .parent_of(parameter_tag)
-                        .and_then(|parent| self.parent_of(parent))
-                        .filter(|&ancestor| self.kind_of(ancestor) == SyntaxKind::JSDocCallbackTag);
-                    if host.is_some() || callback.is_some() {
-                        let last_parameter = if let Some(callback) = callback {
-                            let signature = match self.data_of(callback) {
-                                NodeData::JSDocCallbackTag(data) => data.type_expression,
-                                _ => None,
-                            };
-                            signature.and_then(|signature| match self.data_of(signature) {
-                                NodeData::JSDocSignature(data) => {
-                                    self.nodes_of(data.parameters).last().copied()
-                                }
-                                _ => None,
-                            })
-                        } else {
-                            host.and_then(|host| self.parameters_of_function(host).last().copied())
-                        };
-                        let symbol = self.parameter_symbol_from_jsdoc(parameter_tag);
-                        if last_parameter.is_none()
-                            || symbol.is_some()
-                                && last_parameter.and_then(|parameter| self.node_symbol(parameter))
-                                    == symbol
-                                && last_parameter.is_some_and(|parameter| {
-                                    self.is_rest_parameter_declaration(parameter)
-                                })
-                        {
-                            return self.create_array_type(ty, false);
-                        }
-                    }
-                }
-                if parent.is_some_and(|parent| {
-                    self.kind_of(parent) == SyntaxKind::Parameter
-                        && self.parent_of(parent).is_some_and(|owner| {
-                            self.kind_of(owner) == SyntaxKind::JSDocFunctionType
-                        })
-                }) {
-                    self.create_array_type(ty, false)
-                } else {
-                    Ok(self.add_optionality(ty, /*is_property*/ false, true))
-                }
+                self.create_array_type(ty, false)
             }
             SyntaxKind::FunctionType
             | SyntaxKind::JSDocFunctionType
@@ -2381,7 +2321,9 @@ impl<'a> CheckerState<'a> {
         let argument_nodes = match self.data_of(node) {
             NodeData::TypeReference(data) => self.nodes_of(data.type_arguments),
             NodeData::ImportType(data) => self.nodes_of(data.type_arguments),
-            NodeData::ExpressionWithTypeArguments(data) => self.nodes_of(data.type_arguments),
+            NodeData::ExpressionWithTypeArguments(_) => {
+                self.nodes_of(self.heritage_type_arguments(node))
+            }
             _ => unreachable!("TypeReference/ImportType/heritage route here"),
         };
         let mut resolved = Vec::with_capacity(argument_nodes.len());
@@ -2412,7 +2354,9 @@ impl<'a> CheckerState<'a> {
         let argument_nodes = match self.data_of(node) {
             NodeData::TypeReference(data) => self.nodes_of(data.type_arguments),
             NodeData::ImportType(data) => self.nodes_of(data.type_arguments),
-            NodeData::ExpressionWithTypeArguments(data) => self.nodes_of(data.type_arguments),
+            NodeData::ExpressionWithTypeArguments(_) => {
+                self.nodes_of(self.heritage_type_arguments(node))
+            }
             _ => unreachable!("TypeReference/ImportType/heritage route here"),
         };
         if let Some(&argument) = argument_nodes.get(index) {
@@ -2444,7 +2388,9 @@ impl<'a> CheckerState<'a> {
         if !local_type_parameters.is_empty() {
             let node_type_arguments = match self.data_of(node) {
                 NodeData::TypeReference(data) => self.nodes_of(data.type_arguments),
-                NodeData::ExpressionWithTypeArguments(data) => self.nodes_of(data.type_arguments),
+                NodeData::ExpressionWithTypeArguments(_) => {
+                    self.nodes_of(self.heritage_type_arguments(node))
+                }
                 NodeData::ImportType(data) => self.nodes_of(data.type_arguments),
                 _ => Vec::new(),
             };
@@ -3026,7 +2972,9 @@ impl<'a> CheckerState<'a> {
         if let Some(type_parameters) = type_parameters {
             let node_type_arguments = match self.data_of(node) {
                 NodeData::TypeReference(data) => self.nodes_of(data.type_arguments),
-                NodeData::ExpressionWithTypeArguments(data) => self.nodes_of(data.type_arguments),
+                NodeData::ExpressionWithTypeArguments(_) => {
+                    self.nodes_of(self.heritage_type_arguments(node))
+                }
                 NodeData::ImportType(data) => self.nodes_of(data.type_arguments),
                 _ => Vec::new(),
             };
@@ -3207,7 +3155,7 @@ impl<'a> CheckerState<'a> {
     fn check_no_type_arguments(&mut self, node: NodeId, symbol: Option<SymbolId>) -> bool {
         let type_arguments = match self.data_of(node) {
             NodeData::TypeReference(data) => data.type_arguments,
-            NodeData::ExpressionWithTypeArguments(data) => data.type_arguments,
+            NodeData::ExpressionWithTypeArguments(_) => self.heritage_type_arguments(node),
             NodeData::ImportType(data) => data.type_arguments,
             _ => None,
         };
@@ -5629,85 +5577,11 @@ impl<'a> CheckerState<'a> {
 
     // ---- class bases (5.3e) ----
 
-    /// The class's `extends` element: tsgo (TypeScript 7.1) has no JSDoc
-    /// base type node. In a JavaScript file its reparser gives a single
-    /// `extends` type without type arguments those of an `@augments` tag in
-    /// the class's last JSDoc comment that names the same entity
-    /// (reparser.go:582-600); the tag's type then stands for that `extends`
-    /// type here.
+    /// The class's `extends` element (tsgo GetClassExtendsHeritageElement).
+    /// In a JavaScript file its type arguments may come from an `@augments`
+    /// tag (`heritage_type_arguments`).
     pub(crate) fn get_effective_base_type_node(&self, node: NodeId) -> Option<NodeId> {
-        let base_type = self.get_class_extends_heritage_element(node)?;
-        if !self.is_in_js_file(node) {
-            return Some(base_type);
-        }
-        let NodeData::ExpressionWithTypeArguments(target) = self.data_of(base_type) else {
-            return Some(base_type);
-        };
-        let single_extends_type =
-            self.parent_of(base_type)
-                .is_some_and(|clause| match self.data_of(clause) {
-                    NodeData::HeritageClause(data) => self.nodes_of(data.types).len() == 1,
-                    _ => false,
-                });
-        if !single_extends_type || !self.nodes_of(target.type_arguments).is_empty() {
-            return Some(base_type);
-        }
-        let Some(&last_doc) = self.direct_jsdoc_documents(node).last() else {
-            return Some(base_type);
-        };
-        let NodeData::JSDoc(doc) = self.data_of(last_doc) else {
-            return Some(base_type);
-        };
-        for tag in self.nodes_of(doc.tags) {
-            let NodeData::JSDocAugmentsTag(data) = self.data_of(tag) else {
-                continue;
-            };
-            let Some(class) = data.class else {
-                continue;
-            };
-            let NodeData::ExpressionWithTypeArguments(source) = self.data_of(class) else {
-                continue;
-            };
-            if let (Some(target_expression), Some(source_expression)) =
-                (target.expression, source.expression)
-            {
-                if self.has_same_property_access_name(target_expression, source_expression)
-                    && !self.nodes_of(source.type_arguments).is_empty()
-                {
-                    return Some(class);
-                }
-            }
-        }
-        Some(base_type)
-    }
-
-    /// tsgo-port: ast.HasSamePropertyAccessName @7.1 (ast/utilities.go:1648-1656).
-    fn has_same_property_access_name(&self, left: NodeId, right: NodeId) -> bool {
-        match (self.data_of(left), self.data_of(right)) {
-            (NodeData::Identifier(left), NodeData::Identifier(right)) => {
-                left.escaped_text == right.escaped_text
-            }
-            (
-                NodeData::PropertyAccessExpression(left),
-                NodeData::PropertyAccessExpression(right),
-            ) => {
-                let name_of = |name: Option<NodeId>| {
-                    name.and_then(|name| match self.data_of(name) {
-                        NodeData::Identifier(data) => Some(data.escaped_text),
-                        NodeData::PrivateIdentifier(data) => Some(data.escaped_text),
-                        _ => None,
-                    })
-                };
-                name_of(left.name) == name_of(right.name)
-                    && match (left.expression, right.expression) {
-                        (Some(left), Some(right)) => {
-                            self.has_same_property_access_name(left, right)
-                        }
-                        _ => false,
-                    }
-            }
-            _ => false,
-        }
+        self.get_class_extends_heritage_element(node)
     }
 
     /// tsc-port: getBaseTypeNodeOfClass @6.0.3
@@ -6210,19 +6084,22 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
     ) -> CheckResult<Vec<SignatureId>> {
         let argument_nodes = match self.data_of(node) {
-            NodeData::ExpressionWithTypeArguments(data) => self.nodes_of(data.type_arguments),
+            NodeData::ExpressionWithTypeArguments(_) => {
+                self.nodes_of(self.heritage_type_arguments(node))
+            }
             NodeData::TypeReference(data) => self.nodes_of(data.type_arguments),
             _ => Vec::new(),
         };
+        // tsgo getConstructorsForTypeArguments (checker.go:19623-19628) has
+        // no JavaScript exception to the minimum type argument count.
         let type_arg_count = argument_nodes.len();
-        let is_javascript = self.is_in_js_file(node);
         let all = self.get_signatures_of_type(ty, crate::structural::SignatureKind::Construct)?;
         let mut signatures = Vec::new();
         for signature in all {
             let type_parameters = self.signature_of(signature).type_parameters.clone();
             let min = self.get_min_type_argument_count(type_parameters.as_deref());
             let max = type_parameters.as_ref().map_or(0, Vec::len);
-            if (is_javascript || type_arg_count >= min) && type_arg_count <= max {
+            if type_arg_count >= min && type_arg_count <= max {
                 signatures.push(signature);
             }
         }
@@ -6238,7 +6115,9 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
     ) -> CheckResult<Vec<SignatureId>> {
         let argument_nodes = match self.data_of(node) {
-            NodeData::ExpressionWithTypeArguments(data) => self.nodes_of(data.type_arguments),
+            NodeData::ExpressionWithTypeArguments(_) => {
+                self.nodes_of(self.heritage_type_arguments(node))
+            }
             NodeData::TypeReference(data) => self.nodes_of(data.type_arguments),
             _ => Vec::new(),
         };
@@ -6340,7 +6219,9 @@ impl<'a> CheckerState<'a> {
             .expect("base signatures imply an extends clause");
         let is_javascript = self.is_in_js_file(base_type_node);
         let argument_nodes = match self.data_of(base_type_node) {
-            NodeData::ExpressionWithTypeArguments(data) => self.nodes_of(data.type_arguments),
+            NodeData::ExpressionWithTypeArguments(_) => {
+                self.nodes_of(self.heritage_type_arguments(base_type_node))
+            }
             _ => Vec::new(),
         };
         let mut type_arguments = Vec::with_capacity(argument_nodes.len());
@@ -6549,15 +6430,7 @@ impl<'a> CheckerState<'a> {
                 )
             });
         let computed = (|state: &mut Self| -> CheckResult<Option<TypeId>> {
-            if let Some(getter) = getter {
-                if state.is_in_js_file(getter) {
-                    if let Some(jsdoc_type) =
-                        state.get_type_for_declaration_from_jsdoc_comment(getter)?
-                    {
-                        return Ok(Some(jsdoc_type));
-                    }
-                }
-            }
+            // (A JavaScript getter's `@type` is its reparsed return type.)
             let getter_annotation = state.annotated_accessor_type_node(getter);
             let setter_annotation = state.annotated_accessor_type_node(setter);
             let accessor_annotation = state.annotated_accessor_type_node(accessor);
@@ -8802,7 +8675,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: aec39287153052d13f54374113ffbec58c92de043b2c6f6ff1bad85399baf420
     /// tsc-span: _tsc.js:56021-56028
     pub(crate) fn is_empty_array_literal_expr(&self, node: NodeId) -> bool {
-        let expr = self.skip_parentheses(node);
+        // A JavaScript `/** @type {T} */ ([])` is `([] as T)` in tsgo, which
+        // skipParentheses does not unwrap.
+        let expr = self.skip_parentheses_excluding_jsdoc_type_assertions(node);
         matches!(
             self.data_of(expr),
             NodeData::ArrayLiteralExpression(data)
@@ -8831,27 +8706,13 @@ impl<'a> CheckerState<'a> {
     /// addOptionality read).
     pub(crate) fn is_optional_declaration(&self, declaration: NodeId) -> bool {
         match self.data_of(declaration) {
+            // tsgo isOptionalDeclaration = HasQuestionToken: a JavaScript
+            // parameter's question token may be the one its reparser hosts
+            // from a bracketed or `=`-typed `@param` (makeQuestionIfOptional).
             NodeData::Parameter(data) => {
                 data.question_token.is_some()
                     || (self.is_in_js_file(declaration)
-                        && (data
-                            .r#type
-                            .is_some_and(|ty| self.kind_of(ty) == SyntaxKind::JSDocOptionalType)
-                            || self
-                                .get_jsdoc_parameter_tags(declaration)
-                                .into_iter()
-                                .any(|tag| match self.data_of(tag) {
-                                    NodeData::JSDocParameterTag(data) => {
-                                        data.is_bracketed
-                                            || self
-                                                .jsdoc_property_like_type_node(data.type_expression)
-                                                .is_some_and(|ty| {
-                                                    self.kind_of(ty)
-                                                        == SyntaxKind::JSDocOptionalType
-                                                })
-                                    }
-                                    _ => false,
-                                })))
+                        && self.reparsed_question_tag(declaration).is_some())
             }
             NodeData::PropertyDeclaration(data) => data.question_token.is_some(),
             NodeData::PropertySignature(data) => data.question_token.is_some(),
@@ -9049,26 +8910,12 @@ impl<'a> CheckerState<'a> {
     /// `@type` of a JavaScript expression statement onto its binary
     /// expression when that is an assignment declaration.
     pub(crate) fn assignment_declaration_type_node(&self, assignment: NodeId) -> Option<NodeId> {
-        if !self.is_in_js_file(assignment)
-            || self.kind_of(assignment) != SyntaxKind::BinaryExpression
-            || self
-                .parent_of(assignment)
-                .is_none_or(|parent| self.kind_of(parent) != SyntaxKind::ExpressionStatement)
+        if self.kind_of(assignment) != SyntaxKind::BinaryExpression
+            || !self.is_in_js_file(assignment)
         {
             return None;
         }
-        let source = self.binder.source_of_node(assignment);
-        if tsc_binder::get_assignment_declaration_kind(source, assignment)
-            == tsc_binder::AssignmentDeclarationKind::None
-        {
-            return None;
-        }
-        let tag = node_util::get_jsdoc_type_tag(source, assignment)?;
-        let expression = node_util::jsdoc_type_expression(source, tag)?;
-        match self.data_of(expression) {
-            NodeData::JSDocTypeExpression(data) => data.r#type,
-            _ => None,
-        }
+        self.reparsed_type_node(assignment)
     }
 
     /// tsgo-port: getAssignmentDeclarationInitializerType @7.1
@@ -9829,28 +9676,27 @@ impl<'a> CheckerState<'a> {
         Ok(result)
     }
 
-    /// tsc-port: getSignatureOfTypeTag @6.0.3
-    /// tsc-hash: 1c8654f6d501d6208a92bba78c8211d65e716431f7a79104cbaedef18514a347
-    /// tsc-span: _tsc.js:59674-59678
+    /// tsgo-port: getSignatureOfFullSignatureType @7.1 (checker.go:20409-20414):
+    /// the signature of the `@type` tsgo's reparser makes a JavaScript
+    /// function's `FullSignature`.
     pub(crate) fn get_signature_of_type_tag(
         &mut self,
         declaration: NodeId,
     ) -> CheckResult<Option<SignatureId>> {
-        if !self.is_in_js_file(declaration)
-            || !node_util::is_function_like_declaration_kind(self.kind_of(declaration))
+        if !matches!(
+            self.kind_of(declaration),
+            SyntaxKind::FunctionDeclaration
+                | SyntaxKind::MethodDeclaration
+                | SyntaxKind::FunctionExpression
+                | SyntaxKind::ArrowFunction
+        ) || !self.is_in_js_file(declaration)
         {
             return Ok(None);
         }
-        let Some(tag) = self.first_jsdoc_tag(declaration, SyntaxKind::JSDocTypeTag) else {
+        let Some(full_signature) = self.full_signature_node(declaration) else {
             return Ok(None);
         };
-        let NodeData::JSDocTypeTag(data) = self.data_of(tag) else {
-            unreachable!("kind/data agree");
-        };
-        let Some(expression) = data.type_expression else {
-            return Ok(None);
-        };
-        let ty = self.get_type_from_type_node(expression)?;
+        let ty = self.get_type_from_type_node(full_signature)?;
         self.get_single_call_signature(ty)
     }
 
@@ -9977,8 +9823,7 @@ impl<'a> CheckerState<'a> {
                 self.get_local_type_parameters_of_class_or_interface_or_type_alias(class_symbol);
             (!parameters.is_empty()).then_some(parameters)
         } else {
-            let declarations = self.type_parameter_declarations_of(declaration);
-            let parameters = self.append_type_parameters(Vec::new(), &declarations);
+            let parameters = self.get_type_parameters_from_declaration(declaration)?;
             (!parameters.is_empty()).then_some(parameters)
         };
         let is_value_signature_declaration = matches!(
@@ -9996,45 +9841,33 @@ impl<'a> CheckerState<'a> {
             declaration,
         )
         .is_some();
-        let has_jsdoc_parameter_tags = self
-            .get_jsdoc_tags(declaration)
-            .into_iter()
-            .any(|tag| self.kind_of(tag) == SyntaxKind::JSDocParameterTag);
-        let parameters_have_jsdoc_types = self
-            .parameters_of_function(declaration)
-            .into_iter()
-            .any(|parameter| self.get_jsdoc_type(parameter).is_some());
-        let has_jsdoc_type = self.get_jsdoc_type(declaration).is_some();
-        let has_contextual_signature = if !is_immediately_invoked
-            && self.is_in_js_file(declaration)
-            && is_value_signature_declaration
-            && !has_jsdoc_parameter_tags
-            && !parameters_have_jsdoc_types
-            && !has_jsdoc_type
-        {
-            self.get_contextual_signature_for_function_like_declaration(declaration)?
-                .is_some()
+        // tsgo (checker.go:20184-20189): every parameter of the JavaScript
+        // function is untyped — the reparsed `@param` types and a `@this`
+        // type count — and the function has no contextual type.
+        let mut this_tag = if self.is_in_js_file(declaration) {
+            self.reparsed_this_tag(declaration)
         } else {
-            false
+            None
         };
         let is_untyped_signature_in_js_file = !is_immediately_invoked
             && self.is_in_js_file(declaration)
             && is_value_signature_declaration
-            && !has_jsdoc_parameter_tags
-            && !parameters_have_jsdoc_types
-            && !has_jsdoc_type
-            && !has_contextual_signature;
+            && !this_tag.is_some_and(|tag| {
+                matches!(self.data_of(tag), NodeData::JSDocThisTag(data) if data.type_expression.is_some())
+            })
+            && self
+                .parameters_of_function(declaration)
+                .into_iter()
+                .all(|parameter| self.effective_type_annotation_node(parameter).is_none())
+            && self
+                .get_contextual_type(declaration, ContextFlags::SIGNATURE)?
+                .is_none();
         let mut flags = SignatureFlags::from_bits(0);
         if is_untyped_signature_in_js_file {
             flags |= SignatureFlags::IS_UNTYPED_SIGNATURE_IN_JS_FILE;
         }
         let mut parameters: Vec<SymbolId> = Vec::new();
         let mut this_parameter: Option<SymbolId> = None;
-        let mut this_tag = if self.is_in_js_file(declaration) {
-            self.first_jsdoc_tag(declaration, SyntaxKind::JSDocThisTag)
-        } else {
-            None
-        };
         let mut min_argument_count = 0u32;
         let parameter_start = usize::from(node_util::is_jsdoc_construct_signature(
             self.binder.source_of_node(declaration),
@@ -10048,6 +9881,9 @@ impl<'a> CheckerState<'a> {
         {
             if self.kind_of(parameter) == SyntaxKind::JSDocThisTag {
                 this_tag = Some(parameter);
+                continue;
+            }
+            if self.is_jsdoc_property_path_parameter(parameter) {
                 continue;
             }
             let (name, type_node, question_token, initializer, is_normal_parameter) =
@@ -10219,31 +10055,25 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        let mut last_is_rest = self
-            .nodes_of(parameter_list)
-            .last()
-            .is_some_and(|&parameter| match self.data_of(parameter) {
-                NodeData::Parameter(data) => {
-                    data.dot_dot_dot_token.is_some()
-                        || data
-                            .r#type
-                            .is_some_and(|ty| self.kind_of(ty) == SyntaxKind::JSDocVariadicType)
-                }
-                NodeData::JSDocParameterTag(data) => self
-                    .jsdoc_type_expression_type(data.type_expression)
-                    .is_some_and(|ty| self.kind_of(ty) == SyntaxKind::JSDocVariadicType),
-                _ => false,
-            });
-        if !last_is_rest
-            && self.is_in_js_file(declaration)
-            && self.maybe_add_js_synthetic_rest_parameter(
-                declaration,
-                parameter_list,
-                &mut parameters,
-            )?
-        {
-            last_is_rest = true;
-        }
+        // tsgo hasRestParameter: the last parameter has a rest token (a
+        // reparsed callback parameter's `...T` makes one). tsgo adds no
+        // synthetic rest parameter for a JavaScript body that uses
+        // `arguments` (tsc 6.0 maybeAddJsSyntheticRestParameter).
+        let last_is_rest =
+            self.nodes_of(parameter_list)
+                .last()
+                .is_some_and(|&parameter| match self.data_of(parameter) {
+                    NodeData::Parameter(data) => {
+                        data.dot_dot_dot_token.is_some()
+                            || data
+                                .r#type
+                                .is_some_and(|ty| self.kind_of(ty) == SyntaxKind::JSDocVariadicType)
+                    }
+                    NodeData::JSDocParameterTag(data) => self
+                        .jsdoc_type_expression_type(data.type_expression)
+                        .is_some_and(|ty| self.kind_of(ty) == SyntaxKind::JSDocVariadicType),
+                    _ => false,
+                });
         if last_is_rest {
             flags |= SignatureFlags::HAS_REST_PARAMETER;
         }
@@ -10299,65 +10129,6 @@ impl<'a> CheckerState<'a> {
             LinkSlot::Resolved(id),
         );
         Ok(id)
-    }
-
-    /// tsc-port: maybeAddJsSyntheticRestParameter @6.0.3.
-    /// tsc-hash: 0f2e7547547efbf762bfc1a0b237e006f122dd64c6528b562de6702769e16609
-    /// tsc-span: _tsc.js:59652-59673
-    fn maybe_add_js_synthetic_rest_parameter(
-        &mut self,
-        declaration: NodeId,
-        parameter_list: Option<tsc_syntax::NodeArrayId>,
-        parameters: &mut Vec<SymbolId>,
-    ) -> CheckResult<bool> {
-        if self.kind_of(declaration) == SyntaxKind::JSDocSignature
-            || !self.contains_arguments_reference(declaration)?
-        {
-            return Ok(false);
-        }
-        let declared_parameters = self.nodes_of(parameter_list);
-        let parameter_tags: Vec<NodeId> = if let Some(&last_parameter) = declared_parameters.last()
-        {
-            self.get_jsdoc_parameter_tags(last_parameter)
-        } else {
-            self.get_jsdoc_tags(declaration)
-                .into_iter()
-                .filter(|&tag| self.kind_of(tag) == SyntaxKind::JSDocParameterTag)
-                .collect()
-        };
-        let variadic_type = parameter_tags.into_iter().find_map(|tag| {
-            let NodeData::JSDocParameterTag(data) = self.data_of(tag) else {
-                return None;
-            };
-            self.jsdoc_type_expression_type(data.type_expression)
-                .filter(|&ty| self.kind_of(ty) == SyntaxKind::JSDocVariadicType)
-        });
-        let ty = if let Some(variadic_type) = variadic_type {
-            let element = match self.data_of(variadic_type) {
-                NodeData::JSDocVariadicType(data) => data.r#type,
-                _ => None,
-            }
-            .map(|element| self.get_type_from_type_node(element))
-            .transpose()?
-            .unwrap_or(self.tables.intrinsics.any);
-            parameters.pop();
-            self.create_array_type(element, false)?
-        } else {
-            self.any_array_type()?
-        };
-        let symbol = self.binder.create_symbol(
-            SymbolFlags::VARIABLE,
-            tsc_types::EscapedName::from_identifier_escaped_text("args"),
-        );
-        self.links
-            .set_fresh_symbol_type(symbol, LinkSlot::Resolved(ty));
-        self.links.set_symbol_check_flags(
-            self.speculation_depth,
-            symbol,
-            CheckFlags::REST_PARAMETER,
-        );
-        parameters.push(symbol);
-        Ok(true)
     }
 
     /// tsc-port: getReturnTypeOfSignature @6.0.3

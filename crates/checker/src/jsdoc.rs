@@ -4,12 +4,184 @@
 //! consumers must use this module instead of rescanning source comments.
 
 use tsc_binder::{node_util, AssignmentDeclarationKind};
-use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{HostedCast, JsDocHosted, NodeData, NodeId, SyntaxKind};
 use tsc_types::SymbolId;
 
 use crate::state::CheckerState;
 
+/// tsgo's hosted JSDoc reparse (TypeScript 7.1 parser/reparser.go
+/// reparseHosted) as the checker reads it: the annotations tsgo writes into a
+/// JavaScript declaration from its JSDoc tags. tsgo's checker sees only those
+/// annotations, never the tags; `tsc_binder::jsdoc_hosted` records them.
 impl<'a> CheckerState<'a> {
+    pub(crate) fn hosted_jsdoc(&self, node: NodeId) -> &'a JsDocHosted {
+        tsc_binder::jsdoc_hosted(self.binder.source_of_node(node))
+    }
+
+    /// The reparsed `Type()` of a JavaScript declaration (its `@type` or
+    /// `@param` type) or the reparsed return type of a function-like
+    /// declaration (`@return`, or `@type` on a get accessor).
+    pub(crate) fn reparsed_type_node(&self, node: NodeId) -> Option<NodeId> {
+        self.hosted_jsdoc(node).type_of(node)
+    }
+
+    /// tsgo `FullSignature`: the `@type` that types a whole JavaScript
+    /// function.
+    pub(crate) fn full_signature_node(&self, node: NodeId) -> Option<NodeId> {
+        self.hosted_jsdoc(node).full_signature_of(node)
+    }
+
+    /// The reparsed type parameters of a JavaScript function or class: the
+    /// type parameters of its hosted `@template` tags, in order.
+    pub(crate) fn reparsed_type_parameters(&self, node: NodeId) -> Vec<NodeId> {
+        let Some(list) = self.hosted_jsdoc(node).type_parameters_of(node) else {
+            return Vec::new();
+        };
+        list.tags
+            .iter()
+            .flat_map(|&tag| match self.data_of(tag) {
+                NodeData::JSDocTemplateTag(data) => self.nodes_of(data.type_parameters),
+                _ => Vec::new(),
+            })
+            .collect()
+    }
+
+    /// The range of the reparsed type parameter list: the hosted `@template`
+    /// tags, from the first one's start to the last one's end.
+    pub(crate) fn reparsed_type_parameter_range(&self, node: NodeId) -> Option<(u32, u32)> {
+        self.hosted_jsdoc(node)
+            .type_parameters_of(node)
+            .map(|list| (list.pos, list.end))
+    }
+
+    /// The `@param` tag whose bracketed name or `=` type gave a JavaScript
+    /// parameter its reparsed question token.
+    pub(crate) fn reparsed_question_tag(&self, parameter: NodeId) -> Option<NodeId> {
+        self.hosted_jsdoc(parameter).question_token_of(parameter)
+    }
+
+    /// The `@this` tag that gave a JavaScript function its reparsed `this`
+    /// parameter.
+    pub(crate) fn reparsed_this_tag(&self, function: NodeId) -> Option<NodeId> {
+        self.hosted_jsdoc(function).this_tag_of(function)
+    }
+
+    /// The modifier tags reparsed into modifiers of a JavaScript member,
+    /// constructor or binary expression.
+    pub(crate) fn reparsed_modifier_tags(&self, node: NodeId) -> &'a [NodeId] {
+        self.hosted_jsdoc(node).modifier_tags_of(node)
+    }
+
+    /// The `as`/`satisfies` cast the reparser wraps around an expression.
+    pub(crate) fn reparsed_cast(&self, expression: NodeId) -> Option<HostedCast> {
+        self.hosted_jsdoc(expression).cast_of(expression)
+    }
+
+    /// tsgo `node.TypeArguments()` of a heritage `extends` element: a
+    /// JavaScript class's single `extends` type without type arguments takes
+    /// those of a same-named `@augments` tag of the class's last JSDoc
+    /// comment (reparser.go:593-611).
+    pub(crate) fn heritage_type_arguments(
+        &self,
+        element: NodeId,
+    ) -> Option<tsc_syntax::NodeArrayId> {
+        let NodeData::ExpressionWithTypeArguments(data) = self.data_of(element) else {
+            return None;
+        };
+        data.type_arguments.or_else(|| {
+            let tag = self.hosted_jsdoc(element).augments_tag_of(element)?;
+            let NodeData::JSDocAugmentsTag(tag) = self.data_of(tag) else {
+                return None;
+            };
+            match self.data_of(tag.class?) {
+                NodeData::ExpressionWithTypeArguments(class) => class.type_arguments,
+                _ => None,
+            }
+        })
+    }
+
+    /// The `@implements` tags reparsed into a JavaScript class's heritage.
+    pub(crate) fn reparsed_implements_tags(&self, class: NodeId) -> &'a [NodeId] {
+        self.hosted_jsdoc(class).implements_tags_of(class)
+    }
+
+    /// An `@overload` tsgo reparses into an overload declaration of its
+    /// host: a function, method or constructor outside object literals
+    /// (reparser.go:138-142).
+    pub(crate) fn is_reparsed_overload_tag(&self, tag: NodeId) -> bool {
+        self.kind_of(tag) == SyntaxKind::JSDocOverloadTag
+            && tsc_binder::hosted::reparsed_overload_host(self.binder.source_of_node(tag), tag)
+                .is_some()
+    }
+
+    /// The function whose reparsed return type is `type_node`, the type of
+    /// a hosted `@return` (or a get accessor's `@type`): in tsgo that type's
+    /// parent is the function.
+    pub(crate) fn reparsed_return_type_owner(&self, type_node: NodeId) -> Option<NodeId> {
+        let expression = self.parent_of(type_node)?;
+        if self.kind_of(expression) != SyntaxKind::JSDocTypeExpression {
+            return None;
+        }
+        let tag = self.parent_of(expression)?;
+        if !matches!(
+            self.kind_of(tag),
+            SyntaxKind::JSDocReturnTag | SyntaxKind::JSDocTypeTag
+        ) {
+            return None;
+        }
+        let document = self.parent_of(tag)?;
+        // A `@callback`/`@overload` signature's `@return` is its own.
+        if self.kind_of(document) == SyntaxKind::JSDocSignature {
+            return Some(document);
+        }
+        let host = self.parent_of(document)?;
+        let function =
+            tsc_binder::hosted::function_like_host(self.binder.source_of_node(host), host)?;
+        (self.reparsed_type_node(function) == Some(type_node)).then_some(function)
+    }
+
+    /// tsgo-port: getAllJSDocTags @7.1 (checker/jsdoc.go:86-100): the tags of
+    /// the last JSDoc comment of the first node on tsgo's
+    /// GetNextJSDocCommentLocation walk whose last comment has tags.
+    pub(crate) fn all_jsdoc_tags_tsgo(&self, node: NodeId) -> Vec<NodeId> {
+        if tsc_types::NodeFlags::from_bits(self.binder.node_record(node).flags)
+            .intersects(tsc_types::NodeFlags::JS_DOC)
+        {
+            return Vec::new();
+        }
+        let mut current = Some(node);
+        while let Some(location) = current {
+            if let Some(&last) = self.direct_jsdoc_documents(location).last() {
+                if let NodeData::JSDoc(data) = self.data_of(last) {
+                    if data.tags.is_some() {
+                        return self.nodes_of(data.tags);
+                    }
+                }
+            }
+            current = self.next_jsdoc_comment_location_tsgo(location);
+        }
+        Vec::new()
+    }
+
+    /// tsgo-port: ast.GetNextJSDocCommentLocation @7.1 (ast/utilities.go:4100-4113).
+    pub(crate) fn next_jsdoc_comment_location_tsgo(&self, node: NodeId) -> Option<NodeId> {
+        let parent = self.parent_of(node)?;
+        match self.data_of(parent) {
+            NodeData::PropertyAssignment(_)
+            | NodeData::ExportAssignment(_)
+            | NodeData::PropertyDeclaration(_)
+            | NodeData::VariableDeclaration(_)
+            | NodeData::SatisfiesExpression(_)
+            | NodeData::ReturnStatement(_)
+            | NodeData::VariableStatement(_)
+            | NodeData::ExpressionStatement(_) => Some(parent),
+            NodeData::VariableDeclarationList(list) => {
+                (self.nodes_of(list.declarations).first().copied() == Some(node)).then_some(parent)
+            }
+            _ => None,
+        }
+    }
+
     /// Project direct `node.jsDoc` property presence. getJSDocTagsWorker
     /// creates an empty array when caching tags, including an empty result;
     /// our immutable syntax arena keeps that state in jsdoc_tag_cache.
@@ -482,58 +654,15 @@ impl<'a> CheckerState<'a> {
         data.r#type
     }
 
-    /// tsc-port: getJSDocType @6.0.3
-    /// tsc-hash: efa79a099aea017c5d8dc6abb175c04cc2b22b7c50bfb0f12763e59400778dc6
-    /// tsc-span: _tsc.js:11721-11727
+    /// The reparsed type of a JavaScript declaration that is not a function:
+    /// tsgo `node.Type()` from a hosted `@type` or `@param` tag. (A
+    /// function's `@type` is its FullSignature, and its reparsed `Type()` is
+    /// its return type.)
     pub(crate) fn get_jsdoc_type(&self, node: NodeId) -> Option<NodeId> {
-        let mut tag = self.first_jsdoc_tag(node, SyntaxKind::JSDocTypeTag);
-        if tag.is_none() && self.kind_of(node) == SyntaxKind::Parameter {
-            tag = self
-                .get_jsdoc_parameter_tags(node)
-                .into_iter()
-                .find(|&tag| match self.data_of(tag) {
-                    NodeData::JSDocParameterTag(data) => data.type_expression.is_some(),
-                    _ => false,
-                });
-        }
-        tag.and_then(|tag| match self.data_of(tag) {
-            NodeData::JSDocTypeTag(data) => self.jsdoc_type_expression_type(data.type_expression),
-            NodeData::JSDocParameterTag(data) => {
-                self.jsdoc_type_expression_type(data.type_expression)
-            }
-            _ => None,
-        })
-    }
-
-    /// tsc-port: getJSDocReturnType @6.0.3
-    /// tsc-hash: 7bcd67792fdeaceeecc2c6ff990b94e0065646e3068932012592c00efafe9eea
-    /// tsc-span: _tsc.js:11728-11744
-    pub(crate) fn get_jsdoc_return_type(&self, node: NodeId) -> Option<NodeId> {
-        if let Some(return_tag) = self.first_jsdoc_tag(node, SyntaxKind::JSDocReturnTag) {
-            if let NodeData::JSDocReturnTag(data) = self.data_of(return_tag) {
-                if let Some(ty) = self.jsdoc_type_expression_type(data.type_expression) {
-                    return Some(ty);
-                }
-            }
-        }
-        let type_tag = self.first_jsdoc_tag(node, SyntaxKind::JSDocTypeTag)?;
-        let NodeData::JSDocTypeTag(data) = self.data_of(type_tag) else {
+        if node_util::is_function_like_kind(self.kind_of(node)) {
             return None;
-        };
-        let ty = self.jsdoc_type_expression_type(data.type_expression)?;
-        match self.data_of(ty) {
-            NodeData::JSDocFunctionType(data) => data.r#type,
-            NodeData::FunctionType(data) => data.r#type,
-            NodeData::TypeLiteral(data) => {
-                self.nodes_of(data.members).into_iter().find_map(|member| {
-                    match self.data_of(member) {
-                        NodeData::CallSignature(data) => data.r#type,
-                        _ => None,
-                    }
-                })
-            }
-            _ => None,
         }
+        self.reparsed_type_node(node)
     }
 
     /// tsc-port: isJSDocTypeAlias @6.0.3
@@ -598,30 +727,16 @@ impl<'a> CheckerState<'a> {
         node_util::is_function_like_kind(self.kind_of(host)).then_some(host)
     }
 
-    /// tsc-port: getParameterSymbolFromJSDoc @6.0.3
-    /// tsc-hash: e91cf4ec97c24db665abca864942bd0199ab77d114585fa1db281f5ad1172a3c
-    /// tsc-span: _tsc.js:15475-15489
+    /// The symbol of the parameter a `@param` tag declares: a `@callback`
+    /// signature's own parameter, or the function parameter tsgo's reparser
+    /// matched the hosted tag to (by name, or by position for a tag without
+    /// a name or a binding-pattern parameter).
     pub(crate) fn parameter_symbol_from_jsdoc(&self, tag: NodeId) -> Option<SymbolId> {
         if let Some(symbol) = self.node_symbol(tag) {
             return Some(symbol);
         }
-        let name = self.name_of_node(tag)?;
-        if self.kind_of(name) != SyntaxKind::Identifier {
-            return None;
-        }
-        let name = self.identifier_text_of(name)?;
-        let host = self.get_host_signature_from_jsdoc(tag)?;
-        self.parameters_of_function(host)
-            .into_iter()
-            .find(|&parameter| {
-                self.name_of_node(parameter)
-                    .filter(|&parameter_name| {
-                        self.kind_of(parameter_name) == SyntaxKind::Identifier
-                    })
-                    .and_then(|parameter_name| self.identifier_text_of(parameter_name))
-                    == Some(name)
-            })
-            .and_then(|parameter| self.node_symbol(parameter))
+        let parameter = self.hosted_jsdoc(tag).matched_parameter_of(tag)?;
+        self.node_symbol(parameter)
     }
 
     /// tsc-port: isRestParameter/JSDocDeclarationTest @6.0.3
@@ -642,9 +757,10 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsc-port: getEffectiveContainerForJSDocTemplateTag @6.0.3
-    /// tsc-hash: 6604aa47d045079b7bcfd5d4eafd83467e557090119f44a885805ce1dbaa773b
-    /// tsc-span: _tsc.js:15490-15498
+    /// tsgo (TypeScript 7.1): the declaration a `@template` tag's type
+    /// parameters belong to — a `@typedef` or `@callback` of the same comment,
+    /// else the function or class whose reparsed type parameters they are
+    /// (reparser.go:297-344, 457-475).
     pub(crate) fn effective_container_for_jsdoc_template_tag(&self, tag: NodeId) -> Option<NodeId> {
         if let Some(document) = self.parent_of(tag) {
             if let NodeData::JSDoc(data) = self.data_of(document) {
@@ -657,31 +773,8 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        self.get_host_signature_from_jsdoc(tag)
-    }
-
-    /// tsc-port: getJSDocTypeParameterDeclarations/isNonTypeAliasTemplate @6.0.3
-    /// tsc-hash: dbe5bdc38abbc2e737bd47cafa154096db722f5a88d3f40e2362ff77bfefa79e
-    /// tsc-span: _tsc.js:16771-16776
-    pub(crate) fn jsdoc_type_parameter_declarations(&self, node: NodeId) -> Vec<NodeId> {
-        self.get_jsdoc_tags(node)
-            .into_iter()
-            .filter_map(|tag| {
-                let NodeData::JSDocTemplateTag(data) = self.data_of(tag) else {
-                    return None;
-                };
-                let type_alias_or_overload = self.parent_of(tag).is_some_and(|document| {
-                    let NodeData::JSDoc(document) = self.data_of(document) else {
-                        return false;
-                    };
-                    self.nodes_of(document.tags).into_iter().any(|candidate| {
-                        self.is_jsdoc_type_alias(candidate)
-                            || self.kind_of(candidate) == SyntaxKind::JSDocOverloadTag
-                    })
-                });
-                (!type_alias_or_overload).then_some(self.nodes_of(data.type_parameters))
-            })
-            .flatten()
-            .collect()
+        let source = self.binder.source_of_node(tag);
+        tsc_binder::hosted::template_tag_host(source, tag)
+            .or_else(|| tsc_binder::hosted::overload_template_signature(source, tag))
     }
 }

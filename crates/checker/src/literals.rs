@@ -1145,16 +1145,31 @@ impl<'a> CheckerState<'a> {
                     }
                     _ => self.check_object_literal_method(member_decl, check_mode)?,
                 };
+                // tsgo checkPropertyAssignment / checkShorthandPropertyAssignment
+                // (checker.go:13907-13938): a reparsed `@type` is the member's
+                // type, and the value must be assignable to it (elaborated
+                // into the expression). An object-literal method's `@type` is
+                // its FullSignature instead.
                 if acc.is_in_javascript {
-                    if let Some(jsdoc_type) =
-                        self.get_type_for_declaration_from_jsdoc_comment(member_decl)?
-                    {
-                        self.check_type_assignable_to(
-                            ty,
-                            jsdoc_type,
-                            Some(member_decl),
-                            &diagnostics::Type_0_is_not_assignable_to_type_1,
-                        )?;
+                    if let Some(type_node) = self.get_jsdoc_type(member_decl) {
+                        let jsdoc_type = self.get_type_from_type_node(type_node)?;
+                        let expression = match self.data_of(member_decl) {
+                            NodeData::PropertyAssignment(data) => data.initializer,
+                            NodeData::ShorthandPropertyAssignment(data) => data
+                                .object_assignment_initializer
+                                .filter(|_| !acc.in_destructuring_pattern)
+                                .or(data.name),
+                            _ => None,
+                        };
+                        if let Some(expression) = expression {
+                            self.check_type_assignable_to_and_optionally_elaborate(
+                                ty,
+                                jsdoc_type,
+                                Some(member_decl),
+                                expression,
+                                &diagnostics::Type_0_is_not_assignable_to_type_1,
+                            )?;
+                        }
                         ty = jsdoc_type;
                     }
                 }
