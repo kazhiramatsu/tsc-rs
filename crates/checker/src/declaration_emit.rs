@@ -624,13 +624,58 @@ impl CheckerState<'_> {
             .unwrap_or(visible))
     }
 
+    /// Whether tsgo's parser puts the type alias of a `@typedef` or
+    /// `@callback` tag in the statements of the source file: the statement
+    /// list of a block keeps the aliases of the tags inside it, and every
+    /// other list passes them out (parser.go:614-643).
+    fn jsdoc_alias_is_top_level(&self, tag: NodeId) -> bool {
+        let Some(host) = self
+            .parent_of(tag)
+            .and_then(|comment| self.parent_of(comment))
+        else {
+            return false;
+        };
+        let mut current = self.parent_of(host);
+        while let Some(node) = current {
+            match self.kind_of(node) {
+                SyntaxKind::SourceFile => return true,
+                SyntaxKind::Block | SyntaxKind::ModuleBlock => return false,
+                _ => current = self.parent_of(node),
+            }
+        }
+        false
+    }
+
+    /// The `@typedef` or `@callback` tag whose dotted name a JSDoc namespace
+    /// is part of.
+    fn jsdoc_namespace_tag(&self, module: NodeId) -> Option<NodeId> {
+        let mut current = self.parent_of(module);
+        while let Some(node) = current {
+            match self.kind_of(node) {
+                SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocCallbackTag => return Some(node),
+                SyntaxKind::ModuleDeclaration => current = self.parent_of(node),
+                _ => return None,
+            }
+        }
+        None
+    }
+
     fn emit_determine_declaration_is_visible(&mut self, declaration: NodeId) -> CheckResult<bool> {
         match self.kind_of(declaration) {
-            SyntaxKind::JSDocCallbackTag | SyntaxKind::JSDocTypedefTag => Ok(self
-                .parent_of(declaration)
-                .and_then(|parent| self.parent_of(parent))
-                .and_then(|parent| self.parent_of(parent))
-                .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::SourceFile)),
+            // tsgo's reparsed type alias of a top-level tag is exported in a
+            // module (IsImplicitlyExportedJSDocDeclaration) and global in a
+            // script; one inside a block belongs to its function
+            // (emitresolver.go:139-170).
+            SyntaxKind::JSDocCallbackTag | SyntaxKind::JSDocTypedefTag => {
+                Ok(self.jsdoc_alias_is_top_level(declaration))
+            }
+            // The namespaces of a dotted name wrap that alias; the nested ones
+            // are exported (reparser.go:733-758).
+            SyntaxKind::ModuleDeclaration if self.jsdoc_namespace_tag(declaration).is_some() => {
+                Ok(self
+                    .jsdoc_namespace_tag(declaration)
+                    .is_some_and(|tag| self.jsdoc_alias_is_top_level(tag)))
+            }
             SyntaxKind::BindingElement => {
                 let parent = self
                     .parent_of(declaration)
@@ -734,6 +779,27 @@ impl CheckerState<'_> {
             | SyntaxKind::NamespaceImport
             | SyntaxKind::ImportSpecifier
             | SyntaxKind::ExportAssignment => Ok(false),
+            // tsgo: an `export {X}` without a module specifier is a visible
+            // re-export of the binding (emitresolver.go:220-227).
+            SyntaxKind::ExportSpecifier => {
+                let declaration_node = self
+                    .parent_of(declaration)
+                    .and_then(|exports| self.parent_of(exports));
+                match declaration_node {
+                    Some(export)
+                        if matches!(
+                            self.data_of(export),
+                            NodeData::ExportDeclaration(data) if data.module_specifier.is_none()
+                        ) =>
+                    {
+                        match self.parent_of(export) {
+                            Some(parent) => self.emit_is_declaration_visible(parent),
+                            None => Ok(false),
+                        }
+                    }
+                    _ => Ok(false),
+                }
+            }
             _ => Ok(false),
         }
     }

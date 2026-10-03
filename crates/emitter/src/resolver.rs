@@ -500,6 +500,7 @@ pub enum EmitResolverMethod {
     CreateTypeOfDeclarationInExpandoScope,
     CreateReturnTypeOfSignatureDeclaration,
     CreateTypeOfExpression,
+    TryJsTypeNodeToTypeNode,
     CreateLiteralConstValue,
     GetDeclarationStatementsForSourceFile,
     CreateLateBoundIndexSignatures,
@@ -588,6 +589,7 @@ impl EmitResolverMethod {
                 "createReturnTypeOfSignatureDeclaration"
             }
             Self::CreateTypeOfExpression => "createTypeOfExpression",
+            Self::TryJsTypeNodeToTypeNode => "tryJSTypeNodeToTypeNode",
             Self::CreateLiteralConstValue => "createLiteralConstValue",
             Self::GetDeclarationStatementsForSourceFile => "getDeclarationStatementsForSourceFile",
             Self::CreateLateBoundIndexSignatures => "createLateBoundIndexSignatures",
@@ -1277,6 +1279,35 @@ pub trait EmitResolver {
         Err(unavailable(
             EmitResolverMethod::CreateTypeOfDeclaration,
             declaration,
+        ))
+    }
+
+    /// A JSDoc type node rewritten as TypeScript syntax by the node
+    /// builder's reuse of existing type nodes, or `None` when it cannot be
+    /// reused (tsgo TryJSTypeNodeToTypeNode, checker/emitresolver.go:1272-1279,
+    /// nodecopy.go:20-22).
+    #[allow(clippy::too_many_arguments)]
+    fn try_js_type_node_to_type_node(
+        &self,
+        arena: &mut TransformArena,
+        target: TransformSourceId,
+        type_node: EmitResolverNode,
+        enclosing_declaration: EmitResolverNode,
+        flags: EmitNodeBuilderFlags,
+        internal_flags: EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn EmitSymbolTracker,
+    ) -> Result<Option<TransformNode>, EmitResolverError> {
+        let _ = (
+            arena,
+            target,
+            enclosing_declaration,
+            flags,
+            internal_flags,
+            tracker,
+        );
+        Err(unavailable(
+            EmitResolverMethod::TryJsTypeNodeToTypeNode,
+            type_node,
         ))
     }
 

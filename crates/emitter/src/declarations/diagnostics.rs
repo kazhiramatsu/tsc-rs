@@ -592,7 +592,9 @@ fn type_parameter_template(
         SyntaxKind::MethodDeclaration | SyntaxKind::MethodSignature => &d::Type_parameter_0_of_method_from_exported_interface_has_or_is_using_private_name_1,
         SyntaxKind::FunctionType | SyntaxKind::FunctionDeclaration => &d::Type_parameter_0_of_exported_function_has_or_is_using_private_name_1,
         SyntaxKind::InferType => &d::Extends_clause_for_inferred_type_0_has_or_is_using_private_name_1,
-        SyntaxKind::TypeAliasDeclaration => &d::Type_parameter_0_of_exported_type_alias_has_or_is_using_private_name_1,
+        SyntaxKind::TypeAliasDeclaration
+        | SyntaxKind::JSDocTypedefTag
+        | SyntaxKind::JSDocCallbackTag => &d::Type_parameter_0_of_exported_type_alias_has_or_is_using_private_name_1,
         _ => return Err(DeclarationTransformer::contract(
             "unknown parent for declaration type-parameter diagnostic",
         )),
@@ -687,12 +689,33 @@ const fn external(
 
 /// The node's parent in tsgo's reparsed tree: the type parameter of a
 /// `@template` tag belongs to the function, method or class whose type
-/// parameters it becomes (reparser.go:440-457).
+/// parameters it becomes (reparser.go:440-457), or to the type alias of the
+/// `@typedef` or `@callback` tag in its comment (gatherTypeParameters,
+/// 297-344).
 fn parent(source: &SourceFile, node: NodeId) -> Option<NodeId> {
     let parent = source.arena.node(node).parent?;
     if source.arena.node(parent).kind == SyntaxKind::JSDocTemplateTag {
         if let Some(host) = tsc_binder::hosted::template_tag_host(source, parent) {
             return Some(host);
+        }
+        let comment = source.arena.node(parent).parent?;
+        if let NodeData::JSDoc(data) = &source.arena.node(comment).data {
+            if let Some(alias) = data.tags.and_then(|tags| {
+                source
+                    .arena
+                    .node_array(tags)
+                    .nodes
+                    .iter()
+                    .copied()
+                    .find(|&tag| {
+                        matches!(
+                            source.arena.node(tag).kind,
+                            SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocCallbackTag
+                        )
+                    })
+            }) {
+                return Some(alias);
+            }
         }
     }
     Some(parent)

@@ -979,6 +979,32 @@ impl EmitResolver for CheckerSession<'_> {
         )
     }
 
+    fn try_js_type_node_to_type_node(
+        &self,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
+        type_node: EmitResolverNode,
+        enclosing_declaration: EmitResolverNode,
+        flags: tsc_emitter::EmitNodeBuilderFlags,
+        internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+    ) -> Result<Option<tsc_emitter::TransformNode>, EmitResolverError> {
+        let method = EmitResolverMethod::TryJsTypeNodeToTypeNode;
+        let mut state = self.state.lock().expect("checker session state");
+        validate_resolver_node(&state, method, type_node)?;
+        validate_resolver_node(&state, method, enclosing_declaration)?;
+        crate::node_builder::try_js_type_node_to_type_node(
+            &mut state,
+            arena,
+            target,
+            type_node.node(),
+            enclosing_declaration.node(),
+            flags,
+            internal_flags,
+            tracker,
+        )
+    }
+
     /// tsc-port: createTypeOfDeclarationInExpandoScope @6.0.3
     /// tsc-hash: 37a21cd710c255c1fe8fc4e0e704b11c8062854069c854051651e47a8e392a90
     /// tsc-span: _tsc.js:115400-115425

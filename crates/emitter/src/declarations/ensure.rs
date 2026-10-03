@@ -238,7 +238,13 @@ impl DeclarationTransformer<'_> {
             self.kind(cx, node)?,
             SyntaxKind::ExportAssignment | SyntaxKind::BindingElement
         ) {
-            if let Some(explicit) = type_annotation(cx, node)? {
+            // tsgo reads `node.Type()`, which in JavaScript includes the
+            // type its reparser takes from JSDoc.
+            let explicit = match type_annotation(cx, node)? {
+                Some(explicit) => Some(explicit),
+                None => super::javascript::hosted_type(cx, node)?,
+            };
+            if let Some(explicit) = explicit {
                 let needs_undefined = if self.kind(cx, node)? == SyntaxKind::Parameter {
                     self.resolver.requires_adding_implicit_undefined(
                         self.required_resolver_node(cx, node)?,
@@ -251,13 +257,22 @@ impl DeclarationTransformer<'_> {
                     false
                 };
                 if !needs_undefined {
-                    return match self.visit_declaration_subtree(cx, explicit)? {
-                        VisitResult::None => Ok(None),
-                        VisitResult::Node(node) => Ok(Some(node)),
-                        VisitResult::Nodes(_) => Err(Self::contract(
-                            "type-node visitor returned a statement array",
-                        )),
-                    };
+                    // A JavaScript type goes through the node builder, which
+                    // rewrites JSDoc constructs; when it cannot, the type is
+                    // serialized in full (transform.go:1650-1666).
+                    if current_source_is_js(cx, self.state()?.current_source_file)? {
+                        if let Some(reused) = self.try_js_type_node_to_type_node(cx, explicit)? {
+                            return Ok(Some(reused));
+                        }
+                    } else {
+                        return match self.visit_declaration_subtree(cx, explicit)? {
+                            VisitResult::None => Ok(None),
+                            VisitResult::Node(node) => Ok(Some(node)),
+                            VisitResult::Nodes(_) => Err(Self::contract(
+                                "type-node visitor returned a statement array",
+                            )),
+                        };
+                    }
                 }
             }
         }

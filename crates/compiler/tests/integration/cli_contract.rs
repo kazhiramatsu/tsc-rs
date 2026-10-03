@@ -785,6 +785,279 @@ fn javascript_hosted_tags_and_this_members_follow_tsgo() {
 }
 
 #[test]
+fn javascript_typedef_and_callback_declarations_follow_tsgo() {
+    // tsgo's parser turns each `@typedef` and `@callback` tag into a type
+    // alias before the top-level statement whose JSDoc (or whose nested
+    // node's JSDoc outside a block) holds it, and the declaration transform
+    // prints it: `export` in a module, `@property` tags as a type literal
+    // keeping their comments, a dotted name as namespaces, `@template` tags
+    // as type parameters. The comments stay with the statements that own
+    // them. The expected bytes are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("types.js"),
+        concat!(
+            "/**\n",
+            " * @typedef {Object} Opts\n",
+            " * @property {string} name The name.\n",
+            " * @property {number} [count]\n",
+            " * @property {Object} nested\n",
+            " * @property {*} nested.any\n",
+            " * @property {?string} nested.maybe\n",
+            " * @property {string=} nested.opt Optional nested.\n",
+            " */\n",
+            "\n",
+            "/**\n",
+            " * @template T\n",
+            " * @template {string} [K=string]\n",
+            " * @typedef {{ value: T, key: K }} Pair\n",
+            " */\n",
+            "\n",
+            "/** @typedef {string} NS.A */\n",
+            "/** @typedef {number} NS.Sub.B */\n",
+            "\n",
+            "/**\n",
+            " * @callback Handler\n",
+            " * @param {string} event\n",
+            " * @param {number} rest\n",
+            " * @returns {boolean}\n",
+            " */\n",
+            "\n",
+            "/**\n",
+            " * @callback NoReturn\n",
+            " * @param {Object} opts\n",
+            " * @param {string} opts.x\n",
+            " * @this {Opts}\n",
+            " */\n",
+            "\n",
+            "/** @typedef {Object} Empty */\n",
+            "\n",
+            "/**\n",
+            " * @param {Opts} foo\n",
+            " * @param {string} def\n",
+            " * @param {number} other\n",
+            " */\n",
+            "export function use(foo, def, other) {\n",
+            "    /** @typedef {string} Local */\n",
+            "    void [foo, def, other];\n",
+            "}\n",
+        ),
+    )
+    .expect("write types");
+    fs::write(
+        tree.path("order.js"),
+        concat!(
+            "// leading line comment\n",
+            "/** @typedef {string} A */\n",
+            "\n",
+            "/**\n",
+            " * Doc for B.\n",
+            " * @typedef {number} B\n",
+            " * @typedef {boolean} C\n",
+            " */\n",
+            "/** @param {A} a */\n",
+            "export function f(a) {}\n",
+            "\n",
+            "/** @typedef {A | B} D */\n",
+            "export const x = 1;\n",
+            "\n",
+            "export class K {\n",
+            "    /** @typedef {string} Inner */\n",
+            "    m() {}\n",
+            "}\n",
+            "\n",
+            "/** Free comment */\n",
+            "/** @typedef {C} E */\n",
+        ),
+    )
+    .expect("write order");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2022","allowJs":true,"checkJs":true,"declaration":true,"emitDeclarationOnly":true,"types":[],"outDir":"out"},"files":["types.js","order.js"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        fs::read_to_string(tree.path("out/types.d.ts")).expect("read types declarations"),
+        concat!(
+            "/**\n",
+            " * @typedef {Object} Opts\n",
+            " * @property {string} name The name.\n",
+            " * @property {number} [count]\n",
+            " * @property {Object} nested\n",
+            " * @property {*} nested.any\n",
+            " * @property {?string} nested.maybe\n",
+            " * @property {string=} nested.opt Optional nested.\n",
+            " */\n",
+            "export type Opts = {\n",
+            "    /**\n",
+            "     * The name.\n",
+            "     */\n",
+            "    name: string;\n",
+            "    count?: number;\n",
+            "    nested: {\n",
+            "        any: any;\n",
+            "        maybe: string | null;\n",
+            "        opt?: string | undefined;\n",
+            "    };\n",
+            "};\n",
+            "export type Pair<T, K extends string = string> = {\n",
+            "    value: T;\n",
+            "    key: K;\n",
+            "};\n",
+            "export declare namespace NS {\n",
+            "    export type A = string;\n",
+            "}\n",
+            "export declare namespace NS {\n",
+            "    namespace Sub {\n",
+            "        export type B = number;\n",
+            "    }\n",
+            "}\n",
+            "export type Handler = (event: string, rest: number) => boolean;\n",
+            "export type NoReturn = (opts: {\n",
+            "    x: string;\n",
+            "}) => any;\n",
+            "export type Empty = Object;\n",
+            "/**\n",
+            " * @template T\n",
+            " * @template {string} [K=string]\n",
+            " * @typedef {{ value: T, key: K }} Pair\n",
+            " */\n",
+            "/** @typedef {string} NS.A */\n",
+            "/** @typedef {number} NS.Sub.B */\n",
+            "/**\n",
+            " * @callback Handler\n",
+            " * @param {string} event\n",
+            " * @param {number} rest\n",
+            " * @returns {boolean}\n",
+            " */\n",
+            "/**\n",
+            " * @callback NoReturn\n",
+            " * @param {Object} opts\n",
+            " * @param {string} opts.x\n",
+            " * @this {Opts}\n",
+            " */\n",
+            "/** @typedef {Object} Empty */\n",
+            "/**\n",
+            " * @param {Opts} foo\n",
+            " * @param {string} def\n",
+            " * @param {number} other\n",
+            " */\n",
+            "export declare function use(foo: Opts, def: string, other: number): void;\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/order.d.ts")).expect("read order declarations"),
+        concat!(
+            "/** @typedef {string} A */\n",
+            "export type A = string;\n",
+            "export type B = number;\n",
+            "export type C = boolean;\n",
+            "/**\n",
+            " * Doc for B.\n",
+            " * @typedef {number} B\n",
+            " * @typedef {boolean} C\n",
+            " */\n",
+            "/** @param {A} a */\n",
+            "export declare function f(a: A): void;\n",
+            "export type D = A | B;\n",
+            "/** @typedef {A | B} D */\n",
+            "export declare const x = 1;\n",
+            "export type Inner = string;\n",
+            "export declare class K {\n",
+            "    /** @typedef {string} Inner */\n",
+            "    m(): void;\n",
+            "}\n",
+            "export type E = C;\n",
+            "/** Free comment */\n",
+            "/** @typedef {C} E */\n",
+        )
+    );
+}
+
+#[test]
+fn javascript_dotted_typedef_names_with_reexported_values_follow_tsgo() {
+    // A dotted `@typedef` name is a namespace that merges with a value the
+    // module re-exports with `export {…}`. tsgo counts that export
+    // specifier as a visible declaration and the reparsed namespace as
+    // exported, so the alias may refer to the namespace without an error.
+    // The expected bytes are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("file.js"),
+        concat!(
+            "/**\n",
+            " * @namespace myTypes\n",
+            " * @global\n",
+            " * @type {Object<string,*>}\n",
+            " */\n",
+            "const myTypes = {\n",
+            "    // SOME PROPS HERE\n",
+            "};\n",
+            "\n",
+            "/** @typedef {string|RegExp|Array<string|RegExp>} myTypes.typeA */\n",
+            "\n",
+            "/**\n",
+            " * @typedef myTypes.typeB\n",
+            " * @property {myTypes.typeA}    prop1 - Prop 1.\n",
+            " * @property {string}           prop2 - Prop 2.\n",
+            " */\n",
+            "\n",
+            "/** @typedef {myTypes.typeB|Function} myTypes.typeC */\n",
+            "\n",
+            "export {myTypes};\n",
+        ),
+    )
+    .expect("write file");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2015","module":"commonjs","allowJs":true,"checkJs":true,"declaration":true,"emitDeclarationOnly":true,"types":[],"outDir":"out"},"files":["file.js"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/file.d.ts")).expect("read declarations"),
+        concat!(
+            "/**\n",
+            " * @namespace myTypes\n",
+            " * @global\n",
+            " * @type {Object<string,*>}\n",
+            " */\n",
+            "declare const myTypes: Record<string, any>;\n",
+            "export declare namespace myTypes {\n",
+            "    export type typeA = string | RegExp | Array<string | RegExp>;\n",
+            "}\n",
+            "export declare namespace myTypes {\n",
+            "    export type typeB = {\n",
+            "        /**\n",
+            "         * - Prop 1.\n",
+            "         */\n",
+            "        prop1: myTypes.typeA;\n",
+            "        /**\n",
+            "         * - Prop 2.\n",
+            "         */\n",
+            "        prop2: string;\n",
+            "    };\n",
+            "}\n",
+            "export declare namespace myTypes {\n",
+            "    export type typeC = myTypes.typeB | Function;\n",
+            "}\n",
+            "/** @typedef {string|RegExp|Array<string|RegExp>} myTypes.typeA */\n",
+            "/**\n",
+            " * @typedef myTypes.typeB\n",
+            " * @property {myTypes.typeA}    prop1 - Prop 1.\n",
+            " * @property {string}           prop2 - Prop 2.\n",
+            " */\n",
+            "/** @typedef {myTypes.typeB|Function} myTypes.typeC */\n",
+            "export { myTypes };\n",
+        )
+    );
+}
+
+#[test]
 fn declarations_and_namespace_merges_follow_tsgo() {
     // tsgo keeps a binding pattern without initializers whole in a `.d.ts`,
     // typed as the whole declaration; a variable, function or class already

@@ -142,12 +142,16 @@ pub(crate) fn transform_root(
     } else {
         let mut statements = Vec::new();
         for statement in original_statements {
+            // tsgo's parser puts the declarations it reparses from JSDoc
+            // before the statement (parser.go:614-643).
+            statements.extend(transformer.reparsed_statements_before(context, statement)?);
             match super::statements::visit_declaration_statement(transformer, context, statement)? {
                 VisitResult::None => {}
                 VisitResult::Node(statement) => statements.push(statement),
                 VisitResult::Nodes(result) => statements.extend(result),
             }
         }
+        statements.extend(transformer.reparsed_statements_at_end(context, root_node)?);
         let statements = super::statements::transform_and_replace_late_painted_statements(
             transformer,
             context,
