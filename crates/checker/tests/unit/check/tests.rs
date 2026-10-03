@@ -3232,13 +3232,9 @@ fn regex_validator_preserves_utf16_positions_and_target_gates() {
             && row.2 == 1
             && row.3 == "Unexpected '{'. Did you mean to escape it with backslash?"
     }));
-    assert!(rows.iter().any(|row| {
-        row.0 == 1501
-            && row.1 == 15
-            && row.2 == 1
-            && row.3
-                == "This regular expression flag is only available when targeting 'es6' or later."
-    }));
+    // tsgo gates only the d, s and v flags (scanner/regexp.go:45-49), so `u`
+    // has no target row even below ES2015.
+    assert!(!rows.iter().any(|row| row.0 == 1501));
 }
 
 #[test]

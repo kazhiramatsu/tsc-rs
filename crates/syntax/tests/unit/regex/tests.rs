@@ -12,6 +12,20 @@ fn codes(text: &str, target: ScriptTarget) -> Vec<u32> {
         .collect()
 }
 
+/// The rows as (code, start, length) in UTF-16 units from the first slash.
+fn rows(text: &str, target: ScriptTarget) -> Vec<(u32, u32, u32)> {
+    diagnostics_for(text, target)
+        .into_iter()
+        .map(|diagnostic| {
+            (
+                diagnostic.message.code,
+                diagnostic.start_utf16,
+                diagnostic.length_utf16,
+            )
+        })
+        .collect()
+}
+
 #[test]
 fn validates_flags_and_target_gates() {
     let duplicate = diagnostics_for("/a/gg", ScriptTarget::ES_NEXT);
@@ -36,9 +50,12 @@ fn validates_flags_and_target_gates() {
                 .code
         ]
     );
+    // tsgo gates only d, s and v (scanner/regexp.go:45-49).
+    for literal in ["/a/u", "/a/y"] {
+        let target = ScriptTarget::from_bits(ScriptTarget::ES2015.bits() - 1);
+        assert!(diagnostics_for(literal, target).is_empty(), "{literal}");
+    }
     for (literal, minimum, target_name) in [
-        ("/a/u", ScriptTarget::ES2015, "es6"),
-        ("/a/y", ScriptTarget::ES2015, "es6"),
         ("/a/s", ScriptTarget::ES2018, "es2018"),
         ("/a/d", ScriptTarget::ES2022, "es2022"),
         ("/a/v", ScriptTarget::ES2024, "es2024"),
@@ -67,9 +84,10 @@ fn validates_extended_unicode_escapes_in_utf16_units() {
                 diagnostic.length_utf16
             ))
             .collect::<Vec<_>>(),
+        // tsgo returns from the escape as soon as no digit follows the
+        // brace, so `}` is reported where the pattern reaches it.
         vec![
             (diagnostics::Hexadecimal_digit_expected.code, 4, 0),
-            (diagnostics::Unterminated_Unicode_escape_sequence.code, 4, 0),
             (
                 diagnostics::Unexpected_0_Did_you_mean_to_escape_it_with_backslash.code,
                 9,
@@ -309,4 +327,123 @@ fn validates_classes_sets_and_unicode_properties() {
         ]
     );
     assert_eq!(property_value[1].args, vec!["Latn"]);
+}
+
+#[test]
+fn named_groups_and_pattern_modifiers_follow_tsgo() {
+    // Rows from tsc-19dadef8 (scanner/regexp.go:156-184, 268-284, 500-522).
+    // A name defined in a nested group conflicts with a sibling group.
+    assert_eq!(
+        rows("/(?:(?<a>x))(?<a>z)/", ScriptTarget::ES_NEXT),
+        [(1515, 15, 1)]
+    );
+    // A duplicate in a mutually exclusive alternative needs ES2025.
+    for target in [ScriptTarget::ES2018, ScriptTarget::ES2022] {
+        assert_eq!(rows("/(?<a>x)|(?<a>y)/", target), [(18063, 12, 1)]);
+        assert_eq!(
+            rows("/(?<a>x)(?<b>y)|(?:(?<a>z))/", target),
+            [(18063, 22, 1)]
+        );
+    }
+    assert!(rows("/(?<a>x)|(?<a>y)/", ScriptTarget::ES2025).is_empty());
+    // Pattern modifiers need ES2025: the row covers the modifier text, and
+    // no flag is gated on its own inside a subpattern.
+    assert_eq!(
+        rows("/(?i:a)(?-s:b)(?m-:c)/", ScriptTarget::ES2017),
+        [(18062, 3, 1), (18062, 9, 2), (18062, 16, 2)]
+    );
+    assert!(rows("/(?i:a)(?-s:b)(?m-:c)/", ScriptTarget::ES2025).is_empty());
+}
+
+#[test]
+fn quantifier_bounds_compare_as_decimal_strings_like_tsgo() {
+    assert_eq!(
+        rows(
+            "/a{9223372036854775808,9223372036854775807}/",
+            ScriptTarget::ES_NEXT
+        ),
+        [(1506, 3, 39)]
+    );
+    assert_eq!(
+        rows(
+            "/a{9007199254740993,9007199254740992}/",
+            ScriptTarget::ES_NEXT
+        ),
+        [(1506, 3, 33)]
+    );
+    assert!(rows(
+        "/a{9223372036854775807,9223372036854775808}/",
+        ScriptTarget::ES_NEXT
+    )
+    .is_empty());
+}
+
+#[test]
+fn class_sets_follow_tsgo() {
+    // A lone `&` is an ordinary class-set character
+    // (scanner/regexp.go:629-692).
+    assert!(rows("/[a&b&c]/v", ScriptTarget::ES_NEXT).is_empty());
+    // Every union operand of a negated class is checked.
+    assert_eq!(
+        rows("/[^\\p{Emoji}\\p{RGI_Emoji}]/v", ScriptTarget::ES_NEXT),
+        [(1518, 12, 13)]
+    );
+    // A subtraction keeps its first operand's strings.
+    assert!(rows("/[\\q{ab}--\\q{a}]/v", ScriptTarget::ES_NEXT).is_empty());
+    assert_eq!(
+        rows("/[^[\\q{ab}--\\q{a}]]/v", ScriptTarget::ES_NEXT),
+        [(1518, 3, 15)]
+    );
+    // U+0126 and U+012F, whose low bytes are `&` and `/`, are no
+    // punctuators: neither a reserved double punctuator nor a syntax
+    // character, and escaping one is invalid in Unicode mode.
+    assert!(rows("/[\u{126}\u{126}][\u{12F}]/v", ScriptTarget::ES_NEXT).is_empty());
+    assert_eq!(rows("/\\\u{12F}/u", ScriptTarget::ES_NEXT), [(1535, 1, 2)]);
+}
+
+#[test]
+fn non_bmp_characters_and_group_name_escapes_follow_tsgo() {
+    // Outside Unicode mode a non-BMP character is two atoms that both start
+    // at the character (scanner/regexp.go:1016-1057).
+    assert_eq!(
+        rows(
+            "/[\u{1D608}-\u{1D621}][\u{1D621}-\u{1D608}]/",
+            ScriptTarget::ES_NEXT
+        ),
+        [(1517, 2, 3), (1517, 9, 3)]
+    );
+    // An escaped non-BMP character is one identity escape.
+    assert_eq!(
+        rows("/\\\u{1D608}/u", ScriptTarget::ES_NEXT),
+        [(1535, 1, 3)]
+    );
+    // An unbraced `\uHigh\uLow` pair in Unicode mode is one character, also
+    // at the end of the pattern.
+    assert_eq!(
+        rows(
+            "/[\\uD835\\uDE08-\\uD835\\uDE21][\\uD835\\uDE21-\\uD835\\uDE08]/u",
+            ScriptTarget::ES_NEXT
+        ),
+        [(1517, 29, 25)]
+    );
+    assert!(rows("/\\uD835\\uDE08/u", ScriptTarget::ES_NEXT).is_empty());
+    // Group names take `\u` escapes, braced or not and whatever the flags,
+    // and an unbraced pair of surrogate escapes.
+    assert_eq!(
+        rows(
+            "/(?<\\u{13A0}>)\\k<\\u13A0>\\k<\\uD800\\uDC00>(?<\\uD835\\uDC00>)\\k<\\u{1D400}>/",
+            ScriptTarget::ES_NEXT
+        ),
+        [(1532, 27, 12)]
+    );
+    // A braced pair is not a name: TS1514 at the escape, then `>` and the
+    // escape itself are reported at the same position, which the parser
+    // drops (it keeps the first scanner error at a position).
+    assert_eq!(
+        rows(
+            "/(?<\u{1D400}>)\\k<\\uD835\\uDC00>\\k<\\u{D835}\\u{DC00}>/",
+            ScriptTarget::ES_NEXT
+        ),
+        [(1514, 27, 0), (1005, 27, 0), (1538, 27, 8), (1538, 35, 8)]
+    );
 }
