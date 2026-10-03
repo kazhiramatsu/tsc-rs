@@ -1106,3 +1106,62 @@ P3-5s後のnode16系のclass（package自己名・`#imports`・exportsが出力�
     空になる）
 - hosted：PR #638（head `c632036d7`、merge `4b1427b9e`）、run 37117376522 — `plan` 22s、`rust` 9m17s、`conformance (TypeScript 7.1)` 15m52s、`gates` 12s。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main `efb8af16e`（P3-5sのhead `0f387f437`と同じコードのrelease build）と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 130→142、zod 538→551、Playwright 397→393、TypeScript `src/compiler` 356→354、Next.js 774→809、Effect 532→545、VS Code 3,542→3,553。tsc-rs÷tsgoは0.58〜0.94、peak memory（MB main→本branch）：320→311、1,294→1,295、801→805、289→288、1,320→1,328、1,036→1,046、5,449→5,448。診断の出力と読み込んだdocument数は7 corpusともmainと同一。honoとNext.jsは5 roundsのA/B（main／本branch）でhono 129／129 ms・CPU 619／610 ms、Next.js 739／745 ms・CPU 4,494／4,451 ms、`TSRS_CHECKERS=1`の命令数はhono 4.307／4.305 G、Next.js 48.45／48.19 Gなのでノイズ。退行なし。
+
+## P3-5u 正規表現の検証をtsgoに合わせる（2026-10-03）
+
+P3-5t後の正規表現のclass（9構成）を、tsgoの`scanner/regexp.go`と`scanner.go`の該当部分に合わせた。tsc-rsの検証は
+tsc 6.0の移植で、UTF-16の単位で走査する：
+- 名前付きgroup（regexp.go:156-184、500-522）：
+  - alternativeごとに名前のscopeを持ち、disjunctionの全alternativeの名前を合わせて、group内なら外側のalternativeの
+    scopeに加える。入れ子のgroupで定義した名前が、同じalternativeの後のgroupと衝突する（TS1515）。
+  - 排他的なalternativeでの重複は、ES2018以上ES2025未満でTS18063（「Duplicate named capturing groups are only
+    available when targeting 'es2025' or later」）。
+  - group名はtsgoの`scanIdentifier`（RegExpGroupName）で読む。先頭も含めて`\u`のescape（波括弧付きも、flagに
+    関係なく）と、波括弧の無い`\uHigh\uLow`の組を受け付ける。tsc 6.0の移植は先頭のescapeを受け付けず、TS1514・
+    TS1538などを報告していた。
+- pattern modifier（268-284）：修飾文字を読んだ`(?flags:`／`(?flags-flags:`は、ES2025未満でTS18062（その文字の範囲）。
+  subpattern内では個々のflagの対象versionを調べない。正規表現のflagの対象versionはd・s・vだけ（45-49。tsc 6.0の
+  u・yのes6は無い）。
+- 量指定子の上限（291-333）：10進の文字列として比べる（compareDecimalStrings）。tsc 6.0の移植は浮動小数点で比べ、
+  2^53を越える数の順序を誤っていた。
+- 文字集合（v flag、593-769）：
+  - 最初のoperandの後の単独の`-`／`&`は何もしない。loopの`&`は`&&`のときだけ演算子で、単独の`&`は普通の文字
+    （tsc 6.0の移植はTS1508を報告していた）。
+  - 範囲の分岐の後もloopを続ける（tsc 6.0のJavaScriptの`break`はswitchを抜けるだけだが、移植はloopを抜けていた）。
+  - unionのoperandごとに、否定の集合での文字列の可能性（TS1518）を調べ、文字列の可能性を合わせる。
+  - 差の集合は最初のoperandの文字列の可能性を保ち、積の集合だけが論理積をとる。
+- BMP外の文字（1016-1057）：Unicode modeでなければ2つのatomで、上位surrogateは位置を進めずに返し、下位surrogateで
+  文字全体を進める。どちらのatomも文字の先頭から始まるので、範囲の順序の誤り（TS1517）は文字の先頭の列になる。
+- escape（scanner.go:1689-1851）：`\u{`の後に16進数字が無ければすぐ戻る（`}`を探さない）。BMP外の文字のidentity
+  escapeは1文字。Unicode modeで波括弧の無い`\uHigh\uLow`は、正規表現の末尾でも1文字（tsc 6.0の`pos + 6 < end`は
+  1つずれていた）。
+- 句読点との比較で、16bitの単位を`u8`に切り詰めていた（U+012Fが`/`、U+0126が`&`に一致した）のをASCIIだけに限った。
+- unit test：
+  - 再pin：`/\u{-DDDD}/gu`（TS1125とTS1508。TS1199は無い）、u・yのflagの対象version（無い）、checkerのES5の`u`の行
+    （無い）。
+  - tsgoの行にpinした新しいtest 4件（名前付きgroupとmodifier、量指定子の上限、文字集合、BMP外の文字とgroup名の
+    escape）。tsgoのCLIで同じ正規表現を3つのtargetで比べ、80行がすべて一致した。
+- conformance：
+  - 15,228 configuration、lane A 13,467（変化なし）、808 s。
+  - full 13,256→13,266（+10）、text 29、category 19、mismatch 118→108、emit full 12,429（変化なし）、harness error 45
+    （同じ集合）。
+- 上がった10構成（すべてfullへ）：`regexNamedGroupDuplicateNestedInGroup`、`regularExpressionCharacterClassRangeOrder`、
+  `regularExpressionES2025Syntax`のtarget=es2017／es2022、`regularExpressionGroupNameUnicodeEscapes`、
+  `regularExpressionQuantifierBounds1`、`regularExpressionScanning`のtarget=es2015／esnext、
+  `regularExpressionUnicodeSetsLoneAmpersand`、`negatedUnicodeSetUnionMayContainStrings`。
+- 下がった構成はemitを含めて無い。
+- ratchet：0 regressions、10行追加。`intersectionConstructorReductionCrash`は従来どおり載せない。
+- local：
+  - formatとworkspace全体のclippy。syntaxとその逆依存（binder、checker、compiler、conformance、emitter、harness、
+    program）のtest（60 targets、3,538 passed）。
+  - 2 workerのfull run（808 s）。workspace全体のtestはhostedの`rust` job。
+  - filterの段階では、正規表現を含む218 case（303構成）をP3-5tのreportとtierごとに比べた（上昇10、下降0）。
+  - `--checkers 4`の並列対照は実行していない。
+- 残り（lane Aでfullでない201構成：mismatch 108、text 29、category 19、harness error 45）の主なclass：
+  - ambient moduleのimport attributes（`declare module "*.ext" with {…}`、7.1の新しい構文、15）
+  - conflict marker（6）：tsc-rsのscannerはmerge conflict markerを認識しない（tsgoのisConflictMarkerTrivia／
+    scanConflictMarkerTrivia、scanner.go:2402-2470）。
+  - インスタンス化の循環（TS5114／TS5115、5）
+  - 型の表示（`mixB<typeof A>.(Anonymous class)`、TS2208のconstraint、union順）
+  - tsconfigの位置などharnessの行（約6）
+  - `composite`のemit

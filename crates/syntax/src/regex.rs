@@ -163,8 +163,8 @@ pub fn validate_regular_expression_literal(
         group_specifiers: Vec::new(),
         group_name_references: Vec::new(),
         decimal_escapes: Vec::new(),
-        named_capturing_groups_scope_stack: Vec::new(),
-        top_named_capturing_groups_scope: None,
+        named_capturing_groups: Vec::new(),
+        pending_low_surrogate: false,
     };
     scanner.scan_disjunction(false);
     scanner.finish_references();
@@ -186,8 +186,14 @@ struct RegexScanner {
     group_specifiers: Vec<String>,
     group_name_references: Vec<CaptureReference>,
     decimal_escapes: Vec<DecimalEscape>,
-    named_capturing_groups_scope_stack: Vec<Option<Vec<String>>>,
-    top_named_capturing_groups_scope: Option<Vec<String>>,
+    /// tsgo's stack of named-group scopes, one per alternative being
+    /// scanned (scanDisjunction).
+    named_capturing_groups: Vec<Vec<String>>,
+    /// In non-Unicode mode a non-BMP character is two atoms. tsgo scans its
+    /// UTF-8 text, returns the high surrogate without advancing and the low
+    /// surrogate past the whole character (scanSourceCharacter), so both
+    /// atoms start at the character.
+    pending_low_surrogate: bool,
 }
 
 impl RegexScanner {
@@ -233,19 +239,38 @@ impl RegexScanner {
         self.char_code(pos) == i32::from(first) && self.char_code(pos + 1) == i32::from(second)
     }
 
+    /// tsgo: scanDisjunction (scanner/regexp.go:156-184). Each alternative
+    /// has its own scope of group names. The names of all alternatives are
+    /// unioned and, in a group, added to the enclosing alternative's scope,
+    /// so a name defined in a nested group conflicts with a sibling group
+    /// later in that alternative.
     fn scan_disjunction(&mut self, is_in_group: bool) {
+        let mut disjunction_names: Vec<String> = Vec::new();
         loop {
-            self.named_capturing_groups_scope_stack
-                .push(self.top_named_capturing_groups_scope.take());
+            self.named_capturing_groups.push(Vec::new());
             self.scan_alternative(is_in_group);
-            self.top_named_capturing_groups_scope = self
-                .named_capturing_groups_scope_stack
+            let alternative_names = self
+                .named_capturing_groups
                 .pop()
                 .expect("regular-expression scope stack is balanced");
+            for name in alternative_names {
+                if !disjunction_names.contains(&name) {
+                    disjunction_names.push(name);
+                }
+            }
             if self.char_code(self.pos) != i32::from(b'|') {
-                return;
+                break;
             }
             self.pos += 1;
+        }
+        if is_in_group {
+            if let Some(parent) = self.named_capturing_groups.last_mut() {
+                for name in disjunction_names {
+                    if !parent.contains(&name) {
+                        parent.push(name);
+                    }
+                }
+            }
         }
     }
 
@@ -323,6 +348,18 @@ impl RegexScanner {
                                         );
                                     }
                                 }
+                                // tsgo (scanner/regexp.go:278-281): modifier
+                                // characters make this `(?flags:`, which needs
+                                // ES2025.
+                                if self.pos != modifier_start && self.target < ScriptTarget::ES2025
+                                {
+                                    self.error(
+                                        &diagnostics::Regular_expression_pattern_modifiers_are_only_available_when_targeting_0_or_later,
+                                        modifier_start,
+                                        self.pos - modifier_start,
+                                        vec!["es2025".to_owned()],
+                                    );
+                                }
                                 self.scan_expected_char(b':');
                                 previous_term_quantifiable = true;
                             }
@@ -359,7 +396,7 @@ impl RegexScanner {
                                 continue;
                             }
                         } else if !maximum.is_empty()
-                            && parse_decimal_number(&minimum) > parse_decimal_number(&maximum)
+                            && compare_decimal_strings(&minimum, &maximum).is_gt()
                             && (self.any_unicode_mode_or_non_annex_b
                                 || self.char_code(self.pos) == i32::from(b'}'))
                         {
@@ -405,6 +442,7 @@ impl RegexScanner {
                         self.scan_class_set_expression();
                     } else {
                         self.scan_class_ranges();
+                        self.pending_low_surrogate = false;
                     }
                     self.scan_expected_char(b']');
                     previous_term_quantifiable = true;
@@ -471,8 +509,9 @@ impl RegexScanner {
                         Vec::new(),
                     );
                 } else {
+                    // The modifier group's own ES2025 row covers every flag
+                    // that can be toggled here (scanner/regexp.go:391-393).
                     current_flags |= flag;
-                    check_flag_availability(&mut self.diagnostics, self.target, flag, start, size);
                 }
             } else {
                 self.error(
@@ -573,21 +612,23 @@ impl RegexScanner {
             }
             value
                 if matches!(
-                    value as u8,
-                    b'^' | b'$'
-                        | b'/'
-                        | b'\\'
-                        | b'.'
-                        | b'*'
-                        | b'+'
-                        | b'?'
-                        | b'('
-                        | b')'
-                        | b'['
-                        | b']'
-                        | b'{'
-                        | b'}'
-                        | b'|'
+                    ascii(value),
+                    Some(
+                        b'^' | b'$'
+                            | b'/'
+                            | b'\\'
+                            | b'.'
+                            | b'*'
+                            | b'+'
+                            | b'?'
+                            | b'('
+                            | b')'
+                            | b'['
+                            | b']'
+                            | b'{'
+                            | b'}'
+                            | b'|'
+                    )
                 ) =>
             {
                 self.pos += 1;
@@ -694,26 +735,16 @@ impl RegexScanner {
                 let escaped =
                     u16::from_str_radix(&self.slice_string(start + 2, self.pos), 16).unwrap_or(0);
                 let mut result = vec![escaped];
+                // tsgo (scanner/scanner.go:1794-1805): in Unicode mode an
+                // unbraced `\uHigh\uLow` pair is one character.
                 if self.any_unicode_mode
                     && (0xD800..=0xDBFF).contains(&escaped)
-                    && self.pos + 6 < self.end
-                    && self.pair_is(self.pos, b'\\', b'u')
                     && self.char_code(self.pos + 2) != i32::from(b'{')
                 {
-                    let next_start = self.pos;
-                    let next_end = next_start + 6;
-                    if self.text[next_start + 2..next_end]
-                        .iter()
-                        .all(|unit| is_hex_digit(i32::from(*unit)))
-                    {
-                        let next = u16::from_str_radix(
-                            &String::from_utf16_lossy(&self.text[next_start + 2..next_end]),
-                            16,
-                        )
-                        .unwrap_or(0);
+                    if let Some((next, after)) = self.peek_unicode_escape(self.pos) {
                         if (0xDC00..=0xDFFF).contains(&next) {
-                            self.pos = next_end;
-                            result.push(next);
+                            self.pos = after;
+                            result.push(next as u16);
                         }
                     }
                 }
@@ -739,6 +770,15 @@ impl RegexScanner {
             }
             10 | 0x2028 | 0x2029 => Vec::new(),
             value => {
+                // tsgo decodes the whole character (scanner/scanner.go:1836-1841),
+                // so a non-BMP character is one identity escape.
+                let mut result = code_unit_result(value);
+                if (0xD800..=0xDBFF).contains(&value)
+                    && (0xDC00..=0xDFFF).contains(&self.char_code(self.pos))
+                {
+                    result.push(self.text[self.pos]);
+                    self.pos += 1;
+                }
                 // In `u` and `v` mode every identity escape is invalid, not only
                 // escapes of identifier characters. This also matters for error
                 // recovery after an invalid control escape: `\c\`` leaves the
@@ -747,12 +787,12 @@ impl RegexScanner {
                 if self.any_unicode_mode {
                     self.error(
                         &diagnostics::This_character_cannot_be_escaped_in_a_regular_expression,
-                        self.pos.saturating_sub(2),
-                        2,
+                        start,
+                        self.pos - start,
                         Vec::new(),
                     );
                 }
-                code_unit_result(value)
+                result
             }
         }
     }
@@ -768,10 +808,12 @@ impl RegexScanner {
         let mut invalid = false;
         match escaped {
             None => {
+                // tsgo returns at once (scanner/scanner.go:1866-1872): the
+                // closing brace is not looked for.
                 if report_error {
                     self.error_here(&diagnostics::Hexadecimal_digit_expected);
                 }
-                invalid = true;
+                return self.slice(start, self.pos);
             }
             Some(value) if value > 0x10FFFF => {
                 if report_error {
@@ -822,13 +864,13 @@ impl RegexScanner {
         (units.len() >= minimum).then(|| String::from_utf16_lossy(&units))
     }
 
+    /// tsgo: scanGroupName (scanner/regexp.go:500-522).
     fn scan_group_name(&mut self, is_reference: bool) {
         let start = self.pos;
-        let name = self.scan_identifier();
-        if self.pos == start {
+        let Some(name) = self.scan_identifier() else {
             self.error_here(&diagnostics::Expected_a_capturing_group_name);
             return;
-        }
+        };
         if is_reference {
             self.group_name_references.push(CaptureReference {
                 pos: start,
@@ -837,16 +879,11 @@ impl RegexScanner {
             });
             return;
         }
-        let duplicate_in_top = self
-            .top_named_capturing_groups_scope
-            .as_ref()
-            .is_some_and(|scope| scope.contains(&name));
-        let duplicate_in_stack = self
-            .named_capturing_groups_scope_stack
+        if self
+            .named_capturing_groups
             .iter()
-            .flatten()
-            .any(|scope| scope.contains(&name));
-        if duplicate_in_top || duplicate_in_stack {
+            .any(|scope| scope.contains(&name))
+        {
             self.error(
                 &diagnostics::Named_capturing_groups_with_the_same_name_must_be_mutually_exclusive_to_each_other,
                 start,
@@ -854,85 +891,80 @@ impl RegexScanner {
                 Vec::new(),
             );
         } else {
-            self.top_named_capturing_groups_scope
-                .get_or_insert_with(Vec::new)
-                .push(name.clone());
+            // tsgo (scanner/regexp.go:510-516): an earlier definition is in a
+            // mutually exclusive alternative. Below ES2018 the group itself
+            // is already reported.
+            if self.group_specifiers.contains(&name)
+                && self.target >= ScriptTarget::ES2018
+                && self.target < ScriptTarget::ES2025
+            {
+                self.error(
+                    &diagnostics::Duplicate_named_capturing_groups_are_only_available_when_targeting_0_or_later,
+                    start,
+                    self.pos - start,
+                    vec!["es2025".to_owned()],
+                );
+            }
+            if let Some(scope) = self.named_capturing_groups.last_mut() {
+                scope.push(name.clone());
+            }
             if !self.group_specifiers.contains(&name) {
                 self.group_specifiers.push(name);
             }
         }
     }
 
-    fn scan_identifier(&mut self) -> String {
+    /// tsgo: Scanner.scanIdentifier with identifierVariantRegExpGroupName
+    /// (scanner/scanner.go:1484-1528). A group name may start with, and
+    /// contain, `\u` escapes, braced or not and whatever the flags; `None`
+    /// when nothing forms a name.
+    fn scan_identifier(&mut self) -> Option<String> {
         let start = self.pos;
-        let Some((first, size)) = self.code_point(self.pos) else {
-            return String::new();
-        };
-        if !is_identifier_start_code_point(first, self.target) {
-            return String::new();
-        }
-        self.pos += size;
-        while let Some((code_point, size)) = self.code_point(self.pos) {
-            if !is_identifier_part_code_point(code_point, self.target) {
-                break;
+        if let Some((first, size)) = self.code_point(self.pos) {
+            if is_identifier_start_code_point(first, self.target) {
+                self.pos += size;
+                while let Some((code_point, size)) = self.code_point(self.pos) {
+                    if !is_identifier_part_code_point(code_point, self.target) {
+                        break;
+                    }
+                    self.pos += size;
+                }
+                let mut name = self.slice_string(start, self.pos);
+                if self.char_code(self.pos) == i32::from(b'\\') {
+                    name.push_str(&self.scan_identifier_parts());
+                }
+                return Some(name);
             }
-            self.pos += size;
         }
         if self.char_code(self.pos) == i32::from(b'\\') {
-            let mut result = self.slice_string(start, self.pos);
-            result.push_str(&self.scan_identifier_parts());
-            result
-        } else {
-            self.slice_string(start, self.pos)
+            if let Some(escaped) = self.scan_identifier_escape(true) {
+                let mut name = String::new();
+                name.push(escaped);
+                name.push_str(&self.scan_identifier_parts());
+                return Some(name);
+            }
         }
+        None
     }
 
+    /// tsgo: Scanner.scanIdentifierParts (scanner/scanner.go:1530-1558).
     fn scan_identifier_parts(&mut self) -> String {
         let mut result = String::new();
         let mut raw_start = self.pos;
-        while self.pos < self.end {
+        loop {
             if let Some((code_point, size)) = self.code_point(self.pos) {
                 if is_identifier_part_code_point(code_point, self.target) {
                     self.pos += size;
                     continue;
                 }
             }
-            if self.char_code(self.pos) != i32::from(b'\\') {
-                break;
-            }
-            let saved = self.pos;
-            if self.pair_is(self.pos, b'\\', b'u')
-                && self.char_code(self.pos + 2) == i32::from(b'{')
-            {
-                let mut probe = self.pos + 3;
-                let digit_start = probe;
-                while is_hex_digit(self.char_code(probe)) {
-                    probe += 1;
-                }
-                let value = (probe > digit_start)
-                    .then(|| self.slice_string(digit_start, probe))
-                    .and_then(|digits| u32::from_str_radix(&digits, 16).ok());
-                if value.is_some_and(|value| {
-                    value <= 0x10FFFF && is_identifier_part_code_point(value, self.target)
-                }) {
-                    result.push_str(&self.slice_string(raw_start, saved));
-                    let decoded = self.scan_extended_unicode_escape(true);
-                    result.push_str(&String::from_utf16_lossy(&decoded));
+            if self.char_code(self.pos) == i32::from(b'\\') {
+                let escape_start = self.pos;
+                if let Some(escaped) = self.scan_identifier_escape(false) {
+                    result.push_str(&self.slice_string(raw_start, escape_start));
+                    result.push(escaped);
                     raw_start = self.pos;
                     continue;
-                }
-            } else if self.pair_is(self.pos, b'\\', b'u') && self.pos + 6 <= self.end {
-                let units = &self.text[self.pos + 2..self.pos + 6];
-                if units.iter().all(|unit| is_hex_digit(i32::from(*unit))) {
-                    let value = u32::from_str_radix(&String::from_utf16_lossy(units), 16)
-                        .unwrap_or(u32::MAX);
-                    if is_identifier_part_code_point(value, self.target) {
-                        result.push_str(&self.slice_string(raw_start, saved));
-                        result.push_str(&String::from_utf16_lossy(&encode_code_point(value)));
-                        self.pos += 6;
-                        raw_start = self.pos;
-                        continue;
-                    }
                 }
             }
             break;
@@ -941,11 +973,77 @@ impl RegexScanner {
         result
     }
 
+    /// tsgo: Scanner.scanIdentifierEscape for a group name
+    /// (scanner/scanner.go:1560-1583). A `\u` escape of an identifier
+    /// character, or a pair of unbraced `\uHigh\uLow` escapes whose
+    /// character is one (tc39/ecma262#1869).
+    fn scan_identifier_escape(&mut self, identifier_start: bool) -> Option<char> {
+        let target = self.target;
+        let valid = |code_point: u32| {
+            if identifier_start {
+                is_identifier_start_code_point(code_point, target)
+            } else {
+                is_identifier_part_code_point(code_point, target)
+            }
+        };
+        let (escaped, after) = self.peek_unicode_escape(self.pos)?;
+        if valid(escaped) {
+            self.pos = after;
+            return char::from_u32(escaped);
+        }
+        if self.char_code(self.pos + 2) != i32::from(b'{')
+            && (0xD800..=0xDBFF).contains(&escaped)
+            && self.char_code(after + 2) != i32::from(b'{')
+        {
+            if let Some((low, after_low)) = self.peek_unicode_escape(after) {
+                if (0xDC00..=0xDFFF).contains(&low) {
+                    let code_point = 0x10000 + ((escaped - 0xD800) << 10) + (low - 0xDC00);
+                    if valid(code_point) {
+                        self.pos = after_low;
+                        return char::from_u32(code_point);
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// tsgo: Scanner.scanUnicodeEscape without diagnostics
+    /// (scanner/scanner.go:1854-1902): the code point of the `\uXXXX` or
+    /// `\u{X…}` escape at `pos` and the position after it, or `None` when it
+    /// is malformed.
+    fn peek_unicode_escape(&self, pos: usize) -> Option<(u32, usize)> {
+        if self.char_code(pos) != i32::from(b'\\') || self.char_code(pos + 1) != i32::from(b'u') {
+            return None;
+        }
+        let digits_start = pos + 2;
+        if self.char_code(digits_start) == i32::from(b'{') {
+            let mut end = digits_start + 1;
+            while is_hex_digit(self.char_code(end)) {
+                end += 1;
+            }
+            if end == digits_start + 1 || self.char_code(end) != i32::from(b'}') {
+                return None;
+            }
+            let value = u32::from_str_radix(&self.slice_string(digits_start + 1, end), 16)
+                .ok()
+                .filter(|value| *value <= 0x10FFFF)?;
+            return Some((value, end + 1));
+        }
+        if !(0..4).all(|offset| is_hex_digit(self.char_code(digits_start + offset))) {
+            return None;
+        }
+        let value =
+            u32::from_str_radix(&self.slice_string(digits_start, digits_start + 4), 16).ok()?;
+        Some((value, digits_start + 4))
+    }
+
     fn is_class_content_exit(&self, ch: i32) -> bool {
         ch == i32::from(b']') || ch == EOF || self.pos >= self.end
     }
 
     fn scan_class_ranges(&mut self) {
+        self.pending_low_surrogate = false;
         if self.char_code(self.pos) == i32::from(b'^') {
             self.pos += 1;
         }
@@ -1000,6 +1098,7 @@ impl RegexScanner {
         }
     }
 
+    /// tsgo: scanClassSetExpression (scanner/regexp.go:593-716).
     fn scan_class_set_expression(&mut self) {
         let mut character_complement = false;
         if self.char_code(self.pos) == i32::from(b'^') {
@@ -1007,7 +1106,7 @@ impl RegexScanner {
             character_complement = true;
         }
         let mut expression_may_contain_strings = false;
-        let mut ch = self.char_code(self.pos);
+        let ch = self.char_code(self.pos);
         if self.is_class_content_exit(ch) {
             return;
         }
@@ -1020,38 +1119,42 @@ impl RegexScanner {
             } else {
                 self.scan_class_set_operand()
             };
-
+        // A single `-` or `&` after the first operand is left to the union
+        // loop below.
         match self.char_code(self.pos) {
-            value if value == i32::from(b'-') && self.pair_is(self.pos, b'-', b'-') => {
-                if character_complement && self.may_contain_strings {
-                    self.error(
-                        &diagnostics::Anything_that_would_possibly_match_more_than_a_single_character_is_invalid_inside_a_negated_character_class,
-                        start,
-                        self.pos - start,
-                        Vec::new(),
-                    );
+            value if value == i32::from(b'-') => {
+                if self.pair_is(self.pos, b'-', b'-') {
+                    if character_complement && self.may_contain_strings {
+                        self.error(
+                            &diagnostics::Anything_that_would_possibly_match_more_than_a_single_character_is_invalid_inside_a_negated_character_class,
+                            start,
+                            self.pos - start,
+                            Vec::new(),
+                        );
+                    }
+                    expression_may_contain_strings = self.may_contain_strings;
+                    self.scan_class_set_sub_expression(ClassExpressionType::Subtraction);
+                    self.may_contain_strings =
+                        !character_complement && expression_may_contain_strings;
+                    return;
                 }
-                expression_may_contain_strings = self.may_contain_strings;
-                self.scan_class_set_sub_expression(ClassExpressionType::Subtraction);
-                self.may_contain_strings = !character_complement && expression_may_contain_strings;
-                return;
-            }
-            value if value == i32::from(b'&') && self.pair_is(self.pos, b'&', b'&') => {
-                self.scan_class_set_sub_expression(ClassExpressionType::Intersection);
-                if character_complement && self.may_contain_strings {
-                    self.error(
-                        &diagnostics::Anything_that_would_possibly_match_more_than_a_single_character_is_invalid_inside_a_negated_character_class,
-                        start,
-                        self.pos - start,
-                        Vec::new(),
-                    );
-                }
-                expression_may_contain_strings = self.may_contain_strings;
-                self.may_contain_strings = !character_complement && expression_may_contain_strings;
-                return;
             }
             value if value == i32::from(b'&') => {
-                self.unexpected_character(self.pos, 1, value);
+                if self.pair_is(self.pos, b'&', b'&') {
+                    self.scan_class_set_sub_expression(ClassExpressionType::Intersection);
+                    if character_complement && self.may_contain_strings {
+                        self.error(
+                            &diagnostics::Anything_that_would_possibly_match_more_than_a_single_character_is_invalid_inside_a_negated_character_class,
+                            start,
+                            self.pos - start,
+                            Vec::new(),
+                        );
+                    }
+                    expression_may_contain_strings = self.may_contain_strings;
+                    self.may_contain_strings =
+                        !character_complement && expression_may_contain_strings;
+                    return;
+                }
             }
             _ => {
                 if character_complement && self.may_contain_strings {
@@ -1066,97 +1169,81 @@ impl RegexScanner {
             }
         }
 
-        loop {
-            ch = self.char_code(self.pos);
-            if ch == EOF {
-                break;
-            }
-            match ch {
-                value if value == i32::from(b'-') => {
-                    self.pos += 1;
-                    ch = self.char_code(self.pos);
-                    if self.is_class_content_exit(ch) {
-                        self.may_contain_strings =
-                            !character_complement && expression_may_contain_strings;
-                        return;
-                    }
-                    if ch == i32::from(b'-') {
-                        self.pos += 1;
-                        self.error(
-                            &diagnostics::Operators_must_not_be_mixed_within_a_character_class_Wrap_it_in_a_nested_class_instead,
-                            self.pos - 2,
-                            2,
-                            Vec::new(),
-                        );
-                        start = self.pos - 2;
-                        operand = self.slice(start, self.pos);
-                        continue;
-                    }
-                    if operand.is_empty() {
-                        self.error(
-                            &diagnostics::A_character_class_range_must_not_be_bounded_by_another_character_class,
-                            start,
-                            self.pos.saturating_sub(1 + start),
-                            Vec::new(),
-                        );
-                    }
-                    let second_start = self.pos;
-                    let second = self.scan_class_set_operand();
-                    if character_complement && self.may_contain_strings {
-                        self.error(
-                            &diagnostics::Anything_that_would_possibly_match_more_than_a_single_character_is_invalid_inside_a_negated_character_class,
-                            second_start,
-                            self.pos - second_start,
-                            Vec::new(),
-                        );
-                    }
-                    expression_may_contain_strings |= self.may_contain_strings;
-                    if second.is_empty() {
-                        self.error(
-                            &diagnostics::A_character_class_range_must_not_be_bounded_by_another_character_class,
-                            second_start,
-                            self.pos - second_start,
-                            Vec::new(),
-                        );
-                        break;
-                    }
-                    if operand.is_empty() {
-                        break;
-                    }
-                    if single_code_point_value(&operand)
-                        .zip(single_code_point_value(&second))
-                        .is_some_and(|(left, right)| left > right)
-                    {
-                        self.error(
-                            &diagnostics::Range_out_of_order_in_character_class,
-                            start,
-                            self.pos - start,
-                            Vec::new(),
-                        );
-                    }
+        while self.pos < self.end {
+            let ch = self.char_code(self.pos);
+            if ch == i32::from(b'-') {
+                self.pos += 1;
+                let next = self.char_code(self.pos);
+                if self.is_class_content_exit(next) {
+                    self.may_contain_strings =
+                        !character_complement && expression_may_contain_strings;
+                    return;
                 }
-                value if value == i32::from(b'&') => {
-                    start = self.pos;
+                if next == i32::from(b'-') {
                     self.pos += 1;
-                    if self.char_code(self.pos) == i32::from(b'&') {
-                        self.pos += 1;
-                        self.error(
-                            &diagnostics::Operators_must_not_be_mixed_within_a_character_class_Wrap_it_in_a_nested_class_instead,
-                            self.pos - 2,
-                            2,
-                            Vec::new(),
-                        );
-                        if self.char_code(self.pos) == i32::from(b'&') {
-                            self.unexpected_character(self.pos, 1, value);
-                            self.pos += 1;
-                        }
-                    } else {
-                        self.unexpected_character(self.pos - 1, 1, value);
-                    }
+                    self.error(
+                        &diagnostics::Operators_must_not_be_mixed_within_a_character_class_Wrap_it_in_a_nested_class_instead,
+                        self.pos - 2,
+                        2,
+                        Vec::new(),
+                    );
+                    start = self.pos - 2;
                     operand = self.slice(start, self.pos);
                     continue;
                 }
-                _ => {}
+                if operand.is_empty() {
+                    self.error(
+                        &diagnostics::A_character_class_range_must_not_be_bounded_by_another_character_class,
+                        start,
+                        self.pos.saturating_sub(1 + start),
+                        Vec::new(),
+                    );
+                }
+                let second_start = self.pos;
+                let second = self.scan_class_set_operand();
+                if character_complement && self.may_contain_strings {
+                    self.error(
+                        &diagnostics::Anything_that_would_possibly_match_more_than_a_single_character_is_invalid_inside_a_negated_character_class,
+                        second_start,
+                        self.pos - second_start,
+                        Vec::new(),
+                    );
+                }
+                expression_may_contain_strings |= self.may_contain_strings;
+                if second.is_empty() {
+                    self.error(
+                        &diagnostics::A_character_class_range_must_not_be_bounded_by_another_character_class,
+                        second_start,
+                        self.pos - second_start,
+                        Vec::new(),
+                    );
+                } else if !operand.is_empty()
+                    && single_code_point_value(&operand)
+                        .zip(single_code_point_value(&second))
+                        .is_some_and(|(left, right)| left > right)
+                {
+                    self.error(
+                        &diagnostics::Range_out_of_order_in_character_class,
+                        start,
+                        self.pos - start,
+                        Vec::new(),
+                    );
+                }
+            } else if ch == i32::from(b'&') && self.pair_is(self.pos, b'&', b'&') {
+                start = self.pos;
+                self.pos += 2;
+                self.error(
+                    &diagnostics::Operators_must_not_be_mixed_within_a_character_class_Wrap_it_in_a_nested_class_instead,
+                    self.pos - 2,
+                    2,
+                    Vec::new(),
+                );
+                if self.char_code(self.pos) == i32::from(b'&') {
+                    self.unexpected_character(self.pos, 1, ch);
+                    self.pos += 1;
+                }
+                operand = self.slice(start, self.pos);
+                continue;
             }
             if self.is_class_content_exit(self.char_code(self.pos)) {
                 break;
@@ -1173,6 +1260,15 @@ impl RegexScanner {
                 operand = self.slice(start, self.pos);
             } else {
                 operand = self.scan_class_set_operand();
+                if character_complement && self.may_contain_strings {
+                    self.error(
+                        &diagnostics::Anything_that_would_possibly_match_more_than_a_single_character_is_invalid_inside_a_negated_character_class,
+                        start,
+                        self.pos - start,
+                        Vec::new(),
+                    );
+                }
+                expression_may_contain_strings |= self.may_contain_strings;
             }
         }
         self.may_contain_strings = !character_complement && expression_may_contain_strings;
@@ -1241,7 +1337,11 @@ impl RegexScanner {
                 break;
             }
             self.scan_class_set_operand();
-            expression_may_contain_strings &= self.may_contain_strings;
+            // A subtraction keeps its first operand's strings
+            // (scanner/regexp.go:764-766).
+            if expression_type == ClassExpressionType::Intersection {
+                expression_may_contain_strings &= self.may_contain_strings;
+            }
         }
         self.may_contain_strings = expression_may_contain_strings;
     }
@@ -1326,20 +1426,22 @@ impl RegexScanner {
                 }
                 value
                     if matches!(
-                        value as u8,
-                        b'&' | b'-'
-                            | b'!'
-                            | b'#'
-                            | b'%'
-                            | b','
-                            | b':'
-                            | b';'
-                            | b'<'
-                            | b'='
-                            | b'>'
-                            | b'@'
-                            | b'`'
-                            | b'~'
+                        ascii(value),
+                        Some(
+                            b'&' | b'-'
+                                | b'!'
+                                | b'#'
+                                | b'%'
+                                | b','
+                                | b':'
+                                | b';'
+                                | b'<'
+                                | b'='
+                                | b'>'
+                                | b'@'
+                                | b'`'
+                                | b'~'
+                        )
                     ) =>
                 {
                     self.pos += 1;
@@ -1350,23 +1452,25 @@ impl RegexScanner {
         }
         if ch == self.char_code(self.pos + 1)
             && matches!(
-                ch as u8,
-                b'&' | b'!'
-                    | b'#'
-                    | b'%'
-                    | b'*'
-                    | b'+'
-                    | b','
-                    | b'.'
-                    | b':'
-                    | b';'
-                    | b'<'
-                    | b'='
-                    | b'>'
-                    | b'?'
-                    | b'@'
-                    | b'`'
-                    | b'~'
+                ascii(ch),
+                Some(
+                    b'&' | b'!'
+                        | b'#'
+                        | b'%'
+                        | b'*'
+                        | b'+'
+                        | b','
+                        | b'.'
+                        | b':'
+                        | b';'
+                        | b'<'
+                        | b'='
+                        | b'>'
+                        | b'?'
+                        | b'@'
+                        | b'`'
+                        | b'~'
+                )
             )
         {
             self.error(
@@ -1380,8 +1484,8 @@ impl RegexScanner {
             return self.slice(start, self.pos);
         }
         if matches!(
-            ch as u8,
-            b'/' | b'(' | b')' | b'[' | b']' | b'{' | b'}' | b'-' | b'|'
+            ascii(ch),
+            Some(b'/' | b'(' | b')' | b'[' | b']' | b'{' | b'}' | b'-' | b'|')
         ) {
             self.unexpected_character(self.pos, 1, ch);
             self.pos += 1;
@@ -1419,7 +1523,7 @@ impl RegexScanner {
         let start = self.pos.saturating_sub(1);
         let ch = self.char_code(self.pos);
         match ch {
-            value if matches!(value as u8, b'd' | b'D' | b's' | b'S' | b'w' | b'W') => {
+            value if matches!(ascii(value), Some(b'd' | b'D' | b's' | b'S' | b'w' | b'W')) => {
                 self.pos += 1;
                 true
             }
@@ -1573,14 +1677,32 @@ impl RegexScanner {
         self.slice_string(start, self.pos)
     }
 
+    /// tsgo: scanSourceCharacter (scanner/regexp.go:1016-1057). Outside
+    /// Unicode mode a non-BMP character is two atoms; the high surrogate is
+    /// returned without advancing and the low one steps past the character,
+    /// so both atoms start where the character does.
     fn scan_source_character(&mut self) -> Vec<u16> {
-        let size = if self.any_unicode_mode {
-            self.code_point(self.pos).map_or(0, |(_, size)| size)
-        } else if self.pos < self.end {
-            1
-        } else {
-            0
-        };
+        if self.pos >= self.end {
+            return Vec::new();
+        }
+        if !self.any_unicode_mode {
+            if self.pending_low_surrogate {
+                self.pending_low_surrogate = false;
+                self.pos += 2;
+                return vec![self.text[self.pos - 1]];
+            }
+            let unit = self.text[self.pos];
+            if (0xD800..=0xDBFF).contains(&unit)
+                && self.pos + 1 < self.end
+                && (0xDC00..=0xDFFF).contains(&self.text[self.pos + 1])
+            {
+                self.pending_low_surrogate = true;
+                return vec![unit];
+            }
+            self.pos += 1;
+            return vec![unit];
+        }
+        let size = self.code_point(self.pos).map_or(0, |(_, size)| size);
         let start = self.pos;
         self.pos += size;
         self.slice(start, self.pos)
@@ -1682,9 +1804,10 @@ fn check_flag_availability(
     size: usize,
 ) {
     let available_from = match flag {
+        // tsgo regExpFlagToFirstAvailableLanguageVersion
+        // (scanner/regexp.go:45-49).
         FLAG_HAS_INDICES => Some((ScriptTarget::ES2022, "es2022")),
         FLAG_DOT_ALL => Some((ScriptTarget::ES2018, "es2018")),
-        FLAG_UNICODE | FLAG_STICKY => Some((ScriptTarget::ES2015, "es6")),
         FLAG_UNICODE_SETS => Some((ScriptTarget::ES2024, "es2024")),
         _ => None,
     };
@@ -1754,6 +1877,12 @@ fn is_identifier_part_code_point(code_point: u32, target: ScriptTarget) -> bool 
     char::from_u32(code_point).is_some_and(|ch| is_identifier_part(ch, target))
 }
 
+/// The ASCII byte of a code unit, for comparisons with punctuators: a wider
+/// unit must not alias one through truncation.
+fn ascii(ch: i32) -> Option<u8> {
+    u8::try_from(ch).ok().filter(u8::is_ascii)
+}
+
 fn is_digit(ch: i32) -> bool {
     ch >= i32::from(b'0') && ch <= i32::from(b'9')
 }
@@ -1789,8 +1918,14 @@ fn parse_decimal(value: &str) -> u64 {
     value.parse().unwrap_or(u64::MAX)
 }
 
-fn parse_decimal_number(value: &str) -> f64 {
-    value.parse().unwrap_or(f64::INFINITY)
+/// tsgo compareDecimalStrings (scanner/regexp.go:137-153): quantifier
+/// bounds compare as decimal strings, whatever their size.
+fn compare_decimal_strings(a: &str, b: &str) -> std::cmp::Ordering {
+    let a = a.trim_start_matches('0');
+    let b = b.trim_start_matches('0');
+    let a = if a.is_empty() { "0" } else { a };
+    let b = if b.is_empty() { "0" } else { b };
+    a.len().cmp(&b.len()).then_with(|| a.cmp(b))
 }
 
 fn code_unit_result(ch: i32) -> Vec<u16> {
