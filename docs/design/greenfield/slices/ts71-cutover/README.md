@@ -1365,3 +1365,5 @@ tsc-rsはharness errorの約20構成で、stackのoverflow、hang、panic、memo
     - 型の表示
     - tsconfigの位置などharnessの行
     - `composite`のemit、parse errorの後のemit
+- hosted：PR #642（head `9c4cc4494`、merge `47a718ad7`）、run 37131470020 — `plan` 27s、`rust` 9m59s、`conformance (TypeScript 7.1)` 12m38s（120 sのtimeoutで待つcaseが無くなり、前の約23分から短縮）、`gates` 11s。
+- perf（README corpora、`--noEmit`、3 rounds、nice 20、main `b7ca12d80`（P3-5xのhead `c73350466`と同じコードのrelease build）と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 136→138、zod 516→513、Playwright 360→368、TypeScript `src/compiler` 331→344、Next.js 771→754、Effect 522→518、VS Code 3,516→3,452。tsc-rs÷tsgoは0.58〜0.99、peak memory（MB main→本branch）：301→319、1,282→1,297、798→798、287→288、1,317→1,311、1,039→1,038、5,446→5,440。診断の出力と読み込んだdocument数は7 corpusともmainと同一。TypeScript `src/compiler`とPlaywrightは5 roundsのA/B（main／本branch）で318／316 ms、349／348 ms、TypeScript `src/compiler`の`TSRS_CHECKERS=1`の命令数は15.948／15.941 G（5回のmedian）なのでノイズ。退行なし。
