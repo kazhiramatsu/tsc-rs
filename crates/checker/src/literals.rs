@@ -1730,7 +1730,24 @@ impl<'a> CheckerState<'a> {
         if !self.check_cross_product_union(types) {
             return self.tables.intrinsics.error;
         }
-        self.template_literal_type_tables(texts, types)
+        let result = self.template_literal_type_tables(texts, types);
+        self.template_literal_type_or_report(result)
+    }
+
+    /// tsgo (checker.go:29668-29672): a template literal type over the size
+    /// limits reports TS2589 and is the error type.
+    fn template_literal_type_or_report(
+        &mut self,
+        result: Result<TypeId, tsc_types::TemplateLiteralTooLarge>,
+    ) -> TypeId {
+        result.unwrap_or_else(|_| {
+            self.error_at(
+                self.current_node,
+                &diagnostics::Type_instantiation_is_excessively_deep_and_possibly_infinite,
+                &[],
+            );
+            self.tables.intrinsics.error
+        })
     }
 
     /// tsc-port: getTemplateLiteralType @6.0.3
@@ -1748,8 +1765,10 @@ impl<'a> CheckerState<'a> {
             return self.tables.intrinsics.error;
         }
         let ctx = crate::type_order::order_ctx!(self);
-        self.tables
-            .get_template_literal_type_from_texts(ctx.order(), texts, types)
+        let result =
+            self.tables
+                .try_get_template_literal_type_from_texts(ctx.order(), texts, types);
+        self.template_literal_type_or_report(result)
     }
 
     /// tsc-port: checkCrossProductUnion @6.0.3

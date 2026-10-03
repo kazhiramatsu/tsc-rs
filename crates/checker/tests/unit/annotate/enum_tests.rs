@@ -100,7 +100,7 @@ fn ambient_uninitialized_members_get_computed_enum_types() {
 }
 
 #[test]
-fn computed_enum_names_follow_the_bindable_name_split() {
+fn computed_enum_names_are_left_out_of_the_enum_type_like_tsgo() {
     with_state(
         "const key = \"member\" as const;\n\
          enum Bound { [key] }\n\
@@ -109,15 +109,15 @@ fn computed_enum_names_follow_the_bindable_name_split() {
         declare var skipped: Skipped;\n",
         |state| {
             state.check_source_file(0);
-            // The entity-name expression is late-bindable and is
-            // included through getSymbolOfDeclaration; the binary
-            // expression is dynamic but not late-bindable and is
-            // skipped by hasBindableName.
-            let bound = annotation_type(state, "bound");
-            assert_eq!(literal_number(state, bound), 0.0);
-            let skipped = annotation_type(state, "skipped");
-            assert!(state.tables.flags_of(skipped).intersects(TypeFlags::ENUM));
-            assert!(matches!(state.tables.type_of(skipped).data, TypeData::Enum));
+            // tsgo getDeclaredTypeOfEnum leaves out every member with a
+            // dynamic name (ast.HasDynamicName), late-bindable or not, so
+            // both enums are computed enum types (tsgo: neither is
+            // assignable to `0`). tsc 6.0 kept the late-bindable `[key]`.
+            for name in ["bound", "skipped"] {
+                let ty = annotation_type(state, name);
+                assert!(state.tables.flags_of(ty).intersects(TypeFlags::ENUM));
+                assert!(matches!(state.tables.type_of(ty).data, TypeData::Enum));
+            }
             assert_eq!(
                 state
                     .diagnostics

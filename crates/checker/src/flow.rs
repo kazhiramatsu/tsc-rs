@@ -211,7 +211,7 @@ impl<'a> CheckerState<'a> {
     /// FlowQuery walk family below). The flowNode parameter defaults
     /// to the reference's own flow node; callers with an explicit one
     /// (getNarrowedTypeOfSymbol's `location.flowNode`) use
-    /// `get_flow_type_of_reference_with_flow`.
+    /// `get_flow_type_of_reference_at`.
     pub(crate) fn get_flow_type_of_reference(
         &mut self,
         reference: NodeId,
@@ -219,27 +219,32 @@ impl<'a> CheckerState<'a> {
         initial_type: TypeId,
         flow_container: Option<NodeId>,
     ) -> CheckResult<TypeId> {
-        let flow_node = self.flow_node_of(reference);
-        self.get_flow_type_of_reference_with_flow(
+        self.get_flow_type_of_reference_at(
             reference,
             declared_type,
             initial_type,
             flow_container,
-            flow_node,
+            reference,
         )
     }
 
     /// tsc-port: getFlowTypeOfReference @6.0.3 (explicit flowNode form)
     /// tsc-hash: 2495e2c0431a9096a4037d567adf9bbe636410c94f947585e84906f969aae63e
     /// tsc-span: _tsc.js:70394-70412
-    pub(crate) fn get_flow_type_of_reference_with_flow(
+    ///
+    /// The walk follows the flow node of `flow_location`. A pseudo-reference
+    /// of getNarrowedTypeOfSymbol (a binding pattern) can be narrowed at a
+    /// use in another file, so the flow graph is the location's file.
+    pub(crate) fn get_flow_type_of_reference_at(
         &mut self,
         reference: NodeId,
         declared_type: TypeId,
         initial_type: TypeId,
         flow_container: Option<NodeId>,
-        flow_node: Option<FlowId>,
+        flow_location: NodeId,
     ) -> CheckResult<TypeId> {
+        let flow_node = self.flow_node_of(flow_location);
+        let flow_file = self.binder.file_index_of_node(flow_location);
         self.get_flow_type_of_reference_full(
             reference,
             None,
@@ -248,6 +253,7 @@ impl<'a> CheckerState<'a> {
             initial_type,
             flow_container,
             flow_node,
+            flow_file,
         )
     }
 
@@ -340,6 +346,7 @@ impl<'a> CheckerState<'a> {
         initial_type: TypeId,
         flow_container: Option<NodeId>,
         flow_node: Option<FlowId>,
+        flow_file: usize,
     ) -> CheckResult<TypeId> {
         if self.flow_analysis_disabled {
             return Ok(self.tables.intrinsics.error);
@@ -354,7 +361,7 @@ impl<'a> CheckerState<'a> {
             declared_type,
             initial_type,
             flow_container,
-            file: self.binder.file_index_of_node(reference),
+            file: flow_file,
             flow_depth: 0,
             shared_flow_start,
             key: None,
@@ -372,7 +379,7 @@ impl<'a> CheckerState<'a> {
     /// The getFlowTypeOfReference tail (70407-70411): evolving-array
     /// finalization and the unreachable/NonNull declared-type reverts.
     /// tsrs-native: extracted tail of
-    /// get_flow_type_of_reference_with_flow (same tsc span).
+    /// get_flow_type_of_reference_at (same tsc span).
     fn flow_query_postlude(
         &mut self,
         query: &FlowQuery,
@@ -2733,6 +2740,7 @@ impl<'a> CheckerState<'a> {
             return Ok(declared_type);
         };
         let flow_node = self.flow_node_of(base);
+        let flow_file = self.binder.file_index_of_node(base);
         self.get_flow_type_of_reference_full(
             base,
             Some(props),
@@ -2741,6 +2749,7 @@ impl<'a> CheckerState<'a> {
             declared_type,
             None,
             flow_node,
+            flow_file,
         )
     }
 
@@ -2952,6 +2961,7 @@ impl<'a> CheckerState<'a> {
             initial_type,
             Some(container),
             flow_node,
+            file,
         )
     }
 
@@ -3042,6 +3052,7 @@ impl<'a> CheckerState<'a> {
             initial_type,
             None,
             flow_node,
+            file,
         )
     }
 
@@ -3872,11 +3883,13 @@ impl<'a> CheckerState<'a> {
                 return Ok(Some(name));
             }
         }
+        // tsgo (flow.go:1767-1770) leaves binding elements out: their
+        // initializers do not alone decide their types, and resolving the
+        // full types can be circular (TypeScript issue 63192).
         let has_only_expression_initializer = matches!(
             self.kind_of(declaration),
             SyntaxKind::VariableDeclaration
                 | SyntaxKind::Parameter
-                | SyntaxKind::BindingElement
                 | SyntaxKind::PropertyDeclaration
                 | SyntaxKind::PropertyAssignment
                 | SyntaxKind::EnumMember
@@ -3887,25 +3900,14 @@ impl<'a> CheckerState<'a> {
             let initializer = match self.data_of(declaration) {
                 NodeData::VariableDeclaration(data) => data.initializer,
                 NodeData::Parameter(data) => data.initializer,
-                NodeData::BindingElement(data) => data.initializer,
                 NodeData::PropertyDeclaration(data) => data.initializer,
                 NodeData::PropertyAssignment(data) => data.initializer,
                 NodeData::EnumMember(data) => data.initializer,
                 _ => None,
             };
             if let Some(initializer) = initializer {
-                let is_pattern_parent = self.parent_of(declaration).is_some_and(|parent| {
-                    matches!(
-                        self.kind_of(parent),
-                        SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
-                    )
-                });
-                let initializer_type = if is_pattern_parent {
-                    self.get_type_for_binding_element_of_flow(declaration)?
-                } else {
-                    Some(self.get_type_of_expression(initializer)?)
-                };
-                return Ok(initializer_type.and_then(|ty| self.try_get_name_from_type(ty)));
+                let initializer_type = self.get_type_of_expression(initializer)?;
+                return Ok(self.try_get_name_from_type(initializer_type));
             }
             if self.kind_of(declaration) == SyntaxKind::EnumMember {
                 let NodeData::EnumMember(data) = self.data_of(declaration) else {
@@ -3918,39 +3920,6 @@ impl<'a> CheckerState<'a> {
             }
         }
         Ok(None)
-    }
-
-    /// tsc getTypeForBindingElement (55942) — the checkMode selection
-    /// over getTypeForBindingElementParent, as consumed by
-    /// tryGetNameFromEntityNameExpression's binding-pattern arm.
-    /// tsrs-native: thin dispatch over get_type_for_binding_element_parent
-    /// + get_binding_element_type_from_parent_type (both ported).
-    fn get_type_for_binding_element_of_flow(
-        &mut self,
-        declaration: NodeId,
-    ) -> CheckResult<Option<TypeId>> {
-        let check_mode = match self.data_of(declaration) {
-            NodeData::BindingElement(data) if data.dot_dot_dot_token.is_some() => {
-                CheckMode::REST_BINDING_ELEMENT
-            }
-            _ => CheckMode::NORMAL,
-        };
-        let Some(grandparent) = self
-            .parent_of(declaration)
-            .and_then(|parent| self.parent_of(parent))
-        else {
-            return Ok(None);
-        };
-        let Some(parent_type) =
-            self.get_type_for_binding_element_parent(grandparent, check_mode)?
-        else {
-            return Ok(None);
-        };
-        Ok(Some(self.get_binding_element_type_from_parent_type(
-            declaration,
-            parent_type,
-            /*no_tuple_bounds_check*/ false,
-        )?))
     }
 
     /// tsc-port: getDestructuringPropertyName @6.0.3
@@ -4502,13 +4471,8 @@ impl<'a> CheckerState<'a> {
                             // sweep (a marking pass with side effects) runs
                             // only behind the union-of-tuples test.
                             if is_union_of_tuples && !self.some_parameter_assigned(&parameters)? {
-                                let location_flow = self.flow_node_of(location);
-                                let narrowed_type = self.get_flow_type_of_reference_with_flow(
-                                    func,
-                                    rest_type,
-                                    rest_type,
-                                    None,
-                                    location_flow,
+                                let narrowed_type = self.get_flow_type_of_reference_at(
+                                    func, rest_type, rest_type, None, location,
                                 )?;
                                 let has_this_parameter = parameters
                                     .first()
@@ -4591,6 +4555,21 @@ impl<'a> CheckerState<'a> {
         };
         let source = self.binder.source_of_node(parent);
         let root_declaration = node_util::get_root_declaration(source, parent);
+        // tsgo getNarrowedTypeOfSymbol: a reference in the root declaration's
+        // own initializer, in the same flow container, is not narrowed; the
+        // destructured type would depend on itself.
+        let root_initializer = match self.data_of(root_declaration) {
+            NodeData::VariableDeclaration(data) => data.initializer,
+            NodeData::Parameter(data) => data.initializer,
+            _ => None,
+        };
+        if root_initializer.is_some_and(|initializer| {
+            self.is_node_descendant_of(location, initializer)
+                && self.get_control_flow_container(declaration)
+                    == self.get_control_flow_container(location)
+        }) {
+            return Ok(None);
+        }
         let root_is_const_variable = self.kind_of(root_declaration)
             == SyntaxKind::VariableDeclaration
             && node_util::get_combined_node_flags(source, root_declaration)
@@ -4635,13 +4614,12 @@ impl<'a> CheckerState<'a> {
         if root_is_parameter && self.is_some_symbol_assigned(root_declaration)? {
             return Ok(None);
         }
-        let location_flow = self.flow_node_of(location);
-        let narrowed_type = self.get_flow_type_of_reference_with_flow(
+        let narrowed_type = self.get_flow_type_of_reference_at(
             pattern,
             parent_type_constraint,
             parent_type_constraint,
             None,
-            location_flow,
+            location,
         )?;
         if self
             .tables

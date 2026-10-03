@@ -9409,12 +9409,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: f77e4529a1ec2fd69a2d6f2ff3749a16327d69ef9d535ff814989aadd98d6f1e
     /// tsc-span: _tsc.js:57439-57474
     ///
-    /// hasBindableName (57448) splits into the engine's late-binding
-    /// shape: other dynamic names are skipped, while usable computed
-    /// names resolve through getSymbolOfDeclaration's late-binding
-    /// route. tsc's unconditional member-links write is a
-    /// vacant-guarded write here (LinkSlot discipline): merged enums
-    /// that redeclare a member would make tsc's LAST write win where
+    /// tsgo (checker.go getDeclaredTypeOfEnum) takes the members without a
+    /// dynamic name (ast.HasDynamicName) where tsc 6.0 took the bindable
+    /// ones (hasBindableName, 57448). tsc's unconditional member-links
+    /// write is a vacant-guarded write here (LinkSlot discipline): merged
+    /// enums that redeclare a member would make tsc's LAST write win where
     /// ours keeps the FIRST — those fixtures are 2300-family errors.
     pub(crate) fn get_declared_type_of_enum(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
         if let Some(declared) = self
@@ -9431,10 +9430,10 @@ impl<'a> CheckerState<'a> {
                 continue;
             };
             for member in self.nodes_of(data.members) {
-                let has_bindable_name =
-                    !node_util::has_dynamic_name(self.binder.source_of_node(member), member)
-                        || self.has_late_bindable_name(member)?;
-                if !has_bindable_name {
+                // tsgo skips every member with a dynamic name; tsc 6.0
+                // kept the late-bindable ones, whose names reach back
+                // into the enum's members (`[foo]` beside `foo`).
+                if node_util::has_dynamic_name(self.binder.source_of_node(member), member) {
                     continue;
                 }
                 // getSymbolOfDeclaration (57448).

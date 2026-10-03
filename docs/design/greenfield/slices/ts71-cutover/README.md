@@ -1302,3 +1302,66 @@ TypeScript 7.1は`declare module "*.css" with { type: "css" } { … }`のよう�
   - `composite`のemit、parse errorの後のemit、import型のattributesの値の文法（TS2858、`importAttributes12`）
 - hosted：PR #641（head `c73350466`、merge `45d06373d`）、run 37128054037 — `plan` 28s、`rust` 7m59s、`conformance (TypeScript 7.1)` 23m1s、`gates` 16s。`c73350466`は振る舞いを変えないhot pathの修正で、localでは同じimport attributesのcase群（625構成）の行と出力のhashが一致した。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main `84692ca7e`（P3-5v／P3-5wのhead `eca775c97`と同じコードのrelease build）と本branchのhead `c73350466`のrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 145→141、zod 524→524、Playwright 370→363、TypeScript `src/compiler` 346→350、Next.js 767→791、Effect 500→541、VS Code 3,523→3,524。tsc-rs÷tsgoは0.59〜1.00、peak memory（MB main→本branch）：319→313、1,289→1,288、808→752、289→289、1,308→1,312、1,032→1,041、5,444→5,442。診断の出力と読み込んだdocument数は7 corpusともmainと同一。最初のbuild（`2517f726b`）では`TSRS_CHECKERS=1`のEffectの命令数が+0.47%（5回のmedianで27.894→28.025 G）だった。名前解決の各scope、`isConstContext`の各node、各module解決で新しい検査が走っていたため、`c73350466`でそれぞれ必要な所だけに絞り、27.969／27.972 G（main／本branch）に戻した。Next.jsは5 roundsのA/Bで738／740 ms、Effectは10 roundsのA/Bで516／509 ms・CPU 3,278／3,265 msなので、3 roundsの差はwork stealingの割り振りによるノイズ。退行なし。
+
+## P3-5y compilerのcrashとhangをtsgoの修正どおりに直す（2026-10-03）
+
+tsc-rsはharness errorの約20構成で、stackのoverflow、hang、panic、memoryの上限超過を起こしていた。多くは
+`*NoCrash*`のようにtsgo（TypeScript 7.1）がcrashを直したときに足したcaseで、tsgoの修正を移植した：
+- binder：
+  - `for`の初期化子、`for…in`／`for…of`の式でflowが到達不能になったら、loopのflowを作らずに残りを結び
+    （binder.go:1886-1928）、出口の無い循環を作らない（`unreachableFlowAfterThrowing*`の8構成）。
+- checker：
+  - 分割代入の要素は、それ自身のroot宣言の初期化子の中（同じflow container）では絞り込まない
+    （getNarrowedTypeOfSymbol）。`circularDestructuring`、`dependentDestructuredVariables*`。
+  - `tryGetNameFromEntityNameExpression`は分割代入の要素を除く（flow.go:1767-1770、TypeScript issue 63192、
+    `infiniteRecursionDestructuringLoop`）。
+  - getExplicitTypeOfSymbolは解決中のsymbolを覚え、再び来たら型無しとする（`resolvingExplicitTypeOfSymbol`、
+    `for (const a of a)`）。
+  - enumの型は動的な名前のmemberを構文だけで除く（`ast.HasDynamicName`。tsc 6.0のlate-bindな名前は自身の
+    memberに戻って循環した、`computedEnumMemberKeyNoCrash1`）。
+  - 別のfileで宣言された分割代入の要素を絞り込むとき、flowの探索は使う側のfileのflowを使う（それまでは宣言側の
+    fileのflow arenaを引いてpanic、`dependentDestructuringCrossFilePosition`）。
+  - 旧decoratorのmethodの引数の数はgetParameterCountで数える（restのtupleを展開する、`decoratorRestNoCrash1`の
+    panic）。
+  - template literalの照合（isTypeMatchedByTemplateLiteralType）は、関係の検査の中ではその検査自身の比較
+    （isRelatedToWorker）を使う（relater.go:3616）。それまでは毎回新しい代入可能性の検査で、深さの上限が働かず
+    stackを使い切った（`varianceComputationNoCrash`）。比較を渡すtrait（`TemplateTypeComparer`）を足した。
+  - computeBaseConstraintの条件型の制約の入れ子を100で止める（`conditionalConstraintDepth`、checker.go:28027-28034、
+    issue 63269、`infiniteConstraints2`のhang）。
+  - template literal型は、文字列がUTF-8で50,000,000 byteか、placeholderが100,000個を超えたらTS2589と誤りの型にする
+    （checker.go:29610-29672、issue 63271、`templateLiteralTypeExcessiveLength`のmemory超過）。
+- 表示：
+  - instantiation式の型の`typeof`のnodeを再利用できないとき、同じ型に戻る再帰を訪問済みの印で止める
+    （nodebuilderimpl.go:2921-2934、`symbolToNodeBoundaryNoStackOverflow`）。
+- unit test（tsgoの出力にpin）：
+  - checker：throwするloopの頭、自身を読む分割代入、`for (const a of a)`、別fileの分割代入の絞り込み、計算された
+    enum memberの名前、restのtupleを持つdecoratorの入力で、tsgoと同じlibraryでの行。
+  - types：template literal型の上限（placeholderの数、UTF-8 byteの文字列の長さ）。
+  - 計算されたenum memberの名前のtestは、両方を計算されたenum型とするtsgoに合わせた（tsgoではどちらも`0`に
+    代入できない）。
+- conformance：
+  - 15,228 configuration、lane A 13,467（変化なし）、450 s（120 sのtimeoutで待つcaseが無くなり、前の800 sから短縮）。
+  - full 13,291→13,309（+18）、text 29、category 18→19、mismatch 86→88、emit full 12,462→12,481、harness error
+    43→22。
+  - harness errorから比べられるようになった22構成：fullが19、categoryが1（`dependentDestructuredVariablesNoCrash1`：
+    TS2488の型の表示で、引数の省略可能性を含めるかが解決の順序で違う）、mismatchが2：
+    - `infiniteConstraints2`：hangは無くなったが、tsc-rsはtsgoに無いTS2589を報告する。
+    - `templateLiteralTypeExcessiveLength`：3行のうち2行が合う。3行目はtsc-rsが型parameterの制約を制約のnodeより
+      先に解決し、位置が型parameterになる。
+  - stressの`intersectionConstructorReductionCrash`は今回はmemoryの上限を越えた（ratchetには載せていない）。
+  - ほかの構成はemitを含めて上がりも下がりも無い。
+- ratchet：0 regressions、20行追加。
+- local：
+  - formatとworkspace全体のclippy。typesとsyntaxとその逆依存（binder、checker、compiler、conformance、emitter、
+    harness、program）のtest（63 targets、3,591 passed）。
+  - 2 workerのfull run（450 s）。workspace全体のtestはhostedの`rust` job。
+  - crashした各caseはdevのrunnerで1つずつ確かめ、小さな入力はtsgoのCLIとも比べた（行が一致）。
+  - `--checkers 4`の並列対照は実行していない。
+- 残り：
+  - `excessivelyDeepConditionalTypes`のmemory超過。tsgo側の修正（typescript-go issue 2917）を特定できていない。
+  - 上の2つのmismatchとcategory 1つ。
+  - lane Aでfullでない158構成（mismatch 88、text 29、category 19、harness error 22）の主なclass：
+    - `--pretty`の出力（関連spanの`duplicateIdentifierRelatedSpans*`、`pretty*`など約10）
+    - 型の表示
+    - tsconfigの位置などharnessの行
+    - `composite`のemit、parse errorの後のemit

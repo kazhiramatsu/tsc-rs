@@ -468,15 +468,15 @@ impl<'a> CheckerState<'a> {
         )
     }
 
-    /// `tables.get_template_literal_type` with this checker's order.
+    /// `tables.try_get_template_literal_type` with this checker's order.
     pub(crate) fn template_literal_type_tables(
         &mut self,
         texts: &[String],
         types: &[TypeId],
-    ) -> TypeId {
+    ) -> Result<TypeId, tsc_types::TemplateLiteralTooLarge> {
         let ctx = order_ctx!(self);
         self.tables
-            .get_template_literal_type(ctx.order(), texts, types)
+            .try_get_template_literal_type(ctx.order(), texts, types)
     }
 }
 

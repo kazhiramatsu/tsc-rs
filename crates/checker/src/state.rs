@@ -913,6 +913,12 @@ pub struct CheckerState<'a> {
     /// tsgo moduleImportAttributesTypes: a module symbol's import
     /// attributes type (getTypeOfModuleImportAttributes).
     pub(crate) module_import_attributes_types: rustc_hash::FxHashMap<SymbolId, TypeId>,
+    /// tsgo resolvingExplicitTypeOfSymbol: the symbols whose explicit type
+    /// getExplicitTypeOfSymbol is resolving.
+    pub(crate) resolving_explicit_type_of_symbol: rustc_hash::FxHashSet<SymbolId>,
+    /// tsgo conditionalConstraintDepth: the conditional constraints
+    /// computeBaseConstraint is resolving.
+    pub(crate) conditional_constraint_depth: u32,
     /// Module augmentations whose targets sat in the resolver's
     /// Suppressed band (node_modules/baseUrl machinery). Receiver
     /// provenance plus the augmentation container's own resolved
@@ -1577,6 +1583,8 @@ impl<'a> CheckerState<'a> {
             pattern_ambient_module_augmentations: rustc_hash::FxHashMap::default(),
             pattern_ambient_module_augmentation_targets: rustc_hash::FxHashMap::default(),
             module_import_attributes_types: rustc_hash::FxHashMap::default(),
+            resolving_explicit_type_of_symbol: rustc_hash::FxHashSet::default(),
+            conditional_constraint_depth: 0,
             unresolved_module_augmentations: rustc_hash::FxHashMap::default(),
             unresolved_package_root_cache: Default::default(),
             program_path_index: rustc_hash::FxHashMap::default(),

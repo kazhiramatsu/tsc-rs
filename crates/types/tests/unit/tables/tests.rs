@@ -632,3 +632,41 @@ fn optionality_follows_strict_null_checks() {
     let number = loose.intrinsics.number;
     assert_eq!(loose.add_optionality(None, number, true, true), number);
 }
+
+#[test]
+fn template_literal_types_over_tsgo_limits_are_too_large() {
+    // tsgo getTemplateLiteralType (checker.go:29610-29672): more than
+    // 100,000 placeholders, or more than 50,000,000 UTF-8 bytes of text,
+    // is too large; the checker reports TS2589 and uses the error type.
+    let mut t = tables();
+    let string = t.intrinsics.string;
+    let limit = MAX_TEMPLATE_LITERAL_TYPE_SPANS;
+    let at_limit = t.try_get_template_literal_type(
+        None,
+        &vec![String::new(); limit + 1],
+        &vec![string; limit],
+    );
+    assert!(at_limit.is_ok());
+    let over_limit = t.try_get_template_literal_type(
+        None,
+        &vec![String::new(); limit + 2],
+        &vec![string; limit + 1],
+    );
+    assert_eq!(over_limit, Err(TemplateLiteralTooLarge));
+    assert_eq!(
+        t.get_template_literal_type(
+            None,
+            &vec![String::new(); limit + 2],
+            &vec![string; limit + 1]
+        ),
+        t.intrinsics.error
+    );
+    // Text is measured in UTF-8 bytes, as Go counts it.
+    let half = MAX_TEMPLATE_LITERAL_TYPE_LENGTH / 2;
+    let fits =
+        t.try_get_template_literal_type(None, &["a".repeat(half), "a".repeat(half)], &[string]);
+    assert!(fits.is_ok());
+    let over =
+        t.try_get_template_literal_type(None, &["a".repeat(half), "a".repeat(half + 1)], &[string]);
+    assert_eq!(over, Err(TemplateLiteralTooLarge));
+}
