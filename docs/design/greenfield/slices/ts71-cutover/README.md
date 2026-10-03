@@ -1367,3 +1367,60 @@ tsc-rsはharness errorの約20構成で、stackのoverflow、hang、panic、memo
     - `composite`のemit、parse errorの後のemit
 - hosted：PR #642（head `9c4cc4494`、merge `47a718ad7`）、run 37131470020 — `plan` 27s、`rust` 9m59s、`conformance (TypeScript 7.1)` 12m38s（120 sのtimeoutで待つcaseが無くなり、前の約23分から短縮）、`gates` 11s。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main `b7ca12d80`（P3-5xのhead `c73350466`と同じコードのrelease build）と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 136→138、zod 516→513、Playwright 360→368、TypeScript `src/compiler` 331→344、Next.js 771→754、Effect 522→518、VS Code 3,516→3,452。tsc-rs÷tsgoは0.58〜0.99、peak memory（MB main→本branch）：301→319、1,282→1,297、798→798、287→288、1,317→1,311、1,039→1,038、5,446→5,440。診断の出力と読み込んだdocument数は7 corpusともmainと同一。TypeScript `src/compiler`とPlaywrightは5 roundsのA/B（main／本branch）で318／316 ms、349／348 ms、TypeScript `src/compiler`の`TSRS_CHECKERS=1`の命令数は15.948／15.941 G（5回のmedian）なのでノイズ。退行なし。
+
+## P3-5z `--pretty`の出力をtsgoのdiagnostic writerに合わせる（2026-10-04）
+
+P3-5iで`@pretty`のbaselineはheader行を読んでtext tierまで比べるようにしたが、Full tierは評価していなかった。
+tsc-rsのpretty出力はtsc 6.0.3の`formatDiagnosticsWithColorAndContext`の移植で、色の無いlayoutをCLIが後から
+行ごとに色付けしていた。tsgo（TypeScript 7.1）のdiagnostic writer（`internal/diagnosticwriter`）を
+`tsc-rs-diagnostics`に移植し、CLIとconformanceのrunnerが同じ実装を使う：
+- `FormatDiagnosticWithColorAndContext`（diagnosticwriter.go:229-262）：
+  - related locationは`  file:line:col - message`の後にsnippetを書く（6.0はlocation、snippet、改行してmessage）。
+  - 色はwriterが書く：`WriteLocation`の名前はcyan、行と列はyellow、categoryの色、灰色の`TS<code>: `、gutterは反転。
+- `writeCodeSnippet`（264-345）：
+  - 行末はGoの`unicode.IsSpace`で削る（U+0085を削り、U+FEFFは残す。6.0はJavaScriptの空白）。
+  - 長さ0のspanは次の1文字に`~`を引く（6.0は引かない）。数はUTF-16単位で、行の長さで切り詰めない。
+  - 開始位置の前は空白で埋める（6.0は元の空白文字を残した）。
+- `WriteErrorSummaryText`（`Found N errors…`）と`writeTabularErrorsDisplay`：fileごとの最初のerrorの行を灰色の
+  `:line`で添える（`prettyPathForFileError`）。fileはGoの文字列の順（UTF-8 byte順）に並べる。
+- runner：`@pretty`のbaselineはpretty診断、file section、error summaryの順に描き、Full tierも評価する。
+- CLI：
+  - `--pretty`の既定はtsgoの`defaultIsPretty`（`FORCE_COLOR`、空でない`NO_COLOR`、`TERM=dumb`、stdoutが端末か）。
+    6.0の移植はstdoutが端末かだけを見ていた。
+  - `-p`の指すものが無いときのTS5058は正規化した絶対pathで書き、`tsconfig.json`の無いdirectoryはTS5081
+    （`Cannot find a tsconfig.json file at the current directory: <dir>/tsconfig.json`、tsc.go:165-180）。tsc 6.0は
+    書いたままのpathとTS5057だった。
+- checker：namespace-styleのimportを呼んだり代入したりしたerrorに、そのimportを指すTS7038の関係情報を足す：
+  - checkTypeRelatedTo（relater.go:383-392）：head messageのある関係のerrorで、sourceの型のsymbolが
+    namespace-styleのimport（`import()`でない）から来ていて、importが表すmoduleの型なら関係が成り立つとき。
+  - invocationErrorRecovery（checker.go:10197-10211）：呼び出しや`new`のerrorで、moduleの型がその種類の
+    signatureを持つとき。
+- unit test（tsgoの出力にpin）：
+  - diagnostics：related情報とchain、5行を超えるsnippet、長さ0のspan、Goの空白、file無しの診断、error summaryの
+    各形。
+  - conformance：vendorの`multiLineContextDiagnosticWithPretty.errors.txt`と同じbytes。
+  - compiler（CLI）：重複宣言の3 fileのprojectとTS7038のprojectで、tsgoのCLIの出力とbyte単位で同じ。TS5058と
+    TS5081の絶対path。
+- conformance：
+  - 15,228 configuration、lane A 13,467（変化なし）、447 s。
+  - full 13,309→13,324（+15）、text 29→14、category 19、mismatch 88、emit full 12,481（変化なし）、harness error 22。
+  - 上がった15構成はすべてtext→full：`@pretty`の14構成（`duplicateIdentifierRelatedSpans1`〜`7`、
+    `deeplyNestedAssignabilityIssue`、`esModuleInteropPrettyErrorRelatedInformation`、`manyCompilerErrorsInTheTwoFiles`、
+    `multiLineContextDiagnosticWithPretty`、`prettyContextNotDebugAssertion`、`prettyFileWithErrorsAndTabs`、
+    `typedefCrossModule5`）と`invocationErrorRecovery`（TS7038）。
+  - 下がった構成は無い。`@pretty`でない構成で描いたbaselineのdigestが変わったのは`invocationErrorRecovery`だけで、
+    emitのdigestはすべて同じ。
+- ratchet：0 regressions、15行raise（追加なし）。
+- local：
+  - formatとworkspace全体のclippy。diagnosticsとその逆依存（types、syntax、binder、host、program、emitter、checker、
+    compiler、harness、conformance）のtest（69 targets、3,670 passed）。workspace全体のtestはhostedの`rust` job。
+  - 2 workerのfull run（447 s）。
+  - release buildのCLIとtsgoの比較（stdout・stderr・終了code）：TS2322、TS2688（関係情報付きのfile無し診断）、
+    3 fileの重複宣言、TS7038の各projectを`--pretty true`／`false`で、TS5058／TS5081の4つの`-p`を両方で（16組）、
+    `--pretty`無しで`FORCE_COLOR`・`NO_COLOR`・`TERM`の10通り。すべてbyte単位で同じ。
+  - `--checkers 4`の並列対照は実行していない。
+- 残り：
+  - lane Aでfullでない143構成（mismatch 88、category 19、text 14、harness error 22。harness errorのうち15は
+    content mapper（`runExternalCode`）で対象外）。
+  - emitの不一致956構成で最大のclassはparse errorの後のemit（500構成。preflightが`emit recovery … deferred to
+    H2.9`で断る）。

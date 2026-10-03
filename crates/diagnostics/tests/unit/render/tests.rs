@@ -11,8 +11,21 @@ fn chain(code: u32, category: DiagnosticCategory, text: &str) -> MessageChain {
     }
 }
 
+/// The ANSI pieces of tsgo's writer, spelled out in the expectations.
+fn location(name: &str, line: u32, column: u32) -> String {
+    format!("{CYAN}{name}{RESET}:{YELLOW}{line}{RESET}:{YELLOW}{column}{RESET}")
+}
+
+fn head(category: &str, color: &str, code: u32) -> String {
+    format!("{color}{category}{RESET}{GREY} TS{code}: {RESET}")
+}
+
+fn gutter(number: &str) -> String {
+    format!("{GUTTER_STYLE}{number}{RESET} ")
+}
+
 #[test]
-fn js_file_names_select_distinct_sources_and_survive_location_rendering() {
+fn js_file_names_select_distinct_sources() {
     let cwd = JsString::from_code_units(&[0x2f, 0xd800]);
     let path = |unit| JsString::from_code_units(&[0x2f, 0xd800, 0x2f, unit, 0x2e, 0x74, 0x73]);
     let mut files = BTreeMap::new();
@@ -20,7 +33,7 @@ fn js_file_names_select_distinct_sources_and_survive_location_rendering() {
     files.insert(path(0xd801), "second".to_owned());
     files.insert(path(0xfffd), "replacement".to_owned());
     let host = FormatDiagnosticsHost::new_js(cwd.as_js(), &files);
-    let mut diagnostics = [0xfffd, 0xd801, 0xd800].map(|unit| {
+    let diagnostics = [0xfffd, 0xd801, 0xd800].map(|unit| {
         Diagnostic::new_js(
             Some(path(unit)),
             Some(0),
@@ -28,27 +41,27 @@ fn js_file_names_select_distinct_sources_and_survive_location_rendering() {
             chain(1000, DiagnosticCategory::Error, "name"),
         )
     });
-    diagnostics[2].related.push(RelatedInfo {
-        file_name: Some(path(0xd801)),
-        start: Some(0),
-        length: Some(1),
-        message: chain(1001, DiagnosticCategory::Message, "origin"),
-    });
-    let output = format_diagnostics_with_context_raw(&diagnostics, &host).unwrap();
-    let mut expected = vec![0xd800];
-    expected.extend(".ts:1:1 - error TS1000: name\n\n1 first\n  ~\n\n  ".encode_utf16());
-    expected.push(0xd801);
-    expected.extend(".ts:1:1\n    1 second\n      ~\n    origin\n".encode_utf16());
-    for (unit, source) in [(0xd801, "second"), (0xfffd, "replacement")] {
-        expected.push(unit);
-        expected
-            .extend(format!(".ts:1:1 - error TS1000: name\n\n1 {source}\n  ~\n").encode_utf16());
-    }
-    assert_eq!(output.to_utf16(), expected);
     assert_eq!(
         sort_and_dedupe_diagnostic_indices_with_context(&diagnostics, &host),
         [2, 1, 0]
     );
+    // Each name reads its own text, and the location keeps the lone
+    // surrogate of the name.
+    let output = format_diagnostics_with_color_and_context(&diagnostics[1..2], &host, "\n")
+        .unwrap()
+        .to_utf16();
+    let mut expected = CYAN.encode_utf16().collect::<Vec<_>>();
+    expected.push(0xd801);
+    expected.extend(
+        format!(
+            ".ts{RESET}:{YELLOW}1{RESET}:{YELLOW}1{RESET} - {}name\n\n{}second\n{}{RED}~{RESET}\n",
+            head("error", RED, 1000),
+            gutter("1"),
+            gutter(" "),
+        )
+        .encode_utf16(),
+    );
+    assert_eq!(output, expected);
     let mut alternate = path(0xd801).to_utf16();
     alternate[2] = 0x5c;
     assert_eq!(
@@ -58,7 +71,10 @@ fn js_file_names_select_distinct_sources_and_survive_location_rendering() {
 }
 
 #[test]
-fn renders_tsc_context_shape_with_utf16_tabs_chains_and_related() {
+fn renders_tsgo_pretty_shape_with_chains_and_related() {
+    // tsgo FormatDiagnosticWithColorAndContext: the snippet follows a blank
+    // line; each related location carries its message on the same line and
+    // its snippet indented under it.
     let mut files = BTreeMap::new();
     files.insert(
         "/workspace/src/main.ts".to_owned(),
@@ -68,7 +84,6 @@ fn renders_tsc_context_shape_with_utf16_tabs_chains_and_related() {
         "/workspace/src/origin.ts".to_owned(),
         "export const origin = 1;\n".to_owned(),
     );
-
     let mut message = chain(2322, DiagnosticCategory::Error, "Head");
     message.next_present = true;
     message.next = vec![chain(2322, DiagnosticCategory::Error, "Child")];
@@ -84,141 +99,163 @@ fn renders_tsc_context_shape_with_utf16_tabs_chains_and_related() {
         length: Some(6),
         message: chain(2728, DiagnosticCategory::Message, "Origin"),
     });
-
     let host = FormatDiagnosticsHost::new("/workspace", &files);
+    let expected = format!(
+        "{} - {}Head\n  Child\n\n{}const face = \"😀\";\n{}{RED}      ~~~~~~{RESET}\n\n  {} - Origin\n    {}export const origin = 1;\n    {}{CYAN}             ~~~~~~{RESET}\n",
+        location("src/main.ts", 1, 7),
+        head("error", RED, 2322),
+        gutter("1"),
+        gutter(" "),
+        location("src/origin.ts", 1, 14),
+        gutter("1"),
+        gutter(" "),
+    );
     assert_eq!(
-        format_diagnostics_with_context(&[diagnostic], &host).unwrap(),
-        concat!(
-            "src/main.ts:1:7 - error TS2322: Head\n",
-            "  Child\n",
-            "\n",
-            "1 const face = \"😀\";\n",
-            "        ~~~~~~\n",
-            "\n",
-            "  src/origin.ts:1:14\n",
-            "    1 export const origin = 1;\n",
-            "                   ~~~~~~\n",
-            "    Origin\n",
-        )
+        format_diagnostics_with_color_and_context(&[diagnostic], &host, "\n")
+            .unwrap()
+            .to_string_lossy(),
+        expected
     );
 }
 
 #[test]
-fn owns_order_dedupe_multiline_fileless_and_suggestion_rendering() {
+fn snippets_follow_tsgo_write_code_snippet() {
     let mut files = BTreeMap::new();
     files.insert("multi.ts".to_owned(), "a\nb\nc\nd\ne\nf\n".to_owned());
-    let fileless = Diagnostic::new(
-        None,
-        None,
-        None,
-        chain(999, DiagnosticCategory::Message, "global"),
-    );
+    files.insert("space.ts".to_owned(), "x \u{85}\u{feff}\n".to_owned());
+    let host = FormatDiagnosticsHost::new("/", &files);
+    // Over five lines: the first two and the last two around an ellipsis;
+    // a suggestion squiggles in grey.
     let suggestion = Diagnostic::new(
         Some("multi.ts".to_owned()),
         Some(0),
         Some(10),
         chain(80001, DiagnosticCategory::Suggestion, "hint"),
     );
-    let host = FormatDiagnosticsHost::new("/", &files);
-    let output =
-        format_diagnostics_with_context(&[suggestion.clone(), fileless, suggestion], &host)
-            .unwrap();
+    let ellipsis = format!("{GUTTER_STYLE}...{RESET} ");
     assert_eq!(
-        output,
-        concat!(
-            "message TS999: global\n",
-            "multi.ts:1:1 - suggestion TS80001: hint\n",
-            "\n",
-            "  1 a\n",
-            "    ~\n",
-            "  2 b\n",
-            "    ~\n",
-            "... \n",
-            "  5 e\n",
-            "    ~\n",
-            "  6 f\n",
-            "    \n",
+        format_diagnostics_with_color_and_context(&[suggestion], &host, "\n")
+            .unwrap()
+            .to_string_lossy(),
+        format!(
+            "{} - {}hint\n\n{}a\n{}{GREY}~{RESET}\n{}b\n{}{GREY}~{RESET}\n{ellipsis}\n{}e\n{}{GREY}~{RESET}\n{}f\n{}{GREY}{RESET}\n",
+            location("multi.ts", 1, 1),
+            head("suggestion", GREY, 80001),
+            gutter("  1"),
+            gutter("   "),
+            gutter("  2"),
+            gutter("   "),
+            gutter("  5"),
+            gutter("   "),
+            gutter("  6"),
+            gutter("   "),
+        )
+    );
+    // A zero-length span squiggles the next character; Go's unicode.IsSpace
+    // trims U+0085 but not U+FEFF. A message is blue, and a related row
+    // without a file is only a line break.
+    let mut zero = Diagnostic::new(
+        Some("space.ts".to_owned()),
+        Some(0),
+        Some(0),
+        chain(1, DiagnosticCategory::Message, "zero"),
+    );
+    zero.related.push(RelatedInfo {
+        file_name: None,
+        start: None,
+        length: None,
+        message: chain(2, DiagnosticCategory::Message, "unseen"),
+    });
+    assert_eq!(
+        format_diagnostics_with_color_and_context(&[zero], &host, "\r\n")
+            .unwrap()
+            .to_string_lossy(),
+        format!(
+            "{} - {}zero\r\n\r\n{}x \u{85}\u{feff}\r\n{}{BLUE}~{RESET}\r\n\r\n",
+            location("space.ts", 1, 1),
+            head("message", BLUE, 1),
+            gutter("1"),
+            gutter(" "),
         )
     );
 }
 
 #[test]
-fn present_empty_related_information_emits_the_tsc_blank_line() {
-    let files = BTreeMap::new();
-    let mut present_empty = Diagnostic::new(
-        None,
-        None,
-        None,
-        chain(1, DiagnosticCategory::Error, "first"),
-    );
-    present_empty.related_information_present = true;
-    let absent = Diagnostic::new(
-        None,
-        None,
-        None,
-        chain(2, DiagnosticCategory::Error, "second"),
-    );
-    let host = FormatDiagnosticsHost::new("/", &files);
-
-    assert_eq!(
-        format_sorted_diagnostics_with_context(&[present_empty, absent], &host).unwrap(),
-        "error TS1: first\n\nerror TS2: second\n"
-    );
-}
-
-#[test]
-fn raw_formatter_preserves_message_newlines() {
-    let files = BTreeMap::new();
-    let diagnostic = Diagnostic::new(
-        None,
-        None,
-        None,
-        chain(1, DiagnosticCategory::Error, "head\rbody\r\ntail"),
-    );
-    let host = FormatDiagnosticsHost::new("/", &files);
-
-    assert_eq!(
-        format_sorted_diagnostics_with_context_raw(std::slice::from_ref(&diagnostic), &host,)
-            .unwrap(),
-        "error TS1: head\rbody\r\ntail\n"
-    );
-    assert_eq!(
-        format_sorted_diagnostics_with_context(&[diagnostic], &host).unwrap(),
-        "error TS1: head\nbody\ntail\n"
-    );
-}
-
-#[test]
-fn raw_and_normalized_formatters_keep_message_surrogates() {
+fn diagnostics_are_separated_by_the_new_line_and_files_are_optional() {
     let files = BTreeMap::new();
     let host = FormatDiagnosticsHost::new("/", &files);
-    let mut message = chain(1, DiagnosticCategory::Error, "");
-    message.text = JsString::from_code_units(&[0xD800, 13, 10, 0xDC00]);
-    let diagnostic = Diagnostic::new(None, None, None, message);
-    let mut expected = "error TS1: ".encode_utf16().collect::<Vec<_>>();
-    expected.extend([0xD800, 13, 10, 0xDC00, 10]);
+    let diagnostics = [
+        Diagnostic::new(
+            None,
+            None,
+            None,
+            chain(1, DiagnosticCategory::Error, "first"),
+        ),
+        Diagnostic::new(
+            None,
+            None,
+            None,
+            chain(2, DiagnosticCategory::Warning, "second"),
+        ),
+    ];
     assert_eq!(
-        format_sorted_diagnostics_with_context_raw(std::slice::from_ref(&diagnostic), &host)
+        format_diagnostics_with_color_and_context(&diagnostics, &host, "\n")
             .unwrap()
-            .to_utf16(),
-        expected
-    );
-    expected.remove("error TS1: ".len() + 1);
-    assert_eq!(
-        format_sorted_diagnostics_with_context(&[diagnostic], &host)
-            .unwrap()
-            .to_utf16(),
-        expected
+            .to_string_lossy(),
+        format!(
+            "{}first\n{}second",
+            head("error", RED, 1),
+            head("warning", YELLOW, 2)
+        )
     );
 }
 
 #[test]
-fn removing_sgr_canonicalizes_a_new_surrogate_pair() {
-    let value = JsString::from_code_units(&[0xD800, 0x1B, 0x5B, 0x33, 0x31, 0x6D, 0xDC00]);
-    let stripped = strip_ansi_sgr(value.as_js());
-    assert_eq!(stripped.as_bytes(), "\u{10000}".as_bytes());
-    let unclosed = JsString::from_code_units(&[0xD800, 0x1B, 0x5B, 0x33, 0x31, 0xDC00]);
-    assert_eq!(strip_ansi_sgr(unclosed.as_js()), unclosed);
+fn error_summary_follows_tsgo_write_error_summary_text() {
+    let mut files = BTreeMap::new();
+    files.insert("/work/b.ts".to_owned(), "x\ny\n".to_owned());
+    files.insert("/work/a.ts".to_owned(), "x\n".to_owned());
+    let host = FormatDiagnosticsHost::new("/work", &files);
+    let error = |file: &str, start: u32| {
+        Diagnostic::new(
+            Some(file.to_owned()),
+            Some(start),
+            Some(1),
+            chain(1, DiagnosticCategory::Error, "e"),
+        )
+    };
+    let summary = |diagnostics: &[Diagnostic]| {
+        write_error_summary_text(diagnostics, &host, "\n")
+            .unwrap()
+            .to_string_lossy()
+            .into_owned()
+    };
+    let global = Diagnostic::new(None, None, None, chain(1, DiagnosticCategory::Error, "g"));
+    let warning = Diagnostic::new(None, None, None, chain(1, DiagnosticCategory::Warning, "w"));
+    assert_eq!(summary(&[warning]), "");
+    assert_eq!(
+        summary(std::slice::from_ref(&global)),
+        "\nFound 1 error.\n\n"
+    );
+    assert_eq!(
+        summary(&[error("/work/b.ts", 2)]),
+        format!("\nFound 1 error in b.ts{GREY}:2{RESET}\n\n")
+    );
+    assert_eq!(
+        summary(&[global.clone(), global.clone()]),
+        "\nFound 2 errors.\n\n"
+    );
+    assert_eq!(
+        summary(&[error("/work/b.ts", 2), error("/work/b.ts", 0)]),
+        format!("\nFound 2 errors in the same file, starting at: b.ts{GREY}:2{RESET}\n\n")
+    );
+    // Files in name order; the line is that of the file's first error.
+    assert_eq!(
+        summary(&[error("/work/b.ts", 2), error("/work/a.ts", 0), global]),
+        format!(
+            "\nFound 3 errors in 2 files.\n\nErrors  Files\n     1  a.ts{GREY}:1{RESET}\n     1  b.ts{GREY}:2{RESET}\n\n"
+        )
+    );
 }
 
 #[test]
@@ -245,7 +282,7 @@ fn cwd_aware_selection_returns_the_retained_input_occurrence() {
 }
 
 #[test]
-fn sorts_by_virtual_absolute_path_and_clamps_trimmed_line_spans() {
+fn sorts_by_virtual_absolute_path_and_prints_relative_names() {
     assert_eq!(
         relative_file_name("//server/share/a.ts", "/work"),
         "//server/share/a.ts"
@@ -260,67 +297,25 @@ fn sorts_by_virtual_absolute_path_and_clamps_trimmed_line_spans() {
         "../a.ts",
         "display conversion reduces the raw absolute SourceFile.fileName"
     );
-    let mut files = BTreeMap::new();
-    files.insert("../z.ts".to_owned(), "x   \n".to_owned());
-    files.insert("./nested/../dot.ts".to_owned(), "d\n".to_owned());
-    files.insert("a.ts".to_owned(), "y\n".to_owned());
-    let z = Diagnostic::new(
-        Some("../z.ts".to_owned()),
-        Some(4),
-        Some(0),
-        chain(2, DiagnosticCategory::Error, "z"),
-    );
-    let a = Diagnostic::new(
-        Some("a.ts".to_owned()),
-        Some(0),
-        Some(1),
-        chain(1, DiagnosticCategory::Error, "a"),
-    );
-    let dot = Diagnostic::new(
-        Some("./nested/../dot.ts".to_owned()),
-        Some(0),
-        Some(1),
-        chain(3, DiagnosticCategory::Error, "dot"),
-    );
+    let files = BTreeMap::new();
+    let diagnostic = |file: &str, code| {
+        Diagnostic::new(
+            Some(file.to_owned()),
+            Some(0),
+            Some(1),
+            chain(code, DiagnosticCategory::Error, "x"),
+        )
+    };
     let host = FormatDiagnosticsHost::new("/work", &files);
     assert_eq!(
-        format_diagnostics_with_context(&[z, dot, a], &host).unwrap(),
-        concat!(
-            "a.ts:1:1 - error TS1: a\n",
-            "\n",
-            "1 y\n",
-            "  ~\n",
-            "dot.ts:1:1 - error TS3: dot\n",
-            "\n",
-            "1 d\n",
-            "  ~\n",
-            "../z.ts:1:5 - error TS2: z\n",
-            "\n",
-            "1 x\n",
-            "   \n",
-        )
-    );
-}
-
-#[test]
-fn strips_input_sgr_after_rendering_like_the_oracle_adapter() {
-    let mut files = BTreeMap::new();
-    files.insert("./\u{1b}[31ma.ts".to_owned(), "x\u{1b}[32my\n".to_owned());
-    let diagnostic = Diagnostic::new(
-        Some("./\u{1b}[31ma.ts".to_owned()),
-        Some(0),
-        Some(7),
-        chain(4, DiagnosticCategory::Error, "bad \u{1b}[33mcolor"),
-    );
-    let host = FormatDiagnosticsHost::new("/work", &files);
-
-    assert_eq!(
-        format_diagnostics_with_context(&[diagnostic], &host).unwrap(),
-        concat!(
-            "a.ts:1:1 - error TS4: bad color\n",
-            "\n",
-            "1 xy\n",
-            "  ~~~~~~~\n",
-        )
+        sort_and_dedupe_diagnostic_indices_with_context(
+            &[
+                diagnostic("../z.ts", 2),
+                diagnostic("./nested/../dot.ts", 3),
+                diagnostic("a.ts", 1),
+            ],
+            &host
+        ),
+        [2, 1, 0]
     );
 }

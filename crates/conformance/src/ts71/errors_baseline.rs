@@ -1,7 +1,9 @@
 //! The native runner's error baseline (`GetErrorBaseline` in
-//! `tsc/internal/testutil/tsbaseline/error_baseline.go`, the form without
-//! `@pretty`) rendered from tsc-rs diagnostics, so a configuration can be
-//! compared with its `.errors.txt` byte for byte, as the upstream test does.
+//! `tsc/internal/testutil/tsbaseline/error_baseline.go`) rendered from tsc-rs
+//! diagnostics, so a configuration can be compared with its `.errors.txt`
+//! byte for byte, as the upstream test does. A `@pretty` baseline opens with
+//! the pretty diagnostics (`FormatDiagnosticsWithColorAndContext`) and ends
+//! with the error summary (`WriteErrorSummaryText`).
 //!
 //! The runner works on UTF-8 byte offsets and counts squiggles in characters;
 //! tsc-rs positions are UTF-16 offsets and are converted through the file
@@ -13,7 +15,10 @@
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
-use tsc_diagnostics::{Diagnostic, MessageChain, PositionIndex, RelatedInfo};
+use tsc_diagnostics::{
+    format_diagnostics_with_color_and_context, write_error_summary_text, Diagnostic, JsStr,
+    JsString, MessageChain, PositionIndex, PrettyDiagnosticSources, RelatedInfo,
+};
 
 const NEW_LINE: &str = "\r\n";
 
@@ -33,6 +38,7 @@ pub(super) fn render(
     diagnostics: &[Diagnostic],
     files: &[InputFile<'_>],
     library: &[InputFile<'_>],
+    pretty: bool,
 ) -> Option<String> {
     if diagnostics.is_empty() {
         return None;
@@ -42,17 +48,48 @@ pub(super) fn render(
         .chain(library)
         .map(|file| (file.name, PositionIndex::new_static(file.content)))
         .collect();
+    let sources = RunnerSources {
+        texts: files
+            .iter()
+            .chain(library)
+            .map(|file| (file.name, file.content))
+            .collect(),
+        indexes: &indexes,
+    };
 
+    let summary = if pretty {
+        let top = format_diagnostics_with_color_and_context(diagnostics, &sources, NEW_LINE)
+            .map(|text| text.to_string_lossy().into_owned())
+            .unwrap_or_else(|error| format!("<pretty diagnostics failed: {error}>"));
+        mask_summary_library_locations(&remove_test_path_prefixes(&top))
+    } else {
+        plain_summary(diagnostics, &indexes)
+    };
+    let mut baseline = format!(
+        "{summary}{NEW_LINE}{NEW_LINE}{}",
+        file_sections(diagnostics, files, &indexes)
+    );
+    if pretty {
+        let error_summary = write_error_summary_text(diagnostics, &sources, NEW_LINE)
+            .map(|text| text.to_string_lossy().into_owned())
+            .unwrap_or_else(|error| format!("<error summary failed: {error}>"));
+        baseline.push_str(&remove_test_path_prefixes(&error_summary));
+    }
+    Some(baseline)
+}
+
+/// `WriteFormatDiagnostics`: each diagnostic on its own line.
+fn plain_summary(diagnostics: &[Diagnostic], indexes: &Indexes<'_>) -> String {
     let mut summary = String::new();
     for diagnostic in diagnostics {
         if let Some(file_name) = &diagnostic.file_name {
             let file_name = file_name.to_string_lossy();
             // A library file has no fixture text; its location is masked.
-            let (line, column) = position(&indexes, &file_name, diagnostic.start).unwrap_or((1, 1));
+            let (line, column) = position(indexes, &file_name, diagnostic.start).unwrap_or((1, 1));
             let _ = write!(
                 summary,
                 "{}({line},{column}): ",
-                display_name(&file_name, &indexes)
+                display_name(&file_name, indexes)
             );
         }
         let _ = write!(
@@ -64,8 +101,15 @@ pub(super) fn render(
         flatten(&diagnostic.message, &mut summary);
         summary.push_str(NEW_LINE);
     }
-    let summary = mask_summary_library_locations(&remove_test_path_prefixes(&summary));
+    mask_summary_library_locations(&remove_test_path_prefixes(&summary))
+}
 
+/// The baseline text after the summary of `render`.
+fn file_sections(
+    diagnostics: &[Diagnostic],
+    files: &[InputFile<'_>],
+    indexes: &Indexes<'_>,
+) -> String {
     let mut lines = Lines::default();
     let error_text = |lines: &mut Lines, diagnostic: &Diagnostic| {
         let mut message = String::new();
@@ -81,7 +125,7 @@ pub(super) fn render(
             }
         }
         for related in &diagnostic.related {
-            lines.push(&related_line(related, &indexes));
+            lines.push(&related_line(related, indexes));
         }
     };
     for diagnostic in diagnostics.iter().filter(|d| d.file_name.is_none()) {
@@ -150,7 +194,31 @@ pub(super) fn render(
             }
         }
     }
-    Some(format!("{summary}{NEW_LINE}{NEW_LINE}{}", lines.text))
+    lines.text
+}
+
+/// The fixture and library files the pretty writer reads: names as the
+/// runner prints them (test path prefixes are removed from the whole text
+/// afterwards) and texts.
+struct RunnerSources<'a> {
+    texts: BTreeMap<&'a str, &'a str>,
+    indexes: &'a Indexes<'a>,
+}
+
+impl PrettyDiagnosticSources for RunnerSources<'_> {
+    fn location_name(&self, file_name: JsStr<'_>) -> JsString {
+        JsString::from(display_name(&file_name.to_string_lossy(), self.indexes))
+    }
+
+    fn summary_name(&self, file_name: JsStr<'_>) -> JsString {
+        JsString::from(display_name(&file_name.to_string_lossy(), self.indexes))
+    }
+
+    fn text(&self, file_name: JsStr<'_>) -> Option<&str> {
+        self.texts
+            .get(file_name.to_string_lossy().as_ref())
+            .copied()
+    }
 }
 
 /// The lines after the summary: the first has no line break before it.

@@ -1,23 +1,26 @@
-//! Deterministic, color-free port of TypeScript 6.0.3's
-//! `formatDiagnosticsWithColorAndContext`.
-//!
-//! The upstream formatter is UTF-16 based and assumes its caller has
-//! already applied `sortAndDeduplicateDiagnostics`.  The public entry
-//! point below owns that precondition as well: callers may pass checker
-//! diagnostics in any order and receive the exact CLI ordering.
+//! Port of tsgo's diagnostic writer (`internal/diagnosticwriter`): the
+//! `--pretty` reporter (`FormatDiagnosticWithColorAndContext`, ANSI styles
+//! and source snippets) and the error summary (`WriteErrorSummaryText`),
+//! with the command-line reporter's sort/deduplicate boundary
+//! (`sortAndDeduplicateDiagnostics`). Positions are UTF-16 offsets.
 
 use std::collections::BTreeMap;
 use std::error::Error;
 use std::fmt;
 
 use crate::{
-    compare_diagnostics, diagnostics_equal, Diagnostic, JsStr, JsString, MessageChain, RelatedInfo,
-    TextSnapshot,
+    compare_diagnostics, diagnostics_equal, Diagnostic, JsStr, JsString, MessageChain, TextSnapshot,
 };
 
 const FILE_APPEARS_TO_BE_BINARY: u32 = 1490;
-const HALF_INDENT: &str = "  ";
-const INDENT: &str = "    ";
+const GREY: &str = "\u{1b}[90m";
+const RED: &str = "\u{1b}[91m";
+const YELLOW: &str = "\u{1b}[93m";
+const BLUE: &str = "\u{1b}[94m";
+const CYAN: &str = "\u{1b}[96m";
+const GUTTER_STYLE: &str = "\u{1b}[7m";
+const GUTTER_SEPARATOR: &str = " ";
+const RESET: &str = "\u{1b}[0m";
 const ELLIPSIS: &str = "...";
 
 #[derive(Clone, Copy, Debug)]
@@ -143,34 +146,6 @@ impl fmt::Display for FormatDiagnosticsError {
 
 impl Error for FormatDiagnosticsError {}
 
-/// Render diagnostics in the TypeScript 6.0.3
-/// `formatDiagnosticsWithColorAndContext` shape, with ANSI styling
-/// removed and every formatter-owned newline fixed to LF.
-///
-/// Unlike the upstream leaf formatter, this entry point performs the
-/// CLI's `sortAndDeduplicateDiagnostics` step first.
-pub fn format_diagnostics_with_context(
-    diagnostics: &[Diagnostic],
-    host: &FormatDiagnosticsHost<'_>,
-) -> Result<JsString, FormatDiagnosticsError> {
-    format_diagnostics_with_context_raw(diagnostics, host)
-        .map(|output| normalize_newlines(output.as_js()))
-}
-
-/// Render after the CLI sort/deduplicate boundary without rewriting
-/// CR, CRLF, U+2028, or U+2029 that originated in diagnostic data.
-pub fn format_diagnostics_with_context_raw(
-    diagnostics: &[Diagnostic],
-    host: &FormatDiagnosticsHost<'_>,
-) -> Result<JsString, FormatDiagnosticsError> {
-    let indices = sort_and_dedupe_diagnostic_indices_with_context(diagnostics, host);
-    let selected = indices
-        .into_iter()
-        .map(|index| diagnostics[index].clone())
-        .collect::<Vec<_>>();
-    format_sorted_diagnostics_with_context_raw(&selected, host)
-}
-
 /// Return the exact input occurrence retained by tsc's stable,
 /// cwd-aware sort/deduplicate boundary.
 pub fn sort_and_dedupe_diagnostic_indices_with_context(
@@ -205,79 +180,374 @@ pub fn sort_and_dedupe_diagnostic_indices_with_context(
     diagnostics.into_iter().map(|(_, index)| index).collect()
 }
 
-/// Render an already sorted/deduplicated diagnostic sequence.
-///
-/// This is useful after an exact-scope projection: removing entries
-/// from a sorted sequence preserves the oracle order and must not
-/// cause a second, projection-dependent pairing decision.
-pub fn format_sorted_diagnostics_with_context(
-    diagnostics: &[Diagnostic],
-    host: &FormatDiagnosticsHost<'_>,
-) -> Result<JsString, FormatDiagnosticsError> {
-    format_sorted_diagnostics_with_context_raw(diagnostics, host)
-        .map(|output| normalize_newlines(output.as_js()))
+/// What the pretty writer reads about a diagnostic's file.
+pub trait PrettyDiagnosticSources {
+    /// The name a location prints (tsgo `WriteLocation`: the file name
+    /// relative to the current directory).
+    fn location_name(&self, file_name: JsStr<'_>) -> JsString;
+    /// The name the error summary prints (`prettyPathForFileError`).
+    fn summary_name(&self, file_name: JsStr<'_>) -> JsString;
+    /// The file's text.
+    fn text(&self, file_name: JsStr<'_>) -> Option<&str>;
 }
 
-/// Render an already sorted/deduplicated sequence while preserving
-/// non-LF line separators contained in diagnostic data. ANSI SGR is
-/// still removed at the same final-string boundary as the oracle.
-pub fn format_sorted_diagnostics_with_context_raw(
+impl PrettyDiagnosticSources for FormatDiagnosticsHost<'_> {
+    fn location_name(&self, file_name: JsStr<'_>) -> JsString {
+        relative_file_name(file_name, self.current_directory)
+    }
+
+    fn summary_name(&self, file_name: JsStr<'_>) -> JsString {
+        relative_file_name(file_name, self.current_directory)
+    }
+
+    fn text(&self, file_name: JsStr<'_>) -> Option<&str> {
+        self.file_text(file_name)
+    }
+}
+
+/// tsgo `FormatDiagnosticsWithColorAndContext`: the diagnostics in the
+/// given order, separated by `new_line`.
+pub fn format_diagnostics_with_color_and_context(
     diagnostics: &[Diagnostic],
-    host: &FormatDiagnosticsHost<'_>,
+    sources: &dyn PrettyDiagnosticSources,
+    new_line: &str,
 ) -> Result<JsString, FormatDiagnosticsError> {
     let mut output = JsString::new();
-    for diagnostic in diagnostics {
-        if let Some(file_name) = diagnostic.file_name.as_ref().map(JsString::as_js) {
-            let start = required_position(diagnostic.start, file_name, "start")?;
-            output.push_js(format_location(file_name, start, host)?.as_js());
-            output.push_str(" - ");
+    for (index, diagnostic) in diagnostics.iter().enumerate() {
+        if index > 0 {
+            output.push_str(new_line);
         }
-        output.push_str(diagnostic.category().name());
-        output.push_str(" TS");
-        output.push_str(&diagnostic.code().to_string());
-        output.push_str(": ");
-        flatten_message_chain(&diagnostic.message, 0, &mut output);
-
-        if let Some(file_name) = diagnostic.file_name.as_ref().map(JsString::as_js) {
-            if diagnostic.code() != FILE_APPEARS_TO_BE_BINARY {
-                let start = required_position(diagnostic.start, file_name, "start")?;
-                let length = required_position(diagnostic.length, file_name, "length")?;
-                output.push('\n');
-                output.push_str(&format_code_span(file_name, start, length, "", host)?);
-            }
-        }
-
-        if diagnostic.related_information_present || !diagnostic.related.is_empty() {
-            output.push('\n');
-            for related in &diagnostic.related {
-                format_related_information(related, host, &mut output)?;
-            }
-        }
-        output.push('\n');
+        format_diagnostic_with_color_and_context(&mut output, diagnostic, sources, new_line)?;
     }
-    // The oracle contract removes ANSI SGR from the formatter's final
-    // string, not merely from formatter-owned color tokens. Preserve
-    // that observable ordering for literal escape sequences embedded
-    // in file names, source lines, or diagnostic messages as well.
-    Ok(strip_ansi_sgr(output.as_js()))
+    Ok(output)
 }
 
-fn format_related_information(
-    related: &RelatedInfo,
-    host: &FormatDiagnosticsHost<'_>,
+/// tsgo `FormatDiagnosticWithColorAndContext`: the location, the styled
+/// category and code, the flattened message and the source snippet, then
+/// each related location with its message and snippet.
+pub fn format_diagnostic_with_color_and_context(
     output: &mut JsString,
+    diagnostic: &Diagnostic,
+    sources: &dyn PrettyDiagnosticSources,
+    new_line: &str,
 ) -> Result<(), FormatDiagnosticsError> {
-    if let Some(file_name) = related.file_name.as_ref().map(JsString::as_js) {
-        let start = required_position(related.start, file_name, "related start")?;
-        let length = required_position(related.length, file_name, "related length")?;
-        output.push('\n');
-        output.push_str(HALF_INDENT);
-        output.push_js(format_location(file_name, start, host)?.as_js());
-        output.push_str(&format_code_span(file_name, start, length, INDENT, host)?);
+    let file_name = diagnostic.file_name.as_ref().map(JsString::as_js);
+    if let Some(file_name) = file_name {
+        let start = required_position(diagnostic.start, file_name, "start")?;
+        write_location(output, file_name, start, sources)?;
+        output.push_str(" - ");
     }
-    output.push('\n');
-    output.push_str(INDENT);
-    flatten_message_chain(&related.message, 0, output);
+    let category_format = category_format(diagnostic.category());
+    write_with_style_and_reset(output, diagnostic.category().name(), category_format);
+    output.push_str(GREY);
+    output.push_str(&format!(" TS{}: ", diagnostic.code()));
+    output.push_str(RESET);
+    write_flattened_message(output, &diagnostic.message, new_line);
+
+    if let Some(file_name) = file_name {
+        if diagnostic.code() != FILE_APPEARS_TO_BE_BINARY {
+            let start = required_position(diagnostic.start, file_name, "start")?;
+            let length = required_position(diagnostic.length, file_name, "length")?;
+            output.push_str(new_line);
+            write_code_snippet(
+                output,
+                file_name,
+                start,
+                length,
+                category_format,
+                "",
+                sources,
+                new_line,
+            )?;
+            output.push_str(new_line);
+        }
+    }
+
+    for related in &diagnostic.related {
+        if let Some(file_name) = related.file_name.as_ref().map(JsString::as_js) {
+            let start = required_position(related.start, file_name, "related start")?;
+            let length = required_position(related.length, file_name, "related length")?;
+            output.push_str(new_line);
+            output.push_str("  ");
+            write_location(output, file_name, start, sources)?;
+            output.push_str(" - ");
+            write_flattened_message(output, &related.message, new_line);
+            write_code_snippet(
+                output, file_name, start, length, CYAN, "    ", sources, new_line,
+            )?;
+        }
+        output.push_str(new_line);
+    }
+    Ok(())
+}
+
+/// tsgo `WriteErrorSummaryText`: `Found N errors…` after the diagnostics,
+/// with a table of the files when several have errors. Empty when there is
+/// no error.
+pub fn write_error_summary_text(
+    diagnostics: &[Diagnostic],
+    sources: &dyn PrettyDiagnosticSources,
+    new_line: &str,
+) -> Result<JsString, FormatDiagnosticsError> {
+    let mut total = 0usize;
+    let mut global = 0usize;
+    let mut files: Vec<(JsString, Vec<&Diagnostic>)> = Vec::new();
+    for diagnostic in diagnostics {
+        if diagnostic.category() != crate::DiagnosticCategory::Error {
+            continue;
+        }
+        total += 1;
+        match &diagnostic.file_name {
+            None => global += 1,
+            Some(file_name) => match files.iter_mut().find(|(name, _)| name == file_name) {
+                Some((_, errors)) => errors.push(diagnostic),
+                None => files.push((file_name.clone(), vec![diagnostic])),
+            },
+        }
+    }
+    let mut output = JsString::new();
+    if total == 0 {
+        return Ok(output);
+    }
+    // Go orders the file names by their UTF-8 bytes.
+    files.sort_by(|(left, _), (right, _)| {
+        left.to_string_lossy()
+            .as_bytes()
+            .cmp(right.to_string_lossy().as_bytes())
+    });
+    let first_file_name = match files.first() {
+        Some((file_name, errors)) => pretty_path_for_file_error(file_name, errors, sources)?,
+        None => JsString::new(),
+    };
+    let message = if total == 1 {
+        if global > 0 || first_file_name.is_empty() {
+            crate::gen::Found_1_error.text.to_owned()
+        } else {
+            crate::format_message(
+                crate::gen::Found_1_error_in_0.text,
+                &[first_file_name.to_string_lossy().into_owned()],
+            )
+        }
+    } else {
+        match files.len() {
+            0 => crate::format_message(crate::gen::Found_0_errors.text, &[total.to_string()]),
+            1 => crate::format_message(
+                crate::gen::Found_0_errors_in_the_same_file_starting_at_1.text,
+                &[
+                    total.to_string(),
+                    first_file_name.to_string_lossy().into_owned(),
+                ],
+            ),
+            count => crate::format_message(
+                crate::gen::Found_0_errors_in_1_files.text,
+                &[total.to_string(), count.to_string()],
+            ),
+        }
+    };
+    output.push_str(new_line);
+    output.push_str(&message);
+    output.push_str(new_line);
+    output.push_str(new_line);
+    if files.len() > 1 {
+        // writeTabularErrorsDisplay
+        let max_errors = files
+            .iter()
+            .map(|(_, errors)| errors.len())
+            .max()
+            .unwrap_or(0);
+        let header = crate::gen::Errors_Files.text;
+        let left_heading_length = header.split(' ').next().map_or(0, str::len);
+        let biggest_count_length = max_errors.to_string().len();
+        let left_padding_goal = left_heading_length.max(biggest_count_length);
+        let header_padding = biggest_count_length.saturating_sub(left_heading_length);
+        output.push_str(&" ".repeat(header_padding));
+        output.push_str(header);
+        output.push_str(new_line);
+        for (file_name, errors) in &files {
+            output.push_str(&format!("{:>left_padding_goal$}  ", errors.len()));
+            output.push_js(pretty_path_for_file_error(file_name, errors, sources)?.as_js());
+            output.push_str(new_line);
+        }
+        output.push_str(new_line);
+    }
+    Ok(output)
+}
+
+/// tsgo `prettyPathForFileError`: the file name and, in grey, the line of
+/// its first error.
+fn pretty_path_for_file_error(
+    file_name: &JsString,
+    errors: &[&Diagnostic],
+    sources: &dyn PrettyDiagnosticSources,
+) -> Result<JsString, FormatDiagnosticsError> {
+    let text = source_text(file_name.as_js(), sources)?;
+    let start = errors.first().and_then(|error| error.start).unwrap_or(0);
+    let (line, _) = Utf16File::new(text).line_and_character(start)?;
+    let mut path = sources.summary_name(file_name.as_js());
+    path.push_str(GREY);
+    path.push_str(&format!(":{}", line + 1));
+    path.push_str(RESET);
+    Ok(path)
+}
+
+fn category_format(category: crate::DiagnosticCategory) -> &'static str {
+    match category {
+        crate::DiagnosticCategory::Error => RED,
+        crate::DiagnosticCategory::Warning => YELLOW,
+        crate::DiagnosticCategory::Suggestion => GREY,
+        crate::DiagnosticCategory::Message => BLUE,
+    }
+}
+
+fn write_with_style_and_reset(output: &mut JsString, text: &str, style: &str) {
+    output.push_str(style);
+    output.push_str(text);
+    output.push_str(RESET);
+}
+
+fn source_text<'s>(
+    file_name: JsStr<'_>,
+    sources: &'s dyn PrettyDiagnosticSources,
+) -> Result<&'s str, FormatDiagnosticsError> {
+    sources.text(file_name).ok_or_else(|| {
+        FormatDiagnosticsError::new(format!(
+            "diagnostic source text is unavailable for {file_name:?}"
+        ))
+    })
+}
+
+/// tsgo `WriteLocation`: `file:line:column`, the name in cyan and the
+/// numbers in yellow.
+fn write_location(
+    output: &mut JsString,
+    file_name: JsStr<'_>,
+    start: u32,
+    sources: &dyn PrettyDiagnosticSources,
+) -> Result<(), FormatDiagnosticsError> {
+    let text = source_text(file_name, sources)?;
+    let (line, character) = Utf16File::new(text).line_and_character(start)?;
+    output.push_str(CYAN);
+    output.push_js(sources.location_name(file_name).as_js());
+    output.push_str(RESET);
+    output.push(':');
+    write_with_style_and_reset(output, &(line + 1).to_string(), YELLOW);
+    output.push(':');
+    write_with_style_and_reset(output, &(character + 1).to_string(), YELLOW);
+    Ok(())
+}
+
+/// tsgo `WriteFlattenedDiagnosticMessage`: the head, then each chained
+/// message on its own line, indented two spaces per level.
+fn write_flattened_message(output: &mut JsString, chain: &MessageChain, new_line: &str) {
+    fn children(output: &mut JsString, chain: &MessageChain, new_line: &str, level: usize) {
+        for child in &chain.next {
+            output.push_str(new_line);
+            for _ in 0..level {
+                output.push_str("  ");
+            }
+            output.push_js(child.text.as_js());
+            children(output, child, new_line, level + 1);
+        }
+    }
+    output.push_js(chain.text.as_js());
+    children(output, chain, new_line, 1);
+}
+
+/// tsgo `writeCodeSnippet`: each line of the span under a numbered gutter
+/// with its squiggles; a span over five lines shows the first two and the
+/// last two around an ellipsis. Counts are UTF-16 units, and a zero-length
+/// span squiggles the next character.
+#[allow(clippy::too_many_arguments)]
+fn write_code_snippet(
+    output: &mut JsString,
+    file_name: JsStr<'_>,
+    start: u32,
+    length: u32,
+    squiggle_color: &str,
+    indent: &str,
+    sources: &dyn PrettyDiagnosticSources,
+    new_line: &str,
+) -> Result<(), FormatDiagnosticsError> {
+    let file = Utf16File::new(source_text(file_name, sources)?);
+    let end = start.checked_add(length).ok_or_else(|| {
+        FormatDiagnosticsError::new(format!(
+            "diagnostic span overflows UTF-16 offsets for {file_name:?}"
+        ))
+    })?;
+    let (first_line, first_character) = file.line_and_character(start)?;
+    let (last_line, mut last_character) = file.line_and_character(end)?;
+    if length == 0 {
+        last_character += 1;
+    }
+    let last_line_of_file = file.line_and_character(file.len())?.0;
+    let has_more_than_five_lines = last_line - first_line >= 4;
+    let mut gutter_width = decimal_width(last_line + 1);
+    if has_more_than_five_lines {
+        gutter_width = gutter_width.max(ELLIPSIS.len());
+    }
+
+    let mut line = first_line;
+    while line <= last_line {
+        output.push_str(new_line);
+        if has_more_than_five_lines && first_line + 1 < line && line < last_line - 1 {
+            output.push_str(indent);
+            output.push_str(GUTTER_STYLE);
+            push_padded(output, ELLIPSIS, gutter_width);
+            output.push_str(RESET);
+            output.push_str(GUTTER_SEPARATOR);
+            output.push_str(new_line);
+            line = last_line - 1;
+        }
+
+        let line_start = file.line_start(line)?;
+        let line_end = if line < last_line_of_file {
+            file.line_start(line + 1)?
+        } else {
+            file.len()
+        };
+        let mut content = file.units[line_start as usize..line_end as usize].to_vec();
+        while content.last().copied().is_some_and(is_go_space) {
+            content.pop();
+        }
+        for unit in &mut content {
+            if *unit == u16::from(b'\t') {
+                *unit = u16::from(b' ');
+            }
+        }
+
+        output.push_str(indent);
+        output.push_str(GUTTER_STYLE);
+        push_padded(output, &(line + 1).to_string(), gutter_width);
+        output.push_str(RESET);
+        output.push_str(GUTTER_SEPARATOR);
+        for &unit in &content {
+            output.push_code_unit(unit);
+        }
+        output.push_str(new_line);
+
+        output.push_str(indent);
+        output.push_str(GUTTER_STYLE);
+        push_padded(output, "", gutter_width);
+        output.push_str(RESET);
+        output.push_str(GUTTER_SEPARATOR);
+        output.push_str(squiggle_color);
+        let content_length = content.len() as u32;
+        if line == first_line {
+            let last_for_line = if line == last_line {
+                last_character
+            } else {
+                content_length
+            };
+            output.push_str(&" ".repeat(first_character as usize));
+            output.push_str(&"~".repeat(last_for_line.saturating_sub(first_character) as usize));
+        } else if line == last_line {
+            output.push_str(&"~".repeat(last_character as usize));
+        } else {
+            output.push_str(&"~".repeat(content_length as usize));
+        }
+        output.push_str(RESET);
+        line += 1;
+    }
     Ok(())
 }
 
@@ -293,153 +563,13 @@ fn required_position(
     })
 }
 
-fn format_location(
-    file_name: JsStr<'_>,
-    start: u32,
-    host: &FormatDiagnosticsHost<'_>,
-) -> Result<JsString, FormatDiagnosticsError> {
-    let text = host.file_text(file_name).ok_or_else(|| {
-        FormatDiagnosticsError::new(format!(
-            "diagnostic source text is unavailable for {file_name:?}"
-        ))
-    })?;
-    let file = Utf16File::new(text);
-    let (line, character) = file.line_and_character(start)?;
-    let mut location = relative_file_name(file_name, host.current_directory);
-    location.push_str(&format!(":{}:{}", line + 1, character + 1));
-    Ok(location)
-}
-
-fn format_code_span(
-    file_name: JsStr<'_>,
-    start: u32,
-    length: u32,
-    indent: &str,
-    host: &FormatDiagnosticsHost<'_>,
-) -> Result<String, FormatDiagnosticsError> {
-    let text = host.file_text(file_name).ok_or_else(|| {
-        FormatDiagnosticsError::new(format!(
-            "diagnostic source text is unavailable for {file_name:?}"
-        ))
-    })?;
-    let file = Utf16File::new(text);
-    let end = start.checked_add(length).ok_or_else(|| {
-        FormatDiagnosticsError::new(format!(
-            "diagnostic span overflows UTF-16 offsets for {file_name:?}"
-        ))
-    })?;
-    let (first_line, first_character) = file.line_and_character(start)?;
-    let (last_line, last_character) = file.line_and_character(end)?;
-    let last_line_in_file = file.line_and_character(file.len())?.0;
-    let has_more_than_five_lines = last_line.saturating_sub(first_line) >= 4;
-    let mut gutter_width = decimal_width(last_line + 1);
-    if has_more_than_five_lines {
-        gutter_width = gutter_width.max(ELLIPSIS.len());
-    }
-
-    let mut context = String::new();
-    let mut line = first_line;
-    while line <= last_line {
-        context.push('\n');
-        if has_more_than_five_lines && first_line + 1 < line && line < last_line - 1 {
-            context.push_str(indent);
-            push_padded(&mut context, ELLIPSIS, gutter_width);
-            context.push(' ');
-            context.push('\n');
-            line = last_line - 1;
-        }
-
-        let line_start = file.line_start(line)?;
-        let line_end = if line < last_line_in_file {
-            file.line_start(line + 1)?
-        } else {
-            file.len()
-        };
-        let mut line_content = file.units[line_start as usize..line_end as usize].to_vec();
-        trim_end_js(&mut line_content);
-        for unit in &mut line_content {
-            if *unit == b'\t' as u16 {
-                *unit = b' ' as u16;
-            }
-        }
-
-        context.push_str(indent);
-        push_padded(&mut context, &(line + 1).to_string(), gutter_width);
-        context.push(' ');
-        push_utf16(&mut context, &line_content);
-        context.push('\n');
-        context.push_str(indent);
-        push_padded(&mut context, "", gutter_width);
-        context.push(' ');
-
-        if line == first_line {
-            let end_character = if line == last_line {
-                last_character as usize
-            } else {
-                line_content.len()
-            };
-            // JavaScript String#slice clamps both offsets. This is
-            // observable for zero-width diagnostics in trailing
-            // whitespace and exactly at a line break.
-            let first_character = (first_character as usize).min(line_content.len());
-            let end_character = end_character.min(line_content.len());
-            push_non_whitespace_as_spaces(&mut context, &line_content[..first_character]);
-            if first_character < end_character {
-                push_tildes(&mut context, &line_content[first_character..end_character]);
-            }
-        } else if line == last_line {
-            let last_character = (last_character as usize).min(line_content.len());
-            push_tildes(&mut context, &line_content[..last_character]);
-        } else {
-            push_tildes(&mut context, &line_content);
-        }
-        line += 1;
-    }
-    Ok(context)
-}
-
-fn flatten_message_chain(chain: &MessageChain, indent: usize, output: &mut JsString) {
-    if indent != 0 {
-        output.push('\n');
-        for _ in 0..indent {
-            output.push_str(HALF_INDENT);
-        }
-    }
-    output.push_js(chain.text.as_js());
-    for child in &chain.next {
-        flatten_message_chain(child, indent + 1, output);
-    }
-}
-
-fn push_non_whitespace_as_spaces(output: &mut String, units: &[u16]) {
-    for &unit in units {
-        if is_js_whitespace(unit) {
-            push_utf16(output, &[unit]);
-        } else {
-            output.push(' ');
-        }
-    }
-}
-
-fn push_tildes(output: &mut String, units: &[u16]) {
-    // JavaScript's non-Unicode `/./g` consumes one UTF-16 code unit at
-    // a time.  Astral characters therefore occupy two squiggles.
-    for _ in units {
-        output.push('~');
-    }
-}
-
-fn trim_end_js(units: &mut Vec<u16>) {
-    while units.last().copied().is_some_and(is_js_whitespace) {
-        units.pop();
-    }
-}
-
-fn is_js_whitespace(unit: u16) -> bool {
+/// Go's `unicode.IsSpace`, which `strings.TrimRightFunc` uses on each line.
+fn is_go_space(unit: u16) -> bool {
     matches!(
         unit,
         0x0009..=0x000d
             | 0x0020
+            | 0x0085
             | 0x00a0
             | 0x1680
             | 0x2000..=0x200a
@@ -448,19 +578,14 @@ fn is_js_whitespace(unit: u16) -> bool {
             | 0x202f
             | 0x205f
             | 0x3000
-            | 0xfeff
     )
-}
-
-fn push_utf16(output: &mut String, units: &[u16]) {
-    output.push_str(&String::from_utf16_lossy(units));
 }
 
 fn decimal_width(value: u32) -> usize {
     value.to_string().len()
 }
 
-fn push_padded(output: &mut String, value: &str, width: usize) {
+fn push_padded(output: &mut JsString, value: &str, width: usize) {
     for _ in value.len()..width {
         output.push(' ');
     }
@@ -714,48 +839,6 @@ fn reduced_path(path: JsStr<'_>) -> ReducedPath {
         parts.push(component.to_owned());
     }
     ReducedPath { root, parts }
-}
-
-fn normalize_newlines(text: JsStr<'_>) -> JsString {
-    let mut output = JsString::new();
-    let mut units = text.code_units().peekable();
-    while let Some(unit) = units.next() {
-        if unit == 13 {
-            if units.peek() == Some(&10) {
-                units.next();
-            }
-            output.push_code_unit(10);
-        } else {
-            output.push_code_unit(unit);
-        }
-    }
-    output
-}
-
-fn strip_ansi_sgr(text: JsStr<'_>) -> JsString {
-    let units = text.to_utf16();
-    let mut output = JsString::new();
-    let mut index = 0;
-    while index < units.len() {
-        if units[index] == 0x1B && units.get(index + 1) == Some(&0x5B) {
-            let mut end = index + 2;
-            while units
-                .get(end)
-                .is_some_and(|unit| (0x30..=0x39).contains(unit) || *unit == 0x3B)
-            {
-                end += 1;
-            }
-            if units.get(end) == Some(&0x6D) {
-                index = end + 1;
-                continue;
-            }
-        }
-        // Removing SGR can bring a lead and trail surrogate together. The
-        // canonical owner joins them, just as JavaScript string replacement.
-        output.push_code_unit(units[index]);
-        index += 1;
-    }
-    output
 }
 
 #[cfg(test)]

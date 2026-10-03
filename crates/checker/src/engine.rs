@@ -985,6 +985,36 @@ impl<'a> CheckerState<'a> {
         // drops diagnostics produced during JSX child elaboration.
         let related = !is_false(result);
         let mut message = checker.error_state.take_diagnostic_chain();
+        // tsgo checkTypeRelatedTo (relater.go:383-392): when the type of a
+        // namespace-style import fails but the module it stands for would
+        // relate, the diagnostic also points at the import.
+        if head_message.is_some() && is_false(result) && message.is_some() {
+            if let Some(symbol) = checker.st.tables.type_of(source).symbol {
+                let originating_import = *checker
+                    .st
+                    .links
+                    .symbol_cold()
+                    .originating_import
+                    .get(symbol);
+                let module = checker.st.links.read_symbol(symbol, |links| links.target);
+                if let (Some(import), Some(module)) = (originating_import, module) {
+                    if !checker.st.is_import_call(import) {
+                        let module_type = checker.st.get_type_of_symbol(module)?;
+                        if checker
+                            .st
+                            .check_type_related_to(module_type, target, relation)?
+                        {
+                            let info = checker.st.related_info_for_node(
+                                import,
+                                &diagnostics::Type_originates_at_this_import_A_namespace_style_import_cannot_be_called_or_constructed_and_will_cause_a_failure_at_runtime_Consider_using_a_default_import_or_import_require_here_instead,
+                                &[],
+                            );
+                            checker.error_state.related_info.push(info);
+                        }
+                    }
+                }
+            }
+        }
         // W2c/W2e: the elaboration chain carries its display-class reasons;
         // it is marked BEFORE any containing chain wraps it, so a published
         // diagnostic that nests or relates it is still recognized.
