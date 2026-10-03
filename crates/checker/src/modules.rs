@@ -1944,17 +1944,36 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsc-port: isBindingElementOfBareOrAccessedRequire @6.0.3
-    /// tsc-hash: f1153d83781a44e6b70813384860b9cd0ce9c5e9077efd507c34cce49d21ee06
-    /// tsc-span: _tsc.js:14929-14931
-    pub(crate) fn is_binding_element_of_bare_or_accessed_require(&self, node: NodeId) -> bool {
-        self.kind_of(node) == SyntaxKind::BindingElement
-            && self
+    /// tsgo IsVariableDeclarationInitializedToRequire (ast/utilities.go:
+    /// 2874-2903): an untyped, unexported JavaScript variable declaration (or
+    /// a binding element of one) initialized to a bare `require("…")`, which
+    /// the binder declares as an alias.
+    pub(crate) fn is_variable_declaration_initialized_to_require(&self, node: NodeId) -> bool {
+        let declaration = if self.kind_of(node) == SyntaxKind::BindingElement {
+            let Some(declaration) = self
                 .parent_of(node)
                 .and_then(|pattern| self.parent_of(pattern))
-                .is_some_and(|declaration| {
-                    self.external_module_require_argument(declaration).is_some()
-                })
+            else {
+                return false;
+            };
+            declaration
+        } else {
+            node
+        };
+        let NodeData::VariableDeclaration(data) = self.data_of(declaration) else {
+            return false;
+        };
+        self.is_in_js_file(declaration)
+            && data.r#type.is_none()
+            && self.reparsed_type_node(declaration).is_none()
+            && !tsc_binder::node_util::get_combined_modifier_flags(
+                self.binder.source_of_node(declaration),
+                declaration,
+            )
+            .intersects(ModifierFlags::EXPORT)
+            && data
+                .initializer
+                .is_some_and(|initializer| self.is_require_call(initializer, true))
     }
 
     /// tsc-port: checkAndReportErrorForResolvingImportAliasToTypeOnlySymbol @6.0.3

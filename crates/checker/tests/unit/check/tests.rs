@@ -2652,6 +2652,61 @@ fn anonymous_function_expression_reports_at_its_assigned_name() {
 }
 
 #[test]
+fn checked_js_jsdoc_type_references_resolve_type_meanings_only() {
+    // tsgo (7.1 at 19dadef8, noLib with these globals): a JSDoc import type
+    // resolves type meanings only (TS1340 for a value module, TS2694 for a
+    // value export), `require("…").C` is an ordinary variable and the CommonJS
+    // `exports` a value (TS2749), and a typedef beside `module.exports`
+    // resolves through the import type.
+    let ex = "export var config: {};\nexport class C { start: number; }\n";
+    let module = "/** @typedef {{ n: number }} T */\nmodule.exports = { a: 1 };\n";
+    let text = "/** @param {import('./ex')} a */\n\
+                function demo(a) {}\n\
+                /** @type {import('./ex').config} */\n\
+                let b;\n\
+                const C = require('./ex').C;\n\
+                /** @type {C} */\n\
+                let c;\n\
+                /** @type {import('./mod').T} */\n\
+                let t = { n: 1 };\n\
+                /** @type {exports} */\n\
+                let e;\n";
+    let options = CompilerOptions {
+        allow_js: true,
+        check_js: Some(true),
+        module: Some(1),
+        ..CompilerOptions::default()
+    };
+    let mut rows = with_program_state(
+        &[
+            ("lib.d.ts", P35P_GLOBALS),
+            ("ex.d.ts", ex),
+            ("mod.js", module),
+            ("test.js", text),
+        ],
+        &options,
+        |state| {
+            state.check_source_file(3);
+            diag_rows(state)
+                .into_iter()
+                .map(|(code, start, length, _)| (code, start, length))
+                .collect::<Vec<_>>()
+        },
+    );
+    rows.sort_by_key(|row| row.1);
+    let at = |needle: &str| text.find(needle).expect("needle") as u32;
+    assert_eq!(
+        rows,
+        [
+            (1340, at("import('./ex')}"), "import('./ex')".len() as u32),
+            (2694, at("config}"), "config".len() as u32),
+            (2749, at("C} */"), 1),
+            (2749, at("exports}"), "exports".len() as u32),
+        ]
+    );
+}
+
+#[test]
 fn checked_js_import_tags_are_checked_as_import_declarations() {
     // tsgo checks the import declaration reparsed from an `@import` with an
     // import clause: a non-string module specifier is TS1141, a default
@@ -4367,17 +4422,28 @@ fn reused_js_exports_entity_name_recovers_to_the_typedef() {
         "/",
     )
     .into_iter()
-    .filter(|row| row.1 == 2322)
+    .filter(|row| matches!(row.1, 2322 | 2503))
     .collect::<Vec<_>>();
+    // tsgo (7.1 at 19dadef8): `exports` is the CommonJS local, not a
+    // namespace, so the reference is TS2503 and the type prints as written.
     assert_eq!(
         rows,
-        [(
-            "source.js".to_owned(),
-            2322,
-            (text.rfind("let n").expect("failing declaration") + 4) as u32,
-            1,
-            "Type '(x: Foo) => void' is not assignable to type 'number'.".to_owned(),
-        )]
+        [
+            (
+                "source.js".to_owned(),
+                2503,
+                text.find("exports.Foo}").expect("JSDoc reference") as u32,
+                "exports".len() as u32,
+                "Cannot find namespace 'exports'.".to_owned(),
+            ),
+            (
+                "source.js".to_owned(),
+                2322,
+                (text.rfind("let n").expect("failing declaration") + 4) as u32,
+                1,
+                "Type '(x: exports.Foo) => void' is not assignable to type 'number'.".to_owned(),
+            ),
+        ]
     );
 }
 
@@ -5224,7 +5290,9 @@ fn reused_js_literal_import_type_honors_jsdoc_fallbacks() {
             2322,
             (value.rfind("let n").expect("failing declaration") + 4) as u32,
             1,
-            "Type '(x: any) => void' is not assignable to type 'number'.".to_owned(),
+            // tsgo (7.1 at 19dadef8): the value export is no type (TS2694 at
+            // `V`), and the parameter prints the reference as written.
+            "Type '(x: import(\"./m\").V) => void' is not assignable to type 'number'.".to_owned(),
         )]
     );
 }

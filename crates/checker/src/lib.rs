@@ -2661,7 +2661,18 @@ fn syntactic_file_rows(
         .map(|document| {
             let source = document.source();
             let mut syntactic = if is_js_file_name(&source.file_name) {
-                js_grammar::get_js_syntactic_diagnostics(source, options.experimental_decorators)
+                let mut rows = js_grammar::get_js_syntactic_diagnostics(source);
+                // tsgo GetSyntacticDiagnostics (compiler/program.go:743-754):
+                // the option-dependent rows of a JavaScript file the checker
+                // does not check (IsCheckJSEnabledForFile).
+                let check_js = match check_directive(source.text()) {
+                    Some(directive) => directive == CheckDirective::Check,
+                    None => options.check_js == Some(true),
+                };
+                if !check_js && !options.experimental_decorators {
+                    rows.extend(js_grammar::get_additional_js_syntactic_diagnostics(source));
+                }
+                rows
             } else {
                 Vec::new()
             };

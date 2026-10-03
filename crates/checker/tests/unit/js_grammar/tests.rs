@@ -12,7 +12,7 @@ fn js_syntactic_diagnostics(text: &str) -> Vec<tsc_diagnostics::Diagnostic> {
         },
         None,
     );
-    get_js_syntactic_diagnostics(&source, false)
+    get_js_syntactic_diagnostics(&source)
 }
 
 #[test]
@@ -53,4 +53,66 @@ fn decorators_on_only_one_side_of_export_do_not_report_8038_in_js() {
             "unexpected TS8038 for {text}"
         );
     }
+}
+
+fn rows(diagnostics: &[tsc_diagnostics::Diagnostic]) -> Vec<(u32, u32, u32)> {
+    let mut rows = diagnostics
+        .iter()
+        .map(|diagnostic| {
+            (
+                diagnostic.code(),
+                diagnostic.start.expect("start"),
+                diagnostic.length.expect("length"),
+            )
+        })
+        .collect::<Vec<_>>();
+    rows.sort();
+    rows
+}
+
+#[test]
+fn typescript_only_syntax_reports_at_tsgo_ranges() {
+    // tsgo parser checkJSSyntax (7.1 at 19dadef8): a signature without a
+    // body spans the whole node (a class index signature included), `x!` is
+    // checked inside `as`, and a function type's parameters are not checked.
+    let text = "let f: (x?: number) => void;\n\
+                let o = x! as Foo;\n\
+                class K { [k: string]: number; m(): void; }\n\
+                interface I { m(): void }\n\
+                function g<T>(a: T): T {}\n";
+    let at = |needle: &str| text.find(needle).expect("needle") as u32;
+    let mut expected = vec![
+        (8010, at("(x?"), "(x?: number) => void".len() as u32),
+        (8013, at("x!"), 2),
+        (8016, at("Foo"), 3),
+        (8017, at("[k"), "[k: string]: number;".len() as u32),
+        (8017, at("m(): void;"), "m(): void;".len() as u32),
+        (8006, at("I {"), 1),
+        (8004, at("T>"), 1),
+        (8010, at("T)"), 1),
+        (8010, at("T {}"), 1),
+    ];
+    expected.sort();
+    assert_eq!(rows(&js_syntactic_diagnostics(text)), expected);
+}
+
+#[test]
+fn unchecked_js_parameter_decorators_report_at_the_decorator() {
+    // tsgo getAdditionalJSSyntacticDiagnostics: without experimentalDecorators
+    // a parameter decorator of an unchecked JavaScript file is TS1206 at the
+    // decorator (parameterDecoratorInJsFile(checkjs=false)).
+    let text = "class Foo {\n    method(@dec x) {}\n}\n";
+    let source = parse_source_file(
+        "a.js".to_owned(),
+        text.to_owned(),
+        ParseOptions {
+            javascript_file: true,
+            ..ParseOptions::default()
+        },
+        None,
+    );
+    assert_eq!(
+        rows(&super::get_additional_js_syntactic_diagnostics(&source)),
+        [(1206, text.find("@dec").expect("decorator") as u32, 4)]
+    );
 }

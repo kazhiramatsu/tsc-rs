@@ -17,15 +17,14 @@ use crate::declare::{BinderWorker, TableRef};
 use crate::flow::FlowId;
 use crate::node_util::{
     can_have_flow_node, declaration_name_to_string, get_containing_class, get_error_span_for_node,
-    get_jsdoc_host, get_jsdoc_type_tag, has_dynamic_name, id_text, is_assignment_operator,
-    is_async_function, is_auto_accessor_property_declaration, is_binding_pattern,
-    is_block_or_catch_scoped, is_destructuring_assignment, is_entity_name_expression,
-    is_function_like_kind, is_identifier_name, is_in_top_level_context, is_jsdoc_type_alias,
-    is_narrowable_operand, is_narrowable_reference, is_narrowing_expression,
-    is_object_literal_method, is_object_literal_or_class_expression_method_or_accessor,
-    is_parameter_property_declaration, is_part_of_parameter_declaration, is_part_of_type_query,
-    is_potentially_executable_node, jsdoc_full_name, jsdoc_type_expression, kind_of, name_field_of,
-    parent_of, statements_of,
+    get_jsdoc_host, has_dynamic_name, id_text, is_assignment_operator, is_async_function,
+    is_auto_accessor_property_declaration, is_binding_pattern, is_block_or_catch_scoped,
+    is_destructuring_assignment, is_entity_name_expression, is_function_like_kind,
+    is_identifier_name, is_in_top_level_context, is_jsdoc_type_alias, is_narrowable_operand,
+    is_narrowable_reference, is_narrowing_expression, is_object_literal_method,
+    is_object_literal_or_class_expression_method_or_accessor, is_parameter_property_declaration,
+    is_part_of_parameter_declaration, is_part_of_type_query, is_potentially_executable_node,
+    jsdoc_full_name, jsdoc_type_expression, kind_of, name_field_of, parent_of, statements_of,
 };
 use crate::symbols::{InternalSymbolName, SymbolId};
 use tsc_diagnostics::{gen as diagnostics, DiagnosticArgument, DiagnosticMessage};
@@ -788,11 +787,15 @@ impl<'a> BinderWorker<'a> {
                 } else {
                     node
                 };
+            // tsgo IsVariableDeclarationInitializedToRequire (ast/utilities.go:
+            // 2874-2903): an untyped, unexported JavaScript declaration
+            // initialized to a bare `require("…")` (no property access) is an
+            // alias.
             let bind_as_require_alias = self.is_in_js_file()
                 && self
-                    .bare_or_accessed_require_call_for_variable(possible_variable_declaration)
+                    .bare_require_call_for_variable(possible_variable_declaration)
                     .is_some()
-                && get_jsdoc_type_tag(self.source, node).is_none()
+                && !self.declaration_has_type(possible_variable_declaration)
                 && !crate::node_util::get_combined_modifier_flags(self.source, node)
                     .intersects(ModifierFlags::EXPORT);
             if bind_as_require_alias {
@@ -826,14 +829,13 @@ impl<'a> BinderWorker<'a> {
     /// tsc-port: isVariableDeclarationInitializedWithRequireHelper @6.0.3
     /// tsc-hash: 74a374493fdda8473ef9b2e1af5faef50f254e32608b55e9abaa08b2558f0a43
     /// tsc-span: _tsc.js:14948-14954
-    fn bare_or_accessed_require_call_for_variable(&self, node: NodeId) -> Option<NodeId> {
-        let mut initializer = match &self.source.arena.node(node).data {
+    ///
+    /// The bare form (allowAccessedRequire false) that tsgo binds as an alias.
+    fn bare_require_call_for_variable(&self, node: NodeId) -> Option<NodeId> {
+        let initializer = match &self.source.arena.node(node).data {
             NodeData::VariableDeclaration(data) => data.initializer?,
             _ => return None,
         };
-        while let Some(expression) = access_expression_of(self.source, initializer) {
-            initializer = expression;
-        }
         let NodeData::CallExpression(data) = &self.source.arena.node(initializer).data else {
             return None;
         };

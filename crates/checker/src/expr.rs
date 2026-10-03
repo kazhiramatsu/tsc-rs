@@ -2089,10 +2089,10 @@ impl<'a> CheckerState<'a> {
                     .is_some_and(|initializer| self.is_aliasable_or_js_expression(initializer)),
                 _ => false,
             },
-            SyntaxKind::VariableDeclaration => {
-                self.external_module_require_argument(node).is_some()
+            // tsgo IsAliasSymbolDeclaration (ast/utilities.go:2689-2690).
+            SyntaxKind::VariableDeclaration | SyntaxKind::BindingElement => {
+                self.is_variable_declaration_initialized_to_require(node)
             }
-            SyntaxKind::BindingElement => self.is_binding_element_of_bare_or_accessed_require(node),
             _ => false,
         }
     }

@@ -807,29 +807,13 @@ impl<'a> CheckerState<'a> {
             }
         }
 
-        if result.is_none() {
-            if let Some(last) = last_location {
-                debug_assert_eq!(self.kind_of(last), SyntaxKind::SourceFile);
-                let file_index = self.binder.file_index_of_node(last);
-                if self
-                    .binder
-                    .file(file_index)
-                    .common_js_module_indicator
-                    .is_some()
-                    && name == "exports"
-                {
-                    if let Some(file_symbol) = self.binder.node_symbol(last) {
-                        if self.binder.symbol(file_symbol).flags.intersects(meaning) {
-                            return Ok(Some(file_symbol));
-                        }
-                    }
-                }
-            }
-            if !exclude_globals {
-                let input = LookupInput::new(Some(&*self.globals), name, suggestion);
-                let probe = self.lookup_probe(input, name, meaning, true)?;
-                result = self.finish_lookup(probe, name, meaning);
-            }
+        // tsgo resolves a CommonJS file's `exports` only through the local the
+        // binder declares (declareCommonJSVariable); there is no fallback to
+        // the file symbol.
+        if result.is_none() && !exclude_globals {
+            let input = LookupInput::new(Some(&*self.globals), name, suggestion);
+            let probe = self.lookup_probe(input, name, meaning, true)?;
+            result = self.finish_lookup(probe, name, meaning);
         }
         // (JS `require` fallback elided — requireSymbol, M2 3.4c
         // residual; plain-JS diagnostics are allowlist-filtered.)

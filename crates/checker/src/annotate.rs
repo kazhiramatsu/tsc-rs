@@ -2014,8 +2014,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: dad655f20dabdd232312b802a018d4a4a24c8b31bc04bf1eb84fad23afd7b59b
     /// tsc-span: _tsc.js:62821-62880
     ///
-    /// JSDoc import types resolve their final qualifier in Value|Type
-    /// meaning; export= JavaScript modules also expose value members.
+    /// tsgo (checker.go:25040-25113): a JSDoc import type resolves type
+    /// meanings like any other (no JavaScript value fallback); a qualifier of
+    /// a CommonJS `module.exports` module may also name a typedef exported
+    /// beside it.
     fn get_type_from_import_type_node(&mut self, node: NodeId) -> CheckResult<TypeId> {
         if let Some(cached) = self
             .links
@@ -2054,8 +2056,6 @@ impl<'a> CheckerState<'a> {
         );
         let target_meaning = if is_type_of {
             SymbolFlags::VALUE
-        } else if self.is_jsdoc_type_reference(node) {
-            SymbolFlags::VALUE | SymbolFlags::TYPE
         } else {
             SymbolFlags::TYPE
         };
@@ -2077,11 +2077,6 @@ impl<'a> CheckerState<'a> {
                 .overwrite_import_type_resolved_type(self.speculation_depth, node, error);
             return Ok(error);
         };
-        let is_export_equals = self
-            .binder
-            .symbol(inner_module_symbol)
-            .exports()
-            .contains_key(InternalSymbolName::EXPORT_EQUALS);
         let module_symbol = self
             .resolve_external_module_symbol(Some(inner_module_symbol), false)?
             .expect("resolveExternalModuleSymbol of Some is Some");
@@ -2108,23 +2103,31 @@ impl<'a> CheckerState<'a> {
                     .identifier_text_of(current)
                     .map(str::to_owned)
                     .unwrap_or_default();
-                let symbol_from_variable =
-                    if is_type_of || (self.is_in_js_file(node) && is_export_equals) {
-                        let ty = self.get_type_of_symbol(merged_resolved)?;
-                        self.get_property_of_type_ex_with_include_type_only_members(
-                            ty,
-                            &current_text,
-                            /*skip_object_function_property_augment*/ false,
-                            /*include_type_only_members*/ true,
-                        )?
-                    } else {
-                        None
-                    };
+                let symbol_from_variable = if is_type_of {
+                    let ty = self.get_type_of_symbol(merged_resolved)?;
+                    self.get_property_of_type_ex_with_include_type_only_members(
+                        ty,
+                        &current_text,
+                        /*skip_object_function_property_augment*/ false,
+                        /*include_type_only_members*/ true,
+                    )?
+                } else {
+                    None
+                };
                 let symbol_from_module = if is_type_of {
                     None
                 } else {
                     let exports = self.get_exports_of_symbol(merged_resolved)?;
-                    self.get_symbol_in_table(&exports, &current_text, meaning)?
+                    match self.get_symbol_in_table(&exports, &current_text, meaning)? {
+                        Some(symbol) => Some(symbol),
+                        // A CommonJS module might have typedefs exported
+                        // alongside its `module.exports` (checker.go:25077-25086).
+                        None => self.commonjs_typedef_export(
+                            inner_module_symbol,
+                            &current_text,
+                            meaning,
+                        )?,
+                    }
                 };
                 let next = symbol_from_module.or(symbol_from_variable);
                 let Some(next) = next else {
@@ -2188,6 +2191,36 @@ impl<'a> CheckerState<'a> {
         self.links
             .overwrite_import_type_resolved_type(self.speculation_depth, node, resolved);
         Ok(resolved)
+    }
+
+    /// The member of `module`'s file exports beside a CommonJS
+    /// `module.exports` (checker.go:25080-25085).
+    fn commonjs_typedef_export(
+        &mut self,
+        module: SymbolId,
+        name: &str,
+        meaning: SymbolFlags,
+    ) -> CheckResult<Option<SymbolId>> {
+        let Some(immediate) = self.resolve_external_module_symbol(Some(module), true)? else {
+            return Ok(None);
+        };
+        let declarations = self.binder.symbol(immediate).declarations.clone();
+        let is_module_exports = declarations.iter().any(|&declaration| {
+            tsc_binder::assignment::get_assignment_declaration_kind(
+                self.binder.source_of_node(declaration),
+                declaration,
+            ) == tsc_binder::assignment::AssignmentDeclarationKind::ModuleExports
+        });
+        let Some(parent) = self
+            .binder
+            .symbol(immediate)
+            .parent
+            .filter(|_| is_module_exports)
+        else {
+            return Ok(None);
+        };
+        let exports = self.get_exports_of_symbol(parent)?;
+        self.get_symbol_in_table(&exports, name, meaning)
     }
 
     /// tsc-port: resolveImportSymbolType @6.0.3

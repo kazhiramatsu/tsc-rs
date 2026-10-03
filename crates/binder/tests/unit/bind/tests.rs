@@ -913,7 +913,9 @@ fn common_js_require_indicator_requires_exactly_one_argument() {
 }
 
 #[test]
-fn checked_js_require_variables_bind_as_aliases_except_jsdoc_type_tags() {
+fn checked_js_bare_require_variables_bind_as_aliases_unless_typed() {
+    // tsgo IsVariableDeclarationInitializedToRequire: only an untyped bare
+    // `require("…")` is an alias; a property of one is an ordinary variable.
     let source = parse_named(
         "a.js",
         "const bare = require('./m');\n\
@@ -929,9 +931,10 @@ fn checked_js_require_variables_bind_as_aliases_except_jsdoc_type_tags() {
         .map(|declaration| binder.symbols.symbol(binder.node_symbol[declaration]).flags)
         .collect();
     assert_eq!(flags[0], SymbolFlags::ALIAS);
-    assert_eq!(flags[1], SymbolFlags::ALIAS);
-    assert!(flags[2].intersects(SymbolFlags::BLOCK_SCOPED_VARIABLE));
-    assert!(!flags[2].intersects(SymbolFlags::ALIAS));
+    for flags in &flags[1..] {
+        assert!(flags.intersects(SymbolFlags::BLOCK_SCOPED_VARIABLE));
+        assert!(!flags.intersects(SymbolFlags::ALIAS));
+    }
 }
 
 #[test]
