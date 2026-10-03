@@ -431,6 +431,171 @@ fn pretty_false_uses_plain_output_and_pretty_true_uses_context() {
 }
 
 #[test]
+fn pretty_output_is_tsgo_diagnostic_writer_output() {
+    // tsgo FormatDiagnosticWithColorAndContext for each diagnostic (related
+    // locations carry their message, a blank line between them), then
+    // WriteErrorSummaryText with the file table. The expected bytes are
+    // tsgo's output for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("file1.ts"),
+        "class Foo { }
+const Bar = 3;
+",
+    )
+    .expect("write file1");
+    fs::write(
+        tree.path("file2.ts"),
+        "type Foo = number;
+class Bar {}
+",
+    )
+    .expect("write file2");
+    fs::write(
+        tree.path("file3.ts"),
+        "type Foo = 54;
+let Bar = 42
+",
+    )
+    .expect("write file3");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{ "compilerOptions": { "target": "es2015", "noEmit": true, "types": [] }, "files": ["file1.ts", "file2.ts", "file3.ts"] }"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "true"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+    concat!(
+            "\u{1b}[96mfile1.ts\u{1b}[0m:\u{1b}[93m1\u{1b}[0m:\u{1b}[93m7\u{1b}[0m - \u{1b}[91merror\u{1b}[0m\u{1b}[90m TS2300: \u{1b}[0mDuplicate identifier 'Foo'.\n",
+            "\n",
+            "\u{1b}[7m1\u{1b}[0m class Foo { }\n",
+            "\u{1b}[7m \u{1b}[0m \u{1b}[91m      ~~~\u{1b}[0m\n",
+            "\n",
+            "  \u{1b}[96mfile2.ts\u{1b}[0m:\u{1b}[93m1\u{1b}[0m:\u{1b}[93m6\u{1b}[0m - 'Foo' was also declared here.\n",
+            "    \u{1b}[7m1\u{1b}[0m type Foo = number;\n",
+            "    \u{1b}[7m \u{1b}[0m \u{1b}[96m     ~~~\u{1b}[0m\n",
+            "\n",
+            "  \u{1b}[96mfile3.ts\u{1b}[0m:\u{1b}[93m1\u{1b}[0m:\u{1b}[93m6\u{1b}[0m - 'Foo' was also declared here.\n",
+            "    \u{1b}[7m1\u{1b}[0m type Foo = 54;\n",
+            "    \u{1b}[7m \u{1b}[0m \u{1b}[96m     ~~~\u{1b}[0m\n",
+            "\n",
+            "\u{1b}[96mfile1.ts\u{1b}[0m:\u{1b}[93m2\u{1b}[0m:\u{1b}[93m7\u{1b}[0m - \u{1b}[91merror\u{1b}[0m\u{1b}[90m TS2451: \u{1b}[0mCannot redeclare block-scoped variable 'Bar'.\n",
+            "\n",
+            "\u{1b}[7m2\u{1b}[0m const Bar = 3;\n",
+            "\u{1b}[7m \u{1b}[0m \u{1b}[91m      ~~~\u{1b}[0m\n",
+            "\n",
+            "  \u{1b}[96mfile2.ts\u{1b}[0m:\u{1b}[93m2\u{1b}[0m:\u{1b}[93m7\u{1b}[0m - 'Bar' was also declared here.\n",
+            "    \u{1b}[7m2\u{1b}[0m class Bar {}\n",
+            "    \u{1b}[7m \u{1b}[0m \u{1b}[96m      ~~~\u{1b}[0m\n",
+            "\n",
+            "  \u{1b}[96mfile3.ts\u{1b}[0m:\u{1b}[93m2\u{1b}[0m:\u{1b}[93m5\u{1b}[0m - 'Bar' was also declared here.\n",
+            "    \u{1b}[7m2\u{1b}[0m let Bar = 42\n",
+            "    \u{1b}[7m \u{1b}[0m \u{1b}[96m    ~~~\u{1b}[0m\n",
+            "\n",
+            "\u{1b}[96mfile2.ts\u{1b}[0m:\u{1b}[93m1\u{1b}[0m:\u{1b}[93m6\u{1b}[0m - \u{1b}[91merror\u{1b}[0m\u{1b}[90m TS2300: \u{1b}[0mDuplicate identifier 'Foo'.\n",
+            "\n",
+            "\u{1b}[7m1\u{1b}[0m type Foo = number;\n",
+            "\u{1b}[7m \u{1b}[0m \u{1b}[91m     ~~~\u{1b}[0m\n",
+            "\n",
+            "  \u{1b}[96mfile1.ts\u{1b}[0m:\u{1b}[93m1\u{1b}[0m:\u{1b}[93m7\u{1b}[0m - 'Foo' was also declared here.\n",
+            "    \u{1b}[7m1\u{1b}[0m class Foo { }\n",
+            "    \u{1b}[7m \u{1b}[0m \u{1b}[96m      ~~~\u{1b}[0m\n",
+            "\n",
+            "\u{1b}[96mfile2.ts\u{1b}[0m:\u{1b}[93m2\u{1b}[0m:\u{1b}[93m7\u{1b}[0m - \u{1b}[91merror\u{1b}[0m\u{1b}[90m TS2451: \u{1b}[0mCannot redeclare block-scoped variable 'Bar'.\n",
+            "\n",
+            "\u{1b}[7m2\u{1b}[0m class Bar {}\n",
+            "\u{1b}[7m \u{1b}[0m \u{1b}[91m      ~~~\u{1b}[0m\n",
+            "\n",
+            "  \u{1b}[96mfile1.ts\u{1b}[0m:\u{1b}[93m2\u{1b}[0m:\u{1b}[93m7\u{1b}[0m - 'Bar' was also declared here.\n",
+            "    \u{1b}[7m2\u{1b}[0m const Bar = 3;\n",
+            "    \u{1b}[7m \u{1b}[0m \u{1b}[96m      ~~~\u{1b}[0m\n",
+            "\n",
+            "\u{1b}[96mfile3.ts\u{1b}[0m:\u{1b}[93m1\u{1b}[0m:\u{1b}[93m6\u{1b}[0m - \u{1b}[91merror\u{1b}[0m\u{1b}[90m TS2300: \u{1b}[0mDuplicate identifier 'Foo'.\n",
+            "\n",
+            "\u{1b}[7m1\u{1b}[0m type Foo = 54;\n",
+            "\u{1b}[7m \u{1b}[0m \u{1b}[91m     ~~~\u{1b}[0m\n",
+            "\n",
+            "  \u{1b}[96mfile1.ts\u{1b}[0m:\u{1b}[93m1\u{1b}[0m:\u{1b}[93m7\u{1b}[0m - 'Foo' was also declared here.\n",
+            "    \u{1b}[7m1\u{1b}[0m class Foo { }\n",
+            "    \u{1b}[7m \u{1b}[0m \u{1b}[96m      ~~~\u{1b}[0m\n",
+            "\n",
+            "\u{1b}[96mfile3.ts\u{1b}[0m:\u{1b}[93m2\u{1b}[0m:\u{1b}[93m5\u{1b}[0m - \u{1b}[91merror\u{1b}[0m\u{1b}[90m TS2451: \u{1b}[0mCannot redeclare block-scoped variable 'Bar'.\n",
+            "\n",
+            "\u{1b}[7m2\u{1b}[0m let Bar = 42\n",
+            "\u{1b}[7m \u{1b}[0m \u{1b}[91m    ~~~\u{1b}[0m\n",
+            "\n",
+            "  \u{1b}[96mfile1.ts\u{1b}[0m:\u{1b}[93m2\u{1b}[0m:\u{1b}[93m7\u{1b}[0m - 'Bar' was also declared here.\n",
+            "    \u{1b}[7m2\u{1b}[0m const Bar = 3;\n",
+            "    \u{1b}[7m \u{1b}[0m \u{1b}[96m      ~~~\u{1b}[0m\n",
+            "\n",
+            "\n",
+            "Found 6 errors in 3 files.\n",
+            "\n",
+            "Errors  Files\n",
+            "     2  file1.ts\u{1b}[90m:1\u{1b}[0m\n",
+            "     2  file2.ts\u{1b}[90m:1\u{1b}[0m\n",
+            "     2  file3.ts\u{1b}[90m:1\u{1b}[0m\n",
+            "\n",
+        )
+    );
+}
+
+#[test]
+fn namespace_import_calls_point_at_the_import_like_tsgo() {
+    // tsgo invocationErrorRecovery and checkTypeRelatedTo add TS7038 at a
+    // namespace-style import whose module would be callable. The expected
+    // bytes are tsgo's output for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("foo.d.ts"),
+        "declare function foo(): void;\ndeclare namespace foo {}\nexport = foo;\n",
+    )
+    .expect("write foo");
+    fs::write(
+        tree.path("index.ts"),
+        "import * as foo from \"./foo\";\nfoo();\nfunction invoke(f: () => void) { f(); }\ninvoke(foo);\n",
+    )
+    .expect("write index");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{ "compilerOptions": { "module": "commonjs", "target": "es2015", "esModuleInterop": true, "noEmit": true, "types": [] }, "files": ["foo.d.ts", "index.ts"] }"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "true"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        concat!(
+            "\u{1b}[96mindex.ts\u{1b}[0m:\u{1b}[93m2\u{1b}[0m:\u{1b}[93m1\u{1b}[0m - \u{1b}[91merror\u{1b}[0m\u{1b}[90m TS2349: \u{1b}[0mThis expression is not callable.\n",
+            "  Type '{ default: () => void; }' has no call signatures.\n",
+            "\n",
+            "\u{1b}[7m2\u{1b}[0m foo();\n",
+            "\u{1b}[7m \u{1b}[0m \u{1b}[91m~~~\u{1b}[0m\n",
+            "\n",
+            "  \u{1b}[96mindex.ts\u{1b}[0m:\u{1b}[93m1\u{1b}[0m:\u{1b}[93m1\u{1b}[0m - Type originates at this import. A namespace-style import cannot be called or constructed, and will cause a failure at runtime. Consider using a default import or import require here instead.\n",
+            "    \u{1b}[7m1\u{1b}[0m import * as foo from \"./foo\";\n",
+            "    \u{1b}[7m \u{1b}[0m \u{1b}[96m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\u{1b}[0m\n",
+            "\n",
+            "\u{1b}[96mindex.ts\u{1b}[0m:\u{1b}[93m4\u{1b}[0m:\u{1b}[93m8\u{1b}[0m - \u{1b}[91merror\u{1b}[0m\u{1b}[90m TS2345: \u{1b}[0mArgument of type '{ default: () => void; }' is not assignable to parameter of type '() => void'.\n",
+            "  Type '{ default: () => void; }' provides no match for the signature '(): void'.\n",
+            "\n",
+            "\u{1b}[7m4\u{1b}[0m invoke(foo);\n",
+            "\u{1b}[7m \u{1b}[0m \u{1b}[91m       ~~~\u{1b}[0m\n",
+            "\n",
+            "  \u{1b}[96mindex.ts\u{1b}[0m:\u{1b}[93m1\u{1b}[0m:\u{1b}[93m1\u{1b}[0m - Type originates at this import. A namespace-style import cannot be called or constructed, and will cause a failure at runtime. Consider using a default import or import require here instead.\n",
+            "    \u{1b}[7m1\u{1b}[0m import * as foo from \"./foo\";\n",
+            "    \u{1b}[7m \u{1b}[0m \u{1b}[96m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\u{1b}[0m\n",
+            "\n",
+            "\n",
+            "Found 2 errors in the same file, starting at: index.ts\u{1b}[90m:2\u{1b}[0m\n",
+            "\n",
+        )
+    );
+}
+
+#[test]
 fn pretty_configured_type_diagnostic_renders_ts1419_related_context() {
     let tree = TempTree::new();
     fs::write(tree.path("main.ts"), "export {};\n").expect("write source");
@@ -471,19 +636,25 @@ fn missing_project_selection_uses_typescript_command_line_diagnostics() {
     let tree = TempTree::new();
     fs::create_dir(tree.path("empty")).expect("create empty project directory");
 
+    // tsgo reports the normalized absolute paths (tsc.go:165-180), and a
+    // directory without a configuration is TS5081 naming the file.
+    let root = fs::canonicalize(&tree.root).expect("canonical temp tree");
+    let root = root.to_string_lossy().replace('\\', "/");
     let missing_file = run(&tree, &["-p", "missing.json"]);
     assert_eq!(missing_file.status.code(), Some(1));
     assert_eq!(
-        missing_file.stdout,
-        b"error TS5058: The specified path does not exist: 'missing.json'.\n"
+        String::from_utf8_lossy(&missing_file.stdout),
+        format!("error TS5058: The specified path does not exist: '{root}/missing.json'.\n")
     );
     assert!(missing_file.stderr.is_empty());
 
-    let missing_config = run(&tree, &["-p", "empty"]);
+    let missing_config = run(&tree, &["-p", "empty/../empty"]);
     assert_eq!(missing_config.status.code(), Some(1));
     assert_eq!(
-        missing_config.stdout,
-        b"error TS5057: Cannot find a tsconfig.json file at the specified directory: 'empty'.\n"
+        String::from_utf8_lossy(&missing_config.stdout),
+        format!(
+            "error TS5081: Cannot find a tsconfig.json file at the current directory: {root}/empty/tsconfig.json.\n"
+        )
     );
     assert!(missing_config.stderr.is_empty());
 }

@@ -129,12 +129,3 @@ fn embedded_library_overlay_owns_the_pinned_catalog_bytes() {
         113
     );
 }
-
-#[test]
-fn pretty_context_does_not_treat_digits_in_inclusion_paths_as_source_gutters() {
-    let inclusion = "    Imported via './value' from file '/tmp/tsc-rs-tree-1585/main.ts'";
-    assert_eq!(colorize_context_line(inclusion, ANSI_RED, 0), inclusion);
-
-    let source = colorize_context_line("1 const value = 1;", ANSI_RED, 0);
-    assert!(source.contains(ANSI_REVERSE));
-}

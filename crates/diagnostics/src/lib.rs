@@ -4,7 +4,7 @@
 pub mod gen;
 pub mod js_string;
 pub mod line_map;
-/// TypeScript 6.0.3-compatible, deterministic diagnostic rendering.
+/// The pretty diagnostic writer and error summary, ported from tsgo.
 pub mod render;
 pub mod text;
 
@@ -16,9 +16,9 @@ pub use line_map::{
     compute_line_map, compute_line_starts, get_line_and_character_of_position, LineMap,
 };
 pub use render::{
-    format_diagnostics_with_context, format_diagnostics_with_context_raw,
-    format_sorted_diagnostics_with_context, format_sorted_diagnostics_with_context_raw,
-    sort_and_dedupe_diagnostic_indices_with_context, FormatDiagnosticsError, FormatDiagnosticsHost,
+    format_diagnostic_with_color_and_context, format_diagnostics_with_color_and_context,
+    sort_and_dedupe_diagnostic_indices_with_context, write_error_summary_text,
+    FormatDiagnosticsError, FormatDiagnosticsHost, PrettyDiagnosticSources,
 };
 pub use text::{
     collapse_byte_changes, collapse_utf16_changes, ByteTextChangeRange, ByteTextSpan,

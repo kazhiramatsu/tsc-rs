@@ -5498,9 +5498,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: f2d2133394f805817e33a6c4b1534917ab876d99027c097b8c1f6d172778d90b
     /// tsc-span: _tsc.js:77167-77247
     ///
-    /// Related rows: the await hint (2773); invocationErrorRecovery
-    /// 7038 rides the unmodeled originatingImport link (absent =
-    /// attach-only, safe).
+    /// Related rows: the await hint (2773), then the caller's row, then
+    /// invocationErrorRecovery's 7038 at a namespace-style import.
     fn invocation_error(
         &mut self,
         error_target: NodeId,
@@ -5526,6 +5525,25 @@ impl<'a> CheckerState<'a> {
         }
         if let Some(related) = related_information {
             diagnostic.related.push(related);
+        }
+        // tsgo invocationErrorRecovery (checker.go:10197-10211): calling or
+        // constructing a namespace-style import whose module has such
+        // signatures points at the import (not an import() call).
+        if let Some(symbol) = self.tables.type_of(apparent_type).symbol {
+            let import = *self.links.symbol_cold().originating_import.get(symbol);
+            let module = self.links.read_symbol(symbol, |links| links.target);
+            if let (Some(import), Some(module)) = (import, module) {
+                if !self.is_import_call(import) {
+                    let module_type = self.get_type_of_symbol(module)?;
+                    if !self.get_signatures_of_type(module_type, kind)?.is_empty() {
+                        diagnostic.related.push(self.related_info_for_node(
+                            import,
+                            &diagnostics::Type_originates_at_this_import_A_namespace_style_import_cannot_be_called_or_constructed_and_will_cause_a_failure_at_runtime_Consider_using_a_default_import_or_import_require_here_instead,
+                            &[],
+                        ));
+                    }
+                }
+            }
         }
         self.push_error_diagnostic(diagnostic);
         Ok(())

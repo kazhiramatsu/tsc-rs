@@ -19,8 +19,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use tsc_diagnostics::{
-    format_diagnostics_with_context, sort_and_dedupe_diagnostic_indices_with_context, Diagnostic,
-    FormatDiagnosticsHost, MessageChain, TextSnapshot,
+    format_diagnostic_with_color_and_context, sort_and_dedupe_diagnostic_indices_with_context,
+    write_error_summary_text, Diagnostic, FormatDiagnosticsHost, MessageChain, TextSnapshot,
 };
 use tsc_diagnostics::{gen, JsStr, JsString};
 use tsc_host::{CompilerHost, FsCompilerHost, HostError, ParallelSourceReader};
@@ -597,14 +597,14 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
                     EXIT_COMMAND_LINE,
                 );
             }
-            Err(ProjectFileError::MissingConfig(directory)) => {
+            Err(ProjectFileError::MissingConfig(config_file)) => {
                 let diagnostic = Diagnostic::new(
                     None,
                     None,
                     None,
                     MessageChain::new(
-                        &gen::Cannot_find_a_tsconfig_json_file_at_the_specified_directory_0,
-                        &[directory],
+                        &gen::Cannot_find_a_tsconfig_json_file_at_the_current_directory_0,
+                        &[config_file],
                     ),
                 );
                 return rendered_diagnostics_with_exit(
@@ -1374,17 +1374,34 @@ fn rendered_diagnostics_with_exit_work_and_status(
         .ok_or_else(|| CliError::Render("current directory is not Unicode".to_owned()))?;
     let host = FormatDiagnosticsHost::from_js_snapshots(current_directory.into(), source_texts);
     let text = if pretty {
-        let mut text = format_diagnostics_with_context(diagnostics, &host)
-            .map_err(|error| CliError::Render(error.to_string()))?;
+        // tsgo's pretty reporter: each diagnostic with its context, then the
+        // error summary (CreateDiagnosticReporter, CreateReportErrorSummary).
+        let selected: Vec<Diagnostic> =
+            sort_and_dedupe_diagnostic_indices_with_context(diagnostics, &host)
+                .into_iter()
+                .map(|index| diagnostics[index].clone())
+                .collect();
+        let render =
+            |error: tsc_diagnostics::FormatDiagnosticsError| CliError::Render(error.to_string());
+        let mut text = JsString::new();
+        for diagnostic in &selected {
+            format_diagnostic_with_color_and_context(&mut text, diagnostic, &host, "\n")
+                .map_err(render)?;
+            text.push('\n');
+        }
         append_status_writes(&mut text, status_writes);
-        append_pretty_error_summary(
-            &mut text,
-            diagnostics,
-            &host,
-            source_texts,
-            current_directory,
+        // The configuration-file selection errors end the run before any
+        // summary is written.
+        let summarized: Vec<Diagnostic> = selected
+            .into_iter()
+            .filter(|diagnostic| !is_command_line_selection_diagnostic(diagnostic.code()))
+            .collect();
+        text.push_js(
+            write_error_summary_text(&summarized, &host, "\n")
+                .map_err(render)?
+                .as_js(),
         );
-        colorize_pretty_output(text.to_string_lossy().as_ref())
+        text.to_string_lossy().into_owned()
     } else {
         let mut text =
             format_plain_diagnostics(diagnostics, &host, source_texts, current_directory)
@@ -1407,326 +1424,22 @@ fn append_status_writes(output: &mut JsString, status_writes: &[JsString]) {
     }
 }
 
-/// Append the command-line reporter's contextual error summary. Plain output
-/// intentionally omits this block, matching TypeScript's non-pretty reporter.
-/// The per-file counts are derived from the same sorted/deduplicated view used
-/// by the formatter, so the summary cannot count an occurrence which was not
-/// printed above.
-fn append_pretty_error_summary(
-    output: &mut JsString,
-    diagnostics: &[Diagnostic],
-    host: &FormatDiagnosticsHost<'_>,
-    source_texts: &DiagnosticSourceMap,
-    current_directory: &str,
-) {
-    let indices = sort_and_dedupe_diagnostic_indices_with_context(diagnostics, host);
-    let mut file_counts = BTreeMap::<JsString, (usize, u32)>::new();
-    let mut total = 0usize;
-    for index in indices {
-        let diagnostic = &diagnostics[index];
-        if diagnostic.category().name() != "error"
-            || is_command_line_selection_diagnostic(diagnostic.code())
-        {
-            continue;
-        }
-        let file_name = diagnostic.file_name.as_ref().map(JsString::as_js);
-        let Some(file_name) = file_name else {
-            total += 1;
-            continue;
-        };
-        total += 1;
-        let display_name = relative_file_name(
-            file_name,
-            current_directory,
-            process_case_sensitive_file_names(),
-        );
-        let line = diagnostic
-            .start
-            .and_then(|start| {
-                source_texts
-                    .get(file_name.as_bytes())
-                    .or_else(|| {
-                        let normalized = normalize_slashes(file_name);
-                        source_texts
-                            .iter()
-                            .find(|(candidate, _)| normalize_slashes(*candidate) == normalized)
-                            .map(|(_, text)| text)
-                    })
-                    .and_then(|snapshot| {
-                        snapshot
-                            .positions()
-                            .line_and_character_utf16(start)
-                            .map(|location| location.line + 1)
-                    })
-            })
-            .unwrap_or(1);
-        file_counts
-            .entry(display_name)
-            .and_modify(|entry| {
-                entry.0 += 1;
-                entry.1 = entry.1.min(line);
-            })
-            .or_insert((1, line));
-    }
-    if total == 0 {
-        return;
-    }
-
-    output.push_str("\n\n");
-    let noun = if total == 1 { "error" } else { "errors" };
-    match (total, file_counts.len()) {
-        (1, 0) => output.push_str("Found 1 error.\n"),
-        (1, 1) => {
-            let (file, (_, line)) = file_counts.iter().next().expect("one file exists");
-            output.push_str("Found 1 error in ");
-            output.push_js(file.as_js());
-            output.push_str(&format!(":{line}\n"));
-        }
-        (_, 0) => output.push_str(&format!("Found {total} {noun}.\n")),
-        (_, 1) => {
-            let (file, (_, line)) = file_counts.iter().next().expect("one file exists");
-            output.push_str(&format!(
-                "Found {total} {noun} in the same file, starting at: "
-            ));
-            output.push_js(file.as_js());
-            output.push_str(&format!(":{line}\n"));
-        }
-        (_, file_count) => {
-            output.push_str(&format!("Found {total} {noun} in {file_count} files.\n\n"));
-            output.push_str("Errors  Files\n");
-            let mut files: Vec<_> = file_counts.into_iter().collect();
-            files.sort_by(|a, b| a.0.cmp_utf16(b.0.as_js()));
-            for (file, (count, line)) in files {
-                output.push_str(&format!("{count:>6}  "));
-                output.push_js(file.as_js());
-                output.push_str(&format!(":{line}\n"));
-            }
-        }
-    }
-    output.push('\n');
-}
-
-const ANSI_RESET: &str = "\u{1b}[0m";
-const ANSI_GRAY: &str = "\u{1b}[90m";
-const ANSI_CYAN: &str = "\u{1b}[96m";
-const ANSI_YELLOW: &str = "\u{1b}[93m";
-const ANSI_RED: &str = "\u{1b}[91m";
-const ANSI_REVERSE: &str = "\u{1b}[7m";
-
-/// Add the ANSI layer owned by TypeScript's pretty command-line reporter.
-///
-/// The shared diagnostics renderer intentionally remains color-free because
-/// its output is also consumed by conformance and JSONL adapters. CLI pretty
-/// output applies the small, stable ANSI vocabulary after the common text and
-/// context layout has been selected, which keeps plain and pretty sorting
-/// byte-identical apart from styling.
-fn colorize_pretty_output(input: &str) -> String {
-    let mut output = String::with_capacity(input.len() + input.len() / 2);
-    let mut context = None;
-    let mut previous_fileless_diagnostic = false;
-    let mut previous_context_line = false;
-    for line in input.split_inclusive('\n') {
-        let (line, newline) = line
-            .strip_suffix('\n')
-            .map_or((line, ""), |line| (line, "\n"));
-        if let Some(colored) = colorize_header(line) {
-            if previous_fileless_diagnostic || previous_context_line {
-                output.push('\n');
-            }
-            output.push_str(&colored);
-            output.push_str(newline);
-            context = category_context_color(line).map(|color| (color, 0));
-            previous_fileless_diagnostic = false;
-            previous_context_line = false;
-        } else if let Some(colored) = colorize_related_location(line) {
-            output.push_str(&colored);
-            output.push_str(newline);
-            context = Some((ANSI_CYAN, 4));
-            previous_fileless_diagnostic = false;
-            previous_context_line = false;
-        } else if let Some(colored) = colorize_fileless_diagnostic(line) {
-            output.push_str(&colored);
-            output.push_str(newline);
-            context = None;
-            previous_fileless_diagnostic = true;
-            previous_context_line = false;
-        } else if line.starts_with("Found ") {
-            output.push_str(&colorize_summary(line));
-            output.push_str(newline);
-            context = None;
-            previous_fileless_diagnostic = false;
-            previous_context_line = false;
-        } else if let Some((squiggle_color, indent)) = context {
-            output.push_str(&colorize_context_line(line, squiggle_color, indent));
-            output.push_str(newline);
-            previous_fileless_diagnostic = false;
-            previous_context_line = true;
-        } else {
-            output.push_str(line);
-            output.push_str(newline);
-            previous_fileless_diagnostic = false;
-            previous_context_line = false;
-        }
-    }
-    output
-}
-
-fn category_context_color(line: &str) -> Option<&'static str> {
-    let (_, detail) = line.split_once(" - ")?;
-    let (category, _) = detail.split_once(" TS")?;
-    match category {
-        "error" => Some(ANSI_RED),
-        "warning" => Some(ANSI_YELLOW),
-        "suggestion" => Some("\u{1b}[92m"),
-        "message" => Some(ANSI_CYAN),
-        _ => None,
-    }
-}
-
-fn colorize_related_location(line: &str) -> Option<String> {
-    let location = line.strip_prefix("  ")?;
-    let mut location_parts = location.rsplitn(3, ':');
-    let character = location_parts.next()?;
-    let line_number = location_parts.next()?;
-    let file_name = location_parts.next()?;
-    if file_name.is_empty()
-        || line_number.is_empty()
-        || character.is_empty()
-        || !line_number.bytes().all(|byte| byte.is_ascii_digit())
-        || !character.bytes().all(|byte| byte.is_ascii_digit())
-    {
-        return None;
-    }
-    Some(format!(
-        "  {ANSI_CYAN}{file_name}{ANSI_RESET}:{ANSI_YELLOW}{line_number}{ANSI_RESET}:{ANSI_YELLOW}{character}{ANSI_RESET}"
-    ))
-}
-
-fn colorize_fileless_diagnostic(line: &str) -> Option<String> {
-    let (category, detail) = line.split_once(" TS")?;
-    let color = match category {
-        "error" if !is_command_line_selection_line(line) => ANSI_RED,
-        "warning" if !is_command_line_selection_line(line) => ANSI_YELLOW,
-        "suggestion" if !is_command_line_selection_line(line) => "\u{1b}[92m",
-        "message" if !is_command_line_selection_line(line) => ANSI_CYAN,
-        _ => return None,
-    };
-    let (code, message) = detail.split_once(": ")?;
-    if code.is_empty() || !code.bytes().all(|byte| byte.is_ascii_digit()) {
-        return None;
-    }
-    Some(format!(
-        "{color}{category}{ANSI_RESET}{ANSI_GRAY} TS{code}: {ANSI_RESET}{message}"
-    ))
-}
-
-fn is_command_line_selection_line(line: &str) -> bool {
-    line.split_once(" TS")
-        .and_then(|(_, detail)| detail.split_once(": "))
-        .and_then(|(code, _)| code.parse::<u32>().ok())
-        .is_some_and(is_command_line_selection_diagnostic)
-}
-
 fn is_command_line_selection_diagnostic(code: u32) -> bool {
-    matches!(code, 5057 | 5058 | 5112)
+    matches!(code, 5058 | 5081 | 5112)
 }
 
-fn colorize_header(line: &str) -> Option<String> {
-    let (location, detail) = line.split_once(" - ")?;
-    let mut location_parts = location.rsplitn(3, ':');
-    let character = location_parts.next()?;
-    let line_number = location_parts.next()?;
-    let file_name = location_parts.next()?;
-    if file_name.is_empty()
-        || line_number.is_empty()
-        || character.is_empty()
-        || !line_number.bytes().all(|byte| byte.is_ascii_digit())
-        || !character.bytes().all(|byte| byte.is_ascii_digit())
-    {
-        return None;
-    }
-    let (category, message) = detail.split_once(" TS")?;
-    let category_color = match category {
-        "error" => ANSI_RED,
-        "warning" => ANSI_YELLOW,
-        "suggestion" => "\u{1b}[92m",
-        "message" => ANSI_CYAN,
-        _ => return None,
-    };
-    let (code, message) = message.split_once(": ")?;
-    Some(format!(
-        "{ANSI_CYAN}{file_name}{ANSI_RESET}:{ANSI_YELLOW}{line_number}{ANSI_RESET}:{ANSI_YELLOW}{character}{ANSI_RESET} - {category_color}{category}{ANSI_RESET}{ANSI_GRAY} TS{code}: {ANSI_RESET}{message}"
-    ))
-}
-
-fn colorize_context_line(line: &str, squiggle_color: &str, indent: usize) -> String {
-    if line.is_empty() {
-        return String::new();
-    }
-    if line.len() < indent || !line[..indent].bytes().all(|byte| byte == b' ') {
-        return line.to_owned();
-    }
-    let (indent_text, context_line) = line.split_at(indent);
-    if line.bytes().all(|byte| byte == b' ') {
-        if let Some((first, rest)) = context_line.split_at_checked(1) {
-            if let Some((plain, red_rest)) = rest.split_at_checked(1) {
-                return format!(
-                    "{indent_text}{ANSI_REVERSE}{first}{ANSI_RESET}{plain}{squiggle_color}{red_rest}{ANSI_RESET}"
-                );
-            }
-        }
-    }
-    if let Some(first_tilde) = line.find('~') {
-        if line[first_tilde..].bytes().all(|byte| byte == b'~') {
-            let (prefix, marks) = line.split_at(first_tilde);
-            let Some(prefix) = prefix.strip_prefix(indent_text) else {
-                return line.to_owned();
-            };
-            if let Some((first, rest)) = prefix.split_at_checked(1) {
-                if let Some((plain, red_rest)) = rest.split_at_checked(1) {
-                    return format!(
-                        "{indent_text}{ANSI_REVERSE}{first}{ANSI_RESET}{plain}{squiggle_color}{red_rest}{marks}{ANSI_RESET}"
-                    );
-                }
-            }
-        }
-    }
-    let gutter_start = context_line
-        .bytes()
-        .take_while(|byte| *byte == b' ')
-        .count();
-    let digit_start = indent + gutter_start;
-    let Some(first) = line.as_bytes().get(digit_start) else {
-        return line.to_owned();
-    };
-    if !first.is_ascii_digit() {
-        return line.to_owned();
-    }
-    let digit_end = line[digit_start..]
-        .find(|character: char| !character.is_ascii_digit())
-        .map_or(line.len(), |offset| digit_start + offset);
-    if digit_end == digit_start || line[digit_end..].is_empty() {
-        return line.to_owned();
-    }
-    format!(
-        "{}{ANSI_REVERSE}{}{ANSI_RESET}{}",
-        indent_text,
-        &line[indent..digit_end],
-        &line[digit_end..]
-    )
-}
-
-fn colorize_summary(line: &str) -> String {
-    let Some((prefix, line_number)) = line.rsplit_once(':') else {
-        return line.to_owned();
-    };
-    if line_number.is_empty() || !line_number.bytes().all(|byte| byte.is_ascii_digit()) {
-        return line.to_owned();
-    }
-    format!("{prefix}{ANSI_GRAY}:{line_number}{ANSI_RESET}")
-}
-
+/// tsgo `defaultIsPretty`: FORCE_COLOR decides, then NO_COLOR and a dumb
+/// terminal turn colors off; otherwise colors follow a terminal stdout.
 fn default_pretty() -> bool {
+    if let Some(force_color) = std::env::var_os("FORCE_COLOR") {
+        return matches!(force_color.to_str(), Some("" | "1" | "2" | "3" | "true"));
+    }
+    if std::env::var_os("NO_COLOR").is_some_and(|value| !value.is_empty()) {
+        return false;
+    }
+    if std::env::var_os("TERM").is_some_and(|value| value == "dumb") {
+        return false;
+    }
     std::io::stdout().is_terminal()
 }
 
@@ -1937,8 +1650,12 @@ fn parse_config_file(
     Ok((plan, source_texts))
 }
 
+/// A `--project` that names nothing to load, by the normalized absolute
+/// path tsgo reports (tsc.go:165-180).
 enum ProjectFileError {
+    /// No file or directory at the path (TS5058).
     MissingPath(String),
+    /// A directory without `tsconfig.json`: the file's path (TS5081).
     MissingConfig(String),
 }
 
@@ -1947,19 +1664,47 @@ fn resolve_project_file(
     current_directory: &Path,
     project: &Path,
 ) -> Result<Result<PathBuf, ProjectFileError>, CliError> {
-    let requested = project.to_string_lossy().replace('\\', "/");
+    let requested = normalized_absolute_path(current_directory, project);
     let project = absolutize(current_directory, project);
     if host.directory_exists(&project).map_err(host_error)? {
         let config_file = project.join(CONFIG_FILE_NAME);
         if host.file_exists(&config_file).map_err(host_error)? {
             return Ok(Ok(config_file));
         }
-        return Ok(Err(ProjectFileError::MissingConfig(requested)));
+        let separator = if requested.ends_with('/') { "" } else { "/" };
+        return Ok(Err(ProjectFileError::MissingConfig(format!(
+            "{requested}{separator}{CONFIG_FILE_NAME}"
+        ))));
     }
     if !host.file_exists(&project).map_err(host_error)? {
         return Ok(Err(ProjectFileError::MissingPath(requested)));
     }
     Ok(Ok(project))
+}
+
+/// tspath.NormalizePath of the absolute path: forward slashes, with `.` and
+/// `..` resolved.
+fn normalized_absolute_path(current_directory: &Path, path: &Path) -> String {
+    let text = absolutize(current_directory, path)
+        .to_string_lossy()
+        .replace('\\', "/");
+    let rooted = text.starts_with('/');
+    let mut parts: Vec<&str> = Vec::new();
+    for component in text.split('/') {
+        match component {
+            "" | "." => {}
+            ".." => {
+                parts.pop();
+            }
+            component => parts.push(component),
+        }
+    }
+    let joined = parts.join("/");
+    if rooted {
+        format!("/{joined}")
+    } else {
+        joined
+    }
 }
 
 fn find_config_file(

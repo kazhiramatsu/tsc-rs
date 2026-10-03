@@ -259,7 +259,7 @@ pub enum Agreement {
     Text,
     /// T3: the whole `.errors.txt` is byte-identical (spans, message chains,
     /// related information and order), which is what the native test
-    /// requires. Not assessed for `@pretty` configurations.
+    /// requires; for `@pretty`, with the pretty diagnostics and summary.
     Full,
 }
 
@@ -376,9 +376,8 @@ pub enum Outcome {
         missing: Option<BaselineDiagnostic>,
         unexpected: Option<BaselineDiagnostic>,
         /// SHA-256 of tsc-rs's rendered error baseline (the empty string when
-        /// it reports nothing); `None` for a `@pretty` configuration. Two runs
-        /// with the same digest produced the same diagnostics in the same
-        /// order, whatever their tier.
+        /// it reports nothing). Two runs with the same digest produced the
+        /// same diagnostics in the same order, whatever their tier.
         rendered_sha256: Option<String>,
         /// Whether tsc-rs's JavaScript emit baseline (the `.js` reference:
         /// the JavaScript and declaration files) matches byte for byte.
@@ -646,31 +645,28 @@ fn run_lane_a(
         .map(parse_errors_baseline)
         .unwrap_or_default();
     let mut agreement = agreement(&expected, &actual);
-    let mut rendered_sha256 = None;
-    if !pretty {
-        let inputs: Vec<_> = files
-            .iter()
-            .map(|(name, content)| errors_baseline::InputFile { name, content })
-            .collect();
-        let library_inputs: Vec<_> = library
-            .iter()
-            .map(|(name, content)| errors_baseline::InputFile { name, content })
-            .collect();
-        let rendered = errors_baseline::render(diagnostics, &inputs, &library_inputs);
-        rendered_sha256 = Some(format!(
-            "{:x}",
-            sha2::Sha256::digest(rendered.as_deref().unwrap_or_default().as_bytes())
-        ));
-        if agreement == Agreement::Text && rendered == expected_text {
-            agreement = Agreement::Full;
-        } else if let Some(directory) = dump.filter(|_| rendered != expected_text) {
-            dump_file(
-                directory,
-                suite,
-                &format!("{stem}.errors.txt"),
-                rendered.as_deref().unwrap_or_default(),
-            );
-        }
+    let inputs: Vec<_> = files
+        .iter()
+        .map(|(name, content)| errors_baseline::InputFile { name, content })
+        .collect();
+    let library_inputs: Vec<_> = library
+        .iter()
+        .map(|(name, content)| errors_baseline::InputFile { name, content })
+        .collect();
+    let rendered = errors_baseline::render(diagnostics, &inputs, &library_inputs, pretty);
+    let rendered_sha256 = Some(format!(
+        "{:x}",
+        sha2::Sha256::digest(rendered.as_deref().unwrap_or_default().as_bytes())
+    ));
+    if agreement == Agreement::Text && rendered == expected_text {
+        agreement = Agreement::Full;
+    } else if let Some(directory) = dump.filter(|_| rendered != expected_text) {
+        dump_file(
+            directory,
+            suite,
+            &format!("{stem}.errors.txt"),
+            rendered.as_deref().unwrap_or_default(),
+        );
     }
     let key = |d: &BaselineDiagnostic| (d.file.clone(), d.line, d.column, d.code);
     let missing = expected
