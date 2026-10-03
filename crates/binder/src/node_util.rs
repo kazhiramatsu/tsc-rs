@@ -472,10 +472,17 @@ pub fn get_jsdoc_parameter_tags(source: &SourceFile, parameter: NodeId) -> Vec<N
         .collect()
 }
 
+/// A JavaScript `/** @type {T} */ (expr)`: tsgo's reparser makes the
+/// parenthesized expression's operand `expr as T` (reparser.go:382-391).
 pub fn is_jsdoc_type_assertion(source: &SourceFile, node: NodeId) -> bool {
-    kind_of(source, node) == SyntaxKind::ParenthesizedExpression
-        && node_flags(source, source.root).intersects(NodeFlags::JAVA_SCRIPT_FILE)
-        && get_jsdoc_type_tag(source, node).is_some()
+    let NodeData::ParenthesizedExpression(data) = &source.arena.node(node).data else {
+        return false;
+    };
+    data.expression.is_some_and(|expression| {
+        crate::hosted::jsdoc_hosted(source)
+            .cast_of(expression)
+            .is_some_and(|cast| cast.is_assertion)
+    })
 }
 
 /// tsc `node.modifiers` dynamic access: the modifiers array of any kind
@@ -644,23 +651,28 @@ fn get_combined_flags(
     flags
 }
 
-/// tsc getJSDocModifierFlagsNoCache/getRawJSDocModifierFlagsNoCache
-/// (_tsc.js 16983-17015).
+/// tsc getJSDocModifierFlagsNoCache (_tsc.js 16983-17015) for
+/// `@deprecated`, and the modifiers tsgo's reparser hosts from the
+/// `@public`, `@private`, `@protected`, `@readonly` and `@override` tags of a
+/// JavaScript member, constructor or binary expression (reparser.go:525-566).
 pub fn get_jsdoc_modifier_flags_no_cache(source: &SourceFile, id: NodeId) -> ModifierFlags {
     if parent_of(source, id).is_none() || kind_of(source, id) == SyntaxKind::Parameter {
         return ModifierFlags::NONE;
     }
-    let in_js = node_flags(source, source.root).intersects(NodeFlags::JAVA_SCRIPT_FILE);
     let mut flags = ModifierFlags::NONE;
+    for &tag in crate::hosted::jsdoc_hosted(source).modifier_tags_of(id) {
+        flags |= match kind_of(source, tag) {
+            SyntaxKind::JSDocPublicTag => ModifierFlags::PUBLIC,
+            SyntaxKind::JSDocPrivateTag => ModifierFlags::PRIVATE,
+            SyntaxKind::JSDocProtectedTag => ModifierFlags::PROTECTED,
+            SyntaxKind::JSDocReadonlyTag => ModifierFlags::READONLY,
+            SyntaxKind::JSDocOverrideTag => ModifierFlags::OVERRIDE,
+            _ => ModifierFlags::NONE,
+        };
+    }
     visit_owned_jsdoc_tags(source, id, |tag| {
-        match kind_of(source, tag) {
-            SyntaxKind::JSDocPublicTag if in_js => flags |= ModifierFlags::PUBLIC,
-            SyntaxKind::JSDocPrivateTag if in_js => flags |= ModifierFlags::PRIVATE,
-            SyntaxKind::JSDocProtectedTag if in_js => flags |= ModifierFlags::PROTECTED,
-            SyntaxKind::JSDocReadonlyTag if in_js => flags |= ModifierFlags::READONLY,
-            SyntaxKind::JSDocOverrideTag if in_js => flags |= ModifierFlags::OVERRIDE,
-            SyntaxKind::JSDocDeprecatedTag => flags |= ModifierFlags::DEPRECATED,
-            _ => {}
+        if kind_of(source, tag) == SyntaxKind::JSDocDeprecatedTag {
+            flags |= ModifierFlags::DEPRECATED;
         }
         false
     });
@@ -1144,6 +1156,31 @@ pub fn get_error_span_for_node(source: &SourceFile, id: NodeId) -> (usize, usize
                 let pos = tsc_syntax::skip_trivia(source.text(), tag_name.pos as usize);
                 return get_span_of_token_at_position(source, pos);
             }
+        }
+        // tsgo reparses an `@overload` signature into an overload declaration
+        // spanning the tag's name (reparser.go:236-240).
+        NodeData::JSDocSignature(_)
+            if parent_of(source, id)
+                .is_some_and(|parent| kind_of(source, parent) == SyntaxKind::JSDocOverloadTag) =>
+        {
+            if let Some(NodeData::JSDocOverloadTag(tag)) =
+                parent_of(source, id).map(|parent| &source.arena.node(parent).data)
+            {
+                error_node = tag.tag_name.or(error_node);
+            }
+        }
+        // tsgo reparses a JSDoc type literal's `@property`/`@param` into a
+        // property signature named by the tag's (rightmost) name
+        // (reparser.go reparseJSDocTypeLiteral), so its span is that name.
+        NodeData::JSDocPropertyTag(_) | NodeData::JSDocParameterTag(_)
+            if parent_of(source, id)
+                .is_some_and(|parent| kind_of(source, parent) == SyntaxKind::JSDocTypeLiteral) =>
+        {
+            let name = name_field_of(source, id).map(|name| match &source.arena.node(name).data {
+                NodeData::QualifiedName(data) => data.right.unwrap_or(name),
+                _ => name,
+            });
+            error_node = name.or(error_node);
         }
         NodeData::Constructor(_) => {
             let start = tsc_syntax::skip_trivia(source.text(), node.pos as usize);

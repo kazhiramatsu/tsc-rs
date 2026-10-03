@@ -803,28 +803,17 @@ fn jsdoc_unmatched_parameters_preserve_owner_spans_and_nested_boundaries() {
         .into_iter()
         .filter(|row| matches!(row.0, 8024 | 8032))
         .collect::<Vec<_>>();
+    // tsgo (TypeScript 7.1 at 19dadef8): getAllJSDocTags reaches the
+    // statement's comment only from the first declaration, and a tag
+    // without a name is skipped, so only the qualified name reports.
     assert_eq!(
             diagnostics,
             [
-                (
-                    8024,
-                    text.find("s */").expect("shared unmatched tag") as u32,
-                    1,
-                    "JSDoc '@param' tag has name 's', but there is no parameter with that name."
-                        .to_owned(),
-                ),
                 (
                     8032,
                     text.find("xyz.bar.p").expect("qualified tag") as u32,
                     "xyz.bar.p".len() as u32,
                     "Qualified name 'xyz.bar.p' is not allowed without a leading '@param {object} xyz.bar'."
-                        .to_owned(),
-                ),
-                (
-                    8024,
-                    text.find("?[]").expect("JSDoc type recovery") as u32,
-                    0,
-                    "JSDoc '@param' tag has name '', but there is no parameter with that name."
                         .to_owned(),
                 ),
             ]
@@ -1265,7 +1254,7 @@ fn jsdoc_template_modifiers_preserve_valid_and_non_tag_faces() {
 // ---- M7 8.1q JSDoc satisfies-tag duplicate grammar ----
 
 #[test]
-fn jsdoc_satisfies_duplicates_report_every_tag_after_the_first_per_host() {
+fn jsdoc_satisfies_duplicates_report_no_repeated_tag() {
     let options = CompilerOptions {
         allow_js: true,
         check_js: Some(true),
@@ -1286,11 +1275,11 @@ fn jsdoc_satisfies_duplicates_report_every_tag_after_the_first_per_host() {
             .match_indices("@satisfies")
             .map(|(start, _)| ((start + 1) as u32, "satisfies".len() as u32))
             .collect::<Vec<_>>();
-        // Only the declaration-level and inline comments for `second`
-        // collapse onto one effective initializer host. getAllJSDocTags
-        // orders the inline tag first, so the declaration tag is the
-        // duplicate reported by tsc.
-        let expected = [tags[2]];
+        // tsgo (TypeScript 7.1 at 19dadef8) reports no repeated `@satisfies`:
+        // its checker checks no JSDoc tag (tsc 6.0 checkJSDocSatisfiesTag
+        // reported TS1223 per host), and the reparser applies each tag.
+        let _ = tags;
+        let expected: [(u32, u32); 0] = [];
         let diagnostics = state
             .diagnostics
             .iter()
@@ -1350,7 +1339,7 @@ fn jsdoc_satisfies_duplicates_preserve_distinct_hosts_and_non_tags() {
 // ---- M7 8.1t JSDoc variadic-parameter grammar ----
 
 #[test]
-fn jsdoc_variadic_types_require_the_final_host_parameter() {
+fn jsdoc_variadic_types_are_not_checked_as_rest_parameters() {
     let options = CompilerOptions {
         allow_js: true,
         check_js: Some(true),
@@ -1385,21 +1374,9 @@ fn jsdoc_variadic_types_require_the_final_host_parameter() {
                 )
             })
             .collect::<Vec<_>>();
-        let expected = [
-            "...?number",
-            "...number?",
-            "...number!?",
-            "...number[]",
-            "...number![]?",
-        ]
-        .map(|variadic| {
-            (
-                text.find(variadic).expect("variadic type") as u32,
-                variadic.len() as u32,
-                "A rest parameter must be last in a parameter list.".to_owned(),
-            )
-        });
-        assert_eq!(diagnostics, expected);
+        // tsgo (TypeScript 7.1 at 19dadef8) checks no `...T` type: a hosted
+        // `@param {...T}` only makes the parameter's type `T[]`.
+        assert_eq!(diagnostics, []);
     });
 }
 
@@ -1642,14 +1619,12 @@ fn jsdoc_identifier_name_recovery_reports_missing_and_invalid_names() {
             })
             .collect::<Vec<_>>();
         diagnostics.sort_by_key(|diagnostic| diagnostic.0);
+        // tsgo (TypeScript 7.1 at 19dadef8): a `@param` without a name is no
+        // error (parseJSDocEntityName with no message), so only the
+        // `@augments`/`@implements` class names report.
         let expected_starts = [
             text.find("@augments").expect("augments tag") + "@augments".len(),
             text.find("@implements").expect("implements tag") + "@implements".len(),
-            text.find("@param *").expect("inline star parameter") + "@param ".len(),
-            text.find("\n* * y").expect("wrapped star parameter") + "\n* ".len(),
-            text.find("@param {number} * z")
-                .expect("typed star parameter")
-                + "@param {number} ".len(),
         ];
         assert_eq!(
             diagnostics,
@@ -2456,21 +2431,113 @@ fn jsdoc_satisfies_missing_property_keeps_relation_chain_and_declaration() {
                 .map(|value| value.as_js().as_str().expect("scalar name observation")),
             Some("a.js")
         );
-        let property_start = text.find("@property").expect("property tag");
+        // tsgo reparses the `@property` into a property signature, whose
+        // span is its name.
+        let name_start = text.find("required\n").expect("property name");
         assert_eq!(
             (related.start, related.length),
-            (
-                Some(property_start as u32),
-                Some(
-                    text[property_start..text.find("*/").expect("JSDoc close")]
-                        .encode_utf16()
-                        .count() as u32
-                ),
-            )
+            (Some(name_start as u32), Some("required".len() as u32))
         );
         assert_eq!(related.message.code, 2728);
         assert_eq!(related.message.text, "'required' is declared here.");
     });
+}
+
+#[test]
+fn checked_js_hosted_tags_are_checked_as_reparsed_syntax() {
+    // tsgo (TypeScript 7.1 at 19dadef8, noLib with these globals) reparses
+    // the hosted tags into the syntax they annotate and checks that: a
+    // `@type` with too few parameters for its function (TS8030 at the
+    // FullSignature), `@param` types and a bracketed optional parameter,
+    // a `@private` modifier, a `@this` parameter, and a return statement's
+    // `@type` cast (TS2352 at the reparsed type).
+    let lib = "interface Array<T> {}\n\
+                   interface Boolean {}\n\
+                   interface CallableFunction {}\n\
+                   interface Function {}\n\
+                   interface IArguments {}\n\
+                   interface NewableFunction {}\n\
+                   interface Number {}\n\
+                   interface Object {}\n\
+                   interface RegExp {}\n\
+                   interface String {}\n";
+    let text = "/** @type {(a: number) => number} */\n\
+                    function f(a, b) { return a; }\n\
+                    /**\n\
+                    \x20* @param {number} a\n\
+                    \x20* @param {string} [b]\n\
+                    \x20*/\n\
+                    function g(a, b) {}\n\
+                    g();\n\
+                    g(1, 2);\n\
+                    class C {\n\
+                    \x20 /** @private */\n\
+                    \x20 m() {}\n\
+                    }\n\
+                    new C().m();\n\
+                    /** @this {{ x: number }} */\n\
+                    function h() { return this.y; }\n\
+                    function k() {\n\
+                    \x20 /** @type {string} */\n\
+                    \x20 return 1;\n\
+                    }\n";
+    let options = CompilerOptions {
+        allow_js: true,
+        check_js: Some(true),
+        strict: Some(true),
+        ..CompilerOptions::default()
+    };
+    let mut rows = with_program_state(&[("lib.d.ts", lib), ("a.js", text)], &options, |state| {
+        state.check_source_file(1);
+        diag_rows(state)
+    });
+    // The deferred TS2339 joins the sink last; the program sorts by position.
+    rows.sort_by_key(|row| row.1);
+    let at = |needle: &str| text.find(needle).expect("needle") as u32;
+    assert_eq!(
+        rows,
+        [
+            (
+                8030,
+                at("(a: number) => number"),
+                "(a: number) => number".len() as u32,
+                "A JSDoc '@type' tag on a function must have a signature with the correct number of arguments."
+                    .to_owned(),
+            ),
+            (
+                2554,
+                at("g();"),
+                1,
+                "Expected 1-2 arguments, but got 0.".to_owned(),
+            ),
+            (
+                2345,
+                at("2);"),
+                1,
+                "Argument of type 'number' is not assignable to parameter of type 'string'."
+                    .to_owned(),
+            ),
+            (
+                2341,
+                at("m();"),
+                1,
+                "Property 'm' is private and only accessible within class 'C'.".to_owned(),
+            ),
+            (
+                2339,
+                at("y; }"),
+                1,
+                "Property 'y' does not exist on type '{ x: number; }'.".to_owned(),
+            ),
+            (
+                2352,
+                at("string} */\n  return"),
+                "string".len() as u32,
+                "Conversion of type 'number' to type 'string' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+                    .to_owned(),
+            ),
+        ]
+    );
 }
 
 #[test]
@@ -3828,10 +3895,12 @@ fn checked_js_async_arrow_argument_renders_promise_signature() {
 
 #[test]
 fn checked_js_function_type_tag_relations_render_function_signatures() {
-    // checkJsdocTypeTag6.ts's virtual file, byte-for-byte. These
-    // are a function expression plus all three `more` declaration
-    // forms; none is a JS constructor, so all four source types
-    // take the structural signature face.
+    // checkJsdocTypeTag6.ts's virtual file, byte-for-byte. These are a
+    // function expression plus the `more` declaration forms; none is a JS
+    // constructor, so the source types take the structural signature face.
+    // tsgo (TypeScript 7.1 at 19dadef8, checkJsdocTypeTag6.errors.txt): the
+    // object-literal method's `@type` is its FullSignature, so that one is
+    // TS8030 at the type rather than an assignability row.
     let text = concat!(
         "\n",
         "/** @type {number} */\n",
@@ -3902,12 +3971,6 @@ fn checked_js_function_type_tag_relations_render_function_signatures() {
                 2322,
                 734,
                 23,
-                "Type '(more: any) => void' is not assignable to type '() => void'.".to_owned(),
-            ),
-            (
-                2322,
-                817,
-                24,
                 "Type '(more: any) => void' is not assignable to type '() => void'.".to_owned(),
             ),
         ]

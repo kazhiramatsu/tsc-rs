@@ -907,8 +907,8 @@ impl<'a> CheckerState<'a> {
             else {
                 unreachable!("extends heritage elements are ExpressionWithTypeArguments");
             };
-            let (base_expression, base_type_arguments) =
-                (base_data.expression, base_data.type_arguments);
+            let base_expression = base_data.expression;
+            let base_type_arguments = self.heritage_type_arguments(base_type_node);
             for argument in self.nodes_of(base_type_arguments) {
                 self.check_source_element(Some(argument));
             }
@@ -921,16 +921,6 @@ impl<'a> CheckerState<'a> {
                         heritage_clause,
                         crate::modules::EMIT_HELPER_EXTENDS,
                     )?;
-                }
-            }
-            if let Some(extends_node) = self.get_class_extends_heritage_element(node) {
-                if extends_node != base_type_node {
-                    if let NodeData::ExpressionWithTypeArguments(data) = self.data_of(extends_node)
-                    {
-                        if let Some(expression) = data.expression {
-                            self.check_expression(expression, tsc_types::CheckMode::NORMAL)?;
-                        }
-                    }
                 }
             }
             let base_types = self.get_base_types(ty)?;
@@ -1157,34 +1147,38 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
-    /// tsc-port: getEffectiveImplementsTypeNodes @6.0.3
-    /// tsc-hash: 7b48d400da24af97592c82568fc79e75d199be120737ae53e40c96d40fe74d3c
-    /// tsc-span: _tsc.js:15756-15763
+    /// tsgo GetImplementsTypeNodes: the class's `implements` types, after
+    /// which tsgo's reparser appends a JavaScript class's `@implements`
+    /// types (reparser.go:567-592).
     pub(crate) fn get_effective_implements_type_nodes(&self, node: NodeId) -> Option<Vec<NodeId>> {
-        if self.is_in_js_file(node) {
-            return Some(
-                self.all_jsdoc_tags(node, SyntaxKind::JSDocImplementsTag)
-                    .into_iter()
-                    .filter_map(|tag| match self.data_of(tag) {
-                        NodeData::JSDocImplementsTag(data) => data.class,
-                        _ => None,
-                    })
-                    .collect(),
-            );
-        }
         let heritage = match self.data_of(node) {
             NodeData::ClassDeclaration(data) => data.heritage_clauses,
             NodeData::ClassExpression(data) => data.heritage_clauses,
             _ => None,
         };
-        for clause in self.nodes_of(heritage) {
-            if let NodeData::HeritageClause(data) = self.data_of(clause) {
-                if data.token == SyntaxKind::ImplementsKeyword {
-                    return Some(self.nodes_of(data.types));
-                }
+        let mut types =
+            self.nodes_of(heritage)
+                .into_iter()
+                .find_map(|clause| match self.data_of(clause) {
+                    NodeData::HeritageClause(data)
+                        if data.token == SyntaxKind::ImplementsKeyword =>
+                    {
+                        Some(self.nodes_of(data.types))
+                    }
+                    _ => None,
+                });
+        if self.is_in_js_file(node) {
+            let tags = self.reparsed_implements_tags(node);
+            if !tags.is_empty() {
+                types
+                    .get_or_insert_with(Vec::new)
+                    .extend(tags.iter().filter_map(|&tag| match self.data_of(tag) {
+                        NodeData::JSDocImplementsTag(data) => data.class,
+                        _ => None,
+                    }));
             }
         }
-        None
+        types
     }
 
     /// tsc-port: getImplementsTypes @6.0.3

@@ -2228,10 +2228,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: f974d5e1c80a39323009b4a83dbeec3fa7eb8b99275f7b5b7f20b96184e65c1f
     /// tsc-span: _tsc.js:75813-75865
     ///
-    /// acceptsVoid (75807-75809) folded into the under-min filter; the
-    /// JS+nonstrict acceptsVoidUndefinedUnknownOrAny variant is
-    /// JS-file-gated (constant false in TS programs). The JSX arm
-    /// lands with 5.7c; the decorator arm with 5.8.
+    /// acceptsVoid (75807-75809) folded into the under-min filter. tsgo
+    /// has no JavaScript leniency for missing `undefined`, `unknown` or
+    /// `any` arguments (checker.go:9362-9372, tsc 6.0's
+    /// acceptsVoidUndefinedUnknownOrAny is gone). The JSX arm lands with
+    /// 5.7c; the decorator arm with 5.8.
     fn has_correct_arity(
         &mut self,
         node: NodeId,
@@ -2346,19 +2347,10 @@ impl<'a> CheckerState<'a> {
         if call_is_incomplete || arg_count >= effective_minimum_arguments {
             return Ok(true);
         }
-        let accepted_missing_types = if self.is_in_js_file(node)
-            && !self
-                .options
-                .strict_option_value(self.options.strict_null_checks)
-        {
-            TypeFlags::VOID | TypeFlags::UNDEFINED | TypeFlags::UNKNOWN | TypeFlags::ANY
-        } else {
-            TypeFlags::VOID
-        };
         for i in arg_count..effective_minimum_arguments {
             let ty = self.get_type_at_position(signature, i)?;
             let filtered = self.tables.filter_type(ty, |tables, t| {
-                tables.flags_of(t).intersects(accepted_missing_types)
+                tables.flags_of(t).intersects(TypeFlags::VOID)
             });
             if self.tables.flags_of(filtered).intersects(TypeFlags::NEVER) {
                 return Ok(false);
@@ -4007,17 +3999,11 @@ impl<'a> CheckerState<'a> {
         }
 
         let candidates = self.reorder_candidates(signatures, call_chain_flags)?;
-        if !is_jsx_open_fragment && candidates.is_empty() {
-            let span = self.diag_span_for_call_node(node);
-            let diagnostic = self.diagnostic_at_span(
-                &span,
-                MessageChain::new(
-                    &diagnostics::Call_target_does_not_contain_any_signatures,
-                    &[],
-                ),
-            );
-            self.push_error_diagnostic(diagnostic);
-            return self.resolve_error_call(node);
+        // tsgo resolveCall (checker.go:9048-9052): no candidate is no error
+        // ("In Strada we would error here, but no known repro doesn't have at
+        // least one other error in this codepath").
+        if candidates.is_empty() {
+            return Ok(self.unknown_signature);
         }
 
         let args = self.get_effective_call_arguments(node)?;
@@ -4289,10 +4275,26 @@ impl<'a> CheckerState<'a> {
             let Some(declaration) = state.signature_of(failed).declaration else {
                 return Ok(None);
             };
-            let Some(symbol) = state.node_symbol(declaration) else {
-                return Ok(None);
+            // tsgo reparses a JavaScript `@overload` into an overload
+            // declaration of its host, whose implementation is the host.
+            let overload_host = state
+                .parent_of(declaration)
+                .filter(|&tag| state.is_reparsed_overload_tag(tag))
+                .and_then(|tag| {
+                    tsc_binder::hosted::reparsed_overload_host(
+                        state.binder.source_of_node(tag),
+                        tag,
+                    )
+                });
+            let declarations = match overload_host {
+                Some(host) => vec![declaration, host],
+                None => {
+                    let Some(symbol) = state.node_symbol(declaration) else {
+                        return Ok(None);
+                    };
+                    state.binder.symbol(symbol).declarations.to_vec()
+                }
             };
-            let declarations = state.binder.symbol(symbol).declarations.clone();
             if declarations.len() <= 1 {
                 return Ok(None);
             }
@@ -5076,6 +5078,18 @@ impl<'a> CheckerState<'a> {
             && parameter_range == "1"
             && args.is_empty()
             && self.is_promise_resolve_arity_error(node)?;
+        // 76459-76461 (checker.go:9934-9938): JavaScript asks for a JSDoc
+        // hint, without the head message.
+        if is_void_promise_error && self.is_in_js_file(node) {
+            let span = self.diag_span_for_call_node(node);
+            return Ok(self.diagnostic_at_span(
+                &span,
+                MessageChain::new(
+                    &diagnostics::Expected_1_argument_but_got_0_new_Promise_needs_a_JSDoc_hint_to_produce_a_resolve_that_can_be_called_without_arguments,
+                    &[],
+                ),
+            ));
+        }
         let error_message: &'static DiagnosticMessage = if self.kind_of(node)
             == SyntaxKind::Decorator
         {

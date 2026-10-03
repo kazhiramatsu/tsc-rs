@@ -40,6 +40,12 @@ impl<'a> CheckerState<'a> {
                 || self.is_object_literal_method(node)
         );
         self.check_node_deferred(node);
+        // tsgo (checker.go:10308-10310): a JavaScript `@type` signature of the
+        // function is checked as a type node.
+        let full_signature = self.full_signature_node(node);
+        if full_signature.is_some() {
+            self.check_source_element(full_signature);
+        }
         if self.kind_of(node) == SyntaxKind::FunctionExpression {
             let name = self.name_of_node(node);
             self.check_collisions_for_declaration_name(node, name);
@@ -104,9 +110,31 @@ impl<'a> CheckerState<'a> {
         if !has_grammar_error && self.kind_of(node) == SyntaxKind::FunctionExpression {
             self.check_grammar_for_generator(node);
         }
+        if let Some(full_signature) = full_signature {
+            self.check_full_signature_arity(node, full_signature)?;
+        }
         self.contextually_check_function_expression_or_object_literal_method(node, check_mode)?;
         let symbol = self.get_symbol_of_declaration(node)?;
         self.get_type_of_symbol(symbol)
+    }
+
+    /// tsgo (checker.go:3470-3472, 10338-10342): a JavaScript `@type` that
+    /// types a whole function needs a call signature the function's
+    /// parameters fit, or it is TS8030 at the type.
+    fn check_full_signature_arity(
+        &mut self,
+        node: NodeId,
+        full_signature: NodeId,
+    ) -> CheckResult<()> {
+        let ty = self.get_type_from_type_node(full_signature)?;
+        if self.get_contextual_call_signature(ty, node)?.is_none() {
+            self.error_at(
+                Some(full_signature),
+                &diagnostics::A_JSDoc_type_tag_on_a_function_must_have_a_signature_with_the_correct_number_of_arguments,
+                &[],
+            );
+        }
+        Ok(())
     }
 
     /// tsc-port: contextuallyCheckFunctionExpressionOrObjectLiteralMethod @6.0.3
@@ -1016,6 +1044,30 @@ impl<'a> CheckerState<'a> {
                 has_return_with_no_expression = true;
                 continue;
             };
+            // tsgo: a JavaScript `/** @type {T} */ return expr` returns
+            // `expr as T` (reparser.go:382-391).
+            if self.is_reparsed_return_assertion(expr) {
+                let inner_mode = CheckMode::from_bits(
+                    check_mode.bits() & !CheckMode::SKIP_GENERIC_FUNCTIONS.bits(),
+                );
+                let mut ty = self.check_assertion_worker(return_statement, inner_mode)?;
+                if function_flags & FUNCTION_FLAGS_ASYNC != 0 {
+                    let checked = self.check_awaited_type(
+                        ty,
+                        /*with_alias*/ false,
+                        func,
+                        &diagnostics::The_return_type_of_an_async_function_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member,
+                    )?;
+                    ty = self.unwrap_awaited_type(checked)?;
+                }
+                if self.tables.flags_of(ty).intersects(TypeFlags::NEVER) {
+                    has_return_of_type_never = true;
+                }
+                if !aggregated_types.contains(&ty) {
+                    aggregated_types.push(ty);
+                }
+                continue;
+            }
             // skipParentheses(expr, /*excludeJSDocTypeAssertions*/ true): a
             // parenthesized JSDoc type assertion stays the checked expression.
             expr = self.skip_parentheses_excluding_jsdoc_type_assertions(expr);
@@ -1089,6 +1141,25 @@ impl<'a> CheckerState<'a> {
             }
         }
         Ok(Some(aggregated_types))
+    }
+
+    /// A `@callback`/`@overload` `@param` whose name is a property path
+    /// (`x.y`): tsgo's reparser makes no parameter of it
+    /// (reparser.go:179-183).
+    pub(crate) fn is_jsdoc_property_path_parameter(&self, parameter: NodeId) -> bool {
+        matches!(self.data_of(parameter), NodeData::JSDocParameterTag(data)
+            if data.name.is_some_and(|name| self.kind_of(name) == SyntaxKind::QualifiedName))
+    }
+
+    /// Whether a return statement's expression is the operand of the `as`
+    /// cast tsgo's reparser makes of a JavaScript `@type` on the statement.
+    pub(crate) fn is_reparsed_return_assertion(&self, expression: NodeId) -> bool {
+        self.parent_of(expression)
+            .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::ReturnStatement)
+            && self.is_in_js_file(expression)
+            && self
+                .reparsed_cast(expression)
+                .is_some_and(|cast| cast.is_assertion)
     }
 
     /// tsc-port: mayReturnNever @6.0.3
@@ -1904,6 +1975,10 @@ impl<'a> CheckerState<'a> {
             NodeData::Parameter(data) => (data.name, data.dot_dot_dot_token, data.initializer),
             _ => (None, None, None),
         };
+        // A `@callback`/`@overload` parameter typed `...T` is reparsed with a
+        // rest token (reparser.go:188-194).
+        let reparsed_rest = self.kind_of(node) == SyntaxKind::JSDocParameterTag
+            && self.is_rest_parameter_declaration(node);
         if node_util::has_syntactic_modifier(
             source,
             node,
@@ -2008,7 +2083,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        if dot_dot_dot_token.is_some() && !name_is_pattern {
+        if (dot_dot_dot_token.is_some() || reparsed_rest) && !name_is_pattern {
             let symbol = self.get_symbol_of_declaration(node)?;
             let raw = self.get_type_of_symbol(symbol)?;
             let reduced = self.get_reduced_type(raw)?;
@@ -2021,6 +2096,33 @@ impl<'a> CheckerState<'a> {
                 );
             }
         }
+        Ok(())
+    }
+
+    /// tsgo-port: checkParameter @7.1 (checker.go:2698-2738) on the `this`
+    /// parameter tsgo's reparser inserts for a `@this` tag (reparser.go:491-517):
+    /// it spans the tag's name, its type is the tag's.
+    fn check_reparsed_this_parameter(&mut self, function: NodeId, tag: NodeId) -> CheckResult<()> {
+        let (tag_name, type_expression) = match self.data_of(tag) {
+            NodeData::JSDocThisTag(data) => (data.tag_name, data.type_expression),
+            _ => return Ok(()),
+        };
+        self.check_source_element(self.jsdoc_type_expression_type(type_expression));
+        let message = match self.kind_of(function) {
+            SyntaxKind::Constructor
+            | SyntaxKind::ConstructSignature
+            | SyntaxKind::ConstructorType => {
+                &diagnostics::A_constructor_cannot_have_a_this_parameter
+            }
+            SyntaxKind::ArrowFunction => {
+                &diagnostics::An_arrow_function_cannot_have_a_this_parameter
+            }
+            SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
+                &diagnostics::get_and_set_accessors_cannot_declare_this_parameters
+            }
+            _ => return Ok(()),
+        };
+        self.error_at(tag_name.or(Some(tag)), message, &[]);
         Ok(())
     }
 
@@ -2091,43 +2193,34 @@ impl<'a> CheckerState<'a> {
         let type_parameter_nodes = self.type_parameter_declarations_of(node);
         self.check_type_parameters(&type_parameter_nodes)?;
         self.check_unmatched_jsdoc_parameters(node)?;
+        // tsgo checks node.Parameters(): a JavaScript function's reparsed
+        // `this` parameter (from `@this`) comes first.
+        if let Some(this_tag) = self.reparsed_this_tag(node) {
+            let _ = self.check_reparsed_this_parameter(node, this_tag);
+        }
         // forEach(node.parameters, checkParameter) — DIRECT calls with
         // per-parameter Err containment (the checkTypeParameters
         // precedent: one out-of-slice parameter must not silence its
         // siblings).
         for parameter in self.nodes_of(parameters) {
+            if self.is_jsdoc_property_path_parameter(parameter) {
+                continue;
+            }
             let _ = self.check_parameter(parameter);
         }
-        if type_node.is_some() {
-            self.check_source_element(type_node);
+        // tsgo `node.Type()`: the written return type, or the one its
+        // reparser hosts from a JavaScript `@return` (or `@type` on a get
+        // accessor); a `@callback` signature's is its `@return` tag's type.
+        let return_type_node = if kind == SyntaxKind::JSDocSignature {
+            self.effective_return_type_node(node)
+        } else {
+            type_node.or_else(|| self.reparsed_type_node(node))
+        };
+        if return_type_node.is_some() {
+            self.check_source_element(return_type_node);
         }
         self.check_collision_with_arguments_in_generated_code(node);
-        let mut return_type_node = self.effective_return_type_node(node);
-        let mut return_type_error_location = return_type_node;
-        if self.is_in_js_file(node) {
-            if let Some(tag) = self.first_jsdoc_tag(node, SyntaxKind::JSDocTypeTag) {
-                if let NodeData::JSDocTypeTag(data) = self.data_of(tag) {
-                    if let Some(type_expression) = data.type_expression {
-                        if let Some(type_tag_type) =
-                            self.jsdoc_type_expression_type(Some(type_expression))
-                        {
-                            if self.kind_of(type_tag_type) == SyntaxKind::TypeReference {
-                                let ty = self.get_type_from_type_node(type_expression)?;
-                                if let Some(signature) = self.get_single_call_signature(ty)? {
-                                    if let Some(declaration) =
-                                        self.signature_of(signature).declaration
-                                    {
-                                        return_type_node =
-                                            self.effective_return_type_node(declaration);
-                                        return_type_error_location = Some(type_tag_type);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        let return_type_error_location = return_type_node;
         let function_flags = self.get_function_flags(node);
         if self
             .options
@@ -2569,7 +2662,12 @@ impl<'a> CheckerState<'a> {
         }
         let has_explicit_return =
             NodeFlags::from_bits(self.node_flags(func)).intersects(NodeFlags::HAS_EXPLICIT_RETURN);
-        let error_node = self.effective_return_type_node(func).unwrap_or(func);
+        // tsgo (checker.go:3774-3780): fn.Type(), else a JavaScript `@type`
+        // signature of the function, else the function.
+        let error_node = self
+            .effective_return_type_node(func)
+            .or_else(|| self.full_signature_node(func))
+            .unwrap_or(func);
         if let Some(ty) = ty {
             if self.tables.flags_of(ty).intersects(TypeFlags::NEVER) {
                 self.error_at(
@@ -2698,8 +2796,17 @@ impl<'a> CheckerState<'a> {
         self.check_source_element(body);
         let annotated_return = self.get_return_type_from_annotation(node)?;
         self.check_all_code_paths_in_non_void_function_return_or_throw(node, annotated_return)?;
+        // tsgo (checker.go:3468-3473): a JavaScript `@type` signature.
+        if let Some(full_signature) = self.full_signature_node(node) {
+            self.check_source_element(Some(full_signature));
+            self.check_full_signature_arity(node, full_signature)?;
+        }
         // The lazy tail (eager identity).
-        if self.type_annotation_of(node).is_none() {
+        if self
+            .type_annotation_of(node)
+            .or_else(|| self.reparsed_type_node(node))
+            .is_none()
+        {
             let body_missing = body.is_none()
                 || node_util::node_is_missing(self.binder.source_of_node(node), body);
             if body_missing && !self.is_private_within_ambient(node) {
@@ -2716,39 +2823,6 @@ impl<'a> CheckerState<'a> {
                 let signature = self.get_signature_from_declaration(node)?;
                 self.get_return_type_of_signature(signature)?;
             }
-        }
-        self.check_jsdoc_function_type_tag(node)?;
-        Ok(())
-    }
-
-    /// checkFunctionOrMethodDeclaration's checked-JS type-tag tail.
-    ///
-    /// tsc-port: checkFunctionOrMethodDeclaration @6.0.3
-    /// tsc-hash: fcecf19b2f9ee177f4343da9f3f75b61921bb5e6ab92e9739bb00495ac588fe0
-    /// tsc-span: _tsc.js:82935-82940
-    fn check_jsdoc_function_type_tag(&mut self, node: NodeId) -> CheckResult<()> {
-        if !self.is_in_js_file(node) {
-            return Ok(());
-        }
-        let Some(tag) = self.first_jsdoc_tag(node, SyntaxKind::JSDocTypeTag) else {
-            return Ok(());
-        };
-        let NodeData::JSDocTypeTag(data) = self.data_of(tag) else {
-            unreachable!("kind/data agree");
-        };
-        let Some(type_expression) = data.type_expression else {
-            return Ok(());
-        };
-        let ty = self.get_type_from_type_node(type_expression)?;
-        if self.get_contextual_call_signature(ty, node)?.is_none() {
-            let location = self
-                .jsdoc_type_expression_type(Some(type_expression))
-                .unwrap_or(type_expression);
-            self.error_at(
-                Some(location),
-                &diagnostics::A_JSDoc_type_tag_on_a_function_must_have_a_signature_with_the_correct_number_of_arguments,
-                &[],
-            );
         }
         Ok(())
     }
@@ -4076,19 +4150,26 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn check_type_predicate(&mut self, node: NodeId) -> CheckResult<()> {
         // getTypePredicateParent (81254-81268): the seven signature
         // kinds whose return-type slot may carry a predicate.
-        let parent = self.parent_of(node).filter(|&parent| {
-            let parent_type = match self.data_of(parent) {
-                NodeData::ArrowFunction(data) => data.r#type,
-                NodeData::CallSignature(data) => data.r#type,
-                NodeData::FunctionDeclaration(data) => data.r#type,
-                NodeData::FunctionExpression(data) => data.r#type,
-                NodeData::FunctionType(data) => data.r#type,
-                NodeData::MethodDeclaration(data) => data.r#type,
-                NodeData::MethodSignature(data) => data.r#type,
-                _ => None,
-            };
-            parent_type == Some(node)
-        });
+        // A reparsed JavaScript `@return` type's parent is its function in
+        // tsgo.
+        let parent = self
+            .reparsed_return_type_owner(node)
+            .or_else(|| self.parent_of(node))
+            .filter(|&parent| {
+                let parent_type = match self.data_of(parent) {
+                    NodeData::ArrowFunction(data) => data.r#type,
+                    NodeData::CallSignature(data) => data.r#type,
+                    NodeData::FunctionDeclaration(data) => data.r#type,
+                    NodeData::FunctionExpression(data) => data.r#type,
+                    NodeData::FunctionType(data) => data.r#type,
+                    NodeData::MethodDeclaration(data) => data.r#type,
+                    NodeData::MethodSignature(data) => data.r#type,
+                    // tsgo reparses a `@callback` into a function type.
+                    NodeData::JSDocSignature(_) => self.effective_return_type_node(parent),
+                    _ => None,
+                };
+                parent_type.or_else(|| self.reparsed_type_node(parent)) == Some(node)
+            });
         let Some(parent) = parent else {
             self.error_at(
                 Some(node),
@@ -4828,7 +4909,11 @@ impl<'a> CheckerState<'a> {
                         &[],
                     ));
                 }
-                if let Some(parameter_question_token) = parameter_question_token {
+                // tsgo: a reparsed JavaScript question token spans its
+                // bracketed or `=`-typed `@param` tag.
+                if let Some(parameter_question_token) =
+                    parameter_question_token.or_else(|| self.reparsed_question_tag(parameter))
+                {
                     return Ok(self.grammar_error_on_node(
                         parameter_question_token,
                         &diagnostics::A_set_accessor_cannot_have_an_optional_parameter,
@@ -5003,13 +5088,9 @@ impl<'a> CheckerState<'a> {
             let array = source.arena.node_array(type_parameters);
             Some((array.pos as usize, array.end as usize))
         } else if self.is_in_js_file(node) {
-            self.jsdoc_type_parameter_declarations(node)
-                .first()
-                .copied()
-                .map(|parameter| {
-                    let parameter = source.arena.node(parameter);
-                    (parameter.pos as usize, parameter.end as usize)
-                })
+            // tsgo: the reparsed list spans the hosted `@template` tags.
+            self.reparsed_type_parameter_range(node)
+                .map(|(pos, end)| (pos as usize, end as usize))
         } else {
             None
         };
@@ -5129,7 +5210,10 @@ impl<'a> CheckerState<'a> {
                         );
                     }
                 }
-                if let Some(question) = data.question_token {
+                if let Some(question) = data
+                    .question_token
+                    .or_else(|| self.reparsed_question_tag(parameter))
+                {
                     return Ok(self.grammar_error_on_node(
                         question,
                         &diagnostics::A_rest_parameter_cannot_be_optional,
@@ -5367,10 +5451,14 @@ impl<'a> CheckerState<'a> {
             NodeData::IndexSignature(data) => data.r#type,
             _ => None,
         };
+        // tsgo node.Type(): a JavaScript function's return type may be the
+        // one its reparser hosts from `@return` (or `@type` on a get
+        // accessor); a `@type` signature's return type is not a node of the
+        // function (getReturnTypeOfFullSignature reads it instead).
         if syntactic.is_some() || !self.is_in_js_file(node) {
             syntactic
         } else {
-            self.get_jsdoc_return_type(node)
+            self.reparsed_type_node(node)
         }
     }
 

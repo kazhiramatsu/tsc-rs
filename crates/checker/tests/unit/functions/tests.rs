@@ -532,14 +532,21 @@ fn jsdoc_return_types_anchor_2355_at_the_effective_type_node() {
             .collect::<Vec<_>>()
     };
 
-    let function_type = "/** @type {function(): number} */\nfunction f() {}\n";
-    assert_eq!(rows(function_type), [(2355, 23, 6)]);
+    // tsgo (TypeScript 7.1 at 19dadef8): a `@type` that types the whole
+    // function is its FullSignature, and the row sits on that type
+    // (checkAllCodePathsInNonVoidFunctionReturnOrThrow: fn.Type() ??
+    // FullSignature ?? fn).
+    let function_type = "/** @type {() => number} */\nfunction f() {}\n";
+    assert_eq!(rows(function_type), [(2355, 11, 12)]);
 
+    // The `@template` of a statement whose initializer is a call hosts on
+    // nothing, so `T` is unresolved (TS2304) and the return type is an error
+    // type, which needs no return.
     let return_tag = "/** @return {T} */\n\
                           const dedupingMixin = function(mixin) {};\n\
                           /** @template T */\n\
                           const PropertyAccessors = dedupingMixin(() => {});\n";
-    assert_eq!(rows(return_tag), [(2355, 13, 1)]);
+    assert_eq!(rows(return_tag), []);
 }
 
 #[test]
@@ -1178,7 +1185,7 @@ fn checked_js_async_callback_alias_checks_the_contextual_return() {
 }
 
 #[test]
-fn checked_js_es5_thenable_alias_preserves_relation_chain() {
+fn checked_js_variable_type_tag_is_no_async_return_annotation() {
     let lib = "declare type PromiseConstructorLike = new <T>(executor: (resolve: (value: T | PromiseLike<T>) => void, reject: (reason?: any) => void) => void) => PromiseLike<T>;\n\
                    interface PromiseLike<T> {\n\
                      then<TResult1 = T, TResult2 = never>(onfulfilled?: (value: T) => TResult1 | PromiseLike<TResult1>, onrejected?: (reason: any) => TResult2 | PromiseLike<TResult2>): PromiseLike<TResult1 | TResult2>;\n\
@@ -1206,20 +1213,13 @@ fn checked_js_es5_thenable_alias_preserves_relation_chain() {
         ],
         &options,
     );
-    let diagnostic = result
+    // tsgo (TypeScript 7.1 at 19dadef8): the statement's `@type` is the
+    // variable's annotation, not a return type of the arrow, so the async
+    // return-type relation (TS1065) has no annotation to check.
+    assert!(result
         .diagnostics
         .iter()
-        .find(|diagnostic| diagnostic.code() == 1065)
-        .expect("the invalid ES5 constructor relation is reported");
-    assert_eq!(diagnostic.start, Some(js.rfind("T3").unwrap() as u32));
-    assert!(diagnostic.related.is_empty());
-    assert_eq!(diagnostic.message.next[0].code, 1055);
-    assert_eq!(diagnostic.message.next[0].next[0].code, 2203);
-    assert_eq!(diagnostic.message.next[0].next[0].next[0].code, 2201);
-    assert_eq!(
-        diagnostic.message.next[0].next[0].next[0].next[0].code,
-        2322
-    );
+        .all(|diagnostic| diagnostic.code() != 1065));
 }
 
 #[test]

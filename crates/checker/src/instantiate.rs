@@ -2155,28 +2155,22 @@ impl<'a> CheckerState<'a> {
         type_parameters
     }
 
-    /// tsc-port: getTypeParametersFromDeclaration @6.0.3
-    /// tsc-hash: 600ace5af3858b9759597d4a78febb363a6524520f684e82df2f5251a23fce79
-    /// tsc-span: _tsc.js:59482-59489
-    fn get_type_parameters_from_declaration(
+    /// tsgo-port: getTypeParametersFromDeclaration @7.1 (checker.go:20249-20258):
+    /// a JavaScript function typed by a `@type` signature has that
+    /// signature's type parameters.
+    pub(crate) fn get_type_parameters_from_declaration(
         &mut self,
         declaration: NodeId,
     ) -> CheckResult<Vec<TypeId>> {
+        if let Some(signature) = self.get_signature_of_type_tag(declaration)? {
+            return Ok(self
+                .signature_of(signature)
+                .type_parameters
+                .clone()
+                .unwrap_or_default());
+        }
         let declarations = self.type_parameter_declarations_of(declaration);
-        let result = self.append_type_parameters(Vec::new(), &declarations);
-        if !result.is_empty() {
-            return Ok(result);
-        }
-        if self.kind_of(declaration) == SyntaxKind::FunctionDeclaration {
-            if let Some(signature) = self.get_signature_of_type_tag(declaration)? {
-                return Ok(self
-                    .signature_of(signature)
-                    .type_parameters
-                    .clone()
-                    .unwrap_or_default());
-            }
-        }
-        Ok(Vec::new())
+        Ok(self.append_type_parameters(Vec::new(), &declarations))
     }
 
     /// tsrs-native: typed NodeData projection for tsc's direct
@@ -2261,16 +2255,11 @@ impl<'a> CheckerState<'a> {
         if !syntactic.is_empty() {
             return syntactic;
         }
+        // tsgo node.TypeParameters(): a JavaScript function or class has the
+        // type parameters its reparser hosts from the comment's `@template`
+        // tags (a `@type` signature's own stay in that signature).
         if self.is_in_js_file(node) {
-            let declarations = self.jsdoc_type_parameter_declarations(node);
-            if !declarations.is_empty() {
-                return declarations;
-            }
-            if let Some(ty) = self.get_jsdoc_type(node) {
-                if let NodeData::FunctionType(data) = self.data_of(ty) {
-                    return self.nodes_of(data.type_parameters);
-                }
-            }
+            return self.reparsed_type_parameters(node);
         }
         Vec::new()
     }

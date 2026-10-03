@@ -5,6 +5,7 @@ mod chars;
 pub mod for_each_child;
 mod ids;
 mod incremental;
+pub mod jsdoc_hosted;
 mod keywords;
 pub mod kind;
 pub mod nodes;
@@ -37,6 +38,7 @@ pub use incremental::{
     IncrementalParseError, IncrementalParseOptions, IncrementalParseResult, IncrementalParseStats,
     ReuseLineage, SyntaxCursor,
 };
+pub use jsdoc_hosted::{HostedCast, HostedTypeParameters, JsDocHosted, JsDocHostedCell};
 pub use kind::SyntaxKind;
 pub use nodes::{
     JSDocComment, Node, NodeArray, NodeArrayId, NodeData, NodeId, NodePayload, SourceFileData,
@@ -168,6 +170,9 @@ pub struct SourceFile {
     /// `@ts-expect-error`/`@ts-ignore` markers, in scan order (byte
     /// offsets; see CommentDirective).
     pub comment_directives: Vec<CommentDirective>,
+    /// tsgo's hosted JSDoc reparse of a JavaScript file, filled on first
+    /// use by the binder (`tsc_binder::jsdoc_hosted`).
+    pub jsdoc_hosted: JsDocHostedCell,
 }
 
 impl SourceFile {

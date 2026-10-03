@@ -237,10 +237,10 @@ fn checked_js_publishes_loose_parameter_suggestions() {
                 )
             })
             .collect::<Vec<_>>();
-        assert_eq!(
-            emitted.iter().map(|row| row.3).collect::<Vec<_>>(),
-            [7044, 7044]
-        );
+        // tsgo (TypeScript 7.1): `@param {C~A}` recovers with no name, and a
+        // nameless `@param` types the parameter at its position
+        // (findMatchingParameter), so only `j` is loose.
+        assert_eq!(emitted.iter().map(|row| row.3).collect::<Vec<_>>(), [7044]);
     });
 
     let inputs = files.map(|(name, text)| InputFile::new(name.to_owned(), text.to_owned()));
@@ -250,7 +250,7 @@ fn checked_js_publishes_loose_parameter_suggestions() {
         .filter(|diagnostic| matches!(diagnostic.code(), 7044 | 7045))
         .map(|diagnostic| diagnostic.code())
         .collect::<Vec<_>>();
-    assert_eq!(published, [7044, 7044]);
+    assert_eq!(published, [7044]);
 }
 
 #[test]
@@ -375,8 +375,10 @@ fn checked_js_ports_direct_inline_and_method_level_parameter_types() {
             .node_ids()
             .find(|&node| state.kind_of(node) == tsc_syntax::SyntaxKind::MethodDeclaration)
             .expect("object-literal method");
+        // tsgo (TypeScript 7.1): an object-literal method's `@type` is its
+        // FullSignature, not a type annotation.
         assert!(
-            state.get_jsdoc_type(method).is_some(),
+            state.get_jsdoc_type(method).is_none() && state.full_signature_node(method).is_some(),
             "method tags: {:?}",
             state
                 .get_jsdoc_tags(method)
@@ -398,8 +400,8 @@ fn checked_js_ports_direct_inline_and_method_level_parameter_types() {
                 )
             })
             .collect::<Vec<_>>();
-        // getSignatureOfTypeTag contextually types the whole
-        // object-literal method signature, including `more`.
+        // The FullSignature types every parameter of the method
+        // (getParameterTypeOfFullSignature), including `more`.
         assert!(emitted.is_empty(), "{emitted:?}");
     });
 

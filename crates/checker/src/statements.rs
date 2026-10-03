@@ -119,9 +119,17 @@ impl<'a> CheckerState<'a> {
         let is_binding_element = node_kind == SyntaxKind::BindingElement;
         // Step 1: checkDecorators (§10, live since 5.8c).
         self.check_decorators(node)?;
-        // Step 2: force the annotation subtree (type-node arms §11).
+        // Step 2: force the annotation subtree (type-node arms §11). tsgo's
+        // `node.Type()` includes the type its reparser hosts from a
+        // JavaScript `@type` or `@param` tag.
         if !is_binding_element {
-            let annotation = self.type_annotation_of(node);
+            let annotation = if self.kind_of(node) == SyntaxKind::JSDocParameterTag {
+                // A `@callback` parameter reparsed into a parameter.
+                self.effective_type_annotation_node(node)
+            } else {
+                self.type_annotation_of(node)
+                    .or_else(|| self.reparsed_type_node(node))
+            };
             self.check_source_element(annotation);
         }
         // Step 3: recovery — no name, nothing to check.
@@ -2564,6 +2572,9 @@ impl<'a> CheckerState<'a> {
                 .intersects(TypeFlags::NEVER)
         {
             let expr_type = match expression {
+                Some(expression) if self.is_reparsed_return_assertion(expression) => {
+                    self.check_assertion_worker(node, CheckMode::NORMAL)?
+                }
                 Some(expression) => self.check_expression_cached(expression, CheckMode::NORMAL)?,
                 None => self.tables.intrinsics.undefined,
             };

@@ -290,6 +290,9 @@ impl<'a> CheckerState<'a> {
                                 && last_location
                                     .is_none_or(|last| self.kind_of(last) != SyntaxKind::JSDoc)
                             {
+                                // A reparsed JavaScript `@template` type
+                                // parameter is a child of the function in
+                                // tsgo, like a written one.
                                 use_result = if result_flags.intersects(SymbolFlags::TYPE_PARAMETER)
                                 {
                                     last_location == self.type_annotation_of(loc)
@@ -299,6 +302,7 @@ impl<'a> CheckerState<'a> {
                                                 SyntaxKind::Parameter
                                                     | SyntaxKind::JSDocParameterTag
                                                     | SyntaxKind::JSDocReturnTag
+                                                    | SyntaxKind::JSDocTemplateTag
                                                     | SyntaxKind::TypeParameter
                                             )
                                         })
@@ -316,20 +320,23 @@ impl<'a> CheckerState<'a> {
                                 } else if result_flags
                                     .intersects(SymbolFlags::FUNCTION_SCOPED_VARIABLE)
                                 {
-                                    use_result = last_location
-                                        .is_some_and(|l| self.kind_of(l) == SyntaxKind::Parameter)
-                                        || (last_location == self.type_annotation_of(loc)
-                                            && self
-                                                .binder
-                                                .symbol(found)
-                                                .value_declaration
-                                                .is_some_and(|d| {
-                                                    self.find_ancestor_of_kind(
-                                                        d,
-                                                        SyntaxKind::Parameter,
-                                                    )
+                                    // A hosted `@param` type is reparsed into
+                                    // the parameter in tsgo.
+                                    use_result = last_location.is_some_and(|l| {
+                                        matches!(
+                                            self.kind_of(l),
+                                            SyntaxKind::Parameter | SyntaxKind::JSDocParameterTag
+                                        )
+                                    }) || (last_location
+                                        == self.type_annotation_of(loc)
+                                        && self
+                                            .binder
+                                            .symbol(found)
+                                            .value_declaration
+                                            .is_some_and(|d| {
+                                                self.find_ancestor_of_kind(d, SyntaxKind::Parameter)
                                                     .is_some()
-                                                }));
+                                            }));
                                 }
                             }
                         } else if self.kind_of(loc) == SyntaxKind::ConditionalType {
@@ -684,12 +691,18 @@ impl<'a> CheckerState<'a> {
                     );
                     continue 'walk;
                 }
+                // tsgo reparses these tags into statements placed before the
+                // host's statement in the nearest source-file, block or module
+                // block statement list (parser.go:610-642 moves them out of
+                // class bodies, object literals, case clauses and parameter
+                // lists), so names resolve from that list, not from the host.
                 SyntaxKind::JSDocTypedefTag
                 | SyntaxKind::JSDocCallbackTag
                 | SyntaxKind::JSDocImportTag => {
                     if let Some(hop) = self
                         .get_jsdoc_root(loc)
                         .and_then(|document| self.parent_of(document))
+                        .map(|host| self.reparsed_statement_position(host))
                     {
                         location = self.advance_walk(
                             &mut last_location,
@@ -863,11 +876,36 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::JSDocTemplateTag => self
                 .effective_container_for_jsdoc_template_tag(loc)
                 .or_else(|| self.parent_of(loc)),
+            // A hosted `@param`/`@return` type is reparsed into the function
+            // it annotates; one inside a `@callback` or `@overload` signature
+            // stays in that signature.
             SyntaxKind::JSDocParameterTag | SyntaxKind::JSDocReturnTag => self
-                .get_host_signature_from_jsdoc(loc)
+                .parent_of(loc)
+                .filter(|&parent| self.kind_of(parent) == SyntaxKind::JSDoc)
+                .and_then(|document| self.parent_of(document))
+                .and_then(|host| {
+                    tsc_binder::hosted::function_like_host(self.binder.source_of_node(host), host)
+                })
                 .or_else(|| self.parent_of(loc)),
             _ => self.parent_of(loc),
         }
+    }
+
+    /// The node whose parent is the statement list tsgo's reparser places a
+    /// `@typedef`, `@callback` or `@import` of `host`'s JSDoc in: the nearest
+    /// source file, block or module block containing `host`.
+    fn reparsed_statement_position(&self, host: NodeId) -> NodeId {
+        let mut node = host;
+        while let Some(parent) = self.parent_of(node) {
+            if matches!(
+                self.kind_of(parent),
+                SyntaxKind::SourceFile | SyntaxKind::Block | SyntaxKind::ModuleBlock
+            ) {
+                return node;
+            }
+            node = parent;
+        }
+        node
     }
 
     /// tsc-port: useOuterVariableScopeInParameter @6.0.3
@@ -1032,8 +1070,10 @@ impl<'a> CheckerState<'a> {
                 let Some(declaration_parent) = self.parent_of(declaration) else {
                     return false;
                 };
+                // tsgo: a `@template` type parameter's parent is the function
+                // or class its reparser hosts the comment's template list on.
                 let parent = if self.kind_of(declaration_parent) == SyntaxKind::JSDocTemplateTag {
-                    self.get_jsdoc_host(declaration_parent)
+                    self.effective_container_for_jsdoc_template_tag(declaration_parent)
                 } else {
                     Some(declaration_parent)
                 };
@@ -2339,20 +2379,19 @@ impl<'a> CheckerState<'a> {
                 } else {
                     self.cannot_find_name_diagnostic_for_name(name)
                 };
-                let symbol_from_js_prototype = if self.is_in_js_file(name) && !synthesized {
-                    self.resolve_entity_name_from_assignment_declaration(name, meaning)?
-                } else {
-                    None
-                };
+                // tsgo resolveEntityName (TypeScript 7.1) has no second lookup
+                // of a JavaScript JSDoc type name from its host function (tsc
+                // 6.0 resolveEntityNameFromAssignmentDeclaration): a name the
+                // reparsed annotation cannot see is unresolved.
                 let symbol = self.resolve_name(
                     location.or(Some(name)),
                     text,
                     meaning,
-                    (!ignore_errors && symbol_from_js_prototype.is_none()).then_some(message),
+                    (!ignore_errors).then_some(message),
                     true,
                     false,
                 )?;
-                let Some(symbol) = symbol.or(symbol_from_js_prototype) else {
+                let Some(symbol) = symbol else {
                     return Ok(None);
                 };
                 self.get_merged_symbol(symbol)
@@ -2626,66 +2665,6 @@ impl<'a> CheckerState<'a> {
             left = parent;
         }
         Ok(Some(symbol))
-    }
-
-    /// tsc-port: resolveEntityNameFromAssignmentDeclaration @6.0.3
-    /// tsc-hash: 9027817e17cf0a40985354d59fa9d1536a8a5cb5b99c3acf96437e45ea60a4fc
-    /// tsc-span: _tsc.js:49394-49409
-    fn resolve_entity_name_from_assignment_declaration(
-        &mut self,
-        name: NodeId,
-        meaning: SymbolFlags,
-    ) -> CheckResult<Option<SymbolId>> {
-        let Some(type_reference) = self.parent_of(name) else {
-            return Ok(None);
-        };
-        if !self.is_jsdoc_type_reference(type_reference) {
-            return Ok(None);
-        }
-        let Some(secondary_location) = self.get_assignment_declaration_location(type_reference)
-        else {
-            return Ok(None);
-        };
-        let Some(text) = self.identifier_text_of(name).map(str::to_owned) else {
-            return Ok(None);
-        };
-        self.resolve_name(
-            Some(secondary_location),
-            &text,
-            meaning,
-            None,
-            /*is_use*/ true,
-            /*exclude_globals*/ false,
-        )
-    }
-
-    /// tsc-port: getAssignmentDeclarationLocation @6.0.3
-    /// tsc-hash: 391cc3534ccd3032d777e02e77625e7c5ac73b1294ac52327636c568ca32e977
-    /// tsc-span: _tsc.js:49410-49439
-    fn get_assignment_declaration_location(&self, node: NodeId) -> Option<NodeId> {
-        let mut ancestor = Some(node);
-        while let Some(current) = ancestor {
-            let kind = self.kind_of(current);
-            let in_jsdoc = (SyntaxKind::FirstJSDocNode <= kind
-                && kind <= SyntaxKind::LastJSDocNode)
-                || self.node_flags(current) & NodeFlags::JS_DOC.bits() != 0;
-            if !in_jsdoc {
-                break;
-            }
-            if self.is_jsdoc_type_alias(current) {
-                return None;
-            }
-            ancestor = self.parent_of(current);
-        }
-
-        // tsgo (TypeScript 7.1) has no `F.prototype.m = function` /
-        // `F.prototype = { ... }` JSDoc hosts that resolve in F's scope.
-        let signature = self.get_effective_jsdoc_host(node)?;
-        if node_util::is_function_like_kind(self.kind_of(signature)) {
-            let symbol = self.node_symbol(signature)?;
-            return self.binder.symbol(symbol).value_declaration;
-        }
-        None
     }
 
     /// tsc-port: getCannotFindNameDiagnosticForName @6.0.3

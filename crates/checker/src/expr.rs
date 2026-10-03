@@ -695,7 +695,7 @@ impl<'a> CheckerState<'a> {
             if let Some(target) = self.jsdoc_satisfies_type_node(node) {
                 return self.check_jsdoc_satisfies_expression_worker(expression, target);
             }
-            if node_util::is_jsdoc_type_assertion(self.binder.source_of_node(node), node) {
+            if self.jsdoc_type_assertion_type_node(node).is_some() {
                 return self.check_assertion_worker(node, check_mode);
             }
         }
@@ -710,38 +710,32 @@ impl<'a> CheckerState<'a> {
         self.check_satisfies_expression_worker(expression, target)
     }
 
-    /// tsc tryGetJSDocSatisfiesTypeNode over the parser-owned host
-    /// attachment. This is a bounded attachment-array lookup, not a
-    /// source-text scan.
-    /// tsc-port: tryGetJSDocSatisfiesTypeNode @6.0.3
-    /// tsc-hash: 5c43a45c455549c9cc17bb633aaa0d3ba781fa783992420e3deffad53e7d30c4
-    /// tsc-span: _tsc.js:19328-19331
+    /// The type of the `satisfies` tsgo's reparser wraps around a JavaScript
+    /// `@satisfies` host's expression: a parenthesized expression's operand,
+    /// or a variable, property declaration or property assignment's
+    /// initializer (reparser.go:400-456).
     pub(crate) fn jsdoc_satisfies_type_node(&self, host: NodeId) -> Option<NodeId> {
-        let tag = self.first_jsdoc_tag(host, SyntaxKind::JSDocSatisfiesTag)?;
-        let NodeData::JSDocSatisfiesTag(data) = self.data_of(tag) else {
-            return None;
-        };
-        self.jsdoc_type_expression_type(data.type_expression)
+        let expression = match self.data_of(host) {
+            NodeData::ParenthesizedExpression(data) => data.expression,
+            NodeData::VariableDeclaration(data) => data.initializer,
+            NodeData::PropertyDeclaration(data) => data.initializer,
+            NodeData::PropertyAssignment(data) => data.initializer,
+            _ => None,
+        }?;
+        self.reparsed_cast(expression)
+            .filter(|cast| !cast.is_assertion)
+            .map(|cast| cast.type_node)
     }
 
-    /// tsrs-native: optional AST query combining tsc's
-    /// isJSDocTypeAssertion guard with getJSDocTypeAssertionType;
-    /// Rust callers use `None` for a non-assertion instead of relying
-    /// on tsc's assertion-only precondition.
-    ///
-    /// The parser materializes the `@type` tag and its
-    /// `JSDocTypeExpression` on the parenthesized host.
+    /// The type of a JavaScript `/** @type {T} */ (expr)` assertion: tsgo's
+    /// reparser makes the operand `expr as T` (reparser.go:382-391).
     pub(crate) fn jsdoc_type_assertion_type_node(&self, host: NodeId) -> Option<NodeId> {
-        let source = self.binder.source_of_node(host);
-        if !node_util::is_jsdoc_type_assertion(source, host) {
+        let NodeData::ParenthesizedExpression(data) = self.data_of(host) else {
             return None;
-        }
-        let tag = node_util::get_jsdoc_type_tag(source, host)?;
-        let expression = node_util::jsdoc_type_expression(source, tag)?;
-        match &source.arena.node(expression).data {
-            NodeData::JSDocTypeExpression(data) => data.r#type,
-            _ => None,
-        }
+        };
+        self.reparsed_cast(data.expression?)
+            .filter(|cast| cast.is_assertion)
+            .map(|cast| cast.type_node)
     }
 
     // ---- literal leaves ----
@@ -2516,12 +2510,17 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Option<TypeId>> {
         if node_util::is_function_like_kind(self.kind_of(container))
             && (!self.is_in_parameter_initializer_before_containing_function(node)
-                || self.get_this_parameter_of_declaration(container).is_some())
+                || self.get_this_parameter_of_declaration(container).is_some()
+                || self.reparsed_this_tag(container).is_some())
         {
-            let mut this_type = self.get_this_type_of_declaration(container)?;
-            if this_type.is_none() && self.is_in_js_file(node) {
-                this_type = self.get_type_for_this_expression_from_jsdoc(container)?;
-            }
+            // tsgo tryGetThisTypeAtEx (checker.go:12352-12360): the `this`
+            // type of a JavaScript function's `@type` signature, else of its
+            // declared signature (a reparsed `@this` is its `this` parameter).
+            let signature = match self.get_signature_of_type_tag(container)? {
+                Some(signature) => signature,
+                None => self.get_signature_from_declaration(container)?,
+            };
+            let this_type = self.get_this_type_of_signature(signature)?;
             if let Some(this_type) = this_type {
                 return Ok(Some(
                     self.get_flow_type_of_reference(node, this_type, this_type, None)?,
@@ -2577,33 +2576,6 @@ impl<'a> CheckerState<'a> {
         Ok(None)
     }
 
-    /// tsc-port: getTypeForThisExpressionFromJSDoc @6.0.3
-    /// tsc-hash: 45fb505ef968c03189e96c5e13c796d8202c510be96b771fb1cbe34469309b69
-    /// tsc-span: _tsc.js:72496-72505
-    ///
-    /// The direct `@this` face is normally already represented by
-    /// getSignatureFromDeclaration's synthetic this parameter.  The
-    /// type-tag signature fallback remains independently observable for
-    /// `@type {function(this: T): R}`.
-    fn get_type_for_this_expression_from_jsdoc(
-        &mut self,
-        node: NodeId,
-    ) -> CheckResult<Option<TypeId>> {
-        if let Some(this_tag) = self.first_jsdoc_tag(node, SyntaxKind::JSDocThisTag) {
-            let type_expression = match self.data_of(this_tag) {
-                NodeData::JSDocThisTag(data) => data.type_expression,
-                _ => None,
-            };
-            if let Some(type_expression) = type_expression {
-                return Ok(Some(self.get_type_from_type_node(type_expression)?));
-            }
-        }
-        let Some(signature) = self.get_signature_of_type_tag(node)? else {
-            return Ok(None);
-        };
-        self.get_this_type_of_signature(signature)
-    }
-
     /// tryGetThisTypeAt's default-argument form (container defaults to
     /// getThisContainer(node, false, false)).
     fn try_get_this_type_at_default(&mut self, node: NodeId) -> CheckResult<Option<TypeId>> {
@@ -2611,16 +2583,6 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         };
         self.try_get_this_type_at(node, true, container)
-    }
-
-    /// tsc getThisTypeOfDeclaration (63160): the declared this-
-    /// parameter type of a function-like's signature.
-    fn get_this_type_of_declaration(&mut self, declaration: NodeId) -> CheckResult<Option<TypeId>> {
-        let signature = self.get_signature_from_declaration(declaration)?;
-        let Some(this_parameter) = self.signature_of(signature).this_parameter else {
-            return Ok(None);
-        };
-        Ok(Some(self.get_type_of_symbol(this_parameter)?))
     }
 
     /// tsc getThisParameter-ish declaration probe: the first parameter

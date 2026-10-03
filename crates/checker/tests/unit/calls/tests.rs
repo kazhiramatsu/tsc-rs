@@ -1073,7 +1073,59 @@ fn checked_js_missing_typed_arguments_reach_internal_arity_diagnostics() {
             .filter(|diagnostic| diagnostic.code() == 2554)
             .count()
     });
-    assert_eq!(non_strict_count, 0);
+    // tsgo has no JavaScript leniency for missing `undefined`, `unknown` or
+    // `any` arguments (callWithMissingVoidUndefinedUnknownAnyInJs(strict=false)).
+    assert_eq!(non_strict_count, 6);
+}
+
+#[test]
+fn checked_js_promise_resolve_without_arguments_asks_for_a_jsdoc_hint() {
+    let files = [
+        (
+            "defs.d.ts",
+            "interface PromiseLike<T> {}\n\
+                 interface Promise<T> {}\n\
+                 interface PromiseConstructor {\n\
+                 new <T>(executor: (resolve: (value: T | PromiseLike<T>) => void) => void): Promise<T>;\n\
+                 }\n\
+                 declare var Promise: PromiseConstructor;\n\
+                 interface Array<T> {}\n\
+                 interface Object {}\n",
+        ),
+        ("main.js", "new Promise((resolve) => resolve());\n"),
+    ];
+    let options = CompilerOptions {
+        allow_js: true,
+        check_js: Some(true),
+        ..CompilerOptions::default()
+    };
+    let actual = with_program_state(&files, &options, |state| {
+        state.check_source_file(1);
+        state
+            .diagnostics
+            .iter()
+            .map(|diagnostic| {
+                (
+                    diagnostic.code(),
+                    diagnostic.start,
+                    diagnostic.length,
+                    diagnostic.message.text.to_string_lossy().into_owned(),
+                )
+            })
+            .collect::<Vec<_>>()
+    });
+    // tsgo jsPromiseNeedsJSDocHint: main.js(1,26) TS2810 at `resolve`.
+    assert_eq!(
+        actual,
+        [(
+            2810,
+            Some(25),
+            Some(7),
+            "Expected 1 argument, but got 0. 'new Promise()' needs a JSDoc hint to produce a \
+             'resolve' that can be called without arguments."
+                .to_owned()
+        )]
+    );
 }
 
 #[test]

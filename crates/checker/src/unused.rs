@@ -360,17 +360,19 @@ impl<'a> CheckerState<'a> {
             let last = source
                 .arena
                 .node(type_parameters[type_parameters.len() - 1]);
-            let list_start = match self.parent_of(first) {
-                Some(tag) if self.kind_of(tag) == SyntaxKind::JSDocTemplateTag => {
-                    source.arena.node(tag).pos
+            let (list_start, list_end) = match self.type_parameter_declaration_list_of(node) {
+                Some(list) => {
+                    let list = source.arena.node_array(list);
+                    (list.pos, list.end)
                 }
-                _ => match self.type_parameter_declaration_list_of(node) {
-                    Some(list) => source.arena.node_array(list).pos,
-                    None => source.arena.node(first).pos,
-                },
+                // A JavaScript list reparsed from `@template` tags spans
+                // them, from the first tag to the last.
+                None => self
+                    .reparsed_type_parameter_range(node)
+                    .unwrap_or((source.arena.node(first).pos, last.end)),
             };
             let start_byte = (list_start as usize).saturating_sub(1);
-            let end_byte = tsc_syntax::skip_trivia(source.text(), last.end as usize)
+            let end_byte = tsc_syntax::skip_trivia(source.text(), list_end as usize)
                 .saturating_add(1)
                 .min(source.text().len());
             self.add_unused_diagnostic_at_byte_range(
