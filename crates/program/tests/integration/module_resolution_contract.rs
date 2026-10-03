@@ -10733,8 +10733,23 @@ fn relative_json_requires_an_explicit_suffix_and_effective_json_resolution() {
     );
 }
 
+const INPUT_PACKAGE_JSON: &[u8] = br##"{"name":"local","type":"module","exports":{".":"./types/src/value.d.ts"},"imports":{"#alias":"#value","#value":"./types/src/value.d.ts"}}"##;
+
+fn input_package_host() -> MemoryCompilerHost {
+    MemoryCompilerHost::builder("/project")
+        .file("/project/test/main.ts", b"export {};".to_vec())
+        .file("/project/src/value.ts", b"export const value = 1;".to_vec())
+        .file(
+            "/project/types/src/value.d.ts",
+            b"export declare const value: number;".to_vec(),
+        )
+        .file("/project/package.json", INPUT_PACKAGE_JSON.to_vec())
+        .build()
+        .unwrap()
+}
+
 #[test]
-fn package_input_request_diagnostics_restore_after_host_error_and_nested_rewrites() {
+fn package_input_requests_restore_after_host_error_and_nested_rewrites() {
     for initial in ["local", "#alias"] {
         let watched = PathBuf::from("/project/src/value.ts");
         let failure = HostError::new(
@@ -10744,12 +10759,7 @@ fn package_input_request_diagnostics_restore_after_host_error_and_nested_rewrite
             "input probe denied once",
         );
         let host = NthFileExistsFailureHost {
-            inner: MemoryCompilerHost::builder("/project")
-                .file("/project/test/main.ts", b"export {};".to_vec())
-                .file("/project/src/value.ts", b"export const value = 1;".to_vec())
-                .file("/project/types/src/value.d.ts", b"export declare const value: number;".to_vec())
-                .file("/project/package.json", br##"{"name":"local","type":"module","exports":{".":"./types/src/value.d.ts"},"imports":{"#alias":"#value","#value":"./types/src/value.d.ts"}}"##.to_vec())
-                .build().unwrap(),
+            inner: input_package_host(),
             watched_path: watched.clone(),
             fail_on: 1,
             calls: RefCell::new(Vec::new()),
@@ -10758,6 +10768,7 @@ fn package_input_request_diagnostics_restore_after_host_error_and_nested_rewrite
         let options = CompilerOptions {
             module: Some(199),
             declaration_dir: Some("/project/types".to_owned().into()),
+            root_dir: Some("/project".to_owned().into()),
             ..CompilerOptions::default()
         };
         let mut resolver = ModuleResolver::new(&host, &options).unwrap();
@@ -10772,8 +10783,8 @@ fn package_input_request_diagnostics_restore_after_host_error_and_nested_rewrite
                 .unwrap_err(),
             ResolutionError::Host(failure)
         );
-        // A successful caller after the failed nested or ordinary request
-        // receives exactly its own diagnostic, with no stranded child state.
+        // A caller after the failed nested or ordinary request starts from
+        // a clean request stack and maps the output back to its input.
         let first = resolver
             .resolve_with_facts(
                 origin.to_str().expect("scalar source fixture"),
@@ -10781,14 +10792,7 @@ fn package_input_request_diagnostics_restore_after_host_error_and_nested_rewrite
                 ResolutionMode::EsNext,
             )
             .unwrap();
-        assert_eq!(
-            first
-                .diagnostics()
-                .iter()
-                .map(|d| d.code())
-                .collect::<Vec<_>>(),
-            [2209]
-        );
+        assert!(first.diagnostics().is_empty());
         assert_eq!(
             resolved(first.outcome().clone())
                 .resolved_file()
@@ -10803,10 +10807,7 @@ fn package_input_request_diagnostics_restore_after_host_error_and_nested_rewrite
                 ResolutionMode::EsNext,
             )
             .unwrap();
-        assert!(
-            alias.diagnostics().is_empty(),
-            "bare-import child diagnostics are dropped"
-        );
+        assert!(alias.diagnostics().is_empty());
         assert_eq!(
             resolved(alias.into_outcome())
                 .resolved_file()
@@ -10821,9 +10822,58 @@ fn package_input_request_diagnostics_restore_after_host_error_and_nested_rewrite
                 ResolutionMode::EsNext,
             )
             .unwrap();
+        assert_eq!(second, first, "request result survives cache reuse");
+    }
+}
+
+#[test]
+fn package_map_outputs_without_a_project_root_stay_unresolved_like_tsgo() {
+    // tsgo (tsc-19dadef8) does not guess the project root of an output
+    // target. Without rootDir or a config file, `local` (exports) reports
+    // TS2209 and `#alias` reports TS2210 from its nested `#value` lookup,
+    // which shares the outer request; both stay unresolved. With a config
+    // file its directory is the root, and both map to the input file.
+    let host = input_package_host();
+    let options = CompilerOptions {
+        module: Some(199),
+        declaration_dir: Some("/project/types".to_owned().into()),
+        ..CompilerOptions::default()
+    };
+    let mut resolver = ModuleResolver::new(&host, &options).unwrap();
+    for (specifier, code, kind) in [("local", 2209, "export"), ("#alias", 2210, "import")] {
+        let result = resolver
+            .resolve_with_facts("/project/test/main.ts", specifier, ResolutionMode::EsNext)
+            .unwrap();
+        assert_eq!(result.outcome(), &ResolutionOutcome::NotFound);
         assert_eq!(
-            second, first,
-            "request result and diagnostics survive cache reuse"
+            result
+                .diagnostics()
+                .iter()
+                .map(|diagnostic| (diagnostic.code(), diagnostic.message_text().to_string_lossy().into_owned()))
+                .collect::<Vec<_>>(),
+            [(
+                code,
+                format!(
+                    "The project root is ambiguous, but is required to resolve {kind} map entry '.' in file '/project/package.json'. Supply the `rootDir` compiler option to disambiguate."
+                )
+            )]
+        );
+    }
+    let program_options =
+        ProgramOptions::default().with_config_file_path(program_path("/project/tsconfig.json"));
+    let mut resolver =
+        ModuleResolver::new_with_program_options(&host, &options, &program_options).unwrap();
+    for specifier in ["local", "#alias"] {
+        let result = resolver
+            .resolve_with_facts("/project/test/main.ts", specifier, ResolutionMode::EsNext)
+            .unwrap();
+        assert!(result.diagnostics().is_empty());
+        assert_eq!(
+            resolved(result.into_outcome())
+                .resolved_file()
+                .display()
+                .scalar_test_path(),
+            Path::new("/project/src/value.ts")
         );
     }
 }

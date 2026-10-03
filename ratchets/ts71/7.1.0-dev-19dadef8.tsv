@@ -4816,6 +4816,8 @@ compiler/nodeNextModuleResolution1	full	js
 compiler/nodeNextModuleResolution2	full	js
 compiler/nodeNextPackageImportMapRootDir	full	js
 compiler/nodeNextPackageSelfNameExportsEqualsDeclarationDir	full	js
+compiler/nodeNextPackageSelfNameWithOutDir	full	js
+compiler/nodeNextPackageSelfNameWithOutDirDeclDir	full	js
 compiler/nodeNextPackageSelfNameWithOutDirDeclDirComposite	full	none
 compiler/nodeNextPackageSelfNameWithOutDirDeclDirCompositeNestedDirs	full	none
 compiler/nodeNextPackageSelfNameWithOutDirDeclDirNestedDirs	full	none
@@ -5055,6 +5057,7 @@ compiler/overloadsWithinClasses	full	js
 compiler/overrideBaseIntersectionMethod	full	js
 compiler/overridingPrivateStaticMembers	full	js
 compiler/packageDeduplicationDuplicateGlobals	full	js
+compiler/packageJsonImportsWildcardNoCrash	full	js
 compiler/packageJsonImportsWildcardTsExtensionError	full	js
 compiler/panicForInEmptyDeclarationList	full	none
 compiler/panicSatisfiesOnExportEqualsDeclaration	full	js
@@ -10130,6 +10133,10 @@ conformance/noPropertyAccessFromIndexSignature1	full	js
 conformance/noUncheckedIndexedAccess	full	js
 conformance/noUncheckedIndexedAccessDestructuring	full	js
 conformance/node10IsNode_node10	full	js
+conformance/nodeAllowJsPackageSelfName(module=node16)	full	js
+conformance/nodeAllowJsPackageSelfName(module=node18)	full	js
+conformance/nodeAllowJsPackageSelfName(module=node20)	full	js
+conformance/nodeAllowJsPackageSelfName(module=nodenext)	full	js
 conformance/nodeAllowJsPackageSelfName2	full	none
 conformance/nodeModules1(module=node16)	full	js
 conformance/nodeModules1(module=node18)	full	js
@@ -10187,6 +10194,10 @@ conformance/nodeModulesAllowJsPackageExports(module=node16)	full	js
 conformance/nodeModulesAllowJsPackageExports(module=node18)	full	js
 conformance/nodeModulesAllowJsPackageExports(module=node20)	full	js
 conformance/nodeModulesAllowJsPackageExports(module=nodenext)	full	js
+conformance/nodeModulesAllowJsPackageImports(module=node16)	full	js
+conformance/nodeModulesAllowJsPackageImports(module=node18)	full	js
+conformance/nodeModulesAllowJsPackageImports(module=node20)	full	js
+conformance/nodeModulesAllowJsPackageImports(module=nodenext)	full	js
 conformance/nodeModulesAllowJsPackagePatternExports(module=node16)	full	js
 conformance/nodeModulesAllowJsPackagePatternExports(module=node18)	full	js
 conformance/nodeModulesAllowJsPackagePatternExports(module=node20)	full	js
@@ -10226,6 +10237,10 @@ conformance/nodeModulesConditionalPackageExports(module=nodenext)	full	js
 conformance/nodeModulesDeclarationEmitDynamicImportWithPackageExports(module=node18)	full	js
 conformance/nodeModulesDeclarationEmitDynamicImportWithPackageExports(module=node20)	full	js
 conformance/nodeModulesDeclarationEmitDynamicImportWithPackageExports(module=nodenext)	full	js
+conformance/nodeModulesDeclarationEmitWithPackageExports(module=node16)	full	js
+conformance/nodeModulesDeclarationEmitWithPackageExports(module=node18)	full	js
+conformance/nodeModulesDeclarationEmitWithPackageExports(module=node20)	full	js
+conformance/nodeModulesDeclarationEmitWithPackageExports(module=nodenext)	full	js
 conformance/nodeModulesDeclarationEmitWithPackageExportsNoOutDir(module=node16)	full	js
 conformance/nodeModulesDeclarationEmitWithPackageExportsNoOutDir(module=node18)	full	js
 conformance/nodeModulesDeclarationEmitWithPackageExportsNoOutDir(module=node20)	full	js
