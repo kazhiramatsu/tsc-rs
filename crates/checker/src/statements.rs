@@ -315,18 +315,15 @@ impl<'a> CheckerState<'a> {
             return Ok(());
         }
         let symbol = self.get_symbol_of_declaration(node)?;
-        // Step 9: checked-JS bare/accessed require declarations are
-        // aliases, not ordinary variable initializers. Resolving the
-        // alias also applies Node20's `"module.exports"` target.
-        let is_bare_or_accessed_require_alias =
-            self.external_module_require_argument(node).is_some()
-                || self.is_binding_element_of_bare_or_accessed_require(node);
+        // Step 9: a checked-JS `const x = require("…")` is an alias, not an
+        // ordinary variable initializer (tsgo checker.go:6055-6059).
+        // Resolving the alias also applies Node20's `"module.exports"` target.
         if self
             .binder
             .symbol(symbol)
             .flags
             .intersects(SymbolFlags::ALIAS)
-            && is_bare_or_accessed_require_alias
+            && self.is_variable_declaration_initialized_to_require(node)
         {
             self.check_alias_symbol(node)?;
             return Ok(());

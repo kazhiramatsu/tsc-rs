@@ -2899,11 +2899,11 @@ fn checked_js_require_literal_publishes_definite_module_miss() {
 }
 
 #[test]
-fn commonjs_property_immediate_target_skips_deprecated_reexport_alias() {
-    // getTargetOfImportEqualsDeclaration's CommonJS-property arm calls
-    // resolveSymbol without forwarding dontRecursivelyResolve. Thus the
-    // immediate target of the require variable is `original`, not the
-    // deprecated `foo` re-export alias, and the use has no 6385.
+fn commonjs_require_property_variable_reports_the_deprecated_reexport() {
+    // tsgo binds only a bare `require("…")` as an alias, so
+    // `require("./dep").foo` is an ordinary property access whose property is
+    // the deprecated re-export alias: TS6385 at `foo`
+    // (checker.go:11568-11571, resolveAliasWithDeprecationCheck).
     let files = [
         InputFile::new(
             "/base.ts".to_owned(),
@@ -2929,11 +2929,15 @@ fn commonjs_property_immediate_target_skips_deprecated_reexport_alias() {
             ..CompilerOptions::default()
         },
     );
-    assert!(
-        result
-            .diagnostics
-            .iter()
-            .all(|diagnostic| diagnostic.code() != 6385),
+    let deprecated = result
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.code() == 6385)
+        .map(|diagnostic| (diagnostic.start, diagnostic.length))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        deprecated,
+        [(Some(29), Some(3))],
         "{:?}",
         result.diagnostics
     );

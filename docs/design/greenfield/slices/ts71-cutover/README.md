@@ -840,3 +840,30 @@ test 7件（JSDocの型構文、fenced code blockと`@`と`@see`、名前の欠�
   `typedefCrossModule5`のtext）、JSONの文法（TS1327／TS1136 2）、tslib helper（TS2343 3）。
 - hosted：PR #634（head `1da276b1e`、merge `1d007136e`）、run 37100180435 — `plan` 25s、`rust` 6m45s、`conformance (TypeScript 7.1)` 21m43s、`gates` 14s。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main `ec16f69cf`（P3-5oのhead `7a1f5926a`と同じコードのrelease build）と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 123→138、zod 520→501、Playwright 330→353、TypeScript `src/compiler` 326→326、Next.js 730→747、Effect 517→479、VS Code 3,317→3,357。tsc-rs÷tsgoは0.56〜0.95、peak memory（MB main→本branch）：287→309、1,301→1,288、747→813、288→288、1,326→1,327、1,015→1,037、5,431→5,457。5 roundsのA/B（本branch／main）でhonoは129／120 ms・CPU 629／643 ms、Next.jsは742／739 msでノイズ、Playwrightは361／334 ms・CPU 2,517／2,360 ms・RSS 807／750 MBで一貫して重い。原因はcheckの仕事量でなく既定のshard分割：7.1のJSDocのparseで`@see https://…`が名前参照を作らなくなり、宣言ファイルのnode数が減る（`csstype`で1,920など）ので、node数で決まるディレクトリ優先の決定的な分割が1,416ファイル中957を別のshardに移し、shardごとのcheck時間の合計が約1,642から約1,793 msになった。`TSRS_CHECKERS=1`ではPlaywright 940／935 ms・CPU 1,457／1,451 ms・RSS 528／531 MB、hono 179／178 ms、zod 1,371／1,368 msで同等、`TSRS_SHARD_PARTITION=contiguous`でも同等（340／339 ms）。重みからTypeScriptファイルのJSDoc nodeを除く案は一様には効かなかった（Playwright 355 ms、zod 534／522 ms、Effect 446／490 ms）ので入れていない。仕事量の退行は無く、node数の小さな変化に対する分割の安定性を性能作業の候補として残す。
+
+## P3-5q JavaScriptの型参照と専用構文の診断をtsgoに合わせる（2026-10-03）
+
+P3-5p後のJavaScriptの不一致のうち2つのclass：
+- JSDocのimport型と値の参照（11構成）：
+  - `import("…")`の型は型の意味だけで解決する（checker.go:25040-25113）。tsc 6.0のJavaScriptの緩和（Value|Typeでの解決、
+    `export=`のmoduleの値のproperty）を削除したので、moduleが型でなければTS1340、qualifierが値ならTS2694。CommonJSの
+    `module.exports`の横にexportされたtypedefはqualifierから引ける（25077-25086）。
+  - `require`の別名：tsgoのbinderは型の無い・exportされない宣言の素の`require("…")`だけを別名にする
+    （IsVariableDeclarationInitializedToRequire、ast/utilities.go:2874-2903）。`require("…").C`は通常の変数で、型として
+    使えばTS2749。checkerの`checkVariableLikeDeclaration`と`isAliasSymbolDeclaration`も同じ判定。
+  - CommonJSの`exports`は`declareCommonJSVariable`の局所変数だけで解決し、tsc 6.0のファイルsymbolへのfallbackを削除
+    （`@type {exports}`はTS2749）。
+- JavaScriptの専用構文の診断（TS80xx、8構成）：tsgoはtsc 6.0の`getJSSyntacticDiagnosticsForFile`をparserの
+  `checkJSSyntax`に移した（parser.go:6711-6856）。`js_grammar.rs`をその移植に置き換えた：検査するのはparserが呼ぶnode
+  （型シグネチャのparameterとaccessor、class外のindex signatureは除き、class `extends`の式は含む）、範囲はnode・名前・
+  型・listから先頭のtriviaを除いたもの（本体の無い関数様のTS8017はnode全体で、classのindex signatureもTS8017）、報告の後も
+  子を検査する（`as`の内側の`!`も報告）、TS8009の修飾子はexport／static／accessor／async／default以外、parameterの
+  decoratorはここでは見ない。experimentalDecoratorsが無いときの未チェックのJavaScriptファイルのparameter decoratorは、
+  programの追加の構文診断としてdecoratorの範囲にTS1206（compiler/program.go:743-784）。
+unit test：binder 1件、checker 3件をtsgoの行に再pin（素の`require`だけが別名、`exports.Foo`の参照はTS2503で`exports.Foo`と
+表示、値のexportを指すimport型の表示、`require(…).foo`が非推奨の再exportに出すTS6385）、7.1では作られない
+`require(…).y`の別名の宣言emitのtest 2件を削除、tsgoの行にpinした新しいtest 3件（JSDocの型参照の4行、JavaScript専用構文の
+9行、未チェックのparameter decorator）を追加。
+- conformance：15,228 configuration、lane A 13,467（変化なし）、full 13,132→13,150（+18）、text 87→85、category 19、mismatch 185→169、harness error 44、emit full 12,418（変化なし）。上がったのは18構成（すべてfull）：import型と値の参照（`jsdocImportTypeReferenceToESModule`、`jsdocImportTypeReferenceToCommonjsModule`、`jsdocImportTypeReferenceToStringLiteral`、`jsdocImportTypeNodeNamespace`、`jsdocTypeReferenceToImportOfFunctionExpression`、`jsDeclarationsFunctionClassesCjsExportAssignment`、`jsDeclarationsParameterTagReusesInputNodeInEmit1`、`enumTagImported`、`moduleExportAssignment7`、`jsdocTypeReferenceToImport`、`jsdocTypeReferenceExports`）、JavaScript専用構文（`jsFileCompilationFunctionOverloadSyntax`、`jsFileCompilationConstructorOverloadSyntax`と`jsFileCompilationMethodOverloadSyntax`はtextから、`jsDeclarationsClassesErr`、`jsDeclarationsTypeReferences4`、`plainJSGrammarErrors`、`parameterDecoratorInJsFile`のcheckjs=true）。下がった構成はemitを含めて無い（途中でcheckJs無しの`parameterDecoratorInJsFile`が落ち、programの追加の構文診断で戻した）。ratchet：0 regressions、16行追加・2行raise（`intersectionConstructorReductionCrash`は従来どおり載せない）。localはbinderとcheckerとその逆依存（compiler、conformance）のclippyとtest（14 targets、2,042 passed）、2 workerのfull run（792 s）で、workspace全体のtestとclippyはhostedの`rust` job。filterの段階ではJavaScriptを含む1,061 caseと`import`／`export`／`module`／`require`／`decorator`のfilterをP3-5pのreportとtierごとに比べた（下降0）。`--checkers 4`の並列対照は実行していない。
+- JavaScriptの残り：node16系のCommonJSの自己名・`#`import（TS2307／TS1479、8構成）、宣言emitの診断（TS4023／TS9006、
+  isolatedDeclarations）、JSONの文法（2）、tslib helper（3）、重複宣言のrelated。

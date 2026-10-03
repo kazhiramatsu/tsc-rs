@@ -3860,7 +3860,7 @@ compiler/jsFileCompilationBindReachabilityErrors(alwaysstrict=true)	full	js
 compiler/jsFileCompilationBindStrictModeErrors	full	js
 compiler/jsFileCompilationClassMethodContainingArrowFunction	full	js
 compiler/jsFileCompilationConstModifier	full	js
-compiler/jsFileCompilationConstructorOverloadSyntax	text	js
+compiler/jsFileCompilationConstructorOverloadSyntax	full	js
 compiler/jsFileCompilationDecoratorSyntax	full	js
 compiler/jsFileCompilationDuplicateFunctionImplementation	full	none
 compiler/jsFileCompilationDuplicateFunctionImplementationFileOrderReversed	full	none
@@ -3874,13 +3874,14 @@ compiler/jsFileCompilationErrorOnDeclarationsWithJsFileReferenceWithNoOut	full	j
 compiler/jsFileCompilationErrorOnDeclarationsWithJsFileReferenceWithOutDir	full	js
 compiler/jsFileCompilationExportAssignmentSyntax	full	js
 compiler/jsFileCompilationExternalPackageError	full	js
+compiler/jsFileCompilationFunctionOverloadSyntax	full	js
 compiler/jsFileCompilationHeritageClauseSyntaxOfClass	full	js
 compiler/jsFileCompilationImportEqualsSyntax	full	js
 compiler/jsFileCompilationInterfaceSyntax	full	js
 compiler/jsFileCompilationLetBeingRenamed	full	js
 compiler/jsFileCompilationLetDeclarationOrder	full	js
 compiler/jsFileCompilationLetDeclarationOrder2	full	js
-compiler/jsFileCompilationMethodOverloadSyntax	text	js
+compiler/jsFileCompilationMethodOverloadSyntax	full	js
 compiler/jsFileCompilationModuleSyntax	full	js
 compiler/jsFileCompilationNoErrorWithoutDeclarationsWithJsFileReferenceWithNoOut	full	js
 compiler/jsFileCompilationNonNullAssertion	full	js
@@ -3945,6 +3946,7 @@ compiler/jsdocExtendsClauseMismatch	full	js
 compiler/jsdocFunctionClassPropertiesDeclaration	full	none
 compiler/jsdocFunctionTypeFalsePositive	full	js
 compiler/jsdocIllegalTags	full	js
+compiler/jsdocImportTypeNodeNamespace	full	js
 compiler/jsdocImportTypeResolution	full	js
 compiler/jsdocInTypeScript	full	js
 compiler/jsdocModifiersInClass(checkjs=false)	full	js
@@ -5045,6 +5047,7 @@ compiler/panicForInEmptyDeclarationList	full	none
 compiler/panicSatisfiesOnExportEqualsDeclaration	full	js
 compiler/paramPropertiesInSignatures	full	js
 compiler/parameterDecoratorInJsFile(checkjs=false)	full	js
+compiler/parameterDecoratorInJsFile(checkjs=true)	full	js
 compiler/parameterDecoratorsEmitCrash	full	js
 compiler/parameterDestructuringObjectLiteral	full	js
 compiler/parameterListAsTupleType	full	js
@@ -8546,6 +8549,7 @@ conformance/enumMergingErrors	full	js
 conformance/enumShadowedInfinityNaN	full	js
 conformance/enumTag	full	js
 conformance/enumTagCircularReference	full	js
+conformance/enumTagImported	full	js
 conformance/enumTagOnExports	full	js
 conformance/enumTagOnExports2	full	js
 conformance/enumTagUseBeforeDefCrash	full	js
@@ -9574,6 +9578,7 @@ conformance/jsDeclarationsClassStatic(target=es2015)	full	none
 conformance/jsDeclarationsClassStatic2	full	none
 conformance/jsDeclarationsClassStaticMethodAugmentation(target=es2015)	full	none
 conformance/jsDeclarationsClasses(target=es2015)	full	none
+conformance/jsDeclarationsClassesErr(target=es2015)	full	none
 conformance/jsDeclarationsCommonjsRelativePath	full	none
 conformance/jsDeclarationsComputedNames(target=es2015)	full	none
 conformance/jsDeclarationsConstsAsNamespacesWithReferences	full	none
@@ -9602,6 +9607,7 @@ conformance/jsDeclarationsExportFormsErr(target=es2015)	full	none
 conformance/jsDeclarationsExportSpecifierNonlocal(target=es2015)	full	none
 conformance/jsDeclarationsExportSubAssignments(target=es2015)	full	none
 conformance/jsDeclarationsExportedClassAliases	full	none
+conformance/jsDeclarationsFunctionClassesCjsExportAssignment(target=es2015)	full	none
 conformance/jsDeclarationsFunctionJSDoc(target=es2015)	full	none
 conformance/jsDeclarationsFunctionKeywordProp(target=es2015)	full	none
 conformance/jsDeclarationsFunctionKeywordPropExhaustive(target=es2015)	full	none
@@ -9627,6 +9633,7 @@ conformance/jsDeclarationsNonIdentifierInferredNames	full	none
 conformance/jsDeclarationsOptionalTypeLiteralProps1	full	none
 conformance/jsDeclarationsOptionalTypeLiteralProps2	full	none
 conformance/jsDeclarationsPackageJson(target=es2015)	full	none
+conformance/jsDeclarationsParameterTagReusesInputNodeInEmit1	full	none
 conformance/jsDeclarationsParameterTagReusesInputNodeInEmit2	full	none
 conformance/jsDeclarationsPrivateFields01	full	none
 conformance/jsDeclarationsReactComponents(target=es2015)	full	none
@@ -9644,6 +9651,7 @@ conformance/jsDeclarationsTypeReassignmentFromDeclaration	full	js
 conformance/jsDeclarationsTypeReferences(target=es2015)	full	none
 conformance/jsDeclarationsTypeReferences2(target=es2015)	full	none
 conformance/jsDeclarationsTypeReferences3(target=es2015)	full	none
+conformance/jsDeclarationsTypeReferences4(target=es2015)	full	none
 conformance/jsDeclarationsTypedefAndImportTypes	full	none
 conformance/jsDeclarationsTypedefAndLatebound	full	js
 conformance/jsDeclarationsTypedefDescriptionsPreserved	full	none
@@ -9680,6 +9688,9 @@ conformance/jsdocImplements_signatures	full	js
 conformance/jsdocImportType	full	js
 conformance/jsdocImportType2	full	js
 conformance/jsdocImportTypeReferenceToClassAlias	full	js
+conformance/jsdocImportTypeReferenceToCommonjsModule	full	js
+conformance/jsdocImportTypeReferenceToESModule	full	js
+conformance/jsdocImportTypeReferenceToStringLiteral	full	js
 conformance/jsdocIndexSignature	full	js
 conformance/jsdocInvalidTokens	full	js
 conformance/jsdocLinkTag1	full	js
@@ -9738,7 +9749,10 @@ conformance/jsdocTypeFromChainedAssignment	full	js
 conformance/jsdocTypeFromChainedAssignment2	full	js
 conformance/jsdocTypeFromChainedAssignment3	full	js
 conformance/jsdocTypeParameterTagConflict	full	none
+conformance/jsdocTypeReferenceExports	full	js
+conformance/jsdocTypeReferenceToImport	full	js
 conformance/jsdocTypeReferenceToImportOfClassExpression	full	js
+conformance/jsdocTypeReferenceToImportOfFunctionExpression	full	js
 conformance/jsdocTypeReferenceToMergedClass	full	js
 conformance/jsdocTypeReferenceToValue	full	js
 conformance/jsdocTypeReferenceUseBeforeDef	full	js
@@ -9990,6 +10004,7 @@ conformance/moduleExportAssignment3	full	js
 conformance/moduleExportAssignment4	full	js
 conformance/moduleExportAssignment5	full	js
 conformance/moduleExportAssignment6	full	js
+conformance/moduleExportAssignment7	full	js
 conformance/moduleExportDuplicateAlias	full	none
 conformance/moduleExportDuplicateAlias2	full	none
 conformance/moduleExportDuplicateAlias3	full	none
@@ -11507,6 +11522,7 @@ conformance/partiallyNamedTuples	full	js
 conformance/partiallyNamedTuples2	full	js
 conformance/partiallyNamedTuples3	full	js
 conformance/plainJSBinderErrors	full	js
+conformance/plainJSGrammarErrors	full	none
 conformance/plainJSGrammarErrors2	full	js
 conformance/plainJSGrammarErrors3	full	js
 conformance/plainJSGrammarErrors4	full	js

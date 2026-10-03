@@ -1,498 +1,486 @@
-//! tsc program.ts getJSSyntacticDiagnosticsForFile: the walker that flags
-//! TypeScript-only syntax in JavaScript files. Runs over the parsed tree;
-//! "skip" outcomes stop descent exactly like tsc's forEachChildRecursively.
+//! tsgo parser checkJSSyntax (TypeScript 7.1 parser/parser.go:6711-6856): the
+//! diagnostics for TypeScript-only syntax in a JavaScript file.
 //!
-//! No schema gaps: the walker consumes isTypeOnly (8006 rows) and
-//! isExportEquals (8003) below — the old "fields the schema does not
-//! carry yet" note lapsed when nodes.rs gained them (m4-review CL-F7).
+//! tsgo runs the check as the parser finishes the nodes listed in
+//! [`is_checked`]; every diagnostic spans a node, name, type or list range
+//! with its leading trivia skipped (jsErrorAtRange). The order does not
+//! matter: the program sorts a file's syntactic diagnostics.
 
 use tsc_diagnostics::{gen, Diagnostic, DiagnosticMessage, MessageChain, RelatedInfo};
-use tsc_syntax::{
-    for_each_child, LanguageVariant, NodeArrayId, NodeData, NodeId, SourceFile, SyntaxKind,
-};
+use tsc_syntax::{for_each_child, NodeArrayId, NodeData, NodeId, SourceFile, SyntaxKind};
 use tsc_types::NodeFlags;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum Visit {
-    Descend,
-    Skip,
-}
-
-/// tsc-port: getJSSyntacticDiagnosticsForFile @6.0.3
-/// tsc-hash: b4bcf7b6b614a202521d209913dba009514530110ce328c5ce74950a562738e8
-/// tsc-span: _tsc.js:123785-124004
-pub(crate) fn get_js_syntactic_diagnostics(
-    source: &SourceFile,
-    experimental_decorators: bool,
-) -> Vec<Diagnostic> {
-    let mut walker = JsGrammarWalker {
+/// The JavaScript-only syntax diagnostics of `source`.
+pub(crate) fn get_js_syntactic_diagnostics(source: &SourceFile) -> Vec<Diagnostic> {
+    let mut checker = JsSyntaxChecker {
         source,
-        experimental_decorators,
         diagnostics: Vec::new(),
     };
-    walker.recurse(source.root);
-    walker.diagnostics
+    // An explicit work stack: JavaScript stress fixtures nest thousands of
+    // binary expressions.
+    let mut stack = vec![source.root];
+    let mut children = Vec::new();
+    while let Some(node) = stack.pop() {
+        if checker.is_checked(node) {
+            checker.check_js_syntax(node);
+        }
+        children.clear();
+        for_each_child(&source.arena, source.arena.node(node), |child| {
+            children.push(child);
+            false
+        });
+        stack.extend(children.iter().rev());
+    }
+    checker.diagnostics
 }
 
-struct JsGrammarWalker<'a> {
+/// tsgo getAdditionalJSSyntacticDiagnostics (compiler/program.go:762-784):
+/// without `experimentalDecorators`, a parameter decorator in a JavaScript
+/// file the checker does not check is TS1206 at the decorator's range.
+pub(crate) fn get_additional_js_syntactic_diagnostics(source: &SourceFile) -> Vec<Diagnostic> {
+    let mut diagnostics = Vec::new();
+    let mut stack = vec![source.root];
+    let mut children = Vec::new();
+    while let Some(node) = stack.pop() {
+        if let NodeData::Parameter(data) = &source.arena.node(node).data {
+            let decorator = data.modifiers.and_then(|modifiers| {
+                source
+                    .arena
+                    .node_array(modifiers)
+                    .nodes
+                    .iter()
+                    .copied()
+                    .find(|&modifier| source.arena.node(modifier).kind == SyntaxKind::Decorator)
+            });
+            if let Some(decorator) = decorator {
+                let decorator = source.arena.node(decorator);
+                let utf16 = |byte: u32| source.positions().byte_to_utf16(byte).unwrap_or(byte);
+                let (start, end) = (utf16(decorator.pos), utf16(decorator.end));
+                diagnostics.push(Diagnostic::new_js(
+                    Some(source.file_name.clone()),
+                    Some(start),
+                    Some(end.saturating_sub(start)),
+                    MessageChain::new(&gen::Decorators_are_not_valid_here, &[]),
+                ));
+            }
+        }
+        children.clear();
+        for_each_child(&source.arena, source.arena.node(node), |child| {
+            children.push(child);
+            false
+        });
+        stack.extend(children.iter().rev());
+    }
+    diagnostics
+}
+
+struct JsSyntaxChecker<'a> {
     source: &'a SourceFile,
-    experimental_decorators: bool,
     diagnostics: Vec<Diagnostic>,
 }
 
-#[derive(Clone, Copy, Default)]
-struct Roles {
-    question_token: Option<NodeId>,
-    r#type: Option<NodeId>,
-    type_parameters: Option<NodeArrayId>,
-    modifiers: Option<NodeArrayId>,
-    type_arguments: Option<NodeArrayId>,
-}
-
-impl<'a> JsGrammarWalker<'a> {
+impl JsSyntaxChecker<'_> {
     fn kind(&self, id: NodeId) -> SyntaxKind {
         self.source.arena.node(id).kind
     }
 
-    fn to_utf16(&self, byte: usize) -> u32 {
+    fn data(&self, id: NodeId) -> &NodeData {
+        &self.source.arena.node(id).data
+    }
+
+    fn parent_kind(&self, id: NodeId) -> Option<SyntaxKind> {
         self.source
-            .positions()
-            .byte_to_utf16(byte as u32)
-            .unwrap_or(byte as u32)
+            .arena
+            .node(id)
+            .parent
+            .map(|parent| self.kind(parent))
     }
 
-    fn push_span(
-        &mut self,
-        start: usize,
-        end: usize,
-        message: &'static DiagnosticMessage,
-        args: &[&str],
-    ) {
-        let args: Vec<String> = args.iter().map(|arg| (*arg).to_owned()).collect();
-        let start_utf16 = self.to_utf16(start);
-        let end_utf16 = self.to_utf16(end);
-        self.diagnostics.push(Diagnostic::new_js(
-            Some(self.source.file_name.clone()),
-            Some(start_utf16),
-            Some(end_utf16.saturating_sub(start_utf16)),
-            MessageChain::new(message, &args),
-        ));
+    fn nodes(&self, array: Option<NodeArrayId>) -> &[NodeId] {
+        array.map_or(&[], |array| self.source.arena.node_array(array).nodes)
     }
 
-    /// tsc createDiagnosticForNodeInSourceFile → getErrorSpanForNode.
-    fn push_for_node(&mut self, id: NodeId, message: &'static DiagnosticMessage, args: &[&str]) {
-        let diagnostic = self.diagnostic_for_node(id, message, args);
-        self.diagnostics.push(diagnostic);
+    /// Whether tsgo's parser runs checkJSSyntax on `node` (the calls in
+    /// parser.go): not on the parameters or accessors of a type signature
+    /// (ParseFlagsType), not on an index signature outside a class, and on an
+    /// expression with type arguments only in a class `extends` clause.
+    fn is_checked(&self, node: NodeId) -> bool {
+        match self.kind(node) {
+            SyntaxKind::VariableStatement
+            | SyntaxKind::VariableDeclaration
+            | SyntaxKind::FunctionDeclaration
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::ArrowFunction
+            | SyntaxKind::ClassDeclaration
+            | SyntaxKind::ClassExpression
+            | SyntaxKind::HeritageClause
+            | SyntaxKind::Constructor
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::PropertyDeclaration
+            | SyntaxKind::InterfaceDeclaration
+            | SyntaxKind::TypeAliasDeclaration
+            | SyntaxKind::EnumDeclaration
+            | SyntaxKind::ModuleDeclaration
+            | SyntaxKind::ImportDeclaration
+            | SyntaxKind::ImportEqualsDeclaration
+            | SyntaxKind::ImportSpecifier
+            | SyntaxKind::ExportAssignment
+            | SyntaxKind::ExportDeclaration
+            | SyntaxKind::ExportSpecifier
+            | SyntaxKind::AsExpression
+            | SyntaxKind::SatisfiesExpression
+            | SyntaxKind::NonNullExpression
+            | SyntaxKind::CallExpression
+            | SyntaxKind::NewExpression
+            | SyntaxKind::TaggedTemplateExpression => true,
+            SyntaxKind::Parameter | SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => !matches!(
+                self.parent_kind(node),
+                Some(
+                    SyntaxKind::FunctionType
+                        | SyntaxKind::ConstructorType
+                        | SyntaxKind::CallSignature
+                        | SyntaxKind::ConstructSignature
+                        | SyntaxKind::MethodSignature
+                        | SyntaxKind::IndexSignature
+                        | SyntaxKind::TypeLiteral
+                        | SyntaxKind::InterfaceDeclaration
+                        | SyntaxKind::JSDocFunctionType
+                        | SyntaxKind::JSDocSignature
+                )
+            ),
+            SyntaxKind::IndexSignature => matches!(
+                self.parent_kind(node),
+                Some(SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression)
+            ),
+            SyntaxKind::ExpressionWithTypeArguments => {
+                let Some(clause) = self.source.arena.node(node).parent else {
+                    return false;
+                };
+                matches!(
+                    self.data(clause),
+                    NodeData::HeritageClause(data) if data.token == SyntaxKind::ExtendsKeyword
+                ) && matches!(
+                    self.parent_kind(clause),
+                    Some(SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression)
+                )
+            }
+            _ => false,
+        }
     }
 
-    fn diagnostic_for_node(
+    /// jsErrorAtRange: `pos..end` with the leading trivia skipped.
+    fn diagnostic_at(
         &self,
-        id: NodeId,
+        pos: u32,
+        end: u32,
         message: &'static DiagnosticMessage,
         args: &[&str],
     ) -> Diagnostic {
-        let (start, end) = self.error_span_for_node(id);
+        let start = tsc_syntax::skip_trivia(self.source.text(), pos as usize).min(end as usize);
+        let utf16 = |byte: usize| {
+            self.source
+                .positions()
+                .byte_to_utf16(byte as u32)
+                .unwrap_or(byte as u32)
+        };
+        let (start, end) = (utf16(start), utf16(end as usize));
         let args: Vec<String> = args.iter().map(|arg| (*arg).to_owned()).collect();
-        let start_utf16 = self.to_utf16(start);
-        let end_utf16 = self.to_utf16(end);
         Diagnostic::new_js(
             Some(self.source.file_name.clone()),
-            Some(start_utf16),
-            Some(end_utf16.saturating_sub(start_utf16)),
+            Some(start),
+            Some(end.saturating_sub(start)),
             MessageChain::new(message, &args),
         )
     }
 
-    fn push_for_node_with_related(
-        &mut self,
-        id: NodeId,
-        message: &'static DiagnosticMessage,
-        related_id: NodeId,
-        related_message: &'static DiagnosticMessage,
-    ) {
-        let mut diagnostic = self.diagnostic_for_node(id, message, &[]);
-        let related = self.diagnostic_for_node(related_id, related_message, &[]);
-        diagnostic.related.push(RelatedInfo {
-            file_name: related.file_name,
-            start: related.start,
-            length: related.length,
-            message: related.message,
-        });
+    fn error_at_node(&mut self, id: NodeId, message: &'static DiagnosticMessage, args: &[&str]) {
+        let node = self.source.arena.node(id);
+        let diagnostic = self.diagnostic_at(node.pos, node.end, message, args);
         self.diagnostics.push(diagnostic);
     }
 
-    /// tsc createDiagnosticForNodeArray: raw array pos, no trivia skip.
-    fn push_for_array(&mut self, id: NodeArrayId, message: &'static DiagnosticMessage) {
-        let array = self.source.arena.node_array(id);
-        self.push_span(array.pos as usize, array.end as usize, message, &[]);
+    fn error_at_list(&mut self, list: NodeArrayId, message: &'static DiagnosticMessage) {
+        let array = self.source.arena.node_array(list);
+        let diagnostic = self.diagnostic_at(array.pos, array.end, message, &[]);
+        self.diagnostics.push(diagnostic);
     }
 
-    /// tsc getErrorSpanForNode: named declarations use the name span; other
-    /// nodes their trivia-skipped span; a missing name falls back to the span
-    /// of the token at the node position.
-    fn error_span_for_node(&self, id: NodeId) -> (usize, usize) {
-        let node = self.source.arena.node(id);
-        if node.kind == SyntaxKind::Constructor {
-            let start = tsc_syntax::skip_trivia(self.source.text(), node.pos as usize);
-            // Lazily scan up to the `constructor` keyword; the token
-            // iterator stops at the end of the file.
-            let end = tsc_syntax::scan_byte_tokens(
-                &self.source.text()[start..],
-                self.source.language_variant,
-            )
-            .find(|token| token.kind == SyntaxKind::ConstructorKeyword)
-            .map(|token| start + token.end as usize)
-            .unwrap_or(start);
-            return (start, end);
-        }
-        let error_node = match node.kind {
-            SyntaxKind::VariableDeclaration
-            | SyntaxKind::BindingElement
-            | SyntaxKind::ClassDeclaration
-            | SyntaxKind::ClassExpression
-            | SyntaxKind::InterfaceDeclaration
-            | SyntaxKind::ModuleDeclaration
-            | SyntaxKind::EnumDeclaration
-            | SyntaxKind::EnumMember
-            | SyntaxKind::FunctionDeclaration
-            | SyntaxKind::FunctionExpression
-            | SyntaxKind::MethodDeclaration
-            | SyntaxKind::GetAccessor
-            | SyntaxKind::SetAccessor
-            | SyntaxKind::TypeAliasDeclaration
-            | SyntaxKind::PropertyDeclaration
-            | SyntaxKind::PropertySignature
-            | SyntaxKind::NamespaceImport => self.name_of(id),
-            _ => Some(id),
-        };
-        match error_node {
-            None => self.token_span_at(node.pos as usize),
-            Some(error_node) => {
-                let node = self.source.arena.node(error_node);
-                let pos = if node.pos == node.end {
-                    node.pos as usize
-                } else {
-                    tsc_syntax::skip_trivia(self.source.text(), node.pos as usize)
-                };
-                (pos, node.end as usize)
-            }
-        }
-    }
-
-    fn name_of(&self, id: NodeId) -> Option<NodeId> {
-        match &self.source.arena.node(id).data {
-            NodeData::VariableDeclaration(data) => data.name,
-            NodeData::BindingElement(data) => data.name,
-            NodeData::ClassDeclaration(data) => data.name,
-            NodeData::ClassExpression(data) => data.name,
-            NodeData::InterfaceDeclaration(data) => data.name,
-            NodeData::ModuleDeclaration(data) => data.name,
-            NodeData::EnumDeclaration(data) => data.name,
-            NodeData::EnumMember(data) => data.name,
-            NodeData::FunctionDeclaration(data) => data.name,
-            NodeData::FunctionExpression(data) => data.name,
-            NodeData::MethodDeclaration(data) => data.name,
-            NodeData::GetAccessor(data) => data.name,
-            NodeData::SetAccessor(data) => data.name,
-            NodeData::TypeAliasDeclaration(data) => data.name,
-            NodeData::PropertyDeclaration(data) => data.name,
-            NodeData::PropertySignature(data) => data.name,
-            NodeData::NamespaceImport(data) => data.name,
+    fn question_token(&self, id: NodeId) -> Option<NodeId> {
+        match self.data(id) {
+            NodeData::Parameter(data) => data.question_token,
+            NodeData::PropertyDeclaration(data) => data.question_token,
+            NodeData::MethodDeclaration(data) => data.question_token,
             _ => None,
         }
     }
 
-    /// tsc getSpanOfTokenAtPosition: one token scanned fresh at `pos`.
-    fn token_span_at(&self, pos: usize) -> (usize, usize) {
-        let (start, end) = tsc_syntax::scan_first_token_span(
-            &self.source.text()[pos..],
-            LanguageVariant::Standard,
-        );
-        (pos + start, pos + end)
-    }
-
-    fn token_kind_at(&self, pos: usize) -> Option<SyntaxKind> {
-        tsc_syntax::scan_byte_tokens(&self.source.text()[pos..], LanguageVariant::Standard)
-            .next()
-            .map(|token| token.kind)
-    }
-
-    fn children_of(&self, id: NodeId) -> Vec<NodeId> {
-        let mut children = Vec::new();
-        for_each_child(&self.source.arena, self.source.arena.node(id), |child| {
-            children.push(child);
-            false
-        });
-        children
-    }
-
-    fn array_elements(&self, id: NodeArrayId) -> Vec<NodeId> {
-        self.source.arena.node_array(id).nodes.to_vec()
-    }
-
-    fn recurse(&mut self, id: NodeId) {
-        // The TypeScript walker is recursive, but JavaScript stress fixtures
-        // intentionally contain thousands of left-associated binary nodes.
-        // Keep the same depth-first child/diagnostic order with an explicit
-        // work stack so a normal Rust test/CLI stack is sufficient.
-        enum Work {
-            Visit(NodeId),
-            Child {
-                parent: NodeId,
-                child: NodeId,
-                roles: Roles,
-                skipped: bool,
-            },
+    fn type_of(&self, id: NodeId) -> Option<NodeId> {
+        match self.data(id) {
+            NodeData::Parameter(data) => data.r#type,
+            NodeData::PropertyDeclaration(data) => data.r#type,
+            NodeData::MethodDeclaration(data) => data.r#type,
+            NodeData::Constructor(data) => data.r#type,
+            NodeData::GetAccessor(data) => data.r#type,
+            NodeData::SetAccessor(data) => data.r#type,
+            NodeData::FunctionExpression(data) => data.r#type,
+            NodeData::FunctionDeclaration(data) => data.r#type,
+            NodeData::ArrowFunction(data) => data.r#type,
+            NodeData::VariableDeclaration(data) => data.r#type,
+            NodeData::IndexSignature(data) => data.r#type,
+            _ => None,
         }
+    }
 
-        let mut work = vec![Work::Visit(id)];
-        while let Some(item) = work.pop() {
-            match item {
-                Work::Visit(id) => {
-                    let kind = self.kind(id);
-                    let roles = self.roles_for(id, kind);
-                    let mut skipped = Vec::new();
+    /// `Some(body)` for a function-like node (`None` inside when it has no
+    /// body); `None` for any other node.
+    fn function_body(&self, id: NodeId) -> Option<Option<NodeId>> {
+        match self.data(id) {
+            NodeData::MethodDeclaration(data) => Some(data.body),
+            NodeData::Constructor(data) => Some(data.body),
+            NodeData::GetAccessor(data) => Some(data.body),
+            NodeData::SetAccessor(data) => Some(data.body),
+            NodeData::FunctionExpression(data) => Some(data.body),
+            NodeData::FunctionDeclaration(data) => Some(data.body),
+            NodeData::ArrowFunction(data) => Some(data.body),
+            NodeData::IndexSignature(_) => Some(None),
+            _ => None,
+        }
+    }
 
-                    if let Some(modifiers) = roles.modifiers {
-                        if self.walk_modifiers_array(kind, modifiers) == Visit::Skip {
-                            skipped.extend(self.array_elements(modifiers));
-                        }
-                    }
-                    if let Some(type_parameters) = roles.type_parameters {
-                        self.push_for_array(
-                            type_parameters,
-                            &gen::Type_parameter_declarations_can_only_be_used_in_TypeScript_files,
-                        );
-                        skipped.extend(self.array_elements(type_parameters));
-                    }
-                    if let Some(type_arguments) = roles.type_arguments {
-                        self.push_for_array(
-                            type_arguments,
-                            &gen::Type_arguments_can_only_be_used_in_TypeScript_files,
-                        );
-                        skipped.extend(self.array_elements(type_arguments));
-                    }
+    fn name_of(&self, id: NodeId) -> Option<NodeId> {
+        match self.data(id) {
+            NodeData::InterfaceDeclaration(data) => data.name,
+            NodeData::ModuleDeclaration(data) => data.name,
+            NodeData::TypeAliasDeclaration(data) => data.name,
+            NodeData::EnumDeclaration(data) => data.name,
+            _ => None,
+        }
+    }
 
-                    let children = self.children_of(id);
-                    for child in children.into_iter().rev() {
-                        work.push(Work::Child {
-                            parent: id,
-                            child,
-                            roles,
-                            skipped: skipped.contains(&child),
-                        });
-                    }
+    fn modifiers_of(&self, id: NodeId) -> Option<NodeArrayId> {
+        match self.data(id) {
+            NodeData::Parameter(data) => data.modifiers,
+            NodeData::PropertyDeclaration(data) => data.modifiers,
+            NodeData::MethodDeclaration(data) => data.modifiers,
+            NodeData::Constructor(data) => data.modifiers,
+            NodeData::GetAccessor(data) => data.modifiers,
+            NodeData::SetAccessor(data) => data.modifiers,
+            NodeData::FunctionExpression(data) => data.modifiers,
+            NodeData::FunctionDeclaration(data) => data.modifiers,
+            NodeData::ArrowFunction(data) => data.modifiers,
+            NodeData::ClassDeclaration(data) => data.modifiers,
+            NodeData::ClassExpression(data) => data.modifiers,
+            NodeData::VariableStatement(data) => data.modifiers,
+            NodeData::IndexSignature(data) => data.modifiers,
+            NodeData::InterfaceDeclaration(data) => data.modifiers,
+            NodeData::TypeAliasDeclaration(data) => data.modifiers,
+            NodeData::EnumDeclaration(data) => data.modifiers,
+            NodeData::ModuleDeclaration(data) => data.modifiers,
+            NodeData::ImportEqualsDeclaration(data) => data.modifiers,
+            NodeData::ImportDeclaration(data) => data.modifiers,
+            NodeData::ExportDeclaration(data) => data.modifiers,
+            NodeData::ExportAssignment(data) => data.modifiers,
+            _ => None,
+        }
+    }
+
+    fn type_parameters_of(&self, id: NodeId) -> Option<NodeArrayId> {
+        match self.data(id) {
+            NodeData::ClassDeclaration(data) => data.type_parameters,
+            NodeData::ClassExpression(data) => data.type_parameters,
+            NodeData::MethodDeclaration(data) => data.type_parameters,
+            NodeData::Constructor(data) => data.type_parameters,
+            NodeData::GetAccessor(data) => data.type_parameters,
+            NodeData::SetAccessor(data) => data.type_parameters,
+            NodeData::FunctionExpression(data) => data.type_parameters,
+            NodeData::FunctionDeclaration(data) => data.type_parameters,
+            NodeData::ArrowFunction(data) => data.type_parameters,
+            _ => None,
+        }
+    }
+
+    fn type_arguments_of(&self, id: NodeId) -> Option<NodeArrayId> {
+        match self.data(id) {
+            NodeData::CallExpression(data) => data.type_arguments,
+            NodeData::NewExpression(data) => data.type_arguments,
+            NodeData::ExpressionWithTypeArguments(data) => data.type_arguments,
+            NodeData::TaggedTemplateExpression(data) => data.type_arguments,
+            _ => None,
+        }
+    }
+
+    fn check_js_syntax(&mut self, node: NodeId) {
+        let kind = self.kind(node);
+        match kind {
+            SyntaxKind::Parameter
+            | SyntaxKind::PropertyDeclaration
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::Constructor
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::FunctionDeclaration
+            | SyntaxKind::ArrowFunction
+            | SyntaxKind::VariableDeclaration
+            | SyntaxKind::IndexSignature => {
+                if let Some(token) = self.question_token(node) {
+                    self.error_at_node(
+                        token,
+                        &gen::The_0_modifier_can_only_be_used_in_TypeScript_files,
+                        &["?"],
+                    );
                 }
-                Work::Child {
-                    parent,
-                    child,
-                    roles,
-                    skipped,
-                } => {
-                    if skipped {
-                        continue;
-                    }
-                    if roles.question_token == Some(child) {
-                        self.push_for_node(
-                            child,
-                            &gen::The_0_modifier_can_only_be_used_in_TypeScript_files,
-                            &["?"],
-                        );
-                        continue;
-                    }
-                    if roles.r#type == Some(child) {
-                        self.push_for_node(
-                            child,
-                            &gen::Type_annotations_can_only_be_used_in_TypeScript_files,
+                if self.function_body(node) == Some(None) {
+                    self.error_at_node(
+                        node,
+                        &gen::Signature_declarations_can_only_be_used_in_TypeScript_files,
+                        &[],
+                    );
+                } else if let Some(r#type) = self.type_of(node) {
+                    self.error_at_node(
+                        r#type,
+                        &gen::Type_annotations_can_only_be_used_in_TypeScript_files,
+                        &[],
+                    );
+                }
+            }
+            SyntaxKind::ImportDeclaration => {
+                let type_only = matches!(self.data(node), NodeData::ImportDeclaration(data)
+                if data.import_clause.is_some_and(|clause| matches!(
+                    self.data(clause),
+                    NodeData::ImportClause(clause) if clause.is_type_only
+                )));
+                if type_only {
+                    self.error_at_node(
+                        node,
+                        &gen::_0_declarations_can_only_be_used_in_TypeScript_files,
+                        &["import type"],
+                    );
+                }
+            }
+            SyntaxKind::ExportDeclaration => {
+                if matches!(self.data(node), NodeData::ExportDeclaration(data) if data.is_type_only)
+                {
+                    self.error_at_node(
+                        node,
+                        &gen::_0_declarations_can_only_be_used_in_TypeScript_files,
+                        &["export type"],
+                    );
+                }
+            }
+            SyntaxKind::ImportSpecifier => {
+                if matches!(self.data(node), NodeData::ImportSpecifier(data) if data.is_type_only) {
+                    self.error_at_node(
+                        node,
+                        &gen::_0_declarations_can_only_be_used_in_TypeScript_files,
+                        &["import...type"],
+                    );
+                }
+            }
+            SyntaxKind::ExportSpecifier => {
+                if matches!(self.data(node), NodeData::ExportSpecifier(data) if data.is_type_only) {
+                    self.error_at_node(
+                        node,
+                        &gen::_0_declarations_can_only_be_used_in_TypeScript_files,
+                        &["export...type"],
+                    );
+                }
+            }
+            SyntaxKind::ImportEqualsDeclaration => {
+                self.error_at_node(node, &gen::import_can_only_be_used_in_TypeScript_files, &[]);
+            }
+            SyntaxKind::ExportAssignment => {
+                if matches!(
+                    self.data(node),
+                    NodeData::ExportAssignment(data) if data.is_export_equals == Some(true)
+                ) {
+                    self.error_at_node(
+                        node,
+                        &gen::export_can_only_be_used_in_TypeScript_files,
+                        &[],
+                    );
+                }
+            }
+            SyntaxKind::HeritageClause => {
+                if matches!(
+                    self.data(node),
+                    NodeData::HeritageClause(data) if data.token == SyntaxKind::ImplementsKeyword
+                ) {
+                    self.error_at_node(
+                        node,
+                        &gen::implements_clauses_can_only_be_used_in_TypeScript_files,
+                        &[],
+                    );
+                }
+            }
+            SyntaxKind::InterfaceDeclaration
+            | SyntaxKind::ModuleDeclaration
+            | SyntaxKind::TypeAliasDeclaration
+            | SyntaxKind::EnumDeclaration => {
+                if let Some(name) = self.name_of(node) {
+                    let flags = NodeFlags::from_bits(self.source.arena.node(node).flags);
+                    let (message, keyword): (&'static DiagnosticMessage, &str) = match kind {
+                        SyntaxKind::InterfaceDeclaration => (
+                            &gen::_0_declarations_can_only_be_used_in_TypeScript_files,
+                            "interface",
+                        ),
+                        SyntaxKind::TypeAliasDeclaration => {
+                            (&gen::Type_aliases_can_only_be_used_in_TypeScript_files, "")
+                        }
+                        SyntaxKind::EnumDeclaration => (
+                            &gen::_0_declarations_can_only_be_used_in_TypeScript_files,
+                            "enum",
+                        ),
+                        _ if flags.contains(NodeFlags::GLOBAL_AUGMENTATION) => (
+                            &gen::_0_declarations_can_only_be_used_in_TypeScript_files,
+                            "global",
+                        ),
+                        _ if flags.contains(NodeFlags::NAMESPACE) => (
+                            &gen::_0_declarations_can_only_be_used_in_TypeScript_files,
+                            "namespace",
+                        ),
+                        _ => (
+                            &gen::_0_declarations_can_only_be_used_in_TypeScript_files,
+                            "module",
+                        ),
+                    };
+                    let args: &[&str] = if keyword.is_empty() { &[] } else { &[keyword] };
+                    self.error_at_node(name, message, args);
+                }
+            }
+            SyntaxKind::NonNullExpression => {
+                self.error_at_node(
+                    node,
+                    &gen::Non_null_assertions_can_only_be_used_in_TypeScript_files,
+                    &[],
+                );
+            }
+            SyntaxKind::AsExpression => {
+                if let NodeData::AsExpression(data) = self.data(node) {
+                    if let Some(r#type) = data.r#type {
+                        self.error_at_node(
+                            r#type,
+                            &gen::Type_assertion_expressions_can_only_be_used_in_TypeScript_files,
                             &[],
                         );
-                        continue;
-                    }
-                    if self.check_node(child, parent) == Visit::Descend {
-                        work.push(Work::Visit(child));
                     }
                 }
             }
-        }
-    }
-
-    /// The parent-side field/array roles the tsc walker keys on.
-    fn roles_for(&self, id: NodeId, kind: SyntaxKind) -> Roles {
-        let mut roles = Roles::default();
-        match &self.source.arena.node(id).data {
-            NodeData::Parameter(data) => {
-                roles.question_token = data.question_token;
-                roles.r#type = data.r#type;
-                roles.modifiers = data.modifiers;
-            }
-            NodeData::PropertyDeclaration(data) => {
-                roles.question_token = data.question_token;
-                roles.r#type = data.r#type;
-                roles.modifiers = data.modifiers;
-            }
-            NodeData::MethodDeclaration(data) => {
-                roles.question_token = data.question_token;
-                roles.r#type = data.r#type;
-                roles.type_parameters = data.type_parameters;
-                roles.modifiers = data.modifiers;
-            }
-            NodeData::MethodSignature(data) => {
-                roles.r#type = data.r#type;
-            }
-            NodeData::Constructor(data) => {
-                roles.r#type = data.r#type;
-                roles.type_parameters = data.type_parameters;
-                roles.modifiers = data.modifiers;
-            }
-            NodeData::GetAccessor(data) => {
-                roles.r#type = data.r#type;
-                roles.type_parameters = data.type_parameters;
-                roles.modifiers = data.modifiers;
-            }
-            NodeData::SetAccessor(data) => {
-                roles.r#type = data.r#type;
-                roles.type_parameters = data.type_parameters;
-                roles.modifiers = data.modifiers;
-            }
-            NodeData::FunctionExpression(data) => {
-                roles.r#type = data.r#type;
-                roles.type_parameters = data.type_parameters;
-                roles.modifiers = data.modifiers;
-            }
-            NodeData::FunctionDeclaration(data) => {
-                roles.r#type = data.r#type;
-                roles.type_parameters = data.type_parameters;
-                roles.modifiers = data.modifiers;
-            }
-            NodeData::ArrowFunction(data) => {
-                roles.r#type = data.r#type;
-                roles.type_parameters = data.type_parameters;
-                roles.modifiers = data.modifiers;
-            }
-            NodeData::VariableDeclaration(data) => {
-                roles.r#type = data.r#type;
-            }
-            NodeData::ClassDeclaration(data) => {
-                roles.type_parameters = data.type_parameters;
-                roles.modifiers = data.modifiers;
-            }
-            NodeData::ClassExpression(data) => {
-                roles.type_parameters = data.type_parameters;
-                roles.modifiers = data.modifiers;
-            }
-            NodeData::VariableStatement(data) => {
-                roles.modifiers = data.modifiers;
-            }
-            NodeData::ImportDeclaration(data) => {
-                roles.modifiers = data.modifiers;
-            }
-            NodeData::ExportDeclaration(data) => {
-                roles.modifiers = data.modifiers;
-            }
-            NodeData::ExportAssignment(data) => {
-                roles.modifiers = data.modifiers;
-            }
-            NodeData::IndexSignature(data) => {
-                roles.modifiers = data.modifiers;
-            }
-            NodeData::CallExpression(data) => {
-                roles.type_arguments = data.type_arguments;
-            }
-            NodeData::NewExpression(data) => {
-                roles.type_arguments = data.type_arguments;
-            }
-            NodeData::ExpressionWithTypeArguments(data) => {
-                roles.type_arguments = data.type_arguments;
-            }
-            NodeData::JsxSelfClosingElement(data) => {
-                roles.type_arguments = data.type_arguments;
-            }
-            NodeData::JsxOpeningElement(data) => {
-                roles.type_arguments = data.type_arguments;
-            }
-            NodeData::TaggedTemplateExpression(data) => {
-                roles.type_arguments = data.type_arguments;
+            SyntaxKind::SatisfiesExpression => {
+                if let NodeData::SatisfiesExpression(data) = self.data(node) {
+                    if let Some(r#type) = data.r#type {
+                        self.error_at_node(
+                            r#type,
+                            &gen::Type_satisfaction_expressions_can_only_be_used_in_TypeScript_files,
+                            &[],
+                        );
+                    }
+                }
             }
             _ => {}
         }
-        // 8004 only fires for the tsc-listed kinds; MethodSignature and
-        // interface-ish members never reach here (their parents skip).
-        if roles.type_parameters.is_some()
-            && !matches!(
-                kind,
-                SyntaxKind::ClassDeclaration
-                    | SyntaxKind::ClassExpression
-                    | SyntaxKind::MethodDeclaration
-                    | SyntaxKind::Constructor
-                    | SyntaxKind::GetAccessor
-                    | SyntaxKind::SetAccessor
-                    | SyntaxKind::FunctionExpression
-                    | SyntaxKind::FunctionDeclaration
-                    | SyntaxKind::ArrowFunction
-            )
-        {
-            roles.type_parameters = None;
-        }
-        roles
-    }
-
-    /// tsc walkArray for a modifiers array: decorator legality first, then
-    /// the per-parent-kind modifier rules.
-    fn walk_modifiers_array(&mut self, parent_kind: SyntaxKind, modifiers: NodeArrayId) -> Visit {
-        let elements = self.array_elements(modifiers);
-        let is_decorator = |walker: &Self, id: NodeId| walker.kind(id) == SyntaxKind::Decorator;
-
-        if can_have_illegal_decorators(parent_kind) {
-            if let Some(decorator) = elements.iter().copied().find(|id| is_decorator(self, *id)) {
-                self.push_for_node(decorator, &gen::Decorators_are_not_valid_here, &[]);
-            }
-        } else if can_have_decorators(parent_kind) {
-            let decorator_index = elements.iter().position(|id| is_decorator(self, *id));
-            if let Some(decorator_index) = decorator_index {
-                if parent_kind == SyntaxKind::Parameter && !self.experimental_decorators {
-                    self.push_for_node(
-                        elements[decorator_index],
-                        &gen::Decorators_are_not_valid_here,
-                        &[],
-                    );
-                } else if parent_kind == SyntaxKind::ClassDeclaration {
-                    let export_index = elements
-                        .iter()
-                        .position(|id| self.kind(*id) == SyntaxKind::ExportKeyword);
-                    if let Some(export_index) = export_index {
-                        let default_index = elements
-                            .iter()
-                            .position(|id| self.kind(*id) == SyntaxKind::DefaultKeyword);
-                        if decorator_index > export_index
-                            && default_index
-                                .is_some_and(|default_index| decorator_index < default_index)
-                        {
-                            self.push_for_node(
-                                elements[decorator_index],
-                                &gen::Decorators_are_not_valid_here,
-                                &[],
-                            );
-                        } else if decorator_index < export_index {
-                            let trailing = elements
-                                .iter()
-                                .skip(export_index)
-                                .position(|id| is_decorator(self, *id))
-                                .map(|offset| export_index + offset);
-                            if let Some(trailing) = trailing {
-                                self.push_for_node_with_related(
-                                    elements[trailing],
-                                    &gen::Decorators_may_not_appear_after_export_or_export_default_if_they_also_appear_before_export,
-                                    elements[decorator_index],
-                                    &gen::Decorator_used_before_export_here,
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        match parent_kind {
+        self.check_js_decorator_syntax(node);
+        match kind {
             SyntaxKind::ClassDeclaration
             | SyntaxKind::ClassExpression
             | SyntaxKind::MethodDeclaration
@@ -501,251 +489,130 @@ impl<'a> JsGrammarWalker<'a> {
             | SyntaxKind::SetAccessor
             | SyntaxKind::FunctionExpression
             | SyntaxKind::FunctionDeclaration
-            | SyntaxKind::ArrowFunction => {
-                self.check_modifiers(&elements, false);
-                Visit::Skip
-            }
-            SyntaxKind::VariableStatement => {
-                self.check_modifiers(&elements, true);
-                Visit::Skip
-            }
-            SyntaxKind::PropertyDeclaration => {
-                for modifier in elements {
-                    let kind = self.kind(modifier);
-                    if is_modifier_token(kind)
-                        && kind != SyntaxKind::StaticKeyword
-                        && kind != SyntaxKind::AccessorKeyword
-                    {
-                        self.push_for_node(
+            | SyntaxKind::ArrowFunction
+            | SyntaxKind::VariableStatement
+            | SyntaxKind::PropertyDeclaration => {
+                if let Some(list) = self
+                    .type_parameters_of(node)
+                    .filter(|&list| !self.nodes(Some(list)).is_empty())
+                {
+                    self.error_at_list(
+                        list,
+                        &gen::Type_parameter_declarations_can_only_be_used_in_TypeScript_files,
+                    );
+                }
+                let modifiers = self.nodes(self.modifiers_of(node)).to_vec();
+                for modifier in modifiers {
+                    let modifier_kind = self.kind(modifier);
+                    if is_modifier_kind(modifier_kind) && !is_javascript_modifier(modifier_kind) {
+                        self.error_at_node(
                             modifier,
                             &gen::The_0_modifier_can_only_be_used_in_TypeScript_files,
-                            &[modifier_text(kind)],
+                            &[modifier_text(modifier_kind)],
                         );
                     }
                 }
-                Visit::Skip
             }
             SyntaxKind::Parameter => {
-                if elements.iter().any(|id| is_modifier_token(self.kind(*id))) {
-                    self.push_for_array(
-                        modifiers,
-                        &gen::Parameter_modifiers_can_only_be_used_in_TypeScript_files,
-                    );
-                    Visit::Skip
-                } else {
-                    Visit::Descend
-                }
-            }
-            _ => Visit::Descend,
-        }
-    }
-
-    /// tsc checkModifiers.
-    fn check_modifiers(&mut self, modifiers: &[NodeId], is_const_valid: bool) {
-        for modifier in modifiers {
-            let kind = self.kind(*modifier);
-            match kind {
-                SyntaxKind::ConstKeyword if is_const_valid => {}
-                SyntaxKind::ConstKeyword
-                | SyntaxKind::PublicKeyword
-                | SyntaxKind::PrivateKeyword
-                | SyntaxKind::ProtectedKeyword
-                | SyntaxKind::ReadonlyKeyword
-                | SyntaxKind::DeclareKeyword
-                | SyntaxKind::AbstractKeyword
-                | SyntaxKind::OverrideKeyword
-                | SyntaxKind::InKeyword
-                | SyntaxKind::OutKeyword => {
-                    self.push_for_node(
-                        *modifier,
-                        &gen::The_0_modifier_can_only_be_used_in_TypeScript_files,
-                        &[modifier_text(kind)],
-                    );
-                }
-                _ => {}
-            }
-        }
-    }
-
-    /// The tsc walk() node switch.
-    fn check_node(&mut self, id: NodeId, parent: NodeId) -> Visit {
-        match self.kind(id) {
-            SyntaxKind::ImportClause => {
-                if let NodeData::ImportClause(data) = &self.source.arena.node(id).data {
-                    if data.is_type_only {
-                        // tsc reports at the parent ImportDeclaration.
-                        self.push_for_node(
-                            parent,
-                            &gen::_0_declarations_can_only_be_used_in_TypeScript_files,
-                            &["import type"],
-                        );
-                        return Visit::Skip;
-                    }
-                }
-                Visit::Descend
-            }
-            SyntaxKind::ExportDeclaration => {
-                if let NodeData::ExportDeclaration(data) = &self.source.arena.node(id).data {
-                    if data.is_type_only {
-                        self.push_for_node(
-                            id,
-                            &gen::_0_declarations_can_only_be_used_in_TypeScript_files,
-                            &["export type"],
-                        );
-                        return Visit::Skip;
-                    }
-                }
-                Visit::Descend
-            }
-            SyntaxKind::ImportSpecifier | SyntaxKind::ExportSpecifier => {
-                let (is_type_only, is_import) = match &self.source.arena.node(id).data {
-                    NodeData::ImportSpecifier(data) => (data.is_type_only, true),
-                    NodeData::ExportSpecifier(data) => (data.is_type_only, false),
-                    _ => (false, false),
-                };
-                if is_type_only {
-                    self.push_for_node(
-                        id,
-                        &gen::_0_declarations_can_only_be_used_in_TypeScript_files,
-                        &[if is_import {
-                            "import...type"
-                        } else {
-                            "export...type"
-                        }],
-                    );
-                    return Visit::Skip;
-                }
-                Visit::Descend
-            }
-            SyntaxKind::ExportAssignment => {
-                if let NodeData::ExportAssignment(data) = &self.source.arena.node(id).data {
-                    if data.is_export_equals == Some(true) {
-                        self.push_for_node(
-                            id,
-                            &gen::export_can_only_be_used_in_TypeScript_files,
-                            &[],
-                        );
-                        return Visit::Skip;
-                    }
-                }
-                Visit::Descend
-            }
-            SyntaxKind::ImportEqualsDeclaration => {
-                self.push_for_node(id, &gen::import_can_only_be_used_in_TypeScript_files, &[]);
-                Visit::Skip
-            }
-            SyntaxKind::HeritageClause => {
-                let pos = tsc_syntax::skip_trivia(
-                    self.source.text(),
-                    self.source.arena.node(id).pos as usize,
-                );
-                if self.token_kind_at(pos) == Some(SyntaxKind::ImplementsKeyword) {
-                    self.push_for_node(
-                        id,
-                        &gen::implements_clauses_can_only_be_used_in_TypeScript_files,
-                        &[],
-                    );
-                    Visit::Skip
-                } else {
-                    Visit::Descend
-                }
-            }
-            SyntaxKind::InterfaceDeclaration => {
-                self.push_for_node(
-                    id,
-                    &gen::_0_declarations_can_only_be_used_in_TypeScript_files,
-                    &["interface"],
-                );
-                Visit::Skip
-            }
-            SyntaxKind::ModuleDeclaration => {
-                let keyword = if NodeFlags::from_bits(self.source.arena.node(id).flags)
-                    .contains(NodeFlags::NAMESPACE)
+                let modifiers = self.modifiers_of(node);
+                if self
+                    .nodes(modifiers)
+                    .iter()
+                    .any(|&modifier| is_modifier_kind(self.kind(modifier)))
                 {
-                    "namespace"
-                } else {
-                    "module"
-                };
-                self.push_for_node(
-                    id,
-                    &gen::_0_declarations_can_only_be_used_in_TypeScript_files,
-                    &[keyword],
-                );
-                Visit::Skip
+                    if let Some(list) = modifiers {
+                        self.error_at_list(
+                            list,
+                            &gen::Parameter_modifiers_can_only_be_used_in_TypeScript_files,
+                        );
+                    }
+                }
             }
-            SyntaxKind::TypeAliasDeclaration => {
-                self.push_for_node(
-                    id,
-                    &gen::Type_aliases_can_only_be_used_in_TypeScript_files,
+            SyntaxKind::CallExpression
+            | SyntaxKind::NewExpression
+            | SyntaxKind::ExpressionWithTypeArguments
+            | SyntaxKind::TaggedTemplateExpression => {
+                if let Some(list) = self
+                    .type_arguments_of(node)
+                    .filter(|&list| !self.nodes(Some(list)).is_empty())
+                {
+                    self.error_at_list(
+                        list,
+                        &gen::Type_arguments_can_only_be_used_in_TypeScript_files,
+                    );
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// tsgo checkJSDecoratorSyntax (parser.go:6715-6767).
+    fn check_js_decorator_syntax(&mut self, node: NodeId) {
+        let modifiers = self.nodes(self.modifiers_of(node)).to_vec();
+        if modifiers.is_empty() {
+            return;
+        }
+        let kind = self.kind(node);
+        let is_decorator = |checker: &Self, id: NodeId| checker.kind(id) == SyntaxKind::Decorator;
+        if can_have_illegal_decorators(kind) {
+            if let Some(&decorator) = modifiers.iter().find(|&&id| is_decorator(self, id)) {
+                self.error_at_node(decorator, &gen::Decorators_are_not_valid_here, &[]);
+            }
+            return;
+        }
+        if !can_have_decorators(kind) || kind != SyntaxKind::ClassDeclaration {
+            return;
+        }
+        let Some(decorator_index) = modifiers.iter().position(|&id| is_decorator(self, id)) else {
+            return;
+        };
+        let Some(export_index) = modifiers
+            .iter()
+            .position(|&id| self.kind(id) == SyntaxKind::ExportKeyword)
+        else {
+            return;
+        };
+        let default_index = modifiers
+            .iter()
+            .position(|&id| self.kind(id) == SyntaxKind::DefaultKeyword);
+        if decorator_index > export_index
+            && default_index.is_some_and(|default_index| decorator_index < default_index)
+        {
+            // A decorator between `export` and `default`.
+            self.error_at_node(
+                modifiers[decorator_index],
+                &gen::Decorators_are_not_valid_here,
+                &[],
+            );
+        } else if decorator_index < export_index {
+            let trailing = modifiers
+                .iter()
+                .skip(export_index)
+                .position(|&id| is_decorator(self, id))
+                .map(|offset| export_index + offset);
+            if let Some(trailing) = trailing {
+                let trailing = self.source.arena.node(modifiers[trailing]);
+                let leading = self.source.arena.node(modifiers[decorator_index]);
+                let mut diagnostic = self.diagnostic_at(
+                    trailing.pos,
+                    trailing.end,
+                    &gen::Decorators_may_not_appear_after_export_or_export_default_if_they_also_appear_before_export,
                     &[],
                 );
-                Visit::Skip
-            }
-            SyntaxKind::Constructor
-            | SyntaxKind::MethodDeclaration
-            | SyntaxKind::FunctionDeclaration => {
-                let body = match &self.source.arena.node(id).data {
-                    NodeData::Constructor(data) => data.body,
-                    NodeData::MethodDeclaration(data) => data.body,
-                    NodeData::FunctionDeclaration(data) => data.body,
-                    _ => None,
-                };
-                if body.is_none() {
-                    self.push_for_node(
-                        id,
-                        &gen::Signature_declarations_can_only_be_used_in_TypeScript_files,
-                        &[],
-                    );
-                    Visit::Skip
-                } else {
-                    Visit::Descend
-                }
-            }
-            SyntaxKind::EnumDeclaration => {
-                self.push_for_node(
-                    id,
-                    &gen::_0_declarations_can_only_be_used_in_TypeScript_files,
-                    &["enum"],
-                );
-                Visit::Skip
-            }
-            SyntaxKind::NonNullExpression => {
-                self.push_for_node(
-                    id,
-                    &gen::Non_null_assertions_can_only_be_used_in_TypeScript_files,
+                let related = self.diagnostic_at(
+                    leading.pos,
+                    leading.end,
+                    &gen::Decorator_used_before_export_here,
                     &[],
                 );
-                Visit::Skip
+                diagnostic.related.push(RelatedInfo {
+                    file_name: related.file_name,
+                    start: related.start,
+                    length: related.length,
+                    message: related.message,
+                });
+                self.diagnostics.push(diagnostic);
             }
-            SyntaxKind::AsExpression => {
-                let r#type = match &self.source.arena.node(id).data {
-                    NodeData::AsExpression(data) => data.r#type,
-                    _ => None,
-                };
-                if let Some(r#type) = r#type {
-                    self.push_for_node(
-                        r#type,
-                        &gen::Type_assertion_expressions_can_only_be_used_in_TypeScript_files,
-                        &[],
-                    );
-                }
-                Visit::Skip
-            }
-            SyntaxKind::SatisfiesExpression => {
-                let r#type = match &self.source.arena.node(id).data {
-                    NodeData::SatisfiesExpression(data) => data.r#type,
-                    _ => None,
-                };
-                if let Some(r#type) = r#type {
-                    self.push_for_node(
-                        r#type,
-                        &gen::Type_satisfaction_expressions_can_only_be_used_in_TypeScript_files,
-                        &[],
-                    );
-                }
-                Visit::Skip
-            }
-            _ => Visit::Descend,
         }
     }
 }
@@ -771,7 +638,8 @@ fn modifier_text(kind: SyntaxKind) -> &'static str {
     }
 }
 
-fn is_modifier_token(kind: SyntaxKind) -> bool {
+/// tsgo IsModifier: a modifier keyword (not a decorator).
+fn is_modifier_kind(kind: SyntaxKind) -> bool {
     matches!(
         kind,
         SyntaxKind::AbstractKeyword
@@ -792,7 +660,20 @@ fn is_modifier_token(kind: SyntaxKind) -> bool {
     )
 }
 
-/// tsc canHaveIllegalDecorators.
+/// tsgo ModifierFlagsJavaScript (ast/modifierflags.go:52): export, static,
+/// accessor, async and default.
+fn is_javascript_modifier(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::ExportKeyword
+            | SyntaxKind::StaticKeyword
+            | SyntaxKind::AccessorKeyword
+            | SyntaxKind::AsyncKeyword
+            | SyntaxKind::DefaultKeyword
+    )
+}
+
+/// tsgo CanHaveIllegalDecorators (ast/utilities.go:1072-1087).
 fn can_have_illegal_decorators(kind: SyntaxKind) -> bool {
     matches!(
         kind,
