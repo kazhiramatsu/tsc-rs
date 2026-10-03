@@ -79,7 +79,8 @@ impl ParseRecovery {
                     SyntaxKind::Unknown,
                 ))
                 && event.start == start
-                && event.length == 0
+                // tsgo's Invalid character spans the backslash.
+                && event.length == 1
                 && event.missing_node.is_none()
                 && event
                     .diagnostic_index

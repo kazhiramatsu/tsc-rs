@@ -869,3 +869,88 @@ unit test：binder 1件、checker 3件をtsgoの行に再pin（素の`require`�
   isolatedDeclarations）、JSONの文法（2）、tslib helper（3）、重複宣言のrelated。
 - hosted：PR #635（head `857a31272`、merge `3f710610e`）、run 37104409078 — `plan` 30s、`rust` 9m36s、`conformance (TypeScript 7.1)` 15m11s、`gates` 12s。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main `dff0d2260`（P3-5pのhead `1da276b1e`と同じコードのrelease build）と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 125→134、zod 515→498、Playwright 364→359、TypeScript `src/compiler` 331→328、Next.js 749→730、Effect 518→488、VS Code 3,341→3,343。tsc-rs÷tsgoは0.56〜0.93、peak memory（MB main→本branch）：311→328、1,286→1,298、790→816、288→288、1,318→1,322、1,034→1,031、5,442→5,443。honoとPlaywrightは同条件の5 roundsのA/B（本branch／main）でhono 125／128 ms・CPU 597／624 ms、Playwright 360／362 ms、`TSRS_CHECKERS=1`のhonoは178／180 msなのでノイズ（変更はJavaScriptだけに効く）。退行なし。
+
+## P3-5r 文法エラー下の検査と報告位置をtsgoに合わせる（2026-10-03）
+
+P3-5q後の不一致から、tsgoが検査の順序・報告の位置・まとめ方を変えた小さなclassをまとめて直した：
+- 文法エラーがあっても式を検査する：`yield`は包む関数とgeneratorの判定より先にoperandを検査する
+  （checker.go:11152-11161）。`export =`／`export default`は文脈の文法エラーより先に式を検査する（5748-5753）。そのため
+  型や名前空間の名前を値として報告しない（isExportAssignmentExpressionName、checker/utilities.go:139-152、
+  checker.go:1686-1690と1726-1730。tsc 6.0の`export = NS.J`のTS2708は無い）。
+  型注釈の検査はtsgoどおり`checkTypeAssignableToAndOptionallyElaborate`。
+- ブロック内の`import`／`export`／`import =`：source fileの直下のブロックにあれば、文法エラーの後もmodule名を解決する
+  （checkExternalModuleNameInGlobalScope、5702-5714）。programは入れ子の`import`を解決しないので、存在するファイルでも
+  TS2307になる。side-effect importと関数内は解決しない。tsc-rsではこの検査の間だけ、authoritativeな表に無いmodule名を
+  未解決として扱う（`module_name_outside_program`。tsgoの`GetResolvedModule`がnilを返すのに当たる）。JavaScriptの
+  `import =`の文言（TS1473）もtsgoどおり。
+- `new`式の型：`getQuickTypeOfExpression`の`new`の分岐（7549-7550）を移植した。構築signatureが1つで非genericなら、その
+  戻り値型を変数の型にする。constructorがprivate／protected／abstractで呼び出しがエラーでも同じ。callの分岐も
+  memberのある型のsignatureを読む（getReturnTypeOfSingleNonGenericSignature、7559-7565、allowMembers=true）。
+- 報告位置：
+  - TS2447は演算子のtoken（12577）。
+  - TS1453は`resolution-mode`の値。空の値も報告する（parseResolutionMode、parser.go:6696-6708）。
+  - 先頭以外の`#!`は2文字のUnknown token（scanner.go:912-915）。
+  - 単独の`\`のTS1127は長さ1（scanInvalidCharacter、2206-2211）。
+  - JSXの子の式はdid-you-mean-to-call／constructを試す（relater.go:438-448）。報告は子の式で、related TS6212／TS6213が付く。
+- `new A?.b()`はTS1209（parser.go:5818-5820）。木は完全なので、報告だけのparse診断（`ParseDiagnosticOrigin::Grammar`）
+  にしてemitを止めない。
+- 暗黙のJSX runtime（react-jsx／react-jsxdev）では、classicのfactoryの引数個数の検査（TS6229）をしない（jsx.go:604-606）。
+  `React`は参照されないので、未使用ならTS6133。
+- 未使用の宣言（checkUnusedLocalsAndParameters、checker.go:7255-7418）：tsgoはtsc 6.0のgroup分けをやめ、宣言の持ち主
+  （宣言list、関数のparameter）ごとに一度ずつ見る。
+  - listとbinding patternは、宣言が2つ以上ですべて未参照のときだけ全体を報告する（TS6199／TS6198）。省略した配列要素も数え、
+    範囲は宣言list。それ以外は名前に報告する。
+  - `_`の免除はparameter、for-in/of、`using`、名前を変えたbinding要素。
+  - class static blockのlocalsも検査する（2861-2867）。
+  - JSDocの`@import`と関数内の`@typedef`／`@callback`は、reparseされた宣言としてTS6192／TS6196を出す。
+  - `import defer type`の既定名と、import attributesのparse errorでの抑制（tsc 6.0の範囲判定）は無い。
+- unit test：
+  - tsgoの行に再pin：
+    - 既存のtest 8件（TS2447の2件、TS1453の3件、TS6199の範囲、JSDocの`@import`の未使用2件）。
+    - tsc 6.0.3の観測だったsyntaxのfixture 2つの、TS1127の長さの行（`utf16-recovery-boundary.json`の1行、
+      `utf16-scanner-escape-diagnostics.json`の7行。tsc-19dadef8で確認し、fixtureに注記）と、recoveryの分類の条件。
+  - tsgoの行にpinした新しいtest 7件：
+    - checker：文法エラー下の検査と`new`の型とTS2447、`export =`の型・名前空間の名前、JSXの子のdid-you-mean、暗黙のruntimeの
+      `React`未使用、未使用の宣言の14行
+    - syntax：`#!`・`\`・TS1209
+    - compiler：authoritativeなprogramでのブロック内の`import`のTS2307
+- conformance：
+  - 15,228 configuration、lane A 13,467（変化なし）、806 s。
+  - full 13,150→13,209（+59）、text 85→57、category 19、mismatch 169→138、harness error 44（同じ集合）。
+  - emit full 12,418→12,422。
+- 上がった60構成（fullへ59、textへ1）とemitの4構成：
+  - operandの検査（8）：`YieldExpression2`／`12`／`14`／`15`／`17_es6`、`parserExportAssignment5`／`9`、
+    `checkChildrenAlwaysChecked`。
+  - ブロック内の`import`（2）：`moduleDeclarationsInNonScopeBlock`、`moduleElementsInWrongContext`。
+  - `new`の型（2）：`typesWithPrivateConstructor`、`typesWithProtectedConstructor`。emitは、この2つと
+    `classConstructorAccessibility`／`2`の宣言emitで型が`any`から`C`になった。
+  - TS2447（3）：`bitwiseCompoundAssignmentOperators`、`arithmeticOperatorWithInvalidOperands`、
+    `constructorWithIncompleteTypeAnnotation`（TS1127の長さも要る）。
+  - TS1453（4）：`nodeModulesTripleSlashReferenceModeOverrideModeError`のnode16／node18／node20／nodenext。
+  - `#!`（2）：`shebangError`。`manyCompilerErrorsInTheTwoFiles`はtextまで（`@pretty`の残り）。
+  - TS1127の長さ（27）：`parserSkippedTokens`の19件、`invalidUnicodeEscapeSequance`1〜4、
+    `slashBeforeVariableDeclaration1`、`unicodeEscapesInNames02`、`TypeArgumentList1`、`parserX_TypeArgumentList1`。
+  - JSXの子（3）：`jsxFragmentWrongType`、`checkJsxChildrenProperty4`／`5`。
+  - 暗黙のruntime（2）：`reactImportUnusedInNewJSXEmit`のreact-jsx／react-jsxdev。
+  - TS1209（1）：`invalidOptionalChainFromNewExpression`。
+  - 未使用の宣言（6）：`unusedDestructuring`、`unusedLocalsAndParameters`、`unusedLocalsInMethod2`／`3`、
+    `unusedVariablesWithUnderscoreInBindingElement`、`unusedVariablesWithUnderscoreInForOfLoop`。
+- 下がった構成はemitを含めて無い。
+- ratchet：0 regressions、31行追加・31行raise（errorのtext→full 29行、emitのnone→js 2行）。
+  `intersectionConstructorReductionCrash`は従来どおり載せない。
+- local：
+  - syntax・binder・checker・compiler・conformance・emitter・harness・programのclippyとtest（60 targets、3,528 passed）。
+  - 2 workerのfull run（806 s）。workspace全体のtestとclippyはhostedの`rust` job。
+  - filterの段階では、`export =`／`export default`／`yield`を含むcase、constructorの可視性と循環のcase、JSX・`noUnused`・
+    `#!`・`resolution-mode`・ビット演算のcase、`\`を含む全case、入れ子のimport/exportのcaseをP3-5qのreportとtierごとに比べた
+    （下降0）。
+  - `--checkers 4`の並列対照は実行していない。
+- 残り（lane Aでfullでない258構成：mismatch 138、text 57、category 19、harness error 44）の主なclass：
+  - 関係エラーのchain（tsgoのErrorChainと報告時の縮約。「Call signature return types…」はmarkerとして畳まれる。text 16前後）
+  - ambient moduleのimport attributes（約13）
+  - node16系のCommonJSの自己名・`#`import（12）
+  - 正規表現の検証（9）
+  - 重複宣言のrelated（約7）
+  - conflict marker（6）
+  - インスタンス化の循環（TS5114／TS5115、5）
+  - tsconfigの位置などharnessの行（約6）

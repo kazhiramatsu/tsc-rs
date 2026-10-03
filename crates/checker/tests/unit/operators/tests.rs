@@ -346,11 +346,13 @@ fn arithmetic_rhs_string_reports_2363_on_the_operand() {
     );
 }
 
+// tsgo reports TS2447 at the operator token (checker.go:12577); tsc 6.0
+// reported the whole binary expression.
 #[test]
 fn boolean_bar_suggests_barbar_2447() {
     assert_eq!(
         checked_rows("declare const b0: boolean;\nb0 | b0;\n"),
-        [(2447, 27, 7)]
+        [(2447, 30, 1)]
     );
 }
 
@@ -358,7 +360,7 @@ fn boolean_bar_suggests_barbar_2447() {
 fn boolean_caret_suggests_strict_inequality_2447() {
     assert_eq!(
         checked_rows("declare const b0: boolean;\nfalse ^ b0;\n"),
-        [(2447, 27, 10)]
+        [(2447, 33, 1)]
     );
 }
 

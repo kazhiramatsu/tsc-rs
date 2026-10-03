@@ -1562,9 +1562,36 @@ impl<'a> CheckerState<'a> {
         if self.resolve_symbol_ex(symbol, false)?.is_none() {
             return Ok(false);
         }
+        // tsgo (checker.go:1686-1690): `export = ns` may reference a
+        // namespace; checkExportAssignment decides whether that is an error.
+        if lookup_meaning == SymbolFlags::NAMESPACE_MODULE
+            && self.is_export_assignment_expression_name(error_location)
+        {
+            return Ok(true);
+        }
         let display = tsc_binder::unescape_leading_underscores(name);
         self.error_at_js(Some(error_location), message, &[display]);
         Ok(true)
+    }
+
+    /// tsgo: isExportAssignmentExpressionName (checker/utilities.go:139-152)
+    ///
+    /// Whether `node` is (the root entity name of) the expression of an
+    /// `export =` or `export default` assignment.
+    fn is_export_assignment_expression_name(&self, node: NodeId) -> bool {
+        let mut current = node;
+        while let Some(parent) = self.parent_of(current) {
+            if !matches!(
+                self.kind_of(parent),
+                SyntaxKind::PropertyAccessExpression | SyntaxKind::QualifiedName
+            ) {
+                break;
+            }
+            current = parent;
+        }
+        self.parent_of(current).is_some_and(|parent| {
+            matches!(self.data_of(parent), NodeData::ExportAssignment(data) if data.expression == Some(current))
+        })
     }
 
     /// A checked-JS property assignment can supply the root's value
@@ -1616,6 +1643,12 @@ impl<'a> CheckerState<'a> {
             .intersects(SymbolFlags::VALUE)
         {
             return Ok(false);
+        }
+        // tsgo (checker.go:1726-1730): `export = SomeType` may reference a
+        // type-only name; checkExportAssignment decides whether that is an
+        // error.
+        if self.is_export_assignment_expression_name(error_location) {
+            return Ok(true);
         }
         let display = tsc_binder::unescape_leading_underscores(name);
         if is_es2015_or_later_constructor_name(name.as_js()) {

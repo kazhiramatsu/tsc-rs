@@ -4902,6 +4902,11 @@ impl<'a> CheckerState<'a> {
                     package_bundles_types: resolved.package_bundles_types,
                 })
             }
+            Err(crate::AuthoritativeModuleLookupFailure::Missing)
+                if self.module_name_outside_program.get() =>
+            {
+                ProgramModuleResolution::missed()
+            }
             Err(failure) => {
                 self.record_authoritative_module_failure(
                     crate::AuthoritativeModuleFailure::Lookup {
@@ -8536,6 +8541,33 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getExternalModuleName @6.0.3
     /// tsc-hash: 0fe1fd1c0fddc419cc22b2cc6a22752e816eefdf725777ba55a3021683fad6a2
     /// tsc-span: _tsc.js:15253-15270
+    /// tsgo: checkExternalModuleNameInGlobalScope (checker.go:5702-5714)
+    ///
+    /// An import or export misplaced in a block of the source file's scope
+    /// still resolves its module name, so a module the program did not
+    /// resolve for it is TS2307. A side-effect import does not.
+    fn check_external_module_name_in_global_scope(&mut self, node: NodeId) -> CheckResult<()> {
+        let in_global_scope = self
+            .get_enclosing_container(node)
+            .is_some_and(|container| self.kind_of(container) == SyntaxKind::SourceFile);
+        let side_effect_import = match self.data_of(node) {
+            NodeData::ImportDeclaration(data) => data.import_clause.is_none(),
+            NodeData::JSDocImportTag(data) => data.import_clause.is_none(),
+            _ => false,
+        };
+        if !in_global_scope || side_effect_import {
+            return Ok(());
+        }
+        let Some(module_name) = self.get_external_module_name_of(node) else {
+            return Ok(());
+        };
+        let outside = self.module_name_outside_program.replace(true);
+        let result =
+            self.resolve_external_module_name(node, module_name, /*ignore_errors*/ false);
+        self.module_name_outside_program.set(outside);
+        result.map(|_| ())
+    }
+
     fn get_external_module_name_of(&self, node: NodeId) -> Option<NodeId> {
         match self.data_of(node) {
             NodeData::ImportDeclaration(data) => data.module_specifier,
@@ -9380,7 +9412,7 @@ impl<'a> CheckerState<'a> {
             &diagnostics::An_import_declaration_can_only_be_used_at_the_top_level_of_a_namespace_or_module
         };
         if self.check_grammar_module_element_context(node, context_diagnostic) {
-            return Ok(());
+            return self.check_external_module_name_in_global_scope(node);
         }
         let has_modifiers =
             node_util::modifiers_of(self.binder.source_of_node(node), node).is_some();
@@ -9618,11 +9650,13 @@ impl<'a> CheckerState<'a> {
     /// exported-alias accessibility mark is live; unchecked emit-time alias
     /// traversal uses mark_linked_references_unspecified.
     pub(crate) fn check_import_equals_declaration(&mut self, node: NodeId) -> CheckResult<()> {
-        if self.check_grammar_module_element_context(
-            node,
-            &diagnostics::An_import_declaration_can_only_be_used_at_the_top_level_of_a_namespace_or_module,
-        ) {
-            return Ok(());
+        let context_diagnostic = if self.is_in_js_file(node) {
+            &diagnostics::An_import_declaration_can_only_be_used_at_the_top_level_of_a_module
+        } else {
+            &diagnostics::An_import_declaration_can_only_be_used_at_the_top_level_of_a_namespace_or_module
+        };
+        if self.check_grammar_module_element_context(node, context_diagnostic) {
+            return self.check_external_module_name_in_global_scope(node);
         }
         let _ = self.check_grammar_modifiers(node);
         if self.options.erasable_syntax_only == Some(true)
@@ -9732,7 +9766,7 @@ impl<'a> CheckerState<'a> {
             &diagnostics::An_export_declaration_can_only_be_used_at_the_top_level_of_a_namespace_or_module
         };
         if self.check_grammar_module_element_context(node, context_diagnostic) {
-            return Ok(());
+            return self.check_external_module_name_in_global_scope(node);
         }
         let has_syntactic_modifiers =
             node_util::modifiers_of(self.binder.source_of_node(node), node).is_some();
@@ -9940,9 +9974,19 @@ impl<'a> CheckerState<'a> {
     /// Node-format JS publication even when no ordinary module
     /// resolution is performed by this declaration.
     pub(crate) fn check_export_assignment(&mut self, node: NodeId) -> CheckResult<()> {
-        let is_export_equals = match self.data_of(node) {
-            NodeData::ExportAssignment(data) => data.is_export_equals == Some(true),
-            _ => false,
+        let (is_export_equals, expression) = match self.data_of(node) {
+            NodeData::ExportAssignment(data) => {
+                (data.is_export_equals == Some(true), data.expression)
+            }
+            _ => (false, None),
+        };
+        // tsgo (checker.go:5750-5753) always checks the exported expression,
+        // so its names resolve even when the export assignment is misplaced.
+        // A type or namespace name is not reported as a value there
+        // (`is_export_assignment_expression_name`).
+        let expr_type = match expression {
+            Some(expression) => Some(self.check_expression_cached(expression, CheckMode::NORMAL)?),
+            None => None,
         };
         let illegal_context_message = if is_export_equals {
             &diagnostics::An_export_assignment_must_be_at_the_top_level_of_a_file_or_module_declaration
@@ -10001,23 +10045,9 @@ impl<'a> CheckerState<'a> {
                 &[],
             );
         }
-        let expression = match self.data_of(node) {
-            NodeData::ExportAssignment(data) => data.expression,
-            _ => None,
-        };
-        let Some(expression) = expression else {
+        let (Some(expression), Some(expr_type)) = (expression, expr_type) else {
             return Ok(());
         };
-        if let Some(annotation) = self.effective_type_annotation_node(node) {
-            let source_type = self.check_expression_cached(expression, CheckMode::NORMAL)?;
-            let target_type = self.get_type_from_type_node(annotation)?;
-            self.check_type_assignable_to(
-                source_type,
-                target_type,
-                Some(expression),
-                &diagnostics::Type_0_is_not_assignable_to_type_1,
-            )?;
-        }
         let ambient = self
             .binder
             .flags_of(node)
@@ -10042,9 +10072,6 @@ impl<'a> CheckerState<'a> {
                 let symbol_flags = self.get_symbol_flags_of(sym)?;
                 let display = self.module_export_name_text_unescaped(expression);
                 if symbol_flags.intersects(SymbolFlags::VALUE) {
-                    // A pure-type export= does NOT check the
-                    // expression (no 2693 here).
-                    self.check_expression_cached(expression, CheckMode::NORMAL)?;
                     if !is_illegal_export_default_in_cjs
                         && !ambient
                         && self.options.verbatim_module_syntax == Some(true)
@@ -10139,20 +10166,26 @@ impl<'a> CheckerState<'a> {
                         );
                     }
                 }
-            } else {
-                self.check_expression_cached(expression, CheckMode::NORMAL)?;
             }
             if crate::declaration_emit::emit_declarations(self.options) {
                 self.collect_linked_aliases(expression, /*set_visibility*/ true)?;
             }
-        } else {
-            self.check_expression_cached(expression, CheckMode::NORMAL)?;
         }
         if is_illegal_export_default_in_cjs {
             let message = self.get_verbatim_module_syntax_error_message(node);
             self.error_at_js(Some(node), message, &[]);
         }
         self.check_external_module_exports(container)?;
+        if let Some(annotation) = self.effective_type_annotation_node(node) {
+            let target_type = self.get_type_from_type_node(annotation)?;
+            self.check_type_assignable_to_and_optionally_elaborate(
+                expr_type,
+                target_type,
+                Some(expression),
+                expression,
+                &diagnostics::Type_0_is_not_assignable_to_type_1,
+            )?;
+        }
         if ambient && !self.is_entity_name_expression(expression) {
             self.grammar_error_on_node_js(
                 expression,

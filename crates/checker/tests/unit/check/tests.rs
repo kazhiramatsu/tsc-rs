@@ -9904,3 +9904,83 @@ fn jsdoc_augments_gives_type_arguments_only_to_a_matching_extends() {
         ]
     );
 }
+
+#[test]
+fn misplaced_operands_new_types_and_operator_spans_follow_tsgo() {
+    // tsgo (7.1 at 19dadef8, noLib with these globals): a yield outside a
+    // generator and an export assignment in a namespace still check their
+    // operands (checker.go:11152-11161, 5750-5753), `new C()` takes the
+    // type of C's single construct signature even though the constructor is
+    // private (getQuickTypeOfExpression, 7549-7550), and TS2447 spans the
+    // operator (12577).
+    let text = "function notAGenerator() {\n    yield yieldOperandName;\n}\n\
+                namespace N {\n    export = exportOperandName;\n}\n\
+                class C { private constructor() {} }\nvar c = new C();\nvar n: number = c;\n\
+                var b = true;\nb ^= false;\n";
+    let options = CompilerOptions {
+        module: Some(1),
+        target: Some(ScriptTarget::ES2015.bits()),
+        ..CompilerOptions::default()
+    };
+    let mut rows = with_program_state(
+        &[("lib.d.ts", P35P_GLOBALS), ("a.ts", text)],
+        &options,
+        |state| {
+            state.check_source_file(1);
+            diag_rows(state)
+        },
+    );
+    rows.sort_by_key(|row| row.1);
+    let at = |needle: &str| text.find(needle).expect("needle") as u32;
+    assert_eq!(
+        rows,
+        [
+            (1163, at("yield"), 5, "A 'yield' expression is only allowed in a generator body.".to_owned()),
+            (2304, at("yieldOperandName"), 16, "Cannot find name 'yieldOperandName'.".to_owned()),
+            (1063, at("export ="), 27, "An export assignment cannot be used in a namespace.".to_owned()),
+            (2304, at("exportOperandName"), 17, "Cannot find name 'exportOperandName'.".to_owned()),
+            (
+                2673,
+                at("new C()"),
+                7,
+                "Constructor of class 'C' is private and only accessible within the class declaration."
+                    .to_owned(),
+            ),
+            (2322, at("n: number"), 1, "Type 'C' is not assignable to type 'number'.".to_owned()),
+            (
+                2447,
+                at("^="),
+                2,
+                "The '^=' operator is not allowed for boolean types. Consider using '!==' instead."
+                    .to_owned(),
+            ),
+        ]
+    );
+}
+
+#[test]
+fn export_assignment_names_of_types_and_namespaces_are_not_values() {
+    // tsgo checks the exported expression but does not report a type or
+    // namespace name there as a value (isExportAssignmentExpressionName,
+    // checker/utilities.go:139-152); tsc 6.0 reported TS2708 for `NS.J`.
+    let options = CompilerOptions {
+        module: Some(1),
+        target: Some(ScriptTarget::ES2015.bits()),
+        ..CompilerOptions::default()
+    };
+    for text in [
+        "interface I {}\nexport = I;\n",
+        "namespace NS { export interface J {} }\nexport = NS.J;\n",
+        "declare namespace NS2 { interface K {} }\nexport default NS2;\n",
+    ] {
+        let rows = with_program_state(
+            &[("lib.d.ts", P35P_GLOBALS), ("a.ts", text)],
+            &options,
+            |state| {
+                state.check_source_file(1);
+                diag_rows(state)
+            },
+        );
+        assert!(rows.is_empty(), "{text}: {rows:?}");
+    }
+}

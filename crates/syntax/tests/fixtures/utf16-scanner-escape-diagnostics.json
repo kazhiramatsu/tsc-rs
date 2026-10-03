@@ -5,6 +5,7 @@
   "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
   "observer_sha256": "04a31d44e419fb831197a012f0ba23f3d70d779c0b7b93bf946b42811ee52e15",
   "repetitions": 2,
+  "typescript_7_1_observations": "TS1127 spans the backslash (length 1) in tsc-19dadef8 for identifier-part-extended-escape-overflow, identifier-start-extended-escape-overflow, identifier-then-rejected-escape, identifier-then-rejected-extended-escape, keyword-then-rejected-escape, private-name-extended-escape-overflow, rejected-escape-at-start; tsc 6.0.3 reported length 0.",
   "cases": [
     {
       "case_id": "tagged-template-eof-backslash",
@@ -829,7 +830,7 @@
           {
             "code": 1127,
             "start": 14,
-            "length": 0,
+            "length": 1,
             "message_utf16": [
               73,
               110,
@@ -947,7 +948,7 @@
           {
             "code": 1127,
             "start": 0,
-            "length": 0,
+            "length": 1,
             "message_utf16": [
               73,
               110,
@@ -1246,7 +1247,7 @@
           {
             "code": 1127,
             "start": 2,
-            "length": 0,
+            "length": 1,
             "message_utf16": [
               73,
               110,
@@ -1335,7 +1336,7 @@
           {
             "code": 1127,
             "start": 16,
-            "length": 0,
+            "length": 1,
             "message_utf16": [
               73,
               110,
@@ -1402,7 +1403,7 @@
           {
             "code": 1127,
             "start": 16,
-            "length": 0,
+            "length": 1,
             "message_utf16": [
               73,
               110,
@@ -1505,7 +1506,7 @@
           {
             "code": 1127,
             "start": 0,
-            "length": 0,
+            "length": 1,
             "message_utf16": [
               73,
               110,
@@ -1580,7 +1581,7 @@
           {
             "code": 1127,
             "start": 11,
-            "length": 0,
+            "length": 1,
             "message_utf16": [
               73,
               110,

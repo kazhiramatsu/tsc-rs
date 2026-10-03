@@ -22,6 +22,11 @@ pub enum ParseDiagnosticOrigin {
     /// `@typedef` without a name, TS1003): the source tree is complete, so
     /// the record stays emit-safe like a literal-only one.
     Reparse,
+    /// A report-only grammar diagnostic the parser reports while parsing on
+    /// without skipping or synthesizing anything (an optional chain after
+    /// `new A`, TS1209), so the record stays emit-safe like a literal-only
+    /// one.
+    Grammar,
 }
 
 impl ParseDiagnosticOrigin {
@@ -39,6 +44,7 @@ impl ParseDiagnosticOrigin {
                     | SyntaxKind::TemplateTail
             ) | Self::Deprecation
                 | Self::Reparse
+                | Self::Grammar
         )
     }
 }

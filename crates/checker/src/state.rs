@@ -949,6 +949,12 @@ pub struct CheckerState<'a> {
     /// from CheckAbort: augmentation recovery may contain an oracle crash,
     /// but it must never turn an incomplete authoritative table into success.
     pub(crate) authoritative_module_failure: std::cell::OnceCell<crate::AuthoritativeModuleFailure>,
+    /// tsgo's checkExternalModuleNameInGlobalScope resolves module names the
+    /// program does not collect (an import misplaced in a block). While it
+    /// does, a name missing from the authoritative table is unresolved
+    /// (TS2307), as tsgo's `GetResolvedModule` answers nil, rather than an
+    /// authority failure.
+    pub(crate) module_name_outside_program: std::cell::Cell<bool>,
     /// tsrs-native (M4 5.8d): EVERY host input path (normalized),
     /// including files the program layer drops (.json bodies, .js
     /// without allowJs) — the resolver's suppression probes read this
@@ -1584,6 +1590,7 @@ impl<'a> CheckerState<'a> {
             authoritative_implied_node_formats: Vec::new(),
             authoritative_implied_node_formats_for_emit: Vec::new(),
             authoritative_module_failure: std::cell::OnceCell::new(),
+            module_name_outside_program: std::cell::Cell::new(false),
             host_file_paths: Default::default(),
             host_input_snapshots: Default::default(),
             basic_module_specifier_host: None,

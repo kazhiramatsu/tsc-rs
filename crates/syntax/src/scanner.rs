@@ -471,9 +471,9 @@ impl<'text> Scanner<'text> {
                     if let Some(kind) = self.scan_identifier_escape_start() {
                         return kind;
                     }
-                    // tsc: error(Invalid_character) with no explicit span —
-                    // at the backslash, length 0.
-                    self.error_at(self.pos, 0, &gen::Invalid_character);
+                    // tsgo's scanInvalidCharacter (scanner.go:2206-2211)
+                    // spans the backslash.
+                    self.error_at(self.pos, 1, &gen::Invalid_character);
                 }
                 '#' => return self.scan_private_identifier(),
                 '\u{fffd}' => {
@@ -1059,12 +1059,13 @@ impl<'text> Scanner<'text> {
 
     /// tsc scan() hash case: `#` heads a private identifier only when an
     /// identifier (or identifier escape) follows; otherwise it is an
-    /// Invalid_character Unknown token. `#!` past position 0 is 18026.
+    /// Invalid_character Unknown token. `#!` past position 0 is 18026,
+    /// and tsgo's Unknown token covers both characters (scanner.go:912-915).
     fn scan_private_identifier(&mut self) -> SyntaxKind {
         let hash_pos = self.pos;
         if hash_pos != 0 && self.byte_at(hash_pos + 1) == Some(b'!') {
             self.error_at(hash_pos, 2, &gen::can_only_be_used_at_the_start_of_a_file);
-            self.pos += 1;
+            self.pos += 2;
             self.token = SyntaxKind::Unknown;
             return self.token;
         }

@@ -723,15 +723,19 @@ fn leading_reference_directives(text: &str) -> RawReferenceDirectives {
         let preserve = named_pragma_attribute(comment, comment_start, "preserve")
             .is_some_and(|attribute| attribute.value == "true");
         if let Some(types) = named_pragma_attribute(comment, comment_start, "types") {
+            // tsgo's parseResolutionMode (parser.go:6696-6708) reports any
+            // other value, the empty one included, at the attribute's value.
             let mode = named_pragma_attribute(comment, comment_start, "resolution-mode");
-            let (resolution_mode, error) = match mode.map(|attribute| attribute.value) {
-                None | Some("") => (None, None),
-                Some("import") => (Some(TypeReferenceDirectiveResolutionMode::Import), None),
-                Some("require") => (Some(TypeReferenceDirectiveResolutionMode::Require), None),
-                Some(_) => (
-                    None,
-                    Some((types.start, types.end.saturating_sub(types.start))),
-                ),
+            let (resolution_mode, error) = match mode {
+                None => (None, None),
+                Some(mode) => match mode.value {
+                    "import" => (Some(TypeReferenceDirectiveResolutionMode::Import), None),
+                    "require" => (Some(TypeReferenceDirectiveResolutionMode::Require), None),
+                    _ => (
+                        None,
+                        Some((mode.start, mode.end.saturating_sub(mode.start))),
+                    ),
+                },
             };
             return Some((
                 RawReferenceDirective::Type(RawTypeReferenceDirective {
@@ -964,6 +968,27 @@ impl<'text> Parser<'text> {
             message,
             Vec::new(),
             ParseDiagnosticOrigin::Deprecation,
+        );
+        self.parse_error_before_next_finished_node = true;
+    }
+
+    /// A grammar error tsgo reports at the current token while parsing on
+    /// over a complete tree: a report-only parse diagnostic.
+    fn parse_grammar_error_at_current_token(
+        &mut self,
+        message: &'static DiagnosticMessage,
+        args: &[&dyn DiagnosticArgument],
+    ) {
+        let args = args
+            .iter()
+            .map(|arg| arg.diagnostic_value().to_owned())
+            .collect();
+        self.push_parse_diagnostic(
+            self.scanner.token_start(),
+            self.scanner.pos() - self.scanner.token_start(),
+            message,
+            args,
+            ParseDiagnosticOrigin::Grammar,
         );
         self.parse_error_before_next_finished_node = true;
     }
@@ -6749,6 +6774,17 @@ impl<'text> Parser<'text> {
             .map(|expression| self.split_expression_with_type_arguments(expression))
             .map(|(expression, type_arguments)| (Some(expression), type_arguments))
             .unwrap_or((None, None));
+        // tsgo (parser.go:5818-5820): `new A?.b()` reports the optional chain
+        // and parses on.
+        if self.token() == SyntaxKind::QuestionDotToken {
+            if let Some(expression) = expression {
+                let text = self.text_of_node(expression);
+                self.parse_grammar_error_at_current_token(
+                    &gen::Invalid_optional_chain_from_new_expression_Did_you_mean_to_call_0,
+                    &[&text],
+                );
+            }
+        }
         let arguments = if self.token() == SyntaxKind::OpenParenToken {
             Some(self.parse_argument_list())
         } else {
@@ -10178,7 +10214,8 @@ impl<'text> Parser<'text> {
                 ParseDiagnosticOrigin::ScannerTrivia(_)
                 | ParseDiagnosticOrigin::ReferenceDirective
                 | ParseDiagnosticOrigin::Deprecation
-                | ParseDiagnosticOrigin::Reparse => start,
+                | ParseDiagnosticOrigin::Reparse
+                | ParseDiagnosticOrigin::Grammar => start,
             }),
         });
         (diagnostic_index, event_index)

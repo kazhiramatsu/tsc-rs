@@ -578,13 +578,16 @@ impl<'a> CheckerState<'a> {
         if self.check_type_related_to(source_property_type, target_property_type, relation)? {
             return Ok(false);
         }
+        // tsgo's elaborateError (relater.go:438-448) probes the
+        // did-you-mean-to-call/construct elaboration for every inner
+        // expression, a JSX child's included.
         if let Some(inner_expression) = inner_expression {
             if self
                 .elaborate_assignment_relation(
                     inner_expression,
                     source_property_type,
                     target_property_type,
-                    None,
+                    Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
                     sink,
                 )?
                 .reported()

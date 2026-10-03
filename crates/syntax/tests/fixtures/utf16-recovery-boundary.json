@@ -6,6 +6,7 @@
   "observer_sha256": "3852045535d84cc9c18ce4341710182801baf4cdf750d99ae6ffe4c6ec83e237",
   "repetitions": 2,
   "parser_executions": 40,
+  "typescript_7_1_observations": "identifier: TS1127 spans the backslash in tsc-19dadef8 (main.ts(1,7), length 1); tsc 6.0.3 reported length 0.",
   "cases": [
     {
       "case_id": "string-octal",
@@ -630,7 +631,7 @@
           {
             "code": 1127,
             "start": 6,
-            "length": 0,
+            "length": 1,
             "message_utf16": [
               73,
               110,
