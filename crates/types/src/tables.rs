@@ -2746,11 +2746,23 @@ impl TypeTables {
         texts: &[String],
         types: &[TypeId],
     ) -> TypeId {
+        self.try_get_template_literal_type(order, texts, types)
+            .unwrap_or(self.intrinsics.error)
+    }
+
+    /// [`Self::get_template_literal_type`] that tells the checker when the
+    /// type is over tsgo's size limits, which it reports as TS2589.
+    pub fn try_get_template_literal_type(
+        &mut self,
+        order: TypeOrder<'_>,
+        texts: &[String],
+        types: &[TypeId],
+    ) -> Result<TypeId, TemplateLiteralTooLarge> {
         let texts = texts
             .iter()
             .map(|text| TemplateText::from_utf8(text))
             .collect::<Vec<_>>();
-        self.get_template_literal_type_from_texts(order, &texts, types)
+        self.try_get_template_literal_type_from_texts(order, &texts, types)
     }
 
     /// Lossless UTF-16 entry used by parsed template fragments and by
@@ -2761,6 +2773,18 @@ impl TypeTables {
         texts: &[TemplateText],
         types: &[TypeId],
     ) -> TypeId {
+        self.try_get_template_literal_type_from_texts(order, texts, types)
+            .unwrap_or(self.intrinsics.error)
+    }
+
+    /// [`Self::get_template_literal_type_from_texts`] that tells the
+    /// checker when the type is over tsgo's size limits.
+    pub fn try_get_template_literal_type_from_texts(
+        &mut self,
+        order: TypeOrder<'_>,
+        texts: &[TemplateText],
+        types: &[TypeId],
+    ) -> Result<TypeId, TemplateLiteralTooLarge> {
         debug_assert_eq!(texts.len(), types.len() + 1);
         let union_index = types.iter().position(|&t| {
             self.flags_of(t).intersects(TypeFlags::from_bits(
@@ -2769,12 +2793,12 @@ impl TypeTables {
         });
         if let Some(union_index) = union_index {
             if !self.check_cross_product_union(types) {
-                return self.intrinsics.error;
+                return Ok(self.intrinsics.error);
             }
             // mapType over the union constituent (62060).
             let member = types[union_index];
             if self.flags_of(member).intersects(TypeFlags::NEVER) {
-                return member;
+                return Ok(member);
             }
             let TypeData::Union { types: members, .. } = self.type_of(member).data.clone() else {
                 unreachable!("union flag implies union data");
@@ -2783,21 +2807,32 @@ impl TypeTables {
             for &m in members.iter() {
                 let mut replaced = types.to_vec();
                 replaced[union_index] = m;
-                mapped.push(self.get_template_literal_type_from_texts(order, texts, &replaced));
+                mapped
+                    .push(self.try_get_template_literal_type_from_texts(order, texts, &replaced)?);
             }
-            return self.get_union_type(order, &mapped, UnionReduction::Literal);
+            return Ok(self.get_union_type(order, &mapped, UnionReduction::Literal));
         }
         if types.contains(&self.intrinsics.wildcard) {
-            return self.intrinsics.wildcard;
+            return Ok(self.intrinsics.wildcard);
         }
-        let mut new_types: Vec<TypeId> = Vec::new();
-        let mut new_texts: Vec<TemplateText> = Vec::new();
-        let mut text = texts[0].clone();
-        if !self.add_spans(&mut new_types, &mut new_texts, &mut text, texts, types) {
-            return self.intrinsics.string;
+        let mut spans = TemplateSpans {
+            new_types: Vec::new(),
+            new_texts: Vec::new(),
+            text: texts[0].clone(),
+            text_bytes: utf8_length(&texts[0]),
+            moved_bytes: 0,
+        };
+        if !self.add_spans(&mut spans, texts, types)? {
+            return Ok(self.intrinsics.string);
         }
+        let TemplateSpans {
+            new_types,
+            mut new_texts,
+            text,
+            ..
+        } = spans;
         if new_types.is_empty() {
-            return self.get_string_literal_type_from_text(&text);
+            return Ok(self.get_string_literal_type_from_text(&text));
         }
         new_texts.push(text);
         if new_texts.iter().all(|t| t.is_empty()) {
@@ -2805,10 +2840,10 @@ impl TypeTables {
                 .iter()
                 .all(|&t| self.flags_of(t).intersects(TypeFlags::STRING))
             {
-                return self.intrinsics.string;
+                return Ok(self.intrinsics.string);
             }
             if new_types.len() == 1 && self.is_pattern_literal_type(new_types[0]) {
-                return new_types[0];
+                return Ok(new_types[0]);
             }
         }
         let key = format!(
@@ -2826,22 +2861,22 @@ impl TypeTables {
                 .collect::<String>()
         );
         if let Some(&id) = self.template_literal_types.get(&key) {
-            return id;
+            return Ok(id);
         }
         let id = self.create_template_literal_type(new_texts, new_types);
         self.template_literal_types.insert(key, id);
-        id
+        Ok(id)
     }
 
-    /// addSpans inner function of getTemplateLiteralType (62089-62108).
+    /// addSpans inner function of getTemplateLiteralType (62089-62108),
+    /// with tsgo's size limits (checker.go:29637-29667): Ok(false) falls
+    /// back to `string`.
     fn add_spans(
         &mut self,
-        new_types: &mut Vec<TypeId>,
-        new_texts: &mut Vec<TemplateText>,
-        text: &mut TemplateText,
+        spans: &mut TemplateSpans,
         texts: &[TemplateText],
         types: &[TypeId],
-    ) -> bool {
+    ) -> Result<bool, TemplateLiteralTooLarge> {
         for (i, &t) in types.iter().enumerate() {
             let flags = self.flags_of(t);
             if flags.intersects(TypeFlags::from_bits(
@@ -2849,10 +2884,10 @@ impl TypeTables {
             )) {
                 match self.get_template_string_for_type(t) {
                     Some(segment) => {
-                        text.push_text(&segment);
-                        text.push_text(&texts[i + 1]);
+                        spans.push_text(&segment);
+                        spans.push_text(&texts[i + 1]);
                     }
-                    None => return false,
+                    None => return Ok(false),
                 }
             } else if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
                 let TypeData::TemplateLiteral {
@@ -2862,21 +2897,28 @@ impl TypeTables {
                 else {
                     unreachable!("template flag implies template data");
                 };
-                text.push_text(&inner_texts[0]);
+                spans.push_text(&inner_texts[0]);
                 let inner_tail: Vec<TemplateText> = inner_texts.to_vec();
-                if !self.add_spans(new_types, new_texts, text, &inner_tail, &inner_types) {
-                    return false;
+                if !self.add_spans(spans, &inner_tail, &inner_types)? {
+                    return Ok(false);
                 }
-                text.push_text(&texts[i + 1]);
+                spans.push_text(&texts[i + 1]);
             } else if self.is_generic_index_type(t) || self.is_pattern_literal_placeholder_type(t) {
-                new_types.push(t);
-                new_texts.push(std::mem::take(text));
-                *text = texts[i + 1].clone();
+                spans.new_types.push(t);
+                let text = std::mem::replace(&mut spans.text, texts[i + 1].clone());
+                spans.new_texts.push(text);
+                spans.moved_bytes += spans.text_bytes;
+                spans.text_bytes = utf8_length(&texts[i + 1]);
             } else {
-                return false;
+                return Ok(false);
+            }
+            if spans.moved_bytes + spans.text_bytes > MAX_TEMPLATE_LITERAL_TYPE_LENGTH
+                || spans.new_types.len() > MAX_TEMPLATE_LITERAL_TYPE_SPANS
+            {
+                return Err(TemplateLiteralTooLarge);
             }
         }
-        true
+        Ok(true)
     }
 
     /// tsc-port: isGenericType @6.0.3
@@ -3223,3 +3265,58 @@ pub fn js_number_to_string(value: f64) -> String {
 #[cfg(test)]
 #[path = "../tests/unit/tables/tests.rs"]
 mod tests;
+
+/// tsgo's limits on a template literal type built by getTemplateLiteralType
+/// (checker.go:29610-29616): its text, in UTF-8 bytes as Go counts them,
+/// and its placeholders. Recursive instantiations that double the text or
+/// the placeholders every step reach them long before the tail-recursion
+/// limit (TypeScript issue 63271).
+pub const MAX_TEMPLATE_LITERAL_TYPE_LENGTH: usize = 50_000_000;
+pub const MAX_TEMPLATE_LITERAL_TYPE_SPANS: usize = 100_000;
+
+/// A template literal type over the limits; the checker reports TS2589.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct TemplateLiteralTooLarge;
+
+/// The spans getTemplateLiteralType collects, with the UTF-8 lengths of
+/// the finished segments and of the one being written.
+struct TemplateSpans {
+    new_types: Vec<TypeId>,
+    new_texts: Vec<TemplateText>,
+    text: TemplateText,
+    text_bytes: usize,
+    moved_bytes: usize,
+}
+
+impl TemplateSpans {
+    fn push_text(&mut self, segment: &TemplateText) {
+        self.text.push_text(segment);
+        self.text_bytes += utf8_length(segment);
+    }
+}
+
+/// The UTF-8 length of a JavaScript string; a lone surrogate counts three
+/// bytes, as Go writes it.
+fn utf8_length(text: &TemplateText) -> usize {
+    let units = text.units();
+    let mut length = 0;
+    let mut index = 0;
+    while index < units.len() {
+        let unit = units[index];
+        length += match unit {
+            0..=0x7F => 1,
+            0x80..=0x7FF => 2,
+            0xD800..=0xDBFF
+                if units
+                    .get(index + 1)
+                    .is_some_and(|next| (0xDC00..=0xDFFF).contains(next)) =>
+            {
+                index += 1;
+                4
+            }
+            _ => 3,
+        };
+        index += 1;
+    }
+    length
+}

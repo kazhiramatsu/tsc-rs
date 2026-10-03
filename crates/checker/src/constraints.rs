@@ -770,8 +770,17 @@ impl<'a> CheckerState<'a> {
             };
         }
         if flags.intersects(TypeFlags::CONDITIONAL) {
-            let constraint = self.get_constraint_from_conditional_type(t)?;
-            return self.get_base_constraint_inner(constraint, stack);
+            // tsgo (checker.go:28027-28034) bounds the nesting of
+            // conditional constraints: each distributive constraint
+            // instantiates a new conditional type, so the stack above
+            // never repeats (TypeScript issue 63269).
+            if self.conditional_constraint_depth >= 100 {
+                return Ok(None);
+            }
+            self.conditional_constraint_depth += 1;
+            let constraint = self.get_constraint_from_conditional_type(t);
+            self.conditional_constraint_depth -= 1;
+            return self.get_base_constraint_inner(constraint?, stack);
         }
         if flags.intersects(TypeFlags::SUBSTITUTION) {
             let intersection = self.get_substitution_intersection(t)?;

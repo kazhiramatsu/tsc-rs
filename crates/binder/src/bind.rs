@@ -2618,12 +2618,21 @@ impl<'a> BinderWorker<'a> {
                 ),
                 _ => (None, None, None, None),
             };
+        self.bind(initializer);
+        // tsgo (binder.go:1888-1899): an initializer that ends the flow (a
+        // throwing IIFE) leaves the loop unreachable. Building the loop would
+        // drop the unreachable entry and leave a cycle with no exit.
+        if self.current_flow_id() == self.unreachable_flow {
+            self.bind(condition);
+            self.bind(statement);
+            self.bind(incrementor);
+            return;
+        }
         let loop_label = self.flow.create_loop_label();
         let pre_loop_label = self.set_continue_target(node, loop_label);
         let pre_body_label = self.flow.create_branch_label();
         let pre_incrementor_label = self.flow.create_branch_label();
         let post_loop_label = self.flow.create_branch_label();
-        self.bind(initializer);
         let current = self.current_flow_id();
         self.flow.add_antecedent(pre_loop_label, current);
         self.current_flow = Some(pre_loop_label);
@@ -2665,10 +2674,16 @@ impl<'a> BinderWorker<'a> {
                 ),
                 _ => (None, None, None, None),
             };
+        self.bind(expression);
+        // tsgo (binder.go:1918-1928): like the for-loop initializer.
+        if self.current_flow_id() == self.unreachable_flow {
+            self.bind(initializer);
+            self.bind(statement);
+            return;
+        }
         let loop_label = self.flow.create_loop_label();
         let pre_loop_label = self.set_continue_target(node, loop_label);
         let post_loop_label = self.flow.create_branch_label();
-        self.bind(expression);
         let current = self.current_flow_id();
         self.flow.add_antecedent(pre_loop_label, current);
         self.current_flow = Some(pre_loop_label);

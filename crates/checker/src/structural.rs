@@ -1004,10 +1004,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 let mapper = self.st.report_unreliable_mapper;
                 self.st.instantiate_type(source, Some(mapper))?;
             }
-            if self
-                .st
-                .is_type_matched_by_template_literal_type(source, target)?
-            {
+            // tsgo passes the relater's own comparison
+            // (relater.go:3616).
+            if is_type_matched_by_template_literal_type(self, source, target)? {
                 return Ok(Ternary::TRUE);
             }
         } else if target_flags.intersects(TypeFlags::STRING_MAPPING) {
@@ -8528,21 +8527,16 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isTypeMatchedByTemplateLiteralType @6.0.3
     /// tsc-hash: 10e3e6c09b4976cfec5a798ea4a9c37923362c263ea75bc20304a9a7a44b3379
     /// tsc-span: _tsc.js:68580-68583
+    ///
+    /// Compared by assignability (tsgo compareTypesAssignable); the
+    /// relation checker passes itself instead (see
+    /// [`TemplateTypeComparer`]).
     pub fn is_type_matched_by_template_literal_type(
         &mut self,
         source: TypeId,
         target: TypeId,
     ) -> CheckResult<bool> {
-        let Some(inferences) = self.infer_types_from_template_literal_type(source, target)? else {
-            return Ok(false);
-        };
-        let (_, target_types) = self.template_parts_of(target);
-        for (i, &inference) in inferences.iter().enumerate() {
-            if !self.is_valid_type_for_template_literal_placeholder(inference, target_types[i])? {
-                return Ok(false);
-            }
-        }
-        Ok(true)
+        is_type_matched_by_template_literal_type(self, source, target)
     }
 
     /// tsc-port: inferTypesFromTemplateLiteralType @6.0.3
@@ -8553,49 +8547,7 @@ impl<'a> CheckerState<'a> {
         source: TypeId,
         target: TypeId,
     ) -> CheckResult<Option<Vec<TypeId>>> {
-        let source_flags = self.tables.flags_of(source);
-        if source_flags.intersects(TypeFlags::STRING_LITERAL) {
-            let TypeData::Literal {
-                value: tsc_types::LiteralValue::String(value),
-            } = &self.tables.type_of(source).data
-            else {
-                unreachable!("string literal data");
-            };
-            // Test the ends before copying the literal.
-            if !self.literal_parts_fit_template_ends(std::slice::from_ref(value), target) {
-                return Ok(None);
-            }
-            let value = value.clone();
-            return self.infer_from_literal_parts_to_template_literal(&[value], &[], target);
-        }
-        if source_flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
-            let (source_texts, source_types) = self.template_parts_of(source);
-            let (target_texts, _) = self.template_parts_of(target);
-            if source_texts == target_texts {
-                let mut mapped = Vec::with_capacity(source_types.len());
-                let (_, target_types) = self.template_parts_of(target);
-                for (i, &s) in source_types.iter().enumerate() {
-                    // 68577 compares the BASE CONSTRAINTS on both
-                    // sides (an M3-era identity shortcut here went
-                    // stale once M4 made instantiable placeholder
-                    // types constructible — pinned).
-                    let source_base = self.get_base_constraint_or_type(s)?;
-                    let target_base = self.get_base_constraint_or_type(target_types[i])?;
-                    if self.is_type_assignable_to(source_base, target_base)? {
-                        mapped.push(s);
-                    } else {
-                        mapped.push(self.get_string_like_type_for_type(s));
-                    }
-                }
-                return Ok(Some(mapped));
-            }
-            return self.infer_from_literal_parts_to_template_literal(
-                &source_texts,
-                &source_types,
-                target,
-            );
-        }
-        Ok(None)
+        infer_types_from_template_literal_type(self, source, target)
     }
 
     /// tsc-port: getStringLikeTypeForType @6.0.3
@@ -8609,97 +8561,6 @@ impl<'a> CheckerState<'a> {
         } else {
             self.get_template_literal_type(&["".to_owned(), "".to_owned()], &[ty])
         }
-    }
-
-    /// tsc-port: isValidTypeForTemplateLiteralPlaceholder @6.0.3
-    /// tsc-hash: 6de8a2d259eac2128f6d433d0b28171ed84d87f387ad1fa45f45f90d75bdc941
-    /// tsc-span: _tsc.js:68550-68574
-    ///
-    /// The tsc OR-chain rendered as early returns — equivalent
-    /// because the arm guards are disjoint type kinds. Bigint arm live
-    /// since M6 7.2c (isValidBigIntString); StringMapping arms are M4.
-    fn is_valid_type_for_template_literal_placeholder(
-        &mut self,
-        source: TypeId,
-        target: TypeId,
-    ) -> CheckResult<bool> {
-        if self
-            .tables
-            .flags_of(target)
-            .intersects(TypeFlags::INTERSECTION)
-        {
-            let TypeData::Intersection { types } = self.tables.type_of(target).data.clone() else {
-                unreachable!("intersection flag implies intersection data");
-            };
-            for t in types.iter() {
-                if *t == self.empty_type_literal_type {
-                    continue;
-                }
-                if !self.is_valid_type_for_template_literal_placeholder(source, *t)? {
-                    return Ok(false);
-                }
-            }
-            return Ok(true);
-        }
-        if self.tables.flags_of(target).intersects(TypeFlags::STRING)
-            || self.is_type_assignable_to(source, target)?
-        {
-            return Ok(true);
-        }
-        if self
-            .tables
-            .flags_of(source)
-            .intersects(TypeFlags::STRING_LITERAL)
-        {
-            let TypeData::Literal {
-                value: tsc_types::LiteralValue::String(value),
-            } = self.tables.type_of(source).data.clone()
-            else {
-                unreachable!("string literal data");
-            };
-            let target_flags = self.tables.flags_of(target);
-            let utf8_value = value.to_utf8();
-            if target_flags.intersects(TypeFlags::NUMBER)
-                && utf8_value
-                    .as_deref()
-                    .is_some_and(|value| self.is_valid_number_string(value, false))
-            {
-                return Ok(true);
-            }
-            if target_flags.intersects(TypeFlags::BIG_INT)
-                && utf8_value
-                    .as_deref()
-                    .is_some_and(|value| self.is_valid_big_int_string(value, false))
-            {
-                return Ok(true);
-            }
-            if target_flags.intersects(TypeFlags::from_bits(
-                TypeFlags::BOOLEAN_LITERAL.bits() | TypeFlags::NULLABLE.bits(),
-            )) {
-                if let TypeData::Intrinsic { name, .. } = &self.tables.type_of(target).data {
-                    return Ok(value.eq_utf8(name));
-                }
-            }
-            if target_flags.intersects(TypeFlags::STRING_MAPPING) {
-                return self.is_member_of_string_mapping(source, target);
-            }
-            if target_flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
-                return self.is_type_matched_by_template_literal_type(source, target);
-            }
-            return Ok(false);
-        }
-        if self
-            .tables
-            .flags_of(source)
-            .intersects(TypeFlags::TEMPLATE_LITERAL)
-        {
-            let (texts, types) = self.template_parts_of(source);
-            if texts.len() == 2 && texts[0].is_empty() && texts[1].is_empty() {
-                return self.is_type_assignable_to(types[0], target);
-            }
-            return Ok(false);
-        }
-        Ok(false)
     }
 
     /// tsc-port: inferFromLiteralPartsToTemplateLiteral @6.0.3
@@ -8845,6 +8706,211 @@ pub(crate) fn js_string_to_number(s: &str) -> Option<f64> {
 /// shares it).
 fn js_number_to_string(value: f64) -> String {
     tsc_types::js_number_to_string(value)
+}
+
+/// tsgo TypeComparer for template literal matching. Outside a relation
+/// check the comparison is assignability (compareTypesAssignable); inside
+/// one, the relation checker compares with its own isRelatedTo
+/// (relater.go:3616), so its stacks and depth limits also bound the
+/// comparisons of the placeholders. A fresh relation per placeholder
+/// recursed without bound in deeply generic string types (tsc 6.0 used
+/// isTypeAssignableTo there).
+pub(crate) trait TemplateTypeComparer<'a> {
+    fn state(&mut self) -> &mut CheckerState<'a>;
+    fn compare(&mut self, source: TypeId, target: TypeId) -> CheckResult<bool>;
+}
+
+impl<'a> TemplateTypeComparer<'a> for CheckerState<'a> {
+    fn state(&mut self) -> &mut CheckerState<'a> {
+        self
+    }
+
+    fn compare(&mut self, source: TypeId, target: TypeId) -> CheckResult<bool> {
+        self.is_type_assignable_to(source, target)
+    }
+}
+
+impl<'a> TemplateTypeComparer<'a> for RelationChecker<'_, 'a> {
+    fn state(&mut self) -> &mut CheckerState<'a> {
+        self.st
+    }
+
+    fn compare(&mut self, source: TypeId, target: TypeId) -> CheckResult<bool> {
+        Ok(!is_false(self.is_related_to(
+            source,
+            target,
+            RecursionFlags::BOTH,
+            /*report_errors*/ false,
+            IntersectionState::NONE,
+        )?))
+    }
+}
+
+/// tsc-port: isTypeMatchedByTemplateLiteralType @6.0.3
+/// tsc-hash: 10e3e6c09b4976cfec5a798ea4a9c37923362c263ea75bc20304a9a7a44b3379
+/// tsc-span: _tsc.js:68580-68583
+pub(crate) fn is_type_matched_by_template_literal_type<'a, C: TemplateTypeComparer<'a>>(
+    comparer: &mut C,
+    source: TypeId,
+    target: TypeId,
+) -> CheckResult<bool> {
+    let Some(inferences) = infer_types_from_template_literal_type(comparer, source, target)? else {
+        return Ok(false);
+    };
+    let (_, target_types) = comparer.state().template_parts_of(target);
+    for (i, &inference) in inferences.iter().enumerate() {
+        if !is_valid_type_for_template_literal_placeholder(comparer, inference, target_types[i])? {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
+/// tsc-port: inferTypesFromTemplateLiteralType @6.0.3
+/// tsc-hash: 9abaf8ac4504967f931a9a1ac1ff06638761380afe56e951af5c860fd7ac9f3a
+/// tsc-span: _tsc.js:68575-68579
+fn infer_types_from_template_literal_type<'a, C: TemplateTypeComparer<'a>>(
+    comparer: &mut C,
+    source: TypeId,
+    target: TypeId,
+) -> CheckResult<Option<Vec<TypeId>>> {
+    let st = comparer.state();
+    let source_flags = st.tables.flags_of(source);
+    if source_flags.intersects(TypeFlags::STRING_LITERAL) {
+        let TypeData::Literal {
+            value: tsc_types::LiteralValue::String(value),
+        } = &st.tables.type_of(source).data
+        else {
+            unreachable!("string literal data");
+        };
+        // Test the ends before copying the literal.
+        if !st.literal_parts_fit_template_ends(std::slice::from_ref(value), target) {
+            return Ok(None);
+        }
+        let value = value.clone();
+        return st.infer_from_literal_parts_to_template_literal(&[value], &[], target);
+    }
+    if source_flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
+        let (source_texts, source_types) = st.template_parts_of(source);
+        let (target_texts, target_types) = st.template_parts_of(target);
+        if source_texts == target_texts {
+            let mut mapped = Vec::with_capacity(source_types.len());
+            for (i, &s) in source_types.iter().enumerate() {
+                // 68577 compares the BASE CONSTRAINTS on both
+                // sides (an M3-era identity shortcut here went
+                // stale once M4 made instantiable placeholder
+                // types constructible — pinned).
+                let source_base = comparer.state().get_base_constraint_or_type(s)?;
+                let target_base = comparer
+                    .state()
+                    .get_base_constraint_or_type(target_types[i])?;
+                if comparer.compare(source_base, target_base)? {
+                    mapped.push(s);
+                } else {
+                    mapped.push(comparer.state().get_string_like_type_for_type(s));
+                }
+            }
+            return Ok(Some(mapped));
+        }
+        return comparer
+            .state()
+            .infer_from_literal_parts_to_template_literal(&source_texts, &source_types, target);
+    }
+    Ok(None)
+}
+
+/// tsc-port: isValidTypeForTemplateLiteralPlaceholder @6.0.3
+/// tsc-hash: 6de8a2d259eac2128f6d433d0b28171ed84d87f387ad1fa45f45f90d75bdc941
+/// tsc-span: _tsc.js:68550-68574
+///
+/// The tsc OR-chain rendered as early returns — equivalent
+/// because the arm guards are disjoint type kinds. Bigint arm live
+/// since M6 7.2c (isValidBigIntString); StringMapping arms are M4.
+fn is_valid_type_for_template_literal_placeholder<'a, C: TemplateTypeComparer<'a>>(
+    comparer: &mut C,
+    source: TypeId,
+    target: TypeId,
+) -> CheckResult<bool> {
+    let st = comparer.state();
+    if st
+        .tables
+        .flags_of(target)
+        .intersects(TypeFlags::INTERSECTION)
+    {
+        let TypeData::Intersection { types } = st.tables.type_of(target).data.clone() else {
+            unreachable!("intersection flag implies intersection data");
+        };
+        let empty_type_literal = st.empty_type_literal_type;
+        for t in types.iter() {
+            if *t == empty_type_literal {
+                continue;
+            }
+            if !is_valid_type_for_template_literal_placeholder(comparer, source, *t)? {
+                return Ok(false);
+            }
+        }
+        return Ok(true);
+    }
+    if st.tables.flags_of(target).intersects(TypeFlags::STRING)
+        || comparer.compare(source, target)?
+    {
+        return Ok(true);
+    }
+    let st = comparer.state();
+    if st
+        .tables
+        .flags_of(source)
+        .intersects(TypeFlags::STRING_LITERAL)
+    {
+        let TypeData::Literal {
+            value: tsc_types::LiteralValue::String(value),
+        } = st.tables.type_of(source).data.clone()
+        else {
+            unreachable!("string literal data");
+        };
+        let target_flags = st.tables.flags_of(target);
+        let utf8_value = value.to_utf8();
+        if target_flags.intersects(TypeFlags::NUMBER)
+            && utf8_value
+                .as_deref()
+                .is_some_and(|value| st.is_valid_number_string(value, false))
+        {
+            return Ok(true);
+        }
+        if target_flags.intersects(TypeFlags::BIG_INT)
+            && utf8_value
+                .as_deref()
+                .is_some_and(|value| st.is_valid_big_int_string(value, false))
+        {
+            return Ok(true);
+        }
+        if target_flags.intersects(TypeFlags::from_bits(
+            TypeFlags::BOOLEAN_LITERAL.bits() | TypeFlags::NULLABLE.bits(),
+        )) {
+            if let TypeData::Intrinsic { name, .. } = &st.tables.type_of(target).data {
+                return Ok(value.eq_utf8(name));
+            }
+        }
+        if target_flags.intersects(TypeFlags::STRING_MAPPING) {
+            return st.is_member_of_string_mapping(source, target);
+        }
+        if target_flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
+            return is_type_matched_by_template_literal_type(comparer, source, target);
+        }
+        return Ok(false);
+    }
+    if st
+        .tables
+        .flags_of(source)
+        .intersects(TypeFlags::TEMPLATE_LITERAL)
+    {
+        let (texts, types) = st.template_parts_of(source);
+        if texts.len() == 2 && texts[0].is_empty() && texts[1].is_empty() {
+            return comparer.compare(types[0], target);
+        }
+        return Ok(false);
+    }
+    Ok(false)
 }
 
 #[cfg(test)]

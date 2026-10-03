@@ -970,8 +970,10 @@ impl<'a> CheckerState<'a> {
                     2
                 }
             }
+            // tsgo counts with getParameterCount, so a rest tuple counts
+            // its elements; tsc 6.0 counted the declared parameters.
             SyntaxKind::MethodDeclaration | SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
-                if self.signature_of(signature).parameters.len() <= 2 {
+                if self.get_parameter_count(signature)? <= 2 {
                     2
                 } else {
                     3

@@ -7219,7 +7219,17 @@ impl<'a> CheckerState<'a> {
                 if self.kind_of(existing) == SyntaxKind::TypeQuery
                     && self.get_type_from_type_node(existing)? == ty
                 {
-                    if let Some(text) = self.reusable_annotation_node_text(existing)? {
+                    // tsgo (nodebuilderimpl.go:2921-2934): when the node
+                    // cannot be reused, the fallback re-enters with this
+                    // same type; marking it visited for the attempt stops
+                    // the recursion at the placeholder.
+                    if self.display_visited_types.contains(&ty) {
+                        return Ok(self.reverse_mapped_elision_placeholder());
+                    }
+                    self.display_visited_types.insert(ty);
+                    let text = self.reusable_annotation_node_text(existing);
+                    self.display_visited_types.remove(&ty);
+                    if let Some(text) = text? {
                         return Ok((text, SliceTypeNodeKind::TypeQuery));
                     }
                 }

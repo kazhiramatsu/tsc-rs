@@ -10152,3 +10152,171 @@ fn deep_instantiations_name_the_circular_type_like_tsgo() {
     );
     assert!(!rows.iter().any(|row| row.0 == 2589), "{rows:?}");
 }
+
+/// The library the crash regressions run with: noLib plus this file.
+const CRASH_REGRESSION_LIB: &str = "interface Array<T> { length: number; [n: number]: T; }\n\
+     interface Boolean {}\n\
+     interface CallableFunction {}\n\
+     interface Function {}\n\
+     interface IArguments {}\n\
+     interface NewableFunction {}\n\
+     interface Number { toFixed(digits?: number): string; }\n\
+     interface Object {}\n\
+     interface RegExp {}\n\
+     interface String {}\n";
+
+/// The 1-based line and column of a byte offset in ASCII text.
+fn line_column_of(text: &str, offset: u32) -> (usize, usize) {
+    let before = &text[..offset as usize];
+    let line = before.matches('\n').count() + 1;
+    let column = before.len() - before.rfind('\n').map_or(0, |index| index + 1) + 1;
+    (line, column)
+}
+
+#[test]
+fn inputs_that_crashed_the_checker_report_tsgo_rows() {
+    // Each input overflowed the stack, hung or panicked before the tsgo
+    // fixes:
+    // - a loop head that throws (binder);
+    // - a destructuring that reads itself in its own initializer;
+    // - `for (const a of a)`;
+    // - discriminant narrowing of a destructuring declared in another file;
+    // - a computed enum member name;
+    // - a legacy method decorator with a rest tuple parameter;
+    // - a typeof-instantiation type that could not be reused in a display.
+    // The rows are tsgo's with the same library (`noLib` plus the file
+    // above, strict, allowUnreachableCode false, experimentalDecorators).
+    let files = [
+        (
+            "/loops.ts",
+            "declare function log(x: string): void;\n\
+             try {\n\
+             \x20   for ((function () { throw \"1\"; })(); ; ) {\n\
+             \x20       log(\"for\");\n\
+             \x20   }\n\
+             } catch (e) { }\n\
+             try {\n\
+             \x20   for (const x in (function (): {} { throw \"2\"; })()) {\n\
+             \x20       log(\"for-in\");\n\
+             \x20   }\n\
+             } catch (e) { }\n",
+        ),
+        (
+            "/destructuring.ts",
+            "const { c, f }: string | number = { c: 0, f };\n\
+             for (const a of a) {\n\
+             \x20   a();\n\
+             \x20   a;\n\
+             }\n",
+        ),
+        (
+            "/narrow1.ts",
+            "type U = { kind: \"a\"; payload: number } | { kind: \"b\"; payload: string };\n\
+             declare function make(): U;\n\
+             const { kind, payload }: U = make();\n",
+        ),
+        ("/narrow2.ts", "if (kind === \"a\") payload.toFixed();\n"),
+        (
+            "/members.ts",
+            "declare const enum E {\n\
+             \x20   [foo] = 1,\n\
+             \x20   A,\n\
+             \x20   foo = 10,\n\
+             }\n\
+             E.A;\n\
+             class Greeter {\n\
+             \x20   @deco\n\
+             \x20   greet1() {\n\
+             \x20       return this.greeting;\n\
+             \x20   }\n\
+             }\n\
+             declare function deco(...args: [any, any, any]): any;\n",
+        ),
+        (
+            "/display.ts",
+            "export interface CustomNode<P> {\n\
+             \x20   getNextNode: () => CustomNode<P>;\n\
+             }\n\
+             export declare const createNode: () => {\n\
+             \x20   getNextNode: <T>() => CustomNode<T>;\n\
+             };\n\
+             function wrapNode<T>(getNode: () => CustomNode<T>) {\n\
+             \x20   return getNode;\n\
+             }\n\
+             wrapNode(() => {\n\
+             \x20   const node = createNode();\n\
+             \x20   return wrapNode<typeof node.getNextNode<any>>(node.getNextNode);\n\
+             });\n",
+        ),
+    ];
+    let libs = [crate::InputFile::new(
+        "/lib.d.ts".to_owned(),
+        CRASH_REGRESSION_LIB.to_owned(),
+    )];
+    let inputs: Vec<crate::InputFile> = files
+        .iter()
+        .map(|(name, text)| crate::InputFile::new((*name).to_owned(), (*text).to_owned()))
+        .collect();
+    let options = CompilerOptions {
+        strict: Some(true),
+        allow_unreachable_code: Some(false),
+        experimental_decorators: true,
+        ..CompilerOptions::default()
+    };
+    let result = crate::check_program_with_libs_at(&libs, &inputs, &options, "/");
+    let mut rows: Vec<(String, usize, usize, u32, String)> = result
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| {
+            diagnostic.file_name.is_some()
+                && diagnostic.category() == tsc_diagnostics::DiagnosticCategory::Error
+        })
+        .map(|diagnostic| {
+            let file = diagnostic
+                .file_name
+                .as_ref()
+                .and_then(|name| name.as_str())
+                .expect("scalar filename observation")
+                .to_owned();
+            let text = files
+                .iter()
+                .find(|(name, _)| *name == file)
+                .map(|(_, text)| *text)
+                .expect("an input file");
+            let (line, column) =
+                line_column_of(text, diagnostic.start.expect("located diagnostic"));
+            (
+                file,
+                line,
+                column,
+                diagnostic.code(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation")
+                    .to_owned(),
+            )
+        })
+        .collect();
+    rows.sort();
+    let expected: Vec<(String, usize, usize, u32, String)> = [
+        ("/destructuring.ts", 1, 7, 2322, "Type '{ c: number; f: any; }' is not assignable to type 'string | number'."),
+        ("/destructuring.ts", 1, 9, 2339, "Property 'c' does not exist on type 'string | number'."),
+        ("/destructuring.ts", 1, 12, 2339, "Property 'f' does not exist on type 'string | number'."),
+        ("/destructuring.ts", 1, 12, 7022, "'f' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer."),
+        ("/destructuring.ts", 1, 43, 2448, "Block-scoped variable 'f' used before its declaration."),
+        ("/destructuring.ts", 2, 12, 7022, "'a' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer."),
+        ("/destructuring.ts", 2, 17, 2448, "Block-scoped variable 'a' used before its declaration."),
+        ("/display.ts", 10, 10, 2345, "Argument of type '() => () => CustomNode<...>' is not assignable to parameter of type '() => CustomNode<unknown>'."),
+        ("/loops.ts", 4, 9, 7027, "Unreachable code detected."),
+        ("/loops.ts", 9, 9, 7027, "Unreachable code detected."),
+        ("/members.ts", 2, 5, 1164, "Computed property names are not allowed in enums."),
+        ("/members.ts", 10, 21, 2339, "Property 'greeting' does not exist on type 'Greeter'."),
+    ]
+    .into_iter()
+    .map(|(file, line, column, code, message)| {
+        (file.to_owned(), line, column, code, message.to_owned())
+    })
+    .collect();
+    assert_eq!(rows, expected);
+}

@@ -2989,12 +2989,28 @@ impl<'a> CheckerState<'a> {
         self.get_explicit_type_of_symbol_with_diagnostic(symbol, None)
     }
 
+    /// tsgo keeps the symbols whose explicit type is being resolved
+    /// (resolvingExplicitTypeOfSymbol): a symbol met again on the way, as in
+    /// `for (const a of a)`, has none.
     fn get_explicit_type_of_symbol_with_diagnostic(
         &mut self,
         symbol: SymbolId,
         diagnostic: Option<&mut tsc_diagnostics::Diagnostic>,
     ) -> CheckResult<Option<TypeId>> {
         let symbol = self.resolve_symbol_shallow(symbol)?;
+        if !self.resolving_explicit_type_of_symbol.insert(symbol) {
+            return Ok(None);
+        }
+        let result = self.get_explicit_type_of_resolved_symbol(symbol, diagnostic);
+        self.resolving_explicit_type_of_symbol.remove(&symbol);
+        result
+    }
+
+    fn get_explicit_type_of_resolved_symbol(
+        &mut self,
+        symbol: SymbolId,
+        diagnostic: Option<&mut tsc_diagnostics::Diagnostic>,
+    ) -> CheckResult<Option<TypeId>> {
         let flags = self.binder.symbol(symbol).flags;
         if flags.intersects(
             SymbolFlags::FUNCTION
