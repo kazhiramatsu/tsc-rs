@@ -1494,3 +1494,47 @@ treeの出力でtsgoと違った点を直した：
   - emitの不一致は残り458構成。
 - hosted：PR #644（head `626bb842e`、merge `b562ab28c`）、run 37138499811 — `plan` 32s、`rust` 9m43s、`conformance (TypeScript 7.1)` 16m2s、`gates` 13s。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main `5397457e3`（P3-5zのcode `0b7e38a26`と同じcodeのrelease build）と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 139→137、zod 513→505、Playwright 369→359、TypeScript `src/compiler` 332→341、Next.js 763→739、Effect 534→489、VS Code 3,443→3,372。tsc-rs÷tsgoは0.58〜0.95、peak memory（MB main→本branch）：317→325、1,295→1,290、806→811、287→288、1,319→1,315、1,036→1,036、5,431→5,440。診断の出力と読み込んだdocument数は7 corpusともmainと同一。TypeScript `src/compiler`は5 roundsのA/B（main／本branch）で322／319 ms、`TSRS_CHECKERS=1`の命令数（5回のmedian）は15.939／15.950 Gでノイズ。emitを含む`tsconfig.bench-full.json`（JS・d.ts・source map、3 rounds）：hono 145→144、zod 609→623、Playwright 484→486、TypeScript `src/compiler` 504→500、Next.js 1,044→1,007、Effect 801→801（tsgo比0.50〜0.77）、zodは5 roundsのA/Bで584／577 msなのでノイズ。出力はhono・zod・TypeScript `src/compiler`・Next.jsでmainと同一。Playwrightの8 fileとEffectの5 file（と各source map）はinstantiation式の括弧が無くなった差で、Effectの5 fileとPlaywrightの4 fileはtsgoの出力と同一（Playwrightの残る4 fileの差はmainにもある`react/jsx-runtime`のimportの並び順で、tsgoは名前順）。退行なし。
+
+## P3-5ab d.tsの分割代入とnamespaceの`var`をtsgoに合わせる（2026-10-04）
+
+P3-5aa後のemitの不一致458構成のうち、TypeScript fileで原因がはっきりした3つのclass：
+- d.tsの分割代入：初期値を持つ要素（入れ子を含む）があるときだけ要素ごとの宣言に分け、それ以外は
+  binding patternのまま宣言全体の型で書く（transform.go:841-873、`declare var [x]: [number, string];`）。6.0は
+  常に分けた。型はsymbolの無い宣言としてgetTypeForVariableLikeDeclarationの型（nodebuilderimpl.go:2263-2272）で、
+  tsc-rsのgetSymbolOfDeclarationが返すunknown symbolをtsgoのnilとして扱う。空のpattern（`var [] = …`）は
+  従来どおり出さない。
+- namespaceとenumの`var`：同じscopeで先に宣言された変数（分割代入の名前を含む）・関数・classがあれば
+  `var x;`を書かない（tsgo RuntimeSyntaxTransformerのpushScope／recordDeclarationInScope、runtimesyntax.go:52-67、
+  140-171）。6.0は関数とclassだけを数えた。ambientな文は、tsgoではtype eraserが先に消すので数えない。
+- `declare`の付いたimport-equals宣言（`declare import a = b;`、TS1079）は出さない（typeeraser.go:48-50：`declare`の
+  付いた文はすべて消す）。6.0は`var a = b;`を書いた。
+- unit test（CLI、tsgoの出力にpin）：分割代入のd.ts（初期値の有無、入れ子、rest、型注釈）、namespaceとenumの
+  merge（変数・関数・分割代入・`declare var`・後に来る変数・`let`とenum）、`declare import`、それぞれの診断。
+- conformance：
+  - 15,228 configuration、lane A 13,467（変化なし）、443 s。
+  - errors：full 13,324→13,325（+1）、mismatch 88→87。`isolatedDeclarationErrorsExpressions`は、分割代入を要素に
+    分けなくなってtsgoに無いTS9019が消えた。
+  - emit full 12,979→13,003（+24）、emit mismatch 458→434。上がった24構成：
+    - 分割代入のd.ts 19構成（`declarationEmitDestructuringArrayPattern1`〜`5`、
+      `declarationEmitDestructuringObjectLiteralPattern`／`1`／`2`、`declarationEmitDestructuringPrivacyError`、
+      `declarationEmitOptionalMappedTypePropertyNoStrictNullChecks1`〜`3`、`declarationEmitNonExportedBindingPattern`、
+      `declarationEmitExpressionInExtends6`、`declarationEmitSubpathImportsReexport`、`subpathImportDeclarationEmit`、
+      `dependentDestructuredVariables`、`dependentDestructuredVariablesNoCrash3`、`stringLiteralTypesAndTuples01`）。
+    - namespaceの`var` 3構成（`augmentedTypesVar`、`module_augmentExistingVariable`、`nameCollisions`）。
+    - `declare import` 2構成（`declareModifierOnImport1`、`importDeclWithDeclareModifier`）。
+  - 下がった構成は無い。描いたbaselineのdigestが変わったのは`isolatedDeclarationErrorsExpressions`だけで、それまで
+    fullだったemitのdigestはすべて同じ。
+- ratchet：0 regressions、24行raise・1行追加。
+- local：
+  - formatとworkspace全体のclippy。emitter・checker・compiler・conformanceのtest（35 targets、2,622 passed）。
+  - 2 workerのfull run（443 s）。
+  - CLIのtestの入力（3 file）はtsgoと診断・d.ts・`.js`がbyte単位で同じ。
+  - `--checkers 4`の並列対照は実行していない。
+- 残り（emitの不一致434構成）：
+  - JavaScriptからのd.ts（約270構成）：tsgoは`declare`を付けたclass、CommonJSの`export =`と`_exports`、暗黙の
+    constructor、export宣言の位置などが6.0と違う。tsgoのd.tsは再解析したJavaScriptのtreeから作り、tsc-rsは6.0の
+    symbolからの直列化なので、別の設計で進める。
+  - CommonJSのexportへの分割代入（7構成）：tsgoは可能なら分割代入のまま書く（visitDestructuringAssignment、
+    commonjsmodule.go:1110-1135、1415-1480）。
+  - TypeScriptのd.tsの単発の差：再利用した文字列literal型の引用符、unionの並び、expandoのnamespace、
+    `declare const _default = 0;`、引数の無いsetterの`value: any`など。
