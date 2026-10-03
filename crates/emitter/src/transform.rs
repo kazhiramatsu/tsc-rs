@@ -1416,13 +1416,6 @@ pub enum TransformError {
     },
     MissingProgramSourceForModuleFormat(TransformSourceId),
     EmitHostRequiredForImpliedModuleFormat,
-    ParseDiagnosticsDeferred {
-        count: usize,
-        /// Committed recovery events, including silent missing nodes and
-        /// suppressed reporting attempts that carry no retained diagnostic.
-        recovery_events: usize,
-        owner_slice: &'static str,
-    },
     AstDepthDeferred {
         limit: usize,
         owner_slice: &'static str,
@@ -1602,14 +1595,6 @@ impl fmt::Display for TransformError {
             ),
             Self::EmitHostRequiredForImpliedModuleFormat => formatter
                 .write_str("implied module-format transformation requires a Program emit host"),
-            Self::ParseDiagnosticsDeferred {
-                count,
-                recovery_events,
-                owner_slice,
-            } => write!(
-                formatter,
-                "emit recovery for {count} parse diagnostics ({recovery_events} recovery events) is deferred to {owner_slice}"
-            ),
             Self::AstDepthDeferred { limit, owner_slice } => write!(
                 formatter,
                 "emit transform AST depth above {limit} is deferred to {owner_slice}"

@@ -5053,7 +5053,9 @@ impl<'arena> NodeFactory<'arena> {
                 return self.update_constructor_declaration(
                     original,
                     modifiers_id,
+                    data.type_parameters,
                     Some(parameters.array()),
+                    data.r#type,
                     body.map(TransformNode::node),
                     transform_flags,
                 );
@@ -5083,6 +5085,7 @@ impl<'arena> NodeFactory<'arena> {
                     original,
                     modifiers_id,
                     Some(name.node()),
+                    data.type_parameters,
                     Some(parameters.array()),
                     r#type.map(TransformNode::node),
                     body.map(TransformNode::node),
@@ -5107,7 +5110,9 @@ impl<'arena> NodeFactory<'arena> {
                     original,
                     modifiers_id,
                     Some(name.node()),
+                    data.type_parameters,
                     Some(parameters.array()),
+                    data.r#type,
                     body.map(TransformNode::node),
                     transform_flags,
                 );
@@ -5691,20 +5696,18 @@ impl<'arena> NodeFactory<'arena> {
         self.update_node(original, data, transform_flags)
     }
 
-    /// Update the runtime-owned constructor shape while retaining the
-    /// signature fields that the parser attaches after factory creation.
-    /// `typeParameters` and `type` are deliberately absent from the public
-    /// constructor factory in tsc, so an update restores them from the parse
-    /// tree instead of accepting transformed replacements.
-    ///
-    /// tsc-port: updateConstructorDeclaration/finishUpdateConstructorDeclaration @6.0.3
-    /// tsc-hash: 458f5a752c894ba21fc18800fe4a10be5fd7f9e837fd38e4c0f20ba1e054072e
-    /// tsc-span: _tsc.js:21982-22010
+    /// tsgo UpdateConstructorDeclaration: every field, including the type
+    /// parameters and return type that only parser recovery attaches (the
+    /// type eraser passes `None` for both; tsc 6.0's updater restored them
+    /// from the original and printed them in JavaScript).
+    #[allow(clippy::too_many_arguments)]
     pub fn update_constructor_declaration(
         &mut self,
         original: TransformNode,
         modifiers: Option<NodeArrayId>,
+        type_parameters: Option<NodeArrayId>,
         parameters: Option<NodeArrayId>,
+        r#type: Option<NodeId>,
         body: Option<NodeId>,
         transform_flags: TransformFlags,
     ) -> Result<TransformNode, TransformError> {
@@ -5717,7 +5720,9 @@ impl<'arena> NodeFactory<'arena> {
         };
 
         if original_data.modifiers == modifiers
+            && original_data.type_parameters == type_parameters
             && original_data.parameters == parameters
+            && original_data.r#type == r#type
             && original_data.body == body
         {
             return Ok(original);
@@ -5728,28 +5733,24 @@ impl<'arena> NodeFactory<'arena> {
             NodeData::Constructor(tsc_syntax::nodes::ConstructorData {
                 modifiers,
                 name: original_data.name,
-                type_parameters: original_data.type_parameters,
+                type_parameters,
                 parameters,
-                r#type: original_data.r#type,
+                r#type,
                 body,
             }),
             transform_flags,
         )
     }
 
-    /// Update the factory-owned getter fields and restore only its recovery
-    /// type parameters. The return type is an ordinary getter factory field,
-    /// so transformTypeScript can erase it by passing `None`.
-    ///
-    /// tsc-port: updateGetAccessorDeclaration/finishUpdateGetAccessorDeclaration @6.0.3
-    /// tsc-hash: c2cee5560b6c2d55d7fc907e6cef6821f93e3bfa32f5bc1e1d0c4c264dfa4ac6
-    /// tsc-span: _tsc.js:22012-22043
+    /// tsgo UpdateGetAccessorDeclaration: every field, including the type
+    /// parameters that only parser recovery attaches.
     #[allow(clippy::too_many_arguments)]
     pub fn update_get_accessor_declaration(
         &mut self,
         original: TransformNode,
         modifiers: Option<NodeArrayId>,
         name: Option<NodeId>,
+        type_parameters: Option<NodeArrayId>,
         parameters: Option<NodeArrayId>,
         r#type: Option<NodeId>,
         body: Option<NodeId>,
@@ -5765,6 +5766,7 @@ impl<'arena> NodeFactory<'arena> {
 
         if original_data.modifiers == modifiers
             && original_data.name == name
+            && original_data.type_parameters == type_parameters
             && original_data.parameters == parameters
             && original_data.r#type == r#type
             && original_data.body == body
@@ -5777,7 +5779,7 @@ impl<'arena> NodeFactory<'arena> {
             NodeData::GetAccessor(tsc_syntax::nodes::GetAccessorData {
                 modifiers,
                 name,
-                type_parameters: original_data.type_parameters,
+                type_parameters,
                 parameters,
                 r#type,
                 body,
@@ -5786,26 +5788,19 @@ impl<'arena> NodeFactory<'arena> {
         )
     }
 
-    /// Update the runtime-owned fields of a setter while retaining invalid
-    /// signature syntax captured by parser recovery. TypeScript's public
-    /// setter factory intentionally has no `typeParameters` or `type`
-    /// arguments; `finishUpdateSetAccessorDeclaration` copies those fields
-    /// from the original only when another field forced an update.
-    ///
-    /// Keeping that rule at the factory boundary prevents the TypeScript
-    /// transform from confusing a valid parameter annotation (which must be
-    /// erased) with an invalid accessor-level annotation (which must survive
-    /// so diagnostics and JavaScript recovery output agree with tsc).
-    ///
-    /// tsc-port: updateSetAccessorDeclaration/finishUpdateSetAccessorDeclaration @6.0.3
-    /// tsc-hash: 183d0138ac0cabe72f5bb019160715f1456edd95dee61c3b1a246b840d4a1191
-    /// tsc-span: _tsc.js:22065-22073
+    /// tsgo UpdateSetAccessorDeclaration: every field, including the type
+    /// parameters and return type that only parser recovery attaches (the
+    /// type eraser passes `None` for both; tsc 6.0's updater restored them
+    /// from the original and printed them in JavaScript).
+    #[allow(clippy::too_many_arguments)]
     pub fn update_set_accessor_declaration(
         &mut self,
         original: TransformNode,
         modifiers: Option<NodeArrayId>,
         name: Option<NodeId>,
+        type_parameters: Option<NodeArrayId>,
         parameters: Option<NodeArrayId>,
+        r#type: Option<NodeId>,
         body: Option<NodeId>,
         transform_flags: TransformFlags,
     ) -> Result<TransformNode, TransformError> {
@@ -5817,12 +5812,14 @@ impl<'arena> NodeFactory<'arena> {
             });
         };
 
-        // The tsc updater compares only fields exposed by the setter factory.
-        // If none changed it returns the parsed node, including its original
-        // transform flags and source-preserving printer identity.
+        // An update that changes no field returns the parsed node, including
+        // its original transform flags and source-preserving printer
+        // identity.
         if original_data.modifiers == modifiers
             && original_data.name == name
+            && original_data.type_parameters == type_parameters
             && original_data.parameters == parameters
+            && original_data.r#type == r#type
             && original_data.body == body
         {
             return Ok(original);
@@ -5833,9 +5830,9 @@ impl<'arena> NodeFactory<'arena> {
             NodeData::SetAccessor(tsc_syntax::nodes::SetAccessorData {
                 modifiers,
                 name,
-                type_parameters: original_data.type_parameters,
+                type_parameters,
                 parameters,
-                r#type: original_data.r#type,
+                r#type,
                 body,
             }),
             transform_flags,
@@ -6808,10 +6805,14 @@ impl<'arena> NodeFactory<'arena> {
                 NodeData::NewExpression(data) if data.arguments.is_some() => PRECEDENCE_MEMBER,
                 _ => PRECEDENCE_LEFT_HAND_SIDE,
             },
+            // tsgo GetOperatorPrecedence (precedence.go:293-295) gives an
+            // instantiation expression member precedence; tsc 6.0 had none
+            // for it and parenthesized `f<T>` wherever precedence decided.
             SyntaxKind::TaggedTemplateExpression
             | SyntaxKind::PropertyAccessExpression
             | SyntaxKind::ElementAccessExpression
-            | SyntaxKind::MetaProperty => PRECEDENCE_MEMBER,
+            | SyntaxKind::MetaProperty
+            | SyntaxKind::ExpressionWithTypeArguments => PRECEDENCE_MEMBER,
             SyntaxKind::AsExpression | SyntaxKind::SatisfiesExpression => PRECEDENCE_RELATIONAL,
             SyntaxKind::ThisKeyword
             | SyntaxKind::SuperKeyword

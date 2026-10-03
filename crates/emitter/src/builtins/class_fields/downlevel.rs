@@ -4884,6 +4884,13 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                     self.update_contextual_node(node, NodeData::SpreadElement(data))?
                 }
                 NodeData::OmittedExpression(_) => node,
+                // visitArrayAssignmentElement (classfields.go:3256-3266): an
+                // element that is no assignment target, such as a recovered
+                // private name, only has its children visited.
+                data if !self.is_array_binding_or_assignment_element(node)? => {
+                    let updated = self.update_generic(node, data)?;
+                    self.node(updated)
+                }
                 _ => self.visit_assignment_element(id, plan)?,
             };
             visited.push(element);
@@ -4894,6 +4901,40 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 .update_node_array(original, visited)?
                 .array(),
         ))
+    }
+
+    /// ast.IsArrayBindingOrAssignmentElement (utilities.go:151-164).
+    fn is_array_binding_or_assignment_element(
+        &self,
+        node: TransformNode,
+    ) -> Result<bool, TransformError> {
+        let record = self.context.arena().node(node)?;
+        Ok(match &record.data {
+            NodeData::BindingElement(_)
+            | NodeData::OmittedExpression(_)
+            | NodeData::SpreadElement(_)
+            | NodeData::ArrayLiteralExpression(_)
+            | NodeData::ObjectLiteralExpression(_)
+            | NodeData::Identifier(_)
+            | NodeData::PropertyAccessExpression(_)
+            | NodeData::ElementAccessExpression(_) => true,
+            // IsAssignmentExpression(node, excludeCompoundAssignment = true).
+            NodeData::BinaryExpression(data) => {
+                let operator = data
+                    .operator_token
+                    .and_then(|operator| self.context.arena().node_ref(self.source, operator))
+                    .map(|operator| self.context.arena().node(operator).map(|node| node.kind))
+                    .transpose()?;
+                let left = data
+                    .left
+                    .and_then(|left| self.context.arena().node_ref(self.source, left))
+                    .map(|left| self.context.arena().node(left).map(|node| node.kind))
+                    .transpose()?;
+                operator == Some(SyntaxKind::EqualsToken)
+                    && left.is_some_and(crate::factory::is_left_hand_side_expression_kind)
+            }
+            _ => false,
+        })
     }
 
     fn visit_assignment_element(

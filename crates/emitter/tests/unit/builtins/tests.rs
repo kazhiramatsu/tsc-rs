@@ -165,8 +165,10 @@ fn module_transforms_preserve_js_name_values() {
     }
 }
 
+/// tsgo emits every recovered tree, so the preflight admits each case
+/// whatever its recovery, and leaves the parser's facts untouched.
 #[test]
-fn preflight_admits_only_parser_owned_literal_recovery() {
+fn preflight_admits_every_recovered_parse() {
     let fixture: serde_json::Value = serde_json::from_str(include_str!(
         "../../../../syntax/tests/fixtures/utf16-recovery-boundary.json"
     ))
@@ -192,18 +194,7 @@ fn preflight_admits_only_parser_owned_literal_recovery() {
         let mut arena = TransformArena::new();
         let source = arena.add_source(&parsed, None);
         let result = super::preflight_source(&arena, source, true, true, true);
-        if case["literal_only_contract"].as_bool().unwrap() {
-            assert!(result.is_ok(), "{}: {result:?}", case["case_id"]);
-        } else {
-            assert!(
-                matches!(
-                    result,
-                    Err(crate::TransformError::ParseDiagnosticsDeferred { .. })
-                ),
-                "{}: {result:?}",
-                case["case_id"]
-            );
-        }
+        assert!(result.is_ok(), "{}: {result:?}", case["case_id"]);
         assert_eq!(
             arena.source(source).unwrap().syntax().parse_diagnostics,
             diagnostics
@@ -213,23 +204,6 @@ fn preflight_admits_only_parser_owned_literal_recovery() {
             &recovery
         );
     }
-}
-
-#[test]
-fn clearing_retained_messages_does_not_erase_structural_recovery() {
-    let mut parsed = parse_source_file("main.ts", "const = 1;", Default::default(), None);
-    assert!(!parsed.parse_diagnostics.is_empty());
-    parsed.parse_diagnostics.clear();
-    let mut arena = TransformArena::new();
-    let source = arena.add_source(&parsed, None);
-    assert!(matches!(
-        super::preflight_source(&arena, source, true, true, true),
-        Err(crate::TransformError::ParseDiagnosticsDeferred {
-            count: 0,
-            recovery_events,
-            ..
-        }) if recovery_events > 0
-    ));
 }
 
 #[test]
@@ -3631,7 +3605,7 @@ fn typescript_transform_structurally_erases_jsx_recovery_type_arguments() {
 }
 
 #[test]
-fn typescript_transform_preserves_jsdoc_recovery_type_arguments() {
+fn typescript_transform_erases_jsdoc_recovery_type_arguments() {
     // A lone `?` (`foo<?>`) is a parse error in TypeScript 7.1.
     let source_text = concat!(
         "function foo<T>(x: T): T { return x; }\n",
@@ -3670,19 +3644,17 @@ fn typescript_transform_preserves_jsdoc_recovery_type_arguments() {
     .text()
     .to_owned();
 
-    // tsc 6.0.3 erases the valid instantiation expression's type arguments
-    // and prints the erased expression parenthesized (`const ValidFoo = (foo);`,
-    // the same shape as the frozen `instantiationExpressions.ts` JS write);
-    // only the JSDoc recovery wrappers below are retained verbatim. tsgo
-    // erases them all and prints no parentheses (`const ValidFoo = foo;`), an
-    // emit difference recorded in the cutover packet.
-    assert!(output.contains("const ValidFoo = (foo);"), "{output}");
-    for retained in [
-        "const HuhFoo = foo<?string>;",
-        "const NopeFoo = foo<?string>;",
-        "const ComeOnFoo = foo<??string>;",
+    // tsgo's output for the same file: JSDoc types are TypeScript syntax, so
+    // every type argument list is erased, and an instantiation expression has
+    // member precedence, so none is parenthesized (tsc 6.0.3 printed
+    // `(foo)` and kept the JSDoc arguments).
+    for erased in [
+        "const ValidFoo = foo;",
+        "const HuhFoo = foo;",
+        "const NopeFoo = foo;",
+        "const ComeOnFoo = foo;",
     ] {
-        assert!(output.contains(retained), "missing {retained:?}:\n{output}");
+        assert!(output.contains(erased), "missing {erased:?}:\n{output}");
     }
     assert!(!output.contains("type Erased"), "{output}");
 }

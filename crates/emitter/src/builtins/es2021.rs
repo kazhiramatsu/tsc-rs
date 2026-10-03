@@ -2177,11 +2177,10 @@ impl<'context> TargetVisitor<'context> {
         self.create_binary(left, SyntaxKind::EqualsToken, right)
     }
 
-    /// Apply the observable part of tsc's assignment-RHS parenthesizer at the
-    /// target-transform construction boundary. In particular, the TypeScript
-    /// pass retains an `ExpressionWithTypeArguments` node after erasing its
-    /// type arguments so later passes can preserve the grammar boundary as
-    /// `(expression)` instead of silently treating it as a plain identifier.
+    /// Apply the observable part of the assignment-RHS parenthesizer at the
+    /// target-transform construction boundary. An instantiation expression
+    /// whose type arguments the TypeScript pass erased has member precedence
+    /// in tsgo and needs none (tsc 6.0 printed `(expression)`).
     fn assignment_rhs_requires_parentheses(
         &self,
         mut expression: TransformNode,
@@ -2199,9 +2198,7 @@ impl<'context> TargetVisitor<'context> {
                         })?;
                 }
                 NodeData::ParenthesizedExpression(_) => return Ok(false),
-                NodeData::ExpressionWithTypeArguments(_) | NodeData::CommaListExpression(_) => {
-                    return Ok(true);
-                }
+                NodeData::CommaListExpression(_) => return Ok(true),
                 NodeData::BinaryExpression(data) => {
                     return Ok(data
                         .operator_token

@@ -8386,6 +8386,60 @@ impl Printer {
                 } else {
                     (Vec::new(), None)
                 };
+                // tsc emitBlock of a missing block (parseBlock without its
+                // `{`): emitTokenWithComment writes both braces at the next
+                // token (skipTrivia of the empty range) and reads trailing
+                // comments one character after it, so a comment after a
+                // following one-character token prints after `{` and again
+                // after `}`. isEmptyBlock picks the line break.
+                if !function_body
+                    && statements.is_empty()
+                    && block_helpers.is_empty()
+                    && !force_single_line
+                {
+                    if let Some(after_token) =
+                        self.missing_block_comment_position(transformation, node)?
+                    {
+                        let text = transformation
+                            .arena()
+                            .source(node.source())?
+                            .syntax()
+                            .text();
+                        let comments =
+                            !self.comments_disabled() && text.is_char_boundary(after_token);
+                        if comments {
+                            emit_source_trailing_comments_of_position(text, after_token, writer);
+                        }
+                        if self.range_end_is_on_same_line_as_range_start(transformation, node)? {
+                            writer.write_space(" ");
+                        } else {
+                            writer.write_line(false);
+                        }
+                        let close_default = match statement_list_end.map(u32::try_from) {
+                            Some(Ok(end)) => self.token_map_range_spanning(
+                                transformation,
+                                node.source(),
+                                end,
+                                "}",
+                                writer,
+                            )?,
+                            _ => None,
+                        };
+                        self.record_brace_write(
+                            transformation,
+                            node,
+                            SyntaxKind::CloseBraceToken,
+                            close_default,
+                            "}",
+                            |writer, spelling| writer.write_punctuation(spelling),
+                            writer,
+                        )?;
+                        if comments {
+                            emit_source_trailing_comments_of_position(text, after_token, writer);
+                        }
+                        return Ok(());
+                    }
+                }
                 let function_body_comment_range = if let Some(array) =
                     array.filter(|_| function_body)
                 {
@@ -8500,14 +8554,19 @@ impl Printer {
                 // tsc-span: _tsc.js:118579-118601
                 //
                 // A regular non-empty block always uses the multi-line list
-                // format. Function bodies have their own single-line
-                // eligibility rules and retain the parser/factory decision.
+                // format, and an empty one too unless its range ends on the
+                // line where it starts (isEmptyBlock): a missing block before
+                // a line break does not. Function bodies have their own
+                // single-line eligibility rules and retain the parser/factory
+                // decision.
                 let multi_line = (if force_single_line {
                     false
                 } else if function_body {
                     multi_line
                 } else {
-                    multi_line || !statements.is_empty()
+                    multi_line
+                        || !statements.is_empty()
+                        || !self.range_end_is_on_same_line_as_range_start(transformation, node)?
                 }) || body_owned_detached_prefix.is_some();
                 if body_owned_detached_prefix.is_some() {
                     writer.increase_indent();
@@ -9275,6 +9334,54 @@ impl Printer {
             source.positions(),
             start,
             end,
+        ))
+    }
+
+    /// For a missing block (an empty source range), the position one byte
+    /// after the token that tsc's emitTokenWithComment writes its braces at
+    /// (skipTrivia of the range); `None` for any other block.
+    fn missing_block_comment_position(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+    ) -> Result<Option<usize>, PrinterError> {
+        let source = transformation.arena().source(node.source())?.syntax();
+        let record = transformation.arena().node(node)?;
+        let SourceRange::Original(range) =
+            SourceRange::from_raw(record.pos, record.end, source.positions())?
+        else {
+            return Ok(None);
+        };
+        if range.start() != range.end() {
+            return Ok(None);
+        }
+        let text = source.text();
+        let token = skip_trivia(text, range.start().value() as usize);
+        Ok(Some((token + 1).min(text.len())))
+    }
+
+    /// tsgo rangeEndIsOnSameLineAsRangeStart of a node's own range
+    /// (utilities.go:365-374): its end against its start after trivia. A
+    /// synthesized range is on one line; a missing node (an empty range)
+    /// before a line break is not, because its start moves past the break to
+    /// the next token.
+    fn range_end_is_on_same_line_as_range_start(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+    ) -> Result<bool, PrinterError> {
+        let source = transformation.arena().source(node.source())?.syntax();
+        let record = transformation.arena().node(node)?;
+        let SourceRange::Original(range) =
+            SourceRange::from_raw(record.pos, record.end, source.positions())?
+        else {
+            return Ok(true);
+        };
+        let start = skip_trivia(source.text(), range.start().value() as usize);
+        Ok(Self::source_positions_are_on_same_line(
+            source.positions(),
+            start,
+            range.end().value() as usize,
         ))
     }
 
@@ -10478,6 +10585,22 @@ impl Printer {
         raw_text: Option<&str>,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
+        // tsgo getLiteralText reads a parsed token from the source text, and
+        // a missing token (the empty TemplateTail after an unterminated
+        // substitution) has none, so it prints nothing.
+        let record = transformation.arena().node(node)?;
+        let positions = transformation
+            .arena()
+            .source(node.source())?
+            .syntax()
+            .positions();
+        if let SourceRange::Original(range) =
+            SourceRange::from_raw(record.pos, record.end, positions)?
+        {
+            if range.start() == range.end() {
+                return Ok(());
+            }
+        }
         let metadata = transformation.arena().metadata(node);
         let properties = transformation.arena().literal_properties(node);
         let no_ascii_escaping = self.options.never_ascii_escape

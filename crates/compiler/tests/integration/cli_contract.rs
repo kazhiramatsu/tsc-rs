@@ -543,6 +543,115 @@ let Bar = 42
 }
 
 #[test]
+fn files_with_parse_errors_emit_their_recovered_trees_like_tsgo() {
+    // tsgo prints the tree the parser recovered: missing nodes print as
+    // nothing, a `;` between object members leaves a trailing comma, a
+    // missing block follows isEmptyBlock, a missing module specifier is
+    // `require()`. The same run checks constructor and setter return types,
+    // instantiation expressions (JSDoc type arguments included) and a module
+    // without a body. The expected bytes are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("recovered.ts"),
+        concat!(
+            "var f = () => ;\n",
+            "var results = number[];\n",
+            "var v = `foo ${a;\n",
+            "var o = { a: 1; b: 2 };\n",
+            "function fn() {\n",
+            "    catch (x) { } // missing try\n",
+            "    try { }; // missing finally\n",
+            "}\n",
+        ),
+    )
+    .expect("write recovered");
+    fs::write(
+        tree.path("members.ts"),
+        concat!(
+            "declare function g<T>(): T;\n",
+            "const h = g<number>;\n",
+            "const j = g<string?>;\n",
+            "class D {\n",
+            "    constructor(p: any): number {\n",
+            "    }\n",
+            "    set s(v: any): string {\n",
+            "    }\n",
+            "}\n",
+            "class C {\n",
+            "    global x\n",
+            "}\n",
+        ),
+    )
+    .expect("write members");
+    fs::write(tree.path("imports.ts"), "import * from Zero from \"./0\"\n").expect("write imports");
+    fs::write(tree.path("0.ts"), "export class C { }\n").expect("write module");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2015","module":"commonjs","types":[],"outDir":"out"},"files":["recovered.ts","members.ts","imports.ts","0.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        concat!(
+            "imports.ts(1,10): error TS1005: 'as' expected.\n",
+            "imports.ts(1,15): error TS1005: 'from' expected.\n",
+            "imports.ts(1,20): error TS1005: ';' expected.\n",
+            "members.ts(11,5): error TS1068: Unexpected token. A constructor, method, accessor, or property was expected.\n",
+            "members.ts(11,12): error TS1005: ';' expected.\n",
+            "members.ts(12,1): error TS1128: Declaration or statement expected.\n",
+            "recovered.ts(1,15): error TS1109: Expression expected.\n",
+            "recovered.ts(2,22): error TS1011: An element access expression should take an argument.\n",
+            "recovered.ts(3,17): error TS1005: '}' expected.\n",
+            "recovered.ts(4,15): error TS1005: ',' expected.\n",
+            "recovered.ts(6,5): error TS1005: 'try' expected.\n",
+            "recovered.ts(7,12): error TS1472: 'catch' or 'finally' expected.\n",
+        )
+    );
+    let read = |name: &str| fs::read_to_string(tree.path(name)).expect("read output");
+    assert_eq!(
+        read("out/recovered.js"),
+        concat!(
+            "\"use strict\";\n",
+            "var f = () => ;\n",
+            "var results = number[];\n",
+            "var v = `foo ${a;\n",
+            "var o = { a: 1, b: 2 };\n",
+            "function fn() {\n",
+            "    try {\n",
+            "    }\n",
+            "    catch (x) { } // missing try\n",
+            "    try { }\n",
+            "    finally { // missing finally\n",
+            "     } // missing finally\n",
+            "    ; // missing finally\n",
+            "}\n",
+        )
+    );
+    assert_eq!(
+        read("out/members.js"),
+        concat!(
+            "\"use strict\";\n",
+            "const h = g;\n",
+            "const j = g;\n",
+            "class D {\n",
+            "    constructor(p) {\n",
+            "    }\n",
+            "    set s(v) {\n",
+            "    }\n",
+            "}\n",
+            "class C {\n",
+            "}\n",
+            "x;\n",
+        )
+    );
+    assert!(read("out/imports.js").ends_with(
+        "Object.defineProperty(exports, \"__esModule\", { value: true });\nconst from = __importStar(require());\nfrom;\n\"./0\";\n"
+    ));
+}
+
+#[test]
 fn namespace_import_calls_point_at_the_import_like_tsgo() {
     // tsgo invocationErrorRecovery and checkTypeRelatedTo add TS7038 at a
     // namespace-style import whose module would be callable. The expected

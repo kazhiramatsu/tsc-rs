@@ -349,6 +349,8 @@ impl DeclarationTransformer<'_> {
                                     input,
                                     modifiers.map(TransformNodeArray::array),
                                     Some(name.node()),
+                                    // Accessors have no type parameters (transform.go:1025-1034).
+                                    None,
                                     Some(parameters.array()),
                                     r#type.map(TransformNode::node),
                                     None,
@@ -374,7 +376,11 @@ impl DeclarationTransformer<'_> {
                                     input,
                                     modifiers.map(TransformNodeArray::array),
                                     Some(name.node()),
+                                    // Neither type parameters nor a return type
+                                    // (transform.go:1009-1018).
+                                    None,
                                     Some(parameters.array()),
+                                    None,
                                     None,
                                     TransformFlags::CONTAINS_TYPE_SCRIPT,
                                 )?,
