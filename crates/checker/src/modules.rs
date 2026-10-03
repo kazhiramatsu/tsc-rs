@@ -4114,7 +4114,10 @@ impl<'a> CheckerState<'a> {
         module_reference: JsStr<'_>,
         import_attributes_type: TypeId,
     ) -> CheckResult<Option<SymbolId>> {
-        if resolved.is_some() && self.is_empty_object_type(import_attributes_type)? {
+        if resolved.is_some()
+            && (import_attributes_type == self.empty_object_type
+                || self.is_empty_object_type(import_attributes_type)?)
+        {
             return Ok(resolved);
         }
         if self.pattern_ambient_modules.is_empty() {

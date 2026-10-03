@@ -3723,17 +3723,17 @@ impl<'a> CheckerState<'a> {
     /// tsgo: isInlineImportAttributes (checker.go:13841-13855). The `with`
     /// object written in an import call's options literal is a const
     /// context, so its attribute values keep their literal types.
-    fn is_inline_import_attributes(&self, node: NodeId) -> bool {
-        if self.kind_of(node) != SyntaxKind::ObjectLiteralExpression {
-            return false;
-        }
-        let Some(property) = self.parent_of(node) else {
-            return false;
-        };
-        let NodeData::PropertyAssignment(assignment) = self.data_of(property) else {
-            return false;
-        };
-        if assignment.initializer != Some(node) {
+    /// The caller has read the parent, `property`, as the property
+    /// assignment `assignment`.
+    fn is_inline_import_attributes(
+        &self,
+        node: NodeId,
+        property: NodeId,
+        assignment: &tsc_syntax::nodes::PropertyAssignmentData,
+    ) -> bool {
+        if assignment.initializer != Some(node)
+            || self.kind_of(node) != SyntaxKind::ObjectLiteralExpression
+        {
             return false;
         }
         let is_with = assignment
@@ -3774,7 +3774,8 @@ impl<'a> CheckerState<'a> {
         let Some(parent) = self.parent_of(node) else {
             return Ok(false);
         };
-        let assertion_type = match self.data_of(parent) {
+        let parent_data = self.data_of(parent);
+        let assertion_type = match parent_data {
             NodeData::AsExpression(data) => data.r#type,
             NodeData::TypeAssertionExpression(data) => data.r#type,
             _ => None,
@@ -3791,8 +3792,10 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(true);
         }
-        if self.is_inline_import_attributes(node) {
-            return Ok(true);
+        if let NodeData::PropertyAssignment(assignment) = parent_data {
+            if self.is_inline_import_attributes(node, parent, assignment) {
+                return Ok(true);
+            }
         }
         if self.is_valid_const_assertion_argument(node)? {
             let contextual = self.get_contextual_type(node, tsc_types::ContextFlags::NONE)?;
