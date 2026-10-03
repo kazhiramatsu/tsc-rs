@@ -1165,3 +1165,5 @@ tsc 6.0の移植で、UTF-16の単位で走査する：
   - 型の表示（`mixB<typeof A>.(Anonymous class)`、TS2208のconstraint、union順）
   - tsconfigの位置などharnessの行（約6）
   - `composite`のemit
+- hosted：PR #639（head `102910e4c`、merge `48013c69d`）、run 37119793606 — `plan` 33s、`rust` 9m50s、`conformance (TypeScript 7.1)` 22m14s、`gates` 13s。
+- perf（README corpora、`--noEmit`、3 rounds、nice 20、main `c48e4c4ee`（P3-5tのhead `c632036d7`と同じコードのrelease build）と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 146→145、zod 556→560、Playwright 391→398、TypeScript `src/compiler` 350→360、Next.js 811→792、Effect 559→519、VS Code 3,919→3,806。計測時のload averageが高く（4〜7）絶対値は前の記録より大きいが、同じroundの交互実行で比べている。tsc-rs÷tsgoは0.56〜0.93、peak memory（MB main→本branch）：322→306、1,289→1,289、811→801、289→288、1,326→1,315、1,037→1,026、5,446→5,461。診断の出力と読み込んだdocument数は7 corpusともmainと同一。TypeScript `src/compiler`とPlaywrightは5 roundsのA/B（main／本branch）で331／332 ms、364／358 ms、`TSRS_CHECKERS=1`の命令数は15.94／15.94 G、22.29／22.28 Gなのでノイズ。退行なし。
