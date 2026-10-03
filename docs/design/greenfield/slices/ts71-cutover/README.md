@@ -799,3 +799,5 @@ TS2554）、tsgoの行にpinした新しいtest 4件（hostされたtagの検査
 - JSDocの残り（P3-5p）：Closureの`function(...)`型（TS1005）、単独の`?`、`!`の優先順位、`module:` namepath、`object`は
   JavaScriptでもnonPrimitive、名前の欠落の報告、`@`がtagを始める条件とfenced code block、`@see`、`@import`のparse
   （TS1141）、JSDocのimport型（TS1340／TS2694）。
+- hosted：PR #633（head `7a1f5926a`、merge `47bec9f1b`）、run 37095454879 — `plan` 27s、`rust` 10m9s、`conformance (TypeScript 7.1)` 13m55s、`gates` 14s。
+- perf（README corpora、`--noEmit`、3 rounds、nice 20、main `4e4f61f3e`（P3-5nのhead `a94bb3235`と同じコードのrelease build）と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 136→139、zod 574→567、Playwright 362→366、TypeScript `src/compiler` 369→350、Next.js 877→761、Effect 540→561、VS Code 3,589→3,722。tsc-rs÷tsgoは0.55〜0.93で従来の幅、peak memoryは同等以下（MB main→本branch：292→288、1,300→1,295、781→753、292→290、1,333→1,337、1,037→1,031、5,484→5,439）。VS Code・Effect・hono・Playwrightは同条件の5 rounds A/B（本branch／main）で、medianは3,499／3,593、556／563、131／127、380／375、minは3,485／3,435、534／548、126／118、341／345、CPU時間は23,990／24,546、3,388／3,476、653／657、2,463／2,602 msなのでノイズ。退行なし。測定scriptはP3-5nと同じ方式（交互実行、wall／CPU／peak RSS）で作り直した。
