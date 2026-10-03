@@ -101,7 +101,8 @@ fn computes_same_directory_and_subdirectory_relative_specifiers() {
             false,
             None,
         )
-        .expect("same-directory specifier");
+        .expect("same-directory specifier")
+        .specifier;
         let subdirectory = get_specifier_for_module_symbol(
             state,
             external_module_symbol(state, 2),
@@ -111,7 +112,8 @@ fn computes_same_directory_and_subdirectory_relative_specifiers() {
             false,
             None,
         )
-        .expect("subdirectory specifier");
+        .expect("subdirectory specifier")
+        .specifier;
 
         assert_eq!(same_directory, "./value");
         assert_eq!(subdirectory, "./sub/nested");
@@ -137,7 +139,8 @@ fn computes_visible_node_modules_package_root_specifier() {
             false,
             None,
         )
-        .expect("node_modules package specifier");
+        .expect("node_modules package specifier")
+        .specifier;
 
         assert_eq!(specifier, "pkg");
     });
@@ -173,7 +176,8 @@ fn returns_declared_ambient_module_name() {
             false,
             None,
         )
-        .expect("ambient module name");
+        .expect("ambient module name")
+        .specifier;
 
         assert_eq!(name, "ambient-pkg");
     });
@@ -199,7 +203,8 @@ fn returns_amd_module_name_through_export_equals_equivalent_file() {
             .expect("export-equals value symbol");
 
         let name = get_specifier_for_module_symbol(state, symbol, None, None, None, false, None)
-            .expect("AMD module name");
+            .expect("AMD module name")
+            .specifier;
 
         assert_eq!(name, "amd-name");
     });
@@ -300,7 +305,8 @@ fn reuses_existing_parse_tree_specifier_when_reason_and_modes_match() {
             false,
             None,
         )
-        .expect("reused specifier");
+        .expect("reused specifier")
+        .specifier;
 
         assert_eq!(specifier, "chosen-package/subpath");
 
@@ -314,7 +320,8 @@ fn reuses_existing_parse_tree_specifier_when_reason_and_modes_match() {
             false,
             None,
         )
-        .expect("enclosing-declaration resolution mode");
+        .expect("enclosing-declaration resolution mode")
+        .specifier;
         assert_eq!(declaration_mode_specifier, "./target.js");
     });
 }
@@ -442,7 +449,8 @@ fn symbol_cache_hits_by_context_and_misses_by_resolution_mode() {
             false,
             None,
         )
-        .expect("first computation");
+        .expect("first computation")
+        .specifier;
         let first_reason_calls = host.include_reason_calls.get();
         let hit = get_specifier_for_module_symbol(
             state,
@@ -453,7 +461,8 @@ fn symbol_cache_hits_by_context_and_misses_by_resolution_mode() {
             false,
             None,
         )
-        .expect("cache hit");
+        .expect("cache hit")
+        .specifier;
         let mode_miss = get_specifier_for_module_symbol(
             state,
             symbol,
@@ -463,7 +472,8 @@ fn symbol_cache_hits_by_context_and_misses_by_resolution_mode() {
             false,
             Some(EmitResolutionMode::EsNext),
         )
-        .expect("mode-keyed cache miss");
+        .expect("mode-keyed cache miss")
+        .specifier;
 
         assert_eq!(first, "./target");
         assert_eq!(hit, first);

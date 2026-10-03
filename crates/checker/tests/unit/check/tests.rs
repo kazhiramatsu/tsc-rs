@@ -7892,12 +7892,11 @@ fn source_file_module_value_prints_import_face() {
 }
 
 #[test]
-fn empty_ambient_module_specifier_falls_back_to_file_name() {
-    // getSpecifierForModuleSymbol's fileName fallback (53080):
-    // `declare module ""` binds `""`, which fails
-    // ambientModuleSymbolRegex, so the specifier reads
-    // getNonAugmentationDeclaration's rooted file name, extension
-    // intact (oracle-probed: `typeof import("/g.d.ts")`).
+fn empty_ambient_module_specifier_is_its_declaration_name() {
+    // tsgo getSpecifierForModuleSymbol (nodebuilderimpl.go:1269-1276)
+    // names a module without a source file by its first string-literal
+    // declaration name, so `declare module ""` prints `import("")` (tsc
+    // 6.0 fell back to the file name, `typeof import("/g.d.ts")`).
     assert_eq!(
         program_diags(&[
             (
@@ -7911,7 +7910,7 @@ fn empty_ambient_module_specifier_falls_back_to_file_name() {
             2339,
             27,
             1,
-            "Property 'y' does not exist on type 'typeof import(\"/g.d.ts\")'.".to_owned()
+            "Property 'y' does not exist on type 'typeof import(\"\")'.".to_owned()
         )]
     );
 }

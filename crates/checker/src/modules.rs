@@ -3814,13 +3814,378 @@ impl<'a> CheckerState<'a> {
         } else {
             None
         };
+        // tsgo passes each caller's import attributes type, which is the
+        // one of the specifier's import, export, import type or import()
+        // (getImportAttributesTypeForModuleSpecifier); an augmentation
+        // resolves without one (checker.go:1455).
+        let import_attributes_type = if is_for_augmentation {
+            None
+        } else {
+            self.import_attributes_type_for_module_specifier(module_reference_expression)?
+        };
         self.resolve_external_module(
             location,
             &text,
             module_not_found_error,
             error_node,
             is_for_augmentation,
+            import_attributes_type,
         )
+    }
+
+    /// tsgo: checkImportAttributesType (checker.go:5320-5327): an ambient
+    /// module's import attributes type must satisfy the global
+    /// ImportAttributes.
+    fn check_import_attributes_type(&mut self, attributes: NodeId) -> CheckResult<()> {
+        self.check_grammar_import_attributes_type(attributes);
+        self.check_source_element(Some(attributes));
+        if let Some(import_attributes_type) = self.get_global_type("ImportAttributes", 0, true)? {
+            if import_attributes_type != self.empty_object_type {
+                let module_attributes_type = self.get_type_from_type_node(attributes)?;
+                self.check_type_assignable_to(
+                    module_attributes_type,
+                    import_attributes_type,
+                    Some(attributes),
+                    &diagnostics::Type_0_is_not_assignable_to_type_1,
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    /// tsgo: checkGrammarImportAttributesType (grammarchecks.go:2200-2236).
+    /// The first offending member reports.
+    fn check_grammar_import_attributes_type(&mut self, attributes: NodeId) -> bool {
+        let members = match self.data_of(attributes) {
+            NodeData::TypeLiteral(data) => data.members,
+            _ => None,
+        };
+        for member in self.nodes_of(members) {
+            let NodeData::PropertySignature(signature) = self.data_of(member).clone() else {
+                return self.grammar_error_on_node(
+                    member,
+                    &diagnostics::An_import_attributes_type_may_only_contain_property_signatures,
+                    &[],
+                );
+            };
+            if let Some(readonly) = self
+                .nodes_of(signature.modifiers)
+                .into_iter()
+                .find(|&modifier| self.kind_of(modifier) == SyntaxKind::ReadonlyKeyword)
+            {
+                return self.grammar_error_on_node(
+                    readonly,
+                    &diagnostics::An_import_attributes_property_cannot_have_a_readonly_modifier,
+                    &[],
+                );
+            }
+            let Some(type_node) = signature.r#type else {
+                return self.grammar_error_on_node(
+                    member,
+                    &diagnostics::An_import_attributes_property_must_have_a_type_annotation,
+                    &[],
+                );
+            };
+            if signature.question_token.is_some() {
+                return self.grammar_error_on_node(
+                    member,
+                    &diagnostics::An_import_attributes_property_cannot_be_optional,
+                    &[],
+                );
+            }
+            let Some(name) = signature.name else {
+                continue;
+            };
+            if !matches!(
+                self.kind_of(name),
+                SyntaxKind::StringLiteral
+                    | SyntaxKind::NoSubstitutionTemplateLiteral
+                    | SyntaxKind::Identifier
+            ) {
+                return self.grammar_error_on_node(
+                    name,
+                    &diagnostics::An_import_attributes_property_must_have_a_string_literal_or_identifier_name,
+                    &[],
+                );
+            }
+            let source = self.binder.source_of_node(name);
+            let name_text =
+                node_util::get_text_of_identifier_or_literal(source, name).unwrap_or_default();
+            if name_text.as_js() == "resolution-mode" {
+                return self.grammar_error_on_node(
+                    name,
+                    &diagnostics::_0_is_not_a_valid_key_for_an_import_attributes_type,
+                    &["resolution-mode"],
+                );
+            }
+            let is_string_literal_type = match self.data_of(type_node) {
+                NodeData::LiteralType(data) => data.literal.is_some_and(|literal| {
+                    matches!(
+                        self.kind_of(literal),
+                        SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral
+                    )
+                }),
+                _ => false,
+            };
+            if !is_string_literal_type {
+                return self.grammar_error_on_node(
+                    type_node,
+                    &diagnostics::An_import_attributes_property_must_have_a_string_literal_type_annotation,
+                    &[],
+                );
+            }
+        }
+        false
+    }
+
+    /// tsgo: getImportAttributesTypeForModuleSpecifier
+    /// (checker.go:5596-5608).
+    pub(crate) fn import_attributes_type_for_module_specifier(
+        &mut self,
+        specifier: NodeId,
+    ) -> CheckResult<Option<TypeId>> {
+        let Some(parent) = self.parent_of(specifier) else {
+            return Ok(None);
+        };
+        let attributes = match self.data_of(parent) {
+            NodeData::ImportDeclaration(data) => data.attributes,
+            NodeData::ExportDeclaration(data) => data.attributes,
+            NodeData::JSDocImportTag(data) => data.attributes,
+            NodeData::LiteralType(_) => match self.parent_of(parent).map(|node| self.data_of(node))
+            {
+                Some(NodeData::ImportType(data)) => data.attributes,
+                _ => None,
+            },
+            NodeData::CallExpression(data) if self.is_import_call(parent) => {
+                let Some(&options) = self.nodes_of(data.arguments).get(1) else {
+                    return Ok(None);
+                };
+                let options_type = self.check_expression_cached(options, CheckMode::NORMAL)?;
+                return self.get_type_of_property_of_type(
+                    options_type,
+                    tsc_types::EscapedName::escape(JsStr::from("with")),
+                );
+            }
+            _ => None,
+        };
+        attributes
+            .map(|attributes| self.get_type_from_import_attributes(attributes))
+            .transpose()
+    }
+
+    /// tsgo (nodebuilderimpl.go:1269-1276): a module without a source file
+    /// is named by its first declaration with a string-literal name.
+    pub(crate) fn string_literal_module_declaration_name(
+        &self,
+        symbol: SymbolId,
+    ) -> Option<JsString> {
+        self.binder
+            .symbol(symbol)
+            .declarations
+            .iter()
+            .find_map(|&declaration| match self.data_of(declaration) {
+                NodeData::ModuleDeclaration(data) => {
+                    data.name.and_then(|name| match self.data_of(name) {
+                        NodeData::StringLiteral(literal) => Some(literal.text.clone()),
+                        _ => None,
+                    })
+                }
+                _ => None,
+            })
+    }
+
+    /// tsgo: moduleSpecifierResultForSymbol and
+    /// moduleSpecifierResolvesToSymbol (nodebuilderimpl.go:1336-1357). The
+    /// import attributes of the declaration being described replace the
+    /// result's own when `specifier` still resolves to `symbol` with them.
+    /// The lookup is outside the program's collected module names, so a
+    /// name the program did not resolve is unresolved.
+    pub(crate) fn module_specifier_result_attributes(
+        &mut self,
+        symbol: SymbolId,
+        specifier: JsStr<'_>,
+        import_attributes_type: Option<TypeId>,
+        original_import_attributes_type: Option<TypeId>,
+        location: Option<NodeId>,
+    ) -> CheckResult<Option<TypeId>> {
+        let (Some(original), Some(location)) = (original_import_attributes_type, location) else {
+            return Ok(import_attributes_type);
+        };
+        let outside = self.module_name_outside_program.replace(true);
+        let resolved = self.resolve_external_module(
+            location,
+            specifier,
+            None,
+            None,
+            /*is_for_augmentation*/ false,
+            Some(original),
+        );
+        self.module_name_outside_program.set(outside);
+        Ok(match resolved? {
+            Some(resolved)
+                if self.get_merged_symbol(resolved) == self.get_merged_symbol(symbol) =>
+            {
+                Some(original)
+            }
+            _ => import_attributes_type,
+        })
+    }
+
+    /// tsgo: createImportAttributesForModuleSpecifier
+    /// (nodebuilderimpl.go:1359-1398). An import type naming a module
+    /// writes the string-literal properties of the module's import
+    /// attributes type, sorted by name, as `{ with: { name: "value" } }`.
+    pub(crate) fn import_attribute_entries(
+        &mut self,
+        import_attributes_type: Option<TypeId>,
+    ) -> CheckResult<Vec<(JsString, tsc_types::TemplateText)>> {
+        let Some(import_attributes_type) = import_attributes_type else {
+            return Ok(Vec::new());
+        };
+        if self.is_empty_object_type(import_attributes_type)? {
+            return Ok(Vec::new());
+        }
+        let mut properties: Vec<(String, SymbolId)> = self
+            .get_properties_of_type(import_attributes_type)?
+            .into_iter()
+            .map(|property| {
+                let name = unescape_leading_underscores(self.binder.symbol(property).escaped_name);
+                (name.to_string_lossy().into_owned(), property)
+            })
+            .collect();
+        // Go compares the names' UTF-8 bytes.
+        properties.sort_by(|left, right| left.0.cmp(&right.0));
+        let mut entries = Vec::with_capacity(properties.len());
+        for (_, property) in properties {
+            let property_type = self.get_type_of_symbol(property)?;
+            if let tsc_types::TypeData::Literal {
+                value: tsc_types::LiteralValue::String(value),
+            } = &self.tables.type_of(property_type).data
+            {
+                let name = unescape_leading_underscores(self.binder.symbol(property).escaped_name);
+                entries.push((name.to_owned(), value.clone()));
+            }
+        }
+        Ok(entries)
+    }
+
+    /// tsgo: getTypeOfModuleImportAttributes (checker.go:5337-5350): the
+    /// import attributes type of a module's string-named declaration, or
+    /// the empty object type.
+    pub(crate) fn get_type_of_module_import_attributes(
+        &mut self,
+        symbol: SymbolId,
+    ) -> CheckResult<TypeId> {
+        if let Some(&ty) = self.module_import_attributes_types.get(&symbol) {
+            return Ok(ty);
+        }
+        let attributes = self
+            .binder
+            .symbol(symbol)
+            .declarations
+            .iter()
+            .find_map(|&declaration| match self.data_of(declaration) {
+                NodeData::ModuleDeclaration(data)
+                    if data
+                        .name
+                        .is_some_and(|name| self.kind_of(name) == SyntaxKind::StringLiteral) =>
+                {
+                    Some(data.attributes)
+                }
+                _ => None,
+            })
+            .flatten();
+        let ty = match attributes {
+            Some(attributes) => self.get_type_from_type_node(attributes)?,
+            None => self.empty_object_type,
+        };
+        self.module_import_attributes_types.insert(symbol, ty);
+        Ok(ty)
+    }
+
+    /// tsgo: tryResolvePatternAmbientModule (checker.go:15689-15745). An
+    /// import's attributes select among the pattern modules whose
+    /// attributes types accept them; without attributes a resolved module
+    /// wins. Several candidates narrow to the strictest attributes types,
+    /// then to the longest pattern prefix.
+    fn try_resolve_pattern_ambient_module(
+        &mut self,
+        resolved: Option<SymbolId>,
+        module_reference: JsStr<'_>,
+        import_attributes_type: TypeId,
+    ) -> CheckResult<Option<SymbolId>> {
+        if resolved.is_some()
+            && (import_attributes_type == self.empty_object_type
+                || self.is_empty_object_type(import_attributes_type)?)
+        {
+            return Ok(resolved);
+        }
+        if self.pattern_ambient_modules.is_empty() {
+            return Ok(resolved);
+        }
+        let modules = self.pattern_ambient_modules.clone();
+        let mut candidates = Vec::new();
+        for (prefix, suffix, symbol) in modules {
+            if module_reference.len_units() >= prefix.len_units() + suffix.len_units()
+                && module_reference.starts_with_js(prefix.as_js())
+                && module_reference.ends_with_js(suffix.as_js())
+            {
+                let module_type = self.get_type_of_module_import_attributes(symbol)?;
+                if self.is_type_assignable_to(import_attributes_type, module_type)? {
+                    candidates.push((prefix, suffix, symbol));
+                }
+            }
+        }
+        if candidates.is_empty() {
+            return Ok(resolved);
+        }
+        let augmentation = self
+            .pattern_ambient_module_augmentations
+            .get(module_reference.as_bytes())
+            .copied();
+        let augmentation_target = self
+            .pattern_ambient_module_augmentation_targets
+            .get(module_reference.as_bytes())
+            .copied();
+        let finish = |this: &Self, symbol: SymbolId| {
+            let merged = this.get_merged_symbol(symbol);
+            match augmentation {
+                Some(augmentation) if augmentation_target == Some(merged) => {
+                    this.get_merged_symbol(augmentation)
+                }
+                _ => merged,
+            }
+        };
+        if candidates.len() == 1 {
+            return Ok(Some(finish(self, candidates[0].2)));
+        }
+        let mut best = Vec::new();
+        'candidates: for (index, candidate) in candidates.iter().enumerate() {
+            let candidate_type = self.get_type_of_module_import_attributes(candidate.2)?;
+            for (other_index, other) in candidates.iter().enumerate() {
+                if index == other_index {
+                    continue;
+                }
+                let other_type = self.get_type_of_module_import_attributes(other.2)?;
+                if self.is_type_strict_subtype_of(other_type, candidate_type)?
+                    && !self.is_type_identical_to(other_type, candidate_type)?
+                {
+                    continue 'candidates;
+                }
+            }
+            best.push(candidate.clone());
+        }
+        if best.len() == 1 {
+            return Ok(Some(finish(self, best[0].2)));
+        }
+        // core.FindBestPatternMatch: the longest prefix, the first on a tie.
+        let mut matched: Option<(usize, SymbolId)> = None;
+        for (prefix, _, symbol) in &best {
+            if matched.is_none_or(|(length, _)| prefix.len_units() > length) {
+                matched = Some((prefix.len_units(), *symbol));
+            }
+        }
+        Ok(matched.map(|(_, symbol)| finish(self, symbol)))
     }
 
     /// tsc-port: getExternalModuleFileFromDeclaration @6.0.3
@@ -3891,8 +4256,10 @@ impl<'a> CheckerState<'a> {
         module_not_found_error: Option<&'static DiagnosticMessage>,
         error_node: Option<NodeId>,
         is_for_augmentation: bool,
+        import_attributes_type: Option<TypeId>,
     ) -> CheckResult<Option<SymbolId>> {
         let module_reference = module_reference.into();
+        let import_attributes_type = import_attributes_type.unwrap_or(self.empty_object_type);
         if let Some(error_node) = error_node {
             if let Some(without_prefix) = module_reference.strip_prefix("@types/") {
                 self.error_at_js(
@@ -3905,7 +4272,11 @@ impl<'a> CheckerState<'a> {
         if let Some(ambient_module) =
             self.try_find_ambient_module(module_reference, /*with_augmentations*/ true)
         {
-            return Ok(Some(ambient_module));
+            return self.try_resolve_pattern_ambient_module(
+                Some(ambient_module),
+                module_reference,
+                import_attributes_type,
+            );
         }
         let resolution = self.resolve_program_module(location, module_reference);
         if let ProgramModuleResolution::Resolved(resolved) = &resolution {
@@ -4070,7 +4441,19 @@ impl<'a> CheckerState<'a> {
                 if let Some(error_node) = error_node {
                     self.report_node_format_mismatch(location, error_node, root, module_reference);
                 }
-                return Ok(Some(self.get_merged_symbol(file_symbol)));
+                let file_symbol = self.get_merged_symbol(file_symbol);
+                return self.try_resolve_pattern_ambient_module(
+                    Some(file_symbol),
+                    module_reference,
+                    import_attributes_type,
+                );
+            }
+            if let Some(pattern_module) = self.try_resolve_pattern_ambient_module(
+                None,
+                module_reference,
+                import_attributes_type,
+            )? {
+                return Ok(Some(pattern_module));
             }
             if let (Some(error_node), Some(_)) = (error_node, module_not_found_error) {
                 if !self.is_side_effect_import(error_node) {
@@ -4087,16 +4470,10 @@ impl<'a> CheckerState<'a> {
         if matches!(resolution, ProgramModuleResolution::AuthorityFailed) {
             return Ok(None);
         }
-        if !self.pattern_ambient_modules.is_empty() {
-            if let Some(symbol) = self.find_best_pattern_match(module_reference) {
-                if let Some(&augmentation) = self
-                    .pattern_ambient_module_augmentations
-                    .get(module_reference.as_bytes())
-                {
-                    return Ok(Some(self.get_merged_symbol(augmentation)));
-                }
-                return Ok(Some(self.get_merged_symbol(symbol)));
-            }
+        if let Some(pattern_module) =
+            self.try_resolve_pattern_ambient_module(None, module_reference, import_attributes_type)?
+        {
+            return Ok(Some(pattern_module));
         }
         if let ProgramModuleResolution::Untyped(untyped) = &resolution {
             match untyped.resolution_diagnostic {
@@ -7301,25 +7678,6 @@ impl<'a> CheckerState<'a> {
         false
     }
 
-    /// tsc findBestPatternMatch (1065) over patternAmbientModules:
-    /// longest matching prefix wins.
-    fn find_best_pattern_match<'n>(&self, candidate: impl Into<JsStr<'n>>) -> Option<SymbolId> {
-        let candidate = candidate.into();
-        let mut matched: Option<(usize, SymbolId)> = None;
-        for (prefix, suffix, symbol) in &self.pattern_ambient_modules {
-            if candidate.len_units() >= prefix.len_units() + suffix.len_units()
-                && candidate.starts_with_js(prefix.as_js())
-                && candidate.ends_with_js(suffix.as_js())
-            {
-                match matched {
-                    Some((best_len, _)) if prefix.len_units() <= best_len => {}
-                    _ => matched = Some((prefix.len_units(), *symbol)),
-                }
-            }
-        }
-        matched.map(|(_, symbol)| symbol)
-    }
-
     // ================================================================
     // Module symbol resolution + exports
     // ================================================================
@@ -8067,8 +8425,10 @@ impl<'a> CheckerState<'a> {
     /// registered for deferred unused checking after its elements are
     /// checked; global augmentations are excluded.
     pub(crate) fn check_module_declaration(&mut self, node: NodeId) -> CheckResult<()> {
-        let (name, body, modifiers) = match self.data_of(node) {
-            NodeData::ModuleDeclaration(data) => (data.name, data.body, data.modifiers),
+        let (name, body, modifiers, attributes) = match self.data_of(node) {
+            NodeData::ModuleDeclaration(data) => {
+                (data.name, data.body, data.modifiers, data.attributes)
+            }
             _ => return Ok(()),
         };
         if let Some(body) = body {
@@ -8089,6 +8449,10 @@ impl<'a> CheckerState<'a> {
                 &diagnostics::Augmentations_for_the_global_scope_should_have_declare_modifier_unless_they_appear_in_already_ambient_context,
                 &[],
             );
+        }
+        // tsgo (checker.go:5235-5238).
+        if let Some(attributes) = attributes {
+            self.check_import_attributes_type(attributes)?;
         }
         let is_ambient_external_module = node_util::is_ambient_module(source, node);
         let context_error_message = if is_ambient_external_module {
@@ -8232,6 +8596,14 @@ impl<'a> CheckerState<'a> {
         if is_ambient_external_module {
             let source = self.binder.source_of_node(node);
             if node_util::is_module_augmentation_external(source, node) {
+                // tsgo (checker.go:5288-5290).
+                if let Some(attributes) = attributes {
+                    self.error_at_js(
+                        Some(attributes),
+                        &diagnostics::Import_attributes_are_not_allowed_on_a_module_augmentation,
+                        &[],
+                    );
+                }
                 // External-module AUGMENTATION: check the body per
                 // element when global-augment or Transient (merged)
                 // module symbol.

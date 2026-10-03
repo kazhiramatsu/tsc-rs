@@ -3167,6 +3167,7 @@ impl<'text> Parser<'text> {
             NodeData::ModuleDeclaration(ModuleDeclarationData {
                 modifiers,
                 name: Some(name),
+                attributes: None,
                 body: Some(body),
             }),
             pos,
@@ -3180,12 +3181,17 @@ impl<'text> Parser<'text> {
         modifiers: Option<crate::NodeArrayId>,
     ) -> NodeId {
         let mut flags = NodeFlags::NONE;
-        let name = if self.token() == SyntaxKind::GlobalKeyword {
+        let global = self.token() == SyntaxKind::GlobalKeyword;
+        let name = if global {
             flags |= NodeFlags::GLOBAL_AUGMENTATION;
             self.parse_identifier_or_missing()
         } else {
             self.parse_string_literal()
         };
+        // tsgo (parser.go:2230-2233): an ambient module, not `global`, may
+        // declare its import attributes type.
+        let attributes = (!global && self.parse_optional(SyntaxKind::WithKeyword))
+            .then(|| self.parse_type_literal());
         let body = if self.token() == SyntaxKind::OpenBraceToken {
             Some(self.parse_module_block())
         } else {
@@ -3196,6 +3202,7 @@ impl<'text> Parser<'text> {
             NodeData::ModuleDeclaration(ModuleDeclarationData {
                 modifiers,
                 name: Some(name),
+                attributes,
                 body,
             }),
             pos,

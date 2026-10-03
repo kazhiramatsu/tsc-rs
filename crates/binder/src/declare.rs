@@ -925,11 +925,32 @@ impl<'a> BinderWorker<'a> {
             if is_ambient_module(self.source, node) {
                 let module_name =
                     get_text_of_identifier_or_literal(self.source, name).unwrap_or_default();
-                return Some(if is_global_scope_augmentation(self.source, node) {
-                    EscapedName::internal(InternalSymbolName::GLOBAL)
-                } else {
-                    EscapedName::quoted_module(module_name.as_js())
-                });
+                if is_global_scope_augmentation(self.source, node) {
+                    return Some(EscapedName::internal(InternalSymbolName::GLOBAL));
+                }
+                // tsgo (binder.go:309-313): a pattern module with an import
+                // attributes type has a name of its own (internal: `__`, as
+                // user names escape a leading `__`); the checker merges the
+                // ones whose types are identical.
+                let attributes = match &self.source.arena.node(node).data {
+                    NodeData::ModuleDeclaration(data) => data.attributes,
+                    _ => None,
+                };
+                if let Some(attributes) = attributes {
+                    if matches!(
+                        crate::node_util::try_parse_pattern(module_name.as_js()),
+                        Some(crate::node_util::ParsedPattern::Wildcard { .. })
+                    ) {
+                        let mut text = JsString::from("__\"");
+                        text.push_js(module_name.as_js());
+                        text.push_str("\"pattern@");
+                        text.push_js(self.source.file_name.as_js());
+                        text.push_str("#");
+                        text.push_str(&attributes.index().to_string());
+                        return Some(EscapedName::from_escaped_value(text));
+                    }
+                }
+                return Some(EscapedName::quoted_module(module_name.as_js()));
             }
             if kind_of(self.source, name) == SyntaxKind::ComputedPropertyName {
                 let name_expression = match &self.source.arena.node(name).data {

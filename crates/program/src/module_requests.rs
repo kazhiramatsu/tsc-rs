@@ -987,6 +987,14 @@ fn collect_static_module_reference_statements(
                     if !literal.text.is_empty()
                         && (!in_ambient_module || !is_external_module_name_relative(&literal.text))
                     {
+                        // A type-only export takes the `resolution-mode`
+                        // attribute like a type-only import
+                        // (getModeForUsageLocation, fileloader.go:1049-1066).
+                        let mode = export
+                            .attributes
+                            .filter(|_| expanded && export.is_type_only)
+                            .and_then(|attributes| resolution_mode_override(parsed, attributes))
+                            .unwrap_or(static_mode);
                         static_occurrences.push(ModuleRequestOccurrence {
                             pos: module_specifier.pos,
                             end: module_specifier.end,
@@ -994,7 +1002,7 @@ fn collect_static_module_reference_statements(
                             key: ResolutionKey::new(
                                 source.path().canonical().clone(),
                                 literal.text.clone(),
-                                static_mode,
+                                mode,
                             ),
                         });
                     }
@@ -1219,10 +1227,15 @@ fn collect_unpreprocessed_module_requests(
                     continue;
                 };
                 if !literal.text.is_empty() {
+                    let mode = export
+                        .attributes
+                        .filter(|_| expanded && export.is_type_only)
+                        .and_then(|attributes| resolution_mode_override(parsed, attributes))
+                        .unwrap_or(static_mode);
                     requests.insert(ResolutionKey::new(
                         source.path().canonical().clone(),
                         literal.text.clone(),
-                        static_mode,
+                        mode,
                     ));
                 }
             }

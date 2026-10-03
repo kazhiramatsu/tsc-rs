@@ -233,6 +233,17 @@ impl<'a> CheckerState<'a> {
         )
     }
 
+    /// tsgo (nameresolver.go:48-50): the attributes of `declare module
+    /// "*.x" with { ... }` see the scope around the declaration, not its own
+    /// locals or exports.
+    fn is_module_attributes_scope(&self, location: NodeId, last_location: Option<NodeId>) -> bool {
+        last_location.is_some()
+            && matches!(
+                self.data_of(location),
+                NodeData::ModuleDeclaration(data) if data.attributes == last_location
+            )
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn resolve_name_full(
         &mut self,
@@ -277,7 +288,9 @@ impl<'a> CheckerState<'a> {
                     if let Some(found) = self.finish_lookup(probe, name, meaning) {
                         let mut use_result = true;
                         let result_flags = self.binder.symbol(found).flags;
-                        if is_function_like_kind(self.kind_of(loc))
+                        if self.is_module_attributes_scope(loc, last_location) {
+                            use_result = false;
+                        } else if is_function_like_kind(self.kind_of(loc))
                             && last_location.is_some()
                             && last_location != body_of(self.binder.source_of_node(loc), loc)
                         {
@@ -359,7 +372,9 @@ impl<'a> CheckerState<'a> {
             match self.kind_of(loc) {
                 SyntaxKind::SourceFile | SyntaxKind::ModuleDeclaration => {
                     let is_source_file = self.kind_of(loc) == SyntaxKind::SourceFile;
-                    if is_source_file && loc_is_global_source_file {
+                    if (is_source_file && loc_is_global_source_file)
+                        || (!is_source_file && self.is_module_attributes_scope(loc, last_location))
+                    {
                         // falls out of the switch (globals handled at
                         // the walk's end).
                     } else {

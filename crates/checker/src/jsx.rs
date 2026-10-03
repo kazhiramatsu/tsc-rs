@@ -2187,6 +2187,7 @@ impl<'a> CheckerState<'a> {
             Some(error_message),
             Some(location),
             /*is_for_augmentation*/ false,
+            /*import_attributes_type*/ None,
         )?;
         let resolved = match module {
             Some(module) if module != self.unknown_symbol => self

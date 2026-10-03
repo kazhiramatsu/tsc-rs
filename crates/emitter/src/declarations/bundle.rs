@@ -123,6 +123,7 @@ pub(super) fn transform_bundle(
                     source,
                     Some(modifiers),
                     name,
+                    None,
                     Some(block),
                     NodeFlags::NONE,
                 )?;

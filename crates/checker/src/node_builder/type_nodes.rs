@@ -589,6 +589,7 @@ pub(crate) fn create_factory_node(
             target,
             array(data.modifiers),
             required_child(data.name, SyntaxKind::ModuleDeclaration, "name")?,
+            child(data.attributes),
             child(data.body),
             NodeFlags::NONE,
         ),
@@ -848,6 +849,7 @@ pub(crate) fn update_factory_node(
             original,
             array(data.modifiers),
             required_child(data.name, SyntaxKind::ModuleDeclaration, "name")?,
+            child(data.attributes),
             child(data.body),
         ),
         NodeData::ModuleBlock(data) => arena.factory().update_module_block(

@@ -1064,6 +1064,9 @@ pub struct ModuleBlockData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct ModuleDeclarationData {
     pub name: Option<NodeId>,
+    /// TypeScript 7.1's import attributes type of an ambient module
+    /// (`declare module "*.css" with { type: "css" }`): a TypeLiteral.
+    pub attributes: Option<NodeId>,
     pub modifiers: Option<NodeArrayId>,
     pub body: Option<NodeId>,
 }
@@ -2503,6 +2506,7 @@ impl NodeData {
             SyntaxKind::ModuleBlock => Self::ModuleBlock(ModuleBlockData { statements: None }),
             SyntaxKind::ModuleDeclaration => Self::ModuleDeclaration(ModuleDeclarationData {
                 name: None,
+                attributes: None,
                 modifiers: None,
                 body: None,
             }),

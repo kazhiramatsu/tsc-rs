@@ -3049,6 +3049,53 @@ fn parse_namespace_and_ambient_modules() {
 }
 
 #[test]
+fn an_ambient_module_declaration_parses_its_import_attributes_type_like_tsgo() {
+    // tsgo parseAmbientExternalModuleDeclaration (parser.go:2218-2244):
+    // after the name of an ambient module, not `global`, `with` starts the
+    // import attributes type literal, a child between the name and the
+    // body.
+    let source = parse_source_file(
+        "a.d.ts".into(),
+        "declare module \"*.x\" with { type: \"css\" } {}\ndeclare module \"*.y\" with { type: \"text\" };\n"
+            .to_owned(),
+        ParseOptions::default(),
+        None,
+    );
+    assert!(
+        source.parse_diagnostics.is_empty(),
+        "{:?}",
+        source.parse_diagnostics
+    );
+    let statements = statement_nodes(&source);
+    for (&statement, has_body) in statements.iter().zip([true, false]) {
+        let node = source.arena.node(statement);
+        let NodeData::ModuleDeclaration(module) = &node.data else {
+            panic!("expected module declaration");
+        };
+        let attributes = module.attributes.expect("import attributes type");
+        let NodeData::TypeLiteral(literal) = &source.arena.node(attributes).data else {
+            panic!("expected a type literal");
+        };
+        let members = literal.members.expect("members");
+        assert_eq!(source.arena.node_array(members).nodes.len(), 1);
+        assert_eq!(module.body.is_some(), has_body);
+        let mut children = Vec::new();
+        for_each_child(&source.arena, node, |child| {
+            children.push(child);
+            false
+        });
+        let modifiers = module.modifiers.expect("declare modifier");
+        let mut expected = source.arena.node_array(modifiers).nodes.to_vec();
+        expected.extend(
+            [module.name, module.attributes, module.body]
+                .into_iter()
+                .flatten(),
+        );
+        assert_eq!(children, expected);
+    }
+}
+
+#[test]
 fn parse_import_and_export_forms() {
     let source = parse_source_file(
         "a.ts".into(),

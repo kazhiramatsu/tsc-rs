@@ -27,7 +27,9 @@ use crate::modules::ModuleResolutionMode;
 use crate::state::{CheckAbort, CheckerState, PackageJsonModuleType};
 
 use super::signatures::type_parameter_to_declaration;
-use super::specifier::{get_specifier_for_module_symbol, module_name_literals};
+use super::specifier::{
+    get_specifier_for_module_symbol, module_name_literals, ModuleSpecifierResult,
+};
 use super::type_nodes::{
     add_approximate_length, checker_abort_error, create_identifier, create_node, create_node_array,
     create_output_identifier, factory_error, set_no_ascii_escaping, type_to_type_node_helper,
@@ -1412,6 +1414,18 @@ pub(crate) fn specifier_for_module_symbol(
     symbol: SymbolId,
     override_import_mode: Option<EmitResolutionMode>,
 ) -> BuildResult<tsc_types::JsString> {
+    specifier_result_for_module_symbol(checker, context, symbol, override_import_mode)
+        .map(|result| result.specifier)
+}
+
+/// The specifier with the import attributes type an import type writes
+/// (tsgo moduleSpecifierResult).
+fn specifier_result_for_module_symbol(
+    checker: &mut CheckerState<'_>,
+    context: &NodeBuilderContext<'_>,
+    symbol: SymbolId,
+    override_import_mode: Option<EmitResolutionMode>,
+) -> BuildResult<ModuleSpecifierResult> {
     let enclosing_file = context.enclosing_file;
     let enclosing_declaration = context.enclosing_declaration;
     let bundled = context.bundled;
@@ -1627,31 +1641,68 @@ fn create_parenthesized_type(
     )
 }
 
-fn create_import_attributes(
+/// tsgo: createImportAttributesForModuleSpecifier
+/// (nodebuilderimpl.go:1359-1398): a `resolution-mode` override first,
+/// then the string-literal attributes of the module's import attributes
+/// type, sorted by name.
+fn create_import_attributes_for_module_specifier(
+    checker: &mut CheckerState<'_>,
     arena: &mut TransformArena,
     target: TransformSourceId,
-    mode: EmitResolutionMode,
-) -> BuildResult<TransformNode> {
-    let name = create_string_literal(arena, target, "resolution-mode", false)?;
-    let value = create_string_literal(
-        arena,
-        target,
-        if mode == EmitResolutionMode::EsNext {
+    context: &mut NodeBuilderContext<'_>,
+    result: &ModuleSpecifierResult,
+    import_mode_override: Option<EmitResolutionMode>,
+) -> BuildResult<Option<TransformNode>> {
+    let entries = checker
+        .import_attribute_entries(result.import_attributes_type)
+        .map_err(|abort| checker_abort_error(checker, context, abort))?;
+    let mut attributes = Vec::with_capacity(entries.len() + 1);
+    if let Some(mode) = import_mode_override {
+        let mode = if mode == EmitResolutionMode::EsNext {
             "import"
         } else {
             "require"
-        },
-        false,
-    )?;
-    let attribute = create_node(
-        arena,
-        target,
-        NodeData::ImportAttribute(ImportAttributeData {
-            name: Some(name.node()),
-            value: Some(value.node()),
-        }),
-    )?;
-    let elements = create_node_array(arena, target, vec![attribute])?;
+        };
+        let name = create_string_literal(arena, target, "resolution-mode", false)?;
+        let value = create_string_literal(arena, target, mode, false)?;
+        attributes.push(create_node(
+            arena,
+            target,
+            NodeData::ImportAttribute(ImportAttributeData {
+                name: Some(name.node()),
+                value: Some(value.node()),
+            }),
+        )?);
+        add_approximate_length(context, "resolution-mode".len() + mode.len() + 6);
+    }
+    for (name, value) in entries {
+        let name_node = match name
+            .as_str()
+            .filter(|text| tsc_syntax::is_identifier_text(text))
+        {
+            Some(text) => create_identifier(arena, target, text)?,
+            None => {
+                add_approximate_length(context, 2);
+                create_string_literal(arena, target, &name, false)?
+            }
+        };
+        let value = value.to_js_string();
+        let value_node = create_string_literal(arena, target, &value, false)?;
+        attributes.push(create_node(
+            arena,
+            target,
+            NodeData::ImportAttribute(ImportAttributeData {
+                name: Some(name_node.node()),
+                value: Some(value_node.node()),
+            }),
+        )?);
+        add_approximate_length(context, js_len(&name) + js_len(&value) + 4);
+    }
+    if attributes.is_empty() {
+        return Ok(None);
+    }
+    add_approximate_length(context, 16 + 2 * (attributes.len() - 1));
+    let elements = create_node_array(arena, target, attributes)?;
     create_node(
         arena,
         target,
@@ -1661,6 +1712,7 @@ fn create_import_attributes(
             multi_line: None,
         }),
     )
+    .map(Some)
 }
 
 fn create_import_type(
@@ -2039,47 +2091,47 @@ pub(crate) fn chains_symbol_to_type_node(
         let target_mode = emit_resolution_mode(
             target_file.and_then(|file| checker.implied_node_format_for_emit(file)),
         );
-        let mut attributes = None;
-        let mut specifier = None;
+        let mut import_mode_override = None;
+        let mut specifier_result = None;
         if matches!(module_resolution, 3 | 99)
             && target_mode == EmitResolutionMode::EsNext
             && target_mode != context_mode
         {
-            specifier = Some(specifier_for_module_symbol(
+            specifier_result = Some(specifier_result_for_module_symbol(
                 checker,
                 context,
                 chain[0],
                 Some(EmitResolutionMode::EsNext),
             )?);
-            attributes = Some(create_import_attributes(
-                arena,
-                target,
-                EmitResolutionMode::EsNext,
-            )?);
+            import_mode_override = Some(EmitResolutionMode::EsNext);
         }
-        let mut specifier = match specifier {
-            Some(specifier) => specifier,
-            None => specifier_for_module_symbol(checker, context, chain[0], None)?,
+        let mut specifier_result = match specifier_result {
+            Some(result) => result,
+            None => specifier_result_for_module_symbol(checker, context, chain[0], None)?,
         };
         if !has_flag(context, ALLOW_NODE_MODULES_RELATIVE_PATHS)
             && module_resolution != 1
-            && specifier.contains("/node_modules/")
+            && specifier_result.specifier.contains("/node_modules/")
         {
-            let old_specifier = specifier.clone();
+            let old_specifier = specifier_result.specifier.clone();
             if matches!(module_resolution, 3 | 99) {
                 let swapped_mode = if context_mode == EmitResolutionMode::EsNext {
                     EmitResolutionMode::CommonJs
                 } else {
                     EmitResolutionMode::EsNext
                 };
-                let swapped =
-                    specifier_for_module_symbol(checker, context, chain[0], Some(swapped_mode))?;
-                if !swapped.contains("/node_modules/") {
-                    specifier = swapped;
-                    attributes = Some(create_import_attributes(arena, target, swapped_mode)?);
+                let swapped = specifier_result_for_module_symbol(
+                    checker,
+                    context,
+                    chain[0],
+                    Some(swapped_mode),
+                )?;
+                if !swapped.specifier.contains("/node_modules/") {
+                    specifier_result = swapped;
+                    import_mode_override = Some(swapped_mode);
                 }
             }
-            if attributes.is_none() {
+            if import_mode_override.is_none() {
                 context.encountered_error = true;
                 context.tracker.report_likely_unsafe_import_required_error(
                     &mut context.reported_diagnostic,
@@ -2090,6 +2142,15 @@ pub(crate) fn chains_symbol_to_type_node(
                 );
             }
         }
+        let attributes = create_import_attributes_for_module_specifier(
+            checker,
+            arena,
+            target,
+            context,
+            &specifier_result,
+            import_mode_override,
+        )?;
+        let specifier = specifier_result.specifier;
         let literal = create_string_literal(arena, target, &specifier, false)?;
         let literal_type = create_literal_type(arena, target, literal)?;
         add_approximate_length(context, js_len(&specifier) + 10);

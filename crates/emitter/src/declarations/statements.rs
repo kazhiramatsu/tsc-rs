@@ -53,11 +53,10 @@ pub(crate) fn visit_declaration_statement(
                 .and_then(|node| context.arena().node_ref(input.source(), node));
             let module_specifier =
                 rewrite_module_specifier(transformer, context, input, module_specifier)?;
-            let attributes = try_get_resolution_mode_override(
-                context,
-                data.attributes
-                    .and_then(|node| context.arena().node_ref(input.source(), node)),
-            );
+            // tsgo keeps the attributes as written (transform.go:1172-1179).
+            let attributes = data
+                .attributes
+                .and_then(|node| context.arena().node_ref(input.source(), node));
             let modifiers = data
                 .modifiers
                 .and_then(|array| context.arena().node_array_ref(input.source(), array));
@@ -450,12 +449,18 @@ pub(crate) fn transform_top_level_declaration(
                 } else {
                     name
                 };
+                // tsgo (declarations/transform.go:1842) keeps the import
+                // attributes type of an ambient module.
+                let attributes = data
+                    .attributes
+                    .and_then(|node| context.arena().node_ref(input.source(), node));
                 VisitResult::Node(update_module_declaration_and_keyword(
                     transformer,
                     context,
                     input,
                     modifiers,
                     name,
+                    attributes,
                     body,
                 )?)
             }
@@ -1249,11 +1254,12 @@ pub(crate) fn update_module_declaration_and_keyword(
     node: TransformNode,
     modifiers: Option<TransformNodeArray>,
     name: TransformNode,
+    attributes: Option<TransformNode>,
     body: Option<TransformNode>,
 ) -> Result<TransformNode, TransformError> {
     let updated = {
         let mut factory = context.factory()?;
-        factory.update_module_declaration(node, modifiers, name, body)?
+        factory.update_module_declaration(node, modifiers, name, attributes, body)?
     };
     let record = context.arena().node(updated)?.clone();
     let flags = NodeFlags::from_bits(record.flags);
@@ -1268,6 +1274,7 @@ pub(crate) fn update_module_declaration_and_keyword(
             updated.source(),
             modifiers,
             name,
+            attributes,
             body,
             flags | NodeFlags::NAMESPACE,
         )?;
@@ -1560,6 +1567,9 @@ pub(crate) fn transform_import_equals_declaration(
 /// tsc-port: transformImportDeclaration @6.0.3
 /// tsc-hash: 7378b26b9aa92b509ccdcf1b5e3872188bb6604c102714fe9e90013ad9ac2bf5
 /// tsc-span: _tsc.js:114841-114914
+///
+/// The attributes are kept as written, as in tsgo; tsc 6.0 kept only a
+/// valid `resolution-mode`.
 pub(crate) fn transform_import_declaration(
     transformer: &mut DeclarationTransformer<'_>,
     context: &mut TransformationContext,
@@ -1569,7 +1579,7 @@ pub(crate) fn transform_import_declaration(
     let original_module_specifier = data
         .module_specifier
         .and_then(|node| context.arena().node_ref(declaration.source(), node));
-    let original_attributes = data
+    let attributes = data
         .attributes
         .and_then(|node| context.arena().node_ref(declaration.source(), node));
     let modifiers = data
@@ -1585,7 +1595,6 @@ pub(crate) fn transform_import_declaration(
                     parent: SyntaxKind::ImportDeclaration,
                     field: "moduleSpecifier",
                 })?;
-        let attributes = try_get_resolution_mode_override(context, original_attributes);
         let mut factory = context.factory()?;
         return Ok(VisitResult::Node(factory.update_import_declaration(
             declaration,
@@ -1630,7 +1639,6 @@ pub(crate) fn transform_import_declaration(
                 parent: SyntaxKind::ImportDeclaration,
                 field: "moduleSpecifier",
             })?;
-            let attributes = try_get_resolution_mode_override(context, original_attributes);
             let mut factory = context.factory()?;
             let clause = factory.update_import_clause(
                 import_clause,
@@ -1664,7 +1672,6 @@ pub(crate) fn transform_import_declaration(
                 parent: SyntaxKind::ImportDeclaration,
                 field: "moduleSpecifier",
             })?;
-            let attributes = try_get_resolution_mode_override(context, original_attributes);
             let mut factory = context.factory()?;
             let clause = factory.update_import_clause(
                 import_clause,
@@ -1715,7 +1722,6 @@ pub(crate) fn transform_import_declaration(
                     parent: SyntaxKind::ImportDeclaration,
                     field: "moduleSpecifier",
                 })?;
-                let attributes = try_get_resolution_mode_override(context, original_attributes);
                 return Ok(VisitResult::Node(
                     context.factory()?.update_import_declaration(
                         declaration,
@@ -1736,7 +1742,6 @@ pub(crate) fn transform_import_declaration(
                 parent: SyntaxKind::ImportDeclaration,
                 field: "moduleSpecifier",
             })?;
-            let attributes = try_get_resolution_mode_override(context, original_attributes);
             let mut factory = context.factory()?;
             let bindings = if visible_elements.is_empty() {
                 None
@@ -1759,49 +1764,6 @@ pub(crate) fn transform_import_declaration(
             )?))
         }
     }
-}
-
-/// tsc-port: tryGetResolutionModeOverride @6.0.3
-/// tsc-hash: b053ae32b7f35937942850bffecc079c94d67af2ebe2aeb87f33add1a5b4444d
-/// tsc-span: _tsc.js:114915-114918
-pub(crate) fn try_get_resolution_mode_override(
-    context: &TransformationContext,
-    node: Option<TransformNode>,
-) -> Option<TransformNode> {
-    let node = node?;
-    let NodeData::ImportAttributes(data) = &context.arena().node(node).ok()?.data else {
-        return None;
-    };
-    let elements = context
-        .arena()
-        .node_array_ref(node.source(), data.elements?)?;
-    let elements = context.arena().node_array(elements).ok()?;
-    if elements.nodes.len() != 1 {
-        return None;
-    }
-    let attribute = TransformNode::new(node.source(), elements.nodes[0]);
-    let NodeData::ImportAttribute(data) = &context.arena().node(attribute).ok()?.data else {
-        return None;
-    };
-    let name = data
-        .name
-        .and_then(|id| context.arena().node_ref(node.source(), id))?;
-    let name = match &context.arena().node(name).ok()?.data {
-        NodeData::StringLiteral(data) => data.text.as_js(),
-        _ => return None,
-    };
-    if name != "resolution-mode" {
-        return None;
-    }
-    let value = data
-        .value
-        .and_then(|id| context.arena().node_ref(node.source(), id))?;
-    let value = match &context.arena().node(value).ok()?.data {
-        NodeData::StringLiteral(data) => data.text.as_js(),
-        NodeData::NoSubstitutionTemplateLiteral(data) => data.text.as_js(),
-        _ => return None,
-    };
-    (value == "import" || value == "require").then_some(node)
 }
 
 /// tsc-port: rewriteModuleSpecifier2 @6.0.3
@@ -2090,6 +2052,7 @@ fn expando_declaration_arm(
             input.source(),
             function_modifiers,
             namespace_name,
+            None,
             Some(body),
             NodeFlags::NAMESPACE,
         )?;
@@ -2112,6 +2075,7 @@ fn expando_declaration_arm(
         input.source(),
         clean_modifiers,
         namespace_name,
+        None,
         Some(body),
         NodeFlags::NAMESPACE,
     )?;

@@ -1234,6 +1234,9 @@ where
             }
         }
         NodeData::ModuleDeclaration(data) => {
+            if let Some(value) = data.attributes {
+                cb("attributes", ObservableField::Node(value));
+            }
             if let Some(value) = data.body {
                 cb("body", ObservableField::Node(value));
             }
