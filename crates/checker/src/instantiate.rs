@@ -1588,16 +1588,45 @@ impl<'a> CheckerState<'a> {
         if !self.could_contain_type_variables(ty) {
             return Ok(ty);
         }
-        if self.instantiation_depth == 100 || self.instantiation_count >= 5_000_000 {
-            // error(currentNode, 2589): currentNode is the driver's
-            // element cursor (5.4); queries outside the driver (probe
-            // entries, relpin) still emit file-less.
+        if self.instantiation_stack.len() == 100 || self.instantiation_count >= 5_000_000 {
+            // tsgo (checker.go:22502-22518) names the types that recur on
+            // the instantiation stack. currentNode is the driver's element
+            // cursor (5.4); queries outside the driver (probe entries,
+            // relpin) still emit file-less.
             let current_node = self.current_node;
-            self.error_at(
-                current_node,
-                &diagnostics::Type_instantiation_is_excessively_deep_and_possibly_infinite,
-                &[],
-            );
+            let names = self.circular_type_names()?;
+            match names.as_slice() {
+                [] => {
+                    self.error_at(
+                        current_node,
+                        &diagnostics::Type_instantiation_is_excessively_deep_and_possibly_infinite,
+                        &[],
+                    );
+                }
+                [name] => {
+                    self.error_at_js(
+                        current_node,
+                        &diagnostics::Instantiations_of_type_0_appear_infinitely_circular,
+                        &[name.into()],
+                    );
+                }
+                _ => {
+                    let mut list = tsc_types::JsString::new();
+                    for (index, name) in names.iter().enumerate() {
+                        if index != 0 {
+                            list.push_str(", ");
+                        }
+                        list.push_str("'");
+                        list.push_js(name.as_js());
+                        list.push_str("'");
+                    }
+                    self.error_at_js(
+                        current_node,
+                        &diagnostics::Instantiations_of_the_following_types_appear_infinitely_circular_0,
+                        &[(&list).into()],
+                    );
+                }
+            }
             return Ok(self.tables.intrinsics.error);
         }
         let index = self.find_active_mapper(mapper);
@@ -1620,7 +1649,7 @@ impl<'a> CheckerState<'a> {
         }
         self.total_instantiation_count += 1;
         self.instantiation_count += 1;
-        self.instantiation_depth += 1;
+        self.instantiation_stack.push(ty);
         let result = self.instantiate_type_worker(ty, mapper, alias_symbol, alias_type_arguments);
         match (&result, index) {
             (_, None) => self.pop_active_mapper(),
@@ -1629,8 +1658,52 @@ impl<'a> CheckerState<'a> {
             }
             (Err(_), Some(_)) => {}
         }
-        self.instantiation_depth -= 1;
+        self.instantiation_stack.pop();
         result
+    }
+
+    /// tsgo: getCircularTypeNames (checker.go:22546-22564). The types that
+    /// occur a third time on the instantiation stack, by their alias's or
+    /// own symbol, in stack order; internal symbol names are skipped.
+    fn circular_type_names(&mut self) -> CheckResult<Vec<tsc_types::JsString>> {
+        let mut counts = rustc_hash::FxHashMap::<TypeId, u32>::default();
+        let mut symbols = Vec::new();
+        for &ty in &self.instantiation_stack {
+            let count = counts.entry(ty).or_insert(0);
+            *count += 1;
+            if *count == 3 {
+                let data = self.tables.type_of(ty);
+                if let Some(symbol) = data.alias_symbol.or(data.symbol) {
+                    symbols.push(symbol);
+                }
+            }
+        }
+        // Printing runs below the limit: the stack is set aside meanwhile.
+        let stack = std::mem::take(&mut self.instantiation_stack);
+        let mut names: Vec<tsc_types::JsString> = Vec::new();
+        let mut result = Ok(());
+        for symbol in symbols {
+            // tsgo's internal names start with "\xFE"; tsc-rs spells them
+            // with "__", user names with a leading "__" escape to "___".
+            let escaped = self.binder.symbol(symbol).escaped_name;
+            let text = escaped.as_js();
+            if text.is_empty() || (text.starts_with("__") && !text.starts_with("___")) {
+                continue;
+            }
+            match self.emit_symbol_to_string_default(symbol) {
+                Ok(name) => {
+                    if !names.contains(&name) {
+                        names.push(name);
+                    }
+                }
+                Err(error) => {
+                    result = Err(error);
+                    break;
+                }
+            }
+        }
+        self.instantiation_stack = stack;
+        result.map(|()| names)
     }
 
     /// tsc-port: instantiateTypeWorker @6.0.3

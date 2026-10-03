@@ -181,8 +181,9 @@ impl SourceFile {
         &self.parse_recovery
     }
 
-    /// True for a clean parse or recovery confined to string/template tokens.
-    /// Structural events and scanner errors in trivia never pass this boundary.
+    /// True for a clean parse or recovery confined to string/template tokens
+    /// and merge conflict markers. Structural events and other scanner
+    /// errors in trivia never pass this boundary.
     pub fn has_only_literal_recovery(&self) -> bool {
         self.parse_recovery
             .is_literal_only(self.parse_diagnostics.len())

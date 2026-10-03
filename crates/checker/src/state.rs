@@ -523,10 +523,12 @@ pub struct CheckerState<'a> {
     pub(crate) active_type_mappers_caches: Vec<rustc_hash::FxHashMap<MapperCacheKey, TypeId>>,
     /// Popped instantiation caches, cleared and kept for the next push.
     pub(crate) spare_active_mapper_caches: Vec<rustc_hash::FxHashMap<MapperCacheKey, TypeId>>,
-    /// tsc instantiationDepth/instantiationCount (46451-46452); the
-    /// count resets at tsc's three entry points — checkExpression,
-    /// checkSourceElement, checkDeferredNode (wired at 5.4/5.5).
-    pub(crate) instantiation_depth: u32,
+    /// tsgo instantiationStack (checker.go:598): the types being
+    /// instantiated, innermost last; its length is tsc's instantiationDepth.
+    /// The instantiation count resets at tsc's three entry points —
+    /// checkExpression, checkSourceElement, checkDeferredNode (wired at
+    /// 5.4/5.5).
+    pub(crate) instantiation_stack: Vec<TypeId>,
     pub(crate) instantiation_count: u64,
     /// tsc totalInstantiationCount (46450).
     pub total_instantiation_count: u64,
@@ -1479,7 +1481,7 @@ impl<'a> CheckerState<'a> {
             active_type_mappers: Vec::new(),
             active_type_mappers_caches: Vec::new(),
             spare_active_mapper_caches: Vec::new(),
-            instantiation_depth: 0,
+            instantiation_stack: Vec::new(),
             instantiation_count: 0,
             total_instantiation_count: 0,
             class_interface_declared_in_progress: Vec::new(),

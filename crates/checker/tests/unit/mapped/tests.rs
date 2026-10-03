@@ -390,14 +390,18 @@ fn recursively_expanding_union_defers_generic_mapped_indexed_access() {
                     )
                 })
                 .collect();
+            // tsgo (tsc-19dadef8) reports only TS2615 here. tsc-rs reaches
+            // the instantiation depth limit first, whose row now names the
+            // recurring type as tsgo's limit does (TS5114); the extra row is
+            // a known difference recorded in the cutover packet (P3-5w).
             assert_eq!(
                 diagnostics,
                 [
                     (
-                        2589,
+                        5114,
                         Some(70),
                         Some(14),
-                        "Type instantiation is excessively deep and possibly infinite.",
+                        "Instantiations of type 'N' appear infinitely circular.",
                     ),
                     (
                         2615,

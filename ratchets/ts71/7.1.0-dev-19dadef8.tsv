@@ -1100,6 +1100,12 @@ compiler/conditionalTypesASI	full	js
 compiler/conditionalTypesSimplifyWhenTrivial	full	js
 compiler/conditionallyDuplicateOverloadsCausedByOverloadResolution	full	js
 compiler/configFileExtendsAsList	full	js
+compiler/conflictMarkerDiff3Trivia1	full	js
+compiler/conflictMarkerDiff3Trivia2	full	js
+compiler/conflictMarkerTrivia1	full	js
+compiler/conflictMarkerTrivia2	full	js
+compiler/conflictMarkerTrivia3	full	none
+compiler/conflictMarkerTrivia4	full	js
 compiler/conflictingDeclarationsImportFromNamespace1	full	js
 compiler/conflictingDeclarationsImportFromNamespace2	full	js
 compiler/conflictingMemberTypesInBases	full	js
@@ -4183,6 +4189,7 @@ compiler/library_ObjectPrototypeProperties	full	js
 compiler/library_RegExpExecArraySlice	full	js
 compiler/library_StringSlice	full	js
 compiler/lift	full	js
+compiler/limitDeepInstantiations	full	js
 compiler/listFailure	full	js
 compiler/literalFreshnessPropagationOnNarrowing	full	js
 compiler/literalIntersectionYieldsLiteral	full	js
@@ -5383,6 +5390,7 @@ compiler/recursiveComplicatedClasses	full	js
 compiler/recursiveConditionalCrash1	full	js
 compiler/recursiveConditionalCrash2	full	js
 compiler/recursiveConditionalCrash3	full	js
+compiler/recursiveConditionalCrash4	full	js
 compiler/recursiveConditionalEvaluationNonInfinite	full	js
 compiler/recursiveConditionalTypes	full	js
 compiler/recursiveConditionalTypes2	full	js

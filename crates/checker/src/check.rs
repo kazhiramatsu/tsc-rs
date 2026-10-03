@@ -124,7 +124,7 @@ impl<'a> CheckerState<'a> {
             type_parameter_defaults_in_progress: self.type_parameter_defaults_in_progress.len(),
             mapped_types_in_progress: self.mapped_types_in_progress.len(),
             speculation_depth: self.speculation_depth,
-            instantiation_depth: self.instantiation_depth,
+            instantiation_depth: self.instantiation_stack.len() as u32,
             in_variance_computation: self.in_variance_computation,
             variance_type_parameter: self.variance_type_parameter,
             flow_loop_start: self.flow_loop_start,
