@@ -13,6 +13,7 @@ use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{EscapedName, JsStr, JsString, NodeFlags, SymbolFlags, TypeData, TypeFlags};
 
 use crate::links::LinkSlot;
+use crate::program::ProgramFileId;
 use crate::state::{CheckResult, CheckerState};
 use tsc_binder::NameKey;
 
@@ -545,6 +546,19 @@ impl<'a> CheckerState<'a> {
         let symbol_name = symbol_name.into();
         let error_node =
             get_name_of_declaration(self.binder.source_of_node(node), node).unwrap_or(node);
+        // A row in a file whose check is skipped (skipLibCheck on a
+        // declaration file, skipDefaultLibCheck, noCheck, unchecked
+        // JavaScript) is never published: tsgo builds it in every checker
+        // and getSemanticDiagnosticsForFile drops the file. Not building it
+        // keeps conflicting library copies out of every checker's memory
+        // (zod's two @types/node versions: 2,142 rows, 4 MB per checker).
+        let file = ProgramFileId::from_raw(
+            u32::try_from(self.binder.file_index_of_node(error_node))
+                .expect("Program file index overflow"),
+        );
+        if self.skip_type_checking_file(file) {
+            return;
+        }
         let index = self.lookup_or_issue_error_js(Some(error_node), message, &[symbol_name]);
         for &related_node in related_nodes {
             let adjusted =

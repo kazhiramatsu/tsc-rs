@@ -989,16 +989,21 @@ P3-5r後のtext tierの主なclass（関係エラーのchainの文言）と、�
   - tsgoには`amalgamatedDuplicates`が無い（checker.go:14437-14460）。ファイルをまたぐ重複宣言はmergeごとにすぐ報告し、
     TS6200「Definitions of the following identifiers conflict…」の要約は無い。module augmentationもaugmentationごとに
     報告し、2つの「'x' was also declared here」になる。
+  - checkがskipされるfile（skipLibCheckの宣言ファイル、skipDefaultLibCheck、noCheck、checkしないJavaScript）には
+    重複宣言の行を作らない。tsgoはcheckerごとに作り、`getSemanticDiagnosticsForFile`がfileごと捨てるので、出力は
+    変わらない。zodでは2つの`@types/node`（22.10.5と22.13.13）が衝突し、checkerごとに2,142行（約4 MB）を作って
+    いた（amalgamationをやめただけではpeak footprintがchecker 10個で約40 MB増えた）。
 - unit test：
   - tsgoの行に再pin：
     - 既存のtest 6件（`(new f()).g`と`map(...).size`の「The types returned by」、ES5のasync constructorの関係で
       markerを飛ばすchain、型assertionのexcess propertyはTS2353だけ、構築signatureのwrapperの無いchain、
       重複宣言の報告順）。
     - relationのerror stateのtest 1件（chainの深さ）。
-  - tsgoの行にpinした新しいtest 5件：
+  - tsgoの行にpinした新しいtest 6件：
     - 関係のchain（markerの省略、「The types returned by」、tupleの範囲、overloadの包み方）
     - arrowの`async`のrelated
     - ファイルをまたぐ8つの重複（TS6200でなく各宣言にTS2451）
+    - skipLibCheckの宣言ファイルの重複は行を作らない（`.ts`の行と宣言ファイルへのrelatedは残る）
     - augmentationの重複のrelatedの統合
     - diagnosticsの集約でのrelated infoの統合
 - conformance：
@@ -1031,6 +1036,10 @@ P3-5r後のtext tierの主なclass（関係エラーのchainの文言）と、�
   - 2 workerのfull run（803 s）。workspace全体のtestはhostedの`rust` job。
   - filterの段階では、baselineに連鎖した診断を持つ1,063 case、関係エラーを持つ残りの707 case、related infoか
     重複宣言を持つ残りの615 case、tupleのcaseをP3-5rのreportとtierごとに比べた（下降0）。
+  - skipされるfileの重複宣言の変更はfull run（`f6f269042`）の後の後続commit。checker、compiler、conformanceのtest
+    （11 targets、1,976 passed）、workspace全体のclippy、skipLibCheck／skipDefaultLibCheck／noCheck／`@ts-nocheck`／
+    `checkJs: false`を含む164 case（179構成）をfull runのreportとtierごとに比べた（変化0）。最終headの全体の
+    conformanceはhostedの`conformance (TypeScript 7.1)`。
   - `--checkers 4`の並列対照は実行していない。
 - 残り（lane Aでfullでない226構成：mismatch 133、text 29、category 19、harness error 45）の主なclass：
   - ambient moduleのimport attributes（`declare module "*.ext" with {…}`、約14）

@@ -407,7 +407,16 @@ type RelatedRow = (String, u32, u32);
 /// Each cross-file conflict's rows as (file, start, code, related rows),
 /// after the program's sort and dedup.
 fn merged_conflict_rows(files: &[(&str, &str)]) -> Vec<(String, u32, u32, Vec<RelatedRow>)> {
-    with_program_state(files, &CompilerOptions::default(), |state| {
+    merged_conflict_rows_with(files, &CompilerOptions::default())
+}
+
+/// `merged_conflict_rows` under the given options. Every row the checker
+/// built is listed, including rows in files whose check is skipped.
+fn merged_conflict_rows_with(
+    files: &[(&str, &str)],
+    options: &CompilerOptions,
+) -> Vec<(String, u32, u32, Vec<RelatedRow>)> {
+    with_program_state(files, options, |state| {
         let mut diagnostics = state
             .diagnostics
             .iter()
@@ -481,6 +490,57 @@ fn cross_file_conflicts_report_every_declaration_like_tsgo() {
         })
         .collect::<Vec<_>>();
     assert_eq!(rows, expected);
+}
+
+#[test]
+fn conflicts_in_skipped_declaration_files_build_no_rows() {
+    // tsgo (tsc-19dadef8) builds a conflict's rows in every file and
+    // getSemanticDiagnosticsForFile drops the files whose check is skipped,
+    // so with skipLibCheck only four.ts's row is reported, still relating
+    // the declaration in one.d.ts. The checker does not build the rows it
+    // would drop.
+    let files = [
+        (
+            "one.d.ts",
+            "declare var a: number;\ndeclare var b: number;\n",
+        ),
+        (
+            "two.d.ts",
+            "declare let a: number;\ndeclare let b: number;\n",
+        ),
+        ("four.ts", "declare let b: number;\n"),
+    ];
+    let row = |file: &str, start: u32, related: &[(&str, u32)]| {
+        (
+            file.to_owned(),
+            start,
+            2451,
+            related
+                .iter()
+                .map(|&(file, start)| (file.to_owned(), start, 6203))
+                .collect::<Vec<_>>(),
+        )
+    };
+    let skipped = CompilerOptions {
+        skip_lib_check: Some(true),
+        ..CompilerOptions::default()
+    };
+    assert_eq!(
+        merged_conflict_rows_with(&files, &skipped),
+        [row("four.ts", 12, &[("one.d.ts", 35)])]
+    );
+    // Without skipLibCheck every declaration reports, as tsgo does with
+    // `--skipLibCheck false`.
+    assert_eq!(
+        merged_conflict_rows(&files),
+        [
+            row("four.ts", 12, &[("one.d.ts", 35)]),
+            row("one.d.ts", 12, &[("two.d.ts", 12)]),
+            row("one.d.ts", 35, &[("four.ts", 12), ("two.d.ts", 35)]),
+            row("two.d.ts", 12, &[("one.d.ts", 12)]),
+            row("two.d.ts", 35, &[("one.d.ts", 35)]),
+        ]
+    );
 }
 
 #[test]
