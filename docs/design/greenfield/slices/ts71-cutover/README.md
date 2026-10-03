@@ -1051,3 +1051,56 @@ P3-5r後のtext tierの主なclass（関係エラーのchainの文言）と、�
   - tsconfigの位置などharnessの行（約6）
 - hosted：PR #637（head `0f387f437`、merge `86b5e003a`）、run 37115190226 — `plan` 28s、`rust` 8m11s、`conformance (TypeScript 7.1)` 17m22s、`gates` 13s。最初のhead `f6f269042`のrun 37114103318は`rust`が9m21sで通り、後続commitのpushで新しいrunに替わった。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main `b5e50139a`（P3-5rのhead `e7c808588`と同じコードのrelease build）と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 130→137、zod 545→546、Playwright 368→378、TypeScript `src/compiler` 337→348、Next.js 795→770、Effect 545→511、VS Code 3,649→3,511。tsc-rs÷tsgoは0.60〜0.96、peak memory（MB main→本branch）：313→300、1,293→1,289、751→748、288→290、1,314→1,314、1,037→1,048、5,454→5,452。診断の出力は7 corpusともmainと同一。hono・Playwright・`src/compiler`は5 roundsのA/B（main／本branch）でhono 129／125 ms、Playwright 365／373 ms、`src/compiler` 336／330 ms、`TSRS_CHECKERS=1`の命令数はPlaywright 22.30／22.28 G、hono 4.309／4.301 Gなのでノイズ。最初のcommit（`f6f269042`）ではzodのpeak memoryが1,295→1,329 MBに増え、5 roundsの全sampleが分かれた。`TSRS_CHECKERS=1`では同等（867／868 MB）、checker 4個で+16 MB、10個で+40 MBとcheckerの数に比例し、`TSRS_PHASE_TRACE`ではshardのinitで増えていた。2つの`@types/node`の衝突の行（skipLibCheckなので報告されない）をcheckerごとに作っていたためで、後続のcommit（`0f387f437`）のあとはchecker 10個のfootprintがmain 1,246／1,252 MB、本branch 1,248／1,252 MB。退行なし。
+
+## P3-5t package mapの出力先から入力ファイルへの対応をtsgoに合わせる（2026-10-03）
+
+P3-5s後のnode16系のclass（package自己名・`#imports`・exportsが出力先を指すときの解決。tsc-rsはTS1479を報告するか解決して
+しまい、tsgoはTS2307）を直した：
+- `tryLoadInputFileForPath`（module/resolver.go:879-966）：
+  - tsc 6.0はproject rootを推測した（要求元のdirectoryとpackage.jsonの共通directoryと、その親を順に試す）。tsgoは
+    推測しない。rootは`rootDir`、無ければconfig fileのdirectory。どちらも無ければTS2209／TS2210（「The project root
+    is ambiguous…」）を報告し、unresolvedで探索を終える（importはTS2307になる）。
+  - 出力directoryの基点は、config fileがあればcurrent directory、無ければroot（getOutputDirectoriesForBaseDirectory）。
+  - 入力拡張子の検査と読み込みは要求全体の拡張子（`r.extensions`）で行い、読み込みが見つからなければ次の拡張子へ
+    進む。tsc 6.0は現在のpassの拡張子で調べ、最初に存在したファイルで終えていた。
+  - package mapの文字列targetは、入力ファイルの結果が「探索を続ける」でなければそれを返す（unresolvedも含む）。
+- `loadFileNameFromPackageJSONField`（1702-1732）：TypeScriptの拡張子を指定子から取った（`resolvedUsingTsExtension`）と
+  みなすのは、package.jsonのtargetが`*`で終わるときだけ。tsc 6.0はtargetが拡張子で終わらなければtrueにしたので、
+  `"./src/*ts"`でTS5097が出ていた。
+- `#imports`のbare targetの入れ子の解決は、外側の解決のstateで行う（`r`のresolveNodeLike、741-765）。その診断
+  （TS2210など）は外側の要求に属する。tsc 6.0の移植は入れ子の診断を捨てていた。
+- 使われなくなった`has_config_source`と、要求ごとのdirectory（推測用）を削除。
+- unit test：
+  - host errorの後の要求の復元のtestを、`rootDir`を与えて入力ファイルへの対応を通る形に再pin。
+  - tsgoの行にpinした新しいtest：rootもconfigも無いときは`local`がTS2209、`#alias`が入れ子の`#value`からTS2210で、
+    どちらもunresolved。config fileがあればそのdirectoryがrootになり、どちらも入力ファイルに解決する。
+- conformance：
+  - 15,228 configuration、lane A 13,467（変化なし）、792 s。
+  - full 13,241→13,256（+15）、text 29、category 19、mismatch 133→118、emit full 12,421→12,429、harness error 45
+    （同じ集合）。
+- 上がった15構成（すべてfullへ）：
+  - 自己名・`#imports`・exports（14）：`nodeNextPackageSelfNameWithOutDir`、`nodeNextPackageSelfNameWithOutDirDeclDir`、
+    `nodeAllowJsPackageSelfName`・`nodeModulesAllowJsPackageImports`・`nodeModulesDeclarationEmitWithPackageExports`の
+    module=node16／node18／node20／nodenext。emitは`nodeModulesAllowJsPackageImports`と
+    `nodeModulesDeclarationEmitWithPackageExports`の8構成がfullへ。
+  - `resolvedUsingTsExtension`（1）：`packageJsonImportsWildcardNoCrash`。
+- 下がった構成はemitを含めて無い。
+- ratchet：0 regressions、15行追加。`intersectionConstructorReductionCrash`は従来どおり載せない。
+- local：
+  - formatとworkspace全体のclippy。programとその逆依存（checker、compiler、conformance、emitter、harness）のtest
+    （46 targets、3,219 passed）。
+  - 2 workerのfull run（792 s）。workspace全体のtestはhostedの`rust` job。
+  - filterの段階では、package.jsonに`exports`／`imports`を持つ126 case（307構成。すべてerrorがfull）をP3-5sのreportと
+    tierごとに比べた（下降0）。挙動はtsgoのCLI（traceResolution）でも確かめた。
+  - `--checkers 4`の並列対照は実行していない。
+- 残り（lane Aでfullでない211構成：mismatch 118、text 29、category 19、harness error 45）の主なclass：
+  - ambient moduleのimport attributes（`declare module "*.ext" with {…}`、7.1の新しい構文、15）
+  - 正規表現の検証（9）：tsgoのregexp.goは、名前付きgroupの重複をdisjunctionごとに集めて外側へ伝える、非unicode modeで
+    BMP外の文字をsurrogateに分けても位置は文字の先頭、量指定子の上限を10進文字列で比べる、pattern modifierと重複した
+    名前付きgroupのES2025の行、など。
+  - conflict marker（6）
+  - インスタンス化の循環（TS5114／TS5115、5）
+  - 型の表示（`mixB<typeof A>.(Anonymous class)`、TS2208のconstraint、union順）
+  - tsconfigの位置などharnessの行（約6）
+  - `composite`のemit（tsc-rsは`composite`のemitを扱わず、`nodeNextPackageSelfNameWithOutDirDeclDirComposite`などのemitが
+    空になる）
