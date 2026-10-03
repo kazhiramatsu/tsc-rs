@@ -1426,3 +1426,69 @@ tsc-rsのpretty出力はtsc 6.0.3の`formatDiagnosticsWithColorAndContext`の移
     H2.9`で断る）。
 - hosted：PR #643（head `05f4e147d`、merge `ce2a4250b`）、run 37134212482 — `plan` 26s、`rust` 9m12s、`conformance (TypeScript 7.1)` 19m21s、`gates` 11s。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main `ae05d6b30`（P3-5yのcode `8e3d62acc`と同じcodeのrelease build）と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 146→138、zod 548→515、Playwright 365→371、TypeScript `src/compiler` 337→341、Next.js 772→750、Effect 536→522、VS Code 3,524→3,465。tsc-rs÷tsgoは0.58〜0.94、peak memory（MB main→本branch）：324→323、1,294→1,292、761→800、289→288、1,313→1,313、1,055→1,024、5,443→5,468。診断の出力と読み込んだdocument数は7 corpusともmainと同一。PlaywrightとTypeScript `src/compiler`は5 roundsのA/B（main／本branch）で359／358 ms（peak memory 811／777 MB）、322／322 ms、`TSRS_CHECKERS=1`の命令数（5回のmedian）はPlaywright 22.294／22.297 G、TypeScript `src/compiler` 15.927／15.925 Gなのでノイズ。退行なし。
+
+## P3-5aa parse errorのあるfileもtsgoと同じくemitする（2026-10-04）
+
+lane Aのemitの不一致956構成のうち500構成は、tsc-rsがparse errorのあるfileを出力しなかったもの（emitの
+preflightが`emit recovery … deferred to H2.9`で断る）。CLIもそのようなfileがあるとcompile全体を
+「compiler failure」で止め、診断も出さなかった。tsgo（TypeScript 7.1）はparserが回復したtreeをそのまま
+変換して出力する。preflightの拒否（6.0.3の出力と照合した回復だけを通すH2期のadmission）を外し、回復した
+treeの出力でtsgoと違った点を直した：
+- parser：区切りlistの末尾のcommaはtsgoの`NodeList.HasTrailingComma`（listが最後の要素の後で終わる、
+  ast.go:139-145）。object literalのmemberの区切りに使った`;`が最後の要素の後にあれば末尾のcommaになる
+  （6.0は実際にcommaを読んだときだけ）。
+- printer：
+  - 欠けたtemplate literalのtoken（閉じていない`${`の後のTemplateTail）は何も書かない（getLiteralTextは
+    sourceの文字列を読む）。
+  - 空のblockは、範囲の終わりが始まり（triviaを飛ばした位置）と同じ行にあるときだけ1行で書く（isEmptyBlock）。
+  - 欠けたblock（`{`の無い`try`など）は、tscのemitTokenWithCommentどおり`{`と`}`を次のtokenの位置に置き、
+    その1文字後のtrailing commentを`{`と`}`の後にそれぞれ書く。
+- 変換：
+  - constructorとsetterのreturn型とtype parameter、getterのtype parameterを消す（typeeraser.go:148-186）。
+    tsc 6.0のupdaterはそれらを元のnodeから戻し、JavaScriptにも書いていた（parse errorの無いfileでも、
+    TS1093／TS1095の`constructor(): T`がそのまま出た）。d.tsのaccessorもtsgoどおりtype parameterを持たない
+    （transform.go:1009-1034）。
+  - instantiation式（`f<T>`）の優先順位はmember（precedence.go:293-295）で、括弧を付けない（6.0は`(f)`）。
+  - TypeScript fileのJSDoc型（`foo<string?>`）はTypeScriptの構文で、type引数ごと消す（JSDocTypeBaseの
+    SubtreeContainsTypeScript、ast.go:1619-1621）。
+  - 名前がidentifierでないか、最も内側のmoduleにbodyの無いmodule宣言は出さない（typeeraser.go:122-128、
+    classの中の`global x`）。
+  - 文字列literalでないmodule指定子（回復したimport）は`require()`とし、生成名は`module`から作る
+    （createRequireCall、generateNameForImportOrExportDeclaration）。
+  - 配列の分割代入で代入先になれない要素（回復したprivate名）は子だけを訪れる（visitArrayAssignmentElement、
+    classfields.go:3256-3266）。
+- unit test（tsgoの出力にpin）：
+  - CLI：回復したtree（欠けた式、閉じていないtemplate、`;`区切りのobject literal、欠けた`try`とその
+    comment）、constructorとsetterの型、instantiation式とJSDoc型、bodyの無いmodule、`require()`の出力と診断。
+  - parser：末尾のcommaの4つの形。
+  - emitter：preflightはどの回復も通す（parserの事実は変えない）。
+- conformance：
+  - 15,228 configuration、lane A 13,467（変化なし）、440 s。
+  - errorsはfull 13,324、text 14、category 19、mismatch 88、harness error 22で変化なし（描いたbaselineの
+    digestもすべて同じ）。
+  - emit full 12,481→12,979（+498）、emit mismatch 956→458。上がった498構成：
+    - parse errorのある491構成（500構成のうち）。
+    - そのほかの7構成：instantiation式の括弧（`instantiationExpressions`、
+      `assignmentToInstantiationExpression`、`instanceofOnInstantiationExpression`、
+      `optionalChainWithInstantiationExpression2`（es2019）、`importWithTypeArguments`）、setterの型
+      （`gettersAndSettersErrors`）、`declarationEmitUsingTypeAlias2`。
+  - 下がった構成は無く、それまでfullだったemitのdigestもすべて同じ。
+- ratchet：0 regressions、494行raise（emit none→js。errorsがmismatchの4構成はratchetに行が無い）。
+- local：
+  - formatとworkspace全体のclippy。syntaxとその逆依存（binder、program、emitter、checker、compiler、harness、
+    conformance）のtest（60 targets、3,551 passed）。
+  - 2 workerのfull run（440 s）。
+  - CLIのtestの入力（3 file）はtsgoと診断・3つの`.js`がbyte単位で同じ。
+  - `--checkers 4`の並列対照は実行していない。
+- 残り：
+  - parse errorのある500構成のうち9構成：
+    - `privateNameInTypeQuery`、`declarationEmitPrivateNameInTypeQuery`：tsgoは`typeof this.#a`のprivate名を
+      読み（parseTypeQueryのallowPrivateName）、d.tsではTS7080で出力を止める（transform.go:668-672）。
+    - `dependentDestructuredVariablesNoCrash3`：tsgoのd.tsは初期値を持つ要素が無ければ分割代入をそのまま
+      書く（transform.go:841-857、6.0は常に要素に分けた）。
+    - `instantiationExpressionErrors`：tsgoはoptional chainと`??`の一時変数を別々の`var`文にする。
+    - `optionalChainWithInstantiationExpression1`（es2019）：括弧が二重になる。
+    - `parser509630`、`parserSkippedTokens6`／`7`、`objectTypesWithOptionalProperties2`：回復した位置の
+      commentの置き方。
+  - parserの回復の記録（`ParseRecovery`とadmissionの判定）は使われなくなった。削除は別のsliceで行う。
+  - emitの不一致は残り458構成。
