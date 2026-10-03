@@ -1167,3 +1167,60 @@ tsc 6.0の移植で、UTF-16の単位で走査する：
   - `composite`のemit
 - hosted：PR #639（head `102910e4c`、merge `48013c69d`）、run 37119793606 — `plan` 33s、`rust` 9m50s、`conformance (TypeScript 7.1)` 22m14s、`gates` 13s。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main `c48e4c4ee`（P3-5tのhead `c632036d7`と同じコードのrelease build）と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 146→145、zod 556→560、Playwright 391→398、TypeScript `src/compiler` 350→360、Next.js 811→792、Effect 559→519、VS Code 3,919→3,806。計測時のload averageが高く（4〜7）絶対値は前の記録より大きいが、同じroundの交互実行で比べている。tsc-rs÷tsgoは0.56〜0.93、peak memory（MB main→本branch）：322→306、1,289→1,289、811→801、289→288、1,326→1,315、1,037→1,026、5,446→5,461。診断の出力と読み込んだdocument数は7 corpusともmainと同一。TypeScript `src/compiler`とPlaywrightは5 roundsのA/B（main／本branch）で331／332 ms、364／358 ms、`TSRS_CHECKERS=1`の命令数は15.94／15.94 G、22.29／22.28 Gなのでノイズ。退行なし。
+
+## P3-5v merge conflict markerをtsgoと同じく走査する（2026-10-03）
+
+tsc-rsのscannerはmerge conflict markerのtriviaを持たず、`<<<<<<<`などを演算子として読んでいた（conflictMarker*の
+6構成）。tsgo（scanner/scanner.go:765-871、1277-1283、2402-2470）に合わせた：
+- 行頭で同じ文字が7つ並び、`<<<<<<<`・`|||||||`・`>>>>>>>`なら空白が続くもの、`=======`はそのままのものがmarker。
+  TS1185「Merge conflict marker encountered.」を7文字に報告する。
+- `<`・`>`のmarkerは行末まで、`|`・`=`のmarkerは次の`=======`か`>>>>>>>`のmarkerまでを飛ばす。最初の
+  alternativeだけが残る。
+- JSXのtextではmarkerを1つのtokenとして返す（要素は閉じtagを欠く）。triviaを飛ばす関数もmarkerを飛ばす。
+- 報告は木を欠かさない（markerはtrivia）ので、文字列literalだけの回復と同じくemitを妨げない
+  （`ParseDiagnosticOrigin::ScannerTrivia(ConflictMarkerTrivia)`）。
+
+## P3-5w インスタンス化の循環を型の名前で報告する（2026-10-03）
+
+tsgoはインスタンス化の深さの上限で、tsc 6.0のTS2589の代わりに循環している型を名前で報告する（5構成）：
+- tsc-rsの`instantiation_depth`をtsgoの`instantiationStack`（インスタンス化中の型の列、checker.go:598、22494-22544）に
+  置き換えた。長さが深さで、推測の巻き戻しは列を切り詰める。
+- 上限（深さ100か、1つの文・式で5,000,000回）では、列で3回目に現れた型を、alias symbolか型のsymbolの名前で、列の
+  順に集める（getCircularTypeNames、22546-22564）。内部の名前（tsgoの`\xFE`。tsc-rsでは`___`でない`__`で
+  始まる名前）は除く。1つならTS5114「Instantiations of type 'X' appear infinitely circular.」、複数なら
+  TS5115「Instantiations of the following types appear infinitely circular: 'A', 'B'.」、無ければTS2589。
+- 名前はsymbolToStringで作る。その間は列を退けておく（上限の下で動かす）。
+- unit test：
+  - tsgoの行にpinした新しいtest：conflict marker（diff3を含むclass、markerでないもの、triviaを飛ばす関数）とJSXの
+    textのmarker、TS5114。
+  - 推測の巻き戻しのtestは列で確かめる。再帰的に広がるunionのtest（recursivelyExpandingUnionNoStackoverflow）は、
+    深さの上限の行がTS5114になったのに合わせた。tsgoはこのcaseで上限に達しない（TS2615だけ）ので、この行は既知の
+    違いとして残る。
+- conformance（P3-5vとP3-5wを1回で）：
+  - 15,228 configuration、lane A 13,467（変化なし）、805 s。
+  - full 13,266→13,275（+9）、text 29、category 19、mismatch 108→100、emit full 12,429→12,435、harness error
+    45→44。
+  - harness errorの1減はstressの`intersectionConstructorReductionCrash`が今回はmemoryの上限内で終わったため（上限の
+    際にあるcase）。fullになったが、従来どおりratchetには載せない（`--update`の後に手で除いた）。
+- 上がった構成（すべてfullへ）：
+  - conflict marker（6）：`conflictMarkerTrivia1`～`4`、`conflictMarkerDiff3Trivia1`／`2`。emitは`conflictMarkerTrivia3.tsx`
+    以外の5構成がfullへ。`conflictMarkerTrivia3.tsx`のemitは、parserのTS1005（`'</' expected`）がemitを止める一般の
+    class。
+  - インスタンス化の循環（2）：`limitDeepInstantiations`、`recursiveConditionalCrash4`。
+- 対象の残り3構成：`recursiveMappedTypes`はTS5114の行が合い、最初の違いは別のTS2615の位置（73行と79行）に移った。
+  `mutuallyRecursiveInference`と`keyofGenericExtendingClassDoubleLayer`は、tsc-rsが上限に達しない（tsgoは達する）。
+  評価の順序の違いで、本sliceの範囲外。
+- 下がった構成はemitを含めて無い。
+- ratchet：0 regressions、8行追加。
+- local：
+  - formatとworkspace全体のclippy。syntaxとその逆依存（binder、checker、compiler、conformance、emitter、harness、
+    program）のtest（60 targets、3,541 passed）。
+  - 2 workerのfull run（805 s）。workspace全体のtestはhostedの`rust` job。
+  - filterの段階では、markerの行を持つ6 caseをP3-5tのreportとtierごとに比べた（errorの上昇6、emitの上昇5、下降0）。
+    markerの各形、markerでないもの、JSXのtextはtsgoのCLIでも比べ、行と出力したJavaScriptが一致した。
+  - `--checkers 4`の並列対照は実行していない。
+- 残り（lane Aでfullでない192構成：mismatch 100、text 29、category 19、harness error 44）の主なclass：
+  - ambient moduleのimport attributes（`declare module "*.ext" with {…}`、7.1の新しい構文、15）
+  - 型の表示（`mixB<typeof A>.(Anonymous class)`、TS2208のconstraint、union順）
+  - tsconfigの位置などharnessの行（約6）
+  - `composite`のemit、parse errorの後のemit
