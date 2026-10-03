@@ -1224,3 +1224,5 @@ tsgoはインスタンス化の深さの上限で、tsc 6.0のTS2589の代わり
   - 型の表示（`mixB<typeof A>.(Anonymous class)`、TS2208のconstraint、union順）
   - tsconfigの位置などharnessの行（約6）
   - `composite`のemit、parse errorの後のemit
+- hosted：PR #640（head `eca775c97`、merge `d5d487b37`）、run 37123173839 — `plan` 27s、`rust` 9m22s、`conformance (TypeScript 7.1)` 23m20s、`gates` 12s。
+- perf（README corpora、`--noEmit`、3 rounds、nice 20、main `694358426`（P3-5uのhead `102910e4c`と同じコードのrelease build）と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 137→135、zod 532→532、Playwright 371→372、TypeScript `src/compiler` 333→349、Next.js 796→776、Effect 526→539、VS Code 3,549→3,505。tsc-rs÷tsgoは0.59〜0.98、peak memory（MB main→本branch）：320→297、1,287→1,292、808→808、290→289、1,316→1,325、1,029→1,015、5,430→5,443。診断の出力と読み込んだdocument数は7 corpusともmainと同一。TypeScript `src/compiler`とEffectは5 roundsのA/B（main／本branch）で326／330 ms・CPU 992／993 ms、529／521 ms、`TSRS_CHECKERS=1`の命令数は15.96／15.96 G、27.96／27.96 Gなのでノイズ（インスタンス化の列のpush／popは計測に表れない）。退行なし。
