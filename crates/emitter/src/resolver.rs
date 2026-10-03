@@ -464,6 +464,8 @@ pub enum EmitResolverMethod {
     GetReferencedDeclarationWithCollidingName,
     GetReferencedValueDeclaration,
     GetReferencedValueDeclarations,
+    GetReferencedMemberValueDeclaration,
+    IsThisPropertyAssignmentDeclarationRedundant,
     GetTypeReferenceSerializationKind,
     HasNodeCheckFlag,
     IsArgumentsLocalBinding,
@@ -542,6 +544,10 @@ impl EmitResolverMethod {
             }
             Self::GetReferencedValueDeclaration => "getReferencedValueDeclaration",
             Self::GetReferencedValueDeclarations => "getReferencedValueDeclarations",
+            Self::GetReferencedMemberValueDeclaration => "getReferencedMemberValueDeclaration",
+            Self::IsThisPropertyAssignmentDeclarationRedundant => {
+                "isThisPropertyAssignmentDeclarationRedundant"
+            }
             Self::GetTypeReferenceSerializationKind => "getTypeReferenceSerializationKind",
             Self::HasNodeCheckFlag => "hasNodeCheckFlag",
             Self::IsArgumentsLocalBinding => "isArgumentsLocalBinding",
@@ -895,6 +901,36 @@ pub trait EmitResolver {
     ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
         Err(unavailable(
             EmitResolverMethod::GetReferencedValueDeclaration,
+            node,
+        ))
+    }
+
+    /// The value declaration of the member a `this.x = …` assignment
+    /// declares: the node's resolved symbol, else its own merged symbol,
+    /// through its export symbol (tsgo GetReferencedMemberValueDeclaration,
+    /// binder/referenceresolver.go:251-262). `None` when the assignment
+    /// declares nothing.
+    fn get_referenced_member_value_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Err(unavailable(
+            EmitResolverMethod::GetReferencedMemberValueDeclaration,
+            node,
+        ))
+    }
+
+    /// Whether the member a `this.x = …` assignment declares is already
+    /// provided by an `extends` base type: an inherited accessor, method or
+    /// function, or a property with the same readonly-ness, optionality and
+    /// type (tsgo IsThisPropertyAssignmentDeclarationRedundant,
+    /// checker/emitresolver.go:1292-1323).
+    fn is_this_property_assignment_declaration_redundant(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Err(unavailable(
+            EmitResolverMethod::IsThisPropertyAssignmentDeclarationRedundant,
             node,
         ))
     }

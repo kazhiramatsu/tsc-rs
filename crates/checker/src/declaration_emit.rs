@@ -539,6 +539,69 @@ impl CheckerState<'_> {
             .intersects(NodeFlags::SYNTHESIZED)
     }
 
+    /// tsgo-port: GetReferencedMemberValueDeclaration @7.1
+    /// (binder/referenceresolver.go:251-262): the node's resolved symbol,
+    /// else its own merged symbol, through its export symbol.
+    pub(crate) fn emit_get_referenced_member_value_declaration(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult<Option<NodeId>> {
+        let symbol = self
+            .links
+            .read_node(node, |links| links.resolved_symbol.resolved())
+            .or_else(|| self.get_symbol_of_declaration_opt(node));
+        let Some(symbol) = symbol else {
+            return Ok(None);
+        };
+        let symbol = self.get_export_symbol_of_value_symbol_if_exported(symbol);
+        Ok(self.binder.symbol(symbol).value_declaration)
+    }
+
+    /// tsgo-port: IsThisPropertyAssignmentDeclarationRedundant @7.1
+    /// (checker/emitresolver.go:1292-1323): an `extends` base type already
+    /// has the member, as an accessor, method or function, or as a property
+    /// with the same readonly-ness, optionality and type.
+    pub(crate) fn emit_is_this_property_assignment_declaration_redundant(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult<bool> {
+        let symbol = self.get_symbol_of_declaration(node)?;
+        if symbol == self.unknown_symbol {
+            return Ok(false);
+        }
+        let Some(parent) = self.binder.symbol(symbol).parent else {
+            return Ok(false);
+        };
+        let parent_type = self.get_declared_type_of_symbol(parent)?;
+        let name = self.binder.symbol(symbol).escaped_name;
+        for base in self.get_base_types(parent_type)? {
+            let Some(base_property) = self.get_property_of_type_full(base, name)? else {
+                continue;
+            };
+            let base_flags = self.binder.symbol(base_property).flags;
+            if base_flags
+                .intersects(SymbolFlags::ACCESSOR | SymbolFlags::METHOD | SymbolFlags::FUNCTION)
+            {
+                return Ok(true);
+            }
+            if self.is_readonly_symbol(base_property)? == self.is_readonly_symbol(symbol)?
+                && self
+                    .binder
+                    .symbol(symbol)
+                    .flags
+                    .contains(SymbolFlags::OPTIONAL)
+                    == base_flags.contains(SymbolFlags::OPTIONAL)
+            {
+                let symbol_type = self.get_type_of_symbol(symbol)?;
+                let base_type = self.get_type_of_symbol(base_property)?;
+                if self.is_type_identical_to(symbol_type, base_type)? {
+                    return Ok(true);
+                }
+            }
+        }
+        Ok(false)
+    }
+
     /// tsc-port: isDeclarationVisible @6.0.3
     /// tsc-hash: b569e8243cf2db9de0dbec7462f29fa1e70f4b94405adb5a134b6571d4c8fbeb
     /// tsc-span: _tsc.js:55589-55674

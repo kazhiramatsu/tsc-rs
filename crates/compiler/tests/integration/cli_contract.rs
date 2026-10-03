@@ -626,6 +626,165 @@ fn javascript_es_module_declarations_follow_tsgo() {
 }
 
 #[test]
+fn javascript_hosted_tags_and_this_members_follow_tsgo() {
+    // tsgo's declaration transform reads what its parser reparses from JSDoc:
+    // members from `this.x = …` assignments (only `static` kept, a member a
+    // base class already has left out), modifiers from `@private`,
+    // `@protected` and `@readonly`, `implements` from `@implements`, type
+    // arguments from `@augments` and type parameters from `@template`. The
+    // expected bytes are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("lib.js"),
+        concat!(
+            "export class Base {\n",
+            "    constructor() {\n",
+            "        /** @type {number} */\n",
+            "        this.shared = 1;\n",
+            "    }\n",
+            "    get value() {\n",
+            "        return 1;\n",
+            "    }\n",
+            "}\n",
+            "\n",
+            "export class Point extends Base {\n",
+            "    /** @private */\n",
+            "    static secret() {}\n",
+            "    /** @protected */\n",
+            "    static helper() {}\n",
+            "    /**\n",
+            "     * @readonly\n",
+            "     * @type {string}\n",
+            "     */\n",
+            "    label = \"p\";\n",
+            "    constructor() {\n",
+            "        super();\n",
+            "        /** The x coordinate. */\n",
+            "        this.x = 0;\n",
+            "        this.y = \"y\";\n",
+            "        this.shared = 2;\n",
+            "        this.method = function () {};\n",
+            "        if (this.x) {\n",
+            "            this.later = true;\n",
+            "        }\n",
+            "        const nested = function () {\n",
+            "            this.ignored = 1;\n",
+            "        };\n",
+            "        const arrow = () => {\n",
+            "            this.fromArrow = 1;\n",
+            "        };\n",
+            "        void [nested, arrow];\n",
+            "    }\n",
+            "    static init() {\n",
+            "        this.count = 0;\n",
+            "    }\n",
+            "}\n",
+            "\n",
+            "/** @implements {Base} */\n",
+            "export class Copy {\n",
+            "    constructor() {\n",
+            "        this.shared = 0;\n",
+            "    }\n",
+            "    get value() {\n",
+            "        return 0;\n",
+            "    }\n",
+            "}\n",
+            "\n",
+            "/**\n",
+            " * @template T\n",
+            " * @template {string} K\n",
+            " * @param {T} value\n",
+            " * @param {K} key\n",
+            " * @returns {T}\n",
+            " */\n",
+            "export function identity(value, key) {\n",
+            "    void key;\n",
+            "    return value;\n",
+            "}\n",
+            "\n",
+            "/** @template T */\n",
+            "export class Box {\n",
+            "    /** @param {T} value */\n",
+            "    constructor(value) {\n",
+            "        this.value = value;\n",
+            "    }\n",
+            "}\n",
+            "\n",
+            "/** @augments {Box<string>} */\n",
+            "export class StringBox extends Box {}\n",
+        ),
+    )
+    .expect("write lib");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2022","allowJs":true,"checkJs":true,"declaration":true,"emitDeclarationOnly":true,"types":[],"outDir":"out"},"files":["lib.js"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "lib.js(32,13): error TS2683: 'this' implicitly has type 'any' because it does not have a type annotation.\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/lib.d.ts")).expect("read declarations"),
+        concat!(
+            "export declare class Base {\n",
+            "    /** @type {number} */\n",
+            "    shared: number;\n",
+            "    constructor();\n",
+            "    get value(): number;\n",
+            "}\n",
+            "export declare class Point extends Base {\n",
+            "    /** The x coordinate. */\n",
+            "    x: number;\n",
+            "    y: string;\n",
+            "    method: () => void;\n",
+            "    later: boolean | undefined;\n",
+            "    fromArrow: number;\n",
+            "    static count: number | undefined;\n",
+            "    /** @private */\n",
+            "    private static secret;\n",
+            "    /** @protected */\n",
+            "    protected static helper(): void;\n",
+            "    /**\n",
+            "     * @readonly\n",
+            "     * @type {string}\n",
+            "     */\n",
+            "    readonly label: string;\n",
+            "    constructor();\n",
+            "    static init(): void;\n",
+            "}\n",
+            "/** @implements {Base} */\n",
+            "export declare class Copy implements Base {\n",
+            "    shared: number;\n",
+            "    constructor();\n",
+            "    get value(): number;\n",
+            "}\n",
+            "/**\n",
+            " * @template T\n",
+            " * @template {string} K\n",
+            " * @param {T} value\n",
+            " * @param {K} key\n",
+            " * @returns {T}\n",
+            " */\n",
+            "export declare function identity<T, K extends string>(value: T, key: K): T;\n",
+            "/** @template T */\n",
+            "export declare class Box<T> {\n",
+            "    value: T;\n",
+            "    /** @param {T} value */\n",
+            "    constructor(value: T);\n",
+            "}\n",
+            "/** @augments {Box<string>} */\n",
+            "export declare class StringBox extends Box<string> {\n",
+            "}\n",
+        )
+    );
+}
+
+#[test]
 fn declarations_and_namespace_merges_follow_tsgo() {
     // tsgo keeps a binding pattern without initializers whole in a `.d.ts`,
     // typed as the whole declaration; a variable, function or class already

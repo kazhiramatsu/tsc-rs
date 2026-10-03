@@ -471,6 +471,33 @@ impl EmitResolver for CheckerSession<'_> {
         )
     }
 
+    fn get_referenced_member_value_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::GetReferencedMemberValueDeclaration,
+            node,
+            |state, reference| {
+                let declaration = state.emit_get_referenced_member_value_declaration(reference)?;
+                Ok(declaration.map(|declaration| project_resolver_node(state, declaration)))
+            },
+        )
+    }
+
+    fn is_this_property_assignment_declaration_redundant(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::IsThisPropertyAssignmentDeclarationRedundant,
+            node,
+            |state, declaration| {
+                state.emit_is_this_property_assignment_declaration_redundant(declaration)
+            },
+        )
+    }
+
     fn get_referenced_value_declarations(
         &self,
         node: EmitResolverNode,

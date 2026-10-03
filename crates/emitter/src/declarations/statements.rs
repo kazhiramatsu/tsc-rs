@@ -264,6 +264,7 @@ pub(crate) fn transform_top_level_declaration(
                     transformer,
                     context,
                     array_handle(context, input.source(), data.heritage_clauses),
+                    &[],
                 )?;
                 let members =
                     visit_subtree_array(transformer, context, input.source(), data.members)?;
@@ -483,6 +484,14 @@ pub(crate) fn transform_top_level_declaration(
                 )?);
                 let type_parameters =
                     transformer.ensure_type_params(context, input, data.type_parameters)?;
+                // tsgo transformClassDeclaration (transform.go:2004-2008).
+                let this_properties = if super::javascript::is_javascript_file(
+                    context.arena().source(input.source())?.syntax(),
+                ) {
+                    transformer.collect_this_property_assignments(context, input)?
+                } else {
+                    Vec::new()
+                };
                 let constructor_properties = parameter_properties(
                     transformer,
                     context,
@@ -539,6 +548,7 @@ pub(crate) fn transform_top_level_declaration(
                 let late_indexes = late_indexes_result?.unwrap_or_default();
                 member_nodes.extend(late_indexes);
                 member_nodes.extend(constructor_properties);
+                member_nodes.extend(this_properties);
                 for member in source_array(
                     context,
                     original_members.source(),
@@ -555,6 +565,7 @@ pub(crate) fn transform_top_level_declaration(
                     factory.update_node_array(original_members, member_nodes)?
                 };
                 let heritage = array_handle(context, input.source(), data.heritage_clauses);
+                let hosted_implements = super::javascript::hosted_implements(context, input)?;
                 if let Some((base_type, base_expression)) =
                     effective_base_type_expression(context, heritage)?
                 {
@@ -634,6 +645,7 @@ pub(crate) fn transform_top_level_declaration(
                             context,
                             heritage,
                             generated,
+                            &hosted_implements,
                         )?;
                         let updated = context.factory()?.update_class_declaration(
                             input,
@@ -645,7 +657,12 @@ pub(crate) fn transform_top_level_declaration(
                         )?;
                         VisitResult::Nodes(vec![statement, updated])
                     } else {
-                        let heritage = transform_heritage_clauses(transformer, context, heritage)?;
+                        let heritage = transform_heritage_clauses(
+                            transformer,
+                            context,
+                            heritage,
+                            &hosted_implements,
+                        )?;
                         let updated = context.factory()?.update_class_declaration(
                             input,
                             modifiers,
@@ -657,7 +674,12 @@ pub(crate) fn transform_top_level_declaration(
                         VisitResult::Node(updated)
                     }
                 } else {
-                    let heritage = transform_heritage_clauses(transformer, context, heritage)?;
+                    let heritage = transform_heritage_clauses(
+                        transformer,
+                        context,
+                        heritage,
+                        &hosted_implements,
+                    )?;
                     let updated = context.factory()?.update_class_declaration(
                         input,
                         modifiers,
@@ -1347,70 +1369,118 @@ pub(crate) fn has_scope_marker(
 /// tsc-port: transformHeritageClauses @6.0.3
 /// tsc-hash: ca275bd51650c71c34b5150f451a1484430b629dccab150d3ca6b770f9752674
 /// tsc-span: _tsc.js:115787-115801
+///
+/// `hosted_implements` are a JavaScript class's `@implements` types, which
+/// tsgo's reparser appends to the class's first `implements` clause, or
+/// adds as a new last clause (reparser.go:568-589).
 pub(crate) fn transform_heritage_clauses(
     transformer: &mut DeclarationTransformer<'_>,
     context: &mut TransformationContext,
     clauses: Option<TransformNodeArray>,
+    hosted_implements: &[TransformNode],
 ) -> Result<Option<TransformNodeArray>, TransformError> {
-    let Some(clauses) = clauses else {
-        return Ok(Some(context.factory()?.create_node_array(
-            transformer.state()?.current_source_file,
-            Vec::new(),
-        )?));
+    let source = clauses.map_or_else(
+        || transformer.state().map(|state| state.current_source_file),
+        |clauses| Ok(clauses.source()),
+    )?;
+    let clause_nodes = match clauses {
+        Some(clauses) => context.arena().node_array(clauses)?.nodes.to_vec(),
+        None => Vec::new(),
     };
-    let clause_nodes = context.arena().node_array(clauses)?.nodes.to_vec();
+    let mut hosted_pending = !hosted_implements.is_empty();
     let mut result = Vec::new();
     for clause in clause_nodes {
-        let clause = TransformNode::new(clauses.source(), clause);
+        let clause = TransformNode::new(source, clause);
         let data = heritage_clause_data(context, clause)?;
-        let mut filtered_types = Vec::new();
-        for type_node in source_array(context, clause.source(), data.types)? {
-            let expression = match &context.arena().node(type_node)?.data {
-                NodeData::ExpressionWithTypeArguments(data) => data
-                    .expression
-                    .and_then(|node| context.arena().node_ref(type_node.source(), node)),
-                _ => None,
-            };
-            let keep = if let Some(expression) = expression {
-                transformer.is_entity_name_expression(context, expression)?
-                    || data.token == SyntaxKind::ExtendsKeyword
-                        && context
-                            .arena()
-                            .node(expression)
-                            .is_ok_and(|node| node.kind == SyntaxKind::NullKeyword)
-            } else {
-                false
-            };
-            if !keep {
-                continue;
-            }
-            filtered_types.push(type_node);
+        let mut candidates = source_array(context, clause.source(), data.types)?;
+        if hosted_pending && data.token == SyntaxKind::ImplementsKeyword {
+            candidates.extend_from_slice(hosted_implements);
+            hosted_pending = false;
         }
+        let filtered = retained_heritage_types(transformer, context, data.token, candidates)?;
         let filtered_types = context
             .factory()?
-            .create_node_array(clause.source(), filtered_types)?;
-        let mut types = Vec::new();
-        for &type_node in &context.arena().node_array(filtered_types)?.nodes.to_vec() {
-            let type_node = TransformNode::new(clause.source(), type_node);
-            match transformer.visit_declaration_subtree(context, type_node)? {
-                VisitResult::None => {}
-                VisitResult::Node(node) => types.push(node),
-                VisitResult::Nodes(_) => {
-                    return Err(DeclarationTransformer::contract(
-                        "heritage type visitor returned an array",
-                    ));
-                }
-            }
-        }
+            .create_node_array(clause.source(), filtered)?;
+        let types = visit_heritage_types(transformer, context, filtered_types)?;
         let mut factory = context.factory()?;
-        let types = factory.update_node_array(filtered_types, types)?;
         let updated = factory.update_heritage_clause(clause, types)?;
         if !factory.arena().node_array(types)?.nodes.is_empty() {
             result.push(updated);
         }
     }
+    if hosted_pending {
+        let filtered = retained_heritage_types(
+            transformer,
+            context,
+            SyntaxKind::ImplementsKeyword,
+            hosted_implements.to_vec(),
+        )?;
+        let filtered_types = context.factory()?.create_node_array(source, filtered)?;
+        let types = visit_heritage_types(transformer, context, filtered_types)?;
+        if !context.arena().node_array(types)?.nodes.is_empty() {
+            result.push(context.factory()?.create_heritage_clause(
+                source,
+                SyntaxKind::ImplementsKeyword,
+                types,
+            )?);
+        }
+    }
     let mut factory = context.factory()?;
-    Ok(Some(factory.create_node_array(clauses.source(), result)?))
+    Ok(Some(factory.create_node_array(source, result)?))
+}
+
+/// tsgo transformHeritageClause's filter (transform.go:742-747): the types
+/// named by an entity name, and `extends null`.
+fn retained_heritage_types(
+    transformer: &DeclarationTransformer<'_>,
+    context: &TransformationContext,
+    token: SyntaxKind,
+    candidates: Vec<TransformNode>,
+) -> Result<Vec<TransformNode>, TransformError> {
+    let mut retained = Vec::new();
+    for type_node in candidates {
+        let expression = match &context.arena().node(type_node)?.data {
+            NodeData::ExpressionWithTypeArguments(data) => data
+                .expression
+                .and_then(|node| context.arena().node_ref(type_node.source(), node)),
+            _ => None,
+        };
+        let keep = if let Some(expression) = expression {
+            transformer.is_entity_name_expression(context, expression)?
+                || token == SyntaxKind::ExtendsKeyword
+                    && context
+                        .arena()
+                        .node(expression)
+                        .is_ok_and(|node| node.kind == SyntaxKind::NullKeyword)
+        } else {
+            false
+        };
+        if keep {
+            retained.push(type_node);
+        }
+    }
+    Ok(retained)
+}
+
+fn visit_heritage_types(
+    transformer: &mut DeclarationTransformer<'_>,
+    context: &mut TransformationContext,
+    filtered_types: TransformNodeArray,
+) -> Result<TransformNodeArray, TransformError> {
+    let mut types = Vec::new();
+    for &type_node in &context.arena().node_array(filtered_types)?.nodes.to_vec() {
+        let type_node = TransformNode::new(filtered_types.source(), type_node);
+        match transformer.visit_declaration_subtree(context, type_node)? {
+            VisitResult::None => {}
+            VisitResult::Node(node) => types.push(node),
+            VisitResult::Nodes(_) => {
+                return Err(DeclarationTransformer::contract(
+                    "heritage type visitor returned an array",
+                ));
+            }
+        }
+    }
+    context.factory()?.update_node_array(filtered_types, types)
 }
 
 fn effective_base_type_expression(
@@ -1451,10 +1521,12 @@ fn transform_heritage_clauses_with_base(
     context: &mut TransformationContext,
     clauses: Option<TransformNodeArray>,
     generated: TransformNode,
+    hosted_implements: &[TransformNode],
 ) -> Result<Option<TransformNodeArray>, TransformError> {
     let Some(clauses) = clauses else {
         return Ok(None);
     };
+    let mut hosted_pending = !hosted_implements.is_empty();
     let mut updated_clauses = Vec::new();
     for clause in source_array(context, clauses.source(), Some(clauses.array()))? {
         let data = heritage_clause_data(context, clause)?;
@@ -1465,8 +1537,13 @@ fn transform_heritage_clauses_with_base(
                 parent: SyntaxKind::HeritageClause,
                 field: "types",
             })?;
+        let mut candidates = source_array(context, clause.source(), data.types)?;
+        if hosted_pending && data.token == SyntaxKind::ImplementsKeyword {
+            candidates.extend_from_slice(hosted_implements);
+            hosted_pending = false;
+        }
         let mut updated_types = Vec::new();
-        for type_node in source_array(context, clause.source(), data.types)? {
+        for type_node in candidates {
             if data.token == SyntaxKind::ExtendsKeyword {
                 let NodeData::ExpressionWithTypeArguments(type_data) =
                     context.arena().node(type_node)?.data.clone()
@@ -1517,6 +1594,25 @@ fn transform_heritage_clauses_with_base(
             .factory()?
             .update_node_array(original_types, updated_types)?;
         updated_clauses.push(context.factory()?.update_heritage_clause(clause, types)?);
+    }
+    if hosted_pending {
+        let filtered = retained_heritage_types(
+            transformer,
+            context,
+            SyntaxKind::ImplementsKeyword,
+            hosted_implements.to_vec(),
+        )?;
+        let filtered_types = context
+            .factory()?
+            .create_node_array(clauses.source(), filtered)?;
+        let types = visit_heritage_types(transformer, context, filtered_types)?;
+        if !context.arena().node_array(types)?.nodes.is_empty() {
+            updated_clauses.push(context.factory()?.create_heritage_clause(
+                clauses.source(),
+                SyntaxKind::ImplementsKeyword,
+                types,
+            )?);
+        }
     }
     Ok(Some(
         context

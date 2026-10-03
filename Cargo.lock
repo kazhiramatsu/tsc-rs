@@ -369,6 +369,7 @@ version = "0.1.0"
 dependencies = [
  "rustc-hash",
  "serde_json",
+ "tsc-rs-binder",
  "tsc-rs-diagnostics",
  "tsc-rs-program",
  "tsc-rs-syntax",

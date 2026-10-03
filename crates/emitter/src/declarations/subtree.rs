@@ -225,6 +225,24 @@ impl DeclarationTransformer<'_> {
                                 self.check_entity_name_visibility(cx, expression, enclosing)?;
                             }
                         }
+                        // tsgo's reparser gives a JavaScript `extends` element
+                        // the type arguments of its `@augments` tag
+                        // (reparser.go:590-607).
+                        if let (Some(expression), Some(arguments)) = (
+                            expression,
+                            super::javascript::hosted_augments_type_arguments(cx, input)?,
+                        ) {
+                            let arguments = self.visit_type_node_array(
+                                cx,
+                                input.source(),
+                                Some(arguments),
+                                SyntaxKind::Unknown,
+                            )?;
+                            return cx
+                                .factory()?
+                                .update_expression_with_type_arguments(input, expression, arguments)
+                                .map(VisitResult::Node);
+                        }
                         self.visit_each_child(cx, input).map(VisitResult::Node)
                     }
                     SyntaxKind::TypeReference => {

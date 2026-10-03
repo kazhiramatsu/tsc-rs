@@ -6,7 +6,9 @@ use crate::{
     TransformNode, TransformNodeArray, TransformationContext,
 };
 
-use super::diagnostics::{can_produce_diagnostics, effective_modifier_flags, DiagnosticContext};
+use super::diagnostics::{
+    can_produce_diagnostics, effective_modifier_flags, hosted_modifier_flags, DiagnosticContext,
+};
 use super::state::VisitResult;
 use super::tracker::materialize_effects;
 use super::DeclarationTransformer;
@@ -434,6 +436,14 @@ impl DeclarationTransformer<'_> {
         if self.has_effective_modifier(cx, owner, ModifierFlags::PRIVATE)? {
             return Ok(None);
         }
+        if parameters.is_none() {
+            let tags = super::javascript::hosted_template_tags(cx, owner)?;
+            if !tags.is_empty() {
+                return self
+                    .visit_hosted_type_parameters(cx, owner, &tags)
+                    .map(Some);
+            }
+        }
         self.visit_type_node_array(cx, owner.source(), parameters, SyntaxKind::TypeParameter)
     }
 
@@ -447,7 +457,11 @@ impl DeclarationTransformer<'_> {
     ) -> Result<Option<TransformNodeArray>, TransformError> {
         let current = self.effective_modifier_flags(cx, node)?;
         let ensured = self.ensure_modifier_flags(cx, node)?;
-        if current == ensured {
+        // tsgo canReuseModifierNodes (util.go:52-59): the modifiers the
+        // reparser added from JSDoc tags are not reused, so the list is
+        // rebuilt from the flags in canonical order.
+        let hosted = hosted_modifier_flags(cx.arena().source(node.source())?.syntax(), node.node());
+        if current == ensured && hosted == ModifierFlags::NONE {
             let Some(modifiers) = modifier_array(cx, node)? else {
                 return Ok(None);
             };
