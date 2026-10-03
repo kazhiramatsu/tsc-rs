@@ -543,6 +543,89 @@ let Bar = 42
 }
 
 #[test]
+fn javascript_es_module_declarations_follow_tsgo() {
+    // tsgo builds a JavaScript file's declarations with the same transform as
+    // TypeScript: `declare` on exported declarations, JSDoc types for
+    // parameters and returns, JSDoc comments kept, a literal `const`
+    // initializer. The expected bytes are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("lib.js"),
+        concat!(
+            "/**\n",
+            " * A point.\n",
+            " */\n",
+            "export class Point {\n",
+            "    /**\n",
+            "     * @param {number} x\n",
+            "     * @param {number} y\n",
+            "     */\n",
+            "    constructor(x, y) {\n",
+            "        void [x, y];\n",
+            "    }\n",
+            "    /** @returns {number} */\n",
+            "    length() {\n",
+            "        return 0;\n",
+            "    }\n",
+            "}\n",
+            "\n",
+            "/**\n",
+            " * Adds two numbers.\n",
+            " * @param {number} a\n",
+            " * @param {number} [b]\n",
+            " * @returns {number}\n",
+            " */\n",
+            "export function add(a, b = 0) {\n",
+            "    return a + b;\n",
+            "}\n",
+            "\n",
+            "/** @type {string[]} */\n",
+            "export const names = [];\n",
+            "\n",
+            "export const answer = 42;\n",
+            "\n",
+            "export default function main() {}\n",
+        ),
+    )
+    .expect("write lib");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2015","allowJs":true,"checkJs":true,"declaration":true,"emitDeclarationOnly":true,"types":[],"outDir":"out"},"files":["lib.js"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        fs::read_to_string(tree.path("out/lib.d.ts")).expect("read declarations"),
+        concat!(
+            "/**\n",
+            " * A point.\n",
+            " */\n",
+            "export declare class Point {\n",
+            "    /**\n",
+            "     * @param {number} x\n",
+            "     * @param {number} y\n",
+            "     */\n",
+            "    constructor(x: number, y: number);\n",
+            "    /** @returns {number} */\n",
+            "    length(): number;\n",
+            "}\n",
+            "/**\n",
+            " * Adds two numbers.\n",
+            " * @param {number} a\n",
+            " * @param {number} [b]\n",
+            " * @returns {number}\n",
+            " */\n",
+            "export declare function add(a: number, b?: number): number;\n",
+            "/** @type {string[]} */\n",
+            "export declare const names: string[];\n",
+            "export declare const answer = 42;\n",
+            "export default function main(): void;\n",
+        )
+    );
+}
+
+#[test]
 fn declarations_and_namespace_merges_follow_tsgo() {
     // tsgo keeps a binding pattern without initializers whole in a `.d.ts`,
     // typed as the whole declaration; a variable, function or class already
