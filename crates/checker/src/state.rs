@@ -1053,19 +1053,6 @@ pub struct CheckerState<'a> {
     /// sources (tsc needs no equivalent — it binds expando members
     /// into the symbol table itself).
     pub(crate) merged_symbol_sources: rustc_hash::FxHashMap<SymbolId, Vec<SymbolId>>,
-
-    // ---- M4 5.0: cross-file duplicate grouping ----
-    /// tsc amalgamatedDuplicates (initializeTypeChecker 88736; flushed
-    /// AFTER both augmentation passes at 88882-88905, then set to
-    /// undefined — None here — so later cross-file conflicts report
-    /// immediately; m4-review A8). Keyed by the ordered file-name
-    /// pair.
-    pub(crate) amalgamated_duplicates: Option<
-        indexmap::IndexMap<
-            (tsc_types::JsString, tsc_types::JsString),
-            crate::merge::FilesDuplicates,
-        >,
-    >,
 }
 
 impl<'a> CheckerState<'a> {
@@ -1611,7 +1598,6 @@ impl<'a> CheckerState<'a> {
             resolution_start: 0,
             merged_symbols: rustc_hash::FxHashMap::default(),
             merged_symbol_sources: rustc_hash::FxHashMap::default(),
-            amalgamated_duplicates: Some(indexmap::IndexMap::new()),
         };
         // undefinedSymbol.declarations = [] (46490); globalThisSymbol
         // is Readonly (46491) and its exports are `globals` (46492) —
@@ -2531,12 +2517,18 @@ impl<'a> CheckerState<'a> {
         args: &[JsStr<'_>],
     ) -> usize {
         let diagnostic = self.create_error_js(location, message, args);
+        // tsgo's lookupOrIssueError adds through DiagnosticsCollection.Add
+        // (ast/diagnostic.go:269-297), which returns an existing diagnostic
+        // only when it is equal related information included. A diagnostic
+        // that already carries related information is not reused; the
+        // final dedup merges their related information instead.
         let found = self.diagnostics.iter().position(|existing| {
             existing.file_name == diagnostic.file_name
                 && existing.start == diagnostic.start
                 && existing.length == diagnostic.length
                 && existing.code() == diagnostic.code()
-                && existing.message_text() == diagnostic.message_text()
+                && existing.message == diagnostic.message
+                && existing.related.is_empty()
         });
         match found {
             Some(index) => index,

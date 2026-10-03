@@ -8470,7 +8470,9 @@ fn recursive_generic_interface_error_reaches_the_first_non_recursive_property() 
         texts,
         [
             "Interface 'Seq<K, V>' incorrectly extends interface 'Collection<K, V>'.",
-            "The types of 'map(...).size' are incompatible between these types.",
+            // tsgo folds the return-type marker of `map` into the property
+            // path (relater.go:4874-4890).
+            "The types returned by 'map(...).size' are incompatible between these types.",
             "Type 'number | undefined' is not assignable to type 'number'.",
             "Type 'undefined' is not assignable to type 'number'.",
         ]
@@ -8516,11 +8518,15 @@ fn incompatible_constructor_return_path_parenthesizes_before_property_access() {
         },
     );
 
-    assert!(
-        texts
-            .iter()
-            .any(|text| text == "The types of '(new f()).g' are incompatible between these types."),
-        "{texts:?}",
+    // tsgo (tsc-19dadef8): a.ts(5,1) TS2322, then "The types returned by
+    // '(new f()).g'" (the construct return-type marker folds into the path).
+    assert_eq!(
+        texts,
+        [
+            "Type '{ f: typeof B; }' is not assignable to type '{ f: typeof A; }'.",
+            "The types returned by '(new f()).g' are incompatible between these types.",
+            "Type 'number' is not assignable to type 'string'.",
+        ],
     );
 }
 
@@ -9983,4 +9989,154 @@ fn export_assignment_names_of_types_and_namespaces_are_not_values() {
         );
         assert!(rows.is_empty(), "{text}: {rows:?}");
     }
+}
+
+fn chain_texts(chain: &tsc_diagnostics::MessageChain, texts: &mut Vec<String>) {
+    texts.push(
+        chain
+            .text
+            .as_str()
+            .expect("scalar diagnostic observation")
+            .to_owned(),
+    );
+    for child in &chain.next {
+        chain_texts(child, texts);
+    }
+}
+
+#[test]
+fn relation_chains_fold_and_elide_markers_like_tsgo() {
+    // tsgo (tsc-19dadef8, noLib with these globals, strict): the signature
+    // return-type rows are markers elided from the chain, a property
+    // incompatibility folds with one into "The types returned by", a target
+    // tuple without a rest element bounds the source positions, and each
+    // diagnostic of the last overload gets its own wrapper.
+    let text = "function foo<T, U>() {\n    var x!: () => (item: any) => U;\n    var y!: () => (item: any) => T;\n    x = y;\n}\n\
+                interface P { then(): number }\n\
+                declare let p1: { m(): P };\n\
+                declare let p2: { m(): { then(): string } };\n\
+                p1 = p2;\n\
+                function f1<A extends unknown[]>(x: [...A, number], y: [...A, number, number, number, number]) {\n    x = y;\n}\n\
+                declare function o(x: number): void;\n\
+                declare function o(x: { [n: number]: string; length: number }): void;\n\
+                o([1, 2]);\n";
+    let options = CompilerOptions {
+        strict: Some(true),
+        target: Some(ScriptTarget::ES2015.bits()),
+        ..CompilerOptions::default()
+    };
+    let mut rows = with_program_state(
+        &[("lib.d.ts", P35P_GLOBALS), ("a.ts", text)],
+        &options,
+        |state| {
+            state.check_source_file(1);
+            state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| {
+                    diagnostic.file_name.is_some()
+                        && diagnostic.category() == tsc_diagnostics::DiagnosticCategory::Error
+                })
+                .map(|diagnostic| {
+                    let mut texts = Vec::new();
+                    chain_texts(&diagnostic.message, &mut texts);
+                    (diagnostic.start.unwrap_or(u32::MAX), texts)
+                })
+                .collect::<Vec<_>>()
+        },
+    );
+    rows.sort_by_key(|row| row.0);
+    let at = |needle: &str| text.find(needle).expect("needle") as u32;
+    let owned = |texts: &[&str]| {
+        texts
+            .iter()
+            .map(|text| (*text).to_owned())
+            .collect::<Vec<_>>()
+    };
+    let overload = owned(&[
+        "No overload matches this call.",
+        "The last overload gave the following error.",
+        "Type 'number' is not assignable to type 'string'.",
+    ]);
+    assert_eq!(
+        rows,
+        [
+            (
+                at("x = y;\n}\ninterface"),
+                owned(&[
+                    "Type '() => (item: any) => T' is not assignable to type '() => (item: any) => U'.",
+                    "Type '(item: any) => T' is not assignable to type '(item: any) => U'.",
+                    "Type 'T' is not assignable to type 'U'.",
+                    "'U' could be instantiated with an arbitrary type which could be unrelated to 'T'.",
+                ]),
+            ),
+            (
+                at("p1 = p2"),
+                owned(&[
+                    "Type '{ m(): { then(): string; }; }' is not assignable to type '{ m(): P; }'.",
+                    "The types returned by 'm().then()' are incompatible between these types.",
+                    "Type 'string' is not assignable to type 'number'.",
+                ]),
+            ),
+            (
+                at("x = y;\n}\ndeclare"),
+                owned(&[
+                    "Type '[...A, number, number, number, number]' is not assignable to type '[...A, number]'.",
+                    "Target allows only 2 element(s) but source may have more.",
+                ]),
+            ),
+            (at("1, 2]"), overload.clone()),
+            (at("2]"), overload),
+        ]
+    );
+}
+
+#[test]
+fn arrow_return_elaboration_suggests_async_like_tsgo() {
+    // tsgo's elaborateArrowFunction (relater.go:661-668): b.ts(3,13) TS2322
+    // with the return-type related row and "Did you mean to mark this
+    // function as 'async'?" at the arrow.
+    let text = "interface Promise<T> { then(cb: (v: T) => void): void; }\n\
+                declare function takes(cb: () => Promise<string>): void;\n\
+                takes(() => \"x\");\n";
+    let options = CompilerOptions {
+        strict: Some(true),
+        target: Some(ScriptTarget::ES2015.bits()),
+        ..CompilerOptions::default()
+    };
+    let rows = with_program_state(
+        &[("lib.d.ts", P35P_GLOBALS), ("b.ts", text)],
+        &options,
+        |state| {
+            state.check_source_file(1);
+            state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.file_name.is_some())
+                .map(|diagnostic| {
+                    (
+                        diagnostic.code(),
+                        diagnostic.start,
+                        diagnostic
+                            .related
+                            .iter()
+                            .map(|related| (related.message.code, related.start, related.length))
+                            .collect::<Vec<_>>(),
+                    )
+                })
+                .collect::<Vec<_>>()
+        },
+    );
+    let at = |needle: &str| Some(text.find(needle).expect("needle") as u32);
+    assert_eq!(
+        rows,
+        [(
+            2322,
+            at("\"x\""),
+            vec![
+                (6502, at("() => Promise<string>"), Some(21)),
+                (1356, at("() => \"x\""), Some(9)),
+            ]
+        )]
+    );
 }

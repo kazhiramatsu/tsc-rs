@@ -2030,19 +2030,11 @@ fn relation_reporting_keeps_union_keyof_and_class_member_failure_levels() {
             )],
             &strict,
         ),
+        // tsgo (tsc-19dadef8): no construct-signature wrapper rows.
         [vec![
             (
                 2322,
                 "Type 'typeof Foo' is not assignable to type 'new () => Foo'.".to_owned(),
-            ),
-            (
-                2419,
-                "Types of construct signatures are incompatible.".to_owned(),
-            ),
-            (
-                2322,
-                "Type 'new (x: number) => Foo' is not assignable to type 'new () => Foo'."
-                    .to_owned(),
             ),
             (
                 2849,

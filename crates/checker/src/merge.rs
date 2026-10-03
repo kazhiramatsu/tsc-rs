@@ -6,7 +6,6 @@
 //! amalgamated cross-file grouping. Module augmentations and
 //! jsGlobalAugmentations are 5.8 rows (ledger notes inline).
 
-use indexmap::IndexMap;
 use tsc_binder::node_util::get_name_of_declaration;
 use tsc_binder::{SymbolId, SymbolTable};
 use tsc_diagnostics::{gen as diagnostics, RelatedInfo};
@@ -14,6 +13,7 @@ use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{EscapedName, JsStr, JsString, NodeFlags, SymbolFlags, TypeData, TypeFlags};
 
 use crate::links::LinkSlot;
+use crate::program::ProgramFileId;
 use crate::state::{CheckResult, CheckerState};
 use tsc_binder::NameKey;
 
@@ -55,21 +55,6 @@ pub(crate) fn escape_double_quoted_symbol_name(text: JsStr<'_>) -> JsString {
         }
     }
     out
-}
-
-/// tsc amalgamatedDuplicates value (47767): one entry per unordered
-/// file pair, conflicting symbols keyed by display name in first-seen
-/// order (tsc Map semantics — flush order is observable).
-#[derive(Debug, Default)]
-pub struct FilesDuplicates {
-    pub conflicting_symbols: IndexMap<JsString, ConflictingSymbolInfo>,
-}
-
-#[derive(Debug, Default)]
-pub struct ConflictingSymbolInfo {
-    pub is_block_scoped: bool,
-    pub first_file_locations: Vec<NodeId>,
-    pub second_file_locations: Vec<NodeId>,
 }
 
 /// tsc-port: getExcludedSymbolFlags @6.0.3
@@ -483,18 +468,6 @@ impl<'a> CheckerState<'a> {
         } else {
             &diagnostics::Duplicate_identifier_0
         };
-        let source_file = self
-            .binder
-            .symbol(source)
-            .declarations
-            .first()
-            .map(|&declaration| self.binder.source_of_node(declaration).file_name.clone());
-        let target_file = self
-            .binder
-            .symbol(target)
-            .declarations
-            .first()
-            .map(|&declaration| self.binder.source_of_node(declaration).file_name.clone());
         let is_plain_js_symbol = |state: &Self, symbol: SymbolId| {
             state
                 .binder
@@ -517,81 +490,24 @@ impl<'a> CheckerState<'a> {
         // computed class member that collides with the synthetic
         // `prototype` export keeps its written `[expr]` spelling.
         let symbol_name = self.symbol_name_as_written(source);
-        match (source_file, target_file) {
-            // 47764: the defer arm requires the amalgamated map to be
-            // LIVE — after the post-augmentation flush it is None and
-            // cross-file conflicts report immediately (A8).
-            (Some(source_file), Some(target_file))
-                if self.amalgamated_duplicates.is_some()
-                    && !is_either_enum
-                    && source_file != target_file =>
-            {
-                // comparePaths slice: harness file names are flat
-                // relative names, so plain string order decides the
-                // (firstFile, secondFile) pair.
-                let (first_file, second_file, source_is_first) = if source_file < target_file {
-                    (source_file, target_file, true)
-                } else {
-                    (target_file, source_file, false)
-                };
-                let info = self
-                    .amalgamated_duplicates
-                    .as_mut()
-                    .expect("guard checked liveness")
-                    .entry((first_file, second_file))
-                    .or_default()
-                    .conflicting_symbols
-                    .entry(symbol_name)
-                    .or_insert_with(|| ConflictingSymbolInfo {
-                        is_block_scoped: is_either_block_scoped,
-                        ..Default::default()
-                    });
-                let source_declarations = self.binder.symbol(source).declarations.clone();
-                let target_declarations = self.binder.symbol(target).declarations.clone();
-                let (source_locations, target_locations) = if source_is_first {
-                    (
-                        &mut info.first_file_locations,
-                        &mut info.second_file_locations,
-                    )
-                } else {
-                    (
-                        &mut info.second_file_locations,
-                        &mut info.first_file_locations,
-                    )
-                };
-                if !is_source_plain_js {
-                    for declaration in source_declarations {
-                        if !source_locations.contains(&declaration) {
-                            source_locations.push(declaration);
-                        }
-                    }
-                }
-                if !is_target_plain_js {
-                    for declaration in target_declarations {
-                        if !target_locations.contains(&declaration) {
-                            target_locations.push(declaration);
-                        }
-                    }
-                }
-            }
-            _ => {
-                if !is_source_plain_js {
-                    self.add_duplicate_declaration_errors_for_symbols(
-                        source,
-                        message,
-                        &symbol_name,
-                        target,
-                    );
-                }
-                if !is_target_plain_js {
-                    self.add_duplicate_declaration_errors_for_symbols(
-                        target,
-                        message,
-                        &symbol_name,
-                        source,
-                    );
-                }
-            }
+        // tsgo reportMergeSymbolError (checker.go:14437-14460) reports
+        // cross-file conflicts immediately; it has no amalgamatedDuplicates
+        // and no TS6200 summary.
+        if !is_source_plain_js {
+            self.add_duplicate_declaration_errors_for_symbols(
+                source,
+                message,
+                &symbol_name,
+                target,
+            );
+        }
+        if !is_target_plain_js {
+            self.add_duplicate_declaration_errors_for_symbols(
+                target,
+                message,
+                &symbol_name,
+                source,
+            );
         }
     }
 
@@ -630,6 +546,19 @@ impl<'a> CheckerState<'a> {
         let symbol_name = symbol_name.into();
         let error_node =
             get_name_of_declaration(self.binder.source_of_node(node), node).unwrap_or(node);
+        // A row in a file whose check is skipped (skipLibCheck on a
+        // declaration file, skipDefaultLibCheck, noCheck, unchecked
+        // JavaScript) is never published: tsgo builds it in every checker
+        // and getSemanticDiagnosticsForFile drops the file. Not building it
+        // keeps conflicting library copies out of every checker's memory
+        // (zod's two @types/node versions: 2,142 rows, 4 MB per checker).
+        let file = ProgramFileId::from_raw(
+            u32::try_from(self.binder.file_index_of_node(error_node))
+                .expect("Program file index overflow"),
+        );
+        if self.skip_type_checking_file(file) {
+            return;
+        }
         let index = self.lookup_or_issue_error_js(Some(error_node), message, &[symbol_name]);
         for &related_node in related_nodes {
             let adjusted =
@@ -938,10 +867,6 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        // 88882-88905: flush AFTER both augmentation passes; the map
-        // goes dead (None) and later cross-file conflicts report
-        // immediately (A8).
-        self.flush_amalgamated_duplicates();
     }
 
     /// collectModuleReferences' ModuleDeclaration arm
@@ -1121,83 +1046,6 @@ impl<'a> CheckerState<'a> {
             );
         }
         Ok(())
-    }
-
-    /// The amalgamatedDuplicates flush (88882-88905).
-    fn flush_amalgamated_duplicates(&mut self) {
-        // take() leaves None — tsc's `amalgamatedDuplicates = void 0`
-        // (88905): the defer arm in merge_symbol goes dead from here.
-        let Some(amalgamated) = self.amalgamated_duplicates.take() else {
-            return;
-        };
-        for ((first_file, second_file), files_duplicates) in amalgamated {
-            if files_duplicates.conflicting_symbols.len() < 8 {
-                for (symbol_name, info) in files_duplicates.conflicting_symbols {
-                    let message = if info.is_block_scoped {
-                        &diagnostics::Cannot_redeclare_block_scoped_variable_0
-                    } else {
-                        &diagnostics::Duplicate_identifier_0
-                    };
-                    for &node in &info.first_file_locations {
-                        self.add_duplicate_declaration_error(
-                            node,
-                            message,
-                            &symbol_name,
-                            &info.second_file_locations,
-                        );
-                    }
-                    for &node in &info.second_file_locations {
-                        self.add_duplicate_declaration_error(
-                            node,
-                            message,
-                            &symbol_name,
-                            &info.first_file_locations,
-                        );
-                    }
-                }
-            } else {
-                let mut list = JsString::new();
-                for (index, name) in files_duplicates.conflicting_symbols.keys().enumerate() {
-                    if index != 0 {
-                        list.push_str(", ");
-                    }
-                    list.push_js(name.as_js());
-                }
-                let first_root = self.root_of_file_named(&first_file);
-                let second_root = self.root_of_file_named(&second_file);
-                if let (Some(first_root), Some(second_root)) = (first_root, second_root) {
-                    let mut first_diag = self.diagnostic_for_node_js(
-                        first_root,
-                        &diagnostics::Definitions_of_the_following_identifiers_conflict_with_those_in_another_file_0,
-                        &[list.as_js()],
-                    );
-                    first_diag.related.push(self.related_for_node(
-                        second_root,
-                        &diagnostics::Conflicts_are_in_this_file,
-                        &[],
-                    ));
-                    self.diagnostics.push(first_diag);
-                    let mut second_diag = self.diagnostic_for_node_js(
-                        second_root,
-                        &diagnostics::Definitions_of_the_following_identifiers_conflict_with_those_in_another_file_0,
-                        &[list.as_js()],
-                    );
-                    second_diag.related.push(self.related_for_node(
-                        first_root,
-                        &diagnostics::Conflicts_are_in_this_file,
-                        &[],
-                    ));
-                    self.diagnostics.push(second_diag);
-                }
-            }
-        }
-    }
-
-    fn root_of_file_named(&self, file_name: &tsc_types::JsString) -> Option<NodeId> {
-        (0..self.binder.file_count())
-            .map(|index| self.binder.source(index))
-            .find(|source| source.file_name.as_js() == file_name.as_js())
-            .map(|source| source.root)
     }
 }
 

@@ -1,20 +1,7 @@
 use super::{
-    indexed_access_error_info_selection, variance_error_info_selection, RelationErrorState,
+    indexed_access_error_info_selection, variance_error_info_selection, ErrorChainEntry,
+    RelationErrorState,
 };
-use tsc_diagnostics::{DiagnosticCategory, MessageChain};
-
-fn chain(depth: usize, label: &str) -> MessageChain {
-    MessageChain {
-        code: depth as u32,
-        category: DiagnosticCategory::Error,
-        text: format!("{label}-{depth}").into(),
-        next_present: depth > 1,
-        next: (depth > 1)
-            .then(|| chain(depth - 1, label))
-            .into_iter()
-            .collect(),
-    }
-}
 
 #[test]
 fn enum_value_diagnostic_text_keeps_lone_units_after_escape_string() {
@@ -34,14 +21,19 @@ fn enum_value_diagnostic_text_keeps_lone_units_after_escape_string() {
 
 fn state(depth: Option<usize>, revision: u64) -> RelationErrorState {
     RelationErrorState {
-        error_info: depth.map(|depth| chain(depth, "chain")),
+        error_chain: (0..depth.unwrap_or(0))
+            .map(|_| ErrorChainEntry {
+                message: &tsc_diagnostics::gen::Type_0_is_not_assignable_to_type_1,
+                args: Vec::new(),
+            })
+            .collect(),
         error_info_revision: revision,
         ..RelationErrorState::default()
     }
 }
 
 #[test]
-fn relation_error_state_selectors_follow_tsc_priority_and_breadth() {
+fn relation_error_state_selectors_follow_tsgo_priority_and_depth() {
     let original_short = state(Some(1), 1);
     let original_long = state(Some(3), 2);
     let current_short = state(Some(1), 3);
@@ -62,14 +54,14 @@ fn relation_error_state_selectors_follow_tsc_priority_and_breadth() {
     assert!(
         std::ptr::eq(
             indexed_access_error_info_selection(&original_short, &current_short)
-                .expect("equal breadth favors original"),
+                .expect("equal depth favors original"),
             &original_short,
         ),
-        "tsc's <= tie break keeps originalErrorInfo"
+        "tsgo's <= tie break keeps originalErrorChain"
     );
     assert!(
         indexed_access_error_info_selection(&empty, &current_short).is_none(),
-        "a falsy originalErrorInfo does not trigger retry selection"
+        "a nil originalErrorChain does not trigger retry selection"
     );
 
     assert!(std::ptr::eq(

@@ -332,3 +332,48 @@ fn config_source_path_orders_before_program_sources_without_changing_display_nam
         Some("/project/tsconfig.json")
     );
 }
+
+#[test]
+fn diagnostics_differing_only_by_related_information_merge_like_tsgo() {
+    // tsgo compactAndMergeRelatedInfos (compiler/program.go:1657-1688): one
+    // diagnostic keeps the sorted, deduplicated related rows of the run.
+    let related = |start: u32| RelatedInfo {
+        file_name: Some("b.ts".into()),
+        start: Some(start),
+        length: Some(1),
+        message: chain(6203, "'x' was also declared here."),
+    };
+    let with_related = |starts: &[u32]| {
+        let mut diagnostic = diagnostic(Some("a.ts"), Some(0), 2451, "Cannot redeclare.");
+        diagnostic.related_information_present = true;
+        diagnostic.related = starts.iter().map(|&start| related(start)).collect();
+        diagnostic
+    };
+    let mut diagnostics = vec![
+        with_related(&[8]),
+        with_related(&[4]),
+        with_related(&[8]),
+        diagnostic(Some("a.ts"), Some(0), 2451, "Another message."),
+    ];
+    sort_and_dedupe_diagnostics(&mut diagnostics);
+    let starts = diagnostics
+        .iter()
+        .map(|diagnostic| {
+            (
+                diagnostic.message.text.to_string_lossy().into_owned(),
+                diagnostic
+                    .related
+                    .iter()
+                    .map(|related| related.start)
+                    .collect::<Vec<_>>(),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        starts,
+        [
+            ("Another message.".to_owned(), vec![]),
+            ("Cannot redeclare.".to_owned(), vec![Some(4), Some(8)]),
+        ]
+    );
+}
