@@ -1104,3 +1104,5 @@ P3-5s後のnode16系のclass（package自己名・`#imports`・exportsが出力�
   - tsconfigの位置などharnessの行（約6）
   - `composite`のemit（tsc-rsは`composite`のemitを扱わず、`nodeNextPackageSelfNameWithOutDirDeclDirComposite`などのemitが
     空になる）
+- hosted：PR #638（head `c632036d7`、merge `4b1427b9e`）、run 37117376522 — `plan` 22s、`rust` 9m17s、`conformance (TypeScript 7.1)` 15m52s、`gates` 12s。
+- perf（README corpora、`--noEmit`、3 rounds、nice 20、main `efb8af16e`（P3-5sのhead `0f387f437`と同じコードのrelease build）と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 130→142、zod 538→551、Playwright 397→393、TypeScript `src/compiler` 356→354、Next.js 774→809、Effect 532→545、VS Code 3,542→3,553。tsc-rs÷tsgoは0.58〜0.94、peak memory（MB main→本branch）：320→311、1,294→1,295、801→805、289→288、1,320→1,328、1,036→1,046、5,449→5,448。診断の出力と読み込んだdocument数は7 corpusともmainと同一。honoとNext.jsは5 roundsのA/B（main／本branch）でhono 129／129 ms・CPU 619／610 ms、Next.js 739／745 ms・CPU 4,494／4,451 ms、`TSRS_CHECKERS=1`の命令数はhono 4.307／4.305 G、Next.js 48.45／48.19 Gなのでノイズ。退行なし。
