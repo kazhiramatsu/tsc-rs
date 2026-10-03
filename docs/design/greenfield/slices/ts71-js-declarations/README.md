@@ -1,6 +1,6 @@
 # JavaScriptのd.tsをtsgoの方式で作る
 
-状態：**設計**（2026-10-04）。ユーザー決定（2026-10-04）：「再設計して進める」。前段：
+状態：**実装中**（J1 2026-10-04）。ユーザー決定（2026-10-04）：「再設計して進める」。前段：
 [TypeScript 7.1への切替](../ts71-cutover/README.md)のP3-5ab。
 
 ## 背景
@@ -81,3 +81,36 @@ P3-5ab後、lane Aでemitが不一致の434構成のうち、約270構成はJava
 - **d.tsの診断。** TS4023・TS9006などの診断とemitを止める条件は、TypeScriptの経路に従う。
 - **出力の順序。** CommonJSの`module.exports`がclassか関数なら`export =`を先に、それ以外は`const`を先に書く
   （`transform.go:1241-1295`）。
+
+## J1 ES moduleのJavaScriptをdeclaration transformに通す（2026-10-04）
+
+- `declarations/root.rs`の`transform_root`は、次の条件を満たすJavaScriptのfileを、TypeScriptと同じ
+  `visit_declaration_statement`／`transform_and_replace_late_painted_statements`に通す：
+  - ES moduleの印がある。
+  - binderのCommonJSの印が無い（resolverの`is_common_js_module`。`.cjs`は拡張子でES moduleの印も持つため）。
+  - `@overload` tagが無い（再解析される宣言は後のsliceで扱う）。
+  これを満たさないscript・CommonJS・`@overload`のfileは、従来どおりtsc 6.0のsymbol直列化を使う。
+- 文の列の範囲：この経路のJavaScriptも、TypeScriptと同じく元の文の列の範囲を持つ（detached commentの扱い）。
+- 結果として、tsgoと同じく次のようになる：
+  - exportした宣言の`declare`。
+  - JSDocの型からの引数と戻り値の型。
+  - JSDoc commentを宣言の上に残す。
+  - literalの`const`の初期化子。
+  - 文の順序はsourceのまま。
+- unit test（CLI、tsgoの出力にpin）：class、JSDocで型を付けた関数（省略可能な引数を含む）、`@type`の`const`、
+  literalの`const`、default exportの関数を持つES moduleのJavaScriptのd.ts。
+- conformance：
+  - 15,228 configuration、lane A 13,467（変化なし）、441 s。
+  - errorsは変化なし（full 13,325、描いたbaselineのdigestもすべて同じ）。
+  - emit full 13,003→13,086（+83）、emit mismatch 434→351。上がった83構成はすべてJavaScriptのd.tsで、下がった
+    構成は無く、それまでfullだったemitのdigestもすべて同じ。
+- ratchet：0 regressions、83行raise。
+- local：
+  - formatとworkspace全体のclippy。emitter・checker・compiler・conformanceのtest（35 targets、2,623 passed）。
+  - 2 workerのfull run（441 s）。
+  - 試行（devのrunner、JavaScriptのd.tsの288 case）：CommonJSの判定を`external_module_indicator`で近似すると
+    `.cjs`の1構成が、`@overload`のfileを通すと1構成が下がったので、それぞれ除いた。
+- 残り：
+  - ES moduleのJavaScriptのd.tsで残る不一致：`this.x =`のmember、`@typedef`・`@callback`・`@import`の宣言、
+    `@overload`（J1bで扱う）。
+  - scriptとCommonJSのfileは従来の経路（J2、J3）。
