@@ -658,6 +658,7 @@ compiler/circularConstructorWithReturn	full	js
 compiler/circularContextualMappedType	full	js
 compiler/circularContextualReturnType	full	js
 compiler/circularControlFlowNarrowingWithCurrentElement01	full	js
+compiler/circularDestructuring	full	js
 compiler/circularGetAccessor(noimplicitany=false)	full	js
 compiler/circularGetAccessor(noimplicitany=true)	full	js
 compiler/circularInferredTypeOfVariable	full	js
@@ -1046,6 +1047,7 @@ compiler/compositeContextualSignature	full	js
 compiler/compositeGenericFunction	full	js
 compiler/compositeWithNodeModulesSourceFile	full	none
 compiler/compoundVarDecl1	full	js
+compiler/computedEnumMemberKeyNoCrash1	full	js
 compiler/computedEnumMemberSyntacticallyString(isolatedmodules=false)	full	js
 compiler/computedEnumMemberSyntacticallyString(isolatedmodules=true)	full	js
 compiler/computedEnumMemberSyntacticallyString2(isolatedmodules=false)	full	js
@@ -1869,6 +1871,7 @@ compiler/decoratorMetadataWithImportDeclarationNameCollision7(target=es2015)	ful
 compiler/decoratorMetadataWithImportDeclarationNameCollision8(target=es2015)	full	js
 compiler/decoratorReferenceOnOtherProperty	full	js
 compiler/decoratorReferences	full	js
+compiler/decoratorRestNoCrash1	full	js
 compiler/decoratorUsedBeforeDeclaration	full	js
 compiler/decoratorWithNegativeLiteralTypeNoCrash(target=es2015)	full	js
 compiler/decoratorWithUnderscoreMethod	full	js
@@ -1928,6 +1931,7 @@ compiler/deleteReadonly	full	js
 compiler/deleteReadonlyInStrictNullChecks	full	js
 compiler/dependencyViaImportAlias	full	js
 compiler/dependentDestructuringBindingElementInitializer	full	js
+compiler/dependentDestructuringCrossFilePosition	full	js
 compiler/dependentDestructuringDeferredCallback	full	js
 compiler/deprecatedBool	full	js
 compiler/deprecatedCompilerOptions1	full	js
@@ -2786,6 +2790,7 @@ compiler/forInStatement7	full	js
 compiler/forInStrictNullChecksNoError	full	js
 compiler/forLoopEndingMultilineComments	full	js
 compiler/forLoopWithDestructuringDoesNotElideFollowingStatement	full	js
+compiler/forOfSelfReferentialDottedName	full	js
 compiler/forOfStringConstituents	full	js
 compiler/forOfTransformsExpression	full	js
 compiler/forStatementInnerComments	full	js
@@ -3507,6 +3512,7 @@ compiler/inferringAnyFunctionType5	full	js
 compiler/inferringReturnTypeFromConstructSignatureGeneric	full	js
 compiler/infiniteConstraints	full	js
 compiler/infiniteExpandingTypeThroughInheritanceInstantiation	full	js
+compiler/infiniteRecursionDestructuringLoop	full	js
 compiler/infinitelyExpandingBaseTypes1	full	js
 compiler/infinitelyExpandingBaseTypes2	full	js
 compiler/infinitelyExpandingOverloads	full	js
@@ -6023,6 +6029,7 @@ compiler/symbolLinkDeclarationEmitModuleNamesRootDir	full	js
 compiler/symbolLinkDeclarationEmitModuleNamesRootDir_promoted	full	js
 compiler/symbolMergeValueAndImportedType	full	js
 compiler/symbolObserverMismatchingPolyfillsWorkTogether	full	js
+compiler/symbolToNodeBoundaryNoStackOverflow	full	js
 compiler/symlinkedWorkspaceDependenciesNoDirectLinkGeneratesDeepNonrelativeName	full	js
 compiler/symlinkedWorkspaceDependenciesNoDirectLinkGeneratesNonrelativeName	full	js
 compiler/symlinkedWorkspaceDependenciesNoDirectLinkOptionalGeneratesNonrelativeName	full	js
@@ -6497,6 +6504,14 @@ compiler/unqualifiedCallToClassStatic1	full	js
 compiler/unreachableDeclarations(preserveconstenums=false)	full	js
 compiler/unreachableDeclarations(preserveconstenums=true)	full	js
 compiler/unreachableFlowAfterFinally	full	js
+compiler/unreachableFlowAfterThrowingForHead1(allowunreachablecode=false)	full	js
+compiler/unreachableFlowAfterThrowingForHead1(allowunreachablecode=true)	full	js
+compiler/unreachableFlowAfterThrowingForHead2(allowunreachablecode=false)	full	js
+compiler/unreachableFlowAfterThrowingForHead2(allowunreachablecode=true)	full	js
+compiler/unreachableFlowAfterThrowingForInOfHead1(allowunreachablecode=false)	full	js
+compiler/unreachableFlowAfterThrowingForInOfHead1(allowunreachablecode=true)	full	js
+compiler/unreachableFlowAfterThrowingForInOfHead2(allowunreachablecode=false)	full	js
+compiler/unreachableFlowAfterThrowingForInOfHead2(allowunreachablecode=true)	full	js
 compiler/unreachableJavascriptChecked	full	js
 compiler/unreachableJavascriptUnchecked	full	js
 compiler/unreachableSwitchTypeofAny	full	js
@@ -6701,6 +6716,7 @@ compiler/variadicTupleMismatch	full	js
 compiler/varianceAnnotationValidation	full	js
 compiler/varianceCallbacksAndIndexedAccesses	full	js
 compiler/varianceCantBeStrictWhileStructureIsnt	full	js
+compiler/varianceComputationNoCrash	full	js
 compiler/varianceMeasurement	full	js
 compiler/varianceModifiersOnClassMembers	full	none
 compiler/varianceProblingAndZeroOrderIndexSignatureRelationsAlign	full	js
@@ -8321,6 +8337,10 @@ conformance/deleteOperatorWithNumberType	full	js
 conformance/deleteOperatorWithStringType	full	js
 conformance/dependentDestructuredVariables	full	none
 conformance/dependentDestructuredVariablesFromNestedPatterns	full	js
+conformance/dependentDestructuredVariablesNoCrash1	category	js
+conformance/dependentDestructuredVariablesNoCrash2	full	none
+conformance/dependentDestructuredVariablesNoCrash3	full	none
+conformance/dependentDestructuredVariablesReferenceInDeclaration1	full	js
 conformance/dependentDestructuredVariablesWithExport	full	js
 conformance/derivedClassConstructorWithoutSuperCall	full	js
 conformance/derivedClassFunctionOverridesBaseClassAccessor	full	js
