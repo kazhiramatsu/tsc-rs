@@ -4218,9 +4218,17 @@ fn create_property_name_for_symbol(
     arena: &mut TransformArena,
     target: TransformSourceId,
     symbol: SymbolId,
+    enclosing_declaration: Option<NodeId>,
     context: &mut NodeBuilderContext<'_>,
 ) -> BuildResult<TransformNode> {
-    chains_get_property_name_node_for_symbol(checker, arena, target, context, symbol)
+    chains_get_property_name_node_for_symbol(
+        checker,
+        arena,
+        target,
+        context,
+        symbol,
+        enclosing_declaration,
+    )
 }
 
 fn create_property_signature_with_name(
@@ -4321,7 +4329,8 @@ fn add_property_to_element_list(
                 .copied()
         })
         .or(old_enclosing);
-    let name = create_property_name_for_symbol(checker, arena, target, property, context);
+    let name =
+        create_property_name_for_symbol(checker, arena, target, property, old_enclosing, context);
     context.enclosing_declaration = old_enclosing;
     let name = name?;
     let display_name = checker.symbol_display_name(property);

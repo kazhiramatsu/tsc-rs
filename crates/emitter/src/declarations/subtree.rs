@@ -252,6 +252,51 @@ impl DeclarationTransformer<'_> {
                         }
                         self.visit_each_child(cx, input).map(VisitResult::Node)
                     }
+                    SyntaxKind::QualifiedName => {
+                        // tsgo (transform.go:668-672): declaration emit elides
+                        // private members, so a private name on the right of a
+                        // qualified name is reported.
+                        let right = match &cx.arena().node(input)?.data {
+                            NodeData::QualifiedName(data) => data.right,
+                            _ => None,
+                        }
+                        .and_then(|right| cx.arena().node_ref(input.source(), right));
+                        if let Some(right) = right {
+                            if let NodeData::PrivateIdentifier(identifier) =
+                                &cx.arena().node(right)?.data
+                            {
+                                let text = tsc_types::JsString::from(identifier.text());
+                                self.tracker.report_diagnostic_with_args_at(
+                                    super::tracker::TrackerAnchor::Transform(input),
+                                    &tsc_diagnostics::gen::Declaration_emit_elides_private_members_but_0_refers_to_a_private_member_Write_an_explicit_type_here,
+                                    vec![super::tracker::DiagnosticArgument::Text(text)],
+                                );
+                                let effects = self.tracker.take_pending_effects();
+                                materialize_effects(cx, self.host, effects)?;
+                            }
+                        }
+                        self.visit_each_child(cx, input).map(VisitResult::Node)
+                    }
+                    SyntaxKind::MappedType => {
+                        // tsgo transformMappedTypeNode (transform.go:723-740): a
+                        // missing template type is written as `any`.
+                        let visited = self.visit_each_child(cx, input)?;
+                        let NodeData::MappedType(mut data) = cx.arena().node(visited)?.data.clone()
+                        else {
+                            return Err(Self::contract("mapped-type kind/data mismatch"));
+                        };
+                        if data.r#type.is_some() {
+                            return Ok(VisitResult::Node(visited));
+                        }
+                        let any = cx
+                            .factory()?
+                            .create_keyword_type_node(visited.source(), SyntaxKind::AnyKeyword)?;
+                        data.r#type = Some(any.node());
+                        let flags = cx.arena().transform_flags(visited);
+                        cx.factory()?
+                            .update_node(visited, NodeData::MappedType(data), flags)
+                            .map(VisitResult::Node)
+                    }
                     SyntaxKind::TypeReference => {
                         let name = match &cx.arena().node(input)?.data {
                             NodeData::TypeReference(data) => data.type_name,
@@ -1083,6 +1128,10 @@ pub(crate) const fn is_processed_component(kind: SyntaxKind) -> bool {
             | SyntaxKind::FunctionType
             | SyntaxKind::ConstructorType
             | SyntaxKind::ImportType
+            // tsgo's visitDeclarationSubtree switch also transforms mapped types
+            // and checks qualified names (transform.go:625-626, 668-672).
+            | SyntaxKind::MappedType
+            | SyntaxKind::QualifiedName
     )
 }
 

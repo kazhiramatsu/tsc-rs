@@ -1562,7 +1562,7 @@ compiler/declarationEmitClassSetAccessorParamNameInJs2	full	js
 compiler/declarationEmitClassSetAccessorParamNameInJs3	full	js
 compiler/declarationEmitCommonJsModuleReferencedType	full	js
 compiler/declarationEmitComputedNameCausesImportToBePainted	full	js
-compiler/declarationEmitComputedNameConstEnumAlias	full	none
+compiler/declarationEmitComputedNameConstEnumAlias	full	js
 compiler/declarationEmitComputedNameWithQuestionToken	full	js
 compiler/declarationEmitComputedNamesInaccessible	full	js
 compiler/declarationEmitComputedPropertyName1	full	js
@@ -1734,6 +1734,7 @@ compiler/declarationEmitPrivateAsync	full	js
 compiler/declarationEmitPrivateAsyncMethod	full	js
 compiler/declarationEmitPrivateMethodSignatures	full	js
 compiler/declarationEmitPrivateNameCausesError	full	js
+compiler/declarationEmitPrivateNameInTypeQuery	full	js
 compiler/declarationEmitPrivatePromiseLikeInterface	full	js
 compiler/declarationEmitPrivateReadonlyLiterals	full	js
 compiler/declarationEmitPrivateSymbolCausesVarDeclarationEmit2	full	js
@@ -1758,7 +1759,7 @@ compiler/declarationEmitRetainsJsdocyComments	full	js
 compiler/declarationEmitReusesLambdaParameterNodes	full	js
 compiler/declarationEmitScopeConsistency	full	js
 compiler/declarationEmitScopeConsistency3	full	js
-compiler/declarationEmitSetAccessorNoParameter	full	none
+compiler/declarationEmitSetAccessorNoParameter	full	js
 compiler/declarationEmitShadowing	full	js
 compiler/declarationEmitShadowingInferNotRenamed	full	js
 compiler/declarationEmitSimpleComputedNames1	full	js
@@ -2248,7 +2249,7 @@ compiler/enumBasics1	full	js
 compiler/enumBasics2	full	js
 compiler/enumBasics3	full	js
 compiler/enumCodeGenNewLines1	full	js
-compiler/enumComputedPropertyDeclarationEmit	full	none
+compiler/enumComputedPropertyDeclarationEmit	full	js
 compiler/enumConflictsWithGlobalIdentifier	full	js
 compiler/enumDecl1	full	js
 compiler/enumDeclarationEmitInitializerHasImport	full	js
@@ -4263,7 +4264,7 @@ compiler/mappedTypeInferenceFromApparentType	full	js
 compiler/mappedTypeInferenceToMappedType	full	js
 compiler/mappedTypeMultiInference	full	js
 compiler/mappedTypeNestedGenericInstantiation	full	js
-compiler/mappedTypeNoTypeNoCrash	full	none
+compiler/mappedTypeNoTypeNoCrash	full	js
 compiler/mappedTypeNotMistakenlyHomomorphic	full	js
 compiler/mappedTypeOverArrayWithBareAnyRestCanBeUsedAsRestParam1	full	js
 compiler/mappedTypeParameterConstraint	full	js
@@ -5254,6 +5255,7 @@ compiler/privateFieldsInClassExpressionDeclaration	full	js
 compiler/privateIdentifierPropertyAccessDestructuringAssignmentES6	full	js
 compiler/privateInstanceVisibility	full	js
 compiler/privateInterfaceProperties	full	js
+compiler/privateNameInTypeQuery	full	js
 compiler/privateNameJsx	full	js
 compiler/privateNameTaggedTemplate	full	js
 compiler/privateNameWeakMapCollision	full	js

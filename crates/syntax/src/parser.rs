@@ -3458,7 +3458,7 @@ impl<'text> Parser<'text> {
         if self.is_external_module_reference() {
             self.parse_external_module_reference()
         } else {
-            self.parse_entity_name(false, None)
+            self.parse_entity_name(false, false, None)
         }
     }
 
@@ -6666,6 +6666,7 @@ impl<'text> Parser<'text> {
     fn parse_entity_name(
         &mut self,
         allow_reserved_words: bool,
+        allow_private_name: bool,
         diagnostic: Option<&'static DiagnosticMessage>,
     ) -> NodeId {
         let pos = self.node_pos();
@@ -6681,7 +6682,8 @@ impl<'text> Parser<'text> {
                 // (parseTypeReference et al.) picks them up.
                 break;
             }
-            let right = self.parse_right_side_of_dot(allow_reserved_words, false, true);
+            let right =
+                self.parse_right_side_of_dot(allow_reserved_words, allow_private_name, true);
             entity = self.finish_node_data(
                 NodeData::QualifiedName(QualifiedNameData {
                     left: Some(entity),
@@ -6698,7 +6700,7 @@ impl<'text> Parser<'text> {
     /// tsc-span: _tsc.js:30673-30679
     /// d2: d2:3bdd06a01b186e396fede2e298f02bb74b916b1041d39113262740f2bbd21b94
     fn parse_entity_name_of_type_reference(&mut self) -> NodeId {
-        self.parse_entity_name(true, Some(&gen::Type_expected))
+        self.parse_entity_name(true, false, Some(&gen::Type_expected))
     }
 
     fn next_token_is_identifier_or_keyword(&mut self) -> bool {
@@ -7739,7 +7741,8 @@ impl<'text> Parser<'text> {
     fn parse_type_query(&mut self) -> NodeId {
         let pos = self.node_pos();
         self.parse_expected(SyntaxKind::TypeOfKeyword, None);
-        let expr_name = self.parse_entity_name(true, None);
+        // tsgo's parseTypeQuery allows a private name (parser.go:3164-3174).
+        let expr_name = self.parse_entity_name(true, true, None);
         let type_arguments = if !self.scanner.has_preceding_line_break() {
             self.try_parse_type_arguments()
         } else {
@@ -10285,7 +10288,7 @@ pub fn parse_entity_name_components(
         true,
     );
     parser.next_token();
-    let entity = parser.parse_entity_name(true, None);
+    let entity = parser.parse_entity_name(true, false, None);
     if parser.token() != SyntaxKind::EndOfFileToken || !parser.parse_diagnostics.is_empty() {
         return None;
     }

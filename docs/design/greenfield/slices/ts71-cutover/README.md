@@ -1696,3 +1696,32 @@ tsc-rsは6.0どおりfactoryが型を作るたびに括弧を付けていた。
   （6構成）：mainから変わった40 fileのうち34（d.tsとdeclaration map）がtsgoとbyte単位で同じになり、tsgoと
   同じだったfileで違うようになったものは無い。変わったmapのmapping segmentは1,262がtsgoに近づき、36が離れた
   （Effectの1つのmapで行がずれ、同じ数だけ得て失った）。
+
+## P3-5af d.tsの細部：enumのkey、setterの値、mapped typeの型、型のqueryのprivate名（2026-10-04）
+
+P3-5aeの後、TypeScriptのd.tsの不一致から、原因が独立した4つ：
+- **enum memberの名前のproperty**：node builderは、enumが要素一覧のenclosing declaration（無ければenclosing file）から
+  値として参照できるとき、memberへのcomputed参照（`[S.A]`）を書く（nodebuilderimpl.go:2535-2552）。6.0には無い腕で、
+  tsc-rsは値（`a`、`"not-an-identifier"`）を書いていた。参照できないenum（関数の中の`enum`）は値のまま。
+- **setterの値parameter**：declaration transformは位置で選び（`this`の次、無ければ先頭）、無いときは`value: any`を
+  作る（privateでは型なし、transform.go:1037-1071）。6.0は型の無い`value`を作った。`this` parameterは先頭のものだけ
+  （`ast.GetThisParameter`）。
+- **型の無いmapped type**：declaration transformはtemplateの型を`any`で補う（transform.go:723-740）。mapped typeを
+  subtreeの変換の対象に加えた。
+- **型のqueryのprivate名**：tsgoのparserは`typeof this.#a`のprivate名を受け付ける（parser.go:3164-3174）。tsc-rsは
+  TS1003にしていた。declaration transformは、qualified nameの右がprivate名ならTS7080を報告する
+  （transform.go:668-672）。この診断でそのfileのd.tsは出ない。
+- unit test（CLI、tsgoの出力にpin）：enum memberの名前（参照できるenumとできないenum）、setter・mapped type・
+  型のqueryのprivate名（診断とd.ts）。
+- conformance（release build、`7ee088e7f`、`--workers 2`、550 s）：
+  - 15,228構成、lane A 13,467（変化なし）。
+  - errors full 13,338→13,340（`privateNameInTypeQuery`、`declarationEmitPrivateNameInTypeQuery`）、mismatch 80→78。
+  - emit full 13,371→13,377、emit mismatch 67→61：`enumComputedPropertyDeclarationEmit`、
+    `declarationEmitComputedNameConstEnumAlias`、`declarationEmitSetAccessorNoParameter`、`mappedTypeNoTypeNoCrash`、
+    上の2構成。
+  - 下がった構成も、tierが同じまま出力が変わった構成も無い。
+- ratchet：0 regressions、6行raise。`intersectionConstructorReductionCrash`は今回も通ったが、負荷に依るので
+  ratchetに入れない。
+- local：formatとworkspace全体のclippy。syntax・binder・emitter・checker・compiler・conformanceのtest（49 targets、
+  2,964件）。試行（filter `num`・`declarationEmit`・`omputed`・`ccessor`・`apped`・`rivate`・`ypeQuery`・`ypeof`）で
+  下がった構成は無かった。
