@@ -206,6 +206,21 @@ nodecopy.go）だけが`crates/checker/src/syntactic_type_node_builder.rs`に残
 - local：formatとworkspace全体のclippy。binder・emitter・checker・compiler・conformanceのtest（38 targets、2,713件）。
   試行（filter `isolatedDeclaration`・`declarationEmit`・`ixin`・`omputed`・`lassExpression`）で下がった構成は
   無かった。
+- hosted：PR #654（head `cf61cdf46`、merge `2781b9ad0`）、run 37193080231 — `plan` 28s、`rust` 9m59s、
+  `conformance (TypeScript 7.1)` 20m0s、`gates` 13s。
+- perf（README corpora、nice 20、main（PC1–PC3のcode `b06ff367b`）と本branch（`31b313976`）のrelease build対tsgo
+  7.1.0-dev、median wall ms main→本branch）：
+  - `--noEmit`（3 rounds）：hono 142→145、zod 536→525、Playwright 373→367、TypeScript `src/compiler` 348→335、
+    Next.js 795→767、Effect 530→554、VS Code 3,632→3,489。tsc-rs÷tsgoは0.60〜0.97。診断の出力と読み込んだ
+    document数は7 corpusともmainと同一。
+  - `tsconfig.bench-full.json`（3 rounds）：hono 153→146、zod 615→630、Playwright 492→486、TypeScript
+    `src/compiler` 556→534、Next.js 1,063→1,023、Effect 778→761（tsgo比0.57〜0.82）。診断はmainと同一。
+  - A/B（5 rounds）：Effectの`--noEmit` 513／497、zod full 596／606（min 585／583）、honoの`--noEmit` 130／128 ms。
+    単一checker（`TSRS_CHECKERS=1`、5回のmedian）の命令数：Effectの`--noEmit` 27.896／27.886 G（peak memory
+    footprint 681.1／679.9 MB）、zod full 39.425／39.442 G（894.9／895.3 MB）。退行なし。
+  - fullの出力は6構成ともmainとbyte単位で同じ。ただしNext.jsのdeclaration map 1つで、`_base`の定数の行から6.0の
+    builderが再利用したextendsの式の型に付けていたmappingが無くなった。その行はtsgoのmapと同じになった（fileの
+    残りはmainと同じくtsgoと違う）。
 - 残り：
   - 診断の型表示で、enclosingがある関数式の戻り値：tsgoはpseudo typeを使うので`as const`のliteralを書いたまま
     表示する（`() => { readonly a: 'x'; }`）。tsc-rsは6.0のassertionの再利用だけで、`"x"`になる。
