@@ -1858,3 +1858,14 @@ P3-5ahの後、errorsのCategory／Text／不一致のうち、診断文の組�
   conformanceのtest（62 targets、3,625件成功・1件失敗。TS18044の位置のtestを直した後にcheckerのlib 1,796件を再実行）。
   試行（filter `tslib`・`elper`・`sModuleInterop`・`rivateName`・`omputed`・`num`・`equire`・`xport`・`mport`・
   `oLib`・`lobal`・`ib`・`arget`・`ption`・`salsa`・`ypedef`・`jsdoc`）で下がった構成は無かった。
+- hosted：PR #660（head `a26714be1`、merge `d61338295`）、run 37206742268 — `plan` 28s、`rust` 8m3s、
+  `conformance (TypeScript 7.1)` 16m32s、`gates` 12s。
+- perf（README corpora、nice 20、main（P3-5ahのbuild `d808eafd4`）と本branch（`b6fde98f7`）のrelease build対tsgo 7.1.0-dev）：
+  - `--noEmit` 3回のmedian（ms、main→branch）：hono 136→141、zod 525→532、Playwright 372→376、
+    TypeScript `src/compiler` 349→332、Next.js 771→766、Effect 534→512、VS Code 3,547→3,445。tsc-rs÷tsgo 0.60–0.91。
+    7 corporaとも診断と読み込んだ文書数はmainと同一。
+  - honoとPlaywrightは10回のA/B：honoの`--noEmit` 132→129、honoの`bench-full` 144→144、Playwrightの`bench-full`
+    491→485。1 checkerの命令数（5回のmedian）branch÷main 0.99961（hono）、0.99901（Playwright）。3回のmedianの差はnoise。
+  - `tsconfig.bench-full.json` 3回：hono 147→152、zod 635→616、Playwright 488→503、TypeScript `src/compiler`
+    576→498、Next.js 1,059→1,023、Effect 775→762。tsc-rs÷tsgo 0.53–0.79。6 corporaとも出力fileと診断はmainと同一。
+    劣化無し。
