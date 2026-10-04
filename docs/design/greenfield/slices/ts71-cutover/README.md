@@ -2168,3 +2168,36 @@ P3-5aoの後の4件：
     命令数branch÷main：Playwright 0.99977、Effect 1.00005。3回のPlaywrightの差とEffectの差はnoiseで、劣化無し。
 - hosted：PR #667（head `a5572a012`）、run 37222682145 — `plan` 22s、`rust` 8m40s、`conformance (TypeScript 7.1)` 20m15s、
   `gates` 14s。
+
+## P3-5aq bigintの順序、常にstrictなbinder、`Object`の予約、TS5074（2026-10-05）
+
+P3-5apの後の4件：
+- **bigint literalの順序**：tsgoの`CompareTypes`はbigint literal型を値で並べる（checker/utilities.go:563-566、
+  `PseudoBigInt.Compare`）。tsc-rsの安定した型の順序にはこの枝が無く、作られた順になっていた。`parseBigInt`。
+- **常にstrictなbinder**：tsgoのbinderはstrict modeを持たず、strict modeの検査を常に行い、関数宣言を常にblock scopeで
+  束縛する（binder/binder.go:1219-1225、1374-1440）。tsc-rsはtsc 6.0の`bindInStrictMode`で、宣言fileやmoduleでない
+  scriptをstrictでないとしていた。`parserWithStatement1.d.ts`（`.d.ts`の`with`のTS1101）。
+- **`Object`の予約**：tsgoの`checkCollisionWithGlobalObjectInGeneratedCode`は、CommonJSのmoduleのtop levelにある
+  class以外の`Object`の宣言をTS2441にする（checker.go:10680-10694、noEmitでは出さない）。
+  `objectNameCollisionCommonJS(module=commonjs)`。
+- **TS5074**：tsgoの`verifyCompilerOptions`は、`tsBuildInfoFile`もconfig fileも無い`incremental`を報告する
+  （compiler/program.go:1068-1070）。`incrementalInvalid`（errors。emitは`incremental`の出力が未対応のまま）。
+- unit test：CLI（tsgoの出力にpin）で3件（bigintの順序、`.d.ts`の`with`、`Object`の予約）。修正前のbuildでは3件とも
+  tsgoと違っていた。
+- conformance（release build、`f881a216e`、`--workers 2`、516 s）：
+  - 15,228構成、lane A 13,467（変化なし）。
+  - errors full 13,395→13,398：上の4件の構成が上がり、前回最後まで通った`intersectionConstructorReductionCrash`が
+    今回はmemory制限のharness error（負荷で結果の変わる構成で、ratchetの外）。mismatch 43→40、category 5→4。
+  - emit full 13,379→13,379：`comparisonBigIntLiterals`の宣言のunionの順がtsgoと同じになりemitがfullに上がり、
+    `intersectionConstructorReductionCrash`の分が下がった。下がった構成も、不一致のまま描いた文が変わった構成も無い。
+- ratchet：0 regressions、6行raise（`comparisonBigIntLiterals`のemitを含む）。
+- local：formatとworkspace全体のclippy。types・binder・checker・compiler・harness・conformanceのtest（20 targets、2,182件）。
+  binderを変えた後のfilter `trict`・`igint`・`ith`（1,948 case）・`rguments`・`val`・`elete`・`abel`で下がった構成は無かった。
+- perf（README corpora、nice 20、main（P3-5apのbuild `092d910b3`）対tsgo 7.1.0-dev）：
+  - `--noEmit` 3回のmedian（ms、main→branch）：hono 135→125、zod 521→528、Playwright 359→369、TypeScript
+    `src/compiler` 363→327、Next.js 795→764、Effect 527→540、VS Code 3,477→3,487。tsc-rs÷tsgo 0.62–0.96。読み込んだ
+    文書数と診断は7 corporaで同一。
+  - `tsconfig.bench-full.json` 3回：hono 147→141、zod 617→634、Playwright 494→488、TypeScript `src/compiler` 577→494、
+    Next.js 1,067→1,046、Effect 792→755。6 corporaとも出力fileと診断は同一。
+  - 10回のA/B：zod `bench-full` 620→621、Effect `--noEmit` 522→511、Playwright `--noEmit` 362→363。1 checkerの命令数
+    branch÷main：zod 0.99969、Effect 1.00055。3回の差はnoiseで、劣化無し。

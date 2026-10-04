@@ -3446,6 +3446,21 @@ fn programmatic_option_diagnostics(prepared: &PreparedProgram) -> DiagnosticList
             None,
         );
     }
+    // tsgo verifyCompilerOptions (compiler/program.go:1068-1070).
+    if options.ts_build_info_file.is_none()
+        && options.incremental == Some(true)
+        && prepared.program_options().config_file_path().is_none()
+    {
+        diagnostics.push(Diagnostic::new(
+            None,
+            None,
+            None,
+            MessageChain::new(
+                &gen::Option_incremental_is_only_valid_with_a_known_configuration_file_like_tsconfig_json_or_when_tsBuildInfoFile_is_explicitly_provided,
+                &[],
+            ),
+        ));
+    }
     if !external_config_option_diagnostics {
         diagnostics.extend(validate_paths_option_diagnostics(
             options,

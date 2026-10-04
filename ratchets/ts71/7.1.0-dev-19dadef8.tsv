@@ -1034,7 +1034,7 @@ compiler/comparabilityTypeParametersRelatedByUnion	full	js
 compiler/comparableRelationBidirectional	full	js
 compiler/compareTypeParameterConstrainedByLiteralToLiteral	full	js
 compiler/comparisonAnonymousMappedTypes	full	none
-compiler/comparisonBigIntLiterals	full	none
+compiler/comparisonBigIntLiterals	full	js
 compiler/comparisonOfPartialDeepAndIndexedAccessTerminatesWithoutError	full	js
 compiler/comparisonReverseMappedTypes	full	none
 compiler/comparisonSameNamedAliases	full	js
@@ -3395,6 +3395,7 @@ compiler/incorrectRecursiveMappedTypeConstraint	text	js
 compiler/incrementOnNullAssertion	full	js
 compiler/incrementOnTypeParameter	full	js
 compiler/incrementalConfig	full	none
+compiler/incrementalInvalid	full	none
 compiler/incrementalTsBuildInfoFile	full	none
 compiler/indexAt(target=es2021)	full	js
 compiler/indexAt(target=es2022)	full	js
@@ -5000,6 +5001,7 @@ compiler/objectLiteralWithSemicolons4	full	js
 compiler/objectLiteralWithSemicolons5	full	js
 compiler/objectLiteralsAgainstUnionsOfArrays01	full	js
 compiler/objectMembersOnTypes	full	js
+compiler/objectNameCollisionCommonJS(module=commonjs)	full	js
 compiler/objectNameCollisionCommonJS(module=esnext)	full	js
 compiler/objectPropertyAsClass	full	js
 compiler/objectRestBindingContextualInference	full	js
@@ -5156,7 +5158,7 @@ compiler/parse1	full	js
 compiler/parse2	full	js
 compiler/parseArrowFunctionWithFunctionReturnType	full	js
 compiler/parseAssertEntriesError	full	js
-compiler/parseBigInt	category	js
+compiler/parseBigInt	full	js
 compiler/parseCommaSeparatedNewlineNew	full	js
 compiler/parseCommaSeparatedNewlineNumber	full	js
 compiler/parseCommaSeparatedNewlineString	full	js
@@ -11620,6 +11622,7 @@ conformance/parserVariableStatement3	full	js
 conformance/parserVariableStatement4	full	js
 conformance/parserVoidExpression1	full	js
 conformance/parserWhileStatement1.d	full	js
+conformance/parserWithStatement1.d	full	js
 conformance/parserWithStatement2	full	js
 conformance/parserX_ArrowFunction1	full	js
 conformance/parserX_ArrowFunction3	full	js

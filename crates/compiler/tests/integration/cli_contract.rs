@@ -3818,6 +3818,76 @@ fn jsx_namespaced_names_are_string_literal_keys_like_tsgo() {
 }
 
 #[test]
+fn bigint_literal_unions_order_by_value_like_tsgo() {
+    // tsgo CompareTypes (checker/utilities.go:563-566) orders bigint literal
+    // types by value. The expected diagnostics are tsgo's for the same
+    // project.
+    let (status, stdout) = check_one_file(
+        "a.ts",
+        concat!(
+            "declare function f(x: 3n | 1n | 2n): void;\n",
+            "f(0n);\n",
+            "declare function g(x: -1n | 10n | 9n | 0n): void;\n",
+            "g(5n);\n",
+            "export {};\n",
+        ),
+        r#","strict":true,"target":"es2020""#,
+    );
+    assert_eq!(status, Some(2));
+    assert_eq!(
+        stdout,
+        concat!(
+            "a.ts(2,3): error TS2345: Argument of type '0n' is not assignable to parameter of type '1n | 2n | 3n'.\n",
+            "a.ts(4,3): error TS2345: Argument of type '5n' is not assignable to parameter of type '-1n | 0n | 9n | 10n'.\n",
+        )
+    );
+}
+
+#[test]
+fn declaration_files_bind_in_strict_mode_like_tsgo() {
+    // tsgo's binder tracks no strict mode: every strict-mode check applies,
+    // declaration files included (binder/binder.go:1436-1439). The expected
+    // diagnostics are tsgo's for the same project.
+    let (status, stdout) = check_one_file(
+        "a.d.ts",
+        "declare const foo: any;\nwith (foo) {\n}\n",
+        r#","strict":true"#,
+    );
+    assert_eq!(status, Some(2));
+    assert_eq!(
+        stdout,
+        concat!(
+            "a.d.ts(2,1): error TS1036: Statements are not allowed in ambient contexts.\n",
+            "a.d.ts(2,1): error TS1101: 'with' statements are not allowed in strict mode.\n",
+            "a.d.ts(2,1): error TS2410: The 'with' statement is not supported. All symbols in a 'with' block will have type 'any'.\n",
+        )
+    );
+}
+
+#[test]
+fn commonjs_modules_reserve_object_like_tsgo() {
+    // tsgo checkCollisionWithGlobalObjectInGeneratedCode
+    // (checker.go:10680-10694): a top-level `Object` declaration in a
+    // CommonJS module collides with the name its output reserves (an error
+    // skipped under noEmit). The expected diagnostics are tsgo's for the
+    // same project.
+    let tree = TempTree::new();
+    fs::write(tree.path("a.ts"), "let Object = 0;\nexport const x = 1;\n").expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"strict":true,"module":"commonjs","outDir":"out"},"files":["a.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("utf-8 stdout"),
+        "a.ts(1,5): error TS2441: Duplicate identifier 'Object'. Compiler reserves name 'Object' in top level scope of a module.\n"
+    );
+    assert!(tree.path("out/a.js").is_file());
+}
+
+#[test]
 fn error_recovery_syntax_is_erased_like_tsgo() {
     // tsgo's type eraser drops type parameters and return types from accessors
     // and constructors, every modifier of a constructor it visits, and `in`/`out`
