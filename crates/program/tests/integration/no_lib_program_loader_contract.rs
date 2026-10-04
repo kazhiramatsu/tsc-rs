@@ -1962,9 +1962,11 @@ fn empty_path_references_probe_the_containing_directory_and_report_located_ts623
     let empty_value = root_text.find("\"\"").expect("empty reference literal") as u32 + 1;
     assert_eq!(diagnostic.start, Some(empty_value));
     assert_eq!(diagnostic.length, Some(0));
+    // tsgo names the reference as written, here empty
+    // (`diagnosticFileName`, compiler/fileloader.go:697).
     assert_eq!(
         diagnostic.message_text().as_str().expect("scalar diagnostic observation"),
-        "Could not resolve the path '/work' with the extensions: '.ts', '.tsx', '.d.ts', '.cts', '.d.cts', '.mts', '.d.mts'."
+        "Could not resolve the path '' with the extensions: '.ts', '.tsx', '.d.ts', '.cts', '.d.cts', '.mts', '.d.mts'."
     );
 
     let resolved_host = MemoryCompilerHost::builder("/work")

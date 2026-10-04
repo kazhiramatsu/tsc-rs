@@ -673,6 +673,8 @@ fn missing_leading_path_reference_reports_exact_6053() {
     assert!(result.syntactic_diagnostics.is_empty());
 }
 
+/// The message names the reference as written (tsgo's `diagnosticFileName`,
+/// compiler/fileloader.go:697); tsc 6.0 named the resolved `/typescript.ts`.
 #[test]
 fn relative_single_quoted_path_reference_resolves_against_the_source() {
     let result = check_program(
@@ -694,7 +696,12 @@ fn relative_single_quoted_path_reference_resolves_against_the_source() {
                 .as_str()
                 .expect("scalar diagnostic observation"),
         ),
-        (6053, Some(20), Some(16), "File '/typescript.ts' not found.",)
+        (
+            6053,
+            Some(20),
+            Some(16),
+            "File '../typescript.ts' not found.",
+        )
     );
 }
 

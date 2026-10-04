@@ -121,10 +121,10 @@ fn diagnostic_path_and_related_names_keep_units_and_use_utf16_order() {
 
     let mut left = diagnostic(Some("display.ts"), Some(0), 1000, "same");
     let mut right = left.clone();
-    left.file_path = Some(JsString::from_code_units(&[0xd800, 0xdc00]));
-    right.file_path = Some(JsString::from_code_units(&[0xe000]));
+    left.file_name = Some(JsString::from_code_units(&[0xd800, 0xdc00]));
+    right.file_name = Some(JsString::from_code_units(&[0xe000]));
     assert_eq!(compare_diagnostics(&left, &right), Ordering::Less);
-    assert_eq!(left.file_path.cmp(&right.file_path), Ordering::Greater);
+    assert_eq!(left.file_name.cmp(&right.file_name), Ordering::Greater);
     let related = |unit| RelatedInfo {
         file_name: Some(JsString::from_code_units(&[unit])),
         start: Some(0),
@@ -313,23 +313,19 @@ fn diagnostic_new_propagates_generated_flags_and_sidecars() {
 }
 
 #[test]
-fn config_source_path_orders_before_program_sources_without_changing_display_name() {
-    // TypeScript 6.0.3 config-none-deprecated-blocked command: the parsed
-    // config SourceFile.path is "", while its fileName is the full path.
-    let config =
-        diagnostic(Some("/project/tsconfig.json"), Some(29), 5107, "deprecated").with_file_path("");
+fn config_diagnostics_order_by_the_config_file_name() {
+    // tsgo's CompareDiagnostics compares File().FileName()
+    // (ast/diagnostic.go:390-395), so a config file's diagnostics sort among
+    // the sources by its name; tsc 6.0 compared the empty SourceFile.path of
+    // a parsed config and put them first.
+    let config = diagnostic(Some("/project/tsconfig.json"), Some(29), 5107, "deprecated");
     let source = diagnostic(Some("/project/src/main.ts"), Some(0), 1148, "module none");
     let global = diagnostic(None, None, 5000, "global");
-    let mut diagnostics = vec![source, config.clone(), global, config];
+    let mut diagnostics = vec![config.clone(), source, global, config];
     sort_and_dedupe_diagnostics(&mut diagnostics);
-    assert_eq!(diagnostics.len(), 3);
     assert_eq!(
         diagnostics.iter().map(Diagnostic::code).collect::<Vec<_>>(),
-        [5000, 5107, 1148]
-    );
-    assert_eq!(
-        diagnostics[1].file_name.as_ref().and_then(JsString::as_str),
-        Some("/project/tsconfig.json")
+        [5000, 1148, 5107]
     );
 }
 

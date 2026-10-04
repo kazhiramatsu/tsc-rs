@@ -322,6 +322,27 @@ fn declaration_names_follow_tsgo_outputpaths() {
 }
 
 #[test]
+fn fixture_paths_keep_their_roots_like_get_normalized_absolute_path() {
+    // tspath.GetNormalizedAbsolutePath: a rooted unit name (a drive, a UNC
+    // share or `/`) is not joined with the current directory.
+    assert_eq!(absolute("/.src", "tsconfig.json"), "/.src/tsconfig.json");
+    assert_eq!(absolute("/.src", "./src/../a.ts"), "/.src/a.ts");
+    assert_eq!(
+        absolute("/.src", "/foo/tsconfig.json"),
+        "/foo/tsconfig.json"
+    );
+    assert_eq!(absolute("/.src", "c:/app/main.ts"), "c:/app/main.ts");
+    assert_eq!(
+        absolute("/.src", "C:/foo/bar/Baz/src/sample.ts"),
+        "C:/foo/bar/Baz/src/sample.ts"
+    );
+    assert_eq!(
+        absolute("/.src", "//server/share/a.ts"),
+        "//server/share/a.ts"
+    );
+}
+
+#[test]
 fn the_js_map_baseline_follows_the_map_options() {
     use super::emit_baseline::{render_js_map, Emission, EmittedFile, MapOptions};
     let inputs = [errors_baseline::InputFile {

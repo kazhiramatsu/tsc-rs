@@ -215,11 +215,9 @@ pub struct CanonicalHead {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Diagnostic {
+    /// The SourceFile's `FileName()`, which also orders diagnostics
+    /// (tsgo's getDiagnosticPath, ast/diagnostic.go:390-395).
     pub file_name: Option<JsString>,
-    /// SourceFile.path when it differs from the displayed file name.
-    /// Parsed config sources have an empty path until owned by a Program.
-    /// getDiagnosticFilePath compares this identity, not fileName.
-    pub file_path: Option<JsString>,
     pub start: Option<u32>,
     pub length: Option<u32>,
     pub message: MessageChain,
@@ -263,7 +261,6 @@ impl Diagnostic {
         let metadata = by_code(message.code);
         Self {
             file_name,
-            file_path: None,
             start,
             length,
             message,
@@ -279,11 +276,6 @@ impl Diagnostic {
             source: None,
             skipped_on_no_emit: false,
         }
-    }
-
-    pub fn with_file_path(mut self, path: impl Into<JsString>) -> Self {
-        self.file_path = Some(path.into());
-        self
     }
 
     pub fn with_reports_unnecessary(mut self, value: Option<bool>) -> Self {
@@ -372,17 +364,13 @@ pub fn sort_and_dedupe_diagnostics(diagnostics: &mut DiagnosticList) {
     *diagnostics = kept;
 }
 
+/// tsgo's CompareDiagnostics (ast/diagnostic.go:482-520) orders by the
+/// file name (`getDiagnosticPath` is `File().FileName()`), where tsc 6.0
+/// used `SourceFile.path`, which was empty for a parsed config file.
 fn compare_diagnostics_skip_related(left: &Diagnostic, right: &Diagnostic) -> Ordering {
     compare_optional_strings_case_sensitive(
-        left.file_path
-            .as_ref()
-            .or(left.file_name.as_ref())
-            .map(JsString::as_js),
-        right
-            .file_path
-            .as_ref()
-            .or(right.file_name.as_ref())
-            .map(JsString::as_js),
+        left.file_name.as_ref().map(JsString::as_js),
+        right.file_name.as_ref().map(JsString::as_js),
     )
     .then_with(|| left.start.cmp(&right.start))
     .then_with(|| left.length.cmp(&right.length))

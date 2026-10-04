@@ -466,9 +466,6 @@ fn project_diagnostic(
     projected.file_name = projected
         .file_name
         .map(|name| project_file_name(name, root_path, input_file_name));
-    projected.file_path = projected
-        .file_path
-        .map(|name| project_file_name(name, root_path, input_file_name));
     for related in &mut projected.related {
         related.file_name = related
             .file_name

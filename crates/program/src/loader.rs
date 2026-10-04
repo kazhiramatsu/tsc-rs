@@ -4533,6 +4533,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 )
             })?
         };
+        // tsgo names the reference as written in its diagnostics
+        // (`diagnosticFileName`, compiler/fileloader.go:697), where tsc 6.0
+        // named the resolved path.
         let reference_path = crate::js_path::normalize_slashes(reference.file_name());
         let has_extension = reference_path
             .as_js()
@@ -4561,13 +4564,13 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 let (message, arguments) = if is_javascript_source(target.canonical()) {
                     (
                         &gen::File_0_is_a_JavaScript_file_Did_you_mean_to_enable_the_allowJs_option,
-                        vec![target.display().to_owned()],
+                        vec![reference_path.clone()],
                     )
                 } else {
                     (
                         &gen::File_0_has_an_unsupported_extension_The_only_supported_extensions_are_1,
                         vec![
-                            target.display().to_owned(),
+                            reference_path.clone(),
                             JsString::from(supported_source_extension_list(self.compiler_options.allow_js)),
                         ],
                     )
@@ -4610,7 +4613,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     reference.pos(),
                     reference.length(),
                     &gen::File_0_not_found,
-                    &[target.display().to_owned()],
+                    std::slice::from_ref(&reference_path),
                 )?),
             }
             return Ok(());
@@ -4662,7 +4665,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             reference.length(),
             &gen::Could_not_resolve_the_path_0_with_the_extensions_1,
             &[
-                normalized,
+                reference_path,
                 JsString::from(supported_source_extension_list(
                     self.compiler_options.allow_js,
                 )),

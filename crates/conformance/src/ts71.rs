@@ -31,7 +31,8 @@ use tsc_compiler::{
 use tsc_diagnostics::{Diagnostic, PositionIndex};
 use tsc_harness::upstream_suites::execution::{
     load_native_compiler_program, load_native_declaration_program, native_compiler_fixture,
-    native_compiler_plan, read_test_library, CompilerExecutionPlan, CompilerRootSelection,
+    native_compiler_plan, normalize_compiler_fixture_path, read_test_library,
+    CompilerExecutionPlan, CompilerRootSelection,
 };
 use tsc_harness::upstream_suites::native::{
     expand_case, NativeCase, NativeConfiguration, NativeProfile, NativeSkip, NativeSuite,
@@ -458,14 +459,8 @@ fn plan_units(plan: &CompilerExecutionPlan) -> (Units, Units, Units) {
             .iter()
             .find(|unit| unit.id == *id)
             .map(|unit| {
-                let name = unit.name.replace('\\', "/");
-                let path = if name.starts_with('/') {
-                    name
-                } else {
-                    format!("{}/{}", plan.current_directory.trim_end_matches('/'), name)
-                };
                 let content = unit.content.as_deref().unwrap_or_default().to_owned();
-                (normalize(&path), content)
+                (absolute(&plan.current_directory, &unit.name), content)
             })
     };
     (
@@ -572,13 +567,10 @@ impl EmitFacts {
     }
 }
 
-/// `GetNormalizedAbsolutePath(path, currentDirectory)`.
+/// `GetNormalizedAbsolutePath(path, currentDirectory)`, keeping a rooted
+/// name such as `c:/app/main.ts` (`GetRootLength`).
 fn absolute(current_directory: &str, path: &str) -> String {
-    if path.starts_with('/') {
-        normalize(path)
-    } else {
-        normalize(&format!("{current_directory}/{path}"))
-    }
+    normalize_compiler_fixture_path(current_directory, path).unwrap_or_else(|_| path.to_owned())
 }
 
 /// Emit the configuration as the native harness's second Program does
@@ -648,7 +640,7 @@ fn add_dts_file(
     let source_file_name = match &facts.out_dir {
         Some(out_dir) => {
             let relative = path.replacen(&facts.common_source_directory, "", 1);
-            normalize(&format!("{out_dir}/{relative}"))
+            absolute("/", &format!("{out_dir}/{relative}"))
         }
         None => path.clone(),
     };
@@ -835,20 +827,6 @@ fn dump_file(directory: &Path, suite: NativeSuite, file_name: &str, content: &st
     if let Err(error) = written {
         eprintln!("{}: {error}", path.display());
     }
-}
-
-fn normalize(path: &str) -> String {
-    let mut parts: Vec<&str> = Vec::new();
-    for part in path.split('/') {
-        match part {
-            "" | "." => {}
-            ".." => {
-                parts.pop();
-            }
-            part => parts.push(part),
-        }
-    }
-    format!("/{}", parts.join("/"))
 }
 
 #[allow(clippy::too_many_arguments)]

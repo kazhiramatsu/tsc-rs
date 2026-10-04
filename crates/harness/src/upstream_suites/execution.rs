@@ -1245,12 +1245,16 @@ fn compiler_fixture_from_parts(
                 ))
             })?;
             let host = CompilerFixtureConfigHost::new(&units);
+            // tsgo's test case parser names the config by its normalized
+            // absolute path (testrunner/test_case_parser.go:84), which its
+            // diagnostics carry and sort by.
+            let file_name = normalize_compiler_fixture_path(&current_directory, &unit.name)?;
             let parsed = parse_config_root_plan(
                 &host,
                 ConfigRootPlanRequest {
-                    file_name: unit.name.as_ref().into(),
+                    file_name: file_name.as_str().into(),
                     text: text.to_owned(),
-                    base_path: VIRTUAL_SOURCE_ROOT.into(),
+                    base_path: current_directory.as_str().into(),
                 },
             );
             let config_host_log = Arc::from(host.into_log()?);
@@ -1512,7 +1516,7 @@ fn normalize_compiler_unit_path(path: &str) -> HarnessResult<String> {
 /// tsc-port: simpleNormalizePath @6.0.3
 /// tsc-hash: 1b1c1e16f323aede30aef78eaa9ab10df07777d696b878d6bac40df2f7515ac7
 /// tsc-span: _tsc.js:5577-5592
-fn normalize_compiler_fixture_path(base: &str, path: &str) -> HarnessResult<String> {
+pub fn normalize_compiler_fixture_path(base: &str, path: &str) -> HarnessResult<String> {
     let path = path.replace('\\', "/");
     let combined = if compiler_fixture_root_parts(&path).is_some() {
         path
