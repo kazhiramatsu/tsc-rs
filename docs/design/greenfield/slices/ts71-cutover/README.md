@@ -1905,6 +1905,19 @@ conditional typeを返す関数から返すだけでtsgoはTS2719を出す。原
   distributedな型parameterそのものが関わる比較は2,519件だけで、増えた分はdistributedな型parameterを含む別の型の
   比較だった。tsgoの規則が求める仕事で、実装の無駄ではない（mapperの正規化を入口1回にし、check typeのsymbolを
   cacheしても命令数は変わらなかった）。
+- hosted：PR #661（head `e73127fd3`、merge `9c1186709`）、run 37211026146 — `plan` 29s、`rust` 9m44s、
+  `conformance (TypeScript 7.1)` 15m19s、`gates` 12s。
+- perf（README corpora、nice 20、main（P3-5aiのbuild `b6fde98f7`）対tsgo 7.1.0-dev）：
+  - `--noEmit` 3回のmedian（ms、main→branch、最初のbuild `b0f71e345`）：hono 134→141、zod 564→599、Playwright 399→400、
+    TypeScript `src/compiler` 360→341、Next.js 795→853、Effect 551→552、VS Code 3,760→3,636。tsc-rs÷tsgo 0.66–0.95。
+    読み込んだ文書数は7 corporaとも同一、診断は5 corporaで同一、EffectとVS Codeは上記のとおりtsgoの診断が増えた。
+  - 最終build（`ec3bc970c`）の10回のA/B：zod `--noEmit` 618→597、Next.js `--noEmit` 874→926、zod `bench-full`
+    780→765、Effect `bench-full` 943→926。1 checkerの命令数（5回のmedian）branch÷main 1.02836（Next.js）、
+    1.00762（zod）。
+  - `tsconfig.bench-full.json` 3回（最初のbuild）：hono 154→152、zod 676→733、Playwright 605→605、TypeScript
+    `src/compiler` 583→555、Next.js 1,096→1,101、Effect 827→865。tsc-rs÷tsgo 0.59–0.80。出力fileは6 corporaとも同一、
+    診断は5 corporaで同一、Effectは上記。
+  - Next.jsの+2.8%は上記の規則のコストとして記録し、mergeした（ユーザーの判断事項として報告する）。
 - local：formatとworkspace全体のclippy。types・diagnostics・syntax・binder・program・harness・emitter・checker・
   compiler・conformanceのtest（65 targets、3,669件成功・1件失敗。conditional typeの単純化のtestを直した後にcheckerの
   lib 1,796件を再実行）。試行（filter `onditional`・`nfer`・`apped`・`eneric`）で下がった構成は無かった。
