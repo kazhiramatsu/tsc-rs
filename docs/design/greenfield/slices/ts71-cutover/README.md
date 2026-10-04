@@ -1974,4 +1974,4 @@ P3-5akの後、`require`で読むJSONの3件：
   - emitは変化なし。下がった構成も、不一致のまま描いた文が変わった構成も無い。
 - ratchet：0 regressions、3行raise。
 - local：formatとworkspace全体のclippy。syntax・binder・program・harness・emitter・checker・compiler・conformanceの
-  test（60 targets、3,580件）。filter `son`・`equire`で下がった構成は無かった。
+  test（60 targets、3,580件）。filter `son`・`equire`（tsconfigにも検証を入れていた途中のbuild）で下がった構成は無かった。
