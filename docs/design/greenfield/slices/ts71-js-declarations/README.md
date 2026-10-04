@@ -244,8 +244,10 @@ emitterは`tsc-binder`に依存するようになった。
 - 残り：
   - expando（`function f() {}`や`const f = () => {}`への`f.x = …`）：tsgoはdeclaration transformの中でexpandoを
     集め、`declare function`とnamespaceに書く（`visitNestedExpression`、`transformExpandoAssignment`、
-    `createFullExpandoBlock`、transform.go:2700-2970）。namespaceのmemberは`let`で、keywordの名前は生成した名前と
-    `export { … as … }`にする。tsc-rsはTypeScriptでもtsc 6.0のexpandoの書き方なので、TypeScriptと合わせて次の
-    sliceで移植する。
+    `createFullExpandoBlock`、transform.go:2700-2970）。namespaceのmemberは`var`（`NodeFlagsNone`）で、keywordの
+    名前は生成した名前と`export { … as … }`にする（PR本文の`let`は誤りで、`let`は従来のsymbol直列化の書き方）。
+    tsc-rsはTypeScriptでもtsc 6.0のexpandoの書き方なので、TypeScriptと合わせて次のsliceで移植する。
   - checkerの差（J1bの記録のとおり）。
   - CommonJSのfileは従来の経路（J3）。
+- hosted：PR #648（head `ebe28b5ca`、merge `e723d5f6c`）、run 37167233210 — `plan` 27s、`rust` 9m34s、`conformance (TypeScript 7.1)` 19m25s、`gates` 11s。
+- perf（README corpora、`--noEmit`、3 rounds、nice 20、main `e38d9b16e`（J1bのcode `4c15abfbc`と同じcodeのrelease build）と本branch（`4c54b986f`）のrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 136→126、zod 512→512、Playwright 360→356、TypeScript `src/compiler` 340→329、Next.js 781→743、Effect 515→491、VS Code 3,420→3,370。tsc-rs÷tsgoは0.59〜0.97、peak memory（MB main→本branch）：318→315、1,290→1,297、810→808、290→289、1,319→1,322、1,024→1,042、5,446→5,448。診断の出力と読み込んだdocument数は7 corpusともmainと同一。`tsconfig.bench-full.json`（JS・d.ts・source map、3 rounds）：hono 149→146、zod 606→611、Playwright 473→481、TypeScript `src/compiler` 537→489、Next.js 1,003→980、Effect 784→793（tsgo比0.57〜0.78）。zodの差をA/Bで確かめた：5 roundsはmain／本branch 575／578 ms、peak RSS 1,506／1,508 MB、単一checker（`TSRS_CHECKERS=1`）の命令数（5回のmedian）は39.364／39.376 G、peak memory footprint 939.2／938.4 MBで同じ。診断は6 corpusともmainと同一。出力はTypeScript `src/compiler`とEffectで同一、hono 15・zod 1・Playwright 7・Next.js 12 fileの.d.tsが変わり、変わった行は引用符を揃えるとすべて一致する（再利用した文字列literal型が元の`'…'`を保ち、tsgoの出力に近づいた）。退行なし。
