@@ -2590,6 +2590,35 @@ fn diagnostic_type_display_reuses_returns_only_under_an_enclosing_declaration() 
 }
 
 #[test]
+fn string_literal_export_names_are_allowed_in_declaration_files_like_tsgo() {
+    // tsgo's checkModuleExportName reports TS18057 under es2015/es2020 only
+    // outside declaration files (checker.go:5517-5528). The expected
+    // diagnostics are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.d.ts"),
+        "declare function D(): void;\nexport { D as \"Does not work yet\" };\n",
+    )
+    .expect("write a.d.ts");
+    fs::write(
+        tree.path("b.ts"),
+        "function E() {}\nexport { E as \"neither does this\" };\n",
+    )
+    .expect("write b.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2015","module":"es2015","noEmit":true,"types":[]},"files":["a.d.ts","b.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("utf-8 stdout"),
+        "b.ts(2,15): error TS18057: String literal import and export names are not supported when the '--module' flag is set to 'es2015' or 'es2020'.\n"
+    );
+}
+
+#[test]
 fn error_recovery_syntax_is_erased_like_tsgo() {
     // tsgo's type eraser drops type parameters and return types from accessors
     // and constructors, every modifier of a constructor it visits, and `in`/`out`
