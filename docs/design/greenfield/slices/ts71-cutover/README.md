@@ -1975,3 +1975,13 @@ P3-5akの後、`require`で読むJSONの3件：
 - ratchet：0 regressions、3行raise。
 - local：formatとworkspace全体のclippy。syntax・binder・program・harness・emitter・checker・compiler・conformanceの
   test（60 targets、3,580件）。filter `son`・`equire`（tsconfigにも検証を入れていた途中のbuild）で下がった構成は無かった。
+- hosted：PR #663（head `4cf514532`）、run 37215664101 — `plan` 29s、`rust` 10m23s、`conformance (TypeScript 7.1)` 14m19s、
+  `gates` 13s。
+- perf（README corpora、nice 20、main（P3-5akのbuild `d2e55b7c8`）対tsgo 7.1.0-dev）：
+  - `--noEmit` 3回のmedian（ms、main→branch）：hono 145→151、zod 561→571、Playwright 393→389、TypeScript `src/compiler`
+    363→353、Next.js 875→832、Effect 533→555、VS Code 3,857→3,689。tsc-rs÷tsgo 0.58–0.97。読み込んだ文書数と診断は
+    7 corporaで同一。
+  - 10回のA/B：hono `--noEmit` 129→126、Effect `--noEmit` 530→510、zod `bench-full` 637→641。1 checkerの命令数
+    branch÷main：hono 1.00038、Effect 0.99971。3回のmedianの差はnoise。
+  - `tsconfig.bench-full.json` 3回：hono 158→158、zod 673→695、Playwright 534→521、TypeScript `src/compiler` 573→525、
+    Next.js 1,134→1,085、Effect 823→821。tsc-rs÷tsgo 0.57–0.79。6 corporaとも出力fileと診断は同一。劣化無し。
