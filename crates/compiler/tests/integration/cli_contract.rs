@@ -1449,6 +1449,80 @@ fn javascript_script_declarations_follow_tsgo() {
 }
 
 #[test]
+fn javascript_template_tags_on_function_expressions_follow_tsgo() {
+    // tsgo's reparser gives a function expression, arrow function or object
+    // literal method the type parameters of its `@template` tags, so the
+    // type written for the variable or property has them; an `@implements`
+    // tag without a type leaves no `implements` clause. The expected bytes
+    // are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("lib.js"),
+        concat!(
+            "/**\n",
+            " * @template T\n",
+            " * @param {T} a\n",
+            " * @returns {(b: T) => T}\n",
+            " */\n",
+            "const seq = a => b => b;\n",
+            "\n",
+            "const helpers = {\n",
+            "    /**\n",
+            "     * @template {string} K\n",
+            "     * @param {K} key\n",
+            "     * @returns {K}\n",
+            "     */\n",
+            "    id(key) {\n",
+            "        return key;\n",
+            "    },\n",
+            "};\n",
+            "\n",
+            "/** @implements */\n",
+            "class Empty {}\n",
+            "\n",
+            "/** @type {string} */\n",
+            "var text = seq(\"a\")(\"b\");\n",
+        ),
+    )
+    .expect("write lib");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2022","allowJs":true,"checkJs":true,"declaration":true,"emitDeclarationOnly":true,"types":[],"outDir":"out"},"files":["lib.js"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        "lib.js(19,16): error TS1003: Identifier expected.\n"
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/lib.d.ts")).expect("read declarations"),
+        concat!(
+            "/**\n",
+            " * @template T\n",
+            " * @param {T} a\n",
+            " * @returns {(b: T) => T}\n",
+            " */\n",
+            "declare const seq: <T>(a: T) => (b: T) => T;\n",
+            "declare const helpers: {\n",
+            "    /**\n",
+            "     * @template {string} K\n",
+            "     * @param {K} key\n",
+            "     * @returns {K}\n",
+            "     */\n",
+            "    id<K extends string>(key: K): K;\n",
+            "};\n",
+            "/** @implements */\n",
+            "declare class Empty {\n",
+            "}\n",
+            "/** @type {string} */\n",
+            "declare var text: string;\n",
+        )
+    );
+}
+
+#[test]
 fn declarations_and_namespace_merges_follow_tsgo() {
     // tsgo keeps a binding pattern without initializers whole in a `.d.ts`,
     // typed as the whole declaration; a variable, function or class already
