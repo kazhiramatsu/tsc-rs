@@ -1122,8 +1122,14 @@ impl Transformer for EcmaScriptModuleTransformer<'_> {
         }
         if was_external {
             let current_root = context.arena().root(source)?;
-            let mut visitor =
-                EcmaScriptModuleEqualsVisitor::new(context, source, self.module_kind, self.target);
+            let mut visitor = EcmaScriptModuleEqualsVisitor::new(
+                context,
+                source,
+                self.module_kind,
+                self.target,
+                self.rewrite_relative_import_extensions
+                    .then_some(self.preserve_jsx),
+            );
             let rewritten = visitor.transform_source_file(current_root)?;
             visitor
                 .context
@@ -1297,6 +1303,8 @@ struct EcmaScriptModuleEqualsVisitor<'context> {
     source: TransformSourceId,
     module_kind: i32,
     target: ScriptTarget,
+    /// `Some(preserve_jsx)` under rewriteRelativeImportExtensions.
+    rewrite_relative_import_extensions: Option<bool>,
     used_names: target_bindings::UsedNames,
     create_require_name: Option<String>,
     require_name: Option<String>,
@@ -1308,6 +1316,7 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
         source: TransformSourceId,
         module_kind: i32,
         target: ScriptTarget,
+        rewrite_relative_import_extensions: Option<bool>,
     ) -> Self {
         let used_names = system::collect_identifier_texts(context.arena(), source);
         Self {
@@ -1315,6 +1324,7 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
             source,
             module_kind,
             target,
+            rewrite_relative_import_extensions,
             used_names,
             create_require_name: None,
             require_name: None,
@@ -1545,6 +1555,13 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
         // getExternalModuleNameLiteral's ordinary fallback preserves the
         // literal's original-node link through a synthesized clone.
         let module_specifier = self.context.factory()?.clone_node(module_specifier)?;
+        // createRequireCall rewrites the specifier (esmodule.go:290-296).
+        let module_specifier = match self.rewrite_relative_import_extensions {
+            Some(preserve_jsx) => {
+                relative_imports::rewrite_literal(self.context, module_specifier, preserve_jsx)?
+            }
+            None => module_specifier,
+        };
         let require = if self.module_kind == MODULE_PRESERVE {
             self.create_identifier("require")?
         } else {

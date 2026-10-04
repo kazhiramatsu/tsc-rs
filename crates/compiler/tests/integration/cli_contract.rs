@@ -4599,6 +4599,46 @@ fn namespace_and_enum_names_stay_local_in_commonjs_like_tsgo() {
 }
 
 #[test]
+fn import_equals_require_specifiers_are_rewritten_like_tsgo() {
+    // tsgo's ES module transform rewrites the specifier of the require call
+    // it creates for an import-equals declaration (createRequireCall,
+    // esmodule.go:290-296). The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(tree.path("foo.ts"), "export const x = 1;\n").expect("write foo.ts");
+    fs::write(
+        tree.path("globals.d.ts"),
+        "declare function require(module: string): any;\n",
+    )
+    .expect("write globals.d.ts");
+    fs::write(
+        tree.path("main.ts"),
+        concat!(
+            "import foo = require(\"./foo.ts\");\n",
+            "export import bar = require(\"./foo.ts\");\n",
+            "export const y = foo.x + bar.x;\n",
+        ),
+    )
+    .expect("write main.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"target":"esnext","module":"preserve","verbatimModuleSyntax":true,"rewriteRelativeImportExtensions":true,"outDir":"out"},"files":["globals.d.ts","foo.ts","main.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/main.js")).expect("read main.js"),
+        concat!(
+            "const foo = require(\"./foo.js\");\n",
+            "const bar = require(\"./foo.js\");\n",
+            "export { bar };\n",
+            "export const y = foo.x + bar.x;\n",
+        )
+    );
+}
+
+#[test]
 fn error_recovery_syntax_is_erased_like_tsgo() {
     // tsgo's type eraser drops type parameters and return types from accessors
     // and constructors, every modifier of a constructor it visits, and `in`/`out`
