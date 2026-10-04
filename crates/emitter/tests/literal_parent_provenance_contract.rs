@@ -43,6 +43,9 @@ fn literal_parent_provenance_matches_typescript() {
     assert_eq!(artifact["typescript"], "6.0.3");
     assert_eq!(artifact["route"], "direct-factory-and-printer");
     assert_eq!(artifact["repetitions"], 2);
+    // The observations are tsc 6.0.3's except the fixture's `tsgo_overrides`
+    // cases: TypeScript 7.1 escapes an unpaired surrogate even under
+    // NeverAsciiEscape (printer/utilities.go:84-86).
     let cases = artifact["cases"].as_array().unwrap();
     assert_eq!(cases.len(), 128);
     let mut failures = Vec::new();

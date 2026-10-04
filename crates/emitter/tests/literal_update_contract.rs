@@ -975,6 +975,9 @@ fn load(bytes: &[u8], group: &str, count: usize) -> Vec<Value> {
 
 #[test]
 fn factory_literal_updates_match_typescript() {
+    // The observations are tsc 6.0.3's except the fixture's `tsgo_overrides`
+    // cases: TypeScript 7.1 escapes an unpaired surrogate even under
+    // NeverAsciiEscape (printer/utilities.go:84-86).
     let cases = load(
         include_bytes!("fixtures/literal-update-factory.json"),
         "factory",
@@ -1027,6 +1030,9 @@ fn transform_routes_match_typescript() {
 
 #[test]
 fn lifetime_controls_keep_literal_properties_across_disposal() {
+    // The observations are tsc 6.0.3's except the fixture's `tsgo_overrides`
+    // cases: TypeScript 7.1 escapes an unpaired surrogate even under
+    // NeverAsciiEscape (printer/utilities.go:84-86).
     let cases = load(
         include_bytes!("fixtures/literal-update-lifetime.json"),
         "lifetime",

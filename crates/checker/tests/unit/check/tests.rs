@@ -11,6 +11,9 @@ fn literal_type_displays_and_diagnostics_retain_typescript_utf16_values() {
         "../../fixtures/utf16-literal-type-display.json"
     ))
     .unwrap();
+    // The observations are tsc 6.0.3's except the `printed` field of the
+    // fixture's `tsgo_overrides` cases: TypeScript 7.1 escapes an unpaired
+    // surrogate even under NeverAsciiEscape (printer/utilities.go:84-86).
     for case in fixture["cases"].as_array().unwrap() {
         let units = |field: &str| -> Vec<u16> {
             case[field]

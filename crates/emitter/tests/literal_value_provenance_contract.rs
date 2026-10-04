@@ -196,6 +196,9 @@ fn check_fixture(bytes: &[u8], count: usize, kind: LiteralKind, description: &st
 
 #[test]
 fn template_raw_provenance_matches_typescript() {
+    // The observations are tsc 6.0.3's except the fixture's `tsgo_overrides`
+    // cases: TypeScript 7.1 escapes an unpaired surrogate even under
+    // NeverAsciiEscape (printer/utilities.go:84-86).
     check_fixture(
         include_bytes!("fixtures/template-raw-provenance.json"),
         480,
@@ -206,6 +209,9 @@ fn template_raw_provenance_matches_typescript() {
 
 #[test]
 fn string_property_provenance_matches_typescript() {
+    // The observations are tsc 6.0.3's except the fixture's `tsgo_overrides`
+    // cases: TypeScript 7.1 escapes an unpaired surrogate even under
+    // NeverAsciiEscape (printer/utilities.go:84-86).
     check_fixture(
         include_bytes!("fixtures/string-property-provenance.json"),
         60,

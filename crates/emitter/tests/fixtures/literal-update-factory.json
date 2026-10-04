@@ -76358,15 +76358,20 @@
         "printed": {
           "text_utf16": [
             34,
-            55296,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
             34
           ],
-          "utf8_base64": "Iu+/vSI=",
-          "utf8_bytes": 5,
+          "utf8_base64": "Ilx1RDgwMCI=",
+          "utf8_bytes": 8,
           "end_utf16": {
-            "position": 3,
+            "position": 8,
             "line": 0,
-            "column": 3
+            "column": 8
           }
         }
       }
@@ -76427,15 +76432,20 @@
         "printed": {
           "text_utf16": [
             34,
-            56320,
+            92,
+            117,
+            68,
+            67,
+            48,
+            48,
             34
           ],
-          "utf8_base64": "Iu+/vSI=",
-          "utf8_bytes": 5,
+          "utf8_base64": "Ilx1REMwMCI=",
+          "utf8_bytes": 8,
           "end_utf16": {
-            "position": 3,
+            "position": 8,
             "line": 0,
-            "column": 3
+            "column": 8
           }
         }
       }
@@ -76861,15 +76871,20 @@
         "printed": {
           "text_utf16": [
             34,
-            55297,
+            92,
+            117,
+            68,
+            56,
+            48,
+            49,
             34
           ],
-          "utf8_base64": "Iu+/vSI=",
-          "utf8_bytes": 5,
+          "utf8_base64": "Ilx1RDgwMSI=",
+          "utf8_bytes": 8,
           "end_utf16": {
-            "position": 3,
+            "position": 8,
             "line": 0,
-            "column": 3
+            "column": 8
           }
         }
       }
@@ -76930,15 +76945,20 @@
         "printed": {
           "text_utf16": [
             34,
-            56321,
+            92,
+            117,
+            68,
+            67,
+            48,
+            49,
             34
           ],
-          "utf8_base64": "Iu+/vSI=",
-          "utf8_bytes": 5,
+          "utf8_base64": "Ilx1REMwMSI=",
+          "utf8_bytes": 8,
           "end_utf16": {
-            "position": 3,
+            "position": 8,
             "line": 0,
-            "column": 3
+            "column": 8
           }
         }
       }
@@ -76999,15 +77019,20 @@
         "printed": {
           "text_utf16": [
             34,
-            55296,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
             34
           ],
-          "utf8_base64": "Iu+/vSI=",
-          "utf8_bytes": 5,
+          "utf8_base64": "Ilx1RDgwMCI=",
+          "utf8_bytes": 8,
           "end_utf16": {
-            "position": 3,
+            "position": 8,
             "line": 0,
-            "column": 3
+            "column": 8
           }
         }
       }
@@ -77077,16 +77102,26 @@
           "text_utf16": [
             34,
             97,
-            56320,
-            55296,
+            92,
+            117,
+            68,
+            67,
+            48,
+            48,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
             34
           ],
-          "utf8_base64": "ImHvv73vv70i",
-          "utf8_bytes": 9,
+          "utf8_base64": "ImFcdURDMDBcdUQ4MDAi",
+          "utf8_bytes": 15,
           "end_utf16": {
-            "position": 5,
+            "position": 15,
             "line": 0,
-            "column": 5
+            "column": 15
           }
         }
       }
@@ -77912,15 +77947,20 @@
         "printed": {
           "text_utf16": [
             34,
-            55297,
+            92,
+            117,
+            68,
+            56,
+            48,
+            49,
             34
           ],
-          "utf8_base64": "Iu+/vSI=",
-          "utf8_bytes": 5,
+          "utf8_base64": "Ilx1RDgwMSI=",
+          "utf8_bytes": 8,
           "end_utf16": {
-            "position": 3,
+            "position": 8,
             "line": 0,
-            "column": 3
+            "column": 8
           }
         }
       }
@@ -77981,15 +78021,20 @@
         "printed": {
           "text_utf16": [
             34,
-            56321,
+            92,
+            117,
+            68,
+            67,
+            48,
+            49,
             34
           ],
-          "utf8_base64": "Iu+/vSI=",
-          "utf8_bytes": 5,
+          "utf8_base64": "Ilx1REMwMSI=",
+          "utf8_bytes": 8,
           "end_utf16": {
-            "position": 3,
+            "position": 8,
             "line": 0,
-            "column": 3
+            "column": 8
           }
         }
       }
@@ -78050,15 +78095,20 @@
         "printed": {
           "text_utf16": [
             34,
-            55296,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
             34
           ],
-          "utf8_base64": "Iu+/vSI=",
-          "utf8_bytes": 5,
+          "utf8_base64": "Ilx1RDgwMCI=",
+          "utf8_bytes": 8,
           "end_utf16": {
-            "position": 3,
+            "position": 8,
             "line": 0,
-            "column": 3
+            "column": 8
           }
         }
       }
@@ -78128,19 +78178,44 @@
           "text_utf16": [
             34,
             97,
-            56320,
-            55296,
+            92,
+            117,
+            68,
+            67,
+            48,
+            48,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
             34
           ],
-          "utf8_base64": "ImHvv73vv70i",
-          "utf8_bytes": 9,
+          "utf8_base64": "ImFcdURDMDBcdUQ4MDAi",
+          "utf8_bytes": 15,
           "end_utf16": {
-            "position": 5,
+            "position": 15,
             "line": 0,
-            "column": 5
+            "column": 15
           }
         }
       }
     }
-  ]
+  ],
+  "tsgo_overrides": {
+    "reason": "TypeScript 7.1's escapeStringWorker escapes an unpaired surrogate even under NeverAsciiEscape (printer/utilities.go:84-86); tsc 6.0.3 wrote it raw",
+    "cases": [
+      "literal-update/StringLiteral/parsed/cooked/fffd-node-no-ascii",
+      "literal-update/StringLiteral/parsed/cooked/lone-high-node-no-ascii",
+      "literal-update/StringLiteral/parsed/cooked/lone-low-node-no-ascii",
+      "literal-update/StringLiteral/parsed/cooked/mixed-node-no-ascii",
+      "literal-update/StringLiteral/synthetic/cooked/fffd-node-no-ascii",
+      "literal-update/StringLiteral/synthetic/cooked/lone-high-node-no-ascii",
+      "literal-update/StringLiteral/synthetic/cooked/lone-low-node-no-ascii",
+      "literal-update/StringLiteral/synthetic/cooked/mixed-node-no-ascii",
+      "literal-update/StringLiteral/synthetic/same/lone-high-node-no-ascii",
+      "literal-update/StringLiteral/synthetic/same/lone-low-node-no-ascii"
+    ]
+  }
 }

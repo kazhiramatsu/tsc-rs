@@ -84,29 +84,39 @@
         "printed_before_dispose": {
           "text_utf16": [
             34,
-            55296,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
             34
           ],
-          "utf8_base64": "Iu+/vSI=",
-          "utf8_bytes": 5,
+          "utf8_base64": "Ilx1RDgwMCI=",
+          "utf8_bytes": 8,
           "end_utf16": {
-            "position": 3,
+            "position": 8,
             "line": 0,
-            "column": 3
+            "column": 8
           }
         },
         "printed_after_dispose": {
           "text_utf16": [
             34,
-            55296,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
             34
           ],
-          "utf8_base64": "Iu+/vSI=",
-          "utf8_bytes": 5,
+          "utf8_base64": "Ilx1RDgwMCI=",
+          "utf8_bytes": 8,
           "end_utf16": {
-            "position": 3,
+            "position": 8,
             "line": 0,
-            "column": 3
+            "column": 8
           }
         }
       }
@@ -571,5 +581,11 @@
         }
       }
     }
-  ]
+  ],
+  "tsgo_overrides": {
+    "reason": "TypeScript 7.1's escapeStringWorker escapes an unpaired surrogate even under NeverAsciiEscape (printer/utilities.go:84-86); tsc 6.0.3 wrote it raw",
+    "cases": [
+      "literal-update/lifetime/StringLiteral/synthetic/dispose/lone-high-no-ascii"
+    ]
+  }
 }

@@ -11,6 +11,9 @@ fn utf16_literal_escaping_matches_typescript() {
         serde_json::from_slice(include_bytes!("fixtures/utf16-literal-escaping.json")).unwrap();
     assert_eq!(artifact["typescript"], "6.0.3");
     assert_eq!(artifact["repetitions"], 2);
+    // The observations are tsc 6.0.3's except the fixture's `tsgo_overrides`
+    // cases: TypeScript 7.1 escapes an unpaired surrogate even under
+    // NeverAsciiEscape (printer/utilities.go:84-86).
     let cases = artifact["cases"].as_array().unwrap();
     assert_eq!(cases.len(), 288);
     let mut failures = Vec::new();
@@ -104,6 +107,9 @@ fn declaration_literal_type_no_ascii_flag_preserves_callback_units_until_utf8_ou
         "fixtures/utf16-declaration-literal-printer.json"
     ))
     .unwrap();
+    // The observations are tsc 6.0.3's except the fixture's `tsgo_overrides`
+    // cases: TypeScript 7.1 escapes an unpaired surrogate even under
+    // NeverAsciiEscape (printer/utilities.go:84-86).
     assert_eq!(fixture["cases"].as_array().unwrap().len(), 8);
     for case in fixture["cases"].as_array().unwrap() {
         for _ in 0..2 {

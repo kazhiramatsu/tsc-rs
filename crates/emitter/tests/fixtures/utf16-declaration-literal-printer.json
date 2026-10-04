@@ -52,12 +52,17 @@
         61,
         32,
         34,
-        55296,
+        92,
+        117,
+        68,
+        56,
+        48,
+        48,
         34,
         59
       ],
-      "utf8_base64": "dHlwZSBUID0gIu+/vSI7",
-      "utf8_bytes": 15
+      "utf8_base64": "dHlwZSBUID0gIlx1RDgwMCI7",
+      "utf8_bytes": 18
     },
     {
       "id": "other-high/0",
@@ -105,12 +110,17 @@
         61,
         32,
         34,
-        55297,
+        92,
+        117,
+        68,
+        56,
+        48,
+        49,
         34,
         59
       ],
-      "utf8_base64": "dHlwZSBUID0gIu+/vSI7",
-      "utf8_bytes": 15
+      "utf8_base64": "dHlwZSBUID0gIlx1RDgwMSI7",
+      "utf8_bytes": 18
     },
     {
       "id": "low/0",
@@ -158,12 +168,17 @@
         61,
         32,
         34,
-        56320,
+        92,
+        117,
+        68,
+        67,
+        48,
+        48,
         34,
         59
       ],
-      "utf8_base64": "dHlwZSBUID0gIu+/vSI7",
-      "utf8_bytes": 15
+      "utf8_base64": "dHlwZSBUID0gIlx1REMwMCI7",
+      "utf8_bytes": 18
     },
     {
       "id": "pair/0",
@@ -227,5 +242,13 @@
       "utf8_base64": "dHlwZSBUID0gIvCQgIAiOw==",
       "utf8_bytes": 16
     }
-  ]
+  ],
+  "tsgo_overrides": {
+    "reason": "TypeScript 7.1's escapeStringWorker escapes an unpaired surrogate even under NeverAsciiEscape (printer/utilities.go:84-86); tsc 6.0.3 wrote it raw",
+    "cases": [
+      "high/16777216",
+      "other-high/16777216",
+      "low/16777216"
+    ]
+  }
 }

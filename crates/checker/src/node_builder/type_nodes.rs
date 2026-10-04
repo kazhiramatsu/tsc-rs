@@ -2041,6 +2041,7 @@ fn type_to_type_node_worker(
         let TypeData::TemplateLiteral { texts, types } = ty.data else {
             unreachable!("TemplateLiteral flag implies template payload")
         };
+        // tsgo keeps the texts' characters (nodebuilderimpl.go:3576-3586).
         let head = arena
             .factory()
             .create_template_literal_like_from_code_units(
@@ -2050,6 +2051,7 @@ fn type_to_type_node_worker(
                 None,
             )
             .map_err(factory_error)?;
+        let head = set_no_ascii_escaping(arena, head);
         let mut spans = Vec::with_capacity(types.len());
         for (index, span_type) in types.iter().copied().enumerate() {
             let Some(span_type) =
@@ -2071,6 +2073,7 @@ fn type_to_type_node_worker(
                     None,
                 )
                 .map_err(factory_error)?;
+            let literal = set_no_ascii_escaping(arena, literal);
             spans.push(create_node(
                 arena,
                 target,

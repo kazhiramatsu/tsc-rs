@@ -18,7 +18,12 @@
       ],
       "printed": [
         34,
-        55296,
+        92,
+        117,
+        68,
+        56,
+        48,
+        48,
         34
       ],
       "diagnostics": [
@@ -84,7 +89,12 @@
       ],
       "printed": [
         34,
-        55297,
+        92,
+        117,
+        68,
+        56,
+        48,
+        49,
         34
       ],
       "diagnostics": [
@@ -150,7 +160,12 @@
       ],
       "printed": [
         34,
-        56320,
+        92,
+        117,
+        68,
+        67,
+        48,
+        48,
         34
       ],
       "diagnostics": [
@@ -629,5 +644,13 @@
         }
       ]
     }
-  ]
+  ],
+  "tsgo_overrides": {
+    "reason": "TypeScript 7.1's escapeStringWorker escapes an unpaired surrogate even under NeverAsciiEscape (printer/utilities.go:84-86); tsc 6.0.3 wrote it raw; the `printed` field of these cases",
+    "cases": [
+      "type T = \"\\ud800\"; const value: T = 0;",
+      "type T = \"\\ud801\"; const value: T = 0;",
+      "type T = \"\\udc00\"; const value: T = 0;"
+    ]
+  }
 }
