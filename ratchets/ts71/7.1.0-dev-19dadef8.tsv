@@ -4155,7 +4155,7 @@ compiler/lambdaParamTypes	full	js
 compiler/lambdaParameterWithTupleArgsHasCorrectAssignability	full	js
 compiler/lambdaPropSelf	full	js
 compiler/largeControlFlowGraph	full	js
-compiler/largeStringLiteralUnionSuggestion	category	js
+compiler/largeStringLiteralUnionSuggestion	full	js
 compiler/largeTupleTypes	full	js
 compiler/lastPropertyInLiteralWins	full	js
 compiler/lateBoundAssignmentCandidateJS1	full	js
@@ -6476,7 +6476,7 @@ compiler/unicodeSpellingSuggestions	full	js
 compiler/unicodeStringLiteral	full	js
 compiler/unicodeSurrogatesInStringLiterals	full	js
 compiler/unionCallMixedTypeParameterPresence	full	js
-compiler/unionElementErrorTruncation	category	js
+compiler/unionElementErrorTruncation	full	js
 compiler/unionErrorMessageOnMatchingDiscriminant	full	js
 compiler/unionExcessPropertyCheckNoApparentPropTypeMismatchErrors	full	js
 compiler/unionExcessPropsWithPartialMember	full	js
