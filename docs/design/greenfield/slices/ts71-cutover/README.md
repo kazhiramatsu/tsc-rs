@@ -2262,3 +2262,5 @@ P3-5arの後、emitの2件：
   - 10回のA/B：Effect `--noEmit` 507→526（min 477→466）、zod `bench-full` 642→646、Next.js `bench-full` 1,032→1,029。
     1 checkerの命令数branch÷main：zod 1.00020、Effect 0.99986。変更はemitterだけで`--noEmit`には効かず、差はnoise。
     劣化無し。
+- hosted：PR #670（head `81661e22d`）、run 37227406231 — `plan` 22s、`rust` 8m0s、`conformance (TypeScript 7.1)` 20m8s、
+  `gates` 11s。
