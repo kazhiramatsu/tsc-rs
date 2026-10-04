@@ -589,6 +589,9 @@ fn commonjs_export_list_preserves_hoisted_function_initialization() {
 
 #[test]
 fn commonjs_namespace_initializers_follow_the_checker_export_owner() {
+    // tsgo's CommonJS transform keeps a namespace's declaration name local
+    // even when an exported interface makes the checker own it
+    // (commonjsmodule.go:2064-2068).
     let cases = [
         (
             concat!(
@@ -597,7 +600,7 @@ fn commonjs_namespace_initializers_follow_the_checker_export_owner() {
                 "interface Foo {}\n",
                 "export interface Foo {}\n",
             ),
-            ")(exports.Foo || (exports.Foo = {}));",
+            ")(Foo || (Foo = {}));",
         ),
         (
             concat!(
