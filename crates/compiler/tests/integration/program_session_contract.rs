@@ -842,7 +842,9 @@ fn suggestion_getter_rows_never_enter_noemit_outcome() {
 }
 
 #[test]
-fn checker_receives_the_current_directory_display_spelling() {
+fn missing_path_reference_names_the_reference_as_written() {
+    // tsgo's `diagnosticFileName` (compiler/fileloader.go:697) is the
+    // reference text, not the path resolved under the current directory.
     let outcome = consume(ProgramSession::new(with_minimal_lib(
         &[(
             "src/main.ts",
@@ -857,16 +859,13 @@ fn checker_receives_the_current_directory_display_spelling() {
         .iter()
         .find(|diagnostic| diagnostic.code() == 6053)
         .expect("missing path reference diagnostic");
-    assert!(missing
-        .message_text()
-        .as_str()
-        .expect("scalar diagnostic observation")
-        .contains("/Display/Project/src/missing.ts"));
-    assert!(!missing
-        .message_text()
-        .as_str()
-        .expect("scalar diagnostic observation")
-        .contains("/canonical/project"));
+    assert_eq!(
+        missing
+            .message_text()
+            .as_str()
+            .expect("scalar diagnostic observation"),
+        "File './missing.ts' not found."
+    );
 }
 
 #[test]

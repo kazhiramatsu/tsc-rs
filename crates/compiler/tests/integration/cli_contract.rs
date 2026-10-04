@@ -2842,6 +2842,67 @@ fn diagnostic_type_display_details_follow_tsgo() {
 }
 
 #[test]
+fn diagnostics_sort_by_file_name_like_tsgo() {
+    // tsgo's CompareDiagnostics orders by File().FileName()
+    // (ast/diagnostic.go:390-395, 482-520), case-sensitively, where tsc 6.0
+    // compared SourceFile.path, which a case-insensitive file system folds
+    // to lower case. The expected diagnostics are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(tree.path("B.ts"), "let x: number = \"s\";\n").expect("write B.ts");
+    fs::write(tree.path("a.ts"), "let y: string = 1;\n").expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"types":[]},"files":["a.ts","B.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("utf-8 stdout"),
+        concat!(
+            "B.ts(1,5): error TS2322: Type 'string' is not assignable to type 'number'.\n",
+            "a.ts(1,5): error TS2322: Type 'number' is not assignable to type 'string'.\n",
+        )
+    );
+}
+
+#[test]
+fn path_reference_diagnostics_name_the_reference_as_written() {
+    // tsgo's getSourceFileFromReference names the reference text with its
+    // slashes normalized (`diagnosticFileName`, compiler/fileloader.go:697),
+    // where tsc 6.0 named the resolved path. The expected diagnostics are
+    // tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::create_dir_all(tree.path("src")).expect("create src");
+    fs::write(
+        tree.path("src/a.ts"),
+        concat!(
+            "///<reference path='../typescript.ts' />\n",
+            "/// <reference path=\"..\\lib\\x.js\" />\n",
+            "/// <reference path=\"./y.txt\" />\n",
+            "/// <reference path=\"./noext\" />\n",
+        ),
+    )
+    .expect("write src/a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"types":[]},"files":["src/a.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("utf-8 stdout"),
+        concat!(
+            "src/a.ts(1,21): error TS6053: File '../typescript.ts' not found.\n",
+            "src/a.ts(2,22): error TS6504: File '../lib/x.js' is a JavaScript file. Did you mean to enable the 'allowJs' option?\n",
+            "src/a.ts(3,22): error TS6054: File './y.txt' has an unsupported extension. The only supported extensions are '.ts', '.tsx', '.d.ts', '.cts', '.d.cts', '.mts', '.d.mts'.\n",
+            "src/a.ts(4,22): error TS6231: Could not resolve the path './noext' with the extensions: '.ts', '.tsx', '.d.ts', '.cts', '.d.cts', '.mts', '.d.mts'.\n",
+        )
+    );
+}
+
+#[test]
 fn error_recovery_syntax_is_erased_like_tsgo() {
     // tsgo's type eraser drops type parameters and return types from accessors
     // and constructors, every modifier of a constructor it visits, and `in`/`out`

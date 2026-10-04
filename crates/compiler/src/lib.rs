@@ -415,12 +415,6 @@ pub struct ProgramDiagnostics {
     options: DiagnosticList,
     global: DiagnosticList,
     semantic: DiagnosticList,
-    /// Display spelling → canonical Program path of every source whose two
-    /// spellings differ: the emit result's rows (declaration diagnostics of an
-    /// emitting command) carry the display name only and must sort by
-    /// `Diagnostic.file.path` like the checker's rows
-    /// (sortAndDeduplicateDiagnostics compares file paths).
-    source_paths: Vec<(JsString, JsString)>,
 }
 
 impl ProgramDiagnostics {
@@ -454,12 +448,11 @@ impl ProgramDiagnostics {
     fn with_emit(
         mut self,
         preflight_diagnostics: &[Diagnostic],
-        mut emit: EmitOutcome,
+        emit: EmitOutcome,
         work_counters: NoEmitWorkCounters,
     ) -> CliEmitSessionOutcome {
         self.options.extend_from_slice(preflight_diagnostics);
         sort_and_dedupe_diagnostics(&mut self.options);
-        retain_diagnostic_paths(&self.source_paths, emit.diagnostics_mut());
         CliEmitSessionOutcome {
             emit,
             config_diagnostics: self.config,
@@ -2761,7 +2754,6 @@ impl ProgramSession {
         };
         let config_diagnostics = preparation.config().to_vec();
         let mut syntactic_diagnostics = checked.syntactic_diagnostics;
-        retain_source_diagnostic_paths(&self.prepared, &mut syntactic_diagnostics);
         sort_and_dedupe_diagnostics(&mut syntactic_diagnostics);
         let partial_checks = checked.partial_checks;
 
@@ -2810,7 +2802,6 @@ impl ProgramSession {
                     })
                     .cloned(),
             );
-            retain_source_diagnostic_paths(&self.prepared, &mut conformance_diagnostics);
             sort_and_dedupe_diagnostics(&mut conformance_diagnostics);
         }
 
@@ -2832,8 +2823,6 @@ impl ProgramSession {
         for diagnostic in &program_diagnostics {
             route_program_diagnostic(diagnostic);
         }
-        retain_source_diagnostic_paths(&self.prepared, &mut available_options);
-        retain_source_diagnostic_paths(&self.prepared, &mut available_semantic);
         sort_and_dedupe_diagnostics(&mut available_options);
         sort_and_dedupe_diagnostics(&mut available_semantic);
 
@@ -3324,52 +3313,6 @@ const fn checker_resolution_mode(mode: ResolutionMode) -> AuthoritativeResolutio
     }
 }
 
-/// Diagnostic.file.path is the Program's canonical identity, independently
-/// of the display spelling. Config producers retain their separate paths;
-/// checker/source-owned rows inherit the path of their prepared SourceFile.
-fn retain_source_diagnostic_paths(prepared: &PreparedProgram, diagnostics: &mut [Diagnostic]) {
-    if !diagnostics
-        .iter()
-        .any(|d| d.file_name.is_some() && d.file_path.is_none())
-    {
-        return;
-    }
-    retain_diagnostic_paths(&source_diagnostic_paths(prepared), diagnostics);
-}
-
-/// Every source's (display spelling, canonical path) pair whose spellings
-/// differ, the map `retain_source_diagnostic_paths` applies.
-fn source_diagnostic_paths(prepared: &PreparedProgram) -> Vec<(JsString, JsString)> {
-    prepared
-        .source_files()
-        .iter()
-        .filter(|source| source.path().canonical().as_js() != source.path().display())
-        .map(|source| {
-            (
-                JsString::from(source.path().display()),
-                source.path().canonical().as_js().to_owned(),
-            )
-        })
-        .collect()
-}
-
-fn retain_diagnostic_paths(paths: &[(JsString, JsString)], diagnostics: &mut [Diagnostic]) {
-    if paths.is_empty() {
-        return;
-    }
-    for diagnostic in diagnostics {
-        if diagnostic.file_path.is_some() {
-            continue;
-        }
-        let Some(name) = diagnostic.file_name.as_ref() else {
-            continue;
-        };
-        if let Some((_, path)) = paths.iter().find(|(display, _)| display == name) {
-            diagnostic.file_path = Some(path.clone());
-        }
-    }
-}
-
 /// Assemble the four `handleNoEmitOptions` getter streams in their vendored
 /// order. These diagnostics are returned by `Program.emit` only when
 /// `noEmitOnError` closes the emit path; an ordinary emit with type errors
@@ -3425,12 +3368,9 @@ fn emit_session_diagnostics(
             options.push(diagnostic.clone());
         }
     }
-    retain_source_diagnostic_paths(prepared, &mut options);
-    retain_source_diagnostic_paths(prepared, &mut semantic);
     sort_and_dedupe_diagnostics(&mut options);
     sort_and_dedupe_diagnostics(&mut semantic);
     let mut syntactic = checked.syntactic_diagnostics.clone();
-    retain_source_diagnostic_paths(prepared, &mut syntactic);
     sort_and_dedupe_diagnostics(&mut syntactic);
     let global = if prepared.roots().is_empty() {
         Vec::new()
@@ -3444,7 +3384,6 @@ fn emit_session_diagnostics(
         syntactic,
         global,
         semantic,
-        source_paths: source_diagnostic_paths(prepared),
     }
 }
 
@@ -3654,7 +3593,6 @@ fn push_programmatic_option_diagnostic(
             Some(location.length()),
             message.clone(),
         )
-        .with_file_path(config_file.diagnostic_file_path())
     }));
 }
 

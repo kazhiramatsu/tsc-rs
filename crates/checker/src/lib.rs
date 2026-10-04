@@ -1273,13 +1273,17 @@ fn missing_path_reference_diagnostics<'cwd, 'a>(
             if known_paths.contains(&resolved) {
                 continue;
             }
+            // The reference as written, like the program loader's row
+            // (tsgo's `diagnosticFileName`, compiler/fileloader.go:697).
             diagnostics.push(Diagnostic::new_js(
                 Some(source.file_name.clone()),
                 Some(reference.pos),
                 Some(reference.end.saturating_sub(reference.pos)),
                 tsc_diagnostics::MessageChain::new_js(
                     &tsc_diagnostics::gen::File_0_not_found,
-                    &[resolved],
+                    &[node_builder::specifier::normalized_slashes(
+                        &reference.file_name,
+                    )],
                 ),
             ));
         }
