@@ -1409,6 +1409,47 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// tsgo: checkCollisionWithGlobalObjectInGeneratedCode
+    /// (checker.go:10680-10694). A top-level `Object` declaration other than
+    /// a class collides with the name the CommonJS output reserves.
+    fn check_collision_with_global_object_in_generated_code(
+        &mut self,
+        node: NodeId,
+        name: Option<NodeId>,
+    ) {
+        if matches!(
+            self.kind_of(node),
+            SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+        ) || !self.need_collision_check_for_identifier(
+            node,
+            name,
+            tsc_types::known_name!("Object"),
+        ) {
+            return;
+        }
+        let name = name.expect("collision check implies a name");
+        if self.kind_of(node) == SyntaxKind::ModuleDeclaration
+            && self.module_instance_state_of(node)
+                != tsc_binder::containers::ModuleInstanceState::Instantiated
+        {
+            return;
+        }
+        let Some(parent) = self.get_declaration_container(node) else {
+            return;
+        };
+        if self.kind_of(parent) == SyntaxKind::SourceFile
+            && self.binder.is_external_or_common_js_module_of_node(parent)
+            && self.emit_module_format_of_file(parent) == 1
+        {
+            let display = self.declaration_name_display(name);
+            self.error_skipped_on_no_emit(
+                Some(name),
+                &diagnostics::Duplicate_identifier_0_Compiler_reserves_name_1_in_top_level_scope_of_a_module,
+                &[&display, &display],
+            );
+        }
+    }
+
     /// tsc-port: checkCollisionWithGlobalPromiseInGeneratedCode @6.0.3
     /// tsc-hash: 8e1a4a58e52e623f7f78f69a5cb6d784585246de232bb50d40e8c25d93f629ae
     /// tsc-span: _tsc.js:83303-83314
@@ -1587,6 +1628,7 @@ impl<'a> CheckerState<'a> {
             return;
         };
         self.check_collision_with_require_exports_in_generated_code(node, Some(name));
+        self.check_collision_with_global_object_in_generated_code(node, Some(name));
         self.check_collision_with_global_promise_in_generated_code(node, Some(name));
         self.record_potential_collision_with_weak_map_set_in_generated_code(node, Some(name));
         self.record_potential_collision_with_reflect_in_generated_code(node, Some(name));

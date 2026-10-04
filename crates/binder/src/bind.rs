@@ -52,15 +52,12 @@ impl<'a> BinderWorker<'a> {
         self.bind_jsdoc_imports();
     }
 
-    /// tsc-port: bindInStrictMode @6.0.3
-    /// tsc-hash: db79acb443b17eec4610c2390ed5ff025299d93c6040e7bfdd0fc30fefce98b8
-    /// tsc-span: _tsc.js:42506-42512
+    /// tsgo's binder tracks no strict mode: TypeScript 7 code is always
+    /// strict, so every strict-mode check applies, in declaration files and
+    /// scripts alike, and function declarations are block scoped
+    /// (binder/binder.go:1219-1225, 1374-1440).
     fn bind_in_strict_mode(&self) -> bool {
-        if self.options.always_strict_effective() && !self.source.is_declaration_file {
-            true
-        } else {
-            self.source.external_module_indicator.is_some()
-        }
+        true
     }
 
     /// tsc-port: bind @6.0.3

@@ -14,7 +14,7 @@
 use std::cmp::Ordering;
 
 use crate::tables::TypeTables;
-use crate::ty::LiteralValue;
+use crate::ty::{LiteralValue, PseudoBigInt};
 use crate::{MapperId, ObjectFlags, SymbolId, TypeData, TypeFlags, TypeId};
 
 /// The checker-owned half of the comparison. Node ids are passed as their
@@ -234,6 +234,23 @@ pub fn compare_types(
         ) = (&tables.type_of(t1).data, &tables.type_of(t2).data)
         {
             let c = compare_numbers(*value1, *value2);
+            if c != Ordering::Equal {
+                return c;
+            }
+        }
+    } else if flags.intersects(TypeFlags::BIG_INT_LITERAL) {
+        // tsgo CompareTypes (checker/utilities.go:563-566): bigint literal
+        // types are ordered by their values.
+        if let (
+            TypeData::Literal {
+                value: LiteralValue::BigInt(value1),
+            },
+            TypeData::Literal {
+                value: LiteralValue::BigInt(value2),
+            },
+        ) = (&tables.type_of(t1).data, &tables.type_of(t2).data)
+        {
+            let c = compare_pseudo_big_ints(value1, value2);
             if c != Ordering::Equal {
                 return c;
             }
@@ -730,3 +747,34 @@ pub fn insert_type(
 #[cfg(test)]
 #[path = "../tests/unit/type_order/tests.rs"]
 mod tests;
+
+/// tsgo PseudoBigInt.Compare (jsnum/pseudobigint.go:41-53): by sign, then
+/// by magnitude (digit count, then digits), reversed for negative values.
+fn compare_pseudo_big_ints(value1: &PseudoBigInt, value2: &PseudoBigInt) -> Ordering {
+    fn digits(value: &PseudoBigInt) -> &str {
+        value.base10_value.trim_start_matches('0')
+    }
+    fn sign(value: &PseudoBigInt) -> i8 {
+        if digits(value).is_empty() {
+            0
+        } else if value.negative {
+            -1
+        } else {
+            1
+        }
+    }
+    let c = sign(value1).cmp(&sign(value2));
+    if c != Ordering::Equal {
+        return c;
+    }
+    let (digits1, digits2) = (digits(value1), digits(value2));
+    let c = digits1
+        .len()
+        .cmp(&digits2.len())
+        .then_with(|| digits1.cmp(digits2));
+    if sign(value1) < 0 {
+        c.reverse()
+    } else {
+        c
+    }
+}
