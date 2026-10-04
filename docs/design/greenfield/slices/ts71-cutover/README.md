@@ -1921,3 +1921,26 @@ conditional typeを返す関数から返すだけでtsgoはTS2719を出す。原
 - local：formatとworkspace全体のclippy。types・diagnostics・syntax・binder・program・harness・emitter・checker・
   compiler・conformanceのtest（65 targets、3,669件成功・1件失敗。conditional typeの単純化のtestを直した後にcheckerの
   lib 1,796件を再実行）。試行（filter `onditional`・`nfer`・`apped`・`eneric`）で下がった構成は無かった。
+
+## P3-5ak 長い型の文字列の切り詰めと`@noErrorTruncation`（2026-10-05）
+
+P3-5ajの後、VS Codeの`--noEmit`でtsgoと違う3行は、長い型の文字列の末尾だった：
+- **型の文字列の切り詰め**：tsgoの`typeToStringEx`は、truncationの長さ（160、`noErrorTruncation`では1,000,000）の2倍
+  以上のbytesになった型の文字列を、それより3 bytes短く切って`...`を付ける（checker/printer.go:103-115）。診断の
+  文字列の表示にこれが無かった。切る位置は収まる最後の文字の後で、tsgoのbyteの切り方と違うのは多byte文字の途中に
+  なる場合だけ。
+- **`@noErrorTruncation`**：tsgoのharnessは`noErrorTruncation`をconfigの値の上に、testの設定より前に入れる
+  （harnessutil.go:104-108）。tsc-rsのharnessは設定の後に入れていたので、`@noErrorTruncation: false`が効かず、
+  `unionElementErrorTruncation`と`largeStringLiteralUnionSuggestion`で切り詰めない型を書いていた。
+- unit test：CLI（tsgoの出力にpin）で320 bytesを越える型の文字列。
+- conformance（release build、`57a56b914`、`--workers 2`、533 s）：
+  - 15,228構成、lane A 13,467（変化なし）。
+  - errors full 13,366→13,368：`unionElementErrorTruncation`、`largeStringLiteralUnionSuggestion`。category 8→6。
+  - emitは変化なし。下がった構成も、不一致のまま描いた文が変わった構成も無い。
+  - `excessivelyDeepConditionalTypes`（`@noErrorTruncation: false`）は今回もmemory制限でharness error（ratchetの外）。
+- ratchet：0 regressions、2行raise。
+- VS Codeの`--noEmit`の出力はtsgoと同一になった。
+- local：formatとworkspace全体のclippy。diagnostics・harness・checker・compiler・conformanceのtest（16 targets、2,087件。
+  CLIのtestのclippy指摘を直した後にcompilerの`contracts` 186件を再実行）。`@noErrorTruncation`を持つ6 caseを
+  1件ずつ（`excessivelyDeepConditionalTypes`は監督無しで20分を越えたので止めた）と、filter `runcation`・`nion`・
+  `iteral`で、下がった構成は無かった。

@@ -5612,7 +5612,9 @@ impl<'a> CheckerState<'a> {
         let saved_reverse_mapped_stack = std::mem::take(&mut self.display_reverse_mapped_stack);
         let saved_no_type_reduction =
             std::mem::replace(&mut self.display_no_type_reduction, no_type_reduction);
-        let result = self.type_to_string_ex(ty, fully_qualified);
+        let result = self
+            .type_to_string_ex(ty, fully_qualified)
+            .map(|text| truncate_type_string(text, self.options.no_error_truncation == Some(true)));
         self.display_visited_types = saved_visited;
         self.display_infer_type_parameters = saved_infer_type_parameters;
         self.display_approximate_length = saved_approximate_length;
@@ -14092,6 +14094,27 @@ fn encode_utf16_escape_sequence(unit: u16) -> String {
 /// U+0085; escapedCharsMap first (lowercase u-escapes), NUL digit
 /// lookahead, then the UPPERCASE 4-hex fallback. Non-ASCII passes
 /// through raw — the StringLiteral face sets NoAsciiEscaping.
+/// tsgo typeToStringEx (checker/printer.go:103-115): a type string of at
+/// least twice the truncation length (160, or 1,000,000 under
+/// `noErrorTruncation`) in UTF-8 bytes is cut to three bytes short of that
+/// length and ends with `...`. tsgo slices bytes; the cut here stops at the
+/// last character that fits, which is the same text unless it would split a
+/// multi-byte character.
+fn truncate_type_string(text: JsString, no_error_truncation: bool) -> JsString {
+    let max_length: usize = if no_error_truncation { 2_000_000 } else { 320 };
+    let length = text.as_bytes().len();
+    if length == 0 || length < max_length {
+        return text;
+    }
+    let mut end = max_length - "...".len();
+    let mut truncated = text;
+    while !truncated.truncate_bytes(end) {
+        end -= 1;
+    }
+    truncated.push_str("...");
+    truncated
+}
+
 pub(crate) fn string_literal_type_display_text(text: &tsc_types::TemplateText) -> JsString {
     string_literal_display_text_with_quote(text, '"')
 }
