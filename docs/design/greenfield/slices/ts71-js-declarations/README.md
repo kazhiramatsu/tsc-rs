@@ -1,6 +1,6 @@
 # JavaScriptのd.tsをtsgoの方式で作る
 
-状態：**実装中**（J1 2026-10-04）。ユーザー決定（2026-10-04）：「再設計して進める」。前段：
+状態：**実装中**（J1・J1b 2026-10-04）。ユーザー決定（2026-10-04）：「再設計して進める」。前段：
 [TypeScript 7.1への切替](../ts71-cutover/README.md)のP3-5ab。
 
 ## 背景
@@ -116,3 +116,85 @@ P3-5ab後、lane Aでemitが不一致の434構成のうち、約270構成はJava
   - scriptとCommonJSのfileは従来の経路（J2、J3）。
 - hosted：PR #646（head `63c01a24a`、merge `65d0baca5`）、run 37160522503 — `plan` 29s、`rust` 10m23s、`conformance (TypeScript 7.1)` 19m11s、`gates` 12s。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main `fd6b1aac3`（P3-5abのcode `8a3cc8986`と同じcodeのrelease build）と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 134→145、zod 540→521、Playwright 369→345、TypeScript `src/compiler` 338→341、Next.js 745→754、Effect 491→530、VS Code 3,510→3,469。tsc-rs÷tsgoは0.59〜0.97、peak memory（MB main→本branch）：318→315、1,285→1,284、822→740、289→289、1,300→1,318、1,014→1,047、5,448→5,434。J1は`--noEmit`の経路を変えないので、hono・Effectの差をA/Bで確かめた：Effect 10 roundsはmain／本branch 498／482 ms、hono 5 roundsは133／124 ms、単一checker（`TSRS_CHECKERS=1`）の命令数（5回のmedian）はEffect 27.896／27.897 G、hono 4.298／4.299 Gで同じ。診断の出力と読み込んだdocument数は7 corpusともmainと同一。`tsconfig.bench-full.json`（JS・d.ts・source map、3 rounds）：hono 159→155、zod 633→642、Playwright 520→505、TypeScript `src/compiler` 504→507、Next.js 1,026→1,021、Effect 825→819（tsgo比0.54〜0.79）で、出力と診断は6 corpusともmainと同一。退行なし。
+
+## J1b JSDocから再解析される宣言と欄をdeclaration transformで読む（2026-10-04）
+
+J1でdeclaration transformに通したES moduleのJavaScriptについて、tsgoのparserがJSDocから作る宣言と欄を、
+`tsc_binder::jsdoc_hosted`の表とJSDocのtagから合成する（`crates/emitter/src/declarations/javascript.rs`）。
+emitterは`tsc-binder`に依存するようになった。
+
+- **`this.x =`のmember**（`collectThisPropertyAssignments`、transform.go:2084-2192）：
+  - classのmemberの中の`this.x = …`から、classが宣言していないmemberを集める。`this`が別の関数に
+    束縛される所では探さない。残す修飾子は`static`だけ。
+  - resolverの照会を2つ足した：memberの値の宣言（`GetReferencedMemberValueDeclaration`）と、`extends`の
+    基底型がすでに持つmemberか（`IsThisPropertyAssignmentDeclarationRedundant`）。
+- **hostの欄**：
+  - `@private`・`@protected`・`@public`・`@readonly`・`@override`の修飾子（再解析した修飾子は使い回さず、
+    flagから作り直す。`canReuseModifierNodes`）。
+  - `@implements`の型（最初の`implements`句に足すか、新しい句を最後に足す）。
+  - `@augments`の型引数。
+  - `@template`の型引数。診断では型引数の親をhostとする。
+  - `@this`の`this`引数（型はtagの型、無ければ`any`）。
+- **`@typedef`・`@callback`の型alias**（`reparseUnhosted`、reparser.go:74-123）：
+  - top-levelの文の前に置く。その文のJSDocと、blockの中を除く入れ子のnodeのJSDocのtagを、tsgoがhostを
+    閉じる順（後順）に並べる。end-of-fileのJSDocのtagは文の後ろに置く（parser.go:445-448、614-643）。
+  - moduleでは`export`を付ける（`IsImplicitlyExportedJSDocDeclaration`）。
+  - `@property`のtagは型literalにし、tagのcommentをpropertyの上に残す（`preservePartialJsDoc`）。
+  - `@callback`は関数型にする。commentの`@template`は型引数にする。
+  - 点で区切った名前はnamespaceで包む。入れ子のnamespaceは`export`を外し、型aliasは`export`を残す。
+- **`@import`のimport**（reparser.go:124-137）：
+  - tagをlate paintingの文として列に置き、`import type`の宣言にする。
+  - checkerは、top-levelのtagのbindingを、source fileのimport宣言と同じく描く。
+- **`@overload`のoverload**（reparser.go:138-142、146-242）：
+  - 関数・method・constructorの実装を省く所に、tagの署名からoverloadを書く。`@returns`が無ければ`any`、
+    constructorには書かない。
+  - overloadは実装の書かれた修飾子と名前を位置ごと写す（`DeepCloneReparseModifiers`）。そのため、修飾子を
+    使い回すときと、修飾子の無いmethodでは、実装の前のcommentがoverloadの前に出る。
+  - `@overload`のあるES moduleのfileも、declaration transformに通す（J1の除外をやめた）。
+- **JavaScriptの型**：
+  - `ensureType`は、まずnode builderの再利用（`TryJSTypeNodeToTypeNode`、transform.go:1650-1666）を通す。
+    そのためのresolverの照会を足した。
+  - transformが訪れるJSDocの型はTypeScriptに書き換える（`*`→`any`、`?T`→`T | null`、`!T`→`T`、
+    `T=`→`T | undefined`、`...T`→`T[]`。transform.go:2584-2638）。
+- **checkerの可視性**（emitresolver.go:131-227）：
+  - top-levelのJSDocのalias、およびその点付きの名前のnamespaceを可視とする。
+  - module指定子の無い`export {X}`のExportSpecifierを可視の宣言とする。
+- unit test（CLI、tsgoの出力にpin）：
+  - `this.x =`のmemberと修飾子・heritage・`@template`。
+  - `@typedef`・`@callback`と、commentの位置。
+  - 再exportした値と点付きの`@typedef`名。
+  - `@import`。
+  - `@overload`。
+  - `@this`。
+- conformance：
+  - 15,228 configuration、lane A 13,467（変化なし）、461 s。
+  - errorsは変化なし。描いたbaselineのdigestが変わったのは`intersectionConstructorReductionCrash`だけで、
+    これはmemoryの上限（3,072 MiB）付近でharness errorと比較とを行き来するstressのcaseである（full 13,325→
+    13,326、harness errors 22→21はこのcase）。
+  - emit full 13,086→13,127（その上のcaseを除いて+40）、emit mismatch 351→311。上がった40構成は、JavaScriptの
+    d.ts 38構成と、TypeScriptのtupleに書いた後置のJSDocの`?`（`[...string?]`→`[...string | null]`）の2構成
+    （`restTupleElements1`、`namedTupleMembersErrors`）。下がった構成は無く、それまでfullだったemitのdigestも
+    すべて同じ。
+- ratchet：0 regressions、40行raise（emit none→js）。`intersectionConstructorReductionCrash`は従来どおり
+  ratchetに入れない。
+- local：
+  - formatとworkspace全体のclippy。emitter・checker・compiler・conformanceのtest（35 targets、2,629 passed、
+    `9ca4d191e`。その後のclippyの修正は意味を変えない書き換えで、JavaScriptのCLI test 12件を再実行）。
+  - 2 workerのfull run（461 s、`4c15abfbc`のrelease build）。
+  - 試行（devのrunner、JavaScriptのd.tsの288 case）：J1から38構成上がり、下がった構成は無い。途中で
+    `jsDeclarationsImportAliasExposedWithinNamespace`のerrorsが下がった（TS4081）のを、tsgoのcheckerの可視性
+    （JSDocのnamespaceとExportSpecifier）を移して直した。
+- 残り：
+  - ES moduleのJavaScriptのd.tsで残る不一致（約20構成）：
+    - 関数のexpando（`const f = () => …; f.x = …`）。tsgoはdeclaration transformでexpandoを集め、
+      `declare function`とnamespaceに書く（`transformExpandoAssignment`、`createFullExpandoBlock`、
+      transform.go:2700-2970）。
+    - object literalのaccessor、namespaceの`export { f as self }`、`export default`のliteralの初期化子
+      （`declare const _default = 12;`、transform.go:1265-1297）。
+    - `import('./a')`の引用符：tsgoのnode builderはimport型を`canReuseTypeNode`無しで再利用する
+      （nodecopy.go:614-646）。tsc-rsはtsc 6.0どおり再利用できるかを先に確かめ、直列化に回る。
+  - checkerの差：
+    - `@callback`の`...T`引数でtsgoが出すTS2370が出ない。
+    - `@overload`のcommentにだけある`@template`の型引数で、tsc-rsにだけTS2304が出る。
+    - `@returns`の無い無名default exportのoverloadで、tsgoが出すTS7011が出ない。
+  - scriptとCommonJSのfileは従来の経路（J2、J3）。
