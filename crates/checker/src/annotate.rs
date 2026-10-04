@@ -1510,13 +1510,22 @@ impl<'a> CheckerState<'a> {
             if let NodeData::ConditionalType(data) = self.data_of(ancestor) {
                 if let Some(check_type) = data.check_type {
                     if self.is_simple_identifier_type_reference(check_type) {
-                        // tsgo getSymbolFromTypeReference: the check type's
-                        // own resolution reports its errors.
-                        let check_symbol = self.resolve_type_reference_name(
-                            check_type,
-                            SymbolFlags::TYPE,
-                            /*ignore_errors*/ true,
-                        )?;
+                        // tsgo getSymbolFromTypeReference caches the symbol on
+                        // the node; the conditional type resolves its check
+                        // type first, so its links usually hold it already.
+                        // Otherwise the check type's own resolution reports
+                        // its errors.
+                        let cached = self
+                            .links
+                            .read_node(check_type, |links| links.resolved_symbol.resolved());
+                        let check_symbol = match cached {
+                            Some(check_symbol) => check_symbol,
+                            None => self.resolve_type_reference_name(
+                                check_type,
+                                SymbolFlags::TYPE,
+                                /*ignore_errors*/ true,
+                            )?,
+                        };
                         if Some(check_symbol) == symbol {
                             return Ok(self.get_distributed_type_from_type_parameter(ty));
                         }
