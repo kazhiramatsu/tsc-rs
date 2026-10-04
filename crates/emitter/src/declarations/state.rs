@@ -31,6 +31,7 @@ pub(crate) struct TransformState {
     pub(crate) late_statement_replacement: BTreeMap<NodeId, VisitResult>,
     pub(crate) current_source_file: TransformSourceId,
     pub(crate) references: RawFileReferences,
+    pub(crate) expandos: super::expando::ExpandoState,
 }
 
 impl TransformState {
@@ -48,6 +49,7 @@ impl TransformState {
             late_statement_replacement: BTreeMap::new(),
             current_source_file: source,
             references: RawFileReferences::default(),
+            expandos: super::expando::ExpandoState::default(),
         }
     }
 }

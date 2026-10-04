@@ -485,6 +485,64 @@ impl EmitResolver for CheckerSession<'_> {
         )
     }
 
+    fn is_assignment_declaration(&self, node: EmitResolverNode) -> Result<bool, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::IsAssignmentDeclaration,
+            node,
+            |state, declaration| Ok(state.emit_is_assignment_declaration(declaration)),
+        )
+    }
+
+    fn get_element_access_expression_name(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<String>, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::GetElementAccessExpressionName,
+            node,
+            |state, expression| state.emit_get_element_access_expression_name(expression),
+        )
+    }
+
+    fn is_name_resolvable(
+        &self,
+        location: EmitResolverNode,
+        name: &str,
+    ) -> Result<bool, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::IsNameResolvable,
+            location,
+            |state, location| state.emit_is_name_resolvable(location, name),
+        )
+    }
+
+    fn create_type_of_expando_member(
+        &self,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
+        declaration: EmitResolverNode,
+        local_name: &str,
+        enclosing_declaration: EmitResolverNode,
+        flags: tsc_emitter::EmitNodeBuilderFlags,
+        internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+    ) -> Result<Option<tsc_emitter::TransformNode>, EmitResolverError> {
+        let method = EmitResolverMethod::CreateTypeOfExpandoMember;
+        let mut state = self.state.lock().expect("checker session state");
+        validate_resolver_node(&state, method, declaration)?;
+        validate_resolver_node(&state, method, enclosing_declaration)?;
+        state.emit_create_type_of_expando_member(
+            arena,
+            target,
+            declaration.node(),
+            local_name,
+            enclosing_declaration.node(),
+            flags,
+            internal_flags,
+            tracker,
+        )
+    }
+
     fn is_this_property_assignment_declaration_redundant(
         &self,
         node: EmitResolverNode,
@@ -890,41 +948,36 @@ impl EmitResolver for CheckerSession<'_> {
         )
     }
 
-    /// tsc-port: shouldEmitFunctionProperties @6.0.3
-    /// tsc-hash: 1019be7df9648f1710946cbbe99f1b872a3b8c516f16028a4da3dfcd0880e2e9
-    /// tsc-span: _tsc.js:114736-114743
-    fn is_last_bodiless_overload_of_symbol(
+    /// tsgo-port: shouldEmitFunctionProperties @7.1
+    /// (transformers/declarations/util.go:155-162): the function has a body,
+    /// or another function declaration of its symbol has one.
+    fn should_emit_function_properties(
         &self,
         node: EmitResolverNode,
     ) -> Result<bool, EmitResolverError> {
         self.with_resolver_node(
-            EmitResolverMethod::IsLastBodilessOverloadOfSymbol,
+            EmitResolverMethod::ShouldEmitFunctionProperties,
             node,
             |state, node| {
-                if matches!(
-                    state.data_of(node),
-                    tsc_syntax::NodeData::FunctionDeclaration(data) if data.body.is_some()
-                ) {
+                let has_body = |declaration| {
+                    matches!(
+                        state.data_of(declaration),
+                        tsc_syntax::NodeData::FunctionDeclaration(data) if data.body.is_some()
+                    )
+                };
+                if has_body(node) {
                     return Ok(true);
                 }
                 let Some(symbol) = state.node_symbol(node) else {
-                    return Ok(true);
+                    return Ok(false);
                 };
-                let last = state
+                Ok(state
                     .binder
                     .symbol(symbol)
                     .declarations
                     .iter()
-                    .rev()
                     .copied()
-                    .find(|&declaration| {
-                        matches!(
-                            state.data_of(declaration),
-                            tsc_syntax::NodeData::FunctionDeclaration(data)
-                                if data.body.is_none()
-                        )
-                    });
-                Ok(last.is_none_or(|last| last == node))
+                    .any(has_body))
             },
         )
     }
@@ -998,37 +1051,6 @@ impl EmitResolver for CheckerSession<'_> {
             arena,
             target,
             type_node.node(),
-            enclosing_declaration.node(),
-            flags,
-            internal_flags,
-            tracker,
-        )
-    }
-
-    /// tsc-port: createTypeOfDeclarationInExpandoScope @6.0.3
-    /// tsc-hash: 37a21cd710c255c1fe8fc4e0e704b11c8062854069c854051651e47a8e392a90
-    /// tsc-span: _tsc.js:115400-115425
-    fn create_type_of_declaration_in_expando_scope(
-        &self,
-        arena: &mut tsc_emitter::TransformArena,
-        target: tsc_emitter::TransformSourceId,
-        declaration: EmitResolverNode,
-        function: EmitResolverNode,
-        enclosing_declaration: EmitResolverNode,
-        flags: tsc_emitter::EmitNodeBuilderFlags,
-        internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
-        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
-    ) -> Result<Option<tsc_emitter::TransformNode>, EmitResolverError> {
-        let method = EmitResolverMethod::CreateTypeOfDeclarationInExpandoScope;
-        let mut state = self.state.lock().expect("checker session state");
-        validate_resolver_node(&state, method, declaration)?;
-        validate_resolver_node(&state, method, function)?;
-        validate_resolver_node(&state, method, enclosing_declaration)?;
-        state.emit_create_type_of_declaration_in_expando_scope(
-            arena,
-            target,
-            declaration.node(),
-            function.node(),
             enclosing_declaration.node(),
             flags,
             internal_flags,

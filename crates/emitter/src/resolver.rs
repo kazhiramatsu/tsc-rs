@@ -466,6 +466,10 @@ pub enum EmitResolverMethod {
     GetReferencedValueDeclarations,
     GetReferencedMemberValueDeclaration,
     IsThisPropertyAssignmentDeclarationRedundant,
+    IsAssignmentDeclaration,
+    GetElementAccessExpressionName,
+    IsNameResolvable,
+    CreateTypeOfExpandoMember,
     GetTypeReferenceSerializationKind,
     HasNodeCheckFlag,
     IsArgumentsLocalBinding,
@@ -494,10 +498,9 @@ pub enum EmitResolverMethod {
     IsLiteralConstDeclaration,
     IsLateBound,
     IsImportRequiredByAugmentation,
-    IsLastBodilessOverloadOfSymbol,
+    ShouldEmitFunctionProperties,
     IsFirstDeclarationOfSymbol,
     CreateTypeOfDeclaration,
-    CreateTypeOfDeclarationInExpandoScope,
     CreateReturnTypeOfSignatureDeclaration,
     CreateTypeOfExpression,
     TryJsTypeNodeToTypeNode,
@@ -549,6 +552,10 @@ impl EmitResolverMethod {
             Self::IsThisPropertyAssignmentDeclarationRedundant => {
                 "isThisPropertyAssignmentDeclarationRedundant"
             }
+            Self::IsAssignmentDeclaration => "isAssignmentDeclaration",
+            Self::GetElementAccessExpressionName => "getElementAccessExpressionName",
+            Self::IsNameResolvable => "isNameResolvable",
+            Self::CreateTypeOfExpandoMember => "createTypeOfExpandoMember",
             Self::GetTypeReferenceSerializationKind => "getTypeReferenceSerializationKind",
             Self::HasNodeCheckFlag => "hasNodeCheckFlag",
             Self::IsArgumentsLocalBinding => "isArgumentsLocalBinding",
@@ -581,10 +588,9 @@ impl EmitResolverMethod {
             Self::IsLiteralConstDeclaration => "isLiteralConstDeclaration",
             Self::IsLateBound => "isLateBound",
             Self::IsImportRequiredByAugmentation => "isImportRequiredByAugmentation",
-            Self::IsLastBodilessOverloadOfSymbol => "isLastBodilessOverloadOfSymbol",
+            Self::ShouldEmitFunctionProperties => "shouldEmitFunctionProperties",
             Self::IsFirstDeclarationOfSymbol => "isFirstDeclarationOfSymbol",
             Self::CreateTypeOfDeclaration => "createTypeOfDeclaration",
-            Self::CreateTypeOfDeclarationInExpandoScope => "createTypeOfDeclarationInExpandoScope",
             Self::CreateReturnTypeOfSignatureDeclaration => {
                 "createReturnTypeOfSignatureDeclaration"
             }
@@ -919,6 +925,70 @@ pub trait EmitResolver {
         Err(unavailable(
             EmitResolverMethod::GetReferencedMemberValueDeclaration,
             node,
+        ))
+    }
+
+    /// Whether an `x.y = …` assignment declares a property: its own symbol
+    /// has the Assignment flag (tsgo transformExpandoAssignment,
+    /// transform.go:2725-2731).
+    fn is_assignment_declaration(&self, node: EmitResolverNode) -> Result<bool, EmitResolverError> {
+        Err(unavailable(
+            EmitResolverMethod::IsAssignmentDeclaration,
+            node,
+        ))
+    }
+
+    /// The property name of an element access whose argument is a literal or
+    /// a constant (tsgo GetElementAccessExpressionName,
+    /// emitresolver.go:924-933, flow.go:1743-1751).
+    fn get_element_access_expression_name(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<String>, EmitResolverError> {
+        Err(unavailable(
+            EmitResolverMethod::GetElementAccessExpressionName,
+            node,
+        ))
+    }
+
+    /// Whether `name` resolves to a value, type or namespace at `location`
+    /// (tsgo IsNameResolvable, emitresolver.go:916-922).
+    fn is_name_resolvable(
+        &self,
+        location: EmitResolverNode,
+        name: &str,
+    ) -> Result<bool, EmitResolverError> {
+        let _ = name;
+        Err(unavailable(EmitResolverMethod::IsNameResolvable, location))
+    }
+
+    /// The type of an expando property's assignment, serialized as tsgo does
+    /// in the namespace it synthesizes for the member, whose only local is
+    /// the member under `local_name` (transform.go:2810-2829).
+    #[allow(clippy::too_many_arguments)]
+    fn create_type_of_expando_member(
+        &self,
+        arena: &mut TransformArena,
+        target: TransformSourceId,
+        declaration: EmitResolverNode,
+        local_name: &str,
+        enclosing_declaration: EmitResolverNode,
+        flags: EmitNodeBuilderFlags,
+        internal_flags: EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn EmitSymbolTracker,
+    ) -> Result<Option<TransformNode>, EmitResolverError> {
+        let _ = (
+            arena,
+            target,
+            local_name,
+            enclosing_declaration,
+            flags,
+            internal_flags,
+            tracker,
+        );
+        Err(unavailable(
+            EmitResolverMethod::CreateTypeOfExpandoMember,
+            declaration,
         ))
     }
 
@@ -1311,47 +1381,16 @@ pub trait EmitResolver {
         ))
     }
 
-    /// Serialize an expando property's declaration under the synthetic
-    /// module scope formed from its container function's properties.
-    /// tsc-port: createTypeOfDeclarationInExpandoScope @6.0.3
-    /// tsc-hash: 37a21cd710c255c1fe8fc4e0e704b11c8062854069c854051651e47a8e392a90
-    /// tsc-span: _tsc.js:115400-115425
-    #[allow(clippy::too_many_arguments)]
-    fn create_type_of_declaration_in_expando_scope(
-        &self,
-        arena: &mut TransformArena,
-        target: TransformSourceId,
-        declaration: EmitResolverNode,
-        function: EmitResolverNode,
-        enclosing_declaration: EmitResolverNode,
-        flags: EmitNodeBuilderFlags,
-        internal_flags: EmitInternalNodeBuilderFlags,
-        tracker: &mut dyn EmitSymbolTracker,
-    ) -> Result<Option<TransformNode>, EmitResolverError> {
-        let _ = (
-            arena,
-            target,
-            function,
-            enclosing_declaration,
-            flags,
-            internal_flags,
-            tracker,
-        );
-        Err(unavailable(
-            EmitResolverMethod::CreateTypeOfDeclarationInExpandoScope,
-            declaration,
-        ))
-    }
-
-    /// tsc-port: shouldEmitFunctionProperties @6.0.3
-    /// tsc-hash: 1019be7df9648f1710946cbbe99f1b872a3b8c516f16028a4da3dfcd0880e2e9
-    /// tsc-span: _tsc.js:114736-114743
-    fn is_last_bodiless_overload_of_symbol(
+    /// Whether a function declaration's expando properties are written: it
+    /// has a body, or another function declaration of its symbol has one
+    /// (tsgo shouldEmitFunctionProperties,
+    /// transformers/declarations/util.go:155-162).
+    fn should_emit_function_properties(
         &self,
         node: EmitResolverNode,
     ) -> Result<bool, EmitResolverError> {
         Err(unavailable(
-            EmitResolverMethod::IsLastBodilessOverloadOfSymbol,
+            EmitResolverMethod::ShouldEmitFunctionProperties,
             node,
         ))
     }

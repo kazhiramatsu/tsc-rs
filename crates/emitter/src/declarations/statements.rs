@@ -207,6 +207,12 @@ pub(crate) fn transform_top_level_declaration(
             });
         }
     }
+    // An expando host's statement becomes its declarations and namespace
+    // (transform.go:1742-1748).
+    let original = context.arena().get_original_node(input);
+    if transformer.is_expando_host(original.node())? {
+        return transformer.create_full_expando_block(context, original);
+    }
 
     let previous_enclosing = transformer.state()?.enclosing_declaration;
     if transformer.is_enclosing_declaration(context, input)? {
@@ -285,6 +291,16 @@ pub(crate) fn transform_top_level_declaration(
                 VisitResult::Node(updated)
             }
             SyntaxKind::FunctionDeclaration => {
+                // tsgo transformFunctionDeclaration (transform.go:1813-1828):
+                // a function whose properties are not written in a namespace
+                // still reports them under isolatedDeclarations.
+                if transformer.options.isolated_declarations == Some(true)
+                    && transformer.resolver.is_expando_function_declaration(
+                        transformer.required_resolver_node(context, input)?,
+                    )?
+                {
+                    transformer.report_expando_function_errors(context, input)?;
+                }
                 let data = function_data(context, input)?;
                 let modifiers = transformer.ensure_modifiers(context, input)?;
                 let type_parameters =
@@ -312,23 +328,7 @@ pub(crate) fn transform_top_level_declaration(
                     type_node,
                     None,
                 )?;
-                let is_expando = transformer.resolver.is_expando_function_declaration(
-                    transformer.required_resolver_node(context, input)?,
-                )?;
-                if is_expando && should_emit_function_properties(transformer, context, input)? {
-                    // tsc-port: transformTopLevelDeclaration returns the complete
-                    // expando replacement; the helper already includes the cleaned
-                    // function when default-export lowering needs one
-                    // (_tsc.js:115387-115400).
-                    VisitResult::Nodes(expando_declaration_arm(
-                        transformer,
-                        context,
-                        input,
-                        updated,
-                    )?)
-                } else {
-                    VisitResult::Node(updated)
-                }
+                VisitResult::Node(updated)
             }
             SyntaxKind::ModuleDeclaration => {
                 let data = module_data(context, input)?;
@@ -2009,9 +2009,9 @@ pub(crate) fn rewrite_module_specifier(
     Ok(Some(input))
 }
 
-/// tsc-port: shouldEmitFunctionProperties @6.0.3
-/// tsc-hash: 1019be7df9648f1710946cbbe99f1b872a3b8c516f16028a4da3dfcd0880e2e9
-/// tsc-span: _tsc.js:114736-114743
+/// tsgo-port: shouldEmitFunctionProperties @7.1
+/// (transformers/declarations/util.go:155-162): the function has a body, or
+/// another function declaration of its symbol has one.
 pub(crate) fn should_emit_function_properties(
     transformer: &mut DeclarationTransformer<'_>,
     context: &TransformationContext,
@@ -2024,7 +2024,7 @@ pub(crate) fn should_emit_function_properties(
     let resolver_node = transformer.required_resolver_node(context, input)?;
     Ok(transformer
         .resolver
-        .is_last_bodiless_overload_of_symbol(resolver_node)?)
+        .should_emit_function_properties(resolver_node)?)
 }
 
 /// tsc-port: isPreservedDeclarationStatement @6.0.3
@@ -2048,250 +2048,6 @@ pub(crate) fn is_preserved_declaration_statement(
             | SyntaxKind::ExportDeclaration
             | SyntaxKind::ExportAssignment
     ))
-}
-
-/// tsc-port: visitDeclarationSubtree @6.0.3
-/// tsc-hash: be12bebbbb5fbeb1f15052215edafbbfcf43cd3b9afdc02661832034eba5bcbb
-/// tsc-span: _tsc.js:115400-115494
-fn expando_declaration_arm(
-    transformer: &mut DeclarationTransformer<'_>,
-    context: &mut TransformationContext,
-    input: TransformNode,
-    function: TransformNode,
-) -> Result<Vec<TransformNode>, TransformError> {
-    let resolver_node = transformer.required_resolver_node(context, input)?;
-    let properties = transformer
-        .resolver
-        .get_properties_of_container_function(resolver_node)?;
-    if transformer.options.isolated_declarations == Some(true) {
-        // reportExpandoFunctionErrors performs its own query after the
-        // transform's initial property query (_tsc.js:115400-115402).
-        let diagnostic_properties = transformer
-            .resolver
-            .get_properties_of_container_function(resolver_node)?;
-        transformer
-            .tracker
-            .report_expando_function_errors(&diagnostic_properties);
-        let effects = transformer.tracker.take_pending_effects();
-        materialize_effects(context, transformer.host, effects)?;
-    }
-    let had_properties = !properties.is_empty();
-    let enclosing_resolver = transformer
-        .state()?
-        .enclosing_declaration
-        .and_then(|node| transformer.required_resolver_node(context, node).ok())
-        .unwrap_or(resolver_node);
-    let mut property_types = Vec::new();
-    for property in properties {
-        let Some(value_declaration) = property.value_declaration else {
-            continue;
-        };
-        let Some(value_declaration_transform) = context
-            .arena_mut()?
-            .mount_parse_tree_transform_node(value_declaration, transformer.host)?
-        else {
-            continue;
-        };
-        let Some(property_name) = property
-            .name
-            .unescape()
-            .as_str()
-            .filter(|name| tsc_syntax::is_identifier_text(name))
-        else {
-            continue;
-        };
-        if !matches!(
-            context.arena().node(value_declaration_transform)?.kind,
-            SyntaxKind::PropertyAccessExpression
-                | SyntaxKind::ElementAccessExpression
-                | SyntaxKind::BinaryExpression
-        ) {
-            continue;
-        }
-        let saved_diagnostic = transformer.tracker.replace_diagnostic_context(
-            context.arena(),
-            super::diagnostics::DiagnosticContext::ForNode(value_declaration_transform),
-        )?;
-        let type_node_result = (|| {
-            let result = transformer
-                .resolver
-                .create_type_of_declaration_in_expando_scope(
-                    context.arena_mut()?,
-                    function.source(),
-                    value_declaration,
-                    resolver_node,
-                    enclosing_resolver,
-                    EmitNodeBuilderFlags::DECLARATION_EMIT,
-                    EmitInternalNodeBuilderFlags::DECLARATION_EMIT
-                        .union(EmitInternalNodeBuilderFlags::NO_SYNTACTIC_PRINTER),
-                    &mut transformer.tracker,
-                )
-                .map_err(TransformError::from);
-            let effects = transformer.tracker.take_pending_effects();
-            materialize_effects(context, transformer.host, effects)?;
-            result
-        })();
-        transformer
-            .tracker
-            .restore_diagnostic_context(saved_diagnostic);
-        let type_node = type_node_result?;
-        if let Some(type_node) = type_node {
-            let is_keyword = is_non_contextual_keyword(property_name);
-            property_types.push((
-                property_name.to_owned(),
-                value_declaration_transform,
-                type_node,
-                is_keyword,
-            ));
-        }
-    }
-    if property_types.is_empty() && !had_properties {
-        return Ok(vec![function]);
-    }
-    let mut declarations = Vec::new();
-    let mut export_mappings = Vec::new();
-    let function_data = function_data(context, function)?;
-    let function_name = function_data
-        .name
-        .and_then(|node| context.arena().node_ref(function.source(), node));
-    let function_modifiers = function_data
-        .modifiers
-        .and_then(|array| context.arena().node_array_ref(function.source(), array));
-    let is_default = modifier_flags(context, function)?.contains(ModifierFlags::DEFAULT);
-    let clean_flags = ModifierFlags::from_bits(
-        (modifier_flags(context, function)?.bits()
-            & !(ModifierFlags::DEFAULT.bits() | ModifierFlags::EXPORT.bits()))
-            | ModifierFlags::AMBIENT.bits(),
-    );
-    let type_parameters = function_data
-        .type_parameters
-        .and_then(|array| context.arena().node_array_ref(function.source(), array));
-    let parameters = function_data
-        .parameters
-        .and_then(|array| context.arena().node_array_ref(function.source(), array))
-        .ok_or(TransformError::RequiredChildRemoved {
-            parent: SyntaxKind::FunctionDeclaration,
-            field: "parameters",
-        })?;
-    let return_type = function_data
-        .r#type
-        .and_then(|node| context.arena().node_ref(function.source(), node));
-    let mut factory = context.factory()?;
-    let namespace_name = match function_name {
-        Some(name) => name,
-        None => factory.create_identifier(input.source(), "_default")?,
-    };
-    for (property_name, value_declaration, type_node, is_keyword) in property_types {
-        let name = if is_keyword {
-            factory.get_generated_name_for_non_member_node(value_declaration)?
-        } else {
-            factory.create_identifier(input.source(), &property_name)?
-        };
-        if is_keyword {
-            export_mappings.push((name, property_name.clone()));
-        }
-        let declaration = factory.create_variable_declaration(
-            input.source(),
-            name,
-            None,
-            Some(type_node),
-            None,
-        )?;
-        let declaration_array = factory.create_node_array(input.source(), vec![declaration])?;
-        let list = factory.create_variable_declaration_list(
-            input.source(),
-            declaration_array,
-            NodeFlags::NONE,
-        )?;
-        let modifiers = if is_keyword {
-            None
-        } else {
-            let export = factory.create_modifier(input.source(), SyntaxKind::ExportKeyword)?;
-            Some(factory.create_node_array(input.source(), vec![export])?)
-        };
-        let statement = factory.create_variable_statement(input.source(), modifiers, list)?;
-        declarations.push(statement);
-    }
-    if export_mappings.is_empty() {
-        declarations = declarations
-            .into_iter()
-            .map(|declaration| factory.replace_modifiers(declaration, None))
-            .collect::<Result<Vec<_>, _>>()?;
-    } else {
-        let mut specifiers = Vec::new();
-        for (generated, property_name) in export_mappings {
-            let property_name = factory.create_identifier(input.source(), property_name)?;
-            specifiers.push(factory.create_export_specifier(
-                input.source(),
-                false,
-                Some(generated),
-                property_name,
-            )?);
-        }
-        let specifiers = factory.create_node_array(input.source(), specifiers)?;
-        let named_exports = factory.create_named_exports(input.source(), specifiers)?;
-        declarations.push(factory.create_export_declaration(
-            input.source(),
-            None,
-            false,
-            Some(named_exports),
-            None,
-            None,
-        )?);
-    }
-    let body = {
-        let statements = factory.create_node_array(input.source(), declarations)?;
-        factory.create_module_block(input.source(), statements)?
-    };
-    if !is_default {
-        let namespace = factory.create_module_declaration(
-            input.source(),
-            function_modifiers,
-            namespace_name,
-            None,
-            Some(body),
-            NodeFlags::NAMESPACE,
-        )?;
-        return Ok(vec![function, namespace]);
-    }
-
-    let clean_modifiers =
-        factory.create_modifiers_from_modifier_flags(input.source(), clean_flags)?;
-    let clean_function = factory.update_function_declaration(
-        function,
-        clean_modifiers,
-        None,
-        function_name,
-        type_parameters,
-        parameters,
-        return_type,
-        None,
-    )?;
-    let namespace = factory.create_module_declaration(
-        input.source(),
-        clean_modifiers,
-        namespace_name,
-        None,
-        Some(body),
-        NodeFlags::NAMESPACE,
-    )?;
-    let export_default =
-        factory.create_export_assignment(input.source(), None, false, namespace_name)?;
-    transformer
-        .state_mut()?
-        .result_has_external_module_indicator = true;
-    transformer.state_mut()?.result_has_scope_marker = true;
-    Ok(vec![clean_function, namespace, export_default])
-}
-
-/// tsc-port: isStringANonContextualKeyword @6.0.3
-/// tsc-hash: ed25212208061e6fad43ebff853249e1cb47c8fc46b8e53007d275897b66f1fb
-/// tsc-span: _tsc.js:15787-15805
-fn is_non_contextual_keyword(name: &str) -> bool {
-    tsc_syntax::identifier_to_keyword_kind(name).is_some_and(|kind| {
-        kind.value() >= SyntaxKind::FirstKeyword.value()
-            && kind.value() < SyntaxKind::FirstContextualKeyword.value()
-    })
 }
 
 fn is_late_visibility_painted_statement(
@@ -2357,7 +2113,7 @@ fn is_external_module_indicator(
     ) || modifier_flags(context, node)?.contains(ModifierFlags::EXPORT))
 }
 
-fn is_source_file_parent(
+pub(crate) fn is_source_file_parent(
     context: &TransformationContext,
     node: TransformNode,
 ) -> Result<bool, TransformError> {
@@ -2375,7 +2131,7 @@ fn is_source_file_parent(
         }))
 }
 
-fn modifier_flags(
+pub(crate) fn modifier_flags(
     context: &TransformationContext,
     node: TransformNode,
 ) -> Result<ModifierFlags, TransformError> {

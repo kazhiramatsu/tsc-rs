@@ -72,6 +72,7 @@ pub(super) fn transform_bundle(
         let mut statements = if is_javascript {
             transform_declarations_for_js(transformer, context, source, root)?
         } else {
+            transformer.collect_expandos(context, root)?;
             let mut statements = Vec::new();
             for statement in source_statements(context.arena(), root)? {
                 match super::statements::visit_declaration_statement(
