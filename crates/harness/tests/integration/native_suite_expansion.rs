@@ -10,8 +10,12 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use sha2::{Digest, Sha256};
+use tsc_harness::upstream_suites::execution::{
+    native_compiler_fixture, native_compiler_plan, CompilerRootSelection, CompilerUnitId,
+};
 use tsc_harness::upstream_suites::native::{
-    baseline_stems, expand_case, NativeProfile, NativeSkip, NativeSuite,
+    baseline_stems, expand_case, NativeCase, NativeConfiguration, NativeProfile, NativeSkip,
+    NativeSuite,
 };
 
 const PROFILE: &str = "7.1.0-dev-19dadef8";
@@ -246,5 +250,50 @@ fn native_vendored_inputs_match_the_manifest() {
     assert_eq!(
         format!("{:x}", Sha256::digest(text.as_bytes())),
         manifest.baseline_names.sha256
+    );
+}
+
+#[test]
+fn a_unit_named_like_the_last_one_is_written_after_it_like_tsgo() {
+    // Go's parser keeps every unit's text in a string builder, so the first
+    // `file3.ts` of augmentExportEquals2 is an empty file
+    // (test_case_parser.go:199-216), and the compiler runner compiles the
+    // last unit while every other one, also a unit of the same name, is
+    // written after it (compiler_runner.go:320-323, harnessutil.go:194-205).
+    let profile = NativeProfile::load(&workspace(), PROFILE).expect("native profile");
+    let case = NativeCase {
+        suite: NativeSuite::Compiler,
+        relative_path: "augmentExportEquals2.ts".to_owned(),
+    };
+    let fixture = native_compiler_fixture(&profile, &case).expect("fixture");
+    let units: Vec<_> = fixture
+        .units
+        .iter()
+        .map(|unit| {
+            (
+                unit.name.as_ref().to_owned(),
+                unit.content.as_deref().map(str::len),
+            )
+        })
+        .collect();
+    assert_eq!(units[2], ("file3.ts".to_owned(), Some(0)));
+    assert_eq!(units[3].0, "file3.ts");
+    let configuration = NativeConfiguration {
+        name: String::new(),
+        settings: BTreeMap::new(),
+    };
+    let plan = native_compiler_plan(fixture, &configuration).expect("plan");
+    let CompilerRootSelection::Explicit {
+        root_units,
+        other_units,
+        ..
+    } = &plan.root_selection
+    else {
+        panic!("augmentExportEquals2 has no tsconfig");
+    };
+    assert_eq!(root_units.as_ref(), [CompilerUnitId(3)]);
+    assert_eq!(
+        other_units.as_ref(),
+        [CompilerUnitId(0), CompilerUnitId(1), CompilerUnitId(2)]
     );
 }
