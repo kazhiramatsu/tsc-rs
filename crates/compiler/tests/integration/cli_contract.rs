@@ -724,9 +724,7 @@ fn javascript_hosted_tags_and_this_members_follow_tsgo() {
     assert_eq!(output.status.code(), Some(2));
     assert_eq!(
         String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
-        concat!(
-            "lib.js(32,13): error TS2683: 'this' implicitly has type 'any' because it does not have a type annotation.\n",
-        )
+        "lib.js(32,13): error TS2683: 'this' implicitly has type 'any' because it does not have a type annotation.\n"
     );
     assert_eq!(
         fs::read_to_string(tree.path("out/lib.d.ts")).expect("read declarations"),
@@ -1216,9 +1214,7 @@ fn javascript_overload_tags_follow_tsgo() {
     assert_eq!(output.status.code(), Some(2));
     assert_eq!(
         String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
-        concat!(
-            "lib.js(57,9): error TS7010: 'make', which lacks return-type annotation, implicitly has an 'any' return type.\n",
-        )
+        "lib.js(57,9): error TS7010: 'make', which lacks return-type annotation, implicitly has an 'any' return type.\n"
     );
     assert_eq!(
         fs::read_to_string(tree.path("out/lib.d.ts")).expect("read declarations"),

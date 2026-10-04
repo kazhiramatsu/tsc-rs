@@ -653,8 +653,7 @@ impl DeclarationTransformer<'_> {
             source,
             type_expression.ok_or_else(|| Self::contract("reparsed alias has no type"))?,
         );
-        let previous_enclosing =
-            std::mem::replace(&mut self.state_mut()?.enclosing_declaration, Some(tag_node));
+        let previous_enclosing = self.state_mut()?.enclosing_declaration.replace(tag_node);
         let saved = if self.tracker.suppress_new_diagnostic_contexts {
             None
         } else {
@@ -1104,8 +1103,7 @@ impl DeclarationTransformer<'_> {
                 .factory()?
                 .create_modifiers_from_modifier_flags(source, ensured)?,
         };
-        let previous_enclosing =
-            std::mem::replace(&mut self.state_mut()?.enclosing_declaration, Some(tag_node));
+        let previous_enclosing = self.state_mut()?.enclosing_declaration.replace(tag_node);
         let saved = if self.tracker.suppress_new_diagnostic_contexts {
             None
         } else {
