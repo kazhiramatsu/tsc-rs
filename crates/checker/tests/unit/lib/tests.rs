@@ -5401,10 +5401,9 @@ fn checked_js_publishes_jsdoc_satisfies_object_literal_property_reads() {
 #[test]
 fn checked_js_valid_template_nested_prototype_read_is_parse_all_crash_guard() {
     // tsgo (TypeScript 7.1 at 19dadef8) reports the 2339 for `missing`
-    // (TypeScript 6.0.3 with ParseAll crashed formatting it). tsgo prints
-    // the type as 'Outer.Inner'; tsc-rs prints 'Outer<any>.Inner' for a
-    // class nested in a generic class's method in TypeScript files too (a
-    // node-builder difference outside the JSDoc reparse).
+    // (TypeScript 6.0.3 with ParseAll crashed formatting it) and prints the
+    // type as 'Outer.Inner': its appendReferenceToType drops the outer
+    // group's arguments (nodebuilderimpl.go:272-323).
     let source = "/** @template T */\n\
                       class Outer {\n\
                         method() {\n\
@@ -5450,7 +5449,7 @@ fn checked_js_valid_template_nested_prototype_read_is_parse_all_crash_guard() {
                 2339,
                 source.find("missing").expect("prototype read") as u32,
                 "missing".len() as u32,
-                "Property 'missing' does not exist on type 'Outer<any>.Inner'.",
+                "Property 'missing' does not exist on type 'Outer.Inner'.",
             ),
         ]
     );

@@ -2800,6 +2800,48 @@ fn declaration_transform_details_follow_tsgo() {
 }
 
 #[test]
+fn diagnostic_type_display_details_follow_tsgo() {
+    // tsgo's appendReferenceToType keeps only the qualifiers of a class's
+    // outer type parameter groups (nodebuilderimpl.go:272-323), its
+    // escapeString escapes an unpaired surrogate (printer/utilities.go:84-86),
+    // and a reused string literal keeps its written quote
+    // (nodecopy.go:810-821). The expected diagnostics are tsgo's for the
+    // same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "function mixin<T extends { new (...args: any[]): {} }>(superclass: T) {\n",
+            "    return class extends superclass { get name() { return \"\"; } };\n",
+            "}\n",
+            "class Base { set name(v: string) {} }\n",
+            "class Mine extends mixin(Base) { get name() { return \"\"; } }\n",
+            "const lone: \"\\uD800\" = \"\\uDC00\";\n",
+            "declare function takes(cb: (x: \"hi\") => number): void;\n",
+            "takes(function (x: 'bye') { return 1; });\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"esnext","module":"esnext","noEmit":true,"types":[],"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("utf-8 stdout"),
+        concat!(
+            "a.ts(5,38): error TS2611: 'name' is defined as a property in class 'mixin.(Anonymous class) & Base', but is overridden here in 'Mine' as an accessor.\n",
+            "a.ts(6,7): error TS2322: Type '\"\\uDC00\"' is not assignable to type '\"\\uD800\"'.\n",
+            "a.ts(8,7): error TS2345: Argument of type '(x: 'bye') => number' is not assignable to parameter of type '(x: \"hi\") => number'.\n",
+            "  Types of parameters 'x' and 'x' are incompatible.\n",
+            "    Type '\"hi\"' is not assignable to type '\"bye\"'.\n",
+        )
+    );
+}
+
+#[test]
 fn error_recovery_syntax_is_erased_like_tsgo() {
     // tsgo's type eraser drops type parameters and return types from accessors
     // and constructors, every modifier of a constructor it visits, and `in`/`out`

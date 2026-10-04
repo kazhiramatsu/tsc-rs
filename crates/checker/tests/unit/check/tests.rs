@@ -5536,7 +5536,9 @@ fn mixin_class_static_side_uses_the_intersection_face() {
             2322,
             (text.rfind("let n").expect("failing declaration") + 4) as u32,
             1,
-            "Type '{ new (...args: any): C; prototype: f<any>.C; } & T' is not assignable \
+            // tsgo keeps only the outer group's qualifier (appendReferenceToType,
+            // nodebuilderimpl.go:272-323); tsc 6.0 wrote `f<any>.C`.
+            "Type '{ new (...args: any): C; prototype: f.C; } & T' is not assignable \
                  to type 'number'."
                 .to_owned(),
         )]
@@ -6637,6 +6639,9 @@ fn enum_object_displays_typeof_face() {
     );
 }
 
+/// tsgo's appendReferenceToType keeps only the qualifier of an outer group
+/// whose arguments changed (nodebuilderimpl.go:272-323: "nested type args
+/// are silently elided"); tsc 6.0 wrote `mixin<typeof BaseClass>.`.
 #[test]
 fn outer_generic_reference_qualifies_changed_arguments() {
     let source = "interface Array<T> { length: number; [n: number]: T }\n\
@@ -6657,7 +6662,7 @@ fn outer_generic_reference_qualifies_changed_arguments() {
             2611,
             4,
             "'name' is defined as a property in class \
-                 'mixin<typeof BaseClass>.(Anonymous class) & BaseClass', but is overridden here \
+                 'mixin.(Anonymous class) & BaseClass', but is overridden here \
                  in 'MyClass' as an accessor."
         )
     );

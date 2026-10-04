@@ -13,7 +13,12 @@
       "source": "type T = \"\\ud800\"; const value: T = 0;",
       "display": [
         34,
-        55296,
+        92,
+        117,
+        68,
+        56,
+        48,
+        48,
         34
       ],
       "printed": [
@@ -69,7 +74,12 @@
             32,
             39,
             34,
-            55296,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
             34,
             39,
             46
@@ -84,7 +94,12 @@
       "source": "type T = \"\\ud801\"; const value: T = 0;",
       "display": [
         34,
-        55297,
+        92,
+        117,
+        68,
+        56,
+        48,
+        49,
         34
       ],
       "printed": [
@@ -140,7 +155,12 @@
             32,
             39,
             34,
-            55297,
+            92,
+            117,
+            68,
+            56,
+            48,
+            49,
             34,
             39,
             46
@@ -155,7 +175,12 @@
       "source": "type T = \"\\udc00\"; const value: T = 0;",
       "display": [
         34,
-        56320,
+        92,
+        117,
+        68,
+        67,
+        48,
+        48,
         34
       ],
       "printed": [
@@ -211,7 +236,12 @@
             32,
             39,
             34,
-            56320,
+            92,
+            117,
+            68,
+            67,
+            48,
+            48,
             34,
             39,
             46
@@ -646,7 +676,7 @@
     }
   ],
   "tsgo_overrides": {
-    "reason": "TypeScript 7.1's escapeStringWorker escapes an unpaired surrogate even under NeverAsciiEscape (printer/utilities.go:84-86); tsc 6.0.3 wrote it raw; the `printed` field of these cases",
+    "reason": "TypeScript 7.1's escapeStringWorker escapes an unpaired surrogate even under NeverAsciiEscape (printer/utilities.go:84-86); tsc 6.0.3 wrote it raw; the `printed` and `display` fields and the diagnostic message of these cases",
     "cases": [
       "type T = \"\\ud800\"; const value: T = 0;",
       "type T = \"\\ud801\"; const value: T = 0;",
