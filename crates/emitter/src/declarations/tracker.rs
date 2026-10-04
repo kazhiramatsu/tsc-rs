@@ -197,7 +197,7 @@ impl<'t> DeclarationSymbolTracker<'t> {
         if result.accessibility == EmitSymbolAccessibility::NotResolved {
             return false;
         }
-        match self.diagnostic_plan.resolve(self.host, &result) {
+        match self.diagnostic_plan.resolve(&result) {
             Ok(Some(spec)) => {
                 self.pending_effects
                     .push_back(TrackerEffect::Diagnostic(spec));

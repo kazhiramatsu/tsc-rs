@@ -1719,8 +1719,6 @@ pub(super) fn track_computed_name(
     if let Some(symbol) = symbol {
         super::chains::track_symbol_in_context(
             checker,
-            None,
-            None,
             context,
             symbol,
             EmitSymbolMeaning(SymbolFlags::VALUE.bits() as u32),

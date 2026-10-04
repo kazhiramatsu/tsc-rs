@@ -369,9 +369,6 @@ fn node_builder_context_construction_uses_upstream_defaults_and_bundled_gate() {
                 assert!(context.tracked_symbols.is_none());
                 assert!(context.bundled);
                 assert!(!context.truncating);
-                assert!(context.used_symbol_names.is_none());
-                assert!(context.remapped_symbol_names.is_none());
-                assert!(context.remapped_symbol_references.is_none());
                 assert!(context.reverse_mapped_stack.is_none());
                 assert!(context.must_create_type_parameter_symbol_list);
                 assert!(context.type_parameter_symbol_list.is_none());
@@ -522,7 +519,6 @@ fn node_builder_tracker_forwards_gates_and_records_only_non_type_parameters() {
                 enclosing,
                 false,
                 EmitSymbolMeaning::TYPE,
-                false,
             )
             .expect("false tracker result"));
         assert_eq!(
@@ -544,7 +540,6 @@ fn node_builder_tracker_forwards_gates_and_records_only_non_type_parameters() {
                 enclosing,
                 false,
                 EmitSymbolMeaning::VALUE_EXPORT_VALUE,
-                false,
             )
             .expect("disabled tracker result"));
         assert_eq!(log.borrow().track_calls.len(), 1);
@@ -563,7 +558,6 @@ fn node_builder_tracker_forwards_gates_and_records_only_non_type_parameters() {
                 enclosing,
                 false,
                 EmitSymbolMeaning::TYPE,
-                false,
             )
             .expect("type-parameter tracker result"));
         assert!(context.tracked_symbols.is_none());
@@ -581,7 +575,6 @@ fn node_builder_tracker_forwards_gates_and_records_only_non_type_parameters() {
                 enclosing,
                 false,
                 EmitSymbolMeaning::TYPE,
-                false,
             )
             .expect("diagnostic tracker result"));
         assert!(context.reported_diagnostic);
@@ -613,15 +606,6 @@ fn node_builder_tracker_forwards_gates_and_records_only_non_type_parameters() {
         assert!(context.reported_diagnostic);
         assert_eq!(log.borrow().inference_fallbacks, vec![31]);
 
-        context
-            .tracker
-            .push_error_fallback_node(Some(EmitTrackerNodeDescription {
-                parse: Some(EmitResolverNode::from_raw_source(0, NodeId::new(40))),
-                original: None,
-            }));
-        context.tracker.pop_error_fallback_node();
-        assert_eq!(log.borrow().fallback_stack_events, vec![Some(40), None]);
-
         context.reported_diagnostic = false;
         context
             .tracker
@@ -651,19 +635,6 @@ fn node_builder_tracker_forwards_gates_and_records_only_non_type_parameters() {
         );
         assert!(context.reported_diagnostic);
         context.reported_diagnostic = false;
-        context.tracker.report_nonlocal_augmentation(
-            &mut context.reported_diagnostic,
-            Some(EmitTrackerNodeDescription {
-                parse: Some(EmitResolverNode::from_raw_source(0, NodeId::new(41))),
-                original: None,
-            }),
-            vec![EmitTrackerNodeDescription {
-                parse: Some(EmitResolverNode::from_raw_source(1, NodeId::new(43))),
-                original: None,
-            }],
-        );
-        assert!(context.reported_diagnostic);
-        context.reported_diagnostic = false;
         context
             .tracker
             .report_non_serializable_property(&mut context.reported_diagnostic, "property");
@@ -676,7 +647,6 @@ fn node_builder_tracker_forwards_gates_and_records_only_non_type_parameters() {
                 "inaccessible-unique",
                 "cyclic",
                 "unsafe-import:pkg:Thing",
-                "nonlocal:41:43",
                 "nonserial:property",
             ]
         );
@@ -711,7 +681,6 @@ fn node_builder_tracker_propagates_fallible_access_errors_fail_closed() {
             Some(NodeId::new(2)),
             false,
             EmitSymbolMeaning::TYPE,
-            false,
         );
         assert!(matches!(
             track_error,
@@ -797,14 +766,8 @@ fn node_builder_save_restore_and_expansion_helpers_restore_all_owned_state() {
         context.approximate_length = 0;
         assert!(check_truncation_length(context));
 
-        context.truncating = false;
-        context.max_expansion_depth = -1;
-        context.approximate_length = 6;
-        assert!(!check_truncation_length_if_expanding(context));
-        assert!(!context.truncating);
         context.max_expansion_depth = 1;
-        assert!(check_truncation_length_if_expanding(context));
-
+        context.approximate_length = 6;
         context.depth = 1;
         context.out.can_increase_expansion_depth = false;
         context.type_stack.clear();

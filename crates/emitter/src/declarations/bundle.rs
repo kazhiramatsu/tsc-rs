@@ -8,10 +8,9 @@ use tsc_types::NodeFlags;
 use crate::{TransformBundle, TransformError, TransformationContext};
 
 use super::root::{
-    is_javascript_source, normalize_slashes, source_statement_array, source_statements,
-    transform_declarations_for_js,
+    is_javascript_source, normalize_slashes, source_statement_array, transform_source_statements,
 };
-use super::state::{RawFileReferences, TransformState, VisitResult};
+use super::state::{RawFileReferences, TransformState};
 use super::DeclarationTransformer;
 
 /// tsc-port: transformDeclarations.transformRoot @6.0.3
@@ -69,28 +68,12 @@ pub(super) fn transform_bundle(
             .lib_directives
             .extend(references.lib_directives);
 
-        let mut statements = if is_javascript {
-            transform_declarations_for_js(transformer, context, source, root)?
-        } else {
-            transformer.collect_assignment_declarations(context, root)?;
-            let mut statements = Vec::new();
-            for statement in source_statements(context.arena(), root)? {
-                match super::statements::visit_declaration_statement(
-                    transformer,
-                    context,
-                    statement,
-                )? {
-                    VisitResult::None => {}
-                    VisitResult::Node(statement) => statements.push(statement),
-                    VisitResult::Nodes(result) => statements.extend(result),
-                }
-            }
-            statements
-        };
-        statements = super::statements::transform_and_replace_late_painted_statements(
+        let (statements, _) = transform_source_statements(
             transformer,
             context,
-            statements,
+            root,
+            is_javascript,
+            syntax.external_module_indicator.is_some(),
         )?;
         let original_range = source_statement_array(context.arena(), root)?
             .map(|array| {
@@ -110,10 +93,8 @@ pub(super) fn transform_bundle(
         let updated = {
             let mut factory = context.factory()?;
             let mut statements = factory.create_node_array(source, statements)?;
-            if wrapped || !is_javascript {
-                if let Some((pos, end)) = original_range {
-                    factory.set_node_array_text_range(statements, pos, end)?;
-                }
+            if let Some((pos, end)) = original_range {
+                factory.set_node_array_text_range(statements, pos, end)?;
             }
             if let Some(module_name) = module_name {
                 let block = factory.create_module_block(source, statements)?;

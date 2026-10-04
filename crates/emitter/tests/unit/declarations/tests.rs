@@ -546,13 +546,7 @@ fn diagnostic_context_selects_all_three_external_module_messages() {
     );
     let variable = nodes_of_kind(&parsed, SyntaxKind::VariableDeclaration)[0];
     let constructor = nodes_of_kind(&parsed, SyntaxKind::Constructor)[0];
-    let options = CompilerOptions::default();
     let source_id = SourceFileId::from_raw(0);
-    let host = TestHost {
-        options: &options,
-        syntax: &parsed,
-        ids: [source_id],
-    };
     let mut arena = TransformArena::new();
     let source = arena.add_source(&parsed, Some(source_id));
     let plan = DiagnosticContext::ForNode(TransformNode::new(source, variable))
@@ -560,14 +554,11 @@ fn diagnostic_context_selects_all_three_external_module_messages() {
         .expect("variable diagnostic plan");
 
     let cannot = plan
-        .resolve(
-            &host,
-            &accessibility_result(
-                crate::EmitSymbolAccessibility::CannotBeNamed,
-                None,
-                Some("external"),
-            ),
-        )
+        .resolve(&accessibility_result(
+            crate::EmitSymbolAccessibility::CannotBeNamed,
+            None,
+            Some("external"),
+        ))
         .expect("cannot-be-named selection")
         .expect("diagnostic spec");
     assert_eq!(
@@ -577,14 +568,11 @@ fn diagnostic_context_selects_all_three_external_module_messages() {
     );
 
     let private_module = plan
-        .resolve(
-            &host,
-            &accessibility_result(
-                crate::EmitSymbolAccessibility::NotAccessible,
-                None,
-                Some("private"),
-            ),
-        )
+        .resolve(&accessibility_result(
+            crate::EmitSymbolAccessibility::NotAccessible,
+            None,
+            Some("private"),
+        ))
         .expect("private-module selection")
         .expect("diagnostic spec");
     assert_eq!(
@@ -593,10 +581,11 @@ fn diagnostic_context_selects_all_three_external_module_messages() {
     );
 
     let private_name = plan
-        .resolve(
-            &host,
-            &accessibility_result(crate::EmitSymbolAccessibility::NotAccessible, None, None),
-        )
+        .resolve(&accessibility_result(
+            crate::EmitSymbolAccessibility::NotAccessible,
+            None,
+            None,
+        ))
         .expect("private-name selection")
         .expect("diagnostic spec");
     assert_eq!(
@@ -609,10 +598,11 @@ fn diagnostic_context_selects_all_three_external_module_messages() {
         .expect("constructor diagnostic plan");
     assert!(
         constructor_plan
-            .resolve(
-                &host,
-                &accessibility_result(crate::EmitSymbolAccessibility::NotAccessible, None, None,),
-            )
+            .resolve(&accessibility_result(
+                crate::EmitSymbolAccessibility::NotAccessible,
+                None,
+                None,
+            ),)
             .expect("constructor selection")
             .is_none(),
         "upstream's constructor message selector intentionally returns undefined"

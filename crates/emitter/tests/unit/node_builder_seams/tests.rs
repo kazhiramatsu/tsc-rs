@@ -105,19 +105,6 @@ fn serialization_members_fail_closed_by_default() {
             .unwrap_err(),
     );
     unavailable(
-        EmitResolverMethod::GetDeclarationStatementsForSourceFile,
-        resolver
-            .get_declaration_statements_for_source_file(
-                &mut arena,
-                source,
-                node,
-                EmitNodeBuilderFlags::DECLARATION_EMIT,
-                EmitInternalNodeBuilderFlags::DECLARATION_EMIT,
-                &mut tracker,
-            )
-            .unwrap_err(),
-    );
-    unavailable(
         EmitResolverMethod::CreateLateBoundIndexSignatures,
         resolver
             .create_late_bound_index_signatures(
@@ -150,29 +137,6 @@ fn serialization_members_fail_closed_by_default() {
     assert_eq!(
         EmitResolverMethod::IsFirstDeclarationOfSymbol.name(),
         "isFirstDeclarationOfSymbol"
-    );
-
-    let symbol = EmitResolverSymbol {
-        session_token: 11,
-        symbol_index: 3,
-    };
-    assert_eq!(
-        resolver
-            .symbol_to_declarations(
-                &mut arena,
-                source,
-                symbol,
-                EmitSymbolMeaning::TYPE,
-                EmitNodeBuilderFlags::NONE,
-                None,
-                None,
-                None,
-            )
-            .unwrap_err(),
-        EmitResolverError::UnavailableForSymbol {
-            method: EmitResolverMethod::SymbolToDeclarations,
-            symbol,
-        }
     );
 }
 

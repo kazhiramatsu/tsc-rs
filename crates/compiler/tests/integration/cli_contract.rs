@@ -2127,6 +2127,53 @@ fn common_js_define_property_diagnostic_follows_tsgo() {
 }
 
 #[test]
+fn common_js_signature_scope_diagnostic_follows_tsgo() {
+    // While tsgo builds the type of a signature's parameter, it checks names
+    // from the signature's synthesized scope, which is not in a JavaScript
+    // file, so the errors go where the export's diagnostic context puts them
+    // rather than at the file (nodebuilderscopes.go:142-147,
+    // symbolaccessibility.go:861). The expected diagnostics are tsgo's for the
+    // same project.
+    let tree = TempTree::new();
+    fs::create_dir_all(tree.path("node_modules/@types/pkg")).expect("create package");
+    fs::write(
+        tree.path("node_modules/@types/pkg/index.d.ts"),
+        concat!(
+            "interface Private { a: number }\n",
+            "interface Box<T> { fn(x: T): void }\n",
+            "declare const pkg: { make<T>(value: T): Box<T>; value: Private };\n",
+            "export = pkg;\n",
+        ),
+    )
+    .expect("write index.d.ts");
+    fs::write(
+        tree.path("index.cjs"),
+        concat!(
+            "const pkg = require(\"pkg\");\n",
+            "module.exports.fn = function (/** @type {number} */ n) { return pkg.make(pkg.value); };\n",
+        ),
+    )
+    .expect("write index.cjs");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"allowJs":true,"checkJs":true,"declaration":true,"emitDeclarationOnly":true,"outDir":"out","target":"es2022","module":"commonjs"},"files":["index.cjs"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(1));
+    let root = compiler_current_directory(&tree);
+    let root = root.to_string_lossy().replace('\\', "/");
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        format!(
+            "index.cjs(2,1): error TS4032: Property 'fn' of exported interface has or is using name 'Box' from private module '\"{root}/node_modules/@types/pkg/index\"'.\n\
+             index.cjs(2,1): error TS4032: Property 'fn' of exported interface has or is using name 'Private' from private module '\"{root}/node_modules/@types/pkg/index\"'.\n"
+        )
+    );
+    assert!(!tree.path("out/index.d.cts").exists());
+}
+
+#[test]
 fn declarations_and_namespace_merges_follow_tsgo() {
     // tsgo keeps a binding pattern without initializers whole in a `.d.ts`,
     // typed as the whole declaration; a variable, function or class already

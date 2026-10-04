@@ -1291,7 +1291,6 @@ fn is_symbol_accessible_with_error_names(
     let Some(enclosing) = context.enclosing_declaration else {
         return Ok(true);
     };
-    let symbol_flags = checker.symbol_flags(symbol);
     if super::chains::symbol_is_shadowed_in_synthetic_scope(checker, context, symbol, meaning) {
         // The fake namespace's first table owns the name. An exported symbol
         // can still be named through its external-module parent; an unowned
@@ -1301,14 +1300,6 @@ fn is_symbol_accessible_with_error_names(
             .symbol(symbol)
             .parent
             .is_some_and(|parent| checker.symbol_has_external_module_declaration(parent)));
-    }
-    if context.enclosing_declaration_is_synthetic
-        && context.tracker.is_statement_tracking()
-        && symbol_flags.intersects(SymbolFlags::ASSIGNMENT)
-        && symbol_flags.intersects(SymbolFlags::FUNCTION)
-        && super::is_statement_symbol_remapped(checker, context, symbol)
-    {
-        return Ok(true);
     }
     let result = checker
         .emit_is_symbol_accessible(symbol, enclosing, meaning, false)
@@ -3107,13 +3098,7 @@ fn visit_and_transform_type(
             if let Some(tracked) = cached.tracked_symbols {
                 for (symbol, enclosing, meaning) in tracked {
                     super::chains::track_symbol_in_context_at(
-                        checker,
-                        Some(arena),
-                        Some(target),
-                        context,
-                        symbol,
-                        enclosing,
-                        meaning,
+                        checker, context, symbol, enclosing, meaning,
                     )?;
                 }
             }

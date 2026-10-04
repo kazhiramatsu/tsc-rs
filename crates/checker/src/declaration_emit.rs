@@ -2289,61 +2289,6 @@ impl<'a> CheckerState<'a> {
             tracker,
         )
     }
-
-    /// tsc-port: getDeclarationStatementsForSourceFile @6.0.3
-    /// tsc-hash: 517de08538d0b91488cd2e54201e7dc44b404b08fe126ba36a1b63ce84ec70dc
-    /// tsc-span: _tsc.js:88612-88621
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn emit_get_declaration_statements_for_source_file(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        target: tsc_emitter::TransformSourceId,
-        node: NodeId,
-        flags: tsc_emitter::EmitNodeBuilderFlags,
-        internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
-        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
-    ) -> Result<Option<Vec<tsc_emitter::TransformNode>>, tsc_emitter::EmitResolverError> {
-        let method = tsc_emitter::EmitResolverMethod::GetDeclarationStatementsForSourceFile;
-        if self.kind_of(node) != SyntaxKind::SourceFile {
-            return Err(tsc_emitter::EmitResolverError::CheckerAborted {
-                method,
-                node: EmitResolverNode::from_raw_source(
-                    u32::try_from(self.binder.file_index_of_node(node)).unwrap_or(0),
-                    node,
-                ),
-                reason: "non-sourcefile node passed into getDeclarationsForSourceFile",
-            });
-        }
-        let symbol = self.get_symbol_of_declaration_opt(node);
-        let table = match symbol {
-            None => match self.binder.locals_of(node) {
-                None => return Ok(Some(Vec::new())),
-                Some(locals) => locals.clone(),
-            },
-            Some(symbol) => {
-                self.resolve_external_module_symbol(Some(symbol), false)
-                    .map_err(|abort| node_builder_abort_error(self, method, node, abort))?;
-                (**self.binder.symbol(symbol).exports()).clone()
-            }
-        };
-        crate::node_builder::with_context(
-            self,
-            arena,
-            target,
-            Some(node),
-            Some(flags),
-            Some(internal_flags),
-            Some(tracker),
-            None,
-            None,
-            |checker, arena, target, context| {
-                crate::node_builder::symbol_table_to_declaration_statements(
-                    checker, arena, target, &table, context,
-                )
-            },
-            None,
-        )
-    }
 }
 
 #[cfg(test)]
