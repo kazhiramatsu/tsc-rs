@@ -1682,3 +1682,17 @@ tsc-rsは6.0どおりfactoryが型を作るたびに括弧を付けていた。
 - ratchet：0 regressions、7行raise（emit none→js）。
 - local：formatとworkspace全体のclippy。binder・emitter・checker・compiler・conformanceのtest（38 targets、2,716件）。
   試行（filter `declarationEmit`・`onditional`・`types/`・`uple`）で下がった構成は無かった。
+- hosted：PR #656（head `e5ab166ea`、merge `bafc31db5`）、run 37197710925 — `plan` 23s、`rust` 7m57s、
+  `conformance (TypeScript 7.1)` 13m52s、`gates` 12s。
+- perf（README corpora、nice 20、main（P3-5adのcode `d5ed710d5`）と本branch（`f1ecdeba1`）のrelease build対tsgo 7.1.0-dev、
+  median wall ms main→本branch）：`--noEmit`（3 rounds。tsgo自身も前回より5〜15 %遅い騒がしい回）hono 147→152、
+  zod 562→605（min 557→527）、Playwright 428→400、TypeScript `src/compiler` 383→350、Next.js 859→826、Effect 541→537、
+  VS Code 4,077→3,794。診断の出力と読み込んだdocument数は7 corpusともmainと同一。`tsconfig.bench-full.json`
+  （3 rounds）：hono 152→150、zod 661→655、Playwright 531→529、TypeScript `src/compiler` 521→510、Next.js
+  1,073→1,063、Effect 812→807（tsgo比0.61〜0.77）、診断はmainと同一。A/B（5 rounds）：zodの`--noEmit` 515／525
+  （min 514／517）、honoの`--noEmit` 126／133（min 125／122）、Effect full 757／758 ms。単一checker
+  （`TSRS_CHECKERS=1`、5回のmedian）の命令数：zodの`--noEmit` 31.851／31.841 G（peak memory footprint
+  866.9／865.3 MB）、Effect full 51.713／51.707 G（808.0／808.3 MB）。退行なし。fullの出力をtsgoと比べた
+  （6構成）：mainから変わった40 fileのうち34（d.tsとdeclaration map）がtsgoとbyte単位で同じになり、tsgoと
+  同じだったfileで違うようになったものは無い。変わったmapのmapping segmentは1,262がtsgoに近づき、36が離れた
+  （Effectの1つのmapで行がずれ、同じ数だけ得て失った）。
