@@ -1,5 +1,6 @@
 pub(crate) mod chains;
 mod context;
+mod pseudo;
 mod serialize;
 mod signatures;
 pub(crate) mod specifier;
@@ -11,10 +12,9 @@ pub(crate) use chains::{
     chains_get_property_name_node_for_symbol, chains_symbol_to_entity_name_node,
     chains_symbol_to_expression, chains_symbol_to_type_node,
     existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count,
-    get_declaration_with_type_annotation, get_enclosing_declaration_ignoring_fake_scope,
-    get_module_specifier_override, get_type_from_type_node2,
-    serialize_inferred_type_for_declaration, set_text_range2, symbol_to_node,
-    type_parameter_to_name,
+    get_enclosing_declaration_ignoring_fake_scope, get_module_specifier_override,
+    get_type_from_type_node2, serialize_inferred_type_for_declaration, set_text_range2,
+    symbol_to_node, type_parameter_to_name,
 };
 pub(crate) use context::{
     add_symbol_type_to_context, can_possibly_expand_type, check_truncation_length,
@@ -106,21 +106,72 @@ pub(crate) fn tracker_node_description(
     }
 }
 
-/// The entity-in-type guard from createGetIsolatedDeclarationErrors
-/// (_tsc.js:114094), using the existing isPartOfTypeNode owner.
+/// The entity-in-type arms of tsgo's getIsolatedDeclarationError
+/// (declarations/diagnostics.go:707-712): a node in a type or a type query,
+/// and any entity name.
 fn tracker_is_entity_in_type_node(
     checker: &crate::state::CheckerState<'_>,
     node: tsc_syntax::NodeId,
 ) -> bool {
     use tsc_syntax::SyntaxKind;
-    (checker.is_part_of_type_node(node)
-        || checker
-            .parent_of(node)
-            .is_some_and(|parent| checker.kind_of(parent) == SyntaxKind::TypeQuery))
-        && (matches!(
+    checker.is_part_of_type_node(node)
+        || matches!(
             checker.kind_of(node),
-            SyntaxKind::Identifier | SyntaxKind::QualifiedName
-        ) || checker.is_entity_name_expression(node))
+            SyntaxKind::TypeQuery | SyntaxKind::Identifier | SyntaxKind::QualifiedName
+        )
+        || checker.is_entity_name_expression(node)
+}
+
+/// tsgo-port: SymbolTrackerImpl.isChildOfBoundExpando @7.1 (declarations/tracker.go:59-83):
+/// an ancestor below the enclosing block is an assignment `f.x = …` whose
+/// leftmost name refers to an expando function.
+fn tracker_is_child_of_bound_expando(
+    checker: &mut crate::state::CheckerState<'_>,
+    node: tsc_syntax::NodeId,
+) -> crate::state::CheckResult<bool> {
+    use tsc_syntax::{NodeData, SyntaxKind};
+    let mut current = Some(node);
+    while let Some(candidate) = current {
+        if matches!(
+            checker.kind_of(candidate),
+            SyntaxKind::SourceFile | SyntaxKind::Block
+        ) {
+            return Ok(false);
+        }
+        // isBoundExpando: only an assignment rooted at an identifier
+        // (`f.x = …`) binds an expando property.
+        if let NodeData::BinaryExpression(data) = checker.data_of(candidate) {
+            if let Some(left) = data
+                .left
+                .filter(|&left| checker.kind_of(left) == SyntaxKind::PropertyAccessExpression)
+            {
+                // GetLeftmostAccessExpression.
+                let mut leftmost = left;
+                loop {
+                    let expression = match checker.data_of(leftmost) {
+                        NodeData::PropertyAccessExpression(access) => access.expression,
+                        NodeData::ElementAccessExpression(access) => access.expression,
+                        _ => break,
+                    };
+                    match expression {
+                        Some(expression) => leftmost = expression,
+                        None => break,
+                    }
+                }
+                if checker.kind_of(leftmost) == SyntaxKind::Identifier {
+                    if let Some(reference) =
+                        checker.emit_get_referenced_value_declaration(leftmost)?
+                    {
+                        if checker.emit_is_expando_function_declaration(reference)? {
+                            return Ok(true);
+                        }
+                    }
+                }
+            }
+        }
+        current = checker.parent_of(candidate);
+    }
+    Ok(false)
 }
 
 /// tsc-port: getAllAccessorDeclarations @6.0.3
@@ -515,12 +566,6 @@ pub(crate) trait SyntacticBuilderResolver: tsc_emitter::EmitTrackerAccess {
         expression: tsc_emitter::TransformNode,
     ) -> Result<crate::evaluate::EvaluatorResult, tsc_emitter::EmitResolverError>;
 
-    fn is_expando_function_declaration(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        node: tsc_emitter::TransformNode,
-    ) -> Result<bool, tsc_emitter::EmitResolverError>;
-
     fn has_late_bindable_name(
         &mut self,
         arena: &mut tsc_emitter::TransformArena,
@@ -732,6 +777,15 @@ impl tsc_emitter::EmitTrackerAccess for StandaloneTrackerAccess<'_, '_> {
     ) -> Result<bool, tsc_emitter::EmitResolverError> {
         let node = self.node(node).ok_or_else(|| self.invalid_token())?;
         Ok(tracker_is_entity_in_type_node(self.checker, node))
+    }
+
+    fn is_child_of_bound_expando(
+        &mut self,
+        node: tsc_emitter::EmitTrackerNode,
+    ) -> Result<bool, tsc_emitter::EmitResolverError> {
+        let node = self.node(node).ok_or_else(|| self.invalid_token())?;
+        tracker_is_child_of_bound_expando(self.checker, node)
+            .map_err(|abort| self.abort(node, abort))
     }
 
     fn accessor_declarations(

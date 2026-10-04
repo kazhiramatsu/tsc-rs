@@ -190,6 +190,13 @@ impl MockTrackerAccess {
 }
 
 impl EmitTrackerAccess for MockTrackerAccess {
+    fn is_child_of_bound_expando(
+        &mut self,
+        _node: EmitTrackerNode,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(false)
+    }
+
     fn is_entity_in_type_node(
         &mut self,
         _node: tsc_emitter::EmitTrackerNode,

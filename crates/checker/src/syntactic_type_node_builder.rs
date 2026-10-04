@@ -103,15 +103,16 @@ impl SyntacticTypeNodeBuilder {
         session.try_reuse_existing_type_node(existing)
     }
 
-    /// tsrs-native: syntactic front-door wrapper.
-    pub(crate) fn serialize_type_of_declaration(
+    /// tsgo-port: NodeBuilderImpl.tryReuseExistingNodeHelper @7.1
+    /// (nodecopy.go:222-232): the existing-node visitor under a recovery
+    /// boundary, for any reused node (tsgo has no canReuseTypeNode gate).
+    pub(crate) fn try_reuse_existing_node(
         &self,
         resolver: &mut dyn SyntacticBuilderResolver,
         arena: &mut TransformArena,
         target: TransformSourceId,
         context: &mut NodeBuilderContext<'_>,
-        node: TransformNode,
-        symbol: Option<SyntacticSymbol>,
+        existing: TransformNode,
     ) -> Result<Option<TransformNode>, EmitResolverError> {
         SyntacticBuildSession::new(
             self,
@@ -121,28 +122,7 @@ impl SyntacticTypeNodeBuilder {
             context,
             EmitResolverMethod::CreateTypeOfDeclaration,
         )
-        .serialize_type_of_declaration(node, symbol)
-    }
-
-    /// tsrs-native: syntactic front-door wrapper.
-    pub(crate) fn serialize_return_type_for_signature(
-        &self,
-        resolver: &mut dyn SyntacticBuilderResolver,
-        arena: &mut TransformArena,
-        target: TransformSourceId,
-        context: &mut NodeBuilderContext<'_>,
-        node: TransformNode,
-        symbol: Option<SyntacticSymbol>,
-    ) -> Result<Option<TransformNode>, EmitResolverError> {
-        SyntacticBuildSession::new(
-            self,
-            resolver,
-            arena,
-            target,
-            context,
-            EmitResolverMethod::CreateReturnTypeOfSignatureDeclaration,
-        )
-        .serialize_return_type_for_signature(node, symbol)
+        .try_reuse_existing_type_node(existing)
     }
 
     /// tsrs-native: syntactic front-door wrapper (session dispatch).
@@ -163,28 +143,6 @@ impl SyntacticTypeNodeBuilder {
             EmitResolverMethod::CreateTypeOfExpression,
         )
         .serialize_type_of_expression(expression, false, false)
-        .map(Some)
-    }
-
-    /// tsrs-native: syntactic front-door wrapper (session dispatch).
-    pub(crate) fn serialize_type_of_accessor(
-        &self,
-        resolver: &mut dyn SyntacticBuilderResolver,
-        arena: &mut TransformArena,
-        target: TransformSourceId,
-        context: &mut NodeBuilderContext<'_>,
-        accessor: TransformNode,
-        symbol: Option<SyntacticSymbol>,
-    ) -> Result<Option<TransformNode>, EmitResolverError> {
-        SyntacticBuildSession::new(
-            self,
-            resolver,
-            arena,
-            target,
-            context,
-            EmitResolverMethod::CreateTypeOfDeclaration,
-        )
-        .serialize_type_of_accessor(accessor, symbol)
         .map(Some)
     }
 }
@@ -1312,22 +1270,32 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
             return Ok(Some(clone));
         }
 
-        if matches!(data, NodeData::StringLiteral(_))
-            && self.context.flags.0 & USE_SINGLE_QUOTES_FOR_STRING_LITERAL_TYPE != 0
-            && !self
-                .arena
-                .literal_properties(node)
-                .and_then(tsc_emitter::LiteralNodeProperties::string_literal_single_quote)
-                .unwrap_or(false)
-        {
+        // tsgo keeps a reused string literal's characters (an emoji, say)
+        // rather than escaping them as ASCII (nodecopy.go:810-821).
+        if matches!(
+            data,
+            NodeData::StringLiteral(_) | NodeData::NoSubstitutionTemplateLiteral(_)
+        ) {
             let clone = self.clone_node(node)?;
+            if matches!(data, NodeData::StringLiteral(_))
+                && self.context.flags.0 & USE_SINGLE_QUOTES_FOR_STRING_LITERAL_TYPE != 0
+                && !self
+                    .arena
+                    .literal_properties(node)
+                    .and_then(tsc_emitter::LiteralNodeProperties::string_literal_single_quote)
+                    .unwrap_or(false)
+            {
+                self.arena
+                    .literal_properties_mut(clone)
+                    .map_err(|error| EmitResolverError::Factory {
+                        method: self.method,
+                        error: Box::new(error),
+                    })?
+                    .set_string_literal_single_quote(true);
+            }
             self.arena
-                .literal_properties_mut(clone)
-                .map_err(|error| EmitResolverError::Factory {
-                    method: self.method,
-                    error: Box::new(error),
-                })?
-                .set_string_literal_single_quote(true);
+                .metadata_mut(clone)
+                .add_flags(EmitFlags::NO_ASCII_ESCAPING);
             return Ok(Some(clone));
         }
 
@@ -1743,140 +1711,6 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         }
     }
 
-    /// tsc-port: serializeTypeOfDeclaration @6.0.3
-    /// tsc-hash: 136df25c4224ca49b1f3b79f75b8938d83ccfa9f5a8f47bdb04124b7f2ca3383
-    /// tsc-span: _tsc.js:133753-133785
-    fn serialize_type_of_declaration(
-        &mut self,
-        node: TransformNode,
-        symbol: Option<SyntacticSymbol>,
-    ) -> Result<Option<TransformNode>, EmitResolverError> {
-        let result = match self.kind(node)? {
-            SyntaxKind::Parameter | SyntaxKind::JSDocParameterTag => {
-                self.type_from_parameter(node, symbol)?
-            }
-            SyntaxKind::VariableDeclaration => self.type_from_variable(node, symbol)?,
-            SyntaxKind::PropertySignature
-            | SyntaxKind::JSDocPropertyTag
-            | SyntaxKind::PropertyDeclaration => self.type_from_property(node, symbol)?,
-            SyntaxKind::BindingElement => self.infer_type_of_declaration(node, symbol, true)?,
-            SyntaxKind::ExportAssignment => {
-                let NodeData::ExportAssignment(data) = self.node(node)?.data.clone() else {
-                    return Ok(None);
-                };
-                let Some(expression) = self.child(node.source(), data.expression) else {
-                    return Ok(None);
-                };
-                Some(self.serialize_type_of_expression(expression, false, true)?)
-            }
-            SyntaxKind::PropertyAccessExpression
-            | SyntaxKind::ElementAccessExpression
-            | SyntaxKind::BinaryExpression => self.type_from_expando_property(node, symbol)?,
-            SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment => {
-                self.type_from_property_assignment(node, symbol)?
-            }
-            // tsgo GetTypeOfDeclaration answers no pseudo type for a
-            // JavaScript `Object.defineProperty(exports, …)` call
-            // (pseudochecker/lookup.go:50-62), so its symbol's type is written.
-            SyntaxKind::CallExpression => self.infer_type_of_declaration(node, symbol, false)?,
-            _ => return Ok(None),
-        };
-        Ok(result)
-    }
-
-    /// tsc-port: typeFromPropertyAssignment @6.0.3
-    /// tsc-hash: 5e6d2c936395ed6d627a9d73735c6a0e7b9f2b5cef2ec289ccdb9c99d8f4f9ea
-    /// tsc-span: _tsc.js:133786-133806
-    fn type_from_property_assignment(
-        &mut self,
-        node: TransformNode,
-        symbol: Option<SyntacticSymbol>,
-    ) -> Result<Option<TransformNode>, EmitResolverError> {
-        let type_annotation = self.effective_type_annotation_node(node)?;
-        let mut result = None;
-        if let Some(type_annotation) = type_annotation {
-            if self.resolver.can_reuse_type_node_annotation(
-                self.arena,
-                self.context,
-                node,
-                type_annotation,
-                symbol,
-                None,
-            )? {
-                result = self.serialize_existing_type_node(Some(type_annotation), false)?;
-            }
-        }
-        if result.is_none() && self.kind(node)? == SyntaxKind::PropertyAssignment {
-            let NodeData::PropertyAssignment(data) = self.node(node)?.data.clone() else {
-                return self.infer_type_of_declaration(node, symbol, false);
-            };
-            if let Some(initializer) = self.child(node.source(), data.initializer) {
-                let assertion = if self.is_jsdoc_type_assertion(initializer)? {
-                    self.jsdoc_type_assertion_type(initializer)?
-                } else {
-                    match &self.node(initializer)?.data {
-                        NodeData::AsExpression(data) => {
-                            self.child(initializer.source(), data.r#type)
-                        }
-                        NodeData::TypeAssertionExpression(data) => {
-                            self.child(initializer.source(), data.r#type)
-                        }
-                        _ => None,
-                    }
-                };
-                if let Some(assertion) = assertion {
-                    if !self.is_const_type_reference(assertion)?
-                        && self.resolver.can_reuse_type_node_annotation(
-                            self.arena,
-                            self.context,
-                            node,
-                            assertion,
-                            symbol,
-                            None,
-                        )?
-                    {
-                        result = self.serialize_existing_type_node(Some(assertion), false)?;
-                    }
-                }
-            }
-        }
-        match result {
-            Some(result) => Ok(Some(result)),
-            None => self.infer_type_of_declaration(node, symbol, false),
-        }
-    }
-
-    /// tsc-port: serializeReturnTypeForSignature @6.0.3
-    /// tsc-hash: 392dd1cdbbe89fcce6955d0c3d92b5f8f79cb32596078ca3d747b39114d144f8
-    /// tsc-span: _tsc.js:133807-133829
-    fn serialize_return_type_for_signature(
-        &mut self,
-        node: TransformNode,
-        symbol: Option<SyntacticSymbol>,
-    ) -> Result<Option<TransformNode>, EmitResolverError> {
-        let result = match self.kind(node)? {
-            SyntaxKind::GetAccessor => self.serialize_type_of_accessor(node, symbol)?,
-            SyntaxKind::MethodDeclaration
-            | SyntaxKind::FunctionDeclaration
-            | SyntaxKind::ConstructSignature
-            | SyntaxKind::MethodSignature
-            | SyntaxKind::CallSignature
-            | SyntaxKind::Constructor
-            | SyntaxKind::SetAccessor
-            | SyntaxKind::IndexSignature
-            | SyntaxKind::FunctionType
-            | SyntaxKind::ConstructorType
-            | SyntaxKind::FunctionExpression
-            | SyntaxKind::ArrowFunction
-            | SyntaxKind::JSDocFunctionType
-            | SyntaxKind::JSDocSignature => {
-                self.create_return_from_signature(node, symbol, true)?
-            }
-            _ => return Ok(None),
-        };
-        Ok(Some(result))
-    }
-
     /// tsc-port: getTypeAnnotationFromAccessor @6.0.3
     /// tsc-hash: b68d84b08e95c6749632a76792ba24de7ff7c28dcd157701ac642af0a4d1ddfe
     /// tsc-span: _tsc.js:133830-133834
@@ -1964,49 +1798,6 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         Ok(None)
     }
 
-    /// tsc-port: typeFromVariable @6.0.3
-    /// tsc-hash: 85f3798f047596dba19ca4c86bed1b1a67331da75e99c8105a4dcad1f35d0b12
-    /// tsc-span: _tsc.js:133856-133876
-    fn type_from_variable(
-        &mut self,
-        node: TransformNode,
-        symbol: Option<SyntacticSymbol>,
-    ) -> Result<Option<TransformNode>, EmitResolverError> {
-        let declared_type = self.effective_type_annotation_node(node)?;
-        let mut result = SyntacticResult::failed();
-        if declared_type.is_some() {
-            result = SyntacticResult::syntactic(self.serialize_type_annotation_of_declaration(
-                declared_type,
-                node,
-                symbol,
-                None,
-            )?);
-        } else if let Some(initializer) = self.initializer_of(node)? {
-            let sole_variable = symbol.is_some_and(|symbol| {
-                symbol.declaration_count == 1 || symbol.variable_declaration_count == 1
-            });
-            if sole_variable
-                && !SyntacticBuilderResolver::is_expando_function_declaration(
-                    &mut *self.resolver,
-                    self.arena,
-                    node,
-                )?
-                && !self.is_contextually_typed(node)?
-            {
-                result = self.type_from_expression(
-                    initializer,
-                    false,
-                    false,
-                    self.is_var_const_like(node)?,
-                )?;
-            }
-        }
-        match result.r#type {
-            Some(result) => Ok(Some(result)),
-            None => self.infer_type_of_declaration(node, symbol, result.report_fallback),
-        }
-    }
-
     /// tsc-port: typeFromParameter @6.0.3
     /// tsc-hash: 4c4e99d60e87cd04b1fad244bea00d2bd2044fca6edcb7cb4fd6064528483e58
     /// tsc-span: _tsc.js:133877-133902
@@ -2043,72 +1834,6 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
                     .is_some_and(|name| self.kind(name).ok() == Some(SyntaxKind::Identifier));
                 if name_is_identifier && !self.is_contextually_typed(node)? {
                     result = self.type_from_expression(initializer, false, add_undefined, false)?;
-                }
-            }
-        }
-        match result.r#type {
-            Some(result) => Ok(Some(result)),
-            None => self.infer_type_of_declaration(node, symbol, result.report_fallback),
-        }
-    }
-
-    /// tsc-port: typeFromExpandoProperty @6.0.3
-    /// tsc-hash: 8f044a256589e1b17aaadc603635ff4cdd552882249dd628f32d3f101e4444c0
-    /// tsc-span: _tsc.js:133903-133920
-    fn type_from_expando_property(
-        &mut self,
-        node: TransformNode,
-        symbol: Option<SyntacticSymbol>,
-    ) -> Result<Option<TransformNode>, EmitResolverError> {
-        let declared_type = self.effective_type_annotation_node(node)?;
-        let result = if declared_type.is_some() {
-            self.serialize_type_annotation_of_declaration(declared_type, node, symbol, None)?
-        } else {
-            None
-        };
-        let old_suppress = self.context.suppress_report_inference_fallback;
-        self.context.suppress_report_inference_fallback = true;
-        let inferred = match result {
-            Some(result) => Ok(Some(result)),
-            None => self.infer_type_of_declaration(node, symbol, false),
-        };
-        self.context.suppress_report_inference_fallback = old_suppress;
-        inferred
-    }
-
-    /// tsc-port: typeFromProperty @6.0.3
-    /// tsc-hash: 4eac46c53ae9b80d9b3d0b1970fbb8472f94d05c38d2ca36e4af4c51725a1c82
-    /// tsc-span: _tsc.js:133921-133942
-    fn type_from_property(
-        &mut self,
-        node: TransformNode,
-        symbol: Option<SyntacticSymbol>,
-    ) -> Result<Option<TransformNode>, EmitResolverError> {
-        let declared_type = self.effective_type_annotation_node(node)?;
-        let add_undefined = SyntacticBuilderResolver::requires_adding_implicit_undefined(
-            &mut *self.resolver,
-            self.arena,
-            node,
-            symbol,
-            self.context.enclosing_declaration,
-        )?;
-        let mut result = SyntacticResult::failed();
-        if declared_type.is_some() {
-            result = SyntacticResult::syntactic(self.serialize_type_annotation_of_declaration(
-                declared_type,
-                node,
-                symbol,
-                Some(add_undefined),
-            )?);
-        } else if self.kind(node)? == SyntaxKind::PropertyDeclaration {
-            if let Some(initializer) = self.initializer_of(node)? {
-                if !self.is_contextually_typed(node)? {
-                    result = self.type_from_expression(
-                        initializer,
-                        false,
-                        add_undefined,
-                        self.is_declaration_readonly(node)?,
-                    )?;
                 }
             }
         }
@@ -3559,39 +3284,6 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
                 },
             );
         Ok(type_node.and_then(|node_id| self.arena.node_ref(node.source(), node_id)))
-    }
-
-    fn is_var_const_like(&self, node: TransformNode) -> Result<bool, EmitResolverError> {
-        let mut flags = NodeFlags::from_bits(self.node(node)?.flags);
-        if let Some(parent) = self.parent(node) {
-            if self.kind(parent)? == SyntaxKind::VariableDeclarationList {
-                flags |= NodeFlags::from_bits(self.node(parent)?.flags);
-            }
-        }
-        let block_scope = flags.bits() & NodeFlags::BLOCK_SCOPED.bits();
-        Ok(matches!(block_scope, 2 | 4 | 6))
-    }
-
-    fn is_declaration_readonly(
-        &self,
-        declaration: TransformNode,
-    ) -> Result<bool, EmitResolverError> {
-        let source = self
-            .arena
-            .source(declaration.source())
-            .map_err(|error| self.factory_error(error))?
-            .syntax();
-        Ok(
-            node_util::get_combined_modifier_flags(source, declaration.node())
-                .intersects(tsc_types::ModifierFlags::READONLY)
-                && !self.parent(declaration).is_some_and(|parent| {
-                    node_util::is_parameter_property_declaration(
-                        source,
-                        declaration.node(),
-                        parent.node(),
-                    )
-                }),
-        )
     }
 
     fn is_primitive_literal_value(

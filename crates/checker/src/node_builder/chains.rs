@@ -178,6 +178,15 @@ impl EmitTrackerAccess for CheckerTrackerAccess<'_, '_> {
         Ok(super::tracker_is_entity_in_type_node(self.checker, node))
     }
 
+    fn is_child_of_bound_expando(
+        &mut self,
+        node: tsc_emitter::EmitTrackerNode,
+    ) -> Result<bool, tsc_emitter::EmitResolverError> {
+        let node = self.node(node).ok_or_else(|| self.unavailable(None))?;
+        super::tracker_is_child_of_bound_expando(self.checker, node)
+            .map_err(|abort| tracker_error(self.checker, Some(node), abort))
+    }
+
     fn accessor_declarations(
         &mut self,
         node: tsc_emitter::EmitTrackerNode,
@@ -2659,42 +2668,6 @@ fn get_property_name_node_for_symbol_from_name_type(
             }),
         )
         .map(Some);
-    }
-    Ok(None)
-}
-
-fn is_descendant_of(checker: &CheckerState<'_>, node: NodeId, ancestor: NodeId) -> bool {
-    let mut current = Some(node);
-    while let Some(node) = current {
-        if node == ancestor {
-            return true;
-        }
-        current = checker.parent_of(node);
-    }
-    false
-}
-
-/// tsc-port: getDeclarationWithTypeAnnotation @6.0.3
-/// tsc-hash: 42754a319d127dbebf6a1b56e5ab5c06654aa5cae761236f85b61c860ec02690
-/// tsc-span: _tsc.js:53462-53464
-pub(crate) fn get_declaration_with_type_annotation(
-    checker: &mut CheckerState<'_>,
-    symbol: SymbolId,
-    enclosing_declaration: Option<NodeId>,
-    context: &NodeBuilderContext<'_>,
-) -> BuildResult<Option<NodeId>> {
-    let declarations = checker.binder.symbol(symbol).declarations.clone();
-    for declaration in declarations {
-        let annotation = checker
-            .emit_nonlocal_effective_type_annotation_node(declaration)
-            .map_err(|abort| checker_abort_error(checker, context, abort))?;
-        if annotation.is_some()
-            && enclosing_declaration
-                .map(|enclosing| is_descendant_of(checker, declaration, enclosing))
-                .unwrap_or(true)
-        {
-            return Ok(Some(declaration));
-        }
     }
     Ok(None)
 }

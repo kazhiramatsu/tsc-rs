@@ -11705,15 +11705,20 @@
         },
         "text_utf16": [
           34,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ],
-        "utf8_base64": "Iu+/vSI=",
-        "utf8_bytes": 5,
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         }
       }
     },
@@ -11738,15 +11743,20 @@
         },
         "text_utf16": [
           34,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ],
-        "utf8_base64": "Iu+/vSI=",
-        "utf8_bytes": 5,
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         }
       }
     },
@@ -11771,15 +11781,20 @@
         },
         "text_utf16": [
           34,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ],
-        "utf8_base64": "Iu+/vSI=",
-        "utf8_bytes": 5,
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         }
       }
     },
@@ -11842,15 +11857,20 @@
         },
         "text_utf16": [
           39,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           39
         ],
-        "utf8_base64": "J++/vSc=",
-        "utf8_bytes": 5,
+        "utf8_base64": "J1x1RDgwMCc=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         }
       }
     },
@@ -11875,15 +11895,20 @@
         },
         "text_utf16": [
           39,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           39
         ],
-        "utf8_base64": "J++/vSc=",
-        "utf8_bytes": 5,
+        "utf8_base64": "J1x1RDgwMCc=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         }
       }
     },
@@ -11908,15 +11933,20 @@
         },
         "text_utf16": [
           39,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           39
         ],
-        "utf8_base64": "J++/vSc=",
-        "utf8_bytes": 5,
+        "utf8_base64": "J1x1RDgwMCc=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         }
       }
     },
@@ -11979,15 +12009,20 @@
         },
         "text_utf16": [
           96,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           96
         ],
-        "utf8_base64": "YO+/vWA=",
-        "utf8_bytes": 5,
+        "utf8_base64": "YFx1RDgwMGA=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         }
       }
     },
@@ -12012,15 +12047,20 @@
         },
         "text_utf16": [
           96,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           96
         ],
-        "utf8_base64": "YO+/vWA=",
-        "utf8_bytes": 5,
+        "utf8_base64": "YFx1RDgwMGA=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         }
       }
     },
@@ -12045,15 +12085,20 @@
         },
         "text_utf16": [
           96,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           96
         ],
-        "utf8_base64": "YO+/vWA=",
-        "utf8_bytes": 5,
+        "utf8_base64": "YFx1RDgwMGA=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         }
       }
     },
@@ -12117,16 +12162,21 @@
         },
         "text_utf16": [
           96,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           36,
           123
         ],
-        "utf8_base64": "YO+/vSR7",
-        "utf8_bytes": 6,
+        "utf8_base64": "YFx1RDgwMCR7",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -12151,16 +12201,21 @@
         },
         "text_utf16": [
           96,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           36,
           123
         ],
-        "utf8_base64": "YO+/vSR7",
-        "utf8_bytes": 6,
+        "utf8_base64": "YFx1RDgwMCR7",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -12185,16 +12240,21 @@
         },
         "text_utf16": [
           96,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           36,
           123
         ],
-        "utf8_base64": "YO+/vSR7",
-        "utf8_bytes": 6,
+        "utf8_base64": "YFx1RDgwMCR7",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -12258,16 +12318,21 @@
         },
         "text_utf16": [
           125,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           36,
           123
         ],
-        "utf8_base64": "fe+/vSR7",
-        "utf8_bytes": 6,
+        "utf8_base64": "fVx1RDgwMCR7",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -12292,16 +12357,21 @@
         },
         "text_utf16": [
           125,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           36,
           123
         ],
-        "utf8_base64": "fe+/vSR7",
-        "utf8_bytes": 6,
+        "utf8_base64": "fVx1RDgwMCR7",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -12326,16 +12396,21 @@
         },
         "text_utf16": [
           125,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           36,
           123
         ],
-        "utf8_base64": "fe+/vSR7",
-        "utf8_bytes": 6,
+        "utf8_base64": "fVx1RDgwMCR7",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -12398,15 +12473,20 @@
         },
         "text_utf16": [
           125,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           96
         ],
-        "utf8_base64": "fe+/vWA=",
-        "utf8_bytes": 5,
+        "utf8_base64": "fVx1RDgwMGA=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         }
       }
     },
@@ -12431,15 +12511,20 @@
         },
         "text_utf16": [
           125,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           96
         ],
-        "utf8_base64": "fe+/vWA=",
-        "utf8_bytes": 5,
+        "utf8_base64": "fVx1RDgwMGA=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         }
       }
     },
@@ -12464,15 +12549,20 @@
         },
         "text_utf16": [
           125,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           96
         ],
-        "utf8_base64": "fe+/vWA=",
-        "utf8_bytes": 5,
+        "utf8_base64": "fVx1RDgwMGA=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         }
       }
     },
@@ -12535,15 +12625,20 @@
         },
         "text_utf16": [
           34,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           34
         ],
-        "utf8_base64": "Iu+/vSI=",
-        "utf8_bytes": 5,
+        "utf8_base64": "Ilx1REMwMCI=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         }
       }
     },
@@ -12568,15 +12663,20 @@
         },
         "text_utf16": [
           34,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           34
         ],
-        "utf8_base64": "Iu+/vSI=",
-        "utf8_bytes": 5,
+        "utf8_base64": "Ilx1REMwMCI=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         }
       }
     },
@@ -12601,15 +12701,20 @@
         },
         "text_utf16": [
           34,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           34
         ],
-        "utf8_base64": "Iu+/vSI=",
-        "utf8_bytes": 5,
+        "utf8_base64": "Ilx1REMwMCI=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         }
       }
     },
@@ -12672,15 +12777,20 @@
         },
         "text_utf16": [
           39,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           39
         ],
-        "utf8_base64": "J++/vSc=",
-        "utf8_bytes": 5,
+        "utf8_base64": "J1x1REMwMCc=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         }
       }
     },
@@ -12705,15 +12815,20 @@
         },
         "text_utf16": [
           39,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           39
         ],
-        "utf8_base64": "J++/vSc=",
-        "utf8_bytes": 5,
+        "utf8_base64": "J1x1REMwMCc=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         }
       }
     },
@@ -12738,15 +12853,20 @@
         },
         "text_utf16": [
           39,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           39
         ],
-        "utf8_base64": "J++/vSc=",
-        "utf8_bytes": 5,
+        "utf8_base64": "J1x1REMwMCc=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         }
       }
     },
@@ -12809,15 +12929,20 @@
         },
         "text_utf16": [
           96,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           96
         ],
-        "utf8_base64": "YO+/vWA=",
-        "utf8_bytes": 5,
+        "utf8_base64": "YFx1REMwMGA=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         }
       }
     },
@@ -12842,15 +12967,20 @@
         },
         "text_utf16": [
           96,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           96
         ],
-        "utf8_base64": "YO+/vWA=",
-        "utf8_bytes": 5,
+        "utf8_base64": "YFx1REMwMGA=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         }
       }
     },
@@ -12875,15 +13005,20 @@
         },
         "text_utf16": [
           96,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           96
         ],
-        "utf8_base64": "YO+/vWA=",
-        "utf8_bytes": 5,
+        "utf8_base64": "YFx1REMwMGA=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         }
       }
     },
@@ -12947,16 +13082,21 @@
         },
         "text_utf16": [
           96,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           36,
           123
         ],
-        "utf8_base64": "YO+/vSR7",
-        "utf8_bytes": 6,
+        "utf8_base64": "YFx1REMwMCR7",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -12981,16 +13121,21 @@
         },
         "text_utf16": [
           96,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           36,
           123
         ],
-        "utf8_base64": "YO+/vSR7",
-        "utf8_bytes": 6,
+        "utf8_base64": "YFx1REMwMCR7",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -13015,16 +13160,21 @@
         },
         "text_utf16": [
           96,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           36,
           123
         ],
-        "utf8_base64": "YO+/vSR7",
-        "utf8_bytes": 6,
+        "utf8_base64": "YFx1REMwMCR7",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -13088,16 +13238,21 @@
         },
         "text_utf16": [
           125,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           36,
           123
         ],
-        "utf8_base64": "fe+/vSR7",
-        "utf8_bytes": 6,
+        "utf8_base64": "fVx1REMwMCR7",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -13122,16 +13277,21 @@
         },
         "text_utf16": [
           125,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           36,
           123
         ],
-        "utf8_base64": "fe+/vSR7",
-        "utf8_bytes": 6,
+        "utf8_base64": "fVx1REMwMCR7",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -13156,16 +13316,21 @@
         },
         "text_utf16": [
           125,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           36,
           123
         ],
-        "utf8_base64": "fe+/vSR7",
-        "utf8_bytes": 6,
+        "utf8_base64": "fVx1REMwMCR7",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -13228,15 +13393,20 @@
         },
         "text_utf16": [
           125,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           96
         ],
-        "utf8_base64": "fe+/vWA=",
-        "utf8_bytes": 5,
+        "utf8_base64": "fVx1REMwMGA=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         }
       }
     },
@@ -13261,15 +13431,20 @@
         },
         "text_utf16": [
           125,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           96
         ],
-        "utf8_base64": "fe+/vWA=",
-        "utf8_bytes": 5,
+        "utf8_base64": "fVx1REMwMGA=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         }
       }
     },
@@ -13294,15 +13469,20 @@
         },
         "text_utf16": [
           125,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           96
         ],
-        "utf8_base64": "fe+/vWA=",
-        "utf8_bytes": 5,
+        "utf8_base64": "fVx1REMwMGA=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         }
       }
     },
@@ -13395,18 +13575,28 @@
         },
         "text_utf16": [
           34,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           55296,
           56320,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           34
         ],
-        "utf8_base64": "Iu+/vfCQgIDvv70i",
-        "utf8_bytes": 12,
+        "utf8_base64": "Ilx1RDgwMPCQgIBcdURDMDAi",
+        "utf8_bytes": 18,
         "end_utf16": {
-          "position": 6,
+          "position": 16,
           "line": 0,
-          "column": 6
+          "column": 16
         }
       }
     },
@@ -13437,18 +13627,28 @@
         },
         "text_utf16": [
           34,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           55296,
           56320,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           34
         ],
-        "utf8_base64": "Iu+/vfCQgIDvv70i",
-        "utf8_bytes": 12,
+        "utf8_base64": "Ilx1RDgwMPCQgIBcdURDMDAi",
+        "utf8_bytes": 18,
         "end_utf16": {
-          "position": 6,
+          "position": 16,
           "line": 0,
-          "column": 6
+          "column": 16
         }
       }
     },
@@ -13479,18 +13679,28 @@
         },
         "text_utf16": [
           34,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           55296,
           56320,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           34
         ],
-        "utf8_base64": "Iu+/vfCQgIDvv70i",
-        "utf8_bytes": 12,
+        "utf8_base64": "Ilx1RDgwMPCQgIBcdURDMDAi",
+        "utf8_bytes": 18,
         "end_utf16": {
-          "position": 6,
+          "position": 16,
           "line": 0,
-          "column": 6
+          "column": 16
         }
       }
     },
@@ -13583,18 +13793,28 @@
         },
         "text_utf16": [
           39,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           55296,
           56320,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           39
         ],
-        "utf8_base64": "J++/vfCQgIDvv70n",
-        "utf8_bytes": 12,
+        "utf8_base64": "J1x1RDgwMPCQgIBcdURDMDAn",
+        "utf8_bytes": 18,
         "end_utf16": {
-          "position": 6,
+          "position": 16,
           "line": 0,
-          "column": 6
+          "column": 16
         }
       }
     },
@@ -13625,18 +13845,28 @@
         },
         "text_utf16": [
           39,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           55296,
           56320,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           39
         ],
-        "utf8_base64": "J++/vfCQgIDvv70n",
-        "utf8_bytes": 12,
+        "utf8_base64": "J1x1RDgwMPCQgIBcdURDMDAn",
+        "utf8_bytes": 18,
         "end_utf16": {
-          "position": 6,
+          "position": 16,
           "line": 0,
-          "column": 6
+          "column": 16
         }
       }
     },
@@ -13667,18 +13897,28 @@
         },
         "text_utf16": [
           39,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           55296,
           56320,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           39
         ],
-        "utf8_base64": "J++/vfCQgIDvv70n",
-        "utf8_bytes": 12,
+        "utf8_base64": "J1x1RDgwMPCQgIBcdURDMDAn",
+        "utf8_bytes": 18,
         "end_utf16": {
-          "position": 6,
+          "position": 16,
           "line": 0,
-          "column": 6
+          "column": 16
         }
       }
     },
@@ -13771,18 +14011,28 @@
         },
         "text_utf16": [
           96,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           55296,
           56320,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           96
         ],
-        "utf8_base64": "YO+/vfCQgIDvv71g",
-        "utf8_bytes": 12,
+        "utf8_base64": "YFx1RDgwMPCQgIBcdURDMDBg",
+        "utf8_bytes": 18,
         "end_utf16": {
-          "position": 6,
+          "position": 16,
           "line": 0,
-          "column": 6
+          "column": 16
         }
       }
     },
@@ -13813,18 +14063,28 @@
         },
         "text_utf16": [
           96,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           55296,
           56320,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           96
         ],
-        "utf8_base64": "YO+/vfCQgIDvv71g",
-        "utf8_bytes": 12,
+        "utf8_base64": "YFx1RDgwMPCQgIBcdURDMDBg",
+        "utf8_bytes": 18,
         "end_utf16": {
-          "position": 6,
+          "position": 16,
           "line": 0,
-          "column": 6
+          "column": 16
         }
       }
     },
@@ -13855,18 +14115,28 @@
         },
         "text_utf16": [
           96,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           55296,
           56320,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           96
         ],
-        "utf8_base64": "YO+/vfCQgIDvv71g",
-        "utf8_bytes": 12,
+        "utf8_base64": "YFx1RDgwMPCQgIBcdURDMDBg",
+        "utf8_bytes": 18,
         "end_utf16": {
-          "position": 6,
+          "position": 16,
           "line": 0,
-          "column": 6
+          "column": 16
         }
       }
     },
@@ -13960,19 +14230,29 @@
         },
         "text_utf16": [
           96,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           55296,
           56320,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           36,
           123
         ],
-        "utf8_base64": "YO+/vfCQgIDvv70kew==",
-        "utf8_bytes": 13,
+        "utf8_base64": "YFx1RDgwMPCQgIBcdURDMDAkew==",
+        "utf8_bytes": 19,
         "end_utf16": {
-          "position": 7,
+          "position": 17,
           "line": 0,
-          "column": 7
+          "column": 17
         }
       }
     },
@@ -14003,19 +14283,29 @@
         },
         "text_utf16": [
           96,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           55296,
           56320,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           36,
           123
         ],
-        "utf8_base64": "YO+/vfCQgIDvv70kew==",
-        "utf8_bytes": 13,
+        "utf8_base64": "YFx1RDgwMPCQgIBcdURDMDAkew==",
+        "utf8_bytes": 19,
         "end_utf16": {
-          "position": 7,
+          "position": 17,
           "line": 0,
-          "column": 7
+          "column": 17
         }
       }
     },
@@ -14046,19 +14336,29 @@
         },
         "text_utf16": [
           96,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           55296,
           56320,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           36,
           123
         ],
-        "utf8_base64": "YO+/vfCQgIDvv70kew==",
-        "utf8_bytes": 13,
+        "utf8_base64": "YFx1RDgwMPCQgIBcdURDMDAkew==",
+        "utf8_bytes": 19,
         "end_utf16": {
-          "position": 7,
+          "position": 17,
           "line": 0,
-          "column": 7
+          "column": 17
         }
       }
     },
@@ -14152,19 +14452,29 @@
         },
         "text_utf16": [
           125,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           55296,
           56320,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           36,
           123
         ],
-        "utf8_base64": "fe+/vfCQgIDvv70kew==",
-        "utf8_bytes": 13,
+        "utf8_base64": "fVx1RDgwMPCQgIBcdURDMDAkew==",
+        "utf8_bytes": 19,
         "end_utf16": {
-          "position": 7,
+          "position": 17,
           "line": 0,
-          "column": 7
+          "column": 17
         }
       }
     },
@@ -14195,19 +14505,29 @@
         },
         "text_utf16": [
           125,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           55296,
           56320,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           36,
           123
         ],
-        "utf8_base64": "fe+/vfCQgIDvv70kew==",
-        "utf8_bytes": 13,
+        "utf8_base64": "fVx1RDgwMPCQgIBcdURDMDAkew==",
+        "utf8_bytes": 19,
         "end_utf16": {
-          "position": 7,
+          "position": 17,
           "line": 0,
-          "column": 7
+          "column": 17
         }
       }
     },
@@ -14238,19 +14558,29 @@
         },
         "text_utf16": [
           125,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           55296,
           56320,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           36,
           123
         ],
-        "utf8_base64": "fe+/vfCQgIDvv70kew==",
-        "utf8_bytes": 13,
+        "utf8_base64": "fVx1RDgwMPCQgIBcdURDMDAkew==",
+        "utf8_bytes": 19,
         "end_utf16": {
-          "position": 7,
+          "position": 17,
           "line": 0,
-          "column": 7
+          "column": 17
         }
       }
     },
@@ -14343,18 +14673,28 @@
         },
         "text_utf16": [
           125,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           55296,
           56320,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           96
         ],
-        "utf8_base64": "fe+/vfCQgIDvv71g",
-        "utf8_bytes": 12,
+        "utf8_base64": "fVx1RDgwMPCQgIBcdURDMDBg",
+        "utf8_bytes": 18,
         "end_utf16": {
-          "position": 6,
+          "position": 16,
           "line": 0,
-          "column": 6
+          "column": 16
         }
       }
     },
@@ -14385,18 +14725,28 @@
         },
         "text_utf16": [
           125,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           55296,
           56320,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           96
         ],
-        "utf8_base64": "fe+/vfCQgIDvv71g",
-        "utf8_bytes": 12,
+        "utf8_base64": "fVx1RDgwMPCQgIBcdURDMDBg",
+        "utf8_bytes": 18,
         "end_utf16": {
-          "position": 6,
+          "position": 16,
           "line": 0,
-          "column": 6
+          "column": 16
         }
       }
     },
@@ -14427,18 +14777,28 @@
         },
         "text_utf16": [
           125,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           55296,
           56320,
-          56320,
+          92,
+          117,
+          68,
+          67,
+          48,
+          48,
           96
         ],
-        "utf8_base64": "fe+/vfCQgIDvv71g",
-        "utf8_bytes": 12,
+        "utf8_base64": "fVx1RDgwMPCQgIBcdURDMDBg",
+        "utf8_bytes": 18,
         "end_utf16": {
-          "position": 6,
+          "position": 16,
           "line": 0,
-          "column": 6
+          "column": 16
         }
       }
     },
@@ -17490,5 +17850,64 @@
         }
       }
     }
-  ]
+  ],
+  "tsgo_overrides": {
+    "reason": "TypeScript 7.1's escapeStringWorker escapes an unpaired surrogate even under NeverAsciiEscape (printer/utilities.go:84-86); tsc 6.0.3 wrote it raw",
+    "cases": [
+      "utf16-escaping/high/NoSubstitutionTemplateLiteral/false/16777216",
+      "utf16-escaping/high/NoSubstitutionTemplateLiteral/true/0",
+      "utf16-escaping/high/NoSubstitutionTemplateLiteral/true/16777216",
+      "utf16-escaping/high/TemplateHead/false/16777216",
+      "utf16-escaping/high/TemplateHead/true/0",
+      "utf16-escaping/high/TemplateHead/true/16777216",
+      "utf16-escaping/high/TemplateMiddle/false/16777216",
+      "utf16-escaping/high/TemplateMiddle/true/0",
+      "utf16-escaping/high/TemplateMiddle/true/16777216",
+      "utf16-escaping/high/TemplateTail/false/16777216",
+      "utf16-escaping/high/TemplateTail/true/0",
+      "utf16-escaping/high/TemplateTail/true/16777216",
+      "utf16-escaping/high/double/false/16777216",
+      "utf16-escaping/high/double/true/0",
+      "utf16-escaping/high/double/true/16777216",
+      "utf16-escaping/high/single/false/16777216",
+      "utf16-escaping/high/single/true/0",
+      "utf16-escaping/high/single/true/16777216",
+      "utf16-escaping/low/NoSubstitutionTemplateLiteral/false/16777216",
+      "utf16-escaping/low/NoSubstitutionTemplateLiteral/true/0",
+      "utf16-escaping/low/NoSubstitutionTemplateLiteral/true/16777216",
+      "utf16-escaping/low/TemplateHead/false/16777216",
+      "utf16-escaping/low/TemplateHead/true/0",
+      "utf16-escaping/low/TemplateHead/true/16777216",
+      "utf16-escaping/low/TemplateMiddle/false/16777216",
+      "utf16-escaping/low/TemplateMiddle/true/0",
+      "utf16-escaping/low/TemplateMiddle/true/16777216",
+      "utf16-escaping/low/TemplateTail/false/16777216",
+      "utf16-escaping/low/TemplateTail/true/0",
+      "utf16-escaping/low/TemplateTail/true/16777216",
+      "utf16-escaping/low/double/false/16777216",
+      "utf16-escaping/low/double/true/0",
+      "utf16-escaping/low/double/true/16777216",
+      "utf16-escaping/low/single/false/16777216",
+      "utf16-escaping/low/single/true/0",
+      "utf16-escaping/low/single/true/16777216",
+      "utf16-escaping/successive/NoSubstitutionTemplateLiteral/false/16777216",
+      "utf16-escaping/successive/NoSubstitutionTemplateLiteral/true/0",
+      "utf16-escaping/successive/NoSubstitutionTemplateLiteral/true/16777216",
+      "utf16-escaping/successive/TemplateHead/false/16777216",
+      "utf16-escaping/successive/TemplateHead/true/0",
+      "utf16-escaping/successive/TemplateHead/true/16777216",
+      "utf16-escaping/successive/TemplateMiddle/false/16777216",
+      "utf16-escaping/successive/TemplateMiddle/true/0",
+      "utf16-escaping/successive/TemplateMiddle/true/16777216",
+      "utf16-escaping/successive/TemplateTail/false/16777216",
+      "utf16-escaping/successive/TemplateTail/true/0",
+      "utf16-escaping/successive/TemplateTail/true/16777216",
+      "utf16-escaping/successive/double/false/16777216",
+      "utf16-escaping/successive/double/true/0",
+      "utf16-escaping/successive/double/true/16777216",
+      "utf16-escaping/successive/single/false/16777216",
+      "utf16-escaping/successive/single/true/0",
+      "utf16-escaping/successive/single/true/16777216"
+    ]
+  }
 }

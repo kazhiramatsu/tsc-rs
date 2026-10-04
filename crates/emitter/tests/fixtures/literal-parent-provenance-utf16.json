@@ -1521,16 +1521,21 @@
           },
           "same_parsed": true
         },
-        "utf8_base64": "Iu+/vSI=",
-        "utf8_bytes": 5,
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         },
         "text_utf16": [
           34,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ]
       }
@@ -1624,16 +1629,21 @@
           },
           "same_parsed": true
         },
-        "utf8_base64": "Iu+/vSI=",
-        "utf8_bytes": 5,
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         },
         "text_utf16": [
           34,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ]
       }
@@ -1727,16 +1737,21 @@
           },
           "same_parsed": false
         },
-        "utf8_base64": "Iu+/vSI=",
-        "utf8_bytes": 5,
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         },
         "text_utf16": [
           34,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ]
       }
@@ -1830,16 +1845,21 @@
           },
           "same_parsed": false
         },
-        "utf8_base64": "Iu+/vSI=",
-        "utf8_bytes": 5,
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         },
         "text_utf16": [
           34,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ]
       }
@@ -3745,16 +3765,21 @@
           },
           "same_parsed": false
         },
-        "utf8_base64": "Iu+/vSI=",
-        "utf8_bytes": 5,
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         },
         "text_utf16": [
           34,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ]
       }
@@ -3856,16 +3881,21 @@
           },
           "same_parsed": false
         },
-        "utf8_base64": "Iu+/vSI=",
-        "utf8_bytes": 5,
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         },
         "text_utf16": [
           34,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ]
       }
@@ -5351,16 +5381,21 @@
           },
           "same_parsed": true
         },
-        "utf8_base64": "Iu+/vSI=",
-        "utf8_bytes": 5,
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         },
         "text_utf16": [
           34,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ]
       }
@@ -5454,16 +5489,21 @@
           },
           "same_parsed": true
         },
-        "utf8_base64": "Iu+/vSI=",
-        "utf8_bytes": 5,
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         },
         "text_utf16": [
           34,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ]
       }
@@ -5557,16 +5597,21 @@
           },
           "same_parsed": false
         },
-        "utf8_base64": "Iu+/vSI=",
-        "utf8_bytes": 5,
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         },
         "text_utf16": [
           34,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ]
       }
@@ -5660,16 +5705,21 @@
           },
           "same_parsed": false
         },
-        "utf8_base64": "Iu+/vSI=",
-        "utf8_bytes": 5,
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         },
         "text_utf16": [
           34,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ]
       }
@@ -7575,16 +7625,21 @@
           },
           "same_parsed": false
         },
-        "utf8_base64": "Iu+/vSI=",
-        "utf8_bytes": 5,
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         },
         "text_utf16": [
           34,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ]
       }
@@ -7686,16 +7741,21 @@
           },
           "same_parsed": false
         },
-        "utf8_base64": "Iu+/vSI=",
-        "utf8_bytes": 5,
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 3,
+          "position": 8,
           "line": 0,
-          "column": 3
+          "column": 8
         },
         "text_utf16": [
           34,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ]
       }
@@ -7705,5 +7765,22 @@
     "path": "crates/emitter/tests/fixtures/literal-parent-provenance.json",
     "sha256": "1f667aa43870ac0e813ebc9a071e3ead997665386d7f6897ccd4bccfd92098a4",
     "observer_sha256": "1bab91ac56c99d1e73ea2944825db41d5c68f3ce4327d57478bb8bc1596b96ec"
+  },
+  "tsgo_overrides": {
+    "reason": "TypeScript 7.1's escapeStringWorker escapes an unpaired surrogate even under NeverAsciiEscape (printer/utilities.go:84-86); tsc 6.0.3 wrote it raw",
+    "cases": [
+      "literal-parent/json/false/3/clone-ranged/true",
+      "literal-parent/json/false/3/clone/true",
+      "literal-parent/json/false/3/parsed-synthesized-flag/true",
+      "literal-parent/json/false/3/parsed/true",
+      "literal-parent/json/true/3/clone-ranged/true",
+      "literal-parent/json/true/3/clone/true",
+      "literal-parent/typescript/false/3/clone-ranged/true",
+      "literal-parent/typescript/false/3/clone/true",
+      "literal-parent/typescript/false/3/parsed-synthesized-flag/true",
+      "literal-parent/typescript/false/3/parsed/true",
+      "literal-parent/typescript/true/3/clone-ranged/true",
+      "literal-parent/typescript/true/3/clone/true"
+    ]
   }
 }

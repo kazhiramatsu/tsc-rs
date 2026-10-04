@@ -20629,15 +20629,25 @@ fn quote_javascript_string(
     crate::JavaScriptString::from_code_units(quoted)
 }
 
-/// escapeString / escapeNonAsciiString / escapeTemplateSubstitution @6.0.3.
-/// Escape JavaScript units directly: NoAsciiEscaping preserves unpaired
-/// surrogates as well as valid scalar values. UTF8 conversion belongs to the
+/// escapeString / escapeNonAsciiString / escapeTemplateSubstitution @6.0.3,
+/// with tsgo's escapeStringWorker (printer/utilities.go:77-170): an unpaired
+/// surrogate is always escaped, while NoAsciiEscaping keeps every scalar
+/// value. Escape JavaScript units directly; UTF8 conversion belongs to the
 /// writer's sink view, after quoting and generated-position measurement.
 fn escape_literal_text(units: &[u16], quote: LiteralQuote, no_ascii_escaping: bool) -> Vec<u16> {
     let mut escaped = Vec::with_capacity(units.len());
     let mut index = 0;
     while let Some(&unit) = units.get(index) {
         let next = units.get(index + 1).copied();
+        if no_ascii_escaping
+            && (0xD800..=0xDBFF).contains(&unit)
+            && next.is_some_and(|next| (0xDC00..=0xDFFF).contains(&next))
+        {
+            // A surrogate pair is a scalar value.
+            escaped.extend([unit, next.expect("tested above")]);
+            index += 2;
+            continue;
+        }
         let replacement = match unit {
             0 => Some(if next.is_some_and(|u| (0x30..=0x39).contains(&u)) {
                 "\\x00"
@@ -20669,6 +20679,7 @@ fn escape_literal_text(units: &[u16], quote: LiteralQuote, no_ascii_escaping: bo
             escaped.push(unit);
         } else if (unit < 0x20 && !(quote == LiteralQuote::Backtick && unit == 10))
             || (!no_ascii_escaping && unit > 0x7f)
+            || (0xD800..=0xDFFF).contains(&unit)
         {
             const HEX: &[u8; 16] = b"0123456789ABCDEF";
             escaped.extend([b'\\' as u16, b'u' as u16]);

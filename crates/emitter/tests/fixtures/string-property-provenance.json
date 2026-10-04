@@ -155,15 +155,20 @@
         "text_utf16": [
           34,
           120,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ],
-        "utf8_base64": "Injvv70i",
-        "utf8_bytes": 6,
+        "utf8_base64": "InhcdUQ4MDAi",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -233,15 +238,20 @@
         "text_utf16": [
           34,
           120,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ],
-        "utf8_base64": "Injvv70i",
-        "utf8_bytes": 6,
+        "utf8_base64": "InhcdUQ4MDAi",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -394,15 +404,20 @@
         "text_utf16": [
           34,
           120,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ],
-        "utf8_base64": "Injvv70i",
-        "utf8_bytes": 6,
+        "utf8_base64": "InhcdUQ4MDAi",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -472,15 +487,20 @@
         "text_utf16": [
           34,
           120,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ],
-        "utf8_base64": "Injvv70i",
-        "utf8_bytes": 6,
+        "utf8_base64": "InhcdUQ4MDAi",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -633,15 +653,20 @@
         "text_utf16": [
           34,
           120,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ],
-        "utf8_base64": "Injvv70i",
-        "utf8_bytes": 6,
+        "utf8_base64": "InhcdUQ4MDAi",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -711,15 +736,20 @@
         "text_utf16": [
           34,
           120,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ],
-        "utf8_base64": "Injvv70i",
-        "utf8_bytes": 6,
+        "utf8_base64": "InhcdUQ4MDAi",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -872,15 +902,20 @@
         "text_utf16": [
           34,
           120,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ],
-        "utf8_base64": "Injvv70i",
-        "utf8_bytes": 6,
+        "utf8_base64": "InhcdUQ4MDAi",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -950,15 +985,20 @@
         "text_utf16": [
           34,
           120,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ],
-        "utf8_base64": "Injvv70i",
-        "utf8_bytes": 6,
+        "utf8_base64": "InhcdUQ4MDAi",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -1111,15 +1151,20 @@
         "text_utf16": [
           39,
           120,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           39
         ],
-        "utf8_base64": "J3jvv70n",
-        "utf8_bytes": 6,
+        "utf8_base64": "J3hcdUQ4MDAn",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -1189,15 +1234,20 @@
         "text_utf16": [
           39,
           120,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           39
         ],
-        "utf8_base64": "J3jvv70n",
-        "utf8_bytes": 6,
+        "utf8_base64": "J3hcdUQ4MDAn",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -1350,15 +1400,20 @@
         "text_utf16": [
           39,
           120,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           39
         ],
-        "utf8_base64": "J3jvv70n",
-        "utf8_bytes": 6,
+        "utf8_base64": "J3hcdUQ4MDAn",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -1428,15 +1483,20 @@
         "text_utf16": [
           39,
           120,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           39
         ],
-        "utf8_base64": "J3jvv70n",
-        "utf8_bytes": 6,
+        "utf8_base64": "J3hcdUQ4MDAn",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -1589,15 +1649,20 @@
         "text_utf16": [
           39,
           120,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           39
         ],
-        "utf8_base64": "J3jvv70n",
-        "utf8_bytes": 6,
+        "utf8_base64": "J3hcdUQ4MDAn",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -1667,15 +1732,20 @@
         "text_utf16": [
           39,
           120,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           39
         ],
-        "utf8_base64": "J3jvv70n",
-        "utf8_bytes": 6,
+        "utf8_base64": "J3hcdUQ4MDAn",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -1828,15 +1898,20 @@
         "text_utf16": [
           39,
           120,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           39
         ],
-        "utf8_base64": "J3jvv70n",
-        "utf8_bytes": 6,
+        "utf8_base64": "J3hcdUQ4MDAn",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -1906,15 +1981,20 @@
         "text_utf16": [
           39,
           120,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           39
         ],
-        "utf8_base64": "J3jvv70n",
-        "utf8_bytes": 6,
+        "utf8_base64": "J3hcdUQ4MDAn",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -2069,15 +2149,20 @@
         "text_utf16": [
           34,
           120,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ],
-        "utf8_base64": "Injvv70i",
-        "utf8_bytes": 6,
+        "utf8_base64": "InhcdUQ4MDAi",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -2148,15 +2233,20 @@
         "text_utf16": [
           34,
           120,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ],
-        "utf8_base64": "Injvv70i",
-        "utf8_bytes": 6,
+        "utf8_base64": "InhcdUQ4MDAi",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -2311,15 +2401,20 @@
         "text_utf16": [
           34,
           120,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ],
-        "utf8_base64": "Injvv70i",
-        "utf8_bytes": 6,
+        "utf8_base64": "InhcdUQ4MDAi",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -2390,15 +2485,20 @@
         "text_utf16": [
           34,
           120,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ],
-        "utf8_base64": "Injvv70i",
-        "utf8_bytes": 6,
+        "utf8_base64": "InhcdUQ4MDAi",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -2553,15 +2653,20 @@
         "text_utf16": [
           34,
           120,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ],
-        "utf8_base64": "Injvv70i",
-        "utf8_bytes": 6,
+        "utf8_base64": "InhcdUQ4MDAi",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -2632,15 +2737,20 @@
         "text_utf16": [
           34,
           120,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ],
-        "utf8_base64": "Injvv70i",
-        "utf8_bytes": 6,
+        "utf8_base64": "InhcdUQ4MDAi",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -2795,15 +2905,20 @@
         "text_utf16": [
           34,
           120,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ],
-        "utf8_base64": "Injvv70i",
-        "utf8_bytes": 6,
+        "utf8_base64": "InhcdUQ4MDAi",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -2874,15 +2989,20 @@
         "text_utf16": [
           34,
           120,
-          55296,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
           34
         ],
-        "utf8_base64": "Injvv70i",
-        "utf8_bytes": 6,
+        "utf8_base64": "InhcdUQ4MDAi",
+        "utf8_bytes": 9,
         "end_utf16": {
-          "position": 4,
+          "position": 9,
           "line": 0,
-          "column": 4
+          "column": 9
         }
       }
     },
@@ -4986,5 +5106,34 @@
         }
       }
     }
-  ]
+  ],
+  "tsgo_overrides": {
+    "reason": "TypeScript 7.1's escapeStringWorker escapes an unpaired surrogate even under NeverAsciiEscape (printer/utilities.go:84-86); tsc 6.0.3 wrote it raw",
+    "cases": [
+      "string-property-provenance/origin-text-source/clone/node-no-ascii",
+      "string-property-provenance/origin-text-source/clone/printer-no-ascii",
+      "string-property-provenance/origin-text-source/create/node-no-ascii",
+      "string-property-provenance/origin-text-source/create/printer-no-ascii",
+      "string-property-provenance/origin-text-source/set-original-then-clone/node-no-ascii",
+      "string-property-provenance/origin-text-source/set-original-then-clone/printer-no-ascii",
+      "string-property-provenance/origin-text-source/set-original/node-no-ascii",
+      "string-property-provenance/origin-text-source/set-original/printer-no-ascii",
+      "string-property-provenance/value-and-double-quote/clone/node-no-ascii",
+      "string-property-provenance/value-and-double-quote/clone/printer-no-ascii",
+      "string-property-provenance/value-and-double-quote/create/node-no-ascii",
+      "string-property-provenance/value-and-double-quote/create/printer-no-ascii",
+      "string-property-provenance/value-and-double-quote/set-original-then-clone/node-no-ascii",
+      "string-property-provenance/value-and-double-quote/set-original-then-clone/printer-no-ascii",
+      "string-property-provenance/value-and-double-quote/set-original/node-no-ascii",
+      "string-property-provenance/value-and-double-quote/set-original/printer-no-ascii",
+      "string-property-provenance/value-and-single-quote/clone/node-no-ascii",
+      "string-property-provenance/value-and-single-quote/clone/printer-no-ascii",
+      "string-property-provenance/value-and-single-quote/create/node-no-ascii",
+      "string-property-provenance/value-and-single-quote/create/printer-no-ascii",
+      "string-property-provenance/value-and-single-quote/set-original-then-clone/node-no-ascii",
+      "string-property-provenance/value-and-single-quote/set-original-then-clone/printer-no-ascii",
+      "string-property-provenance/value-and-single-quote/set-original/node-no-ascii",
+      "string-property-provenance/value-and-single-quote/set-original/printer-no-ascii"
+    ]
+  }
 }

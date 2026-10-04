@@ -10,7 +10,14 @@ use tsc_syntax::nodes::UnionTypeData;
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{ObjectFlags, SymbolFlags, TypeData, TypeFacts, TypeFlags, TypeId};
 
+use crate::pseudochecker::{could_already_refer_to_undefined_type, PseudoChecker, PseudoType};
 use crate::state::{CheckAbort, CheckerState, IndexInfo, SignatureId};
+
+use super::pseudo::{
+    pseudo_return_type_matches_predicate, pseudo_type_equivalent_to_type,
+    pseudo_type_to_node_with_checker_fallback, pseudo_type_to_type,
+};
+use super::signatures::{enter_signature_scope, exit_new_scope};
 
 use super::signatures::{
     elide_initializer_and_set_emit_flags, parameter_scope_symbols, track_computed_name,
@@ -21,12 +28,10 @@ use super::type_nodes::{
     type_to_type_node_helper, BuildResult,
 };
 use super::{
-    add_symbol_type_to_context, can_possibly_expand_type, chains_symbol_to_entity_name_node,
-    chains_symbol_to_type_node,
+    add_symbol_type_to_context, chains_symbol_to_entity_name_node, chains_symbol_to_type_node,
     existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count,
-    get_declaration_with_type_annotation, get_enclosing_declaration_ignoring_fake_scope,
-    get_module_specifier_override, get_type_from_type_node2,
-    index_info_to_index_signature_declaration_helper, restore_flags,
+    get_enclosing_declaration_ignoring_fake_scope, get_module_specifier_override,
+    get_type_from_type_node2, index_info_to_index_signature_declaration_helper, restore_flags,
     restore_symbol_type_to_context, save_restore_flags, serialize_inferred_type_for_declaration,
     set_text_range2, symbol_to_node, type_predicate_to_type_predicate_node_helper, with_context,
     with_context_in_synthetic_module_scope, NodeBuilderContext, SyntacticAccessorDeclarations,
@@ -36,6 +41,7 @@ use super::{
 
 const METHOD: EmitResolverMethod = EmitResolverMethod::CreateTypeOfDeclaration;
 const ALLOW_UNRESOLVED_NAMES: u32 = 8;
+const ALLOW_UNIQUE_ES_SYMBOL_TYPE: u32 = 1_048_576;
 const IGNORE_ERRORS: EmitNodeBuilderFlags = EmitNodeBuilderFlags(70_221_824);
 
 /// Build the syntax consumed by checker `symbolToString` through the same
@@ -186,18 +192,6 @@ fn callback_abort_error(
         method,
         node: resolver_node(checker, node),
         reason: abort.description(),
-    }
-}
-
-fn syntactic_symbol(checker: &CheckerState<'_>, symbol: SymbolId) -> SyntacticSymbol {
-    let declarations = &checker.binder.symbol(symbol).declarations;
-    SyntacticSymbol {
-        id: symbol,
-        declaration_count: declarations.len(),
-        variable_declaration_count: declarations
-            .iter()
-            .filter(|&&declaration| checker.kind_of(declaration) == SyntaxKind::VariableDeclaration)
-            .count(),
     }
 }
 
@@ -418,38 +412,11 @@ fn recover_suppressed_import_call_return_type(
     Some(return_type)
 }
 
-const fn should_use_syntactic_inferred_declaration(
-    has_inferred_type: bool,
-    node_is_synthesized: bool,
-    requires_widening: bool,
-) -> bool {
-    has_inferred_type && !node_is_synthesized && !requires_widening
-}
-
 fn is_accessor(checker: &CheckerState<'_>, node: NodeId) -> bool {
     matches!(
         checker.kind_of(node),
         SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
     )
-}
-
-fn declaration_symbol(
-    checker: &mut CheckerState<'_>,
-    declaration: Option<NodeId>,
-    supplied: Option<SymbolId>,
-    context: &NodeBuilderContext<'_>,
-) -> BuildResult<Option<SymbolId>> {
-    if supplied.is_some() {
-        return Ok(supplied);
-    }
-    declaration
-        .map(|declaration| {
-            checker
-                .get_symbol_of_declaration(declaration)
-                .map(Some)
-                .map_err(|abort| checker_abort_error(checker, context, abort))
-        })
-        .unwrap_or(Ok(None))
 }
 
 /// tsc-port: parameterToParameterDeclarationName @6.0.3
@@ -527,143 +494,320 @@ fn serialize_parameter_name_from_parse(
     }
 }
 
-fn syntactic_type_of_declaration(
-    checker: &mut CheckerState<'_>,
-    arena: &mut TransformArena,
-    target: TransformSourceId,
-    context: &mut NodeBuilderContext<'_>,
-    declaration: NodeId,
-    symbol: SymbolId,
-) -> BuildResult<Option<TransformNode>> {
-    let Some(declaration) = project_parse_node(checker, arena, declaration)? else {
-        return Ok(None);
-    };
-    let symbol = syntactic_symbol(checker, symbol);
-    let builder = SyntacticTypeNodeBuilder::new(checker.options);
-    let mut resolver = ProductionSyntacticBuilderResolver::new(checker, METHOD);
-    {
-        let result = builder.serialize_type_of_declaration(
-            &mut resolver,
-            arena,
-            target,
-            context,
-            declaration,
-            Some(symbol),
-        )?;
-        into_target(arena, target, result)
+/// tsgo `isActivelyExpanding` (nodebuilderimpl.go:229-233): type node reuse
+/// is skipped while a hover expands named types.
+fn is_actively_expanding(context: &NodeBuilderContext<'_>) -> bool {
+    context.max_expansion_depth > 0 && context.depth < context.max_expansion_depth
+}
+
+/// tsgo `hasTypeAnnotation` (nodebuilderimpl.go:234-244): the declaration
+/// has a written type (a type alias's type is not an annotation).
+fn has_type_annotation(checker: &CheckerState<'_>, declaration: NodeId) -> bool {
+    match checker.kind_of(declaration) {
+        SyntaxKind::TypeAliasDeclaration | SyntaxKind::JSDocTypedefTag => false,
+        kind if node_util::is_function_like_kind(kind) => {
+            checker.effective_return_type_node(declaration).is_some()
+        }
+        SyntaxKind::PropertyAssignment
+        | SyntaxKind::ShorthandPropertyAssignment
+        | SyntaxKind::ExportAssignment
+        | SyntaxKind::BinaryExpression => {
+            checker.is_in_js_file(declaration) && checker.reparsed_type_node(declaration).is_some()
+        }
+        _ => checker
+            .effective_type_annotation_node(declaration)
+            .is_some(),
     }
 }
 
-fn syntactic_type_of_accessor(
-    checker: &mut CheckerState<'_>,
-    arena: &mut TransformArena,
-    target: TransformSourceId,
-    context: &mut NodeBuilderContext<'_>,
-    declaration: NodeId,
-    symbol: SymbolId,
-) -> BuildResult<Option<TransformNode>> {
-    let Some(declaration) = project_parse_node(checker, arena, declaration)? else {
-        return Ok(None);
-    };
-    let symbol = syntactic_symbol(checker, symbol);
-    let builder = SyntacticTypeNodeBuilder::new(checker.options);
-    let mut resolver = ProductionSyntacticBuilderResolver::new(checker, METHOD);
-    {
-        let result = builder.serialize_type_of_accessor(
-            &mut resolver,
-            arena,
-            target,
-            context,
-            declaration,
-            Some(symbol),
-        )?;
-        into_target(arena, target, result)
-    }
+/// tsgo `ast.IsVariableLike` (ast/utilities.go:3077-3084).
+fn is_variable_like(checker: &CheckerState<'_>, node: NodeId) -> bool {
+    matches!(
+        checker.kind_of(node),
+        SyntaxKind::BindingElement
+            | SyntaxKind::EnumMember
+            | SyntaxKind::Parameter
+            | SyntaxKind::PropertyAssignment
+            | SyntaxKind::PropertyDeclaration
+            | SyntaxKind::PropertySignature
+            | SyntaxKind::ShorthandPropertyAssignment
+            | SyntaxKind::VariableDeclaration
+    )
 }
 
-/// tsc-port: serializeTypeForDeclaration @6.0.3
-/// tsc-hash: 61ebc9bf5f2f88bf1e2a94886d4878fb12a562ca515d046a7d782c34c54ce979
-/// tsc-span: _tsc.js:53487-53508
-fn serialize_type_for_declaration_in_context(
+/// The declaration type serializeTypeForDeclaration writes when its caller
+/// supplies none (nodebuilderimpl.go:2266-2285): the type in the enclosing
+/// symbol types, else a set accessor's write type, else the symbol's
+/// widened literal type.
+fn declaration_type_for_serialization(
+    checker: &mut CheckerState<'_>,
+    context: &NodeBuilderContext<'_>,
+    declaration: Option<NodeId>,
+    symbol: Option<SymbolId>,
+) -> BuildResult<TypeId> {
+    let Some(symbol) = symbol else {
+        return match declaration.filter(|&declaration| is_variable_like(checker, declaration)) {
+            Some(declaration) => Ok(checker
+                .get_type_for_variable_like_declaration(
+                    declaration,
+                    false,
+                    tsc_types::CheckMode::NORMAL,
+                )
+                .map_err(|abort| checker_abort_error(checker, context, abort))?
+                .unwrap_or(checker.tables.intrinsics.error)),
+            None => Ok(checker.tables.intrinsics.error),
+        };
+    };
+    if let Some(&r#type) = context.enclosing_symbol_types.get(&symbol) {
+        return Ok(r#type);
+    }
+    let flags = checker.symbol_flags(symbol);
+    let mut r#type = if flags.intersects(SymbolFlags::ACCESSOR)
+        && declaration
+            .is_some_and(|declaration| checker.kind_of(declaration) == SyntaxKind::SetAccessor)
+    {
+        let write = checker
+            .get_write_type_of_symbol(symbol)
+            .map_err(|abort| checker_abort_error(checker, context, abort))?;
+        checker
+            .instantiate_type(write, context.mapper)
+            .map_err(|abort| checker_abort_error(checker, context, abort))?
+    } else if !flags.intersects(SymbolFlags::TYPE_LITERAL | SymbolFlags::SIGNATURE) {
+        let symbol_type = checker
+            .get_type_of_symbol(symbol)
+            .map_err(|abort| checker_abort_error(checker, context, abort))?;
+        let widened = checker
+            .get_widened_literal_type(symbol_type)
+            .map_err(|abort| checker_abort_error(checker, context, abort))?;
+        checker
+            .instantiate_type(widened, context.mapper)
+            .map_err(|abort| checker_abort_error(checker, context, abort))?
+    } else {
+        checker.tables.intrinsics.error
+    };
+    if r#type == checker.tables.intrinsics.error {
+        if let Some(recovered) = declaration.and_then(|declaration| {
+            recover_suppressed_import_call_return_type(checker, declaration)
+        }) {
+            r#type = checker
+                .instantiate_type(recovered, context.mapper)
+                .map_err(|abort| checker_abort_error(checker, context, abort))?;
+        }
+    }
+    Ok(r#type)
+}
+
+/// tsgo-port: NodeBuilderImpl.serializeTypeForDeclaration @7.1 (nodebuilderimpl.go:2246-2370).
+///
+/// Writes the type of a declaration: the type the caller supplies, or the
+/// declaration's (`declaration_type_for_serialization`). With `try_reuse`,
+/// the declaration's pseudo type is checked against that type and, when they
+/// agree, builds the node (`pseudo.rs`); otherwise the checker's type is
+/// serialized. A `unique symbol` type of the symbol itself is written as
+/// `unique symbol`.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn serialize_type_for_declaration_in_context(
     checker: &mut CheckerState<'_>,
     arena: &mut TransformArena,
     target: TransformSourceId,
     context: &mut NodeBuilderContext<'_>,
     declaration: Option<NodeId>,
-    mut r#type: TypeId,
-    supplied_symbol: Option<SymbolId>,
-) -> BuildResult<Option<TransformNode>> {
+    r#type: Option<TypeId>,
+    symbol: Option<SymbolId>,
+    try_reuse: bool,
+) -> BuildResult<TransformNode> {
+    let declaration = declaration.or_else(|| {
+        symbol.and_then(|symbol| {
+            let data = checker.binder.symbol(symbol);
+            // tsgo does not prefer an annotated declaration here yet.
+            data.value_declaration
+                .or_else(|| data.declarations.first().copied())
+        })
+    });
     // tsgo's getSymbolOfDeclaration is nil where tsc-rs answers the unknown
     // symbol, as for a variable named by a binding pattern.
-    let symbol = declaration_symbol(checker, declaration, supplied_symbol, context)?
-        .filter(|&symbol| symbol != checker.unknown_symbol);
-    let add_undefined_for_parameter = declaration.is_some_and(|declaration| {
-        matches!(
-            checker.kind_of(declaration),
-            SyntaxKind::Parameter | SyntaxKind::JSDocParameterTag
-        )
-    }) && checker
-        .emit_requires_adding_implicit_undefined(
-            declaration.expect("parameter declaration selected above"),
-            context.enclosing_declaration,
-        )
-        .map_err(|abort| checker_abort_error(checker, context, abort))?;
-
-    let decl = match (declaration, symbol) {
-        (Some(declaration), _) => Some(declaration),
-        (None, Some(symbol)) => checker
-            .binder
-            .symbol(symbol)
-            .value_declaration
-            .or(get_declaration_with_type_annotation(
-                checker,
-                symbol,
-                context.enclosing_declaration,
-                context,
-            )?)
-            .or_else(|| checker.binder.symbol(symbol).declarations.first().copied()),
-        (None, None) => None,
+    let symbol = match symbol {
+        Some(symbol) => Some(symbol),
+        None => declaration
+            .map(|declaration| {
+                checker
+                    .get_symbol_of_declaration(declaration)
+                    .map_err(|abort| checker_abort_error(checker, context, abort))
+            })
+            .transpose()?,
+    }
+    .filter(|&symbol| symbol != checker.unknown_symbol);
+    let mut r#type = match r#type {
+        Some(r#type) => r#type,
+        None => declaration_type_for_serialization(checker, context, declaration, symbol)?,
     };
 
-    let mut result = None;
-    if let (Some(symbol), Some(decl)) = (symbol, decl) {
-        if !can_possibly_expand_type(r#type, context) {
-            let restore = add_symbol_type_to_context(context, symbol, r#type);
-            let syntactic = if is_accessor(checker, decl) {
-                syntactic_type_of_accessor(checker, arena, target, context, decl, symbol)
-            } else if should_use_syntactic_inferred_declaration(
-                has_inferred_type(checker, decl),
-                node_is_synthesized(checker, decl),
-                checker
-                    .tables
-                    .object_flags_of(r#type)
-                    .intersects(ObjectFlags::REQUIRES_WIDENING),
-            ) {
-                syntactic_type_of_declaration(checker, arena, target, context, decl, symbol)
-            } else {
-                Ok(None)
-            };
-            restore_symbol_type_to_context(context, restore);
-            result = syntactic?;
-        }
+    let annotated_kind = declaration.is_some_and(|declaration| {
+        matches!(
+            checker.kind_of(declaration),
+            SyntaxKind::Parameter | SyntaxKind::PropertySignature | SyntaxKind::PropertyDeclaration
+        )
+    });
+    let requires_adding_undefined = match declaration.filter(|_| annotated_kind) {
+        Some(declaration) => checker
+            .emit_requires_adding_implicit_undefined_to_declaration(
+                declaration,
+                symbol,
+                context.enclosing_declaration,
+            )
+            .map_err(|abort| checker_abort_error(checker, context, abort))?,
+        None => false,
+    };
+    let add_undefined_for_parameter = requires_adding_undefined
+        && declaration
+            .is_some_and(|declaration| checker.kind_of(declaration) == SyntaxKind::Parameter);
+    if add_undefined_for_parameter {
+        r#type = checker
+            .get_optional_type(r#type, false)
+            .map_err(|abort| checker_abort_error(checker, context, abort))?;
     }
 
-    if result.is_none() {
-        if add_undefined_for_parameter {
-            r#type = checker
-                .get_optional_type(r#type, false)
-                .map_err(|abort| checker_abort_error(checker, context, abort))?;
-        }
-        result = match symbol {
-            Some(symbol) => serialize_inferred_type_for_declaration(
-                checker, arena, target, symbol, context, r#type,
-            )?,
-            None => type_to_type_node_helper(checker, arena, target, r#type, context)?,
-        };
+    let restore_flags_value = save_restore_flags(context);
+    let type_data = checker.tables.type_of(r#type);
+    if type_data.flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL)
+        && symbol.is_some()
+        && type_data.symbol == symbol
+        && (context.enclosing_declaration.is_none()
+            || symbol.is_some_and(|symbol| {
+                checker
+                    .binder
+                    .symbol(symbol)
+                    .declarations
+                    .iter()
+                    .any(|&declaration| {
+                        Some(checker.binder.source_of_node(declaration).root)
+                            == context.enclosing_file
+                    })
+            }))
+    {
+        context.flags.0 |= ALLOW_UNIQUE_ES_SYMBOL_TYPE;
     }
-    match result {
-        Some(result) => Ok(Some(result)),
-        None => create_token(arena, target, SyntaxKind::AnyKeyword).map(Some),
+    let result = (|| {
+        let mut result = None;
+        let mut reported_inference_fallback = false;
+        // tsgo has no expandable hover reuse yet.
+        if let Some(declaration) = declaration.filter(|&declaration| {
+            !is_actively_expanding(context)
+                && try_reuse
+                && context.enclosing_declaration.is_some()
+                && (is_accessor(checker, declaration)
+                    || (has_inferred_type(checker, declaration)
+                        && !node_is_synthesized(checker, declaration)
+                        && !checker
+                            .tables
+                            .object_flags_of(r#type)
+                            .intersects(ObjectFlags::REQUIRES_WIDENING)))
+        }) {
+            let restore = symbol.map(|symbol| add_symbol_type_to_context(context, symbol, r#type));
+            let reused = (|| {
+                let mut pseudo = {
+                    let pseudochecker = PseudoChecker::new(checker);
+                    if is_accessor(checker, declaration) {
+                        pseudochecker.get_type_of_accessor(declaration)
+                    } else {
+                        pseudochecker.get_type_of_declaration(declaration)
+                    }
+                };
+                // Binary expressions annotate first-in-wins: the first one with
+                // an annotation types the rest.
+                if matches!(pseudo, PseudoType::NoResult(_))
+                    && checker.kind_of(declaration) == SyntaxKind::BinaryExpression
+                {
+                    if let Some(annotated) = symbol.and_then(|symbol| {
+                        checker
+                            .binder
+                            .symbol(symbol)
+                            .declarations
+                            .iter()
+                            .copied()
+                            .find(|&other| has_type_annotation(checker, other))
+                    }) {
+                        pseudo = PseudoChecker::new(checker).get_type_of_declaration(annotated);
+                    }
+                }
+                let report_errors = !context.suppress_report_inference_fallback;
+                let is_optional_annotated = !requires_adding_undefined
+                    && annotated_kind
+                    && checker.is_optional_declaration(declaration);
+                if pseudo_type_equivalent_to_type(
+                    checker,
+                    context,
+                    &pseudo,
+                    r#type,
+                    is_optional_annotated,
+                    report_errors,
+                )? {
+                    // A reference with too few type arguments should still be
+                    // serialized (strada's canReuseTypeNodeAnnotation); tsgo
+                    // does not do that yet.
+                    if requires_adding_undefined && contains_non_missing_undefined(checker, r#type)
+                    {
+                        if let Some(pseudo_type) = pseudo_type_to_type(checker, context, &pseudo)? {
+                            if !contains_non_missing_undefined(checker, pseudo_type) {
+                                pseudo = PseudoType::Union(vec![pseudo, PseudoType::Undefined]);
+                            }
+                        }
+                    }
+                    return pseudo_type_to_node_with_checker_fallback(
+                        checker, arena, target, context, &pseudo, r#type,
+                    )
+                    .map(Some);
+                }
+                // The equivalence failed. Errors reported for an `Inferred`
+                // pseudo type with error nodes suppress the nested errors of
+                // the fallback serialization, as
+                // pseudoTypeToNodeWithCheckerFallback does.
+                reported_inference_fallback = report_errors
+                    && matches!(&pseudo, PseudoType::Inferred(inferred) if !inferred.error_nodes.is_empty());
+                let should_add_undefined = requires_adding_undefined
+                    && match pseudo_type_to_type(checker, context, &pseudo)? {
+                        Some(pseudo_type) => !contains_non_missing_undefined(checker, pseudo_type),
+                        None => !could_already_refer_to_undefined_type(checker, &pseudo),
+                    };
+                if should_add_undefined {
+                    let pseudo = PseudoType::Union(vec![pseudo, PseudoType::Undefined]);
+                    if pseudo_type_equivalent_to_type(
+                        checker,
+                        context,
+                        &pseudo,
+                        r#type,
+                        false,
+                        report_errors,
+                    )? {
+                        reported_inference_fallback = false;
+                        return pseudo_type_to_node_with_checker_fallback(
+                            checker, arena, target, context, &pseudo, r#type,
+                        )
+                        .map(Some);
+                    }
+                }
+                Ok(None)
+            })();
+            if let Some(restore) = restore {
+                restore_symbol_type_to_context(context, restore);
+            }
+            result = reused?;
+        }
+        if result.is_none() {
+            let old_suppress = context.suppress_report_inference_fallback;
+            if reported_inference_fallback {
+                context.suppress_report_inference_fallback = true;
+            }
+            let serialized = type_to_type_node_helper(checker, arena, target, r#type, context);
+            context.suppress_report_inference_fallback = old_suppress;
+            result = serialized?;
+        }
+        Ok(result)
+    })();
+    restore_flags(context, restore_flags_value);
+    match result? {
+        Some(result) => Ok(result),
+        None => create_token(arena, target, SyntaxKind::AnyKeyword),
     }
 }
 
@@ -732,57 +876,55 @@ fn serialize_inferred_return_type_for_signature(
     result
 }
 
-fn syntactic_return_type_for_signature(
-    checker: &mut CheckerState<'_>,
-    arena: &mut TransformArena,
-    target: TransformSourceId,
-    context: &mut NodeBuilderContext<'_>,
-    declaration: NodeId,
-    symbol: SymbolId,
-) -> BuildResult<Option<TransformNode>> {
-    let Some(declaration) = project_parse_node(checker, arena, declaration)? else {
-        return Ok(None);
-    };
-    let symbol = syntactic_symbol(checker, symbol);
-    let builder = SyntacticTypeNodeBuilder::new(checker.options);
-    let mut resolver = ProductionSyntacticBuilderResolver::new(
-        checker,
-        EmitResolverMethod::CreateReturnTypeOfSignatureDeclaration,
-    );
-    {
-        let result = builder.serialize_return_type_for_signature(
-            &mut resolver,
-            arena,
-            target,
-            context,
-            declaration,
-            Some(symbol),
-        )?;
-        into_target(arena, target, result)
-    }
-}
-
-/// tsc-port: serializeReturnTypeForSignature @6.0.3
-/// tsc-hash: 31fc902e4dc5253fc144eb471e4f27423714c36d86bf4af777b4186cabb4b123
-/// tsc-span: _tsc.js:53524-53546
-fn serialize_return_type_for_signature_in_context(
+/// tsgo-port: NodeBuilderImpl.serializeReturnTypeForSignature @7.1 (nodebuilderimpl.go:2092-2148).
+///
+/// Writes a signature's return type: the declaration's type in the
+/// enclosing symbol types, else the signature's return type. With
+/// `try_reuse`, the declaration's pseudo return type is checked against it
+/// and, when they agree (an inferred type predicate included), builds the
+/// node. A top-level `any` is left out under `SuppressAnyReturnType`.
+pub(super) fn serialize_return_type_for_signature_in_context(
     checker: &mut CheckerState<'_>,
     arena: &mut TransformArena,
     target: TransformSourceId,
     context: &mut NodeBuilderContext<'_>,
     signature: SignatureId,
+    try_reuse: bool,
 ) -> BuildResult<Option<TransformNode>> {
     let suppress_any = context
         .flags
         .contains(EmitNodeBuilderFlags::SUPPRESS_ANY_RETURN_TYPE);
     let restore_flags_value = save_restore_flags(context);
     if suppress_any {
+        // Only a top-level `any` is suppressed.
         context.flags.0 &= !EmitNodeBuilderFlags::SUPPRESS_ANY_RETURN_TYPE.0;
     }
     let result = (|| {
-        let return_type = checker
-            .get_return_type_of_signature(signature)
-            .map_err(|abort| checker_abort_error(checker, context, abort))?;
+        let declaration = checker
+            .signature_of(signature)
+            .declaration
+            .filter(|&declaration| !node_is_synthesized(checker, declaration));
+        let return_type = match declaration {
+            Some(declaration) => {
+                let symbol = checker
+                    .get_symbol_of_declaration(declaration)
+                    .map_err(|abort| checker_abort_error(checker, context, abort))?;
+                match context.enclosing_symbol_types.get(&symbol).copied() {
+                    Some(return_type) => return_type,
+                    None => {
+                        let return_type = checker
+                            .get_return_type_of_signature(signature)
+                            .map_err(|abort| checker_abort_error(checker, context, abort))?;
+                        checker
+                            .instantiate_type(return_type, context.mapper)
+                            .map_err(|abort| checker_abort_error(checker, context, abort))?
+                    }
+                }
+            }
+            None => checker
+                .get_return_type_of_signature(signature)
+                .map_err(|abort| checker_abort_error(checker, context, abort))?,
+        };
         let mut return_type_node = None;
         if !(suppress_any
             && checker
@@ -790,26 +932,60 @@ fn serialize_return_type_for_signature_in_context(
                 .flags_of(return_type)
                 .intersects(TypeFlags::ANY))
         {
-            if let Some(declaration) = checker.signature_of(signature).declaration {
-                if !node_is_synthesized(checker, declaration)
-                    && !can_possibly_expand_type(return_type, context)
-                {
-                    let declaration_symbol = checker
-                        .get_symbol_of_declaration(declaration)
+            if let Some(declaration) = declaration.filter(|_| {
+                !is_actively_expanding(context)
+                    && try_reuse
+                    && context.enclosing_declaration.is_some()
+            }) {
+                let declaration_symbol = checker
+                    .get_symbol_of_declaration(declaration)
+                    .map_err(|abort| checker_abort_error(checker, context, abort))?;
+                let restore = add_symbol_type_to_context(context, declaration_symbol, return_type);
+                let reused = (|| {
+                    let pseudo =
+                        PseudoChecker::new(checker).get_return_type_of_signature(declaration);
+                    let report_errors = !context.suppress_report_inference_fallback;
+                    if !pseudo_type_equivalent_to_type(
+                        checker,
+                        context,
+                        &pseudo,
+                        return_type,
+                        false,
+                        report_errors,
+                    )? {
+                        return Ok(None);
+                    }
+                    // The pseudochecker does not know inferred type
+                    // predicates: it reads `boolean` where the checker infers
+                    // `x is string`.
+                    let predicate = checker
+                        .get_type_predicate_of_signature(signature)
                         .map_err(|abort| checker_abort_error(checker, context, abort))?;
-                    let restore =
-                        add_symbol_type_to_context(context, declaration_symbol, return_type);
-                    let syntactic = syntactic_return_type_for_signature(
+                    if let Some(predicate) = predicate {
+                        if !pseudo_return_type_matches_predicate(
+                            checker, context, &pseudo, &predicate,
+                        )? {
+                            if report_errors {
+                                report_inference_fallback(checker, context, declaration)?;
+                            }
+                            return Ok(None);
+                        }
+                    }
+                    // A reference with too few type arguments should still be
+                    // serialized (strada's canReuseTypeNodeAnnotation); tsgo
+                    // does not do that yet.
+                    pseudo_type_to_node_with_checker_fallback(
                         checker,
                         arena,
                         target,
                         context,
-                        declaration,
-                        declaration_symbol,
-                    );
-                    restore_symbol_type_to_context(context, restore);
-                    return_type_node = syntactic?;
-                }
+                        &pseudo,
+                        return_type,
+                    )
+                    .map(Some)
+                })();
+                restore_symbol_type_to_context(context, restore);
+                return_type_node = reused?;
             }
             if return_type_node.is_none() {
                 return_type_node = serialize_inferred_return_type_for_signature(
@@ -879,10 +1055,11 @@ pub(crate) fn serialize_type_for_symbolless_declaration(
             target,
             context,
             Some(declaration),
-            r#type,
+            Some(r#type),
             None,
+            true,
         )?;
-        into_target(arena, target, result)
+        into_target(arena, target, Some(result))
     };
     match synthetic_module_scope {
         Some(scope) => with_context_in_synthetic_module_scope(
@@ -916,7 +1093,9 @@ pub(crate) fn serialize_type_for_symbolless_declaration(
     .map(Option::flatten)
 }
 
-/// tsrs-native: checker-side routing seam behind the syntactic resolver member.
+/// tsgo `serializeTypeForDeclaration(declaration, type, symbol, true)` for
+/// the node builder's parameters and properties (nodebuilderimpl.go:1730,
+/// 2697).
 pub(crate) fn serialize_type_for_declaration_seam(
     checker: &mut CheckerState<'_>,
     arena: &mut TransformArena,
@@ -932,21 +1111,11 @@ pub(crate) fn serialize_type_for_declaration_seam(
         target,
         context,
         declaration,
-        r#type,
+        Some(r#type),
         symbol,
+        true,
     )?;
-    result
-        .map(|node| {
-            if node.source() == target {
-                Ok(node)
-            } else {
-                arena
-                    .factory()
-                    .clone_node_to_source(node, target)
-                    .map_err(factory_error)
-            }
-        })
-        .transpose()
+    into_target(arena, target, Some(result))
 }
 
 /// tsrs-native: checker-side routing seam behind the syntactic resolver member.
@@ -957,8 +1126,9 @@ pub(crate) fn serialize_return_type_for_signature_seam(
     context: &mut NodeBuilderContext<'_>,
     signature: SignatureId,
 ) -> BuildResult<Option<TransformNode>> {
-    let result =
-        serialize_return_type_for_signature_in_context(checker, arena, target, context, signature)?;
+    let result = serialize_return_type_for_signature_in_context(
+        checker, arena, target, context, signature, true,
+    )?;
     result
         .map(|node| {
             if node.source() == target {
@@ -1030,6 +1200,44 @@ pub(crate) fn syntactic_try_reuse_existing_type_node(
     }
 }
 
+/// tsgo-port: NodeBuilderImpl.reuseNode @7.1 (nodecopy.go:12-18, 222-232):
+/// the existing-node visitor under a recovery boundary, without strada's
+/// canReuseTypeNode gate.
+pub(crate) fn syntactic_try_reuse_existing_node(
+    checker: &mut CheckerState<'_>,
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    context: &mut NodeBuilderContext<'_>,
+    node: NodeId,
+) -> BuildResult<Option<TransformNode>> {
+    let Some(node) = project_parse_node(checker, arena, node)? else {
+        return Ok(None);
+    };
+    let builder = SyntacticTypeNodeBuilder::new(checker.options);
+    let mut resolver = ProductionSyntacticBuilderResolver::new(checker, METHOD);
+    {
+        let result =
+            builder.try_reuse_existing_node(&mut resolver, arena, target, context, node)?;
+        into_target(arena, target, result)
+    }
+}
+
+/// tsgo-port: SymbolTrackerImpl.ReportInferenceFallback @7.1
+/// (symboltracker.go:110-115): the node builder's report, which neither
+/// checks suppressReportInferenceFallback (its callers do) nor marks a
+/// reported diagnostic.
+pub(super) fn report_inference_fallback(
+    checker: &mut CheckerState<'_>,
+    context: &mut NodeBuilderContext<'_>,
+    node: NodeId,
+) -> BuildResult<()> {
+    let mut resolver = ProductionSyntacticBuilderResolver::new(checker, METHOD);
+    let mut reported_diagnostic = false;
+    context
+        .tracker
+        .report_inference_fallback(&mut reported_diagnostic, false, &mut resolver, node)
+}
+
 /// tsrs-native: checker-side routing seam behind the syntactic resolver member.
 pub(crate) fn syntactic_serialize_name_of_parameter_seam(
     checker: &mut CheckerState<'_>,
@@ -1076,9 +1284,7 @@ pub(crate) fn type_to_type_node(
     .map(Option::flatten)
 }
 
-/// tsc-port: serializeTypeForDeclaration @6.0.3 (createNodeBuilder API)
-/// tsc-hash: 0b9c6849911106ffd21f1f820c2e628f53811a4ccc92c47764571ba0bdad25fb
-/// tsc-span: _tsc.js:50971-50981
+/// tsgo-port: NodeBuilder.SerializeTypeForDeclaration @7.1 (nodebuilder.go:133-137).
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn serialize_type_for_declaration(
     checker: &mut CheckerState<'_>,
@@ -1096,23 +1302,17 @@ pub(crate) fn serialize_type_for_declaration(
                      arena: &mut TransformArena,
                      target: TransformSourceId,
                      context: &mut NodeBuilderContext<'_>| {
-        let Some(declaration) = project_parse_node(checker, arena, declaration)? else {
-            return Ok(None);
-        };
-        let symbol = syntactic_symbol(checker, symbol);
-        let builder = SyntacticTypeNodeBuilder::new(checker.options);
-        let mut resolver = ProductionSyntacticBuilderResolver::new(checker, METHOD);
-        {
-            let result = builder.serialize_type_of_declaration(
-                &mut resolver,
-                arena,
-                target,
-                context,
-                declaration,
-                Some(symbol),
-            )?;
-            into_target(arena, target, result)
-        }
+        let result = serialize_type_for_declaration_in_context(
+            checker,
+            arena,
+            target,
+            context,
+            Some(declaration),
+            None,
+            Some(symbol),
+            true,
+        )?;
+        into_target(arena, target, Some(result))
     };
     match synthetic_module_scope {
         Some(scope) => with_context_in_synthetic_module_scope(
@@ -1146,9 +1346,8 @@ pub(crate) fn serialize_type_for_declaration(
     .map(Option::flatten)
 }
 
-/// tsc-port: serializeReturnTypeForSignature @6.0.3 (createNodeBuilder API)
-/// tsc-hash: 354ab894aedc697bd7aac7bcc8c242ad52dc95f63f8adc67493b609e0b2d3909
-/// tsc-span: _tsc.js:50982-50992
+/// tsgo-port: NodeBuilder.SerializeReturnTypeForSignature @7.1 (nodebuilder.go:116-124):
+/// the return type of a signature declaration, in the signature's scope.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn serialize_return_type_for_signature(
     checker: &mut CheckerState<'_>,
@@ -1171,31 +1370,15 @@ pub(crate) fn serialize_return_type_for_signature(
         None,
         None,
         |checker, arena, target, context| {
-            let symbol = checker
-                .get_symbol_of_declaration(signature_declaration)
+            let signature = checker
+                .get_signature_from_declaration(signature_declaration)
                 .map_err(|abort| checker_abort_error(checker, context, abort))?;
-            let Some(signature_declaration) =
-                project_parse_node(checker, arena, signature_declaration)?
-            else {
-                return Ok(None);
-            };
-            let symbol = syntactic_symbol(checker, symbol);
-            let builder = SyntacticTypeNodeBuilder::new(checker.options);
-            let mut resolver = ProductionSyntacticBuilderResolver::new(
-                checker,
-                EmitResolverMethod::CreateReturnTypeOfSignatureDeclaration,
+            let (_, scope) = enter_signature_scope(checker, arena, target, context, signature)?;
+            let result = serialize_return_type_for_signature_in_context(
+                checker, arena, target, context, signature, true,
             );
-            {
-                let result = builder.serialize_return_type_for_signature(
-                    &mut resolver,
-                    arena,
-                    target,
-                    context,
-                    signature_declaration,
-                    Some(symbol),
-                )?;
-                into_target(arena, target, result)
-            }
+            exit_new_scope(context, scope);
+            into_target(arena, target, result?)
         },
         None,
     )
@@ -1519,6 +1702,17 @@ impl EmitTrackerAccess for ProductionSyntacticBuilderResolver<'_, '_> {
             .tracker_node(node)
             .ok_or_else(|| self.invalid_token_error(None))?;
         Ok(super::tracker_is_entity_in_type_node(self.checker, node))
+    }
+
+    fn is_child_of_bound_expando(
+        &mut self,
+        node: tsc_emitter::EmitTrackerNode,
+    ) -> Result<bool, tsc_emitter::EmitResolverError> {
+        let node = self
+            .tracker_node(node)
+            .ok_or_else(|| self.invalid_token_error(None))?;
+        super::tracker_is_child_of_bound_expando(self.checker, node)
+            .map_err(|abort| callback_abort_error(self.checker, self.method, Some(node), abort))
     }
 
     fn accessor_declarations(
@@ -2189,17 +2383,6 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
         self.checker.evaluate(expression, None).map_err(|abort| {
             callback_abort_error(self.checker, self.method, Some(expression), abort)
         })
-    }
-
-    fn is_expando_function_declaration(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        node: TransformNode,
-    ) -> Result<bool, EmitResolverError> {
-        let node = self.parse_node(arena, node)?;
-        self.checker
-            .emit_is_expando_function_declaration(node)
-            .map_err(|abort| callback_abort_error(self.checker, self.method, Some(node), abort))
     }
 
     fn has_late_bindable_name(

@@ -420,9 +420,8 @@ impl EmitSymbolTracker for DeclarationSymbolTracker<'_> {
         Ok(self.handle_symbol_accessibility_error(result))
     }
 
-    /// tsc-port: reportInferenceFallback @6.0.3
-    /// tsc-hash: f81bf9e236fba1289977baf167ed46ac103cbe6ade0aa59b90f044a5a4f6910a
-    /// tsc-span: _tsc.js:114327-114335
+    /// tsgo-port: SymbolTrackerImpl.ReportInferenceFallback @7.1 (declarations/tracker.go:86-100),
+    /// with getIsolatedDeclarationError's dispatch (diagnostics.go:701-735).
     fn report_inference_fallback(
         &mut self,
         access: &mut dyn EmitTrackerAccess,
@@ -437,7 +436,18 @@ impl EmitSymbolTracker for DeclarationSymbolTracker<'_> {
             .parse
             .or(description.original)
             .map(crate::EmitResolverNode::source);
+        // A nested error on a declaration in another file is reported when
+        // that file is emitted.
         if node_source != self.current_program_source {
+            return Ok(());
+        }
+        if access.is_expando_function_declaration(node)? {
+            let properties = access.get_properties_of_container_function(node)?;
+            self.report_expando_function_errors(&properties);
+        }
+        // An expando property gets its error when its function is reported:
+        // no follow-on error on its non-inferrable expression.
+        if access.is_child_of_bound_expando(node)? {
             return Ok(());
         }
         if let Some(parse) = description.parse.or(description.original) {
@@ -465,15 +475,8 @@ impl EmitSymbolTracker for DeclarationSymbolTracker<'_> {
             ) {
                 return self.report_accessor_type_error(access, node);
             }
-            if kind == Some(SyntaxKind::VariableDeclaration)
-                && access.is_expando_function_declaration(node)?
-            {
-                let properties = access.get_properties_of_container_function(node)?;
-                self.report_expando_function_errors(&properties);
-                return Ok(());
-            }
             if kind == Some(SyntaxKind::Parameter) {
-                let parent = access.parent_node(node)?;
+                // createParameterError (diagnostics.go:684-699).
                 if source.is_some_and(|source| {
                     source
                         .arena
@@ -483,15 +486,16 @@ impl EmitSymbolTracker for DeclarationSymbolTracker<'_> {
                             source.arena.node(parent).kind == SyntaxKind::SetAccessor
                         })
                 }) {
-                    if let Some(parent) = parent {
-                        return self.report_accessor_type_error(access, parent);
-                    }
-                    self.pending_effects.push_back(TrackerEffect::Contract(
-                        "setter parameter has no callback parent",
-                    ));
-                    return Ok(());
+                    let Some(parent) = access.parent_node(node)? else {
+                        self.pending_effects.push_back(TrackerEffect::Contract(
+                            "setter parameter has no callback parent",
+                        ));
+                        return Ok(());
+                    };
+                    return self.report_accessor_type_error(access, parent);
                 }
-                let add_undefined = access.requires_adding_implicit_undefined(node, parent)?;
+                // tsgo asks without an enclosing declaration.
+                let add_undefined = access.requires_adding_implicit_undefined(node, None)?;
                 self.pending_effects
                     .push_back(TrackerEffect::IsolatedParameter {
                         anchor: TrackerAnchor::Resolver(description),
