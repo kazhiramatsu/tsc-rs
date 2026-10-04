@@ -1540,3 +1540,51 @@ P3-5aa後のemitの不一致458構成のうち、TypeScript fileで原因がは�
     `declare const _default = 0;`、引数の無いsetterの`value: any`など。
 - hosted：PR #645（head `94e330b79`、merge `601cbd50e`）、run 37141407870 — `plan` 37s、`rust` 7m42s、`conformance (TypeScript 7.1)` 12m31s、`gates` 14s。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main `eec61370e`（P3-5aaのcode `979e0e741`と同じcodeのrelease build）と本branchのrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 136→128、zod 523→508、Playwright 376→358、TypeScript `src/compiler` 343→343、Next.js 758→739、Effect 524→515、VS Code 3,423→3,391。tsc-rs÷tsgoは0.58〜0.98、peak memory（MB main→本branch）：317→320、1,289→1,289、811→810、289→290、1,314→1,320、1,035→1,034、5,447→5,444。診断の出力と読み込んだdocument数は7 corpusともmainと同一。`tsconfig.bench-full.json`（JS・d.ts・source map、3 rounds）：hono 143→148、zod 610→631、Playwright 484→479、TypeScript `src/compiler` 504→500、Next.js 987→1,001、Effect 811→805（tsgo比0.53〜0.77）、5 roundsのA/B（main／本branch）はzod 595／590 ms、Next.js 999／973 ms、hono 147／143 msでノイズ。出力はhonoとTypeScript `src/compiler`でmainと同一。zod・Playwright・Next.jsの変わったd.ts（各1〜2 file）は分割代入をそのまま書く形でtsgoの出力と同一、Effectの2 fileは同じ形になり、残る差はmainにもある型の表示（tsgoは`ReadonlyArray<…>`やmapped typeを書いたまま残す）。退行なし。
+
+## P3-5ac CommonJSのexportした分割代入と、エラー回復した構文の消去をtsgoに合わせる（2026-10-04）
+
+[JavaScriptのd.ts](../ts71-js-declarations/README.md)の完了後、emitの不一致144構成のうち、TypeScript fileのJavaScript出力で
+原因がはっきりした2つのclass：
+- **CommonJSのexportした分割代入**：exportした変数のbinding patternは、葉を`exports.name`にした分割代入として書き、
+  配列patternのiteratorの意味を保つ（transformInitializedVariable、commonjsmodule.go:1110-1128）。`export { … }`が葉を
+  別の名前でも、複数の名前でもexportするときだけ平らにする（destructuringNeedsFlattening、commonjsmodule.go:
+  1428-1480）。6.0は常に平らにした。変換したpatternのnodeは、tsgoの`ConvertVariableDeclarationToAssignmentExpression`と
+  同じく元のcommentとsource mapの範囲だけを持ち、textの範囲を持たない（printerは合成したnodeとして並べる）。
+- **エラー回復した構文の消去**（tsgoのtype eraser、typeeraser.go）：
+  - accessorは型引数と戻り値の型を、constructorは加えて修飾子をすべて落とす（`get foo<T>()`、`set foo(v): number`、
+    `constructor<T>(): number`、`export constructor()`）。
+  - memberの型引数と型、`export`のkeywordは、transform flagsでTypeScriptとして数える（ast.goのsubtree facts）。
+  - `in`／`out`は、`in`演算子以外の位置ではすべて消す（`in x = 1;`）。
+  - constructorはTypeScriptの通常の関門を通して訪れる（6.0のclass要素の訪問はconstructorを常に訪れた）。
+    TypeScriptを含まないconstructor（`accessor constructor() {}`、`static constructor() {}`）は書いたまま残る。
+  - `export`がTypeScriptとして数えられると、namespaceの本体のblockの中にあるexport宣言もTypeScriptの訪問に入る。
+    namespaceが消すのはmemberの`export`と`default`だけで、入れ子の宣言は残す（`innerModExport1`／`2`、
+    `moduleElementsInWrongContext3`。1回目のfull runで見つけた）。
+- unit test（CLI、tsgoの出力にpin）：exportした分割代入（配列、object、rest、default、穴、入れ子、別名でもexportする
+  ので平らにする葉）、エラー回復した構文の消去（5 file、診断も）。
+- conformance：
+  - 15,228構成、lane A 13,467（変化なし）、455 s。
+  - errorsは変化なし（描いたbaselineのdigestもすべて同じ）。
+  - emit full 13,293→13,311（+18）、emit mismatch 144→126。上がった18構成：
+    - exportした分割代入 10構成（`exportDestructuring`、`exportDestructuringIterator`、`exportEmptyArrayBindingPattern`、
+      `exportEmptyObjectBindingPattern`、`exportObjectRest`、`downlevelLetConst13`、`destructuringInVariableDeclarations1`、
+      `commonjsExportDestructuringImportedValue`、`bindingPatternOmittedExpressionNesting`、
+      `declarationEmitRetainsJsdocyComments`）。
+    - エラー回復した構文 8構成（`parserGetAccessorWithTypeParameters1`、`parserSetAccessorWithTypeAnnotation1`、
+      `parserSetAccessorWithTypeParameters1`、`parserConstructorDeclaration3`／`9`／`10`、`varianceModifiersOnClassMembers`、
+      `autoAccessorDisallowedModifiers`）。
+  - 下がった構成は無い。不一致のまま出力が変わったのは`plainJSGrammarErrors`で、`static constructor()`と
+    `async constructor()`がtsgoと同じく残り、最初の差は233行目から278行目に移った（下の「残り」）。
+- ratchet：0 regressions、18行raise（emit none→js）。`intersectionConstructorReductionCrash`は今回もharness errorで、ratchetに入れない。
+- local：
+  - formatとworkspace全体のclippy。binder・emitter・checker・compiler・conformanceのtest（38 targets、2,706 passed、`91fea3f56`）。emitterのunit testは、exportしたobjectのbinding patternをtsgoの`({ toString: exports.toString } = 1);`に再pinした。
+  - 2 workerのfull run（455 s、`91fea3f56`のrelease build）。1回目（`6dc951eb8`、444 s）はemit full 13,308で、
+    namespaceの入れ子のexport宣言の3構成が下がっていた。これを直した。
+  - CLIのtestの入力はtsgoと診断・`.js`がbyte単位で同じ。
+- 残り：
+  - JavaScriptのfileのimport elision：tsgoはJavaScriptのfileでimport elisionを行わない（emitter.go:118）ので、
+    `async export { C }`の`async`が残る。tsc-rsは名前付きのexport宣言の修飾子をいつも落とす（`plainJSGrammarErrors`。
+    この経路は本sliceで変えていない）。
+  - TypeScriptのJavaScript出力の残り：static memberのarrow関数の`this`（`asyncArrowStaticFieldThis`など）、
+    `react-jsx`のcommonjsでの`_jsx`の呼び方、commentと改行の配置、decorator metadataの`BigInt`、`super(...arguments)`、
+    namespaceのimport alias（`moduleElementsInWrongContext`）など。
