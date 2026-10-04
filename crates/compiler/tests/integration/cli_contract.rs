@@ -3708,6 +3708,116 @@ fn non_iterable_unions_report_at_every_use_like_tsgo() {
 }
 
 #[test]
+fn reachability_is_not_cached_under_a_finally_reduction_like_tsgo() {
+    // tsgo isReachableFlowNodeWorker (checker/flow.go:2528-2537) caches a
+    // shared node's reachability only while no ReduceLabel narrows a label,
+    // so a logical assignment in `finally` does not leave a stale cache that
+    // makes an exhaustive switch's end reachable. The expected diagnostics
+    // are tsgo's for the same project.
+    let (status, stdout) = check_one_file(
+        "a.ts",
+        concat!(
+            "let y = false\n",
+            "function test1(x: boolean): number {\n",
+            "    try {\n",
+            "        switch (x) {\n",
+            "            case true: return 1\n",
+            "            case false: return 0\n",
+            "        }\n",
+            "    } finally { y ||= true }\n",
+            "}\n",
+            "function test3(x: boolean): number {\n",
+            "    try {\n",
+            "        if (x) { return 1 }\n",
+            "    } finally { y ||= true }\n",
+            "}\n",
+            "export {};\n",
+        ),
+        r#","strict":true"#,
+    );
+    assert_eq!(status, Some(2));
+    assert_eq!(
+        stdout,
+        "a.ts(10,29): error TS2366: Function lacks ending return statement and return type does not include 'undefined'.\n"
+    );
+}
+
+#[test]
+fn optional_binding_parameters_skip_the_cached_type_like_tsgo() {
+    // tsgo getTypeForBindingElementParent (checker.go:18031-18041) uses a
+    // cached parameter type only when it can carry no optionality, so a
+    // contextually typed implementation does not leave `| undefined` on the
+    // pattern of an optional method parameter. tsgo reports nothing here.
+    let (status, stdout) = check_one_file(
+        "a.ts",
+        concat!(
+            "export const mock: I = {\n",
+            "    m: (_) => {},\n",
+            "};\n",
+            "export interface I {\n",
+            "    m({ x }?: { x: boolean }): void\n",
+            "}\n",
+        ),
+        "",
+    );
+    assert_eq!(status, Some(0));
+    assert_eq!(stdout, "");
+}
+
+#[test]
+fn jsx_types_instantiate_only_aliases_and_interfaces_like_tsgo() {
+    // tsgo instantiateAliasOrInterfaceWithDefaults (jsx.go:1030-1048)
+    // returns no type for any other declared type, so an enum
+    // `JSX.ElementType` checks no element type (no TS2786). The expected
+    // diagnostics are tsgo's for the same project.
+    let (status, stdout) = check_one_file(
+        "a.tsx",
+        concat!(
+            "declare namespace JSX {\n",
+            "  enum ElementType {}\n",
+            "}\n",
+            "declare const C: () => any;\n",
+            "const x = <C />;\n",
+        ),
+        r#","strict":true,"jsx":"react""#,
+    );
+    assert_eq!(status, Some(2));
+    assert_eq!(
+        stdout,
+        "a.tsx(5,12): error TS2874: This JSX tag requires 'React' to be in scope, but it could not be found.\n"
+    );
+}
+
+#[test]
+fn jsx_namespaced_names_are_string_literal_keys_like_tsgo() {
+    // tsgo getLiteralTypeFromPropertyName names a JSX attribute `ns:name` by
+    // its text (GetPropertyNameForPropertyNameNode), so a template literal
+    // index signature it does not match is not compared. The expected
+    // diagnostics are tsgo's for the same project.
+    let (status, stdout) = check_one_file(
+        "a.tsx",
+        concat!(
+            "declare global {\n",
+            "    namespace JSX {\n",
+            "        interface Element {}\n",
+            "        interface IntrinsicElements {\n",
+            "            div: { [key: `do-${string}`]: Function; \"ns:thing\"?: string };\n",
+            "        }\n",
+            "    }\n",
+            "}\n",
+            "export const tag = <div ns:thing=\"a\"/>;\n",
+            "export const bad = <div ns:thing={1}/>;\n",
+        ),
+        r#","strict":true,"jsx":"preserve""#,
+    );
+    assert_eq!(status, Some(2));
+    assert_eq!(
+        stdout,
+        "a.tsx(10,25): error TS2322: Type 'number' is not assignable to type 'string'.\n"
+    );
+}
+
+#[test]
 fn error_recovery_syntax_is_erased_like_tsgo() {
     // tsgo's type eraser drops type parameters and return types from accessors
     // and constructors, every modifier of a constructor it visits, and `in`/`out`

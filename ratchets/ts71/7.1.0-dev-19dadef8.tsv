@@ -476,6 +476,7 @@ compiler/bindingPatternCannotBeOnlyInferenceSource	full	js
 compiler/bindingPatternContextualTypeDoesNotCauseWidening	full	js
 compiler/bindingPatternInParameter01	full	js
 compiler/bindingPatternOmittedExpressionNesting	full	js
+compiler/bindingPatternOptionalParameterCached	full	js
 compiler/binopAssignmentShouldHaveType	full	js
 compiler/bitwiseCompoundAssignmentOperators	full	js
 compiler/blockScopedBindingCaptureThisInFunction	full	js
@@ -2771,6 +2772,7 @@ compiler/fileWithNextLine3	full	js
 compiler/filesEmittingIntoSameOutput	full	none
 compiler/fillInMissingTypeArgsOnConstructCalls	full	js
 compiler/fillInMissingTypeArgsOnJSConstructCalls	full	js
+compiler/finallyLogicalOrAssignmentSwitchReturn	full	js
 compiler/findLast(target=es2022)	full	js
 compiler/findLast(target=esnext)	full	js
 compiler/firstMatchRegExpMatchArray	full	js
@@ -4053,6 +4055,7 @@ compiler/jsxElementClassTooManyParams	full	js
 compiler/jsxElementType	full	js
 compiler/jsxElementTypeLiteral	full	js
 compiler/jsxElementTypeLiteralWithGeneric	full	js
+compiler/jsxElementTypeUnexpectedType	full	js
 compiler/jsxElementsAsIdentifierNames	full	js
 compiler/jsxEmitAttributeWithPreserve	full	js
 compiler/jsxEmitWithAttributes	full	js
@@ -4125,6 +4128,7 @@ compiler/jsxNamespacePrefixInName	full	js
 compiler/jsxNamespacePrefixInNameReact	full	js
 compiler/jsxNamespacePrefixIntrinsics	full	js
 compiler/jsxNamespaceReexports	full	js
+compiler/jsxNamespacedNameNotComparedToNonMatchingIndexSignature	full	js
 compiler/jsxNestedIndentation	full	js
 compiler/jsxNestedWithinTernaryParsesCorrectly	full	js
 compiler/jsxNumericEntityLoneSurrogate	full	js
@@ -8375,7 +8379,7 @@ conformance/deleteOperatorWithNumberType	full	js
 conformance/deleteOperatorWithStringType	full	js
 conformance/dependentDestructuredVariables	full	js
 conformance/dependentDestructuredVariablesFromNestedPatterns	full	js
-conformance/dependentDestructuredVariablesNoCrash1	category	js
+conformance/dependentDestructuredVariablesNoCrash1	full	js
 conformance/dependentDestructuredVariablesNoCrash2	full	js
 conformance/dependentDestructuredVariablesNoCrash3	full	js
 conformance/dependentDestructuredVariablesReferenceInDeclaration1	full	js
