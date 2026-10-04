@@ -884,8 +884,20 @@ impl CheckerState<'_> {
         let source = self.binder.source_of_node(declaration);
         if let Some(import_syntax) = self.declaration_emit_any_import_syntax(declaration) {
             if !node_util::has_syntactic_modifier(source, import_syntax, ModifierFlags::EXPORT) {
+                // tsgo's reparser makes an `@import` tag an import declaration
+                // among the statements of the source file when the tag is at
+                // the top level (reparser.go:124-137, parser.go:614-643).
+                let parent_visible = if self.kind_of(import_syntax) == SyntaxKind::JSDocImportTag {
+                    Some(self.jsdoc_alias_is_top_level(import_syntax))
+                } else {
+                    None
+                };
                 if let Some(parent) = self.parent_of(import_syntax) {
-                    if self.emit_is_declaration_visible(parent)? {
+                    let parent_visible = match parent_visible {
+                        Some(visible) => visible,
+                        None => self.emit_is_declaration_visible(parent)?,
+                    };
+                    if parent_visible {
                         self.add_visible_alias(
                             declaration,
                             import_syntax,

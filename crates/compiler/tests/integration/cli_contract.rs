@@ -1058,6 +1058,80 @@ fn javascript_dotted_typedef_names_with_reexported_values_follow_tsgo() {
 }
 
 #[test]
+fn javascript_import_tags_follow_tsgo() {
+    // tsgo's parser turns an `@import` tag into a type-only import before
+    // the top-level statement that holds it, a class member's included, and
+    // the declaration transform keeps the bindings the declarations use
+    // (late painting), with the specifier written as in the tag. The
+    // expected bytes are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "export interface Foo { a: number }\n",
+            "export default interface Def { b: string }\n",
+        ),
+    )
+    .expect("write module");
+    fs::write(
+        tree.path("lib.js"),
+        concat!(
+            "/** @import { Foo } from \"./a\" */\n",
+            "/** @import Def, * as all from './a' */\n",
+            "/** @import { Foo as Unused } from \"./a\" */\n",
+            "\n",
+            "/**\n",
+            " * @param {Foo} foo\n",
+            " * @param {Def} def\n",
+            " * @param {all.Foo} other\n",
+            " */\n",
+            "export function use(foo, def, other) {\n",
+            "    void [foo, def, other];\n",
+            "}\n",
+            "\n",
+            "export class K {\n",
+            "    /** @import { Foo as Bar } from \"./a\" */\n",
+            "    /** @param {Bar} bar */\n",
+            "    m(bar) {\n",
+            "        void bar;\n",
+            "    }\n",
+            "}\n",
+        ),
+    )
+    .expect("write lib");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2022","allowJs":true,"checkJs":true,"declaration":true,"emitDeclarationOnly":true,"types":[],"outDir":"out"},"files":["lib.js"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/lib.d.ts")).expect("read declarations"),
+        concat!(
+            "/** @import { Foo } from \"./a\" */\n",
+            "/** @import Def, * as all from './a' */\n",
+            "/** @import { Foo as Unused } from \"./a\" */\n",
+            "import type { Foo } from \"./a\";\n",
+            "import type Def, * as all from './a';\n",
+            "/**\n",
+            " * @param {Foo} foo\n",
+            " * @param {Def} def\n",
+            " * @param {all.Foo} other\n",
+            " */\n",
+            "export declare function use(foo: Foo, def: Def, other: all.Foo): void;\n",
+            "import type { Foo as Bar } from \"./a\";\n",
+            "export declare class K {\n",
+            "    /** @import { Foo as Bar } from \"./a\" */\n",
+            "    /** @param {Bar} bar */\n",
+            "    m(bar: Bar): void;\n",
+            "}\n",
+        )
+    );
+}
+
+#[test]
 fn declarations_and_namespace_merges_follow_tsgo() {
     // tsgo keeps a binding pattern without initializers whole in a `.d.ts`,
     // typed as the whole declaration; a variable, function or class already

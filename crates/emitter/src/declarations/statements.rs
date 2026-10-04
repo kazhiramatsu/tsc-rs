@@ -181,15 +181,13 @@ pub(crate) fn transform_top_level_declaration(
         SyntaxKind::ImportEqualsDeclaration => {
             return transform_import_equals_declaration(transformer, context, input);
         }
-        SyntaxKind::ImportDeclaration => {
+        SyntaxKind::ImportDeclaration | SyntaxKind::JSDocImportTag => {
             return transform_import_declaration(transformer, context, input);
         }
         _ => {}
     }
 
-    if transformer.is_declaration_and_not_visible(context, input)?
-        || context.arena().node(input)?.kind == SyntaxKind::JSDocImportTag
-    {
+    if transformer.is_declaration_and_not_visible(context, input)? {
         return Ok(VisitResult::None);
     }
 
@@ -1726,7 +1724,8 @@ pub(crate) fn transform_import_declaration(
                     field: "moduleSpecifier",
                 })?;
         let mut factory = context.factory()?;
-        return Ok(VisitResult::Node(factory.update_import_declaration(
+        return Ok(VisitResult::Node(finish_import_declaration(
+            &mut factory,
             declaration,
             modifiers,
             None,
@@ -1736,9 +1735,15 @@ pub(crate) fn transform_import_declaration(
     };
 
     let clause_data = import_clause_data(context, import_clause)?;
-    let phase_modifier = (clause_data.phase_modifier != Some(SyntaxKind::DeferKeyword))
-        .then_some(clause_data.phase_modifier)
-        .flatten();
+    let is_jsdoc_import = context.arena().node(declaration)?.kind == SyntaxKind::JSDocImportTag;
+    let phase_modifier = if is_jsdoc_import {
+        // The reparsed clause imports only types (reparser.go:130).
+        Some(SyntaxKind::TypeKeyword)
+    } else {
+        (clause_data.phase_modifier != Some(SyntaxKind::DeferKeyword))
+            .then_some(clause_data.phase_modifier)
+            .flatten()
+    };
     let default_binding = clause_data
         .name
         .and_then(|node| context.arena().node_ref(declaration.source(), node));
@@ -1776,7 +1781,8 @@ pub(crate) fn transform_import_declaration(
                 Some(visible_default),
                 None,
             )?;
-            Ok(VisitResult::Node(factory.update_import_declaration(
+            Ok(VisitResult::Node(finish_import_declaration(
+                &mut factory,
                 declaration,
                 modifiers,
                 Some(clause),
@@ -1809,7 +1815,8 @@ pub(crate) fn transform_import_declaration(
                 visible_default,
                 visible_named,
             )?;
-            Ok(VisitResult::Node(factory.update_import_declaration(
+            Ok(VisitResult::Node(finish_import_declaration(
+                &mut factory,
                 declaration,
                 modifiers,
                 Some(clause),
@@ -1829,9 +1836,11 @@ pub(crate) fn transform_import_declaration(
                 }
             }
             if visible_elements.is_empty() && visible_default.is_none() {
-                if !transformer.resolver.is_import_required_by_augmentation(
-                    transformer.required_resolver_node(context, declaration)?,
-                )? {
+                if is_jsdoc_import
+                    || !transformer.resolver.is_import_required_by_augmentation(
+                        transformer.required_resolver_node(context, declaration)?,
+                    )?
+                {
                     return Ok(VisitResult::None);
                 }
                 if transformer.options.isolated_declarations == Some(true) {
@@ -1852,15 +1861,14 @@ pub(crate) fn transform_import_declaration(
                     parent: SyntaxKind::ImportDeclaration,
                     field: "moduleSpecifier",
                 })?;
-                return Ok(VisitResult::Node(
-                    context.factory()?.update_import_declaration(
-                        declaration,
-                        modifiers,
-                        None,
-                        module_specifier,
-                        attributes,
-                    )?,
-                ));
+                return Ok(VisitResult::Node(finish_import_declaration(
+                    &mut context.factory()?,
+                    declaration,
+                    modifiers,
+                    None,
+                    module_specifier,
+                    attributes,
+                )?));
             }
             let module_specifier = rewrite_module_specifier(
                 transformer,
@@ -1885,7 +1893,8 @@ pub(crate) fn transform_import_declaration(
                 visible_default,
                 bindings,
             )?;
-            Ok(VisitResult::Node(factory.update_import_declaration(
+            Ok(VisitResult::Node(finish_import_declaration(
+                &mut factory,
                 declaration,
                 modifiers,
                 Some(clause),
@@ -1894,6 +1903,34 @@ pub(crate) fn transform_import_declaration(
             )?))
         }
     }
+}
+
+/// The updated import declaration, or for an `@import` tag the import
+/// declaration tsgo's reparser makes of it.
+fn finish_import_declaration(
+    factory: &mut crate::NodeFactory<'_>,
+    declaration: TransformNode,
+    modifiers: Option<TransformNodeArray>,
+    import_clause: Option<TransformNode>,
+    module_specifier: TransformNode,
+    attributes: Option<TransformNode>,
+) -> Result<TransformNode, TransformError> {
+    if factory.arena().node(declaration)?.kind == SyntaxKind::JSDocImportTag {
+        return factory.create_import_declaration(
+            declaration.source(),
+            modifiers,
+            import_clause,
+            module_specifier,
+            attributes,
+        );
+    }
+    factory.update_import_declaration(
+        declaration,
+        modifiers,
+        import_clause,
+        module_specifier,
+        attributes,
+    )
 }
 
 /// tsc-port: rewriteModuleSpecifier2 @6.0.3
@@ -2235,6 +2272,7 @@ fn is_late_visibility_painted_statement(
     Ok(matches!(
         context.arena().node(node)?.kind,
         SyntaxKind::ImportDeclaration
+            | SyntaxKind::JSDocImportTag
             | SyntaxKind::ImportEqualsDeclaration
             | SyntaxKind::VariableStatement
             | SyntaxKind::ClassDeclaration
@@ -2699,6 +2737,14 @@ fn import_declaration_data(
 ) -> Result<ImportDeclarationData, TransformError> {
     match &context.arena().node(node)?.data {
         NodeData::ImportDeclaration(data) => Ok(data.clone()),
+        // tsgo's reparser turns an `@import` tag into an import declaration
+        // with the tag's clause, specifier and attributes (reparser.go:124-137).
+        NodeData::JSDocImportTag(data) => Ok(ImportDeclarationData {
+            modifiers: None,
+            import_clause: data.import_clause,
+            module_specifier: data.module_specifier,
+            attributes: data.attributes,
+        }),
         _ => Err(TransformError::FactoryKindMismatch {
             expected: SyntaxKind::ImportDeclaration,
             actual: context.arena().node(node)?.kind,

@@ -409,6 +409,7 @@ fn push_reparsed_tags(source: &SourceFile, host: NodeId, tags: &mut Vec<Reparsed
             let reparsed = match &source.arena.node(tag).data {
                 NodeData::JSDocTypedefTag(data) => data.type_expression.is_some(),
                 NodeData::JSDocCallbackTag(data) => data.type_expression.is_some(),
+                NodeData::JSDocImportTag(data) => data.import_clause.is_some(),
                 _ => false,
             };
             if reparsed {
@@ -505,8 +506,8 @@ impl DeclarationTransformer<'_> {
 
     /// The statements tsgo's parser inserts before a top-level statement of a
     /// JavaScript file: the type aliases of the `@typedef` and `@callback`
-    /// tags in its JSDoc and in the JSDoc of the nodes inside it that are not
-    /// in a block.
+    /// tags and the imports of the `@import` tags in its JSDoc and in the
+    /// JSDoc of the nodes inside it that are not in a block.
     pub(crate) fn reparsed_statements_before(
         &mut self,
         cx: &mut TransformationContext,
@@ -561,7 +562,21 @@ impl DeclarationTransformer<'_> {
             .is_external_or_common_js_module(self.required_resolver_node(cx, root)?)?;
         let mut statements = Vec::new();
         for tag in tags {
-            statements.push(self.reparsed_type_alias(cx, source, tag, is_module)?);
+            let tag_node = TransformNode::new(source, tag.tag);
+            if cx.arena().node(tag_node)?.kind == SyntaxKind::JSDocImportTag {
+                // The import is a late-painted statement: its bindings are
+                // kept once declarations refer to them, so the tag stands
+                // in the list until the late pass replaces it
+                // (transformAndReplaceLatePaintedStatements).
+                let result =
+                    super::statements::transform_top_level_declaration(self, cx, tag_node)?;
+                self.state_mut()?
+                    .late_statement_replacement
+                    .insert(tag.tag, result);
+                statements.push(tag_node);
+            } else {
+                statements.push(self.reparsed_type_alias(cx, source, tag, is_module)?);
+            }
         }
         Ok(statements)
     }
