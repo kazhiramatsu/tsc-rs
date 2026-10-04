@@ -2201,3 +2201,5 @@ P3-5apの後の4件：
     Next.js 1,067→1,046、Effect 792→755。6 corporaとも出力fileと診断は同一。
   - 10回のA/B：zod `bench-full` 620→621、Effect `--noEmit` 522→511、Playwright `--noEmit` 362→363。1 checkerの命令数
     branch÷main：zod 0.99969、Effect 1.00055。3回の差はnoiseで、劣化無し。
+- hosted：PR #668（head `baf19f2e4`）、run 37224328513 — `plan` 33s、`rust` 10m23s、`conformance (TypeScript 7.1)` 21m10s、
+  `gates` 14s。
