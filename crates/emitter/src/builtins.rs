@@ -12319,8 +12319,18 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 .and_then(|parent| self.context.arena().node_ref(self.source, parent))
                 .and_then(|parent| self.context.arena().node(parent).ok())
                 .is_some_and(|parent| parent.kind == SyntaxKind::FunctionDeclaration);
+        // Only a namespace member's `export` and `default` are the
+        // namespace's to erase: a declaration nested in a block of the body
+        // keeps them, as tsgo does once `export` counts as TypeScript.
         let namespace_modifier = !self.namespace_stack.is_empty()
-            && matches!(kind, SyntaxKind::ExportKeyword | SyntaxKind::DefaultKeyword);
+            && matches!(kind, SyntaxKind::ExportKeyword | SyntaxKind::DefaultKeyword)
+            && parent
+                .and_then(|parent| self.context.arena().node_ref(self.source, parent))
+                .and_then(|parent| self.context.arena().node(parent).ok())
+                .and_then(|parent| parent.parent)
+                .and_then(|member_parent| self.context.arena().node_ref(self.source, member_parent))
+                .and_then(|member_parent| self.context.arena().node(member_parent).ok())
+                .is_some_and(|member_parent| member_parent.kind == SyntaxKind::ModuleBlock);
         // tsgo erases the `in` and `out` variance keywords wherever they are
         // not the `in` operator: as modifiers of anything but a type
         // parameter they are a grammar error (typeeraser.go:99-106).
@@ -12402,7 +12412,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         } else if is_type_node(kind)
             || is_typescript_modifier(kind)
             || variance_modifier
-            || (!self.namespace_stack.is_empty()
+            || (namespace_modifier
                 && (kind == SyntaxKind::ExportKeyword
                     || kind == SyntaxKind::DefaultKeyword && !retain_namespace_function_default))
             || matches!(

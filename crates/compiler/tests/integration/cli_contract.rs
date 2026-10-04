@@ -2174,6 +2174,156 @@ fn common_js_signature_scope_diagnostic_follows_tsgo() {
 }
 
 #[test]
+fn common_js_exported_destructuring_follows_tsgo() {
+    // tsgo writes an exported binding pattern as a destructuring assignment
+    // whose leaves are `exports.name` (transformInitializedVariable,
+    // commonjsmodule.go:1110-1128), and flattens it only when an `export { ... }`
+    // also publishes a leaf under another name (destructuringNeedsFlattening,
+    // commonjsmodule.go:1428-1480). The expected bytes are tsgo's for the same
+    // project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare const arr: number[];\n",
+            "declare const obj: { x: number; y: string; z: boolean; m: number[] };\n",
+            "export const [a, b] = arr;\n",
+            "export const { x, y: renamed, ...rest } = obj;\n",
+            "export let [c = 1, , ...others] = arr;\n",
+            "export const { m: [first] } = obj;\n",
+            "export const [aliased] = arr;\n",
+            "export { aliased as alias };\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2022","module":"commonjs","outDir":"out","types":[],"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read a.js"),
+        concat!(
+            "\"use strict\";\n",
+            "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+            "exports.alias = exports.aliased = exports.first = exports.others = exports.c = exports.rest = exports.renamed = exports.x = exports.b = exports.a = void 0;\n",
+            "[exports.a, exports.b] = arr;\n",
+            "({ x: exports.x, y: exports.renamed, ...exports.rest } = obj);\n",
+            "[exports.c = 1, , ...exports.others] = arr;\n",
+            "({ m: [exports.first] } = obj);\n",
+            "exports.alias = exports.aliased = arr[0];\n",
+            "exports.alias = exports.aliased;\n",
+        )
+    );
+}
+
+#[test]
+fn error_recovery_syntax_is_erased_like_tsgo() {
+    // tsgo's type eraser drops type parameters and return types from accessors
+    // and constructors, every modifier of a constructor it visits, and `in`/`out`
+    // wherever they are not the `in` operator; the `export` keyword counts as
+    // TypeScript, while a constructor without TypeScript, such as
+    // `accessor constructor() {}`, is kept (typeeraser.go:43-186, ast.go
+    // subtree facts). The expected diagnostics and bytes are tsgo's for the same
+    // project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        "class A { accessor constructor() { } }\n",
+    )
+    .expect("write a.ts");
+    fs::write(tree.path("b.ts"), "class B { export constructor() { } }\n").expect("write b.ts");
+    fs::write(
+        tree.path("c.ts"),
+        "class C { get foo<T>() { return 1; } set foo<T>(v): number { } }\n",
+    )
+    .expect("write c.ts");
+    fs::write(
+        tree.path("d.ts"),
+        concat!(
+            "class D { in x = 1; out y = 2; }\n",
+            "const isIn = \"x\" in { x: 1 };\n",
+        ),
+    )
+    .expect("write d.ts");
+    fs::write(
+        tree.path("e.ts"),
+        "class E { constructor<T>(): number { } }\n",
+    )
+    .expect("write e.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"esnext","module":"esnext","outDir":"out","types":[],"noEmitOnError":false},"files":["a.ts","b.ts","c.ts","d.ts","e.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        concat!(
+            "a.ts(1,11): error TS1275: 'accessor' modifier can only appear on a property declaration.\n",
+            "b.ts(1,11): error TS1031: 'export' modifier cannot appear on class elements of this kind.\n",
+            "c.ts(1,15): error TS1094: An accessor cannot have type parameters.\n",
+            "c.ts(1,42): error TS1094: An accessor cannot have type parameters.\n",
+            "d.ts(1,11): error TS1274: 'in' modifier can only appear on a type parameter of a class, interface or type alias\n",
+            "d.ts(1,21): error TS1274: 'out' modifier can only appear on a type parameter of a class, interface or type alias\n",
+            "e.ts(1,23): error TS1092: Type parameters cannot appear on a constructor declaration.\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read a.js"),
+        concat!(
+            "\"use strict\";\n",
+            "class A {\n",
+            "    accessor constructor() { }\n",
+            "}\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/b.js")).expect("read b.js"),
+        concat!(
+            "\"use strict\";\n",
+            "class B {\n",
+            "    constructor() { }\n",
+            "}\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/c.js")).expect("read c.js"),
+        concat!(
+            "\"use strict\";\n",
+            "class C {\n",
+            "    get foo() { return 1; }\n",
+            "    set foo(v) { }\n",
+            "}\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/d.js")).expect("read d.js"),
+        concat!(
+            "\"use strict\";\n",
+            "class D {\n",
+            "    x = 1;\n",
+            "    y = 2;\n",
+            "}\n",
+            "const isIn = \"x\" in { x: 1 };\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/e.js")).expect("read e.js"),
+        concat!(
+            "\"use strict\";\n",
+            "class E {\n",
+            "    constructor() { }\n",
+            "}\n",
+        )
+    );
+}
+
+#[test]
 fn declarations_and_namespace_merges_follow_tsgo() {
     // tsgo keeps a binding pattern without initializers whole in a `.d.ts`,
     // typed as the whole declaration; a variable, function or class already
