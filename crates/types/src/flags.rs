@@ -367,6 +367,13 @@ impl CheckFlags {
     pub const STRIP_OPTIONAL: Self = Self(524288);
     /// tsc CheckFlags.Unresolved
     pub const UNRESOLVED: Self = Self(1048576);
+    /// tsgo CheckFlagsContainsWritePublic: a synthetic property with a
+    /// public set accessor (ast/checkflags.go:20).
+    pub const CONTAINS_WRITE_PUBLIC: Self = Self(2097152);
+    /// tsgo CheckFlagsContainsWriteProtected (ast/checkflags.go:21).
+    pub const CONTAINS_WRITE_PROTECTED: Self = Self(4194304);
+    /// tsgo CheckFlagsContainsWritePrivate (ast/checkflags.go:22).
+    pub const CONTAINS_WRITE_PRIVATE: Self = Self(8388608);
     /// tsc CheckFlags.Synthetic
     pub const SYNTHETIC: Self = Self(6);
     /// tsc CheckFlags.Discriminant

@@ -595,16 +595,18 @@ impl<'a> CheckerState<'a> {
             let declaring_class_declaration = self
                 .get_parent_of_symbol(prop)
                 .and_then(|parent| self.get_class_like_declaration_of_symbol(parent));
-            if !self.is_node_within_class(location, declaring_class_declaration) {
+            // A synthetic property whose write is private has no declaring
+            // class; tsgo names the containing type (checker.go:12035-12046).
+            if declaring_class_declaration.is_none()
+                || !self.is_node_within_class(location, declaring_class_declaration)
+            {
                 if let Some(error_node) = error_node {
                     let prop_name = self.symbol_display_name(prop);
-                    let class_name = match self.get_declaring_class(prop)? {
-                        Some(class) => self.type_to_string(class)?,
-                        None => unreachable!(
-                            "accessibility mask: PRIVATE implies a class parent \
-                             (revisit if Contains* propagation is ported)"
-                        ),
+                    let class = match self.get_declaring_class(prop)? {
+                        Some(class) => class,
+                        None => containing_type,
                     };
+                    let class_name = self.type_to_string(class)?;
                     self.error_at_js(
                         Some(error_node),
                         &tsc_diagnostics::gen::Property_0_is_private_and_only_accessible_within_class_1,

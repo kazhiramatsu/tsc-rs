@@ -5223,6 +5223,8 @@ impl<'a> CheckerState<'a> {
             let prop = self.get_property_of_type_ex(ty, name, skip)?;
             if let Some(prop) = prop {
                 let modifiers = self.get_declaration_modifier_flags_from_symbol(prop);
+                let write_modifiers =
+                    self.get_declaration_modifier_flags_from_symbol_write(prop, true);
                 let prop_symbol_flags = self.symbol_flags(prop);
                 if prop_symbol_flags.intersects(SymbolFlags::CLASS_MEMBER) {
                     let base = optional_flag.unwrap_or(if is_union {
@@ -5292,25 +5294,40 @@ impl<'a> CheckerState<'a> {
                 } else if !is_union && !self.is_readonly_symbol(prop)? {
                     check_flags &= !CheckFlags::READONLY.bits();
                 }
-                // 59148-59152: fold the member's declared modifiers.
-                check_flags |=
-                    if !modifiers.intersects(ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER) {
-                        CheckFlags::CONTAINS_PUBLIC.bits()
+                // tsgo folds the read and the write (set accessor)
+                // accessibility of each member separately
+                // (checker.go:21851-21866).
+                let access_flag = |modifiers: ModifierFlags,
+                                   public: CheckFlags,
+                                   protected: CheckFlags,
+                                   private: CheckFlags| {
+                    if modifiers.intersects(ModifierFlags::PROTECTED)
+                        && !modifiers.intersects(ModifierFlags::PUBLIC)
+                    {
+                        protected.bits()
+                    } else if modifiers.intersects(ModifierFlags::PRIVATE)
+                        && !modifiers.intersects(ModifierFlags::PUBLIC)
+                    {
+                        private.bits()
                     } else {
-                        0
-                    } | if modifiers.intersects(ModifierFlags::PROTECTED) {
-                        CheckFlags::CONTAINS_PROTECTED.bits()
-                    } else {
-                        0
-                    } | if modifiers.intersects(ModifierFlags::PRIVATE) {
-                        CheckFlags::CONTAINS_PRIVATE.bits()
-                    } else {
-                        0
-                    } | if modifiers.intersects(ModifierFlags::STATIC) {
-                        CheckFlags::CONTAINS_STATIC.bits()
-                    } else {
-                        0
-                    };
+                        public.bits()
+                    }
+                };
+                check_flags |= access_flag(
+                    modifiers,
+                    CheckFlags::CONTAINS_PUBLIC,
+                    CheckFlags::CONTAINS_PROTECTED,
+                    CheckFlags::CONTAINS_PRIVATE,
+                ) | access_flag(
+                    write_modifiers,
+                    CheckFlags::CONTAINS_WRITE_PUBLIC,
+                    CheckFlags::CONTAINS_WRITE_PROTECTED,
+                    CheckFlags::CONTAINS_WRITE_PRIVATE,
+                ) | if modifiers.intersects(ModifierFlags::STATIC) {
+                    CheckFlags::CONTAINS_STATIC.bits()
+                } else {
+                    0
+                };
                 if !self.is_prototype_property(prop) {
                     syntactic_flag = CheckFlags::SYNTHETIC_PROPERTY;
                 }
@@ -5356,11 +5373,29 @@ impl<'a> CheckerState<'a> {
         if is_union
             && (!prop_set.is_empty() || check_flags & CheckFlags::PARTIAL.bits() != 0)
             && check_flags
-                & (CheckFlags::CONTAINS_PRIVATE.bits() | CheckFlags::CONTAINS_PROTECTED.bits())
+                & (CheckFlags::CONTAINS_PRIVATE.bits()
+                    | CheckFlags::CONTAINS_PROTECTED.bits()
+                    | CheckFlags::CONTAINS_WRITE_PRIVATE.bits()
+                    | CheckFlags::CONTAINS_WRITE_PROTECTED.bits())
                 != 0
             && (prop_set.is_empty() || !self.common_declarations_of_symbols(&prop_set))
         {
-            return Ok(None);
+            // tsgo creates no property for a private or protected read
+            // declaration; a private or protected write declaration
+            // restricts writing to the most restricted constituent
+            // (checker.go:21901-21918).
+            if check_flags
+                & (CheckFlags::CONTAINS_PRIVATE.bits() | CheckFlags::CONTAINS_PROTECTED.bits())
+                != 0
+            {
+                return Ok(None);
+            }
+            if check_flags & CheckFlags::CONTAINS_WRITE_PRIVATE.bits() != 0 {
+                check_flags &= !(CheckFlags::CONTAINS_WRITE_PUBLIC.bits()
+                    | CheckFlags::CONTAINS_WRITE_PROTECTED.bits());
+            } else if check_flags & CheckFlags::CONTAINS_WRITE_PROTECTED.bits() != 0 {
+                check_flags &= !CheckFlags::CONTAINS_WRITE_PUBLIC.bits();
+            }
         }
         if prop_set.is_empty()
             && check_flags & CheckFlags::READ_PARTIAL.bits() == 0
@@ -5786,6 +5821,49 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
         is_write: bool,
     ) -> ModifierFlags {
+        // tsgo reads a synthetic property's check flags before any value
+        // declaration it carries (getDeclarationModifierFlagsFromSymbolEx,
+        // checker/utilities.go:761-776): the declaration of one constituent
+        // does not decide the property's accessibility.
+        let check_flags = self.get_check_flags(symbol);
+        if check_flags.intersects(CheckFlags::SYNTHETIC) {
+            // 17445-17447: accessModifier | staticModifier — the
+            // STATIC OR-in is load-bearing for synthesized protected
+            // statics (a mixin `typeof A & typeof B` static otherwise
+            // walks the INSTANCE-protected path and fabricates 2446
+            // inside its own class — the mixinAccessModifiers FP).
+            // tsgo prefers the most permissive access, reading the write
+            // flags for a write (getDeclarationModifierFlagsFromSymbolEx,
+            // checker/utilities.go:761-776).
+            let (public, protected, private) = if is_write {
+                (
+                    CheckFlags::CONTAINS_WRITE_PUBLIC,
+                    CheckFlags::CONTAINS_WRITE_PROTECTED,
+                    CheckFlags::CONTAINS_WRITE_PRIVATE,
+                )
+            } else {
+                (
+                    CheckFlags::CONTAINS_PUBLIC,
+                    CheckFlags::CONTAINS_PROTECTED,
+                    CheckFlags::CONTAINS_PRIVATE,
+                )
+            };
+            let access_modifier = if check_flags.intersects(public) {
+                ModifierFlags::PUBLIC
+            } else if check_flags.intersects(protected) {
+                ModifierFlags::PROTECTED
+            } else if check_flags.intersects(private) {
+                ModifierFlags::PRIVATE
+            } else {
+                ModifierFlags::from_bits(0)
+            };
+            let static_modifier = if check_flags.intersects(CheckFlags::CONTAINS_STATIC) {
+                ModifierFlags::STATIC
+            } else {
+                ModifierFlags::from_bits(0)
+            };
+            return ModifierFlags::from_bits(access_modifier.bits() | static_modifier.bits());
+        }
         if let Some(value_declaration) = self.binder.symbol(symbol).value_declaration {
             // 17438-17441: `isWrite && find(setter) || GetAccessor &&
             // find(getter) || valueDeclaration`.
@@ -5824,27 +5902,6 @@ impl<'a> CheckerState<'a> {
                     flags.bits() & !ModifierFlags::ACCESSIBILITY_MODIFIER.bits(),
                 )
             };
-        }
-        let check_flags = self.get_check_flags(symbol);
-        if check_flags.intersects(CheckFlags::SYNTHETIC) {
-            // 17445-17447: accessModifier | staticModifier — the
-            // STATIC OR-in is load-bearing for synthesized protected
-            // statics (a mixin `typeof A & typeof B` static otherwise
-            // walks the INSTANCE-protected path and fabricates 2446
-            // inside its own class — the mixinAccessModifiers FP).
-            let access_modifier = if check_flags.intersects(CheckFlags::CONTAINS_PRIVATE) {
-                ModifierFlags::PRIVATE
-            } else if check_flags.intersects(CheckFlags::CONTAINS_PUBLIC) {
-                ModifierFlags::PUBLIC
-            } else {
-                ModifierFlags::PROTECTED
-            };
-            let static_modifier = if check_flags.intersects(CheckFlags::CONTAINS_STATIC) {
-                ModifierFlags::STATIC
-            } else {
-                ModifierFlags::from_bits(0)
-            };
-            return ModifierFlags::from_bits(access_modifier.bits() | static_modifier.bits());
         }
         // 17449-17451: prototype properties are public statics.
         if self.symbol_flags(symbol).intersects(SymbolFlags::PROTOTYPE) {
