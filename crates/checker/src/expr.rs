@@ -3467,9 +3467,11 @@ impl<'a> CheckerState<'a> {
         Ok(ty)
     }
 
-    /// tsc-port: padObjectLiteralType @6.0.3
-    /// tsc-hash: 27d1ecfe9de206dd54dee7b938427800afbe679cccfdb1b16ffd99b872488dff
-    /// tsc-span: _tsc.js:80629-80660
+    /// tsgo: padObjectLiteralType (checker.go:17142-17168). Every element
+    /// but a rest element whose property the initializer lacks is padded,
+    /// with its binding element type reported like a declaration's (an
+    /// element without a default is implicitly `any`, TS7031); tsc 6.0
+    /// padded only the elements with a default.
     fn pad_object_literal_type(&mut self, ty: TypeId, pattern: NodeId) -> CheckResult<TypeId> {
         let elements = match self.data_of(pattern) {
             NodeData::ObjectBindingPattern(data) => data.elements,
@@ -3478,11 +3480,11 @@ impl<'a> CheckerState<'a> {
         let elements: Vec<NodeId> = self.nodes_of(elements);
         let mut missing_elements: Vec<NodeId> = Vec::new();
         for &e in &elements {
-            let has_initializer = matches!(
+            let is_rest = matches!(
                 self.data_of(e),
-                NodeData::BindingElement(data) if data.initializer.is_some()
+                NodeData::BindingElement(data) if data.dot_dot_dot_token.is_some()
             );
-            if !has_initializer {
+            if is_rest {
                 continue;
             }
             if let Some(name) = self.property_name_from_binding_element(e)? {
@@ -3509,7 +3511,7 @@ impl<'a> CheckerState<'a> {
                 .binder
                 .create_symbol(SymbolFlags::PROPERTY | SymbolFlags::OPTIONAL, name);
             let element_type = self.get_type_from_binding_element(
-                e, /*include_pattern_in_type*/ false, /*report_errors*/ false,
+                e, /*include_pattern_in_type*/ false, /*report_errors*/ true,
             )?;
             self.links
                 .set_fresh_symbol_type(symbol, crate::links::LinkSlot::Resolved(element_type));

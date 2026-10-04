@@ -2761,8 +2761,21 @@ impl<'a> CheckerState<'a> {
             self.get_property_of_variable(target_symbol, name_text)?
         };
         symbol_from_variable = self.resolve_symbol_ex(symbol_from_variable, dont_resolve_alias)?;
+        // tsgo getExternalModuleMember (checker.go:14947-14951): for an
+        // `export =` module the supplemental type and namespace exports
+        // live on the original module symbol.
+        let export_container = if self
+            .binder
+            .symbol(module_symbol)
+            .exports()
+            .contains_key(InternalSymbolName::EXPORT_EQUALS)
+        {
+            module_symbol
+        } else {
+            target_symbol
+        };
         let mut symbol_from_module =
-            self.get_export_of_module(target_symbol, name_text, specifier, dont_resolve_alias)?;
+            self.get_export_of_module(export_container, name_text, specifier, dont_resolve_alias)?;
         if symbol_from_module.is_none() && name_text == InternalSymbolName::DEFAULT {
             let file_index = self.source_file_index_of_symbol(module_symbol);
             if self.is_only_importable_as_default(module_specifier, Some(module_symbol))?
@@ -8117,10 +8130,19 @@ impl<'a> CheckerState<'a> {
         let mut type_only_export_star_map: Option<rustc_hash::FxHashMap<EscapedName, NodeId>> =
             None;
         let mut non_type_only_names: indexmap::IndexSet<EscapedName> = indexmap::IndexSet::new();
+        let export_equals = self
+            .binder
+            .symbol(module_symbol)
+            .exports()
+            .get(InternalSymbolName::EXPORT_EQUALS)
+            .copied();
+        let original_module = self
+            .resolve_symbol_ex(export_equals, false)?
+            .map(|_| module_symbol);
         let module_symbol = self
             .resolve_external_module_symbol(Some(module_symbol), false)?
             .expect("resolveExternalModuleSymbol(Some) is Some");
-        let exports = self
+        let mut exports = self
             .visit_module_exports(
                 Some(module_symbol),
                 None,
@@ -8130,6 +8152,34 @@ impl<'a> CheckerState<'a> {
                 &mut type_only_export_star_map,
             )?
             .unwrap_or_default();
+        // tsgo getExportsOfModuleWorker (checker.go:16518-16542): a module
+        // defined by `export =` also exports the type and namespace
+        // declarations of the original module.
+        if let Some(original_module) = original_module {
+            let original_exports: Vec<(EscapedName, SymbolId)> = self
+                .binder
+                .symbol(original_module)
+                .exports()
+                .iter()
+                .map(|(name, &symbol)| (*name, symbol))
+                .collect();
+            if original_exports.len() > 1 {
+                for (name, symbol) in original_exports {
+                    if name == InternalSymbolName::EXPORT_EQUALS
+                        || name == InternalSymbolName::EXPORT_STAR
+                    {
+                        continue;
+                    }
+                    let flags = self.get_symbol_flags_of(symbol)?;
+                    if flags.intersects(SymbolFlags::TYPE | SymbolFlags::NAMESPACE)
+                        && !flags.intersects(SymbolFlags::VALUE)
+                        && !exports.contains_key(name)
+                    {
+                        exports.insert(name, symbol);
+                    }
+                }
+            }
+        }
         if let Some(map) = &mut type_only_export_star_map {
             for name in &non_type_only_names {
                 map.remove(name);

@@ -294,16 +294,8 @@ fn no_emit_report_is_clean(prepared: &PreparedProgram, checked: &CheckResult) ->
             .as_ref()
             .is_some_and(Vec::is_empty)
         && preparation.options().is_empty()
-        && preparation.program().is_empty()
         && programmatic_option_diagnostics(prepared).is_empty()
-        && prepared
-            .resolutions()
-            .type_references()
-            .all(|(_, resolution)| resolution.diagnostics().is_empty())
-        && prepared
-            .resolutions()
-            .modules()
-            .all(|(_, resolution)| resolution.diagnostics().is_empty())
+        && program_rows_outside_sources(prepared).is_empty()
 }
 
 /// `program.getDeclarationDiagnostics()` for the --noEmit command, over the
@@ -828,6 +820,13 @@ impl PreparedModuleProvider<'_> {
 impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
     fn program_options_for_module_specifiers(&self) -> Option<&tsc_program::ProgramOptions> {
         Some(self.prepared.program_options())
+    }
+
+    fn include_processor_diagnostics(&self) -> Vec<(AuthoritativeSourceToken, Diagnostic)> {
+        include_processor_rows(self.prepared)
+            .into_iter()
+            .map(|(source, diagnostic)| (AuthoritativeSourceToken(source.raw()), diagnostic))
+            .collect()
     }
 
     fn resolve_module(
@@ -1497,6 +1496,10 @@ impl ProgramSession {
                 &self,
             ) -> Option<&tsc_program::ProgramOptions> {
                 self.inner.program_options_for_module_specifiers()
+            }
+
+            fn include_processor_diagnostics(&self) -> Vec<(AuthoritativeSourceToken, Diagnostic)> {
+                self.inner.include_processor_diagnostics()
             }
 
             fn resolve_module(
@@ -2747,7 +2750,7 @@ impl ProgramSession {
         };
 
         let preparation = self.prepared.diagnostics();
-        let mut conformance_diagnostics = if command_report {
+        let conformance_diagnostics = if command_report {
             Vec::new()
         } else {
             checked.diagnostics
@@ -2768,61 +2771,11 @@ impl ProgramSession {
         let mut available_semantic = checked
             .program_semantic_diagnostics
             .expect("authoritative checker sessions publish whole-Program semantic diagnostics");
-        let program_diagnostics = self
-            .prepared
-            .resolutions()
-            .type_references()
-            .flat_map(|(_, resolution)| resolution.diagnostics())
-            .chain(
-                self.prepared
-                    .resolutions()
-                    .modules()
-                    .flat_map(|(_, resolution)| resolution.diagnostics()),
-            )
-            .cloned()
-            .collect::<Vec<_>>();
-        // The conformance evidence stream is the aggregate of public
-        // per-source getters. Source-owned program rows therefore join it,
-        // while file-less/config-owned rows remain options diagnostics only.
-        // The command report never reads it.
-        if !command_report {
-            conformance_diagnostics.extend(
-                preparation
-                    .program()
-                    .iter()
-                    .chain(program_diagnostics.iter())
-                    .filter(|diagnostic| {
-                        diagnostic
-                            .file_name
-                            .as_ref()
-                            .map(JsString::as_js)
-                            .is_some_and(|file_name| {
-                                prepared_source_owns_diagnostic(&self.prepared, file_name)
-                            })
-                    })
-                    .cloned(),
-            );
-            sort_and_dedupe_diagnostics(&mut conformance_diagnostics);
-        }
-
-        let mut route_program_diagnostic = |diagnostic: &Diagnostic| {
-            if diagnostic
-                .file_name
-                .as_ref()
-                .map(JsString::as_js)
-                .is_some_and(|file_name| prepared_source_owns_diagnostic(&self.prepared, file_name))
-            {
-                available_semantic.push(diagnostic.clone());
-            } else {
-                available_options.push(diagnostic.clone());
-            }
-        };
-        for diagnostic in preparation.program() {
-            route_program_diagnostic(diagnostic);
-        }
-        for diagnostic in &program_diagnostics {
-            route_program_diagnostic(diagnostic);
-        }
+        // The Program rows located in a source are its include-processor
+        // diagnostics: the checker joined them to that source's semantic
+        // diagnostics, in the public per-source getters and the whole-Program
+        // view alike. The rows outside every source are options diagnostics.
+        available_options.extend(program_rows_outside_sources(&self.prepared));
         sort_and_dedupe_diagnostics(&mut available_options);
         sort_and_dedupe_diagnostics(&mut available_semantic);
 
@@ -3332,42 +3285,16 @@ fn emit_session_diagnostics(
     checked: &CheckResult,
 ) -> ProgramDiagnostics {
     let preparation = prepared.diagnostics();
-    let resolution_diagnostics = prepared
-        .resolutions()
-        .type_references()
-        .flat_map(|(_, resolution)| resolution.diagnostics())
-        .chain(
-            prepared
-                .resolutions()
-                .modules()
-                .flat_map(|(_, resolution)| resolution.diagnostics()),
-        )
-        .cloned()
-        .collect::<Vec<_>>();
-
     let mut options = preparation.options().to_vec();
     options.extend(programmatic_option_diagnostics(prepared));
+    // The rows located in a source joined its semantic diagnostics in the
+    // checker (include-processor diagnostics); the rest are options rows.
+    options.extend(program_rows_outside_sources(prepared));
     let mut semantic = checked
         .program_semantic_diagnostics
         .as_ref()
         .expect("authoritative checker sessions publish whole-Program semantic diagnostics")
         .clone();
-    for diagnostic in preparation
-        .program()
-        .iter()
-        .chain(resolution_diagnostics.iter())
-    {
-        if diagnostic
-            .file_name
-            .as_ref()
-            .map(JsString::as_js)
-            .is_some_and(|file_name| prepared_source_owns_diagnostic(prepared, file_name))
-        {
-            semantic.push(diagnostic.clone());
-        } else {
-            options.push(diagnostic.clone());
-        }
-    }
     sort_and_dedupe_diagnostics(&mut options);
     sort_and_dedupe_diagnostics(&mut semantic);
     let mut syntactic = checked.syntactic_diagnostics.clone();
@@ -3655,12 +3582,65 @@ fn check_work_counters(checked: &CheckResult) -> NoEmitWorkCounters {
     }
 }
 
-fn prepared_source_owns_diagnostic(prepared: &PreparedProgram, file_name: JsStr<'_>) -> bool {
+/// The Program's own rows: the loader's rows and the resolution diagnostics.
+fn program_rows(prepared: &PreparedProgram) -> impl Iterator<Item = &Diagnostic> {
+    prepared
+        .diagnostics()
+        .program()
+        .iter()
+        .chain(
+            prepared
+                .resolutions()
+                .type_references()
+                .flat_map(|(_, resolution)| resolution.diagnostics()),
+        )
+        .chain(
+            prepared
+                .resolutions()
+                .modules()
+                .flat_map(|(_, resolution)| resolution.diagnostics()),
+        )
+}
+
+/// tsgo's include-processor diagnostics: the Program rows located in a
+/// prepared source, with that source's id. The checker joins each to the
+/// source's semantic diagnostics unless the source skips type checking or a
+/// comment directive precedes the row (GetIncludeProcessorDiagnostics,
+/// compiler/program.go:840-846).
+fn include_processor_rows(prepared: &PreparedProgram) -> Vec<(SourceFileId, Diagnostic)> {
+    program_rows(prepared)
+        .filter_map(|diagnostic| {
+            let file_name = diagnostic.file_name.as_ref()?;
+            let source = prepared_source_of_diagnostic(prepared, file_name.as_js())?;
+            Some((source, diagnostic.clone()))
+        })
+        .collect()
+}
+
+/// The Program rows outside every prepared source: file-less rows and rows
+/// of the config or other auxiliary files, which are options diagnostics.
+fn program_rows_outside_sources(prepared: &PreparedProgram) -> Vec<Diagnostic> {
+    program_rows(prepared)
+        .filter(|diagnostic| {
+            diagnostic.file_name.as_ref().is_none_or(|file_name| {
+                prepared_source_of_diagnostic(prepared, file_name.as_js()).is_none()
+            })
+        })
+        .cloned()
+        .collect()
+}
+
+/// The prepared source whose display, canonical, alternate or real path
+/// names `file_name`.
+fn prepared_source_of_diagnostic(
+    prepared: &PreparedProgram,
+    file_name: JsStr<'_>,
+) -> Option<SourceFileId> {
     let normalized = normalize_source_slashes(file_name);
     let names_equal = |candidate: JsStr<'_>| {
         candidate == file_name || normalize_source_slashes(candidate) == normalized
     };
-    prepared.source_files().iter().any(|source| {
+    let source = prepared.source_files().iter().find(|source| {
         names_equal(source.path().display())
             || names_equal(source.path().canonical().as_js())
             || source
@@ -3670,7 +3650,8 @@ fn prepared_source_owns_diagnostic(prepared: &PreparedProgram, file_name: JsStr<
             || source.real_path().is_some_and(|path| {
                 names_equal(path.display()) || names_equal(path.canonical().as_js())
             })
-    })
+    })?;
+    prepared.source_id(source.path().canonical())
 }
 
 fn normalize_source_slashes(path: JsStr<'_>) -> JsString {

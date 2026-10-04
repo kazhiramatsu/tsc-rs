@@ -3543,6 +3543,171 @@ fn commonjs_require_destructuring_is_not_esm_syntax_like_tsgo() {
 }
 
 #[test]
+fn include_processor_diagnostics_follow_their_file_like_tsgo() {
+    // tsgo GetIncludeProcessorDiagnostics (compiler/program.go:840-846): a
+    // Program row located in a source file (here TS2688 for an unresolved
+    // `/// <reference types>`) is that file's semantic diagnostic, dropped
+    // when the file skips type checking (`skipLibCheck` and a declaration
+    // file) or a comment directive precedes it. The expected diagnostics are
+    // tsgo's for the same projects.
+    for (reference, options, expected) in [
+        (
+            "/// <reference types=\"cookie-session\"/>\n",
+            r#","skipLibCheck":true"#,
+            "index.ts(2,7): error TS2322: Type 'number' is not assignable to type 'string'.\n",
+        ),
+        (
+            "// @ts-ignore\n/// <reference types=\"cookie-session\"/>\n",
+            "",
+            "index.ts(2,7): error TS2322: Type 'number' is not assignable to type 'string'.\n",
+        ),
+        (
+            "/// <reference types=\"cookie-session\"/>\n",
+            "",
+            concat!(
+                "index.ts(2,7): error TS2322: Type 'number' is not assignable to type 'string'.\n",
+                "node_modules/foo/index.d.ts(1,23): error TS2688: Cannot find type definition file for 'cookie-session'.\n",
+            ),
+        ),
+    ] {
+        let tree = TempTree::new();
+        fs::create_dir_all(tree.path("node_modules/foo")).expect("create package");
+        fs::write(
+            tree.path("node_modules/foo/package.json"),
+            r#"{"name":"foo","version":"1.0.0","types":"index.d.ts"}"#,
+        )
+        .expect("write package.json");
+        fs::write(
+            tree.path("node_modules/foo/index.d.ts"),
+            format!("{reference}export const foo = 1;\n"),
+        )
+        .expect("write index.d.ts");
+        fs::write(
+            tree.path("index.ts"),
+            "import { foo } from \"foo\";\nconst y: string = foo;\n",
+        )
+        .expect("write index.ts");
+        fs::write(
+            tree.path("tsconfig.json"),
+            format!(
+                r#"{{"compilerOptions":{{"noEmit":true,"types":[],"strict":true{options}}},"files":["index.ts"]}}"#
+            ),
+        )
+        .expect("write config");
+        let output = run(&tree, &["--pretty", "false"]);
+        assert_eq!(output.status.code(), Some(2), "{options} {reference}");
+        assert_eq!(
+            String::from_utf8(output.stdout).expect("utf-8 stdout"),
+            expected,
+            "{options} {reference}"
+        );
+    }
+}
+
+#[test]
+fn binding_patterns_pad_missing_elements_like_tsgo() {
+    // tsgo padObjectLiteralType (checker.go:17142-17168) pads every element
+    // but a rest element that the initializer lacks, so an element without a
+    // default is implicitly `any` (TS7031) rather than a missing property.
+    // The expected diagnostics are tsgo's for the same project.
+    let (status, stdout) = check_one_file(
+        "a.ts",
+        concat!(
+            "export const typedObject = ({\n",
+            "    required,\n",
+            "    optional = false,\n",
+            "} = {}) => {};\n",
+            "export const typedArray = ([\n",
+            "    required,\n",
+            "    optional = false,\n",
+            "] = []) => {};\n",
+            "export const typedObjectRest = ({\n",
+            "    required,\n",
+            "    ...rest\n",
+            "} = {}) => {\n",
+            "    rest;\n",
+            "};\n",
+            "typedObject({ required: \"value\" });\n",
+        ),
+        r#","strict":true"#,
+    );
+    assert_eq!(status, Some(2));
+    assert_eq!(
+        stdout,
+        concat!(
+            "a.ts(2,5): error TS7031: Binding element 'required' implicitly has an 'any' type.\n",
+            "a.ts(6,5): error TS7031: Binding element 'required' implicitly has an 'any' type.\n",
+            "a.ts(10,5): error TS7031: Binding element 'required' implicitly has an 'any' type.\n",
+        )
+    );
+}
+
+#[test]
+fn export_assignment_modules_export_their_types_like_tsgo() {
+    // tsgo getExternalModuleMember and getExportsOfModuleWorker
+    // (checker.go:14947-14951, 16518-16542): a module defined by `export =`
+    // also exports the type and namespace declarations of the original
+    // module, so a named import finds them. The expected diagnostics are
+    // tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        "type SomeTypeAlias = { x: string };\nclass Foo {}\nexport = Foo;\nexport { SomeTypeAlias };\n",
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("b.ts"),
+        "import { SomeTypeAlias } from \"./a\";\nconst value: SomeTypeAlias = { x: \"ok\" };\nconst bad: SomeTypeAlias = { x: 1 };\n",
+    )
+    .expect("write b.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"types":[],"strict":true,"module":"commonjs"},"files":["a.ts","b.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("utf-8 stdout"),
+        "b.ts(3,30): error TS2322: Type 'number' is not assignable to type 'string'.\n"
+    );
+}
+
+#[test]
+fn non_iterable_unions_report_at_every_use_like_tsgo() {
+    // tsgo getIterationTypesOfIterable (checker.go:6440-6473): a cached
+    // failure is recomputed when errors are reported, so each iteration of a
+    // non-iterable union reports TS2488. The expected diagnostics are tsgo's
+    // for the same project.
+    let (status, stdout) = check_one_file(
+        "a.ts",
+        concat!(
+            "type A = { a: string };\n",
+            "type B = { b: string };\n",
+            "declare const data: A[] | B;\n",
+            "for (const item of data) {\n",
+            "    item;\n",
+            "}\n",
+            "for (const ignoredItem of data) {\n",
+            "    ignoredItem;\n",
+            "}\n",
+            "const [el] = data;\n",
+            "export {};\n",
+        ),
+        r#","strict":true,"lib":["es2015"]"#,
+    );
+    assert_eq!(status, Some(2));
+    assert_eq!(
+        stdout,
+        concat!(
+            "a.ts(4,20): error TS2488: Type 'A[] | B' must have a '[Symbol.iterator]()' method that returns an iterator.\n",
+            "a.ts(7,27): error TS2488: Type 'A[] | B' must have a '[Symbol.iterator]()' method that returns an iterator.\n",
+            "a.ts(10,7): error TS2488: Type 'A[] | B' must have a '[Symbol.iterator]()' method that returns an iterator.\n",
+        )
+    );
+}
+
+#[test]
 fn error_recovery_syntax_is_erased_like_tsgo() {
     // tsgo's type eraser drops type parameters and return types from accessors
     // and constructors, every modifier of a constructor it visits, and `in`/`out`

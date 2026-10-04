@@ -931,8 +931,15 @@ impl<'a> CheckerState<'a> {
         } else {
             IterationCacheKey::Iterable
         };
+        // tsgo getIterationTypesOfIterable (checker.go:6440-6454): a cached
+        // failure is recomputed when errors are reported, so every use of a
+        // non-iterable union reports, and that recomputation is not cached.
+        let mut no_cache = false;
         if let Some(cached) = self.get_cached_iteration_types(ty, cache_key) {
-            return Ok(cached.types());
+            if error_target.is_none() || cached != IterationTypesResult::No {
+                return Ok(cached.types());
+            }
+            no_cache = true;
         }
         let constituents: Vec<TypeId> = match &self.tables.type_of(ty).data {
             tsc_types::TypeData::Union { types, .. } => types.to_vec(),
@@ -940,40 +947,23 @@ impl<'a> CheckerState<'a> {
         };
         let mut all_iteration_types: Vec<Option<IterationTypesResult>> = Vec::new();
         for constituent in constituents {
-            let mut container = error_target.map(|_| IterationErrorContainer {
-                errors: Vec::new(),
-                skip_logging: false,
-            });
-            let iteration_types = self.get_iteration_types_of_iterable_worker(
-                constituent,
-                use_,
-                error_target,
-                &mut container,
-            )?;
+            // tsgo getIterationTypesOfIterableWorker (checker.go:6458-6473):
+            // each constituent resolves without an error node; one that is
+            // not iterable reports the union.
+            let iteration_types =
+                self.get_iteration_types_of_iterable_worker(constituent, use_, None, &mut None)?;
             if iteration_types == IterationTypesResult::No {
                 if let Some(error_target) = error_target {
-                    let root_index = self.report_type_not_iterable_error(
+                    self.report_type_not_iterable_error(
                         error_target,
                         ty,
                         use_.intersects(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG),
                     )?;
-                    if let Some(container) = &container {
-                        let related: Vec<RelatedInfo> = container
-                            .errors
-                            .iter()
-                            .map(related_info_from_diagnostic)
-                            .collect();
-                        self.diagnostics
-                            .update(root_index, |diagnostic| diagnostic.related.extend(related));
-                    }
                 }
-                self.set_cached_iteration_types(ty, cache_key, IterationTypesResult::No);
+                if !no_cache {
+                    self.set_cached_iteration_types(ty, cache_key, IterationTypesResult::No);
+                }
                 return Ok(None);
-            }
-            if let Some(container) = container {
-                for diagnostic in container.errors {
-                    self.push_error_diagnostic(diagnostic);
-                }
             }
             all_iteration_types.push(Some(iteration_types));
         }
@@ -982,7 +972,9 @@ impl<'a> CheckerState<'a> {
         } else {
             self.combine_iteration_types(&all_iteration_types)?
         };
-        self.set_cached_iteration_types(ty, cache_key, iteration_types);
+        if !no_cache {
+            self.set_cached_iteration_types(ty, cache_key, iteration_types);
+        }
         Ok(iteration_types.types())
     }
 
