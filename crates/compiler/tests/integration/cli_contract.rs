@@ -3888,6 +3888,68 @@ fn commonjs_modules_reserve_object_like_tsgo() {
 }
 
 #[test]
+fn require_declarations_name_their_module_like_tsgo() {
+    // tsgo getExternalModuleMember reads a `require` declaration's argument
+    // as the module specifier, so TS2305 names the module as written. The
+    // expected diagnostics are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("mod.js"),
+        "const donkey = (ast) => ast;\nfunction funky(declaration) {\n    return false;\n}\nmodule.exports = donkey;\nmodule.exports.funky = funky;\n",
+    )
+    .expect("write mod.js");
+    fs::write(
+        tree.path("main.js"),
+        "const { funky } = require('./mod');\nfunky;\n",
+    )
+    .expect("write main.js");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"types":[],"allowJs":true,"checkJs":true,"strict":false,"module":"commonjs"},"files":["mod.js","main.js"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("utf-8 stdout"),
+        concat!(
+            "main.js(1,9): error TS2305: Module '\"./mod\"' has no exported member 'funky'.\n",
+            "mod.js(5,1): error TS2309: An export assignment cannot be used in a module with other exported elements.\n",
+            "mod.js(6,16): error TS2339: Property 'funky' does not exist on type '(ast: any) => any'.\n",
+        )
+    );
+}
+
+#[test]
+fn conflicting_accessors_mark_every_later_declaration_like_tsgo() {
+    // tsgo declareSymbolEx (binder/binder.go:279-285): an accessor that
+    // conflicts with another kind of declaration marks the symbol as a full
+    // accessor, so a later accessor of the other kind is a duplicate too.
+    // The expected diagnostics are tsgo's for the same project.
+    let (status, stdout) = check_one_file(
+        "a.ts",
+        concat!(
+            "interface I7 {\n",
+            "    get x(): number;\n",
+            "    x(): number;\n",
+            "    set x(value: number);\n",
+            "}\n",
+            "export {};\n",
+        ),
+        r#","strict":true"#,
+    );
+    assert_eq!(status, Some(2));
+    assert_eq!(
+        stdout,
+        concat!(
+            "a.ts(2,9): error TS2300: Duplicate identifier 'x'.\n",
+            "a.ts(3,5): error TS2300: Duplicate identifier 'x'.\n",
+            "a.ts(4,9): error TS2300: Duplicate identifier 'x'.\n",
+        )
+    );
+}
+
+#[test]
 fn error_recovery_syntax_is_erased_like_tsgo() {
     // tsgo's type eraser drops type parameters and return types from accessors
     // and constructors, every modifier of a constructor it visits, and `in`/`out`

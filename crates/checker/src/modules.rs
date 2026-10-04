@@ -2912,8 +2912,11 @@ impl<'a> CheckerState<'a> {
             return Ok(self.get_fully_qualified_name(module_symbol));
         }
 
+        // tsgo getExternalModuleMember reads a `require` declaration's
+        // argument as its module specifier (getExternalModuleRequireArgument).
         let specifier = self
-            .get_external_module_name_of(containing_location)
+            .external_module_require_argument(containing_location)
+            .or_else(|| self.get_external_module_name_of(containing_location))
             .or_else(|| self.get_module_specifier_for_import_or_export(containing_location));
         if let Some(NodeData::StringLiteral(data)) =
             specifier.map(|specifier| self.data_of(specifier))
