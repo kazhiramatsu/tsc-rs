@@ -508,14 +508,14 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         }
     }
 
-    /// tsc-port: tryVisitSimpleTypeNode @6.0.3
-    /// tsc-hash: a9055f86215bdbd7003f32be0b2dc25e3cf71b6913cbc4b97bb858033d233f1d
-    /// tsc-span: _tsc.js:133316-133332
+    /// tsgo-port: tryVisitSimpleTypeNode @7.1 (nodecopy.go:452-466)
     fn try_visit_simple_type_node(
         &mut self,
         node: TransformNode,
     ) -> Result<Option<TransformNode>, EmitResolverError> {
-        let inner = self.skip_type_parentheses(node)?;
+        // tsgo skips expression parentheses here (`ast.SkipParentheses`,
+        // nodecopy.go:452-466), which leaves a parenthesized type as written.
+        let inner = node;
         match self.kind(inner)? {
             SyntaxKind::TypeReference => self.try_visit_type_reference(inner),
             SyntaxKind::TypeQuery => self.try_visit_type_query(inner),
@@ -1425,21 +1425,6 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
                 return Ok(node);
             };
             node = right;
-        }
-    }
-
-    fn skip_type_parentheses(
-        &self,
-        mut node: TransformNode,
-    ) -> Result<TransformNode, EmitResolverError> {
-        loop {
-            let NodeData::ParenthesizedType(data) = &self.node(node)?.data else {
-                return Ok(node);
-            };
-            let Some(inner) = self.child(node.source(), data.r#type) else {
-                return Ok(node);
-            };
-            node = inner;
         }
     }
 
