@@ -198,3 +198,5 @@ emitterは`tsc-binder`に依存するようになった。
     - `@overload`のcommentにだけある`@template`の型引数で、tsc-rsにだけTS2304が出る。
     - `@returns`の無い無名default exportのoverloadで、tsgoが出すTS7011が出ない。
   - scriptとCommonJSのfileは従来の経路（J2、J3）。
+- hosted：PR #647（head `74555efea`、merge `1f4897c29`）、run 37165101376 — `plan` 33s、`rust` 8m02s、`conformance (TypeScript 7.1)` 12m29s、`gates` 11s。
+- perf（README corpora、`--noEmit`、3 rounds、nice 20、main `f67a5f294`（J1のcode `821b401f0`と同じcodeのrelease build）と本branch（`4c15abfbc`）のrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 136→134、zod 500→497、Playwright 369→356、TypeScript `src/compiler` 331→334、Next.js 758→741、Effect 501→474、VS Code 3,391→3,307。tsc-rs÷tsgoは0.58〜0.99、peak memory（MB main→本branch）：320→325、1,299→1,288、813→800、289→289、1,310→1,319、1,031→1,039、5,458→5,453。診断の出力と読み込んだdocument数は7 corpusともmainと同一。`tsconfig.bench-full.json`（JS・d.ts・source map、3 rounds）：hono 145→147、zod 610→606、Playwright 483→476、TypeScript `src/compiler` 496→489、Next.js 1,000→1,008、Effect 798→778（tsgo比0.52〜0.78）で、出力と診断は6 corpusともmainと同一。退行なし。
