@@ -390,3 +390,96 @@ fn the_js_map_baseline_follows_the_map_options() {
     assert!(render_js_map(on_error, true, &emission, &inputs, false).is_none());
     assert!(render_js_map(on, false, &Emission::default(), &inputs, false).is_none());
 }
+
+fn emitted(paths: &[&str]) -> Vec<EmittedFile> {
+    paths
+        .iter()
+        .map(|path| EmittedFile {
+            path: (*path).to_owned(),
+            content: String::new(),
+        })
+        .collect()
+}
+
+fn paths(files: &[EmittedFile]) -> Vec<&str> {
+    files.iter().map(|file| file.path.as_str()).collect()
+}
+
+#[test]
+fn outputs_follow_the_native_harness_order() {
+    // newCompilationResult (harnessutil.go:746-834): each source's outputs
+    // at the paths getOutputPath computes under `outDir` (also for a
+    // declaration, whatever `declarationDir` says), in Program order; the
+    // files no source claims (declarations under `declarationDir`,
+    // declaration maps) follow sorted by name.
+    let facts = EmitFacts {
+        declaration: true,
+        allow_js: false,
+        no_check: false,
+        no_emit: false,
+        no_emit_on_error: false,
+        current_directory: "/.src".to_owned(),
+        out_dir: Some("/.src/dist".to_owned()),
+        declaration_dir: Some("/.src/types".to_owned()),
+        jsx_preserve: false,
+        common_source_directory: "/.src/".to_owned(),
+        source_paths: HashSet::new(),
+        source_order: vec![
+            "/.lib/lib.d.ts".to_owned(),
+            "/.src/src/thing.ts".to_owned(),
+            "/.src/index.ts".to_owned(),
+        ],
+    };
+    let emission = Emission {
+        js: emitted(&["/.src/dist/src/thing.js", "/.src/dist/index.js"]),
+        dts: emitted(&["/.src/types/src/thing.d.ts", "/.src/types/index.d.ts"]),
+        maps: emitted(&[
+            "/.src/dist/src/thing.js.map",
+            "/.src/types/src/thing.d.ts.map",
+            "/.src/dist/index.js.map",
+            "/.src/types/index.d.ts.map",
+        ]),
+    };
+    let ordered = harness_order(emission, &facts);
+    assert_eq!(
+        paths(&ordered.js),
+        ["/.src/dist/src/thing.js", "/.src/dist/index.js"]
+    );
+    assert_eq!(
+        paths(&ordered.dts),
+        ["/.src/types/index.d.ts", "/.src/types/src/thing.d.ts"]
+    );
+    assert_eq!(
+        paths(&ordered.maps),
+        [
+            "/.src/dist/src/thing.js.map",
+            "/.src/dist/index.js.map",
+            "/.src/types/index.d.ts.map",
+            "/.src/types/src/thing.d.ts.map",
+        ]
+    );
+
+    // GetOutputExtension: `jsx: preserve` keeps a `.tsx` output `.jsx`.
+    let preserve = EmitFacts {
+        jsx_preserve: true,
+        out_dir: None,
+        declaration_dir: None,
+        ..facts
+    };
+    assert_eq!(
+        harness_output_path(
+            &preserve,
+            "/.src/a.tsx",
+            output_extension("/.src/a.tsx", true)
+        ),
+        Some("/.src/a.jsx".to_owned())
+    );
+    assert_eq!(
+        harness_output_path(
+            &preserve,
+            "/.src/a.mts",
+            &declaration_emit_extension("/.src/a.mts")
+        ),
+        Some("/.src/a.d.mts".to_owned())
+    );
+}

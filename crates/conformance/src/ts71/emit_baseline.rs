@@ -26,7 +26,8 @@ pub(super) struct EmittedFile {
 
 /// The emitted files of one configuration, grouped as the native harness
 /// groups them (`newCompilationResult` in `harnessutil.go`): JavaScript and
-/// JSON files, declaration files, then source maps, each in emit order.
+/// JSON files, declaration files, then source maps, each in emit order until
+/// the runner orders them as the harness does.
 #[derive(Default)]
 pub(super) struct Emission {
     pub js: Vec<EmittedFile>,
