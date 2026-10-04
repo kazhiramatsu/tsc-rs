@@ -607,10 +607,13 @@ pub fn preflight_emit(
     let mut blocked_outputs = BTreeSet::new();
     let mut diagnostics = Vec::new();
     let options = host.compiler_options();
-    // `suppressOutputPathCheck` is intentionally absent from the typed option
-    // surface. Its upstream gate therefore reduces to `!noEmit` here, plus
-    // the typed transpile routes which force the option (typescript.js:146040).
-    if options.no_emit != Some(true) && !host.emit_route().suppresses_output_path_check() {
+    // tsgo verifyCompilerOptions (compiler/program.go:1340): no output path
+    // is verified under noEmit or suppressOutputPathCheck, which the typed
+    // transpile routes force (typescript.js:146040).
+    if options.no_emit != Some(true)
+        && options.suppress_output_path_check != Some(true)
+        && !host.emit_route().suppresses_output_path_check()
+    {
         for unit in plan.units() {
             if options.emit_declaration_only != Some(true) {
                 if let Some(path) = unit.paths().javascript_path() {

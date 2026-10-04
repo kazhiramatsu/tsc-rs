@@ -230,7 +230,6 @@ fn consume_ungated(session: ProgramSession) -> UngatedOutcome {
     let outcome = session
         .run_for_native_harness(NativeHarnessCollection {
             capture_suggestions: false,
-            output_path_check: false,
         })
         .expect("one-shot session");
     assert_eq!(

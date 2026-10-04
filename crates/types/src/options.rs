@@ -203,6 +203,12 @@ pub struct CompilerOptions {
     pub no_emit: Option<bool>,
     /// Internal sourceFileMayBeEmitted gate, applied before forced declaration selection.
     pub no_emit_for_js_files: Option<bool>,
+    /// Internal option (tsgo `SuppressOutputPathCheck`,
+    /// core/compileroptions.go:114): the Program verifies no output path, so
+    /// no output is emit-blocked (compiler/program.go:1340). The test harness
+    /// sets it from `@suppressOutputPathCheck` (harnessutil.go:317-333); it is
+    /// not a tsconfig setting.
+    pub suppress_output_path_check: Option<bool>,
     /// Internal createProgram option forced by transpileWorker
     /// (typescript.js:146041): roots with any extension are admitted and
     /// the script kind derives from the name with TypeScript as the default

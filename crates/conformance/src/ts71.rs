@@ -16,7 +16,7 @@
 mod emit_baseline;
 mod errors_baseline;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
@@ -30,12 +30,13 @@ use tsc_compiler::{
 };
 use tsc_diagnostics::{Diagnostic, PositionIndex};
 use tsc_harness::upstream_suites::execution::{
-    load_native_compiler_program, native_compiler_fixture, native_compiler_plan, read_test_library,
-    CompilerExecutionPlan, CompilerRootSelection,
+    load_native_compiler_program, load_native_declaration_program, native_compiler_fixture,
+    native_compiler_plan, read_test_library, CompilerExecutionPlan, CompilerRootSelection,
 };
 use tsc_harness::upstream_suites::native::{
     expand_case, NativeCase, NativeConfiguration, NativeProfile, NativeSkip, NativeSuite,
 };
+use tsc_harness::upstream_suites::OrderedSetting;
 use tsc_program::ProgramLoadLimits;
 
 /// One diagnostic as the native error baseline's summary line records it.
@@ -304,27 +305,20 @@ fn emit_agreement(
         (Some(_), None) => (EmitAgreement::None, Some("reference missing".to_owned())),
         (None, Some(_)) => (EmitAgreement::None, Some("output missing".to_owned())),
         (Some(rendered), Some(expected)) => {
-            let detail = if expected.contains("//// [DtsFileErrors]") {
-                "reference has DtsFileErrors".to_owned()
-            } else if expected.contains("\n!!!! File ") {
-                "reference has the noCheck comparison".to_owned()
-            } else {
-                let line = rendered
-                    .split('\n')
-                    .zip(expected.split('\n'))
-                    .position(|(a, b)| a != b)
-                    .map_or_else(
-                        || {
-                            rendered
-                                .split('\n')
-                                .count()
-                                .min(expected.split('\n').count())
-                        },
-                        |index| index + 1,
-                    );
-                format!("differs at line {line}")
-            };
-            (EmitAgreement::None, Some(detail))
+            let line = rendered
+                .split('\n')
+                .zip(expected.split('\n'))
+                .position(|(a, b)| a != b)
+                .map_or_else(
+                    || {
+                        rendered
+                            .split('\n')
+                            .count()
+                            .min(expected.split('\n').count())
+                    },
+                    |index| index + 1,
+                );
+            (EmitAgreement::None, Some(format!("differs at line {line}")))
         }
     }
 }
@@ -495,18 +489,111 @@ fn js_baseline_sources(plan: &CompilerExecutionPlan) -> Vec<(String, String)> {
     others.into_iter().chain(roots).collect()
 }
 
+/// What the declaration compile and the noCheck comparison of the emit
+/// baseline read of the emitting Program (`result.Options` and
+/// `result.Program` in `DoJSEmitBaseline`).
+#[derive(Default)]
+struct EmitFacts {
+    declaration: bool,
+    allow_js: bool,
+    no_check: bool,
+    no_emit: bool,
+    no_emit_on_error: bool,
+    /// The Program's current directory, which resolves relative output paths.
+    current_directory: String,
+    /// The normalized absolute `outDir`.
+    out_dir: Option<String>,
+    /// `Program.CommonSourceDirectory()`: empty or ending with `/`.
+    common_source_directory: String,
+    /// The normalized absolute paths of the Program's source files.
+    source_paths: HashSet<String>,
+}
+
+impl EmitFacts {
+    fn new(prepared: &tsc_program::PreparedProgram) -> Self {
+        let options = prepared.compiler_options();
+        let on = |value: Option<bool>| value == Some(true);
+        let current_directory = prepared.current_directory().display();
+        let config = prepared
+            .program_options()
+            .config_file_path()
+            .map(|path| path.display());
+        let case_sensitive = prepared.path_context().use_case_sensitive_file_names();
+        // getCommonSourceDirectory over the files that may be emitted, as the
+        // emitter computes it.
+        let emitted: Vec<_> = prepared
+            .source_files()
+            .iter()
+            .filter(|source| {
+                tsc_program::source_file_may_be_emitted_for_options(
+                    source.path().display(),
+                    source.may_be_emitted(),
+                    options,
+                    config,
+                    current_directory,
+                    case_sensitive,
+                )
+            })
+            .map(|source| source.path().display())
+            .collect();
+        let common_source_directory = tsc_program::common_source_directory(
+            options,
+            config,
+            &emitted,
+            current_directory,
+            case_sensitive,
+        );
+        let current_directory = current_directory.to_string_lossy().into_owned();
+        Self {
+            declaration: on(options.declaration),
+            allow_js: options.allow_js,
+            no_check: on(options.no_check),
+            no_emit: on(options.no_emit),
+            no_emit_on_error: on(options.no_emit_on_error),
+            out_dir: options.out_dir.as_ref().map(|directory| {
+                absolute(&current_directory, &directory.as_js().to_string_lossy())
+            }),
+            common_source_directory: common_source_directory
+                .as_js()
+                .to_string_lossy()
+                .into_owned(),
+            source_paths: prepared
+                .source_files()
+                .iter()
+                .map(|source| {
+                    absolute(
+                        &current_directory,
+                        &source.path().display().to_string_lossy(),
+                    )
+                })
+                .collect(),
+            current_directory,
+        }
+    }
+}
+
+/// `GetNormalizedAbsolutePath(path, currentDirectory)`.
+fn absolute(current_directory: &str, path: &str) -> String {
+    if path.starts_with('/') {
+        normalize(path)
+    } else {
+        normalize(&format!("{current_directory}/{path}"))
+    }
+}
+
 /// Emit the configuration as the native harness's second Program does
 /// (`compileFilesWithHost`: `program.Emit` after the diagnostics Program),
 /// collecting the written files, with the map options of the Program's
-/// effective compiler options (the directives and the config file). Nothing
-/// for a Program that cannot emit (`noEmit`).
+/// effective compiler options (the directives and the config file) and the
+/// facts the emit baseline reads. Nothing is emitted for a Program that
+/// cannot emit (`noEmit`).
 fn emit_outputs(
     workspace: &Path,
     plan: &CompilerExecutionPlan,
     test_library: &Path,
     standard_library: &Path,
     budget: CheckerBudget,
-) -> Result<(Emission, MapOptions), String> {
+) -> Result<(Emission, MapOptions, EmitFacts), String> {
     let prepared =
         load_native_compiler_program(workspace, plan, limits(), test_library, standard_library)
             .map_err(|error| format!("load: {error}"))?;
@@ -520,15 +607,221 @@ fn emit_outputs(
         inline_source_map: on(options.inline_source_map),
         no_emit_on_error: on(options.no_emit_on_error),
     };
+    let facts = EmitFacts::new(&prepared);
     if prepared.mode() != PreparedProgramMode::Emit {
-        return Ok((Emission::default(), map_options));
+        return Ok((Emission::default(), map_options, facts));
     }
     let mut sink = MemoryOutputSink::new();
     ProgramSession::new(prepared)
         .with_checker_budget(budget)
         .emit(&mut sink)
         .map_err(|error| format!("emit: {error}"))?;
-    Ok((Emission::from_writes(sink.writes()), map_options))
+    Ok((Emission::from_writes(sink.writes()), map_options, facts))
+}
+
+/// The declaration files the native runner compiles again for one fixture
+/// unit (`addDtsFile` in `prepareDeclarationCompilationContext`,
+/// js_emit_baseline.go:223-237): a declaration or JSON unit as written, or
+/// the emitted declaration of a TypeScript unit (a JavaScript one under
+/// `allowJs`) the Program contains, unless already listed.
+fn add_dts_file(
+    (path, content): &(String, String),
+    facts: &EmitFacts,
+    emission: &Emission,
+    inputs: &[(String, String)],
+    others: &[(String, String)],
+) -> Option<(String, String)> {
+    if is_declaration_file_name(path) || path.ends_with(".json") {
+        return Some((path.clone(), content.clone()));
+    }
+    let typescript = [".ts", ".tsx", ".mts", ".cts"]
+        .iter()
+        .any(|extension| path.ends_with(extension));
+    let javascript = [".js", ".jsx", ".mjs", ".cjs"]
+        .iter()
+        .any(|extension| path.ends_with(extension));
+    if !facts.source_paths.contains(path) || !(typescript || (javascript && facts.allow_js)) {
+        return None;
+    }
+    // findResultCodeFile: the declaration path computed from `outDir` and
+    // the common source directory (declarationDir is not consulted).
+    let source_file_name = match &facts.out_dir {
+        Some(out_dir) => {
+            let relative = path.replacen(&facts.common_source_directory, "", 1);
+            normalize(&format!("{out_dir}/{relative}"))
+        }
+        None => path.clone(),
+    };
+    let declaration = change_to_declaration_extension(&source_file_name);
+    let file = emission
+        .dts
+        .iter()
+        .find(|file| absolute(&facts.current_directory, &file.path) == declaration)?;
+    let listed = |files: &[(String, String)]| files.iter().any(|(name, _)| *name == declaration);
+    if listed(inputs) || listed(others) {
+        return None;
+    }
+    let content = file
+        .content
+        .strip_prefix('\u{feff}')
+        .unwrap_or(&file.content);
+    Some((declaration, content.to_owned()))
+}
+
+/// `tspath.IsDeclarationFileName`: `.d.ts`, `.d.mts`, `.d.cts`, or a
+/// `.d.<extension>.ts` name.
+fn is_declaration_file_name(path: &str) -> bool {
+    let base = path.rsplit('/').next().unwrap_or(path);
+    [".d.ts", ".d.mts", ".d.cts"]
+        .iter()
+        .any(|extension| base.ends_with(extension))
+        || (base.ends_with(".ts") && base.contains(".d."))
+}
+
+/// `outputpaths.ChangeToDeclarationExtension` without content mappers.
+fn change_to_declaration_extension(path: &str) -> String {
+    const EXTENSIONS: [&str; 10] = [
+        ".d.ts", ".d.mts", ".d.cts", ".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".json",
+    ];
+    const MORE: [&str; 2] = [".mjs", ".cjs"];
+    let extension = EXTENSIONS
+        .iter()
+        .chain(MORE.iter())
+        .find(|extension| path.ends_with(*extension));
+    let stem = extension.map_or(path, |extension| &path[..path.len() - extension.len()]);
+    let declaration = match extension.copied() {
+        Some(".mts" | ".mjs") => ".d.mts",
+        Some(".cts" | ".cjs") => ".d.cts",
+        Some(".json") => ".d.json.ts",
+        _ => ".d.ts",
+    };
+    format!("{stem}{declaration}")
+}
+
+/// The `[DtsFileErrors]` text: when the configuration requested
+/// declarations, had no diagnostics and emitted some, its declaration files
+/// are compiled again with the same options (`compileDeclarationFiles`), and
+/// that compile's diagnostics are rendered over the config file and the
+/// compiled declarations. Empty when there are none.
+#[allow(clippy::too_many_arguments)]
+fn declaration_file_errors(
+    workspace: &Path,
+    plan: &CompilerExecutionPlan,
+    facts: &EmitFacts,
+    emission: &Emission,
+    had_diagnostics: bool,
+    test_library: &Path,
+    standard_library: &Path,
+    budget: CheckerBudget,
+    collection: NativeHarnessCollection,
+) -> Result<String, String> {
+    if !facts.declaration || had_diagnostics || emission.dts.is_empty() {
+        return Ok(String::new());
+    }
+    let (config, roots, others) = plan_units(plan);
+    let mut declaration_inputs = Vec::new();
+    for unit in &roots {
+        if let Some(file) = add_dts_file(unit, facts, emission, &declaration_inputs, &[]) {
+            declaration_inputs.push(file);
+        }
+    }
+    let mut declaration_others = Vec::new();
+    for unit in &others {
+        if let Some(file) = add_dts_file(
+            unit,
+            facts,
+            emission,
+            &declaration_inputs,
+            &declaration_others,
+        ) {
+            declaration_others.push(file);
+        }
+    }
+    let prepared = load_native_declaration_program(
+        workspace,
+        plan,
+        &declaration_inputs,
+        &declaration_others,
+        limits(),
+        test_library,
+        standard_library,
+    )
+    .map_err(|error| format!("declaration load: {error}"))?;
+    let outcome = ProgramSession::new(prepared)
+        .with_checker_budget(budget)
+        .run_for_native_harness(collection)
+        .map_err(|error| format!("declaration check: {error}"))?;
+    let diagnostics = outcome.native_harness_diagnostics();
+    let files: Vec<_> = config
+        .iter()
+        .chain(&declaration_inputs)
+        .chain(&declaration_others)
+        .map(|(name, content)| errors_baseline::InputFile { name, content })
+        .collect();
+    let library = if files.iter().any(|file| file.content.contains("/.lib/")) {
+        read_test_library(test_library)
+            .map(|library| {
+                library
+                    .into_iter()
+                    .map(|(relative, content)| (format!("/.lib/{relative}"), content.to_string()))
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+    let library_inputs: Vec<_> = library
+        .iter()
+        .filter(|(name, _)| !files.iter().any(|file| file.name == name))
+        .map(|(name, content)| errors_baseline::InputFile { name, content })
+        .collect();
+    Ok(
+        errors_baseline::render(diagnostics, &files, &library_inputs, false)
+            .map(|errors| emit_baseline::dts_file_errors_section(&errors))
+            .unwrap_or_default(),
+    )
+}
+
+/// The noCheck comparison (`result.Repeat` with `noCheck`): the files only a
+/// noCheck emit writes, or writes differently. tsgo's noCheck emit equals its
+/// checked emit except where `noEmitOnError` stopped the checked emit after
+/// diagnostics (the reference baselines show no other difference), so only
+/// such a configuration is emitted again.
+#[allow(clippy::too_many_arguments)]
+fn no_check_comparison(
+    workspace: &Path,
+    plan: &CompilerExecutionPlan,
+    facts: &EmitFacts,
+    emission: &Emission,
+    had_diagnostics: bool,
+    test_library: &Path,
+    standard_library: &Path,
+    budget: CheckerBudget,
+    full_emit_paths: bool,
+) -> Result<String, String> {
+    if facts.no_check || facts.no_emit || !(facts.no_emit_on_error && had_diagnostics) {
+        return Ok(String::new());
+    }
+    let mut no_check_plan = plan.clone();
+    let mut settings = plan.effective_settings.to_vec();
+    settings.push(OrderedSetting {
+        name: "noCheck".to_owned(),
+        value: "true".to_owned(),
+    });
+    no_check_plan.effective_settings = settings.into();
+    let (no_check, _, _) = emit_outputs(
+        workspace,
+        &no_check_plan,
+        test_library,
+        standard_library,
+        budget,
+    )
+    .map_err(|error| format!("noCheck {error}"))?;
+    Ok(emit_baseline::no_check_sections(
+        emission,
+        &no_check,
+        full_emit_paths,
+    ))
 }
 
 fn sha256_hex(text: &str) -> String {
@@ -577,7 +870,6 @@ fn run_lane_a(
     let pretty = flag("pretty");
     let collection = NativeHarnessCollection {
         capture_suggestions: flag("capturesuggestions"),
-        output_path_check: !flag("suppressoutputpathcheck"),
     };
     let test_library = profile.test_library_root();
     let standard_library = profile.bundled_libraries_root();
@@ -680,19 +972,63 @@ fn run_lane_a(
 
     // The emit, as the native harness's second Program produces it, against
     // the `.js` and `.js.map` references.
-    let (emission, map_options, emit_error) =
+    let (emission, map_options, facts, mut emit_error) =
         match emit_outputs(workspace, plan, &test_library, &standard_library, budget()) {
-            Ok((emission, map_options)) => (emission, map_options, None),
-            Err(error) => (Emission::default(), MapOptions::default(), Some(error)),
+            Ok((emission, map_options, facts)) => (emission, map_options, facts, None),
+            Err(error) => (
+                Emission::default(),
+                MapOptions::default(),
+                EmitFacts::default(),
+                Some(error),
+            ),
         };
     let full_emit_paths = flag("fullemitpaths");
+    let mut sections = String::new();
+    if emit_error.is_none() {
+        let had_diagnostics = !diagnostics.is_empty();
+        let extra = declaration_file_errors(
+            workspace,
+            plan,
+            &facts,
+            &emission,
+            had_diagnostics,
+            &test_library,
+            &standard_library,
+            budget(),
+            collection,
+        )
+        .and_then(|errors| {
+            no_check_comparison(
+                workspace,
+                plan,
+                &facts,
+                &emission,
+                had_diagnostics,
+                &test_library,
+                &standard_library,
+                budget(),
+                full_emit_paths,
+            )
+            .map(|comparison| errors + &comparison)
+        });
+        match extra {
+            Ok(extra) => sections = extra,
+            Err(error) => emit_error = Some(error),
+        }
+    }
     let header = format!("tests/cases/{}/{case_path}", suite.name());
     let sources = js_baseline_sources(plan);
     let source_inputs: Vec<_> = sources
         .iter()
         .map(|(name, content)| errors_baseline::InputFile { name, content })
         .collect();
-    let rendered_js = emit_baseline::render_js(&header, &source_inputs, &emission, full_emit_paths);
+    let rendered_js = emit_baseline::render_js(
+        &header,
+        &source_inputs,
+        &emission,
+        full_emit_paths,
+        &sections,
+    );
     let expected_js = std::fs::read(profile.js_baseline_path(suite, stem))
         .ok()
         .map(|bytes| String::from_utf8_lossy(&bytes).into_owned());

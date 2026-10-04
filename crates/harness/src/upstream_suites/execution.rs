@@ -151,10 +151,6 @@ pub fn load_native_compiler_program(
     standard_library: &Path,
 ) -> HarnessResult<PreparedProgram> {
     let current_directory = plan.current_directory.as_ref();
-    let mut host_builder = MemoryCompilerHost::builder(current_directory)
-        .case_sensitive(plan.use_case_sensitive_file_names);
-    let mut source_paths = HashMap::<String, Arc<str>>::new();
-
     let (vfs_write_order, root_units, other_units) = match &plan.root_selection {
         CompilerRootSelection::Explicit {
             vfs_write_order,
@@ -185,18 +181,19 @@ pub fn load_native_compiler_program(
             native_contents.insert(path, Arc::clone(content));
         }
     }
+    let mut files = Vec::<(String, Arc<str>)>::new();
+    let mut written = HashSet::<String>::new();
     for unit_id in vfs_write_order.iter() {
         let unit = unit(unit_id)?;
         let path = normalize_compiler_fixture_path(current_directory, unit.name.as_ref())?;
         let Some(content) = unit.content.as_ref() else {
             continue;
         };
-        if source_paths.contains_key(&path) {
+        if !written.insert(path.clone()) {
             continue;
         }
         let content = native_contents.get(&path).unwrap_or(content);
-        host_builder = host_builder.file(&path, content.as_bytes().to_vec());
-        source_paths.insert(path, Arc::clone(content));
+        files.push((path, Arc::clone(content)));
     }
     let mentions_test_library = root_units.iter().any(|unit_id| {
         unit(unit_id).is_ok_and(|unit| {
@@ -205,6 +202,86 @@ pub fn load_native_compiler_program(
                 .is_some_and(|content| content.contains("/.lib/"))
         })
     });
+    let roots = compiler_root_paths(plan)?;
+    load_native_program_files(
+        workspace,
+        plan,
+        files,
+        mentions_test_library,
+        roots,
+        limits,
+        test_library,
+        standard_library,
+    )
+}
+
+/// The native runner's compile of a configuration's emitted declaration
+/// files (`compileDeclarationFiles` in `tsbaseline/js_emit_baseline.go`, which
+/// calls `CompileFilesEx`): a file system of only `inputs` and then `others`
+/// (a later file of the same path replaces an earlier one), the
+/// configuration's options and links, and every input but a `.json` one as a
+/// root. Paths are normalized absolute fixture paths.
+#[allow(clippy::too_many_arguments)]
+pub fn load_native_declaration_program(
+    workspace: &Path,
+    plan: &CompilerExecutionPlan,
+    inputs: &[(String, String)],
+    others: &[(String, String)],
+    limits: ProgramLoadLimits,
+    test_library: &Path,
+    standard_library: &Path,
+) -> HarnessResult<PreparedProgram> {
+    let mut contents = HashMap::<&str, &str>::new();
+    for (path, content) in inputs.iter().chain(others) {
+        contents.insert(path, content);
+    }
+    let mut files = Vec::<(String, Arc<str>)>::new();
+    let mut written = HashSet::<&str>::new();
+    for (path, _) in inputs.iter().chain(others) {
+        if written.insert(path) {
+            files.push((path.clone(), Arc::from(contents[path.as_str()])));
+        }
+    }
+    let mentions_test_library = inputs.iter().any(|(_, content)| content.contains("/.lib/"));
+    let roots = inputs
+        .iter()
+        .filter(|(path, _)| !path.ends_with(".json"))
+        .map(|(path, _)| PathBuf::from(path))
+        .collect();
+    load_native_program_files(
+        workspace,
+        plan,
+        files,
+        mentions_test_library,
+        roots,
+        limits,
+        test_library,
+        standard_library,
+    )
+}
+
+/// The runner's file system (`files` in write order, the test library when
+/// mentioned, and the fixture's links) and the Program over `roots` with the
+/// plan's options and the harness defaults.
+#[allow(clippy::too_many_arguments)]
+fn load_native_program_files(
+    workspace: &Path,
+    plan: &CompilerExecutionPlan,
+    files: Vec<(String, Arc<str>)>,
+    mentions_test_library: bool,
+    roots: Vec<PathBuf>,
+    limits: ProgramLoadLimits,
+    test_library: &Path,
+    standard_library: &Path,
+) -> HarnessResult<PreparedProgram> {
+    let current_directory = plan.current_directory.as_ref();
+    let mut host_builder = MemoryCompilerHost::builder(current_directory)
+        .case_sensitive(plan.use_case_sensitive_file_names);
+    let mut source_paths = HashMap::<String, Arc<str>>::new();
+    for (path, content) in files {
+        host_builder = host_builder.file(&path, content.as_bytes().to_vec());
+        source_paths.insert(path, content);
+    }
     if mentions_test_library {
         for (relative, content) in read_test_library(test_library)? {
             if let std::collections::hash_map::Entry::Vacant(entry) =
@@ -326,7 +403,6 @@ pub fn load_native_compiler_program(
     // bytes while the production CLI continues to use its own host default.
     compiler_options.new_line.get_or_insert(0);
     compiler_options.no_error_truncation = Some(true);
-    let roots = compiler_root_paths(plan)?;
     let catalog = LibraryCatalog::typescript_7_1(library_directory);
     let loaded = if compiler_options.no_emit == Some(true) {
         load_program(
@@ -662,31 +738,6 @@ impl CompilerFixtureOptionKey {
     }
 }
 
-/// Compiler-runner metadata that controls baseline comparison rather than a
-/// [`CompilerOptions`] or [`ProgramOptions`] value.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum CompilerBaselineMetadata {
-    SuppressOutputPathCheck,
-}
-
-impl CompilerBaselineMetadata {
-    fn lookup(key: &CompilerFixtureOptionKey) -> Option<Self> {
-        match key.as_str() {
-            "suppressoutputpathcheck" => Some(Self::SuppressOutputPathCheck),
-            _ => None,
-        }
-    }
-
-    fn validate(self, raw_name: &str, value: &str) -> HarnessResult<()> {
-        match self {
-            Self::SuppressOutputPathCheck => {
-                parse_compiler_bool(raw_name, value)?;
-            }
-        }
-        Ok(())
-    }
-}
-
 fn apply_compiler_setting(
     compiler_options: &mut CompilerOptions,
     program_options: &mut ProgramOptions,
@@ -695,9 +746,6 @@ fn apply_compiler_setting(
     value: &str,
 ) -> HarnessResult<()> {
     let key = CompilerFixtureOptionKey::new(name);
-    if let Some(metadata) = CompilerBaselineMetadata::lookup(&key) {
-        return metadata.validate(name, value);
-    }
     let boolean = || parse_compiler_bool(name, value);
     match key.as_str() {
         "allowjs" => compiler_options.allow_js = boolean()?,
@@ -726,6 +774,8 @@ fn apply_compiler_setting(
         }
         "jsx" => compiler_options.jsx = Some(parse_jsx(value)?),
         "noemit" => compiler_options.no_emit = Some(boolean()?),
+        // tsgo's harness parses it as a compiler option (harnessutil.go:317-333).
+        "suppressoutputpathcheck" => compiler_options.suppress_output_path_check = Some(boolean()?),
         "noresolve" => compiler_options.no_resolve = Some(boolean()?),
         "erasablesyntaxonly" => compiler_options.erasable_syntax_only = Some(boolean()?),
         "nolib" => *program_options = program_options.clone().with_no_lib(boolean()?),

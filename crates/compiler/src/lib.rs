@@ -2505,12 +2505,10 @@ impl ProgramSession {
     /// The output-path diagnostics an emitting Program reports before it
     /// writes anything (`verifyCompilerOptions`' emit blocking, such as
     /// TS5055), which the native runner collects with the options
-    /// diagnostics; none for a Program that cannot emit.
+    /// diagnostics; none for a Program that cannot emit, and none under
+    /// `suppressOutputPathCheck`, which verifies no output path.
     fn native_output_diagnostics(&self) -> Vec<Diagnostic> {
-        let checks_output_paths = self
-            .native_harness
-            .is_some_and(|collection| collection.output_path_check);
-        if !checks_output_paths || self.prepared.mode() != PreparedProgramMode::Emit {
+        if self.native_harness.is_none() || self.prepared.mode() != PreparedProgramMode::Emit {
             return Vec::new();
         }
         PreparedEmitHost::new_for_route(&self.prepared, self.emit_route, &self.source_api_facts)
@@ -2934,9 +2932,6 @@ impl ProgramSession {
 pub struct NativeHarnessCollection {
     /// The suggestion diagnostics (`@captureSuggestions`).
     pub capture_suggestions: bool,
-    /// The output-path diagnostics of an emitting Program, such as TS5055;
-    /// off under the runner's `@suppressOutputPathCheck`.
-    pub output_path_check: bool,
 }
 
 /// The five diagnostic collections exposed by the no-emit driver.
