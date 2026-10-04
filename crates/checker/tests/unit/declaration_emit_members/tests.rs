@@ -132,15 +132,14 @@ fn dm_serialize_type_of_expando_property_in_synthetic_scope() {
         let root = checker.binder.source(0).root;
         let mut tracker = NoopTracker;
         let node = checker
-            .emit_create_type_of_declaration_in_expando_scope(
+            .emit_create_type_of_expando_member(
                 arena,
                 target,
                 declaration,
-                function,
+                "x",
                 root,
                 EmitNodeBuilderFlags::DECLARATION_EMIT,
-                EmitInternalNodeBuilderFlags::DECLARATION_EMIT
-                    .union(EmitInternalNodeBuilderFlags::NO_SYNTACTIC_PRINTER),
+                EmitInternalNodeBuilderFlags::DECLARATION_EMIT,
                 &mut tracker,
             )
             .expect("expando serialization succeeds")
@@ -177,14 +176,16 @@ fn dm_symbol_declaration_order_facts_follow_binder_declarations() {
 
     session.with_emit_resolver(|resolver| {
         let node = |node| EmitResolverNode::from_raw_source(0, node);
-        assert!(!resolver
-            .is_last_bodiless_overload_of_symbol(node(declarations[0]))
+        // tsgo writes the properties of any declaration of a function that
+        // has an implementation (util.go:155-162).
+        assert!(resolver
+            .should_emit_function_properties(node(declarations[0]))
             .expect("first overload fact"));
         assert!(resolver
-            .is_last_bodiless_overload_of_symbol(node(declarations[1]))
+            .should_emit_function_properties(node(declarations[1]))
             .expect("last overload fact"));
         assert!(resolver
-            .is_last_bodiless_overload_of_symbol(node(declarations[2]))
+            .should_emit_function_properties(node(declarations[2]))
             .expect("implementation fact"));
 
         assert!(resolver
@@ -196,6 +197,43 @@ fn dm_symbol_declaration_order_facts_follow_binder_declarations() {
         assert!(!resolver
             .is_first_declaration_of_symbol(node(declarations[2]))
             .expect("implementation declaration fact"));
+    });
+}
+
+#[test]
+fn dm_function_properties_need_an_implementation() {
+    // tsgo shouldEmitFunctionProperties (util.go:155-162): a function whose
+    // declarations are all bodiless writes no expando namespace.
+    let options = CompilerOptions::default();
+    let source = tsc_syntax::parse_source_file(
+        "/main.ts".to_owned(),
+        "declare function g(): void;\n\
+         declare function g(x: number): void;"
+            .to_owned(),
+        Default::default(),
+        None,
+    );
+    let NodeData::SourceFile(data) = &source.arena.node(source.root).data else {
+        panic!("source file expected")
+    };
+    let declarations = source
+        .arena
+        .node_array(data.statements.expect("statements"))
+        .nodes
+        .to_vec();
+    let mut binder = tsc_binder::Binder::with_bases(&source, &options, 1, 0);
+    binder.bind_source_file();
+    let mut state = CheckerState::from_program(vec![&binder], &options);
+    state.merge_module_augmentations();
+    let session = crate::emit::CheckerSession::from_checked_state(state);
+
+    session.with_emit_resolver(|resolver| {
+        let node = |node| EmitResolverNode::from_raw_source(0, node);
+        for declaration in declarations {
+            assert!(!resolver
+                .should_emit_function_properties(node(declaration))
+                .expect("bodiless declaration fact"));
+        }
     });
 }
 

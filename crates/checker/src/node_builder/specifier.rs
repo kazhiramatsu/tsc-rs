@@ -249,6 +249,21 @@ pub(crate) fn get_specifier_for_module_symbol(
         Some(specifier) => state.import_attributes_type_for_module_specifier(specifier)?,
         None => None,
     };
+    // tsgo moduleSpecifierResolvesToSymbol resolves a source file's
+    // specifier from the enclosing declaration (nodebuilderimpl.go:1347-1357).
+    // A variable initialized by an import call has no module specifier around
+    // it, so resolveExternalModule reads the file's default resolution mode
+    // (checker.go:15416-15458), and the program answers only a resolution it
+    // recorded under that mode: the call's attributes do not reach the import
+    // type when the call was recorded under another mode.
+    let file_import_attributes_type = match (original_module_specifier, enclosing_declaration) {
+        (Some(specifier), Some(declaration))
+            if import_call_misses_default_mode(state, declaration, specifier) =>
+        {
+            None
+        }
+        _ => original_import_attributes_type,
+    };
     let attributes_location = enclosing_declaration.or(enclosing_file);
     let mut source_file_declaration =
         state.get_declaration_of_kind(module_symbol, SyntaxKind::SourceFile);
@@ -337,7 +352,7 @@ pub(crate) fn get_specifier_for_module_symbol(
             module_symbol,
             specifier.as_js(),
             import_attributes_type,
-            original_import_attributes_type,
+            file_import_attributes_type,
             attributes_location,
         )?;
         return Ok(ModuleSpecifierResult {
@@ -405,13 +420,31 @@ pub(crate) fn get_specifier_for_module_symbol(
         module_symbol,
         specifier.as_js(),
         import_attributes_type,
-        original_import_attributes_type,
+        file_import_attributes_type,
         attributes_location,
     )?;
     Ok(ModuleSpecifierResult {
         specifier,
         import_attributes_type,
     })
+}
+
+/// Whether a variable initialized by an import call reads the file's default
+/// resolution mode where the program recorded the call under another one.
+fn import_call_misses_default_mode(
+    state: &CheckerState<'_>,
+    declaration: NodeId,
+    specifier: NodeId,
+) -> bool {
+    matches!(
+        state.kind_of(declaration),
+        SyntaxKind::VariableDeclaration | SyntaxKind::BindingElement
+    ) && state
+        .parent_of(specifier)
+        .is_some_and(|call| state.is_import_call(call))
+        && state.import_syntax_affects_module_resolution()
+        && state.default_resolution_mode_for_file(declaration)
+            != state.resolution_mode_for_usage(specifier)
 }
 
 /// Reused-anchor disposition: this is the exact checker display decision

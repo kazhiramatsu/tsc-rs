@@ -364,6 +364,21 @@ pub(crate) fn hosted_type(
         .map(|r#type| TransformNode::new(node.source(), r#type)))
 }
 
+/// The `FullSignature` tsgo's reparser gives a JavaScript function from a
+/// `@type` tag that types the whole function.
+pub(crate) fn hosted_full_signature(
+    cx: &TransformationContext,
+    node: TransformNode,
+) -> Result<Option<TransformNode>, TransformError> {
+    let source = cx.arena().source(node.source())?.syntax();
+    if !is_javascript_file(source) {
+        return Ok(None);
+    }
+    Ok(tsc_binder::jsdoc_hosted(source)
+        .full_signature_of(node.node())
+        .map(|signature| TransformNode::new(node.source(), signature)))
+}
+
 /// A `@typedef`, `@callback` or `@import` tag that tsgo's reparser turns into
 /// a statement (reparser.go:74-138), with the JSDoc comment that holds it.
 #[derive(Clone, Copy)]

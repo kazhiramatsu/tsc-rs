@@ -3832,7 +3832,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: tryGetElementAccessExpressionName @6.0.3
     /// tsc-hash: 1daecf8e70c80e9850c15614e61823ff533f6bacc75f4bfb00b352888f68c60a
     /// tsc-span: _tsc.js:69512-69514
-    fn try_get_element_access_expression_name(
+    pub(crate) fn try_get_element_access_expression_name(
         &mut self,
         node: NodeId,
     ) -> CheckResult<Option<EscapedName>> {

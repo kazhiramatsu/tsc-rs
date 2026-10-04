@@ -563,6 +563,80 @@ impl CheckerState<'_> {
         Ok(self.binder.symbol(symbol).value_declaration)
     }
 
+    /// tsgo transformExpandoAssignment's test (transform.go:2728-2731): the
+    /// declaration's own symbol has the Assignment flag.
+    pub(crate) fn emit_is_assignment_declaration(&self, node: NodeId) -> bool {
+        self.node_symbol(node).is_some_and(|symbol| {
+            self.binder
+                .symbol(symbol)
+                .flags
+                .intersects(SymbolFlags::ASSIGNMENT)
+        })
+    }
+
+    /// tsgo-port: GetElementAccessExpressionName @7.1
+    /// (emitresolver.go:924-933): the name of a literal or constant argument.
+    pub(crate) fn emit_get_element_access_expression_name(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult<Option<String>> {
+        Ok(self
+            .try_get_element_access_expression_name(node)?
+            .map(|name| name.unescape().as_str().unwrap_or_default().to_owned()))
+    }
+
+    /// tsgo-port: IsNameResolvable @7.1 (emitresolver.go:916-922).
+    pub(crate) fn emit_is_name_resolvable(
+        &mut self,
+        location: NodeId,
+        name: &str,
+    ) -> CheckResult<bool> {
+        Ok(self
+            .resolve_name(
+                Some(location),
+                name,
+                SymbolFlags::VALUE | SymbolFlags::TYPE | SymbolFlags::NAMESPACE,
+                /*name_not_found_message*/ None,
+                /*is_use*/ false,
+                /*exclude_globals*/ false,
+            )?
+            .is_some())
+    }
+
+    /// The type of an expando property's assignment in the namespace tsgo
+    /// synthesizes for it, whose only local is the member itself under
+    /// `local_name` (transformExpandoAssignment, transform.go:2810-2836).
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn emit_create_type_of_expando_member(
+        &mut self,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
+        declaration: NodeId,
+        local_name: &str,
+        enclosing_declaration: NodeId,
+        flags: tsc_emitter::EmitNodeBuilderFlags,
+        internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+    ) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError> {
+        let mut locals = SymbolTable::default();
+        if let Some(symbol) = self.node_symbol(declaration) {
+            locals.insert(tsc_binder::escape_leading_underscores(local_name), symbol);
+        }
+        self.emit_create_type_of_declaration(
+            arena,
+            target,
+            declaration,
+            enclosing_declaration,
+            flags,
+            internal_flags,
+            Some(crate::node_builder::SyntheticModuleScope {
+                enclosing_declaration: Some(enclosing_declaration),
+                locals: &locals,
+            }),
+            tracker,
+        )
+    }
+
     /// tsgo-port: IsThisPropertyAssignmentDeclarationRedundant @7.1
     /// (checker/emitresolver.go:1292-1323): an `extends` base type already
     /// has the member, as an accessor, method or function, or as a property
@@ -1419,6 +1493,9 @@ impl CheckerState<'_> {
                     NodeData::TypePredicate(data)
                         if data.parameter_name == Some(entity_name)
                 )
+                // tsgo: the right side of an expando assignment it writes as
+                // `export { right as name }` (emitresolver.go:317).
+                || self.kind_of(parent) == SyntaxKind::BinaryExpression
         });
         if value_meaning {
             return EmitSymbolMeaning::VALUE_EXPORT_VALUE;
@@ -1873,44 +1950,6 @@ impl<'a> CheckerState<'a> {
             Some(internal_flags),
             Some(tracker),
             synthetic_module_scope,
-        )
-    }
-
-    /// tsc-port: createTypeOfDeclarationInExpandoScope @6.0.3
-    /// tsc-hash: 37a21cd710c255c1fe8fc4e0e704b11c8062854069c854051651e47a8e392a90
-    /// tsc-span: _tsc.js:115400-115425
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn emit_create_type_of_declaration_in_expando_scope(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        target: tsc_emitter::TransformSourceId,
-        declaration: NodeId,
-        function: NodeId,
-        enclosing_declaration: NodeId,
-        flags: tsc_emitter::EmitNodeBuilderFlags,
-        internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
-        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
-    ) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError> {
-        let method = tsc_emitter::EmitResolverMethod::CreateTypeOfDeclarationInExpandoScope;
-        let properties = self
-            .emit_get_properties_of_container_function(function, 0)
-            .map_err(|abort| node_builder_abort_error(self, method, function, abort))?;
-        let mut locals = SymbolTable::default();
-        for property in properties {
-            locals.insert(property.name, SymbolId::new(property.symbol.symbol_index));
-        }
-        self.emit_create_type_of_declaration(
-            arena,
-            target,
-            declaration,
-            enclosing_declaration,
-            flags,
-            internal_flags,
-            Some(crate::node_builder::SyntheticModuleScope {
-                enclosing_declaration: Some(enclosing_declaration),
-                locals: &locals,
-            }),
-            tracker,
         )
     }
 

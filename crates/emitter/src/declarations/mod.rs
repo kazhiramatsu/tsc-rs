@@ -3,6 +3,7 @@
 mod bundle;
 mod diagnostics;
 mod ensure;
+mod expando;
 mod isolated;
 mod javascript;
 mod orchestration;

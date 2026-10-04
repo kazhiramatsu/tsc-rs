@@ -849,9 +849,10 @@ impl DeclarationTransformer<'_> {
         }
     }
 
-    /// tsc-port: isEnclosingDeclaration @6.0.3
-    /// tsc-hash: 5ff3baaf19f958a9456c268b5e617dde68c124c9336ad07d1ea7cc5cb2bd36f3
-    /// tsc-span: _tsc.js:114796-114798
+    /// tsgo-port: isEnclosingDeclaration @7.1
+    /// (transformers/declarations/util.go:109-120): tsc 6.0's kinds and a
+    /// variable declaration, whose own function-expression type is then
+    /// never written as `typeof` the variable.
     pub(crate) fn is_enclosing_declaration(
         &self,
         cx: &TransformationContext,
@@ -867,6 +868,7 @@ impl DeclarationTransformer<'_> {
                 | SyntaxKind::InterfaceDeclaration
                 | SyntaxKind::IndexSignature
                 | SyntaxKind::MappedType
+                | SyntaxKind::VariableDeclaration
         ) || is_function_like(kind))
     }
 

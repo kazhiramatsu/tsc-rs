@@ -138,6 +138,9 @@ pub(crate) fn transform_root(
     let combined = if serialize_javascript {
         transform_declarations_for_js(transformer, context, source, root_node)?
     } else {
+        // tsgo collects the expando assignments of the whole file before it
+        // visits the statements (transform.go:351).
+        transformer.collect_expandos(context, root_node)?;
         let mut statements = Vec::new();
         for statement in original_statements {
             // tsgo's parser puts the declarations it reparses from JSDoc

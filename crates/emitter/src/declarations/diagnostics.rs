@@ -78,7 +78,13 @@ pub(crate) enum DiagnosticContextPlan {
     None,
     NoDiagnostic,
     Template(DiagnosticTemplate),
-    JsFile { fallback: TrackerAnchor },
+    JsFile {
+        fallback: TrackerAnchor,
+    },
+    /// A context with no message, such as a parameter of an arrow function
+    /// tsgo writes as an expando host: tsgo chooses the message only when it
+    /// reports a diagnostic, and fails then.
+    Unavailable(&'static str),
 }
 
 impl DiagnosticContext {
@@ -96,9 +102,12 @@ impl DiagnosticContext {
                 // whose message selector intentionally returns undefined.
                 Ok(DiagnosticContextPlan::NoDiagnostic)
             }
-            Self::ForNode(node) => Ok(DiagnosticContextPlan::Template(
-                create_get_symbol_accessibility_diagnostic_for_node(arena, node)?,
-            )),
+            Self::ForNode(node) => Ok(match unknown_parent(arena, node)? {
+                Some(detail) => DiagnosticContextPlan::Unavailable(detail),
+                None => DiagnosticContextPlan::Template(
+                    create_get_symbol_accessibility_diagnostic_for_node(arena, node)?,
+                ),
+            }),
             Self::ForNodeName(node) => Ok(DiagnosticContextPlan::Template(
                 create_get_symbol_accessibility_diagnostic_for_node_name(arena, node)?,
             )),
@@ -131,6 +140,7 @@ impl DiagnosticContextPlan {
                 ))
             }
             Self::NoDiagnostic => return Ok(None),
+            Self::Unavailable(detail) => return Err(DeclarationTransformer::contract(detail)),
             Self::Template(template) => template.clone(),
             Self::JsFile { fallback } => {
                 if let Some(error) = result.error_node {
@@ -505,6 +515,74 @@ fn property_message(source: &SourceFile, node: NodeId) -> MessageChoice {
     }
 }
 
+const UNKNOWN_PARAMETER_PARENT: &str = "unknown parent for declaration parameter diagnostic";
+const UNKNOWN_TYPE_PARAMETER_PARENT: &str =
+    "unknown parent for declaration type-parameter diagnostic";
+
+/// A parameter or type parameter whose parent has no accessibility message.
+/// tsgo chooses the message only when it reports a diagnostic, and fails
+/// then (the defaults of getParameterDeclarationTypeVisibilityDiagnosticMessage
+/// and getTypeParameterConstraintVisibilityDiagnosticMessage).
+fn unknown_parent(
+    arena: &TransformArena,
+    node: TransformNode,
+) -> Result<Option<&'static str>, TransformError> {
+    let source = arena.source(node.source())?.syntax();
+    let Some(parent_kind) =
+        parent(source, node.node()).map(|parent| source.arena.node(parent).kind)
+    else {
+        return Ok(None);
+    };
+    Ok(match source.arena.node(node.node()).kind {
+        SyntaxKind::Parameter if !parameter_parent_has_message(parent_kind) => {
+            Some(UNKNOWN_PARAMETER_PARENT)
+        }
+        SyntaxKind::TypeParameter if !type_parameter_parent_has_message(parent_kind) => {
+            Some(UNKNOWN_TYPE_PARAMETER_PARENT)
+        }
+        _ => None,
+    })
+}
+
+const fn parameter_parent_has_message(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::Constructor
+            | SyntaxKind::ConstructSignature
+            | SyntaxKind::ConstructorType
+            | SyntaxKind::CallSignature
+            | SyntaxKind::IndexSignature
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::MethodSignature
+            | SyntaxKind::FunctionDeclaration
+            | SyntaxKind::FunctionType
+            | SyntaxKind::ArrowFunction
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::GetAccessor
+    )
+}
+
+const fn type_parameter_parent_has_message(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::ClassDeclaration
+            | SyntaxKind::InterfaceDeclaration
+            | SyntaxKind::MappedType
+            | SyntaxKind::ConstructorType
+            | SyntaxKind::ConstructSignature
+            | SyntaxKind::CallSignature
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::MethodSignature
+            | SyntaxKind::FunctionType
+            | SyntaxKind::FunctionDeclaration
+            | SyntaxKind::InferType
+            | SyntaxKind::TypeAliasDeclaration
+            | SyntaxKind::JSDocTypedefTag
+            | SyntaxKind::JSDocCallbackTag
+    )
+}
+
 fn parameter_template(
     source: &SourceFile,
     node: NodeId,
@@ -554,7 +632,12 @@ fn parameter_template(
                 )
             }
         }
-        SyntaxKind::FunctionDeclaration | SyntaxKind::FunctionType => external(
+        // tsgo adds arrow functions and function expressions, whose
+        // parameters it writes for expando hosts (diagnostics.go:416).
+        SyntaxKind::FunctionDeclaration
+        | SyntaxKind::FunctionType
+        | SyntaxKind::ArrowFunction
+        | SyntaxKind::FunctionExpression => external(
             &d::Parameter_0_of_exported_function_has_or_is_using_name_1_from_external_module_2_but_cannot_be_named,
             &d::Parameter_0_of_exported_function_has_or_is_using_name_1_from_private_module_2,
             &d::Parameter_0_of_exported_function_has_or_is_using_private_name_1,
@@ -564,9 +647,7 @@ fn parameter_template(
             &d::Parameter_0_of_accessor_has_or_is_using_name_1_from_private_module_2,
             &d::Parameter_0_of_accessor_has_or_is_using_private_name_1,
         ),
-        _ => return Err(DeclarationTransformer::contract(
-            "unknown parent for declaration parameter diagnostic",
-        )),
+        _ => return Err(DeclarationTransformer::contract(UNKNOWN_PARAMETER_PARENT)),
     };
     Ok(named_template(source, node, message, anchors))
 }
@@ -595,9 +676,7 @@ fn type_parameter_template(
         SyntaxKind::TypeAliasDeclaration
         | SyntaxKind::JSDocTypedefTag
         | SyntaxKind::JSDocCallbackTag => &d::Type_parameter_0_of_exported_type_alias_has_or_is_using_private_name_1,
-        _ => return Err(DeclarationTransformer::contract(
-            "unknown parent for declaration type-parameter diagnostic",
-        )),
+        _ => return Err(DeclarationTransformer::contract(UNKNOWN_TYPE_PARAMETER_PARENT)),
     };
     Ok(named_template(
         source,

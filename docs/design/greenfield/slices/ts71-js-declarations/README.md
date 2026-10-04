@@ -1,6 +1,6 @@
 # JavaScriptのd.tsをtsgoの方式で作る
 
-状態：**実装中**（J1・J1b・J2 2026-10-04）。ユーザー決定（2026-10-04）：「再設計して進める」。前段：
+状態：**実装中**（J1・J1b・J2・J2b 2026-10-04）。ユーザー決定（2026-10-04）：「再設計して進める」。前段：
 [TypeScript 7.1への切替](../ts71-cutover/README.md)のP3-5ab。
 
 ## 背景
@@ -251,3 +251,65 @@ emitterは`tsc-binder`に依存するようになった。
   - CommonJSのfileは従来の経路（J3）。
 - hosted：PR #648（head `ebe28b5ca`、merge `e723d5f6c`）、run 37167233210 — `plan` 27s、`rust` 9m34s、`conformance (TypeScript 7.1)` 19m25s、`gates` 11s。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main `e38d9b16e`（J1bのcode `4c15abfbc`と同じcodeのrelease build）と本branch（`4c54b986f`）のrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 136→126、zod 512→512、Playwright 360→356、TypeScript `src/compiler` 340→329、Next.js 781→743、Effect 515→491、VS Code 3,420→3,370。tsc-rs÷tsgoは0.59〜0.97、peak memory（MB main→本branch）：318→315、1,290→1,297、810→808、290→289、1,319→1,322、1,024→1,042、5,446→5,448。診断の出力と読み込んだdocument数は7 corpusともmainと同一。`tsconfig.bench-full.json`（JS・d.ts・source map、3 rounds）：hono 149→146、zod 606→611、Playwright 473→481、TypeScript `src/compiler` 537→489、Next.js 1,003→980、Effect 784→793（tsgo比0.57〜0.78）。zodの差をA/Bで確かめた：5 roundsはmain／本branch 575／578 ms、peak RSS 1,506／1,508 MB、単一checker（`TSRS_CHECKERS=1`）の命令数（5回のmedian）は39.364／39.376 G、peak memory footprint 939.2／938.4 MBで同じ。診断は6 corpusともmainと同一。出力はTypeScript `src/compiler`とEffectで同一、hono 15・zod 1・Playwright 7・Next.js 12 fileの.d.tsが変わり、変わった行は引用符を揃えるとすべて一致する（再利用した文字列literal型が元の`'…'`を保ち、tsgoの出力に近づいた）。退行なし。
+
+## J2b expandoをtsgoの方式で書く（2026-10-04）
+
+- **expando**（`F.x = …`で関数などにpropertyを足す代入）：tsgoのdeclaration transformは、文を訪れる前にfile全体の
+  代入を集め（`visitNestedExpression`）、hostを関数宣言に書き換え、その後ろに同名のnamespaceを置く
+  （`transformExpandoAssignment`・`transformExpandoHost`・`createFullExpandoBlock`、transform.go:2700-2970）。
+  これをTypeScriptとJavaScript（ES moduleとscript）の両方に移植した（`crates/emitter/src/declarations/expando.rs`）。
+  tsc 6.0の書き方（関数宣言の`getPropertiesOfContainerFunction`の各propertyを
+  `createTypeOfDeclarationInExpandoScope`で書くarm）はやめ、resolverのその照会も削除した。isolatedDeclarationsの
+  expandoの診断は、tsgoと同じくhostの書き換えと関数宣言の変換（`transformFunctionDeclaration`）で出す。
+  - host：関数宣言、関数式かarrow関数で初期化した変数（新しい`declare function`になり、変数のJSDocは付かない）、
+    JavaScriptのclass（classの後ろにnamespace）。generatorは`*`を保つ。実装を持つ関数のoverloadでは、最初の宣言が
+    hostになる（`shouldEmitFunctionProperties`、util.go:155-162。tsc 6.0の「最後の本体の無い宣言」ではない）。
+  - member：`var`。値が識別子なら`export { value as name }`。keywordの名前や、そこで名前解決できてしまう名前
+    （`name`など）は生成した名前（`_a`）と`export { _a as name }`にする。export宣言ができると、それまでの
+    memberに`export`を付ける。
+  - 集めたときにhostが見えなければ代入を保留し、後で型の参照がhostを可視にしたときに書く。
+  - default export：`declare function D(): void; export default D; declare namespace D { … }`。
+  - namespaceの名前と修飾子は、hostのものを範囲ごと複製する（tsgoの`Clone`、ast.go:103-120）。declaration mapで
+    namespaceの名前がhostの名前に対応する。README corporaの比較で、mainより後退していたのを見つけて直した。
+  - resolverの照会を足した：`IsAssignmentDeclaration`、`GetElementAccessExpressionName`、`IsNameResolvable`、
+    `CreateTypeOfExpandoMember`（memberだけをlocalに持つnamespaceの中で型を直列化する）。
+    `IsLastBodilessOverloadOfSymbol`は`ShouldEmitFunctionProperties`に改め、tsgoの判定にした。
+- 移植で見つかった7.1の差も合わせた：
+  - **右辺の識別子の可視性**：`export { value as name }`の`value`は値として解決し、exportされていない宣言を
+    可視にする（`getMeaningOfEntityNameReference`がbinary expressionの右辺をvalueにする、emitresolver.go:317）。
+  - **生成名**：tsgoのprinterはmodule blockで名前生成のscopeを分けない（`emitModuleBlock`、printer.go:3856-3866）。
+    namespaceをまたいで`_a`・`_b`と続く。
+  - **`typeof`で書く関数**：top-levelの変数を初期化する関数式・arrow関数の型は`typeof 変数`と書く。static method
+    は名前が識別子のときだけ（`shouldWriteTypeOfFunctionSymbol`、nodebuilderimpl.go:2852-2888）。
+  - **囲む宣言**：変数宣言も囲む宣言にする（`isEnclosingDeclaration`、util.go:109-120）。変数自身の型が
+    `typeof 変数`にならない。
+  - **import呼び出しの属性**：変数が囲む宣言になると、初期化子の`import("./0", { with: … })`の属性を
+    import型に付けかねない。tsgoは変数の位置からmoduleを解決するときfileの既定の解決modeを使い、
+    呼び出しが記録されたESNextの解決を見つけないので、属性を付けない（nodebuilderimpl.go:1347-1357、
+    checker.go:15416-15458）。
+  - **引数の診断**：arrow関数・関数式の引数には`Parameter_0_of_exported_function_…`を使う（diagnostics.go:416）。
+    文言の無い親でも、tsgoと同じく診断を出すときまで失敗しない。
+- unit test：
+  - CLI（tsgoの出力にpin）：TypeScriptのexpando（識別子の値、keywordと解決できる名前、保留して後で可視になる
+    host、exportされていない関数のexport、default export、識別子でない名前だけの変数）、そのdeclaration map、
+    JavaScriptのexpando（変数・class・generatorのhost、`@type`の付いた代入、script）。
+  - checker：本体の無い宣言だけの関数はnamespaceを書かない。照会の名前の変更と新しい照会。
+- conformance：
+  - 15,228構成、lane A 13,467（変化なし）、439 s。
+  - errorsは変化なし（描いたbaselineのdigestもすべて同じ）。
+  - emit full 13,188→13,220、emit mismatch 249→217。上がった32構成のうち24構成はexpando（TypeScript 13、
+    JavaScript 11）、8構成はTypeScriptで、関数式の`typeof`・static methodの名前・囲む宣言の変更で合った
+    （`declarationEmitAliasInlineing`、`declarationEmitPartialNodeReuseTypeOf`、
+    `declarationEmitStaticMethodNonIdentifierNames`など）。下がった構成は無く、それ以外のemitのdigestも
+    すべて同じ。
+- ratchet：0 regressions、32行raise（emit none→js）。`intersectionConstructorReductionCrash`は今回もharness
+  errorで、ratchetに入れない。
+- local：
+  - formatとworkspace全体のclippy。emitter・checker・compiler・conformanceのtest（35 targets、2,635 passed、
+    `df112c16f`）。
+  - 2 workerのfull run（439 s、`df112c16f`のrelease build）。declaration mapを直す前の`864167c05`でも1回流し
+    （438 s）、結果はstatus・tier・digestまで同じだった。
+  - 試行（devのrunner、`@declaration`を持つ1,493 case・1,951構成）：変数宣言を囲む宣言にした段階で、
+    tsc-rsだけが初期化子の`import("./0", { with: … })`の属性をimport型に付け、6構成が下がった。tsgoの
+    解決modeの扱いを移して直した。
+- 残り：CommonJSのfile（J3）、checkerの差（J1bの記録のとおり）。
