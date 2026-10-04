@@ -5772,7 +5772,28 @@ impl<'a> CheckerState<'a> {
         let construct_signatures =
             self.get_signatures_of_type(expression_type, SignatureKind::Construct)?;
         if !construct_signatures.is_empty() {
-            if !self.is_constructor_accessible(node, construct_signatures[0])? {
+            if let Some((modifiers, class_symbol)) = self.get_constructor_accessibility_error(
+                node,
+                &construct_signatures,
+                ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER,
+            )? {
+                let declaring_class = self.get_declared_type_of_class_or_interface(class_symbol)?;
+                if modifiers.intersects(ModifierFlags::PRIVATE) {
+                    let display = self.type_to_string(declaring_class)?;
+                    self.error_at_js(
+                        Some(node),
+                        &diagnostics::Constructor_of_class_0_is_private_and_only_accessible_within_the_class_declaration,
+                        &[(&display).into()],
+                    );
+                }
+                if modifiers.intersects(ModifierFlags::PROTECTED) {
+                    let display = self.type_to_string(declaring_class)?;
+                    self.error_at_js(
+                        Some(node),
+                        &diagnostics::Constructor_of_class_0_is_protected_and_only_accessible_within_the_class_declaration,
+                        &[(&display).into()],
+                    );
+                }
                 return self.resolve_error_call(node);
             }
             // 77075-77083: abstract construct signatures and abstract
@@ -5920,64 +5941,56 @@ impl<'a> CheckerState<'a> {
         self.type_has_protected_accessible_base(target, first_base)
     }
 
-    /// tsc-port: isConstructorAccessible @6.0.3
-    /// tsc-hash: e7b60027f1bf535adc73a98a8f9e83b7cab35f1ca3a39b39b602b55c6db52baf
-    /// tsc-span: _tsc.js:77138-77166
-    fn is_constructor_accessible(
+    /// tsgo: getConstructorAccessibilityError (checker.go:8834-8862). The
+    /// first construct signature declared by a constructor whose modifiers
+    /// (within `modifiers_mask`) keep it from `node`: a private one outside
+    /// its class, a protected one outside its class and its subclasses.
+    /// Every signature counts, so an intersection of class types reports
+    /// the class of an inaccessible member wherever that member stands.
+    /// Returns the selected modifiers and the declaring class symbol.
+    pub(crate) fn get_constructor_accessibility_error(
         &mut self,
         node: NodeId,
-        signature: SignatureId,
-    ) -> CheckResult<bool> {
-        let Some(declaration) = self.signature_of(signature).declaration else {
-            return Ok(true);
-        };
-        let source = self.binder.source_of_node(declaration);
-        let modifiers = ModifierFlags::from_bits(
-            node_util::get_combined_modifier_flags(source, declaration).bits()
-                & ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER.bits(),
-        );
-        if modifiers == ModifierFlags::NONE || self.kind_of(declaration) != SyntaxKind::Constructor
-        {
-            return Ok(true);
-        }
-        let class_declaration = self.parent_of(declaration).expect(
-            "tree invariant: parsed constructors are class elements and finalize_tree assigns \
-             their class parent",
-        );
-        let class_symbol = self.get_symbol_of_declaration(class_declaration)?;
-        let declaring_class_declaration = self.get_class_like_declaration_of_symbol(class_symbol);
-        let declaring_class = self.get_declared_type_of_class_or_interface(class_symbol)?;
-        if !self.is_node_within_class(node, declaring_class_declaration) {
-            let containing_class = self.get_containing_class_of(node);
-            if let Some(containing_class) = containing_class {
+        signatures: &[SignatureId],
+        modifiers_mask: ModifierFlags,
+    ) -> CheckResult<Option<(ModifierFlags, SymbolId)>> {
+        for &signature in signatures {
+            let Some(declaration) = self.signature_of(signature).declaration else {
+                continue;
+            };
+            let source = self.binder.source_of_node(declaration);
+            let modifiers = ModifierFlags::from_bits(
+                node_util::get_combined_modifier_flags(source, declaration).bits()
+                    & modifiers_mask.bits(),
+            );
+            if modifiers == ModifierFlags::NONE
+                || self.kind_of(declaration) != SyntaxKind::Constructor
+            {
+                continue;
+            }
+            let class_declaration = self.parent_of(declaration).expect(
+                "tree invariant: parsed constructors are class elements and finalize_tree \
+                 assigns their class parent",
+            );
+            let class_symbol = self.get_symbol_of_declaration(class_declaration)?;
+            let declaring_class_declaration =
+                self.get_class_like_declaration_of_symbol(class_symbol);
+            if self.is_node_within_class(node, declaring_class_declaration) {
+                continue;
+            }
+            if let Some(containing_class) = self.get_containing_class_of(node) {
                 if modifiers.intersects(ModifierFlags::PROTECTED) {
                     let containing_symbol = self.get_symbol_of_declaration(containing_class)?;
                     let containing_type =
                         self.get_declared_type_of_class_or_interface(containing_symbol)?;
                     if self.type_has_protected_accessible_base(class_symbol, containing_type)? {
-                        return Ok(true);
+                        continue;
                     }
                 }
             }
-            if modifiers.intersects(ModifierFlags::PRIVATE) {
-                let display = self.type_to_string(declaring_class)?;
-                self.error_at_js(
-                    Some(node),
-                    &diagnostics::Constructor_of_class_0_is_private_and_only_accessible_within_the_class_declaration,
-                    &[(&display).into()],
-                );
-            }
-            if modifiers.intersects(ModifierFlags::PROTECTED) {
-                let display = self.type_to_string(declaring_class)?;
-                self.error_at_js(
-                    Some(node),
-                    &diagnostics::Constructor_of_class_0_is_protected_and_only_accessible_within_the_class_declaration,
-                    &[(&display).into()],
-                );
-            }
-            return Ok(false);
+            return Ok(Some((modifiers, class_symbol)));
         }
-        Ok(true)
+        Ok(None)
     }
 
     // ---- JSX opening-like elements ----

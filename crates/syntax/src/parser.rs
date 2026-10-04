@@ -2921,7 +2921,17 @@ impl<'text> Parser<'text> {
         self.parse_expected(SyntaxKind::ClassKeyword, None);
         let name = self.parse_name_of_class_declaration_or_expression();
         let type_parameters = self.parse_type_parameters();
-        if self.modifiers_contain(modifiers, SyntaxKind::ExportKeyword) {
+        // tsgo parseClassDeclarationOrExpression (parser.go:1753-1759): only
+        // an exported class among the source elements, outside a block or a
+        // switch clause (a namespace body is a block), takes the await
+        // context of a module's top level.
+        if self.modifiers_contain(modifiers, SyntaxKind::ExportKeyword)
+            && self.parsing_context & ParsingContext::SourceElements.bit() != 0
+            && self.parsing_context
+                & (ParsingContext::BlockStatements.bit()
+                    | ParsingContext::SwitchClauseStatements.bit())
+                == 0
+        {
             self.set_await_context(true);
         }
         let heritage_clauses = self.parse_heritage_clauses();
@@ -5141,15 +5151,11 @@ impl<'text> Parser<'text> {
         mut left_operand: NodeId,
         pos: usize,
     ) -> NodeId {
+        let mut last_operand = left_operand;
         loop {
             self.scanner.re_scan_greater_token();
             let new_precedence = get_binary_operator_precedence(self.token());
-            let consume_current_operator = if self.token() == SyntaxKind::AsteriskAsteriskToken {
-                new_precedence >= precedence
-            } else {
-                new_precedence > precedence
-            };
-            if !consume_current_operator {
+            if !should_consume_binary_operator(self.token(), new_precedence, precedence) {
                 break;
             }
             if self.token() == SyntaxKind::InKeyword && self.in_disallow_in_context() {
@@ -5164,17 +5170,34 @@ impl<'text> Parser<'text> {
                 }
                 let keyword_kind = self.token();
                 self.next_token();
+                // tsgo parseBinaryExpressionRest (parser.go:4686-4703): in
+                // `a ## b as T $$ c`, stop when `$$` would bind before `##`
+                // once the assertion is erased (TypeScript issue 63527).
+                let last_precedence = match &self.arena.node(last_operand).data {
+                    NodeData::BinaryExpression(data) => data
+                        .operator_token
+                        .map_or(OPERATOR_PRECEDENCE_HIGHEST, |operator| {
+                            get_binary_operator_precedence(self.arena.node(operator).kind)
+                        }),
+                    _ => OPERATOR_PRECEDENCE_HIGHEST,
+                };
                 let r#type = self.parse_type();
                 left_operand = if keyword_kind == SyntaxKind::SatisfiesKeyword {
                     self.make_satisfies_expression(left_operand, r#type)
                 } else {
                     self.make_as_expression(left_operand, r#type)
                 };
+                self.scanner.re_scan_greater_token();
+                let next_precedence = get_binary_operator_precedence(self.token());
+                if should_consume_binary_operator(self.token(), next_precedence, last_precedence) {
+                    break;
+                }
             } else {
                 let operator_token = self.parse_token_node();
                 let right = self.parse_binary_expression_or_higher(new_precedence);
                 left_operand =
                     self.make_binary_expression(left_operand, operator_token, right, pos);
+                last_operand = left_operand;
             }
         }
         left_operand
@@ -10838,6 +10861,23 @@ const LOWEST_OPERATOR_PRECEDENCE: i32 = 0;
 
 /// tsc getBinaryOperatorPrecedence; -1 for non-operators (loop exits).
 /// In TS 6.0 Coalesce == LogicalOR == 5.
+/// OperatorPrecedenceHighest: above the precedence of every binary operator.
+const OPERATOR_PRECEDENCE_HIGHEST: i32 = 20;
+
+/// tsgo shouldConsumeBinaryOperator: a left-associative operator binds when
+/// its precedence is above the current one; `**` is right-associative.
+fn should_consume_binary_operator(
+    operator: SyntaxKind,
+    new_precedence: i32,
+    precedence: i32,
+) -> bool {
+    if operator == SyntaxKind::AsteriskAsteriskToken {
+        new_precedence >= precedence
+    } else {
+        new_precedence > precedence
+    }
+}
+
 fn get_binary_operator_precedence(kind: SyntaxKind) -> i32 {
     match kind {
         SyntaxKind::QuestionQuestionToken => 5,

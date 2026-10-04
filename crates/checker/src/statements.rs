@@ -148,6 +148,16 @@ impl<'a> CheckerState<'a> {
                 unreachable!("kind/data agree");
             };
             let (dot_dot_dot, property_name) = (data.dot_dot_dot_token, data.property_name);
+            // tsgo checkVariableLikeDeclaration (checker.go:5979-5981).
+            if let Some(property_name) = property_name {
+                if self.kind_of(property_name) == SyntaxKind::PrivateIdentifier {
+                    self.grammar_error_on_node(
+                        property_name,
+                        &diagnostics::Private_identifiers_cannot_be_used_in_destructuring_patterns,
+                        &[],
+                    );
+                }
+            }
             // Renamed signature-parameter bindings: record for the
             // end-of-worker drain; the early return is semantic.
             if property_name.is_some()

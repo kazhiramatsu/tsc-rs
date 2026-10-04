@@ -514,10 +514,53 @@ fn enum_member_shift_of_32_or_more_elevates_6807_to_error() {
 }
 
 #[test]
-fn statement_level_shift_simplification_stays_a_suggestion() {
-    // errorOrSuggestion's suggestion flavor is unmodeled — the
-    // oracle reports a suggestion-band 6807 here, we stay silent.
-    assert_eq!(checked_rows("1 << 33;\n"), []);
+fn statement_level_shift_simplification_is_a_suggestion() {
+    // tsgo errorOrSuggestion (checker.go:12604-12612): outside an enum
+    // member the 6807 row is a suggestion at the binary expression, for a
+    // compound assignment as well (the overshifts baseline: `1 << 1` and
+    // `x >>>= 0`).
+    with_program_state(
+        &[("a.ts", "1 << 33;\nlet x = 1;\nx >>>= -32;\n")],
+        &CompilerOptions::default(),
+        |state| {
+            state.check_source_file(0);
+            assert_eq!(
+                state
+                    .diagnostics
+                    .iter()
+                    .filter(|diag| diag.file_name.is_some())
+                    .map(|diag| (
+                        diag.code(),
+                        diag.start.unwrap_or(u32::MAX),
+                        diag.length.unwrap_or(u32::MAX),
+                        diag.category(),
+                        diag.message_text()
+                            .as_str()
+                            .expect("scalar diagnostic observation")
+                            .to_owned(),
+                    ))
+                    .collect::<Vec<_>>(),
+                [
+                    (
+                        6807,
+                        0,
+                        7,
+                        tsc_diagnostics::DiagnosticCategory::Suggestion,
+                        "This operation can be simplified. This shift is identical to `1 << 1`."
+                            .to_owned(),
+                    ),
+                    (
+                        6807,
+                        20,
+                        10,
+                        tsc_diagnostics::DiagnosticCategory::Suggestion,
+                        "This operation can be simplified. This shift is identical to `x >>>= 0`."
+                            .to_owned(),
+                    ),
+                ]
+            );
+        },
+    );
 }
 
 #[test]

@@ -3773,11 +3773,13 @@ impl<'a> CheckerState<'a> {
         self.check_source_element(argument);
         if let Some(attributes) = attributes {
             // The `assert` form's TS2880 is the parser's (TypeScript 7.1
-            // parseImportType reports it at the keyword).
-            // getResolutionModeOverride (5.8d): import-type nodes are
-            // TYPE context, so the resolution-mode grammar rows report
-            // unconditionally (tsc checkImportType passes
+            // parseImportType reports it at the keyword). tsgo
+            // checkImportType (checker.go:3372-3381) checks the attribute
+            // values first. getResolutionModeOverride (5.8d): import-type
+            // nodes are TYPE context, so the resolution-mode grammar rows
+            // report unconditionally (tsc checkImportType passes
             // grammarErrorOnNode straight through).
+            self.check_grammar_import_attribute_values(attributes);
             self.get_resolution_mode_override(attributes, true)?;
         }
         self.check_type_reference_or_import(node, {
@@ -3785,7 +3787,10 @@ impl<'a> CheckerState<'a> {
                 unreachable!("kind/data agree");
             };
             data.type_arguments.is_some()
-        })
+        })?;
+        // The attributes' type against the global ImportAttributes type,
+        // as for an import declaration (tsgo checkImportAttributes).
+        self.check_import_attributes_of(node)
     }
 
     /// tsc-port: checkNamedTupleMember @6.0.3

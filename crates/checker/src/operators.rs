@@ -1093,9 +1093,10 @@ impl<'a> CheckerState<'a> {
         )
     }
 
-    /// The shift-simplification row (80098-80119): evaluate the RHS;
-    /// |value| >= 32 elevates to 6807 INSIDE an enum member and is a
-    /// suggestion (unmodeled band — skipped) everywhere else.
+    /// The shift-simplification row (tsgo checker.go:12604-12612): evaluate
+    /// the RHS; |value| >= 32 reports 6807 at the binary expression, an
+    /// error INSIDE an enum member and a suggestion everywhere else
+    /// (errorOrSuggestion), compound assignments included.
     fn check_shift_simplification(
         &mut self,
         left: NodeId,
@@ -1122,16 +1123,17 @@ impl<'a> CheckerState<'a> {
                 self.kind_of(walked) == SyntaxKind::EnumMember
             })
             .unwrap_or(false);
-        // errorOrSuggestion: only the error flavor is modeled
-        // (suggestion band unmodeled, like 80008).
-        if is_enum_member {
-            let left_text = self.text_of_node(left)?;
-            let simplified = tsc_types::tables::js_number_to_string(value % 32.0);
-            self.error_at(
-                Some(error_node.unwrap_or(operator_token)),
-                &tsc_diagnostics::gen::This_operation_can_be_simplified_This_shift_is_identical_to_0_1_2,
-                &[&left_text, token_text(operator), &simplified],
-            );
+        let left_text = self.text_of_node(left)?;
+        let simplified = tsc_types::tables::js_number_to_string(value % 32.0);
+        let index = self.error_at(
+            Some(error_node.unwrap_or(operator_token)),
+            &tsc_diagnostics::gen::This_operation_can_be_simplified_This_shift_is_identical_to_0_1_2,
+            &[&left_text, token_text(operator), &simplified],
+        );
+        if !is_enum_member {
+            self.diagnostics.update(index, |diagnostic| {
+                diagnostic.message.category = tsc_diagnostics::DiagnosticCategory::Suggestion;
+            });
         }
         Ok(())
     }
@@ -2015,6 +2017,15 @@ impl<'a> CheckerState<'a> {
                     // source object type.
                     return Ok(());
                 };
+                // tsgo checkObjectLiteralDestructuringPropertyAssignment
+                // (checker.go:12805-12807).
+                if self.kind_of(name) == SyntaxKind::PrivateIdentifier {
+                    self.grammar_error_on_node(
+                        name,
+                        &tsc_diagnostics::gen::Private_identifiers_cannot_be_used_in_destructuring_patterns,
+                        &[],
+                    );
+                }
                 let expr_type = self.get_literal_type_from_property_name(name)?;
                 if let Some(text) = self.property_name_from_type_usable(expr_type) {
                     let prop = self.get_property_of_type_full(object_literal_type, text)?;
@@ -3794,7 +3805,7 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::YieldExpression
             | SyntaxKind::ThisKeyword => SEMANTICS_SOMETIMES,
             SyntaxKind::BinaryExpression => {
-                let Some((_, operator_token, right)) = self.binary_parts(node) else {
+                let Some((left, operator_token, right)) = self.binary_parts(node) else {
                     return Ok(SEMANTICS_SOMETIMES);
                 };
                 match self.operator_kind(operator_token) {
@@ -3804,11 +3815,20 @@ impl<'a> CheckerState<'a> {
                     | SyntaxKind::AmpersandAmpersandEqualsToken => SEMANTICS_SOMETIMES,
                     // For these operator kinds, the right operand is
                     // effectively controlling.
-                    SyntaxKind::CommaToken
-                    | SyntaxKind::EqualsToken
-                    | SyntaxKind::QuestionQuestionToken
-                    | SyntaxKind::QuestionQuestionEqualsToken => {
+                    SyntaxKind::CommaToken | SyntaxKind::EqualsToken => {
                         self.get_syntactic_nullishness_semantics(right)?
+                    }
+                    // tsgo (checker.go:13185-13194): the result is the left
+                    // operand when it is not nullish, else the right one; a
+                    // non-nullish left contributes Never, a nullish one adds
+                    // the right operand's semantics.
+                    SyntaxKind::QuestionQuestionToken | SyntaxKind::QuestionQuestionEqualsToken => {
+                        let left_semantics = self.get_syntactic_nullishness_semantics(left)?;
+                        let mut result = left_semantics & SEMANTICS_NEVER;
+                        if left_semantics & SEMANTICS_ALWAYS != 0 {
+                            result |= self.get_syntactic_nullishness_semantics(right)?;
+                        }
+                        result
                     }
                     _ => SEMANTICS_NEVER,
                 }
