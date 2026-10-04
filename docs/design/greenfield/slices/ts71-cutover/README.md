@@ -1818,3 +1818,43 @@ P3-5agの後、errorsの不一致のうち、診断のファイル名の扱い�
     同一、Effectは上と同じ順の違いだけ。劣化無し。
   - 比較の途中で、Effect（`--noEmit`）でtsgoが出す`src/http/HttpClient.ts(412,5)`のTS2322（`With<E1 | Exclude<E, …>>`が
     `With<E1 | ExcludeTag<E, …>>`に代入できない）をtsc-rsが出していないことに気づいた（mainでも同じ。別のslice）。
+
+## P3-5ai 診断文の細部とimported helper（2026-10-04）
+
+P3-5ahの後、errorsのCategory／Text／不一致のうち、診断文の組み立てとimported helperの検査が6.0どおりだったもの：
+- **TS2741の名前**：tsgoは不足したpropertyを素のsymbolToStringで書く（relater.go:4394）。6.0はWriteComputedPropsで
+  計算名を書き直していた（`[16]`、`[E.A]`）。tsgoどおり、早期束縛の計算名はsourceのまま（`[0x10]`、`[ 'ab' ]`）、
+  enum keyのmapped propertyは値（`0`）。`missing_property_display_name`からWriteComputedPropsを除いた。
+- **enum keyの型表示**：文字列の型表示に、tsgoのenum literalの枝（nodebuilderimpl.go:2535-2552）が無かった。
+  描画のenclosingからenumが値として見えるとき`{ [E.B]: number; }`と書く（P3-5afでd.ts側に入れたものと同じ規則）。
+- **TS18013のclass名**：tsgoはclassのsymbolをsymbolToStringで書く（checker.go:11724）。代入先の名前（`c1`、`k`）や
+  `(Anonymous class)`になる。6.0は名前の無いclassを`(anonymous)`と書いていた。
+- **TS18042のimport文**：tsgoは最も近いimport／import-equals／変数宣言のspecifierを使い、import specifierのときだけ
+  名前を付ける（checker.go:6935-6950）：`import("@truffle/contract")`、`import("./t")`。
+- **TS2713**：右側の名前が欠けているとき、tsgoは空のtext（checker.go:16199）、6.0は`(Missing)`。
+- **TS18043の注記**：「automatically exported here」はtypedefの名前を指す（tsgoはtagをJSTypeAliasDeclarationに
+  reparseし、その範囲は名前）。
+- **imported helper**：tsgoは要求済みhelperをsource fileごとに持つ（checker.go:29053）。6.0はhelperのmoduleに持ち、
+  2つ目以降のfileが報告されなかった。CommonJSのfileではdefault importに`__importDefault`、namespace importと
+  `export * as`に`__importStar`を、esModuleInteropの条件無しで求める（checker.go:5419-5447、5509-5513、5688-5695、
+  5734-5737）。`__spreadArray`の引数の数は検査しない（tsgoが検査するのはprivate fieldのhelperだけ）。
+- **nodeの無いcheckerの診断**：tsgoの`NewDiagnosticForNode(nil, …)`は範囲(0, 0)、compilerの診断は(-1, -1)なので、
+  ファイルの無い診断はcompilerのものが先に並ぶ（TS5053がTS2318より先）。tsc-rsはどちらも位置無しで、codeの順だった。
+  checkerの位置無し診断に0を持たせた。
+- unit test：CLI（tsgoの出力にpin）で2つ（TS2741・型表示・TS18013、helperのfileごとの報告とdefault import）。
+  6.0に固定していた4つを書き直した：TS18013の名前、早期束縛の計算名（`[ 'ab' ]`、tsgoで確認）、`__spreadArray`の
+  引数の数、TS18044の位置。
+- conformance（release build、`b6fde98f7`、`--workers 2`、508 s）：
+  - 15,228構成、lane A 13,467（変化なし）。
+  - errors full 13,353→13,365（+12）：`assignmentCompatWithEnumIndexer`、`privateNameMethodClassExpression`、
+    `elidedJSImport1`、`requireTypesOnly`、`errorForUsingPropertyOfTypeAsType01`、`importingExportingTypes`、
+    `tslibMissingHelper`、`tslibMultipleMissingHelper`、`tslibImportDefaultHelperCommonJS`、
+    `esModuleInteropTslibHelpers`、`arrayIterationLibES5TargetDifferent`（2構成）。text 6→3、category 13→8、
+    mismatch 73→69。
+  - emitは変化なし。下がった構成も、不一致のまま描いた文が変わった構成も無い。
+  - `intersectionConstructorReductionCrash`は今回もmemory制限でharness error（負荷に依存、ratchetの外）。
+- ratchet：0 regressions、12行raise。
+- local：formatとworkspace全体のclippy。diagnostics・syntax・binder・program・harness・emitter・checker・compiler・
+  conformanceのtest（62 targets、3,625件成功・1件失敗。TS18044の位置のtestを直した後にcheckerのlib 1,796件を再実行）。
+  試行（filter `tslib`・`elper`・`sModuleInterop`・`rivateName`・`omputed`・`num`・`equire`・`xport`・`mport`・
+  `oLib`・`lobal`・`ib`・`arget`・`ption`・`salsa`・`ypedef`・`jsdoc`）で下がった構成は無かった。
