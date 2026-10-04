@@ -270,6 +270,23 @@ impl<'t> DeclarationSymbolTracker<'t> {
             }));
     }
 
+    /// A diagnostic with arguments at `anchor` (tsgo's
+    /// `tx.state.addDiagnostic(createDiagnosticForNode(node, message, args...))`).
+    pub(crate) fn report_diagnostic_with_args_at(
+        &mut self,
+        anchor: TrackerAnchor,
+        message: &'static DiagnosticMessage,
+        args: Vec<DiagnosticArgument>,
+    ) {
+        self.pending_effects
+            .push_back(TrackerEffect::Diagnostic(DiagnosticSpec {
+                message,
+                args,
+                anchor,
+                related: Vec::new(),
+            }));
+    }
+
     /// tsc-port: createAccessorTypeError @6.0.3
     /// tsc-hash: 69275636e581b6fc01ecb033d3c8c676a9b89ca27099a3598c0320898e66166c
     /// tsc-span: _tsc.js:114140-114151

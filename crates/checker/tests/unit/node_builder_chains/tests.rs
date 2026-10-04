@@ -74,8 +74,9 @@ fn property_name_nodes_retain_raw_symbol_and_name_type_values() {
                         units.to_vec()
                     };
                     assert_eq!(written.to_utf16(), expected_written);
+                    let enclosing = context.enclosing_declaration;
                     let name = chains_get_property_name_node_for_symbol(
-                        checker, arena, target, context, symbol,
+                        checker, arena, target, context, symbol, enclosing,
                     )?;
                     let NodeData::StringLiteral(data) =
                         &arena.node(name).map_err(factory_error)?.data

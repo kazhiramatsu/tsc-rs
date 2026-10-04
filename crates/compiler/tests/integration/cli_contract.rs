@@ -2689,6 +2689,117 @@ fn type_parentheses_follow_the_tsgo_printer() {
 }
 
 #[test]
+fn enum_member_property_names_follow_tsgo() {
+    // tsgo writes a property named by an enum member as a computed reference
+    // to the member when the enum is accessible as a value from the enclosing
+    // declaration (nodebuilderimpl.go:2535-2552), and as the member's value
+    // otherwise. The expected declarations are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "export enum S { A = \"a\", B = \"not-an-identifier\" }\n",
+            "export enum N { Zero = 0, One = 1 }\n",
+            "export const record = { [S.A]: 1, [S.B]: 2, [N.Zero]: true, [N.One]: false };\n",
+            "export function local() {\n",
+            "    enum L { X = \"x\" }\n",
+            "    return { [L.X]: 1 };\n",
+            "}\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2022","module":"esnext","declaration":true,"emitDeclarationOnly":true,"outDir":"out","types":[],"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.d.ts")).expect("read a.d.ts"),
+        concat!(
+            "export declare enum S {\n",
+            "    A = \"a\",\n",
+            "    B = \"not-an-identifier\"\n",
+            "}\n",
+            "export declare enum N {\n",
+            "    Zero = 0,\n",
+            "    One = 1\n",
+            "}\n",
+            "export declare const record: {\n",
+            "    [S.A]: number;\n",
+            "    [S.B]: number;\n",
+            "    [N.Zero]: boolean;\n",
+            "    [N.One]: boolean;\n",
+            "};\n",
+            "export declare function local(): {\n",
+            "    x: number;\n",
+            "};\n",
+        )
+    );
+}
+
+#[test]
+fn declaration_transform_details_follow_tsgo() {
+    // tsgo's declaration transform writes a synthesized setter parameter as
+    // `value: any` unless the accessor is private (transform.go:1037-1071) and
+    // a missing mapped type template as `any` (transform.go:723-740); it
+    // reports a private name in a type query, which its parser accepts
+    // (parser.go:3164-3174), as TS7080 (transform.go:668-672), which blocks
+    // that file's declarations. The expected diagnostics and bytes are tsgo's
+    // for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "export class C {\n",
+            "    set foo() { }\n",
+            "    private set bar() { }\n",
+            "}\n",
+            "export type M<T> = {[K in keyof T]};\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("b.ts"),
+        "export class P {\n    #a = 1;\n    b: typeof this.#a = 1;\n}\n",
+    )
+    .expect("write b.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"esnext","module":"esnext","declaration":true,"outDir":"out","types":[],"strict":true},"files":["a.ts","b.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("utf-8 stdout"),
+        concat!(
+            "a.ts(2,9): error TS1049: A 'set' accessor must have exactly one parameter.\n",
+            "a.ts(2,9): error TS7032: Property 'foo' implicitly has type 'any', because its set accessor lacks a parameter type annotation.\n",
+            "a.ts(3,17): error TS1049: A 'set' accessor must have exactly one parameter.\n",
+            "a.ts(3,17): error TS7032: Property 'bar' implicitly has type 'any', because its set accessor lacks a parameter type annotation.\n",
+            "a.ts(5,20): error TS7039: Mapped object type implicitly has an 'any' template type.\n",
+            "b.ts(3,15): error TS7080: Declaration emit elides private members, but '#a' refers to a private member. Write an explicit type here.\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.d.ts")).expect("read a.d.ts"),
+        concat!(
+            "export declare class C {\n",
+            "    set foo(value: any);\n",
+            "    private set bar(value);\n",
+            "}\n",
+            "export type M<T> = {\n",
+            "    [K in keyof T]: any;\n",
+            "};\n",
+        )
+    );
+    assert!(!tree.path("out/b.d.ts").exists());
+}
+
+#[test]
 fn error_recovery_syntax_is_erased_like_tsgo() {
     // tsgo's type eraser drops type parameters and return types from accessors
     // and constructors, every modifier of a constructor it visits, and `in`/`out`

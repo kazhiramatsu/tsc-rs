@@ -833,7 +833,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         let pos = self.node_pos();
         let has_brace = self.parser.parse_optional(SyntaxKind::OpenBraceToken);
         let member_pos = self.node_pos();
-        let mut entity = self.parser.parse_entity_name(false, None);
+        let mut entity = self.parser.parse_entity_name(false, false, None);
         while self.token() == SyntaxKind::PrivateIdentifier {
             self.parser.scanner.re_scan_hash_token();
             self.next_token_jsdoc();

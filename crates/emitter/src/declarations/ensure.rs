@@ -395,9 +395,8 @@ impl DeclarationTransformer<'_> {
         )
     }
 
-    /// tsc-port: updateAccessorParamsList @6.0.3
-    /// tsc-hash: 2d28717c51a39657a91a639c5c0c6b8bdb65c25240aec4abfb393602312bbbf2
-    /// tsc-span: _tsc.js:114764-114792
+    /// tsgo-port: DeclarationTransformer.updateAccessorParamList @7.1
+    /// (transform.go:1037-1071)
     pub(crate) fn update_accessor_params_list(
         &mut self,
         cx: &mut TransformationContext,
@@ -407,7 +406,8 @@ impl DeclarationTransformer<'_> {
         let parameters = parameters(cx, input)?;
         let mut updated = Vec::new();
         if !is_private {
-            if let Some(this_parameter) = parameters.iter().copied().find(|parameter| {
+            // ast.GetThisParameter: only a first parameter named `this`.
+            if let Some(this_parameter) = parameters.first().copied().filter(|parameter| {
                 node_name(cx, *parameter)
                     .ok()
                     .flatten()
@@ -423,15 +423,16 @@ impl DeclarationTransformer<'_> {
             }
         }
         if self.kind(cx, input)? == SyntaxKind::SetAccessor {
+            // tsgo updateAccessorParamList (transform.go:1037-1071): the value
+            // parameter follows a kept `this` parameter, or is the first one.
             let value = if is_private {
                 None
+            } else if updated.len() == 1 {
+                parameters.get(1).copied()
+            } else if updated.is_empty() {
+                parameters.first().copied()
             } else {
-                parameters.into_iter().find(|parameter| {
-                    node_name(cx, *parameter)
-                        .ok()
-                        .flatten()
-                        .is_none_or(|name| identifier_text(cx, name).as_deref() != Some("this"))
-                })
+                None
             };
             let value = match value {
                 Some(value) => self.ensure_parameter(
@@ -442,14 +443,24 @@ impl DeclarationTransformer<'_> {
                     ),
                 )?,
                 None => {
+                    // A synthesized value parameter is `value: any` unless the
+                    // accessor is private.
                     let name = cx.factory()?.create_identifier(input.source(), "value")?;
+                    let r#type = if is_private {
+                        None
+                    } else {
+                        Some(
+                            cx.factory()?
+                                .create_keyword_type_node(input.source(), SyntaxKind::AnyKeyword)?,
+                        )
+                    };
                     cx.factory()?.create_parameter_declaration(
                         input.source(),
                         None,
                         None,
                         name,
                         None,
-                        None,
+                        r#type,
                         None,
                     )?
                 }

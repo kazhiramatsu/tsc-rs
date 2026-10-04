@@ -2525,15 +2525,16 @@ fn create_property_name_for_identifier_or_literal(
     create_string_literal(arena, target, name, single_quote)
 }
 
-/// tsc-port: getPropertyNameNodeForSymbol @6.0.3
-/// tsc-hash: a64ea322c766c6a89edc618ddf69f81752dfc6283c09d92c1f4cfe969de2aa10
-/// tsc-span: _tsc.js:53411-53425
+/// tsgo-port: NodeBuilderImpl.getPropertyNameNodeForSymbol @7.1
+/// (nodebuilderimpl.go:2498-2524): `enclosing_declaration` is the element
+/// list's enclosing declaration, before it moved to the property's.
 pub(crate) fn chains_get_property_name_node_for_symbol(
     checker: &mut CheckerState<'_>,
     arena: &mut TransformArena,
     target: TransformSourceId,
     context: &mut NodeBuilderContext<'_>,
     symbol: SymbolId,
+    enclosing_declaration: Option<NodeId>,
 ) -> BuildResult<TransformNode> {
     if let Some(name) = cloned_hash_private_name(checker, arena, symbol)? {
         return Ok(name);
@@ -2556,6 +2557,7 @@ pub(crate) fn chains_get_property_name_node_for_symbol(
         target,
         context,
         symbol,
+        enclosing_declaration,
         single_quote,
         string_named,
         is_method,
@@ -2575,9 +2577,8 @@ pub(crate) fn chains_get_property_name_node_for_symbol(
     )
 }
 
-/// tsc-port: getPropertyNameNodeForSymbolFromNameType @6.0.3
-/// tsc-hash: 06ac4eff5825901e06db1944b8f2232d9eaf4190791754bd7210495787a98049
-/// tsc-span: _tsc.js:53426-53443
+/// tsgo-port: NodeBuilderImpl.getPropertyNameNodeForSymbolFromNameType @7.1
+/// (nodebuilderimpl.go:2527-2590)
 #[allow(clippy::too_many_arguments)]
 fn get_property_name_node_for_symbol_from_name_type(
     checker: &mut CheckerState<'_>,
@@ -2585,6 +2586,7 @@ fn get_property_name_node_for_symbol_from_name_type(
     target: TransformSourceId,
     context: &mut NodeBuilderContext<'_>,
     symbol: SymbolId,
+    enclosing_declaration: Option<NodeId>,
     single_quote: bool,
     string_named: bool,
     is_method: bool,
@@ -2593,6 +2595,50 @@ fn get_property_name_node_for_symbol_from_name_type(
         return Ok(None);
     };
     let flags = checker.tables.flags_of(name_type);
+    // tsgo (nodebuilderimpl.go:2535-2552): an enum member's name is written as
+    // a computed reference to the member when its enum is accessible as a
+    // value from the enclosing declaration, or else the enclosing file.
+    if flags.intersects(TypeFlags::ENUM_LITERAL) {
+        let enum_enclosing = enclosing_declaration.or(context.enclosing_file);
+        let member = checker.tables.type_of(name_type).symbol;
+        let enum_symbol =
+            member.map(|member| checker.binder.symbol(member).parent.unwrap_or(member));
+        if let (Some(enclosing), Some(member), Some(enum_symbol)) =
+            (enum_enclosing, member, enum_symbol)
+        {
+            let accessibility = checker
+                .is_symbol_accessible_worker(
+                    Some(enum_symbol),
+                    Some(enclosing),
+                    SymbolFlags::VALUE,
+                    false,
+                    false,
+                )
+                .map_err(|abort| checker_abort_error(checker, context, abort))?
+                .accessibility;
+            if accessibility == tsc_emitter::EmitSymbolAccessibility::Accessible {
+                let saved = context.enclosing_declaration.replace(enclosing);
+                let expression = chains_symbol_to_expression(
+                    checker,
+                    arena,
+                    target,
+                    context,
+                    member,
+                    EmitSymbolMeaning(SymbolFlags::VALUE.bits() as u32),
+                );
+                context.enclosing_declaration = saved;
+                let expression = expression?;
+                return create_node(
+                    arena,
+                    target,
+                    NodeData::ComputedPropertyName(ComputedPropertyNameData {
+                        expression: Some(expression.node()),
+                    }),
+                )
+                .map(Some);
+            }
+        }
+    }
     if flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL) {
         let literal_type = checker.tables.type_of(name_type).data.clone();
         let name = match &literal_type {
