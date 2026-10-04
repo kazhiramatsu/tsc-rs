@@ -1985,3 +1985,34 @@ P3-5akの後、`require`で読むJSONの3件：
     branch÷main：hono 1.00038、Effect 0.99971。3回のmedianの差はnoise。
   - `tsconfig.bench-full.json` 3回：hono 158→158、zod 673→695、Playwright 534→521、TypeScript `src/compiler` 573→525、
     Next.js 1,134→1,085、Effect 823→821。tsc-rs÷tsgo 0.57–0.79。6 corporaとも出力fileと診断は同一。劣化無し。
+
+## P3-5am configのエラーでProgramを止めないこととconfigの名前（2026-10-05）
+
+P3-5alの後、CLIのconfigの扱いの3件：
+- **configのエラーでProgramを止めない**：tsgoはconfigが何を報告してもProgramを作り、検査し、出力する。configの
+  解析の診断（`GetConfigFileParsingDiagnostics`）とoptionの診断はProgramの診断と一緒に出す（compiler/program.go:
+  2010-2065）。optionの行がある時だけ意味の診断を出さない（`GetDiagnosticsOfAnyProgram`）。tsc-rsのconfigの
+  loaderはconfigの診断（変換のTS5024、未知のoptionのTS5023など）とoptionの行で止まり、それだけを出していた。
+  loaderの関門は対応範囲の検査だけにし、公開の`validate_config_plan`は今までどおり両方の一覧を返す。
+- **configの名前**：tsgoはconfigを正規化した絶対pathで名付け（`GetParsedCommandLineOfConfigFile`、
+  tsoptions/tsconfigparsing.go:2071）、診断ではcurrent directoryからの相対で書く。tsc-rsは`-p`の綴りのままで
+  名付けたので、`-p .`では`./tsconfig.json(..)`と書いていた。includeのpatternの説明はtsgoと同じく絶対pathになった。
+- **no-emitの経路が受け付けるもの**：未知のoptionの名前（TS5023は報告済み）、出力にだけ効くsource mapのoption
+  （`inlineSourceMap`、`inlineSources`、`sourceRoot`、`mapRoot`。その行はplanが出す）、使わないroot scope
+  （`watchOptions`、`typeAcquisition`）を、emitの経路と同じく受け付ける。`incremental`などbuildinfoの意味を持つ
+  optionとproject referencesは今までどおり止める。
+- unit test：CLI（tsgoの出力にpin）でconfigの3種のエラーと型の誤り、`-p`の4つの綴りでのconfigの名前とincludeの
+  patternの説明。programのtestは、configの診断で止まるとしていた3件と、継承したroot scopeの1件をtsgoの挙動に
+  合わせた。
+- conformance（release build、`4628a7e7f`、`--workers 2`、547 s）：
+  - 15,228構成、lane A 13,467、errors full 13,371、emit full 13,376（`intersectionConstructorReductionCrash`を
+    除く）で変化なし。変えたのはCLIとconfigのloaderで、conformanceのharnessの経路は変わらない。
+  - `intersectionConstructorReductionCrash`は今回、memory制限で止まった後の再実行で最後まで通り、errorsとemitが
+    fullになった。負荷で結果の変わる構成なので、今までどおりratchetに入れない。
+- ratchet：0 regressions、変更無し。
+- local：formatとworkspace全体のclippy。program・compilerのtest（13 targets、784件）。CLIの出力はtsgoと、configの
+  変換の誤り、未知のoption、optionの衝突（TS5053）、`inlineSources`・`sourceRoot`（TS5051）、`mapRoot`（TS5069）、
+  `--noEmit`の指定、`noEmitOnError`、`-p`の綴り、includeのpatternの説明、`watchOptions`と`typeAcquisition`で同一。
+- 残り：tsgoはtsconfigの`watchOptions`を変換しない（tsoptions/tsconfigparsing.goに無い）ので、その値の誤りを報告
+  しない。tsc-rsはTS6046を出す（emitの経路で以前からの違い）。tsconfigの変換をtsgoの`tsoptions`に合わせるslice
+  （P3-5alの残り）で扱う。
