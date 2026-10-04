@@ -43,7 +43,6 @@ struct TestResolver {
     expression_result: Option<SyntaxKind>,
     return_result: Option<SyntaxKind>,
     existing_result: Option<SyntaxKind>,
-    jsdoc_override: Option<SyntaxKind>,
 }
 
 impl TestResolver {
@@ -59,7 +58,6 @@ impl TestResolver {
             expression_result: Some(SyntaxKind::NumberKeyword),
             return_result: Some(SyntaxKind::VoidKeyword),
             existing_result: Some(SyntaxKind::AnyKeyword),
-            jsdoc_override: None,
         }
     }
 
@@ -350,18 +348,6 @@ impl SyntacticBuilderResolver for TestResolver {
         _type_arguments: Option<TransformNodeArray>,
     ) -> Result<Option<TransformNode>, EmitResolverError> {
         Ok(Some(node))
-    }
-
-    fn get_js_doc_property_override(
-        &mut self,
-        arena: &mut TransformArena,
-        target: TransformSourceId,
-        _context: &mut NodeBuilderContext<'_>,
-        _js_doc_type_literal: TransformNode,
-        _js_doc_property: TransformNode,
-    ) -> Result<Option<TransformNode>, EmitResolverError> {
-        self.events.borrow_mut().push("jsdoc-override".to_owned());
-        Self::keyword(arena, target, self.jsdoc_override)
     }
 
     fn enter_new_scope(
@@ -946,21 +932,26 @@ fn syntactic_simple_visit_covers_keyof_typeof_and_indexed_access() {
 }
 
 #[test]
-fn syntactic_jsdoc_type_literal_consults_property_override() {
+fn syntactic_jsdoc_type_literal_keeps_written_property_types() {
+    // tsgo reparses a JSDoc type literal into a type literal whose
+    // properties keep their written types (reparseJSDocTypeLiteral,
+    // reparser.go:244-283): an optional `@property` stays `number` without
+    // `| undefined`, and a name that is not an identifier is a string
+    // literal.
     let events = Rc::new(RefCell::new(Vec::new()));
     let mut resolver = TestResolver::new(Rc::clone(&events));
-    resolver.jsdoc_override = Some(SyntaxKind::BooleanKeyword);
     let mut tracker = TestTracker {
         events: Rc::clone(&events),
     };
     let options = CompilerOptions {
         allow_js: true,
         check_js: Some(true),
+        strict_null_checks: Some(true),
         ..CompilerOptions::default()
     };
     with_case(
         "/main.js",
-        "/**\n * @typedef {Object} Box\n * @property {number} value\n */\nconst value = {};\n",
+        "/**\n * @typedef {Object} Box\n * @property {number} [value]\n * @property {string} data-name\n */\nconst value = {};\n",
         &options,
         &mut resolver,
         &mut tracker,
@@ -971,36 +962,47 @@ fn syntactic_jsdoc_type_literal_consults_property_override() {
             let result = builder
                 .try_reuse_existing_type_node(resolver, arena, target, context, jsdoc)?
                 .expect("JSDoc type literal reused");
-            assert!(events
-                .borrow()
-                .iter()
-                .any(|event| event == "jsdoc-override"));
             let NodeData::TypeLiteral(data) = &arena.node(result).expect("type literal").data
             else {
                 panic!("expected type literal")
             };
-            let member = arena
+            let members = arena
                 .node_array_ref(result.source(), data.members.expect("members"))
                 .expect("member array");
-            let member_id = arena.node_array(member).expect("member records").nodes[0];
-            let member = arena
-                .node_ref(result.source(), member_id)
-                .expect("property signature");
-            let NodeData::PropertySignature(data) =
-                &arena.node(member).expect("property signature record").data
-            else {
-                panic!("expected property signature")
+            let members = arena.node_array(members).expect("member records").nodes.to_vec();
+            assert_eq!(members.len(), 2);
+            let property = |index: usize| {
+                let member = arena
+                    .node_ref(result.source(), members[index])
+                    .expect("property signature");
+                let NodeData::PropertySignature(data) =
+                    arena.node(member).expect("property signature record").data.clone()
+                else {
+                    panic!("expected property signature")
+                };
+                (member, data)
             };
-            let property_type = arena
-                .node_ref(member.source(), data.r#type.expect("property type"))
+            let (value, value_data) = property(0);
+            assert!(value_data.question_token.is_some());
+            let value_type = arena
+                .node_ref(value.source(), value_data.r#type.expect("property type"))
                 .expect("property type node");
             assert_eq!(
                 arena
-                    .node(property_type)
+                    .node(value_type)
                     .expect("property type record")
                     .kind,
-                SyntaxKind::BooleanKeyword
+                SyntaxKind::NumberKeyword
             );
+            let (name, name_data) = property(1);
+            let name = arena
+                .node_ref(name.source(), name_data.name.expect("property name"))
+                .expect("property name node");
+            let NodeData::StringLiteral(literal) = &arena.node(name).expect("name record").data
+            else {
+                panic!("expected a string literal name")
+            };
+            assert_eq!(literal.text, "data-name");
             Ok(())
         },
     );
