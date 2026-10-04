@@ -1523,6 +1523,208 @@ fn javascript_template_tags_on_function_expressions_follow_tsgo() {
 }
 
 #[test]
+fn typescript_expandos_follow_tsgo() {
+    // tsgo collects the `F.x = …` assignments of a file before its statements
+    // and writes their host as a function declaration followed by a namespace
+    // of `var` members (transform.go:2700-2970): an identifier value becomes
+    // `export { value as name }`, a keyword or a name that resolves elsewhere
+    // gets a generated name exported under the property name, a host that is
+    // not visible waits until a type reference paints it, and a non-exported
+    // function exported by an assignment is painted too. A variable whose
+    // only property has a non-identifier name keeps its type, not `typeof`
+    // itself. The expected bytes are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("expando.ts"),
+        concat!(
+            "export function A() {\n",
+            "    return 'A';\n",
+            "}\n",
+            "export enum Kind { One }\n",
+            "A.kind = Kind;\n",
+            "A.count = 1;\n",
+            "A.null = \"x\";\n",
+            "A.name = 2;\n",
+            "\n",
+            "export const f = (x: number) => x;\n",
+            "f.options = { verbose: true };\n",
+            "f[\"list\"] = [1, 2];\n",
+            "\n",
+            "function hidden() {}\n",
+            "hidden.flag = true;\n",
+            "export const useHidden: typeof hidden = hidden;\n",
+            "\n",
+            "function helper() {}\n",
+            "export function C() {\n",
+            "    return null;\n",
+            "}\n",
+            "C.helper = helper;\n",
+            "\n",
+            "export default function D() {}\n",
+            "D.enabled = true;\n",
+            "\n",
+            "export const plain = () => {};\n",
+            "plain[1] = 0;\n",
+        ),
+    )
+    .expect("write expando.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2022","module":"esnext","strict":true,"declaration":true,"emitDeclarationOnly":true,"types":[],"outDir":"out"},"files":["expando.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/expando.d.ts")).expect("read expando.d.ts"),
+        concat!(
+            "export declare function A(): string;\n",
+            "export declare namespace A {\n",
+            "    export { Kind as kind };\n",
+            "    export var count: number;\n",
+            "    export var _a: string;\n",
+            "    export { _a as null };\n",
+            "    export var _b: number;\n",
+            "    export { _b as name };\n",
+            "}\n",
+            "export declare enum Kind {\n",
+            "    One = 0\n",
+            "}\n",
+            "export declare function f(x: number): number;\n",
+            "export declare namespace f {\n",
+            "    var options: {\n",
+            "        verbose: boolean;\n",
+            "    };\n",
+            "    var list: number[];\n",
+            "}\n",
+            "declare function hidden(): void;\n",
+            "declare namespace hidden {\n",
+            "    var flag: boolean;\n",
+            "}\n",
+            "export declare const useHidden: typeof hidden;\n",
+            "declare function helper(): void;\n",
+            "export declare function C(): null;\n",
+            "export declare namespace C {\n",
+            "    export { helper };\n",
+            "}\n",
+            "declare function D(): void;\n",
+            "export default D;\n",
+            "declare namespace D {\n",
+            "    var enabled: boolean;\n",
+            "}\n",
+            "export declare const plain: {\n",
+            "    (): void;\n",
+            "    1: number;\n",
+            "};\n",
+        )
+    );
+}
+
+#[test]
+fn javascript_expandos_follow_tsgo() {
+    // JavaScript expandos take the same path as TypeScript ones in tsgo: a
+    // variable host becomes a new function declaration (without the
+    // variable's JSDoc), a `@type` on an assignment types its member, a class
+    // host keeps its class with a namespace after it, a generator keeps its
+    // `*`, and a script's hosts are global. The expected bytes are tsgo's for
+    // the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("module.js"),
+        concat!(
+            "/**\n",
+            " * Formats a value.\n",
+            " * @param {number} value\n",
+            " */\n",
+            "export const format = (value) => String(value);\n",
+            "format.width = 1;\n",
+            "/** @type {string | undefined} */\n",
+            "format.label = undefined;\n",
+            "format.self = format;\n",
+            "\n",
+            "export function parse() {}\n",
+            "parse[\"strict\"] = true;\n",
+            "parse.default = 1;\n",
+            "\n",
+            "export class Registry {}\n",
+            "Registry.instance = new Registry();\n",
+            "\n",
+            "/**\n",
+            " * @template T\n",
+            " * @param {T} value\n",
+            " * @returns {Generator<T>}\n",
+            " */\n",
+            "export function* repeat(value) { yield value; }\n",
+            "repeat.times = 2;\n",
+        ),
+    )
+    .expect("write module.js");
+    fs::write(
+        tree.path("script.js"),
+        concat!(
+            "function legacy() {}\n",
+            "legacy.version = 1;\n",
+            "var make = function () {};\n",
+            "make.kind = \"\";\n",
+        ),
+    )
+    .expect("write script.js");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2022","module":"esnext","allowJs":true,"checkJs":true,"strict":true,"declaration":true,"emitDeclarationOnly":true,"types":[],"outDir":"out"},"files":["module.js","script.js"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/module.d.ts")).expect("read module.d.ts"),
+        concat!(
+            "export declare function format(value: number): string;\n",
+            "export declare namespace format {\n",
+            "    var width: number;\n",
+            "    export { undefined as label };\n",
+            "    export { format as self };\n",
+            "}\n",
+            "export declare function parse(): void;\n",
+            "export declare namespace parse {\n",
+            "    export var strict: boolean;\n",
+            "    var _a: number;\n",
+            "    export { _a as default };\n",
+            "}\n",
+            "export declare class Registry {\n",
+            "}\n",
+            "export declare namespace Registry {\n",
+            "    var instance: Registry;\n",
+            "}\n",
+            "/**\n",
+            " * @template T\n",
+            " * @param {T} value\n",
+            " * @returns {Generator<T>}\n",
+            " */\n",
+            "export declare function* repeat<T>(value: T): Generator<T>;\n",
+            "export declare namespace repeat {\n",
+            "    var times: number;\n",
+            "}\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/script.d.ts")).expect("read script.d.ts"),
+        concat!(
+            "declare function legacy(): void;\n",
+            "declare namespace legacy {\n",
+            "    var version: number;\n",
+            "}\n",
+            "declare function make(): void;\n",
+            "declare namespace make {\n",
+            "    var kind: string;\n",
+            "}\n",
+        )
+    );
+}
+
+#[test]
 fn declarations_and_namespace_merges_follow_tsgo() {
     // tsgo keeps a binding pattern without initializers whole in a `.d.ts`,
     // typed as the whole declaration; a variable, function or class already
