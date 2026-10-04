@@ -1770,3 +1770,37 @@ P3-5afの後、errorsのCategory／Textの不一致のうち、診断文の型�
   - `tsconfig.bench-full.json` 3回：hono 149→148、zod 669→649、Playwright 504→506、TypeScript `src/compiler`
     567→534、Next.js 1,083→1,111、Effect 812→807。tsc-rs÷tsgo 0.63–0.81。6 corporaとも出力fileと診断はmainと同一。
     Next.jsは6回のA/Bで997→984、命令数branch÷main 1.00016。劣化無し。
+
+## P3-5ah 診断のファイル名：並び順、tsconfigの名前、ドライブ付きの名前、referenceの書かれた名前（2026-10-04）
+
+P3-5agの後、errorsの不一致のうち、診断のファイル名の扱いが原因のもの：
+- **並び順**：tsgoの`CompareDiagnostics`は`File().FileName()`で比べる（ast/diagnostic.go:390-395、482-520）。tsc 6.0は
+  `SourceFile.path`で比べ、大文字小文字を区別しないfile systemでは小文字に畳み、parseしたconfigでは空だった。
+  tsc-rsは6.0どおり`Diagnostic.file_path`を持っていた。これを削除し、ファイル名で比べる。`file_path`のためだけの
+  コード（configの`diagnostic_file_path`、`with_resolved_config_source_path`、compilerのpathの付け直し、
+  `EmitOutcome::diagnostics_mut`）も削除した。CLIでは`B.ts`が`a.ts`より先になる（tsgoと同じ。macOSの6.0は逆）。
+- **tsconfigの名前**：tsgoのtest case parserはconfigを正規化した絶対path（`/.src/tsconfig.json`）で名付ける
+  （testrunner/test_case_parser.go:84）。harnessは書かれた名前（`tsconfig.json`）を渡していたので、runnerが位置を
+  引けず（`(1,1)`）、並びも先頭になっていた。
+- **ドライブ付きの名前**：runnerはunitの名前に`/.src/`を常に付けていた（`/.src/c:/app/main.ts`）。harnessの
+  rooted pathの正規化（`GetNormalizedAbsolutePath`）を使う。
+- **referenceの名前**：path reference（TS6053、TS6504、TS6054、TS6231）は書かれたreferenceをslashだけ正規化して
+  名付ける（tsgoの`diagnosticFileName`、compiler/fileloader.go:697）。6.0は解決したpathだった。checkerにも6.0由来の
+  TS6053の経路があり、同じ文にした（違う文だと2行になる）。
+- unit test：CLI（tsgoの出力にpin）でファイル名の順とreferenceの名前の2つ、runnerでrooted pathの正規化。
+  6.0の挙動に固定していた4つを書き直した：diagnosticsの並び（configが先頭→名前順）、checkerの
+  `'../typescript.ts'`、program sessionのTS6053、空のreferenceのTS6231（`''`、tsgoで確認）。
+- conformance（release build、`d808eafd4`、`--workers 2`、553 s）：
+  - 15,228構成、lane A 13,467（変化なし）。
+  - errors full 13,346→13,353（+8、うち1つは下記の構成の外れ）：`pathsValidation5`、`tsconfigRootdirInclude`、
+    `keepImportsInDts1`、`missingMemberErrorHasShortPath`、`pathMappingBasedModuleResolution1_node`、
+    `typingsLookup3`、`selfReferencingFile2`、`parserharness`。text 7→6、category 15→13、mismatch 78→73。
+  - emitの不一致は61のまま。下がった構成は無い。不一致のまま描いた文が変わった構成も無い。
+  - `intersectionConstructorReductionCrash`はmemory制限（3,072 MiB）に2回かかりharness errorになった
+    （emit full 13,377→13,376、harness errors 21→22はこの1構成）。負荷に依存する構成で、単独ではfull（35.7 s、
+    最大RSS 3.26 GB）。ratchetには入れない。
+- ratchet：0 regressions、8行raise。
+- local：formatとworkspace全体のclippy。diagnostics・syntax・binder・program・harness・emitter・checker・compiler・
+  conformanceのtest（62 targets、3,624件。空referenceのtestを直した後にprogramの`contracts` 503件を再実行）。試行：config／ドライブ付きのunitを持つ165 caseと、
+  `@useCaseSensitiveFileNames: false`／`@currentDirectory`の55 case、path referenceかTS6053等を持つ345 caseを
+  1件ずつ実行し、下がった構成は無かった。

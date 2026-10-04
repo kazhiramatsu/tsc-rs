@@ -4134,6 +4134,7 @@ compiler/jsxTernaryWithObjectInAttribute	full	js
 compiler/jsxUnicodeEscapeSequence	full	js
 compiler/jsxViaImport	full	js
 compiler/jsxViaImport.2	full	js
+compiler/keepImportsInDts1	full	js
 compiler/keepImportsInDts2	full	js
 compiler/keyRemappingKeyofResult	full	js
 compiler/keyRemappingKeyofResult2	full	js
@@ -4350,6 +4351,7 @@ compiler/missingDomElements	full	js
 compiler/missingFunctionImplementation	full	js
 compiler/missingFunctionImplementation2	full	js
 compiler/missingImportAfterModuleImport	full	js
+compiler/missingMemberErrorHasShortPath	full	js
 compiler/missingPropertiesOfClassExpression	full	js
 compiler/missingRequiredDeclare.d	full	js
 compiler/missingReturnStatement	full	js
@@ -5175,11 +5177,13 @@ compiler/partialTypeNarrowedToByTypeGuard	full	js
 compiler/partiallyAmbientClodule	full	js
 compiler/partiallyAmbientFundule	full	js
 compiler/partiallyDiscriminantedUnions	full	js
+compiler/pathMappingBasedModuleResolution1_node	full	js
 compiler/pathMappingBasedModuleResolution6_classic	full	js
 compiler/pathMappingBasedModuleResolution6_node	full	js
 compiler/pathMappingWithoutBaseUrl1	full	js
 compiler/pathMappingWithoutBaseUrl2	full	js
 compiler/pathsAliasTrailingSlashConflictWithAtTypes	full	js
+compiler/pathsValidation5	full	js
 compiler/patternAmbientModuleAugmentationMergedSymbol	full	js
 compiler/performanceComparisonOfStructurallyIdenticalInterfacesWithGenericSignatures	full	js
 compiler/pickOfLargeObjectUnionWorks	full	js
@@ -5648,7 +5652,7 @@ compiler/selfRef	full	js
 compiler/selfReference	full	js
 compiler/selfReferencesInFunctionParameters	full	js
 compiler/selfReferencingFile	full	js
-compiler/selfReferencingFile2	category	js
+compiler/selfReferencingFile2	full	js
 compiler/selfReferencingFile3	full	js
 compiler/selfReferencingSpreadInLoop	full	js
 compiler/selfReferencingTypeReferenceInference	full	js
@@ -6188,6 +6192,7 @@ compiler/tryStatementInternalComments	full	js
 compiler/tsCheckPreservedAfterReference	full	js
 compiler/tsconfigExtendsPackageJsonExportsWildcard	full	js
 compiler/tsconfigMapOptionsAreCaseInsensitive	full	js
+compiler/tsconfigRootdirInclude	full	js
 compiler/tsconfigSimpleTest	full	js
 compiler/tslibInJs	full	js
 compiler/tslibNotFoundDifferentModules	full	js
@@ -11622,7 +11627,7 @@ conformance/parser_duplicateLabel1	full	js
 conformance/parser_duplicateLabel2	full	js
 conformance/parser_duplicateLabel3	full	js
 conformance/parser_duplicateLabel4	full	js
-conformance/parserharness	category	js
+conformance/parserharness	full	js
 conformance/parserindenter	full	js
 conformance/parservoidInQualifiedName0	full	js
 conformance/parservoidInQualifiedName1	full	js
@@ -13016,7 +13021,7 @@ conformance/typesWithSpecializedCallSignatures	full	js
 conformance/typesWithSpecializedConstructSignatures	full	js
 conformance/typingsLookup1	full	js
 conformance/typingsLookup2	full	js
-conformance/typingsLookup3	text	js
+conformance/typingsLookup3	full	js
 conformance/typingsLookup4	full	js
 conformance/typingsSuggestion1	full	js
 conformance/typingsSuggestion2	full	js
