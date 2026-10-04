@@ -1,6 +1,6 @@
 # 宣言の型をtsgoのpseudocheckerで作る
 
-状態：**PC1–PC3 完了、PC4 未着手**（2026-10-04）。ユーザー決定（2026-10-04）：「pseudocheckerを移植（推奨）」。前段：
+状態：**PC1–PC4 完了**（2026-10-04）。ユーザー決定（2026-10-04）：「pseudocheckerを移植（推奨）」。前段：
 [JavaScriptのd.ts](../ts71-js-declarations/README.md)（完了）、[TypeScript 7.1への切替](../ts71-cutover/README.md)のP3-5ac。
 
 ## 背景
@@ -163,4 +163,51 @@ node化を使う。isolatedDeclarationsの診断も宣言と戻り値の両方�
   - classの`extends`の式の型（`CreateTypeOfExpression`）をtsgoの`serializeTypeForExpression`にし、6.0の
     syntactic builderの残りの推論を消す（PC4）。
   - tsgoの直列化cacheの範囲と複製（上の`noImplicitThisBigThis`）。
+  - JavaScriptの`@this`：tsgoの再parseは関数のparameterの先頭に`this`を加えるが、tsc-rsのparameter一覧には無い。
+
+## PC4 6.0の式からの推論の退役（2026-10-04）
+
+node builderは6.0の`expressionToTypeNode`の推論を呼ばなくなった。書かれたtype nodeの再利用（6.0の訪問、tsgoの
+nodecopy.go）だけが`crates/checker/src/syntactic_type_node_builder.rs`に残る（PC4の前は4,089行、今は1,934行）。
+
+- **式の型**（`serialize.rs`の`serialize_type_for_expression`）：tsgoの`serializeTypeForExpression`の仮実装と同じく、
+  式のregularな型（`getRegularTypeOfExpression`、qualified nameやproperty accessの右辺なら親）を広げ、contextの
+  mapperで具体化して直列化する（nodebuilderimpl.go:1811-1815）。pseudo typeの`pseudoTypeToType`も同じ関数を使う。
+- **classの`extends`の式**：declaration transformが型を求める前に`ReportInferenceFallback`を出す（transform.go:2013）。
+  emitterのresolverにmember `report_inference_fallback`を加え、checkerはtrackerのaccessを渡す。6.0の推論が
+  出していた報告と位置・順序は同じ（TS9021）。
+- **computed property名**：再利用する型の中のcomputed名のentity nameがerrorになるとき、tsgoはrecoveryの境界に
+  errorを付けて子を訪ねる（nodecopy.go:751-759）。6.0はevaluatorとcheckerから名前を書き換え、そのとき名前を
+  trackしてprivate nameとして報告した（関数の中のconst enumのkeyでTS4060。tsgoは報告しない）。
+- **消したもの**：sessionの推論の関数（`typeFrom*`・`inferTypeOf*`・`serializeTypeOf*`など）、resolverのmember
+  12個（`serializeTypeOfExpression`・`serializeTypeOfDeclaration`・`serializeReturnTypeForSignature`・
+  `canReuseTypeNodeAnnotation`・`evaluateEntityNameExpression`・`trackComputedName`など）、`SyntacticResult`・
+  `SyntacticSymbol`・`SyntacticAccessorDeclarations`、contextの`noInferenceFallback`。訪問が使う
+  `serializeExistingTypeNode`は`addUndefined`の腕を除いて残した（呼び出し元はfalseだけを渡す）。
+- **診断の型表示**（`check.rs`の文字列の表示）：
+  - signatureの書いた戻り値の再利用は、enclosing declarationがあるときだけにした（tsgo nodebuilderimpl.go:2114）。
+    診断がenclosingを渡すのは、文脈に依らない式の型だけ（`getTypeNamesForErrorDisplay`、relater.go:1270-1288）。
+    たとえば関数宣言の`return x as number | string`は、tsgoと同じくcheckerのunion（`string | number`）になる。
+  - TS2208（`This type parameter might need an extends … constraint`）の型は、tsgoと同じくenclosing無しで表示する
+    （relater.go:4777。6.0はtype parameterの宣言を渡した）。
+- unit test（tsgoの出力にpin）：
+  - CLI：classの`extends`の式（d.tsとisolatedDeclarationsの診断）、再利用する型の中のcomputed名、診断の戻り値の表示。
+  - checker：訪問のcomputed名のerrorの腕、TS2208の制約の文字（7.1の既定の`strict`で`| undefined`）、
+    6.0の表示にpinしていた`relation_reporting_keeps_union_keyof_and_class_member_failure_levels`の書き直し。
+- conformance（release build、`31b313976`、`--workers 2`、442 s）：
+  - 15,228構成、lane A 13,467（変化なし）。
+  - errors full 13,332→13,337（+5、どれもText→Full）：診断の戻り値の表示で`baseClassImprovedMismatchErrors`、
+    TS2208の制約の表示で`tsxNotUsingApparentTypeOfSFC`・`tsxGenericAttributesType5`・`tsxGenericAttributesType6`・
+    `subtypingWithOptionalProperties`。text 14→9。
+  - emitとmapは変化なし（emit full 13,326、emit mismatch 111）。下がった構成も、tierが同じまま出力が変わった構成も
+    無い。
+- ratchet：0 regressions、5行raise。`intersectionConstructorReductionCrash`は今回もharness error（memory上限）で、
+  ratchetに入れない。
+- local：formatとworkspace全体のclippy。binder・emitter・checker・compiler・conformanceのtest（38 targets、2,713件）。
+  試行（filter `isolatedDeclaration`・`declarationEmit`・`ixin`・`omputed`・`lassExpression`）で下がった構成は
+  無かった。
+- 残り：
+  - 診断の型表示で、enclosingがある関数式の戻り値：tsgoはpseudo typeを使うので`as const`のliteralを書いたまま
+    表示する（`() => { readonly a: 'x'; }`）。tsc-rsは6.0のassertionの再利用だけで、`"x"`になる。
+  - tsgoの直列化cacheの範囲と複製（PC1–PC3の`noImplicitThisBigThis`）。
   - JavaScriptの`@this`：tsgoの再parseは関数のparameterの先頭に`this`を加えるが、tsc-rsのparameter一覧には無い。

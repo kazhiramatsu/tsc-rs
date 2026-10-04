@@ -438,7 +438,7 @@ compiler/badOverloadError	full	js
 compiler/badThisBinding	full	js
 compiler/bangInModuleName	full	js
 compiler/baseCheck	full	js
-compiler/baseClassImprovedMismatchErrors	text	js
+compiler/baseClassImprovedMismatchErrors	full	js
 compiler/baseConstraintOfDecorator	full	js
 compiler/baseExpressionTypeParameters	full	js
 compiler/baseIndexSignatureResolution	full	js
@@ -6200,7 +6200,7 @@ compiler/tsxFragmentChildrenCheck	full	js
 compiler/tsxInferenceShouldNotYieldAnyOnUnions	full	js
 compiler/tsxInvokeComponentType	full	js
 compiler/tsxNoTypeAnnotatedSFC	full	js
-compiler/tsxNotUsingApparentTypeOfSFC	text	js
+compiler/tsxNotUsingApparentTypeOfSFC	full	js
 compiler/tsxReactPropsInferenceSucceedsOnIntersections	full	js
 compiler/tsxResolveExternalModuleExportsTypes	full	js
 compiler/tsxSpreadDoesNotReportExcessProps	full	js
@@ -12121,7 +12121,7 @@ conformance/subtypingWithObjectMembersOptionality	full	js
 conformance/subtypingWithObjectMembersOptionality2	full	js
 conformance/subtypingWithObjectMembersOptionality3	full	js
 conformance/subtypingWithObjectMembersOptionality4	full	js
-conformance/subtypingWithOptionalProperties	text	js
+conformance/subtypingWithOptionalProperties	full	js
 conformance/subtypingWithStringIndexer	full	js
 conformance/subtypingWithStringIndexer2	full	js
 conformance/subtypingWithStringIndexer3	full	js
@@ -12616,8 +12616,8 @@ conformance/tsxGenericAttributesType1	full	js
 conformance/tsxGenericAttributesType2	full	js
 conformance/tsxGenericAttributesType3	full	js
 conformance/tsxGenericAttributesType4	full	js
-conformance/tsxGenericAttributesType5	text	js
-conformance/tsxGenericAttributesType6	text	js
+conformance/tsxGenericAttributesType5	full	js
+conformance/tsxGenericAttributesType6	full	js
 conformance/tsxGenericAttributesType7	full	js
 conformance/tsxGenericAttributesType8	full	js
 conformance/tsxGenericAttributesType9	full	js
