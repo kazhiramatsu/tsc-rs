@@ -1856,10 +1856,12 @@ fn checked_js_type_exports_report_18043_with_automatic_export_context() {
                     .as_str()
                     .expect("scalar diagnostic observation"),
             ),
+            // tsgo anchors the note at the typedef's name: its reparsed
+            // JSTypeAliasDeclaration's error range.
             (
                 Some("/main.js"),
-                Some(source.find("@typedef").expect("typedef tag") as u32),
-                Some("@typedef {{ x: number }} JSDocType".len() as u32),
+                Some(source.find("JSDocType */").expect("typedef name") as u32),
+                Some("JSDocType".len() as u32),
                 18044,
                 "'JSDocType' is automatically exported here.",
             )

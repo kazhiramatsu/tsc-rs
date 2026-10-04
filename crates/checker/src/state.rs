@@ -1018,9 +1018,9 @@ pub struct CheckerState<'a> {
     /// `None` is a cached missing or provenance-suppressed `tslib`;
     /// the first definite miss has already emitted 2354.
     pub(crate) external_helpers_modules: rustc_hash::FxHashMap<NodeId, Option<SymbolId>>,
-    /// tsc SymbolLinks.requestedExternalEmitHelpers, kept checker-local
-    /// because binder symbols are shared by cached lib bundles.
-    pub(crate) requested_external_emit_helpers: rustc_hash::FxHashMap<SymbolId, u32>,
+    /// tsgo's per-file `requestedExternalEmitHelpers` (sourceFileLinks),
+    /// keyed by the source file's root node.
+    pub(crate) requested_external_emit_helpers: rustc_hash::FxHashMap<NodeId, u32>,
     /// Per-source getJsxNamespaceContainerForImplicitImport cache.
     /// `Some(None)` records an attempted miss so repeated JSX nodes do
     /// not duplicate the runtime-module diagnostic.
@@ -2342,8 +2342,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: dedcf6cc6c301274f018ef98543f4abebe1b7826c45f601b914137812caa8cfa
     /// tsc-span: _tsc.js:47580-47582
     ///
-    /// No location ⇒ createCompilerDiagnostic: a file-less,
-    /// program-level diagnostic.
+    /// No location ⇒ a file-less, program-level diagnostic. tsgo's
+    /// `NewDiagnosticForNode(nil, …)` keeps the zero range (0, 0) where a
+    /// compiler diagnostic has the undefined range (-1, -1)
+    /// (checker/utilities.go:21-29, ast/diagnostic.go:239-241), so a
+    /// checker's global diagnostic sorts after the compiler's.
     pub fn create_error(
         &self,
         location: Option<NodeId>,
@@ -2366,7 +2369,12 @@ impl<'a> CheckerState<'a> {
     ) -> Diagnostic {
         match location {
             Some(node) => self.diagnostic_for_node_js(node, message, args),
-            None => Diagnostic::new(None, None, None, MessageChain::new_js_parts(message, args)),
+            None => Diagnostic::new(
+                None,
+                Some(0),
+                Some(0),
+                MessageChain::new_js_parts(message, args),
+            ),
         }
     }
 

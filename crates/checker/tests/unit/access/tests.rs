@@ -919,8 +919,12 @@ fn decorator_argument_class_expression_contains_its_privates() {
         );
 }
 
+/// tsgo names the class by `SymbolToString(typeClass.Symbol())`
+/// (checker.go:11724): a class expression takes the name it is assigned to,
+/// and one passed as an argument is `(Anonymous class)`; tsc 6.0 wrote
+/// `(anonymous)`. The expected messages are tsgo's.
 #[test]
-fn private_access_diagnostic_uses_the_anonymous_class_sentinel() {
+fn private_access_diagnostic_names_the_class_like_symbol_to_string() {
     let text = "const Anonymous = class {\n\
                         #field = 1;\n\
                         static getInstance() { return new Anonymous(); }\n\
@@ -930,7 +934,10 @@ fn private_access_diagnostic_uses_the_anonymous_class_sentinel() {
                         #field = 1;\n\
                         static getInstance() { return new Named(); }\n\
                     }\n\
-                    Named.getInstance().#field;\n";
+                    Named.getInstance().#field;\n\
+                    declare function id<T>(x: T): T;\n\
+                    const holder = id(class { #g = 1; static make() { return new this(); } });\n\
+                    holder.make().#g;\n";
     let messages = with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
         state.check_source_file(0);
         state
@@ -949,8 +956,9 @@ fn private_access_diagnostic_uses_the_anonymous_class_sentinel() {
     assert_eq!(
             messages,
             [
-                "Property '#field' is not accessible outside class '(anonymous)' because it has a private identifier.".to_owned(),
+                "Property '#field' is not accessible outside class 'Anonymous' because it has a private identifier.".to_owned(),
                 "Property '#field' is not accessible outside class 'Named' because it has a private identifier.".to_owned(),
+                "Property '#g' is not accessible outside class '(Anonymous class)' because it has a private identifier.".to_owned(),
             ]
         );
 }
